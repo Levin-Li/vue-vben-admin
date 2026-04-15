@@ -21,6 +21,61 @@ import { refreshTokenApi } from './core';
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 
+function isBusinessError(responseData: Record<string, any>) {
+  if (!responseData || typeof responseData !== 'object') {
+    return false;
+  }
+
+  if (responseData.bizError === true) {
+    return true;
+  }
+
+  const errorType = String(responseData.errorType || '');
+  if (errorType.includes('Biz')) {
+    return true;
+  }
+
+  const code = Number(responseData.code);
+  return Number.isFinite(code) && code >= 10000 && code < 20000;
+}
+
+function getUnifiedErrorMessage(msg: string, error: any) {
+  const responseData = error?.response?.data ?? {};
+  const businessMessage =
+    responseData?.error ??
+    responseData?.msg ??
+    responseData?.message ??
+    responseData?.detailMsg ??
+    msg;
+
+  if (isBusinessError(responseData)) {
+    return businessMessage || '业务处理失败';
+  }
+
+  return '网络或服务器异常';
+}
+
+function applyCommonInterceptors(
+  client: RequestClient,
+  enableAuth: boolean,
+) {
+  if (enableAuth) {
+    client.addResponseInterceptor(
+      defaultResponseInterceptor({
+        codeField: 'code',
+        dataField: 'data',
+        successCode: 0,
+      }),
+    );
+  }
+
+  client.addResponseInterceptor(
+    errorMessageResponseInterceptor((msg: string, error) => {
+      message.error(getUnifiedErrorMessage(msg, error));
+    }),
+  );
+}
+
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   const client = new RequestClient({
     ...options,
@@ -57,7 +112,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   }
 
   function formatToken(token: null | string) {
-    return token ? `Bearer ${token}` : null;
+    return token || null;
   }
 
   // 请求头处理
@@ -71,15 +126,6 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     },
   });
 
-  // 处理返回的响应数据格式
-  client.addResponseInterceptor(
-    defaultResponseInterceptor({
-      codeField: 'code',
-      dataField: 'data',
-      successCode: 0,
-    }),
-  );
-
   // token过期的处理
   client.addResponseInterceptor(
     authenticateResponseInterceptor({
@@ -91,17 +137,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     }),
   );
 
-  // 通用的错误处理,如果没有进入上面的错误处理逻辑，就会进入这里
-  client.addResponseInterceptor(
-    errorMessageResponseInterceptor((msg: string, error) => {
-      // 这里可以根据业务进行定制,你可以拿到 error 内的信息进行定制化处理，根据不同的 code 做不同的提示，而不是直接使用 message.error 提示 msg
-      // 当前mock接口返回的错误字段是 error 或者 message
-      const responseData = error?.response?.data ?? {};
-      const errorMessage = responseData?.error ?? responseData?.message ?? '';
-      // 如果没有错误信息，则会根据状态码进行提示
-      message.error(errorMessage || msg);
-    }),
-  );
+  applyCommonInterceptors(client, true);
 
   return client;
 }
@@ -110,4 +146,9 @@ export const requestClient = createRequestClient(apiURL, {
   responseReturn: 'data',
 });
 
-export const baseRequestClient = new RequestClient({ baseURL: apiURL });
+export const baseRequestClient = new RequestClient({
+  baseURL: apiURL,
+  responseReturn: 'data',
+});
+
+applyCommonInterceptors(baseRequestClient, false);

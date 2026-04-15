@@ -22,8 +22,9 @@ function normalizeUserInfo(data: BackendUserInfo): UserInfo {
 
   return {
     ...data,
+    avatar: data.avatar || '',
     desc: data.tenantId ? `租户：${data.tenantId}` : '平台管理用户',
-    homePath: '/system/role',
+    homePath: '/clob/V1/Role',
     realName,
     roles: data.roleList || [],
     token: '',

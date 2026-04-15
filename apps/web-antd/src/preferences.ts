@@ -8,7 +8,8 @@ import { defineOverridesPreferences } from '@vben/preferences';
 export const overridesPreferences = defineOverridesPreferences({
   // overrides
   app: {
-    defaultHomePath: '/system/role',
+    accessMode: 'backend',
+    defaultHomePath: '/clob/V1/Role',
     name: import.meta.env.VITE_APP_TITLE,
   },
 });

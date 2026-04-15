@@ -68,9 +68,10 @@ async function handleSubmit() {
   const { valid } = await formApi.validate();
   const values = await formApi.getValues();
   if (valid) {
+    const account = values?.account ?? values?.username ?? '';
     localStorage.setItem(
       REMEMBER_ME_KEY,
-      rememberMe.value ? values?.username : '',
+      rememberMe.value ? account : '',
     );
     emit('submit', values);
   }
@@ -82,6 +83,7 @@ function handleGo(path: string) {
 
 onMounted(() => {
   if (localUsername) {
+    formApi.setFieldValue('account', localUsername);
     formApi.setFieldValue('username', localUsername);
   }
 });

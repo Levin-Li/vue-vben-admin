@@ -18,6 +18,21 @@ export namespace AuthApi {
     data: string;
     status: number;
   }
+
+  export interface VerifyCodeParams {
+    account?: string;
+    verifyCodeType?: string;
+  }
+
+  export interface VerifyCodeResult {
+    account?: string;
+    code?: string | null;
+    interactionData?: string | null;
+    interactionDataType?: string | null;
+    mock?: boolean;
+    successful?: boolean;
+    type?: string;
+  }
 }
 
 /**
@@ -33,6 +48,12 @@ export async function loginApi(data: AuthApi.LoginParams) {
 export async function refreshTokenApi() {
   return baseRequestClient.post<AuthApi.RefreshTokenResult>('/rbac/refresh', {
     withCredentials: true,
+  });
+}
+
+export async function getVerifyCodeApi(params: AuthApi.VerifyCodeParams) {
+  return baseRequestClient.get<AuthApi.VerifyCodeResult>('/rbac/getVerifyCode', {
+    params,
   });
 }
 

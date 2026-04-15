@@ -13,6 +13,7 @@ import { $t, setupI18n } from '#/locales';
 
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
+import { registerRbacPermissionDirective } from './directives/rbac-permission';
 import App from './app.vue';
 import { router } from './router';
 
@@ -48,6 +49,7 @@ async function bootstrap(namespace: string) {
 
   // 安装权限指令
   registerAccessDirective(app);
+  registerRbacPermissionDirective(app);
 
   // 初始化 tippy
   const { initTippy } = await import('@vben/common-ui/es/tippy');

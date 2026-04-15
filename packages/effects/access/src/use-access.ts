@@ -3,6 +3,8 @@ import { computed } from 'vue';
 import { preferences, updatePreferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 
+import RbacPermissionMatchUtils from './rbac-permission-match-utils';
+
 function useAccess() {
   const accessStore = useAccessStore();
   const userStore = useUserStore();
@@ -27,10 +29,10 @@ function useAccess() {
    * @param codes
    */
   function hasAccessByCodes(codes: string[]) {
-    const userCodesSet = new Set(accessStore.accessCodes);
-
-    const intersection = codes.filter((item) => userCodesSet.has(item));
-    return intersection.length > 0;
+    const userCodes = accessStore.accessCodes || [];
+    return codes.some((item) =>
+      RbacPermissionMatchUtils.simpleMatchList(item, userCodes),
+    );
   }
 
   async function toggleAccessMode() {

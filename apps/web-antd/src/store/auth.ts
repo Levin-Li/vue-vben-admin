@@ -12,6 +12,7 @@ import { defineStore } from 'pinia';
 
 import { getAccessCodesApi, getUserInfoApi, loginApi, logoutApi } from '#/api';
 import { $t } from '#/locales';
+import { shouldRefreshAuthorizedPermissions } from '#/utils/rbac-access';
 
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
@@ -42,7 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
         // 获取用户信息并存储到 accessStore 中
         const [fetchUserInfoResult, accessCodes] = await Promise.all([
           fetchUserInfo(),
-          getAccessCodesApi(),
+          ensureAccessCodesLoaded(true),
         ]);
 
         userInfo = fetchUserInfoResult;
@@ -104,6 +105,16 @@ export const useAuthStore = defineStore('auth', () => {
     return userInfo;
   }
 
+  async function ensureAccessCodesLoaded(force = false) {
+    if (!force && !shouldRefreshAuthorizedPermissions(accessStore.accessCodes)) {
+      return accessStore.accessCodes;
+    }
+
+    const accessCodes = await getAccessCodesApi();
+    accessStore.setAccessCodes(accessCodes || []);
+    return accessCodes || [];
+  }
+
   function $reset() {
     loginLoading.value = false;
   }
@@ -111,6 +122,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     $reset,
     authLogin,
+    ensureAccessCodesLoaded,
     fetchUserInfo,
     loginLoading,
     logout,
