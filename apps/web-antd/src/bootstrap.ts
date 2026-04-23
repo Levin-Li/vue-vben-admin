@@ -10,11 +10,12 @@ import '@vben/styles/antd';
 import { useTitle } from '@vueuse/core';
 
 import { $t, setupI18n } from '#/locales';
+import { ensureRbacPermissionMatcherLoaded } from '#/utils/rbac-access';
 
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
-import { registerRbacPermissionDirective } from './directives/rbac-permission';
 import App from './app.vue';
+import { registerRbacPermissionDirective } from './directives/rbac-permission';
 import { router } from './router';
 
 async function bootstrap(namespace: string) {
@@ -46,6 +47,9 @@ async function bootstrap(namespace: string) {
 
   // 配置 pinia-tore
   await initStores(app, { namespace });
+
+  // 预加载后端提供的权限匹配器，统一按钮权限判断规则
+  void ensureRbacPermissionMatcherLoaded();
 
   // 安装权限指令
   registerAccessDirective(app);

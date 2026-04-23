@@ -2,12 +2,9 @@
 import type { NotificationItem } from '@vben/layouts';
 
 import { computed, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
-import { VBEN_DOC_URL, VBEN_GITHUB_URL } from '@vben/constants';
 import { useWatermark } from '@vben/hooks';
-import { BookOpenText, CircleHelp, SvgGithubIcon } from '@vben/icons';
 import {
   BasicLayout,
   LockScreen,
@@ -16,11 +13,13 @@ import {
 } from '@vben/layouts';
 import { preferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
-import { openWindow } from '@vben/utils';
+
+import { Modal } from 'ant-design-vue';
 
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
 import LoginForm from '#/views/_core/authentication/login.vue';
+import ProfileCenter from '#/views/_core/profile/index.vue';
 
 const notifications = ref<NotificationItem[]>([
   {
@@ -75,10 +74,10 @@ const notifications = ref<NotificationItem[]>([
   },
 ]);
 
-const router = useRouter();
 const userStore = useUserStore();
 const authStore = useAuthStore();
 const accessStore = useAccessStore();
+const profileModalOpen = ref(false);
 const { destroyWatermark, updateWatermark } = useWatermark();
 const showDot = computed(() =>
   notifications.value.some((item) => !item.isRead),
@@ -87,42 +86,28 @@ const showDot = computed(() =>
 const menus = computed(() => [
   {
     handler: () => {
-      router.push({ name: 'Profile' });
+      profileModalOpen.value = true;
     },
     icon: 'lucide:user',
     text: $t('page.auth.profile'),
-  },
-  {
-    handler: () => {
-      openWindow(VBEN_DOC_URL, {
-        target: '_blank',
-      });
-    },
-    icon: BookOpenText,
-    text: $t('ui.widgets.document'),
-  },
-  {
-    handler: () => {
-      openWindow(VBEN_GITHUB_URL, {
-        target: '_blank',
-      });
-    },
-    icon: SvgGithubIcon,
-    text: 'GitHub',
-  },
-  {
-    handler: () => {
-      openWindow(`${VBEN_GITHUB_URL}/issues`, {
-        target: '_blank',
-      });
-    },
-    icon: CircleHelp,
-    text: $t('ui.widgets.qa'),
   },
 ]);
 
 const avatar = computed(() => {
   return userStore.userInfo?.avatar ?? preferences.app.defaultAvatar;
+});
+
+const userDropdownDescription = computed(() => {
+  const userInfo = (userStore.userInfo || {}) as Record<string, any>;
+  return (
+    userInfo.telephone ||
+    userInfo.mobile ||
+    userInfo.phone ||
+    userInfo.email ||
+    userInfo.loginName ||
+    userInfo.username ||
+    ''
+  );
 });
 
 async function handleLogout() {
@@ -171,12 +156,22 @@ watch(
 
 <template>
   <BasicLayout @clear-preferences-and-logout="handleLogout">
+    <Modal
+      v-model:open="profileModalOpen"
+      :footer="null"
+      :title="$t('page.auth.profile')"
+      :width="960"
+      destroy-on-close
+    >
+      <ProfileCenter class="max-h-[72vh] overflow-y-auto" />
+    </Modal>
+
     <template #user-dropdown>
       <UserDropdown
         :avatar
         :menus
         :text="userStore.userInfo?.realName"
-        description="ann.vben@gmail.com"
+        :description="userDropdownDescription"
         tag-text="Pro"
         @logout="handleLogout"
       />

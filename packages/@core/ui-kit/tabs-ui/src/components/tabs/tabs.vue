@@ -115,12 +115,12 @@ function onMouseDown(e: MouseEvent, tab: TabConfig) {
               <!-- close-icon -->
               <X
                 v-show="!tab.affixTab && tabsView.length > 1 && tab.closable"
-                class="size-3 cursor-pointer rounded-full stroke-accent-foreground/80 transition-all hover:bg-accent hover:stroke-accent-foreground group-[.is-active]:text-primary dark:group-[.is-active]:text-accent-foreground"
+                class="size-3 cursor-pointer rounded-full stroke-accent-foreground/80 opacity-0 transition-all hover:bg-accent hover:stroke-accent-foreground group-hover:opacity-100 group-[.is-active]:text-primary group-[.is-active]:opacity-100 dark:group-[.is-active]:text-accent-foreground"
                 @click.stop="() => emit('close', tab.key)"
               />
               <Pin
                 v-show="tab.affixTab && tabsView.length > 1 && tab.closable"
-                class="mt-[1px] size-3.5 cursor-pointer rounded-full transition-all hover:bg-accent hover:stroke-accent-foreground group-[.is-active]:text-primary dark:group-[.is-active]:text-accent-foreground"
+                class="mt-[1px] size-3.5 cursor-pointer rounded-full opacity-0 transition-all hover:bg-accent hover:stroke-accent-foreground group-hover:opacity-100 group-[.is-active]:text-primary group-[.is-active]:opacity-100 dark:group-[.is-active]:text-accent-foreground"
                 @click.stop="() => emit('unpin', tab)"
               />
             </div>

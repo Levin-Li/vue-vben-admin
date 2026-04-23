@@ -7,7 +7,6 @@ import { useAppConfig } from '@vben/hooks';
 import { preferences } from '@vben/preferences';
 import {
   authenticateResponseInterceptor,
-  defaultResponseInterceptor,
   errorMessageResponseInterceptor,
   RequestClient,
 } from '@vben/request';
@@ -18,6 +17,12 @@ import { message } from 'ant-design-vue';
 import { useAuthStore } from '#/store';
 
 import { refreshTokenApi } from './core';
+import { createDynamicVerifyCodeInterceptor } from './dynamic-verify-code';
+import {
+  getServiceRespMessage,
+  isServiceResp,
+  unwrapServiceResp,
+} from './service-resp';
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 
@@ -36,12 +41,16 @@ function isBusinessError(responseData: Record<string, any>) {
   }
 
   const code = Number(responseData.code);
-  return Number.isFinite(code) && code >= 10000 && code < 20000;
+  return Number.isFinite(code) && code >= 10_000 && code < 20_000;
 }
 
 function getUnifiedErrorMessage(msg: string, error: any) {
   const responseData = error?.response?.data ?? {};
-  const businessMessage =
+  if (isServiceResp(responseData)) {
+    return getServiceRespMessage(responseData);
+  }
+
+  const backendMessage =
     responseData?.error ??
     responseData?.msg ??
     responseData?.message ??
@@ -49,25 +58,34 @@ function getUnifiedErrorMessage(msg: string, error: any) {
     msg;
 
   if (isBusinessError(responseData)) {
-    return businessMessage || '业务处理失败';
+    return backendMessage || '业务处理失败';
   }
 
-  return '网络或服务器异常';
+  return responseData?.errorType || backendMessage || '网络或服务器异常';
 }
 
-function applyCommonInterceptors(
-  client: RequestClient,
-  enableAuth: boolean,
-) {
-  if (enableAuth) {
-    client.addResponseInterceptor(
-      defaultResponseInterceptor({
-        codeField: 'code',
-        dataField: 'data',
-        successCode: 0,
-      }),
-    );
-  }
+function applyCommonInterceptors(client: RequestClient) {
+  client.addResponseInterceptor(createDynamicVerifyCodeInterceptor(client));
+
+  client.addResponseInterceptor({
+    fulfilled: (response: any) => {
+      const { config, data: responseData, status } = response;
+
+      if (config.__dynamicVerifyKeepRaw) {
+        return response;
+      }
+
+      if (config.responseReturn === 'raw') {
+        return response;
+      }
+
+      if (status >= 200 && status < 400) {
+        return unwrapServiceResp(responseData);
+      }
+
+      throw Object.assign({}, response, { response });
+    },
+  });
 
   client.addResponseInterceptor(
     errorMessageResponseInterceptor((msg: string, error) => {
@@ -106,7 +124,8 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   async function doRefreshToken() {
     const accessStore = useAccessStore();
     const resp = await refreshTokenApi();
-    const newToken = resp.data;
+    const newToken =
+      typeof resp === 'string' ? resp : resp?.data || resp?.accessToken || '';
     accessStore.setAccessToken(newToken);
     return newToken;
   }
@@ -137,18 +156,20 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     }),
   );
 
-  applyCommonInterceptors(client, true);
+  applyCommonInterceptors(client);
 
   return client;
 }
 
 export const requestClient = createRequestClient(apiURL, {
+  paramsSerializer: 'repeat',
   responseReturn: 'data',
 });
 
 export const baseRequestClient = new RequestClient({
   baseURL: apiURL,
+  paramsSerializer: 'repeat',
   responseReturn: 'data',
 });
 
-applyCommonInterceptors(baseRequestClient, false);
+applyCommonInterceptors(baseRequestClient);

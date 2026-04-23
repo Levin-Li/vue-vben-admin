@@ -1,23 +1,28 @@
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue';
 
 import { $t } from '@vben/locales';
 
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Input,
-  message,
-  Tabs,
-} from 'ant-design-vue';
+import { Alert, Button, Checkbox, Input, message, Tabs } from 'ant-design-vue';
 
 import { getVerifyCodeApi } from '#/api';
 import { useAuthStore } from '#/store';
 
+import {
+  extractReturnedVerifyCode,
+  resolveContactVerifyCodeType,
+} from './login-verify-type';
+
 defineOptions({ name: 'Login' });
 
-type VerifyCodeTab = 'Captcha' | 'Email' | 'Mfa' | 'Sms';
+type VerifyCodeTab = 'Captcha' | 'Contact';
 
 interface VerifyCodeTabOption {
   description: string;
@@ -29,24 +34,14 @@ const REMEMBER_ME_KEY = `REMEMBER_ME_USERNAME_${location.hostname}`;
 
 const verifyTabs: VerifyCodeTabOption[] = [
   {
-    description: '输入账号和密码后，填写图片中的验证码登录。',
+    description: '请输入账号、密码和图片验证码完成登录。',
     key: 'Captcha',
-    title: '图片验证码',
+    title: '密码登录',
   },
   {
-    description: '验证码会发送到账号绑定的手机，密码可选。',
-    key: 'Sms',
-    title: '手机短信',
-  },
-  {
-    description: '验证码会发送到账号绑定的邮箱，密码可选。',
-    key: 'Email',
-    title: '邮箱验证码',
-  },
-  {
-    description: '请输入身份验证器中的动态验证码。',
-    key: 'Mfa',
-    title: 'MFA',
+    description: '输入手机号或邮箱后获取验证码，无需输入密码。',
+    key: 'Contact',
+    title: '验证码登录',
   },
 ];
 
@@ -65,23 +60,25 @@ const formState = reactive({
   account: rememberedAccount || 'sa',
   password: '123456',
   verifyCode: '',
-  verifyCodeType: 'Captcha' as VerifyCodeTab,
 });
 
 let countdownTimer: null | ReturnType<typeof setInterval> = null;
 
 const currentTab = computed<VerifyCodeTabOption>(() => {
-  return verifyTabs.find((item) => item.key === activeVerifyType.value) || defaultVerifyTab;
+  return (
+    verifyTabs.find((item) => item.key === activeVerifyType.value) ||
+    defaultVerifyTab
+  );
 });
 
+const isContactTab = computed(() => activeVerifyType.value === 'Contact');
 const isCaptchaTab = computed(() => activeVerifyType.value === 'Captcha');
 
-const isSendCodeTab = computed(
-  () =>
-    activeVerifyType.value === 'Sms' || activeVerifyType.value === 'Email',
+const resolvedVerifyCodeType = computed(() =>
+  isContactTab.value
+    ? resolveContactVerifyCodeType(normalizeAccount())
+    : activeVerifyType.value,
 );
-
-const passwordOptional = computed(() => isSendCodeTab.value);
 
 const actionButtonText = computed(() => {
   if (verifyAssetLoading.value) {
@@ -118,26 +115,20 @@ function startCountdown(seconds = 60) {
   }, 1000);
 }
 
-function unwrapVerifyCodeResponse(payload: any) {
-  if (payload?.interactionData || payload?.type) {
+function resolveVerifyCodePayload(payload: any) {
+  if (payload?.interactionData || payload?.type || payload?.code) {
     return payload;
   }
 
-  return payload?.data ?? payload;
-}
-
-function resolveVerifyCodePayload(payload: any) {
-  const current = unwrapVerifyCodeResponse(payload);
-
-  if (current?.interactionData || current?.type) {
-    return current;
+  if (
+    payload?.data?.interactionData ||
+    payload?.data?.type ||
+    payload?.data?.code
+  ) {
+    return payload.data;
   }
 
-  if (current?.data?.interactionData || current?.data?.type) {
-    return current.data;
-  }
-
-  return current;
+  return payload;
 }
 
 function resolveImageMimeType(
@@ -174,7 +165,7 @@ async function requestVerifyCode() {
     return;
   }
 
-  if (!isCaptchaTab.value && countdown.value > 0) {
+  if (isContactTab.value && countdown.value > 0) {
     return;
   }
 
@@ -183,20 +174,26 @@ async function requestVerifyCode() {
     const payload = resolveVerifyCodePayload(
       await getVerifyCodeApi({
         account,
-        verifyCodeType: activeVerifyType.value,
+        verifyCodeType: resolvedVerifyCodeType.value,
       }),
     );
 
+    const returnedCode = extractReturnedVerifyCode(payload);
+    if (returnedCode) {
+      formState.verifyCode = returnedCode;
+    }
+
     if (isCaptchaTab.value) {
       const interactionData = String(payload?.interactionData || '').trim();
-      const interactionDataType = String(payload?.interactionDataType || '').trim();
+      const interactionDataType = String(
+        payload?.interactionDataType || '',
+      ).trim();
 
-      captchaImage.value =
-        interactionData
-          ? `data:${resolveImageMimeType(interactionData, interactionDataType)};base64,${interactionData}`
-          : '';
+      captchaImage.value = interactionData
+        ? `data:${resolveImageMimeType(interactionData, interactionDataType)};base64,${interactionData}`
+        : '';
 
-      if (!captchaImage.value) {
+      if (!captchaImage.value && !returnedCode) {
         message.warning('当前没有获取到验证码图片');
       }
       return;
@@ -209,7 +206,11 @@ async function requestVerifyCode() {
       return;
     }
 
-    message.success(`${currentTab.value.title}已发送，请注意查收`);
+    message.success(
+      resolvedVerifyCodeType.value === 'Email'
+        ? '邮箱验证码已发送，请注意查收'
+        : '短信验证码已发送，请注意查收',
+    );
   } catch (error: any) {
     if (isCaptchaTab.value) {
       captchaImage.value = '';
@@ -217,12 +218,6 @@ async function requestVerifyCode() {
     message.error(error?.message || '获取验证码失败');
   } finally {
     verifyAssetLoading.value = false;
-  }
-}
-
-function handleAccountBlur() {
-  if (isCaptchaTab.value) {
-    void requestVerifyCode();
   }
 }
 
@@ -236,7 +231,7 @@ async function handleSubmit() {
     return;
   }
 
-  if (!passwordOptional.value && !password) {
+  if (isCaptchaTab.value && !password) {
     message.warning('请输入登录密码');
     return;
   }
@@ -250,26 +245,24 @@ async function handleSubmit() {
 
   await authStore.authLogin({
     account,
-    password: password || undefined,
+    password: isCaptchaTab.value ? password : undefined,
     verifyCode,
-    verifyCodeType: activeVerifyType.value,
+    verifyCodeType: resolvedVerifyCodeType.value,
   });
 }
 
-watch(activeVerifyType, (value) => {
+watch(activeVerifyType, () => {
   formState.verifyCode = '';
-  formState.verifyCodeType = value;
   captchaImage.value = '';
   clearCountdown();
   countdown.value = 0;
 
-  if (value === 'Captcha') {
+  if (isCaptchaTab.value) {
     void requestVerifyCode();
   }
 });
 
 onMounted(() => {
-  formState.verifyCodeType = activeVerifyType.value;
   if (isCaptchaTab.value) {
     void requestVerifyCode();
   }
@@ -287,11 +280,11 @@ onBeforeUnmount(() => {
         {{ $t('authentication.welcomeBack') }}
       </h1>
       <p class="mt-2 text-sm text-muted-foreground">
-        请输入账号信息，并按验证码方式完成登录。
+        可使用账号密码登录，也可以使用手机或邮箱验证码登录。
       </p>
     </div>
 
-    <Tabs v-model:activeKey="activeVerifyType">
+    <Tabs v-model:active-key="activeVerifyType">
       <Tabs.TabPane
         v-for="item in verifyTabs"
         :key="item.key"
@@ -314,21 +307,16 @@ onBeforeUnmount(() => {
         <Input
           v-model:value="formState.account"
           autocomplete="username"
-          placeholder="请输入登录账号/手机号/邮箱"
+          placeholder="请输入手机号或邮箱"
           size="large"
-          @blur="handleAccountBlur"
+          @blur="isCaptchaTab ? requestVerifyCode : undefined"
         />
       </div>
 
-      <div>
-        <div class="mb-2 flex items-center justify-between">
-          <label class="block text-sm font-medium text-foreground">
-            登录密码
-          </label>
-          <span v-if="passwordOptional" class="text-xs text-muted-foreground">
-            当前方式下可选
-          </span>
-        </div>
+      <div v-if="isCaptchaTab">
+        <label class="mb-2 block text-sm font-medium text-foreground">
+          登录密码
+        </label>
         <Input.Password
           v-model:value="formState.password"
           autocomplete="current-password"
@@ -368,7 +356,7 @@ onBeforeUnmount(() => {
           </button>
 
           <Button
-            v-else-if="isSendCodeTab"
+            v-if="isContactTab"
             :disabled="verifyAssetLoading || countdown > 0"
             :loading="verifyAssetLoading"
             class="min-w-[116px]"
@@ -383,7 +371,15 @@ onBeforeUnmount(() => {
       <div class="flex items-center justify-between pt-1">
         <Checkbox v-model:checked="rememberMe">记住账号</Checkbox>
         <span class="text-xs text-muted-foreground">
-          当前账号可用：sa / 123456
+          当前使用
+          {{
+            isCaptchaTab
+              ? '图片'
+              : resolvedVerifyCodeType === 'Email'
+                ? '邮箱'
+                : '短信'
+          }}
+          验证码
         </span>
       </div>
 

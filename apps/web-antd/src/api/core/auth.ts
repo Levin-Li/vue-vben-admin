@@ -12,12 +12,12 @@ export namespace AuthApi {
   /** 登录接口返回值 */
   export interface LoginResult {
     accessToken: string;
+    refreshToken?: string;
   }
 
-  export interface RefreshTokenResult {
-    data: string;
-    status: number;
-  }
+  export type RefreshTokenResult =
+    | string
+    | { accessToken?: string; data?: string };
 
   export interface VerifyCodeParams {
     account?: string;
@@ -26,12 +26,25 @@ export namespace AuthApi {
 
   export interface VerifyCodeResult {
     account?: string;
-    code?: string | null;
-    interactionData?: string | null;
-    interactionDataType?: string | null;
+    code?: null | string;
+    interactionData?: null | string;
+    interactionDataType?: null | string;
+    isMock?: boolean;
+    isSuccessful?: boolean;
     mock?: boolean;
     successful?: boolean;
     type?: string;
+  }
+
+  export interface UpdateLoginInfoParams {
+    newEmail?: string;
+    newEmailVerifyCode?: string;
+    newPwd?: string;
+    newTelephone?: string;
+    newTelephoneVerifyCode?: string;
+    oldPwd?: string;
+    verifyCode?: string;
+    verifyCodeType?: 'Bio' | 'Captcha' | 'Email' | 'Hmi' | 'Mfa' | 'Sms';
   }
 }
 
@@ -52,9 +65,16 @@ export async function refreshTokenApi() {
 }
 
 export async function getVerifyCodeApi(params: AuthApi.VerifyCodeParams) {
-  return baseRequestClient.get<AuthApi.VerifyCodeResult>('/rbac/getVerifyCode', {
-    params,
-  });
+  return baseRequestClient.get<AuthApi.VerifyCodeResult>(
+    '/rbac/getVerifyCode',
+    {
+      params,
+    },
+  );
+}
+
+export async function updateLoginInfoApi(data: AuthApi.UpdateLoginInfoParams) {
+  return requestClient.put<null>('/rbac/updateLoginInfo', data);
 }
 
 /**
