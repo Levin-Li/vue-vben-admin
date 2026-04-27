@@ -89,6 +89,10 @@ function applyCommonInterceptors(client: RequestClient) {
 
   client.addResponseInterceptor(
     errorMessageResponseInterceptor((msg: string, error) => {
+      if (error?.config?.__silentError) {
+        return;
+      }
+
       message.error(getUnifiedErrorMessage(msg, error));
     }),
   );

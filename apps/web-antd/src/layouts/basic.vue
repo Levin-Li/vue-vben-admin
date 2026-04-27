@@ -21,6 +21,8 @@ import { useAuthStore } from '#/store';
 import LoginForm from '#/views/_core/authentication/login.vue';
 import ProfileCenter from '#/views/_core/profile/index.vue';
 
+import SyncMenuRoutesModal from './sync-menu-routes-modal.vue';
+
 const notifications = ref<NotificationItem[]>([
   {
     id: 1,
@@ -78,10 +80,16 @@ const userStore = useUserStore();
 const authStore = useAuthStore();
 const accessStore = useAccessStore();
 const profileModalOpen = ref(false);
+const syncMenuRoutesModalOpen = ref(false);
 const { destroyWatermark, updateWatermark } = useWatermark();
 const showDot = computed(() =>
   notifications.value.some((item) => !item.isRead),
 );
+
+const canUploadPageRoutes = computed(() => {
+  const userInfo = (userStore.userInfo || {}) as Record<string, any>;
+  return userInfo.superAdmin === true;
+});
 
 const menus = computed(() => [
   {
@@ -91,6 +99,17 @@ const menus = computed(() => [
     icon: 'lucide:user',
     text: $t('page.auth.profile'),
   },
+  ...(canUploadPageRoutes.value
+    ? [
+        {
+          handler: () => {
+            syncMenuRoutesModalOpen.value = true;
+          },
+          icon: 'lucide:cloud-upload',
+          text: '上传页面路由',
+        },
+      ]
+    : []),
 ]);
 
 const avatar = computed(() => {
@@ -156,17 +175,18 @@ watch(
 
 <template>
   <BasicLayout @clear-preferences-and-logout="handleLogout">
-    <Modal
-      v-model:open="profileModalOpen"
-      :footer="null"
-      :title="$t('page.auth.profile')"
-      :width="960"
-      destroy-on-close
-    >
-      <ProfileCenter class="max-h-[72vh] overflow-y-auto" />
-    </Modal>
-
     <template #user-dropdown>
+      <Modal
+        v-model:open="profileModalOpen"
+        :footer="null"
+        :title="$t('page.auth.profile')"
+        :width="960"
+        destroy-on-close
+      >
+        <ProfileCenter class="max-h-[72vh] overflow-y-auto" />
+      </Modal>
+      <SyncMenuRoutesModal v-model:open="syncMenuRoutesModalOpen" />
+
       <UserDropdown
         :avatar
         :menus

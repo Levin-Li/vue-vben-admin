@@ -146,6 +146,11 @@ function handleLogout() {
   openPopover.value = false;
 }
 
+function handleMenuClick(handler: AnyFunction) {
+  handler();
+  openPopover.value = false;
+}
+
 function handleSubmitLogout() {
   emit('logout');
   logoutModalApi.close();
@@ -228,7 +233,7 @@ if (enableShortcutKey.value) {
           v-for="menu in menus"
           :key="menu.text"
           class="mx-1 flex cursor-pointer items-center rounded-sm py-1 leading-8"
-          @click="menu.handler"
+          @click="handleMenuClick(menu.handler)"
         >
           <VbenIcon :icon="menu.icon" class="mr-2 size-4" />
           {{ menu.text }}

@@ -8,6 +8,8 @@ import { Alert, Button, Card, Form, Input, message } from 'ant-design-vue';
 import { getVerifyCodeApi, updateLoginInfoApi } from '#/api';
 import { useAuthStore } from '#/store';
 
+import { extractReturnedVerifyCode } from '../authentication/login-verify-type';
+
 type VerifyCodeType = 'Email' | 'Sms';
 
 const userStore = useUserStore();
@@ -70,10 +72,6 @@ function maskEmail(email: string) {
   return `${visibleName}@${domain}`;
 }
 
-function extractReturnedVerifyCode(payload: any) {
-  return String(payload?.code || payload?.verifyCode || '').trim();
-}
-
 async function sendVerifyCode(
   key: string,
   account: string,
@@ -92,7 +90,7 @@ async function sendVerifyCode(
       account: normalizedAccount,
       verifyCodeType,
     });
-    const returnedCode = extractReturnedVerifyCode(payload);
+    const returnedCode = String(extractReturnedVerifyCode(payload)).trim();
 
     if (returnedCode) {
       fillCode(returnedCode);

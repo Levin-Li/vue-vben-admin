@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import type { DropdownMenuItemProps } from 'reka-ui';
+import type {
+  DropdownMenuItemEmits,
+  DropdownMenuItemProps,
+} from 'reka-ui';
 
 import { computed } from 'vue';
 
 import { cn } from '@vben-core/shared/utils';
 
-import { DropdownMenuItem, useForwardProps } from 'reka-ui';
+import { DropdownMenuItem, useForwardPropsEmits } from 'reka-ui';
 
 const props = defineProps<
   DropdownMenuItemProps & { class?: any; inset?: boolean }
@@ -17,7 +20,8 @@ const delegatedProps = computed(() => {
   return delegated;
 });
 
-const forwardedProps = useForwardProps(delegatedProps);
+const emits = defineEmits<DropdownMenuItemEmits>();
+const forwardedProps = useForwardPropsEmits(delegatedProps, emits);
 </script>
 
 <template>
