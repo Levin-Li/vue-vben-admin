@@ -1,0 +1,314 @@
+import type { CrudPageConfig } from '../../shared/types';
+
+import {
+  brandOptionsLoader,
+  getTenantSiteSuffixVendor,
+  loadTenantSitePublicIp,
+  modulePostCrudAction,
+  tenantOptionsLoader,
+  tenantSiteSuffixOptionsLoader,
+  tenantSiteVendorOptionsLoader,
+} from '../api-module';
+
+const applyStatusOptions = [
+  { label: '未提交', value: 'UnCommit' },
+  { label: '申请中', value: 'Applying' },
+  { label: '续期中', value: 'Renewing' },
+  { label: '申请成功', value: 'Approved' },
+  { label: '申请失败', value: 'Failed' },
+];
+
+export const tenantSitePageCrudConfig: CrudPageConfig = {
+  apiBase: '/TenantSite',
+  createPath: '/TenantSite/applyDomain',
+  defaultFormValues: {
+    domainDnsRecords: [],
+    editable: true,
+    enable: true,
+    orderCode: 100,
+  },
+  defaultQuery: {
+    pageIndex: 1,
+    pageSize: 10,
+  },
+  description: '租户站点支持直接申请免费域名；续期与状态同步作为行操作提供。',
+  fields: [
+    {
+      key: 'tenantId',
+      label: '所属租户',
+      loadOptions: tenantOptionsLoader,
+      remoteSearch: true,
+      required: true,
+      search: true,
+      type: 'select',
+      visibleForSaasUser: true,
+    },
+    {
+      key: '__tenant',
+      label: '所属租户',
+      fixed: 'left',
+      form: false,
+      table: true,
+      type: 'tenant',
+      visibleForSaasUser: true,
+      width: 180,
+    },
+    {
+      key: 'id',
+      label: '站点ID',
+      fixed: 'left',
+      form: false,
+      search: true,
+      table: true,
+      width: 180,
+    },
+    {
+      key: 'brandId',
+      label: '品牌',
+      loadOptions: brandOptionsLoader,
+      remoteSearch: true,
+      search: true,
+      type: 'select',
+    },
+    {
+      key: 'name',
+      label: '站点名称',
+      required: true,
+      search: true,
+      table: true,
+      width: 150,
+    },
+    {
+      key: 'domain',
+      label: '完整域名',
+      required: true,
+      search: true,
+      table: true,
+      width: 220,
+    },
+    {
+      key: 'domainSuffix',
+      label: '域名后缀',
+      loadOptions: tenantSiteSuffixOptionsLoader,
+      required: true,
+      table: true,
+      type: 'select',
+      width: 160,
+    },
+    {
+      key: 'domainVendorName',
+      label: '域名供应商',
+      loadOptions: tenantSiteVendorOptionsLoader,
+      table: true,
+      type: 'select',
+      width: 150,
+    },
+    {
+      key: 'inDomainApplyStatus',
+      label: '域名申请状态',
+      form: false,
+      multiple: true,
+      options: applyStatusOptions,
+      search: true,
+      type: 'select',
+    },
+    {
+      key: 'domainApplyStatus',
+      label: '域名状态',
+      options: applyStatusOptions,
+      table: true,
+      type: 'select',
+      width: 130,
+    },
+    {
+      key: 'inDomainSslCertApplyStatus',
+      label: 'SSL 状态',
+      form: false,
+      multiple: true,
+      options: applyStatusOptions,
+      search: true,
+      type: 'select',
+    },
+    {
+      key: 'domainSslCertApplyStatus',
+      label: 'SSL 状态',
+      options: applyStatusOptions,
+      table: true,
+      type: 'select',
+      width: 130,
+    },
+    {
+      key: 'domainDnsRecords',
+      label: 'DNS 记录',
+      fullRow: true,
+      placeholder:
+        '[{\"recordType\":\"A\",\"host\":\"@\",\"value\":\"公网IP\"}]，留空时会默认生成 A 记录',
+      type: 'json',
+    },
+    { key: 'shortcutIcon', label: 'shortcutIcon', type: 'image' },
+    { key: 'logo', label: 'Logo', table: true, type: 'image', width: 90 },
+    {
+      key: 'gteExpiredTime',
+      label: '站点到期开始',
+      form: false,
+      search: true,
+      type: 'datetime',
+    },
+    {
+      key: 'lteExpiredTime',
+      label: '站点到期结束',
+      form: false,
+      search: true,
+      type: 'datetime',
+    },
+    {
+      key: 'expiredTime',
+      label: '站点到期时间',
+      table: true,
+      type: 'datetime',
+      width: 180,
+    },
+    { key: 'techSupport', label: '技术支持', fullRow: true, type: 'textarea' },
+    { key: 'copyright', label: '版权声明', fullRow: true, type: 'textarea' },
+    {
+      key: 'gteDomainExpiredTime',
+      label: '域名到期开始',
+      form: false,
+      search: true,
+      type: 'datetime',
+    },
+    {
+      key: 'lteDomainExpiredTime',
+      label: '域名到期结束',
+      form: false,
+      search: true,
+      type: 'datetime',
+    },
+    {
+      key: 'domainExpiredTime',
+      label: '域名到期时间',
+      table: true,
+      type: 'datetime',
+      width: 180,
+    },
+    { key: 'domainApplyToken', label: '域名申请Token' },
+    { key: 'domainApplyApi', label: '域名申请Api地址' },
+    { key: 'domainSslCertApplyApi', label: '域名SSL证书申请Api地址' },
+    { key: 'domainSslCertApplyToken', label: '域名SSL证书申请Token' },
+    { key: 'domainSslCertFileSavePath', label: '域名SSL证书保存路径' },
+    {
+      key: 'domainSslCert',
+      label: '域名SSL证书',
+      fullRow: true,
+      type: 'textarea',
+    },
+    {
+      key: 'domainSslCertKey',
+      label: '域名SSL证书密钥',
+      fullRow: true,
+      type: 'textarea',
+    },
+    {
+      key: 'gteDomainSslCertExpiredTime',
+      label: 'SSL证书到期开始',
+      form: false,
+      search: true,
+      type: 'datetime',
+    },
+    {
+      key: 'lteDomainSslCertExpiredTime',
+      label: 'SSL证书到期结束',
+      form: false,
+      search: true,
+      type: 'datetime',
+    },
+    {
+      key: 'domainSslCertExpiredTime',
+      label: 'SSL证书到期时间',
+      table: true,
+      type: 'datetime',
+      width: 180,
+    },
+    { key: 'uiExInfo', label: '前端展示扩展信息', fullRow: true, type: 'json' },
+    { key: 'exInfo', label: '扩展信息', fullRow: true, type: 'json' },
+    { key: 'orderCode', label: '排序代码', type: 'number' },
+    {
+      key: 'enable',
+      label: '是否启用',
+      search: true,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+      width: 100,
+    },
+    {
+      key: 'editable',
+      label: '是否可编辑',
+      search: true,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+      width: 110,
+    },
+    {
+      key: 'createTime',
+      label: '创建时间',
+      form: false,
+      table: true,
+      type: 'datetime',
+      width: 180,
+    },
+    {
+      key: 'lastUpdateTime',
+      label: '更新时间',
+      form: false,
+      table: true,
+      type: 'datetime',
+      width: 180,
+    },
+    { key: 'remark', label: '备注', type: 'textarea' },
+  ],
+  modalWidth: 1200,
+  transformSubmit: async (values, editingRecord) => {
+    const nextValues = { ...values };
+
+    if (!nextValues.domainVendorName && nextValues.domainSuffix) {
+      nextValues.domainVendorName = getTenantSiteSuffixVendor(
+        nextValues.domainSuffix,
+      );
+    }
+
+    if (
+      !editingRecord &&
+      (!Array.isArray(nextValues.domainDnsRecords) ||
+        nextValues.domainDnsRecords.length === 0)
+    ) {
+      const publicIp = await loadTenantSitePublicIp();
+      if (publicIp) {
+        nextValues.domainDnsRecords = [
+          { host: '@', recordType: 'A-A', value: publicIp },
+        ];
+      }
+    }
+
+    return nextValues;
+  },
+  rowActions: [
+    {
+      handler: async (record) => {
+        await modulePostCrudAction(`/TenantSite/${record.id}/syncStatus`);
+      },
+      label: '同步状态',
+      permission: ['/TenantSite/*/syncStatus', '/TenantSite/{id}/syncStatus'],
+    },
+    {
+      confirmText: '确认续期当前域名吗？',
+      handler: async (record) => {
+        await modulePostCrudAction(`/TenantSite/${record.id}/renewDomain`);
+      },
+      label: '续期域名',
+      permission: ['/TenantSite/*/renewDomain', '/TenantSite/{id}/renewDomain'],
+    },
+  ],
+  title: '租户站点管理',
+};

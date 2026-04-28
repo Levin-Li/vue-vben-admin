@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { RouterView } from 'vue-router';
 
 import {
@@ -10,35 +10,22 @@ import {
 } from '@vben/layouts';
 import { preferences, usePreferences } from '@vben/preferences';
 
-import { $t } from '#/locales';
+import { useAuthBrand } from '#/views/_core/authentication/auth-brand';
 
 const { authPanelCenter, isDark } = usePreferences();
+const { appName, brand, copyright, loadAuthBrand, logo } = useAuthBrand();
 
-const appName = computed(() => preferences.app.name);
-const logo = computed(() =>
-  isDark.value && preferences.logo.sourceDark
-    ? preferences.logo.sourceDark
-    : preferences.logo.source,
+const displayLogo = computed(
+  () =>
+    logo.value ||
+    (isDark.value && preferences.logo.sourceDark
+      ? preferences.logo.sourceDark
+      : preferences.logo.source),
 );
 
-const quickSellingPoints = [
-  '统一接入后台菜单树与租户域名登录策略',
-  '支持图片、短信、邮箱、MFA 多种验证码方式',
-  '基础管理页与后台 OpenAPI CRUD 已联动打通',
-];
-
-const previewCards = [
-  {
-    badge: '实时联调',
-    desc: '角色、菜单、组织、用户、字典、租户、租户站点已接入统一界面。',
-    title: '基础模块已贯通',
-  },
-  {
-    badge: '多租户',
-    desc: '登录域名、租户站点、站点证书和后台入口保持同一条业务链。',
-    title: '域名与站点协同',
-  },
-];
+onMounted(() => {
+  void loadAuthBrand();
+});
 </script>
 
 <template>
@@ -50,25 +37,27 @@ const previewCards = [
       <div class="auth-glow auth-glow-one"></div>
       <div class="auth-glow auth-glow-two"></div>
       <div class="auth-grid"></div>
-      <div class="auth-orb auth-orb-one"></div>
-      <div class="auth-orb auth-orb-two"></div>
     </div>
 
-    <header class="relative z-10 flex items-center justify-between px-6 py-6 lg:px-10">
+    <header
+      class="relative z-10 flex items-center justify-between px-6 py-6 lg:px-10"
+    >
       <div class="flex items-center gap-3">
         <div
           class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/85 shadow-[0_12px_30px_rgba(46,109,255,0.15)] ring-1 ring-white/70 dark:bg-slate-900/80 dark:ring-white/10"
         >
           <img
-            v-if="logo"
+            v-if="displayLogo"
             :alt="appName"
-            :src="logo"
+            :src="displayLogo"
             class="h-8 w-8 object-contain"
           />
         </div>
         <div>
-          <div class="text-sm font-medium uppercase tracking-[0.35em] text-sky-600 dark:text-sky-300">
-            Framework Base
+          <div
+            class="text-sm font-medium uppercase text-sky-600 dark:text-sky-300"
+          >
+            {{ brand.eyebrow }}
           </div>
           <div class="text-lg font-semibold text-slate-900 dark:text-slate-50">
             {{ appName }}
@@ -93,58 +82,135 @@ const previewCards = [
       >
         <section
           v-if="!authPanelCenter"
-          class="hidden min-h-[720px] overflow-hidden rounded-[36px] border border-white/60 bg-[linear-gradient(145deg,rgba(255,255,255,0.92),rgba(232,243,255,0.72))] p-10 shadow-[0_35px_80px_rgba(31,78,179,0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-[linear-gradient(145deg,rgba(10,21,39,0.92),rgba(10,29,58,0.75))] xl:block"
+          class="hidden min-h-[720px] overflow-hidden p-10 xl:block"
         >
-          <div class="flex h-full flex-col justify-between">
-            <div>
-              <div
-                class="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50/90 px-4 py-1 text-xs font-semibold tracking-[0.22em] text-sky-700 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200"
-              >
-                SHOP-STYLE AUTH
-              </div>
+          <div class="auth-line-art h-full">
+            <svg
+              aria-hidden="true"
+              class="h-full w-full"
+              fill="none"
+              viewBox="0 0 760 640"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                class="auth-line-muted"
+                d="M104 534c70-34 112-26 164 22 48 44 98 42 152-2 72-58 144-66 238-18"
+              />
 
-              <h1 class="mt-8 max-w-[560px] text-[44px] font-semibold leading-[1.08] tracking-[-0.04em] text-slate-900 dark:text-white">
-                {{ $t('authentication.pageTitle') }}
-              </h1>
-              <p class="mt-5 max-w-[540px] text-lg leading-8 text-slate-600 dark:text-slate-300">
-                {{ $t('authentication.pageDesc') }}
-              </p>
+              <path
+                class="auth-line-flow auth-line-accent"
+                d="M212 238c64-72 166-96 260-48"
+              />
+              <path
+                class="auth-line-flow auth-line-success"
+                d="M548 250c44 38 60 92 42 148"
+              />
+              <path
+                class="auth-line-flow auth-line-warm"
+                d="M510 458c-70 54-176 64-262 10"
+              />
 
-              <div class="mt-10 space-y-4">
-                <div
-                  v-for="item in quickSellingPoints"
-                  :key="item"
-                  class="flex items-start gap-3 rounded-2xl bg-white/70 px-4 py-3 shadow-[0_8px_20px_rgba(59,130,246,0.08)] ring-1 ring-white/70 dark:bg-slate-900/45 dark:ring-white/5"
-                >
-                  <div
-                    class="mt-1 h-2.5 w-2.5 rounded-full bg-gradient-to-r from-sky-400 to-blue-600"
-                  ></div>
-                  <p class="text-sm leading-7 text-slate-700 dark:text-slate-200">
-                    {{ item }}
-                  </p>
-                </div>
-              </div>
-            </div>
+              <rect
+                class="auth-line-card"
+                height="264"
+                rx="34"
+                width="330"
+                x="214"
+                y="174"
+              />
+              <path class="auth-line-main" d="M248 226h118M398 226h82" />
+              <path class="auth-line-muted" d="M248 270h228" />
+              <path class="auth-line-muted" d="M248 314h176" />
+              <path class="auth-line-muted" d="M248 358h214" />
+              <path class="auth-line-accent" d="M248 402h82" />
+              <path class="auth-line-success" d="M376 402h86" />
 
-            <div class="relative mt-10 grid gap-5 lg:grid-cols-2">
-              <div
-                v-for="card in previewCards"
-                :key="card.title"
-                class="rounded-[28px] border border-white/60 bg-white/82 p-6 shadow-[0_18px_40px_rgba(30,64,175,0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/55"
-              >
-                <div
-                  class="inline-flex rounded-full bg-slate-900 px-3 py-1 text-xs font-medium tracking-[0.18em] text-white dark:bg-sky-300 dark:text-slate-900"
-                >
-                  {{ card.badge }}
-                </div>
-                <div class="mt-5 text-xl font-semibold text-slate-900 dark:text-white">
-                  {{ card.title }}
-                </div>
-                <p class="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                  {{ card.desc }}
-                </p>
-              </div>
-            </div>
+              <circle class="auth-line-hub-fill" cx="380" cy="318" r="54" />
+              <circle class="auth-line-accent" cx="380" cy="318" r="54" />
+              <path class="auth-line-main" d="M350 318h60" />
+              <path class="auth-line-main" d="M380 288v60" />
+              <circle class="auth-line-soft-fill" cx="380" cy="318" r="16" />
+
+              <rect
+                class="auth-line-mini-card"
+                height="186"
+                rx="26"
+                width="162"
+                x="96"
+                y="190"
+              />
+              <path class="auth-line-main" d="M130 234h58M130 270h88" />
+              <path class="auth-line-muted" d="M130 306h62M130 336h84" />
+              <path class="auth-line-accent" d="M130 354h18M160 354h18" />
+              <path class="auth-line-accent" d="M196 354h18" />
+              <circle class="auth-line-warm" cx="220" cy="230" r="18" />
+              <path class="auth-line-warm" d="M210 230h20M220 220v20" />
+
+              <rect
+                class="auth-line-mini-card"
+                height="170"
+                rx="26"
+                width="174"
+                x="508"
+                y="140"
+              />
+              <path class="auth-line-main" d="M544 184h72M544 220h92" />
+              <path class="auth-line-muted" d="M544 252h54" />
+              <circle class="auth-line-success" cx="626" cy="254" r="24" />
+              <path class="auth-line-success" d="m614 254 9 9 18-22" />
+
+              <rect
+                class="auth-line-mini-card"
+                height="160"
+                rx="26"
+                width="188"
+                x="482"
+                y="382"
+              />
+              <path class="auth-line-main" d="M524 430h74M524 464h96" />
+              <path class="auth-line-accent" d="M514 488h102" />
+              <path class="auth-line-main" d="M518 414h22l16 46h58l14-34h-74" />
+              <circle class="auth-line-main" cx="566" cy="492" r="7" />
+              <circle class="auth-line-main" cx="612" cy="492" r="7" />
+
+              <rect
+                class="auth-line-mini-card"
+                height="150"
+                rx="26"
+                width="180"
+                x="118"
+                y="408"
+              />
+              <path class="auth-line-main" d="M158 452h70M158 486h100" />
+              <path class="auth-line-muted" d="M158 514h58" />
+              <path
+                class="auth-line-warm"
+                d="M246 438c22 0 38 16 38 36s-16 36-38 36-38-16-38-36 16-36 38-36Z"
+              />
+              <path class="auth-line-warm" d="M246 454v40M228 474h36" />
+
+              <path class="auth-line-accent" d="M258 284h74" />
+              <path class="auth-line-success" d="M466 268h70" />
+              <path class="auth-line-warm" d="M458 430h62" />
+              <path class="auth-line-accent" d="M288 458h74" />
+
+              <circle
+                class="auth-line-dot auth-line-accent"
+                cx="258"
+                cy="284"
+              />
+              <circle
+                class="auth-line-dot auth-line-success"
+                cx="536"
+                cy="268"
+              />
+              <circle class="auth-line-dot auth-line-warm" cx="520" cy="430" />
+              <circle
+                class="auth-line-dot auth-line-accent"
+                cx="288"
+                cy="458"
+              />
+            </svg>
           </div>
         </section>
 
@@ -153,13 +219,13 @@ const previewCards = [
           :class="{ 'max-w-[780px]': authPanelCenter }"
         >
           <div
-            class="auth-panel relative w-full overflow-hidden rounded-[36px] border border-white/70 bg-white/82 p-3 shadow-[0_32px_80px_rgba(15,23,42,0.12)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/58"
+            class="auth-panel bg-white/82 dark:bg-slate-950/58 relative w-full overflow-hidden rounded-[36px] border border-white/70 p-3 shadow-[0_32px_80px_rgba(15,23,42,0.12)] backdrop-blur-2xl dark:border-white/10"
           >
             <div
               class="pointer-events-none absolute inset-x-6 top-0 h-24 bg-gradient-to-b from-sky-200/45 to-transparent blur-2xl dark:from-sky-500/20"
             ></div>
             <div
-              class="relative rounded-[30px] border border-slate-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,250,255,0.9))] px-5 py-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(7,18,35,0.92),rgba(6,16,30,0.88))] sm:px-8 sm:py-8"
+              class="relative rounded-[30px] border border-slate-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,250,255,0.9))] px-5 py-6 sm:px-8 sm:py-8 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(7,18,35,0.92),rgba(6,16,30,0.88))]"
             >
               <RouterView v-slot="{ Component, route }">
                 <Transition appear mode="out-in" name="slide-right">
@@ -176,7 +242,7 @@ const previewCards = [
               <div
                 class="mt-8 border-t border-slate-100/80 pt-5 text-center text-xs text-slate-500 dark:border-white/5 dark:text-slate-400"
               >
-                Copyright © 2026 {{ appName }} · 多租户后台管理平台
+                {{ copyright }}
               </div>
             </div>
           </div>
@@ -221,36 +287,133 @@ const previewCards = [
   background: rgba(99, 102, 241, 0.2);
 }
 
-.auth-orb {
-  position: absolute;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(14px);
-}
-
-.auth-orb-one {
-  top: 18%;
-  right: 12%;
-  height: 150px;
-  width: 150px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0.08));
-}
-
-.auth-orb-two {
-  left: 7%;
-  bottom: 12%;
-  height: 110px;
-  width: 110px;
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.18), rgba(59, 130, 246, 0.03));
-}
-
 .dark .auth-grid {
   background-image:
     linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
 }
 
-.dark .auth-orb {
-  border-color: rgba(255, 255, 255, 0.08);
+.auth-line-art {
+  color: rgb(51 65 85 / 0.55);
+}
+
+.auth-line-main,
+.auth-line-muted,
+.auth-line-accent,
+.auth-line-success,
+.auth-line-warm {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}
+
+.auth-line-main {
+  stroke: rgb(51 65 85 / 0.55);
+}
+
+.auth-line-muted {
+  stroke: rgb(71 85 105 / 0.24);
+}
+
+.auth-line-accent {
+  stroke: rgb(14 165 233 / 0.72);
+}
+
+.auth-line-success {
+  stroke: rgb(16 185 129 / 0.72);
+}
+
+.auth-line-warm {
+  stroke: rgb(245 158 11 / 0.72);
+}
+
+.auth-line-flow {
+  stroke-width: 2.6;
+}
+
+.auth-line-card {
+  fill: rgb(255 255 255 / 0.36);
+  stroke: rgb(51 65 85 / 0.32);
+  stroke-width: 2.2;
+}
+
+.auth-line-mini-card {
+  fill: rgb(255 255 255 / 0.28);
+  stroke: rgb(71 85 105 / 0.22);
+  stroke-width: 2.2;
+}
+
+.auth-line-hub-fill {
+  fill: rgb(14 165 233 / 0.08);
+}
+
+.auth-line-dot {
+  stroke-width: 0;
+}
+
+.auth-line-dot.auth-line-accent {
+  fill: rgb(14 165 233 / 0.72);
+}
+
+.auth-line-dot.auth-line-success {
+  fill: rgb(16 185 129 / 0.72);
+}
+
+.auth-line-dot.auth-line-warm {
+  fill: rgb(245 158 11 / 0.72);
+}
+
+.auth-line-soft-fill {
+  fill: rgb(255 255 255 / 0.34);
+}
+
+.dark .auth-line-main {
+  stroke: rgb(226 232 240 / 0.5);
+}
+
+.dark .auth-line-muted {
+  stroke: rgb(226 232 240 / 0.18);
+}
+
+.dark .auth-line-accent {
+  stroke: rgb(125 211 252 / 0.75);
+}
+
+.dark .auth-line-success {
+  stroke: rgb(52 211 153 / 0.76);
+}
+
+.dark .auth-line-warm {
+  stroke: rgb(251 191 36 / 0.76);
+}
+
+.dark .auth-line-card {
+  fill: rgb(15 23 42 / 0.3);
+  stroke: rgb(226 232 240 / 0.24);
+}
+
+.dark .auth-line-mini-card {
+  fill: rgb(15 23 42 / 0.22);
+  stroke: rgb(226 232 240 / 0.17);
+}
+
+.dark .auth-line-hub-fill {
+  fill: rgb(14 165 233 / 0.12);
+}
+
+.dark .auth-line-dot.auth-line-accent {
+  fill: rgb(125 211 252 / 0.75);
+}
+
+.dark .auth-line-dot.auth-line-success {
+  fill: rgb(52 211 153 / 0.76);
+}
+
+.dark .auth-line-dot.auth-line-warm {
+  fill: rgb(251 191 36 / 0.76);
+}
+
+.dark .auth-line-soft-fill {
+  fill: rgb(15 23 42 / 0.28);
 }
 </style>

@@ -37,12 +37,18 @@ export namespace AuthApi {
   }
 
   export interface UpdateLoginInfoParams {
+    avatar?: string;
+    birthday?: Date | string;
+    newLoginName?: string;
+    newName?: string;
     newEmail?: string;
     newEmailVerifyCode?: string;
     newPwd?: string;
     newTelephone?: string;
     newTelephoneVerifyCode?: string;
     oldPwd?: string;
+    nickname?: string;
+    signature?: string;
     verifyCode?: string;
     verifyCodeType?: 'Bio' | 'Captcha' | 'Email' | 'Hmi' | 'Mfa' | 'Sms';
   }

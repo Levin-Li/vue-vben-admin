@@ -233,7 +233,7 @@ if (enableShortcutKey.value) {
           v-for="menu in menus"
           :key="menu.text"
           class="mx-1 flex cursor-pointer items-center rounded-sm py-1 leading-8"
-          @click="handleMenuClick(menu.handler)"
+          @select="handleMenuClick(menu.handler)"
         >
           <VbenIcon :icon="menu.icon" class="mr-2 size-4" />
           {{ menu.text }}
@@ -242,7 +242,7 @@ if (enableShortcutKey.value) {
         <DropdownMenuItem
           v-if="preferences.widget.lockScreen"
           class="mx-1 flex cursor-pointer items-center rounded-sm py-1 leading-8"
-          @click="handleOpenLock"
+          @select="handleOpenLock"
         >
           <LockKeyhole class="mr-2 size-4" />
           {{ $t('ui.widgets.lockScreen.title') }}
@@ -253,7 +253,7 @@ if (enableShortcutKey.value) {
         <DropdownMenuSeparator v-if="preferences.widget.lockScreen" />
         <DropdownMenuItem
           class="mx-1 flex cursor-pointer items-center rounded-sm py-1 leading-8"
-          @click="handleLogout"
+          @select="handleLogout"
         >
           <LogOut class="mr-2 size-4" />
           {{ $t('common.logout') }}

@@ -1,0 +1,63 @@
+import type { CrudPageConfig } from '../../shared/types';
+
+import {
+  currencyCodeOptionsLoader,
+  languageCodeOptionsLoader,
+  nationCodeOptionsLoader,
+} from '../api-module';
+
+export const tenantPageCrudConfig: CrudPageConfig = {
+  apiBase: '/Tenant',
+  defaultFormValues: {
+    editable: true,
+    enable: true,
+    orderCode: 100,
+  },
+  defaultQuery: {
+    pageIndex: 1,
+    pageSize: 10,
+  },
+  description:
+    '租户创建仍走后端初始化流程，前端这里只接常用字段，默认交给业务服务完成初始化。',
+  fields: [
+    { key: 'id', label: '租户ID', fixed: 'left', form: false, search: true, table: true, width: 180 },
+    { key: 'containsName', label: '租户名称', form: false, search: true },
+    { key: 'name', label: '租户名称', required: true, table: true, width: 160 },
+    { key: 'sysName', label: '系统名称', search: true, table: true, width: 160 },
+    { key: 'code', label: '企业信用编码', search: true, table: true },
+    { key: 'tenantKey', label: '租户Key', table: true, width: 150 },
+    { key: 'inNationCode', label: '国家编码', form: false, loadOptions: nationCodeOptionsLoader, multiple: true, search: true, type: 'select' },
+    { key: 'nationCode', label: '国家编码', loadOptions: nationCodeOptionsLoader, type: 'select' },
+    { key: 'inCurrencyCode', label: '货币编码', form: false, loadOptions: currencyCodeOptionsLoader, multiple: true, search: true, type: 'select' },
+    { key: 'currencyCode', label: '货币编码', loadOptions: currencyCodeOptionsLoader, type: 'select' },
+    { key: 'inLanguageCode', label: '语言编码', form: false, loadOptions: languageCodeOptionsLoader, multiple: true, search: true, type: 'select' },
+    { key: 'languageCode', label: '语言编码', loadOptions: languageCodeOptionsLoader, type: 'select' },
+    { key: 'shortcutIcon', label: 'shortcutIcon', type: 'image' },
+    { key: 'sysLogo', label: '系统Logo', type: 'image' },
+    { key: 'logo', label: '租户Logo', table: true, type: 'image', width: 90 },
+    { key: 'balance', label: '帐号余额', table: true, type: 'number' },
+    { key: 'licenseCnt', label: '总许可数', type: 'number' },
+    { key: 'remainingLicenseCnt', label: '剩余许可数', type: 'number' },
+    { key: 'gteExpiredTime', label: '到期时间开始', form: false, search: true, type: 'datetime' },
+    { key: 'lteExpiredTime', label: '到期时间结束', form: false, search: true, type: 'datetime' },
+    { key: 'expiredTime', label: '到期时间', table: true, type: 'datetime', width: 180 },
+    { key: 'contractPerson', label: '联系人', table: true },
+    { key: 'contractPhone', label: '联系电话', table: true },
+    { key: 'appId', label: '应用ID' },
+    { key: 'appSecret', label: '应用密钥', type: 'textarea' },
+    { key: 'appAuthDomain', label: '应用授权域名' },
+    { key: 'encryptKey', label: '租户密钥', fullRow: true, type: 'textarea' },
+    { key: 'techSupport', label: '技术支持', fullRow: true, type: 'textarea' },
+    { key: 'copyright', label: '版权声明', fullRow: true, type: 'textarea' },
+    { key: 'uiExInfo', label: '前端展示扩展信息', fullRow: true, type: 'json' },
+    { key: 'exInfo', label: '扩展信息', fullRow: true, type: 'json' },
+    { key: 'orderCode', label: '排序代码', type: 'number' },
+    { key: 'enable', label: '是否启用', search: true, table: true, type: 'switch', valueType: 'boolean', width: 100 },
+    { key: 'editable', label: '是否可编辑', search: true, table: true, type: 'switch', valueType: 'boolean', width: 110 },
+    { key: 'createTime', label: '创建时间', form: false, table: true, type: 'datetime', width: 180 },
+    { key: 'lastUpdateTime', label: '更新时间', form: false, table: true, type: 'datetime', width: 180 },
+    { key: 'remark', label: '备注', type: 'textarea' },
+  ],
+  modalWidth: 1120,
+  title: '租户管理',
+};

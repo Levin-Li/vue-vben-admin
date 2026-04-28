@@ -1,0 +1,122 @@
+import type { CrudPageConfig } from '../../shared/types';
+
+import {
+  areaOptionsLoader,
+  buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
+} from '../api-module';
+
+const areaTypeOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.Area$Type',
+);
+
+export const areaPageCrudConfig: CrudPageConfig = {
+  apiBase: '/Area',
+  defaultFormValues: {
+    editable: true,
+    enable: true,
+    orderCode: 100,
+  },
+  defaultQuery: {
+    pageIndex: 1,
+    pageSize: 10,
+  },
+  permissionResourceName: '区域',
+  permissionTypePrefix: '平台数据-',
+  fields: [
+    {
+      key: 'id',
+      label: '区域编码',
+      disabledOnEdit: true,
+      fixed: 'left',
+      required: true,
+      search: true,
+      table: true,
+      width: 140,
+    },
+    { key: 'containsName', label: '名称', form: false, search: true },
+    { key: 'code', label: '自定义编码', search: true, table: true, width: 140 },
+    { key: 'name', label: '名称', required: true, table: true, width: 160 },
+    {
+      key: 'parentId',
+      label: '父区域',
+      loadOptions: areaOptionsLoader,
+      remoteSearch: true,
+      search: true,
+      type: 'select',
+    },
+    {
+      key: 'inType',
+      label: '类型',
+      form: false,
+      loadOptions: areaTypeOptionsLoader,
+      multiple: true,
+      search: true,
+      type: 'select',
+    },
+    {
+      key: 'type',
+      label: '类型',
+      loadOptions: areaTypeOptionsLoader,
+      required: true,
+      table: true,
+      type: 'select',
+      width: 120,
+    },
+    { key: 'containsPinyinName', label: '拼音名', form: false, search: true },
+    { key: 'pinyinName', label: '拼音名', table: true, width: 160 },
+    {
+      key: 'gteCreateTime',
+      label: '创建时间开始',
+      form: false,
+      search: true,
+      type: 'datetime',
+    },
+    {
+      key: 'lteCreateTime',
+      label: '创建时间结束',
+      form: false,
+      search: true,
+      type: 'datetime',
+    },
+    { key: 'icon', label: '图标', type: 'image' },
+    {
+      key: 'enable',
+      label: '是否启用',
+      search: true,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+      width: 100,
+    },
+    {
+      key: 'editable',
+      label: '是否可编辑',
+      search: true,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+      width: 110,
+    },
+    { key: 'orderCode', label: '排序代码', type: 'number' },
+    { key: 'remark', label: '备注', type: 'textarea' },
+    {
+      key: 'createTime',
+      label: '创建时间',
+      form: false,
+      table: true,
+      type: 'datetime',
+      width: 180,
+    },
+    {
+      key: 'lastUpdateTime',
+      label: '更新时间',
+      form: false,
+      table: true,
+      type: 'datetime',
+      width: 180,
+    },
+  ],
+  modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
+  title: '区域管理',
+};

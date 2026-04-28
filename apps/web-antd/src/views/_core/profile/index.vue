@@ -4,6 +4,7 @@ import { ref } from 'vue';
 import { Profile } from '@vben/common-ui';
 import { useUserStore } from '@vben/stores';
 
+import ProfileAvatarUpload from './avatar-upload.vue';
 import ProfileBase from './base-setting.vue';
 import ProfileNotificationSetting from './notification-setting.vue';
 import ProfilePasswordSetting from './password-setting.vue';
@@ -39,6 +40,9 @@ const tabs = ref([
     :user-info="userStore.userInfo"
     :tabs="tabs"
   >
+    <template #avatar>
+      <ProfileAvatarUpload />
+    </template>
     <template #content>
       <ProfileBase v-if="tabsValue === 'basic'" />
       <ProfileSecuritySetting v-if="tabsValue === 'security'" />

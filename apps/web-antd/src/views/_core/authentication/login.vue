@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import {
   computed,
+  h,
   onBeforeUnmount,
   onMounted,
   reactive,
@@ -16,6 +17,7 @@ import {
   Checkbox,
   Input,
   message,
+  Modal,
   Tabs,
   Tooltip,
 } from 'ant-design-vue';
@@ -23,6 +25,7 @@ import {
 import { getVerifyCodeApi } from '#/api';
 import { useAuthStore } from '#/store';
 
+import { useAuthBrand } from './auth-brand';
 import {
   extractReturnedVerifyCode,
   resolveContactVerifyCodeType,
@@ -43,7 +46,13 @@ interface RequestVerifyCodeOptions {
   force?: boolean;
 }
 
+interface AutoLoginPromptHandle {
+  destroy: () => void;
+  update: (config: Record<string, unknown>) => void;
+}
+
 const REMEMBER_ME_KEY = `REMEMBER_ME_USERNAME_${location.hostname}`;
+const AUTO_LOGIN_COUNTDOWN_SECONDS = 5;
 
 const verifyTabs: VerifyCodeTabOption[] = [
   {
@@ -61,6 +70,7 @@ const verifyTabs: VerifyCodeTabOption[] = [
 const defaultVerifyTab: VerifyCodeTabOption = verifyTabs[0]!;
 
 const authStore = useAuthStore();
+const { loadAuthBrand, techSupport } = useAuthBrand();
 const rememberedAccount = localStorage.getItem(REMEMBER_ME_KEY) || '';
 
 const activeVerifyType = ref<VerifyCodeTab>('Captcha');
@@ -77,6 +87,8 @@ const formState = reactive({
 });
 
 let countdownTimer: null | ReturnType<typeof setInterval> = null;
+let autoLoginPrompt: AutoLoginPromptHandle | null = null;
+let autoLoginPromptTimer: null | ReturnType<typeof setInterval> = null;
 
 const currentTab = computed<VerifyCodeTabOption>(() => {
   return (
@@ -106,6 +118,14 @@ const actionButtonText = computed(() => {
   return isCaptchaTab.value ? '刷新验证码' : '获取验证码';
 });
 
+const verifyCodeUsageText = computed(() => {
+  if (isCaptchaTab.value) {
+    return '图片';
+  }
+
+  return resolvedVerifyCodeType.value === 'Email' ? '邮箱' : '短信';
+});
+
 function normalizeAccount() {
   return formState.account.trim();
 }
@@ -117,6 +137,95 @@ function resolveAutoLoginSignature(verifyCode: string) {
     isCaptchaTab.value ? formState.password.trim() : '',
     verifyCode,
   ].join('\n');
+}
+
+function renderAutoLoginPromptContent(seconds: number) {
+  return h('div', { class: 'space-y-3 pt-1' }, [
+    h(
+      'div',
+      { class: 'text-sm leading-6 text-muted-foreground' },
+      '检测到验证码已自动返回，系统即将使用当前账号信息登录。',
+    ),
+    h(
+      'div',
+      {
+        class:
+          'rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground',
+      },
+      `${seconds} 秒后自动登录`,
+    ),
+    h(
+      'div',
+      { class: 'text-xs leading-5 text-muted-foreground' },
+      '取消后本次只填入验证码，不会自动提交登录。',
+    ),
+  ]);
+}
+
+function clearAutoLoginPromptTimer() {
+  if (autoLoginPromptTimer) {
+    clearInterval(autoLoginPromptTimer);
+    autoLoginPromptTimer = null;
+  }
+}
+
+function destroyAutoLoginPrompt() {
+  clearAutoLoginPromptTimer();
+  autoLoginPrompt?.destroy();
+  autoLoginPrompt = null;
+}
+
+function confirmAutoLogin() {
+  destroyAutoLoginPrompt();
+
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+    let seconds = AUTO_LOGIN_COUNTDOWN_SECONDS;
+
+    const finish = (confirmed: boolean) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearAutoLoginPromptTimer();
+      resolve(confirmed);
+    };
+
+    const updatePrompt = () => {
+      autoLoginPrompt?.update({
+        content: renderAutoLoginPromptContent(seconds),
+        okText: `立即登录 (${seconds}s)`,
+      });
+    };
+
+    autoLoginPrompt = Modal.confirm({
+      centered: true,
+      content: renderAutoLoginPromptContent(seconds),
+      cancelText: '取消本次自动登录',
+      okText: `立即登录 (${seconds}s)`,
+      title: '即将自动登录',
+      onCancel: () => {
+        finish(false);
+      },
+      onOk: () => {
+        finish(true);
+      },
+    }) as AutoLoginPromptHandle;
+
+    autoLoginPromptTimer = setInterval(() => {
+      seconds -= 1;
+
+      if (seconds <= 0) {
+        finish(true);
+        autoLoginPrompt?.destroy();
+        autoLoginPrompt = null;
+        return;
+      }
+
+      updatePrompt();
+    }, 1000);
+  });
 }
 
 async function tryAutoLoginWithReturnedVerifyCode(verifyCode: string) {
@@ -137,6 +246,16 @@ async function tryAutoLoginWithReturnedVerifyCode(verifyCode: string) {
   }
 
   lastAutoLoginSignature.value = signature;
+
+  const confirmed = await confirmAutoLogin();
+  if (!confirmed) {
+    message.info('已取消本次自动登录');
+    return;
+  }
+
+  if (authStore.loginLoading) {
+    return;
+  }
 
   try {
     await handleSubmit();
@@ -313,11 +432,13 @@ async function requestVerifyCode(options: RequestVerifyCodeOptions = {}) {
         payload?.interactionDataType || '',
       ).trim();
 
-      captchaImage.value = interactionData
-        ? `data:${resolveImageMimeType(interactionData, interactionDataType)};base64,${interactionData}`
-        : returnedCode
-          ? createCaptchaImageFromReturnedCode(returnedCode)
-          : '';
+      if (interactionData) {
+        captchaImage.value = `data:${resolveImageMimeType(interactionData, interactionDataType)};base64,${interactionData}`;
+      } else if (returnedCode) {
+        captchaImage.value = createCaptchaImageFromReturnedCode(returnedCode);
+      } else {
+        captchaImage.value = '';
+      }
 
       if (!captchaImage.value && !returnedCode) {
         message.warning('当前没有获取到验证码图片');
@@ -412,6 +533,8 @@ watch(activeVerifyType, () => {
 });
 
 onMounted(() => {
+  void loadAuthBrand();
+
   if (isCaptchaTab.value) {
     void requestVerifyCode();
   }
@@ -419,6 +542,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearCountdown();
+  destroyAutoLoginPrompt();
 });
 </script>
 
@@ -539,15 +663,10 @@ onBeforeUnmount(() => {
       <div class="flex items-center justify-between pt-1">
         <Checkbox v-model:checked="rememberMe">记住账号</Checkbox>
         <span class="text-xs text-muted-foreground">
-          当前使用
-          {{
-            isCaptchaTab
-              ? '图片'
-              : resolvedVerifyCodeType === 'Email'
-                ? '邮箱'
-                : '短信'
-          }}
-          验证码
+          <template v-if="techSupport"> 技术支持：{{ techSupport }} </template>
+          <template v-else>
+            当前使用 {{ verifyCodeUsageText }} 验证码
+          </template>
         </span>
       </div>
 
