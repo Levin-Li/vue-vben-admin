@@ -114,6 +114,11 @@ const DEFAULT_FORM_ROW_HEIGHT = 78;
 const FORM_GRID_COLUMN_GAP = 16;
 const MIN_FORM_COLUMN_WIDTH = 240;
 const TABLE_COLUMN_PREFERENCE_VERSION = 1;
+const TABLE_MIN_SCROLL_Y = 160;
+const TABLE_SECTION_VERTICAL_PADDING = 32;
+const TABLE_TOOLBAR_GAP = 12;
+const TABLE_HEADER_HEIGHT = 56;
+const TABLE_PAGINATION_HEIGHT = 64;
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
 const route = useRoute();
@@ -774,6 +779,18 @@ function handleViewportResize() {
 
 let listSectionResizeObserver: null | ResizeObserver = null;
 
+function getElementOuterHeight(element: Element | null) {
+  if (!(element instanceof HTMLElement)) {
+    return 0;
+  }
+
+  const style = window.getComputedStyle(element);
+  const marginTop = Number.parseFloat(style.marginTop) || 0;
+  const marginBottom = Number.parseFloat(style.marginBottom) || 0;
+
+  return element.getBoundingClientRect().height + marginTop + marginBottom;
+}
+
 function updateTableScrollY() {
   nextTick(() => {
     const section = listSectionRef.value;
@@ -781,31 +798,25 @@ function updateTableScrollY() {
       return;
     }
 
+    const table = section.querySelector('.vben-crud-table');
     const toolbarHeight = listToolbarRef.value?.offsetHeight || 0;
-    const sectionVerticalPadding = 32;
-    const toolbarGap = toolbarHeight > 0 ? 12 : 0;
-    const tableHeaderHeight = 56;
-    const paginationHeight = 56;
+    const toolbarGap = toolbarHeight > 0 ? TABLE_TOOLBAR_GAP : 0;
+    const tableHeaderHeight =
+      getElementOuterHeight(table?.querySelector('.ant-table-header') || null) ||
+      getElementOuterHeight(table?.querySelector('.ant-table-thead') || null) ||
+      TABLE_HEADER_HEIGHT;
+    const paginationHeight =
+      getElementOuterHeight(table?.querySelector('.ant-pagination') || null) ||
+      TABLE_PAGINATION_HEIGHT;
     const availableHeight =
       section.clientHeight -
       toolbarHeight -
       toolbarGap -
-      sectionVerticalPadding -
+      TABLE_SECTION_VERTICAL_PADDING -
       tableHeaderHeight -
       paginationHeight;
-    const viewportReservedHeight =
-      searchFieldItems.value.length > 0
-        ? searchExpanded.value
-          ? 640
-          : 570
-        : 360;
-    const viewportAvailableHeight =
-      viewportHeight.value - viewportReservedHeight;
 
-    tableScrollY.value = Math.max(
-      120,
-      Math.min(availableHeight, viewportAvailableHeight),
-    );
+    tableScrollY.value = Math.max(TABLE_MIN_SCROLL_Y, availableHeight);
   });
 }
 
@@ -2467,8 +2478,11 @@ watch(tableColumnPreferenceStorageKey, () => {
 </script>
 
 <template>
-  <Page auto-content-height content-class="!bg-transparent !p-0 min-w-0">
-    <div class="vben-crud-page flex h-full flex-col gap-4">
+  <Page
+    auto-content-height
+    content-class="!bg-transparent !p-0 min-w-0 !overflow-hidden"
+  >
+    <div class="vben-crud-page flex h-full flex-col gap-2">
       <div v-if="searchFieldItems.length > 0" class="vben-crud-section">
         <Form :label-col="{ style: { width: '88px' } }">
           <div class="grid gap-x-4 gap-y-4" :style="searchGridStyle">
@@ -2631,7 +2645,7 @@ watch(tableColumnPreferenceStorageKey, () => {
 
       <div
         ref="listSectionRef"
-        class="vben-crud-section flex min-h-0 flex-1 flex-col"
+        class="vben-crud-section flex min-h-0 flex-1 flex-col overflow-hidden"
         :class="{ 'vben-crud-section--fullscreen': tableFullscreen }"
       >
         <div
@@ -2820,7 +2834,7 @@ watch(tableColumnPreferenceStorageKey, () => {
             total: pagination.total,
           }"
           :row-selection="rowSelection"
-          :scroll="{ x: 'max-content' }"
+          :scroll="{ x: 'max-content', y: tableScrollY }"
           :row-key="recordKey"
           @change="
             (page) => {
@@ -3410,6 +3424,10 @@ watch(tableColumnPreferenceStorageKey, () => {
   border-radius: var(--radius);
 }
 
+.vben-crud-section:has(.vben-crud-table) {
+  padding-bottom: 8px;
+}
+
 .vben-crud-section--fullscreen {
   position: fixed;
   inset: 16px;
@@ -3421,10 +3439,19 @@ watch(tableColumnPreferenceStorageKey, () => {
 }
 
 .vben-crud-table {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.vben-crud-table :deep(.ant-table-wrapper),
+.vben-crud-table :deep(.ant-spin-nested-loading),
+.vben-crud-table :deep(.ant-spin-container) {
   min-height: 0;
 }
 
 .vben-crud-table :deep(.ant-table) {
+  min-height: 0;
   border-radius: var(--radius);
 }
 
@@ -3433,9 +3460,21 @@ watch(tableColumnPreferenceStorageKey, () => {
   min-height: 0;
 }
 
+.vben-crud-table :deep(.ant-table-body) {
+  overflow-y: auto !important;
+}
+
 .vben-crud-table :deep(.ant-table-thead > tr > th) {
+  padding-top: 10px;
+  padding-bottom: 10px;
   font-weight: 500;
+  white-space: nowrap;
   background: hsl(var(--muted));
+}
+
+.vben-crud-table :deep(.ant-pagination) {
+  margin-top: 8px;
+  margin-bottom: 0;
 }
 
 .vben-crud-column-setting-row {
