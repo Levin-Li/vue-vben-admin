@@ -68,7 +68,6 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'id',
       label: '客户ID',
-      fixed: 'left',
       form: false,
       search: true,
       table: true,

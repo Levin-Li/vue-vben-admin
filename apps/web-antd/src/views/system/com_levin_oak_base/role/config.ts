@@ -19,7 +19,6 @@ const rolePageCrudConfig: CrudPageConfig = {
   defaultFormValues: {
     editable: true,
     enable: true,
-    isInheritable: false,
     orderCode: 100,
   },
   defaultQuery: {
@@ -62,20 +61,20 @@ const rolePageCrudConfig: CrudPageConfig = {
     { key: 'containsCode', label: '角色编码', form: false, search: true },
     { key: 'code', label: '角色编码', required: true, table: true, width: 160 },
     {
-      key: 'inheritedRoleList',
-      label: '继承的角色列表',
-      loadOptions: roleOptionsLoader,
-      multiple: true,
-      placeholder: '选择可继承的角色',
-      remoteSearch: true,
-      type: 'role-select',
-    },
-    {
       key: 'exclusiveRoleList',
       label: '互斥角色列表',
       loadOptions: roleOptionsLoader,
       multiple: true,
       placeholder: '选择互斥角色',
+      remoteSearch: true,
+      type: 'role-select',
+    },
+    {
+      key: 'coexistRoleList',
+      label: '必须共存角色列表',
+      loadOptions: roleOptionsLoader,
+      multiple: true,
+      placeholder: '选择必须共存的角色',
       remoteSearch: true,
       type: 'role-select',
     },
@@ -119,14 +118,6 @@ const rolePageCrudConfig: CrudPageConfig = {
     },
     { key: 'icon', label: '图标', table: true, type: 'image', width: 90 },
     {
-      key: 'isInheritable',
-      label: '是否可继承',
-      table: true,
-      type: 'switch',
-      valueType: 'boolean',
-      width: 120,
-    },
-    {
       key: 'confidentialLevel',
       label: '机密等级',
       loadOptions: confidentialLevelOptionsLoader,
@@ -155,7 +146,7 @@ const rolePageCrudConfig: CrudPageConfig = {
       width: 220,
     },
     {
-      key: 'roleAssignPreCondition',
+      key: 'assignPreCondition',
       label: '角色分配前置条件',
       fullRow: true,
       type: 'textarea',

@@ -3,6 +3,8 @@ import type { SelectOption } from '#/api';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
+import { IconifyIcon } from '@vben/icons';
+
 import {
   Button,
   Empty,
@@ -17,6 +19,7 @@ import {
   Switch,
   Tree,
   TreeSelect,
+  Tooltip,
 } from 'ant-design-vue';
 
 import { fetchTreeOptions } from '#/api';
@@ -413,9 +416,22 @@ onMounted(async () => {
             {{ selectedOrgName || '请选择组织节点' }}
           </div>
         </div>
-        <Button size="small" type="primary" @click="openCreateOrgModal('')">
-          新增
-        </Button>
+        <div class="flex shrink-0 items-center gap-2">
+          <Tooltip title="刷新">
+            <Button
+              :loading="orgTreeLoading"
+              aria-label="刷新组织"
+              shape="circle"
+              size="small"
+              @click="loadOrgTree"
+            >
+              <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+            </Button>
+          </Tooltip>
+          <Button size="small" type="primary" @click="openCreateOrgModal('')">
+            新增
+          </Button>
+        </div>
       </div>
 
       <Input.Search
@@ -424,10 +440,6 @@ onMounted(async () => {
         class="mb-3"
         placeholder="搜索组织"
       />
-
-      <div class="mb-3 flex justify-end">
-        <Button size="small" type="link" @click="loadOrgTree">刷新</Button>
-      </div>
 
       <Spin :spinning="orgTreeLoading" class="min-h-0 flex-1">
         <Tree
@@ -489,11 +501,7 @@ onMounted(async () => {
     </aside>
 
     <main class="min-w-0 flex-1">
-      <CrudPage
-        v-if="selectedOrgId"
-        :key="crudPageKey"
-        :config="userConfig"
-      />
+      <CrudPage v-if="selectedOrgId" :key="crudPageKey" :config="userConfig" />
       <div
         v-else
         class="flex h-full items-center justify-center rounded-lg border border-border bg-card"

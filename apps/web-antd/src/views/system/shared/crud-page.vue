@@ -2,7 +2,12 @@
 import type { TableColumnsType, UploadFile } from 'ant-design-vue';
 
 import type { NormalizedCrudAction } from './crud-action-model';
-import type { CrudFieldConfig, CrudPageConfig, CrudRowAction } from './types';
+import type {
+  CrudFieldConfig,
+  CrudListTableConfig,
+  CrudPageConfig,
+  CrudRowAction,
+} from './types';
 
 import {
   computed,
@@ -19,7 +24,7 @@ import {
 import { useRoute } from 'vue-router';
 
 import { Page, VCropper } from '@vben/common-ui';
-import { ChevronDown, Plus } from '@vben/icons';
+import { ArrowDown, ArrowUp, ChevronDown, IconifyIcon, Plus } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
 import {
@@ -40,6 +45,7 @@ import {
   Space,
   Switch,
   Table,
+  Tabs,
   Tag,
   TimePicker,
   Tooltip,
@@ -78,6 +84,7 @@ import {
   groupCrudOperationsByRecordRef,
 } from './crud-operation-placement';
 import { buildCrudOperationPermissions } from './crud-permissions';
+import { normalizeLeftFixedTableColumns } from './crud-table-columns';
 import { evaluateCrudVisibleOn } from './crud-visible-on';
 import JsonEditorField from './json-editor-field.vue';
 
@@ -88,10 +95,18 @@ const slots = useSlots();
 
 type GenericRecord = Record<string, any>;
 type TableColumnFixedMode = 'left' | 'none' | 'right';
+type TableSortOrder = 'ascend' | 'descend';
+type CrudBuiltinAction = 'create' | 'delete' | 'edit' | 'retrieve';
 interface TableColumnPreference {
   fixedMap?: Record<string, TableColumnFixedMode>;
   hiddenKeys?: string[];
+  orderedKeys?: string[];
   version?: number;
+}
+interface TableColumnSettingsSnapshot {
+  fixedMap: Record<string, TableColumnFixedMode>;
+  hiddenKeys: string[];
+  orderedKeys: string[];
 }
 type SearchFieldItem =
   | {
@@ -107,18 +122,39 @@ type SearchFieldItem =
       key: string;
       kind: 'field';
     };
+interface ListTableRuntimeState {
+  dataSource: GenericRecord[];
+  pagination: {
+    current: number;
+    pageSize: number;
+    total: number;
+  };
+  searchState: GenericRecord;
+  selectedRowKeys: Array<number | string>;
+  selectedRows: GenericRecord[];
+  sorter: TableSorterState;
+}
+interface TableSorterState {
+  field?: string;
+  order?: TableSortOrder;
+}
 
 const DEFAULT_SEARCH_COLLAPSED_COUNT = 3;
 const DEFAULT_CRUD_MODAL_WIDTH = 'min(70vw, 1280px)';
 const DEFAULT_FORM_ROW_HEIGHT = 78;
+const EXPORT_PAGE_SIZE = 2000;
 const FORM_GRID_COLUMN_GAP = 16;
 const MIN_FORM_COLUMN_WIDTH = 240;
-const TABLE_COLUMN_PREFERENCE_VERSION = 1;
+const TABLE_COLUMN_PREFERENCE_VERSION = 2;
 const TABLE_MIN_SCROLL_Y = 160;
 const TABLE_SECTION_VERTICAL_PADDING = 32;
 const TABLE_TOOLBAR_GAP = 12;
 const TABLE_HEADER_HEIGHT = 56;
 const TABLE_PAGINATION_HEIGHT = 64;
+const LIST_TABLE_TABS_INITIAL_LEFT = 20;
+const LIST_TABLE_TABS_INITIAL_TOP = 20;
+const LIST_TABLE_TABS_DRAG_THRESHOLD = 4;
+const LIST_TABLE_TABS_EDGE_PADDING = 8;
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
 const route = useRoute();
@@ -134,21 +170,34 @@ const actionResultOpen = ref(false);
 const actionResultTitle = ref('');
 const actionResultData = ref<any>(null);
 const actionResultMode = ref<NormalizedCrudAction>('showSchema');
+const exportModalOpen = ref(false);
+const exporting = ref(false);
+const exportSelectedFieldKeys = ref<string[]>([]);
+const exportFieldOrderKeys = ref<string[]>([]);
 const uploadPreviewOpen = ref(false);
 const uploadPreviewUrl = ref('');
 const optionState = reactive<Record<string, any[]>>({});
 const optionLoadingState = reactive<Record<string, boolean>>({});
+const quickSwitchLoadingState = reactive<Record<string, boolean>>({});
 const searchState = reactive<GenericRecord>({});
 const formState = reactive<GenericRecord>({});
 const submitting = ref(false);
+const crudPageRef = ref<HTMLElement | null>(null);
+const listTableTabsRef = ref<HTMLElement | null>(null);
 const listSectionRef = ref<HTMLElement | null>(null);
 const listToolbarRef = ref<HTMLElement | null>(null);
 const tableScrollY = ref(360);
 const tableFullscreen = ref(false);
+const activeListTableKey = ref('');
+const isDraggingListTableTabs = ref(false);
+const suppressListTableTabsClick = ref(false);
 const hiddenTableColumnKeys = ref<string[]>([]);
-const hasStoredTableColumnPreference = ref(false);
 const columnSettingsOpen = ref(false);
+const columnSettingsSnapshot = ref<null | TableColumnSettingsSnapshot>(null);
+const draggedDraftTableColumnKey = ref('');
 const draftHiddenTableColumnKeys = ref<string[]>([]);
+const tableColumnOrderKeys = ref<string[]>([]);
+const draftTableColumnOrderKeys = ref<string[]>([]);
 const tableColumnFixedState = reactive<Record<string, TableColumnFixedMode>>(
   {},
 );
@@ -164,12 +213,18 @@ const uploadPasteTipPosition = reactive({
   x: 0,
   y: 0,
 });
+const listTableTabsPosition = reactive({
+  x: LIST_TABLE_TABS_INITIAL_LEFT,
+  y: LIST_TABLE_TABS_INITIAL_TOP,
+});
+const listTableStates = reactive<Record<string, ListTableRuntimeState>>({});
 
 const pagination = reactive({
   current: 1,
   pageSize: 10,
   total: 0,
 });
+const tableSorterState = reactive<TableSorterState>({});
 const viewportWidth = ref(
   typeof window === 'undefined' ? 1440 : window.innerWidth,
 );
@@ -177,6 +232,37 @@ const viewportHeight = ref(
   typeof window === 'undefined' ? 900 : window.innerHeight,
 );
 const recordKey = computed(() => props.config.recordKey || 'id');
+const listTables = computed(() => props.config.listTables || []);
+const hasListTableTabs = computed(() => listTables.value.length > 1);
+const activeListTableStateKey = computed(
+  () => activeListTableKey.value || listTables.value[0]?.key || 'default',
+);
+const activeListTable = computed(() =>
+  listTables.value.find((table) => table.key === activeListTableStateKey.value),
+);
+const activeListPath = computed(
+  () =>
+    activeListTable.value?.listPath ||
+    props.config.listPath ||
+    `${props.config.apiBase}/list`,
+);
+const activeListTableName = computed(() => {
+  const tableName =
+    activeListTable.value?.tableName || props.config.tableName || 'default';
+
+  return String(tableName || 'default').trim() || 'default';
+});
+const listTableTabsFloatStyle = computed(() => ({
+  left: `${listTableTabsPosition.x}px`,
+  top: `${listTableTabsPosition.y}px`,
+}));
+
+let listTableTabsDragState: null | {
+  startLeft: number;
+  startTop: number;
+  startX: number;
+  startY: number;
+} = null;
 
 const isSaasUser = computed(() => {
   const userInfo = userStore.userInfo as Record<string, any>;
@@ -376,17 +462,130 @@ const tableFields = computed(() =>
   props.config.fields.filter((field) => field.table && isFieldVisible(field)),
 );
 
+const orderedTableFields = computed(() =>
+  getOrderedTableFields(tableColumnOrderKeys.value),
+);
+
 const visibleTableFields = computed(() =>
-  tableFields.value.filter(
+  orderedTableFields.value.filter(
     (field) => !hiddenTableColumnKeys.value.includes(String(field.key)),
   ),
+);
+
+const effectiveTableColumnFixedMap = computed(() =>
+  normalizeLeftFixedTableColumns(
+    visibleTableFields.value,
+    getTableColumnFixed,
+    getTableFieldKey,
+  ),
+);
+
+const draftOrderedTableFields = computed(() =>
+  getOrderedTableFields(draftTableColumnOrderKeys.value),
+);
+
+const orderedVisibleTableFields = computed(() => {
+  const leftFixedFields: CrudFieldConfig[] = [];
+  const normalFields: CrudFieldConfig[] = [];
+  const rightFixedFields: CrudFieldConfig[] = [];
+
+  for (const field of visibleTableFields.value) {
+    const fixedMode = getEffectiveTableColumnFixed(field);
+
+    if (fixedMode === 'left') {
+      leftFixedFields.push(field);
+      continue;
+    }
+
+    if (fixedMode === 'right') {
+      rightFixedFields.push(field);
+      continue;
+    }
+
+    normalFields.push(field);
+  }
+
+  return [...leftFixedFields, ...normalFields, ...rightFixedFields];
+});
+
+const exportableFields = computed(() => {
+  const orderedKeys = new Set<string>();
+  const fieldsInCurrentOrder: CrudFieldConfig[] = [];
+
+  for (const field of [
+    ...orderedVisibleTableFields.value,
+    ...orderedTableFields.value,
+  ]) {
+    const key = String(field.key);
+    if (field.type !== 'password' && !orderedKeys.has(key)) {
+      orderedKeys.add(key);
+      fieldsInCurrentOrder.push(field);
+    }
+  }
+
+  const remainingFields = props.config.fields.filter(
+    (field) =>
+      isFieldVisible(field) &&
+      field.type !== 'password' &&
+      !orderedKeys.has(String(field.key)),
+  );
+
+  return [...fieldsInCurrentOrder, ...remainingFields];
+});
+
+const orderedExportFields = computed(() => {
+  const fieldMap = new Map(
+    exportableFields.value.map((field) => [String(field.key), field]),
+  );
+  const seenKeys = new Set<string>();
+  const fields: CrudFieldConfig[] = [];
+
+  for (const key of exportFieldOrderKeys.value.map(String)) {
+    const field = fieldMap.get(key);
+    if (field && !seenKeys.has(key)) {
+      fields.push(field);
+      seenKeys.add(key);
+    }
+  }
+
+  for (const field of exportableFields.value) {
+    const key = String(field.key);
+    if (!seenKeys.has(key)) {
+      fields.push(field);
+      seenKeys.add(key);
+    }
+  }
+
+  return fields;
+});
+
+const selectedExportFields = computed(() =>
+  orderedExportFields.value.filter((field) =>
+    exportSelectedFieldKeys.value.includes(String(field.key)),
+  ),
+);
+
+const allExportFieldsSelected = computed(
+  () =>
+    exportableFields.value.length > 0 &&
+    exportableFields.value.every((field) =>
+      exportSelectedFieldKeys.value.includes(String(field.key)),
+    ),
+);
+
+const exportFieldsIndeterminate = computed(
+  () =>
+    !allExportFieldsSelected.value &&
+    exportableFields.value.some((field) =>
+      exportSelectedFieldKeys.value.includes(String(field.key)),
+    ),
 );
 
 const tableColumnPreferenceStorageKey = computed(() => {
   const routeKey =
     route.path ||
     `${props.config.apiModuleBase || ''}${props.config.apiBase || ''}`;
-  const tableName = String(props.config.tableName || '').trim();
+  const tableName = String(activeListTableName.value || '').trim();
   const pageKey = tableName ? `${routeKey}:${tableName}` : routeKey;
 
   return `vben:crud-table-columns:${pageKey}`;
@@ -408,8 +607,15 @@ const draftTableColumnsIndeterminate = computed(
     ),
 );
 
+const hasTableColumnCustomization = computed(
+  () =>
+    hiddenTableColumnKeys.value.length > 0 ||
+    tableColumnOrderKeys.value.length > 0 ||
+    Object.keys(tableColumnFixedState).length > 0,
+);
+
 const hasConfiguredRowActions = computed(() =>
-  (props.config.rowActions || []).some(
+  actionGroups.value.row.some(
     (action) =>
       (!action.permission || hasPermission(action.permission)) &&
       evaluateCrudVisibleOn(action.visibleOn, {}, userStore.userInfo),
@@ -418,21 +624,28 @@ const hasConfiguredRowActions = computed(() =>
 
 const showActionColumn = computed(
   () =>
-    canRetrieve.value ||
-    canEdit.value ||
-    canDelete.value ||
+    canShowActiveBuiltinAction('retrieve') ||
+    canShowActiveBuiltinAction('edit') ||
+    canShowActiveBuiltinAction('delete') ||
     hasConfiguredRowActions.value,
 );
 
 const tableColumns = computed<TableColumnsType>(() => {
-  const columns: TableColumnsType = visibleTableFields.value.map((field) => ({
-    align: isNumericField(field) ? 'right' : undefined,
-    dataIndex: field.key,
-    fixed: getTableColumnFixed(field),
-    key: field.key,
-    title: field.label,
-    width: field.width,
-  }));
+  const columns: TableColumnsType = orderedVisibleTableFields.value.map(
+    (field) => ({
+      align: isNumericField(field) ? 'right' : undefined,
+      dataIndex: field.key,
+      fixed: getEffectiveTableColumnFixed(field),
+      key: field.key,
+      sorter: isTableFieldSortable(field),
+      sortOrder:
+        tableSorterState.field === String(field.key)
+          ? tableSorterState.order
+          : undefined,
+      title: field.label,
+      width: field.width,
+    }),
+  );
 
   if (showActionColumn.value) {
     columns.push({
@@ -456,7 +669,10 @@ const allFieldMap = computed(() =>
 
 const actionGroups = computed(() =>
   groupCrudOperationsByRecordRef(
-    filterCrudOperationsByListTable(props.config.rowActions || [], 'default'),
+    filterCrudOperationsByListTable(
+      props.config.rowActions || [],
+      activeListTableName.value,
+    ),
   ),
 );
 
@@ -475,6 +691,7 @@ const rowSelection = computed(() => {
     ) => {
       selectedRowKeys.value = nextSelectedRowKeys;
       selectedRows.value = nextSelectedRows;
+      captureListTableState();
     },
   };
 });
@@ -489,6 +706,7 @@ const canQuery = computed(() =>
 const canCreate = computed(
   () =>
     props.config.allowCreate !== false &&
+    canShowActiveBuiltinAction('create') &&
     hasPermission(
       props.config.createPermission ||
         (props.config.createPath
@@ -503,6 +721,7 @@ const canCreate = computed(
 const canRetrieve = computed(
   () =>
     props.config.allowRetrieve === true &&
+    canShowActiveBuiltinAction('retrieve') &&
     hasPermission(
       props.config.detailPermission ||
         (props.config.detailPath
@@ -517,6 +736,7 @@ const canRetrieve = computed(
 const canDelete = computed(
   () =>
     props.config.allowDelete !== false &&
+    canShowActiveBuiltinAction('delete') &&
     hasPermission(
       props.config.deletePermission ||
         (props.config.deletePath
@@ -531,6 +751,7 @@ const canDelete = computed(
 const canEdit = computed(
   () =>
     props.config.allowEdit !== false &&
+    canShowActiveBuiltinAction('edit') &&
     hasPermission(
       props.config.editPermission ||
         (props.config.updatePath
@@ -599,6 +820,10 @@ function getFormFieldVisualWeight(field: CrudFieldConfig) {
   }
 
   return 1;
+}
+
+function isTableFieldSortable(field: CrudFieldConfig) {
+  return field.sortable !== false && field.key !== '__tenant';
 }
 
 function shouldFormFieldSpanFullRow(field: CrudFieldConfig) {
@@ -774,6 +999,7 @@ const modalWidth = computed(() => modalMaxWidth.value);
 function handleViewportResize() {
   viewportWidth.value = window.innerWidth;
   viewportHeight.value = window.innerHeight;
+  setListTableTabsPosition(listTableTabsPosition.x, listTableTabsPosition.y);
   updateTableScrollY();
 }
 
@@ -802,7 +1028,9 @@ function updateTableScrollY() {
     const toolbarHeight = listToolbarRef.value?.offsetHeight || 0;
     const toolbarGap = toolbarHeight > 0 ? TABLE_TOOLBAR_GAP : 0;
     const tableHeaderHeight =
-      getElementOuterHeight(table?.querySelector('.ant-table-header') || null) ||
+      getElementOuterHeight(
+        table?.querySelector('.ant-table-header') || null,
+      ) ||
       getElementOuterHeight(table?.querySelector('.ant-table-thead') || null) ||
       TABLE_HEADER_HEIGHT;
     const paginationHeight =
@@ -826,6 +1054,222 @@ function renderPaginationTotal(total: number, range: [number, number]) {
   }
 
   return `第 ${range[0]}-${range[1]} 条 / 共 ${total} 条`;
+}
+
+function getListTableTitle(
+  table: CrudListTableConfig | undefined,
+  index: number,
+) {
+  const title =
+    table?.title ||
+    table?.name ||
+    table?.label ||
+    table?.key ||
+    `列表${index + 1}`;
+
+  return String(title).trim() || `列表${index + 1}`;
+}
+
+function getListTableBuiltinActionFlag(
+  table: CrudListTableConfig | undefined,
+  action: CrudBuiltinAction,
+) {
+  if (!table) {
+    return undefined;
+  }
+
+  if (action === 'create') {
+    return table.allowCreate;
+  }
+
+  if (action === 'retrieve') {
+    return table.allowRetrieve;
+  }
+
+  if (action === 'edit') {
+    return table.allowEdit;
+  }
+
+  return table.allowDelete;
+}
+
+function isDefaultListTable(table: CrudListTableConfig | undefined) {
+  return (
+    !table ||
+    table.key === 'default' ||
+    table.key === 'list' ||
+    (table.tableName || 'default') === 'default'
+  );
+}
+
+function canShowActiveBuiltinAction(action: CrudBuiltinAction) {
+  if (!hasListTableTabs.value) {
+    return true;
+  }
+
+  const configured = getListTableBuiltinActionFlag(
+    activeListTable.value,
+    action,
+  );
+
+  if (configured !== undefined) {
+    return configured;
+  }
+
+  return isDefaultListTable(activeListTable.value);
+}
+
+function clampListTableTabsPosition(x: number, y: number) {
+  const page = crudPageRef.value;
+  const tabs = listTableTabsRef.value;
+
+  if (!page || !tabs) {
+    return {
+      x: Math.max(LIST_TABLE_TABS_EDGE_PADDING, x),
+      y: Math.max(LIST_TABLE_TABS_EDGE_PADDING, y),
+    };
+  }
+
+  const pageRect = page.getBoundingClientRect();
+  const tabsRect = tabs.getBoundingClientRect();
+  const maxX = Math.max(
+    LIST_TABLE_TABS_EDGE_PADDING,
+    pageRect.width - tabsRect.width - LIST_TABLE_TABS_EDGE_PADDING,
+  );
+  const maxY = Math.max(
+    LIST_TABLE_TABS_EDGE_PADDING,
+    pageRect.height - tabsRect.height - LIST_TABLE_TABS_EDGE_PADDING,
+  );
+
+  return {
+    x: Math.min(Math.max(LIST_TABLE_TABS_EDGE_PADDING, x), maxX),
+    y: Math.min(Math.max(LIST_TABLE_TABS_EDGE_PADDING, y), maxY),
+  };
+}
+
+function setListTableTabsPosition(x: number, y: number) {
+  const nextPosition = clampListTableTabsPosition(x, y);
+
+  listTableTabsPosition.x = nextPosition.x;
+  listTableTabsPosition.y = nextPosition.y;
+}
+
+function handleListTableTabsPointerMove(event: PointerEvent) {
+  if (!listTableTabsDragState) {
+    return;
+  }
+
+  const deltaX = event.clientX - listTableTabsDragState.startX;
+  const deltaY = event.clientY - listTableTabsDragState.startY;
+
+  if (
+    !isDraggingListTableTabs.value &&
+    Math.hypot(deltaX, deltaY) < LIST_TABLE_TABS_DRAG_THRESHOLD
+  ) {
+    return;
+  }
+
+  isDraggingListTableTabs.value = true;
+  suppressListTableTabsClick.value = true;
+  setListTableTabsPosition(
+    listTableTabsDragState.startLeft + deltaX,
+    listTableTabsDragState.startTop + deltaY,
+  );
+  event.preventDefault();
+}
+
+function stopListTableTabsDrag() {
+  window.removeEventListener('pointermove', handleListTableTabsPointerMove);
+  window.removeEventListener('pointerup', handleListTableTabsPointerUp);
+  window.removeEventListener('pointercancel', handleListTableTabsPointerUp);
+}
+
+function handleListTableTabsPointerUp() {
+  const wasDragging = isDraggingListTableTabs.value;
+
+  listTableTabsDragState = null;
+  isDraggingListTableTabs.value = false;
+  stopListTableTabsDrag();
+
+  if (wasDragging) {
+    window.setTimeout(() => {
+      suppressListTableTabsClick.value = false;
+    }, 0);
+  } else {
+    suppressListTableTabsClick.value = false;
+  }
+}
+
+function handleListTableTabsPointerDown(event: PointerEvent) {
+  if (event.button !== 0) {
+    return;
+  }
+
+  listTableTabsDragState = {
+    startLeft: listTableTabsPosition.x,
+    startTop: listTableTabsPosition.y,
+    startX: event.clientX,
+    startY: event.clientY,
+  };
+  suppressListTableTabsClick.value = false;
+  window.addEventListener('pointermove', handleListTableTabsPointerMove);
+  window.addEventListener('pointerup', handleListTableTabsPointerUp);
+  window.addEventListener('pointercancel', handleListTableTabsPointerUp);
+}
+
+function getInitialListTablePageSize() {
+  const pageSize = Number(props.config.defaultQuery?.pageSize || 10);
+
+  return Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 10;
+}
+
+function ensureListTableState(key = activeListTableStateKey.value) {
+  const normalizedKey = key || 'default';
+
+  if (!listTableStates[normalizedKey]) {
+    listTableStates[normalizedKey] = {
+      dataSource: [],
+      pagination: {
+        current: 1,
+        pageSize: getInitialListTablePageSize(),
+        total: 0,
+      },
+      searchState: {},
+      selectedRowKeys: [],
+      selectedRows: [],
+      sorter: {},
+    };
+  }
+
+  return listTableStates[normalizedKey]!;
+}
+
+function captureListTableState(key = activeListTableStateKey.value) {
+  const state = ensureListTableState(key);
+
+  state.dataSource = [...dataSource.value];
+  state.pagination = {
+    current: pagination.current,
+    pageSize: pagination.pageSize,
+    total: pagination.total,
+  };
+  state.searchState = { ...searchState };
+  state.selectedRowKeys = [...selectedRowKeys.value];
+  state.selectedRows = [...selectedRows.value];
+  state.sorter = { ...tableSorterState };
+}
+
+function restoreListTableState(key = activeListTableStateKey.value) {
+  const state = ensureListTableState(key);
+
+  dataSource.value = [...state.dataSource];
+  pagination.current = state.pagination.current;
+  pagination.pageSize = state.pagination.pageSize;
+  pagination.total = state.pagination.total;
+  copyReactiveRecord(searchState, state.searchState);
+  selectedRowKeys.value = [...state.selectedRowKeys];
+  selectedRows.value = [...state.selectedRows];
+  copyReactiveRecord<any>(tableSorterState, state.sorter || {});
 }
 
 function getBusinessTitle(title: string) {
@@ -1027,6 +1471,30 @@ function serializeFormValue(field: CrudFieldConfig, value: any) {
   return serializeFieldValue(field, value);
 }
 
+function isChoiceFormField(field: CrudFieldConfig) {
+  return (
+    field.type === 'area-cascader' ||
+    field.type === 'org-tree-select' ||
+    field.type === 'role-select' ||
+    field.type === 'select' ||
+    field.type === 'tags' ||
+    field.type === 'tenant'
+  );
+}
+
+function isEmptyChoiceValue(value: any) {
+  return (
+    value === undefined ||
+    value === null ||
+    value === '' ||
+    (Array.isArray(value) && value.length === 0)
+  );
+}
+
+function shouldOmitEmptyChoiceFormField(field: CrudFieldConfig, value: any) {
+  return isChoiceFormField(field) && isEmptyChoiceValue(value);
+}
+
 function buildSearchParams() {
   const params: GenericRecord = {};
 
@@ -1149,10 +1617,246 @@ async function loadOptions() {
   );
 }
 
+function buildSortParams() {
+  if (!tableSorterState.field || !tableSorterState.order) {
+    return {};
+  }
+
+  return {
+    orderBy: tableSorterState.field,
+    orderDir: tableSorterState.order === 'ascend' ? 'Asc' : 'Desc',
+  };
+}
+
+function getDefaultExportFieldOrder() {
+  return exportableFields.value.map((field) => String(field.key));
+}
+
+function getDefaultSelectedExportFieldKeys() {
+  return orderedVisibleTableFields.value
+    .filter((field) => field.type !== 'password')
+    .map((field) => String(field.key));
+}
+
+function openExportModal() {
+  exportFieldOrderKeys.value = getDefaultExportFieldOrder();
+  exportSelectedFieldKeys.value = getDefaultSelectedExportFieldKeys();
+  exportModalOpen.value = true;
+}
+
+function setExportFieldSelected(key: string, selected: boolean) {
+  const fieldKey = String(key);
+  const nextKeys = exportSelectedFieldKeys.value.filter(
+    (selectedKey) => selectedKey !== fieldKey,
+  );
+
+  if (selected) {
+    nextKeys.push(fieldKey);
+  }
+
+  exportSelectedFieldKeys.value = nextKeys;
+}
+
+function setAllExportFieldsSelected(selected: boolean) {
+  exportSelectedFieldKeys.value = selected
+    ? exportableFields.value.map((field) => String(field.key))
+    : [];
+}
+
+function moveExportField(field: CrudFieldConfig, offset: -1 | 1) {
+  const fieldKey = String(field.key);
+  const orderedKeys = orderedExportFields.value.map((item) => String(item.key));
+  const currentIndex = orderedKeys.indexOf(fieldKey);
+  const nextIndex = currentIndex + offset;
+
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= orderedKeys.length) {
+    return;
+  }
+
+  const [movedKey] = orderedKeys.splice(currentIndex, 1);
+  orderedKeys.splice(nextIndex, 0, movedKey!);
+  exportFieldOrderKeys.value = orderedKeys;
+}
+
+function escapeExcelXmlValue(value: any) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+function getSafeWorksheetName(name: string) {
+  const safeName = String(name || 'Sheet1')
+    .replaceAll(/[\\/?*\[\]:]/g, '')
+    .slice(0, 31)
+    .trim();
+
+  return safeName || 'Sheet1';
+}
+
+function getExportFileName() {
+  const now = new Date();
+  const timestamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0'),
+  ].join('');
+  const listTitle = activeListTable.value
+    ? getListTableTitle(
+        activeListTable.value,
+        Math.max(0, listTables.value.indexOf(activeListTable.value)),
+      )
+    : '列表';
+
+  return `${props.config.title}_${listTitle}_${timestamp}.xls`;
+}
+
+function formatExportCellValue(field: CrudFieldConfig, record: GenericRecord) {
+  const value = getRecordValue(record, field.key);
+
+  if (value === null || value === undefined || value === '') {
+    return '';
+  }
+
+  if (field.type === 'tenant') {
+    const tenant = getTenantDisplay(record);
+    return tenant.id ? `${tenant.name} (${tenant.id})` : tenant.name;
+  }
+
+  if (isBooleanEnableField(field)) {
+    return value ? '启用' : '禁用';
+  }
+
+  if (isNumericField(field)) {
+    return formatNumericValue(field, value);
+  }
+
+  return String(formatCellValue(field, value)).replace(/^-$/, '');
+}
+
+function buildExcelXml(fields: CrudFieldConfig[], records: GenericRecord[]) {
+  const headerXml = fields
+    .map(
+      (field) =>
+        `<Cell><Data ss:Type="String">${escapeExcelXmlValue(
+          field.label || field.key,
+        )}</Data></Cell>`,
+    )
+    .join('');
+  const rowXml = records
+    .map((record) => {
+      const cells = fields
+        .map(
+          (field) =>
+            `<Cell><Data ss:Type="String">${escapeExcelXmlValue(
+              formatExportCellValue(field, record),
+            )}</Data></Cell>`,
+        )
+        .join('');
+
+      return `<Row>${cells}</Row>`;
+    })
+    .join('');
+  const worksheetName = getSafeWorksheetName(props.config.title);
+
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Worksheet ss:Name="${escapeExcelXmlValue(worksheetName)}">
+  <Table>
+   <Row>${headerXml}</Row>
+   ${rowXml}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+}
+
+function downloadExcelXml(xml: string, fileName: string) {
+  const blob = new Blob([xml], {
+    type: 'application/vnd.ms-excel;charset=utf-8',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function fetchExportRecords() {
+  const records: GenericRecord[] = [];
+  let pageIndex = 1;
+
+  while (true) {
+    const result = await fetchCrudList<GenericRecord>(
+      activeListPath.value,
+      {
+        ...props.config.defaultQuery,
+        ...buildSearchParams(),
+        ...buildSortParams(),
+        pageIndex,
+        pageSize: EXPORT_PAGE_SIZE,
+      },
+      props.config.apiModuleBase,
+    );
+    const items = result.items || [];
+
+    if (items.length === 0) {
+      break;
+    }
+
+    records.push(...items);
+
+    if (items.length < EXPORT_PAGE_SIZE) {
+      break;
+    }
+
+    pageIndex += 1;
+  }
+
+  return records;
+}
+
+async function handleExportConfirm() {
+  const fields = selectedExportFields.value;
+
+  if (fields.length === 0) {
+    message.warning('请至少选择一个导出字段');
+    return;
+  }
+
+  exporting.value = true;
+
+  try {
+    const records = await fetchExportRecords();
+    const xml = buildExcelXml(fields, records);
+    downloadExcelXml(xml, getExportFileName());
+    message.success(`导出成功，共 ${records.length} 条`);
+    exportModalOpen.value = false;
+  } catch (error) {
+    console.error(error);
+    message.error('导出失败');
+  } finally {
+    exporting.value = false;
+  }
+}
+
 async function loadList() {
   if (!canQuery.value) {
     dataSource.value = [];
     pagination.total = 0;
+    captureListTableState();
     return;
   }
 
@@ -1160,10 +1864,11 @@ async function loadList() {
 
   try {
     const result = await fetchCrudList<GenericRecord>(
-      `${props.config.apiBase}/list`,
+      activeListPath.value,
       {
         ...props.config.defaultQuery,
         ...buildSearchParams(),
+        ...buildSortParams(),
         pageIndex: pagination.current,
         pageSize: pagination.pageSize,
       },
@@ -1172,6 +1877,7 @@ async function loadList() {
 
     dataSource.value = result.items || [];
     pagination.total = result.totals || 0;
+    captureListTableState();
   } finally {
     loading.value = false;
   }
@@ -1255,6 +1961,10 @@ async function handleSubmit() {
 
     for (const field of visibleFormFields.value) {
       if (field.type === 'area-cascader') {
+        if (shouldOmitEmptyChoiceFormField(field, formState[field.key])) {
+          continue;
+        }
+
         applyAreaCascaderValueToRecord(
           payload,
           field,
@@ -1264,7 +1974,13 @@ async function handleSubmit() {
         continue;
       }
 
-      payload[field.key] = serializeFormValue(field, formState[field.key]);
+      const value = serializeFormValue(field, formState[field.key]);
+
+      if (shouldOmitEmptyChoiceFormField(field, value)) {
+        continue;
+      }
+
+      payload[field.key] = value;
     }
 
     const finalPayload = props.config.transformSubmit
@@ -1315,6 +2031,59 @@ function resetSearch() {
   loadList();
 }
 
+function normalizeTableSorter(sorter: any): TableSorterState {
+  const sorterItem = Array.isArray(sorter)
+    ? sorter.find((item) => item?.order)
+    : sorter;
+  const order = sorterItem?.order;
+
+  if (order !== 'ascend' && order !== 'descend') {
+    return {};
+  }
+
+  const field =
+    sorterItem?.field ??
+    sorterItem?.columnKey ??
+    sorterItem?.column?.key ??
+    sorterItem?.column?.dataIndex;
+
+  if (!field) {
+    return {};
+  }
+
+  return {
+    field: String(Array.isArray(field) ? field.join('.') : field),
+    order,
+  };
+}
+
+function handleTableChange(page: any, _filters: any, sorter: any) {
+  pagination.current = page.current || 1;
+  pagination.pageSize = page.pageSize || 10;
+  copyReactiveRecord<any>(tableSorterState, normalizeTableSorter(sorter));
+  loadList();
+}
+
+function handleListTableChange(key: number | string) {
+  if (suppressListTableTabsClick.value) {
+    return;
+  }
+
+  const previousKey = activeListTableStateKey.value;
+  const nextKey = String(key || '');
+
+  if (!nextKey || nextKey === previousKey) {
+    return;
+  }
+
+  captureListTableState(previousKey);
+  activeListTableKey.value = nextKey;
+  restoreListTableState(nextKey);
+  loadTableColumnPreference();
+  void loadList();
+  updateTableScrollY();
+}
+
 function toggleSearchExpanded() {
   searchExpanded.value = !searchExpanded.value;
 }
@@ -1354,13 +2123,17 @@ function getTableColumnFixed(field: CrudFieldConfig) {
   return mode || getDefaultTableColumnFixed(field);
 }
 
+function getEffectiveTableColumnFixed(field: CrudFieldConfig) {
+  return effectiveTableColumnFixedMap.value[getTableFieldKey(field)];
+}
+
 function resetReactiveRecord(record: Record<string, any>) {
   for (const key of Object.keys(record)) {
     delete record[key];
   }
 }
 
-function copyReactiveRecord<T extends string>(
+function copyReactiveRecord<T = any>(
   target: Record<string, T>,
   source: Record<string, T>,
 ) {
@@ -1371,8 +2144,55 @@ function copyReactiveRecord<T extends string>(
   }
 }
 
+function getTableFieldKey(field: CrudFieldConfig) {
+  return String(field.key);
+}
+
 function getAvailableTableFieldKeys() {
   return new Set(tableFields.value.map((field) => String(field.key)));
+}
+
+function getDefaultTableColumnOrder() {
+  return tableFields.value.map(getTableFieldKey);
+}
+
+function normalizeTableColumnOrder(keys: string[] = []) {
+  const availableKeys = getAvailableTableFieldKeys();
+  const seenKeys = new Set<string>();
+  const orderedKeys: string[] = [];
+
+  for (const key of keys.map(String)) {
+    if (availableKeys.has(key) && !seenKeys.has(key)) {
+      seenKeys.add(key);
+      orderedKeys.push(key);
+    }
+  }
+
+  for (const key of getDefaultTableColumnOrder()) {
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      orderedKeys.push(key);
+    }
+  }
+
+  return orderedKeys;
+}
+
+function getOrderedTableFields(keys: string[] = []) {
+  const fieldMap = new Map(
+    tableFields.value.map((field) => [getTableFieldKey(field), field]),
+  );
+
+  return normalizeTableColumnOrder(keys)
+    .map((key) => fieldMap.get(key))
+    .filter(Boolean) as CrudFieldConfig[];
+}
+
+function isTableColumnOrderCustomized(keys = tableColumnOrderKeys.value) {
+  const normalizedKeys = normalizeTableColumnOrder(keys);
+  const defaultKeys = getDefaultTableColumnOrder();
+
+  return normalizedKeys.some((key, index) => key !== defaultKeys[index]);
 }
 
 function pruneTableColumnPreference() {
@@ -1384,6 +2204,21 @@ function pruneTableColumnPreference() {
 
   if (nextHiddenKeys.length !== hiddenTableColumnKeys.value.length) {
     hiddenTableColumnKeys.value = nextHiddenKeys;
+    changed = true;
+  }
+
+  const nextOrderKeys = normalizeTableColumnOrder(tableColumnOrderKeys.value);
+  const normalizedOrderKeys = isTableColumnOrderCustomized(nextOrderKeys)
+    ? nextOrderKeys
+    : [];
+
+  if (
+    normalizedOrderKeys.length !== tableColumnOrderKeys.value.length ||
+    normalizedOrderKeys.some(
+      (key, index) => key !== tableColumnOrderKeys.value[index],
+    )
+  ) {
+    tableColumnOrderKeys.value = normalizedOrderKeys;
     changed = true;
   }
 
@@ -1421,6 +2256,7 @@ function saveTableColumnPreference() {
 
   if (
     hiddenTableColumnKeys.value.length === 0 &&
+    tableColumnOrderKeys.value.length === 0 &&
     Object.keys(tableColumnFixedState).length === 0
   ) {
     clearTableColumnPreference();
@@ -1430,6 +2266,7 @@ function saveTableColumnPreference() {
   const preference: TableColumnPreference = {
     fixedMap: { ...tableColumnFixedState },
     hiddenKeys: [...hiddenTableColumnKeys.value],
+    orderedKeys: [...tableColumnOrderKeys.value],
     version: TABLE_COLUMN_PREFERENCE_VERSION,
   };
 
@@ -1437,15 +2274,12 @@ function saveTableColumnPreference() {
     tableColumnPreferenceStorageKey.value,
     JSON.stringify(preference),
   );
-  hasStoredTableColumnPreference.value = true;
 }
 
 function clearTableColumnPreference() {
   if (typeof window !== 'undefined') {
     window.localStorage.removeItem(tableColumnPreferenceStorageKey.value);
   }
-
-  hasStoredTableColumnPreference.value = false;
 }
 
 function loadTableColumnPreference() {
@@ -1455,11 +2289,11 @@ function loadTableColumnPreference() {
 
   resetReactiveRecord(tableColumnFixedState);
   hiddenTableColumnKeys.value = [];
+  tableColumnOrderKeys.value = [];
 
   const rawValue = window.localStorage.getItem(
     tableColumnPreferenceStorageKey.value,
   );
-  hasStoredTableColumnPreference.value = !!rawValue;
 
   if (!rawValue) {
     return;
@@ -1471,6 +2305,10 @@ function loadTableColumnPreference() {
     hiddenTableColumnKeys.value = (preference.hiddenKeys || [])
       .map(String)
       .filter((key) => availableKeys.has(key));
+    const orderedKeys = normalizeTableColumnOrder(preference.orderedKeys || []);
+    tableColumnOrderKeys.value = isTableColumnOrderCustomized(orderedKeys)
+      ? orderedKeys
+      : [];
 
     for (const [key, value] of Object.entries(preference.fixedMap || {})) {
       const columnKey = String(key);
@@ -1485,8 +2323,40 @@ function loadTableColumnPreference() {
   }
 }
 
-function openTableColumnSettings() {
+function getTableColumnSettingsSnapshot(): TableColumnSettingsSnapshot {
+  return {
+    fixedMap: { ...tableColumnFixedState },
+    hiddenKeys: [...hiddenTableColumnKeys.value],
+    orderedKeys: [...tableColumnOrderKeys.value],
+  };
+}
+
+function restoreTableColumnSettings(snapshot: TableColumnSettingsSnapshot) {
+  hiddenTableColumnKeys.value = [...snapshot.hiddenKeys];
+  tableColumnOrderKeys.value = [...snapshot.orderedKeys];
+  copyReactiveRecord(tableColumnFixedState, snapshot.fixedMap);
+  openTableColumnSettings(false);
+  updateTableScrollY();
+}
+
+function syncDraftTableColumnSettingsToTable() {
+  hiddenTableColumnKeys.value = [...draftHiddenTableColumnKeys.value];
+  tableColumnOrderKeys.value = normalizeTableColumnOrder(
+    draftTableColumnOrderKeys.value,
+  );
+  copyReactiveRecord(tableColumnFixedState, draftTableColumnFixedState);
+  updateTableScrollY();
+}
+
+function openTableColumnSettings(captureSnapshot = true) {
+  if (captureSnapshot) {
+    columnSettingsSnapshot.value = getTableColumnSettingsSnapshot();
+  }
+
   draftHiddenTableColumnKeys.value = [...hiddenTableColumnKeys.value];
+  draftTableColumnOrderKeys.value = normalizeTableColumnOrder(
+    tableColumnOrderKeys.value,
+  );
   copyReactiveRecord(draftTableColumnFixedState, tableColumnFixedState);
 }
 
@@ -1513,11 +2383,13 @@ function setDraftTableColumnVisible(key: string, visible: boolean) {
   }
 
   draftHiddenTableColumnKeys.value = nextHiddenKeys;
+  syncDraftTableColumnSettingsToTable();
 }
 
 function setAllDraftTableColumnsVisible(visible: boolean) {
   if (visible) {
     draftHiddenTableColumnKeys.value = [];
+    syncDraftTableColumnSettingsToTable();
     return;
   }
 
@@ -1529,6 +2401,95 @@ function setAllDraftTableColumnsVisible(visible: boolean) {
   draftHiddenTableColumnKeys.value = tableFields.value
     .slice(1)
     .map((field) => String(field.key));
+  syncDraftTableColumnSettingsToTable();
+}
+
+function getDraftTableColumnIndex(field: CrudFieldConfig) {
+  return normalizeTableColumnOrder(draftTableColumnOrderKeys.value).indexOf(
+    getTableFieldKey(field),
+  );
+}
+
+function moveDraftTableColumn(field: CrudFieldConfig, offset: -1 | 1) {
+  const columnKey = getTableFieldKey(field);
+  const orderedKeys = normalizeTableColumnOrder(
+    draftTableColumnOrderKeys.value,
+  );
+  const currentIndex = orderedKeys.indexOf(columnKey);
+  const nextIndex = currentIndex + offset;
+
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= orderedKeys.length) {
+    return;
+  }
+
+  const [movedKey] = orderedKeys.splice(currentIndex, 1);
+  orderedKeys.splice(nextIndex, 0, movedKey!);
+  draftTableColumnOrderKeys.value = orderedKeys;
+  syncDraftTableColumnSettingsToTable();
+}
+
+function handleDraftTableColumnDragStart(
+  event: DragEvent,
+  field: CrudFieldConfig,
+) {
+  const columnKey = getTableFieldKey(field);
+  draggedDraftTableColumnKey.value = columnKey;
+  event.dataTransfer?.setData('text/plain', columnKey);
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+  }
+}
+
+function handleDraftTableColumnDragOver(event: DragEvent) {
+  event.preventDefault();
+
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move';
+  }
+}
+
+function handleDraftTableColumnDrop(
+  event: DragEvent,
+  targetField: CrudFieldConfig,
+) {
+  event.preventDefault();
+
+  const sourceKey =
+    draggedDraftTableColumnKey.value ||
+    event.dataTransfer?.getData('text/plain') ||
+    '';
+  const targetKey = getTableFieldKey(targetField);
+
+  if (!sourceKey || sourceKey === targetKey) {
+    draggedDraftTableColumnKey.value = '';
+    return;
+  }
+
+  const orderedKeys = normalizeTableColumnOrder(
+    draftTableColumnOrderKeys.value,
+  );
+  const sourceIndex = orderedKeys.indexOf(sourceKey);
+  const targetIndex = orderedKeys.indexOf(targetKey);
+
+  if (sourceIndex < 0 || targetIndex < 0) {
+    draggedDraftTableColumnKey.value = '';
+    return;
+  }
+
+  const [movedKey] = orderedKeys.splice(sourceIndex, 1);
+  orderedKeys.splice(
+    sourceIndex < targetIndex ? targetIndex - 1 : targetIndex,
+    0,
+    movedKey!,
+  );
+  draftTableColumnOrderKeys.value = orderedKeys;
+  draggedDraftTableColumnKey.value = '';
+  syncDraftTableColumnSettingsToTable();
+}
+
+function handleDraftTableColumnDragEnd() {
+  draggedDraftTableColumnKey.value = '';
 }
 
 function getDraftTableColumnFixedMode(
@@ -1545,27 +2506,41 @@ function getDraftTableColumnFixedMode(
 
 function setDraftTableColumnFixed(key: string, mode: TableColumnFixedMode) {
   draftTableColumnFixedState[String(key)] = mode;
+  syncDraftTableColumnSettingsToTable();
+}
+
+function toggleDraftTableColumnFixed(
+  field: CrudFieldConfig,
+  mode: Exclude<TableColumnFixedMode, 'none'>,
+) {
+  const currentMode = getDraftTableColumnFixedMode(field);
+  setDraftTableColumnFixed(field.key, currentMode === mode ? 'none' : mode);
 }
 
 function applyTableColumnSettings() {
-  hiddenTableColumnKeys.value = [...draftHiddenTableColumnKeys.value];
-  copyReactiveRecord(tableColumnFixedState, draftTableColumnFixedState);
+  syncDraftTableColumnSettingsToTable();
   saveTableColumnPreference();
+  columnSettingsSnapshot.value = null;
   columnSettingsOpen.value = false;
   updateTableScrollY();
 }
 
 function cancelTableColumnSettings() {
-  openTableColumnSettings();
+  if (columnSettingsSnapshot.value) {
+    restoreTableColumnSettings(columnSettingsSnapshot.value);
+  } else {
+    openTableColumnSettings(false);
+  }
+
+  columnSettingsSnapshot.value = null;
   columnSettingsOpen.value = false;
 }
 
 function resetTableColumns() {
-  hiddenTableColumnKeys.value = [];
   draftHiddenTableColumnKeys.value = [];
-  resetReactiveRecord(tableColumnFixedState);
+  draftTableColumnOrderKeys.value = normalizeTableColumnOrder();
   resetReactiveRecord(draftTableColumnFixedState);
-  clearTableColumnPreference();
+  syncDraftTableColumnSettingsToTable();
   updateTableScrollY();
 }
 
@@ -2065,6 +3040,24 @@ function isStatusLikeField(field: CrudFieldConfig | undefined) {
   );
 }
 
+function isBooleanEnableField(field: CrudFieldConfig | undefined) {
+  if (!field || field.type !== 'switch' || field.valueType !== 'boolean') {
+    return false;
+  }
+
+  return (
+    /^(is)?(enable|enabled|disable|disabled)$/i.test(field.key) ||
+    /启用|禁用/.test(field.label)
+  );
+}
+
+function canQuickUpdateBooleanEnableField(
+  field: CrudFieldConfig | undefined,
+  record: GenericRecord,
+) {
+  return isBooleanEnableField(field) && canShowBuiltinEdit(record);
+}
+
 function getStatusTagColor(field: CrudFieldConfig | undefined, value: any) {
   const text = String(formatCellValue(field || ({} as CrudFieldConfig), value));
 
@@ -2238,6 +3231,45 @@ function canShowBuiltinEdit(record: GenericRecord) {
         userStore.userInfo,
       ))
   );
+}
+
+function getQuickSwitchLoadingKey(record: GenericRecord, fieldKey: unknown) {
+  return `${String(getRecordValue(record, recordKey.value) ?? '')}:${String(
+    fieldKey,
+  )}`;
+}
+
+async function updateBooleanEnableField(
+  record: GenericRecord,
+  field: CrudFieldConfig,
+  checked: boolean,
+) {
+  const fieldKey = String(field.key);
+  const loadingKey = getQuickSwitchLoadingKey(record, fieldKey);
+  const previousValue = Boolean(record[fieldKey]);
+
+  quickSwitchLoadingState[loadingKey] = true;
+  record[fieldKey] = checked;
+
+  try {
+    await updateCrudRecord(
+      props.config.updatePath || `${props.config.apiBase}/update`,
+      {
+        [recordKey.value]: getRecordValue(record, recordKey.value),
+        optimisticLock: record.optimisticLock,
+        [fieldKey]: checked,
+      },
+      props.config.apiModuleBase,
+    );
+    message.success('更新成功');
+    await loadList();
+  } catch (error) {
+    record[fieldKey] = previousValue;
+    console.error(error);
+    message.error('更新失败');
+  } finally {
+    quickSwitchLoadingState[loadingKey] = false;
+  }
 }
 
 function canShowBuiltinDetail(record: GenericRecord) {
@@ -2445,6 +3477,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleViewportResize);
   window.removeEventListener('paste', handlePasteUpload);
+  stopListTableTabsDrag();
   listSectionResizeObserver?.disconnect();
   listSectionResizeObserver = null;
 });
@@ -2460,6 +3493,27 @@ watch(columnSettingsOpen, (open) => {
     openTableColumnSettings();
   }
 });
+
+watch(
+  listTables,
+  (tables) => {
+    if (tables.length === 0) {
+      ensureListTableState('default');
+      restoreListTableState('default');
+      return;
+    }
+
+    for (const table of tables) {
+      ensureListTableState(table.key);
+    }
+
+    if (!tables.some((table) => table.key === activeListTableKey.value)) {
+      activeListTableKey.value = tables[0]?.key || '';
+      restoreListTableState(activeListTableKey.value);
+    }
+  },
+  { immediate: true },
+);
 
 watch([searchExpanded, searchFieldItems, tableFullscreen], updateTableScrollY);
 
@@ -2482,7 +3536,33 @@ watch(tableColumnPreferenceStorageKey, () => {
     auto-content-height
     content-class="!bg-transparent !p-0 min-w-0 !overflow-hidden"
   >
-    <div class="vben-crud-page flex h-full flex-col gap-2">
+    <div
+      ref="crudPageRef"
+      class="vben-crud-page relative flex h-full flex-col gap-2"
+    >
+      <div
+        v-if="hasListTableTabs"
+        ref="listTableTabsRef"
+        class="vben-crud-list-tabs-float"
+        :class="{ 'is-dragging': isDraggingListTableTabs }"
+        :style="listTableTabsFloatStyle"
+        @pointerdown="handleListTableTabsPointerDown"
+      >
+        <Tabs
+          :active-key="activeListTableKey"
+          class="vben-crud-list-tabs"
+          size="small"
+          tab-position="left"
+          @change="handleListTableChange"
+        >
+          <Tabs.TabPane
+            v-for="(table, index) in listTables"
+            :key="table.key"
+            :tab="getListTableTitle(table, index)"
+          />
+        </Tabs>
+      </div>
+
       <div v-if="searchFieldItems.length > 0" class="vben-crud-section">
         <Form :label-col="{ style: { width: '88px' } }">
           <div class="grid gap-x-4 gap-y-4" :style="searchGridStyle">
@@ -2693,22 +3773,46 @@ watch(tableColumnPreferenceStorageKey, () => {
           </div>
 
           <Space class="ml-auto" :size="8">
-            <VxeButton
-              circle
-              icon="vxe-icon-refresh"
-              :loading="loading"
-              title="刷新"
-              @click="refreshTable"
-            />
+            <Tooltip title="导出">
+              <Button
+                v-if="canQuery"
+                aria-label="导出"
+                class="vben-crud-table-tool-button"
+                shape="circle"
+                :disabled="exportableFields.length === 0"
+                @click="openExportModal"
+              >
+                <IconifyIcon class="size-4" icon="lucide:download" />
+              </Button>
+            </Tooltip>
 
-            <VxeButton
-              circle
-              :icon="
-                tableFullscreen ? 'vxe-icon-minimize' : 'vxe-icon-fullscreen'
-              "
-              :title="tableFullscreen ? '退出全屏' : '全屏'"
-              @click="toggleTableFullscreen"
-            />
+            <Tooltip title="刷新">
+              <Button
+                aria-label="刷新"
+                class="vben-crud-table-tool-button"
+                shape="circle"
+                :loading="loading"
+                @click="refreshTable"
+              >
+                <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+              </Button>
+            </Tooltip>
+
+            <Tooltip :title="tableFullscreen ? '退出全屏' : '全屏'">
+              <Button
+                :aria-label="tableFullscreen ? '退出全屏' : '全屏'"
+                class="vben-crud-table-tool-button"
+                shape="circle"
+                @click="toggleTableFullscreen"
+              >
+                <IconifyIcon
+                  class="size-4"
+                  :icon="
+                    tableFullscreen ? 'lucide:minimize-2' : 'lucide:maximize-2'
+                  "
+                />
+              </Button>
+            </Tooltip>
 
             <Popover
               v-model:open="columnSettingsOpen"
@@ -2717,7 +3821,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               overlay-class-name="vben-crud-column-popover"
             >
               <template #content>
-                <div class="w-[320px] max-w-[80vw]">
+                <div class="w-[380px] max-w-[80vw]">
                   <div class="mb-2 border-b border-border pb-2">
                     <Checkbox
                       :checked="allDraftTableColumnsVisible"
@@ -2729,18 +3833,44 @@ watch(tableColumnPreferenceStorageKey, () => {
                     >
                       全部
                     </Checkbox>
+                    <div
+                      class="mt-2 flex items-center gap-1 text-xs text-muted-foreground"
+                    >
+                      <IconifyIcon
+                        class="size-3.5"
+                        icon="lucide:grip-vertical"
+                      />
+                      拖动排序，或使用上下箭头调整列顺序
+                    </div>
                   </div>
                   <div class="flex max-h-96 flex-col overflow-auto">
                     <div
-                      v-for="field in tableFields"
+                      v-for="field in draftOrderedTableFields"
                       :key="field.key"
                       class="vben-crud-column-setting-row"
+                      :class="{
+                        'is-dragging':
+                          draggedDraftTableColumnKey ===
+                          getTableFieldKey(field),
+                      }"
+                      draggable="true"
+                      @dragend="handleDraftTableColumnDragEnd"
+                      @dragover="handleDraftTableColumnDragOver"
+                      @dragstart="
+                        (event) => handleDraftTableColumnDragStart(event, field)
+                      "
+                      @drop="
+                        (event) => handleDraftTableColumnDrop(event, field)
+                      "
                     >
                       <span
                         class="vben-crud-column-drag-handle"
-                        aria-hidden="true"
+                        title="拖动排序"
                       >
-                        :::
+                        <IconifyIcon
+                          class="size-4"
+                          icon="lucide:grip-vertical"
+                        />
                       </span>
                       <Checkbox
                         :checked="isDraftTableColumnVisible(field.key)"
@@ -2754,6 +3884,29 @@ watch(tableColumnPreferenceStorageKey, () => {
                       >
                         {{ field.label }}
                       </Checkbox>
+                      <Space :size="2">
+                        <button
+                          type="button"
+                          class="vben-crud-column-pin"
+                          :disabled="getDraftTableColumnIndex(field) <= 0"
+                          title="上移"
+                          @click="moveDraftTableColumn(field, -1)"
+                        >
+                          <ArrowUp class="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          class="vben-crud-column-pin"
+                          :disabled="
+                            getDraftTableColumnIndex(field) >=
+                            draftOrderedTableFields.length - 1
+                          "
+                          title="下移"
+                          @click="moveDraftTableColumn(field, 1)"
+                        >
+                          <ArrowDown class="size-4" />
+                        </button>
+                      </Space>
                       <Space :size="4">
                         <button
                           type="button"
@@ -2763,7 +3916,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                               getDraftTableColumnFixedMode(field) === 'left',
                           }"
                           title="固定到左侧"
-                          @click="setDraftTableColumnFixed(field.key, 'left')"
+                          @click="toggleDraftTableColumnFixed(field, 'left')"
                         >
                           <i class="vxe-icon-fixed-left"></i>
                         </button>
@@ -2775,18 +3928,9 @@ watch(tableColumnPreferenceStorageKey, () => {
                               getDraftTableColumnFixedMode(field) === 'right',
                           }"
                           title="固定到右侧"
-                          @click="setDraftTableColumnFixed(field.key, 'right')"
+                          @click="toggleDraftTableColumnFixed(field, 'right')"
                         >
                           <i class="vxe-icon-fixed-right"></i>
-                        </button>
-                        <button
-                          v-if="getDraftTableColumnFixedMode(field) !== 'none'"
-                          type="button"
-                          class="vben-crud-column-pin"
-                          title="取消固定"
-                          @click="setDraftTableColumnFixed(field.key, 'none')"
-                        >
-                          <i class="vxe-icon-close"></i>
                         </button>
                       </Space>
                     </div>
@@ -2797,7 +3941,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                     <Button
                       type="link"
                       class="p-0"
-                      :disabled="!hasStoredTableColumnPreference"
+                      :disabled="!hasTableColumnCustomization"
                       @click="resetTableColumns"
                     >
                       恢复默认
@@ -2811,13 +3955,20 @@ watch(tableColumnPreferenceStorageKey, () => {
                         type="primary"
                         @click="applyTableColumnSettings"
                       >
-                        确认
+                        保存
                       </Button>
                     </Space>
                   </div>
                 </div>
               </template>
-              <VxeButton circle icon="vxe-icon-custom-column" title="列设置" />
+              <Button
+                aria-label="列设置"
+                class="vben-crud-table-tool-button"
+                shape="circle"
+                title="列设置"
+              >
+                <IconifyIcon class="size-4" icon="lucide:settings-2" />
+              </Button>
             </Popover>
           </Space>
         </div>
@@ -2836,13 +3987,7 @@ watch(tableColumnPreferenceStorageKey, () => {
           :row-selection="rowSelection"
           :scroll="{ x: 'max-content', y: tableScrollY }"
           :row-key="recordKey"
-          @change="
-            (page) => {
-              pagination.current = page.current || 1;
-              pagination.pageSize = page.pageSize || 10;
-              loadList();
-            }
-          "
+          @change="handleTableChange"
           class="vben-crud-table"
         >
           <template #bodyCell="{ column, record }">
@@ -2907,8 +4052,32 @@ watch(tableColumnPreferenceStorageKey, () => {
               </Space>
             </template>
             <template v-else>
+              <Switch
+                v-if="
+                  canQuickUpdateBooleanEnableField(
+                    getTableField(column.key),
+                    record,
+                  )
+                "
+                :checked="Boolean(getRecordValue(record, column.key))"
+                :loading="
+                  quickSwitchLoadingState[
+                    getQuickSwitchLoadingKey(record, column.key)
+                  ]
+                "
+                checked-children="启用"
+                un-checked-children="禁用"
+                @change="
+                  (checked) =>
+                    updateBooleanEnableField(
+                      record,
+                      getTableField(column.key)!,
+                      Boolean(checked),
+                    )
+                "
+              />
               <Tag
-                v-if="isStatusLikeField(getTableField(column.key))"
+                v-else-if="isStatusLikeField(getTableField(column.key))"
                 :color="
                   getTableField(column.key)?.type === 'switch'
                     ? getRecordValue(record, column.key)
@@ -3069,6 +4238,73 @@ watch(tableColumnPreferenceStorageKey, () => {
         </Table>
       </div>
     </div>
+
+    <Modal
+      :confirm-loading="exporting"
+      :open="exportModalOpen"
+      title="导出 Excel"
+      width="520px"
+      destroy-on-close
+      @cancel="exportModalOpen = false"
+      @ok="handleExportConfirm"
+    >
+      <div class="vben-crud-export-modal">
+        <div class="mb-2 border-b border-border pb-2">
+          <Checkbox
+            :checked="allExportFieldsSelected"
+            :indeterminate="exportFieldsIndeterminate"
+            @change="
+              (event) => setAllExportFieldsSelected(event.target.checked)
+            "
+          >
+            全部字段
+          </Checkbox>
+          <div
+            class="mt-2 flex items-center gap-1 text-xs text-muted-foreground"
+          >
+            <IconifyIcon class="size-3.5" icon="lucide:arrow-up-down" />
+            默认按当前表格列顺序导出，可使用上下箭头调整导出列顺序
+          </div>
+        </div>
+        <div class="flex max-h-[420px] flex-col overflow-auto">
+          <div
+            v-for="(field, index) in orderedExportFields"
+            :key="field.key"
+            class="vben-crud-export-field-row"
+          >
+            <Checkbox
+              :checked="exportSelectedFieldKeys.includes(String(field.key))"
+              @change="
+                (event) =>
+                  setExportFieldSelected(field.key, event.target.checked)
+              "
+            >
+              {{ field.label }}
+            </Checkbox>
+            <Space :size="2">
+              <button
+                type="button"
+                class="vben-crud-column-pin"
+                :disabled="index <= 0"
+                title="上移"
+                @click="moveExportField(field, -1)"
+              >
+                <ArrowUp class="size-4" />
+              </button>
+              <button
+                type="button"
+                class="vben-crud-column-pin"
+                :disabled="index >= orderedExportFields.length - 1"
+                title="下移"
+                @click="moveExportField(field, 1)"
+              >
+                <ArrowDown class="size-4" />
+              </button>
+            </Space>
+          </div>
+        </div>
+      </div>
+    </Modal>
 
     <Modal
       v-if="canCreate || (canEdit && editingRecord)"
@@ -3416,6 +4652,45 @@ watch(tableColumnPreferenceStorageKey, () => {
   height: 100%;
 }
 
+.vben-crud-list-tabs-float {
+  position: absolute;
+  z-index: 20;
+  max-width: calc(100% - 32px);
+  padding: 8px 10px;
+  cursor: grab;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  opacity: 0.8;
+  box-shadow: var(--shadow-sm);
+  user-select: none;
+  touch-action: none;
+}
+
+.vben-crud-list-tabs-float.is-dragging {
+  cursor: grabbing;
+}
+
+.vben-crud-list-tabs {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.vben-crud-list-tabs :deep(.ant-tabs-nav) {
+  margin: 0;
+}
+
+.vben-crud-list-tabs :deep(.ant-tabs-content-holder) {
+  display: none;
+}
+
+.vben-crud-list-tabs :deep(.ant-tabs-tab) {
+  justify-content: center;
+  min-width: 96px;
+  padding: 6px 10px;
+  margin: 0;
+}
+
 .vben-crud-section {
   min-width: 0;
   padding: 16px;
@@ -3484,6 +4759,18 @@ watch(tableColumnPreferenceStorageKey, () => {
   justify-content: space-between;
   min-width: 0;
   padding: 4px 0;
+  border-radius: var(--radius);
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.vben-crud-column-setting-row:hover {
+  background: hsl(var(--muted) / 60%);
+}
+
+.vben-crud-column-setting-row.is-dragging {
+  opacity: 0.45;
 }
 
 .vben-crud-column-setting-row :deep(.ant-checkbox-wrapper) {
@@ -3498,13 +4785,17 @@ watch(tableColumnPreferenceStorageKey, () => {
 }
 
 .vben-crud-column-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   width: 16px;
-  overflow: hidden;
-  font-size: 12px;
-  line-height: 1;
   color: hsl(var(--muted-foreground));
-  letter-spacing: -2px;
+  cursor: grab;
+}
+
+.vben-crud-column-drag-handle:active {
+  cursor: grabbing;
 }
 
 .vben-crud-column-pin {
@@ -3523,5 +4814,39 @@ watch(tableColumnPreferenceStorageKey, () => {
 .vben-crud-column-pin:hover,
 .vben-crud-column-pin.is-active {
   color: hsl(var(--primary));
+}
+
+.vben-crud-column-pin:disabled {
+  color: hsl(var(--muted-foreground) / 45%);
+  cursor: not-allowed;
+}
+
+.vben-crud-column-pin:disabled:hover {
+  color: hsl(var(--muted-foreground) / 45%);
+}
+
+.vben-crud-export-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 6px 0;
+  border-radius: var(--radius);
+}
+
+.vben-crud-export-field-row:hover {
+  background: hsl(var(--muted) / 60%);
+}
+
+.vben-crud-export-field-row :deep(.ant-checkbox-wrapper) {
+  min-width: 0;
+  flex: 1;
+}
+
+.vben-crud-export-field-row :deep(.ant-checkbox + span) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

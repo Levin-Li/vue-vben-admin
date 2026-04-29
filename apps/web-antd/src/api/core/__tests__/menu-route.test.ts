@@ -13,6 +13,16 @@ describe('menu route conversion', () => {
     ).toBe('/system/com_levin_oak_base/role/index.vue');
   });
 
+  it('routes tenant setting path to the tenant setting local page', () => {
+    expect(
+      convertMenuNodeForTest({
+        name: '租户系统设置',
+        pageType: 'LocalPage-本地页面',
+        path: '/clob/V1/SettingForTenant',
+      })?.component,
+    ).toBe('/system/com_levin_oak_base/setting-for-tenant/index.vue');
+  });
+
   it('routes AmisPage to local Vue mapping when a local page exists', () => {
     expect(
       convertMenuNodeForTest({

@@ -298,6 +298,14 @@ const LOCAL_ROUTE_MAPPINGS: LocalRouteMapping[] = [
     view: '/system/com_levin_oak_base/setting/index.vue',
   },
   {
+    resource: 'SettingForTenant',
+    icon: 'lucide:sliders-horizontal',
+    name: 'SettingForTenantCrudPage',
+    sourcePath: '/clob/V1/SettingForTenant',
+    title: '租户系统设置',
+    view: '/system/com_levin_oak_base/setting-for-tenant/index.vue',
+  },
+  {
     resource: 'SimpleApi',
     icon: 'lucide:braces',
     name: 'SimpleApiCrudPage',

@@ -3,7 +3,6 @@ import type { CrudPageConfig } from '../../shared/types';
 import {
   brandOptionsLoader,
   getTenantSiteSuffixVendor,
-  loadTenantSitePublicIp,
   modulePostCrudAction,
   tenantOptionsLoader,
   tenantSiteSuffixOptionsLoader,
@@ -22,7 +21,6 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantSite',
   createPath: '/TenantSite/applyDomain',
   defaultFormValues: {
-    domainDnsRecords: [],
     editable: true,
     enable: true,
     orderCode: 100,
@@ -31,7 +29,8 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  description: '租户站点支持直接申请免费域名；续期与状态同步作为行操作提供。',
+  description:
+    '租户站点支持直接申请免费域名；域名解析、续期与状态同步作为独立行操作提供。',
   fields: [
     {
       key: 'tenantId',
@@ -139,10 +138,10 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'domainDnsRecords',
-      label: 'DNS 记录',
+      formCreate: false,
+      formEdit: false,
+      label: 'DNS 记录快照',
       fullRow: true,
-      placeholder:
-        '[{\"recordType\":\"A\",\"host\":\"@\",\"value\":\"公网IP\"}]，留空时会默认生成 A 记录',
       type: 'json',
     },
     { key: 'shortcutIcon', label: 'shortcutIcon', type: 'image' },
@@ -269,26 +268,13 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     { key: 'remark', label: '备注', type: 'textarea' },
   ],
   modalWidth: 1200,
-  transformSubmit: async (values, editingRecord) => {
+  transformSubmit: async (values, _editingRecord) => {
     const nextValues = { ...values };
 
     if (!nextValues.domainVendorName && nextValues.domainSuffix) {
       nextValues.domainVendorName = getTenantSiteSuffixVendor(
         nextValues.domainSuffix,
       );
-    }
-
-    if (
-      !editingRecord &&
-      (!Array.isArray(nextValues.domainDnsRecords) ||
-        nextValues.domainDnsRecords.length === 0)
-    ) {
-      const publicIp = await loadTenantSitePublicIp();
-      if (publicIp) {
-        nextValues.domainDnsRecords = [
-          { host: '@', recordType: 'A-A', value: publicIp },
-        ];
-      }
     }
 
     return nextValues;

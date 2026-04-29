@@ -218,7 +218,10 @@ function renderIcon(row: MenuRecord) {
 </script>
 
 <template>
-  <Page auto-content-height>
+  <Page
+    auto-content-height
+    content-class="!bg-transparent !p-0 min-w-0 !overflow-hidden"
+  >
     <MenuFormDrawer
       v-model:open="formOpen"
       :action-type-options="actionTypeOptions"
@@ -228,57 +231,76 @@ function renderIcon(row: MenuRecord) {
       @success="refresh"
     />
 
-    <Grid>
-      <template #toolbar-tools>
-        <Button type="primary" @click="openCreate('')">
-          <Plus class="size-5" />
-          新增菜单
-        </Button>
-      </template>
+    <div class="vben-menu-page h-full min-w-0">
+      <div class="vben-menu-section flex h-full min-h-0 flex-col">
+        <Grid>
+          <template #toolbar-tools>
+            <Button type="primary" @click="openCreate('')">
+              <Plus class="size-5" />
+              新增菜单
+            </Button>
+          </template>
 
-      <template #title="{ row }">
-        <div class="flex min-w-0 items-center gap-2">
-          <component :is="renderIcon(row)" />
-          <span class="truncate font-medium">
-            {{ row.name || row.label || row.path || row.id || '-' }}
-          </span>
-          <span
-            v-if="row.label && row.label !== row.name"
-            class="text-muted-foreground"
-          >
-            {{ row.label }}
-          </span>
-        </div>
-      </template>
+          <template #title="{ row }">
+            <div class="flex min-w-0 items-center gap-2">
+              <component :is="renderIcon(row)" />
+              <span class="truncate font-medium">
+                {{ row.name || row.label || row.path || row.id || '-' }}
+              </span>
+              <span
+                v-if="row.label && row.label !== row.name"
+                class="text-muted-foreground"
+              >
+                {{ row.label }}
+              </span>
+            </div>
+          </template>
 
-      <template #opButtons="{ row }">
-        <div
-          v-if="row.opButtonList?.length"
-          class="flex max-w-[360px] flex-wrap gap-1"
-        >
-          <Tag
-            v-for="button in row.opButtonList"
-            :key="`${button.label}-${button.apiUrl}`"
-          >
-            {{ button.label || button.apiUrl || '未命名按钮' }}
-          </Tag>
-        </div>
-        <span v-else class="text-muted-foreground">-</span>
-      </template>
+          <template #opButtons="{ row }">
+            <div
+              v-if="row.opButtonList?.length"
+              class="flex max-w-[360px] flex-wrap gap-1"
+            >
+              <Tag
+                v-for="button in row.opButtonList"
+                :key="`${button.label}-${button.apiUrl}`"
+              >
+                {{ button.label || button.apiUrl || '未命名按钮' }}
+              </Tag>
+            </div>
+            <span v-else class="text-muted-foreground">-</span>
+          </template>
 
-      <template #operation="{ row }">
-        <div class="flex justify-end gap-2">
-          <Button size="small" type="link" @click="openCreate(row.id || '')">
-            新增下级
-          </Button>
-          <Button size="small" type="link" @click="openEdit(row)">
-            编辑
-          </Button>
-          <Button danger size="small" type="link" @click="deleteRow(row)">
-            删除
-          </Button>
-        </div>
-      </template>
-    </Grid>
+          <template #operation="{ row }">
+            <div class="flex justify-end gap-2">
+              <Button size="small" type="link" @click="openCreate(row.id || '')">
+                新增下级
+              </Button>
+              <Button size="small" type="link" @click="openEdit(row)">
+                编辑
+              </Button>
+              <Button danger size="small" type="link" @click="deleteRow(row)">
+                删除
+              </Button>
+            </div>
+          </template>
+        </Grid>
+      </div>
+    </div>
   </Page>
 </template>
+
+<style scoped>
+.vben-menu-section {
+  min-width: 0;
+  padding: 16px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.vben-menu-section :deep(.vxe-grid) {
+  min-height: 0;
+  padding: 0;
+}
+</style>

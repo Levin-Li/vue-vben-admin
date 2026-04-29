@@ -55,6 +55,7 @@ export interface CrudFieldConfig {
   required?: boolean;
   search?: boolean;
   searchParamName?: string;
+  sortable?: boolean;
   span?: number;
   table?: boolean;
   type?: CrudFieldType;
@@ -84,6 +85,19 @@ export interface CrudRowAction {
   visibleOn?: string;
 }
 
+export interface CrudListTableConfig {
+  allowCreate?: boolean;
+  allowDelete?: boolean;
+  allowEdit?: boolean;
+  allowRetrieve?: boolean;
+  key: string;
+  label?: string;
+  listPath?: string;
+  name?: string;
+  tableName?: string;
+  title?: string;
+}
+
 export interface CrudPageConfig {
   apiBase: string;
   apiModuleBase?: string;
@@ -105,6 +119,8 @@ export interface CrudPageConfig {
   editPermission?: string | string[];
   editVisibleOn?: string;
   fields: CrudFieldConfig[];
+  listPath?: string;
+  listTables?: CrudListTableConfig[];
   modalWidth?: number | string;
   recordKey?: string;
   permissionDomain?: string;

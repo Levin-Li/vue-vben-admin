@@ -11,5 +11,9 @@ export async function getAllMenusApi() {
 }
 
 export async function getAuthorizedMenuListApi() {
-  return requestClient.get<BackendMenuInfo[]>('/rbac/authorizedMenuList');
+  return requestClient.get<BackendMenuInfo[]>('/rbac/authorizedMenuList', {
+    params: {
+      loadAll: true,
+    },
+  });
 }
