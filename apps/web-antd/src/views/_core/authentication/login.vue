@@ -485,6 +485,10 @@ async function requestVerifyCode(options: RequestVerifyCodeOptions = {}) {
 }
 
 async function handleSubmit() {
+  if (authStore.loginLoading) {
+    return;
+  }
+
   const account = normalizeAccount();
   const verifyCode = formState.verifyCode.trim();
   const password = formState.password.trim();
@@ -671,6 +675,7 @@ onBeforeUnmount(() => {
       </div>
 
       <Button
+        :disabled="authStore.loginLoading"
         :loading="authStore.loginLoading"
         block
         size="large"

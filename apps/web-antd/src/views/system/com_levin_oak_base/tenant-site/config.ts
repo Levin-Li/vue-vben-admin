@@ -2,10 +2,9 @@ import type { CrudPageConfig } from '../../shared/types';
 
 import {
   brandOptionsLoader,
-  getTenantSiteSuffixVendor,
+  getTenantSiteVendorDomainRenewBeforeDays,
   modulePostCrudAction,
   tenantOptionsLoader,
-  tenantSiteSuffixOptionsLoader,
   tenantSiteVendorOptionsLoader,
 } from '../api-module';
 
@@ -17,9 +16,69 @@ const applyStatusOptions = [
   { label: '申请失败', value: 'Failed' },
 ];
 
+function extractDomainSuffix(domain?: string) {
+  const normalizedDomain = String(domain || '')
+    .trim()
+    .replace(/\.+$/, '');
+  const parts = normalizedDomain.split('.').filter(Boolean);
+
+  if (parts.length < 2) {
+    return '';
+  }
+
+  return `.${parts.slice(-2).join('.')}`;
+}
+
+function parseDateTimeValue(value: unknown) {
+  if (!value) {
+    return Number.NaN;
+  }
+
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  const normalized = String(value).trim().replace(' ', 'T');
+  return new Date(normalized).getTime();
+}
+
+function getRenewBeforeMs(days?: number) {
+  const normalizedDays = Number(days);
+  return (Number.isFinite(normalizedDays) && normalizedDays >= 0
+    ? normalizedDays
+    : 30) * 24 * 60 * 60 * 1000;
+}
+
+function isDomainRenewDue(record: Record<string, any>) {
+  const expiredAt = parseDateTimeValue(record?.domainExpiredTime);
+
+  if (Number.isNaN(expiredAt)) {
+    return false;
+  }
+
+  return (
+    expiredAt <=
+    Date.now() +
+      getRenewBeforeMs(
+        getTenantSiteVendorDomainRenewBeforeDays(record?.domainVendor),
+      )
+  );
+}
+
+function canRenewDomain(record: Record<string, any>) {
+  return Boolean(
+    record?.id &&
+      record?.domainExpiredTime &&
+      record.domainApplyStatus !== 'Applying' &&
+      record.domainApplyStatus !== 'Renewing' &&
+      isDomainRenewDue(record),
+  );
+}
+
 export const tenantSitePageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantSite',
-  createPath: '/TenantSite/applyDomain',
+  createPath: '/TenantSite/create',
+  createPermission: '/TenantSite/create',
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -30,7 +89,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     pageSize: 10,
   },
   description:
-    '租户站点支持直接申请免费域名；域名解析、续期与状态同步作为独立行操作提供。',
+    '租户站点的新增/编辑仅维护自有域名；供应商域名通过独立申请入口创建，并提供重新申请、解析、续期与状态同步操作。',
   fields: [
     {
       key: 'tenantId',
@@ -78,29 +137,31 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       width: 150,
     },
     {
+      key: 'domainVendor',
+      formCreate: false,
+      formEdit: true,
+      label: '域名供应商',
+      loadOptions: tenantSiteVendorOptionsLoader,
+      table: true,
+      type: 'select',
+      width: 150,
+    },
+    {
+      key: 'domainSuffix',
+      formCreate: false,
+      formEdit: true,
+      label: '域名后缀',
+      table: true,
+      type: 'select',
+      width: 160,
+    },
+    {
       key: 'domain',
       label: '完整域名',
       required: true,
       search: true,
       table: true,
       width: 220,
-    },
-    {
-      key: 'domainSuffix',
-      label: '域名后缀',
-      loadOptions: tenantSiteSuffixOptionsLoader,
-      required: true,
-      table: true,
-      type: 'select',
-      width: 160,
-    },
-    {
-      key: 'domainVendorName',
-      label: '域名供应商',
-      loadOptions: tenantSiteVendorOptionsLoader,
-      table: true,
-      type: 'select',
-      width: 150,
     },
     {
       key: 'inDomainApplyStatus',
@@ -114,6 +175,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'domainApplyStatus',
       label: '域名状态',
+      form: false,
       options: applyStatusOptions,
       table: true,
       type: 'select',
@@ -131,6 +193,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'domainSslCertApplyStatus',
       label: 'SSL 状态',
+      form: false,
       options: applyStatusOptions,
       table: true,
       type: 'select',
@@ -186,24 +249,39 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'domainExpiredTime',
       label: '域名到期时间',
+      form: false,
       table: true,
       type: 'datetime',
       width: 180,
     },
-    { key: 'domainApplyToken', label: '域名申请Token' },
-    { key: 'domainApplyApi', label: '域名申请Api地址' },
-    { key: 'domainSslCertApplyApi', label: '域名SSL证书申请Api地址' },
-    { key: 'domainSslCertApplyToken', label: '域名SSL证书申请Token' },
-    { key: 'domainSslCertFileSavePath', label: '域名SSL证书保存路径' },
+    { key: 'domainApplyToken', label: '域名申请Token', form: false },
+    { key: 'domainApplyApi', label: '域名申请Api地址', form: false },
+    {
+      key: 'domainSslCertApplyApi',
+      label: '域名SSL证书申请Api地址',
+      form: false,
+    },
+    {
+      key: 'domainSslCertApplyToken',
+      label: '域名SSL证书申请Token',
+      form: false,
+    },
+    {
+      key: 'domainSslCertFileSavePath',
+      label: '域名SSL证书保存路径',
+      form: false,
+    },
     {
       key: 'domainSslCert',
       label: '域名SSL证书',
+      form: false,
       fullRow: true,
       type: 'textarea',
     },
     {
       key: 'domainSslCertKey',
       label: '域名SSL证书密钥',
+      form: false,
       fullRow: true,
       type: 'textarea',
     },
@@ -224,6 +302,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'domainSslCertExpiredTime',
       label: 'SSL证书到期时间',
+      form: false,
       table: true,
       type: 'datetime',
       width: 180,
@@ -268,14 +347,31 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     { key: 'remark', label: '备注', type: 'textarea' },
   ],
   modalWidth: 1200,
-  transformSubmit: async (values, _editingRecord) => {
+  transformSubmit: async (values, editingRecord) => {
     const nextValues = { ...values };
+    const providerManaged = Boolean(editingRecord?.domainVendor);
 
-    if (!nextValues.domainVendorName && nextValues.domainSuffix) {
-      nextValues.domainVendorName = getTenantSiteSuffixVendor(
-        nextValues.domainSuffix,
-      );
+    if (providerManaged) {
+      delete nextValues.domain;
+      delete nextValues.domainVendor;
+      delete nextValues.domainSuffix;
+      delete nextValues.domainApplyApi;
+      return nextValues;
     }
+
+    const domain = String(nextValues.domain || '').trim();
+
+    if (!domain) {
+      throw new TypeError('请输入完整域名');
+    }
+
+    nextValues.domain = domain;
+    nextValues.domainSuffix =
+      extractDomainSuffix(domain) ||
+      nextValues.domainSuffix ||
+      editingRecord?.domainSuffix;
+    nextValues.domainVendor = undefined;
+    nextValues.domainApplyApi = undefined;
 
     return nextValues;
   },
@@ -294,6 +390,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       },
       label: '续期域名',
       permission: ['/TenantSite/*/renewDomain', '/TenantSite/{id}/renewDomain'],
+      visible: canRenewDomain,
     },
   ],
   title: '租户站点管理',

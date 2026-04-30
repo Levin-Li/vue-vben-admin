@@ -5,6 +5,7 @@ import {
   buildModulePermission,
   DEFAULT_CRUD_MODAL_WIDTH,
   jobPostOptionsLoader,
+  modulePost,
   roleOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
@@ -12,6 +13,17 @@ import {
 const noticeContentTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Notice$ContentType',
 );
+const noticeStatusOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.enums.SimpleFlowStatus',
+);
+const noticePermissionType = '业务数据-通知';
+
+function buildNoticeAction(path: string) {
+  return async (record: Record<string, any>) =>
+    modulePost(path, {}, {
+      params: { _operatorAction: record._operatorAction, id: record.id },
+    });
+}
 
 export const noticePageCrudConfig: CrudPageConfig = {
   apiBase: '/Notice',
@@ -68,6 +80,16 @@ export const noticePageCrudConfig: CrudPageConfig = {
       required: true,
       table: true,
       width: 180,
+    },
+    {
+      key: 'status',
+      label: '发布状态',
+      form: false,
+      loadOptions: noticeStatusOptionsLoader,
+      search: true,
+      table: true,
+      type: 'select',
+      width: 120,
     },
     {
       key: 'category',
@@ -171,5 +193,61 @@ export const noticePageCrudConfig: CrudPageConfig = {
     '查询列表',
     '/Notice/list',
   ),
+  rowActions: [
+    {
+      handler: buildNoticeAction('/Notice/auditCommit'),
+      label: '提交审核',
+      permission: buildModulePermission(
+        noticePermissionType,
+        '提交审核',
+        '/Notice/auditCommit',
+      ),
+    },
+    {
+      handler: buildNoticeAction('/Notice/auditReject'),
+      label: '审核拒绝',
+      permission: buildModulePermission(
+        noticePermissionType,
+        '审核拒绝',
+        '/Notice/auditReject',
+      ),
+    },
+    {
+      handler: buildNoticeAction('/Notice/auditApproved'),
+      label: '审核通过',
+      permission: buildModulePermission(
+        noticePermissionType,
+        '审核通过',
+        '/Notice/auditApproved',
+      ),
+    },
+    {
+      handler: buildNoticeAction('/Notice/publish'),
+      label: '发布',
+      permission: buildModulePermission(
+        noticePermissionType,
+        '发布上线',
+        '/Notice/publish',
+      ),
+    },
+    {
+      handler: buildNoticeAction('/Notice/offline'),
+      label: '下线',
+      permission: buildModulePermission(
+        noticePermissionType,
+        '下架',
+        '/Notice/offline',
+      ),
+    },
+    {
+      handler: buildNoticeAction('/Notice/archived'),
+      label: '存档',
+      permission: buildModulePermission(
+        noticePermissionType,
+        '存档',
+        '/Notice/archived',
+      ),
+    },
+  ],
   title: '通知公告管理',
 };

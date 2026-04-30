@@ -7,6 +7,8 @@ import {
   DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
+  buildModulePermission,
+  modulePost,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -20,11 +22,19 @@ const simpleApiLanguageOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.SimpleApi$Language',
 );
 const simpleStatusOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.SimpleEntity$Status',
+  'com.levin.oak.base.entities.enums.SimpleFlowStatus',
 );
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
+const simpleApiPermissionType = '专家数据-简单动态接口';
+
+function buildSimpleApiAction(path: string) {
+  return async (record: Record<string, any>) =>
+    modulePost(path, {}, {
+      params: { _operatorAction: record._operatorAction, id: record.id },
+    });
+}
 
 export const simpleApiPageCrudConfig: CrudPageConfig = {
   apiBase: '/SimpleApi',
@@ -233,5 +243,61 @@ export const simpleApiPageCrudConfig: CrudPageConfig = {
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   queryPermission: buildApiMethodPermissions(simpleApiService, 'list'),
+  rowActions: [
+    {
+      handler: buildSimpleApiAction('/SimpleApi/auditCommit'),
+      label: '提交审核',
+      permission: buildModulePermission(
+        simpleApiPermissionType,
+        '提交审核',
+        '/SimpleApi/auditCommit',
+      ),
+    },
+    {
+      handler: buildSimpleApiAction('/SimpleApi/auditReject'),
+      label: '审核拒绝',
+      permission: buildModulePermission(
+        simpleApiPermissionType,
+        '审核拒绝',
+        '/SimpleApi/auditReject',
+      ),
+    },
+    {
+      handler: buildSimpleApiAction('/SimpleApi/auditApproved'),
+      label: '审核通过',
+      permission: buildModulePermission(
+        simpleApiPermissionType,
+        '审核通过',
+        '/SimpleApi/auditApproved',
+      ),
+    },
+    {
+      handler: buildSimpleApiAction('/SimpleApi/publish'),
+      label: '发布',
+      permission: buildModulePermission(
+        simpleApiPermissionType,
+        '发布上线',
+        '/SimpleApi/publish',
+      ),
+    },
+    {
+      handler: buildSimpleApiAction('/SimpleApi/offline'),
+      label: '下线',
+      permission: buildModulePermission(
+        simpleApiPermissionType,
+        '下架',
+        '/SimpleApi/offline',
+      ),
+    },
+    {
+      handler: buildSimpleApiAction('/SimpleApi/archived'),
+      label: '存档',
+      permission: buildModulePermission(
+        simpleApiPermissionType,
+        '存档',
+        '/SimpleApi/archived',
+      ),
+    },
+  ],
   title: '简单接口管理',
 };

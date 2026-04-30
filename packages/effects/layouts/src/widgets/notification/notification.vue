@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { NotificationItem } from './types';
 
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { Bell, CircleCheckBig, CircleX, MailCheck } from '@vben/icons';
@@ -17,6 +18,10 @@ import { useToggle } from '@vueuse/core';
 
 interface Props {
   /**
+   * 未读消息数量
+   */
+  count?: number;
+  /**
    * 显示圆点
    */
   dot?: boolean;
@@ -28,7 +33,8 @@ interface Props {
 
 defineOptions({ name: 'NotificationPopup' });
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
+  count: 0,
   dot: false,
   notifications: () => [],
 });
@@ -43,6 +49,14 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const [open, toggle] = useToggle();
+const displayCount = computed(() => {
+  const count = Number(props.count || 0);
+  if (!Number.isFinite(count) || count <= 0) {
+    return '';
+  }
+
+  return count > 99 ? '99+' : String(count);
+});
 
 function close() {
   open.value = false;
@@ -62,6 +76,10 @@ function handleClear() {
 }
 
 function handleClick(item: NotificationItem) {
+  if (!item.isRead) {
+    emit('read', item);
+  }
+
   // 如果通知项有链接，点击时跳转
   if (item.link) {
     navigateTo(item.link, item.query, item.state);
@@ -95,7 +113,13 @@ function navigateTo(
       <div class="flex-center mr-2 h-full" @click.stop="toggle()">
         <VbenIconButton class="bell-button text-foreground relative">
           <span
-            v-if="dot"
+            v-if="displayCount"
+            class="bg-primary text-primary-foreground absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4"
+          >
+            {{ displayCount }}
+          </span>
+          <span
+            v-else-if="dot"
             class="bg-primary absolute right-0.5 top-0.5 h-2 w-2 rounded"
           ></span>
           <Bell class="size-4" />
@@ -106,13 +130,18 @@ function navigateTo(
     <div class="relative">
       <div class="flex items-center justify-between p-4 py-3">
         <div class="text-foreground">{{ $t('ui.widgets.notifications') }}</div>
-        <VbenIconButton
-          :disabled="notifications.length <= 0"
-          :tooltip="$t('ui.widgets.markAllAsRead')"
-          @click="handleMakeAll"
-        >
-          <MailCheck class="size-4" />
-        </VbenIconButton>
+        <div class="flex items-center gap-2">
+          <span class="text-muted-foreground text-xs">
+            未读 {{ displayCount || 0 }}
+          </span>
+          <VbenIconButton
+            :disabled="!displayCount"
+            :tooltip="$t('ui.widgets.markAllAsRead')"
+            @click="handleMakeAll"
+          >
+            <MailCheck class="size-4" />
+          </VbenIconButton>
+        </div>
       </div>
       <VbenScrollbar v-if="notifications.length > 0">
         <ul class="!flex max-h-[360px] w-full flex-col">
@@ -134,8 +163,16 @@ function navigateTo(
                   class="aspect-square h-full w-full object-cover"
                 />
               </span>
-              <div class="flex flex-col gap-1 leading-none">
-                <p class="font-semibold">{{ item.title }}</p>
+              <div class="flex min-w-0 flex-col gap-1 pr-8 leading-none">
+                <div class="flex min-w-0 items-center gap-2">
+                  <span
+                    v-if="item.level"
+                    class="border-border text-muted-foreground shrink-0 rounded border px-1.5 py-0.5 text-[10px] leading-none"
+                  >
+                    {{ item.level }}
+                  </span>
+                  <p class="truncate font-semibold">{{ item.title }}</p>
+                </div>
                 <p class="text-muted-foreground my-1 line-clamp-2 text-xs">
                   {{ item.message }}
                 </p>
@@ -182,12 +219,12 @@ function navigateTo(
         class="border-border flex items-center justify-between border-t px-4 py-3"
       >
         <VbenButton
-          :disabled="notifications.length <= 0"
+          :disabled="!displayCount"
           size="sm"
           variant="ghost"
           @click="handleClear"
         >
-          {{ $t('ui.widgets.clearNotifications') }}
+          {{ $t('ui.widgets.markAllAsRead') }}
         </VbenButton>
         <VbenButton size="sm" @click="handleViewAll">
           {{ $t('ui.widgets.viewAll') }}

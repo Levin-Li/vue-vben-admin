@@ -71,6 +71,32 @@ export class NoticeService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
+    type: '通用数据-通知',
+    action: '查询我的消息',
+    onlyRequireAuthenticated: true,
+  })
+  async myMessages(params?: any, options?: any) {
+    return this.get('myMessages', {
+      ...options,
+      params,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '通用数据-通知',
+    action: '处理我的消息',
+    onlyRequireAuthenticated: true,
+  })
+  async processMyMessage(data?: any, options?: any) {
+    return this.post('processMyMessage', {
+      ...options,
+      data,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '查看详情',
   })

@@ -242,6 +242,14 @@ const LOCAL_ROUTE_MAPPINGS: LocalRouteMapping[] = [
     view: '/system/com_levin_oak_base/notice-process-log/index.vue',
   },
   {
+    resource: 'MyMessages',
+    icon: 'lucide:bell',
+    name: 'MyMessagesPage',
+    sourcePath: '/clob/V1/MyMessages',
+    title: '我的消息',
+    view: '/system/com_levin_oak_base/my-messages/index.vue',
+  },
+  {
     resource: 'PayChannel',
     icon: 'lucide:credit-card',
     name: 'PayChannelCrudPage',

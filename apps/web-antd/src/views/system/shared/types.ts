@@ -85,6 +85,13 @@ export interface CrudRowAction {
   visibleOn?: string;
 }
 
+export type CrudPathConfig =
+  | string
+  | ((
+      values: Record<string, any>,
+      editingRecord: null | Record<string, any>,
+    ) => string);
+
 export interface CrudListTableConfig {
   allowCreate?: boolean;
   allowDelete?: boolean;
@@ -105,7 +112,7 @@ export interface CrudPageConfig {
   allowDelete?: boolean;
   allowEdit?: boolean;
   allowRetrieve?: boolean;
-  createPath?: string;
+  createPath?: CrudPathConfig;
   createPermission?: string | string[];
   defaultFormValues?: Record<string, any>;
   defaultQuery?: Record<string, any>;

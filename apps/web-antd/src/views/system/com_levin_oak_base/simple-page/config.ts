@@ -17,7 +17,7 @@ const simplePageTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.SimplePage$Type',
 );
 const simpleStatusOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.SimpleEntity$Status',
+  'com.levin.oak.base.entities.enums.SimpleFlowStatus',
 );
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
@@ -34,7 +34,10 @@ type SimplePageActionMethod =
 
 function buildSimplePageAction(methodName: SimplePageActionMethod) {
   return async (record: Record<string, any>) =>
-    simplePageService[methodName]({ id: record.id });
+    simplePageService[methodName]({
+      _operatorAction: record._operatorAction,
+      id: record.id,
+    });
 }
 
 function buildSimplePageActionPermission(methodName: SimplePageActionMethod) {
@@ -57,7 +60,6 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
   },
   deletePermission: buildApiMethodPermissions(simplePageService, 'delete'),
   editPermission: buildApiMethodPermissions(simplePageService, 'update'),
-  editVisibleOn: "(status == 'Draft' || status == 'AuditRejected')",
   fields: [
     {
       key: 'tenantId',
@@ -241,37 +243,31 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
       handler: buildSimplePageAction('auditCommit'),
       label: '提交审核',
       permission: buildSimplePageActionPermission('auditCommit'),
-      visibleOn: "(status == 'Draft' || status == 'AuditRejected')",
     },
     {
       handler: buildSimplePageAction('auditReject'),
       label: '审核拒绝',
       permission: buildSimplePageActionPermission('auditReject'),
-      visibleOn: "status == 'AuditPending'",
     },
     {
       handler: buildSimplePageAction('auditApproved'),
       label: '审核通过',
       permission: buildSimplePageActionPermission('auditApproved'),
-      visibleOn: "status == 'AuditPending'",
     },
     {
       handler: buildSimplePageAction('publish'),
-      label: '发布上线',
+      label: '发布',
       permission: buildSimplePageActionPermission('publish'),
-      visibleOn: "(status == 'Approved' || status == 'Offline')",
     },
     {
       handler: buildSimplePageAction('offline'),
-      label: '下架',
+      label: '下线',
       permission: buildSimplePageActionPermission('offline'),
-      visibleOn: "status == 'Published'",
     },
     {
       handler: buildSimplePageAction('archived'),
       label: '存档',
       permission: buildSimplePageActionPermission('archived'),
-      visibleOn: "status == 'Offline'",
     },
   ],
   title: '简单页面管理',

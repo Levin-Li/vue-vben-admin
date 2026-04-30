@@ -68,6 +68,18 @@ export class TenantSiteService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-租户站点',
+    action: '申请域名',
+  })
+  async applyExistingDomain(id: string, data?: any, options?: any) {
+    return this.post(`${id}/applyDomain`, {
+      ...options,
+      data,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-租户站点',
     action: '获取所有可用域名后缀',
   })
   async availableSuffixes(params?: any, options?: any) {
@@ -285,11 +297,7 @@ export class TenantSiteService extends RequestService {
     opRefTargetType: 'SingleRow',
     visibleOn: 'false',
   })
-  async updateDnsRecord(
-    id: string,
-    data?: TenantSiteDnsRecord,
-    options?: any,
-  ) {
+  async updateDnsRecord(id: string, data?: TenantSiteDnsRecord, options?: any) {
     return this.put<TenantSiteRecord>(`${id}/dnsRecord`, {
       ...options,
       data,

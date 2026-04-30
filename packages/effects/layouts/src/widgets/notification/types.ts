@@ -3,6 +3,7 @@ interface NotificationItem {
   avatar: string;
   date: string;
   isRead?: boolean;
+  level?: string;
   message: string;
   title: string;
   /**

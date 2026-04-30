@@ -11,7 +11,7 @@ import {
 } from '../api-module';
 
 const articleStatusOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.Article$Status',
+  'com.levin.oak.base.entities.enums.SimpleFlowStatus',
 );
 const articleContentTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Article$ContentType',
@@ -26,7 +26,9 @@ const articlePermissionType = '业务数据-资讯';
 
 function buildArticleAction(path: string) {
   return async (record: Record<string, any>) =>
-    modulePost(path, {}, { params: { id: record.id } });
+    modulePost(path, {}, {
+      params: { _operatorAction: record._operatorAction, id: record.id },
+    });
 }
 
 export const articlePageCrudConfig: CrudPageConfig = {
@@ -49,7 +51,6 @@ export const articlePageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  editVisibleOn: "(status == 'Draft' || status == 'AuditRejected')",
   fields: [
     {
       key: 'tenantId',
@@ -284,7 +285,6 @@ export const articlePageCrudConfig: CrudPageConfig = {
         '提交审核',
         '/Article/auditCommit',
       ),
-      visibleOn: "(status == 'Draft' || status == 'AuditRejected')",
     },
     {
       handler: buildArticleAction('/Article/auditReject'),
@@ -294,7 +294,6 @@ export const articlePageCrudConfig: CrudPageConfig = {
         '审核拒绝',
         '/Article/auditReject',
       ),
-      visibleOn: "status == 'AuditPending'",
     },
     {
       handler: buildArticleAction('/Article/auditApproved'),
@@ -304,27 +303,24 @@ export const articlePageCrudConfig: CrudPageConfig = {
         '审核通过',
         '/Article/auditApproved',
       ),
-      visibleOn: "status == 'AuditPending'",
     },
     {
       handler: buildArticleAction('/Article/publish'),
-      label: '发布上线',
+      label: '发布',
       permission: buildModulePermission(
         articlePermissionType,
         '发布上线',
         '/Article/publish',
       ),
-      visibleOn: "(status == 'Approved' || status == 'Offline')",
     },
     {
       handler: buildArticleAction('/Article/offline'),
-      label: '下架',
+      label: '下线',
       permission: buildModulePermission(
         articlePermissionType,
         '下架',
         '/Article/offline',
       ),
-      visibleOn: "status == 'Published'",
     },
     {
       handler: buildArticleAction('/Article/archived'),
@@ -334,7 +330,6 @@ export const articlePageCrudConfig: CrudPageConfig = {
         '存档',
         '/Article/archived',
       ),
-      visibleOn: "status == 'Offline'",
     },
   ],
   title: '文章管理',

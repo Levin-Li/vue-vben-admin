@@ -6,6 +6,7 @@ import type {
   CrudFieldConfig,
   CrudListTableConfig,
   CrudPageConfig,
+  CrudPathConfig,
   CrudRowAction,
 } from './types';
 
@@ -24,7 +25,13 @@ import {
 import { useRoute } from 'vue-router';
 
 import { Page, VCropper } from '@vben/common-ui';
-import { ArrowDown, ArrowUp, ChevronDown, IconifyIcon, Plus } from '@vben/icons';
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  IconifyIcon,
+  Plus,
+} from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
 import {
@@ -189,6 +196,7 @@ const listToolbarRef = ref<HTMLElement | null>(null);
 const tableScrollY = ref(360);
 const tableFullscreen = ref(false);
 const activeListTableKey = ref('');
+const listTableTabsCollapsed = ref(false);
 const isDraggingListTableTabs = ref(false);
 const suppressListTableTabsClick = ref(false);
 const hiddenTableColumnKeys = ref<string[]>([]);
@@ -678,6 +686,29 @@ const actionGroups = computed(() =>
 
 const hasBatchActions = computed(() => actionGroups.value.batch.length > 0);
 
+function getStaticCrudPath(path?: CrudPathConfig) {
+  return typeof path === 'string' ? path : undefined;
+}
+
+function resolveCrudPath(
+  path: CrudPathConfig | undefined,
+  fallback: string,
+  values: GenericRecord,
+  editingRecordValue: GenericRecord | null,
+) {
+  return typeof path === 'function'
+    ? path(values, editingRecordValue)
+    : path || fallback;
+}
+
+function getCreatePermissionCandidates() {
+  const createPath = getStaticCrudPath(props.config.createPath);
+
+  return createPath
+    ? [createPath, ...buildCrudOperationPermissions(props.config, 'create')]
+    : buildCrudOperationPermissions(props.config, 'create');
+}
+
 const rowSelection = computed(() => {
   if (!hasBatchActions.value) {
     return undefined;
@@ -708,13 +739,7 @@ const canCreate = computed(
     props.config.allowCreate !== false &&
     canShowActiveBuiltinAction('create') &&
     hasPermission(
-      props.config.createPermission ||
-        (props.config.createPath
-          ? [
-              props.config.createPath,
-              ...buildCrudOperationPermissions(props.config, 'create'),
-            ]
-          : buildCrudOperationPermissions(props.config, 'create')),
+      props.config.createPermission || getCreatePermissionCandidates(),
     ),
 );
 
@@ -1215,6 +1240,17 @@ function handleListTableTabsPointerDown(event: PointerEvent) {
   window.addEventListener('pointermove', handleListTableTabsPointerMove);
   window.addEventListener('pointerup', handleListTableTabsPointerUp);
   window.addEventListener('pointercancel', handleListTableTabsPointerUp);
+}
+
+function toggleListTableTabsCollapsed() {
+  if (suppressListTableTabsClick.value) {
+    return;
+  }
+
+  listTableTabsCollapsed.value = !listTableTabsCollapsed.value;
+  nextTick(() => {
+    setListTableTabsPosition(listTableTabsPosition.x, listTableTabsPosition.y);
+  });
 }
 
 function getInitialListTablePageSize() {
@@ -1983,15 +2019,20 @@ async function handleSubmit() {
       payload[field.key] = value;
     }
 
+    const isCreating = editingRecord.value?.[recordKey.value] === undefined;
+    const createPath = resolveCrudPath(
+      props.config.createPath,
+      `${props.config.apiBase}/create`,
+      payload,
+      editingRecord.value,
+    );
     const finalPayload = props.config.transformSubmit
       ? await props.config.transformSubmit(payload, editingRecord.value)
       : payload;
 
-    const isCreating = editingRecord.value?.[recordKey.value] === undefined;
-
     if (isCreating) {
       await createCrudRecord(
-        props.config.createPath || `${props.config.apiBase}/create`,
+        createPath,
         finalPayload,
         props.config.apiModuleBase,
       );
@@ -3185,10 +3226,39 @@ function getTenantDisplay(record: GenericRecord) {
   };
 }
 
+function getSupportEventsByCurrentStatus(record: GenericRecord) {
+  const events = record.supportEventsByCurrentStatus;
+  return Array.isArray(events)
+    ? events.filter((event): event is string => typeof event === 'string')
+    : undefined;
+}
+
+const flowEventNames = new Set([
+  '编辑',
+  '提交审核',
+  '审核拒绝',
+  '审核通过',
+  '发布',
+  '下线',
+  '存档',
+  '删除',
+]);
+const rejectReasonActionNames = new Set(['审核拒绝']);
+
+function canUseCurrentStatusEvent(record: GenericRecord, eventName: string) {
+  const events = getSupportEventsByCurrentStatus(record);
+  return (
+    events === undefined ||
+    !flowEventNames.has(eventName) ||
+    events.includes(eventName)
+  );
+}
+
 function getRowActions(record: GenericRecord) {
   return actionGroups.value.row.filter(
     (action) =>
       (!action.permission || hasPermission(action.permission)) &&
+      canUseCurrentStatusEvent(record, action.label) &&
       evaluateCrudVisibleOn(action.visibleOn, record, userStore.userInfo) &&
       (action.visible ? action.visible(record) : true),
   );
@@ -3221,9 +3291,88 @@ function getActionConfirm(action: CrudRowAction) {
   return buildCrudConfirmConfig(action.confirmText, action.confirmTitle);
 }
 
+function getActionRecordTitle(record: GenericRecord | GenericRecord[]) {
+  if (Array.isArray(record)) {
+    return `选中的 ${record.length} 条记录`;
+  }
+
+  return String(record.title || record.name || record.id || '当前记录').trim();
+}
+
+function appendOperatorAction(
+  record: GenericRecord | GenericRecord[],
+  operatorAction: string,
+) {
+  if (Array.isArray(record)) {
+    return record.map((item) => ({
+      ...item,
+      _operatorAction: operatorAction,
+    }));
+  }
+
+  return {
+    ...record,
+    _operatorAction: operatorAction,
+  };
+}
+
+function requestRejectReason(
+  action: CrudRowAction,
+  record: GenericRecord | GenericRecord[],
+) {
+  if (!rejectReasonActionNames.has(action.label)) {
+    return Promise.resolve<null | string>(null);
+  }
+
+  return new Promise<null | string>((resolve) => {
+    let reason = '';
+
+    Modal.confirm({
+      cancelText: '取消',
+      content: h('div', { class: 'grid gap-2' }, [
+        h(
+          'div',
+          { class: 'text-sm text-muted-foreground' },
+          `请输入「${getActionRecordTitle(record)}」的拒绝原因。`,
+        ),
+        h(Input.TextArea, {
+          autofocus: true,
+          defaultValue: reason,
+          maxlength: 500,
+          onChange: (event: Event) => {
+            reason = (event.target as HTMLTextAreaElement | null)?.value || '';
+          },
+          onInput: (event: Event) => {
+            reason = (event.target as HTMLTextAreaElement | null)?.value || '';
+          },
+          placeholder: '请输入拒绝原因',
+          rows: 4,
+          showCount: true,
+        }),
+      ]),
+      okText: '确认拒绝',
+      title: action.confirmTitle || '审核拒绝',
+      async onOk() {
+        const normalizedReason = reason.trim();
+
+        if (!normalizedReason) {
+          message.warning('请输入拒绝原因');
+          return Promise.reject(new Error('REJECT_REASON_REQUIRED'));
+        }
+
+        resolve(normalizedReason);
+      },
+      onCancel() {
+        resolve(null);
+      },
+    });
+  });
+}
+
 function canShowBuiltinEdit(record: GenericRecord) {
   return (
     canEdit.value &&
+    canUseCurrentStatusEvent(record, '编辑') &&
     (!props.config.editVisibleOn ||
       evaluateCrudVisibleOn(
         props.config.editVisibleOn,
@@ -3287,6 +3436,7 @@ function canShowBuiltinDetail(record: GenericRecord) {
 function canShowBuiltinDelete(record: GenericRecord) {
   return (
     canDelete.value &&
+    canUseCurrentStatusEvent(record, '删除') &&
     (!props.config.deleteVisibleOn ||
       evaluateCrudVisibleOn(
         props.config.deleteVisibleOn,
@@ -3400,7 +3550,15 @@ async function runRowAction(
     return;
   }
 
-  const response = await action.handler(record);
+  const rejectReason = await requestRejectReason(action, record);
+  if (rejectReasonActionNames.has(action.label) && !rejectReason) {
+    return;
+  }
+
+  const actionPayload = rejectReason
+    ? appendOperatorAction(record, rejectReason)
+    : record;
+  const response = await action.handler(actionPayload);
   const resultAction = resolveCrudActionAfterSuccess(
     action.action,
     action.successAction,
@@ -3544,11 +3702,36 @@ watch(tableColumnPreferenceStorageKey, () => {
         v-if="hasListTableTabs"
         ref="listTableTabsRef"
         class="vben-crud-list-tabs-float"
-        :class="{ 'is-dragging': isDraggingListTableTabs }"
+        :class="{
+          'is-collapsed': listTableTabsCollapsed,
+          'is-dragging': isDraggingListTableTabs,
+        }"
         :style="listTableTabsFloatStyle"
         @pointerdown="handleListTableTabsPointerDown"
       >
+        <Tooltip
+          :title="listTableTabsCollapsed ? '展开列表切换' : '收起列表切换'"
+        >
+          <button
+            type="button"
+            class="vben-crud-list-tabs-toggle"
+            :aria-label="
+              listTableTabsCollapsed ? '展开列表切换' : '收起列表切换'
+            "
+            @click.stop="toggleListTableTabsCollapsed"
+          >
+            <IconifyIcon
+              class="size-4"
+              :icon="
+                listTableTabsCollapsed
+                  ? 'lucide:panel-left-open'
+                  : 'lucide:panel-left-close'
+              "
+            />
+          </button>
+        </Tooltip>
         <Tabs
+          v-if="!listTableTabsCollapsed"
           :active-key="activeListTableKey"
           class="vben-crud-list-tabs"
           size="small"
@@ -4655,20 +4838,56 @@ watch(tableColumnPreferenceStorageKey, () => {
 .vben-crud-list-tabs-float {
   position: absolute;
   z-index: 20;
+  display: inline-flex;
+  gap: 6px;
+  align-items: flex-start;
   max-width: calc(100% - 32px);
   padding: 8px 10px;
   cursor: grab;
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
+  background: hsl(var(--primary) / 5%);
+  border: 1px solid hsl(var(--primary));
   border-radius: var(--radius);
-  opacity: 0.8;
+  opacity: 1;
   box-shadow: var(--shadow-sm);
+  transition:
+    width 0.15s ease,
+    height 0.15s ease,
+    border-radius 0.15s ease,
+    opacity 0.15s ease;
   user-select: none;
   touch-action: none;
 }
 
+.vben-crud-list-tabs-float.is-collapsed {
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 9999px;
+}
+
 .vben-crud-list-tabs-float.is-dragging {
   cursor: grabbing;
+}
+
+.vben-crud-list-tabs-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 9999px;
+}
+
+.vben-crud-list-tabs-toggle:hover {
+  color: hsl(var(--primary));
+  background: hsl(var(--muted) / 60%);
 }
 
 .vben-crud-list-tabs {

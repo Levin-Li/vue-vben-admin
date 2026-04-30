@@ -7,6 +7,8 @@ import {
   DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
+  buildModulePermission,
+  modulePost,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -17,11 +19,19 @@ const simpleFormTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.SimpleForm$Type',
 );
 const simpleStatusOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.SimpleEntity$Status',
+  'com.levin.oak.base.entities.enums.SimpleFlowStatus',
 );
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
+const simpleFormPermissionType = '专家数据-简单表单';
+
+function buildSimpleFormAction(path: string) {
+  return async (record: Record<string, any>) =>
+    modulePost(path, {}, {
+      params: { _operatorAction: record._operatorAction, id: record.id },
+    });
+}
 
 export const simpleFormPageCrudConfig: CrudPageConfig = {
   apiBase: '/SimpleForm',
@@ -210,5 +220,61 @@ export const simpleFormPageCrudConfig: CrudPageConfig = {
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   queryPermission: buildApiMethodPermissions(simpleFormService, 'list'),
+  rowActions: [
+    {
+      handler: buildSimpleFormAction('/SimpleForm/auditCommit'),
+      label: '提交审核',
+      permission: buildModulePermission(
+        simpleFormPermissionType,
+        '提交审核',
+        '/SimpleForm/auditCommit',
+      ),
+    },
+    {
+      handler: buildSimpleFormAction('/SimpleForm/auditReject'),
+      label: '审核拒绝',
+      permission: buildModulePermission(
+        simpleFormPermissionType,
+        '审核拒绝',
+        '/SimpleForm/auditReject',
+      ),
+    },
+    {
+      handler: buildSimpleFormAction('/SimpleForm/auditApproved'),
+      label: '审核通过',
+      permission: buildModulePermission(
+        simpleFormPermissionType,
+        '审核通过',
+        '/SimpleForm/auditApproved',
+      ),
+    },
+    {
+      handler: buildSimpleFormAction('/SimpleForm/publish'),
+      label: '发布',
+      permission: buildModulePermission(
+        simpleFormPermissionType,
+        '发布上线',
+        '/SimpleForm/publish',
+      ),
+    },
+    {
+      handler: buildSimpleFormAction('/SimpleForm/offline'),
+      label: '下线',
+      permission: buildModulePermission(
+        simpleFormPermissionType,
+        '下架',
+        '/SimpleForm/offline',
+      ),
+    },
+    {
+      handler: buildSimpleFormAction('/SimpleForm/archived'),
+      label: '存档',
+      permission: buildModulePermission(
+        simpleFormPermissionType,
+        '存档',
+        '/SimpleForm/archived',
+      ),
+    },
+  ],
   title: '简单表单管理',
 };

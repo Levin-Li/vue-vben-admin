@@ -3,18 +3,28 @@ import type { CrudPageConfig } from '../../shared/types';
 import {
   articleChannelOptionsLoader,
   buildEnumOptionsLoader,
+  buildModulePermission,
   DEFAULT_CRUD_MODAL_WIDTH,
   FILE_STORAGE_MULTI_UPLOAD_PATH,
   FILE_STORAGE_SINGLE_UPLOAD_PATH,
+  modulePost,
   tenantOptionsLoader,
 } from '../api-module';
 
 const articleStatusOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.Article$Status',
+  'com.levin.oak.base.entities.enums.SimpleFlowStatus',
 );
 const articleCoverLayoutOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Article$CoverLayout',
 );
+const articleChannelPermissionType = '业务数据-资讯栏目';
+
+function buildArticleChannelAction(path: string) {
+  return async (record: Record<string, any>) =>
+    modulePost(path, {}, {
+      params: { _operatorAction: record._operatorAction, id: record.id },
+    });
+}
 
 export const articleChannelPageCrudConfig: CrudPageConfig = {
   apiBase: '/ArticleChannel',
@@ -229,5 +239,61 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   permissionResourceName: '资讯栏目',
   permissionTypePrefix: '业务数据-',
+  rowActions: [
+    {
+      handler: buildArticleChannelAction('/ArticleChannel/auditCommit'),
+      label: '提交审核',
+      permission: buildModulePermission(
+        articleChannelPermissionType,
+        '提交审核',
+        '/ArticleChannel/auditCommit',
+      ),
+    },
+    {
+      handler: buildArticleChannelAction('/ArticleChannel/auditReject'),
+      label: '审核拒绝',
+      permission: buildModulePermission(
+        articleChannelPermissionType,
+        '审核拒绝',
+        '/ArticleChannel/auditReject',
+      ),
+    },
+    {
+      handler: buildArticleChannelAction('/ArticleChannel/auditApproved'),
+      label: '审核通过',
+      permission: buildModulePermission(
+        articleChannelPermissionType,
+        '审核通过',
+        '/ArticleChannel/auditApproved',
+      ),
+    },
+    {
+      handler: buildArticleChannelAction('/ArticleChannel/publish'),
+      label: '发布',
+      permission: buildModulePermission(
+        articleChannelPermissionType,
+        '发布上线',
+        '/ArticleChannel/publish',
+      ),
+    },
+    {
+      handler: buildArticleChannelAction('/ArticleChannel/offline'),
+      label: '下线',
+      permission: buildModulePermission(
+        articleChannelPermissionType,
+        '下架',
+        '/ArticleChannel/offline',
+      ),
+    },
+    {
+      handler: buildArticleChannelAction('/ArticleChannel/archived'),
+      label: '存档',
+      permission: buildModulePermission(
+        articleChannelPermissionType,
+        '存档',
+        '/ArticleChannel/archived',
+      ),
+    },
+  ],
   title: '文章栏目管理',
 };

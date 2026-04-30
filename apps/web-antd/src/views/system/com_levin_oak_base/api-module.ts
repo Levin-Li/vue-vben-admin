@@ -1,4 +1,8 @@
 import type { CrudPageConfig } from '../shared/types';
+import type {
+  TenantSiteOption,
+  TenantSiteProvider,
+} from './tenant-site-capability';
 
 import {
   FILE_STORAGE_MULTI_UPLOAD_PATH,
@@ -10,9 +14,10 @@ import {
   fetchDictOptions,
   fetchEnumOptions,
   fetchOptions,
-  postCrudAction,
 } from '#/api';
 import { requestClient } from '#/api/request';
+
+import { buildTenantSiteCapabilityOptions } from './tenant-site-capability';
 
 export const OAK_BASE_API_MODULE = '/com.levin.oak.base/V1/api';
 export const DEFAULT_CRUD_MODAL_WIDTH = 'min(70vw, 1280px)';
@@ -197,25 +202,38 @@ export const orgOptionsLoader = () =>
     OAK_BASE_API_MODULE,
   );
 
-interface TenantSiteProvider {
-  name?: string;
-  supportedDomainSuffixes?: string[];
-}
-
 const tenantSiteCapabilityState: {
+  loadSuffixesPromise: null | Promise<TenantSiteOption[]>;
+  loadSslRenewBeforeDaysPromise: null | Promise<number>;
   publicIp: string;
   publicIpLoaded: boolean;
+  sslRenewBeforeDays: number;
+  sslRenewBeforeDaysLoaded: boolean;
+  suffixApplyApiMap: Record<string, string>;
+  suffixDomainRenewBeforeDaysMap: Record<string, number>;
   suffixesLoaded: boolean;
-  suffixOptions: Array<{ label: string; value: string }>;
+  suffixOptions: TenantSiteOption[];
   suffixVendorMap: Record<string, string>;
-  vendorOptions: Array<{ label: string; value: string }>;
+  vendorApplyApiMap: Record<string, string>;
+  vendorDomainRenewBeforeDaysMap: Record<string, number>;
+  vendorOptions: TenantSiteOption[];
+  vendorSuffixOptionsMap: Record<string, TenantSiteOption[]>;
 } = {
+  loadSuffixesPromise: null,
+  loadSslRenewBeforeDaysPromise: null,
   publicIp: '',
   publicIpLoaded: false,
+  sslRenewBeforeDays: 30,
+  sslRenewBeforeDaysLoaded: false,
+  suffixApplyApiMap: {},
+  suffixDomainRenewBeforeDaysMap: {},
   suffixOptions: [],
   suffixVendorMap: {},
   suffixesLoaded: false,
+  vendorApplyApiMap: {},
+  vendorDomainRenewBeforeDaysMap: {},
   vendorOptions: [],
+  vendorSuffixOptionsMap: {},
 };
 
 async function loadTenantSiteSuffixOptions() {
@@ -223,6 +241,18 @@ async function loadTenantSiteSuffixOptions() {
     return tenantSiteCapabilityState.suffixOptions;
   }
 
+  if (tenantSiteCapabilityState.loadSuffixesPromise) {
+    return tenantSiteCapabilityState.loadSuffixesPromise;
+  }
+
+  tenantSiteCapabilityState.loadSuffixesPromise =
+    doLoadTenantSiteSuffixOptions().finally(() => {
+      tenantSiteCapabilityState.loadSuffixesPromise = null;
+    });
+  return tenantSiteCapabilityState.loadSuffixesPromise;
+}
+
+async function doLoadTenantSiteSuffixOptions() {
   const providers = await requestClient.get<TenantSiteProvider[]>(
     `${OAK_BASE_API_MODULE}/TenantSite/availableSuffixes`,
     {
@@ -230,31 +260,24 @@ async function loadTenantSiteSuffixOptions() {
     },
   );
 
-  const suffixOptions: Array<{ label: string; value: string }> = [];
-  const vendorOptions: Array<{ label: string; value: string }> = [];
+  const capabilityOptions = buildTenantSiteCapabilityOptions(providers || []);
 
-  for (const provider of providers || []) {
-    const vendorName = provider.name || '未知供应商';
-    vendorOptions.push({
-      label: vendorName,
-      value: vendorName,
-    });
-
-    for (const rawSuffix of provider.supportedDomainSuffixes || []) {
-      const suffix = rawSuffix.startsWith('.') ? rawSuffix : `.${rawSuffix}`;
-      tenantSiteCapabilityState.suffixVendorMap[suffix] = vendorName;
-      suffixOptions.push({
-        label: `${suffix} (${vendorName})`,
-        value: suffix,
-      });
-    }
-  }
-
-  tenantSiteCapabilityState.suffixOptions = suffixOptions;
-  tenantSiteCapabilityState.vendorOptions = vendorOptions;
+  tenantSiteCapabilityState.suffixApplyApiMap =
+    capabilityOptions.suffixApplyApiMap;
+  tenantSiteCapabilityState.suffixDomainRenewBeforeDaysMap =
+    capabilityOptions.suffixDomainRenewBeforeDaysMap;
+  tenantSiteCapabilityState.suffixOptions = capabilityOptions.suffixOptions;
+  tenantSiteCapabilityState.suffixVendorMap = capabilityOptions.suffixVendorMap;
+  tenantSiteCapabilityState.vendorApplyApiMap =
+    capabilityOptions.vendorApplyApiMap;
+  tenantSiteCapabilityState.vendorDomainRenewBeforeDaysMap =
+    capabilityOptions.vendorDomainRenewBeforeDaysMap;
+  tenantSiteCapabilityState.vendorOptions = capabilityOptions.vendorOptions;
+  tenantSiteCapabilityState.vendorSuffixOptionsMap =
+    capabilityOptions.vendorSuffixOptionsMap;
   tenantSiteCapabilityState.suffixesLoaded = true;
 
-  return suffixOptions;
+  return tenantSiteCapabilityState.suffixOptions;
 }
 
 export const tenantSiteSuffixOptionsLoader = async () =>
@@ -272,6 +295,67 @@ export function getTenantSiteSuffixVendor(suffix?: string) {
   return suffix ? tenantSiteCapabilityState.suffixVendorMap[suffix] : '';
 }
 
+export function getTenantSiteSuffixApplyApi(suffix?: string) {
+  return suffix ? tenantSiteCapabilityState.suffixApplyApiMap[suffix] : '';
+}
+
+export function getTenantSiteVendorApplyApi(vendor?: string) {
+  return vendor ? tenantSiteCapabilityState.vendorApplyApiMap[vendor] : '';
+}
+
+export function getTenantSiteVendorDomainRenewBeforeDays(vendor?: string) {
+  return vendor
+    ? (tenantSiteCapabilityState.vendorDomainRenewBeforeDaysMap[vendor] ?? 30)
+    : 30;
+}
+
+export function getTenantSiteSuffixDomainRenewBeforeDays(suffix?: string) {
+  return suffix
+    ? (tenantSiteCapabilityState.suffixDomainRenewBeforeDaysMap[suffix] ?? 30)
+    : 30;
+}
+
+export async function loadTenantSiteSslRenewBeforeDays() {
+  if (tenantSiteCapabilityState.sslRenewBeforeDaysLoaded) {
+    return tenantSiteCapabilityState.sslRenewBeforeDays;
+  }
+
+  if (tenantSiteCapabilityState.loadSslRenewBeforeDaysPromise) {
+    return tenantSiteCapabilityState.loadSslRenewBeforeDaysPromise;
+  }
+
+  tenantSiteCapabilityState.loadSslRenewBeforeDaysPromise = requestClient
+    .get<number>(`${OAK_BASE_API_MODULE}/TenantSite/sslRenewBeforeDays`, {
+      baseURL: '',
+    })
+    .then((days) => {
+      const normalizedDays = Number(days);
+      tenantSiteCapabilityState.sslRenewBeforeDays =
+        Number.isFinite(normalizedDays) && normalizedDays >= 0
+          ? normalizedDays
+          : 30;
+      tenantSiteCapabilityState.sslRenewBeforeDaysLoaded = true;
+      return tenantSiteCapabilityState.sslRenewBeforeDays;
+    })
+    .finally(() => {
+      tenantSiteCapabilityState.loadSslRenewBeforeDaysPromise = null;
+    });
+
+  return tenantSiteCapabilityState.loadSslRenewBeforeDaysPromise;
+}
+
+export function getTenantSiteSslRenewBeforeDays() {
+  return tenantSiteCapabilityState.sslRenewBeforeDays;
+}
+
+export function getTenantSiteVendorSuffixOptions(vendor?: string) {
+  if (!vendor) {
+    return tenantSiteCapabilityState.suffixOptions;
+  }
+
+  return tenantSiteCapabilityState.vendorSuffixOptionsMap[vendor] || [];
+}
+
 export async function loadTenantSitePublicIp() {
   if (tenantSiteCapabilityState.publicIpLoaded) {
     return tenantSiteCapabilityState.publicIp;
@@ -287,8 +371,15 @@ export async function loadTenantSitePublicIp() {
   return tenantSiteCapabilityState.publicIp;
 }
 
-export async function modulePostCrudAction(path: string, payload?: any) {
-  return postCrudAction(path, payload, OAK_BASE_API_MODULE);
+export async function modulePostCrudAction(
+  path: string,
+  payload?: any,
+  config: Record<string, any> = {},
+) {
+  return requestClient.post(`${OAK_BASE_API_MODULE}${path}`, payload ?? {}, {
+    ...config,
+    baseURL: '',
+  });
 }
 
 export function moduleGet<T>(path: string, config: Record<string, any> = {}) {
