@@ -35,6 +35,7 @@ import {
 import { useUserStore } from '@vben/stores';
 
 import {
+  AutoComplete,
   Button,
   Cascader,
   Checkbox,
@@ -114,6 +115,14 @@ interface TableColumnSettingsSnapshot {
   fixedMap: Record<string, TableColumnFixedMode>;
   hiddenKeys: string[];
   orderedKeys: string[];
+}
+function getCrudErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  const data = (error as any)?.response?.data;
+  return data?.msg || data?.detailMsg || data?.message || fallback;
 }
 type SearchFieldItem =
   | {
@@ -300,7 +309,15 @@ function isFieldVisible(field: CrudFieldConfig) {
 }
 
 const searchFields = computed(() =>
-  props.config.fields.filter((field) => field.search && isFieldVisible(field)),
+  props.config.fields
+    .map((field, index) => ({ field, index }))
+    .filter(({ field }) => field.search && isFieldVisible(field))
+    .sort(
+      (left, right) =>
+        (left.field.searchOrder ?? left.index) -
+        (right.field.searchOrder ?? right.index),
+    )
+    .map(({ field }) => field),
 );
 
 const RANGE_PREFIX_PAIRS: Array<[string, string]> = [
@@ -2050,9 +2067,7 @@ async function handleSubmit() {
     await loadList();
   } catch (error) {
     console.error(error);
-    if (error instanceof TypeError) {
-      message.error(error.message);
-    }
+    message.error(getCrudErrorMessage(error, '保存失败'));
   } finally {
     submitting.value = false;
   }
@@ -2996,11 +3011,43 @@ function isRemoteSearchField(field: CrudFieldConfig) {
 }
 
 function handleSelectSearch(field: CrudFieldConfig, keyword: string) {
+  if (field.allowInput && !field.multiple) {
+    formState[field.key] = keyword;
+  }
+
   if (!isRemoteSearchField(field)) {
     return;
   }
 
   void loadFieldOptions(field, keyword);
+}
+
+function handleSearchSelectSearch(field: CrudFieldConfig, keyword: string) {
+  if (field.allowInput && !field.multiple) {
+    searchState[field.key] = keyword;
+  }
+
+  if (!isRemoteSearchField(field)) {
+    return;
+  }
+
+  void loadFieldOptions(field, keyword);
+}
+
+function handleSelectChange(field: CrudFieldConfig, value: any) {
+  if (!field.allowInput || field.multiple || value) {
+    return;
+  }
+
+  formState[field.key] = undefined;
+}
+
+function handleSearchSelectChange(field: CrudFieldConfig, value: any) {
+  if (!field.allowInput || field.multiple || value) {
+    return;
+  }
+
+  searchState[field.key] = undefined;
 }
 
 function formatCellValue(field: CrudFieldConfig, value: any) {
@@ -3415,7 +3462,7 @@ async function updateBooleanEnableField(
   } catch (error) {
     record[fieldKey] = previousValue;
     console.error(error);
-    message.error('更新失败');
+    message.error(getCrudErrorMessage(error, '更新失败'));
   } finally {
     quickSwitchLoadingState[loadingKey] = false;
   }
@@ -3555,65 +3602,70 @@ async function runRowAction(
     return;
   }
 
-  const actionPayload = rejectReason
-    ? appendOperatorAction(record, rejectReason)
-    : record;
-  const response = await action.handler(actionPayload);
-  const resultAction = resolveCrudActionAfterSuccess(
-    action.action,
-    action.successAction,
-  );
-  const resultData = pickCrudActionResultData(
-    response,
-    action.resultActionData,
-  );
+  try {
+    const actionPayload = rejectReason
+      ? appendOperatorAction(record, rejectReason)
+      : record;
+    const response = await action.handler(actionPayload);
+    const resultAction = resolveCrudActionAfterSuccess(
+      action.action,
+      action.successAction,
+    );
+    const resultData = pickCrudActionResultData(
+      response,
+      action.resultActionData,
+    );
 
-  if (action.successMessage !== false) {
-    message.success(action.successMessage || `${action.label}成功`);
-  }
-
-  switch (resultAction) {
-    case 'copy': {
-      await navigator.clipboard?.writeText(
-        typeof resultData === 'string'
-          ? resultData
-          : JSON.stringify(resultData),
-      );
-      message.success('已复制到剪贴板');
-
-      break;
+    if (action.successMessage !== false) {
+      message.success(action.successMessage || `${action.label}成功`);
     }
-    case 'link': {
-      window.open(String(resultData || ''), '_blank');
 
-      break;
-    }
-    case 'url': {
-      window.location.href = String(resultData || '');
+    switch (resultAction) {
+      case 'copy': {
+        await navigator.clipboard?.writeText(
+          typeof resultData === 'string'
+            ? resultData
+            : JSON.stringify(resultData),
+        );
+        message.success('已复制到剪贴板');
 
-      break;
-    }
-    default: {
-      if (
-        [
-          'showForm',
-          'showIFrame',
-          'showImage',
-          'showQrCode',
-          'showSchema',
-          'showVideo',
-        ].includes(resultAction)
-      ) {
-        openActionResult(action.label, resultAction, resultData);
+        break;
+      }
+      case 'link': {
+        window.open(String(resultData || ''), '_blank');
+
+        break;
+      }
+      case 'url': {
+        window.location.href = String(resultData || '');
+
+        break;
+      }
+      default: {
+        if (
+          [
+            'showForm',
+            'showIFrame',
+            'showImage',
+            'showQrCode',
+            'showSchema',
+            'showVideo',
+          ].includes(resultAction)
+        ) {
+          openActionResult(action.label, resultAction, resultData);
+        }
       }
     }
-  }
 
-  if (
-    action.reloadAfterAction !== false &&
-    shouldReloadDataListAfterAction(action.action, action.successAction)
-  ) {
-    await loadList();
+    if (
+      action.reloadAfterAction !== false &&
+      shouldReloadDataListAfterAction(action.action, action.successAction)
+    ) {
+      await loadList();
+    }
+  } catch (error) {
+    console.error(error);
+    message.error(getCrudErrorMessage(error, `${action.label}失败`));
   }
 }
 
@@ -3807,6 +3859,26 @@ watch(tableColumnPreferenceStorageKey, () => {
                 tree-default-expand-all
                 tree-node-filter-prop="label"
               />
+              <AutoComplete
+                v-else-if="
+                  (item.field.type === 'select' ||
+                    item.field.type === 'role-select') &&
+                  item.field.allowInput &&
+                  !item.field.multiple
+                "
+                v-model:value="searchState[item.field.key]"
+                :allow-clear="true"
+                :options="getFieldOptions(item.field)"
+                :placeholder="getPlaceholder(item.field)"
+                :filter-option="
+                  isRemoteSearchField(item.field)
+                    ? false
+                    : filterSelectOptionByLabel
+                "
+                :loading="optionLoadingState[item.field.key]"
+                class="w-full"
+                @search="handleSearchSelectSearch(item.field, $event)"
+              />
               <Select
                 v-else-if="
                   item.field.type === 'select' ||
@@ -3825,7 +3897,8 @@ watch(tableColumnPreferenceStorageKey, () => {
                 :loading="optionLoadingState[item.field.key]"
                 class="w-full"
                 show-search
-                @search="handleSelectSearch(item.field, $event)"
+                @change="(value) => handleSearchSelectChange(item.field, value)"
+                @search="handleSearchSelectSearch(item.field, $event)"
               />
               <Select
                 v-else-if="item.field.type === 'switch'"
@@ -4666,6 +4739,24 @@ watch(tableColumnPreferenceStorageKey, () => {
               class="w-full"
               :placeholder="getPlaceholder(field)"
             />
+            <AutoComplete
+              v-else-if="
+                (field.type === 'select' || field.type === 'role-select') &&
+                field.allowInput &&
+                !field.multiple
+              "
+              v-model:value="formState[field.key]"
+              :allow-clear="true"
+              :disabled="field.disabledOnEdit && !!editingRecord"
+              :options="getFieldOptions(field)"
+              :placeholder="getPlaceholder(field)"
+              :filter-option="
+                isRemoteSearchField(field) ? false : filterSelectOptionByLabel
+              "
+              :loading="optionLoadingState[field.key]"
+              class="w-full"
+              @search="handleSelectSearch(field, $event)"
+            />
             <Select
               v-else-if="
                 field.type === 'select' || field.type === 'role-select'
@@ -4682,6 +4773,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               :loading="optionLoadingState[field.key]"
               class="w-full"
               show-search
+              @change="(value) => handleSelectChange(field, value)"
               @search="handleSelectSearch(field, $event)"
             />
             <Select

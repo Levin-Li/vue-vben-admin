@@ -18,6 +18,12 @@ const adminCrudRoutes: AdminCrudRoute[] = [
   { name: 'Customer', resource: 'Customer', title: '客户管理' },
   { name: 'Demo', resource: 'Demo', title: '示例管理' },
   { name: 'Dict', resource: 'Dict', title: '数据字典' },
+  { name: 'Domain', resource: 'Domain', title: '根域名管理' },
+  {
+    name: 'DomainSslCert',
+    resource: 'DomainSslCert',
+    title: 'SSL证书管理',
+  },
   { name: 'FileRes', resource: 'FileRes', title: '文件资源' },
   { name: 'FundAccount', resource: 'FundAccount', title: '资金账户' },
   { name: 'FundAccountLog', resource: 'FundAccountLog', title: '资金账户日志' },
@@ -82,6 +88,9 @@ const localViewMap: Record<string, NonNullable<RouteRecordRaw['component']>> = {
     import('#/views/system/com_levin_oak_base/customer/index.vue'),
   Demo: () => import('#/views/system/com_levin_oak_base/demo/index.vue'),
   Dict: () => import('#/views/system/com_levin_oak_base/dict/index.vue'),
+  Domain: () => import('#/views/system/com_levin_oak_base/domain/index.vue'),
+  DomainSslCert: () =>
+    import('#/views/system/com_levin_oak_base/domain-ssl-cert/index.vue'),
   FileRes: () => import('#/views/system/com_levin_oak_base/file-res/index.vue'),
   FundAccount: () =>
     import('#/views/system/com_levin_oak_base/fund-account/index.vue'),

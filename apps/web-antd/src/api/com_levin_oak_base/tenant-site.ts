@@ -11,6 +11,28 @@ export interface TenantSiteDnsRecord {
   value?: string;
 }
 
+export interface TenantSiteIdReq {
+  id?: string;
+}
+
+export interface ManualSslCertConfig {
+  certChainPem?: string;
+  id?: string;
+  privateKeyPem?: string;
+  remark?: string;
+}
+
+export interface TenantSiteDnsRecordSave {
+  id?: string;
+  record?: TenantSiteDnsRecord;
+  recordId?: string;
+}
+
+export interface TenantSiteDnsRecordDelete {
+  id?: string;
+  recordId?: string;
+}
+
 export interface TenantSiteRecord {
   domain?: string;
   domainDnsRecords?: TenantSiteDnsRecord[];
@@ -40,17 +62,14 @@ export class TenantSiteService extends RequestService {
     visibleOn: 'false',
   })
   async createDnsRecord(id: string, data?: TenantSiteDnsRecord, options?: any) {
-    return this.post<TenantSiteRecord>(`${id}/dnsRecords`, {
+    return this.post<TenantSiteRecord>('dnsRecords/create', {
       ...options,
-      data,
+      data: { id, record: data } satisfies TenantSiteDnsRecordSave,
     });
   }
 
   async addDnsRecord(id: string, data?: TenantSiteDnsRecord, options?: any) {
-    return this.post<TenantSiteRecord>(`${id}/addDnsRecord`, {
-      ...options,
-      data,
-    });
+    return this.createDnsRecord(id, data, options);
   }
 
   @ResAuthorize({
@@ -71,9 +90,9 @@ export class TenantSiteService extends RequestService {
     action: '申请域名',
   })
   async applyExistingDomain(id: string, data?: any, options?: any) {
-    return this.post(`${id}/applyDomain`, {
+    return this.post('applyExistingDomain', {
       ...options,
-      data,
+      data: { id, site: data },
     });
   }
 
@@ -94,10 +113,49 @@ export class TenantSiteService extends RequestService {
     type: '系统数据-租户站点',
     action: '检查域名是否可注册',
   })
-  async canApply(params?: any, options?: any) {
-    return this.get('canApply', {
+  async canApply(data?: any, options?: any) {
+    return this.post('canApply', {
       ...options,
-      params,
+      data,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-租户站点',
+    action: '配置SSL证书',
+  })
+  @CRUD.Op({
+    confirmText: 'None',
+    label: '配置SSL证书',
+    opRefTargetType: 'SingleRow',
+    successAction: 'ShowForm',
+  })
+  async configManualSslCert(
+    id: string,
+    data?: ManualSslCertConfig,
+    options?: any,
+  ) {
+    return this.post<TenantSiteRecord>('configManualSslCert', {
+      ...options,
+      data: { ...(data || {}), id },
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-租户站点',
+    action: '生成NG配置文件',
+  })
+  @CRUD.Op({
+    confirmText: '确认生成当前站点的NG配置和证书文件吗？',
+    label: '生成NG配置和证书文件',
+    opRefTargetType: 'SingleRow',
+  })
+  async generateNginxConfig(id: string, data?: any, options?: any) {
+    return this.post<TenantSiteRecord>('generateNginxConfig', {
+      ...options,
+      data: { ...(data || {}), id },
     });
   }
 
@@ -153,13 +211,10 @@ export class TenantSiteService extends RequestService {
   async deleteDnsRecord(
     id: string,
     recordId: string,
-    params?: any,
+    data?: any,
     options?: any,
   ) {
-    return this.deleteRequest<TenantSiteRecord>(`${id}/dnsRecord/${recordId}`, {
-      ...options,
-      params,
-    });
+    return this.deleteDnsRecordById(id, recordId, data, options);
   }
 
   @ResAuthorize({
@@ -174,16 +229,13 @@ export class TenantSiteService extends RequestService {
   async deleteDnsRecordById(
     id: string,
     recordId: string,
-    params?: any,
+    data?: any,
     options?: any,
   ) {
-    return this.deleteRequest<TenantSiteRecord>(
-      `${id}/dnsRecords/${recordId}`,
-      {
-        ...options,
-        params,
-      },
-    );
+    return this.post<TenantSiteRecord>('dnsRecords/delete', {
+      ...options,
+      data: { ...(data || {}), id, recordId } satisfies TenantSiteDnsRecordDelete,
+    });
   }
 
   @ResAuthorize({
@@ -216,6 +268,18 @@ export class TenantSiteService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-租户站点',
+    action: '获取SSL证书提前续期天数',
+  })
+  async sslRenewBeforeDays(params?: any, options?: any) {
+    return this.get('sslRenewBeforeDays', {
+      ...options,
+      params,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-租户站点',
     action: '查询解析记录',
   })
   @CRUD.Op({
@@ -225,9 +289,9 @@ export class TenantSiteService extends RequestService {
     successAction: 'ShowForm',
   })
   async listDnsRecords(id: string, params?: any, options?: any) {
-    return this.get<TenantSiteDnsRecord[]>(`${id}/dnsRecords`, {
+    return this.post<TenantSiteDnsRecord[]>('dnsRecords/list', {
       ...options,
-      params,
+      data: { ...(params || {}), id },
     });
   }
 
@@ -241,9 +305,9 @@ export class TenantSiteService extends RequestService {
     action: '续期域名',
   })
   async renewDomain(id: string, params?: any, options?: any) {
-    return this.post(`${id}/renewDomain`, {
+    return this.post('renewDomain', {
       ...options,
-      params,
+      data: { ...(params || {}), id } satisfies TenantSiteIdReq,
     });
   }
 
@@ -268,9 +332,33 @@ export class TenantSiteService extends RequestService {
     action: '同步域名状态',
   })
   async syncDomainStatus(id: string, params?: any, options?: any) {
-    return this.post(`${id}/syncStatus`, {
+    return this.post('syncStatus', {
       ...options,
-      params,
+      data: { ...(params || {}), id } satisfies TenantSiteIdReq,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-租户站点',
+    action: '申请SSL证书',
+  })
+  async applySslCert(id: string, data?: any, options?: any) {
+    return this.post('applySslCert', {
+      ...options,
+      data: { ...(data || {}), id } satisfies TenantSiteIdReq,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-租户站点',
+    action: '同步SSL证书状态',
+  })
+  async syncSslCertStatus(id: string, data?: any, options?: any) {
+    return this.post('syncSslCertStatus', {
+      ...options,
+      data: { ...(data || {}), id } satisfies TenantSiteIdReq,
     });
   }
 
@@ -298,9 +386,9 @@ export class TenantSiteService extends RequestService {
     visibleOn: 'false',
   })
   async updateDnsRecord(id: string, data?: TenantSiteDnsRecord, options?: any) {
-    return this.put<TenantSiteRecord>(`${id}/dnsRecord`, {
+    return this.post<TenantSiteRecord>('dnsRecords/update', {
       ...options,
-      data,
+      data: { id, record: data } satisfies TenantSiteDnsRecordSave,
     });
   }
 
@@ -320,9 +408,9 @@ export class TenantSiteService extends RequestService {
     data?: TenantSiteDnsRecord,
     options?: any,
   ) {
-    return this.put<TenantSiteRecord>(`${id}/dnsRecords/${recordId}`, {
+    return this.post<TenantSiteRecord>('dnsRecords/update', {
       ...options,
-      data,
+      data: { id, recordId, record: data } satisfies TenantSiteDnsRecordSave,
     });
   }
 }

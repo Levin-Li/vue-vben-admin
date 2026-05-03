@@ -10,6 +10,8 @@ export * from './brand';
 export * from './customer';
 export * from './demo';
 export * from './dict';
+export * from './domain';
+export * from './domain-ssl-cert';
 export * from './file-res';
 export * from './fund-account';
 export * from './fund-account-log';

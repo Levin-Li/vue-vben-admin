@@ -16,6 +16,7 @@ import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
 import { registerRbacPermissionDirective } from './directives/rbac-permission';
 import { router } from './router';
+import './styles/antd-message.css';
 
 async function bootstrap(namespace: string) {
   // 初始化组件适配器

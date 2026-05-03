@@ -1,3 +1,8 @@
+import type { SelectOption } from '#/api';
+import type {
+  DomainDnsRecord,
+  DomainRecord,
+} from '#/api/com_levin_oak_base/domain';
 import type { CrudPageConfig } from '../shared/types';
 import type {
   TenantSiteOption,
@@ -131,6 +136,55 @@ export const articleChannelOptionsLoader = buildModuleOptionsLoader(
   '/ArticleChannel/list',
 );
 export const brandOptionsLoader = buildModuleOptionsLoader('/Brand/list');
+export const domainOptionsLoader = buildModuleOptionsLoader(
+  '/Domain/list',
+  'name',
+  'name',
+);
+export const tenantSiteDnsDomainOptionsLoader = async () => {
+  const rootDomains = await moduleFetchCrudList<DomainRecord>('/Domain/list', {
+    enable: true,
+    pageIndex: 1,
+    pageSize: 500,
+  });
+  const optionMap = new Map<string, SelectOption>();
+
+  await Promise.all(
+    rootDomains.items
+      .filter((domain) => domain?.id && domain?.name && domain.enable !== false)
+      .map(async (domain) => {
+        const rootDomain = String(domain.name || '')
+          .trim()
+          .replace(/\.$/, '');
+
+        if (!rootDomain || !isProviderManagedDomain(rootDomain)) {
+          return;
+        }
+
+        optionMap.set(rootDomain, {
+          label: rootDomain,
+          value: rootDomain,
+        });
+
+        for (const record of domain.dnsRecords || []) {
+          const fullDomain = getDnsRecordFullDomain(rootDomain, record);
+
+          if (!fullDomain || !canUseAsTenantSiteDomain(record)) {
+            continue;
+          }
+
+          optionMap.set(fullDomain, {
+            label: fullDomain,
+            value: fullDomain,
+          });
+        }
+      }),
+  );
+
+  return [...optionMap.values()].sort((left, right) =>
+    String(left.label).localeCompare(String(right.label)),
+  );
+};
 export const jobPostOptionsLoader = buildModuleOptionsLoader('/JobPost/list');
 export const menuOptionsLoader = buildModuleOptionsLoader('/Menu/list');
 export const payChannelOptionsLoader =
@@ -173,6 +227,69 @@ export const payChannelTypeOptionsLoader =
 export const payChannelAgentCodeOptionsLoader = buildModuleDictOptionsLoader(
   'PayChannel.agentCode',
 );
+
+function canUseAsTenantSiteDomain(record: DomainDnsRecord) {
+  const recordType = String(record?.recordType || '').toUpperCase();
+  return (
+    (recordType === 'A' || recordType === 'CNAME') && record.enable !== false
+  );
+}
+
+function isProviderManagedDomain(domain: string) {
+  const host = normalizeDomainHost(domain);
+
+  return Boolean(
+    host && host.includes('.') && !isLocalHostDomain(host) && !isIpAddress(host),
+  );
+}
+
+function isLocalHostDomain(domain: string) {
+  const host = normalizeDomainHost(domain);
+  return host === 'localhost' || host.endsWith('.localhost');
+}
+
+function isIpAddress(domain: string) {
+  const host = normalizeDomainHost(domain);
+
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) {
+    return host.split('.').every((part) => {
+      const value = Number(part);
+      return Number.isInteger(value) && value >= 0 && value <= 255;
+    });
+  }
+
+  return host.includes(':');
+}
+
+function normalizeDomainHost(domain: string) {
+  let host = String(domain || '')
+    .trim()
+    .toLowerCase();
+
+  try {
+    host = new URL(host.includes('://') ? host : `http://${host}`).hostname;
+  } catch {
+    host = host.split('/')[0] || '';
+  }
+
+  return host.replace(/^\[(.*)]$/, '$1').replace(/\.$/, '');
+}
+
+function getDnsRecordFullDomain(rootDomain: string, record: DomainDnsRecord) {
+  const host = String(record?.host || '')
+    .trim()
+    .replace(/\.$/, '');
+
+  if (!host || host === '@') {
+    return rootDomain;
+  }
+
+  if (host === rootDomain || host.endsWith(`.${rootDomain}`)) {
+    return host;
+  }
+
+  return `${host}.${rootDomain}`;
+}
 
 export const roleOptionsLoader = (keyword?: string) =>
   fetchOptions(
@@ -253,12 +370,18 @@ async function loadTenantSiteSuffixOptions() {
 }
 
 async function doLoadTenantSiteSuffixOptions() {
-  const providers = await requestClient.get<TenantSiteProvider[]>(
-    `${OAK_BASE_API_MODULE}/TenantSite/availableSuffixes`,
-    {
-      baseURL: '',
-    },
-  );
+  let providers: TenantSiteProvider[] = [];
+
+  try {
+    providers = await requestClient.get<TenantSiteProvider[]>(
+      `${OAK_BASE_API_MODULE}/Domain/availableSuffixes`,
+      {
+        baseURL: '',
+      },
+    );
+  } catch {
+    providers = [];
+  }
 
   const capabilityOptions = buildTenantSiteCapabilityOptions(providers || []);
 
@@ -325,7 +448,7 @@ export async function loadTenantSiteSslRenewBeforeDays() {
   }
 
   tenantSiteCapabilityState.loadSslRenewBeforeDaysPromise = requestClient
-    .get<number>(`${OAK_BASE_API_MODULE}/TenantSite/sslRenewBeforeDays`, {
+    .get<number>(`${OAK_BASE_API_MODULE}/Domain/sslRenewBeforeDays`, {
       baseURL: '',
     })
     .then((days) => {
@@ -362,7 +485,7 @@ export async function loadTenantSitePublicIp() {
   }
 
   tenantSiteCapabilityState.publicIp = await requestClient.get<string>(
-    `${OAK_BASE_API_MODULE}/TenantSite/publicIp`,
+    `${OAK_BASE_API_MODULE}/Domain/publicIp`,
     {
       baseURL: '',
     },

@@ -90,6 +90,22 @@ const LOCAL_ROUTE_MAPPINGS: LocalRouteMapping[] = [
     view: '/system/com_levin_oak_base/tenant-site/index.vue',
   },
   {
+    resource: 'Domain',
+    icon: 'lucide:globe-2',
+    name: 'DomainCrudPage',
+    sourcePath: '/clob/V1/Domain',
+    title: '根域名管理',
+    view: '/system/com_levin_oak_base/domain/index.vue',
+  },
+  {
+    resource: 'DomainSslCert',
+    icon: 'lucide:shield-check',
+    name: 'DomainSslCertCrudPage',
+    sourcePath: '/clob/V1/DomainSslCert',
+    title: 'SSL证书管理',
+    view: '/system/com_levin_oak_base/domain-ssl-cert/index.vue',
+  },
+  {
     resource: 'AccessLog',
     icon: 'lucide:history',
     name: 'AccessLogCrudPage',
@@ -378,6 +394,22 @@ const LOCAL_ROUTE_MAPPING_BY_RESOURCE = new Map(
   LOCAL_ROUTE_MAPPINGS.map((item) => [item.resource.toLowerCase(), item]),
 );
 
+function collectRoutePaths(
+  routes: RouteRecordStringComponent[],
+  paths = new Set<string>(),
+) {
+  routes.forEach((route) => {
+    paths.add(route.path);
+    if (route.children?.length) {
+      collectRoutePaths(
+        route.children as RouteRecordStringComponent[],
+        paths,
+      );
+    }
+  });
+  return paths;
+}
+
 function normalizeEnumValue(value?: null | string) {
   return String(value || '').split('-')[0] || '';
 }
@@ -511,7 +543,7 @@ function convertLeafRoute(
         menuActionType: actionType,
         menuPageType: pageType,
         order: item.orderCode,
-        title: item.name || mapping.title,
+        title: mapping.title || item.name || normalizedPath || '未命名页面',
       },
       name: mapping.name,
       path: finalPath,
@@ -587,9 +619,32 @@ export function convertMenuNode(
 }
 
 export function buildMenuRoutes(backendMenus: BackendMenuInfo[]) {
-  return backendMenus
+  const routes = backendMenus
     .map((item) => convertMenuNode(item))
     .filter(Boolean) as RouteRecordStringComponent[];
+
+  const existingPaths = collectRoutePaths(routes);
+
+  LOCAL_ROUTE_MAPPINGS.forEach((mapping) => {
+    if (existingPaths.has(mapping.sourcePath)) {
+      return;
+    }
+
+    routes.push({
+      component: mapping.view,
+      meta: {
+        crudResource: mapping.resource,
+        hideInMenu: true,
+        icon: mapping.icon,
+        title: mapping.title,
+      },
+      name: mapping.name,
+      path: mapping.sourcePath,
+    });
+    existingPaths.add(mapping.sourcePath);
+  });
+
+  return routes;
 }
 
 export const convertMenuNodeForTest = convertMenuNode;

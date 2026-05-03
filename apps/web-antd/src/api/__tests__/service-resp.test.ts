@@ -21,7 +21,7 @@ describe('service-resp', () => {
     });
   });
 
-  it('throws failed ServiceResp with backend errorType for non-business errors', () => {
+  it('throws failed ServiceResp with backend message for non-business errors', () => {
     const serverErrorType = `server-dynamic-error-type-${Math.random()}`;
 
     expect(() =>
@@ -31,7 +31,7 @@ describe('service-resp', () => {
         errorType: serverErrorType,
         msg: '认证异常',
       }),
-    ).toThrow(serverErrorType);
+    ).toThrow('认证异常');
   });
 
   it('prefers msg then detailMsg for display message', () => {
@@ -52,7 +52,7 @@ describe('service-resp', () => {
     ).toBe('业务错误');
   });
 
-  it('shows backend errorType directly for non-business errors', () => {
+  it('prefers backend message for non-business errors', () => {
     const serverErrorType = `server-dynamic-error-type-${Math.random()}`;
 
     expect(
@@ -62,7 +62,7 @@ describe('service-resp', () => {
         errorType: serverErrorType,
         msg: '认证异常',
       }),
-    ).toBe(serverErrorType);
+    ).toBe('认证异常');
   });
 
   it('derives error type from code when errorType is absent', () => {

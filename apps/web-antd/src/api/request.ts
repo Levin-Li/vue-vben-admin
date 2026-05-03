@@ -25,6 +25,7 @@ import {
 } from './service-resp';
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
+const REQUEST_TIMEOUT_MS = 180_000;
 
 function isBusinessError(responseData: Record<string, any>) {
   if (!responseData || typeof responseData !== 'object') {
@@ -168,12 +169,14 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 export const requestClient = createRequestClient(apiURL, {
   paramsSerializer: 'repeat',
   responseReturn: 'data',
+  timeout: REQUEST_TIMEOUT_MS,
 });
 
 export const baseRequestClient = new RequestClient({
   baseURL: apiURL,
   paramsSerializer: 'repeat',
   responseReturn: 'data',
+  timeout: REQUEST_TIMEOUT_MS,
 });
 
 applyCommonInterceptors(baseRequestClient);

@@ -75,7 +75,7 @@ export function getServiceRespType(responseData: ServiceRespLike) {
 }
 
 function getBackendMessage(responseData: ServiceRespLike) {
-  return responseData.msg || responseData.detailMsg || '接口处理失败';
+  return responseData.msg || responseData.detailMsg || '';
 }
 
 function isServiceRespBizError(responseData: ServiceRespLike) {
@@ -89,12 +89,13 @@ function isServiceRespBizError(responseData: ServiceRespLike) {
 
 export function getServiceRespMessage(responseData: ServiceRespLike) {
   const errorType = getServiceRespType(responseData);
+  const backendMessage = getBackendMessage(responseData);
 
   if (isServiceRespBizError(responseData)) {
-    return getBackendMessage(responseData);
+    return backendMessage || errorType || '接口处理失败';
   }
 
-  return errorType || getBackendMessage(responseData);
+  return backendMessage || errorType || '接口处理失败';
 }
 
 export function createServiceRespError(responseData: ServiceRespLike) {

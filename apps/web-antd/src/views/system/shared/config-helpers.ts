@@ -1,6 +1,7 @@
 import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '#/api';
 import { requestClient } from '#/api/request';
 
+export const OAK_BASE_API_MODULE = '/com.levin.oak.base/V1/api';
 export const DEFAULT_CRUD_MODAL_WIDTH = 'min(70vw, 1280px)';
 
 export function withOptionSearchParams(
@@ -34,15 +35,16 @@ export function buildOptionsLoader(
       labelKey,
       valueKey,
       withOptionSearchParams(defaultParams, searchParamName, keyword),
+      OAK_BASE_API_MODULE,
     );
 }
 
 export function buildEnumOptionsLoader(enumName: string) {
-  return () => fetchEnumOptions(enumName);
+  return () => fetchEnumOptions(enumName, OAK_BASE_API_MODULE);
 }
 
 export function buildDictOptionsLoader(dictCode: string) {
-  return () => fetchDictOptions(dictCode);
+  return () => fetchDictOptions(dictCode, OAK_BASE_API_MODULE);
 }
 
 export const tenantOptionsLoader = buildOptionsLoader('/Tenant/list');
@@ -98,19 +100,26 @@ export const roleOptionsLoader = (keyword?: string) =>
       'containsName',
       keyword,
     ),
+    OAK_BASE_API_MODULE,
   );
 
 export const orgOptionsLoader = () =>
-  fetchOptions('/rbac/authorizedOrgList', 'name', 'id', {
-    assembleTree: false,
-  });
+  fetchOptions(
+    '/rbac/authorizedOrgList',
+    'name',
+    'id',
+    {
+      assembleTree: false,
+    },
+    OAK_BASE_API_MODULE,
+  );
 
 export async function loadEnumValueOptions(enumName: string) {
-  return await fetchEnumOptions(enumName);
+  return await fetchEnumOptions(enumName, OAK_BASE_API_MODULE);
 }
 
 export async function loadDictValueOptions(dictCode: string) {
-  return await fetchDictOptions(dictCode);
+  return await fetchDictOptions(dictCode, OAK_BASE_API_MODULE);
 }
 
 interface TenantSiteProvider {
@@ -139,9 +148,15 @@ async function loadTenantSiteSuffixOptions() {
     return tenantSiteCapabilityState.suffixOptions;
   }
 
-  const providers = await requestClient.get<TenantSiteProvider[]>(
-    '/TenantSite/availableSuffixes',
-  );
+  let providers: TenantSiteProvider[] = [];
+
+  try {
+    providers = await requestClient.get<TenantSiteProvider[]>(
+      '/Domain/availableSuffixes',
+    );
+  } catch {
+    providers = [];
+  }
 
   const suffixOptions: Array<{ label: string; value: string }> = [];
   const vendorOptions: Array<{ label: string; value: string }> = [];
@@ -190,9 +205,8 @@ export async function loadTenantSitePublicIp() {
     return tenantSiteCapabilityState.publicIp;
   }
 
-  tenantSiteCapabilityState.publicIp = await requestClient.get<string>(
-    '/TenantSite/publicIp',
-  );
+  tenantSiteCapabilityState.publicIp =
+    await requestClient.get<string>('/Domain/publicIp');
   tenantSiteCapabilityState.publicIpLoaded = true;
   return tenantSiteCapabilityState.publicIp;
 }

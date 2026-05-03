@@ -34,6 +34,7 @@ export interface CrudAreaCascaderConfig {
 }
 
 export interface CrudFieldConfig {
+  allowInput?: boolean;
   areaCascader?: CrudAreaCascaderConfig;
   defaultValue?: any;
   disabledOnEdit?: boolean;
@@ -54,6 +55,7 @@ export interface CrudFieldConfig {
   remoteSearch?: boolean;
   required?: boolean;
   search?: boolean;
+  searchOrder?: number;
   searchParamName?: string;
   sortable?: boolean;
   span?: number;
