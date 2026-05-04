@@ -52,16 +52,10 @@ The execution command is: `pnpm run [script]` or `npm run [script]`.
     "build:analyze": "turbo build:analyze",
     // Build a local Docker image
     "build:docker": "./build-local-docker-image.sh",
-    // Build the web-antd application separately
-    "build:antd": "pnpm run build --filter=@vben/web-antd",
+    // Build the main-app application separately
+    "build:main-app": "pnpm run build --filter=@vben/main-app",
     // Build the documentation separately
     "build:docs": "pnpm run build --filter=@vben/docs",
-    // Build the web-ele application separately
-    "build:ele": "pnpm run build --filter=@vben/web-ele",
-    // Build the web-naive application separately
-    "build:naive": "pnpm run build --filter=@vben/naive",
-    // Build the web-tdesign application separately
-    "build:tdesign": "pnpm run build --filter=@vben/web-tdesign",
     // Build the playground application separately
     "build:play": "pnpm run build --filter=@vben/playground",
     // Changeset version management
@@ -82,14 +76,12 @@ The execution command is: `pnpm run [script]` or `npm run [script]`.
     "commit": "czg",
     // Start the project (by default, the dev scripts of all packages in the entire repository will run)
     "dev": "turbo-run dev",
-    // Start the web-antd application
-    "dev:antd": "pnpm -F @vben/web-antd run dev",
+    // Start the main-app application
+    "dev:main-app": "pnpm -F @vben/main-app run dev",
+    // Start the final Main application
+    "dev:main-app": "pnpm --filter @levin/main-app dev",
     // Start the documentation
     "dev:docs": "pnpm -F @vben/docs run dev",
-    // Start the web-ele application
-    "dev:ele": "pnpm -F @vben/web-ele run dev",
-    // Start the web-naive application
-    "dev:naive": "pnpm -F @vben/web-naive run dev",
     // Start the playground application
     "dev:play": "pnpm -F @vben/playground run dev",
     // Format code
@@ -128,22 +120,10 @@ pnpm dev
 
 If you want to run a specific application directly, you can execute the following commands:
 
-To run the `web-antd` application:
+To run the final Main application:
 
 ```bash
-pnpm dev:antd
-```
-
-To run the `web-naive` application:
-
-```bash
-pnpm dev:naive
-```
-
-To run the `web-ele` application:
-
-```bash
-pnpm dev:ele
+pnpm dev:main-app
 ```
 
 To run the `docs` application:
@@ -158,9 +138,9 @@ In actual business development, multiple environments are usually distinguished 
 
 At this point, you can modify three files and add corresponding script configurations to distinguish between production environments.
 
-Take the addition of the test environment `test` to `@vben/web-antd` as an example:
+Take the addition of the test environment `test` to `@vben/main-app` as an example:
 
-- `apps\web-antd\package.json`
+- `apps\main-app\package.json`
 
 ```json
 "scripts": {
@@ -181,8 +161,8 @@ Add the command `"build:test"` and change the original `"build"` to `"build:prod
 "scripts": {
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 turbo build",
     "build:analyze": "turbo build:analyze",
-    "build:antd": "pnpm run build --filter=@vben/web-antd",
-    "build-test:antd": "pnpm run build --filter=@vben/web-antd build:test",
+    "build:main-app": "pnpm run build --filter=@vben/main-app",
+    "build-test:antd": "pnpm run build --filter=@vben/main-app build:test",
 
     ······
 }
@@ -205,11 +185,11 @@ Add the command to build the test environment in the root directory `package.jso
     },
 
     "build-test:antd": {
-      "dependsOn": ["@vben/web-antd#build:test"],
+      "dependsOn": ["@vben/main-app#build:test"],
       "outputs": ["dist/**"]
     },
 
-    "@vben/web-antd#build:test": {
+    "@vben/main-app#build:test": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },

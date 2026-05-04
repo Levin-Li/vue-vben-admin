@@ -1,0 +1,34 @@
+import { ConfigProviderEmits, ConfigProviderProps, ConfigProviderSlots } from "./define.js";
+import { useExportConfig } from "./hooks/useConfig.js";
+import { CSPConfig, Theme, ThemeConfig, useConfig } from "./context.js";
+import * as vue95 from "vue";
+import { AppContext, SlotsType, VNodeChild } from "vue";
+
+//#region src/config-provider/index.d.ts
+type holderRenderType = (children: VNodeChild) => VNodeChild;
+interface GlobalConfigProps {
+  prefixCls?: string;
+  iconPrefixCls?: string;
+  theme?: Theme | ThemeConfig;
+  holderRender?: holderRenderType;
+  appContext?: AppContext;
+}
+declare function getGlobalIconPrefixCls(): string;
+declare const ConfigProvider: vue95.DefineSetupFnComponent<ConfigProviderProps, ConfigProviderEmits, SlotsType<ConfigProviderSlots>, ConfigProviderProps & {
+  [x: `on${Capitalize<string>}`]: ((...args: any[] | unknown[]) => any) | undefined;
+}, vue95.PublicProps>;
+declare const _default: typeof ConfigProvider & {
+  config: (props: GlobalConfigProps) => void;
+  useConfig: typeof useExportConfig;
+};
+declare function globalConfig(): {
+  getPrefixCls: (suffixCls?: string, customizePrefixCls?: string) => string;
+  getIconPrefixCls: typeof getGlobalIconPrefixCls;
+  getRootPrefixCls: () => string;
+  getTheme: () => Theme | ThemeConfig;
+  theme: vue95.ComputedRef<Theme | ThemeConfig>;
+  holderRender: holderRenderType | undefined;
+  readonly appContext: AppContext | undefined;
+};
+//#endregion
+export { type CSPConfig, type ConfigProviderProps, GlobalConfigProps, _default as default, globalConfig, useConfig, useExportConfig };

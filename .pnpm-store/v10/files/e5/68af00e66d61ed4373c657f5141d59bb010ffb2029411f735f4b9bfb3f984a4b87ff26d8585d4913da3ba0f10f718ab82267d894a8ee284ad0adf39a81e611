@@ -1,0 +1,26 @@
+Object.defineProperties(exports, {
+	__esModule: { value: true },
+	[Symbol.toStringTag]: { value: "Module" }
+});
+const require_rolldown_runtime = require("../_virtual/rolldown_runtime.cjs");
+let vue = require("vue");
+function isInside(elements, target) {
+	return elements.filter((element) => element).some((element) => element.contains(target) || element === target);
+}
+function useSelectTriggerControl(elements, open, triggerOpen, customizedTrigger) {
+	const onGlobalMouseDown = (event) => {
+		if (customizedTrigger.value) return;
+		let target = event.target;
+		if (target.shadowRoot && event.composed) target = event.composedPath()[0] || target;
+		if (event._ori_target) target = event._ori_target;
+		if (open.value && !isInside(elements(), target)) triggerOpen(false);
+	};
+	(0, vue.onMounted)(() => {
+		window.addEventListener("mousedown", onGlobalMouseDown);
+		(0, vue.onUnmounted)(() => {
+			window.removeEventListener("mousedown", onGlobalMouseDown);
+		});
+	});
+}
+exports.default = useSelectTriggerControl;
+exports.isInside = isInside;

@@ -88,10 +88,7 @@ pnpm dev
 ```bash
 │
 ◆  Select the app you need to run [dev]:
-│  ● @vben/web-antd
-│  ○ @vben/web-antdv-next
-│  ○ @vben/web-ele
-│  ○ @vben/web-naive
+│  ● @vben/main-app
 │  ○ @vben/docs
 │  ● @vben/playground
 └
@@ -104,9 +101,7 @@ pnpm dev
 如果你不想选择项目，可以直接运行以下命令运行你需要的应用：
 
 ```bash
-pnpm run dev:antd
-pnpm run dev:ele
-pnpm run dev:naive
+pnpm run dev:main-app
 pnpm run dev:docs
 pnpm run dev:play
 ```

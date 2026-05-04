@@ -1,0 +1,47 @@
+import { SizeType } from "../config-provider/SizeContext.js";
+import { PopoverProps } from "../popover/index.js";
+import { AggregationColor } from "./color.js";
+import { ColorFormatType, ColorPickerClassNamesType, ColorPickerEmits, ColorPickerProps as ColorPickerProps$1, ColorPickerSlots, ColorPickerStylesType, ColorValueType, ModeType, PresetsItem, TriggerPlacement, TriggerType } from "./interface.js";
+import "../components.js";
+import * as vue161 from "vue";
+import { SlotsType } from "vue";
+import * as _v_c_color_picker0 from "@v-c/color-picker";
+
+//#region src/color-picker/ColorPicker.d.ts
+declare const ColorPicker: vue161.DefineSetupFnComponent<ColorPickerProps$1, ColorPickerEmits, SlotsType<ColorPickerSlots>, Omit<_v_c_color_picker0.ColorPickerProps, "onChange" | "defaultValue" | "value" | "components" | "panelRender" | "onChangeComplete" | "disabledAlpha"> & {
+  [key: `data-${string}`]: string;
+  mode?: ModeType | ModeType[];
+  value?: ColorValueType;
+  defaultValue?: ColorValueType;
+  open?: boolean;
+  disabled?: boolean;
+  placement?: TriggerPlacement;
+  trigger?: TriggerType;
+  format?: ColorFormatType;
+  defaultFormat?: ColorFormatType;
+  allowClear?: boolean;
+  presets?: PresetsItem[];
+  arrow?: boolean | {
+    pointAtCenter: boolean;
+  };
+  panelRender?: (params: {
+    panel: any;
+    extra: {
+      components: {
+        Picker: any;
+        Presets: any;
+      };
+    };
+  }) => any;
+  showText?: boolean | ((params: {
+    color: AggregationColor;
+  }) => any);
+  size?: SizeType;
+  classes?: ColorPickerClassNamesType;
+  styles?: ColorPickerStylesType;
+  rootClass?: string;
+  disabledAlpha?: boolean;
+  disabledFormat?: boolean;
+} & Pick<PopoverProps, "getPopupContainer" | "autoAdjustOverflow" | "destroyOnHidden">, vue161.PublicProps>;
+//#endregion
+export { ColorPicker as default };

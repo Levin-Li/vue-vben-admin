@@ -1,0 +1,59 @@
+import { useBaseConfig } from "../config-provider/context.js";
+import Element_default from "./Element.js";
+import style_default from "./style/index.js";
+import { createVNode, defineComponent, mergeDefaults, mergeProps } from "vue";
+import { classNames } from "@v-c/util";
+import { omit } from "es-toolkit";
+
+//#region src/skeleton/Avatar.tsx
+const SkeletonAvatar = /* @__PURE__ */ defineComponent((props, { attrs }) => {
+	const { prefixCls } = useBaseConfig("skeleton", props);
+	const [hashId, cssVarCls] = style_default(prefixCls);
+	return () => {
+		const { active, rootClass, shape, size } = props;
+		const cls = classNames(prefixCls.value, `${prefixCls.value}-element`, { [`${prefixCls.value}-active`]: active }, attrs?.class, rootClass, hashId.value, cssVarCls.value);
+		const otherProps = omit(props, ["prefixCls"]);
+		return createVNode("div", mergeProps({ "class": cls }, omit(attrs, ["class"])), [createVNode(Element_default, mergeProps({
+			"prefixCls": `${prefixCls.value}-avatar`,
+			"shape": shape,
+			"size": size
+		}, otherProps), null)]);
+	};
+}, {
+	props: /* @__PURE__ */ mergeDefaults({
+		shape: {
+			type: String,
+			required: false,
+			default: void 0
+		},
+		size: {
+			type: [String, Number],
+			required: false,
+			default: void 0
+		},
+		active: {
+			type: Boolean,
+			required: false,
+			default: void 0
+		},
+		rootClass: {
+			type: String,
+			required: false,
+			default: void 0
+		},
+		prefixCls: {
+			type: String,
+			required: false,
+			default: void 0
+		}
+	}, {
+		shape: "circle",
+		size: "default"
+	}),
+	name: "ASkeletonAvatar",
+	inheritAttrs: false
+});
+var Avatar_default = SkeletonAvatar;
+
+//#endregion
+export { Avatar_default as default };

@@ -5,7 +5,7 @@
 In the corresponding application's `index.html` file, find the following code and delete it:
 
 ```html
-<!-- apps/web-antd -->
+<!-- apps/main-app -->
 <script>
   var _hmt = _hmt || [];
   (function () {

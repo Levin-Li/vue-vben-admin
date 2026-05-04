@@ -84,13 +84,16 @@ You will see an output similar to the following, allowing you to select the proj
 ```bash
 │
 ◆  Select the app you need to run [dev]:
-│  ● @vben/web-antd
-│  ○ @vben/web-antdv-next
-│  ○ @vben/web-ele
-│  ○ @vben/web-naive
+│  ● @vben/main-app
 │  ○ @vben/docs
 │  ○ @vben/playground
 └
 ```
 
 Now, you can visit `http://localhost:5555` in your browser to view the project.
+
+To run the final Main application directly:
+
+```bash
+pnpm run dev:main-app
+```

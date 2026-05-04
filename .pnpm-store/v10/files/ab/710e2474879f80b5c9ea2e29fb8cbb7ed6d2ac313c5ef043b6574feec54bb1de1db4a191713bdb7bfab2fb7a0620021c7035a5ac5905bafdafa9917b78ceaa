@@ -1,0 +1,14 @@
+import { BlockProps, TypographyBaseEmits, TypographySlots } from "./interface.js";
+import * as vue492 from "vue";
+import { SlotsType } from "vue";
+
+//#region src/typography/Link.d.ts
+interface LinkProps extends BlockProps {
+  ellipsis?: boolean;
+  href?: string;
+  target?: string;
+  rel?: string;
+}
+declare const Link: vue492.DefineSetupFnComponent<LinkProps, TypographyBaseEmits, SlotsType<TypographySlots>, LinkProps, vue492.PublicProps>;
+//#endregion
+export { LinkProps, Link as default };
