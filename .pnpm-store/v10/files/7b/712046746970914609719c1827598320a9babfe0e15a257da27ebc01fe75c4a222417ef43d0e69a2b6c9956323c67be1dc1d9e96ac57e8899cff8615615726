@@ -1,8 +1,0 @@
-import { AliasToken } from "../../theme/interface/alias.js";
-import { GenerateStyle } from "../../theme/interface/index.js";
-import { TokenWithCommonCls } from "../../theme/internal.js";
-
-//#region src/style/motion/collapse.d.ts
-declare const genCollapseMotion: GenerateStyle<TokenWithCommonCls<AliasToken>>;
-//#endregion
-export { genCollapseMotion as default };

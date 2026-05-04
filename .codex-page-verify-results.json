@@ -1,0 +1,725 @@
+{
+  "batchStartedAt": "2026-04-27T07:26:23.382Z",
+  "results": [
+    {
+      "resource": "Role",
+      "expectedTitle": "角色管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Role",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Role",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Menu",
+      "expectedTitle": "菜单管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Menu",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Menu",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Org",
+      "expectedTitle": "组织管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Org",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Org",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "User",
+      "expectedTitle": "用户管理",
+      "url": "http://127.0.0.1:5666/clob/V1/User",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/User",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Dict",
+      "expectedTitle": "数据字典管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Dict",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Dict",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Tenant",
+      "expectedTitle": "租户管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Tenant",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Tenant",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "TenantSite",
+      "expectedTitle": "租户站点管理",
+      "url": "http://127.0.0.1:5666/clob/V1/TenantSite",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/TenantSite",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "AccessLog",
+      "expectedTitle": "访问日志",
+      "url": "http://127.0.0.1:5666/clob/V1/AccessLog",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/AccessLog",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Address",
+      "expectedTitle": "地址管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Address",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Address",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "AppClient",
+      "expectedTitle": "应用客户端",
+      "url": "http://127.0.0.1:5666/clob/V1/AppClient",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/AppClient",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Area",
+      "expectedTitle": "区域管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Area",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Area",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Article",
+      "expectedTitle": "文章管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Article",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Article",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "ArticleChannel",
+      "expectedTitle": "文章栏目",
+      "url": "http://127.0.0.1:5666/clob/V1/ArticleChannel",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/ArticleChannel",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "BankBranch",
+      "expectedTitle": "银行网点",
+      "url": "http://127.0.0.1:5666/clob/V1/BankBranch",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/BankBranch",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Brand",
+      "expectedTitle": "品牌管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Brand",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Brand",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Customer",
+      "expectedTitle": "客户管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Customer",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Customer",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Demo",
+      "expectedTitle": "示例管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Demo",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Demo",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "FileRes",
+      "expectedTitle": "文件资源",
+      "url": "http://127.0.0.1:5666/clob/V1/FileRes",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/FileRes",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "FundAccount",
+      "expectedTitle": "资金账户",
+      "url": "http://127.0.0.1:5666/clob/V1/FundAccount",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/FundAccount",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "FundAccountLog",
+      "expectedTitle": "资金账户日志",
+      "url": "http://127.0.0.1:5666/clob/V1/FundAccountLog",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/FundAccountLog",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "FundExchangeRule",
+      "expectedTitle": "资金兑换规则",
+      "url": "http://127.0.0.1:5666/clob/V1/FundExchangeRule",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/FundExchangeRule",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "I18nRes",
+      "expectedTitle": "国际化资源",
+      "url": "http://127.0.0.1:5666/clob/V1/I18nRes",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/I18nRes",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "JobPost",
+      "expectedTitle": "岗位管理",
+      "url": "http://127.0.0.1:5666/clob/V1/JobPost",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/JobPost",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Nation",
+      "expectedTitle": "国家地区",
+      "url": "http://127.0.0.1:5666/clob/V1/Nation",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Nation",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Notice",
+      "expectedTitle": "通知公告",
+      "url": "http://127.0.0.1:5666/clob/V1/Notice",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Notice",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "NoticeProcessLog",
+      "expectedTitle": "通知处理日志",
+      "url": "http://127.0.0.1:5666/clob/V1/NoticeProcessLog",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/NoticeProcessLog",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "PayChannel",
+      "expectedTitle": "支付渠道",
+      "url": "http://127.0.0.1:5666/clob/V1/PayChannel",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/PayChannel",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "PayOrder",
+      "expectedTitle": "支付订单",
+      "url": "http://127.0.0.1:5666/clob/V1/PayOrder",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/PayOrder",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Permission",
+      "expectedTitle": "权限管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Permission",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Permission",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "ScheduledLog",
+      "expectedTitle": "定时任务日志",
+      "url": "http://127.0.0.1:5666/clob/V1/ScheduledLog",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/ScheduledLog",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "ScheduledTask",
+      "expectedTitle": "定时任务",
+      "url": "http://127.0.0.1:5666/clob/V1/ScheduledTask",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/ScheduledTask",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "ServicePlugin",
+      "expectedTitle": "服务插件",
+      "url": "http://127.0.0.1:5666/clob/V1/ServicePlugin",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/ServicePlugin",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Setting",
+      "expectedTitle": "系统设置",
+      "url": "http://127.0.0.1:5666/clob/V1/Setting",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Setting",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "SimpleApi",
+      "expectedTitle": "简单接口",
+      "url": "http://127.0.0.1:5666/clob/V1/SimpleApi",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/SimpleApi",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "SimpleForm",
+      "expectedTitle": "简单表单",
+      "url": "http://127.0.0.1:5666/clob/V1/SimpleForm",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/SimpleForm",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "SimplePage",
+      "expectedTitle": "简单页面",
+      "url": "http://127.0.0.1:5666/clob/V1/SimplePage",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/SimplePage",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "SocialUser",
+      "expectedTitle": "社交用户",
+      "url": "http://127.0.0.1:5666/clob/V1/SocialUser",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/SocialUser",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "TenantApp",
+      "expectedTitle": "租户应用",
+      "url": "http://127.0.0.1:5666/clob/V1/TenantApp",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/TenantApp",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "UrlExAcl",
+      "expectedTitle": "URL访问控制",
+      "url": "http://127.0.0.1:5666/clob/V1/UrlExAcl",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/UrlExAcl",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "UserSetting",
+      "expectedTitle": "用户设置",
+      "url": "http://127.0.0.1:5666/clob/V1/UserSetting",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/UserSetting",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "未检测到页面标题或CRUD内容",
+      "textFlags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasEmptyShell": true,
+        "hasTableOrForm": false,
+        "snapshotLength": 26
+      },
+      "routeErrors": []
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+.ant-message .ant-message-notice-content {
+  max-width: min(960px, calc(100vw - 64px));
+  white-space: normal;
+  text-align: left;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.ant-message .ant-message-custom-content {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ant-message .anticon {
+  margin-top: 3px;
+}

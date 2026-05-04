@@ -1,0 +1,104 @@
+{
+  "name": "@levin/oak-base-admin",
+  "version": "0.9.6",
+  "description": "Levin Oak base admin frontend module.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm unbuild",
+    "prepublishOnly": "pnpm run build"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": [
+    "**/*.css",
+    "**/*.vue"
+  ],
+  "main": "./dist/modules/com_levin_oak_base/index.mjs",
+  "module": "./dist/modules/com_levin_oak_base/index.mjs",
+  "exports": {
+    ".": {
+      "types": "./src/modules/com_levin_oak_base/index.ts",
+      "development": "./src/modules/com_levin_oak_base/index.ts",
+      "default": "./dist/modules/com_levin_oak_base/index.mjs"
+    },
+    "./modules/com_levin_oak_base": {
+      "types": "./src/modules/com_levin_oak_base/index.ts",
+      "development": "./src/modules/com_levin_oak_base/index.ts",
+      "default": "./dist/modules/com_levin_oak_base/index.mjs"
+    },
+    "./modules/com_levin_oak_base/*": {
+      "types": "./src/modules/com_levin_oak_base/*.ts",
+      "development": "./src/modules/com_levin_oak_base/*.ts",
+      "default": "./dist/modules/com_levin_oak_base/*.mjs"
+    },
+    "./modules/com_levin_oak_base/api/*": {
+      "types": "./src/modules/com_levin_oak_base/api/*.ts",
+      "development": "./src/modules/com_levin_oak_base/api/*.ts",
+      "default": "./dist/modules/com_levin_oak_base/api/*.mjs"
+    },
+    "./modules/com_levin_oak_base/views/*.vue": {
+      "types": "./src/modules/com_levin_oak_base/views/*.vue",
+      "development": "./src/modules/com_levin_oak_base/views/*.vue",
+      "default": "./dist/modules/com_levin_oak_base/views/*.vue"
+    },
+    "./modules/com_levin_oak_base/views/*": {
+      "types": "./src/modules/com_levin_oak_base/views/*.ts",
+      "development": "./src/modules/com_levin_oak_base/views/*.ts",
+      "default": "./dist/modules/com_levin_oak_base/views/*.mjs"
+    },
+    "./src/*": {
+      "development": "./src/*",
+      "default": "./src/*"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/modules/com_levin_oak_base/index.d.ts",
+        "default": "./dist/modules/com_levin_oak_base/index.mjs"
+      },
+      "./modules/com_levin_oak_base": {
+        "types": "./dist/modules/com_levin_oak_base/index.d.ts",
+        "default": "./dist/modules/com_levin_oak_base/index.mjs"
+      },
+      "./modules/com_levin_oak_base/*": {
+        "default": "./dist/modules/com_levin_oak_base/*.mjs"
+      },
+      "./modules/com_levin_oak_base/api/*": {
+        "default": "./dist/modules/com_levin_oak_base/api/*.mjs"
+      },
+      "./modules/com_levin_oak_base/views/*.vue": {
+        "default": "./dist/modules/com_levin_oak_base/views/*.vue"
+      },
+      "./modules/com_levin_oak_base/views/*": {
+        "default": "./dist/modules/com_levin_oak_base/views/*.mjs"
+      }
+    }
+  },
+  "peerDependencies": {
+    "@levin/admin-framework": ">=0.9.4",
+    "@vben/common-ui": ">=5.0.0",
+    "@vben/icons": ">=5.0.0",
+    "@vben/plugins": ">=5.0.0",
+    "@vben/stores": ">=5.0.0",
+    "ant-design-vue": ">=4.0.0",
+    "pinia": ">=3.0.0",
+    "vue": ">=3.5.0",
+    "vue-router": ">=4.0.0"
+  },
+  "devDependencies": {
+    "@levin/admin-framework": "workspace:*",
+    "@vben/common-ui": "workspace:*",
+    "@vben/icons": "workspace:*",
+    "@vben/plugins": "workspace:*",
+    "@vben/stores": "workspace:*",
+    "@vben/tsconfig": "workspace:*",
+    "ant-design-vue": "catalog:",
+    "pinia": "catalog:",
+    "vue": "catalog:",
+    "vue-router": "catalog:"
+  }
+}

@@ -1,0 +1,767 @@
+{
+  "generatedAt": "2026-04-27T07:30:31.888Z",
+  "renderedResults": [
+    {
+      "resource": "Role",
+      "expectedTitle": "角色管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Role",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Role",
+      "title": "角色 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1490,
+        "renderPolls": 16
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Menu",
+      "expectedTitle": "菜单管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Menu",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Menu",
+      "title": "菜单 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1589,
+        "renderPolls": 16
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Org",
+      "expectedTitle": "组织管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Org",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Org",
+      "title": "组织机构 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1679,
+        "renderPolls": 16
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "User",
+      "expectedTitle": "用户管理",
+      "url": "http://127.0.0.1:5666/clob/V1/User",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/User",
+      "title": "用户 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 2711,
+        "renderPolls": 16
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Dict",
+      "expectedTitle": "数据字典管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Dict",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Dict",
+      "title": "字典 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1355,
+        "renderPolls": 3
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Tenant",
+      "expectedTitle": "租户管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Tenant",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Tenant",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "页面仍为空壳",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": false,
+        "hasBlank": true,
+        "snapshotLength": 0,
+        "renderPolls": 25
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "TenantSite",
+      "expectedTitle": "租户站点管理",
+      "url": "http://127.0.0.1:5666/clob/V1/TenantSite",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/TenantSite",
+      "title": "租户站点 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1646,
+        "renderPolls": 4
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "AccessLog",
+      "expectedTitle": "访问日志",
+      "url": "http://127.0.0.1:5666/clob/V1/AccessLog",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/AccessLog",
+      "title": "访问日志 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1482,
+        "renderPolls": 3
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Address",
+      "expectedTitle": "地址管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Address",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Address",
+      "title": "地址 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1596,
+        "renderPolls": 16
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "AppClient",
+      "expectedTitle": "应用客户端",
+      "url": "http://127.0.0.1:5666/clob/V1/AppClient",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/AppClient",
+      "title": "应用接入 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1325,
+        "renderPolls": 15
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Area",
+      "expectedTitle": "区域管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Area",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Area",
+      "title": "区域 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1408,
+        "renderPolls": 3
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Article",
+      "expectedTitle": "文章管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Article",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Article",
+      "title": "资讯 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1800,
+        "renderPolls": 4
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "ArticleChannel",
+      "expectedTitle": "文章栏目",
+      "url": "http://127.0.0.1:5666/clob/V1/ArticleChannel",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/ArticleChannel",
+      "title": "资讯栏目 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1647,
+        "renderPolls": 15
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "BankBranch",
+      "expectedTitle": "银行网点",
+      "url": "http://127.0.0.1:5666/clob/V1/BankBranch",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/BankBranch",
+      "title": "银行分支机构 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1553,
+        "renderPolls": 15
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Brand",
+      "expectedTitle": "品牌管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Brand",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Brand",
+      "title": "品牌 - Vben Admin Antd",
+      "status": "WARN",
+      "reason": "控制台 error 1 条",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1495,
+        "renderPolls": 3
+      },
+      "routeErrors": [
+        "Object"
+      ]
+    },
+    {
+      "resource": "Customer",
+      "expectedTitle": "客户管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Customer",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Customer",
+      "title": "客户 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1765,
+        "renderPolls": 3
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Demo",
+      "expectedTitle": "示例管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Demo",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Demo",
+      "title": "404 - Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "页面仍为空壳",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": false,
+        "hasBlank": true,
+        "snapshotLength": 83,
+        "renderPolls": 25
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "FileRes",
+      "expectedTitle": "文件资源",
+      "url": "http://127.0.0.1:5666/clob/V1/FileRes",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/FileRes",
+      "title": "文件资源库 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1769,
+        "renderPolls": 3
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "FundAccount",
+      "expectedTitle": "资金账户",
+      "url": "http://127.0.0.1:5666/clob/V1/FundAccount",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/FundAccount",
+      "title": "资金账户 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1688,
+        "renderPolls": 15
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "FundAccountLog",
+      "expectedTitle": "资金账户日志",
+      "url": "http://127.0.0.1:5666/clob/V1/FundAccountLog",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/FundAccountLog",
+      "title": "资金账户交易记录 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1780,
+        "renderPolls": 15
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "FundExchangeRule",
+      "expectedTitle": "资金兑换规则",
+      "url": "http://127.0.0.1:5666/clob/V1/FundExchangeRule",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/FundExchangeRule",
+      "title": "资金兑换规则 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1780,
+        "renderPolls": 4
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "I18nRes",
+      "expectedTitle": "国际化资源",
+      "url": "http://127.0.0.1:5666/clob/V1/I18nRes",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/I18nRes",
+      "title": "国际化资源 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1668,
+        "renderPolls": 15
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "JobPost",
+      "expectedTitle": "岗位管理",
+      "url": "http://127.0.0.1:5666/clob/V1/JobPost",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/JobPost",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "页面仍为空壳",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": false,
+        "hasBlank": true,
+        "snapshotLength": 0,
+        "renderPolls": 25
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Nation",
+      "expectedTitle": "国家地区",
+      "url": "http://127.0.0.1:5666/clob/V1/Nation",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Nation",
+      "title": "国家 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1644,
+        "renderPolls": 15
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Notice",
+      "expectedTitle": "通知公告",
+      "url": "http://127.0.0.1:5666/clob/V1/Notice",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Notice",
+      "title": "通知 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1617,
+        "renderPolls": 18
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "NoticeProcessLog",
+      "expectedTitle": "通知处理日志",
+      "url": "http://127.0.0.1:5666/clob/V1/NoticeProcessLog",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/NoticeProcessLog",
+      "title": "通知处理日志 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1478,
+        "renderPolls": 18
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "PayChannel",
+      "expectedTitle": "支付渠道",
+      "url": "http://127.0.0.1:5666/clob/V1/PayChannel",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/PayChannel",
+      "title": "支付通道 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1840,
+        "renderPolls": 16
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "PayOrder",
+      "expectedTitle": "支付订单",
+      "url": "http://127.0.0.1:5666/clob/V1/PayOrder",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/PayOrder",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "页面仍为空壳",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": false,
+        "hasBlank": true,
+        "snapshotLength": 33,
+        "renderPolls": 25
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Permission",
+      "expectedTitle": "权限管理",
+      "url": "http://127.0.0.1:5666/clob/V1/Permission",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Permission",
+      "title": "404 - Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "页面仍为空壳",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": false,
+        "hasBlank": true,
+        "snapshotLength": 83,
+        "renderPolls": 25
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "ScheduledLog",
+      "expectedTitle": "定时任务日志",
+      "url": "http://127.0.0.1:5666/clob/V1/ScheduledLog",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/ScheduledLog",
+      "title": "调度日志 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1527,
+        "renderPolls": 5
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "ScheduledTask",
+      "expectedTitle": "定时任务",
+      "url": "http://127.0.0.1:5666/clob/V1/ScheduledTask",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/ScheduledTask",
+      "title": "调度任务 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1993,
+        "renderPolls": 15
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "ServicePlugin",
+      "expectedTitle": "服务插件",
+      "url": "http://127.0.0.1:5666/clob/V1/ServicePlugin",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/ServicePlugin",
+      "title": "服务插件 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1717,
+        "renderPolls": 17
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "Setting",
+      "expectedTitle": "系统设置",
+      "url": "http://127.0.0.1:5666/clob/V1/Setting",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/Setting",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "页面仍为空壳",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": false,
+        "hasBlank": true,
+        "snapshotLength": 0,
+        "renderPolls": 25
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "SimpleApi",
+      "expectedTitle": "简单接口",
+      "url": "http://127.0.0.1:5666/clob/V1/SimpleApi",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/SimpleApi",
+      "title": "Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "页面仍为空壳",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": false,
+        "hasBlank": true,
+        "snapshotLength": 33,
+        "renderPolls": 25
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "SimpleForm",
+      "expectedTitle": "简单表单",
+      "url": "http://127.0.0.1:5666/clob/V1/SimpleForm",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/SimpleForm",
+      "title": "404 - Vben Admin Antd",
+      "status": "FAIL",
+      "reason": "页面仍为空壳",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": false,
+        "hasBlank": true,
+        "snapshotLength": 83,
+        "renderPolls": 25
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "SimplePage",
+      "expectedTitle": "简单页面",
+      "url": "http://127.0.0.1:5666/clob/V1/SimplePage",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/SimplePage",
+      "title": "简单页面 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1894,
+        "renderPolls": 15
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "SocialUser",
+      "expectedTitle": "社交用户",
+      "url": "http://127.0.0.1:5666/clob/V1/SocialUser",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/SocialUser",
+      "title": "第3方用户 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 2042,
+        "renderPolls": 15
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "TenantApp",
+      "expectedTitle": "租户应用",
+      "url": "http://127.0.0.1:5666/clob/V1/TenantApp",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/TenantApp",
+      "title": "租户应用 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1989,
+        "renderPolls": 3
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "UrlExAcl",
+      "expectedTitle": "URL访问控制",
+      "url": "http://127.0.0.1:5666/clob/V1/UrlExAcl",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/UrlExAcl",
+      "title": "Url扩展拦截 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": false,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1812,
+        "renderPolls": 3
+      },
+      "routeErrors": []
+    },
+    {
+      "resource": "UserSetting",
+      "expectedTitle": "用户设置",
+      "url": "http://127.0.0.1:5666/clob/V1/UserSetting",
+      "finalUrl": "http://127.0.0.1:5666/clob/V1/UserSetting",
+      "title": "用户设置 - Vben Admin Antd",
+      "status": "PASS",
+      "reason": "",
+      "flags": {
+        "hasExpected": true,
+        "hasLogin": false,
+        "hasNotFound": false,
+        "hasCrud": true,
+        "hasBlank": false,
+        "snapshotLength": 1825,
+        "renderPolls": 3
+      },
+      "routeErrors": []
+    }
+  ]
+}
