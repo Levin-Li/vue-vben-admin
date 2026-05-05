@@ -57,6 +57,9 @@ const [Grid, gridApi] = useVbenVxeGrid({
     rowConfig: {
       keyField: 'id',
     },
+    scrollY: {
+      enabled: false,
+    },
     toolbarConfig: {
       custom: true,
       export: false,
@@ -300,7 +303,18 @@ function renderIcon(row: MenuRecord) {
 }
 
 .vben-menu-section :deep(.vxe-grid) {
+  height: 100% !important;
   min-height: 0;
   padding: 0;
+}
+
+.vben-menu-section :deep(.vxe-body--y-space) {
+  display: none !important;
+  height: 0 !important;
+}
+
+.vben-menu-section :deep(.vxe-table--body) {
+  margin-top: 0 !important;
+  transform: translate(0, 0) !important;
 }
 </style>

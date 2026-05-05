@@ -1,0 +1,144 @@
+{
+  "name": "@levin/admin-framework",
+  "version": "0.9.13",
+  "description": "Common admin application framework contracts for Levin frontend modules.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm unbuild",
+    "prepublishOnly": "pnpm run build"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": [
+    "**/*.css",
+    "**/*.scss",
+    "dist/framework-commons/app/bootstrap.mjs",
+    "src/framework-commons/app/bootstrap.ts"
+  ],
+  "imports": {
+    "#/*": {
+      "development": "./src/framework-commons/app/*",
+      "default": "./dist/framework-commons/app/*"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.mjs"
+    },
+    "./framework-commons": {
+      "types": "./dist/framework-commons/index.d.ts",
+      "default": "./dist/framework-commons/index.mjs"
+    },
+    "./framework-commons/app/*.vue": {
+      "types": "./dist/framework-commons/app/*.vue.d.ts",
+      "default": "./dist/framework-commons/app/*.vue"
+    },
+    "./framework-commons/app/views/*": {
+      "types": "./dist/framework-commons/app/views/*.d.ts",
+      "default": "./dist/framework-commons/app/views/*"
+    },
+    "./framework-commons/app/api": {
+      "types": "./dist/framework-commons/app/api/index.d.ts",
+      "default": "./dist/framework-commons/app/api/index.mjs"
+    },
+    "./framework-commons/app/layouts": {
+      "types": "./dist/framework-commons/app/layouts/index.d.ts",
+      "default": "./dist/framework-commons/app/layouts/index.mjs"
+    },
+    "./framework-commons/app/locales": {
+      "types": "./dist/framework-commons/app/locales/index.d.ts",
+      "default": "./dist/framework-commons/app/locales/index.mjs"
+    },
+    "./framework-commons/app/router/routes": {
+      "types": "./dist/framework-commons/app/router/routes/index.d.ts",
+      "default": "./dist/framework-commons/app/router/routes/index.mjs"
+    },
+    "./framework-commons/app/store": {
+      "types": "./dist/framework-commons/app/store/index.d.ts",
+      "default": "./dist/framework-commons/app/store/index.mjs"
+    },
+    "./framework-commons/app/*": {
+      "types": "./dist/framework-commons/app/*.d.ts",
+      "default": "./dist/framework-commons/app/*.mjs"
+    },
+    "./framework-commons/*": {
+      "types": "./dist/framework-commons/*.d.ts",
+      "default": "./dist/framework-commons/*.mjs"
+    },
+    "./framework-commons/adapter/*": {
+      "types": "./dist/framework-commons/adapter/*.d.ts",
+      "default": "./dist/framework-commons/adapter/*.mjs"
+    },
+    "./framework-commons/shared/*.vue": {
+      "types": "./dist/framework-commons/shared/*.vue.d.ts",
+      "default": "./dist/framework-commons/shared/*.vue"
+    },
+    "./framework-commons/shared/*": {
+      "types": "./dist/framework-commons/shared/*.d.ts",
+      "default": "./dist/framework-commons/shared/*.mjs"
+    },
+    "./src/*": {
+      "default": "./src/*"
+    }
+  },
+  "peerDependencies": {
+    "@vben/access": ">=5.0.0",
+    "@vben/common-ui": ">=5.0.0",
+    "@vben/constants": ">=5.0.0",
+    "@vben/hooks": ">=5.0.0",
+    "@vben/icons": ">=5.0.0",
+    "@vben/layouts": ">=5.0.0",
+    "@vben/locales": ">=5.0.0",
+    "@vben/plugins": ">=5.0.0",
+    "@vben/preferences": ">=5.0.0",
+    "@vben/request": ">=5.0.0",
+    "@vben/stores": ">=5.0.0",
+    "@vben/styles": ">=5.6.4",
+    "@vben/types": ">=5.0.0",
+    "@vben/utils": ">=5.0.0",
+    "@vueuse/core": ">=12.0.0",
+    "amis": ">=6.13.0",
+    "ant-design-vue": ">=4.0.0",
+    "dayjs": ">=1.11.0",
+    "json-editor-vue": ">=0.18.0",
+    "pinia": ">=3.0.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "vue": ">=3.5.0",
+    "vue-router": ">=4.0.0"
+  },
+  "devDependencies": {
+    "@vben/access": "workspace:*",
+    "@vben/common-ui": "workspace:*",
+    "@vben/constants": "workspace:*",
+    "@vben/hooks": "workspace:*",
+    "@vben/icons": "workspace:*",
+    "@vben/layouts": "workspace:*",
+    "@vben/locales": "workspace:*",
+    "@vben/plugins": "workspace:*",
+    "@vben/preferences": "workspace:*",
+    "@vben/request": "workspace:*",
+    "@vben/stores": "workspace:*",
+    "@vben/styles": "workspace:*",
+    "amis": "6.13.0",
+    "@vben/tsconfig": "workspace:*",
+    "@vben/types": "workspace:*",
+    "@vben/utils": "workspace:*",
+    "@vueuse/core": "catalog:",
+    "ant-design-vue": "catalog:",
+    "dayjs": "catalog:",
+    "json-editor-vue": "0.18.1",
+    "pinia": "catalog:",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "vue": "catalog:",
+    "vue-router": "catalog:"
+  }
+}

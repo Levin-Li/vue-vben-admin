@@ -166,6 +166,23 @@ pnpm run build:main-app
 pnpm run pack:main-app
 ```
 
+外部业务仓库新建最终 App 时，不需要复制整个前端仓库，只需要建立一个薄宿主应用并安装私服包。宿主应用的 Tailwind 配置必须同时扫描顶层 `node_modules/@levin`、`node_modules/@vben`、`node_modules/@vben-core` 和 pnpm 传递依赖目录：
+
+```js
+content: [
+  './index.html',
+  './src/**/*.{vue,js,ts,jsx,tsx,html}',
+  './node_modules/@levin/**/*.{vue,js,ts,jsx,tsx,html}',
+  './node_modules/@vben/**/*.{vue,js,ts,jsx,tsx,html}',
+  './node_modules/@vben-core/**/*.{vue,js,ts,jsx,tsx,html}',
+  './node_modules/.pnpm/@levin+*/node_modules/@levin/**/*.{vue,js,ts,jsx,tsx,html}',
+  './node_modules/.pnpm/@vben+*/node_modules/@vben/**/*.{vue,js,ts,jsx,tsx,html}',
+  './node_modules/.pnpm/@vben-core+*/node_modules/@vben-core/**/*.{vue,js,ts,jsx,tsx,html}',
+];
+```
+
+`postcss.config.mjs` 必须显式导入本应用的 `tailwind.config.mjs` 并配置 `tailwindcss: { config: tailwindConfig }`。否则外部项目通过 pnpm 安装后，`@vben-core/tabs-ui`、`@vben-core/menu-ui` 等传递包中的 Tailwind 工具类可能不会生成，表现为页签黑块、菜单图标或布局样式错乱。
+
 模块包禁止自己创建完整应用运行时。模块包不得包含独立 `createApp`、独立 `router`、独立 `pinia`、独立登录体系、独立 `Layout` 根框架或完整 `index.html`。这些能力必须由最终应用或 `admin-framework` 宿主能力统一提供。
 
 ### 框架公共目录约定
