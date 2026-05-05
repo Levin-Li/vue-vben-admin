@@ -1,12 +1,19 @@
 <script lang="ts" setup>
 import type { MenuRecordRaw } from '@vben/types';
 
-import type { MenuProps } from '@vben-core/menu-ui';
-
 import { Menu } from '@vben-core/menu-ui';
 
-interface Props extends MenuProps {
+interface Props {
+  accordion?: boolean;
+  collapse?: boolean;
+  collapseShowTitle?: boolean;
+  defaultActive?: string;
+  defaultOpeneds?: string[];
   menus?: MenuRecordRaw[];
+  mode?: 'horizontal' | 'vertical';
+  rounded?: boolean;
+  scrollToActive?: boolean;
+  theme?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {

@@ -171,56 +171,52 @@ function resolveCrudOpMeta(meta: CrudOpMeta = {}): CrudOpResolvedMeta {
   };
 }
 
-export function ResAuthorize(meta: ResAuthorizeMeta = {}): MethodDecorator {
-  return (_target, _propertyKey, descriptor) => {
-    const fn = descriptor.value as
-      | undefined
-      | {
-          [RES_AUTHORIZE_META]?: ResAuthorizeResolvedMeta;
-        };
-    if (!fn) {
+type DecoratedFunction = Function & Record<symbol, unknown>;
+
+function setMethodMeta(
+  descriptorOrMethod: unknown,
+  metaKey: symbol,
+  meta: unknown,
+) {
+  const fn =
+    typeof descriptorOrMethod === 'function'
+      ? descriptorOrMethod
+      : (descriptorOrMethod as PropertyDescriptor | undefined)?.value;
+
+  if (typeof fn === 'function') {
+    (fn as DecoratedFunction)[metaKey] = meta;
+  }
+}
+
+function createMethodMetaDecorator(metaKey: symbol, meta: unknown) {
+  return ((methodOrTarget: unknown, _contextOrKey?: unknown, descriptor?: any) => {
+    if (descriptor) {
+      setMethodMeta(descriptor, metaKey, meta);
       return descriptor;
     }
 
-    fn[RES_AUTHORIZE_META] = resolveResAuthorizeMeta(meta);
+    setMethodMeta(methodOrTarget, metaKey, meta);
+    return methodOrTarget;
+  }) as MethodDecorator;
+}
 
-    return descriptor;
-  };
+export function ResAuthorize(meta: ResAuthorizeMeta = {}): MethodDecorator {
+  return createMethodMetaDecorator(
+    RES_AUTHORIZE_META,
+    resolveResAuthorizeMeta(meta),
+  );
 }
 
 export const CRUD = {
   ListTable(meta: CrudListTableMeta = {}): MethodDecorator {
-    return (_target, _propertyKey, descriptor) => {
-      const fn = descriptor.value as
-        | undefined
-        | {
-            [CRUD_LIST_TABLE_META]?: CrudListTableResolvedMeta;
-          };
-      if (!fn) {
-        return descriptor;
-      }
-
-      fn[CRUD_LIST_TABLE_META] = resolveCrudListTableMeta(meta);
-
-      return descriptor;
-    };
+    return createMethodMetaDecorator(
+      CRUD_LIST_TABLE_META,
+      resolveCrudListTableMeta(meta),
+    );
   },
 
   Op(meta: CrudOpMeta = {}): MethodDecorator {
-    return (_target, _propertyKey, descriptor) => {
-      const fn = descriptor.value as
-        | undefined
-        | {
-            [CRUD_OP_META]?: CrudOpResolvedMeta;
-          };
-      if (!fn) {
-        return descriptor;
-      }
-
-      fn[CRUD_OP_META] = resolveCrudOpMeta(meta);
-
-      return descriptor;
-    };
+    return createMethodMetaDecorator(CRUD_OP_META, resolveCrudOpMeta(meta));
   },
 } as const;
 

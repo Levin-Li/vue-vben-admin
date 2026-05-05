@@ -404,7 +404,7 @@ apps/main-app/src/pages/system/com_levin_oak_base/role/index.vue
 模块源码允许在多个独立 Git 仓库中维护。协作方式按环境区分：
 
 - 本地联调：可以使用上层 `pnpm-workspace.yaml`、`workspace:*` 或 `link:../module-repo` 连接多个仓库。
-- 测试/生产/交付：必须使用 NPM 私服版本号，例如 `@levin/oak-base-admin@0.9.6`。
+- 测试/生产/交付：必须使用 NPM 私服版本号，例如 `@levin/oak-base-admin@0.9.7`。
 - 模块变更：在模块仓库开发、构建、发版；最终应用升级依赖版本，不直接修改已发布模块源码副本。
 
 ### packages 版本统一管理

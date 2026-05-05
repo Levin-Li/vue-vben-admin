@@ -1,6 +1,6 @@
 {
   "name": "@vben-core/shadcn-ui",
-  "version": "5.6.0",
+  "version": "5.6.3",
   "#main": "./dist/index.mjs",
   "#module": "./dist/index.mjs",
   "homepage": "https://github.com/vbenjs/vue-vben-admin",
@@ -17,7 +17,8 @@
     "#prepublishOnly": "npm run build"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "sideEffects": [
     "**/*.css"
@@ -35,6 +36,7 @@
   "publishConfig": {
     "exports": {
       ".": {
+        "types": "./src/index.ts",
         "default": "./src/index.ts"
       }
     }

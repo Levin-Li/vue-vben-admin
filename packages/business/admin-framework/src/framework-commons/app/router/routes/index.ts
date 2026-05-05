@@ -1,21 +1,28 @@
 import type { RouteRecordRaw } from 'vue-router';
 
-import { mergeRouteModules, traverseTreeValues } from '@vben/utils';
+import { traverseTreeValues } from '@vben/utils';
 import { collectAdminModuleRoutes } from '@levin/admin-framework';
 
 import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 import { coreRoutes, fallbackNotFoundRoute } from './core';
-
-const dynamicRouteFiles = import.meta.glob('./modules/**/*.ts', {
-  eager: true,
-});
+import backendPagesRoutes from './modules/backend-pages';
+import demosRoutes from './modules/demos';
+import myMessagesRoutes from './modules/my-messages';
+import systemRoutes from './modules/system';
+import vbenRoutes from './modules/vben';
 
 // 有需要可以自行打开注释，并创建文件夹
 // const externalRouteFiles = import.meta.glob('./external/**/*.ts', { eager: true });
 // const staticRouteFiles = import.meta.glob('./static/**/*.ts', { eager: true });
 
 /** 动态路由 */
-const dynamicRoutes: RouteRecordRaw[] = mergeRouteModules(dynamicRouteFiles);
+const dynamicRoutes: RouteRecordRaw[] = [
+  ...backendPagesRoutes,
+  ...demosRoutes,
+  ...myMessagesRoutes,
+  ...systemRoutes,
+  ...vbenRoutes,
+];
 const frontendModuleRoutes = collectAdminModuleRoutes(
   getEnabledFrontendModules(),
 );

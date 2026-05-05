@@ -1,6 +1,6 @@
 {
   "name": "@levin/oak-base-admin",
-  "version": "0.9.6",
+  "version": "0.9.9",
   "description": "Levin Oak base admin frontend module.",
   "license": "MIT",
   "type": "module",
@@ -18,64 +18,34 @@
   ],
   "main": "./dist/modules/com_levin_oak_base/index.mjs",
   "module": "./dist/modules/com_levin_oak_base/index.mjs",
+  "types": "./dist/modules/com_levin_oak_base/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/modules/com_levin_oak_base/index.ts",
-      "development": "./src/modules/com_levin_oak_base/index.ts",
+      "types": "./dist/modules/com_levin_oak_base/index.d.ts",
       "default": "./dist/modules/com_levin_oak_base/index.mjs"
     },
     "./modules/com_levin_oak_base": {
-      "types": "./src/modules/com_levin_oak_base/index.ts",
-      "development": "./src/modules/com_levin_oak_base/index.ts",
+      "types": "./dist/modules/com_levin_oak_base/index.d.ts",
       "default": "./dist/modules/com_levin_oak_base/index.mjs"
     },
     "./modules/com_levin_oak_base/*": {
-      "types": "./src/modules/com_levin_oak_base/*.ts",
-      "development": "./src/modules/com_levin_oak_base/*.ts",
+      "types": "./dist/modules/com_levin_oak_base/*.d.ts",
       "default": "./dist/modules/com_levin_oak_base/*.mjs"
     },
     "./modules/com_levin_oak_base/api/*": {
-      "types": "./src/modules/com_levin_oak_base/api/*.ts",
-      "development": "./src/modules/com_levin_oak_base/api/*.ts",
+      "types": "./dist/modules/com_levin_oak_base/api/*.d.ts",
       "default": "./dist/modules/com_levin_oak_base/api/*.mjs"
     },
     "./modules/com_levin_oak_base/views/*.vue": {
-      "types": "./src/modules/com_levin_oak_base/views/*.vue",
-      "development": "./src/modules/com_levin_oak_base/views/*.vue",
+      "types": "./dist/modules/com_levin_oak_base/views/*.vue.d.ts",
       "default": "./dist/modules/com_levin_oak_base/views/*.vue"
     },
     "./modules/com_levin_oak_base/views/*": {
-      "types": "./src/modules/com_levin_oak_base/views/*.ts",
-      "development": "./src/modules/com_levin_oak_base/views/*.ts",
+      "types": "./dist/modules/com_levin_oak_base/views/*.d.ts",
       "default": "./dist/modules/com_levin_oak_base/views/*.mjs"
     },
     "./src/*": {
-      "development": "./src/*",
       "default": "./src/*"
-    }
-  },
-  "publishConfig": {
-    "exports": {
-      ".": {
-        "types": "./dist/modules/com_levin_oak_base/index.d.ts",
-        "default": "./dist/modules/com_levin_oak_base/index.mjs"
-      },
-      "./modules/com_levin_oak_base": {
-        "types": "./dist/modules/com_levin_oak_base/index.d.ts",
-        "default": "./dist/modules/com_levin_oak_base/index.mjs"
-      },
-      "./modules/com_levin_oak_base/*": {
-        "default": "./dist/modules/com_levin_oak_base/*.mjs"
-      },
-      "./modules/com_levin_oak_base/api/*": {
-        "default": "./dist/modules/com_levin_oak_base/api/*.mjs"
-      },
-      "./modules/com_levin_oak_base/views/*.vue": {
-        "default": "./dist/modules/com_levin_oak_base/views/*.vue"
-      },
-      "./modules/com_levin_oak_base/views/*": {
-        "default": "./dist/modules/com_levin_oak_base/views/*.mjs"
-      }
     }
   },
   "peerDependencies": {

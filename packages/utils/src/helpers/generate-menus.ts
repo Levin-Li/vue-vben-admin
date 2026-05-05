@@ -62,7 +62,9 @@ function generateMenus(
     }
 
     // 确定最终路径
-    const resultPath = hideChildrenInMenu ? redirect || path : link || path;
+    const resultPath = String(
+      (hideChildrenInMenu ? redirect || path : link || path) ?? '',
+    );
 
     return {
       activeIcon,

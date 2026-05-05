@@ -327,10 +327,6 @@ function publishPackage(packageInfo, publishEnv) {
     publishArgs.push('--tag', tag);
   }
 
-  if (authFromMaven) {
-    publishArgs.push('--auth-type=legacy');
-  }
-
   run('pnpm', publishArgs, {
     env: publishEnv,
   });
