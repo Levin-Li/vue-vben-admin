@@ -3,7 +3,7 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from '@vben/vite-config';
 
 export default defineConfig(async () => {
-  const backendTarget = 'http://127.0.0.1:8080';
+  const backendTarget = 'http://127.0.0.1:8081';
   const jitiBrowserShim = fileURLToPath(
     new URL(
       '../../packages/business/admin-framework/src/framework-commons/app/shims/jiti-browser.ts',
@@ -61,11 +61,6 @@ export default defineConfig(async () => {
             ws: true,
           },
           '/com.levin.oak.base': {
-            changeOrigin: false,
-            target: backendTarget,
-            ws: true,
-          },
-          '/com.vma.tk.bcm': {
             changeOrigin: false,
             target: backendTarget,
             ws: true,

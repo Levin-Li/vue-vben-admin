@@ -1788,7 +1788,7 @@ importers:
   packages/styles:
     dependencies:
       '@vben-core/design':
-        specifier: workspace:*
+        specifier: 5.6.4
         version: link:../@core/base/design
 
   packages/types:

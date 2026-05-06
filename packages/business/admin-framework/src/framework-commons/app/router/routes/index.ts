@@ -1,9 +1,9 @@
 import type { RouteRecordRaw } from 'vue-router';
 
-import { traverseTreeValues } from '@vben/utils';
 import { collectAdminModuleRoutes } from '@levin/admin-framework';
 
 import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
+import { buildCoreRouteNames } from './access-route-names';
 import { coreRoutes, fallbackNotFoundRoute } from './core';
 import backendPagesRoutes from './modules/backend-pages';
 import demosRoutes from './modules/demos';
@@ -42,7 +42,7 @@ const routes: RouteRecordRaw[] = [
 ];
 
 /** 基本路由列表，这些路由不需要进入权限拦截 */
-const coreRouteNames = traverseTreeValues(coreRoutes, (route) => route.name);
+const coreRouteNames = buildCoreRouteNames(coreRoutes);
 
 /** 有权限校验的路由列表，包含动态路由和静态路由 */
 const accessRoutes = [...dynamicRoutes, ...frontendModuleRoutes, ...staticRoutes];

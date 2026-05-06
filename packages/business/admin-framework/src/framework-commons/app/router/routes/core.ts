@@ -6,8 +6,12 @@ import { preferences } from '@vben/preferences';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
 
+import homeRoutes from './modules/home';
+import { resolveRootRedirectPath } from './root-redirect';
+
 const BasicLayout = () => import('@levin/admin-framework/framework-commons/app/layouts/basic.vue');
 const AuthPageLayout = () => import('@levin/admin-framework/framework-commons/app/layouts/auth.vue');
+
 /** 全局404页面 */
 const fallbackNotFoundRoute: RouteRecordRaw = {
   component: resolveAdminPage('/_core/fallback/not-found.vue'),
@@ -36,8 +40,14 @@ const coreRoutes: RouteRecordRaw[] = [
     },
     name: 'Root',
     path: '/',
-    redirect: preferences.app.defaultHomePath,
-    children: [],
+    redirect: () => resolveRootRedirectPath(preferences.app.defaultHomePath),
+    children: homeRoutes.map((route) => ({
+      ...route,
+      meta: {
+        ...route.meta,
+        requiresAccess: true,
+      },
+    })),
   },
   {
     component: AuthPageLayout,
