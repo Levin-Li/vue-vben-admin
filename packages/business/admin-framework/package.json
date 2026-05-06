@@ -1,6 +1,6 @@
 {
   "name": "@levin/admin-framework",
-  "version": "0.9.13",
+  "version": "0.9.14",
   "description": "Common admin application framework contracts for Levin frontend modules.",
   "license": "MIT",
   "type": "module",
