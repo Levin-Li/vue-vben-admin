@@ -8,10 +8,10 @@ outline: deep
 
 ## 应用精简
 
-首先，确认你需要的 `UI` 组件库版本，然后删除对应的应用。本项目已经按 `Ant Design Vue` 方案精简，只保留 `apps/main-app`。
+首先，确认你需要的 `UI` 组件库版本，然后删除对应的应用。本项目已经按 `Ant Design Vue` 方案精简，只保留 `apps/bootstrap-app`。
 
 ```bash
-apps/main-app
+apps/bootstrap-app
 ```
 
 ::: tip
@@ -54,11 +54,11 @@ pnpm install
 ```json
 {
   "scripts": {
-    "build:main-app": "pnpm run build --filter=@vben/main-app",
+    "build:bootstrap-app": "pnpm run build --filter=@vben/bootstrap-app",
     "build:docs": "pnpm run build --filter=@vben/docs",
     "build:play": "pnpm run build --filter=@vben/playground",
-    "dev:main-app": "pnpm -F @vben/main-app run dev",
-    "dev:main-app": "pnpm --filter @levin/main-app dev",
+    "dev:bootstrap-app": "pnpm -F @vben/bootstrap-app run dev",
+    "dev:bootstrap-app": "pnpm --filter @levin/bootstrap-app dev",
     "dev:docs": "pnpm -F @vben/docs run dev",
     "dev:play": "pnpm -F @vben/playground run dev"
   }

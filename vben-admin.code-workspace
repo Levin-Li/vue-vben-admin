@@ -5,8 +5,8 @@
       "path": "apps/backend-mock",
     },
     {
-      "name": "@levin/main-app",
-      "path": "apps/main-app",
+      "name": "@levin/bootstrap-app",
+      "path": "apps/bootstrap-app",
     },
     {
       "name": "@vben/docs",

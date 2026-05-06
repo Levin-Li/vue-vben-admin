@@ -34,7 +34,7 @@
 VITE_APP_TITLE=Vben Admin
 
 # 应用命名空间，用于缓存、store等功能的前缀，确保隔离
-VITE_APP_NAMESPACE=levin-main-app
+VITE_APP_NAMESPACE=levin-bootstrap-app
 ```
 
 ```bash [.env.development]

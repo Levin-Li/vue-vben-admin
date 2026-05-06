@@ -5,7 +5,7 @@
 在对应应用的 `index.html` 文件中，找到如下代码，删除即可：
 
 ```html
-<!-- apps/main-app -->
+<!-- apps/bootstrap-app -->
 <script>
   var _hmt = _hmt || [];
   (function () {

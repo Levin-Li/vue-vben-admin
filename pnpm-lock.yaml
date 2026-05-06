@@ -637,7 +637,7 @@ importers:
         specifier: 'catalog:'
         version: 1.15.5
 
-  apps/main-app:
+  apps/bootstrap-app:
     dependencies:
       '@levin/admin-framework':
         specifier: workspace:*

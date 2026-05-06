@@ -32,13 +32,13 @@ git -v
 
 ```sh [GitHub]
 # clone 代码
-git clone https://github.com/vbenjs/vue-vben-admin.git
+git clone https://github.com/vbenjs/admin.git
 ```
 
 ```sh [Gitee]
 # clone 代码
 # Gitee 的代码可能不是最新的
-git clone https://gitee.com/annsion/vue-vben-admin.git
+git clone https://gitee.com/annsion/admin.git
 ```
 
 :::
@@ -55,7 +55,7 @@ git clone https://gitee.com/annsion/vue-vben-admin.git
 
 ```bash
 # 进入项目目录
-cd vue-vben-admin
+cd admin
 
 # 使用项目指定的pnpm版本进行依赖安装
 npm i -g corepack
@@ -88,7 +88,7 @@ pnpm dev
 ```bash
 │
 ◆  Select the app you need to run [dev]:
-│  ● @vben/main-app
+│  ● @vben/bootstrap-app
 │  ○ @vben/docs
 │  ● @vben/playground
 └
@@ -101,7 +101,7 @@ pnpm dev
 如果你不想选择项目，可以直接运行以下命令运行你需要的应用：
 
 ```bash
-pnpm run dev:main-app
+pnpm run dev:bootstrap-app
 pnpm run dev:docs
 pnpm run dev:play
 ```
