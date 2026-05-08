@@ -154,6 +154,19 @@ export class UserService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
+    action: '分配角色',
+  })
+  @CRUD.Op()
+  async assignRoles(data?: any, options?: any) {
+    return this.put('assignRoles', {
+      ...options,
+      data,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-用户',
     action: 'MFA二维码',
   })
   @CRUD.Op({

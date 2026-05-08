@@ -23,7 +23,7 @@ function withOptionSearchParams(
   return params;
 }
 
-const roleOptionsLoader = (keyword?: string) =>
+export const roleOptionsLoader = (keyword?: string) =>
   moduleFetchOptions(
     '/Role/listUserRoleCode',
     'label',
@@ -286,6 +286,7 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'roleList',
       label: '角色编码列表',
+      form: false,
       fullRow: true,
       loadOptions: roleOptionsLoader,
       multiple: true,

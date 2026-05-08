@@ -24,6 +24,7 @@ import {
 
 import { fetchTreeOptions } from '@levin/admin-framework';
 import { orgService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/org';
+import { userService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/user';
 
 import CrudPage from '../crud-page.vue';
 import {
@@ -33,7 +34,7 @@ import {
 } from '../api-module';
 import { buildCrudOperationPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
-import { userPageCrudConfig } from './config';
+import { roleOptionsLoader, userPageCrudConfig } from './config';
 
 interface OrgTreeNode {
   children?: OrgTreeNode[];
@@ -47,6 +48,14 @@ interface OrgTreeNode {
 const dialogOpen = ref(false);
 const pageKey = ref(0);
 const selectedRecord = ref<null | Record<string, any>>(null);
+const roleModalOpen = ref(false);
+const roleSubmitting = ref(false);
+const roleOptionsLoading = ref(false);
+const roleOptions = ref<SelectOption[]>([]);
+const roleFormState = reactive({
+  id: '',
+  roleList: [] as string[],
+});
 
 const orgTreeLoading = ref(false);
 const orgSubmitting = ref(false);
@@ -110,6 +119,18 @@ const userConfig = computed(() => ({
   ),
   rowActions: [
     ...(userPageCrudConfig.rowActions || []),
+    {
+      handler: async (record: Record<string, any>) => {
+        await openRoleModal(record);
+      },
+      label: '分配角色',
+      permission: [
+        '/User/assignRoles',
+        'com.levin.oak.base:系统数据-用户::分配角色',
+      ],
+      reloadAfterAction: false,
+      successMessage: false as const,
+    },
     {
       handler: async (record: Record<string, any>) => {
         selectedRecord.value = record;
@@ -229,6 +250,46 @@ function resetOrgForm(values: Record<string, any> = {}) {
     type: 'Department',
     ...values,
   });
+}
+
+async function loadRoleOptions(keyword = '') {
+  roleOptionsLoading.value = true;
+
+  try {
+    roleOptions.value = await roleOptionsLoader(keyword);
+  } finally {
+    roleOptionsLoading.value = false;
+  }
+}
+
+async function openRoleModal(record: Record<string, any>) {
+  roleFormState.id = String(record.id || '');
+  roleFormState.roleList = Array.isArray(record.roleList)
+    ? record.roleList.map((role) => String(role))
+    : [];
+  roleModalOpen.value = true;
+  await loadRoleOptions();
+}
+
+async function submitRoleForm() {
+  if (!roleFormState.id) {
+    message.warning('用户ID不能为空');
+    return;
+  }
+
+  roleSubmitting.value = true;
+
+  try {
+    await userService.assignRoles({
+      id: roleFormState.id,
+      roleList: roleFormState.roleList,
+    });
+    message.success('角色已分配');
+    roleModalOpen.value = false;
+    pageKey.value += 1;
+  } finally {
+    roleSubmitting.value = false;
+  }
 }
 
 async function loadOrgTree() {
@@ -517,6 +578,31 @@ onMounted(async () => {
       subject-type="user"
       @saved="handleSaved"
     />
+
+    <Modal
+      v-model:open="roleModalOpen"
+      :confirm-loading="roleSubmitting"
+      title="分配角色"
+      :width="720"
+      @ok="submitRoleForm"
+    >
+      <Form layout="vertical">
+        <Form.Item label="角色">
+          <Select
+            v-model:value="roleFormState.roleList"
+            allow-clear
+            class="w-full"
+            :filter-option="false"
+            mode="multiple"
+            :not-found-content="roleOptionsLoading ? '加载中...' : undefined"
+            :options="roleOptions"
+            placeholder="请选择角色"
+            show-search
+            @search="loadRoleOptions"
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
 
     <Modal
       v-model:open="orgModalOpen"
