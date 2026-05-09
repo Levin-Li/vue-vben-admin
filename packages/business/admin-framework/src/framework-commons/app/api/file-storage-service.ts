@@ -1,6 +1,6 @@
-import { buildModuleRequestPath } from './system';
-import { ResAuthorize, Service } from './common/api-authorize';
-import { RequestService } from './common/request-service';
+import { buildModuleRequestPath } from '../../api';
+import { ResAuthorize, Service } from '../../api-authorize';
+import { RequestService } from '../../request-service';
 import { requestClient } from './request';
 
 export const FILE_STORAGE_SINGLE_UPLOAD_PATH = '/fss/uploadSingleFile';

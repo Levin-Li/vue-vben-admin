@@ -1,4 +1,4 @@
-import type { VxeTableGridOptions } from '@levin/admin-framework/framework-commons/adapter/vxe-table';
+import type { VxeTableGridOptions } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 
 import type { MenuRecord, SelectOption } from './types';
 

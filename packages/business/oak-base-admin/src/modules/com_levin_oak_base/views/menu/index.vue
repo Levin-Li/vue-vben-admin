@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { VxeTableGridOptions } from '@levin/admin-framework/framework-commons/adapter/vxe-table';
+import type { VxeTableGridOptions } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 
 import type { MenuRecord, SelectOption } from './types';
 
@@ -11,7 +11,7 @@ import { IconifyIcon, Plus } from '@vben/icons';
 
 import { Button, Modal, Tag, message } from 'ant-design-vue';
 
-import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/adapter/vxe-table';
+import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 import { menuService } from '../../api/menu-service';
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { moduleFetchEnumOptions } from '@levin/oak-base-admin/modules/com_levin_oak_base/views/api-module';

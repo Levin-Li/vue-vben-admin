@@ -1,6 +1,6 @@
 import type { App, Directive, DirectiveBinding } from 'vue';
 
-import { useRbacAccess } from '@levin/admin-framework/framework-commons/app/utils/rbac-access';
+import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 
 type PermissionBindingValue =
   | null

@@ -72,10 +72,6 @@
       "types": "./dist/framework-commons/*.d.ts",
       "default": "./dist/framework-commons/*.mjs"
     },
-    "./framework-commons/adapter/*": {
-      "types": "./dist/framework-commons/adapter/*.d.ts",
-      "default": "./dist/framework-commons/adapter/*.mjs"
-    },
     "./framework-commons/shared/*.vue": {
       "types": "./dist/framework-commons/shared/*.vue.d.ts",
       "default": "./dist/framework-commons/shared/*.vue"

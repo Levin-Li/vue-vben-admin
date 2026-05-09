@@ -1,5 +1,5 @@
-import { ResAuthorize, Service } from './common/api-authorize';
-import { RequestService } from './common/request-service';
+import { ResAuthorize, Service } from '../../api-authorize';
+import { RequestService } from '../../request-service';
 
 @Service({
   basePath: '/dummy',

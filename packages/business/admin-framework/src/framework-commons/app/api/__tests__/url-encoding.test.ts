@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   encodeUrlParamValue,
   encodeUrlPathSegments,
-} from '../common/url-encoding';
+} from '../../../url-encoding';
 
 describe('url encoding helpers', () => {
   it('encodes any path parameter segment', () => {

@@ -8,5 +8,5 @@ export * from './json-schema-service';
 export * from './oauth-service';
 export * from './plugin-manager-service';
 export * from './rbac-service';
-export * from './system';
-export * from './common/api-authorize';
+export * from '../../api';
+export * from '../../api-authorize';

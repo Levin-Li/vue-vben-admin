@@ -7,7 +7,7 @@ import {
   getResAuthorizeMeta,
   RES_AUTHORIZE_META_KEYS,
   ResAuthorize,
-} from '../common/api-authorize';
+} from '../../../api-authorize';
 
 class ExampleCrudApi {
   @CRUD.ListTable({

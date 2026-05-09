@@ -2,7 +2,7 @@ import type { UserInfo } from '@vben/types';
 
 import type { BackendMenuInfo } from './core/menu-route';
 
-import { ResAuthorize, Service } from './common/api-authorize';
+import { ResAuthorize, Service } from '../../api-authorize';
 import { baseRequestClient, requestClient } from './request';
 
 export namespace RbacApi {

@@ -17,7 +17,7 @@ import {
   logoutApi,
 } from '@levin/admin-framework/framework-commons/app/api';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
-import { shouldRefreshAuthorizedPermissions } from '@levin/admin-framework/framework-commons/app/utils/rbac-access';
+import { shouldRefreshAuthorizedPermissions } from '@levin/admin-framework/framework-commons/rbac-access';
 
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
