@@ -225,7 +225,7 @@ function isAllSelected(permissions: string[]) {
     <div
       v-if="activeModule"
       :key="activeModule.id"
-      class="space-y-4 rounded-2xl bg-card p-4"
+      class="bg-card space-y-4 rounded-2xl p-4"
     >
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="space-y-1">
@@ -239,11 +239,11 @@ function isAllSelected(permissions: string[]) {
               )
             "
           >
-            <span class="text-base font-semibold text-foreground">
+            <span class="text-foreground text-base font-semibold">
               {{ activeModule.name || activeModule.id }}
             </span>
           </Checkbox>
-          <div class="text-xs text-muted-foreground">
+          <div class="text-muted-foreground text-xs">
             已选 {{ activeSelectedCount }} /
             {{ activeModulePermissions.length }}
           </div>
@@ -251,7 +251,7 @@ function isAllSelected(permissions: string[]) {
         <div class="flex flex-wrap items-center gap-2">
           <input
             v-model="keyword"
-            class="w-full max-w-xs rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/10"
+            class="border-border bg-background placeholder:text-muted-foreground focus:border-primary focus:ring-primary/10 w-full max-w-xs rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2"
             data-test="permission-search"
             placeholder="搜索动作、资源或权限表达式"
             type="text"
@@ -262,7 +262,7 @@ function isAllSelected(permissions: string[]) {
       <div
         v-for="typeItem in filteredTypeList"
         :key="typeItem.id"
-        class="rounded-2xl bg-muted/30 p-4"
+        class="bg-muted/30 rounded-2xl p-4"
       >
         <div class="mb-3 flex items-center gap-2">
           <Checkbox
@@ -274,8 +274,8 @@ function isAllSelected(permissions: string[]) {
               )
             "
           >
-            <span class="h-4 w-1 rounded-full bg-primary"></span>
-            <span class="text-[15px] font-semibold text-foreground">
+            <span class="bg-primary h-4 w-1 rounded-full"></span>
+            <span class="text-foreground text-[15px] font-semibold">
               {{ typeItem.name || typeItem.id }}
             </span>
           </Checkbox>
@@ -285,7 +285,7 @@ function isAllSelected(permissions: string[]) {
           <div
             v-for="(resourceItem, resourceIndex) in typeItem.resList || []"
             :key="getResourceKey(resourceItem, resourceIndex)"
-            class="rounded-xl bg-card px-4 py-3"
+            class="bg-card rounded-xl px-4 py-3"
           >
             <div
               v-if="getResourceName(resourceItem)"
@@ -300,7 +300,7 @@ function isAllSelected(permissions: string[]) {
                   )
                 "
               >
-                <span class="text-sm font-medium text-muted-foreground">
+                <span class="text-muted-foreground text-sm font-medium">
                   {{ getResourceName(resourceItem) }}
                 </span>
               </Checkbox>
@@ -336,7 +336,7 @@ function isAllSelected(permissions: string[]) {
 
       <div
         v-if="filteredTypeList.length === 0"
-        class="rounded-2xl px-4 py-8 text-center text-sm text-muted-foreground"
+        class="text-muted-foreground rounded-2xl px-4 py-8 text-center text-sm"
       >
         没有匹配的权限
       </div>

@@ -63,7 +63,10 @@ export class RbacPermissionMatchUtils {
         index < ownerList.length
           ? ownerList[index]
           : ownerList[ownerList.length - 1];
-      return this.textPatternMatch(ownerPart, this.trimWhitespace(requiredPart));
+      return this.textPatternMatch(
+        ownerPart,
+        this.trimWhitespace(requiredPart),
+      );
     });
   }
 

@@ -1,11 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { userService } from '../../api/user-service';
 import {
   moduleFetchDictOptions,
   moduleFetchEnumOptions,
   moduleFetchOptions,
-  moduleGet,
-  modulePut,
 } from '../api-module';
 
 function withOptionSearchParams(
@@ -106,6 +106,7 @@ const userOptionsLoader = (keyword?: string) =>
 
 export const userPageCrudConfig: CrudPageConfig = {
   apiBase: '/User',
+  apiService: userService,
   allowRetrieve: true,
   defaultFormValues: {
     category: 'Staff',
@@ -571,16 +572,11 @@ export const userPageCrudConfig: CrudPageConfig = {
   rowActions: [
     {
       handler: async (record: Record<string, any>) =>
-        moduleGet('/User/viewMfaQrCode', {
-          params: {
-            id: record.id,
-          },
+        userService.viewMfaQrCode({
+          id: record.id,
         }),
       label: 'MFA二维码',
-      permission: [
-        '/User/viewMfaQrCode',
-        'com.levin.oak.base:系统数据-用户::MFA二维码',
-      ],
+      permission: buildApiMethodPermissions(userService, 'viewMfaQrCode'),
       reloadAfterAction: false,
       successAction: 'showForm',
       successMessage: false,
@@ -589,21 +585,12 @@ export const userPageCrudConfig: CrudPageConfig = {
       confirmText: '确认重置该用户的 MFA 密钥吗？旧密钥会立即失效。',
       danger: true,
       handler: async (record: Record<string, any>) =>
-        modulePut(
-          '/User/resetMfaSecretKey',
-          {},
-          {
-            params: {
-              forQrCode: true,
-              id: record.id,
-            },
-          },
-        ),
+        userService.resetMfaSecretKey({
+          forQrCode: true,
+          id: record.id,
+        }),
       label: '重置MFA密钥',
-      permission: [
-        '/User/resetMfaSecretKey',
-        'com.levin.oak.base:系统数据-用户::重置MFA密钥',
-      ],
+      permission: buildApiMethodPermissions(userService, 'resetMfaSecretKey'),
       reloadAfterAction: false,
       successAction: 'showQrCode',
     },

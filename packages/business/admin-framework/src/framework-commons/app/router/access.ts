@@ -9,9 +9,15 @@ import { preferences } from '@vben/preferences';
 import { message } from 'ant-design-vue';
 
 import { getAllMenusApi } from '@levin/admin-framework/framework-commons/app/api';
-import { BasicLayout, IFrameView } from '@levin/admin-framework/framework-commons/app/layouts';
+import {
+  BasicLayout,
+  IFrameView,
+} from '@levin/admin-framework/framework-commons/app/layouts';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
-import { getAdminPageMap, resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
+import {
+  getAdminPageMap,
+  resolveAdminPage,
+} from '@levin/admin-framework/framework-commons/app/pages';
 
 const forbiddenComponent = resolveAdminPage('/_core/fallback/forbidden.vue');
 

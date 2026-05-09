@@ -253,7 +253,7 @@ watch(fields, () => {
               <div class="text-sm font-medium">{{ field.label }}</div>
               <div
                 v-if="field.description"
-                class="text-xs text-muted-foreground"
+                class="text-muted-foreground text-xs"
               >
                 {{ field.description }}
               </div>
@@ -327,21 +327,21 @@ watch(fields, () => {
 
           <div
             v-if="loading"
-            class="crud-json-schema-form-full text-sm text-muted-foreground"
+            class="crud-json-schema-form-full text-muted-foreground text-sm"
             style="grid-column: 1 / -1"
           >
             正在加载 JSON Schema...
           </div>
           <div
             v-else-if="errorMessage"
-            class="crud-json-schema-form-full text-sm text-destructive"
+            class="crud-json-schema-form-full text-destructive text-sm"
             style="grid-column: 1 / -1"
           >
             {{ errorMessage }}
           </div>
           <div
             v-else-if="fields.length === 0"
-            class="crud-json-schema-form-full text-sm text-muted-foreground"
+            class="crud-json-schema-form-full text-muted-foreground text-sm"
             style="grid-column: 1 / -1"
           >
             当前 JSON Schema 没有 properties，无法生成动态表单。

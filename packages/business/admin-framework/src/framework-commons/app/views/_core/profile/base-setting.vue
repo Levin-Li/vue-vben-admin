@@ -3,9 +3,19 @@ import { computed, onMounted, reactive, ref } from 'vue';
 
 import { useUserStore } from '@vben/stores';
 
-import { Button, Divider, Form, Input, Typography, message } from 'ant-design-vue';
+import {
+  Button,
+  Divider,
+  Form,
+  Input,
+  Typography,
+  message,
+} from 'ant-design-vue';
 
-import { getUserInfoApi, updateLoginInfoApi } from '@levin/admin-framework/framework-commons/app/api';
+import {
+  getUserInfoApi,
+  updateLoginInfoApi,
+} from '@levin/admin-framework/framework-commons/app/api';
 
 const saving = ref(false);
 const userStore = useUserStore();
@@ -15,7 +25,9 @@ const form = reactive({
 });
 
 const currentUser = computed(() => userStore.userInfo as Record<string, any>);
-const displayLoginName = computed(() => displayText(currentUser.value?.loginName));
+const displayLoginName = computed(() =>
+  displayText(currentUser.value?.loginName),
+);
 const displayTelephone = computed(() =>
   displayText(
     currentUser.value?.telephone ||
@@ -64,26 +76,24 @@ onMounted(refreshUserInfo);
 
 <template>
   <div class="profile-base-setting">
-    <section class="rounded-lg border border-border p-4">
-      <div class="mb-3 text-sm font-medium text-muted-foreground">
-        账号信息
-      </div>
+    <section class="border-border rounded-lg border p-4">
+      <div class="text-muted-foreground mb-3 text-sm font-medium">账号信息</div>
       <div class="grid gap-3 md:grid-cols-3">
         <div>
-          <div class="text-xs text-muted-foreground">登录名</div>
-          <Typography.Text class="mt-1 block text-foreground">
+          <div class="text-muted-foreground text-xs">登录名</div>
+          <Typography.Text class="text-foreground mt-1 block">
             {{ displayLoginName }}
           </Typography.Text>
         </div>
         <div>
-          <div class="text-xs text-muted-foreground">手机号</div>
-          <Typography.Text class="mt-1 block text-foreground">
+          <div class="text-muted-foreground text-xs">手机号</div>
+          <Typography.Text class="text-foreground mt-1 block">
             {{ displayTelephone }}
           </Typography.Text>
         </div>
         <div>
-          <div class="text-xs text-muted-foreground">邮箱</div>
-          <Typography.Text class="mt-1 block text-foreground">
+          <div class="text-muted-foreground text-xs">邮箱</div>
+          <Typography.Text class="text-foreground mt-1 block">
             {{ displayEmail }}
           </Typography.Text>
         </div>
@@ -94,11 +104,7 @@ onMounted(refreshUserInfo);
 
     <Form layout="vertical" class="max-w-2xl" @submit.prevent="handleSubmit">
       <Form.Item label="名称">
-        <Input
-          v-model:value="form.name"
-          allow-clear
-          placeholder="请输入名称"
-        />
+        <Input v-model:value="form.name" allow-clear placeholder="请输入名称" />
       </Form.Item>
 
       <Form.Item label="个人简介">

@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import { domainService, type DomainRecord } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/domain';
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { domainService, type DomainRecord } from '../../api/domain-service';
 
 import { IconifyIcon } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
@@ -47,7 +48,7 @@ const pageConfig = computed(() => ({
         return record;
       },
       label: '域名解析',
-      permission: ['/Domain/dnsRecords/list'],
+      permission: buildApiMethodPermissions(domainService, 'listDnsRecords'),
       reloadAfterAction: false as const,
       successMessage: false as const,
       visible: canUseDomainProviderActions,
@@ -57,7 +58,7 @@ const pageConfig = computed(() => ({
         await domainService.syncDomainStatus(String(record.id || ''));
       },
       label: '同步状态',
-      permission: ['/Domain/syncStatus'],
+      permission: buildApiMethodPermissions(domainService, 'syncDomainStatus'),
       visible: canUseDomainProviderActions,
     },
     {
@@ -76,7 +77,7 @@ const pageConfig = computed(() => ({
         message.success('续期域名成功');
       },
       label: '续期域名',
-      permission: ['/Domain/renewDomain'],
+      permission: buildApiMethodPermissions(domainService, 'renewDomain'),
       successMessage: false as const,
       visible: canShowRenewDomain,
     },

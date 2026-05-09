@@ -1,12 +1,12 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { articleService } from '../../api/article-service';
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import {
   articleChannelOptionsLoader,
   buildEnumOptionsLoader,
-  buildModulePermission,
   DEFAULT_CRUD_MODAL_WIDTH,
   FILE_STORAGE_MULTI_UPLOAD_PATH,
-  modulePost,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -22,17 +22,29 @@ const articleCoverLayoutOptionsLoader = buildEnumOptionsLoader(
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
-const articlePermissionType = '业务数据-资讯';
+type ArticleActionMethod =
+  | 'archived'
+  | 'auditApproved'
+  | 'auditCommit'
+  | 'auditReject'
+  | 'offline'
+  | 'publish';
 
-function buildArticleAction(path: string) {
+function buildArticleAction(methodName: ArticleActionMethod) {
   return async (record: Record<string, any>) =>
-    modulePost(path, {}, {
-      params: { _operatorAction: record._operatorAction, id: record.id },
+    articleService[methodName]({
+      _operatorAction: record._operatorAction,
+      id: record.id,
     });
+}
+
+function buildArticleActionPermission(methodName: ArticleActionMethod) {
+  return buildApiMethodPermissions(articleService, methodName);
 }
 
 export const articlePageCrudConfig: CrudPageConfig = {
   apiBase: '/Article',
+  apiService: articleService,
   defaultFormValues: {
     collectCount: 0,
     commentCount: 0,
@@ -274,62 +286,36 @@ export const articlePageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  permissionResourceName: '资讯',
-  permissionTypePrefix: '业务数据-',
   rowActions: [
     {
-      handler: buildArticleAction('/Article/auditCommit'),
+      handler: buildArticleAction('auditCommit'),
       label: '提交审核',
-      permission: buildModulePermission(
-        articlePermissionType,
-        '提交审核',
-        '/Article/auditCommit',
-      ),
+      permission: buildArticleActionPermission('auditCommit'),
     },
     {
-      handler: buildArticleAction('/Article/auditReject'),
+      handler: buildArticleAction('auditReject'),
       label: '审核拒绝',
-      permission: buildModulePermission(
-        articlePermissionType,
-        '审核拒绝',
-        '/Article/auditReject',
-      ),
+      permission: buildArticleActionPermission('auditReject'),
     },
     {
-      handler: buildArticleAction('/Article/auditApproved'),
+      handler: buildArticleAction('auditApproved'),
       label: '审核通过',
-      permission: buildModulePermission(
-        articlePermissionType,
-        '审核通过',
-        '/Article/auditApproved',
-      ),
+      permission: buildArticleActionPermission('auditApproved'),
     },
     {
-      handler: buildArticleAction('/Article/publish'),
+      handler: buildArticleAction('publish'),
       label: '发布',
-      permission: buildModulePermission(
-        articlePermissionType,
-        '发布上线',
-        '/Article/publish',
-      ),
+      permission: buildArticleActionPermission('publish'),
     },
     {
-      handler: buildArticleAction('/Article/offline'),
+      handler: buildArticleAction('offline'),
       label: '下线',
-      permission: buildModulePermission(
-        articlePermissionType,
-        '下架',
-        '/Article/offline',
-      ),
+      permission: buildArticleActionPermission('offline'),
     },
     {
-      handler: buildArticleAction('/Article/archived'),
+      handler: buildArticleAction('archived'),
       label: '存档',
-      permission: buildModulePermission(
-        articlePermissionType,
-        '存档',
-        '/Article/archived',
-      ),
+      permission: buildArticleActionPermission('archived'),
     },
   ],
   title: '文章管理',

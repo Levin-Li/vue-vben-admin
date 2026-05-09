@@ -9,8 +9,10 @@ import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/p
 import homeRoutes from './modules/home';
 import { resolveRootRedirectPath } from './root-redirect';
 
-const BasicLayout = () => import('@levin/admin-framework/framework-commons/app/layouts/basic.vue');
-const AuthPageLayout = () => import('@levin/admin-framework/framework-commons/app/layouts/auth.vue');
+const BasicLayout = () =>
+  import('@levin/admin-framework/framework-commons/app/layouts/basic.vue');
+const AuthPageLayout = () =>
+  import('@levin/admin-framework/framework-commons/app/layouts/auth.vue');
 
 /** 全局404页面 */
 const fallbackNotFoundRoute: RouteRecordRaw = {

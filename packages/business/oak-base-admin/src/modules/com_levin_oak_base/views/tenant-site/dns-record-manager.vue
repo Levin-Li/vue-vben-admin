@@ -4,7 +4,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import type {
   TenantSiteDnsRecord,
   TenantSiteRecord,
-} from '@levin/oak-base-admin/modules/com_levin_oak_base/api/tenant-site';
+} from '../../api/tenant-site-service';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -25,7 +25,7 @@ import {
   message,
 } from 'ant-design-vue';
 
-import { tenantSiteService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/tenant-site';
+import { tenantSiteService } from '../../api/tenant-site-service';
 
 const props = defineProps<{
   open: boolean;
@@ -125,7 +125,11 @@ async function fillPublicIpValue() {
 
   try {
     const publicIp = String(await tenantSiteService.publicIp()).trim();
-    if (requestSeq === publicIpRequestSeq && draft.recordType === 'A' && publicIp) {
+    if (
+      requestSeq === publicIpRequestSeq &&
+      draft.recordType === 'A' &&
+      publicIp
+    ) {
       draft.value = publicIp;
     }
   } catch {
@@ -226,7 +230,10 @@ async function submitDraft() {
     return;
   }
 
-  if (payload.ttl !== undefined && (!Number.isInteger(payload.ttl) || payload.ttl <= 0)) {
+  if (
+    payload.ttl !== undefined &&
+    (!Number.isInteger(payload.ttl) || payload.ttl <= 0)
+  ) {
     message.warning('TTL 必须是正整数');
     return;
   }
@@ -297,7 +304,6 @@ watch(
   },
   { immediate: true },
 );
-
 </script>
 
 <template>
@@ -321,9 +327,16 @@ watch(
       </Space>
     </template>
 
-    <div class="mb-4 rounded-lg border border-dashed border-border bg-muted/30 p-3">
+    <div
+      class="border-border bg-muted/30 mb-4 rounded-lg border border-dashed p-3"
+    >
       <div class="text-sm font-medium">
-        {{ props.site?.domain || props.site?.name || currentSiteId || '未命名站点' }}
+        {{
+          props.site?.domain ||
+          props.site?.name ||
+          currentSiteId ||
+          '未命名站点'
+        }}
       </div>
     </div>
 
@@ -331,11 +344,21 @@ watch(
       <Table
         v-if="records.length > 0"
         :columns="[
-          { dataIndex: 'recordType', key: 'recordType', title: '类型', width: 110 },
+          {
+            dataIndex: 'recordType',
+            key: 'recordType',
+            title: '类型',
+            width: 110,
+          },
           { dataIndex: 'host', key: 'host', title: '主机', width: 150 },
           { dataIndex: 'value', key: 'value', title: '解析值' },
           { dataIndex: 'ttl', key: 'ttl', title: 'TTL', width: 110 },
-          { dataIndex: 'priority', key: 'priority', title: '优先级', width: 120 },
+          {
+            dataIndex: 'priority',
+            key: 'priority',
+            title: '优先级',
+            width: 120,
+          },
           { key: 'actions', title: '操作', width: 210 },
         ]"
         :data-source="records"
@@ -397,11 +420,18 @@ watch(
             />
           </Form.Item>
           <Form.Item label="主机记录" required>
-            <Input v-model:value="draft.host" placeholder="例如 @、www、_acme-challenge" />
+            <Input
+              v-model:value="draft.host"
+              placeholder="例如 @、www、_acme-challenge"
+            />
           </Form.Item>
           <Form.Item class="col-span-2" label="解析值" required>
             <div class="flex gap-2">
-              <Input v-model:value="draft.value" class="min-w-0" placeholder="请输入解析值" />
+              <Input
+                v-model:value="draft.value"
+                class="min-w-0"
+                placeholder="请输入解析值"
+              />
               <Button
                 v-if="draft.recordType === 'A'"
                 :loading="publicIpLoading"

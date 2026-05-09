@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { domainSslCertService } from '../../api/domain-ssl-cert-service';
 import { tenantOptionsLoader } from '../api-module';
 
 const applyStatusOptions = [
@@ -13,6 +14,7 @@ const applyStatusOptions = [
 export const domainSslCertPageCrudConfig: CrudPageConfig = {
   allowEdit: false,
   apiBase: '/DomainSslCert',
+  apiService: domainSslCertService,
   defaultFormValues: {
     editable: true,
     enable: true,

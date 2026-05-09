@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { i18nResService } from '../../api/i18n-res-service';
 import {
   buildDictOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -11,6 +12,7 @@ const languageCodeOptionsLoader = buildDictOptionsLoader('LanguageCode');
 
 export const i18nResPageCrudConfig: CrudPageConfig = {
   apiBase: '/I18nRes',
+  apiService: i18nResService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -153,7 +155,5 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  permissionResourceName: '国际化资源',
-  permissionTypePrefix: '系统数据-',
   title: '国际化资源管理',
 };

@@ -45,5 +45,9 @@ const routes: RouteRecordRaw[] = [
 const coreRouteNames = buildCoreRouteNames(coreRoutes);
 
 /** 有权限校验的路由列表，包含动态路由和静态路由 */
-const accessRoutes = [...dynamicRoutes, ...frontendModuleRoutes, ...staticRoutes];
+const accessRoutes = [
+  ...dynamicRoutes,
+  ...frontendModuleRoutes,
+  ...staticRoutes,
+];
 export { accessRoutes, coreRouteNames, routes };

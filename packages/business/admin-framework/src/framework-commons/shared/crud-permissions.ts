@@ -1,8 +1,11 @@
 import type { CrudPageConfig } from './types';
 
+import type { ServiceMeta } from '../api-authorize';
+
 import {
   getResAuthorizeMeta,
   getServiceMeta,
+  hasResAuthorizeMeta,
 } from '../api-authorize';
 
 type CrudOperation = 'create' | 'delete' | 'list' | 'retrieve' | 'update';
@@ -30,23 +33,68 @@ function normalizeApiBase(apiBase: string) {
   return apiBase.startsWith('/') ? apiBase : `/${apiBase}`;
 }
 
-function derivePermissionResourceName(config: CrudPageConfig) {
-  if (config.permissionResourceName) {
-    return config.permissionResourceName;
+function derivePermissionType(
+  config: CrudPageConfig,
+  serviceMeta: ServiceMeta,
+) {
+  if (serviceMeta.type) {
+    return resolvePermissionType(serviceMeta.type, serviceMeta);
   }
 
-  return config.title.replace(/管理$/, '') || config.title;
+  if (config.permissionResourceName) {
+    return `${config.permissionTypePrefix || DEFAULT_PERMISSION_TYPE_PREFIX}${config.permissionResourceName}`;
+  }
+
+  return `${config.permissionTypePrefix || DEFAULT_PERMISSION_TYPE_PREFIX}${config.title}`;
+}
+
+export function resolvePermissionType(
+  authorizeType: string | undefined,
+  serviceMeta: ServiceMeta,
+) {
+  const type = String(authorizeType || '').trim();
+  const serviceType = String(serviceMeta.type || '').trim();
+
+  if (!type) {
+    return serviceType;
+  }
+
+  if (type.endsWith('-')) {
+    const tagName = String(serviceMeta.title || '').trim();
+
+    if (tagName) {
+      return `${type}${tagName}`;
+    }
+
+    if (serviceType.startsWith(type)) {
+      return serviceType;
+    }
+  }
+
+  return type;
 }
 
 export function buildCrudOperationPermissions(
   config: CrudPageConfig,
   operation: CrudOperation,
 ) {
+  const apiMethodName = OPERATION_PATHS[operation];
+  const apiService = config.apiService as
+    | (Record<string, unknown> & object)
+    | undefined;
+  const serviceMethod =
+    apiService && typeof apiService[apiMethodName] === 'function'
+      ? apiService[apiMethodName]
+      : undefined;
+
+  if (hasResAuthorizeMeta(serviceMethod)) {
+    return buildApiMethodPermissions(config.apiService, apiMethodName);
+  }
+
+  const serviceMeta = getServiceMeta(config.apiService);
   const domain = config.permissionDomain || DEFAULT_PERMISSION_DOMAIN;
-  const typePrefix =
-    config.permissionTypePrefix || DEFAULT_PERMISSION_TYPE_PREFIX;
-  const resourceName = derivePermissionResourceName(config);
-  const expression = `${domain}:${typePrefix}${resourceName}::${OPERATION_LABELS[operation]}`;
+  const type = derivePermissionType(config, serviceMeta);
+  const expression = `${domain}:${type}::${OPERATION_LABELS[operation]}`;
   const path = `${normalizeApiBase(config.apiBase)}/${OPERATION_PATHS[operation]}`;
 
   return [expression, path];
@@ -78,7 +126,7 @@ export function buildApiMethodPermissions(
 
   const serviceMeta = getServiceMeta(service);
   const domain = authorizeMeta.domain || '';
-  const type = authorizeMeta.type || serviceMeta.type || '';
+  const type = resolvePermissionType(authorizeMeta.type, serviceMeta);
   const res = authorizeMeta.res || '';
   const action = authorizeMeta.action || '';
   const expression =

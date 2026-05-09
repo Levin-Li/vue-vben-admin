@@ -6,14 +6,24 @@ import type { AdminPageMap } from './page-registry';
 export * from './api';
 export * from './api-authorize';
 export * from './app/options';
-export * from './file-storage';
 export * from './page-map';
 export * from './page-registry';
-export * from './rbac';
 export * from './rbac-access';
 export * from './request-service';
+export * from './shared/draggable-floating-panel-service';
+export {
+  addLayoutHeaderTopAreaItem,
+  clearLayoutHeaderTopArea,
+  getLayoutHeaderTopAreaItems,
+  removeLayoutHeaderTopAreaItem,
+  useLayoutHeaderTopArea,
+  type LayoutHeaderTopAreaItem,
+  type LayoutHeaderTopAreaName,
+} from '@vben/layouts';
 export { default as RbacPermissionMatchUtils } from './rbac-permission-match';
 export * from './runtime';
+export { default as DraggableFloatingPanelHost } from './shared/draggable-floating-panel-host.vue';
+export { default as DraggableFloatingPanel } from './shared/draggable-floating-panel.vue';
 
 export interface AdminMenuItem {
   badge?: string | number;

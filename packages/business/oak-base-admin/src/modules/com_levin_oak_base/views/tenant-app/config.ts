@@ -1,9 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { tenantAppService } from '../../api/tenant-app-service';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
 export const tenantAppPageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantApp',
+  apiService: tenantAppService,
   defaultFormValues: {
     editable: true,
     enable: true,

@@ -5,7 +5,10 @@ import { preferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 import { startProgress, stopProgress } from '@vben/utils';
 
-import { accessRoutes, coreRouteNames } from '@levin/admin-framework/framework-commons/app/router/routes';
+import {
+  accessRoutes,
+  coreRouteNames,
+} from '@levin/admin-framework/framework-commons/app/router/routes';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
 import { generateAccess } from './access';

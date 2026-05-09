@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { nationService } from '../../api/nation-service';
 import {
   currencyCodeOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -8,6 +9,7 @@ import {
 
 export const nationPageCrudConfig: CrudPageConfig = {
   apiBase: '/Nation',
+  apiService: nationService,
   defaultFormValues: {
     enable: true,
     orderCode: 100,
@@ -16,8 +18,6 @@ export const nationPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  permissionResourceName: '国家',
-  permissionTypePrefix: '系统数据-',
   fields: [
     {
       key: 'id',

@@ -70,7 +70,7 @@ const verifyTabs: VerifyCodeTabOption[] = [
 const defaultVerifyTab: VerifyCodeTabOption = verifyTabs[0]!;
 
 const authStore = useAuthStore();
-const { loadAuthBrand, techSupport } = useAuthBrand();
+const { techSupport } = useAuthBrand();
 const rememberedAccount = localStorage.getItem(REMEMBER_ME_KEY) || '';
 
 const activeVerifyType = ref<VerifyCodeTab>('Captcha');
@@ -537,8 +537,6 @@ watch(activeVerifyType, () => {
 });
 
 onMounted(() => {
-  void loadAuthBrand();
-
   if (isCaptchaTab.value) {
     void requestVerifyCode();
   }
@@ -553,10 +551,10 @@ onBeforeUnmount(() => {
 <template>
   <div class="w-full">
     <div class="mb-6">
-      <h1 class="text-2xl font-semibold text-foreground">
+      <h1 class="text-foreground text-2xl font-semibold">
         {{ $t('authentication.welcomeBack') }}
       </h1>
-      <p class="mt-2 text-sm text-muted-foreground">
+      <p class="text-muted-foreground mt-2 text-sm">
         可使用账号密码登录，也可以使用手机或邮箱验证码登录。
       </p>
     </div>
@@ -578,7 +576,7 @@ onBeforeUnmount(() => {
 
     <div class="space-y-4" @keydown.enter.prevent="handleSubmit">
       <div>
-        <label class="mb-2 block text-sm font-medium text-foreground">
+        <label class="text-foreground mb-2 block text-sm font-medium">
           登录账号
         </label>
         <Input
@@ -591,7 +589,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div v-if="isCaptchaTab">
-        <label class="mb-2 block text-sm font-medium text-foreground">
+        <label class="text-foreground mb-2 block text-sm font-medium">
           登录密码
         </label>
         <Input.Password
@@ -603,7 +601,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div>
-        <label class="mb-2 block text-sm font-medium text-foreground">
+        <label class="text-foreground mb-2 block text-sm font-medium">
           验证码
         </label>
         <div class="flex items-stretch gap-3">
@@ -620,7 +618,7 @@ onBeforeUnmount(() => {
                 :aria-busy="verifyAssetLoading"
                 :disabled="verifyAssetLoading"
                 aria-label="刷新验证码"
-                class="flex h-10 min-w-[116px] items-center justify-center overflow-hidden rounded-md border border-border bg-muted text-muted-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-70"
+                class="border-border bg-muted text-muted-foreground hover:border-primary hover:text-primary flex h-10 min-w-[116px] items-center justify-center overflow-hidden rounded-md border transition disabled:cursor-not-allowed disabled:opacity-70"
                 type="button"
                 @click="() => requestVerifyCode()"
               >
@@ -666,7 +664,7 @@ onBeforeUnmount(() => {
 
       <div class="flex items-center justify-between pt-1">
         <Checkbox v-model:checked="rememberMe">记住账号</Checkbox>
-        <span class="text-xs text-muted-foreground">
+        <span class="text-muted-foreground text-xs">
           <template v-if="techSupport"> 技术支持：{{ techSupport }} </template>
           <template v-else>
             当前使用 {{ verifyCodeUsageText }} 验证码

@@ -1,13 +1,13 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { articleChannelService } from '../../api/article-channel-service';
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import {
   articleChannelOptionsLoader,
   buildEnumOptionsLoader,
-  buildModulePermission,
   DEFAULT_CRUD_MODAL_WIDTH,
   FILE_STORAGE_MULTI_UPLOAD_PATH,
   FILE_STORAGE_SINGLE_UPLOAD_PATH,
-  modulePost,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -17,17 +17,29 @@ const articleStatusOptionsLoader = buildEnumOptionsLoader(
 const articleCoverLayoutOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Article$CoverLayout',
 );
-const articleChannelPermissionType = '业务数据-资讯栏目';
+type FlowActionMethod =
+  | 'archived'
+  | 'auditApproved'
+  | 'auditCommit'
+  | 'auditReject'
+  | 'offline'
+  | 'publish';
 
-function buildArticleChannelAction(path: string) {
+function buildFlowAction(methodName: FlowActionMethod) {
   return async (record: Record<string, any>) =>
-    modulePost(path, {}, {
-      params: { _operatorAction: record._operatorAction, id: record.id },
+    articleChannelService[methodName]({
+      _operatorAction: record._operatorAction,
+      id: record.id,
     });
+}
+
+function buildFlowActionPermission(methodName: FlowActionMethod) {
+  return buildApiMethodPermissions(articleChannelService, methodName);
 }
 
 export const articleChannelPageCrudConfig: CrudPageConfig = {
   apiBase: '/ArticleChannel',
+  apiService: articleChannelService,
   defaultFormValues: {
     collectCount: 0,
     commentCount: 0,
@@ -237,62 +249,36 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  permissionResourceName: '资讯栏目',
-  permissionTypePrefix: '业务数据-',
   rowActions: [
     {
-      handler: buildArticleChannelAction('/ArticleChannel/auditCommit'),
+      handler: buildFlowAction('auditCommit'),
       label: '提交审核',
-      permission: buildModulePermission(
-        articleChannelPermissionType,
-        '提交审核',
-        '/ArticleChannel/auditCommit',
-      ),
+      permission: buildFlowActionPermission('auditCommit'),
     },
     {
-      handler: buildArticleChannelAction('/ArticleChannel/auditReject'),
+      handler: buildFlowAction('auditReject'),
       label: '审核拒绝',
-      permission: buildModulePermission(
-        articleChannelPermissionType,
-        '审核拒绝',
-        '/ArticleChannel/auditReject',
-      ),
+      permission: buildFlowActionPermission('auditReject'),
     },
     {
-      handler: buildArticleChannelAction('/ArticleChannel/auditApproved'),
+      handler: buildFlowAction('auditApproved'),
       label: '审核通过',
-      permission: buildModulePermission(
-        articleChannelPermissionType,
-        '审核通过',
-        '/ArticleChannel/auditApproved',
-      ),
+      permission: buildFlowActionPermission('auditApproved'),
     },
     {
-      handler: buildArticleChannelAction('/ArticleChannel/publish'),
+      handler: buildFlowAction('publish'),
       label: '发布',
-      permission: buildModulePermission(
-        articleChannelPermissionType,
-        '发布上线',
-        '/ArticleChannel/publish',
-      ),
+      permission: buildFlowActionPermission('publish'),
     },
     {
-      handler: buildArticleChannelAction('/ArticleChannel/offline'),
+      handler: buildFlowAction('offline'),
       label: '下线',
-      permission: buildModulePermission(
-        articleChannelPermissionType,
-        '下架',
-        '/ArticleChannel/offline',
-      ),
+      permission: buildFlowActionPermission('offline'),
     },
     {
-      handler: buildArticleChannelAction('/ArticleChannel/archived'),
+      handler: buildFlowAction('archived'),
       label: '存档',
-      permission: buildModulePermission(
-        articleChannelPermissionType,
-        '存档',
-        '/ArticleChannel/archived',
-      ),
+      permission: buildFlowActionPermission('archived'),
     },
   ],
   title: '文章栏目管理',

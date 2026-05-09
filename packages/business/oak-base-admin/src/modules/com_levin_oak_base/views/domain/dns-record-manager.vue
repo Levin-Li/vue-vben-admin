@@ -1,10 +1,7 @@
 <script lang="ts" setup>
 import { computed, reactive, ref, watch } from 'vue';
 
-import type {
-  DomainDnsRecord,
-  DomainRecord,
-} from '@levin/oak-base-admin/modules/com_levin_oak_base/api/domain';
+import type { DomainDnsRecord, DomainRecord } from '../../api/domain-service';
 
 import { IconifyIcon } from '@vben/icons';
 import { useRouter } from 'vue-router';
@@ -26,7 +23,7 @@ import {
   message,
 } from 'ant-design-vue';
 
-import { domainService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/domain';
+import { domainService } from '../../api/domain-service';
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
@@ -440,7 +437,7 @@ watch(
     </template>
 
     <div
-      class="mb-4 rounded-lg border border-dashed border-border bg-muted/30 p-3"
+      class="border-border bg-muted/30 mb-4 rounded-lg border border-dashed p-3"
     >
       <div class="text-sm font-medium">
         {{ props.domain?.name || currentDomainId || '未命名域名' }}

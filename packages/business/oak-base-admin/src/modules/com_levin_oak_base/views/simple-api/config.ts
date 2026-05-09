@@ -1,14 +1,12 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { simpleApiService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/simple-api';
-
+import { simpleApiService } from '../../api/simple-api-service';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
-  buildModulePermission,
-  modulePost,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -27,18 +25,29 @@ const simpleStatusOptionsLoader = buildEnumOptionsLoader(
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
-const simpleApiPermissionType = '专家数据-简单动态接口';
+type FlowActionMethod =
+  | 'archived'
+  | 'auditApproved'
+  | 'auditCommit'
+  | 'auditReject'
+  | 'offline'
+  | 'publish';
 
-function buildSimpleApiAction(path: string) {
+function buildFlowAction(methodName: FlowActionMethod) {
   return async (record: Record<string, any>) =>
-    modulePost(path, {}, {
-      params: { _operatorAction: record._operatorAction, id: record.id },
+    simpleApiService[methodName]({
+      _operatorAction: record._operatorAction,
+      id: record.id,
     });
+}
+
+function buildFlowActionPermission(methodName: FlowActionMethod) {
+  return buildApiMethodPermissions(simpleApiService, methodName);
 }
 
 export const simpleApiPageCrudConfig: CrudPageConfig = {
   apiBase: '/SimpleApi',
-  createPermission: buildApiMethodPermissions(simpleApiService, 'create'),
+  apiService: simpleApiService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -52,8 +61,6 @@ export const simpleApiPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  deletePermission: buildApiMethodPermissions(simpleApiService, 'delete'),
-  editPermission: buildApiMethodPermissions(simpleApiService, 'update'),
   fields: [
     {
       key: 'tenantId',
@@ -242,61 +249,36 @@ export const simpleApiPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  queryPermission: buildApiMethodPermissions(simpleApiService, 'list'),
   rowActions: [
     {
-      handler: buildSimpleApiAction('/SimpleApi/auditCommit'),
+      handler: buildFlowAction('auditCommit'),
       label: '提交审核',
-      permission: buildModulePermission(
-        simpleApiPermissionType,
-        '提交审核',
-        '/SimpleApi/auditCommit',
-      ),
+      permission: buildFlowActionPermission('auditCommit'),
     },
     {
-      handler: buildSimpleApiAction('/SimpleApi/auditReject'),
+      handler: buildFlowAction('auditReject'),
       label: '审核拒绝',
-      permission: buildModulePermission(
-        simpleApiPermissionType,
-        '审核拒绝',
-        '/SimpleApi/auditReject',
-      ),
+      permission: buildFlowActionPermission('auditReject'),
     },
     {
-      handler: buildSimpleApiAction('/SimpleApi/auditApproved'),
+      handler: buildFlowAction('auditApproved'),
       label: '审核通过',
-      permission: buildModulePermission(
-        simpleApiPermissionType,
-        '审核通过',
-        '/SimpleApi/auditApproved',
-      ),
+      permission: buildFlowActionPermission('auditApproved'),
     },
     {
-      handler: buildSimpleApiAction('/SimpleApi/publish'),
+      handler: buildFlowAction('publish'),
       label: '发布',
-      permission: buildModulePermission(
-        simpleApiPermissionType,
-        '发布上线',
-        '/SimpleApi/publish',
-      ),
+      permission: buildFlowActionPermission('publish'),
     },
     {
-      handler: buildSimpleApiAction('/SimpleApi/offline'),
+      handler: buildFlowAction('offline'),
       label: '下线',
-      permission: buildModulePermission(
-        simpleApiPermissionType,
-        '下架',
-        '/SimpleApi/offline',
-      ),
+      permission: buildFlowActionPermission('offline'),
     },
     {
-      handler: buildSimpleApiAction('/SimpleApi/archived'),
+      handler: buildFlowAction('archived'),
       label: '存档',
-      permission: buildModulePermission(
-        simpleApiPermissionType,
-        '存档',
-        '/SimpleApi/archived',
-      ),
+      permission: buildFlowActionPermission('archived'),
     },
   ],
   title: '简单接口管理',

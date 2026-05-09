@@ -12,8 +12,8 @@ import { IconifyIcon, Plus } from '@vben/icons';
 import { Button, Modal, Tag, message } from 'ant-design-vue';
 
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/adapter/vxe-table';
-import { menuService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/menu';
-import { getAuthorizedMenuListApi } from '@levin/admin-framework';
+import { menuService } from '../../api/menu-service';
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { moduleFetchEnumOptions } from '@levin/oak-base-admin/modules/com_levin_oak_base/views/api-module';
 
 import {
@@ -164,7 +164,7 @@ function buildTree(rows: MenuRecord[]) {
 }
 
 async function loadMenuTree() {
-  const data = await getAuthorizedMenuListApi();
+  const data = await rbacService.getAuthorizedMenuList();
   const items = normalizeAuthorizedMenuList(data);
 
   if (
@@ -276,7 +276,11 @@ function renderIcon(row: MenuRecord) {
 
           <template #operation="{ row }">
             <div class="flex justify-end gap-2">
-              <Button size="small" type="link" @click="openCreate(row.id || '')">
+              <Button
+                size="small"
+                type="link"
+                @click="openCreate(row.id || '')"
+              >
                 新增下级
               </Button>
               <Button size="small" type="link" @click="openEdit(row)">

@@ -1,14 +1,12 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { simpleFormService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/simple-form';
-
+import { simpleFormService } from '../../api/simple-form-service';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
-  buildModulePermission,
-  modulePost,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -24,18 +22,29 @@ const simpleStatusOptionsLoader = buildEnumOptionsLoader(
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
-const simpleFormPermissionType = '专家数据-简单表单';
+type FlowActionMethod =
+  | 'archived'
+  | 'auditApproved'
+  | 'auditCommit'
+  | 'auditReject'
+  | 'offline'
+  | 'publish';
 
-function buildSimpleFormAction(path: string) {
+function buildFlowAction(methodName: FlowActionMethod) {
   return async (record: Record<string, any>) =>
-    modulePost(path, {}, {
-      params: { _operatorAction: record._operatorAction, id: record.id },
+    simpleFormService[methodName]({
+      _operatorAction: record._operatorAction,
+      id: record.id,
     });
+}
+
+function buildFlowActionPermission(methodName: FlowActionMethod) {
+  return buildApiMethodPermissions(simpleFormService, methodName);
 }
 
 export const simpleFormPageCrudConfig: CrudPageConfig = {
   apiBase: '/SimpleForm',
-  createPermission: buildApiMethodPermissions(simpleFormService, 'create'),
+  apiService: simpleFormService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -47,8 +56,6 @@ export const simpleFormPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  deletePermission: buildApiMethodPermissions(simpleFormService, 'delete'),
-  editPermission: buildApiMethodPermissions(simpleFormService, 'update'),
   fields: [
     {
       key: 'tenantId',
@@ -219,61 +226,36 @@ export const simpleFormPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  queryPermission: buildApiMethodPermissions(simpleFormService, 'list'),
   rowActions: [
     {
-      handler: buildSimpleFormAction('/SimpleForm/auditCommit'),
+      handler: buildFlowAction('auditCommit'),
       label: '提交审核',
-      permission: buildModulePermission(
-        simpleFormPermissionType,
-        '提交审核',
-        '/SimpleForm/auditCommit',
-      ),
+      permission: buildFlowActionPermission('auditCommit'),
     },
     {
-      handler: buildSimpleFormAction('/SimpleForm/auditReject'),
+      handler: buildFlowAction('auditReject'),
       label: '审核拒绝',
-      permission: buildModulePermission(
-        simpleFormPermissionType,
-        '审核拒绝',
-        '/SimpleForm/auditReject',
-      ),
+      permission: buildFlowActionPermission('auditReject'),
     },
     {
-      handler: buildSimpleFormAction('/SimpleForm/auditApproved'),
+      handler: buildFlowAction('auditApproved'),
       label: '审核通过',
-      permission: buildModulePermission(
-        simpleFormPermissionType,
-        '审核通过',
-        '/SimpleForm/auditApproved',
-      ),
+      permission: buildFlowActionPermission('auditApproved'),
     },
     {
-      handler: buildSimpleFormAction('/SimpleForm/publish'),
+      handler: buildFlowAction('publish'),
       label: '发布',
-      permission: buildModulePermission(
-        simpleFormPermissionType,
-        '发布上线',
-        '/SimpleForm/publish',
-      ),
+      permission: buildFlowActionPermission('publish'),
     },
     {
-      handler: buildSimpleFormAction('/SimpleForm/offline'),
+      handler: buildFlowAction('offline'),
       label: '下线',
-      permission: buildModulePermission(
-        simpleFormPermissionType,
-        '下架',
-        '/SimpleForm/offline',
-      ),
+      permission: buildFlowActionPermission('offline'),
     },
     {
-      handler: buildSimpleFormAction('/SimpleForm/archived'),
+      handler: buildFlowAction('archived'),
       label: '存档',
-      permission: buildModulePermission(
-        simpleFormPermissionType,
-        '存档',
-        '/SimpleForm/archived',
-      ),
+      permission: buildFlowActionPermission('archived'),
     },
   ],
   title: '简单表单管理',

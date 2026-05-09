@@ -133,12 +133,12 @@ function handleSave() {
 
     <div
       v-if="normalizedItems.length === 0"
-      class="rounded border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground"
+      class="border-border text-muted-foreground rounded border border-dashed px-4 py-6 text-center text-sm"
     >
       暂无字典项，请点击“新增字典项”添加。
     </div>
 
-    <div v-else class="overflow-hidden rounded border border-border">
+    <div v-else class="border-border overflow-hidden rounded border">
       <table class="w-full table-fixed text-sm">
         <thead class="bg-muted text-left">
           <tr>
@@ -153,7 +153,7 @@ function handleSave() {
           <tr
             v-for="(item, index) in normalizedItems"
             :key="`${item.code}-${index}`"
-            class="border-t border-border"
+            class="border-border border-t"
           >
             <td class="px-3 py-2">{{ item.name || '-' }}</td>
             <td class="px-3 py-2">{{ item.code || '-' }}</td>

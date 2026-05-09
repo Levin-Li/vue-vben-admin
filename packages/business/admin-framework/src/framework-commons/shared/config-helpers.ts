@@ -1,4 +1,5 @@
 import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
+import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
 
 export const OAK_BASE_API_MODULE = '/com.levin.oak.base/V1/api';
@@ -104,15 +105,9 @@ export const roleOptionsLoader = (keyword?: string) =>
   );
 
 export const orgOptionsLoader = () =>
-  fetchOptions(
-    '/rbac/authorizedOrgList',
-    'name',
-    'id',
-    {
-      assembleTree: false,
-    },
-    OAK_BASE_API_MODULE,
-  );
+  rbacService.fetchAuthorizedOrgOptions({
+    assembleTree: false,
+  });
 
 export async function loadEnumValueOptions(enumName: string) {
   return await fetchEnumOptions(enumName, OAK_BASE_API_MODULE);

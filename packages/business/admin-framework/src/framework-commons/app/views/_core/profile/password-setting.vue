@@ -14,7 +14,10 @@ import {
   message,
 } from 'ant-design-vue';
 
-import { getVerifyCodeApi, updateLoginInfoApi } from '@levin/admin-framework/framework-commons/app/api';
+import {
+  getVerifyCodeApi,
+  updateLoginInfoApi,
+} from '@levin/admin-framework/framework-commons/app/api';
 
 import { extractReturnedVerifyCode } from '../authentication/login-verify-type';
 
@@ -258,7 +261,7 @@ async function handleSubmit() {
           autocomplete="new-password"
           placeholder="请输入新密码"
         />
-        <div class="mt-2 text-xs text-muted-foreground">
+        <div class="text-muted-foreground mt-2 text-xs">
           密码必须包含数字和大小写字母，长度不少于 6 位。
         </div>
       </Form.Item>

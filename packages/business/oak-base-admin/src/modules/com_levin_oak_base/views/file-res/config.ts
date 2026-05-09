@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { fileResService } from '../../api/file-res-service';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -17,6 +18,7 @@ const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
 
 export const fileResPageCrudConfig: CrudPageConfig = {
   apiBase: '/FileRes',
+  apiService: fileResService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -204,7 +206,5 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  permissionResourceName: '文件资源库',
-  permissionTypePrefix: '通用数据-',
   title: '文件资源管理',
 };

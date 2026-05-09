@@ -18,7 +18,7 @@ import {
   message,
 } from 'ant-design-vue';
 
-import { menuService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/menu';
+import { menuService } from '../../api/menu-service';
 
 import OpButtonEditor from './op-button-editor.vue';
 

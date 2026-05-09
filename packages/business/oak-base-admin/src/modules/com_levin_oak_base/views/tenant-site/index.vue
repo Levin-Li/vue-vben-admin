@@ -2,7 +2,8 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { tenantSiteService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/tenant-site';
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { tenantSiteService } from '../../api/tenant-site-service';
 
 import CrudPage from '../crud-page.vue';
 import { tenantSitePageCrudConfig } from './config';
@@ -19,7 +20,10 @@ const pageConfig = computed(() => ({
         return tenantSiteService.generateNginxConfig(String(record.id || ''));
       },
       label: '生成NG配置和证书文件',
-      permission: ['/TenantSite/generateNginxConfig'],
+      permission: buildApiMethodPermissions(
+        tenantSiteService,
+        'generateNginxConfig',
+      ),
       visible: canGenerateNginxConfig,
     },
     {

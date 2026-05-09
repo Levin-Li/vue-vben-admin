@@ -1,6 +1,7 @@
 import type { SelectOption } from '@levin/admin-framework';
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { bankBranchService } from '../../api/bank-branch-service';
 import { DEFAULT_CRUD_MODAL_WIDTH, moduleFetchCrudList } from '../api-module';
 
 interface AreaRecord {
@@ -130,6 +131,7 @@ async function bankBranchAreaOptionsLoader() {
 
 export const bankBranchPageCrudConfig: CrudPageConfig = {
   apiBase: '/BankBranch',
+  apiService: bankBranchService,
   defaultFormValues: {
     enable: true,
   },
@@ -138,8 +140,6 @@ export const bankBranchPageCrudConfig: CrudPageConfig = {
     pageSize: 10,
   },
   recordKey: 'bankBranchCode',
-  permissionResourceName: '银行分支机构',
-  permissionTypePrefix: '业务数据-',
   fields: [
     {
       key: 'bankBranchCode',

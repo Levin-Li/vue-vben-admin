@@ -16,7 +16,10 @@ import {
 } from 'ant-design-vue';
 
 import { getAdminUserSecurityService } from '@levin/admin-framework';
-import { getVerifyCodeApi, updateLoginInfoApi } from '@levin/admin-framework/framework-commons/app/api';
+import {
+  getVerifyCodeApi,
+  updateLoginInfoApi,
+} from '@levin/admin-framework/framework-commons/app/api';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
 import { extractReturnedVerifyCode } from '../authentication/login-verify-type';
@@ -292,7 +295,7 @@ onMounted(() => {
         <Card
           size="small"
           :title="isTelephoneBound ? '换绑手机号' : '绑定手机号'"
-          class="border border-border"
+          class="border-border border"
         >
           <Form layout="vertical">
             <Form.Item label="当前手机号">
@@ -372,7 +375,7 @@ onMounted(() => {
         <Card
           size="small"
           :title="isEmailBound ? '换绑邮箱' : '绑定邮箱'"
-          class="border border-border"
+          class="border-border border"
         >
           <Form layout="vertical">
             <Form.Item label="当前邮箱">
@@ -449,22 +452,22 @@ onMounted(() => {
       </Tabs.TabPane>
 
       <Tabs.TabPane v-if="hasMfaService" key="mfa" tab="MFA">
-        <Card size="small" title="MFA 多因子认证" class="border border-border">
+        <Card size="small" title="MFA 多因子认证" class="border-border border">
           <div
             class="grid grid-cols-1 gap-4 xl:grid-cols-[220px_minmax(0,1fr)]"
           >
             <div
-              class="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 p-4"
+              class="border-border bg-muted/20 flex min-h-[220px] items-center justify-center rounded-lg border border-dashed p-4"
             >
               <QRCode v-if="mfaQrCode" :size="168" :value="mfaQrCode" />
-              <div v-else class="text-center text-sm text-muted-foreground">
+              <div v-else class="text-muted-foreground text-center text-sm">
                 暂未加载 MFA 二维码
               </div>
             </div>
 
             <div class="flex flex-col gap-3">
               <div>
-                <div class="text-sm text-muted-foreground">绑定账号</div>
+                <div class="text-muted-foreground text-sm">绑定账号</div>
                 <div class="mt-1 text-base font-medium">
                   {{
                     mfaInfo?.name ||

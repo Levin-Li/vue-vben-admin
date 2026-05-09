@@ -1,9 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { accessLogService } from '../../api/access-log-service';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
 export const accessLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/AccessLog',
+  apiService: accessLogService,
   allowCreate: false,
   allowDelete: false,
   allowEdit: false,

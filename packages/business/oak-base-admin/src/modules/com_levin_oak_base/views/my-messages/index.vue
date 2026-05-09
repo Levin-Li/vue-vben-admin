@@ -16,7 +16,7 @@ import {
   message,
 } from 'ant-design-vue';
 
-import { noticeService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/index';
+import { noticeService } from '../../api/index';
 
 type NoticeProcessStatus = 'Finished' | 'Processing' | 'Rejected';
 type MessageFilter = 'all' | 'read' | 'unread';
@@ -501,10 +501,10 @@ onMounted(loadMessages);
   >
     <div class="my-messages-page flex h-full min-h-0 flex-col">
       <div
-        class="my-messages-toolbar flex flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-3"
+        class="my-messages-toolbar bg-card flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
       >
         <div class="flex min-w-0 flex-wrap items-center gap-2">
-          <div class="text-base font-semibold text-foreground">我的消息</div>
+          <div class="text-foreground text-base font-semibold">我的消息</div>
           <Tag color="blue">已加载 {{ loadedCountText }}</Tag>
           <Tag v-if="unreadCount > 0" color="processing">
             未读 {{ unreadCount }}
@@ -539,7 +539,7 @@ onMounted(loadMessages);
             <IconifyIcon class="size-4" icon="lucide:bell-off" />
             批量拒绝
           </Button>
-          <div class="flex rounded-md border bg-background p-0.5">
+          <div class="bg-background flex rounded-md border p-0.5">
             <Button
               :type="activeFilter === 'all' ? 'primary' : 'text'"
               size="small"
@@ -599,7 +599,7 @@ onMounted(loadMessages);
             <div
               v-for="item in filteredMessages"
               :key="getMessageId(item)"
-              class="message-row grid min-w-0 gap-3 border-b bg-card px-4 py-3 md:grid-cols-[auto_1fr_auto]"
+              class="message-row bg-card grid min-w-0 gap-3 border-b px-4 py-3 md:grid-cols-[auto_1fr_auto]"
             >
               <Checkbox
                 :checked="isSelected(item)"
@@ -623,15 +623,15 @@ onMounted(loadMessages);
                     {{ getNoticeLevelLabel(item) }}
                   </Tag>
                   <Tag v-if="item.category">{{ item.category }}</Tag>
-                  <span class="truncate text-sm font-semibold text-foreground">
+                  <span class="text-foreground truncate text-sm font-semibold">
                     {{ getMessageTitle(item) }}
                   </span>
                 </div>
-                <div class="line-clamp-2 text-sm text-muted-foreground">
+                <div class="text-muted-foreground line-clamp-2 text-sm">
                   {{ getMessageSummary(item) }}
                 </div>
                 <div
-                  class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"
+                  class="text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs"
                 >
                   <span
                     >发布：{{
@@ -672,7 +672,7 @@ onMounted(loadMessages);
 
             <div
               v-if="messages.length > 0 || loadingMore || hasMore"
-              class="flex-center py-4 text-xs text-muted-foreground"
+              class="flex-center text-muted-foreground py-4 text-xs"
             >
               <template v-if="loadingMore">加载中...</template>
               <template v-else-if="hasMore">继续下滑加载更多</template>
@@ -702,7 +702,7 @@ onMounted(loadMessages);
             <Tag v-if="activeMessage.category">{{
               activeMessage.category
             }}</Tag>
-            <span class="text-xs text-muted-foreground">
+            <span class="text-muted-foreground text-xs">
               {{
                 formatDate(
                   activeMessage.publishTime || activeMessage.createTime,
@@ -713,13 +713,13 @@ onMounted(loadMessages);
 
           <div
             v-if="activeMessage.subtitle"
-            class="text-sm text-muted-foreground"
+            class="text-muted-foreground text-sm"
           >
             {{ activeMessage.subtitle }}
           </div>
 
           <pre
-            class="max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-sm leading-6 text-foreground"
+            class="bg-muted/40 text-foreground max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-md p-3 text-sm leading-6"
             >{{ getMessageContent(activeMessage) }}</pre
           >
 

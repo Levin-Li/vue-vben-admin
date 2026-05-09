@@ -1,9 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { scheduledLogService } from '../../api/scheduled-log-service';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
 export const scheduledLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/ScheduledLog',
+  apiService: scheduledLogService,
   allowCreate: false,
   allowDelete: false,
   allowEdit: false,

@@ -25,7 +25,7 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { settingService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/setting';
+import { settingService } from '../../api/setting-service';
 import { requestClient } from '@levin/admin-framework';
 import CodeEditorField from '@levin/admin-framework/framework-commons/shared/code-editor-field.vue';
 import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
@@ -305,10 +305,10 @@ onMounted(() => {
   >
     <div class="relative flex h-full min-h-0 flex-col gap-2">
       <div
-        class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card px-4 py-3"
+        class="bg-card flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3"
       >
         <div class="flex items-center gap-2 text-sm">
-          <span class="font-medium text-foreground">
+          <span class="text-foreground font-medium">
             系统配置({{ settings.length }})
           </span>
           <Tag v-if="changedSettings.length > 0" color="warning">
@@ -362,7 +362,7 @@ onMounted(() => {
                   <div
                     v-for="item in group.settings"
                     :key="getItemKey(item)"
-                    class="rounded-lg bg-card px-4 py-3"
+                    class="bg-card rounded-lg px-4 py-3"
                   >
                     <div
                       class="mb-2 flex min-w-0 flex-wrap items-start justify-between gap-3"
@@ -375,7 +375,7 @@ onMounted(() => {
                         </div>
                         <div
                           v-if="item.code"
-                          class="text-xs leading-5 text-muted-foreground"
+                          class="text-muted-foreground text-xs leading-5"
                         >
                           编码：{{ item.code }}
                         </div>
@@ -391,7 +391,7 @@ onMounted(() => {
                     <Form layout="vertical">
                       <Form.Item class="mb-0">
                         <template v-if="getItemRemarkLabel(item)" #label>
-                          <span class="text-xs leading-5 text-muted-foreground">
+                          <span class="text-muted-foreground text-xs leading-5">
                             {{ getItemRemarkLabel(item) }}
                           </span>
                         </template>

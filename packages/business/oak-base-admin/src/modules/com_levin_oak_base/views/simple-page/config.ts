@@ -1,8 +1,8 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { simplePageService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/simple-page';
-
+import { simplePageService } from '../../api/simple-page-service';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
@@ -46,7 +46,7 @@ function buildSimplePageActionPermission(methodName: SimplePageActionMethod) {
 
 export const simplePagePageCrudConfig: CrudPageConfig = {
   apiBase: '/SimplePage',
-  createPermission: buildApiMethodPermissions(simplePageService, 'create'),
+  apiService: simplePageService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -58,8 +58,6 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  deletePermission: buildApiMethodPermissions(simplePageService, 'delete'),
-  editPermission: buildApiMethodPermissions(simplePageService, 'update'),
   fields: [
     {
       key: 'tenantId',
@@ -228,7 +226,6 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  queryPermission: buildApiMethodPermissions(simplePageService, 'list'),
   rowActions: [
     {
       action: 'link',

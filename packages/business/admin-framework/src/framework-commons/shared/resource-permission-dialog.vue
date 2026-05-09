@@ -5,7 +5,7 @@ import { computed, ref, watch } from 'vue';
 
 import { Alert, message, Modal, Spin } from 'ant-design-vue';
 
-import { fetchAuthorizedResourceModules } from '../rbac';
+import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
 import {
   collectPermissionValues,
@@ -75,7 +75,7 @@ async function loadData() {
           id: props.record.id,
         },
       }),
-      fetchAuthorizedResourceModules(),
+      rbacService.fetchAuthorizedResourceModules(),
     ]);
 
     detail.value = detailResp;

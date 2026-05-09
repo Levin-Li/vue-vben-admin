@@ -1,8 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { dictService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/dict';
+import { dictService } from '../../api/dict-service';
 
-import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { tenantOptionsLoader } from '../api-module';
 
 export const dictTitle = '数据字典管理';
@@ -14,7 +13,7 @@ export const dictTypeOptions = [
 
 export const dictPageCrudConfig: CrudPageConfig = {
   apiBase: '/Dict',
-  createPermission: buildApiMethodPermissions(dictService, 'create'),
+  apiService: dictService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -26,8 +25,6 @@ export const dictPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  deletePermission: buildApiMethodPermissions(dictService, 'delete'),
-  editPermission: buildApiMethodPermissions(dictService, 'update'),
   fields: [
     {
       key: 'tenantId',
@@ -149,6 +146,5 @@ export const dictPageCrudConfig: CrudPageConfig = {
     { key: 'remark', label: '备注', type: 'textarea' },
   ],
   modalWidth: 672,
-  queryPermission: buildApiMethodPermissions(dictService, 'list'),
   title: dictTitle,
 };

@@ -22,9 +22,9 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { fetchTreeOptions } from '@levin/admin-framework';
-import { orgService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/org';
-import { userService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/user';
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
+import { orgService } from '../../api/org-service';
+import { userService } from '../../api/user-service';
 
 import CrudPage from '../crud-page.vue';
 import {
@@ -32,7 +32,10 @@ import {
   OAK_BASE_API_MODULE,
   orgTypeOptionsLoader,
 } from '../api-module';
-import { buildCrudOperationPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import {
+  buildApiMethodPermissions,
+  buildCrudOperationPermissions,
+} from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
 import { roleOptionsLoader, userPageCrudConfig } from './config';
 
@@ -124,10 +127,7 @@ const userConfig = computed(() => ({
         await openRoleModal(record);
       },
       label: '分配角色',
-      permission: [
-        '/User/assignRoles',
-        'com.levin.oak.base:系统数据-用户::分配角色',
-      ],
+      permission: buildApiMethodPermissions(userService, 'assignRoles'),
       reloadAfterAction: false,
       successMessage: false as const,
     },
@@ -296,15 +296,9 @@ async function loadOrgTree() {
   orgTreeLoading.value = true;
 
   try {
-    const options = await fetchTreeOptions(
-      '/rbac/authorizedOrgList',
-      'name',
-      'id',
-      {
-        assembleTree: true,
-      },
-      OAK_BASE_API_MODULE,
-    );
+    const options = await rbacService.fetchAuthorizedOrgOptions({
+      assembleTree: true,
+    });
     const nextTreeData = toOrgTreeNodes(options);
     const nextKeys = collectOrgKeys(nextTreeData);
 
@@ -468,12 +462,12 @@ onMounted(async () => {
 <template>
   <div class="user-org-page flex h-full min-h-0 gap-4">
     <aside
-      class="user-org-sidebar flex w-[320px] shrink-0 flex-col rounded-lg border border-border bg-card p-4"
+      class="user-org-sidebar border-border bg-card flex w-[320px] shrink-0 flex-col rounded-lg border p-4"
     >
       <div class="mb-3 flex items-center justify-between gap-2">
         <div class="min-w-0">
           <div class="text-base font-semibold">组织机构</div>
-          <div class="truncate text-xs text-muted-foreground">
+          <div class="text-muted-foreground truncate text-xs">
             {{ selectedOrgName || '请选择组织节点' }}
           </div>
         </div>
@@ -565,7 +559,7 @@ onMounted(async () => {
       <CrudPage v-if="selectedOrgId" :key="crudPageKey" :config="userConfig" />
       <div
         v-else
-        class="flex h-full items-center justify-center rounded-lg border border-border bg-card"
+        class="border-border bg-card flex h-full items-center justify-center rounded-lg border"
       >
         <Empty description="请选择左侧组织后查看用户" />
       </div>

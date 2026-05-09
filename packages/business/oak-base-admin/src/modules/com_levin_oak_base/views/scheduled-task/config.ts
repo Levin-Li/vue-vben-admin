@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { scheduledTaskService } from '../../api/scheduled-task-service';
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   buildEnumOptionsLoader,
@@ -12,6 +13,7 @@ const executionContentTypeOptionsLoader = buildEnumOptionsLoader(
 
 export const scheduledTaskPageCrudConfig: CrudPageConfig = {
   apiBase: '/ScheduledTask',
+  apiService: scheduledTaskService,
   defaultFormValues: {
     editable: true,
     enable: true,

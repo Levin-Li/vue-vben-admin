@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { permissionService } from '../../api/permission-service';
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   buildEnumOptionsLoader,
@@ -18,6 +19,7 @@ const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
 
 export const permissionPageCrudConfig: CrudPageConfig = {
   apiBase: '/Permission',
+  apiService: permissionService,
   allowRetrieve: true,
   defaultFormValues: {
     editable: true,
@@ -31,7 +33,6 @@ export const permissionPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  permissionTypePrefix: '平台数据-',
   fields: [
     {
       key: 'id',

@@ -10,7 +10,12 @@ import { resetAllStores, useAccessStore, useUserStore } from '@vben/stores';
 import { notification } from 'ant-design-vue';
 import { defineStore } from 'pinia';
 
-import { getAccessCodesApi, getUserInfoApi, loginApi, logoutApi } from '@levin/admin-framework/framework-commons/app/api';
+import {
+  getAccessCodesApi,
+  getUserInfoApi,
+  loginApi,
+  logoutApi,
+} from '@levin/admin-framework/framework-commons/app/api';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import { shouldRefreshAuthorizedPermissions } from '@levin/admin-framework/framework-commons/app/utils/rbac-access';
 
@@ -106,7 +111,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function ensureAccessCodesLoaded(force = false) {
-    if (!force && !shouldRefreshAuthorizedPermissions(accessStore.accessCodes)) {
+    if (
+      !force &&
+      !shouldRefreshAuthorizedPermissions(accessStore.accessCodes)
+    ) {
       return accessStore.accessCodes;
     }
 

@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { orgService } from '../../api/org-service';
 import {
   areaOptionsLoader,
   confidentialLevelOptionsLoader,
@@ -14,6 +15,7 @@ import {
 
 export const orgPageCrudConfig: CrudPageConfig = {
   apiBase: '/Org',
+  apiService: orgService,
   allowRetrieve: true,
   defaultFormValues: {
     editable: true,

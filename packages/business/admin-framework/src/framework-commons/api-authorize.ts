@@ -84,20 +84,36 @@ export interface ResAuthorizeMeta {
   type?: string;
   res?: string;
   action?: string;
-  anyRoles?: string[];
+  ignored?: boolean;
+  onlyRequireAuthenticated?: boolean;
   anyUserTypes?: string[];
   confidentialLevel?: number;
-  ignored?: boolean;
   isAndMode?: boolean;
-  onlyRequireAuthenticated?: boolean;
-  remark?: string;
+  anyRoles?: string[];
   verifyExpression?: string;
+  remark?: string;
 }
 
 export type ResAuthorizeResolvedMeta = Required<ResAuthorizeMeta>;
 
+export const RES_AUTHORIZE_META_KEYS = [
+  'domain',
+  'type',
+  'res',
+  'action',
+  'ignored',
+  'onlyRequireAuthenticated',
+  'anyUserTypes',
+  'confidentialLevel',
+  'isAndMode',
+  'anyRoles',
+  'verifyExpression',
+  'remark',
+] as const satisfies readonly (keyof ResAuthorizeMeta)[];
+
 export interface ServiceMeta {
   basePath?: string;
+  controllerClass?: string;
   description?: string;
   title?: string;
   type?: string;
@@ -108,14 +124,14 @@ const defaultResAuthorizeMeta: ResAuthorizeResolvedMeta = {
   type: '',
   res: '',
   action: '',
-  anyRoles: [],
+  ignored: false,
+  onlyRequireAuthenticated: false,
   anyUserTypes: [],
   confidentialLevel: 0,
-  ignored: false,
   isAndMode: false,
-  onlyRequireAuthenticated: false,
-  remark: '',
+  anyRoles: [],
   verifyExpression: '',
+  remark: '',
 };
 
 const defaultCrudListTableMeta: CrudListTableResolvedMeta = {
@@ -189,7 +205,11 @@ function setMethodMeta(
 }
 
 function createMethodMetaDecorator(metaKey: symbol, meta: unknown) {
-  return ((methodOrTarget: unknown, _contextOrKey?: unknown, descriptor?: any) => {
+  return ((
+    methodOrTarget: unknown,
+    _contextOrKey?: unknown,
+    descriptor?: any,
+  ) => {
     if (descriptor) {
       setMethodMeta(descriptor, metaKey, meta);
       return descriptor;
@@ -231,6 +251,12 @@ export function getResAuthorizeMeta(
   apiMethod: null | undefined | { [RES_AUTHORIZE_META]?: ResAuthorizeMeta },
 ) {
   return resolveResAuthorizeMeta(apiMethod?.[RES_AUTHORIZE_META]);
+}
+
+export function hasResAuthorizeMeta(
+  apiMethod: null | undefined | { [RES_AUTHORIZE_META]?: ResAuthorizeMeta },
+) {
+  return Boolean(apiMethod?.[RES_AUTHORIZE_META]);
 }
 
 export function getCrudListTableMeta(

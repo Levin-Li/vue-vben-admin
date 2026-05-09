@@ -12,7 +12,7 @@ import { useUserStore } from '@vben/stores';
 
 import { Alert, message, Modal, Spin } from 'ant-design-vue';
 
-import { fetchAuthorizedOrgTree } from '../rbac';
+import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
 import {
   buildOrgScopeDraftsFromValue,
@@ -160,7 +160,7 @@ async function loadData() {
           id: props.record.id,
         },
       }),
-      fetchAuthorizedOrgTree(),
+      rbacService.fetchAuthorizedOrgTree(),
     ]);
 
     setDetailState(detailResp);

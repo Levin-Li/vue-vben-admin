@@ -1,9 +1,6 @@
 import type { AdminPageMap } from './page-registry';
 
-import {
-  mergeAdminPageMaps,
-  normalizeAdminGlobPageMap,
-} from './page-registry';
+import { mergeAdminPageMaps, normalizeAdminGlobPageMap } from './page-registry';
 
 const sharedPageModules = import.meta.glob('./shared/**/*.vue') as AdminPageMap;
 const corePageModules = import.meta.glob('./pages/**/*.vue') as AdminPageMap;

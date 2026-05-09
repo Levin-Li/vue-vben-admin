@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { customerService } from '../../api/customer-service';
 import {
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
@@ -28,6 +29,7 @@ const customerPhoneAreaCodeOptionsLoader = buildDictOptionsLoader(
 
 export const customerPageCrudConfig: CrudPageConfig = {
   apiBase: '/Customer',
+  apiService: customerService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -38,8 +40,6 @@ export const customerPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  permissionResourceName: '客户',
-  permissionTypePrefix: '系统数据-',
   fields: [
     {
       key: 'tenantId',

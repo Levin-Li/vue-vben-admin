@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { servicePluginService } from '../../api/service-plugin-service';
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   FILE_STORAGE_SINGLE_UPLOAD_PATH,
@@ -7,6 +8,7 @@ import {
 
 export const servicePluginPageCrudConfig: CrudPageConfig = {
   apiBase: '/ServicePlugin',
+  apiService: servicePluginService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -162,7 +164,5 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  permissionResourceName: '服务插件',
-  permissionTypePrefix: '专家数据-',
   title: '服务插件管理',
 };

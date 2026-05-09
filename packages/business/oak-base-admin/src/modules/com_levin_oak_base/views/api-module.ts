@@ -1,8 +1,5 @@
 import type { SelectOption } from '@levin/admin-framework';
-import type {
-  DomainDnsRecord,
-  DomainRecord,
-} from '@levin/oak-base-admin/modules/com_levin_oak_base/api/domain';
+import type { DomainDnsRecord, DomainRecord } from '../api/domain-service';
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 import type {
   TenantSiteOption,
@@ -10,8 +7,6 @@ import type {
 } from './tenant-site-capability';
 
 import {
-  FILE_STORAGE_MULTI_UPLOAD_PATH,
-  FILE_STORAGE_SINGLE_UPLOAD_PATH,
   fetchCrudList,
   createCrudRecord,
   updateCrudRecord,
@@ -21,6 +16,11 @@ import {
   fetchOptions,
 } from '@levin/admin-framework';
 import { requestClient } from '@levin/admin-framework';
+import {
+  FILE_STORAGE_MULTI_UPLOAD_PATH,
+  FILE_STORAGE_SINGLE_UPLOAD_PATH,
+} from '@levin/admin-framework/framework-commons/app/api/file-storage-service';
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 
 import { buildTenantSiteCapabilityOptions } from './tenant-site-capability';
 
@@ -239,7 +239,10 @@ function isProviderManagedDomain(domain: string) {
   const host = normalizeDomainHost(domain);
 
   return Boolean(
-    host && host.includes('.') && !isLocalHostDomain(host) && !isIpAddress(host),
+    host &&
+    host.includes('.') &&
+    !isLocalHostDomain(host) &&
+    !isIpAddress(host),
   );
 }
 
@@ -309,15 +312,9 @@ export const roleOptionsLoader = (keyword?: string) =>
   );
 
 export const orgOptionsLoader = () =>
-  fetchOptions(
-    '/rbac/authorizedOrgList',
-    'name',
-    'id',
-    {
-      assembleTree: false,
-    },
-    OAK_BASE_API_MODULE,
-  );
+  rbacService.fetchAuthorizedOrgOptions({
+    assembleTree: false,
+  });
 
 const tenantSiteCapabilityState: {
   loadSuffixesPromise: null | Promise<TenantSiteOption[]>;

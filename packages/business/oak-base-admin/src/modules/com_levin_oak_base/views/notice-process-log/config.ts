@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { noticeProcessLogService } from '../../api/notice-process-log-service';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -12,6 +13,7 @@ const noticeProcessStatusOptionsLoader = buildEnumOptionsLoader(
 
 export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/NoticeProcessLog',
+  apiService: noticeProcessLogService,
   defaultQuery: {
     pageIndex: 1,
     pageSize: 10,
@@ -85,7 +87,5 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  permissionResourceName: '通知处理日志',
-  permissionTypePrefix: '业务数据-',
   title: '通知处理日志管理',
 };

@@ -2,12 +2,10 @@ import type { RouteRecordStringComponent } from '@vben/types';
 
 import { collectAdminModuleBackendRouteMappings } from '@levin/admin-framework';
 
-import type { BackendMenuInfo } from './menu-route';
-
-import { requestClient } from '@levin/admin-framework/framework-commons/app/api/request';
 import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 
 import { buildMenuRoutes } from './menu-route';
+import { rbacService } from '../rbac-service';
 
 const MY_MESSAGES_ROUTE: RouteRecordStringComponent = {
   component: '/system/com_levin_oak_base/my-messages/index.vue',
@@ -46,8 +44,12 @@ function hasRoutePath(
   });
 }
 
+/**
+ * 获取前端菜单路由。
+ * 后端菜单数据来自 RbacService。
+ */
 export async function getAllMenusApi() {
-  const backendMenus = await getAuthorizedMenuListApi();
+  const backendMenus = await rbacService.getAuthorizedMenuList();
   const routes = buildMenuRoutes(
     backendMenus,
     collectAdminModuleBackendRouteMappings(getEnabledFrontendModules()),
@@ -58,12 +60,4 @@ export async function getAllMenusApi() {
   }
 
   return routes;
-}
-
-export async function getAuthorizedMenuListApi() {
-  return requestClient.get<BackendMenuInfo[]>('/rbac/authorizedMenuList', {
-    params: {
-      loadAll: true,
-    },
-  });
 }

@@ -191,11 +191,9 @@ watch(menuList, (data) => {
     width="min(92vw, 1080px)"
     @ok="handleSubmit"
   >
-    <div class="mb-3 text-sm text-muted-foreground">
+    <div class="text-muted-foreground mb-3 text-sm">
       共
-      {{
-        totalCount
-      }}
+      {{ totalCount }}
       个本地页面路由。可在上传前修改名称、备注，或删除不需要同步的页面。
     </div>
 

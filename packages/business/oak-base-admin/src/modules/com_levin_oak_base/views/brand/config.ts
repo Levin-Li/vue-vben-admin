@@ -1,9 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { brandService } from '../../api/brand-service';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
 export const brandPageCrudConfig: CrudPageConfig = {
   apiBase: '/Brand',
+  apiService: brandService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -13,8 +15,6 @@ export const brandPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  permissionResourceName: '品牌',
-  permissionTypePrefix: '系统数据-',
   fields: [
     {
       key: 'tenantId',

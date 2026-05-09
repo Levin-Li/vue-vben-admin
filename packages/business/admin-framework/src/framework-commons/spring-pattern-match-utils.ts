@@ -49,10 +49,7 @@ export default class SpringPatternMatchUtils {
     return (
       str.length >= firstIndex &&
       pattern.startsWith(str.substring(0, firstIndex)) &&
-      this.simpleMatch(
-        pattern.substring(firstIndex),
-        str.substring(firstIndex),
-      )
+      this.simpleMatch(pattern.substring(firstIndex), str.substring(firstIndex))
     );
   }
 }

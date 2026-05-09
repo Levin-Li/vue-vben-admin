@@ -2,24 +2,12 @@ import { computed, readonly, ref } from 'vue';
 
 import { preferences } from '@vben/preferences';
 
-import { buildModuleRequestPath } from '@levin/admin-framework/framework-commons/app/api';
-import { baseRequestClient } from '@levin/admin-framework/framework-commons/app/api/request';
+import {
+  rbacService,
+  type RbacApi,
+} from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 
-interface BrandRecord {
-  appAuthDomain?: null | string;
-  copyright?: null | string;
-  domain?: null | string;
-  exInfo?: null | Record<string, any>;
-  id?: null | string;
-  logo?: null | string;
-  name?: null | string;
-  shortcutIcon?: null | string;
-  sysLogo?: null | string;
-  sysName?: null | string;
-  techSupport?: null | string;
-  tenantId?: null | string;
-  uiExInfo?: null | Record<string, any>;
-}
+type BrandRecord = RbacApi.TenantSiteInfo;
 
 interface BrandState {
   copyright: string;
@@ -62,7 +50,7 @@ function getCurrentDomain() {
 }
 
 function getUiValue(record: BrandRecord | null | undefined, ...keys: string[]) {
-  const stores = [record?.uiExInfo, record?.exInfo].filter(Boolean);
+  const stores = [record?.uiExInfo].filter(Boolean);
 
   for (const store of stores) {
     for (const key of keys) {
@@ -80,74 +68,6 @@ function getFirstText(...values: unknown[]) {
   return values.map((value) => normalizeText(value)).find(Boolean) || '';
 }
 
-function getListItems(data: any): BrandRecord[] {
-  const items = Array.isArray(data)
-    ? data
-    : data?.items || data?.records || data?.list || data?.data || [];
-
-  return Array.isArray(items) ? items.filter(Boolean) : [];
-}
-
-async function requestList(path: string, params: Record<string, any>) {
-  try {
-    return await baseRequestClient.get<any>(buildModuleRequestPath(path), {
-      __silentError: true,
-      baseURL: '',
-      params: {
-        requireResultList: true,
-        requireTotals: true,
-        ...params,
-      },
-    } as any);
-  } catch {
-    return null;
-  }
-}
-
-async function fetchTenantSiteByDomain(domain: string) {
-  if (!domain) {
-    return null;
-  }
-
-  const data = await requestList('/TenantSite/list', {
-    domain,
-    enable: true,
-    pageIndex: 1,
-    pageSize: 1,
-  });
-
-  return getListItems(data)[0] || null;
-}
-
-async function fetchTenantFallback(site: BrandRecord | null, domain: string) {
-  const tenantId = normalizeText(site?.tenantId);
-
-  if (tenantId) {
-    const data = await requestList('/Tenant/list', {
-      id: tenantId,
-      pageIndex: 1,
-      pageSize: 1,
-    });
-    const tenant = getListItems(data)[0];
-    if (tenant) {
-      return tenant;
-    }
-  }
-
-  if (!domain) {
-    return null;
-  }
-
-  const data = await requestList('/Tenant/list', {
-    appAuthDomain: domain,
-    enable: true,
-    pageIndex: 1,
-    pageSize: 1,
-  });
-
-  return getListItems(data)[0] || null;
-}
-
 function updateFavicon(shortcutIcon: string) {
   if (!shortcutIcon) {
     return;
@@ -163,66 +83,61 @@ function updateFavicon(shortcutIcon: string) {
   link.href = shortcutIcon;
 }
 
+async function fetchTenantSiteInfo() {
+  try {
+    return await rbacService.getTenantSiteInfo();
+  } catch {
+    return null;
+  }
+}
+
 function mergeBrandState(
-  site: BrandRecord | null,
-  tenant: BrandRecord | null,
+  record: BrandRecord | null,
   domain: string,
 ): BrandState {
   const name = getFirstText(
-    getUiValue(site, 'systemName', 'sysName', 'appName', 'name'),
-    site?.name,
-    getUiValue(tenant, 'systemName', 'sysName', 'appName', 'name'),
-    tenant?.sysName,
-    tenant?.name,
+    getUiValue(record, 'systemName', 'sysName', 'appName', 'name'),
+    record?.sysName,
+    record?.name,
     defaultState.name,
   );
   const logo = getFirstText(
-    getUiValue(site, 'logo', 'sysLogo'),
-    site?.logo,
-    getUiValue(tenant, 'logo', 'sysLogo'),
-    tenant?.sysLogo,
-    tenant?.logo,
+    getUiValue(record, 'logo', 'sysLogo'),
+    record?.sysLogo,
+    record?.logo,
     defaultState.logo,
   );
   const shortcutIcon = getFirstText(
-    getUiValue(site, 'shortcutIcon', 'favicon'),
-    site?.shortcutIcon,
-    getUiValue(tenant, 'shortcutIcon', 'favicon'),
-    tenant?.shortcutIcon,
+    getUiValue(record, 'shortcutIcon', 'favicon'),
+    record?.shortcutIcon,
     logo,
   );
   const techSupport = getFirstText(
-    site?.techSupport,
-    getUiValue(site, 'techSupport', 'support', 'supportText'),
-    tenant?.techSupport,
-    getUiValue(tenant, 'techSupport', 'support', 'supportText'),
+    record?.techSupport,
+    getUiValue(record, 'techSupport', 'support', 'supportText'),
   );
   const copyright = getFirstText(
-    site?.copyright,
-    getUiValue(site, 'copyright'),
-    tenant?.copyright,
-    getUiValue(tenant, 'copyright'),
+    record?.copyright,
+    getUiValue(record, 'copyright'),
     `Copyright © ${currentYear} ${name} · 多租户后台管理平台`,
   );
 
   return {
     copyright,
-    domain,
+    domain: getFirstText(record?.domain, domain),
     eyebrow: getFirstText(
-      getUiValue(site, 'brandName', 'eyebrow'),
-      getUiValue(tenant, 'brandName', 'eyebrow'),
+      getUiValue(record, 'brandName', 'eyebrow'),
+      record?.domain,
       domain,
       defaultState.eyebrow,
     ),
     heroDesc: getFirstText(
-      getUiValue(site, 'loginDesc', 'heroDesc'),
-      getUiValue(tenant, 'loginDesc', 'heroDesc'),
+      getUiValue(record, 'loginDesc', 'heroDesc'),
       techSupport,
       defaultState.heroDesc,
     ),
     heroTitle: getFirstText(
-      getUiValue(site, 'loginTitle', 'heroTitle'),
-      getUiValue(tenant, 'loginTitle', 'heroTitle'),
+      getUiValue(record, 'loginTitle', 'heroTitle'),
       name,
       defaultState.heroTitle,
     ),
@@ -252,9 +167,8 @@ async function loadAuthBrand() {
 
   loadingPromise = (async () => {
     const domain = getCurrentDomain();
-    const site = await fetchTenantSiteByDomain(domain);
-    const tenant = await fetchTenantFallback(site, domain);
-    const nextState = mergeBrandState(site, tenant, domain);
+    const tenantSiteInfo = await fetchTenantSiteInfo();
+    const nextState = mergeBrandState(tenantSiteInfo, domain);
 
     brandState.value = nextState;
     updateFavicon(nextState.shortcutIcon);

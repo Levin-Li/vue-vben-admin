@@ -46,9 +46,8 @@ async function initApplication() {
 
   // 启动应用并挂载
   // vue应用主要逻辑及视图
-  const { bootstrap } = await import(
-    '@levin/admin-framework/framework-commons/app/bootstrap'
-  );
+  const { bootstrap } =
+    await import('@levin/admin-framework/framework-commons/app/bootstrap');
   await bootstrap(namespace);
 
   // 移除并销毁loading

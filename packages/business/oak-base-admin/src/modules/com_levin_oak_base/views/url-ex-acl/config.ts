@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { urlExAclService } from '../../api/url-ex-acl-service';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -13,6 +14,7 @@ const interceptTypeOptionsLoader = buildEnumOptionsLoader(
 
 export const urlExAclPageCrudConfig: CrudPageConfig = {
   apiBase: '/UrlExAcl',
+  apiService: urlExAclService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -192,7 +194,5 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  permissionResourceName: 'Url扩展拦截',
-  permissionTypePrefix: '专家数据-',
   title: 'URL访问控制管理',
 };

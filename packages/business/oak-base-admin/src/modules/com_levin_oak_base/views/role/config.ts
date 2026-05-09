@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue';
 
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { roleService } from '../../api/role-service';
 import {
   confidentialLevelOptionsLoader,
   moduleFetchDictOptions,
@@ -15,6 +16,7 @@ const roleTypeOptionsLoader = () =>
 
 const rolePageCrudConfig: CrudPageConfig = {
   apiBase: '/Role',
+  apiService: roleService,
   allowRetrieve: true,
   defaultFormValues: {
     editable: true,

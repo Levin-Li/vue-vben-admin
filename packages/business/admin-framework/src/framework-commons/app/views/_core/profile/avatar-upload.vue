@@ -6,8 +6,11 @@ import { useUserStore } from '@vben/stores';
 
 import { message } from 'ant-design-vue';
 
-import { getUserInfoApi, updateLoginInfoApi } from '@levin/admin-framework/framework-commons/app/api';
-import { uploadFileByFileStorageController } from '@levin/admin-framework/framework-commons/app/api/common/file-storage';
+import {
+  getUserInfoApi,
+  updateLoginInfoApi,
+} from '@levin/admin-framework/framework-commons/app/api';
+import { uploadFileByFileStorageController } from '@levin/admin-framework/framework-commons/app/api/file-storage-service';
 
 const fileInputRef = ref<HTMLInputElement>();
 const uploading = ref(false);
@@ -65,7 +68,7 @@ async function handleFileChange(event: Event) {
 <template>
   <button
     :disabled="uploading"
-    class="group relative flex size-20 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-medium text-muted-foreground outline-none ring-offset-background transition hover:ring-2 hover:ring-primary/50 focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-70"
+    class="bg-muted text-muted-foreground ring-offset-background hover:ring-primary/50 focus-visible:ring-primary group relative flex size-20 items-center justify-center overflow-hidden rounded-full text-sm font-medium outline-none transition hover:ring-2 focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-70"
     title="点击上传头像"
     type="button"
     @click="openFilePicker"

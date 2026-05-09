@@ -1,8 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { userSettingService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/user-setting';
+import { userSettingService } from '../../api/user-setting-service';
 
-import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   buildEnumOptionsLoader,
@@ -15,7 +14,7 @@ const userSettingValueTypeOptionsLoader = buildEnumOptionsLoader(
 
 export const userSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/UserSetting',
-  createPermission: buildApiMethodPermissions(userSettingService, 'create'),
+  apiService: userSettingService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -27,8 +26,6 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  deletePermission: buildApiMethodPermissions(userSettingService, 'delete'),
-  editPermission: buildApiMethodPermissions(userSettingService, 'update'),
   fields: [
     {
       key: 'tenantId',
@@ -151,6 +148,5 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
     { key: 'remark', label: '备注', type: 'textarea' },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  queryPermission: buildApiMethodPermissions(userSettingService, 'list'),
   title: '用户设置管理',
 };

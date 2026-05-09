@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { domainService } from '../../api/domain-service';
 import {
   tenantOptionsLoader,
   tenantSiteVendorOptionsLoader,
@@ -27,6 +28,7 @@ const lifecycleStatusOptions = [
 export const domainPageCrudConfig: CrudPageConfig = {
   allowCreate: false,
   apiBase: '/Domain',
+  apiService: domainService,
   defaultFormValues: {
     editable: true,
     enable: true,

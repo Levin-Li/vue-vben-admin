@@ -74,7 +74,8 @@ import {
   FILE_STORAGE_MULTI_UPLOAD_PATH,
   FILE_STORAGE_SINGLE_UPLOAD_PATH,
   uploadFileByFileStorageController,
-} from '../file-storage';
+} from '../app/api/file-storage-service';
+import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
 import { useRbacAccess } from '../rbac-access';
 
@@ -1359,15 +1360,9 @@ function getDefaultValue(field: CrudFieldConfig) {
 function getDefaultOptionsLoader(field: CrudFieldConfig) {
   if (field.type === 'org-tree-select') {
     return () =>
-      fetchTreeOptions(
-        '/rbac/authorizedOrgList',
-        'name',
-        'id',
-        {
-          assembleTree: true,
-        },
-        props.config.apiModuleBase,
-      );
+      rbacService.fetchAuthorizedOrgOptions({
+        assembleTree: true,
+      });
   }
 
   if (field.type === 'role-select') {
@@ -1918,17 +1913,25 @@ async function loadList() {
   loading.value = true;
 
   try {
-    const result = await fetchCrudList<GenericRecord>(
-      activeListPath.value,
-      {
-        ...props.config.defaultQuery,
-        ...buildSearchParams(),
-        ...buildSortParams(),
-        pageIndex: pagination.current,
-        pageSize: pagination.pageSize,
-      },
-      props.config.apiModuleBase,
-    );
+    const listParams = {
+      ...props.config.defaultQuery,
+      ...buildSearchParams(),
+      ...buildSortParams(),
+      pageIndex: pagination.current,
+      pageSize: pagination.pageSize,
+    };
+    const defaultListPath = `${props.config.apiBase}/list`;
+    const result =
+      props.config.apiService?.list &&
+      !activeListTable.value?.listPath &&
+      !props.config.listPath &&
+      activeListPath.value === defaultListPath
+        ? await props.config.apiService.list(listParams)
+        : await fetchCrudList<GenericRecord>(
+            activeListPath.value,
+            listParams,
+            props.config.apiModuleBase,
+          );
 
     dataSource.value = result.items || [];
     pagination.total = result.totals || 0;
@@ -1961,16 +1964,19 @@ async function handleRetrieve(record: GenericRecord) {
     ),
   );
 
-  const response = await requestClient.get(
-    buildModuleRequestPath(
-      props.config.detailPath || `${props.config.apiBase}/retrieve`,
-      props.config.apiModuleBase,
-    ),
-    {
-      baseURL: '',
-      params,
-    },
-  );
+  const response =
+    props.config.apiService?.retrieve && !props.config.detailPath
+      ? await props.config.apiService.retrieve(params)
+      : await requestClient.get(
+          buildModuleRequestPath(
+            props.config.detailPath || `${props.config.apiBase}/retrieve`,
+            props.config.apiModuleBase,
+          ),
+          {
+            baseURL: '',
+            params,
+          },
+        );
 
   openActionResult(
     `${getBusinessTitle(props.config.title)}详情`,
@@ -1982,12 +1988,18 @@ async function handleRetrieve(record: GenericRecord) {
 async function handleDelete(record: GenericRecord) {
   const recordId = record?.[recordKey.value];
 
-  await deleteCrudRecord(
-    props.config.deletePath || `${props.config.apiBase}/delete`,
-    recordId,
-    recordKey.value,
-    props.config.apiModuleBase,
-  );
+  if (props.config.apiService?.delete && !props.config.deletePath) {
+    await props.config.apiService.delete({
+      [recordKey.value]: recordId,
+    });
+  } else {
+    await deleteCrudRecord(
+      props.config.deletePath || `${props.config.apiBase}/delete`,
+      recordId,
+      recordKey.value,
+      props.config.apiModuleBase,
+    );
+  }
   message.success('删除成功');
   await loadList();
 }
@@ -2050,18 +2062,26 @@ async function handleSubmit() {
       : payload;
 
     if (isCreating) {
-      await createCrudRecord(
-        createPath,
-        finalPayload,
-        props.config.apiModuleBase,
-      );
+      if (props.config.apiService?.create && !props.config.createPath) {
+        await props.config.apiService.create(finalPayload);
+      } else {
+        await createCrudRecord(
+          createPath,
+          finalPayload,
+          props.config.apiModuleBase,
+        );
+      }
       message.success('创建成功');
     } else {
-      await updateCrudRecord(
-        props.config.updatePath || `${props.config.apiBase}/update`,
-        finalPayload,
-        props.config.apiModuleBase,
-      );
+      if (props.config.apiService?.update && !props.config.updatePath) {
+        await props.config.apiService.update(finalPayload);
+      } else {
+        await updateCrudRecord(
+          props.config.updatePath || `${props.config.apiBase}/update`,
+          finalPayload,
+          props.config.apiModuleBase,
+        );
+      }
       message.success('更新成功');
     }
 
@@ -3450,15 +3470,21 @@ async function updateBooleanEnableField(
   record[fieldKey] = checked;
 
   try {
-    await updateCrudRecord(
-      props.config.updatePath || `${props.config.apiBase}/update`,
-      {
-        [recordKey.value]: getRecordValue(record, recordKey.value),
-        optimisticLock: record.optimisticLock,
-        [fieldKey]: checked,
-      },
-      props.config.apiModuleBase,
-    );
+    const payload = {
+      [recordKey.value]: getRecordValue(record, recordKey.value),
+      optimisticLock: record.optimisticLock,
+      [fieldKey]: checked,
+    };
+
+    if (props.config.apiService?.update && !props.config.updatePath) {
+      await props.config.apiService.update(payload);
+    } else {
+      await updateCrudRecord(
+        props.config.updatePath || `${props.config.apiBase}/update`,
+        payload,
+        props.config.apiModuleBase,
+      );
+    }
     message.success('更新成功');
     await loadList();
   } catch (error) {
@@ -3596,6 +3622,11 @@ async function runRowAction(
   record: GenericRecord | GenericRecord[],
 ) {
   if (!action) {
+    return;
+  }
+
+  if (action.permission && !hasPermission(action.permission)) {
+    message.warning('没有权限执行该操作');
     return;
   }
 
@@ -4080,7 +4111,7 @@ watch(tableColumnPreferenceStorageKey, () => {
             >
               <template #content>
                 <div class="w-[380px] max-w-[80vw]">
-                  <div class="mb-2 border-b border-border pb-2">
+                  <div class="border-border mb-2 border-b pb-2">
                     <Checkbox
                       :checked="allDraftTableColumnsVisible"
                       :indeterminate="draftTableColumnsIndeterminate"
@@ -4092,7 +4123,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                       全部
                     </Checkbox>
                     <div
-                      class="mt-2 flex items-center gap-1 text-xs text-muted-foreground"
+                      class="text-muted-foreground mt-2 flex items-center gap-1 text-xs"
                     >
                       <IconifyIcon
                         class="size-3.5"
@@ -4194,7 +4225,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                     </div>
                   </div>
                   <div
-                    class="mt-3 flex items-center justify-between border-t border-border pt-3"
+                    class="border-border mt-3 flex items-center justify-between border-t pt-3"
                   >
                     <Button
                       type="link"
@@ -4406,7 +4437,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                 </div>
                 <div
                   v-if="getTenantDisplay(record).id"
-                  class="text-xs text-muted-foreground"
+                  class="text-muted-foreground text-xs"
                 >
                   {{ getTenantDisplay(record).id }}
                 </div>
@@ -4507,7 +4538,7 @@ watch(tableColumnPreferenceStorageKey, () => {
       @ok="handleExportConfirm"
     >
       <div class="vben-crud-export-modal">
-        <div class="mb-2 border-b border-border pb-2">
+        <div class="border-border mb-2 border-b pb-2">
           <Checkbox
             :checked="allExportFieldsSelected"
             :indeterminate="exportFieldsIndeterminate"
@@ -4518,7 +4549,7 @@ watch(tableColumnPreferenceStorageKey, () => {
             全部字段
           </Checkbox>
           <div
-            class="mt-2 flex items-center gap-1 text-xs text-muted-foreground"
+            class="text-muted-foreground mt-2 flex items-center gap-1 text-xs"
           >
             <IconifyIcon class="size-3.5" icon="lucide:arrow-up-down" />
             默认按当前表格列顺序导出，可使用上下箭头调整导出列顺序
@@ -4820,7 +4851,7 @@ watch(tableColumnPreferenceStorageKey, () => {
       >
         <QRCode :value="String(actionResultQrValue || '')" />
         <div
-          class="max-w-full break-all text-center text-sm text-muted-foreground"
+          class="text-muted-foreground max-w-full break-all text-center text-sm"
         >
           {{ actionResultQrValue }}
         </div>
@@ -4845,7 +4876,7 @@ watch(tableColumnPreferenceStorageKey, () => {
       >
         <iframe
           :src="actionResultMediaUrl"
-          class="h-[70vh] w-full rounded-lg border border-border"
+          class="border-border h-[70vh] w-full rounded-lg border"
         ></iframe>
       </div>
       <div
@@ -4857,7 +4888,7 @@ watch(tableColumnPreferenceStorageKey, () => {
         <div
           v-for="[key, value] in actionResultEntries"
           :key="key"
-          class="rounded-lg border border-border bg-muted/30 p-4"
+          class="border-border bg-muted/30 rounded-lg border p-4"
           :class="{
             'md:col-span-2': typeof value === 'object',
           }"
@@ -4867,7 +4898,7 @@ watch(tableColumnPreferenceStorageKey, () => {
           </div>
           <div
             v-if="typeof value === 'object'"
-            class="max-h-[24vh] overflow-auto rounded bg-background p-3 text-sm"
+            class="bg-background max-h-[24vh] overflow-auto rounded p-3 text-sm"
           >
             <pre>{{ JSON.stringify(value, null, 2) }}</pre>
           </div>
@@ -4878,7 +4909,7 @@ watch(tableColumnPreferenceStorageKey, () => {
       </div>
       <div
         v-else
-        class="max-h-[60vh] overflow-auto rounded bg-muted p-3 text-sm"
+        class="bg-muted max-h-[60vh] overflow-auto rounded p-3 text-sm"
       >
         <pre>{{
           typeof actionResultData === 'string'
@@ -4897,7 +4928,7 @@ watch(tableColumnPreferenceStorageKey, () => {
 
     <div
       v-if="hoveredImageUploadTarget"
-      class="pointer-events-none fixed z-[9999] rounded-md border border-border bg-popover px-2 py-1 text-xs text-popover-foreground shadow"
+      class="border-border bg-popover text-popover-foreground pointer-events-none fixed z-[9999] rounded-md border px-2 py-1 text-xs shadow"
       :style="{
         left: `${uploadPasteTipPosition.x}px`,
         top: `${uploadPasteTipPosition.y}px`,

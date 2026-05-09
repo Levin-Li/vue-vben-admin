@@ -130,6 +130,10 @@ function getEnumCacheKey(moduleBase?: string) {
   return normalizeModuleBase(moduleBase) || '__default__';
 }
 
+/**
+ * 通用列表请求 helper。
+ * 实际 Java 控制器完整限定类名必须由调用方所属的具体 API Service 的 controllerClass 标注。
+ */
 export async function fetchCrudList<T>(
   listPath: string,
   params: CrudListQuery = {},
@@ -151,6 +155,10 @@ export async function fetchCrudList<T>(
   return normalizeListResult<T>(data);
 }
 
+/**
+ * 通用新增请求 helper。
+ * 实际 Java 控制器完整限定类名必须由调用方所属的具体 API Service 的 controllerClass 标注。
+ */
 export async function createCrudRecord<T>(
   path: string,
   payload: any,
@@ -165,6 +173,10 @@ export async function createCrudRecord<T>(
   );
 }
 
+/**
+ * 通用更新请求 helper。
+ * 实际 Java 控制器完整限定类名必须由调用方所属的具体 API Service 的 controllerClass 标注。
+ */
 export async function updateCrudRecord<T>(
   path: string,
   payload: any,
@@ -179,6 +191,10 @@ export async function updateCrudRecord<T>(
   );
 }
 
+/**
+ * 通用删除请求 helper。
+ * 实际 Java 控制器完整限定类名必须由调用方所属的具体 API Service 的 controllerClass 标注。
+ */
 export async function deleteCrudRecord(
   path: string,
   id: string,
@@ -191,6 +207,10 @@ export async function deleteCrudRecord(
   });
 }
 
+/**
+ * 通用 POST 动作请求 helper。
+ * 实际 Java 控制器完整限定类名必须由调用方所属的具体 API Service 的 controllerClass 标注。
+ */
 export async function postCrudAction<T>(
   path: string,
   payload?: any,
@@ -205,6 +225,10 @@ export async function postCrudAction<T>(
   );
 }
 
+/**
+ * 通用选项请求 helper。
+ * 实际 Java 控制器完整限定类名必须由调用方所属的具体 API Service 的 controllerClass 标注。
+ */
 export async function fetchOptions(
   path: string,
   labelKey: string = 'name',
@@ -223,6 +247,10 @@ export async function fetchOptions(
   return normalizeOptions(data?.items || data, labelKey, valueKey);
 }
 
+/**
+ * 通用树选项请求 helper。
+ * 实际 Java 控制器完整限定类名必须由调用方所属的具体 API Service 的 controllerClass 标注。
+ */
 export async function fetchTreeOptions(
   path: string,
   labelKey: string = 'name',
@@ -299,6 +327,10 @@ async function fetchSingleEnumInfo(enumName: string, moduleBase?: string) {
   return data;
 }
 
+/**
+ * 获取枚举选项
+ * 对应 Java 控制器: com.levin.oak.base.web.controller.commons.EnumController
+ */
 export async function fetchEnumOptions(enumName: string, moduleBase?: string) {
   const enumInfoMap = await fetchAllEnumInfo(moduleBase);
   const cachedEnumInfo =
@@ -310,6 +342,10 @@ export async function fetchEnumOptions(enumName: string, moduleBase?: string) {
   return normalizeOptions(enumInfo?.options || [], 'label', 'value');
 }
 
+/**
+ * 获取字典选项
+ * 对应 Java 控制器: com.levin.oak.base.controller.BizDictController
+ */
 export async function fetchDictOptions(dictCode: string, moduleBase?: string) {
   const data = await requestClient.get<any>(
     buildModuleRequestPath('/Dict/retrieveByCode', moduleBase),

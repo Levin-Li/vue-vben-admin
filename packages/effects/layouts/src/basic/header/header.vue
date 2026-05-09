@@ -1,5 +1,7 @@
 <script lang="ts" setup>
-import { computed, useSlots } from 'vue';
+import type { PropType, VNodeChild } from 'vue';
+
+import { computed, defineComponent, useSlots } from 'vue';
 
 import { useRefresh } from '@vben/hooks';
 import { RotateCw } from '@vben/icons';
@@ -15,6 +17,7 @@ import {
   ThemeToggle,
   TimezoneButton,
 } from '../../widgets';
+import { getLayoutHeaderTopAreaItems } from './header-top-area';
 
 interface Props {
   /**
@@ -39,6 +42,29 @@ const accessStore = useAccessStore();
 const { globalSearchShortcutKey, preferencesButtonPosition } = usePreferences();
 const slots = useSlots();
 const { refresh } = useRefresh();
+const headerTopCenterItems = getLayoutHeaderTopAreaItems('center');
+const headerTopRightItems = getLayoutHeaderTopAreaItems('right');
+const showHeaderTopCenter = computed(() => {
+  return Boolean(
+    slots['header-top-center'] || headerTopCenterItems.value.length,
+  );
+});
+const showHeaderTopRight = computed(() => {
+  return Boolean(slots['header-top-right'] || headerTopRightItems.value.length);
+});
+
+const HeaderTopAreaRender = defineComponent({
+  name: 'HeaderTopAreaRender',
+  props: {
+    render: {
+      required: true,
+      type: Function as PropType<() => VNodeChild>,
+    },
+  },
+  setup(props) {
+    return () => props.render();
+  },
+});
 
 const rightSlots = computed(() => {
   const list = [{ index: REFERENCE_VALUE + 100, name: 'user-dropdown' }];
@@ -147,7 +173,39 @@ function clearPreferencesAndLogout() {
   >
     <slot name="menu"></slot>
   </div>
+  <div
+    v-if="showHeaderTopCenter"
+    class="flex h-full min-w-0 flex-shrink items-center justify-center gap-2 px-2"
+  >
+    <slot name="header-top-center"></slot>
+    <template v-for="item in headerTopCenterItems" :key="item.id">
+      <div :class="item.class">
+        <component
+          :is="item.component"
+          v-if="item.component"
+          v-bind="item.props"
+        />
+        <HeaderTopAreaRender v-else-if="item.render" :render="item.render" />
+      </div>
+    </template>
+  </div>
   <div class="flex h-full min-w-0 flex-shrink-0 items-center">
+    <div
+      v-if="showHeaderTopRight"
+      class="mr-1 flex h-full min-w-0 items-center gap-2"
+    >
+      <slot name="header-top-right"></slot>
+      <template v-for="item in headerTopRightItems" :key="item.id">
+        <div :class="item.class">
+          <component
+            :is="item.component"
+            v-if="item.component"
+            v-bind="item.props"
+          />
+          <HeaderTopAreaRender v-else-if="item.render" :render="item.render" />
+        </div>
+      </template>
+    </div>
     <template v-for="slot in rightSlots" :key="slot.name">
       <slot :name="slot.name">
         <template v-if="slot.name === 'global-search'">

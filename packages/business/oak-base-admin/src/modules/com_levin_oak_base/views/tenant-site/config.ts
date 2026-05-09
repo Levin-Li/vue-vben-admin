@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { tenantSiteService } from '../../api/tenant-site-service';
 import {
   brandOptionsLoader,
   tenantSiteDnsDomainOptionsLoader,
@@ -8,8 +9,7 @@ import {
 
 export const tenantSitePageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantSite',
-  createPath: '/TenantSite/create',
-  createPermission: '/TenantSite/create',
+  apiService: tenantSiteService,
   defaultFormValues: {
     editable: true,
     enable: true,

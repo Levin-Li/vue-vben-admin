@@ -7,10 +7,7 @@ import {
   type AdminPageMap,
 } from '@levin/admin-framework';
 
-import {
-  getAdminPageOverrides,
-  getEnabledFrontendModules,
-} from './options';
+import { getAdminPageOverrides, getEnabledFrontendModules } from './options';
 
 const builtinAppPages = normalizeAdminGlobPageMap(
   import.meta.glob('./views/**/*.vue') as AdminPageMap,

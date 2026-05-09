@@ -94,6 +94,14 @@ export type CrudPathConfig =
       editingRecord: null | Record<string, any>,
     ) => string);
 
+export interface CrudApiService {
+  create?: (data?: any, options?: any) => Promise<any>;
+  delete?: (params?: any, options?: any) => Promise<any>;
+  list?: (params?: any, options?: any) => Promise<any>;
+  retrieve?: (params?: any, options?: any) => Promise<any>;
+  update?: (data?: any, options?: any) => Promise<any>;
+}
+
 export interface CrudListTableConfig {
   allowCreate?: boolean;
   allowDelete?: boolean;
@@ -110,6 +118,7 @@ export interface CrudListTableConfig {
 export interface CrudPageConfig {
   apiBase: string;
   apiModuleBase?: string;
+  apiService?: CrudApiService;
   allowCreate?: boolean;
   allowDelete?: boolean;
   allowEdit?: boolean;

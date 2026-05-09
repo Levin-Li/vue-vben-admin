@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { jobPostService } from '../../api/job-post-service';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -12,6 +13,7 @@ const jobPostTypeOptionsLoader = buildEnumOptionsLoader(
 
 export const jobPostPageCrudConfig: CrudPageConfig = {
   apiBase: '/JobPost',
+  apiService: jobPostService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -21,8 +23,6 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  permissionResourceName: '工作岗位',
-  permissionTypePrefix: '系统数据-',
   fields: [
     {
       key: 'tenantId',

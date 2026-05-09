@@ -5,11 +5,11 @@ import { useRoute } from 'vue-router';
 import type {
   DomainSslCertManualConfig,
   DomainSslCertRecord,
-} from '@levin/oak-base-admin/modules/com_levin_oak_base/api/domain-ssl-cert';
+} from '../../api/domain-ssl-cert-service';
 
 import { Form, Input, Modal, Spin, message } from 'ant-design-vue';
 
-import { domainSslCertService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/domain-ssl-cert';
+import { domainSslCertService } from '../../api/domain-ssl-cert-service';
 
 import CrudPage from '../crud-page.vue';
 import { domainSslCertPageCrudConfig } from './config';

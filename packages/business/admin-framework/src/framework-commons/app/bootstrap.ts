@@ -11,10 +11,12 @@ import { useTitle } from '@vueuse/core';
 
 import { setAdminFrameworkRuntime } from '@levin/admin-framework';
 
-import { getAuthorizedMenuListApi } from '@levin/admin-framework/framework-commons/app/api/core/menu';
 import { getAdminApplicationServices } from '@levin/admin-framework/framework-commons/app/options';
 import { requestClient } from '@levin/admin-framework/framework-commons/app/api/request';
-import { $t, setupI18n } from '@levin/admin-framework/framework-commons/app/locales';
+import {
+  $t,
+  setupI18n,
+} from '@levin/admin-framework/framework-commons/app/locales';
 
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
@@ -26,7 +28,6 @@ import './styles/antd-message.css';
 async function bootstrap(namespace: string) {
   setAdminFrameworkRuntime({
     ...getAdminApplicationServices(),
-    getAuthorizedMenuListApi,
     requestClient,
   });
 

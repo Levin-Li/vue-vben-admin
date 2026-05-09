@@ -1,19 +1,16 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { demoService } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/demo';
+import { demoService } from '../../api/demo-service';
 
-import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
 export const demoPageCrudConfig: CrudPageConfig = {
   apiBase: '/Demo',
-  createPermission: buildApiMethodPermissions(demoService, 'create'),
+  apiService: demoService,
   defaultQuery: {
     pageIndex: 1,
     pageSize: 10,
   },
-  deletePermission: buildApiMethodPermissions(demoService, 'delete'),
-  editPermission: buildApiMethodPermissions(demoService, 'update'),
   fields: [
     {
       key: 'tenantId',
@@ -123,7 +120,6 @@ export const demoPageCrudConfig: CrudPageConfig = {
     { key: 'jsonData', label: 'JSON数据', fullRow: true, type: 'json' },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  queryPermission: buildApiMethodPermissions(demoService, 'list'),
   title: '示例管理',
   transformSubmit: (values) => {
     const nextValues = { ...values };

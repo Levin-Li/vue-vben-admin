@@ -37,7 +37,6 @@ export interface AdminUserSecurityService {
 }
 
 export interface AdminFrameworkRuntime {
-  getAuthorizedMenuListApi?: () => Promise<any[]>;
   menuSyncService?: AdminMenuSyncService;
   noticeService?: AdminNoticeService;
   requestClient: AdminRequestClient;
@@ -105,13 +104,3 @@ export const requestClient: AdminRequestClient = {
     return upload(url, data, config);
   },
 };
-
-export async function getAuthorizedMenuListApi() {
-  const getAuthorizedMenuList = assertRuntime().getAuthorizedMenuListApi;
-
-  if (!getAuthorizedMenuList) {
-    return [];
-  }
-
-  return getAuthorizedMenuList();
-}

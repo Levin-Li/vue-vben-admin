@@ -1,7 +1,14 @@
 <script lang="ts" setup>
 import type { NotificationItem } from '@vben/layouts';
 
-import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
+import {
+  computed,
+  defineAsyncComponent,
+  onMounted,
+  ref,
+  useSlots,
+  watch,
+} from 'vue';
 import { useRouter } from 'vue-router';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
@@ -78,6 +85,12 @@ const noticeLevelLabelMap: Record<string, string> = {
 
 const userStore = useUserStore();
 const authStore = useAuthStore();
+const slots = useSlots();
+const headerTopSlots = computed(() => {
+  return ['header-top-center', 'header-top-right'].filter((name) =>
+    Boolean(slots[name]),
+  );
+});
 const accessStore = useAccessStore();
 const router = useRouter();
 const LoginForm = defineAsyncComponent(
@@ -478,6 +491,9 @@ watch(
         @make-all="handleMakeAll"
         @view-all="handleViewAllNotifications"
       />
+    </template>
+    <template v-for="item in headerTopSlots" #[item]>
+      <slot :name="item"></slot>
     </template>
     <template #extra>
       <AuthenticationLoginExpiredModal

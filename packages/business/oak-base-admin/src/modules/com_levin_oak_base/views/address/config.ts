@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { addressService } from '../../api/address-service';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -13,6 +14,7 @@ const addressCategoryOptionsLoader = buildEnumOptionsLoader(
 
 export const addressPageCrudConfig: CrudPageConfig = {
   apiBase: '/Address',
+  apiService: addressService,
   defaultFormValues: {
     category: 'ReceiveAndSend',
     editable: true,
@@ -24,8 +26,6 @@ export const addressPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  permissionResourceName: '地址',
-  permissionTypePrefix: '业务数据-',
   fields: [
     {
       key: 'tenantId',

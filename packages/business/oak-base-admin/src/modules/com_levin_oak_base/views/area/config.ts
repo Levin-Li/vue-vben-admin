@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { areaService } from '../../api/area-service';
 import {
   areaOptionsLoader,
   buildEnumOptionsLoader,
@@ -12,6 +13,7 @@ const areaTypeOptionsLoader = buildEnumOptionsLoader(
 
 export const areaPageCrudConfig: CrudPageConfig = {
   apiBase: '/Area',
+  apiService: areaService,
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -21,8 +23,6 @@ export const areaPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  permissionResourceName: '区域',
-  permissionTypePrefix: '平台数据-',
   fields: [
     {
       key: 'id',
