@@ -124,6 +124,7 @@ const saveAdminUiBaseSettingLoading = ref(false);
 const eventListenerManagerOpen = ref(false);
 const eventListeners = ref<FrameworkEventListenerInfo[]>([]);
 const preferServerAdminUiBaseSetting = ref(true);
+const SAVE_ADMIN_UI_BASE_SETTING_TIMEOUT_MS = 15_000;
 const eventListenerManagerModalMaxWidth = 'min(70vw, 960px)';
 const eventListenerManagerModalStyle = {
   maxWidth: eventListenerManagerModalMaxWidth,
@@ -205,12 +206,17 @@ async function handleSaveAdminUiBaseSetting() {
   saveAdminUiBaseSettingLoading.value = true;
 
   try {
-    await rbacService.adjustSiteUiSetting({
-      [ADMIN_UI_BASE_SETTING_KEY]: {
-        preferServerSetting: preferServerAdminUiBaseSetting.value,
-        setting: clonePreferences(),
+    await rbacService.adjustSiteUiSetting(
+      {
+        [ADMIN_UI_BASE_SETTING_KEY]: {
+          preferServerSetting: preferServerAdminUiBaseSetting.value,
+          setting: clonePreferences(),
+        },
       },
-    });
+      {
+        timeout: SAVE_ADMIN_UI_BASE_SETTING_TIMEOUT_MS,
+      },
+    );
     message.success('界面设置上传成功');
     saveAdminUiBaseSettingModalOpen.value = false;
   } catch {
@@ -218,6 +224,10 @@ async function handleSaveAdminUiBaseSetting() {
   } finally {
     saveAdminUiBaseSettingLoading.value = false;
   }
+}
+
+function resetSaveAdminUiBaseSettingLoading() {
+  saveAdminUiBaseSettingLoading.value = false;
 }
 
 function refreshEventListeners() {
@@ -570,6 +580,8 @@ watch(
         v-model:open="saveAdminUiBaseSettingModalOpen"
         :confirm-loading="saveAdminUiBaseSettingLoading"
         title="上传界面设置"
+        @after-close="resetSaveAdminUiBaseSettingLoading"
+        @cancel="resetSaveAdminUiBaseSettingLoading"
         @ok="handleSaveAdminUiBaseSetting"
       >
         <Checkbox v-model:checked="preferServerAdminUiBaseSetting">

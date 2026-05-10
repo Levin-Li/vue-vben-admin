@@ -3,6 +3,10 @@ import type { Component, VNodeChild } from 'vue';
 import { computed, markRaw, onBeforeUnmount, reactive } from 'vue';
 
 export type DraggableFloatingPanelPlacement =
+  | 'bottom-center'
+  | 'bottom-left'
+  | 'bottom-right'
+  | 'center'
   | 'top-center'
   | 'top-left'
   | 'top-right';
@@ -13,9 +17,12 @@ export interface DraggableFloatingPanelPosition {
 }
 
 export interface DraggableFloatingPanelProps {
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
   defaultPlacement?: DraggableFloatingPanelPlacement;
   disabled?: boolean;
   edgePadding?: number;
+  name?: string;
   initialPosition?: DraggableFloatingPanelPosition;
   panelClass?: string;
   placementGap?: number;
@@ -29,6 +36,7 @@ export interface DraggableFloatingPanelProps {
 export interface DraggableFloatingPanelItem {
   component?: Component;
   id?: string;
+  name?: string;
   order?: number;
   panelProps?: DraggableFloatingPanelProps;
   props?: Record<string, unknown>;
@@ -41,6 +49,50 @@ export interface DraggableFloatingPanelRecord extends DraggableFloatingPanelItem
   scope: string;
 }
 
+/**
+ * Browser-window floating panel registry.
+ *
+ * Use this when a business module needs a small movable control that floats
+ * above the whole admin shell, for example a current-tenant selector, temporary
+ * tool panel, or demo marker. The framework root app mounts one global
+ * `DraggableFloatingPanelHost`; normal business pages should only register
+ * items through `useDraggableFloatingPanels(scope)` or
+ * `addDraggableFloatingPanel(item)`.
+ *
+ * Usage:
+ *
+ * ```ts
+ * const panels = useDraggableFloatingPanels('customer-page');
+ *
+ * panels.add({
+ *   id: 'customer-floating-filter',
+ *   name: '客户页浮动筛选器',
+ *   component: CustomerFloatingFilter,
+ *   order: 10,
+ *   panelProps: {
+ *     defaultPlacement: 'top-center',
+ *     storageKey: 'customer-page:floating-filter',
+ *   },
+ * });
+ * ```
+ *
+ * Rules:
+ * - Use a stable `scope` and `id`; registering the same id in the same scope
+ *   replaces the old item. Provide a readable `name` so management surfaces
+ *   can identify the panel without parsing the technical id.
+ * - The default placement is top-center in the top-level browser viewport.
+ *   Multiple panels are offset by `placementGap` to avoid full overlap.
+ * - Dragging is only available from the panel's built-in top-left drag handle;
+ *   business content inside the panel keeps its own click, input, selection,
+ *   and drag events.
+ * - Floating panels are collapsible by default. A click on the top-left drag
+ *   handle collapses the panel to just the handle; clicking it again expands
+ *   the panel. Actual dragging does not toggle the collapsed state.
+ * - The panel does not impose a default max width or max height. Business
+ *   content should define its own size limits when it needs them.
+ * - If the business page is rendered inside an iframe, register the panel in
+ *   the host/root admin app when it must float above the whole browser window.
+ */
 const DEFAULT_SCOPE = 'default';
 const floatingPanels = reactive<DraggableFloatingPanelRecord[]>([]);
 
@@ -52,9 +104,13 @@ function sortPanels(items: DraggableFloatingPanelRecord[]) {
   );
 }
 
-export function getDraggableFloatingPanels(scope = DEFAULT_SCOPE) {
+export function getDraggableFloatingPanels(scope?: string) {
   return computed(() => {
-    return sortPanels(floatingPanels.filter((item) => item.scope === scope));
+    return sortPanels(
+      scope
+        ? floatingPanels.filter((item) => item.scope === scope)
+        : floatingPanels,
+    );
   });
 }
 

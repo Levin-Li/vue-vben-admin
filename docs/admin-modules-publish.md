@@ -85,11 +85,8 @@ pnpm run publish:packages
 
 ```json
 {
-  "default": "5.6.3",
-  "packages": {
-    "@levin/admin-framework": "0.9.10",
-    "@levin/oak-base-admin": "0.9.7"
-  }
+  "default": "5.6.6",
+  "packages": {}
 }
 ```
 
@@ -103,7 +100,7 @@ pnpm run sync:package-versions
 pnpm run check:package-versions
 ```
 
-`pack:packages` 和 `publish:packages` 会在执行前自动同步版本，避免漏改某个子包。
+`pack:packages` 和 `publish:packages` 会在执行前自动同步版本和内部包引用，避免漏改某个子包。内部普通依赖统一使用 `workspace:*`，对外 `peerDependencies` 中的内部包版本统一同步为 `package-versions.json.default`。
 
 ## 入口应用集成
 
@@ -114,7 +111,7 @@ pnpm run check:package-versions
 入口应用从私服安装已发布的包：
 
 ```bash
-pnpm add @levin/admin-framework@0.9.10 @levin/oak-base-admin@0.9.7
+pnpm add @levin/admin-framework@5.6.6 @levin/oak-base-admin@5.6.6
 ```
 
 入口应用需要提供兼容的运行时 peer 依赖：

@@ -437,23 +437,23 @@ compliance-accounting/
     "#/*": "./src/*"
   },
   "dependencies": {
-    "@levin/admin-framework": "0.9.13",
-    "@levin/oak-base-admin": "0.9.10",
+    "@levin/admin-framework": "5.6.6",
+    "@levin/oak-base-admin": "5.6.6",
     "@project/contract-admin": "0.1.0",
-    "@vben/access": "5.6.3",
-    "@vben/common-ui": "5.6.3",
-    "@vben/constants": "5.6.3",
-    "@vben/hooks": "5.6.3",
-    "@vben/icons": "5.6.3",
-    "@vben/layouts": "5.6.3",
-    "@vben/locales": "5.6.3",
-    "@vben/plugins": "5.6.4",
-    "@vben/preferences": "5.6.3",
-    "@vben/request": "5.6.3",
-    "@vben/stores": "5.6.3",
-    "@vben/styles": "5.6.4",
-    "@vben/types": "5.6.3",
-    "@vben/utils": "5.6.3",
+    "@vben/access": "5.6.6",
+    "@vben/common-ui": "5.6.6",
+    "@vben/constants": "5.6.6",
+    "@vben/hooks": "5.6.6",
+    "@vben/icons": "5.6.6",
+    "@vben/layouts": "5.6.6",
+    "@vben/locales": "5.6.6",
+    "@vben/plugins": "5.6.6",
+    "@vben/preferences": "5.6.6",
+    "@vben/request": "5.6.6",
+    "@vben/stores": "5.6.6",
+    "@vben/styles": "5.6.6",
+    "@vben/types": "5.6.6",
+    "@vben/utils": "5.6.6",
     "@vueuse/core": "^14.1.0",
     "amis": "6.13.0",
     "amis-formula": "6.13.0",
@@ -620,9 +620,8 @@ async function initApplication() {
     overrides: overridesPreferences,
   });
 
-  const { bootstrap } = await import(
-    '@levin/admin-framework/framework-commons/app/bootstrap'
-  );
+  const { bootstrap } =
+    await import('@levin/admin-framework/framework-commons/app/bootstrap');
 
   await bootstrap(namespace);
   unmountGlobalLoading();
@@ -917,10 +916,7 @@ export function createContractAdminModule(): AdminFrontendModule {
     "prepublishOnly": "pnpm run build"
   },
   "files": ["dist", "src"],
-  "sideEffects": [
-    "**/*.css",
-    "**/*.vue"
-  ],
+  "sideEffects": ["**/*.css", "**/*.vue"],
   "main": "./dist/modules/com_project_contract/index.mjs",
   "module": "./dist/modules/com_project_contract/index.mjs",
   "types": "./dist/modules/com_project_contract/index.d.ts",
@@ -950,12 +946,12 @@ export function createContractAdminModule(): AdminFrontendModule {
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": ">=0.9.13",
-    "@levin/oak-base-admin": ">=0.9.10",
-    "@vben/common-ui": ">=5.0.0",
-    "@vben/icons": ">=5.0.0",
-    "@vben/plugins": ">=5.0.0",
-    "@vben/stores": ">=5.0.0",
+    "@levin/admin-framework": "5.6.6",
+    "@levin/oak-base-admin": "5.6.6",
+    "@vben/common-ui": "5.6.6",
+    "@vben/icons": "5.6.6",
+    "@vben/plugins": "5.6.6",
+    "@vben/stores": "5.6.6",
     "ant-design-vue": ">=4.0.0",
     "pinia": ">=3.0.0",
     "vue": ">=3.5.0",
@@ -1023,8 +1019,8 @@ package-versions.json
 {
   "default": "0.1.0",
   "packages": {
-    "@levin/admin-framework": "0.9.13",
-    "@levin/oak-base-admin": "0.9.10",
+    "@levin/admin-framework": "5.6.6",
+    "@levin/oak-base-admin": "5.6.6",
     "@project/contract-admin": "0.1.0",
     "@project/finance-admin": "0.1.0"
   }

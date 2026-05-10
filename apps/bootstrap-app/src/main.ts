@@ -14,6 +14,7 @@ import {
 
 import { enabledFrontendModules } from './modules/list';
 import { overridesPreferences } from './preferences';
+import { registerDemoInfrastructureExtensions } from './demo-infrastructure-extensions';
 
 const pageOverrides = normalizeAdminGlobPageMap(
   import.meta.glob('./pages/**/*.vue') as AdminPageMap,
@@ -27,6 +28,8 @@ configureAdminApplication({
   pageOverrides,
   userSecurityService: userService,
 });
+
+registerDemoInfrastructureExtensions();
 
 /**
  * 应用初始化完成之后再进行页面加载渲染

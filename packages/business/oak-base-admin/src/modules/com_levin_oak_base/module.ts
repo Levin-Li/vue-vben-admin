@@ -29,7 +29,7 @@ export function createOakBaseAdminModule(
         ? oakBaseAdminRoutes
         : createOakBaseAdminCrudRoutes(options.crud || {}),
     title: '基础模块',
-    version: '0.9.9',
+    version: '5.6.6',
   };
 }
 

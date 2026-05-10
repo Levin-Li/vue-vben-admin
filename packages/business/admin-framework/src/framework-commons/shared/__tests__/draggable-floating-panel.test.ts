@@ -10,8 +10,29 @@ import {
   useDraggableFloatingPanels,
 } from '../draggable-floating-panel-service';
 
+function createPointerEvent(
+  type: string,
+  options: { button?: number; clientX?: number; clientY?: number } = {},
+) {
+  const event = new Event(type, {
+    bubbles: true,
+    cancelable: true,
+  }) as PointerEvent;
+
+  Object.assign(event, {
+    button: options.button ?? 0,
+    clientX: options.clientX ?? 0,
+    clientY: options.clientY ?? 0,
+  });
+
+  return event;
+}
+
 describe('draggable floating panel infrastructure', () => {
   beforeEach(() => {
+    document.body.innerHTML = '';
+    clearDraggableFloatingPanels();
+    clearDraggableFloatingPanels('other-page');
     clearDraggableFloatingPanels('test-page');
     const storage = new Map<string, string>();
     vi.stubGlobal('localStorage', {
@@ -78,20 +99,23 @@ describe('draggable floating panel infrastructure', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="page-content"]').text()).toBe('page');
-    expect(wrapper.find('[data-testid="floating-tenant-filter"]').text()).toBe(
-      'tenant-filter',
-    );
-    expect(wrapper.find('[data-testid="floating-project-filter"]').text()).toBe(
-      'project-filter',
-    );
-    expect(wrapper.text().indexOf('tenant-filter')).toBeLessThan(
-      wrapper.text().indexOf('project-filter'),
+    expect(
+      document.body.querySelector('[data-testid="floating-tenant-filter"]')
+        ?.textContent,
+    ).toBe('tenant-filter');
+    expect(
+      document.body.querySelector('[data-testid="floating-project-filter"]')
+        ?.textContent,
+    ).toBe('project-filter');
+    expect(document.body.textContent?.indexOf('tenant-filter')).toBeLessThan(
+      document.body.textContent?.indexOf('project-filter') ?? 0,
     );
 
-    const panel = wrapper.find('.vben-draggable-floating-panel');
-    expect(panel.exists()).toBe(true);
-    expect(panel.attributes('style')).toContain('top: 16px');
-    expect(panel.attributes('style')).toContain('left:');
+    const panel = document.body.querySelector('.vben-draggable-floating-panel');
+    expect(panel).not.toBeNull();
+    expect(panel?.getAttribute('style')).toContain('top: 16px');
+    expect(panel?.getAttribute('style')).toContain('left:');
+    expect(panel?.getAttribute('style')).toContain('z-index: 1000');
 
     wrapper.unmount();
 
@@ -132,7 +156,175 @@ describe('draggable floating panel infrastructure', () => {
     await nextTick();
     await flushPromises();
 
-    expect(wrapper.find('[data-testid="floating-old"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="floating-new"]').text()).toBe('new');
+    expect(
+      document.body.querySelector('[data-testid="floating-old"]'),
+    ).toBeNull();
+    expect(
+      document.body.querySelector('[data-testid="floating-new"]')?.textContent,
+    ).toBe('new');
+
+    wrapper.unmount();
+  });
+
+  it('renders all scoped floating panels when the root host has no scope', async () => {
+    const FloatingPanelRegistrar = defineComponent({
+      name: 'FloatingPanelRegistrar',
+      setup: () => {
+        const testPagePanels = useDraggableFloatingPanels('test-page');
+        const otherPagePanels = useDraggableFloatingPanels('other-page');
+
+        testPagePanels.add({
+          id: 'test-page-panel',
+          panelProps: { persist: false },
+          render: () =>
+            h('div', { 'data-testid': 'floating-test-page' }, 'test-page'),
+        });
+        otherPagePanels.add({
+          id: 'other-page-panel',
+          panelProps: { persist: false },
+          render: () =>
+            h('div', { 'data-testid': 'floating-other-page' }, 'other-page'),
+        });
+
+        return () => null;
+      },
+    });
+    const wrapper = mount({
+      components: {
+        DraggableFloatingPanelHost,
+        FloatingPanelRegistrar,
+      },
+      template: `
+        <FloatingPanelRegistrar />
+        <DraggableFloatingPanelHost />
+      `,
+    });
+
+    await nextTick();
+    await flushPromises();
+
+    expect(
+      document.body.querySelector('[data-testid="floating-test-page"]')
+        ?.textContent,
+    ).toBe('test-page');
+    expect(
+      document.body.querySelector('[data-testid="floating-other-page"]')
+        ?.textContent,
+    ).toBe('other-page');
+
+    wrapper.unmount();
+  });
+
+  it('collapses and expands a floating panel by clicking the drag handle', async () => {
+    const FloatingPanelRegistrar = defineComponent({
+      name: 'FloatingPanelRegistrar',
+      setup: () => {
+        const floatingPanels = useDraggableFloatingPanels('test-page');
+
+        floatingPanels.add({
+          id: 'collapsible-panel',
+          name: '测试收缩面板',
+          panelProps: { persist: false },
+          render: () =>
+            h('div', { 'data-testid': 'floating-collapsible' }, 'content'),
+        });
+
+        return () => null;
+      },
+    });
+    const wrapper = mount({
+      components: {
+        DraggableFloatingPanelHost,
+        FloatingPanelRegistrar,
+      },
+      template: `
+        <FloatingPanelRegistrar />
+        <DraggableFloatingPanelHost />
+      `,
+    });
+
+    await nextTick();
+    await flushPromises();
+
+    const panel = document.body.querySelector('.vben-draggable-floating-panel');
+    const handle = document.body.querySelector<HTMLButtonElement>(
+      '.vben-draggable-floating-panel-handle',
+    );
+
+    expect(panel?.classList.contains('is-collapsed')).toBe(false);
+    expect(handle?.getAttribute('aria-pressed')).toBe('false');
+    expect(handle?.getAttribute('title')).toBeNull();
+    expect(handle?.getAttribute('aria-label')).toBe(
+      '测试收缩面板：点击可收缩，按住可拖动',
+    );
+
+    handle?.dispatchEvent(createPointerEvent('pointerdown'));
+    window.dispatchEvent(createPointerEvent('pointerup'));
+    await nextTick();
+
+    expect(panel?.classList.contains('is-collapsed')).toBe(true);
+    expect(handle?.getAttribute('aria-pressed')).toBe('true');
+    expect(handle?.getAttribute('aria-label')).toBe(
+      '测试收缩面板：点击可展开，按住可拖动',
+    );
+
+    handle?.dispatchEvent(createPointerEvent('pointerdown'));
+    window.dispatchEvent(createPointerEvent('pointerup'));
+    await nextTick();
+
+    expect(panel?.classList.contains('is-collapsed')).toBe(false);
+    expect(handle?.getAttribute('aria-pressed')).toBe('false');
+
+    wrapper.unmount();
+  });
+
+  it('does not collapse a floating panel when dragging the handle', async () => {
+    const FloatingPanelRegistrar = defineComponent({
+      name: 'FloatingPanelRegistrar',
+      setup: () => {
+        const floatingPanels = useDraggableFloatingPanels('test-page');
+
+        floatingPanels.add({
+          id: 'drag-panel',
+          panelProps: { persist: false },
+          render: () => h('div', { 'data-testid': 'floating-drag' }, 'drag'),
+        });
+
+        return () => null;
+      },
+    });
+    const wrapper = mount({
+      components: {
+        DraggableFloatingPanelHost,
+        FloatingPanelRegistrar,
+      },
+      template: `
+        <FloatingPanelRegistrar />
+        <DraggableFloatingPanelHost />
+      `,
+    });
+
+    await nextTick();
+    await flushPromises();
+
+    const panel = document.body.querySelector('.vben-draggable-floating-panel');
+    const handle = document.body.querySelector<HTMLButtonElement>(
+      '.vben-draggable-floating-panel-handle',
+    );
+
+    handle?.dispatchEvent(
+      createPointerEvent('pointerdown', { clientX: 10, clientY: 10 }),
+    );
+    window.dispatchEvent(
+      createPointerEvent('pointermove', { clientX: 40, clientY: 40 }),
+    );
+    window.dispatchEvent(
+      createPointerEvent('pointerup', { clientX: 40, clientY: 40 }),
+    );
+    await nextTick();
+
+    expect(panel?.classList.contains('is-collapsed')).toBe(false);
+
+    wrapper.unmount();
   });
 });

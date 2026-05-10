@@ -201,24 +201,24 @@ export function createOakBaseAdminModule(): AdminFrontendModule {
     pageMap: oakBaseAdminPageMap,
     routes: oakBaseAdminRoutes,
     title: '基础模块',
-    version: '0.9.10',
+    version: '5.6.6',
   };
 }
 ```
 
 模块对象字段规则：
 
-| 字段 | 规则 |
-| --- | --- |
-| `name` | 全局唯一，推荐使用后端模块名 |
-| `title` | 模块中文名称 |
-| `version` | 当前前端模块版本 |
-| `order` | 多模块排序 |
-| `routes` | 当前模块提供的本地路由能力 |
-| `pageMap` | 当前模块页面映射 |
-| `locales` | 当前模块国际化资源 |
-| `backendRouteMappings` | 后端菜单路径到前端页面映射 |
-| `apiModuleBase` | 当前模块后端 API 基础路径 |
+| 字段                   | 规则                         |
+| ---------------------- | ---------------------------- |
+| `name`                 | 全局唯一，推荐使用后端模块名 |
+| `title`                | 模块中文名称                 |
+| `version`              | 当前前端模块版本             |
+| `order`                | 多模块排序                   |
+| `routes`               | 当前模块提供的本地路由能力   |
+| `pageMap`              | 当前模块页面映射             |
+| `locales`              | 当前模块国际化资源           |
+| `backendRouteMappings` | 后端菜单路径到前端页面映射   |
+| `apiModuleBase`        | 当前模块后端 API 基础路径    |
 
 模块名、路由名、权限标识必须带模块语义，避免多个模块合并后冲突。
 
@@ -288,9 +288,8 @@ async function initApplication() {
     overrides: overridesPreferences,
   });
 
-  const { bootstrap } = await import(
-    '@levin/admin-framework/framework-commons/app/bootstrap'
-  );
+  const { bootstrap } =
+    await import('@levin/admin-framework/framework-commons/app/bootstrap');
 
   await bootstrap(namespace);
   unmountGlobalLoading();
@@ -386,11 +385,11 @@ export const oakBaseAdminLocales = {
 ```json
 {
   "peerDependencies": {
-    "@levin/admin-framework": ">=0.9.4",
-    "@vben/common-ui": ">=5.0.0",
-    "@vben/icons": ">=5.0.0",
-    "@vben/plugins": ">=5.0.0",
-    "@vben/stores": ">=5.0.0",
+    "@levin/admin-framework": "5.6.6",
+    "@vben/common-ui": "5.6.6",
+    "@vben/icons": "5.6.6",
+    "@vben/plugins": "5.6.6",
+    "@vben/stores": "5.6.6",
     "ant-design-vue": ">=4.0.0",
     "pinia": ">=3.0.0",
     "vue": ">=3.5.0",
@@ -429,7 +428,7 @@ src/   源码调试入口
 ```json
 {
   "name": "@levin/oak-base-admin",
-  "version": "0.9.10",
+  "version": "5.6.6",
   "type": "module",
   "files": ["dist", "src"],
   "main": "./dist/modules/com_levin_oak_base/index.mjs",
@@ -465,14 +464,8 @@ package-versions.json
 
 ```json
 {
-  "default": "5.6.3",
-  "packages": {
-    "@levin/admin-framework": "0.9.13",
-    "@levin/oak-base-admin": "0.9.10",
-    "@vben-core/design": "5.6.4",
-    "@vben/plugins": "5.6.4",
-    "@vben/styles": "5.6.4"
-  }
+  "default": "5.6.6",
+  "packages": {}
 }
 ```
 
@@ -480,6 +473,7 @@ package-versions.json
 
 - 不直接手工改各子包的 `package.json.version`。
 - 修改版本时先改 `package-versions.json`。
+- 内部普通依赖使用 `workspace:*`，内部 `peerDependencies` 由同步脚本统一写入当前发布版本。
 - 发布前必须同步并校验版本。
 
 命令：
@@ -678,7 +672,7 @@ pnpm run build:bootstrap-app
 安装依赖：
 
 ```bash
-pnpm add @levin/admin-framework@0.9.13 @levin/oak-base-admin@0.9.10
+pnpm add @levin/admin-framework@5.6.6 @levin/oak-base-admin@5.6.6
 ```
 
 安装运行时 peer 依赖：
@@ -692,9 +686,7 @@ pnpm add vue vue-router pinia ant-design-vue
 ```ts
 import { createOakBaseAdminModule } from '@levin/oak-base-admin';
 
-export const enabledFrontendModules = [
-  createOakBaseAdminModule(),
-];
+export const enabledFrontendModules = [createOakBaseAdminModule()];
 ```
 
 需要覆盖页面时，只在 `apps/bootstrap-app/src/pages` 下新增覆盖页面，不复制模块源码。

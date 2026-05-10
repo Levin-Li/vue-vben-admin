@@ -302,10 +302,14 @@ export class RbacService extends RequestService {
     action: '调整站点UI设置',
     onlyRequireAuthenticated: true,
   })
-  async adjustSiteUiSetting(data: RbacApi.AdjustSiteUiSettingParams) {
+  async adjustSiteUiSetting(
+    data: RbacApi.AdjustSiteUiSettingParams,
+    options: Record<string, any> = {},
+  ) {
     return requestClient.put<null>(
       this.buildRequestPath('adjustSiteUiSetting'),
       data,
+      options,
     );
   }
 
@@ -317,13 +321,16 @@ export class RbacService extends RequestService {
   })
   async fetchAuthorizedOrgTree(params: RbacApi.AuthorizedOrgListParams = {}) {
     const { rootOrgIdList, ...restParams } = params;
-    return requestClient.get<any[]>(this.buildRequestPath('authorizedOrgList'), {
-      params: {
-        assembleTree: true,
-        ...restParams,
-        ...(rootOrgIdList ? { rootOrgIdList } : {}),
+    return requestClient.get<any[]>(
+      this.buildRequestPath('authorizedOrgList'),
+      {
+        params: {
+          assembleTree: true,
+          ...restParams,
+          ...(rootOrgIdList ? { rootOrgIdList } : {}),
+        },
       },
-    });
+    );
   }
 
   @ResAuthorize({
@@ -348,12 +355,15 @@ export class RbacService extends RequestService {
   async fetchAuthorizedResourceModules(
     params: RbacApi.AuthorizedResourceModulesParams = {},
   ) {
-    return requestClient.get<any[]>(this.buildRequestPath('authorizedResList'), {
-      params: {
-        isShowSysDefaultRes: false,
-        ...params,
+    return requestClient.get<any[]>(
+      this.buildRequestPath('authorizedResList'),
+      {
+        params: {
+          isShowSysDefaultRes: false,
+          ...params,
+        },
       },
-    });
+    );
   }
 
   @ResAuthorize({

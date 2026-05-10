@@ -146,102 +146,106 @@ function clearPreferencesAndLogout() {
 </script>
 
 <template>
-  <template
-    v-for="slot in leftSlots.filter((item) => item.index < REFERENCE_VALUE)"
-    :key="slot.name"
-  >
-    <slot :name="slot.name">
-      <template v-if="slot.name === 'refresh'">
-        <VbenIconButton class="my-0 mr-1 rounded-md" @click="refresh">
-          <RotateCw class="size-4" />
-        </VbenIconButton>
-      </template>
-    </slot>
-  </template>
-  <div class="flex-center hidden lg:block">
-    <slot name="breadcrumb"></slot>
-  </div>
-  <template
-    v-for="slot in leftSlots.filter((item) => item.index > REFERENCE_VALUE)"
-    :key="slot.name"
-  >
-    <slot :name="slot.name"></slot>
-  </template>
-  <div
-    :class="`menu-align-${preferences.header.menuAlign}`"
-    class="flex h-full min-w-0 flex-1 items-center"
-  >
-    <slot name="menu"></slot>
-  </div>
-  <div
-    v-if="showHeaderTopCenter"
-    class="flex h-full min-w-0 flex-shrink items-center justify-center gap-2 px-2"
-  >
-    <slot name="header-top-center"></slot>
-    <template v-for="item in headerTopCenterItems" :key="item.id">
-      <div :class="item.class">
-        <component
-          :is="item.component"
-          v-if="item.component"
-          v-bind="item.props"
-        />
-        <HeaderExtensionAreaRender
-          v-else-if="item.render"
-          :render="item.render"
-        />
-      </div>
-    </template>
-  </div>
-  <div class="flex h-full min-w-0 flex-shrink-0 items-center">
-    <div
-      v-if="showHeaderTopRight"
-      class="mr-1 flex h-full min-w-0 items-center gap-2"
+  <div class="relative flex h-full min-w-0 flex-1 items-center">
+    <template
+      v-for="slot in leftSlots.filter((item) => item.index < REFERENCE_VALUE)"
+      :key="slot.name"
     >
-      <slot name="header-top-right"></slot>
-      <template v-for="item in headerTopRightItems" :key="item.id">
-        <div :class="item.class">
-          <component
-            :is="item.component"
-            v-if="item.component"
-            v-bind="item.props"
-          />
-          <HeaderExtensionAreaRender
-            v-else-if="item.render"
-            :render="item.render"
-          />
-        </div>
-      </template>
-    </div>
-    <template v-for="slot in rightSlots" :key="slot.name">
       <slot :name="slot.name">
-        <template v-if="slot.name === 'global-search'">
-          <GlobalSearch
-            :enable-shortcut-key="globalSearchShortcutKey"
-            :menus="accessStore.accessMenus"
-            class="mr-1 sm:mr-4"
-          />
-        </template>
-
-        <template v-else-if="slot.name === 'preferences'">
-          <PreferencesButton
-            class="mr-1"
-            @clear-preferences-and-logout="clearPreferencesAndLogout"
-          />
-        </template>
-        <template v-else-if="slot.name === 'theme-toggle'">
-          <ThemeToggle class="mr-1 mt-[2px]" />
-        </template>
-        <template v-else-if="slot.name === 'language-toggle'">
-          <LanguageToggle class="mr-1" />
-        </template>
-        <template v-else-if="slot.name === 'fullscreen'">
-          <VbenFullScreen class="mr-1" />
-        </template>
-        <template v-else-if="slot.name === 'timezone'">
-          <TimezoneButton class="mr-1 mt-[2px]" />
+        <template v-if="slot.name === 'refresh'">
+          <VbenIconButton class="my-0 mr-1 rounded-md" @click="refresh">
+            <RotateCw class="size-4" />
+          </VbenIconButton>
         </template>
       </slot>
     </template>
+    <div class="flex-center hidden lg:block">
+      <slot name="breadcrumb"></slot>
+    </div>
+    <template
+      v-for="slot in leftSlots.filter((item) => item.index > REFERENCE_VALUE)"
+      :key="slot.name"
+    >
+      <slot :name="slot.name"></slot>
+    </template>
+    <div
+      :class="`menu-align-${preferences.header.menuAlign}`"
+      class="flex h-full min-w-0 flex-1 items-center"
+    >
+      <slot name="menu"></slot>
+    </div>
+    <div
+      v-if="showHeaderTopCenter"
+      class="pointer-events-none absolute left-1/2 top-1/2 z-10 flex h-full max-w-[50%] -translate-x-1/2 -translate-y-1/2 items-center justify-center px-2"
+    >
+      <div class="pointer-events-auto flex h-full min-w-0 items-center gap-2">
+        <slot name="header-top-center"></slot>
+        <template v-for="item in headerTopCenterItems" :key="item.id">
+          <div class="flex h-full min-w-0 items-center" :class="item.class">
+            <component
+              :is="item.component"
+              v-if="item.component"
+              v-bind="item.props"
+            />
+            <HeaderExtensionAreaRender
+              v-else-if="item.render"
+              :render="item.render"
+            />
+          </div>
+        </template>
+      </div>
+    </div>
+    <div class="flex h-full min-w-0 flex-shrink-0 items-center">
+      <div
+        v-if="showHeaderTopRight"
+        class="mr-1 flex h-full min-w-0 items-center gap-2"
+      >
+        <slot name="header-top-right"></slot>
+        <template v-for="item in headerTopRightItems" :key="item.id">
+          <div class="flex h-full min-w-0 items-center" :class="item.class">
+            <component
+              :is="item.component"
+              v-if="item.component"
+              v-bind="item.props"
+            />
+            <HeaderExtensionAreaRender
+              v-else-if="item.render"
+              :render="item.render"
+            />
+          </div>
+        </template>
+      </div>
+      <template v-for="slot in rightSlots" :key="slot.name">
+        <slot :name="slot.name">
+          <template v-if="slot.name === 'global-search'">
+            <GlobalSearch
+              :enable-shortcut-key="globalSearchShortcutKey"
+              :menus="accessStore.accessMenus"
+              class="mr-1 sm:mr-4"
+            />
+          </template>
+
+          <template v-else-if="slot.name === 'preferences'">
+            <PreferencesButton
+              class="mr-1"
+              @clear-preferences-and-logout="clearPreferencesAndLogout"
+            />
+          </template>
+          <template v-else-if="slot.name === 'theme-toggle'">
+            <ThemeToggle class="mr-1 mt-[2px]" />
+          </template>
+          <template v-else-if="slot.name === 'language-toggle'">
+            <LanguageToggle class="mr-1" />
+          </template>
+          <template v-else-if="slot.name === 'fullscreen'">
+            <VbenFullScreen class="mr-1" />
+          </template>
+          <template v-else-if="slot.name === 'timezone'">
+            <TimezoneButton class="mr-1 mt-[2px]" />
+          </template>
+        </slot>
+      </template>
+    </div>
   </div>
 </template>
 <style lang="scss" scoped>

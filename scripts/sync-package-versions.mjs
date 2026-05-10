@@ -1,9 +1,4 @@
-import {
-  readdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -64,10 +59,75 @@ assertVersion(versionConfig.default, 'package-versions.json default');
 
 const packageFiles = findPackageJsonFiles(packagesRoot).sort();
 const changedPackages = [];
+const packageJsonItems = packageFiles.map((packageJsonPath) => ({
+  packageJson: readJson(packageJsonPath),
+  packageJsonPath,
+}));
+const publishablePackageNames = new Set(
+  packageJsonItems
+    .map(({ packageJson }) => packageJson)
+    .filter((packageJson) => packageJson.name && packageJson.private !== true)
+    .map((packageJson) => packageJson.name),
+);
 
-for (const packageJsonPath of packageFiles) {
-  const packageJson = readJson(packageJsonPath);
+function syncLocalPackageReferences(packageJson, packageJsonPath) {
+  const dependencySections = [
+    'dependencies',
+    'devDependencies',
+    'optionalDependencies',
+  ];
 
+  for (const section of dependencySections) {
+    const dependencies = packageJson[section];
+
+    if (!dependencies) {
+      continue;
+    }
+
+    for (const dependencyName of Object.keys(dependencies)) {
+      if (!publishablePackageNames.has(dependencyName)) {
+        continue;
+      }
+
+      if (dependencies[dependencyName] !== 'workspace:*') {
+        changedPackages.push({
+          from: dependencies[dependencyName],
+          name: `${packageJson.name} ${section}.${dependencyName}`,
+          path: relative(frontendRoot, packageJsonPath),
+          to: 'workspace:*',
+        });
+        dependencies[dependencyName] = 'workspace:*';
+      }
+    }
+  }
+
+  const peerDependencies = packageJson.peerDependencies;
+
+  if (!peerDependencies) {
+    return;
+  }
+
+  for (const dependencyName of Object.keys(peerDependencies)) {
+    if (!publishablePackageNames.has(dependencyName)) {
+      continue;
+    }
+
+    const nextVersion = resolvePackageVersion(dependencyName, versionConfig);
+    assertVersion(nextVersion, dependencyName);
+
+    if (peerDependencies[dependencyName] !== nextVersion) {
+      changedPackages.push({
+        from: peerDependencies[dependencyName],
+        name: `${packageJson.name} peerDependencies.${dependencyName}`,
+        path: relative(frontendRoot, packageJsonPath),
+        to: nextVersion,
+      });
+      peerDependencies[dependencyName] = nextVersion;
+    }
+  }
+}
+
+for (const { packageJson, packageJsonPath } of packageJsonItems) {
   if (!packageJson.name || packageJson.private === true) {
     continue;
   }
@@ -83,15 +143,19 @@ for (const packageJsonPath of packageFiles) {
       to: nextVersion,
     });
     packageJson.version = nextVersion;
+  }
 
-    if (!checkOnly) {
-      writeJson(packageJsonPath, packageJson);
-    }
+  syncLocalPackageReferences(packageJson, packageJsonPath);
+
+  if (!checkOnly) {
+    writeJson(packageJsonPath, packageJson);
   }
 }
 
 if (changedPackages.length === 0) {
-  console.log('packages 目录下的包版本已经和 package-versions.json 一致。');
+  console.log(
+    'packages 目录下的包版本和内部依赖版本已经和 package-versions.json 一致。',
+  );
   process.exit(0);
 }
 
@@ -101,9 +165,9 @@ for (const item of changedPackages) {
 
 if (checkOnly) {
   console.error(
-    'packages 目录下存在未同步的包版本，请运行 pnpm run sync:package-versions。',
+    'packages 目录下存在未同步的包版本或内部依赖版本，请运行 pnpm run sync:package-versions。',
   );
   process.exit(1);
 }
 
-console.log(`已同步 ${changedPackages.length} 个包版本。`);
+console.log(`已同步 ${changedPackages.length} 个包版本或内部依赖版本。`);

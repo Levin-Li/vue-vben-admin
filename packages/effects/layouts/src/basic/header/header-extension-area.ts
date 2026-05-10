@@ -13,6 +13,41 @@ export interface LayoutHeaderExtensionAreaItem {
   render?: () => VNodeChild;
 }
 
+/**
+ * Dynamic admin header extension registry.
+ *
+ * Use this public API when a business module needs to contribute fixed content
+ * to the framework header without editing the layout template.
+ *
+ * Areas:
+ * - `center`: content centered inside the current top header bar. The area and
+ *   item wrappers fill the header height; each contributed control decides its
+ *   own visual size.
+ * - `right`: content near the global toolbar, suitable for compact module
+ *   actions that should sit before the built-in global icons. The area and item
+ *   wrappers fill the header height.
+ *
+ * Usage:
+ *
+ * ```ts
+ * const topCenter = useLayoutHeaderExtensionArea('center');
+ *
+ * topCenter.add({
+ *   id: 'customer-current-tenant',
+ *   component: CurrentTenantSelect,
+ *   order: 10,
+ * });
+ * ```
+ *
+ * Rules:
+ * - Use a stable `id`; registering the same id in the same area replaces the
+ *   old item.
+ * - Use `order` for deterministic ordering.
+ * - Items added through `useLayoutHeaderExtensionArea(area).add(...)` are
+ *   removed automatically when the current component is unmounted.
+ * - Do not use this API for movable overlays; use the draggable floating panel
+ *   infrastructure for browser-window floating controls.
+ */
 interface LayoutHeaderExtensionAreaRecord extends LayoutHeaderExtensionAreaItem {
   id: string;
 }

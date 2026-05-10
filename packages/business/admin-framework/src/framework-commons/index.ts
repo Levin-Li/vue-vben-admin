@@ -11,7 +11,24 @@ export * from './page-map';
 export * from './page-registry';
 export * from './rbac-access';
 export * from './request-service';
+/**
+ * Browser-window draggable floating panels.
+ *
+ * Business modules should register floating content through
+ * `useDraggableFloatingPanels(scope)` or `addDraggableFloatingPanel(item)`.
+ * The framework root app owns the global `DraggableFloatingPanelHost`; normal
+ * pages should not mount another host unless they intentionally need a local
+ * scoped floating area.
+ */
 export * from './shared/draggable-floating-panel-service';
+/**
+ * Dynamic top header extension areas.
+ *
+ * Use `useLayoutHeaderExtensionArea('center')` for top-center controls and
+ * `useLayoutHeaderExtensionArea('right')` for compact controls near the global
+ * toolbar. Use stable ids and `order`; component-scoped registrations are
+ * cleaned up automatically on unmount.
+ */
 export {
   addLayoutHeaderExtensionAreaItem,
   clearLayoutHeaderExtensionArea,
