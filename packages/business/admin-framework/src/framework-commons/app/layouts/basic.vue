@@ -22,16 +22,34 @@ import {
 import { preferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 
-import { Modal } from 'ant-design-vue';
+import {
+  Button,
+  Checkbox,
+  Empty,
+  message,
+  Modal,
+  Popconfirm,
+  Tag,
+} from 'ant-design-vue';
 
 import {
   getAdminMenuSyncService,
   getAdminNoticeService,
 } from '@levin/admin-framework';
+import {
+  ADMIN_UI_BASE_SETTING_KEY,
+  rbacService,
+} from '@levin/admin-framework/framework-commons/app/api';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
+import {
+  getFrameworkEventListeners,
+  removeFrameworkEventListener,
+  setFrameworkEventListenerEnabled,
+  type FrameworkEventListenerInfo,
+} from '../../event-bus';
 import SyncMenuRoutesModal from './sync-menu-routes-modal.vue';
 
 type NoticeProcessStatus = 'Finished' | 'Processing' | 'Rejected';
@@ -101,6 +119,15 @@ const ProfileCenter = defineAsyncComponent(
 );
 const profileModalOpen = ref(false);
 const syncMenuRoutesModalOpen = ref(false);
+const saveAdminUiBaseSettingModalOpen = ref(false);
+const saveAdminUiBaseSettingLoading = ref(false);
+const eventListenerManagerOpen = ref(false);
+const eventListeners = ref<FrameworkEventListenerInfo[]>([]);
+const preferServerAdminUiBaseSetting = ref(true);
+const eventListenerManagerModalMaxWidth = 'min(70vw, 960px)';
+const eventListenerManagerModalStyle = {
+  maxWidth: eventListenerManagerModalMaxWidth,
+};
 const { destroyWatermark, updateWatermark } = useWatermark();
 const showDot = computed(() => noticeUnreadCount.value > 0);
 
@@ -126,6 +153,21 @@ const menus = computed(() => [
           icon: 'lucide:cloud-upload',
           text: '上传页面路由',
         },
+        {
+          handler: () => {
+            preferServerAdminUiBaseSetting.value = true;
+            saveAdminUiBaseSettingModalOpen.value = true;
+          },
+          icon: 'lucide:settings',
+          text: '上传界面设置',
+        },
+        {
+          handler: () => {
+            openEventListenerManager();
+          },
+          icon: 'lucide:list-tree',
+          text: '监听器管理',
+        },
       ]
     : []),
 ]);
@@ -149,6 +191,60 @@ const userDropdownDescription = computed(() => {
 
 async function handleLogout() {
   await authStore.logout(false);
+}
+
+function clonePreferences() {
+  return JSON.parse(JSON.stringify(preferences)) as Record<string, any>;
+}
+
+async function handleSaveAdminUiBaseSetting() {
+  if (saveAdminUiBaseSettingLoading.value) {
+    return;
+  }
+
+  saveAdminUiBaseSettingLoading.value = true;
+
+  try {
+    await rbacService.adjustSiteUiSetting({
+      [ADMIN_UI_BASE_SETTING_KEY]: {
+        preferServerSetting: preferServerAdminUiBaseSetting.value,
+        setting: clonePreferences(),
+      },
+    });
+    message.success('界面设置上传成功');
+    saveAdminUiBaseSettingModalOpen.value = false;
+  } catch {
+    message.error('界面设置上传失败');
+  } finally {
+    saveAdminUiBaseSettingLoading.value = false;
+  }
+}
+
+function refreshEventListeners() {
+  eventListeners.value = getFrameworkEventListeners();
+}
+
+function openEventListenerManager() {
+  refreshEventListeners();
+  eventListenerManagerOpen.value = true;
+}
+
+function handleRemoveEventListener(id: string) {
+  if (removeFrameworkEventListener(id)) {
+    message.success('监听器已移除');
+  } else {
+    message.warning('监听器不存在或已被移除');
+  }
+  refreshEventListeners();
+}
+
+function handleSetEventListenerEnabled(id: string, enabled: boolean) {
+  if (setFrameworkEventListenerEnabled(id, enabled)) {
+    message.success(enabled ? '监听器已启用' : '监听器已禁用');
+  } else {
+    message.warning('监听器不存在或已被移除');
+  }
+  refreshEventListeners();
 }
 
 function normalizeListItems<T>(data: any): T[] {
@@ -470,6 +566,88 @@ watch(
         <ProfileCenter class="max-h-[72vh] overflow-y-auto" />
       </Modal>
       <SyncMenuRoutesModal v-model:open="syncMenuRoutesModalOpen" />
+      <Modal
+        v-model:open="saveAdminUiBaseSettingModalOpen"
+        :confirm-loading="saveAdminUiBaseSettingLoading"
+        title="上传界面设置"
+        @ok="handleSaveAdminUiBaseSetting"
+      >
+        <Checkbox v-model:checked="preferServerAdminUiBaseSetting">
+          优先使用服务端设置参数
+        </Checkbox>
+      </Modal>
+      <Modal
+        v-model:open="eventListenerManagerOpen"
+        :footer="null"
+        :style="eventListenerManagerModalStyle"
+        :width="eventListenerManagerModalMaxWidth"
+        title="监听器管理"
+      >
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <div class="text-muted-foreground text-sm">
+            当前全局事件总线监听器
+          </div>
+          <Button size="small" @click="refreshEventListeners">刷新</Button>
+        </div>
+        <Empty v-if="eventListeners.length === 0" description="暂无监听器" />
+        <div
+          v-else
+          class="border-border max-h-[56vh] w-full max-w-full overflow-y-auto rounded border"
+        >
+          <div
+            class="border-border bg-muted/40 text-muted-foreground grid grid-cols-[minmax(0,1.2fr)_120px_minmax(0,1fr)_72px_116px] gap-3 border-b px-4 py-2 text-xs font-medium"
+          >
+            <div>描述</div>
+            <div>事件类型</div>
+            <div>主题匹配</div>
+            <div>状态</div>
+            <div class="text-right">操作</div>
+          </div>
+          <div
+            v-for="listener in eventListeners"
+            :key="listener.id"
+            class="border-border grid grid-cols-[minmax(0,1.2fr)_120px_minmax(0,1fr)_72px_116px] items-center gap-3 border-b px-4 py-3 last:border-b-0"
+          >
+            <div class="min-w-0 flex-1">
+              <div class="text-muted-foreground truncate text-xs">
+                {{ listener.remark || '未填写备注' }}
+              </div>
+              <div class="text-muted-foreground mt-1 truncate text-xs">
+                {{ listener.id }}
+              </div>
+            </div>
+            <div class="min-w-0">
+              <Tag class="max-w-full truncate">{{ listener.type }}</Tag>
+            </div>
+            <div class="truncate font-medium">
+              {{ listener.topicPattern }}
+            </div>
+            <div>
+              <Tag :color="listener.enabled ? 'success' : 'default'">
+                {{ listener.enabled ? '启用' : '禁用' }}
+              </Tag>
+            </div>
+            <div class="flex justify-end gap-2">
+              <Button
+                size="small"
+                @click="
+                  handleSetEventListenerEnabled(listener.id, !listener.enabled)
+                "
+              >
+                {{ listener.enabled ? '禁用' : '启用' }}
+              </Button>
+              <Popconfirm
+                cancel-text="取消"
+                ok-text="移除"
+                title="确定移除这个监听器？"
+                @confirm="handleRemoveEventListener(listener.id)"
+              >
+                <Button danger size="small">移除</Button>
+              </Popconfirm>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       <UserDropdown
         :avatar

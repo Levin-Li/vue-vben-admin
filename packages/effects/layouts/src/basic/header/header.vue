@@ -17,7 +17,7 @@ import {
   ThemeToggle,
   TimezoneButton,
 } from '../../widgets';
-import { getLayoutHeaderTopAreaItems } from './header-top-area';
+import { getLayoutHeaderExtensionAreaItems } from './header-extension-area';
 
 interface Props {
   /**
@@ -42,8 +42,8 @@ const accessStore = useAccessStore();
 const { globalSearchShortcutKey, preferencesButtonPosition } = usePreferences();
 const slots = useSlots();
 const { refresh } = useRefresh();
-const headerTopCenterItems = getLayoutHeaderTopAreaItems('center');
-const headerTopRightItems = getLayoutHeaderTopAreaItems('right');
+const headerTopCenterItems = getLayoutHeaderExtensionAreaItems('center');
+const headerTopRightItems = getLayoutHeaderExtensionAreaItems('right');
 const showHeaderTopCenter = computed(() => {
   return Boolean(
     slots['header-top-center'] || headerTopCenterItems.value.length,
@@ -53,8 +53,8 @@ const showHeaderTopRight = computed(() => {
   return Boolean(slots['header-top-right'] || headerTopRightItems.value.length);
 });
 
-const HeaderTopAreaRender = defineComponent({
-  name: 'HeaderTopAreaRender',
+const HeaderExtensionAreaRender = defineComponent({
+  name: 'HeaderExtensionAreaRender',
   props: {
     render: {
       required: true,
@@ -185,7 +185,10 @@ function clearPreferencesAndLogout() {
           v-if="item.component"
           v-bind="item.props"
         />
-        <HeaderTopAreaRender v-else-if="item.render" :render="item.render" />
+        <HeaderExtensionAreaRender
+          v-else-if="item.render"
+          :render="item.render"
+        />
       </div>
     </template>
   </div>
@@ -202,7 +205,10 @@ function clearPreferencesAndLogout() {
             v-if="item.component"
             v-bind="item.props"
           />
-          <HeaderTopAreaRender v-else-if="item.render" :render="item.render" />
+          <HeaderExtensionAreaRender
+            v-else-if="item.render"
+            :render="item.render"
+          />
         </div>
       </template>
     </div>

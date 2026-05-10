@@ -1,5 +1,5 @@
 /**
- * 参考后端生成的 SpringPatternMatchUtils，保持前后端权限匹配规则一致。
+ * Mirrors the backend SpringPatternMatchUtils simple wildcard semantics.
  */
 export default class SpringPatternMatchUtils {
   public static simpleMatch(
@@ -49,10 +49,7 @@ export default class SpringPatternMatchUtils {
     return (
       str.length >= firstIndex &&
       pattern.startsWith(str.substring(0, firstIndex)) &&
-      this.simpleMatch(
-        pattern.substring(firstIndex),
-        str.substring(firstIndex),
-      )
+      this.simpleMatch(pattern.substring(firstIndex), str.substring(firstIndex))
     );
   }
 }

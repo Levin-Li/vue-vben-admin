@@ -2,8 +2,7 @@ import { computed } from 'vue';
 
 import { preferences, updatePreferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
-
-import RbacPermissionMatchUtils from './rbac-permission-match-utils';
+import { RbacPermissionMatchUtils } from '@vben/utils';
 
 function useAccess() {
   const accessStore = useAccessStore();

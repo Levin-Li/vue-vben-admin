@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, unref } from 'vue';
 
-import { createIconifyIcon } from '@vben/icons';
+import { Clock3 } from '@vben/icons';
 import { $t } from '@vben/locales';
 import { useTimezoneStore } from '@vben/stores';
 
@@ -11,8 +11,6 @@ import {
   RadioGroupItem,
   VbenIconButton,
 } from '@vben-core/shadcn-ui';
-
-const TimezoneIcon = createIconifyIcon('fluent-mdl2:world-clock');
 
 const timezoneStore = useTimezoneStore();
 
@@ -59,7 +57,7 @@ const handleClick = () => {
       class="hover:animate-[shrink_0.3s_ease-in-out]"
       @click="handleClick"
     >
-      <TimezoneIcon class="text-foreground size-4" />
+      <Clock3 class="text-foreground size-4" />
     </VbenIconButton>
     <Modal :title="$t('ui.widgets.timezone.setTimezone')">
       <div class="timezone-container">

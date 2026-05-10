@@ -116,7 +116,7 @@ export class DomainSslCertService extends RequestService {
   })
   async downloadCert(data?: DomainSslCertDownload) {
     const response = await requestClient.request<any>(
-      `${OAK_BASE_API_MODULE}/DomainSslCert/downloadCert`,
+      this.buildRequestPath('downloadCert'),
       {
         baseURL: '',
         data,

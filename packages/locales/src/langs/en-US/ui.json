@@ -24,6 +24,17 @@
     "operationSuccess": "Operation succeeded",
     "operationFailed": "Operation failed"
   },
+  "serviceResp": {
+    "errorType": {
+      "bizWarning": "Business warning. Please check and try again.",
+      "bizError": "Business processing failed. Please check and try again.",
+      "authentication": "Authentication expired. Please log in again.",
+      "authorization": "You do not have permission to perform this action.",
+      "resource": "The requested resource does not exist or is unavailable.",
+      "systemInner": "Internal system error. Please try again later.",
+      "unknown": "Unknown error. Please try again later."
+    }
+  },
   "placeholder": {
     "input": "Please enter",
     "select": "Please select",

@@ -24,6 +24,10 @@ import App from './app.vue';
 import { registerRbacPermissionDirective } from './directives/rbac-permission';
 import { router } from './router';
 import './styles/antd-message.css';
+import {
+  loadTenantSiteAdminUiBaseSetting,
+  registerTenantSiteAdminUiBaseSettingListener,
+} from './tenant-site-admin-ui-base-setting';
 
 async function bootstrap(namespace: string) {
   setAdminFrameworkRuntime({
@@ -63,6 +67,8 @@ async function bootstrap(namespace: string) {
   // 安装权限指令
   registerAccessDirective(app);
   registerRbacPermissionDirective(app);
+  registerTenantSiteAdminUiBaseSettingListener();
+  void loadTenantSiteAdminUiBaseSetting();
 
   // 初始化 tippy
   const { initTippy } = await import('@vben/common-ui/es/tippy');

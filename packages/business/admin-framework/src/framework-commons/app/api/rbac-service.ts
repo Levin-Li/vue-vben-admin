@@ -3,7 +3,10 @@ import type { UserInfo } from '@vben/types';
 import type { BackendMenuInfo } from './core/menu-route';
 
 import { ResAuthorize, Service } from '../../api-authorize';
+import { RequestService } from '../../request-service';
 import { baseRequestClient, requestClient } from './request';
+
+export const ADMIN_UI_BASE_SETTING_KEY = 'admin-ui-base-setting';
 
 export namespace RbacApi {
   export interface LoginParams {
@@ -119,6 +122,8 @@ export namespace RbacApi {
   export interface AuthorizedMenuListParams {
     loadAll?: boolean;
   }
+
+  export interface AdjustSiteUiSettingParams extends Record<string, any> {}
 }
 
 type BackendUserInfo = RbacApi.BackendUserInfo;
@@ -132,7 +137,7 @@ function normalizeUserInfo(data: BackendUserInfo): UserInfo {
     ...data,
     avatar: data.avatar || '',
     desc: data.tenantId ? `租户：${data.tenantId}` : '平台管理用户',
-    homePath: '/clob/V1/Role',
+    homePath: '/',
     realName,
     roles: data.roleList || [],
     token: '',
@@ -163,7 +168,7 @@ function normalizeAuthorizedOrgOptions(data: any[]): any[] {
   title: '授权管理',
   type: '公共数据-权限控制',
 })
-export class RbacService {
+export class RbacService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共数据-权限控制',
@@ -172,7 +177,7 @@ export class RbacService {
   })
   async getVerifyCode(params: RbacApi.VerifyCodeParams) {
     return baseRequestClient.get<RbacApi.VerifyCodeResult>(
-      '/rbac/getVerifyCode',
+      this.buildRequestPath('getVerifyCode'),
       {
         params,
       },
@@ -193,7 +198,8 @@ export class RbacService {
       }
     }
     const query = search.toString();
-    return query ? `/rbac/captcha?${query}` : '/rbac/captcha';
+    const path = this.buildRequestPath('captcha');
+    return query ? `${path}?${query}` : path;
   }
 
   @ResAuthorize({
@@ -203,7 +209,10 @@ export class RbacService {
     ignored: true,
   })
   async register(data: RbacApi.RegisterParams) {
-    return baseRequestClient.post<RbacApi.LoginResult>('/rbac/register', data);
+    return baseRequestClient.post<RbacApi.LoginResult>(
+      this.buildRequestPath('register'),
+      data,
+    );
   }
 
   @ResAuthorize({
@@ -213,7 +222,10 @@ export class RbacService {
     ignored: true,
   })
   async login(data: RbacApi.LoginParams) {
-    return requestClient.post<RbacApi.LoginResult>('/rbac/login', data);
+    return requestClient.post<RbacApi.LoginResult>(
+      this.buildRequestPath('login'),
+      data,
+    );
   }
 
   @ResAuthorize({
@@ -223,7 +235,7 @@ export class RbacService {
     ignored: true,
   })
   async logout() {
-    return requestClient.get('/rbac/logout', {
+    return requestClient.get(this.buildRequestPath('logout'), {
       withCredentials: true,
     });
   }
@@ -235,7 +247,9 @@ export class RbacService {
     onlyRequireAuthenticated: true,
   })
   async getUserInfo() {
-    const data = await requestClient.get<BackendUserInfo>('/rbac/userInfo');
+    const data = await requestClient.get<BackendUserInfo>(
+      this.buildRequestPath('userInfo'),
+    );
     return normalizeUserInfo(data);
   }
 
@@ -247,7 +261,7 @@ export class RbacService {
   })
   async getTenantSiteInfo() {
     return baseRequestClient.get<RbacApi.TenantSiteInfo>(
-      '/rbac/tenantSiteInfo',
+      this.buildRequestPath('tenantSiteInfo'),
       {
         __silentError: true,
       } as any,
@@ -261,9 +275,12 @@ export class RbacService {
     ignored: true,
   })
   async getTenantInfo() {
-    return baseRequestClient.get<RbacApi.TenantInfo>('/rbac/tenantInfo', {
-      __silentError: true,
-    } as any);
+    return baseRequestClient.get<RbacApi.TenantInfo>(
+      this.buildRequestPath('tenantInfo'),
+      {
+        __silentError: true,
+      } as any,
+    );
   }
 
   @ResAuthorize({
@@ -273,7 +290,23 @@ export class RbacService {
     onlyRequireAuthenticated: true,
   })
   async updateLoginInfo(data: RbacApi.UpdateLoginInfoParams) {
-    return requestClient.put<null>('/rbac/updateLoginInfo', data);
+    return requestClient.put<null>(
+      this.buildRequestPath('updateLoginInfo'),
+      data,
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '调整站点UI设置',
+    onlyRequireAuthenticated: true,
+  })
+  async adjustSiteUiSetting(data: RbacApi.AdjustSiteUiSettingParams) {
+    return requestClient.put<null>(
+      this.buildRequestPath('adjustSiteUiSetting'),
+      data,
+    );
   }
 
   @ResAuthorize({
@@ -284,7 +317,7 @@ export class RbacService {
   })
   async fetchAuthorizedOrgTree(params: RbacApi.AuthorizedOrgListParams = {}) {
     const { rootOrgIdList, ...restParams } = params;
-    return requestClient.get<any[]>('/rbac/authorizedOrgList', {
+    return requestClient.get<any[]>(this.buildRequestPath('authorizedOrgList'), {
       params: {
         assembleTree: true,
         ...restParams,
@@ -315,7 +348,7 @@ export class RbacService {
   async fetchAuthorizedResourceModules(
     params: RbacApi.AuthorizedResourceModulesParams = {},
   ) {
-    return requestClient.get<any[]>('/rbac/authorizedResList', {
+    return requestClient.get<any[]>(this.buildRequestPath('authorizedResList'), {
       params: {
         isShowSysDefaultRes: false,
         ...params,
@@ -330,7 +363,9 @@ export class RbacService {
     onlyRequireAuthenticated: true,
   })
   async getAccessCodes() {
-    return requestClient.get<string[]>('/rbac/authorizedPermissionList');
+    return requestClient.get<string[]>(
+      this.buildRequestPath('authorizedPermissionList'),
+    );
   }
 
   @ResAuthorize({
@@ -340,12 +375,15 @@ export class RbacService {
     onlyRequireAuthenticated: true,
   })
   async getAuthorizedMenuList(params: RbacApi.AuthorizedMenuListParams = {}) {
-    return requestClient.get<BackendMenuInfo[]>('/rbac/authorizedMenuList', {
-      params: {
-        loadAll: true,
-        ...params,
+    return requestClient.get<BackendMenuInfo[]>(
+      this.buildRequestPath('authorizedMenuList'),
+      {
+        params: {
+          loadAll: true,
+          ...params,
+        },
       },
-    });
+    );
   }
 }
 

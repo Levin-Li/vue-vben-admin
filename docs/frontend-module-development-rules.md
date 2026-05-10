@@ -63,6 +63,7 @@ packages/business/admin-framework/src/framework-commons
 - 提供当前模块国际化。
 - 提供后端菜单路径到前端页面的映射。
 - 导出模块对象，供最终主应用启用。
+- 使用事件总线、顶部栏扩展区、可拖拽浮动面板等公共基础设施时，必须通过 `@levin/admin-framework/framework-commons` 的公共入口接入，不得直接引用框架内部实现文件。具体用法见 `docs/frontend-common-infrastructure.md`。
 
 业务模块目录必须按后端包名划分，例如：
 

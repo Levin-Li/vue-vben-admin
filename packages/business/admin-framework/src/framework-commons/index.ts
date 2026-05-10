@@ -6,19 +6,20 @@ import type { AdminPageMap } from './page-registry';
 export * from './api';
 export * from './api-authorize';
 export * from './app/options';
+export * from './event-bus';
 export * from './page-map';
 export * from './page-registry';
 export * from './rbac-access';
 export * from './request-service';
 export * from './shared/draggable-floating-panel-service';
 export {
-  addLayoutHeaderTopAreaItem,
-  clearLayoutHeaderTopArea,
-  getLayoutHeaderTopAreaItems,
-  removeLayoutHeaderTopAreaItem,
-  useLayoutHeaderTopArea,
-  type LayoutHeaderTopAreaItem,
-  type LayoutHeaderTopAreaName,
+  addLayoutHeaderExtensionAreaItem,
+  clearLayoutHeaderExtensionArea,
+  getLayoutHeaderExtensionAreaItems,
+  removeLayoutHeaderExtensionAreaItem,
+  useLayoutHeaderExtensionArea,
+  type LayoutHeaderExtensionAreaItem,
+  type LayoutHeaderExtensionAreaName,
 } from '@vben/layouts';
 export { default as RbacPermissionMatchUtils } from './rbac-permission-match';
 export * from './runtime';

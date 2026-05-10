@@ -24,6 +24,17 @@
     "operationSuccess": "操作成功",
     "operationFailed": "操作失败"
   },
+  "serviceResp": {
+    "errorType": {
+      "bizWarning": "业务提醒，请检查后重试。",
+      "bizError": "业务处理失败，请检查后重试。",
+      "authentication": "登录认证过期，请重新登录后继续。",
+      "authorization": "没有权限执行该操作。",
+      "resource": "请求的资源不存在或不可用。",
+      "systemInner": "系统内部错误，请稍后再试。",
+      "unknown": "未知错误，请稍后再试。"
+    }
+  },
   "placeholder": {
     "input": "请输入",
     "select": "请选择",

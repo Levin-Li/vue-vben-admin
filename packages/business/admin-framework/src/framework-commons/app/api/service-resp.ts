@@ -1,3 +1,5 @@
+import { $t } from '@vben/locales';
+
 export interface ServiceRespLike {
   bizError?: boolean;
   code?: number;
@@ -74,8 +76,32 @@ export function getServiceRespType(responseData: ServiceRespLike) {
   return 'UnknownError';
 }
 
+const SERVICE_RESP_ERROR_TYPE_MESSAGE_KEYS: Record<string, string> = {
+  AuthenticationError: 'ui.serviceResp.errorType.authentication',
+  AuthorizationError: 'ui.serviceResp.errorType.authorization',
+  BizError: 'ui.serviceResp.errorType.bizError',
+  BizWarning: 'ui.serviceResp.errorType.bizWarning',
+  ResourceError: 'ui.serviceResp.errorType.resource',
+  SystemInnerError: 'ui.serviceResp.errorType.systemInner',
+  UnknownError: 'ui.serviceResp.errorType.unknown',
+};
+
+function getServiceRespTypeMessage(errorType: string) {
+  const messageKey = SERVICE_RESP_ERROR_TYPE_MESSAGE_KEYS[errorType];
+  if (!messageKey) {
+    return '';
+  }
+
+  const message = $t(messageKey);
+  return message && message !== messageKey ? message : '';
+}
+
 function getBackendMessage(responseData: ServiceRespLike) {
   return responseData.msg || responseData.detailMsg || '';
+}
+
+function isServiceRespBizErrorType(errorType: string) {
+  return errorType === 'BizError' || errorType === 'BizWarning';
 }
 
 function isServiceRespBizError(responseData: ServiceRespLike) {
@@ -89,13 +115,17 @@ function isServiceRespBizError(responseData: ServiceRespLike) {
 
 export function getServiceRespMessage(responseData: ServiceRespLike) {
   const errorType = getServiceRespType(responseData);
+  const errorTypeMessage = getServiceRespTypeMessage(errorType);
   const backendMessage = getBackendMessage(responseData);
 
-  if (isServiceRespBizError(responseData)) {
-    return backendMessage || errorType || '接口处理失败';
+  if (
+    isServiceRespBizError(responseData) ||
+    isServiceRespBizErrorType(errorType)
+  ) {
+    return backendMessage || errorTypeMessage || errorType || '接口处理失败';
   }
 
-  return backendMessage || errorType || '接口处理失败';
+  return errorTypeMessage || backendMessage || errorType || '接口处理失败';
 }
 
 export function createServiceRespError(responseData: ServiceRespLike) {

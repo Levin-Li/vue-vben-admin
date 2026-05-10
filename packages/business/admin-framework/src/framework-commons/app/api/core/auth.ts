@@ -24,9 +24,12 @@ export async function loginApi(data: AuthApi.LoginParams) {
  * 注意：当前后端 com.levin.oak.base.web.controller.rbac.RbacController 没有 refresh 映射。
  */
 export async function refreshTokenApi() {
-  return baseRequestClient.post<AuthApi.RefreshTokenResult>('/rbac/refresh', {
-    withCredentials: true,
-  });
+  return baseRequestClient.post<AuthApi.RefreshTokenResult>(
+    rbacService.buildRequestPath('refresh'),
+    {
+      withCredentials: true,
+    },
+  );
 }
 
 export async function getVerifyCodeApi(params: AuthApi.VerifyCodeParams) {

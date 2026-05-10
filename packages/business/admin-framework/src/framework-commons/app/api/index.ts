@@ -8,5 +8,6 @@ export * from './json-schema-service';
 export * from './oauth-service';
 export * from './plugin-manager-service';
 export * from './rbac-service';
+export * from './request-events';
 export * from '../../api';
 export * from '../../api-authorize';

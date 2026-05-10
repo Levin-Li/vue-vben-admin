@@ -1,2 +1,2 @@
 export { default as LayoutHeader } from './header.vue';
-export * from './header-top-area';
+export * from './header-extension-area';

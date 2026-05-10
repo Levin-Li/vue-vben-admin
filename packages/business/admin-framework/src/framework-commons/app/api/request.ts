@@ -17,6 +17,7 @@ import { message } from 'ant-design-vue';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
 import { createDynamicVerifyCodeInterceptor } from './dynamic-verify-code';
+import { emitApiRequestEvent } from './request-events';
 import {
   getServiceRespMessage,
   isServiceResp,
@@ -72,18 +73,56 @@ function applyCommonInterceptors(client: RequestClient) {
       const { config, data: responseData, status } = response;
 
       if (config.__dynamicVerifyKeepRaw) {
+        emitApiRequestEvent({
+          config,
+          data: response,
+          rawData: responseData,
+          response,
+        });
         return response;
       }
 
       if (config.responseReturn === 'raw') {
+        emitApiRequestEvent({
+          config,
+          data: response,
+          rawData: responseData,
+          response,
+        });
         return response;
       }
 
-      if (status >= 200 && status < 400) {
-        return unwrapServiceResp(responseData);
-      }
+      try {
+        if (status >= 200 && status < 400) {
+          const data = unwrapServiceResp(responseData);
+          emitApiRequestEvent({
+            config,
+            data,
+            rawData: responseData,
+            response,
+          });
+          return data;
+        }
 
-      throw Object.assign({}, response, { response });
+        throw Object.assign({}, response, { response });
+      } catch (error) {
+        emitApiRequestEvent({
+          config,
+          error,
+          rawData: responseData,
+          response,
+        });
+        throw error;
+      }
+    },
+    rejected: (error: any) => {
+      emitApiRequestEvent({
+        config: error?.config ?? error?.response?.config,
+        error,
+        rawData: error?.response?.data,
+        response: error?.response,
+      });
+      return Promise.reject(error);
     },
   });
 

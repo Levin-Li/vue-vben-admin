@@ -1,9 +1,9 @@
-import SpringPatternMatchUtils from './spring-pattern-match-utils';
+import SpringPatternMatchUtils from './spring-pattern-match';
 
 /**
- * 参考后端生成的 RbacPermissionMatchUtils，保持前后端权限匹配规则一致。
+ * Mirrors the backend RbacPermissionMatchUtils permission matching semantics.
  */
-export default class RbacPermissionMatchUtils {
+export class RbacPermissionMatchUtils {
   public static simpleMatchList(
     requirePermission: null | string | undefined,
     ownerPermissions: null | string[] | undefined,
@@ -63,7 +63,10 @@ export default class RbacPermissionMatchUtils {
         index < ownerList.length
           ? ownerList[index]
           : ownerList[ownerList.length - 1];
-      return this.textPatternMatch(ownerPart, this.trimWhitespace(requiredPart));
+      return this.textPatternMatch(
+        ownerPart,
+        this.trimWhitespace(requiredPart),
+      );
     });
   }
 
@@ -104,3 +107,5 @@ export default class RbacPermissionMatchUtils {
     return ':';
   }
 }
+
+export default RbacPermissionMatchUtils;

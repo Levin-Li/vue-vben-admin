@@ -46,6 +46,13 @@ function withListQueryDefaults(options: Record<string, any>) {
 export class RequestService {
   constructor(private readonly moduleBase = '') {}
 
+  buildRequestPath(path = '') {
+    const serviceMeta = getServiceMeta(this);
+    return encodeUrlPathSegments(
+      joinPath(this.moduleBase, serviceMeta.basePath || '', path),
+    );
+  }
+
   protected async deleteRequest<T>(
     path: string,
     options: RequestPayloadOptions = {},
@@ -82,10 +89,7 @@ export class RequestService {
   }
 
   protected async request<T>(options: RequestOptions) {
-    const serviceMeta = getServiceMeta(this);
-    const path = encodeUrlPathSegments(
-      joinPath(this.moduleBase, serviceMeta.basePath || '', options.path || ''),
-    );
+    const path = this.buildRequestPath(options.path || '');
     const { path: _path, ...rawRequestOptions } = options;
     const requestOptions = withListQueryDefaults(rawRequestOptions);
 

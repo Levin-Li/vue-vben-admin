@@ -14,6 +14,26 @@
 
 5. 当前项目不以前端 SDK 代码生成作为 API 开发前提。生成模板、历史 SDK 或后端代码生成工具只能作为源码理解参考，不能替代按模块、按控制器维护 API 接口文件。
 
+## 前端 API 请求事件规则
+
+本节是公共事件总线在 API 请求链路中的使用约定；事件总线的通用能力见 `docs/framework-event-bus.md` 和 `docs/frontend-common-infrastructure.md`.
+
+1. 前端框架需要把 API 请求结果通知给跨模块能力时，必须使用公共事件总线，不允许在具体业务模块之间直接互相调用内部实现。
+
+2. API 请求事件只是事件总线中的一种事件，统一使用事件类型 `type: 'api.request'`。不得再拆成 `api.success`、`api.failure`、`request.success`、`request.failure` 这类事件类型；事件总线和 API 事件层不判断业务成功或失败。
+
+3. API 请求事件的 `topic` 必须是本次请求地址。监听方需要按接口路径筛选时，应监听请求地址 topic，并可使用事件总线支持的 `*`、`?` 通配符匹配。
+
+4. API 请求事件必须在 API 调用返回结果以后发送。事件的 `data` 必须是完整请求结果包，至少包含请求配置 `config`、API 层最终返回值 `data`、后端原始响应体 `rawData`、请求库完整响应对象 `response`，异常时还应包含错误对象 `error`。不得在该结果包中新增 `state: 'success' | 'failure'` 这类成功/失败判定字段。
+
+5. `config` 表示请求库本次请求配置，通常包含 `url`、`method`、`params`、`data`、`headers` 和项目自定义配置；`data` 表示 API 层最终返回给调用方的值，普通 `ServiceResp` 会被解包为业务数据；`rawData` 表示未解包的后端 HTTP 响应体；`response` 表示请求库完整响应对象，通常包含 `status`、`headers`、`config`、`data` 等底层信息；`error` 表示请求链或业务解包过程中抛出的错误对象。
+
+6. API 请求事件只负责广播“某个请求完成且结果是什么”，不负责持久化、不替代 API service、不替代 Pinia 状态，也不替代组件 props。需要保存配置、刷新状态或更新页面的模块，应自行监听对应 topic 后按自身职责处理，并按自身业务规则判断 `data`、`rawData`、`response` 或 `error`。
+
+7. 公共框架内部可以保留旧辅助函数作为兼容入口，但新代码不得依赖成功/失败包装函数表达业务语义，也不得制造第二套 API 请求事件类型。
+
+8. 对于 `tenantSiteInfo`、登录、权限、菜单、上传设置等会影响全局界面的接口，新增或修改 API service 时应同步考虑是否需要发出或监听 API 请求事件，并在对应说明文档中写清楚 topic、data 结构和监听方职责。
+
 ## 二、按模块归组
 
 6. 前端 API 模块应按后端模块划分组织，而不是按页面目录组织。
@@ -273,7 +293,7 @@
 
 18. 当前阶段，前端 API 方法的请求参数和返回参数不建议过早具体化。API 样板应优先明确控制器归属、请求路径、请求方法、权限注解和模块前缀。方法参数可先使用 `payload?: any` 这类宽松参数，不定义具体 DTO、对象结构或返回类型，待页面和后端 DTO 边界稳定后再逐步细化。
 
-19. HTTP 方法可以通过父类请求 helper 表达，例如 `this.get(...)`、`this.post(...)`、`this.put(...)`、`this.deleteRequest(...)`，不需要在每个 API 方法里重复写 `method` 字段。但 `params` 和 `data` 的选择必须由具体 API 方法显式写出，因为它决定参数进入 URL/query 还是 request body。父类 `RequestOptions` 应支持底层 request/axios 配置的全部能力，只对 `path` 做模块前缀和控制器路径拼接加工。
+19. HTTP 方法可以通过父类请求 helper 表达，例如 `this.get(...)`、`this.post(...)`、`this.put(...)`、`this.deleteRequest(...)`，不需要在每个 API 方法里重复写 `method` 字段。`@Service.basePath` 是控制器路径的唯一来源，API 方法只允许传入相对方法路径，例如 `this.get('list')`，不允许在方法里再次拼写 `/Demo/list`、`/rbac/login` 这类完整控制器路径；必须使用特殊 request client 时，也应复用服务层统一路径构建能力，避免 `basePath` 与实际请求路径出现两套定义。但 `params` 和 `data` 的选择必须由具体 API 方法显式写出，因为它决定参数进入 URL/query 还是 request body。父类 `RequestOptions` 应支持底层 request/axios 配置的全部能力，只对 `path` 做模块前缀和控制器路径拼接加工。
 
 20. `POST` / `PUT` 方法不能默认只暴露 `data`。如果 Spring 控制器方法除 `@RequestBody` 外，还存在非 body 参数，例如 `@RequestParam`、`@PathVariable`、普通表单参数或分页参数，前端 API 方法必须同时支持传入 `params` 或明确的路径参数。如果控制器方法存在明确的 `@RequestHeader` 参数，前端 API 方法也必须支持传入 `headers`。这些参数能力应通过底层请求配置透传，不能在 API 方法中丢失。
 
