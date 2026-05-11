@@ -419,9 +419,11 @@ export const oakBaseAdminLocales = {
 NPM 包中建议同时包含：
 
 ```text
-dist/  正式运行入口
-src/   源码调试入口
+dist/  正式运行入口和公共导出入口
+src/   随包源码资料,仅用于查看、调试和问题定位
 ```
+
+发布包可以携带 `src`，但 `src` 不属于第三方应用的公共编译入口。可发布的 Levin 后台框架包和业务模块包不得在 `exports` 中公开 `./src/*`，也不得把 `main`、`module`、`types` 或默认导出指向 `src`。第三方应用必须通过包根入口或明确的 `dist` 子路径导出使用构建结果。
 
 `package.json` 示例：
 
@@ -442,15 +444,12 @@ src/   源码调试入口
     "./modules/com_levin_oak_base/*": {
       "types": "./dist/modules/com_levin_oak_base/*.d.ts",
       "default": "./dist/modules/com_levin_oak_base/*.mjs"
-    },
-    "./src/*": {
-      "default": "./src/*"
     }
   }
 }
 ```
 
-正式运行默认走 `dist`。`src` 只用于源码查看和问题定位，不建议入口应用长期直接绑定源码路径。
+正式运行和第三方集成必须走 `dist`。`src` 只用于源码查看和问题定位，入口应用不得直接依赖 `@levin/*/src/...` 或 `@levin/admin-framework/src/...` 这类源码深路径。发布脚本会校验 Levin 后台框架包和业务模块包是否公开了 `src` 导出，发现后应先移除再发布。
 
 ## 版本管理规则
 

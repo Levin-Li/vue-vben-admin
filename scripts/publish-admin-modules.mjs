@@ -167,6 +167,46 @@ function run(command, commandArgs, extraEnv = {}, cwd = frontendRoot) {
   }
 }
 
+function isSourcePublicExport(exportPath, exportValue) {
+  if (exportPath === './src' || exportPath.startsWith('./src/')) {
+    return true;
+  }
+
+  if (typeof exportValue === 'string') {
+    return exportValue === './src' || exportValue.startsWith('./src/');
+  }
+
+  if (exportValue && typeof exportValue === 'object') {
+    return Object.values(exportValue).some((value) =>
+      isSourcePublicExport(exportPath, value),
+    );
+  }
+
+  return false;
+}
+
+function validatePackagePublishRules(packageInfo) {
+  const packageJsonPath = resolve(frontendRoot, packageInfo.path, 'package.json');
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+  const publicSourceExports = Object.entries(packageJson.exports || {})
+    .filter(([exportPath, exportValue]) =>
+      isSourcePublicExport(exportPath, exportValue),
+    )
+    .map(([exportPath]) => exportPath);
+
+  if (publicSourceExports.length > 0) {
+    throw new Error(
+      `${packageInfo.name} 不能公开 src 导出：${publicSourceExports.join(
+        ', ',
+      )}。Levin 后台模块发布包的正式入口必须指向 dist，src 只能随包作为源码查看和调试资料。`,
+    );
+  }
+}
+
+for (const packageInfo of selectedPackages) {
+  validatePackagePublishRules(packageInfo);
+}
+
 for (const packageInfo of selectedPackages) {
   run('pnpm', ['--filter', packageInfo.name, 'build']);
 }

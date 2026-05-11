@@ -8,7 +8,16 @@
 - `@levin/oak-base-admin`：基础后台模块包，拥有自己的 API 辅助方法、页面源码、路由和国际化资源。
 - `@levin/bootstrap-app`：最终后台应用入口，负责装配已启用的模块并产出最终可部署应用。
 
-每个包都独立构建，并发布自己的 `dist` 构建结果。发布包中同时携带 `src` 源码，便于问题排查。开发环境导出指向 `src`，正式发布默认导出指向 `dist`。
+每个包都独立构建，并发布自己的 `dist` 构建结果。发布包可以同时携带 `src` 源码，便于第三方查看源码、调试和问题排查；但 `src` 只是随包辅助资料，不是第三方应用的公共编译入口。
+
+Levin 后台框架包和业务模块包发布时必须满足：
+
+- `main`、`module`、`types` 和默认 `exports` 必须指向 `dist`。
+- `files` 可以包含 `src`，用于随包提供源码资料和文档。
+- `exports` 不得公开 `./src/*` 或其他指向 `src` 的公共子路径。
+- 第三方应用不得通过 `@levin/*/src/...` 或 `@levin/admin-framework/src/...` 引入源码参与编译；如需本地源码联调，应使用 workspace、`link:` 或 `pnpm overrides`。
+
+`publish:admin-modules` 和 `publish:packages` 会在构建/发布前校验 Levin 后台框架包和业务模块包的公开导出，发现 `src` 导出时会中断发布。
 
 ## 构建模块包
 
@@ -165,7 +174,7 @@ configureAdminApplication({
 });
 ```
 
-本地多仓库联调可以使用 `workspace:*`、`link:../module-repo` 或 `pnpm overrides`。测试、生产和交付环境只使用 NPM 私服版本号。
+本地多仓库联调可以使用 `workspace:*`、`link:../module-repo` 或 `pnpm overrides`。测试、生产和交付环境只使用 NPM 私服版本号，并通过包根入口或已声明的 `dist` 子路径导出引入模块。
 
 ## 框架公共代码目录
 

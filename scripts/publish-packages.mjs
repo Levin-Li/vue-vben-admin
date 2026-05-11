@@ -270,6 +270,51 @@ function sortPackages(packages) {
   return result;
 }
 
+function isLevinAdminPublishPackage(packageName) {
+  return (
+    packageName === '@levin/admin-framework' ||
+    /^@levin\/.+-admin$/.test(packageName)
+  );
+}
+
+function isSourcePublicExport(exportPath, exportValue) {
+  if (exportPath === './src' || exportPath.startsWith('./src/')) {
+    return true;
+  }
+
+  if (typeof exportValue === 'string') {
+    return exportValue === './src' || exportValue.startsWith('./src/');
+  }
+
+  if (exportValue && typeof exportValue === 'object') {
+    return Object.values(exportValue).some((value) =>
+      isSourcePublicExport(exportPath, value),
+    );
+  }
+
+  return false;
+}
+
+function validatePackagePublishRules(packageInfo) {
+  if (!isLevinAdminPublishPackage(packageInfo.name)) {
+    return;
+  }
+
+  const publicSourceExports = Object.entries(packageInfo.packageJson.exports || {})
+    .filter(([exportPath, exportValue]) =>
+      isSourcePublicExport(exportPath, exportValue),
+    )
+    .map(([exportPath]) => exportPath);
+
+  if (publicSourceExports.length > 0) {
+    throw new Error(
+      `${packageInfo.name} 不能公开 src 导出：${publicSourceExports.join(
+        ', ',
+      )}。Levin 后台模块发布包的正式入口必须指向 dist，src 只能随包作为源码查看和调试资料。`,
+    );
+  }
+}
+
 function packageVersionExists(packageInfo, publishEnv) {
   if (!registry || !skipExisting) {
     return false;
@@ -354,6 +399,10 @@ const userConfig = createPublishNpmrc();
 const publishEnv = userConfig ? { NPM_CONFIG_USERCONFIG: userConfig } : {};
 
 try {
+  for (const packageInfo of selectedPackages) {
+    validatePackagePublishRules(packageInfo);
+  }
+
   for (const packageInfo of selectedPackages) {
     buildPackage(packageInfo);
   }
