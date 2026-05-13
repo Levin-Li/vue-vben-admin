@@ -22,16 +22,32 @@ import {
   useColumns,
 } from './data';
 import MenuFormDrawer from './menu-form-drawer.vue';
+import {
+  buildMenuTree,
+  collectMenuSubtreeIds,
+  collectMenuSubtreeIdsFromRows,
+  normalizeMenuTree,
+  toMenuFormRecord,
+} from './menu-tree-utils';
 
 const pageTypeOptions = ref<SelectOption[]>(fallbackPageTypeOptions);
 const actionTypeOptions = ref<SelectOption[]>(fallbackActionTypeOptions);
 const menuTree = ref<MenuRecord[]>([]);
 const currentRecord = ref<MenuRecord | null>(null);
 const formOpen = ref(false);
+const selectedMenuRows = ref<MenuRecord[]>([]);
 const route = useRoute();
 
 const [Grid, gridApi] = useVbenVxeGrid({
+  gridEvents: {
+    checkboxAll: updateSelectedMenuRows,
+    checkboxChange: updateSelectedMenuRows,
+  },
   gridOptions: {
+    checkboxConfig: {
+      checkMethod: ({ row }) => !!row.id,
+      highlight: true,
+    },
     columns: useColumns(),
     customConfig: {
       storage: {
@@ -117,52 +133,6 @@ function normalizeAuthorizedMenuList(data: any): MenuRecord[] {
   return data?.items || data?.records || data?.list || [];
 }
 
-function sortRows(rows: MenuRecord[]) {
-  return rows.sort((a, b) => {
-    const orderA = a.orderCode ?? 0;
-    const orderB = b.orderCode ?? 0;
-    if (orderA !== orderB) {
-      return orderA - orderB;
-    }
-    return String(a.name || '').localeCompare(
-      String(b.name || ''),
-      'zh-Hans-CN',
-    );
-  });
-}
-
-function normalizeChildren(row: MenuRecord): MenuRecord {
-  const rawChildren = Array.isArray(row.children) ? row.children : [];
-  return {
-    ...row,
-    children: sortRows(rawChildren.map(normalizeChildren)),
-  };
-}
-
-function buildTree(rows: MenuRecord[]) {
-  const normalizedRows = rows.map((row) => ({ ...row, children: [] }));
-  const rowMap = new Map<string, MenuRecord>();
-  const roots: MenuRecord[] = [];
-
-  normalizedRows.forEach((row) => {
-    if (row.id) {
-      rowMap.set(row.id, row);
-    }
-  });
-
-  normalizedRows.forEach((row) => {
-    const parentId = row.parentId || row.parent?.id || '';
-    const parent = parentId ? rowMap.get(parentId) : undefined;
-    if (parent && parent.id !== row.id) {
-      parent.children = [...(parent.children || []), row];
-    } else {
-      roots.push(row);
-    }
-  });
-
-  return sortRows(roots).map(normalizeChildren);
-}
-
 async function loadMenuTree() {
   const data = await rbacService.getAuthorizedMenuList();
   const items = normalizeAuthorizedMenuList(data);
@@ -170,13 +140,15 @@ async function loadMenuTree() {
   if (
     items.some((item) => Array.isArray(item.children) && item.children.length)
   ) {
-    return sortRows(items.map(normalizeChildren));
+    return normalizeMenuTree(items);
   }
 
-  return buildTree(items);
+  return buildMenuTree(items);
 }
 
 function refresh() {
+  gridApi.grid?.clearCheckboxRow?.();
+  selectedMenuRows.value = [];
   gridApi.query();
 }
 
@@ -196,19 +168,68 @@ function openCreate(parentId = '') {
 }
 
 function openEdit(row: MenuRecord) {
-  currentRecord.value = { ...row };
+  currentRecord.value = toMenuFormRecord(row);
   formOpen.value = true;
 }
 
 function deleteRow(row: MenuRecord) {
+  const idList = collectMenuSubtreeIds(row);
+  const childCount = Math.max(idList.length - 1, 0);
+
+  if (idList.length === 0) {
+    message.warning('未找到可删除的菜单 ID');
+    return;
+  }
+
   Modal.confirm({
-    content: `确定删除菜单「${row.name || row.id}」吗？`,
+    content: childCount
+      ? `确定删除菜单「${row.name || row.id}」及其 ${childCount} 个子菜单吗？`
+      : `确定删除菜单「${row.name || row.id}」吗？`,
     okButtonProps: { danger: true },
     okText: '删除',
     title: '删除菜单',
     async onOk() {
-      await menuService.delete({ idList: [row.id] });
+      await menuService.batchDelete({ idList });
       message.success('菜单删除成功');
+      refresh();
+    },
+  });
+}
+
+function getSelectedMenuRows() {
+  const records = gridApi.grid?.getCheckboxRecords?.();
+  if (Array.isArray(records)) {
+    return records as MenuRecord[];
+  }
+
+  return selectedMenuRows.value;
+}
+
+function updateSelectedMenuRows(event?: { records?: MenuRecord[] }) {
+  selectedMenuRows.value = Array.isArray(event?.records)
+    ? event.records
+    : getSelectedMenuRows();
+}
+
+function deleteSelectedRows() {
+  const selectedRows = getSelectedMenuRows();
+  const idList = collectMenuSubtreeIdsFromRows(selectedRows);
+
+  if (selectedRows.length === 0 || idList.length === 0) {
+    message.warning('请先选择要删除的菜单');
+    return;
+  }
+
+  Modal.confirm({
+    content:
+      `确定删除选中的 ${selectedRows.length} 个菜单吗？` +
+      `包含子菜单后共 ${idList.length} 个菜单将被删除。`,
+    okButtonProps: { danger: true },
+    okText: '删除',
+    title: '批量删除菜单',
+    async onOk() {
+      await menuService.batchDelete({ idList });
+      message.success(`已删除 ${idList.length} 个菜单`);
       refresh();
     },
   });
@@ -238,6 +259,13 @@ function renderIcon(row: MenuRecord) {
       <div class="vben-menu-section flex h-full min-h-0 flex-col">
         <Grid>
           <template #toolbar-tools>
+            <Button danger @click="deleteSelectedRows">
+              <IconifyIcon class="size-4" icon="lucide:trash-2" />
+              批量删除
+              <span v-if="selectedMenuRows.length">
+                ({{ selectedMenuRows.length }})
+              </span>
+            </Button>
             <Button type="primary" @click="openCreate('')">
               <Plus class="size-5" />
               新增菜单

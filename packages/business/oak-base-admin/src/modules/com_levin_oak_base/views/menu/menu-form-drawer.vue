@@ -1,6 +1,4 @@
 <script lang="ts" setup>
-import type { DataNode } from 'ant-design-vue/es/tree';
-
 import type { MenuRecord, SelectOption } from './types';
 
 import { computed, reactive, watch } from 'vue';
@@ -20,6 +18,7 @@ import {
 
 import { menuService } from '../../api/menu-service';
 
+import { buildParentTreeOptions } from './menu-tree-utils';
 import OpButtonEditor from './op-button-editor.vue';
 
 const props = defineProps<{
@@ -63,7 +62,7 @@ const pageTypeSelectOptions = computed(() =>
   })),
 );
 
-const parentTreeData = computed<DataNode[]>(() =>
+const parentTreeData = computed(() =>
   buildParentTreeOptions(props.menuTree, props.record?.id),
 );
 
@@ -77,22 +76,6 @@ watch(
     resetForm(props.record || {});
   },
 );
-
-function buildParentTreeOptions(
-  rows: MenuRecord[],
-  disabledId?: string,
-): DataNode[] {
-  return rows.map((row) => {
-    const disabled = Boolean(disabledId && row.id === disabledId);
-    return {
-      children: buildParentTreeOptions(row.children || [], disabledId),
-      disabled,
-      key: row.id || '',
-      title: row.name || row.label || row.path || row.id || '未命名菜单',
-      value: row.id || '',
-    };
-  });
-}
 
 function normalizeArray(value: any) {
   if (Array.isArray(value)) {

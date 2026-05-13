@@ -43,6 +43,12 @@ function resolveBooleanLabel(value?: boolean) {
 export function useColumns(): VxeTableGridOptions<MenuRecord>['columns'] {
   return [
     {
+      align: 'center',
+      fixed: 'left',
+      type: 'checkbox',
+      width: 48,
+    },
+    {
       align: 'left',
       field: 'name',
       fixed: 'left',

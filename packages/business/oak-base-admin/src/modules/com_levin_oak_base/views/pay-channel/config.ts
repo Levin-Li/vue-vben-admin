@@ -2,9 +2,9 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { payChannelService } from '../../api/pay-channel-service';
 import {
-  DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
   payChannelAgentCodeOptionsLoader,
   payChannelTypeOptionsLoader,
   tenantOptionsLoader,
@@ -23,6 +23,7 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     enable: true,
     orderCode: 100,
     currencyCodeList: [],
+    payWayItemList: [],
   },
   defaultQuery: {
     pageIndex: 1,
@@ -159,7 +160,6 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
       key: 'payWayItemList',
       label: '支持支付方式',
       fullRow: true,
-      type: 'json',
     },
     { key: 'detailInfo', label: '通道详情', fullRow: true, type: 'json' },
     {
