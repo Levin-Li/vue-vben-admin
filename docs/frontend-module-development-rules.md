@@ -117,7 +117,6 @@ packages/business/admin-framework/
       shared/
         crud-page.vue
         controller-crud-page.vue
-        amis-page.vue
       adapter/
       utils/
   package.json

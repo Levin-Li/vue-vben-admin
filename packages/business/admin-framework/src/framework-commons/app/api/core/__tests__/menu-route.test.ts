@@ -56,19 +56,6 @@ describe('menu route conversion', () => {
     ).toBe('/system/com_levin_oak_base/setting-for-tenant/index.vue');
   });
 
-  it('routes AmisPage to local Vue mapping when a local page exists', () => {
-    expect(
-      convertMenuNodeForTest(
-        {
-          name: '文章管理',
-          pageType: 'AmisPage-Amis页面',
-          path: '/clob/V1/Article',
-        },
-        testBackendRouteMappings,
-      )?.component,
-    ).toBe('/system/com_levin_oak_base/article/index.vue');
-  });
-
   it('routes HtmlPage to iframe view', () => {
     const route = convertMenuNodeForTest({
       name: '外部页面',
@@ -84,7 +71,7 @@ describe('menu route conversion', () => {
     const route = convertMenuNodeForTest({
       actionType: 'TabPanelIFrame-Tab栏Iframe',
       name: '文章管理',
-      pageType: 'AmisPage-Amis页面',
+      pageType: 'LocalPage-本地页面',
       path: '/clob/V1/Article',
     });
 
@@ -138,7 +125,7 @@ describe('menu route conversion', () => {
   it('routes backend root menu to the default frontend home page', () => {
     const route = convertMenuNodeForTest({
       name: '首页',
-      pageType: 'AmisPage-Amis页面',
+      pageType: 'LocalPage-本地页面',
       path: '/',
     });
 

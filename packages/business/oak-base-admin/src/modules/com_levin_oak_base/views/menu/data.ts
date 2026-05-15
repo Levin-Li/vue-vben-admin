@@ -4,7 +4,6 @@ import type { MenuRecord, SelectOption } from './types';
 
 export const fallbackPageTypeOptions: SelectOption[] = [
   { color: 'success', label: '本地页面', value: 'LocalPage' },
-  { color: 'processing', label: 'Amis页面', value: 'AmisPage' },
   { color: 'warning', label: 'Html页面', value: 'HtmlPage' },
 ];
 

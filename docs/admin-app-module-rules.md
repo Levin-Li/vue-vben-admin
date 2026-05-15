@@ -210,7 +210,6 @@ packages/business/admin-framework/
       shared/                             # 通用业务组件
         crud-page.vue
         controller-crud-page.vue
-        amis-page.vue
         resource-permission-dialog.vue
       adapter/                            # 第三方 UI/表格适配
       utils/                              # 框架级工具
@@ -455,14 +454,10 @@ compliance-accounting/
     "@vben/types": "5.6.6",
     "@vben/utils": "5.6.6",
     "@vueuse/core": "^14.1.0",
-    "amis": "6.13.0",
-    "amis-formula": "6.13.0",
     "ant-design-vue": "^4.2.6",
     "dayjs": "^1.11.19",
     "json-editor-vue": "0.18.1",
     "pinia": "^3.0.4",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
     "vue": "^3.5.27",
     "vue-router": "^4.6.4"
   },

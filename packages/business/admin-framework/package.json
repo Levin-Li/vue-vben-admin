@@ -1,6 +1,6 @@
 {
   "name": "@levin/admin-framework",
-  "version": "5.6.8",
+  "version": "5.6.9",
   "description": "Common admin application framework contracts for Levin frontend modules.",
   "license": "MIT",
   "type": "module",
@@ -97,13 +97,10 @@
     "@vben/types": "5.6.6",
     "@vben/utils": "5.6.6",
     "@vueuse/core": ">=12.0.0",
-    "amis": ">=6.13.0",
     "ant-design-vue": ">=4.0.0",
     "dayjs": ">=1.11.0",
     "json-editor-vue": ">=0.18.0",
     "pinia": ">=3.0.0",
-    "react": ">=18.0.0",
-    "react-dom": ">=18.0.0",
     "vue": ">=3.5.0",
     "vue-router": ">=4.0.0"
   },
@@ -120,7 +117,6 @@
     "@vben/request": "workspace:*",
     "@vben/stores": "workspace:*",
     "@vben/styles": "workspace:*",
-    "amis": "6.13.0",
     "@vben/tsconfig": "workspace:*",
     "@vben/types": "workspace:*",
     "@vben/utils": "workspace:*",
@@ -129,8 +125,6 @@
     "dayjs": "catalog:",
     "json-editor-vue": "0.18.1",
     "pinia": "catalog:",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
     "vue": "catalog:",
     "vue-router": "catalog:"
   }

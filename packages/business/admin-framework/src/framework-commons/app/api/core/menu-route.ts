@@ -194,7 +194,7 @@ function convertLeafRoute(
     };
   }
 
-  if ((pageType === 'LocalPage' || pageType === 'AmisPage') && mapping) {
+  if (pageType === 'LocalPage' && mapping) {
     return {
       component: mapping.view,
       meta: {
@@ -217,18 +217,6 @@ function convertLeafRoute(
         link: buildIframeSrc(normalizedPath),
       }),
       name: toRouteName('Html', item),
-      path: finalPath,
-    };
-  }
-
-  if (pageType === 'AmisPage') {
-    return {
-      component: '/system/shared/amis-page.vue',
-      meta: toMeta(item, normalizedPath, {
-        localFallbackView:
-          mapping?.view || '/system/shared/controller-crud-page.vue',
-      }),
-      name: toRouteName('Amis', item),
       path: finalPath,
     };
   }
