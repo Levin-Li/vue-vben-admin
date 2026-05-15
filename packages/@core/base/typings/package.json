@@ -14,7 +14,8 @@
     "build": "pnpm unbuild"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",

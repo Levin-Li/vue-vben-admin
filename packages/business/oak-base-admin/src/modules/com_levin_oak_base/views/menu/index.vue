@@ -3,15 +3,17 @@ import type { VxeTableGridOptions } from '@levin/admin-framework/framework-commo
 
 import type { MenuRecord, SelectOption } from './types';
 
-import { h, onMounted, ref } from 'vue';
+import { computed, h, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 import { IconifyIcon, Plus } from '@vben/icons';
 
-import { Button, Modal, Tag, message } from 'ant-design-vue';
+import { Button, Modal, Space, Tag, message } from 'ant-design-vue';
 
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
+import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { menuService } from '../../api/menu-service';
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { moduleFetchEnumOptions } from '@levin/oak-base-admin/modules/com_levin_oak_base/views/api-module';
@@ -37,6 +39,21 @@ const currentRecord = ref<MenuRecord | null>(null);
 const formOpen = ref(false);
 const selectedMenuRows = ref<MenuRecord[]>([]);
 const route = useRoute();
+const { hasPermission } = useRbacAccess();
+
+const batchDeleteMenuPermission = buildApiMethodPermissions(
+  menuService,
+  'batchDelete',
+);
+const createMenuPermission = buildApiMethodPermissions(menuService, 'create');
+const deleteMenuPermission = buildApiMethodPermissions(menuService, 'delete');
+const updateMenuPermission = buildApiMethodPermissions(menuService, 'update');
+const canBatchDeleteMenu = computed(() =>
+  hasPermission(batchDeleteMenuPermission),
+);
+const canCreateMenu = computed(() => hasPermission(createMenuPermission));
+const canDeleteMenu = computed(() => hasPermission(deleteMenuPermission));
+const canUpdateMenu = computed(() => hasPermission(updateMenuPermission));
 
 const [Grid, gridApi] = useVbenVxeGrid({
   gridEvents: {
@@ -153,6 +170,11 @@ function refresh() {
 }
 
 function openCreate(parentId = '') {
+  if (!canCreateMenu.value) {
+    message.warning('当前账号没有新增菜单权限');
+    return;
+  }
+
   currentRecord.value = {
     actionType: 'Default',
     alwaysShow: false,
@@ -168,11 +190,21 @@ function openCreate(parentId = '') {
 }
 
 function openEdit(row: MenuRecord) {
+  if (!canUpdateMenu.value) {
+    message.warning('当前账号没有编辑菜单权限');
+    return;
+  }
+
   currentRecord.value = toMenuFormRecord(row);
   formOpen.value = true;
 }
 
 function deleteRow(row: MenuRecord) {
+  if (!canDeleteMenu.value) {
+    message.warning('当前账号没有删除菜单权限');
+    return;
+  }
+
   const idList = collectMenuSubtreeIds(row);
   const childCount = Math.max(idList.length - 1, 0);
 
@@ -212,6 +244,11 @@ function updateSelectedMenuRows(event?: { records?: MenuRecord[] }) {
 }
 
 function deleteSelectedRows() {
+  if (!canBatchDeleteMenu.value) {
+    message.warning('当前账号没有批量删除菜单权限');
+    return;
+  }
+
   const selectedRows = getSelectedMenuRows();
   const idList = collectMenuSubtreeIdsFromRows(selectedRows);
 
@@ -259,17 +296,27 @@ function renderIcon(row: MenuRecord) {
       <div class="vben-menu-section flex h-full min-h-0 flex-col">
         <Grid>
           <template #toolbar-tools>
-            <Button danger @click="deleteSelectedRows">
-              <IconifyIcon class="size-4" icon="lucide:trash-2" />
-              批量删除
-              <span v-if="selectedMenuRows.length">
-                ({{ selectedMenuRows.length }})
-              </span>
-            </Button>
-            <Button type="primary" @click="openCreate('')">
-              <Plus class="size-5" />
-              新增菜单
-            </Button>
+            <Space>
+              <Button
+                v-if="canBatchDeleteMenu"
+                danger
+                @click="deleteSelectedRows"
+              >
+                <IconifyIcon class="size-4" icon="lucide:trash-2" />
+                批量删除
+                <span v-if="selectedMenuRows.length">
+                  ({{ selectedMenuRows.length }})
+                </span>
+              </Button>
+              <Button
+                v-if="canCreateMenu"
+                type="primary"
+                @click="openCreate('')"
+              >
+                <Plus class="size-5" />
+                新增菜单
+              </Button>
+            </Space>
           </template>
 
           <template #title="{ row }">
@@ -305,16 +352,28 @@ function renderIcon(row: MenuRecord) {
           <template #operation="{ row }">
             <div class="flex justify-end gap-2">
               <Button
+                v-if="canCreateMenu"
                 size="small"
                 type="link"
                 @click="openCreate(row.id || '')"
               >
                 新增下级
               </Button>
-              <Button size="small" type="link" @click="openEdit(row)">
+              <Button
+                v-if="canUpdateMenu"
+                size="small"
+                type="link"
+                @click="openEdit(row)"
+              >
                 编辑
               </Button>
-              <Button danger size="small" type="link" @click="deleteRow(row)">
+              <Button
+                v-if="canDeleteMenu"
+                danger
+                size="small"
+                type="link"
+                @click="deleteRow(row)"
+              >
                 删除
               </Button>
             </div>

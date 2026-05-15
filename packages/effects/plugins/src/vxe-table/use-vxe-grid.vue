@@ -1,18 +1,10 @@
 <script lang="ts" setup>
-import type {
-  VxeGridDefines,
-  VxeGridInstance,
-  VxeGridListeners,
-  VxeGridPropTypes,
-  VxeGridProps as VxeTableGridProps,
-  VxeToolbarPropTypes,
-} from 'vxe-table';
-
 import type { SetupContext } from 'vue';
 
 import type { VbenFormProps } from '@vben-core/form-ui';
+import type { ClassType } from '@vben/types';
 
-import type { ExtendedVxeGridApi, VxeGridProps } from './types';
+import type { SeparatorOptions } from './types';
 
 import {
   computed,
@@ -49,8 +41,25 @@ import 'vxe-table/es/style.css';
 import 'vxe-pc-ui/es/style.css';
 import './style.css';
 
-interface Props extends VxeGridProps {
-  api: ExtendedVxeGridApi;
+interface Props {
+  api: {
+    grid: any;
+    mount: (instance: any, formApi: any) => void;
+    reload: (params?: Record<string, any>) => Promise<void>;
+    setState: (state: Record<string, any>) => void;
+    toggleSearchForm: (show?: boolean) => boolean | undefined;
+    unmount: () => void;
+    useStore: () => any;
+  };
+  class?: ClassType;
+  formOptions?: VbenFormProps;
+  gridClass?: ClassType;
+  gridEvents?: Record<string, any>;
+  gridOptions?: Record<string, any>;
+  separator?: boolean | SeparatorOptions;
+  showSearchForm?: boolean;
+  tableTitle?: string;
+  tableTitleHelp?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {});
@@ -61,7 +70,7 @@ const TOOLBAR_ACTIONS = 'toolbar-actions';
 const TOOLBAR_TOOLS = 'toolbar-tools';
 const TABLE_TITLE = 'table-title';
 
-const gridRef = useTemplateRef<VxeGridInstance>('gridRef');
+const gridRef = useTemplateRef<any>('gridRef');
 
 const state = props.api?.useStore?.();
 
@@ -144,7 +153,7 @@ const showToolbar = computed(() => {
 const toolbarOptions = computed(() => {
   const slotActions = slots[TOOLBAR_ACTIONS]?.();
   const slotTools = slots[TOOLBAR_TOOLS]?.();
-  const searchBtn: VxeToolbarPropTypes.ToolConfig = {
+  const searchBtn: Record<string, any> = {
     code: 'search',
     icon: 'vxe-icon-search',
     circle: true,
@@ -154,9 +163,11 @@ const toolbarOptions = computed(() => {
       : $t('common.showSearchPanel'),
   };
   // 将搜索按钮合并到用户配置的toolbarConfig.tools中
-  const toolbarConfig: VxeGridPropTypes.ToolbarConfig = {
-    tools: (gridOptions.value?.toolbarConfig?.tools ??
-      []) as VxeToolbarPropTypes.ToolConfig[],
+  const toolbarConfig: Record<string, any> = {
+    tools: (gridOptions.value?.toolbarConfig?.tools ?? []) as Record<
+      string,
+      any
+    >[],
   };
   if (gridOptions.value?.toolbarConfig?.search && !!formOptions.value) {
     toolbarConfig.tools = Array.isArray(toolbarConfig.tools)
@@ -183,7 +194,7 @@ const toolbarOptions = computed(() => {
 const options = computed(() => {
   const globalGridConfig = VxeUI?.getConfig()?.grid ?? {};
 
-  const mergedOptions: VxeTableGridProps = cloneDeep(
+  const mergedOptions: Record<string, any> = cloneDeep(
     mergeWithArrayOverride(
       {},
       toRaw(toolbarOptions.value),
@@ -233,13 +244,11 @@ const options = computed(() => {
   return mergedOptions;
 });
 
-function onToolbarToolClick(event: VxeGridDefines.ToolbarToolClickEventParams) {
+function onToolbarToolClick(event: Record<string, any>) {
   if (event.code === 'search') {
     onSearchBtnClick();
   }
-  (
-    gridEvents.value?.toolbarToolClick as VxeGridListeners['toolbarToolClick']
-  )?.(event);
+  gridEvents.value?.toolbarToolClick?.(event);
 }
 
 function onSearchBtnClick() {
@@ -291,7 +300,7 @@ const showDefaultEmpty = computed(() => {
 async function init() {
   await nextTick();
   const globalGridConfig = VxeUI?.getConfig()?.grid ?? {};
-  const defaultGridOptions: VxeTableGridProps = mergeWithArrayOverride(
+  const defaultGridOptions: Record<string, any> = mergeWithArrayOverride(
     {},
     toRaw(gridOptions.value),
     toRaw(globalGridConfig),
@@ -319,7 +328,7 @@ async function init() {
   // @ts-ignore
   props.api?.setState?.({ gridOptions: defaultGridOptions });
   // form 由 vben-form 代替，所以需要保证query相关事件可以拿到参数
-  extendProxyOptions(props.api, defaultGridOptions, () =>
+  extendProxyOptions(props.api as any, defaultGridOptions, () =>
     formApi.getLatestSubmissionValues(),
   );
 }

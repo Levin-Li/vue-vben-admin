@@ -11,7 +11,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "pnpm vite build",
+    "build": "pnpm vite build && node scripts/write-types.mjs",
     "prepublishOnly": "npm run build"
   },
   "files": [
@@ -20,6 +20,7 @@
   ],
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "exports": {
     "./bem": {
       "development": "./src/scss-bem/bem.scss",
@@ -29,6 +30,17 @@
       "types": "./src/index.ts",
       "development": "./src/index.ts",
       "default": "./dist/design.css"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      "./bem": {
+        "default": "./dist/bem.scss"
+      },
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/design.css"
+      }
     }
   }
 }

@@ -1,4 +1,5 @@
 import type { MenuRecordRaw } from '@vben/types';
+import type { ComputedRef, Ref } from 'vue';
 
 import { computed, onBeforeMount, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -9,7 +10,19 @@ import { findRootMenuByPath } from '@vben/utils';
 
 import { useNavigation } from './use-navigation';
 
-function useMixedMenu() {
+interface MixedMenuState {
+  handleMenuOpen: (key: string, parentsPath: string[]) => void;
+  handleMenuSelect: (key: string, mode?: string) => void;
+  headerActive: ComputedRef<any>;
+  headerMenus: ComputedRef<MenuRecordRaw[]>;
+  mixExtraMenus: Ref<MenuRecordRaw[]>;
+  mixHeaderMenus: ComputedRef<MenuRecordRaw[]>;
+  sidebarActive: ComputedRef<string>;
+  sidebarMenus: ComputedRef<MenuRecordRaw[]>;
+  sidebarVisible: ComputedRef<boolean>;
+}
+
+function useMixedMenu(): MixedMenuState {
   const { navigation, willOpenedByWindow } = useNavigation();
   const accessStore = useAccessStore();
   const route = useRoute();

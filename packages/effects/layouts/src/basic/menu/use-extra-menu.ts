@@ -1,4 +1,4 @@
-import type { ComputedRef } from 'vue';
+import type { ComputedRef, Ref } from 'vue';
 
 import type { MenuRecordRaw } from '@vben/types';
 
@@ -11,7 +11,22 @@ import { findRootMenuByPath } from '@vben/utils';
 
 import { useNavigation } from './use-navigation';
 
-function useExtraMenu(useRootMenus?: ComputedRef<MenuRecordRaw[]>) {
+interface ExtraMenuState {
+  extraActiveMenu: Ref<string>;
+  extraMenus: Ref<MenuRecordRaw[]>;
+  handleDefaultSelect: (
+    menu: MenuRecordRaw,
+    rootMenu?: MenuRecordRaw,
+  ) => Promise<void>;
+  handleMenuMouseEnter: (menu: MenuRecordRaw) => void;
+  handleMixedMenuSelect: (menu: MenuRecordRaw) => Promise<void>;
+  handleSideMouseLeave: () => void;
+  sidebarExtraVisible: Ref<boolean>;
+}
+
+function useExtraMenu(
+  useRootMenus?: ComputedRef<MenuRecordRaw[]>,
+): ExtraMenuState {
   const accessStore = useAccessStore();
   const { navigation, willOpenedByWindow } = useNavigation();
 

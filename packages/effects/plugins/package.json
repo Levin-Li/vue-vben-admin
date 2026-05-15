@@ -16,15 +16,18 @@
   "exports": {
     "./echarts": {
       "types": "./src/echarts/index.ts",
-      "default": "./src/echarts/index.ts"
+      "default": "./dist/echarts/index.mjs",
+      "development": "./src/echarts/index.ts"
     },
     "./vxe-table": {
       "types": "./src/vxe-table/index.ts",
-      "default": "./src/vxe-table/index.ts"
+      "default": "./dist/vxe-table/index.mjs",
+      "development": "./src/vxe-table/index.ts"
     },
     "./motion": {
       "types": "./src/motion/index.ts",
-      "default": "./src/motion/index.ts"
+      "default": "./dist/motion/index.mjs",
+      "development": "./src/motion/index.ts"
     }
   },
   "dependencies": {
@@ -43,5 +46,29 @@
     "vue": "catalog:",
     "vxe-pc-ui": "catalog:",
     "vxe-table": "catalog:"
+  },
+  "scripts": {
+    "build": "pnpm unbuild && node scripts/copy-assets.mjs && vue-tsc -p tsconfig.json --declaration --emitDeclarationOnly --noEmit false --outDir dist",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "publishConfig": {
+    "exports": {
+      "./echarts": {
+        "types": "./dist/echarts/index.d.ts",
+        "default": "./dist/echarts/index.mjs"
+      },
+      "./vxe-table": {
+        "types": "./dist/vxe-table/index.d.ts",
+        "default": "./dist/vxe-table/index.mjs"
+      },
+      "./motion": {
+        "types": "./dist/motion/index.d.ts",
+        "default": "./dist/motion/index.mjs"
+      }
+    }
   }
 }

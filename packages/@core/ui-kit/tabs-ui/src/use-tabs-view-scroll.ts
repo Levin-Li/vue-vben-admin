@@ -1,5 +1,7 @@
 import type { TabsProps } from './types';
 
+import type { Ref } from 'vue';
+
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { VbenScrollbar } from '@vben-core/shadcn-ui';
@@ -8,7 +10,21 @@ import { useDebounceFn } from '@vueuse/core';
 
 type DomElement = Element | null | undefined;
 
-export function useTabsViewScroll(props: TabsProps) {
+interface TabsViewScrollState {
+  handleScrollAt: (args: {
+    left: boolean;
+    right: boolean;
+  }) => void | Promise<void>;
+  handleWheel: (event: WheelEvent) => void;
+  initScrollbar: () => Promise<void>;
+  scrollbarRef: Ref<any>;
+  scrollDirection: (direction: 'left' | 'right', distance?: number) => void;
+  scrollIsAtLeft: Ref<boolean>;
+  scrollIsAtRight: Ref<boolean>;
+  showScrollButton: Ref<boolean>;
+}
+
+export function useTabsViewScroll(props: TabsProps): TabsViewScrollState {
   let resizeObserver: null | ResizeObserver = null;
   let mutationObserver: MutationObserver | null = null;
   let tabItemCount = 0;

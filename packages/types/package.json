@@ -13,15 +13,41 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "default": "./dist/index.mjs",
+      "development": "./src/index.ts"
     },
     "./global": {
-      "types": "./global.d.ts"
+      "types": "./global.d.ts",
+      "development": "./global.d.ts",
+      "default": "./global.d.ts"
     }
   },
   "dependencies": {
     "@vben-core/typings": "workspace:*",
     "vue": "catalog:",
     "vue-router": "catalog:"
+  },
+  "scripts": {
+    "build": "pnpm unbuild",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "src",
+    "global.d.ts"
+  ],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "./global": {
+        "types": "./global.d.ts"
+      }
+    }
   }
 }

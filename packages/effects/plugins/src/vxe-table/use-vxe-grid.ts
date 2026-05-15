@@ -1,6 +1,6 @@
 import type { VxeGridSlots, VxeGridSlotTypes } from 'vxe-table';
 
-import type { SlotsType } from 'vue';
+import type { Component, SlotsType } from 'vue';
 
 import type { BaseFormComponentType } from '@vben-core/form-ui';
 
@@ -19,10 +19,15 @@ type FilteredSlots<T> = {
     : K]: VxeGridSlots<T>[K];
 };
 
+export type UseVbenVxeGridReturn<
+  T extends Record<string, any> = any,
+  D extends BaseFormComponentType = BaseFormComponentType,
+> = readonly [Component, ExtendedVxeGridApi<T, D>];
+
 export function useVbenVxeGrid<
   T extends Record<string, any> = any,
   D extends BaseFormComponentType = BaseFormComponentType,
->(options: VxeGridProps<T, D>) {
+>(options: VxeGridProps<T, D>): UseVbenVxeGridReturn<T, D> {
   // const IS_REACTIVE = isReactive(options);
   const api = new VxeGridApi(options);
   const extendedApi: ExtendedVxeGridApi<T, D> = api as ExtendedVxeGridApi<T, D>;
@@ -64,7 +69,7 @@ export function useVbenVxeGrid<
   //   );
   // }
 
-  return [Grid, extendedApi] as const;
+  return [Grid as Component, extendedApi] as const;
 }
 
 export type UseVbenVxeGrid = typeof useVbenVxeGrid;

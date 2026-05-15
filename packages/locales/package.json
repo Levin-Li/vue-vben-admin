@@ -16,7 +16,8 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "default": "./dist/index.mjs",
+      "development": "./src/index.ts"
     }
   },
   "dependencies": {
@@ -24,5 +25,24 @@
     "@vben-core/composables": "workspace:*",
     "vue": "catalog:",
     "vue-i18n": "catalog:"
+  },
+  "scripts": {
+    "build": "pnpm unbuild",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      }
+    }
   }
 }

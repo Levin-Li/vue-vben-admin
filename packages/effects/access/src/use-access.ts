@@ -1,10 +1,20 @@
+import type { AccessModeType } from '@vben/types';
+import type { ComputedRef } from 'vue';
+
 import { computed } from 'vue';
 
 import { preferences, updatePreferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 import { RbacPermissionMatchUtils } from '@vben/utils';
 
-function useAccess() {
+interface UseAccessReturn {
+  accessMode: ComputedRef<AccessModeType>;
+  hasAccessByCodes: (codes: string[]) => boolean;
+  hasAccessByRoles: (roles: string[]) => boolean;
+  toggleAccessMode: () => Promise<void>;
+}
+
+function useAccess(): UseAccessReturn {
   const accessStore = useAccessStore();
   const userStore = useUserStore();
   const accessMode = computed(() => {

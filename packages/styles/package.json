@@ -13,25 +13,65 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "default": "./dist/index.mjs",
+      "development": "./src/index.ts"
     },
     "./antd": {
-      "default": "./src/antd/index.css"
+      "default": "./dist/antd/index.css",
+      "development": "./src/antd/index.css"
     },
     "./antdv-next": {
-      "default": "./src/antdv-next/index.css"
+      "default": "./dist/antdv-next/index.css",
+      "development": "./src/antdv-next/index.css"
     },
     "./ele": {
-      "default": "./src/ele/index.css"
+      "default": "./dist/ele/index.css",
+      "development": "./src/ele/index.css"
     },
     "./naive": {
-      "default": "./src/naive/index.css"
+      "default": "./dist/naive/index.css",
+      "development": "./src/naive/index.css"
     },
     "./global": {
-      "default": "./src/global/index.scss"
+      "default": "./dist/global/index.scss",
+      "development": "./src/global/index.scss"
     }
   },
   "dependencies": {
     "@vben-core/design": "workspace:*"
+  },
+  "scripts": {
+    "build": "pnpm unbuild && node scripts/copy-assets.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "./antd": {
+        "default": "./dist/antd/index.css"
+      },
+      "./antdv-next": {
+        "default": "./dist/antdv-next/index.css"
+      },
+      "./ele": {
+        "default": "./dist/ele/index.css"
+      },
+      "./naive": {
+        "default": "./dist/naive/index.css"
+      },
+      "./global": {
+        "default": "./dist/global/index.scss"
+      }
+    }
   }
 }

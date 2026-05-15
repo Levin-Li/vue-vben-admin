@@ -141,6 +141,10 @@ function cleanOpButtonList() {
     );
 }
 
+function normalizeParentIdForPayload(value?: string) {
+  return value ? value : null;
+}
+
 function buildPayload() {
   const payload: Record<string, any> = {
     actionType: formState.actionType || 'Default',
@@ -156,7 +160,7 @@ function buildPayload() {
     orderCode: formState.orderCode ?? 100,
     pageType: formState.pageType || 'LocalPage',
     params: formState.params || '',
-    parentId: formState.parentId || '',
+    parentId: normalizeParentIdForPayload(formState.parentId),
     path: formState.path || '',
     remark: formState.remark || '',
     requireAuthorizations: normalizeArray(formState.requireAuthorizations),

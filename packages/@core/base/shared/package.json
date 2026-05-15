@@ -15,7 +15,8 @@
     "stub": "pnpm unbuild --stub"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "sideEffects": false,
   "exports": {
