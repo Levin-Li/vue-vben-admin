@@ -134,4 +134,16 @@ describe('menu route conversion', () => {
     expect(routes.every((route) => route.meta?.hideInMenu)).toBe(true);
     expect(routes.some((route) => route.path === '/clob/V1/Role')).toBe(true);
   });
+
+  it('routes backend root menu to the default frontend home page', () => {
+    const route = convertMenuNodeForTest({
+      name: '首页',
+      pageType: 'AmisPage-Amis页面',
+      path: '/',
+    });
+
+    expect(route?.name).toBe('Index');
+    expect(route?.path).toBe('/index');
+    expect(route?.component).toBe('/_core/home/index.vue');
+  });
 });

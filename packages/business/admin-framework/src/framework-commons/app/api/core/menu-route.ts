@@ -136,7 +136,18 @@ function convertLeafRoute(
   normalizedPath: string,
   lookup: RouteMappingLookup,
 ): RouteRecordStringComponent {
-  const finalPath = normalizedPath === '/' ? '/backend/home' : normalizedPath;
+  if (normalizedPath === '/') {
+    return {
+      component: '/_core/home/index.vue',
+      meta: toMeta(item, '/index', {
+        title: item.name || '首页',
+      }),
+      name: 'Index',
+      path: '/index',
+    };
+  }
+
+  const finalPath = normalizedPath;
   const actionType = normalizeActionType(item.actionType);
   const pageType = normalizePageType(item.pageType);
   const mapping = findRouteMapping(lookup, normalizedPath);

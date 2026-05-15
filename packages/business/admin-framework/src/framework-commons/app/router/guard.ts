@@ -8,6 +8,7 @@ import { startProgress, stopProgress } from '@vben/utils';
 import {
   accessRoutes,
   coreRouteNames,
+  rememberLastVisitedPath,
 } from '@levin/admin-framework/framework-commons/app/router/routes';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
@@ -35,6 +36,7 @@ function setupCommonGuard(router: Router) {
     // 记录页面是否加载,如果已经加载，后续的页面切换动画等效果不在重复执行
 
     loadedPaths.add(to.path);
+    rememberLastVisitedPath(to.fullPath);
 
     // 关闭页面加载进度条
     if (preferences.transition.progress) {
