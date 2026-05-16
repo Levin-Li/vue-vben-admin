@@ -24,7 +24,7 @@ describe('menu tree utils', () => {
     expect(tree[0]?.children?.[0]?.parentId).toBe('root');
   });
 
-  it('collects current menu and all descendants for delete', () => {
+  it('collects descendants before current menu for delete', () => {
     const ids = collectMenuSubtreeIds({
       children: [
         { id: 'child-1' },
@@ -33,7 +33,7 @@ describe('menu tree utils', () => {
       id: 'root',
     });
 
-    expect(ids).toEqual(['root', 'child-1', 'child-2', 'grandchild-1']);
+    expect(ids).toEqual(['child-1', 'grandchild-1', 'child-2', 'root']);
   });
 
   it('collects unique subtree ids from multiple selected menus', () => {
@@ -44,7 +44,7 @@ describe('menu tree utils', () => {
       { id: 'sibling' },
     ]);
 
-    expect(ids).toEqual(['root', 'child', 'sibling']);
+    expect(ids).toEqual(['child', 'root', 'sibling']);
   });
 
   it('disables current menu and descendants as parent candidates', () => {

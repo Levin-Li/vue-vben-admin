@@ -64,10 +64,14 @@ export function buildMenuTree(rows: MenuRecord[]) {
 }
 
 export function collectMenuSubtreeIds(row: MenuRecord): string[] {
-  const ids = row.id ? [row.id] : [];
+  const ids: string[] = [];
 
   for (const child of row.children || []) {
     ids.push(...collectMenuSubtreeIds(child));
+  }
+
+  if (row.id) {
+    ids.push(row.id);
   }
 
   return ids;

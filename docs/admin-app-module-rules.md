@@ -676,6 +676,16 @@ backendRouteMappings
 
 这些信息用于把后端菜单路径解析成前端页面。
 
+每个业务模块维护 `backendRouteMappings` 时，必须同时填充页面位置元数据：
+
+- `sourcePath`：后端菜单或控制器路由路径。
+- `targetPath`：前端运行时页面注册路径，例如 `/system/com_project_contract/contract/index.vue`。
+- `sourceFile`：相对于前端源码目录的页面文件路径，例如 `modules/com_project_contract/views/contract/index.vue`。
+
+新增其他业务模块、补充 CRUD 页面映射或新增非 CRUD 页面映射时，不得只填后端路径和页面注册路径，必须同步填充 `sourceFile`。超级管理员执行“上传页面路由”时会上传所有已启用模块的路由映射，并把 `targetPath` 作为页面注册路径、`sourceFile` 作为源码相对位置同步给后端菜单。
+
+这里的“所有已启用模块”是硬性要求：不得只上传当前模块、默认模块或基础模块。`moduleId` 不作为后端接口必填项；但前端模块存在自己的模块 ID 时，上传时每个菜单项都必须带上该菜单所属模块的模块 ID，通常取 `AdminFrontendModule.name`。
+
 禁止：
 
 - 主应用硬编码左侧菜单。
@@ -689,7 +699,10 @@ backendRouteMappings
 2. 当前用户是否有菜单权限
 3. menuSyncService 是否注入正确
 4. backendRouteMappings 是否能匹配后端菜单路径
-5. pageMap 是否存在对应页面
+5. 上传列表是否包含所有已启用前端模块
+6. 对存在模块 ID 的前端模块，每条菜单的 moduleId 是否等于所属前端模块自己的模块 ID
+7. backendRouteMappings 是否填充 targetPath 和 sourceFile
+8. pageMap 是否存在对应页面
 ```
 
 ## 十、Tailwind 配置模板

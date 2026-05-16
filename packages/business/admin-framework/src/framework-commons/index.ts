@@ -74,6 +74,7 @@ export interface AdminBackendRouteMapping {
   icon: string;
   name: string;
   resource: string;
+  sourceFile?: string;
   sourcePath: string;
   title: string;
   view: string;

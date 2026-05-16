@@ -9,8 +9,8 @@ import { Button, Input, message, Modal, Popconfirm } from 'ant-design-vue';
 
 import { getAdminMenuSyncService } from '@levin/admin-framework';
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
-import { accessRoutes } from '@levin/admin-framework/framework-commons/app/router/routes';
-import { buildSyncMenuPayload } from '@levin/admin-framework/framework-commons/app/utils/sync-menu-routes';
+import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
+import { buildModuleSyncMenuPayload } from '@levin/admin-framework/framework-commons/app/utils/sync-menu-routes';
 
 type EditableSyncMenuItem = SyncMenuItem & {
   children?: EditableSyncMenuItem[];
@@ -49,10 +49,28 @@ const gridOptions: VxeGridProps<EditableSyncMenuItem> = {
       title: '路由',
     },
     {
+      field: 'moduleId',
+      minWidth: 180,
+      slots: { default: 'moduleId' },
+      title: '模块ID',
+    },
+    {
       field: 'remark',
       minWidth: 260,
       slots: { default: 'remark' },
       title: '备注',
+    },
+    {
+      field: 'view',
+      minWidth: 360,
+      slots: { default: 'view' },
+      title: '页面注册路径',
+    },
+    {
+      field: 'sourceFile',
+      minWidth: 360,
+      slots: { default: 'sourceFile' },
+      title: '源码位置',
     },
     {
       field: 'actions',
@@ -63,7 +81,7 @@ const gridOptions: VxeGridProps<EditableSyncMenuItem> = {
     },
   ],
   data: menuList.value,
-  height: 'min(56vh, 520px)',
+  height: 520,
   keepSource: true,
   pagerConfig: {
     enabled: false,
@@ -134,7 +152,9 @@ function removeItemByKey(
 }
 
 function resetMenuList() {
-  menuList.value = toEditableItems(buildSyncMenuPayload(accessRoutes).menuList);
+  menuList.value = toEditableItems(
+    buildModuleSyncMenuPayload(getEnabledFrontendModules()).menuList,
+  );
 }
 
 function handleDelete(record: EditableSyncMenuItem) {
@@ -185,16 +205,17 @@ watch(menuList, (data) => {
   <Modal
     v-model:open="openProxy"
     :confirm-loading="loading"
+    :body-style="{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }"
     :ok-button-props="{ disabled: totalCount === 0 }"
     ok-text="上传"
     title="上传页面路由"
-    width="min(92vw, 1080px)"
+    width="min(94vw, 1280px)"
     @ok="handleSubmit"
   >
     <div class="text-muted-foreground mb-3 text-sm">
       共
       {{ totalCount }}
-      个本地页面路由。可在上传前修改名称、备注，或删除不需要同步的页面。
+      个已启用前端模块的本地页面路由。可在上传前修改名称、备注，或删除不需要同步的页面。
     </div>
 
     <Grid class="sync-menu-route-tree-grid">
@@ -204,8 +225,17 @@ watch(menuList, (data) => {
       <template #path="{ row }">
         <span class="font-mono text-xs">{{ row.path }}</span>
       </template>
+      <template #moduleId="{ row }">
+        <span class="font-mono text-xs">{{ row.moduleId }}</span>
+      </template>
       <template #remark="{ row }">
         <Input v-model:value="row.remark" placeholder="请输入备注" />
+      </template>
+      <template #view="{ row }">
+        <span class="font-mono text-xs">{{ row.view || '-' }}</span>
+      </template>
+      <template #sourceFile="{ row }">
+        <span class="font-mono text-xs">{{ row.sourceFile || '-' }}</span>
       </template>
       <template #actions="{ row }">
         <Popconfirm

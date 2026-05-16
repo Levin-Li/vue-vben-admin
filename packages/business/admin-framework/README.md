@@ -36,4 +36,4 @@ configureAdminApplication({
 });
 ```
 
-完整第三方使用手册见 `src/framework-commons/docs/第三方用户手册.md`。
+完整第三方使用手册见 `src/framework-commons/docs/第三方用户手册.md`。发布包会携带 `src`，构建后的 `dist/framework-commons/docs/第三方用户手册.md` 也会包含同一份手册，第三方项目可在安装后的 `node_modules/@levin/admin-framework` 下查看。

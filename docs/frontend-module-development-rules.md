@@ -221,6 +221,18 @@ export function createOakBaseAdminModule(): AdminFrontendModule {
 
 模块名、路由名、权限标识必须带模块语义，避免多个模块合并后冲突。
 
+`backendRouteMappings` 字段必须由每个业务模块自己维护，并且每条映射都应同时提供：
+
+| 字段         | 规则                                                                 |
+| ------------ | -------------------------------------------------------------------- |
+| `sourcePath` | 后端菜单或控制器路由路径                                             |
+| `targetPath` | 前端运行时页面注册路径，例如 `/system/com_levin_oak_base/user/index.vue` |
+| `sourceFile` | 相对于前端源码目录的页面文件路径，例如 `modules/com_levin_oak_base/views/user/index.vue` |
+
+后续新增其他业务模块、补充 CRUD 页面映射或新增非 CRUD 页面映射时，不得只填 `sourcePath`/`targetPath`；必须同步填充 `sourceFile`。
+
+超级管理员执行“上传页面路由”时必须上传所有已启用前端模块的路由映射，不得只上传当前模块、默认模块或基础模块。`moduleId` 不作为后端接口必填项；但前端模块存在自己的模块 ID 时，上传时每个菜单项都必须带上该菜单所属模块的模块 ID，通常取 `AdminFrontendModule.name`，并把 `targetPath` 作为页面注册路径、`sourceFile` 作为源码相对位置同步给后端菜单。
+
 ## 主应用规则
 
 最终主应用固定为 `apps/bootstrap-app`，是一个薄的启动和引导应用。它只做装配和覆盖，不做公共框架和业务模块实现，通常不包含业务相关代码。
@@ -342,6 +354,8 @@ src/pages/_core/authentication/login.vue
 - 后端菜单路径对应哪个前端页面。
 - 当前模块有哪些可加载页面。
 - 本地开发或兜底时有哪些路由能力。
+
+各模块的 `backendRouteMappings` 必须补齐页面位置元数据。`targetPath` 表示页面注册路径，`sourceFile` 表示相对于前端源码目录的页面文件路径；上传页面路由时这两项会随所有已启用前端模块一起同步到后端。前端模块存在自己的模块 ID 时，每条菜单都必须携带所属前端模块自己的 `moduleId`。
 
 左侧菜单、权限菜单、可见菜单必须来自后端菜单接口。前端不能用硬编码菜单替代后端菜单。
 

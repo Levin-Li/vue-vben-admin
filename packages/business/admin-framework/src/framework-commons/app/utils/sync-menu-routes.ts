@@ -1,3 +1,7 @@
+import type {
+  AdminBackendRouteMapping,
+  AdminFrontendModule,
+} from '@levin/admin-framework';
 import type { RouteRecordRaw } from 'vue-router';
 
 export const DEFAULT_SYNC_MENU_MODULE_ID = 'com.levin.oak.base';
@@ -10,6 +14,8 @@ export interface SyncMenuItem {
   params?: string;
   path: string;
   remark?: string;
+  sourceFile?: string;
+  view?: string;
 }
 
 export interface SyncMenuPayload {
@@ -47,14 +53,41 @@ function shouldSkipRoute(route: RouteRecordRaw) {
   );
 }
 
+function createRouteMappingLookup(
+  routeMappings: AdminBackendRouteMapping[] = [],
+) {
+  return new Map(routeMappings.map((item) => [item.sourcePath, item]));
+}
+
+function applyRouteMapping(
+  item: SyncMenuItem,
+  mapping?: AdminBackendRouteMapping,
+): SyncMenuItem {
+  if (!mapping) {
+    return item;
+  }
+
+  return {
+    ...item,
+    sourceFile: mapping.sourceFile,
+    view: mapping.view,
+  };
+}
+
 function toSyncMenuItems(
   routes: RouteRecordRaw[],
   moduleId: string,
+  routeMappingLookup = createRouteMappingLookup(),
   parentPath = '',
 ): SyncMenuItem[] {
   return routes.flatMap((route) => {
     const path = normalizePath(parentPath, route.path);
-    const children = toSyncMenuItems(route.children || [], moduleId, path);
+    const children = toSyncMenuItems(
+      route.children || [],
+      moduleId,
+      routeMappingLookup,
+      path,
+    );
 
     if (shouldSkipRoute(route)) {
       return children;
@@ -66,23 +99,92 @@ function toSyncMenuItems(
     }
 
     return [
-      {
-        children,
-        icon: getRouteIcon(route),
-        label,
-        moduleId,
-        path,
-        remark: String(route.name || ''),
-      },
+      applyRouteMapping(
+        {
+          children,
+          icon: getRouteIcon(route),
+          label,
+          moduleId,
+          path,
+          remark: String(route.name || ''),
+        },
+        routeMappingLookup.get(path),
+      ),
     ];
   });
+}
+
+function collectSyncMenuPaths(items: SyncMenuItem[], paths = new Set<string>()) {
+  items.forEach((item) => {
+    paths.add(item.path);
+    collectSyncMenuPaths(item.children || [], paths);
+  });
+  return paths;
+}
+
+function toSyncMenuItemFromMapping(
+  mapping: AdminBackendRouteMapping,
+  moduleId: string,
+): SyncMenuItem {
+  return {
+    children: [],
+    icon: mapping.icon,
+    label: mapping.title,
+    moduleId,
+    path: mapping.sourcePath,
+    remark: mapping.name,
+    sourceFile: mapping.sourceFile,
+    view: mapping.view,
+  };
+}
+
+function buildModuleMenuItems(module: AdminFrontendModule): SyncMenuItem[] {
+  const routeMappings = module.backendRouteMappings || [];
+  const routeMappingLookup = createRouteMappingLookup(routeMappings);
+  const menuItems = toSyncMenuItems(
+    module.routes || [],
+    module.name,
+    routeMappingLookup,
+  );
+  const menuPaths = collectSyncMenuPaths(menuItems);
+
+  routeMappings.forEach((mapping) => {
+    if (menuPaths.has(mapping.sourcePath)) {
+      return;
+    }
+
+    menuItems.push(toSyncMenuItemFromMapping(mapping, module.name));
+    menuPaths.add(mapping.sourcePath);
+  });
+
+  return menuItems;
+}
+
+export function buildModuleSyncMenuPayload(modules: AdminFrontendModule[]) {
+  return {
+    menuList: modules.flatMap((module) => buildModuleMenuItems(module)),
+  };
 }
 
 export function buildSyncMenuPayload(
   routes: RouteRecordRaw[],
   moduleId = DEFAULT_SYNC_MENU_MODULE_ID,
+  routeMappings: AdminBackendRouteMapping[] = [],
 ) {
+  const routeMappingLookup = createRouteMappingLookup(routeMappings);
+  const menuList = toSyncMenuItems(routes, moduleId, routeMappingLookup);
+  const menuPaths = collectSyncMenuPaths(menuList);
+
+  routeMappings.forEach((mapping) => {
+    if (menuPaths.has(mapping.sourcePath)) {
+      return;
+    }
+
+    menuList.push(toSyncMenuItemFromMapping(mapping, moduleId));
+    menuPaths.add(mapping.sourcePath);
+  });
+
   return {
-    menuList: toSyncMenuItems(routes, moduleId),
+    menuList,
   };
 }

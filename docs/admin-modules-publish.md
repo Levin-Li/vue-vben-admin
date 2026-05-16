@@ -197,6 +197,15 @@ src/modules/com_levin_oak_base/locales/zh-CN.json
 src/modules/com_levin_oak_base/locales/en-US.json
 ```
 
+业务模块维护 `backendRouteMappings` 时，必须为每条页面映射同步维护页面注册路径和源码位置：
+
+- `targetPath`：前端运行时页面注册路径，例如 `/system/com_levin_oak_base/role/index.vue`。
+- `sourceFile`：相对于前端源码目录的页面文件路径，例如 `modules/com_levin_oak_base/views/role/index.vue`。
+
+后续新增其他业务模块、补充 CRUD 页面映射或新增非 CRUD 页面映射时，不得只填后端菜单路径和页面注册路径，必须同步填充 `sourceFile`。入口应用执行“上传页面路由”会上传所有已启用模块，并把这些字段同步给后端菜单。
+
+这里的“所有已启用模块”包括最终应用启用的全部前端业务模块，不限于基础模块或当前正在打开的模块。`moduleId` 不作为后端接口必填项；但前端模块存在自己的模块 ID 时，上传时每个菜单项都必须带上该菜单所属模块的模块 ID，通常取 `AdminFrontendModule.name`。
+
 模块通过模块对象的 `locales` 字段暴露国际化内容，入口应用使用 `collectAdminModuleLocales(enabledFrontendModules)` 统一合并。
 
 最终应用不得保留业务模块页面的本地 wrapper。后端菜单中的组件字符串通过已注册的模块 pageMap 解析，因此模块页面会直接从 `@levin/oak-base-admin` 这类包中加载。

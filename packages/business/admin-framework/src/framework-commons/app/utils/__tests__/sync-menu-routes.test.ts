@@ -2,7 +2,10 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { describe, expect, it } from 'vitest';
 
-import { buildSyncMenuPayload } from '../sync-menu-routes';
+import {
+  buildModuleSyncMenuPayload,
+  buildSyncMenuPayload,
+} from '../sync-menu-routes';
 
 describe('buildSyncMenuPayload', () => {
   it('converts visible local routes to sync menu items', () => {
@@ -64,6 +67,97 @@ describe('buildSyncMenuPayload', () => {
           moduleId: 'com.levin.oak.base',
           path: '/system',
           remark: 'System',
+        },
+      ],
+    });
+  });
+
+  it('converts all enabled modules and includes mapped page locations', () => {
+    const payload = buildModuleSyncMenuPayload([
+      {
+        backendRouteMappings: [
+          {
+            icon: 'lucide:user',
+            name: 'UserCrudPage',
+            resource: 'User',
+            sourceFile: 'modules/com_levin_oak_base/views/user/index.vue',
+            sourcePath: '/clob/V1/User',
+            title: '用户管理',
+            view: '/system/com_levin_oak_base/user/index.vue',
+          },
+        ],
+        name: 'com.levin.oak.base',
+        routes: [
+          {
+            children: [
+              {
+                component: {},
+                meta: {
+                  icon: 'lucide:user',
+                  title: '用户管理',
+                },
+                name: 'User',
+                path: '/clob/V1/User',
+              },
+            ],
+            meta: {
+              icon: 'lucide:database',
+              title: '基础模块',
+            },
+            name: 'OakBase',
+            path: '/oak-base',
+          },
+        ],
+        title: '基础模块',
+      },
+      {
+        backendRouteMappings: [
+          {
+            icon: 'lucide:file-text',
+            name: 'ContractCrudPage',
+            resource: 'Contract',
+            sourceFile: 'modules/com_levin_contract/views/contract/index.vue',
+            sourcePath: '/contract/V1/Contract',
+            title: '合同管理',
+            view: '/system/com_levin_contract/contract/index.vue',
+          },
+        ],
+        name: 'com.levin.contract',
+        routes: [],
+        title: '合同模块',
+      },
+    ]);
+
+    expect(payload).toEqual({
+      menuList: [
+        {
+          children: [
+            {
+              children: [],
+              icon: 'lucide:user',
+              label: '用户管理',
+              moduleId: 'com.levin.oak.base',
+              path: '/clob/V1/User',
+              remark: 'User',
+              sourceFile: 'modules/com_levin_oak_base/views/user/index.vue',
+              view: '/system/com_levin_oak_base/user/index.vue',
+            },
+          ],
+          icon: 'lucide:database',
+          label: '基础模块',
+          moduleId: 'com.levin.oak.base',
+          path: '/oak-base',
+          remark: 'OakBase',
+        },
+        {
+          children: [],
+          icon: 'lucide:file-text',
+          label: '合同管理',
+          moduleId: 'com.levin.contract',
+          path: '/contract/V1/Contract',
+          remark: 'ContractCrudPage',
+          sourceFile: 'modules/com_levin_contract/views/contract/index.vue',
+          view: '/system/com_levin_contract/contract/index.vue',
         },
       ],
     });

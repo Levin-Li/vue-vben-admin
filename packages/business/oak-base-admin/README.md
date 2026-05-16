@@ -24,4 +24,4 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 
 包的正式入口指向 `dist` 构建结果；随包携带的 `src` 只用于源码查看、调试和问题定位，不应通过 `@levin/oak-base-admin/src/...` 参与第三方应用编译。
 
-基础组件项目第三方使用手册见 `@levin/admin-framework` 包内的 `src/framework-commons/docs/第三方用户手册.md`；本模块补充手册见 `src/modules/com_levin_oak_base/docs/第三方用户手册.md`。
+基础组件项目第三方使用手册见 `@levin/admin-framework` 包内的 `src/framework-commons/docs/第三方用户手册.md`；本模块补充手册见 `src/modules/com_levin_oak_base/docs/第三方用户手册.md`。发布包会携带 `src`，构建后的 `dist/modules/com_levin_oak_base/docs/第三方用户手册.md` 也会包含同一份手册，第三方项目可在安装后的 `node_modules/@levin/oak-base-admin` 下查看。
