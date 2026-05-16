@@ -232,16 +232,17 @@ function convertLeafRoute(
 export function convertMenuNode(
   item: BackendMenuInfo,
   lookup: RouteMappingLookup = createRouteMappingLookup(),
+  depth = 0,
 ): null | RouteRecordStringComponent {
   const normalizedPath = normalizePath(item.path);
   const children = (item.children || [])
-    .map((child) => convertMenuNode(child, lookup))
+    .map((child) => convertMenuNode(child, lookup, depth + 1))
     .filter(Boolean) as RouteRecordStringComponent[];
 
   if (children.length > 0) {
     return {
       children,
-      component: 'BasicLayout',
+      component: depth === 0 ? 'BasicLayout' : 'RouteView',
       meta: {
         authority: toAuthority(item),
         alwaysShow: item.alwaysShow,

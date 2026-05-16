@@ -12,6 +12,7 @@ import { getAllMenusApi } from '@levin/admin-framework/framework-commons/app/api
 import {
   BasicLayout,
   IFrameView,
+  RouteView,
 } from '@levin/admin-framework/framework-commons/app/layouts';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import {
@@ -25,6 +26,7 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
   const layoutMap: ComponentRecordType = {
     BasicLayout,
     IFrameView,
+    RouteView,
   };
 
   return await generateAccessible(preferences.app.accessMode, {

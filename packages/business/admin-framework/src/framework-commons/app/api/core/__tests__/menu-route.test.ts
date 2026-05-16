@@ -133,4 +133,118 @@ describe('menu route conversion', () => {
     expect(route?.path).toBe('/index');
     expect(route?.component).toBe('/_core/home/index.vue');
   });
+
+  it('uses a lightweight route view for nested backend menu groups', () => {
+    const route = convertMenuNodeForTest(
+      {
+        children: [
+          {
+            children: [
+              {
+                name: '店铺商品',
+                pageType: 'LocalPage-本地页面',
+                path: '/clob/V1/Article',
+              },
+            ],
+            name: '线上店铺',
+            path: '/cvf/online-shops',
+          },
+        ],
+        name: '项目系统',
+        path: '/cvf',
+      },
+      testBackendRouteMappings,
+    );
+    const nestedGroup = route?.children?.[0];
+
+    expect(route?.component).toBe('BasicLayout');
+    expect(nestedGroup?.component).toBe('RouteView');
+    expect(nestedGroup?.children?.[0]?.component).toBe(
+      '/system/com_levin_oak_base/article/index.vue',
+    );
+  });
+
+  it('keeps third-level menu groups from creating another basic layout', () => {
+    const route = convertMenuNodeForTest(
+      {
+        children: [
+          {
+            children: [
+              {
+                children: [
+                  {
+                    name: '门店管理',
+                    pageType: 'LocalPage-本地页面',
+                    path: '/clob/V1/Role',
+                  },
+                ],
+                name: '门店资料',
+                path: '/cvf/offline/stores',
+              },
+            ],
+            name: '线下门店',
+            path: '/cvf/offline',
+          },
+        ],
+        name: '项目系统',
+        path: '/cvf',
+      },
+      testBackendRouteMappings,
+    );
+    const secondLevelGroup = route?.children?.[0];
+    const thirdLevelGroup = secondLevelGroup?.children?.[0];
+
+    expect(route?.component).toBe('BasicLayout');
+    expect(secondLevelGroup?.component).toBe('RouteView');
+    expect(thirdLevelGroup?.component).toBe('RouteView');
+    expect(thirdLevelGroup?.children?.[0]?.component).toBe(
+      '/system/com_levin_oak_base/role/index.vue',
+    );
+  });
+
+  it('keeps fourth-level menu groups from creating another basic layout', () => {
+    const route = convertMenuNodeForTest(
+      {
+        children: [
+          {
+            children: [
+              {
+                children: [
+                  {
+                    children: [
+                      {
+                        name: '终端管理',
+                        pageType: 'LocalPage-本地页面',
+                        path: '/clob/V1/SettingForTenant',
+                      },
+                    ],
+                    name: '终端设备',
+                    path: '/cvf/offline/stores/terminals',
+                  },
+                ],
+                name: '门店资料',
+                path: '/cvf/offline/stores',
+              },
+            ],
+            name: '线下门店',
+            path: '/cvf/offline',
+          },
+        ],
+        name: '项目系统',
+        path: '/cvf',
+      },
+      testBackendRouteMappings,
+    );
+    const secondLevelGroup = route?.children?.[0];
+    const thirdLevelGroup = secondLevelGroup?.children?.[0];
+    const fourthLevelGroup = thirdLevelGroup?.children?.[0];
+
+    expect(route?.component).toBe('BasicLayout');
+    expect(secondLevelGroup?.component).toBe('RouteView');
+    expect(thirdLevelGroup?.component).toBe('RouteView');
+    expect(fourthLevelGroup?.component).toBe('RouteView');
+    expect(fourthLevelGroup?.children?.[0]?.component).toBe(
+      '/system/com_levin_oak_base/setting-for-tenant/index.vue',
+    );
+  });
 });
