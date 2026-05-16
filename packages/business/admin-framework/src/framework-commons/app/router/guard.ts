@@ -9,10 +9,24 @@ import {
   accessRoutes,
   coreRouteNames,
   rememberLastVisitedPath,
+  resolveRestorablePath,
 } from '@levin/admin-framework/framework-commons/app/router/routes';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
 import { generateAccess } from './access';
+
+function decodeRedirectPath(redirectPath: unknown) {
+  const rawPath = Array.isArray(redirectPath) ? redirectPath[0] : redirectPath;
+  if (typeof rawPath !== 'string') {
+    return '';
+  }
+
+  try {
+    return decodeURIComponent(rawPath);
+  } catch {
+    return rawPath;
+  }
+}
 
 /**
  * 通用守卫配置
@@ -36,7 +50,7 @@ function setupCommonGuard(router: Router) {
     // 记录页面是否加载,如果已经加载，后续的页面切换动画等效果不在重复执行
 
     loadedPaths.add(to.path);
-    rememberLastVisitedPath(to.fullPath);
+    rememberLastVisitedPath(to);
 
     // 关闭页面加载进度条
     if (preferences.transition.progress) {
@@ -115,13 +129,18 @@ function setupAccessGuard(router: Router) {
       accessStore.setAccessMenus(accessibleMenus);
       accessStore.setAccessRoutes(accessibleRoutes);
       accessStore.setIsAccessChecked(true);
-      const redirectPath = (from.query.redirect ??
-        (to.path === preferences.app.defaultHomePath
-          ? userInfo.homePath || preferences.app.defaultHomePath
-          : to.fullPath)) as string;
+      const redirectPath = resolveRestorablePath(
+        decodeRedirectPath(
+          from.query.redirect ??
+            (to.path === preferences.app.defaultHomePath
+              ? userInfo.homePath || preferences.app.defaultHomePath
+              : to.fullPath),
+        ),
+        router,
+      );
 
       return {
-        ...router.resolve(decodeURIComponent(redirectPath)),
+        ...router.resolve(redirectPath),
         replace: true,
       };
     } catch (error) {

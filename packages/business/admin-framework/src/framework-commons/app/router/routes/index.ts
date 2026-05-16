@@ -51,4 +51,4 @@ const accessRoutes = [
   ...staticRoutes,
 ];
 export { accessRoutes, coreRouteNames, routes };
-export { rememberLastVisitedPath } from './root-redirect';
+export { rememberLastVisitedPath, resolveRestorablePath } from './root-redirect';

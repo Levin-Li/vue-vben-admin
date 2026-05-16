@@ -1,7 +1,7 @@
 {
   "default": "5.6.6",
   "packages": {
-    "@levin/admin-framework": "5.6.12",
+    "@levin/admin-framework": "5.6.13",
     "@levin/oak-base-admin": "5.6.11"
   }
 }
