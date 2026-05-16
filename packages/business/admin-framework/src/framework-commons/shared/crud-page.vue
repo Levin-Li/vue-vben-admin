@@ -941,19 +941,7 @@ function getMediaFieldCount(fields: CrudFieldConfig[]) {
   ).length;
 }
 
-const searchColumnCount = computed(() => {
-  const count = visibleSearchFieldItems.value.length;
-
-  if (count <= 1) {
-    return 1;
-  }
-
-  if (count <= 2) {
-    return getResponsiveColumnCount(2);
-  }
-
-  return getResponsiveColumnCount(4);
-});
+const searchColumnCount = computed(() => getResponsiveColumnCount(4));
 
 const searchGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${searchColumnCount.value}, minmax(0, 1fr))`,
@@ -3978,35 +3966,34 @@ watch(tableColumnPreferenceStorageKey, () => {
                 class="w-full"
               />
             </Form.Item>
-          </div>
-
-          <div class="mt-4 flex justify-end">
-            <div class="flex flex-wrap items-center justify-end gap-2">
-              <Button
-                v-if="canQuery"
-                type="primary"
-                @click="
-                  () => {
-                    pagination.current = 1;
-                    loadList();
-                  }
-                "
-              >
-                查询
-              </Button>
-              <Button @click="resetSearch">重置</Button>
-              <Button
-                v-if="showAdvancedSearchToggle"
-                type="link"
-                class="inline-flex items-center gap-1"
-                @click="toggleSearchExpanded"
-              >
-                {{ searchExpanded ? '收起' : '更多' }}
-                <ChevronDown
-                  class="size-4 transition-transform"
-                  :class="{ 'rotate-180': searchExpanded }"
-                />
-              </Button>
+            <div class="vben-crud-search-actions min-w-0">
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <Button
+                  v-if="canQuery"
+                  type="primary"
+                  @click="
+                    () => {
+                      pagination.current = 1;
+                      loadList();
+                    }
+                  "
+                >
+                  查询
+                </Button>
+                <Button @click="resetSearch">重置</Button>
+                <Button
+                  v-if="showAdvancedSearchToggle"
+                  type="link"
+                  class="inline-flex items-center gap-1"
+                  @click="toggleSearchExpanded"
+                >
+                  {{ searchExpanded ? '收起' : '更多' }}
+                  <ChevronDown
+                    class="size-4 transition-transform"
+                    :class="{ 'rotate-180': searchExpanded }"
+                  />
+                </Button>
+              </div>
             </div>
           </div>
         </Form>
@@ -5045,6 +5032,14 @@ watch(tableColumnPreferenceStorageKey, () => {
 
 .vben-crud-section:has(.vben-crud-table) {
   padding-bottom: 8px;
+}
+
+.vben-crud-search-actions {
+  display: flex;
+  grid-column: -2 / -1;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-height: 32px;
 }
 
 .vben-crud-section--fullscreen {
