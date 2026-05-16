@@ -10,8 +10,8 @@ export interface SyncMenuItem {
   params?: string;
   path: string;
   remark?: string;
-  sourceFile?: string;
-  view?: string;
+  sourceFilePath?: string;
+  viewPath?: string;
 }
 
 export interface SyncMenuPayload {

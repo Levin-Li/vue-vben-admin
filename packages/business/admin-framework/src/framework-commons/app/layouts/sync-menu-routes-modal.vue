@@ -5,7 +5,14 @@ import type { SyncMenuItem } from '@levin/admin-framework/framework-commons/app/
 
 import { computed, ref, watch } from 'vue';
 
-import { Button, Input, message, Modal, Popconfirm } from 'ant-design-vue';
+import {
+  Button,
+  Checkbox,
+  Input,
+  message,
+  Modal,
+  Popconfirm,
+} from 'ant-design-vue';
 
 import { getAdminMenuSyncService } from '@levin/admin-framework';
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
@@ -32,10 +39,18 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 const menuList = ref<EditableSyncMenuItem[]>([]);
+const selectedKeys = ref<Set<string>>(new Set());
 
 const gridOptions: VxeGridProps<EditableSyncMenuItem> = {
   columns: [
     {
+      align: 'center',
+      fixed: 'left',
+      slots: { default: 'select', header: 'selectHeader' },
+      width: 48,
+    },
+    {
+      fixed: 'left',
       field: 'label',
       minWidth: 300,
       slots: { default: 'label' },
@@ -61,15 +76,15 @@ const gridOptions: VxeGridProps<EditableSyncMenuItem> = {
       title: '备注',
     },
     {
-      field: 'view',
+      field: 'viewPath',
       minWidth: 360,
-      slots: { default: 'view' },
+      slots: { default: 'viewPath' },
       title: '页面注册路径',
     },
     {
-      field: 'sourceFile',
+      field: 'sourceFilePath',
       minWidth: 360,
-      slots: { default: 'sourceFile' },
+      slots: { default: 'sourceFilePath' },
       title: '源码位置',
     },
     {
@@ -106,6 +121,13 @@ const [Grid, gridApi] = useVbenVxeGrid<EditableSyncMenuItem>({
 });
 
 const totalCount = computed(() => countItems(menuList.value));
+const selectedCount = computed(() => selectedKeys.value.size);
+const allSelected = computed(
+  () => totalCount.value > 0 && selectedCount.value === totalCount.value,
+);
+const partiallySelected = computed(
+  () => selectedCount.value > 0 && !allSelected.value,
+);
 const openProxy = computed({
   get: () => props.open,
   set: (value) => emit('update:open', value),
@@ -116,6 +138,10 @@ function countItems(list: EditableSyncMenuItem[]): number {
     (total, item) => total + 1 + countItems(item.children || []),
     0,
   );
+}
+
+function flattenItems(list: EditableSyncMenuItem[]): EditableSyncMenuItem[] {
+  return list.flatMap((item) => [item, ...flattenItems(item.children || [])]);
 }
 
 function toEditableItems(
@@ -132,11 +158,24 @@ function toEditableItems(
   });
 }
 
-function toSyncItems(list: EditableSyncMenuItem[]): SyncMenuItem[] {
-  return list.map(({ children, key: _key, ...item }) => ({
-    ...item,
-    children: toSyncItems(children || []),
-  }));
+function toSelectedSyncItems(
+  list: EditableSyncMenuItem[],
+  selectedKeys: Set<string>,
+): SyncMenuItem[] {
+  return list.flatMap(({ children, key, ...item }) => {
+    const selectedChildren = toSelectedSyncItems(children || [], selectedKeys);
+
+    if (!selectedKeys.has(key) && selectedChildren.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        ...item,
+        children: selectedChildren,
+      },
+    ];
+  });
 }
 
 function removeItemByKey(
@@ -151,23 +190,98 @@ function removeItemByKey(
     }));
 }
 
+function getSelfAndDescendantKeys(item: EditableSyncMenuItem): string[] {
+  return [
+    item.key,
+    ...flattenItems(item.children || []).map((child) => child.key),
+  ];
+}
+
+function syncAncestorSelectionFromLeaves(keys: Set<string>) {
+  function syncNodeFromLeaves(item: EditableSyncMenuItem) {
+    const children = item.children || [];
+
+    if (children.length === 0) {
+      return keys.has(item.key);
+    }
+
+    const allChildrenChecked = children.map(syncNodeFromLeaves).every(Boolean);
+
+    if (allChildrenChecked) {
+      keys.add(item.key);
+    } else {
+      keys.delete(item.key);
+    }
+
+    return keys.has(item.key);
+  }
+
+  menuList.value.forEach(syncNodeFromLeaves);
+  return keys;
+}
+
 function resetMenuList() {
   menuList.value = toEditableItems(
     buildModuleSyncMenuPayload(getEnabledFrontendModules()).menuList,
   );
+  selectedKeys.value = new Set(
+    flattenItems(menuList.value).map((item) => item.key),
+  );
+}
+
+function readCheckboxChecked(event: { target?: { checked?: boolean } }) {
+  return Boolean(event.target?.checked);
+}
+
+function handleToggleAll(checked: boolean) {
+  selectedKeys.value = checked
+    ? new Set(flattenItems(menuList.value).map((item) => item.key))
+    : new Set();
+}
+
+function handleToggleRow(record: EditableSyncMenuItem, checked: boolean) {
+  const nextKeys = new Set(selectedKeys.value);
+  const targetKeys = getSelfAndDescendantKeys(record);
+
+  targetKeys.forEach((key) => {
+    if (checked) {
+      nextKeys.add(key);
+    } else {
+      nextKeys.delete(key);
+    }
+  });
+
+  selectedKeys.value = syncAncestorSelectionFromLeaves(nextKeys);
 }
 
 function handleDelete(record: EditableSyncMenuItem) {
   menuList.value = removeItemByKey(menuList.value, record.key);
+  const availableKeys = new Set(
+    flattenItems(menuList.value).map((item) => item.key),
+  );
+
+  selectedKeys.value = syncAncestorSelectionFromLeaves(
+    new Set([...selectedKeys.value].filter((key) => availableKeys.has(key))),
+  );
+}
+
+function hasSelectedChild(record: EditableSyncMenuItem): boolean {
+  return (record.children || []).some(
+    (child) => selectedKeys.value.has(child.key) || hasSelectedChild(child),
+  );
+}
+
+function isRowIndeterminate(record: EditableSyncMenuItem) {
+  return !selectedKeys.value.has(record.key) && hasSelectedChild(record);
 }
 
 async function handleSubmit() {
   const payload = {
-    menuList: toSyncItems(menuList.value),
+    menuList: toSelectedSyncItems(menuList.value, selectedKeys.value),
   };
 
   if (payload.menuList.length === 0) {
-    message.warning('没有可上传的本地页面路由');
+    message.warning('请先选择要上传的页面路由');
     return;
   }
 
@@ -194,6 +308,9 @@ watch(
       resetMenuList();
     }
   },
+  {
+    immediate: true,
+  },
 );
 
 watch(menuList, (data) => {
@@ -206,7 +323,7 @@ watch(menuList, (data) => {
     v-model:open="openProxy"
     :confirm-loading="loading"
     :body-style="{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }"
-    :ok-button-props="{ disabled: totalCount === 0 }"
+    :ok-button-props="{ disabled: selectedCount === 0 }"
     ok-text="上传"
     title="上传页面路由"
     width="min(94vw, 1280px)"
@@ -215,10 +332,26 @@ watch(menuList, (data) => {
     <div class="text-muted-foreground mb-3 text-sm">
       共
       {{ totalCount }}
-      个已启用前端模块的本地页面路由。可在上传前修改名称、备注，或删除不需要同步的页面。
+      个已启用前端模块的本地页面路由，已选择
+      {{ selectedCount }}
+      个。可在上传前修改名称、备注，或删除不需要同步的页面。
     </div>
 
     <Grid class="sync-menu-route-tree-grid">
+      <template #selectHeader>
+        <Checkbox
+          :checked="allSelected"
+          :indeterminate="partiallySelected"
+          @change="handleToggleAll(readCheckboxChecked($event))"
+        />
+      </template>
+      <template #select="{ row }">
+        <Checkbox
+          :checked="selectedKeys.has(row.key)"
+          :indeterminate="isRowIndeterminate(row)"
+          @change="handleToggleRow(row, readCheckboxChecked($event))"
+        />
+      </template>
       <template #label="{ row }">
         <Input v-model:value="row.label" placeholder="请输入名称" />
       </template>
@@ -231,11 +364,11 @@ watch(menuList, (data) => {
       <template #remark="{ row }">
         <Input v-model:value="row.remark" placeholder="请输入备注" />
       </template>
-      <template #view="{ row }">
-        <span class="font-mono text-xs">{{ row.view || '-' }}</span>
+      <template #viewPath="{ row }">
+        <span class="font-mono text-xs">{{ row.viewPath || '-' }}</span>
       </template>
-      <template #sourceFile="{ row }">
-        <span class="font-mono text-xs">{{ row.sourceFile || '-' }}</span>
+      <template #sourceFilePath="{ row }">
+        <span class="font-mono text-xs">{{ row.sourceFilePath || '-' }}</span>
       </template>
       <template #actions="{ row }">
         <Popconfirm

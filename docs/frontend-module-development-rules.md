@@ -225,13 +225,13 @@ export function createOakBaseAdminModule(): AdminFrontendModule {
 
 | 字段         | 规则                                                                 |
 | ------------ | -------------------------------------------------------------------- |
-| `sourcePath` | 后端菜单或控制器路由路径                                             |
-| `targetPath` | 前端运行时页面注册路径，例如 `/system/com_levin_oak_base/user/index.vue` |
-| `sourceFile` | 相对于前端源码目录的页面文件路径，例如 `modules/com_levin_oak_base/views/user/index.vue` |
+| `path`       | 后端菜单或控制器路由路径                                             |
+| `viewPath`       | 前端运行时页面注册路径，例如 `/system/com_levin_oak_base/user/index.vue` |
+| `sourceFilePath` | 相对于前端源码目录的页面文件路径，例如 `modules/com_levin_oak_base/views/user/index.vue` |
 
-后续新增其他业务模块、补充 CRUD 页面映射或新增非 CRUD 页面映射时，不得只填 `sourcePath`/`targetPath`；必须同步填充 `sourceFile`。
+后续新增其他业务模块、补充 CRUD 页面映射或新增非 CRUD 页面映射时，不得只填 `path`/`viewPath`；必须同步填充 `sourceFilePath`。
 
-超级管理员执行“上传页面路由”时必须上传所有已启用前端模块的路由映射，不得只上传当前模块、默认模块或基础模块。`moduleId` 不作为后端接口必填项；但前端模块存在自己的模块 ID 时，上传时每个菜单项都必须带上该菜单所属模块的模块 ID，通常取 `AdminFrontendModule.name`，并把 `targetPath` 作为页面注册路径、`sourceFile` 作为源码相对位置同步给后端菜单。
+超级管理员执行“上传页面路由”时必须上传所有已启用前端模块的路由映射，不得只上传当前模块、默认模块或基础模块。`moduleId` 不作为后端接口必填项；但前端模块存在自己的模块 ID 时，上传时每个菜单项都必须带上该菜单所属模块的模块 ID，通常取 `AdminFrontendModule.name`，并把 `viewPath` 作为页面注册路径、`sourceFilePath` 作为源码相对位置同步给后端菜单。
 
 ## 主应用规则
 
@@ -355,7 +355,7 @@ src/pages/_core/authentication/login.vue
 - 当前模块有哪些可加载页面。
 - 本地开发或兜底时有哪些路由能力。
 
-各模块的 `backendRouteMappings` 必须补齐页面位置元数据。`targetPath` 表示页面注册路径，`sourceFile` 表示相对于前端源码目录的页面文件路径；上传页面路由时这两项会随所有已启用前端模块一起同步到后端。前端模块存在自己的模块 ID 时，每条菜单都必须携带所属前端模块自己的 `moduleId`。
+各模块的 `backendRouteMappings` 必须补齐页面位置元数据。`viewPath` 表示页面注册路径，`sourceFilePath` 表示相对于前端源码目录的页面文件路径；上传页面路由时这两项会随所有已启用前端模块一起同步到后端。前端模块存在自己的模块 ID 时，每条菜单都必须携带所属前端模块自己的 `moduleId`。
 
 左侧菜单、权限菜单、可见菜单必须来自后端菜单接口。前端不能用硬编码菜单替代后端菜单。
 

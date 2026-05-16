@@ -24,7 +24,7 @@ function createRouteMappingLookup(
   routeMappings: AdminBackendRouteMapping[] = [],
 ): RouteMappingLookup {
   return {
-    byPath: new Map(routeMappings.map((item) => [item.sourcePath, item])),
+    byPath: new Map(routeMappings.map((item) => [item.path, item])),
     byResource: new Map(
       routeMappings.map((item) => [item.resource.toLowerCase(), item]),
     ),
@@ -196,7 +196,7 @@ function convertLeafRoute(
 
   if (pageType === 'LocalPage' && mapping) {
     return {
-      component: mapping.view,
+      component: mapping.viewPath,
       meta: {
         authority: toAuthority(item),
         icon: item.icon || mapping.icon,
@@ -222,7 +222,7 @@ function convertLeafRoute(
   }
 
   return {
-    component: mapping?.view || '/system/shared/controller-crud-page.vue',
+    component: mapping?.viewPath || '/system/shared/controller-crud-page.vue',
     meta: toMeta(item, normalizedPath),
     name: toRouteName('Crud', item),
     path: finalPath || `/menu/${item.id || 'unknown'}`,
@@ -279,12 +279,12 @@ export function buildMenuRoutes(
   const existingPaths = collectRoutePaths(routes);
 
   routeMappings.forEach((mapping) => {
-    if (existingPaths.has(mapping.sourcePath)) {
+    if (existingPaths.has(mapping.path)) {
       return;
     }
 
     routes.push({
-      component: mapping.view,
+      component: mapping.viewPath,
       meta: {
         crudResource: mapping.resource,
         hideInMenu: true,
@@ -292,9 +292,9 @@ export function buildMenuRoutes(
         title: mapping.title,
       },
       name: mapping.name,
-      path: mapping.sourcePath,
+      path: mapping.path,
     });
-    existingPaths.add(mapping.sourcePath);
+    existingPaths.add(mapping.path);
   });
 
   return routes;

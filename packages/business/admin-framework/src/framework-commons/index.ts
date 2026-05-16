@@ -73,11 +73,11 @@ export type AdminLocaleMessagesMap = Record<string, AdminLocaleMessages>;
 export interface AdminBackendRouteMapping {
   icon: string;
   name: string;
+  path: string;
   resource: string;
-  sourceFile?: string;
-  sourcePath: string;
+  sourceFilePath?: string;
   title: string;
-  view: string;
+  viewPath: string;
 }
 
 export interface AdminFrontendModule<

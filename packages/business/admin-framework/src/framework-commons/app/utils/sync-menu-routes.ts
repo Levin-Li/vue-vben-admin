@@ -14,8 +14,8 @@ export interface SyncMenuItem {
   params?: string;
   path: string;
   remark?: string;
-  sourceFile?: string;
-  view?: string;
+  sourceFilePath?: string;
+  viewPath?: string;
 }
 
 export interface SyncMenuPayload {
@@ -56,7 +56,7 @@ function shouldSkipRoute(route: RouteRecordRaw) {
 function createRouteMappingLookup(
   routeMappings: AdminBackendRouteMapping[] = [],
 ) {
-  return new Map(routeMappings.map((item) => [item.sourcePath, item]));
+  return new Map(routeMappings.map((item) => [item.path, item]));
 }
 
 function applyRouteMapping(
@@ -69,8 +69,8 @@ function applyRouteMapping(
 
   return {
     ...item,
-    sourceFile: mapping.sourceFile,
-    view: mapping.view,
+    sourceFilePath: mapping.sourceFilePath,
+    viewPath: mapping.viewPath,
   };
 }
 
@@ -114,7 +114,10 @@ function toSyncMenuItems(
   });
 }
 
-function collectSyncMenuPaths(items: SyncMenuItem[], paths = new Set<string>()) {
+function collectSyncMenuPaths(
+  items: SyncMenuItem[],
+  paths = new Set<string>(),
+) {
   items.forEach((item) => {
     paths.add(item.path);
     collectSyncMenuPaths(item.children || [], paths);
@@ -131,10 +134,10 @@ function toSyncMenuItemFromMapping(
     icon: mapping.icon,
     label: mapping.title,
     moduleId,
-    path: mapping.sourcePath,
+    path: mapping.path,
     remark: mapping.name,
-    sourceFile: mapping.sourceFile,
-    view: mapping.view,
+    sourceFilePath: mapping.sourceFilePath,
+    viewPath: mapping.viewPath,
   };
 }
 
@@ -149,12 +152,12 @@ function buildModuleMenuItems(module: AdminFrontendModule): SyncMenuItem[] {
   const menuPaths = collectSyncMenuPaths(menuItems);
 
   routeMappings.forEach((mapping) => {
-    if (menuPaths.has(mapping.sourcePath)) {
+    if (menuPaths.has(mapping.path)) {
       return;
     }
 
     menuItems.push(toSyncMenuItemFromMapping(mapping, module.name));
-    menuPaths.add(mapping.sourcePath);
+    menuPaths.add(mapping.path);
   });
 
   return menuItems;
@@ -176,12 +179,12 @@ export function buildSyncMenuPayload(
   const menuPaths = collectSyncMenuPaths(menuList);
 
   routeMappings.forEach((mapping) => {
-    if (menuPaths.has(mapping.sourcePath)) {
+    if (menuPaths.has(mapping.path)) {
       return;
     }
 
     menuList.push(toSyncMenuItemFromMapping(mapping, moduleId));
-    menuPaths.add(mapping.sourcePath);
+    menuPaths.add(mapping.path);
   });
 
   return {
