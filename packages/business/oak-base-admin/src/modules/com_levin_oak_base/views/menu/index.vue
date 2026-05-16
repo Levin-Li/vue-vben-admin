@@ -46,13 +46,11 @@ const batchDeleteMenuPermission = buildApiMethodPermissions(
   'batchDelete',
 );
 const createMenuPermission = buildApiMethodPermissions(menuService, 'create');
-const deleteMenuPermission = buildApiMethodPermissions(menuService, 'delete');
 const updateMenuPermission = buildApiMethodPermissions(menuService, 'update');
 const canBatchDeleteMenu = computed(() =>
   hasPermission(batchDeleteMenuPermission),
 );
 const canCreateMenu = computed(() => hasPermission(createMenuPermission));
-const canDeleteMenu = computed(() => hasPermission(deleteMenuPermission));
 const canUpdateMenu = computed(() => hasPermission(updateMenuPermission));
 
 const [Grid, gridApi] = useVbenVxeGrid({
@@ -200,8 +198,8 @@ function openEdit(row: MenuRecord) {
 }
 
 function deleteRow(row: MenuRecord) {
-  if (!canDeleteMenu.value) {
-    message.warning('当前账号没有删除菜单权限');
+  if (!canBatchDeleteMenu.value) {
+    message.warning('当前账号没有批量删除菜单权限');
     return;
   }
 
@@ -368,7 +366,7 @@ function renderIcon(row: MenuRecord) {
                 编辑
               </Button>
               <Button
-                v-if="canDeleteMenu"
+                v-if="canBatchDeleteMenu"
                 danger
                 size="small"
                 type="link"
