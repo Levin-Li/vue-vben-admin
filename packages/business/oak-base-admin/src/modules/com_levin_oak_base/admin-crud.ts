@@ -124,7 +124,7 @@ export function createOakBaseAdminCrudRoutes(
     localViewMap = {},
     order = 120,
     rootName = 'AdminCrudPages',
-    rootPath = '/admin-crud',
+    rootPath = '/clob/V1/index',
     title = '后台管理',
   } = options;
 

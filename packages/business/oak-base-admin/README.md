@@ -20,7 +20,7 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 ];
 ```
 
-默认 API 前缀为 `/com.levin.oak.base/V1/api`，默认 CRUD 路由根路径为 `/admin-crud`。真实菜单应以后端当前用户授权菜单为准，前端根据菜单路径匹配模块注册页面。
+默认 API 前缀为 `/com.levin.oak.base/V1/api`，默认 CRUD 父级路由为 `/clob/V1/index`，子页面路由为 `/clob/V1/<Resource>`。真实菜单应以后端当前用户授权菜单为准，前端根据菜单路径匹配模块注册页面。
 
 包的正式入口指向 `dist` 构建结果；随包携带的 `src` 只用于源码查看、调试和问题定位，不应通过 `@levin/oak-base-admin/src/...` 参与第三方应用编译。
 
