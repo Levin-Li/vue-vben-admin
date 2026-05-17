@@ -204,7 +204,9 @@ src/modules/com_levin_oak_base/locales/en-US.json
 
 后续新增其他业务模块、补充 CRUD 页面映射或新增非 CRUD 页面映射时，不得只填后端菜单路径和页面注册路径，必须同步填充 `sourceFilePath`。入口应用执行“上传页面路由”会上传所有已启用模块，并把这些字段同步给后端菜单。
 
-这里的“所有已启用模块”包括最终应用启用的全部前端业务模块，不限于基础模块或当前正在打开的模块。`moduleId` 不作为后端接口必填项；但前端模块存在自己的模块 ID 时，上传时每个菜单项都必须带上该菜单所属模块的模块 ID，通常取 `AdminFrontendModule.name`。
+这里的“所有已启用模块”包括最终应用启用的全部前端业务模块，不限于基础模块或当前正在打开的模块。`moduleId` 不作为后端接口必填项；但前端模块存在自己的模块 ID 时，上传时每个菜单项都必须带上该菜单所属模块的模块 ID。
+
+前端页面路由中的模块 ID 不能由前端自定义，必须使用后端 Java 根 POM 约定的模块包名，例如 `com.levin.oak.base`。如果上传代码取 `AdminFrontendModule.name` 作为 `moduleId`，则该模块对象的 `name` 必须等于这个后端模块包名；不要使用 npm 包名、前端页面目录名、短包名、显示名称或其它临时标识。
 
 模块通过模块对象的 `locales` 字段暴露国际化内容，入口应用使用 `collectAdminModuleLocales(enabledFrontendModules)` 统一合并。
 
