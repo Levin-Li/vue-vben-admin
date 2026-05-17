@@ -846,8 +846,26 @@ const searchCollapsedCount = computed(
   () => props.config.searchCollapsedCount ?? DEFAULT_SEARCH_COLLAPSED_COUNT,
 );
 
+const effectiveSearchCollapsedCount = computed(() => {
+  if (searchColumnCount.value <= 1) {
+    return Math.min(searchCollapsedCount.value, searchFieldItems.value.length);
+  }
+
+  const fieldsBeforeActionColumn = searchColumnCount.value - 1;
+  const usedColumnsInActionRow =
+    searchCollapsedCount.value % searchColumnCount.value;
+  const additionalFields =
+    (fieldsBeforeActionColumn -
+      usedColumnsInActionRow +
+      searchColumnCount.value) %
+    searchColumnCount.value;
+  const targetCount = searchCollapsedCount.value + additionalFields;
+
+  return Math.min(targetCount, searchFieldItems.value.length);
+});
+
 const showAdvancedSearchToggle = computed(
-  () => searchFieldItems.value.length > searchCollapsedCount.value,
+  () => searchFieldItems.value.length > effectiveSearchCollapsedCount.value,
 );
 
 const visibleSearchFieldItems = computed(() => {
@@ -855,7 +873,7 @@ const visibleSearchFieldItems = computed(() => {
     return searchFieldItems.value;
   }
 
-  return searchFieldItems.value.slice(0, searchCollapsedCount.value);
+  return searchFieldItems.value.slice(0, effectiveSearchCollapsedCount.value);
 });
 
 function getResponsiveColumnCount(targetCount: number) {
