@@ -30,6 +30,14 @@ import { useMagicKeys, whenever } from '@vueuse/core';
 
 import { LockScreenModal } from '../lock-screen';
 
+interface UserDropdownMenu {
+  disabled?: boolean;
+  handler: AnyFunction;
+  icon?: Component | Function | string;
+  id?: string;
+  text: string;
+}
+
 interface Props {
   /**
    * 头像
@@ -46,11 +54,17 @@ interface Props {
   /**
    * 菜单数组
    */
-  menus?: Array<{
-    handler: AnyFunction;
-    icon?: Component | Function | string;
-    text: string;
-  }>;
+  menus?: UserDropdownMenu[];
+
+  /**
+   * 独立的个人中心固定菜单
+   */
+  profileMenu?: UserDropdownMenu;
+
+  /**
+   * 公共模块固定菜单
+   */
+  systemMenus?: UserDropdownMenu[];
 
   /**
    * 标签文本
@@ -76,6 +90,7 @@ const props = withDefaults(defineProps<Props>(), {
   enableShortcutKey: true,
   menus: () => [],
   showShortcutKey: true,
+  systemMenus: () => [],
   tagText: '',
   text: '',
   trigger: 'click',
@@ -146,7 +161,10 @@ function handleLogout() {
   openPopover.value = false;
 }
 
-function handleMenuClick(handler: AnyFunction) {
+function handleMenuClick(handler: AnyFunction, disabled?: boolean) {
+  if (disabled) {
+    return;
+  }
   handler();
   openPopover.value = false;
 }
@@ -228,12 +246,39 @@ if (enableShortcutKey.value) {
             </div>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator v-if="menus?.length" />
+        <DropdownMenuSeparator
+          v-if="profileMenu || systemMenus?.length || menus?.length"
+        />
+        <DropdownMenuItem
+          v-if="profileMenu"
+          :key="profileMenu.id || profileMenu.text"
+          class="mx-1 flex cursor-pointer items-center rounded-sm py-1 leading-8"
+          :disabled="profileMenu.disabled"
+          @select="handleMenuClick(profileMenu.handler, profileMenu.disabled)"
+        >
+          <VbenIcon :icon="profileMenu.icon" class="mr-2 size-4" />
+          {{ profileMenu.text }}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator
+          v-if="profileMenu && (systemMenus?.length || menus?.length)"
+        />
+        <DropdownMenuItem
+          v-for="menu in systemMenus"
+          :key="menu.id || menu.text"
+          class="mx-1 flex cursor-pointer items-center rounded-sm py-1 leading-8"
+          :disabled="menu.disabled"
+          @select="handleMenuClick(menu.handler, menu.disabled)"
+        >
+          <VbenIcon :icon="menu.icon" class="mr-2 size-4" />
+          {{ menu.text }}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator v-if="systemMenus?.length && menus?.length" />
         <DropdownMenuItem
           v-for="menu in menus"
-          :key="menu.text"
+          :key="menu.id || menu.text"
           class="mx-1 flex cursor-pointer items-center rounded-sm py-1 leading-8"
-          @select="handleMenuClick(menu.handler)"
+          :disabled="menu.disabled"
+          @select="handleMenuClick(menu.handler, menu.disabled)"
         >
           <VbenIcon :icon="menu.icon" class="mr-2 size-4" />
           {{ menu.text }}

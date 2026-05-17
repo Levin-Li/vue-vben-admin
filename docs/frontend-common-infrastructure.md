@@ -1,6 +1,6 @@
 # 前端公共基础设施使用说明
 
-本文档说明业务模块如何使用框架提供的前端公共基础设施，当前包括事件总线、顶部栏扩展区和可拖拽浮动面板。
+本文档说明业务模块如何使用框架提供的前端公共基础设施，当前包括事件总线、顶部栏扩展区、用户下拉菜单扩展区和可拖拽浮动面板。
 
 ## 公共入口
 
@@ -13,6 +13,7 @@ import {
   onFrameworkEvent,
   useDraggableFloatingPanels,
   useLayoutHeaderExtensionArea,
+  useUserDropdownMenuItems,
 } from '@levin/admin-framework/framework-commons';
 ```
 
@@ -240,6 +241,74 @@ floatingPanels.add({
 - 收缩不是移除：收缩后监听、位置和注册项仍保留，只隐藏面板内容。
 - 固定在顶部栏的控件不得使用浮动面板实现，应使用顶部栏扩展区。
 
+## 用户下拉菜单扩展区
+
+用户头像下拉菜单分为四个区域：
+
+- 固定个人中心区域：只用于框架内置 `个人中心`，第三方模块不能替换、删除或插入到它前面。
+- 公共模块固定区域：用于框架公共模块内置动作，例如 `上传页面路由`、`上传界面设置`、`监听器管理`，第三方模块不能替换或删除。
+- 第三方扩展区域：第三方模块和宿主应用可以在这里添加或移除按钮，位置在公共模块固定区域和账户固定区域之间。
+- 固定账户区域：框架内置 `锁定屏幕` 和 `退出登录`，第三方模块不能替换或删除。
+
+页面级或模块级注册推荐使用组合式函数，组件卸载时会自动清理：
+
+```vue
+<script setup lang="ts">
+import { useUserDropdownMenuItems } from '@levin/admin-framework/framework-commons';
+
+const userDropdownMenus = useUserDropdownMenuItems();
+
+userDropdownMenus.add({
+  id: 'project-help',
+  icon: 'lucide:circle-help',
+  order: 500,
+  text: '项目帮助',
+  handler: () => {
+    window.open('/project/help', '_blank');
+  },
+});
+</script>
+```
+
+入口应用或宿主应用注册常驻按钮时，可以使用全局注册函数并保存清理函数：
+
+```ts
+import {
+  addUserDropdownMenuItem,
+  removeUserDropdownMenuItem,
+} from '@levin/admin-framework/framework-commons';
+
+const dispose = addUserDropdownMenuItem({
+  id: 'tenant-feedback',
+  icon: 'lucide:message-square',
+  order: 600,
+  text: '反馈入口',
+  handler: () => {
+    console.log('open feedback');
+  },
+});
+
+removeUserDropdownMenuItem('tenant-feedback');
+dispose();
+```
+
+注册项字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `id` | 稳定唯一标识。重复 `id` 会替换旧项。 |
+| `text` | 菜单文案。 |
+| `icon` | 图标，支持 Iconify 字符串或组件。 |
+| `handler` | 点击菜单后的处理函数。 |
+| `order` | 第三方扩展区域内的排序值，越小越靠前；不填写时使用 `1000`。 |
+| `disabled` | 是否禁用该菜单项。 |
+
+使用约束：
+
+- 第三方模块只能影响第三方扩展区域，不能移动、删除或替换 `个人中心`、`上传页面路由`、`上传界面设置`、`监听器管理`、`锁定屏幕`、`退出登录` 这些固定项。
+- 注册项必须有稳定 `id`，避免重复进入页面或重复初始化后堆叠。
+- 通过 `useUserDropdownMenuItems().add` 创建的项会在当前组件卸载时自动清理；通过 `addUserDropdownMenuItem` 创建的常驻项应保存清理函数或主动调用 `removeUserDropdownMenuItem(id)`。
+
 ## 选择规则
 
 | 需求                               | 应使用                       |
@@ -247,6 +316,7 @@ floatingPanels.add({
 | 跨模块通知某件事发生               | 事件总线                     |
 | API 返回后通知其它框架能力         | API 请求事件                 |
 | 控件固定在顶部栏中央或右侧         | 顶部栏扩展区                 |
+| 用户头像下拉菜单中间添加动作按钮   | 用户下拉菜单扩展区           |
 | 控件悬浮在整个浏览器窗口并允许拖动 | 可拖拽浮动面板               |
 | 页面内部父子组件通信               | props、emits、provide/inject |
 | 持久保存业务状态                   | API、Pinia 或业务存储        |

@@ -3,7 +3,8 @@ import { h } from 'vue';
 import {
   addDraggableFloatingPanel,
   addLayoutHeaderExtensionAreaItem,
-} from '@levin/admin-framework';
+  addUserDropdownMenuItem,
+} from '@levin/admin-framework/framework-commons';
 
 function renderHeaderMarker(title: string, description: string) {
   return h(
@@ -44,6 +45,16 @@ function renderFloatingMarker(index: number) {
 }
 
 export function registerDemoInfrastructureExtensions() {
+  addUserDropdownMenuItem({
+    handler: () => {
+      console.log('Demo 入口应用用户下拉菜单按钮被点击');
+    },
+    icon: 'lucide:badge-plus',
+    id: 'bootstrap-demo-user-dropdown-menu',
+    order: 10,
+    text: '第三方菜单按钮',
+  });
+
   addLayoutHeaderExtensionAreaItem('center', {
     id: 'bootstrap-demo-header-center-marker',
     order: 10,

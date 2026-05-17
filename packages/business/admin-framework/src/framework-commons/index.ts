@@ -22,6 +22,15 @@ export * from './request-service';
  */
 export * from './shared/draggable-floating-panel-service';
 /**
+ * Dynamic user-dropdown menu registry.
+ *
+ * Third-party admin modules can add or remove compact actions in the user
+ * avatar dropdown without editing the layout template. Use stable ids and
+ * `order`; component-scoped registrations are cleaned up automatically on
+ * unmount.
+ */
+export * from './shared/user-dropdown-menu-service';
+/**
  * Dynamic top header extension areas.
  *
  * Use `useLayoutHeaderExtensionArea('center')` for top-center controls and

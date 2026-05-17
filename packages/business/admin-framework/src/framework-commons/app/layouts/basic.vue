@@ -50,6 +50,7 @@ import {
   setFrameworkEventListenerEnabled,
   type FrameworkEventListenerInfo,
 } from '../../event-bus';
+import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-service';
 import SyncMenuRoutesModal from './sync-menu-routes-modal.vue';
 
 type NoticeProcessStatus = 'Finished' | 'Processing' | 'Rejected';
@@ -131,20 +132,23 @@ const eventListenerManagerModalStyle = {
 };
 const { destroyWatermark, updateWatermark } = useWatermark();
 const showDot = computed(() => noticeUnreadCount.value > 0);
+const extensionUserDropdownMenus = getUserDropdownMenuItems();
 
 const canUploadPageRoutes = computed(() => {
   const userInfo = (userStore.userInfo || {}) as Record<string, any>;
   return userInfo.superAdmin === true && Boolean(getAdminMenuSyncService());
 });
 
-const menus = computed(() => [
-  {
-    handler: () => {
-      profileModalOpen.value = true;
-    },
-    icon: 'lucide:user',
-    text: $t('page.auth.profile'),
+const fixedProfileUserDropdownMenu = computed(() => ({
+  handler: () => {
+    profileModalOpen.value = true;
   },
+  icon: 'lucide:user',
+  id: 'profile',
+  text: $t('page.auth.profile'),
+}));
+
+const builtInUserDropdownExtensionMenus = computed(() => [
   ...(canUploadPageRoutes.value
     ? [
         {
@@ -152,6 +156,8 @@ const menus = computed(() => [
             syncMenuRoutesModalOpen.value = true;
           },
           icon: 'lucide:cloud-upload',
+          id: 'sync-menu-routes',
+          order: 200,
           text: '上传页面路由',
         },
         {
@@ -160,6 +166,8 @@ const menus = computed(() => [
             saveAdminUiBaseSettingModalOpen.value = true;
           },
           icon: 'lucide:settings',
+          id: 'save-admin-ui-base-setting',
+          order: 300,
           text: '上传界面设置',
         },
         {
@@ -167,11 +175,24 @@ const menus = computed(() => [
             openEventListenerManager();
           },
           icon: 'lucide:list-tree',
+          id: 'event-listener-manager',
+          order: 400,
           text: '监听器管理',
         },
       ]
     : []),
 ]);
+
+const systemMenus = computed(() => builtInUserDropdownExtensionMenus.value);
+
+const menus = computed(() => {
+  return extensionUserDropdownMenus.value
+    .map((item) => ({
+      ...item,
+      order: item.order ?? 1000,
+    }))
+    .toSorted((left, right) => left.order - right.order);
+});
 
 const avatar = computed(() => {
   return userStore.userInfo?.avatar ?? preferences.app.defaultAvatar;
@@ -664,6 +685,8 @@ watch(
       <UserDropdown
         :avatar
         :menus
+        :profile-menu="fixedProfileUserDropdownMenu"
+        :system-menus="systemMenus"
         :text="userStore.userInfo?.realName"
         :description="userDropdownDescription"
         tag-text="Pro"
