@@ -3,59 +3,21 @@ import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
-  basePath: '/Permission',
-  controllerClass: 'com.levin.oak.base.controller.BizPermissionController',
-  description: '权限管理',
-  title: '权限',
-  type: '平台数据-权限',
+  basePath: '/RbacPermissionItem',
+  controllerClass:
+    'com.levin.oak.base.controller.BizRbacPermissionItemController',
+  description: '权限项定义维护',
+  title: '权限项定义',
+  type: '平台数据-权限项定义',
 })
-export class PermissionService extends RequestService {
+export class RbacPermissionItemService extends RequestService {
   constructor() {
     super(OAK_BASE_API_MODULE);
   }
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '平台数据-权限',
-    action: '批量新增',
-  })
-  async batchCreate(data?: any, options?: any) {
-    return this.post('batchCreate', {
-      ...options,
-      data,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '平台数据-权限',
-    action: '批量删除',
-  })
-  @CRUD.Op({
-    opRefTargetType: 'MultipleRow',
-  })
-  async batchDelete(params?: any, options?: any) {
-    return this.deleteRequest('batchDelete', {
-      ...options,
-      params,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '平台数据-权限',
-    action: '批量更新',
-  })
-  async batchUpdate(data?: any, options?: any) {
-    return this.put('batchUpdate', {
-      ...options,
-      data,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '平台数据-权限',
+    type: '平台数据-权限项定义',
     action: '清除缓存',
   })
   async clearCache(params?: any, options?: any) {
@@ -67,7 +29,7 @@ export class PermissionService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '平台数据-权限',
+    type: '平台数据-权限项定义',
     action: '新增',
   })
   @CRUD.Op({
@@ -82,7 +44,7 @@ export class PermissionService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '平台数据-权限',
+    type: '平台数据-权限项定义',
     action: '删除',
   })
   @CRUD.Op()
@@ -95,11 +57,11 @@ export class PermissionService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '平台数据-权限',
+    type: '平台数据-权限项定义',
     action: '查询列表',
   })
   @CRUD.ListTable({
-    refEntityClass: 'com.levin.oak.base.entities.Permission',
+    refEntityClass: 'com.levin.oak.base.entities.RbacPermissionItem',
   })
   async list(params?: any, options?: any) {
     return this.get('list', {
@@ -110,7 +72,7 @@ export class PermissionService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '平台数据-权限',
+    type: '平台数据-权限项定义',
     action: '查看详情',
   })
   @CRUD.Op({
@@ -125,7 +87,7 @@ export class PermissionService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '平台数据-权限',
+    type: '平台数据-权限项定义',
     action: '统计',
   })
   async stat(params?: any, options?: any) {
@@ -137,7 +99,7 @@ export class PermissionService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '平台数据-权限',
+    type: '平台数据-权限项定义',
     action: '更新',
   })
   @CRUD.Op()
@@ -149,4 +111,4 @@ export class PermissionService extends RequestService {
   }
 }
 
-export const permissionService = new PermissionService();
+export const rbacPermissionItemService = new RbacPermissionItemService();

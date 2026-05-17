@@ -163,6 +163,9 @@ const DEFAULT_CRUD_MODAL_WIDTH = 'min(70vw, 1280px)';
 const DEFAULT_FORM_ROW_HEIGHT = 78;
 const EXPORT_PAGE_SIZE = 2000;
 const FORM_GRID_COLUMN_GAP = 16;
+const MAX_SEARCH_COLUMN_COUNT = 7;
+const MIN_SEARCH_COLUMN_WIDTH = 280;
+const SEARCH_GRID_COLUMN_GAP = 16;
 const MIN_FORM_COLUMN_WIDTH = 240;
 const TABLE_COLUMN_PREFERENCE_VERSION = 2;
 const TABLE_MIN_SCROLL_Y = 160;
@@ -210,7 +213,7 @@ const tableFullscreen = ref(false);
 const activeListTableKey = ref('');
 const listTableTabsCollapsed = ref(false);
 const isDraggingListTableTabs = ref(false);
-const suppressListTableTabsClick = ref(false);
+const listTableTabsHandleTooltipOpen = ref(false);
 const hiddenTableColumnKeys = ref<string[]>([]);
 const columnSettingsOpen = ref(false);
 const columnSettingsSnapshot = ref<null | TableColumnSettingsSnapshot>(null);
@@ -245,6 +248,10 @@ const pagination = reactive({
   total: 0,
 });
 const tableSorterState = reactive<TableSorterState>({});
+const searchPanelRef = ref<HTMLElement | null>(null);
+const searchPanelWidth = ref(
+  typeof window === 'undefined' ? 1440 : window.innerWidth,
+);
 const viewportWidth = ref(
   typeof window === 'undefined' ? 1440 : window.innerWidth,
 );
@@ -276,8 +283,35 @@ const listTableTabsFloatStyle = computed(() => ({
   left: `${listTableTabsPosition.x}px`,
   top: `${listTableTabsPosition.y}px`,
 }));
+const listTableTabsPositionStorageKey = computed(() => {
+  const routeKey = route.path || route.name || 'crud-page';
+  const tableKeys = listTables.value.map((table) => table.key).join(',');
+
+  return [
+    'levin',
+    'crud-list-tabs-position',
+    String(routeKey),
+    props.config.apiBase,
+    tableKeys,
+  ].join(':');
+});
+const listTableTabsHandleName = computed(() =>
+  listTables.value.length > 0
+    ? getListTableTitle(listTables.value[0], 0)
+    : '列表切换',
+);
+const listTableTabsHandleActionLabel = computed(() =>
+  listTableTabsCollapsed.value
+    ? '点击可展开，按住可拖动'
+    : '点击可收缩，按住可拖动',
+);
+const listTableTabsHandleLabel = computed(
+  () =>
+    `${listTableTabsHandleName.value}：${listTableTabsHandleActionLabel.value}`,
+);
 
 let listTableTabsDragState: null | {
+  moved: boolean;
   startLeft: number;
   startTop: number;
   startX: number;
@@ -941,7 +975,30 @@ function getMediaFieldCount(fields: CrudFieldConfig[]) {
   ).length;
 }
 
-const searchColumnCount = computed(() => getResponsiveColumnCount(4));
+function getContainerColumnCount(
+  containerWidth: number,
+  minColumnWidth: number,
+  maxColumns: number,
+) {
+  if (containerWidth < 768) {
+    return 1;
+  }
+
+  const columns = Math.floor(
+    (containerWidth + SEARCH_GRID_COLUMN_GAP) /
+      (minColumnWidth + SEARCH_GRID_COLUMN_GAP),
+  );
+
+  return Math.min(Math.max(columns, 1), maxColumns);
+}
+
+const searchColumnCount = computed(() =>
+  getContainerColumnCount(
+    searchPanelWidth.value,
+    MIN_SEARCH_COLUMN_WIDTH,
+    MAX_SEARCH_COLUMN_COUNT,
+  ),
+);
 
 const searchGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${searchColumnCount.value}, minmax(0, 1fr))`,
@@ -1032,11 +1089,18 @@ const modalWidth = computed(() => modalMaxWidth.value);
 function handleViewportResize() {
   viewportWidth.value = window.innerWidth;
   viewportHeight.value = window.innerHeight;
+  updateSearchPanelWidth();
   setListTableTabsPosition(listTableTabsPosition.x, listTableTabsPosition.y);
   updateTableScrollY();
 }
 
 let listSectionResizeObserver: null | ResizeObserver = null;
+let searchPanelResizeObserver: null | ResizeObserver = null;
+
+function updateSearchPanelWidth() {
+  searchPanelWidth.value =
+    searchPanelRef.value?.clientWidth || viewportWidth.value;
+}
 
 function getElementOuterHeight(element: Element | null) {
   if (!(element instanceof HTMLElement)) {
@@ -1187,6 +1251,58 @@ function setListTableTabsPosition(x: number, y: number) {
   listTableTabsPosition.y = nextPosition.y;
 }
 
+function getStoredListTableTabsPosition() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(listTableTabsPositionStorageKey.value) || '',
+    );
+
+    if (
+      parsed &&
+      typeof parsed.x === 'number' &&
+      typeof parsed.y === 'number'
+    ) {
+      return parsed as { x: number; y: number };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function saveListTableTabsPosition() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  localStorage.setItem(
+    listTableTabsPositionStorageKey.value,
+    JSON.stringify({
+      x: listTableTabsPosition.x,
+      y: listTableTabsPosition.y,
+    }),
+  );
+}
+
+function restoreListTableTabsPosition() {
+  const storedPosition = getStoredListTableTabsPosition();
+
+  if (!storedPosition) {
+    setListTableTabsPosition(
+      LIST_TABLE_TABS_INITIAL_LEFT,
+      LIST_TABLE_TABS_INITIAL_TOP,
+    );
+    return;
+  }
+
+  setListTableTabsPosition(storedPosition.x, storedPosition.y);
+}
+
 function handleListTableTabsPointerMove(event: PointerEvent) {
   if (!listTableTabsDragState) {
     return;
@@ -1196,14 +1312,14 @@ function handleListTableTabsPointerMove(event: PointerEvent) {
   const deltaY = event.clientY - listTableTabsDragState.startY;
 
   if (
-    !isDraggingListTableTabs.value &&
+    !listTableTabsDragState.moved &&
     Math.hypot(deltaX, deltaY) < LIST_TABLE_TABS_DRAG_THRESHOLD
   ) {
     return;
   }
 
+  listTableTabsDragState.moved = true;
   isDraggingListTableTabs.value = true;
-  suppressListTableTabsClick.value = true;
   setListTableTabsPosition(
     listTableTabsDragState.startLeft + deltaX,
     listTableTabsDragState.startTop + deltaY,
@@ -1218,18 +1334,15 @@ function stopListTableTabsDrag() {
 }
 
 function handleListTableTabsPointerUp() {
-  const wasDragging = isDraggingListTableTabs.value;
+  const shouldToggleCollapsed = !listTableTabsDragState?.moved;
 
   listTableTabsDragState = null;
   isDraggingListTableTabs.value = false;
   stopListTableTabsDrag();
+  saveListTableTabsPosition();
 
-  if (wasDragging) {
-    window.setTimeout(() => {
-      suppressListTableTabsClick.value = false;
-    }, 0);
-  } else {
-    suppressListTableTabsClick.value = false;
+  if (shouldToggleCollapsed) {
+    toggleListTableTabsCollapsed();
   }
 }
 
@@ -1239,26 +1352,29 @@ function handleListTableTabsPointerDown(event: PointerEvent) {
   }
 
   listTableTabsDragState = {
+    moved: false,
     startLeft: listTableTabsPosition.x,
     startTop: listTableTabsPosition.y,
     startX: event.clientX,
     startY: event.clientY,
   };
-  suppressListTableTabsClick.value = false;
+  listTableTabsHandleTooltipOpen.value = false;
   window.addEventListener('pointermove', handleListTableTabsPointerMove);
   window.addEventListener('pointerup', handleListTableTabsPointerUp);
   window.addEventListener('pointercancel', handleListTableTabsPointerUp);
+  event.preventDefault();
 }
 
 function toggleListTableTabsCollapsed() {
-  if (suppressListTableTabsClick.value) {
-    return;
-  }
-
   listTableTabsCollapsed.value = !listTableTabsCollapsed.value;
   nextTick(() => {
     setListTableTabsPosition(listTableTabsPosition.x, listTableTabsPosition.y);
   });
+}
+
+function handleListTableTabsTooltipOpenChange(open: boolean) {
+  listTableTabsHandleTooltipOpen.value =
+    listTableTabsDragState || isDraggingListTableTabs.value ? false : open;
 }
 
 function getInitialListTablePageSize() {
@@ -2131,10 +2247,6 @@ function handleTableChange(page: any, _filters: any, sorter: any) {
 }
 
 function handleListTableChange(key: number | string) {
-  if (suppressListTableTabsClick.value) {
-    return;
-  }
-
   const previousKey = activeListTableStateKey.value;
   const nextKey = String(key || '');
 
@@ -3696,12 +3808,20 @@ onMounted(async () => {
   loadTableColumnPreference();
   await loadOptions();
   await loadList();
+  await nextTick();
+  restoreListTableTabsPosition();
 
   if (typeof ResizeObserver !== 'undefined' && listSectionRef.value) {
     listSectionResizeObserver = new ResizeObserver(updateTableScrollY);
     listSectionResizeObserver.observe(listSectionRef.value);
   }
 
+  if (typeof ResizeObserver !== 'undefined' && searchPanelRef.value) {
+    searchPanelResizeObserver = new ResizeObserver(updateSearchPanelWidth);
+    searchPanelResizeObserver.observe(searchPanelRef.value);
+  }
+
+  updateSearchPanelWidth();
   updateTableScrollY();
 });
 
@@ -3711,6 +3831,8 @@ onUnmounted(() => {
   stopListTableTabsDrag();
   listSectionResizeObserver?.disconnect();
   listSectionResizeObserver = null;
+  searchPanelResizeObserver?.disconnect();
+  searchPanelResizeObserver = null;
 });
 
 watch(modalOpen, (open) => {
@@ -3780,27 +3902,32 @@ watch(tableColumnPreferenceStorageKey, () => {
           'is-dragging': isDraggingListTableTabs,
         }"
         :style="listTableTabsFloatStyle"
-        @pointerdown="handleListTableTabsPointerDown"
       >
         <Tooltip
-          :title="listTableTabsCollapsed ? '展开列表切换' : '收起列表切换'"
+          :mouse-enter-delay="1.5"
+          :mouse-leave-delay="0"
+          :open="listTableTabsHandleTooltipOpen"
+          placement="right"
+          @open-change="handleListTableTabsTooltipOpenChange"
         >
+          <template #title>
+            <div class="max-w-80">
+              <div class="font-medium leading-5">
+                {{ listTableTabsHandleName }}
+              </div>
+              <div class="mt-0.5 text-xs leading-5 opacity-90">
+                {{ listTableTabsHandleActionLabel }}
+              </div>
+            </div>
+          </template>
           <button
+            :aria-label="listTableTabsHandleLabel"
+            :aria-pressed="listTableTabsCollapsed"
+            class="vben-crud-list-tabs-handle"
             type="button"
-            class="vben-crud-list-tabs-toggle"
-            :aria-label="
-              listTableTabsCollapsed ? '展开列表切换' : '收起列表切换'
-            "
-            @click.stop="toggleListTableTabsCollapsed"
+            @pointerdown.stop="handleListTableTabsPointerDown"
           >
-            <IconifyIcon
-              class="size-4"
-              :icon="
-                listTableTabsCollapsed
-                  ? 'lucide:panel-left-open'
-                  : 'lucide:panel-left-close'
-              "
-            />
+            <IconifyIcon class="size-3.5" icon="lucide:grip" />
           </button>
         </Tooltip>
         <Tabs
@@ -3819,7 +3946,11 @@ watch(tableColumnPreferenceStorageKey, () => {
         </Tabs>
       </div>
 
-      <div v-if="searchFieldItems.length > 0" class="vben-crud-section">
+      <div
+        v-if="searchFieldItems.length > 0"
+        ref="searchPanelRef"
+        class="vben-crud-section"
+      >
         <Form :label-col="{ style: { width: '88px' } }">
           <div class="grid gap-x-4 gap-y-4" :style="searchGridStyle">
             <Form.Item
@@ -4955,7 +5086,6 @@ watch(tableColumnPreferenceStorageKey, () => {
   align-items: flex-start;
   max-width: calc(100% - 32px);
   padding: 8px 10px;
-  cursor: grab;
   background: hsl(var(--primary) / 5%);
   border: 1px solid hsl(var(--primary));
   border-radius: var(--radius);
@@ -4971,35 +5101,41 @@ watch(tableColumnPreferenceStorageKey, () => {
 }
 
 .vben-crud-list-tabs-float.is-collapsed {
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border-radius: 9999px;
+  width: 0;
+  height: 0;
+  padding: 0 !important;
+  background: transparent !important;
+  border-color: transparent;
+  border-width: 0;
+  box-shadow: none !important;
 }
 
-.vben-crud-list-tabs-float.is-dragging {
-  cursor: grabbing;
-}
-
-.vben-crud-list-tabs-toggle {
+.vben-crud-list-tabs-handle {
+  position: absolute;
+  top: -10px;
+  left: -10px;
   display: inline-flex;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  color: hsl(var(--foreground));
-  cursor: pointer;
-  background: transparent;
-  border: 0;
+  color: hsl(var(--muted-foreground));
+  cursor: grab;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   border-radius: 9999px;
+  box-shadow: var(--shadow-sm);
+  touch-action: none;
+  user-select: none;
 }
 
-.vben-crud-list-tabs-toggle:hover {
-  color: hsl(var(--primary));
-  background: hsl(var(--muted) / 60%);
+.vben-crud-list-tabs-handle:hover {
+  color: hsl(var(--foreground));
+}
+
+.vben-crud-list-tabs-float.is-dragging .vben-crud-list-tabs-handle {
+  cursor: grabbing;
 }
 
 .vben-crud-list-tabs {

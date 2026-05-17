@@ -25,6 +25,13 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
       visibleForSaasUser: true,
     },
     {
+      key: 'containsRemoteAddr',
+      label: '操作IP地址',
+      form: false,
+      search: true,
+    },
+    { key: 'containsTitle', label: '标题', form: false, search: true },
+    {
       key: '__tenant',
       label: '归属租户',
       fixed: 'left',
@@ -46,7 +53,6 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
     { key: 'domain', label: '域名', search: true, table: true, width: 160 },
     { key: 'containsVisitor', label: '访问者', form: false, search: true },
     { key: 'visitor', label: '访问者', table: true, width: 140 },
-    { key: 'containsTitle', label: '标题', form: false, search: true },
     { key: 'title', label: '标题', table: true, width: 180 },
     {
       key: 'logType',
@@ -54,6 +60,15 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       width: 120,
+    },
+    {
+      key: 'isException',
+      label: '是否异常',
+      search: true,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+      width: 100,
     },
     { key: 'containsBizKey', label: '业务主键', form: false, search: true },
     { key: 'bizKey', label: '业务主键', table: true, width: 160 },
@@ -68,12 +83,6 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'number',
       width: 120,
-    },
-    {
-      key: 'containsRemoteAddr',
-      label: '操作IP地址',
-      form: false,
-      search: true,
     },
     { key: 'remoteAddr', label: '操作IP地址', table: true, width: 140 },
     {

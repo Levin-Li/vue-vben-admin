@@ -23,8 +23,17 @@ interface RouteMappingLookup {
 function createRouteMappingLookup(
   routeMappings: AdminBackendRouteMapping[] = [],
 ): RouteMappingLookup {
+  const byPath = new Map<string, AdminBackendRouteMapping>();
+
+  routeMappings.forEach((item) => {
+    byPath.set(item.path, item);
+    item.deprecatedPaths?.forEach((path) => {
+      byPath.set(path, item);
+    });
+  });
+
   return {
-    byPath: new Map(routeMappings.map((item) => [item.path, item])),
+    byPath,
     byResource: new Map(
       routeMappings.map((item) => [item.resource.toLowerCase(), item]),
     ),
@@ -151,6 +160,7 @@ function convertLeafRoute(
   const actionType = normalizeActionType(item.actionType);
   const pageType = normalizePageType(item.pageType);
   const mapping = findRouteMapping(lookup, normalizedPath);
+  const routePath = mapping?.path || finalPath;
 
   if (actionType === 'NewWindow') {
     return {
@@ -206,7 +216,7 @@ function convertLeafRoute(
         title: mapping.title || item.name || normalizedPath || '未命名页面',
       },
       name: mapping.name,
-      path: finalPath,
+      path: routePath,
     };
   }
 
@@ -225,7 +235,7 @@ function convertLeafRoute(
     component: mapping?.viewPath || '/system/shared/controller-crud-page.vue',
     meta: toMeta(item, normalizedPath),
     name: toRouteName('Crud', item),
-    path: finalPath || `/menu/${item.id || 'unknown'}`,
+    path: routePath || `/menu/${item.id || 'unknown'}`,
   };
 }
 

@@ -54,7 +54,7 @@ const pageConfig = computed(() => ({
     },
     {
       handler: async (record: DomainSslCertRecord) => {
-        openManualConfig(record);
+        await openManualConfig(record);
         return record;
       },
       label: '手动配置证书',
@@ -219,15 +219,33 @@ function canUseCertFileAction(record: Record<string, any>) {
   );
 }
 
-function openManualConfig(record: DomainSslCertRecord) {
+function assignManualFormFromRecord(record: DomainSslCertRecord) {
   manualTargetCert.value = record;
   Object.assign(manualForm, {
     id: record.id || '',
-    remark: '',
-    sslCertChainPem: '',
-    sslPrivateKeyPem: '',
+    remark: record.remark || '',
+    sslCertChainPem: record.sslCertChainPem || '',
+    sslPrivateKeyPem: record.sslPrivateKeyPem || '',
   });
+}
+
+async function openManualConfig(record: DomainSslCertRecord) {
+  assignManualFormFromRecord(record);
   manualOpen.value = true;
+  if (record.id) {
+    try {
+      const detail = await domainSslCertService.retrieve({ id: record.id });
+      if (manualOpen.value && manualTargetCert.value?.id === record.id) {
+        // 手动配置证书要回显数据库里的证书内容，详情接口是权威来源，列表行数据只做兜底。
+        assignManualFormFromRecord({
+          ...record,
+          ...detail,
+        });
+      }
+    } catch {
+      // 详情接口不可用时保留列表行数据，避免影响手动配置入口。
+    }
+  }
 }
 
 function closeManualModal() {

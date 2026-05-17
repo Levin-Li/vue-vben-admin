@@ -532,13 +532,13 @@ watch(activeVerifyType, () => {
   countdown.value = 0;
 
   if (isCaptchaTab.value) {
-    void requestVerifyCode();
+    void requestVerifyCode({ autoLogin: false });
   }
 });
 
 onMounted(() => {
   if (isCaptchaTab.value) {
-    void requestVerifyCode();
+    void requestVerifyCode({ autoLogin: false });
   }
 });
 

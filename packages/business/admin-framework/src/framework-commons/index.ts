@@ -80,6 +80,7 @@ export type AdminLocaleMessages = Record<string, unknown>;
 export type AdminLocaleMessagesMap = Record<string, AdminLocaleMessages>;
 
 export interface AdminBackendRouteMapping {
+  deprecatedPaths?: string[];
   icon: string;
   name: string;
   path: string;

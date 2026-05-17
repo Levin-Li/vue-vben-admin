@@ -20,6 +20,15 @@ const testBackendRouteMappings = [
     viewPath: '/system/com_levin_oak_base/article/index.vue',
   },
   {
+    deprecatedPaths: ['/clob/V1/Permission'],
+    icon: 'lucide:shield',
+    name: 'RbacPermissionItem',
+    resource: 'RbacPermissionItem',
+    path: '/clob/V1/RbacPermissionItem',
+    title: '权限项定义',
+    viewPath: '/system/com_levin_oak_base/rbac-permission-item/index.vue',
+  },
+  {
     icon: 'lucide:settings',
     name: 'SettingForTenant',
     resource: 'SettingForTenant',
@@ -41,6 +50,23 @@ describe('menu route conversion', () => {
         testBackendRouteMappings,
       )?.component,
     ).toBe('/system/com_levin_oak_base/role/index.vue');
+  });
+
+  it('routes deprecated backend menu paths to their current local page mapping', () => {
+    const route = convertMenuNodeForTest(
+      {
+        name: '权限管理',
+        pageType: 'LocalPage-本地页面',
+        path: '/clob/V1/Permission',
+      },
+      testBackendRouteMappings,
+    );
+
+    expect(route?.path).toBe('/clob/V1/RbacPermissionItem');
+    expect(route?.meta?.title).toBe('权限项定义');
+    expect(route?.component).toBe(
+      '/system/com_levin_oak_base/rbac-permission-item/index.vue',
+    );
   });
 
   it('routes tenant setting path to the tenant setting local page', () => {

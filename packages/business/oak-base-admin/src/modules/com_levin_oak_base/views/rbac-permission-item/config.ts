@@ -1,6 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { permissionService } from '../../api/permission-service';
+import { rbacPermissionItemService } from '../../api/rbac-permission-item-service';
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   buildEnumOptionsLoader,
@@ -8,7 +8,7 @@ import {
 } from '../api-module';
 
 const permissionCategoryOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.Permission$Category',
+  'com.levin.oak.base.entities.RbacPermissionItem$Category',
 );
 const permissionActionTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ActionType',
@@ -17,11 +17,12 @@ const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
 
-export const permissionPageCrudConfig: CrudPageConfig = {
-  apiBase: '/Permission',
-  apiService: permissionService,
+export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
+  apiBase: '/RbacPermissionItem',
+  apiService: rbacPermissionItemService,
   allowRetrieve: true,
   defaultFormValues: {
+    category: 'Custom',
     editable: true,
     enable: true,
     ignored: false,
@@ -36,7 +37,7 @@ export const permissionPageCrudConfig: CrudPageConfig = {
   fields: [
     {
       key: 'id',
-      label: '权限ID',
+      label: '权限项ID',
       fixed: 'left',
       form: false,
       search: true,
@@ -75,10 +76,17 @@ export const permissionPageCrudConfig: CrudPageConfig = {
       required: true,
       search: true,
       table: true,
-      width: 140,
+      width: 160,
     },
-    { key: 'res', label: '资源标识', search: true, table: true, width: 160 },
-    { key: 'action', label: '操作', search: true, table: true, width: 120 },
+    { key: 'res', label: '资源', search: true, table: true, width: 160 },
+    {
+      key: 'action',
+      label: '操作',
+      required: true,
+      search: true,
+      table: true,
+      width: 120,
+    },
     {
       key: 'actionTypes',
       label: '操作类型',
@@ -174,5 +182,5 @@ export const permissionPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  title: '权限管理',
+  title: '权限项定义',
 };

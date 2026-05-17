@@ -26,10 +26,15 @@ export interface DomainSslCertDownload {
   id?: string;
 }
 
+export interface DomainSslCertRetrieve {
+  id?: string;
+}
+
 export interface DomainSslCertRecord {
   domain?: string;
   id?: string;
   localSaveDir?: string;
+  remark?: string;
   rootDomain?: string;
   sslApplyStatus?: string;
   sslCertChainPem?: string;
@@ -68,6 +73,18 @@ export class DomainSslCertService extends RequestService {
   })
   async list(params?: any, options?: any) {
     return this.get<any>('list', {
+      ...options,
+      params,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-SSL证书',
+    action: '查看详情',
+  })
+  async retrieve(params?: DomainSslCertRetrieve, options?: any) {
+    return this.get<DomainSslCertRecord>('retrieve', {
       ...options,
       params,
     });

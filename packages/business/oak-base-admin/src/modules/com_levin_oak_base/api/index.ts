@@ -25,7 +25,7 @@ export * from './notice-process-log-service';
 export * from './org-service';
 export * from './pay-channel-service';
 export * from './pay-order-service';
-export * from './permission-service';
+export * from './rbac-permission-item-service';
 export * from './role-service';
 export * from './scheduled-log-service';
 export * from './scheduled-task-service';
