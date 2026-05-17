@@ -208,6 +208,8 @@ src/modules/com_levin_oak_base/locales/en-US.json
 
 前端页面路由中的模块 ID 不能由前端自定义，必须使用后端 Java 根 POM 约定的模块包名，例如 `com.levin.oak.base`。如果上传代码取 `AdminFrontendModule.name` 作为 `moduleId`，则该模块对象的 `name` 必须等于这个后端模块包名；不要使用 npm 包名、前端页面目录名、短包名、显示名称或其它临时标识。
 
+模块相关命名要按用途拆开：前端目录名由模块包名把 `.` 替换为 `_` 得到，例如 `com_levin_oak_base`，只用于源码目录、页面注册路径和源码定位；短包名由后端 `DefaultRbacInitServiceImpl#getShortName` 按模块包名每段首字母生成，例如 `clob`，只用于后端初始化菜单路径；展示名称用于用户可见的菜单、模块选择和上传页面路由弹窗，如果后端 Java 根 POM 配置了中文名称，应优先使用该中文名称展示，没有中文名称时才使用后端插件名称、模块标题或其它稳定兜底文案。
+
 模块通过模块对象的 `locales` 字段暴露国际化内容，入口应用使用 `collectAdminModuleLocales(enabledFrontendModules)` 统一合并。
 
 最终应用不得保留业务模块页面的本地 wrapper。后端菜单中的组件字符串通过已注册的模块 pageMap 解析，因此模块页面会直接从 `@levin/oak-base-admin` 这类包中加载。
