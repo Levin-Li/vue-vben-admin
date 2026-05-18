@@ -1,14 +1,16 @@
 {
   "name": "@levin/oak-base-admin",
-  "version": "5.6.17",
+  "version": "5.6.18",
   "description": "Levin Oak base admin frontend module.",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "pnpm unbuild",
+    "build": "node ../../../scripts/sync-frontend-rule-docs.mjs && pnpm unbuild",
     "prepublishOnly": "pnpm run build"
   },
   "files": [
+    "AGENTS.md",
+    "docs",
     "dist",
     "src"
   ],
@@ -46,7 +48,7 @@
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": "5.6.21",
+    "@levin/admin-framework": "5.6.22",
     "@vben/common-ui": "5.6.6",
     "@vben/icons": "5.6.6",
     "@vben/plugins": "5.6.6",

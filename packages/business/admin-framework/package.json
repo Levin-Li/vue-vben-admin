@@ -1,14 +1,16 @@
 {
   "name": "@levin/admin-framework",
-  "version": "5.6.21",
+  "version": "5.6.22",
   "description": "Common admin application framework contracts for Levin frontend modules.",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "pnpm unbuild",
+    "build": "node ../../../scripts/sync-frontend-rule-docs.mjs && pnpm unbuild",
     "prepublishOnly": "pnpm run build"
   },
   "files": [
+    "AGENTS.md",
+    "docs",
     "dist",
     "src"
   ],

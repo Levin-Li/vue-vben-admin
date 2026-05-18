@@ -60,6 +60,7 @@
     "publish:admin-modules": "node ./scripts/publish-admin-modules.mjs --publish",
     "publish:packages": "node ./scripts/publish-packages.mjs --publish",
     "reinstall": "pnpm clean --del-lock && pnpm install",
+    "sync:frontend-rules": "node ./scripts/sync-frontend-rule-docs.mjs --all",
     "sync:package-versions": "node ./scripts/sync-package-versions.mjs",
     "test:unit": "vitest run --dom",
     "test:e2e": "turbo run test:e2e",
