@@ -11,6 +11,8 @@ const applyStatusOptions = [
   { label: '申请失败', value: 'Failed' },
 ];
 
+const sslApplyApiOptions = [{ label: '手动配置', value: 'manual://ssl-cert' }];
+
 export const domainSslCertPageCrudConfig: CrudPageConfig = {
   allowEdit: false,
   apiBase: '/DomainSslCert',
@@ -78,6 +80,7 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
       key: 'sslApplyApi',
       label: 'SSL申请API',
       formCreate: false,
+      options: sslApplyApiOptions,
       table: true,
       width: 220,
     },
@@ -187,7 +190,7 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
       'exInfo',
     ]) {
       if (!nextValues[key]) {
-        delete nextValues[key];
+        Reflect.deleteProperty(nextValues, key);
       }
     }
 

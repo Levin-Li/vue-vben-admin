@@ -1,14 +1,15 @@
 <script lang="ts" setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import type { DomainRecord } from '../../api/domain-service';
 
-import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
-import { domainService, type DomainRecord } from '../../api/domain-service';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
-import { Button, Form, Input, Modal, Select, message } from 'ant-design-vue';
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { Button, Form, Input, message, Modal, Select } from 'ant-design-vue';
 
+import { domainService } from '../../api/domain-service';
 import {
   getTenantSiteSuffixApplyApi,
   getTenantSiteVendorApplyApi,
@@ -85,7 +86,13 @@ const pageConfig = computed(() => ({
 }));
 
 function canUseDomainProviderActions(record: Record<string, any>) {
-  return Boolean(record?.id && isRealDomainName(record?.name));
+  return Boolean(
+    record?.id && hasDomainProvider(record) && isRealDomainName(record?.name),
+  );
+}
+
+function hasDomainProvider(record: Record<string, any>) {
+  return Boolean(String(record?.providerName || '').trim());
 }
 
 function isRealDomainName(domain: unknown) {
@@ -127,7 +134,7 @@ function normalizeDomainHost(domain: unknown) {
     host = host.split('/')[0] || '';
   }
 
-  host = host.replace(/^\[(.*)]$/, '$1');
+  host = host.replace(/^\[(.*)\]$/, '$1');
   return host.replace(/\.$/, '');
 }
 
@@ -257,6 +264,7 @@ function isDomainRenewDue(record: Record<string, any>) {
 function canShowRenewDomain(record: Record<string, any>) {
   return Boolean(
     record?.id &&
+    hasDomainProvider(record) &&
     isRealDomainName(record?.name) &&
     isDomainRenewDue(record) &&
     record.domainApplyStatus !== 'Applying' &&
@@ -345,7 +353,7 @@ function handleApplyDomainPrefixChange(prefix?: string) {
   syncApplyDomain();
 }
 
-async function submitDomainApply(loadList?: () => void | Promise<void>) {
+async function submitDomainApply(loadList?: () => Promise<void> | void) {
   const domainSuffix = normalizeDomainSuffix(applyDomainForm.domainSuffix);
   const domainPrefix = normalizeDomainPrefix(applyDomainForm.domainPrefix);
   const domain = buildApplyDomain(domainPrefix, domainSuffix);
