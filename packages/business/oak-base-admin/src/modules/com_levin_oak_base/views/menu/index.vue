@@ -17,6 +17,7 @@ import {
   Spin,
   Switch,
   Tag,
+  Tooltip,
   message,
 } from 'ant-design-vue';
 
@@ -39,9 +40,13 @@ import {
   buildMenuTree,
   collectMenuSubtreeIds,
   collectMenuSubtreeIdsFromRows,
+  getMenuParentId,
   normalizeMenuTree,
+  sortMenuRows,
   toMenuFormRecord,
 } from './menu-tree-utils';
+
+type MenuMoveDirection = 'down' | 'up';
 
 const pageTypeOptions = ref<SelectOption[]>(fallbackPageTypeOptions);
 const actionTypeOptions = ref<SelectOption[]>(fallbackActionTypeOptions);
@@ -60,10 +65,12 @@ const permissionSelection = ref<string[]>([]);
 const permissionSubmitting = ref(false);
 const selectedMenuRows = ref<MenuRecord[]>([]);
 const enableSwitchLoadingId = ref('');
+const menuOrderLoadingKey = ref('');
 const publicAccessSwitchLoadingId = ref('');
 const route = useRoute();
 const { hasPermission } = useRbacAccess();
 const MENU_PERMISSION_MODULE_ID = '__menus__';
+const MENU_ORDER_STEP = 100;
 
 const batchDeleteMenuPermission = buildApiMethodPermissions(
   menuService,
@@ -207,6 +214,162 @@ function refresh() {
   gridApi.grid?.clearCheckboxRow?.();
   selectedMenuRows.value = [];
   gridApi.query();
+}
+
+function findMenuById(rows: MenuRecord[], id?: string): MenuRecord | undefined {
+  if (!id) {
+    return undefined;
+  }
+
+  for (const row of rows) {
+    if (row.id === id) {
+      return row;
+    }
+
+    const child = findMenuById(row.children || [], id);
+    if (child) {
+      return child;
+    }
+  }
+
+  return undefined;
+}
+
+function getMenuSiblings(row: MenuRecord) {
+  const parentId = getMenuParentId(row);
+
+  if (!parentId) {
+    return menuTree.value;
+  }
+
+  return findMenuById(menuTree.value, parentId)?.children || [];
+}
+
+function getOrderedMenuSiblings(row: MenuRecord) {
+  return sortMenuRows(getMenuSiblings(row)).filter((item) => item.id);
+}
+
+function getMoveTargetIndex(row: MenuRecord, direction: MenuMoveDirection) {
+  const siblings = getOrderedMenuSiblings(row);
+  const currentIndex = siblings.findIndex((item) => item.id === row.id);
+
+  if (currentIndex < 0) {
+    return { currentIndex, siblings, targetIndex: -1 };
+  }
+
+  const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+  return { currentIndex, siblings, targetIndex };
+}
+
+function canMoveMenu(row: MenuRecord, direction: MenuMoveDirection) {
+  if (!canUpdateMenu.value || !row.id || menuOrderLoadingKey.value) {
+    return false;
+  }
+
+  const { siblings, targetIndex } = getMoveTargetIndex(row, direction);
+
+  return targetIndex >= 0 && targetIndex < siblings.length;
+}
+
+function getMoveLoadingKey(row: MenuRecord, direction: MenuMoveDirection) {
+  return `${row.id || ''}:${direction}`;
+}
+
+function getMenuOrderCode(row?: MenuRecord) {
+  return row?.orderCode ?? 0;
+}
+
+function buildMenuOrderUpdates(
+  row: MenuRecord,
+  direction: MenuMoveDirection,
+) {
+  const { currentIndex, siblings, targetIndex } = getMoveTargetIndex(
+    row,
+    direction,
+  );
+
+  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length) {
+    return [];
+  }
+
+  const nextSiblings = [...siblings];
+  [nextSiblings[currentIndex], nextSiblings[targetIndex]] = [
+    nextSiblings[targetIndex],
+    nextSiblings[currentIndex],
+  ];
+
+  const currentOrderCode = getMenuOrderCode(siblings[currentIndex]);
+  const targetOrderCode = getMenuOrderCode(siblings[targetIndex]);
+
+  if (currentOrderCode !== targetOrderCode) {
+    return [
+      {
+        id: row.id,
+        nextOrderCode: targetOrderCode,
+        optimisticLock: row.optimisticLock,
+        row,
+      },
+      {
+        id: siblings[targetIndex]?.id,
+        nextOrderCode: currentOrderCode,
+        optimisticLock: siblings[targetIndex]?.optimisticLock,
+        row: siblings[targetIndex],
+      },
+    ].filter((item) => item.id && item.row);
+  }
+
+  const startIndex = Math.min(currentIndex, targetIndex);
+  const previousOrderCode = Math.max(
+    0,
+    getMenuOrderCode(nextSiblings[startIndex - 1]),
+  );
+
+  return nextSiblings
+    .slice(startIndex)
+    .map((item, index) => ({
+      id: item.id,
+      nextOrderCode: previousOrderCode + (index + 1) * MENU_ORDER_STEP,
+      optimisticLock: item.optimisticLock,
+      row: item,
+    }))
+    .filter((item) => item.id && item.row.orderCode !== item.nextOrderCode);
+}
+
+async function moveMenu(row: MenuRecord, direction: MenuMoveDirection) {
+  if (!canUpdateMenu.value) {
+    message.warning('当前账号没有编辑菜单权限');
+    return;
+  }
+
+  const updates = buildMenuOrderUpdates(row, direction);
+
+  if (updates.length === 0) {
+    message.info(direction === 'up' ? '已经是第一个菜单' : '已经是最后一个菜单');
+    return;
+  }
+
+  const loadingKey = getMoveLoadingKey(row, direction);
+  menuOrderLoadingKey.value = loadingKey;
+
+  try {
+    for (const item of updates) {
+      await menuService.update({
+        forceUpdateFields: ['orderCode'],
+        id: item.id,
+        optimisticLock: item.optimisticLock,
+        orderCode: item.nextOrderCode,
+      });
+    }
+    await clearMenuCacheSilently();
+    message.success(direction === 'up' ? '菜单已上移' : '菜单已下移');
+    refresh();
+  } catch (error) {
+    console.error(error);
+    message.error('菜单排序更新失败，请刷新后重试');
+  } finally {
+    menuOrderLoadingKey.value = '';
+  }
 }
 
 function openCreate(parentId = '') {
@@ -692,6 +855,34 @@ function renderIcon(row: MenuRecord) {
 
           <template #operation="{ row }">
             <div class="flex justify-end gap-2">
+              <Tooltip title="上移">
+                <Button
+                  v-if="canUpdateMenu"
+                  :disabled="!canMoveMenu(row, 'up')"
+                  :loading="menuOrderLoadingKey === getMoveLoadingKey(row, 'up')"
+                  class="menu-order-icon-button"
+                  size="small"
+                  type="link"
+                  @click="moveMenu(row, 'up')"
+                >
+                  <IconifyIcon class="size-4" icon="lucide:chevron-up" />
+                </Button>
+              </Tooltip>
+              <Tooltip title="下移">
+                <Button
+                  v-if="canUpdateMenu"
+                  :disabled="!canMoveMenu(row, 'down')"
+                  :loading="
+                    menuOrderLoadingKey === getMoveLoadingKey(row, 'down')
+                  "
+                  class="menu-order-icon-button"
+                  size="small"
+                  type="link"
+                  @click="moveMenu(row, 'down')"
+                >
+                  <IconifyIcon class="size-4" icon="lucide:chevron-down" />
+                </Button>
+              </Tooltip>
               <Button
                 v-if="canCreateMenu"
                 size="small"
@@ -764,5 +955,14 @@ function renderIcon(row: MenuRecord) {
 .vben-menu-section :deep(.vxe-table--body) {
   margin-top: 0 !important;
   transform: translate(0, 0) !important;
+}
+
+.menu-order-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  min-width: 24px;
+  padding-inline: 0;
 }
 </style>

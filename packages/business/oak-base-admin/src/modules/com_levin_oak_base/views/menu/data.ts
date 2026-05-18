@@ -86,6 +86,12 @@ export function useColumns(): VxeTableGridOptions<MenuRecord>['columns'] {
     },
     {
       align: 'center',
+      field: 'orderCode',
+      title: '排序',
+      width: 90,
+    },
+    {
+      align: 'center',
       field: 'publicAccess',
       slots: { default: 'publicAccessSwitch' },
       title: '公开访问',
@@ -113,7 +119,7 @@ export function useColumns(): VxeTableGridOptions<MenuRecord>['columns'] {
       showOverflow: false,
       slots: { default: 'operation' },
       title: '操作',
-      width: 320,
+      width: 380,
     },
   ];
 }
