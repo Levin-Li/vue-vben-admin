@@ -58,7 +58,9 @@ const gridOptions: VxeGridProps<EditableSyncMenuItem> = {
       treeNode: true,
     },
     {
+      align: 'left',
       field: 'path',
+      headerAlign: 'left',
       minWidth: 320,
       slots: { default: 'path' },
       title: '路由',

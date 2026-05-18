@@ -5,7 +5,6 @@ import { computed, reactive, watch } from 'vue';
 
 import {
   Button,
-  Divider,
   Drawer,
   Form,
   Input,
@@ -19,7 +18,6 @@ import {
 import { menuService } from '../../api/menu-service';
 
 import { buildParentTreeOptions } from './menu-tree-utils';
-import OpButtonEditor from './op-button-editor.vue';
 
 const props = defineProps<{
   actionTypeOptions: SelectOption[];
@@ -39,9 +37,9 @@ const formState = reactive<MenuRecord>({
   alwaysShow: false,
   editable: true,
   enable: true,
-  opButtonList: [],
   orderCode: 100,
   pageType: 'LocalPage',
+  publicAccess: false,
   requireAuthorizations: [],
 });
 const submitting = reactive({ value: false });
@@ -102,15 +100,13 @@ function resetForm(record: MenuRecord) {
     label: record.label || '',
     moduleId: record.moduleId || '',
     name: record.name || '',
-    opButtonList: Array.isArray(record.opButtonList)
-      ? record.opButtonList.map((item) => ({ ...item }))
-      : [],
     optimisticLock: record.optimisticLock,
     orderCode: record.orderCode ?? 100,
     pageType: record.pageType || 'LocalPage',
     params: record.params || '',
     parentId: record.parentId || '',
     path: record.path || '',
+    publicAccess: Boolean(record.publicAccess),
     remark: record.remark || '',
     requireAuthorizations: normalizeArray(record.requireAuthorizations),
     target: record.target || '',
@@ -120,25 +116,6 @@ function resetForm(record: MenuRecord) {
 
 function close() {
   emit('update:open', false);
-}
-
-function cleanOpButtonList() {
-  return (formState.opButtonList || [])
-    .map((item) => ({
-      apiUrl: item.apiUrl?.trim() || undefined,
-      disabled: Boolean(item.disabled),
-      label: item.label?.trim() || undefined,
-      remark: item.remark?.trim() || undefined,
-      requireAuthorization: item.requireAuthorization?.trim() || undefined,
-    }))
-    .filter(
-      (item) =>
-        item.label ||
-        item.apiUrl ||
-        item.requireAuthorization ||
-        item.remark ||
-        item.disabled,
-    );
 }
 
 function normalizeParentIdForPayload(value?: string) {
@@ -156,14 +133,13 @@ function buildPayload() {
     label: formState.label || '',
     moduleId: formState.moduleId || '',
     name: String(formState.name || '').trim(),
-    opButtonList: cleanOpButtonList(),
     orderCode: formState.orderCode ?? 100,
     pageType: formState.pageType || 'LocalPage',
     params: formState.params || '',
     parentId: normalizeParentIdForPayload(formState.parentId),
     path: formState.path || '',
+    publicAccess: Boolean(formState.publicAccess),
     remark: formState.remark || '',
-    requireAuthorizations: normalizeArray(formState.requireAuthorizations),
     target: formState.target || '',
   };
 
@@ -180,19 +156,26 @@ function buildPayload() {
       'label',
       'moduleId',
       'name',
-      'opButtonList',
       'orderCode',
       'pageType',
       'params',
       'parentId',
       'path',
+      'publicAccess',
       'remark',
-      'requireAuthorizations',
       'target',
     ];
   }
 
   return payload;
+}
+
+async function clearMenuCacheSilently() {
+  try {
+    await menuService.clearCache();
+  } catch (error) {
+    console.warn('清除菜单缓存失败，列表将继续从维护接口刷新', error);
+  }
 }
 
 async function submit() {
@@ -209,9 +192,11 @@ async function submit() {
   try {
     if (isEdit.value) {
       await menuService.update(buildPayload());
+      await clearMenuCacheSilently();
       message.success('菜单更新成功');
     } else {
       await menuService.create(buildPayload());
+      await clearMenuCacheSilently();
       message.success('菜单创建成功');
     }
     emit('success');
@@ -226,11 +211,13 @@ async function submit() {
   <Drawer
     :open="open"
     :title="drawerTitle"
-    width="min(70vw, 1280px)"
+    width="min(70vw, 1120px)"
     @close="close"
   >
     <Form layout="vertical">
-      <div class="grid grid-cols-1 gap-x-5 md:grid-cols-2 xl:grid-cols-4">
+      <div
+        class="grid grid-cols-1 gap-x-5 gap-y-1 md:grid-cols-2 xl:grid-cols-3"
+      >
         <Form.Item label="上级菜单">
           <TreeSelect
             v-model:value="formState.parentId"
@@ -290,8 +277,8 @@ async function submit() {
             placeholder="请输入排序代码"
           />
         </Form.Item>
-        <Form.Item label="显示控制">
-          <div class="flex flex-wrap gap-6 py-1">
+        <Form.Item class="md:col-span-2 xl:col-span-3" label="显示控制">
+          <div class="flex flex-wrap items-center gap-x-8 gap-y-3 py-1">
             <span class="inline-flex items-center gap-2">
               <Switch v-model:checked="formState.enable" />
               是否启用
@@ -304,19 +291,14 @@ async function submit() {
               <Switch v-model:checked="formState.alwaysShow" />
               无权限时展示
             </span>
+            <span class="inline-flex items-center gap-2">
+              <Switch v-model:checked="formState.publicAccess" />
+              公开访问
+            </span>
           </div>
         </Form.Item>
 
-        <Form.Item class="md:col-span-2 xl:col-span-4" label="需要的权限">
-          <Select
-            v-model:value="formState.requireAuthorizations"
-            mode="tags"
-            placeholder="一行或一个标签表示一个权限/角色"
-            :token-separators="[',', '\\n']"
-          />
-        </Form.Item>
-
-        <Form.Item class="md:col-span-2 xl:col-span-4" label="参数">
+        <Form.Item class="md:col-span-2 xl:col-span-3" label="参数">
           <Input.TextArea
             v-model:value="formState.params"
             placeholder="请输入参数"
@@ -324,7 +306,7 @@ async function submit() {
           />
         </Form.Item>
 
-        <Form.Item class="md:col-span-2 xl:col-span-4" label="备注">
+        <Form.Item class="md:col-span-2 xl:col-span-3" label="备注">
           <Input.TextArea
             v-model:value="formState.remark"
             placeholder="请输入备注"
@@ -332,9 +314,6 @@ async function submit() {
           />
         </Form.Item>
       </div>
-
-      <Divider>操作按钮列表</Divider>
-      <OpButtonEditor v-model:value="formState.opButtonList" />
     </Form>
 
     <template #footer>

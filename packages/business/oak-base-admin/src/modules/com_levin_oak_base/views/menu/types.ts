@@ -28,6 +28,7 @@ export interface MenuRecord {
   parent?: MenuRecord;
   parentId?: string;
   path?: string;
+  publicAccess?: boolean;
   remark?: string;
   requireAuthorizations?: string[];
   target?: string;

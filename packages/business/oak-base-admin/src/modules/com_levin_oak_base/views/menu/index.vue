@@ -1,7 +1,8 @@
 <script lang="ts" setup>
+import type { RbacModuleNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import type { VxeTableGridOptions } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 
-import type { MenuRecord, SelectOption } from './types';
+import type { MenuOpButton, MenuRecord, SelectOption } from './types';
 
 import { computed, h, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
@@ -9,13 +10,22 @@ import { useRoute } from 'vue-router';
 import { Page } from '@vben/common-ui';
 import { IconifyIcon, Plus } from '@vben/icons';
 
-import { Button, Modal, Space, Tag, message } from 'ant-design-vue';
+import {
+  Button,
+  Modal,
+  Space,
+  Spin,
+  Switch,
+  Tag,
+  message,
+} from 'ant-design-vue';
 
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
 import { menuService } from '../../api/menu-service';
-import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { moduleFetchEnumOptions } from '@levin/oak-base-admin/modules/com_levin_oak_base/views/api-module';
 
 import {
@@ -24,6 +34,7 @@ import {
   useColumns,
 } from './data';
 import MenuFormDrawer from './menu-form-drawer.vue';
+import OpButtonEditor from './op-button-editor.vue';
 import {
   buildMenuTree,
   collectMenuSubtreeIds,
@@ -37,9 +48,22 @@ const actionTypeOptions = ref<SelectOption[]>(fallbackActionTypeOptions);
 const menuTree = ref<MenuRecord[]>([]);
 const currentRecord = ref<MenuRecord | null>(null);
 const formOpen = ref(false);
+const opButtonOpen = ref(false);
+const opButtonRecord = ref<MenuRecord | null>(null);
+const opButtonRows = ref<MenuOpButton[]>([]);
+const opButtonSubmitting = ref(false);
+const permissionModules = ref<RbacModuleNode[]>([]);
+const permissionLoading = ref(false);
+const permissionOpen = ref(false);
+const permissionRecord = ref<MenuRecord | null>(null);
+const permissionSelection = ref<string[]>([]);
+const permissionSubmitting = ref(false);
 const selectedMenuRows = ref<MenuRecord[]>([]);
+const enableSwitchLoadingId = ref('');
+const publicAccessSwitchLoadingId = ref('');
 const route = useRoute();
 const { hasPermission } = useRbacAccess();
+const MENU_PERMISSION_MODULE_ID = '__menus__';
 
 const batchDeleteMenuPermission = buildApiMethodPermissions(
   menuService,
@@ -52,6 +76,16 @@ const canBatchDeleteMenu = computed(() =>
 );
 const canCreateMenu = computed(() => hasPermission(createMenuPermission));
 const canUpdateMenu = computed(() => hasPermission(updateMenuPermission));
+const opButtonModalTitle = computed(() =>
+  opButtonRecord.value?.name
+    ? `页面操作 - ${opButtonRecord.value.name}`
+    : '页面操作',
+);
+const permissionModalTitle = computed(() =>
+  permissionRecord.value?.name
+    ? `所需权限 - ${permissionRecord.value.name}`
+    : '所需权限',
+);
 
 const [Grid, gridApi] = useVbenVxeGrid({
   gridEvents: {
@@ -149,7 +183,7 @@ function normalizeAuthorizedMenuList(data: any): MenuRecord[] {
 }
 
 async function loadMenuTree() {
-  const data = await rbacService.getAuthorizedMenuList();
+  const data = await rbacService.getAuthorizedMenuList({ loadAll: true });
   const items = normalizeAuthorizedMenuList(data);
 
   if (
@@ -159,6 +193,14 @@ async function loadMenuTree() {
   }
 
   return buildMenuTree(items);
+}
+
+async function clearMenuCacheSilently() {
+  try {
+    await menuService.clearCache();
+  } catch (error) {
+    console.warn('清除菜单缓存失败，列表将继续从维护接口刷新', error);
+  }
 }
 
 function refresh() {
@@ -197,6 +239,251 @@ function openEdit(row: MenuRecord) {
   formOpen.value = true;
 }
 
+function openOpButtonEditor(row: MenuRecord) {
+  if (!canUpdateMenu.value) {
+    message.warning('当前账号没有编辑菜单权限');
+    return;
+  }
+
+  opButtonRecord.value = row;
+  opButtonRows.value = Array.isArray(row.opButtonList)
+    ? row.opButtonList.map((item) => ({ ...item }))
+    : [];
+  opButtonOpen.value = true;
+}
+
+async function ensurePermissionModulesLoaded() {
+  if (permissionModules.value.length > 0) {
+    return;
+  }
+
+  permissionLoading.value = true;
+  try {
+    permissionModules.value = (
+      ((await rbacService.fetchAuthorizedResourceModules()) ||
+        []) as RbacModuleNode[]
+    ).filter((item) => item.id !== MENU_PERMISSION_MODULE_ID);
+  } catch (error) {
+    console.error(error);
+    message.error('加载资源权限列表失败');
+  } finally {
+    permissionLoading.value = false;
+  }
+}
+
+async function openPermissionEditor(row: MenuRecord) {
+  if (!canUpdateMenu.value) {
+    message.warning('当前账号没有编辑菜单权限');
+    return;
+  }
+
+  if (row.publicAccess) {
+    message.info('公开访问菜单不需要配置所需权限');
+    return;
+  }
+
+  permissionRecord.value = row;
+  permissionSelection.value = [...(row.requireAuthorizations || [])];
+  permissionOpen.value = true;
+  await ensurePermissionModulesLoaded();
+}
+
+function closePermissionEditor() {
+  permissionOpen.value = false;
+  permissionRecord.value = null;
+  permissionSelection.value = [];
+}
+
+function closeOpButtonEditor() {
+  opButtonOpen.value = false;
+  opButtonRecord.value = null;
+  opButtonRows.value = [];
+}
+
+function cleanOpButtonList(value: MenuOpButton[]) {
+  return (value || [])
+    .map((item) => ({
+      apiUrl: item.apiUrl?.trim() || undefined,
+      disabled: Boolean(item.disabled),
+      label: item.label?.trim() || undefined,
+      remark: item.remark?.trim() || undefined,
+      requireAuthorization: item.requireAuthorization?.trim() || undefined,
+    }))
+    .filter(
+      (item) =>
+        item.label ||
+        item.apiUrl ||
+        item.requireAuthorization ||
+        item.remark ||
+        item.disabled,
+    );
+}
+
+function findInvalidOpButtonIndex(value: MenuOpButton[]) {
+  return (value || []).findIndex(
+    (item) => !String(item.requireAuthorization || '').trim(),
+  );
+}
+
+function getPermissionActionName(permissionExpr?: null | string) {
+  if (!permissionExpr) {
+    return '';
+  }
+
+  const parts = String(permissionExpr).split(':');
+
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const value = parts[index]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return String(permissionExpr).trim();
+}
+
+function getOpButtonLabel(button: MenuOpButton) {
+  return (
+    button.label?.trim() ||
+    button.name?.trim() ||
+    getPermissionActionName(button.requireAuthorization) ||
+    button.apiUrl?.trim() ||
+    '未命名操作'
+  );
+}
+
+async function submitOpButtonList() {
+  const record = opButtonRecord.value;
+
+  if (!record?.id) {
+    message.warning('未找到可更新的菜单 ID');
+    return;
+  }
+
+  const invalidIndex = findInvalidOpButtonIndex(opButtonRows.value);
+  if (invalidIndex >= 0) {
+    message.warning(`第 ${invalidIndex + 1} 行页面操作的需要权限不能为空`);
+    return;
+  }
+
+  opButtonSubmitting.value = true;
+
+  try {
+    await menuService.update({
+      forceUpdateFields: ['opButtonList'],
+      id: record.id,
+      opButtonList: cleanOpButtonList(opButtonRows.value),
+      optimisticLock: record.optimisticLock,
+    });
+    await clearMenuCacheSilently();
+    message.success('页面操作已更新');
+    closeOpButtonEditor();
+    refresh();
+  } finally {
+    opButtonSubmitting.value = false;
+  }
+}
+
+async function submitRequireAuthorizations() {
+  const record = permissionRecord.value;
+
+  if (!record?.id) {
+    message.warning('未找到可更新的菜单 ID');
+    return;
+  }
+
+  permissionSubmitting.value = true;
+
+  try {
+    await menuService.update({
+      forceUpdateFields: ['requireAuthorizations'],
+      id: record.id,
+      optimisticLock: record.optimisticLock,
+      requireAuthorizations: [
+        ...new Set(
+          permissionSelection.value.map((item) => item.trim()).filter(Boolean),
+        ),
+      ],
+    });
+    await clearMenuCacheSilently();
+    message.success('所需权限已更新');
+    closePermissionEditor();
+    refresh();
+  } finally {
+    permissionSubmitting.value = false;
+  }
+}
+
+async function updateMenuPublicAccess(row: MenuRecord, checked: boolean) {
+  if (!canUpdateMenu.value) {
+    message.warning('当前账号没有编辑菜单权限');
+    return;
+  }
+
+  const id = row.id;
+  if (!id) {
+    message.warning('未找到可更新的菜单 ID');
+    return;
+  }
+
+  const previousValue = Boolean(row.publicAccess);
+  publicAccessSwitchLoadingId.value = id;
+  row.publicAccess = checked;
+
+  try {
+    await menuService.update({
+      forceUpdateFields: ['publicAccess'],
+      id,
+      optimisticLock: row.optimisticLock,
+      publicAccess: checked,
+    });
+    await clearMenuCacheSilently();
+    message.success('公开访问状态已更新');
+    refresh();
+  } catch (error) {
+    row.publicAccess = previousValue;
+    console.error(error);
+    message.error('公开访问状态更新失败');
+  } finally {
+    publicAccessSwitchLoadingId.value = '';
+  }
+}
+
+async function updateMenuEnable(row: MenuRecord, checked: boolean) {
+  if (!canUpdateMenu.value) {
+    message.warning('当前账号没有编辑菜单权限');
+    return;
+  }
+
+  const id = row.id;
+  if (!id) {
+    message.warning('未找到可更新的菜单 ID');
+    return;
+  }
+
+  const previousValue = row.enable ?? true;
+  enableSwitchLoadingId.value = id;
+  row.enable = checked;
+
+  try {
+    await menuService.update({
+      enable: checked,
+      forceUpdateFields: ['enable'],
+      id,
+      optimisticLock: row.optimisticLock,
+    });
+    await clearMenuCacheSilently();
+    message.success('菜单状态已更新');
+    refresh();
+  } catch (error) {
+    row.enable = previousValue;
+    console.error(error);
+    message.error('菜单状态更新失败');
+  } finally {
+    enableSwitchLoadingId.value = '';
+  }
+}
+
 function deleteRow(row: MenuRecord) {
   if (!canBatchDeleteMenu.value) {
     message.warning('当前账号没有批量删除菜单权限');
@@ -220,6 +507,7 @@ function deleteRow(row: MenuRecord) {
     title: '删除菜单',
     async onOk() {
       await menuService.batchDelete({ idList });
+      await clearMenuCacheSilently();
       message.success('菜单删除成功');
       refresh();
     },
@@ -264,6 +552,7 @@ function deleteSelectedRows() {
     title: '批量删除菜单',
     async onOk() {
       await menuService.batchDelete({ idList });
+      await clearMenuCacheSilently();
       message.success(`已删除 ${idList.length} 个菜单`);
       refresh();
     },
@@ -289,6 +578,36 @@ function renderIcon(row: MenuRecord) {
       :record="currentRecord"
       @success="refresh"
     />
+
+    <Modal
+      :confirm-loading="opButtonSubmitting"
+      :open="opButtonOpen"
+      :title="opButtonModalTitle"
+      width="min(76vw, 1180px)"
+      @cancel="closeOpButtonEditor"
+      @ok="submitOpButtonList"
+    >
+      <OpButtonEditor v-model:value="opButtonRows" />
+    </Modal>
+
+    <Modal
+      :confirm-loading="permissionSubmitting"
+      :open="permissionOpen"
+      :title="permissionModalTitle"
+      :width="1080"
+      destroy-on-close
+      @cancel="closePermissionEditor"
+      @ok="submitRequireAuthorizations"
+    >
+      <div class="max-h-[calc(100vh-220px)] overflow-y-auto pr-2">
+        <Spin :spinning="permissionLoading">
+          <ResourcePermissionTreeEditor
+            v-model:value="permissionSelection"
+            :modules="permissionModules"
+          />
+        </Spin>
+      </div>
+    </Modal>
 
     <div class="vben-menu-page h-full min-w-0">
       <div class="vben-menu-section flex h-full min-h-0 flex-col">
@@ -339,12 +658,36 @@ function renderIcon(row: MenuRecord) {
             >
               <Tag
                 v-for="button in row.opButtonList"
-                :key="`${button.label}-${button.apiUrl}`"
+                :key="`${button.label}-${button.apiUrl}-${button.requireAuthorization}`"
               >
-                {{ button.label || button.apiUrl || '未命名按钮' }}
+                {{ getOpButtonLabel(button) }}
               </Tag>
             </div>
             <span v-else class="text-muted-foreground">-</span>
+          </template>
+
+          <template #enableSwitch="{ row }">
+            <Switch
+              :checked="row.enable ?? true"
+              :disabled="!canUpdateMenu"
+              :loading="enableSwitchLoadingId === row.id"
+              checked-children="启用"
+              un-checked-children="禁用"
+              @change="(checked) => updateMenuEnable(row, Boolean(checked))"
+            />
+          </template>
+
+          <template #publicAccessSwitch="{ row }">
+            <Switch
+              :checked="Boolean(row.publicAccess)"
+              :disabled="!canUpdateMenu"
+              :loading="publicAccessSwitchLoadingId === row.id"
+              checked-children="公开"
+              un-checked-children="授权"
+              @change="
+                (checked) => updateMenuPublicAccess(row, Boolean(checked))
+              "
+            />
           </template>
 
           <template #operation="{ row }">
@@ -356,6 +699,22 @@ function renderIcon(row: MenuRecord) {
                 @click="openCreate(row.id || '')"
               >
                 新增下级
+              </Button>
+              <Button
+                v-if="canUpdateMenu && !row.publicAccess"
+                size="small"
+                type="link"
+                @click="openPermissionEditor(row)"
+              >
+                所需权限
+              </Button>
+              <Button
+                v-if="canUpdateMenu"
+                size="small"
+                type="link"
+                @click="openOpButtonEditor(row)"
+              >
+                页面操作
               </Button>
               <Button
                 v-if="canUpdateMenu"

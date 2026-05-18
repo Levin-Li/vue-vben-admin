@@ -5,6 +5,7 @@ export interface BackendMenuInfo {
   actionType?: null | string;
   alwaysShow?: boolean;
   children?: BackendMenuInfo[] | null;
+  enable?: boolean;
   icon?: null | string;
   id?: string;
   name?: string;
@@ -122,6 +123,7 @@ function toMeta(
     authority: toAuthority(item),
     backendIframeSrc: buildIframeSrc(normalizedPath),
     crudResource: extractResourceFromMenuPath(normalizedPath),
+    disabled: item.enable === false,
     icon: item.icon || 'lucide:panel-right-open',
     menuActionType: normalizeActionType(item.actionType),
     menuPageType: normalizePageType(item.pageType),
@@ -209,6 +211,7 @@ function convertLeafRoute(
       component: mapping.viewPath,
       meta: {
         authority: toAuthority(item),
+        disabled: item.enable === false,
         icon: item.icon || mapping.icon,
         menuActionType: actionType,
         menuPageType: pageType,
@@ -256,6 +259,7 @@ export function convertMenuNode(
       meta: {
         authority: toAuthority(item),
         alwaysShow: item.alwaysShow,
+        disabled: item.enable === false,
         icon: item.icon || 'lucide:folder-tree',
         menuActionType: normalizeActionType(item.actionType),
         menuPageType: normalizePageType(item.pageType),

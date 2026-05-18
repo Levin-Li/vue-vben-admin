@@ -100,6 +100,25 @@ describe('generateMenus', () => {
     ]);
   });
 
+  it('passes disabled menu metadata to menu display items', async () => {
+    const routesWithDisabledMenu = [
+      {
+        meta: { disabled: true, icon: 'folder-icon', title: '项目系统' },
+        name: 'project',
+        path: '/project',
+      },
+    ] as RouteRecordRaw[];
+
+    const menus = generateMenus(routesWithDisabledMenu, mockRouter as any);
+    expect(menus[0]).toEqual(
+      expect.objectContaining({
+        disabled: true,
+        name: '项目系统',
+        path: '/project',
+      }),
+    );
+  });
+
   it('handles dynamic route parameters correctly', async () => {
     const mockRoutesWithParams = [
       {

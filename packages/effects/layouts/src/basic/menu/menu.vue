@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { MenuRecordRaw } from '@vben/types';
+import type { MenuRecordRaw, ThemeModeType } from '@vben/types';
 
 import { Menu } from '@vben-core/menu-ui';
 
@@ -13,7 +13,7 @@ interface Props {
   mode?: 'horizontal' | 'vertical';
   rounded?: boolean;
   scrollToActive?: boolean;
-  theme?: string;
+  theme?: ThemeModeType;
 }
 
 const props = withDefaults(defineProps<Props>(), {

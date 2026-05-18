@@ -389,7 +389,7 @@ export class RbacService extends RequestService {
       this.buildRequestPath('authorizedMenuList'),
       {
         params: {
-          loadAll: true,
+          loadAll: false,
           ...params,
         },
       },

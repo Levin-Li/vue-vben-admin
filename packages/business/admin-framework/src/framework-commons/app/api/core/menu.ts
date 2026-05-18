@@ -49,7 +49,9 @@ function hasRoutePath(
  * 后端菜单数据来自 RbacService。
  */
 export async function getAllMenusApi() {
-  const backendMenus = await rbacService.getAuthorizedMenuList();
+  const backendMenus = await rbacService.getAuthorizedMenuList({
+    loadAll: false,
+  });
   const routes = buildMenuRoutes(
     backendMenus,
     collectAdminModuleBackendRouteMappings(getEnabledFrontendModules()),

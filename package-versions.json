@@ -1,8 +1,13 @@
 {
   "default": "5.6.6",
   "packages": {
-    "@levin/admin-framework": "5.6.22",
-    "@vben/layouts": "5.6.7",
-    "@levin/oak-base-admin": "5.6.18"
+    "@levin/admin-framework": "5.6.23",
+    "@levin/oak-base-admin": "5.6.19",
+    "@vben-core/menu-ui": "5.6.7",
+    "@vben-core/shared": "5.6.7",
+    "@vben-core/typings": "5.6.7",
+    "@vben/common-ui": "5.6.7",
+    "@vben/layouts": "5.6.8",
+    "@vben/utils": "5.6.7"
   }
 }

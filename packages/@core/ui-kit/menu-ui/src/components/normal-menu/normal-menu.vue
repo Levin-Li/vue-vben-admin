@@ -31,6 +31,20 @@ function menuIcon(menu: MenuRecordRaw) {
     ? menu.activeIcon || menu.icon
     : menu.icon;
 }
+
+function handleSelect(menu: MenuRecordRaw) {
+  if (menu.disabled) {
+    return;
+  }
+  emit('select', menu);
+}
+
+function handleEnter(menu: MenuRecordRaw) {
+  if (menu.disabled) {
+    return;
+  }
+  emit('enter', menu);
+}
 </script>
 
 <template>
@@ -46,9 +60,13 @@ function menuIcon(menu: MenuRecordRaw) {
   >
     <template v-for="menu in menus" :key="menu.path">
       <li
-        :class="[e('item'), is('active', activePath === menu.path)]"
-        @click="() => emit('select', menu)"
-        @mouseenter="() => emit('enter', menu)"
+        :class="[
+          e('item'),
+          is('active', activePath === menu.path),
+          is('disabled', menu.disabled),
+        ]"
+        @click="() => handleSelect(menu)"
+        @mouseenter="() => handleEnter(menu)"
       >
         <VbenIcon :class="e('icon')" :icon="menuIcon(menu)" fallback />
 
@@ -133,11 +151,16 @@ $namespace: vben;
       }
     }
 
-    &:not(.is-active):hover {
+    &.is-disabled {
+      cursor: not-allowed;
+      opacity: 0.35;
+    }
+
+    &:not(.is-active):not(.is-disabled):hover {
       @apply bg-heavy text-primary dark:bg-accent dark:text-foreground;
     }
 
-    &:hover {
+    &:not(.is-disabled):hover {
       .#{$namespace}-normal-menu__icon {
         transform: scale(1.2);
       }

@@ -48,6 +48,11 @@ interface RouteMeta {
    */
   fullPathKey?: boolean;
   /**
+   * 菜单展示区禁用，不响应点击或展开
+   * @default false
+   */
+  disabled?: boolean;
+  /**
    * 当前路由的子级在菜单中不展现
    * @default false
    */

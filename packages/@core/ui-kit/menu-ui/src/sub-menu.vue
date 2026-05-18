@@ -39,6 +39,7 @@ const hasChildren = computed(() => {
     :badge="menu.badge"
     :badge-type="menu.badgeType"
     :badge-variants="menu.badgeVariants"
+    :disabled="menu.disabled"
     :icon="menu.icon"
     :path="menu.path"
   >
@@ -50,6 +51,7 @@ const hasChildren = computed(() => {
     v-else
     :key="`${menu.path}_sub`"
     :active-icon="menu.activeIcon"
+    :disabled="menu.disabled"
     :icon="menu.icon"
     :path="menu.path"
   >

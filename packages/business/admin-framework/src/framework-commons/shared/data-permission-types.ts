@@ -32,6 +32,8 @@ export interface OrgTreeNode {
 export interface RbacActionNode {
   action?: string;
   id?: null | string;
+  label?: null | string;
+  name?: null | string;
   permissionExpr: string;
 }
 
@@ -53,6 +55,27 @@ export interface RbacModuleNode {
   id: string;
   name?: string;
   typeList?: RbacTypeNode[];
+}
+
+export interface RbacMenuNode {
+  children?: null | RbacMenuNode[];
+  id?: string;
+  label?: null | string;
+  moduleId?: null | string;
+  name?: null | string;
+  opButtonList?: null | RbacMenuOpButton[];
+  orderCode?: null | number;
+  parentId?: null | string;
+  path?: null | string;
+}
+
+export interface RbacMenuOpButton {
+  apiUrl?: null | string;
+  disabled?: boolean;
+  label?: null | string;
+  name?: null | string;
+  requireAuthorization?: null | string;
+  remark?: null | string;
 }
 
 export type DataPermissionSubjectType = 'role' | 'user';

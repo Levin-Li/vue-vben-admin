@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { MenuRecordRaw } from '@vben/types';
+import type { MenuRecordRaw, ThemeModeType } from '@vben/types';
 
 import { useRoute } from 'vue-router';
 
@@ -16,7 +16,7 @@ interface Props {
   mode?: 'horizontal' | 'vertical';
   rounded?: boolean;
   scrollToActive?: boolean;
-  theme?: string;
+  theme?: ThemeModeType;
 }
 
 withDefaults(defineProps<Props>(), {

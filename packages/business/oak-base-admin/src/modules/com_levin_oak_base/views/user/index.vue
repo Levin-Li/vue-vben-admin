@@ -460,9 +460,9 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="user-org-page flex h-full min-h-0 gap-4">
+  <div class="user-org-page flex min-h-0 gap-2">
     <aside
-      class="user-org-sidebar border-border bg-card flex w-[320px] shrink-0 flex-col rounded-lg border p-4"
+      class="user-org-sidebar border-border bg-card flex h-full w-[320px] shrink-0 flex-col rounded-lg border p-4"
     >
       <div class="mb-3 flex items-center justify-between gap-2">
         <div class="min-w-0">
@@ -476,11 +476,15 @@ onMounted(async () => {
             <Button
               :loading="orgTreeLoading"
               aria-label="刷新组织"
+              class="inline-flex items-center justify-center"
               shape="circle"
               size="small"
               @click="loadOrgTree"
             >
-              <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+              <IconifyIcon
+                class="block size-4 leading-none"
+                icon="lucide:refresh-cw"
+              />
             </Button>
           </Tooltip>
           <Button size="small" type="primary" @click="openCreateOrgModal('')">
@@ -555,7 +559,7 @@ onMounted(async () => {
       </Spin>
     </aside>
 
-    <main class="min-w-0 flex-1">
+    <main class="min-h-0 min-w-0 flex-1">
       <CrudPage v-if="selectedOrgId" :key="crudPageKey" :config="userConfig" />
       <div
         v-else
@@ -673,15 +677,32 @@ onMounted(async () => {
 <style scoped>
 .user-org-page {
   --user-org-sidebar-height: calc(100vh - 132px);
-}
 
-.user-org-sidebar {
-  max-height: var(--user-org-sidebar-height);
+  height: var(--user-org-sidebar-height);
   min-height: 520px;
 }
 
+.user-org-sidebar {
+  min-height: 0;
+}
+
+.user-org-sidebar :deep(.ant-spin-nested-loading) {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.user-org-sidebar :deep(.ant-spin-container) {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .user-org-tree {
-  max-height: calc(var(--user-org-sidebar-height) - 156px);
+  min-height: 0;
+  flex: 1;
   overflow: auto;
 }
 

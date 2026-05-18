@@ -524,6 +524,12 @@ async function handleSubmit() {
   }
 }
 
+function handleAccountBlur() {
+  if (isCaptchaTab.value) {
+    void requestVerifyCode();
+  }
+}
+
 watch(activeVerifyType, () => {
   formState.verifyCode = '';
   lastAutoLoginSignature.value = '';
@@ -538,7 +544,7 @@ watch(activeVerifyType, () => {
 
 onMounted(() => {
   if (isCaptchaTab.value) {
-    void requestVerifyCode({ autoLogin: false });
+    void requestVerifyCode();
   }
 });
 
@@ -584,7 +590,7 @@ onBeforeUnmount(() => {
           autocomplete="username"
           placeholder="请输入手机号或邮箱"
           size="large"
-          @blur="isCaptchaTab ? requestVerifyCode : undefined"
+          @blur="handleAccountBlur"
         />
       </div>
 

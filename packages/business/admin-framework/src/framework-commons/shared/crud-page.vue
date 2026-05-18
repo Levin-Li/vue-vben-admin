@@ -108,6 +108,9 @@ type GenericRecord = Record<string, any>;
 type TableColumnFixedMode = 'left' | 'none' | 'right';
 type TableSortOrder = 'ascend' | 'descend';
 type CrudBuiltinAction = 'create' | 'delete' | 'edit' | 'retrieve';
+const TABLE_DEFAULT_COLUMN_WIDTH = 120;
+const TABLE_MAX_AUTO_COLUMN_WIDTH = 180;
+const TABLE_MIN_AUTO_COLUMN_WIDTH = 96;
 interface TableColumnPreference {
   fixedMap?: Record<string, TableColumnFixedMode>;
   hiddenKeys?: string[];
@@ -704,8 +707,24 @@ const tableColumns = computed<TableColumnsType>(() => {
         tableSorterState.field === String(field.key)
           ? tableSorterState.order
           : undefined,
-      title: field.label,
-      width: field.width,
+      title: () =>
+        h(
+          Tooltip,
+          { title: field.label },
+          {
+            default: () =>
+              h(
+                'span',
+                {
+                  'aria-label': field.label,
+                  class: 'vben-crud-table-header-title',
+                  title: field.label,
+                },
+                field.label,
+              ),
+          },
+        ),
+      width: resolveTableColumnWidth(field),
     }),
   );
 
@@ -921,6 +940,42 @@ function getFormFieldVisualWeight(field: CrudFieldConfig) {
 
 function isTableFieldSortable(field: CrudFieldConfig) {
   return field.sortable !== false && field.key !== '__tenant';
+}
+
+function resolveTableColumnWidth(field: CrudFieldConfig) {
+  if (field.width) {
+    return field.width;
+  }
+
+  if (field.type === 'datetime') {
+    return 180;
+  }
+
+  if (field.type === 'date' || field.type === 'time') {
+    return 140;
+  }
+
+  if (field.type === 'image') {
+    return 96;
+  }
+
+  if (field.type === 'switch' || field.valueType === 'boolean') {
+    return 110;
+  }
+
+  if (isNumericField(field)) {
+    return 110;
+  }
+
+  const sorterWidth = isTableFieldSortable(field) ? 40 : 24;
+  return Math.min(
+    TABLE_MAX_AUTO_COLUMN_WIDTH,
+    Math.max(
+      TABLE_MIN_AUTO_COLUMN_WIDTH,
+      field.label.length * 14 + sorterWidth,
+      TABLE_DEFAULT_COLUMN_WIDTH,
+    ),
+  );
 }
 
 function shouldFormFieldSpanFullRow(field: CrudFieldConfig) {
@@ -5238,6 +5293,24 @@ watch(tableColumnPreferenceStorageKey, () => {
   font-weight: 500;
   white-space: nowrap;
   background: hsl(var(--muted));
+}
+
+.vben-crud-table :deep(.ant-table-column-sorters) {
+  min-width: 0;
+}
+
+.vben-crud-table :deep(.ant-table-column-title) {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.vben-crud-table :deep(.vben-crud-table-header-title) {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vben-crud-table :deep(.ant-pagination) {

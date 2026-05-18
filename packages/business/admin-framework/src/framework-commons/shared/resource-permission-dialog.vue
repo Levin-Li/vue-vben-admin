@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { RbacModuleNode } from './data-permission-types';
+import type { RbacMenuNode, RbacModuleNode } from './data-permission-types';
 
 import { computed, ref, watch } from 'vue';
 
@@ -39,6 +39,7 @@ const detail = ref<null | Record<string, any>>(null);
 const errorMessage = ref('');
 const loading = ref(false);
 const modules = ref<RbacModuleNode[]>([]);
+const menuTree = ref<RbacMenuNode[]>([]);
 const saving = ref(false);
 const selectedPermissions = ref<string[]>([]);
 
@@ -69,17 +70,19 @@ async function loadData() {
   errorMessage.value = '';
 
   try {
-    const [detailResp, modulesResp] = await Promise.all([
+    const [detailResp, modulesResp, menuTreeResp] = await Promise.all([
       requestClient.get<Record<string, any>>(`${props.apiBase}/retrieve`, {
         params: {
           id: props.record.id,
         },
       }),
       rbacService.fetchAuthorizedResourceModules(),
+      rbacService.getAuthorizedMenuList(),
     ]);
 
     detail.value = detailResp;
     modules.value = (modulesResp || []) as RbacModuleNode[];
+    menuTree.value = (menuTreeResp || []) as RbacMenuNode[];
 
     const permissionState = splitMappedAndUnmappedPermissions(
       detailResp[props.permissionField] || [],
@@ -162,6 +165,7 @@ watch(
       <Spin :spinning="loading">
         <ResourcePermissionTreeEditor
           v-model:value="selectedPermissions"
+          :menu-tree="menuTree"
           :modules="modules"
         />
       </Spin>

@@ -160,6 +160,18 @@ describe('menu route conversion', () => {
     expect(route?.component).toBe('/_core/home/index.vue');
   });
 
+  it('keeps disabled backend menus as disabled menu routes for display fallback', () => {
+    const route = convertMenuNodeForTest({
+      enable: false,
+      name: '项目系统',
+      pageType: 'LocalPage-本地页面',
+      path: '/cvf/merchant',
+    });
+
+    expect(route).toBeTruthy();
+    expect(route?.meta?.disabled).toBe(true);
+  });
+
   it('uses a lightweight route view for nested backend menu groups', () => {
     const route = convertMenuNodeForTest(
       {

@@ -77,6 +77,7 @@ const iconArrowStyle = computed(() => {
     :class="[
       b(),
       is('collapse-show-title', getCollapseShowTitle),
+      is('disabled', disabled),
       is('more', isMenuMore),
     ]"
   >
