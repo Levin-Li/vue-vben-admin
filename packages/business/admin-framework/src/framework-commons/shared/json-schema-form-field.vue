@@ -22,6 +22,7 @@ const props = withDefaults(
   defineProps<{
     disabled?: boolean;
     errorMessage?: string;
+    inline?: boolean;
     loading?: boolean;
     modalStyle?: Record<string, any>;
     modalWidth?: number | string;
@@ -32,6 +33,7 @@ const props = withDefaults(
   {
     disabled: false,
     errorMessage: '',
+    inline: false,
     loading: false,
     modalWidth: 'min(70vw, 1120px)',
     schema: () => ({}),
@@ -142,6 +144,7 @@ function getFieldValue(path: string[]) {
 
 function setFieldValue(path: string[], value: any) {
   draftValue.value = setJsonSchemaPathValue(draftValue.value, path, value);
+  emitInlineValue();
 }
 
 function setComplexFieldValue(path: string[], pathKey: string, value: string) {
@@ -184,10 +187,16 @@ function handleOk() {
   open.value = false;
 }
 
+function emitInlineValue() {
+  if (props.inline) {
+    emit('update:modelValue', cloneObjectValue(draftValue.value));
+  }
+}
+
 watch(
   () => props.modelValue,
   (nextValue) => {
-    if (!open.value) {
+    if (props.inline || !open.value) {
       draftValue.value = applyJsonSchemaDefaults(
         cloneObjectValue(nextValue),
         props.schema,
@@ -199,15 +208,19 @@ watch(
 );
 
 watch(fields, () => {
-  if (open.value) {
+  if (props.inline || open.value) {
     resetComplexTextValues();
   }
 });
 </script>
 
 <template>
-  <div class="crud-json-schema-form-field">
+  <div
+    class="crud-json-schema-form-field"
+    :class="{ 'crud-json-schema-form-field--inline': inline }"
+  >
     <Input
+      v-if="!inline"
       :disabled="disabled"
       :placeholder="
         loading ? 'JSON Schema 加载中' : '点击编辑 JSON Schema 表单'
@@ -217,30 +230,135 @@ watch(fields, () => {
       @click="openEditor"
     />
     <Button
+      v-if="!inline"
       :disabled="disabled || loading || !!errorMessage"
       @click="openEditor"
     >
       编辑
     </Button>
 
+    <Form v-if="inline" layout="vertical">
+      <div class="crud-json-schema-form-grid">
+        <template v-for="field in fields" :key="field.pathKey">
+          <div
+            v-if="field.kind === 'section'"
+            class="crud-json-schema-form-section crud-json-schema-form-full"
+            :style="{
+              gridColumn: '1 / -1',
+              paddingLeft: `${field.level * 16}px`,
+            }"
+          >
+            <div class="text-sm font-medium">{{ field.label }}</div>
+            <div v-if="field.description" class="text-muted-foreground text-xs">
+              {{ field.description }}
+            </div>
+          </div>
+
+          <Form.Item
+            v-else
+            :class="{
+              'crud-json-schema-form-full': isWideField(field),
+              'crud-json-schema-form-item': !isWideField(field),
+            }"
+            :extra="field.description"
+            :label="field.label"
+            :required="field.required"
+            :style="getFieldItemStyle(field)"
+          >
+            <Select
+              v-if="field.kind === 'select'"
+              :disabled="disabled || field.readOnly"
+              :options="field.options"
+              :placeholder="`请选择${field.label}`"
+              :value="getFieldValue(field.path)"
+              allow-clear
+              class="w-full"
+              show-search
+              @update:value="setFieldValue(field.path, $event)"
+            />
+
+            <Switch
+              v-else-if="field.kind === 'boolean'"
+              :checked="!!getFieldValue(field.path)"
+              :disabled="disabled || field.readOnly"
+              @update:checked="setFieldValue(field.path, $event)"
+            />
+
+            <InputNumber
+              v-else-if="field.kind === 'number'"
+              :disabled="disabled || field.readOnly"
+              :placeholder="`请输入${field.label}`"
+              :value="getFieldValue(field.path)"
+              class="w-full"
+              @update:value="setFieldValue(field.path, $event)"
+            />
+
+            <Input.TextArea
+              v-else-if="field.kind === 'json'"
+              :auto-size="{ minRows: 3, maxRows: 8 }"
+              :disabled="disabled || field.readOnly"
+              :placeholder="`请输入${field.label} JSON`"
+              :value="complexTextValues[field.pathKey]"
+              @update:value="
+                setComplexFieldValue(field.path, field.pathKey, $event)
+              "
+            />
+
+            <Input.TextArea
+              v-else-if="field.kind === 'textarea'"
+              :auto-size="{ minRows: 3, maxRows: 8 }"
+              :disabled="disabled || field.readOnly"
+              :placeholder="`请输入${field.label}`"
+              :value="getFieldValue(field.path)"
+              @update:value="setFieldValue(field.path, $event)"
+            />
+
+            <Input
+              v-else
+              :disabled="disabled || field.readOnly"
+              :placeholder="`请输入${field.label}`"
+              :value="getFieldValue(field.path)"
+              @update:value="setFieldValue(field.path, $event)"
+            />
+          </Form.Item>
+        </template>
+
+        <div
+          v-if="loading"
+          class="crud-json-schema-form-full text-muted-foreground text-sm"
+          style="grid-column: 1 / -1"
+        >
+          正在加载 JSON Schema...
+        </div>
+        <div
+          v-else-if="errorMessage"
+          class="crud-json-schema-form-full text-destructive text-sm"
+          style="grid-column: 1 / -1"
+        >
+          {{ errorMessage }}
+        </div>
+        <div
+          v-else-if="fields.length === 0"
+          class="crud-json-schema-form-full text-muted-foreground text-sm"
+          style="grid-column: 1 / -1"
+        >
+          当前 JSON Schema 没有 properties，无法生成动态表单。
+        </div>
+      </div>
+    </Form>
+
     <Modal
+      v-if="!inline"
       v-model:open="open"
       destroy-on-close
+      ok-text="保存"
       :style="modalStyle"
       :title="modalTitle"
       :width="modalWidth"
       @ok="handleOk"
     >
       <Form layout="vertical">
-        <div
-          class="crud-json-schema-form-grid"
-          style="
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            column-gap: 16px;
-            row-gap: 4px;
-          "
-        >
+        <div class="crud-json-schema-form-grid">
           <template v-for="field in fields" :key="field.pathKey">
             <div
               v-if="field.kind === 'section'"
@@ -261,7 +379,10 @@ watch(fields, () => {
 
             <Form.Item
               v-else
-              :class="{ 'crud-json-schema-form-full': isWideField(field) }"
+              :class="{
+                'crud-json-schema-form-full': isWideField(field),
+                'crud-json-schema-form-item': !isWideField(field),
+              }"
               :extra="field.description"
               :label="field.label"
               :required="field.required"
@@ -359,6 +480,10 @@ watch(fields, () => {
   gap: 8px;
 }
 
+.crud-json-schema-form-field--inline {
+  display: block;
+}
+
 .crud-json-schema-form-field :deep(.ant-input) {
   cursor: pointer;
 }
@@ -368,6 +493,17 @@ watch(fields, () => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 16px;
   row-gap: 4px;
+  width: 100%;
+}
+
+.crud-json-schema-form-field--inline .crud-json-schema-form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.crud-json-schema-form-item {
+  width: 100%;
+  max-width: 480px;
+  justify-self: center;
 }
 
 .crud-json-schema-form-grid :deep(.ant-form-item) {

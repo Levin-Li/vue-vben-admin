@@ -4,6 +4,7 @@ import type { SelectOption } from '@levin/admin-framework';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
+import { useUserStore } from '@vben/stores';
 
 import {
   Button,
@@ -23,6 +24,7 @@ import {
 } from 'ant-design-vue';
 
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
+import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { orgService } from '../../api/org-service';
 import { userService } from '../../api/user-service';
 
@@ -68,6 +70,7 @@ const hoveredOrgId = ref('');
 const expandedOrgKeys = ref<string[]>([]);
 const orgTreeData = ref<OrgTreeNode[]>([]);
 const orgTypeOptions = ref<Array<{ label: string; value: string }>>([]);
+const userStore = useUserStore();
 
 const orgModalOpen = ref(false);
 const orgModalMode = ref<'create' | 'edit'>('create');
@@ -86,6 +89,10 @@ const orgFormState = reactive<Record<string, any>>({
 
 const selectedOrgName = computed(
   () => findOrgNode(orgTreeData.value, selectedOrgId.value)?.title || '',
+);
+const isSuperAdmin = computed(() => isSuperAdminUser(userStore.userInfo));
+const shouldShowOrgEditableControl = computed(
+  () => orgModalMode.value === 'create' || isSuperAdmin.value,
 );
 
 const filteredOrgTreeData = computed(() => {
@@ -402,9 +409,8 @@ async function submitOrgForm() {
   orgSubmitting.value = true;
 
   try {
-    const payload = {
+    const payload: Record<string, any> = {
       code: orgFormState.code || undefined,
-      editable: orgFormState.editable,
       enable: orgFormState.enable,
       id: orgFormState.id || undefined,
       name: orgFormState.name,
@@ -416,6 +422,10 @@ async function submitOrgForm() {
       state: orgFormState.state || 'Normal',
       type: orgFormState.type || 'Department',
     };
+
+    if (shouldShowOrgEditableControl.value) {
+      payload.editable = orgFormState.editable;
+    }
 
     if (orgModalMode.value === 'edit') {
       await orgService.update(payload);
@@ -658,7 +668,7 @@ onMounted(async () => {
           <Form.Item label="是否启用">
             <Switch v-model:checked="orgFormState.enable" />
           </Form.Item>
-          <Form.Item label="是否可编辑">
+          <Form.Item v-if="shouldShowOrgEditableControl" label="是否可编辑">
             <Switch v-model:checked="orgFormState.editable" />
           </Form.Item>
           <Form.Item class="col-span-2" label="备注">

@@ -7,6 +7,7 @@ import {
   buildEnumOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
+import { transformSettingCrudSubmit } from '../setting-crud-submit';
 
 const userSettingValueTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Setting$ValueType',
@@ -55,7 +56,7 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       table: true,
       width: 180,
     },
-    { key: 'containsName', label: '名称', form: false, search: true },
+    { key: 'containsGroupName', label: '分组名称', form: false, search: true },
     { key: 'code', label: '编码', form: false, search: true },
     { key: 'categoryName', label: '分类名称', form: false, search: true },
     {
@@ -81,7 +82,7 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'datetime',
     },
-    { key: 'name', label: '名称', required: true, table: true, width: 180 },
+    { key: 'groupName', label: '分组名称', table: true, width: 160 },
     { key: 'code', label: '编码', required: true, table: true, width: 180 },
     { key: 'categoryName', label: '分类名称', table: true, width: 140 },
     { key: 'icon', label: '图标', type: 'image' },
@@ -93,7 +94,13 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       type: 'select',
       width: 120,
     },
-    { key: 'editor', label: '内容编辑器', fullRow: true, type: 'textarea' },
+    {
+      key: 'editor',
+      label: '值编辑器',
+      disabledOnEdit: true,
+      fullRow: true,
+      type: 'text',
+    },
     { key: 'valueContent', label: '值', fullRow: true, type: 'textarea' },
     {
       key: 'nullable',
@@ -149,4 +156,5 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '用户设置管理',
+  transformSubmit: transformSettingCrudSubmit,
 };

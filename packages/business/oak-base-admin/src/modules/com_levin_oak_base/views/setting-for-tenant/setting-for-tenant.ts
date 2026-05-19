@@ -182,7 +182,10 @@ export function getSettingKey(item: TenantSettingItem) {
 }
 
 export function getSettingDisplayName(item: TenantSettingItem) {
-  return normalizeText(item.name || item.code || item.id) || '未命名配置';
+  return (
+    normalizeText(item.name || item.groupName || item.code || item.id) ||
+    '未命名配置'
+  );
 }
 
 export function isSettingEditable(item: TenantSettingItem) {
@@ -354,6 +357,10 @@ export function resolveSettingEditorKind(
 
   if (valueType === 'file') {
     return 'file-url';
+  }
+
+  if (valueType === 'text') {
+    return 'textarea';
   }
 
   return 'text';

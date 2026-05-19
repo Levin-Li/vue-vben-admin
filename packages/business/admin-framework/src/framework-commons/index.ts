@@ -30,6 +30,7 @@ export * from './shared/draggable-floating-panel-service';
  * unmount.
  */
 export * from './shared/user-dropdown-menu-service';
+export * from './shared/user-org-selector-types';
 /**
  * Dynamic top header extension areas.
  *
@@ -51,6 +52,7 @@ export { default as RbacPermissionMatchUtils } from './rbac-permission-match';
 export * from './runtime';
 export { default as DraggableFloatingPanelHost } from './shared/draggable-floating-panel-host.vue';
 export { default as DraggableFloatingPanel } from './shared/draggable-floating-panel.vue';
+export { default as UserOrgSelector } from './shared/user-org-selector.vue';
 
 export interface AdminMenuItem {
   badge?: string | number;

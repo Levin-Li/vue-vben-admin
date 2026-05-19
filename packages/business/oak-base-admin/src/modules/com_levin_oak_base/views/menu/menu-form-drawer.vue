@@ -3,6 +3,8 @@ import type { MenuRecord, SelectOption } from './types';
 
 import { computed, reactive, watch } from 'vue';
 
+import { useUserStore } from '@vben/stores';
+
 import {
   Button,
   Drawer,
@@ -14,6 +16,8 @@ import {
   TreeSelect,
   message,
 } from 'ant-design-vue';
+
+import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 
 import { menuService } from '../../api/menu-service';
 
@@ -43,9 +47,14 @@ const formState = reactive<MenuRecord>({
   requireAuthorizations: [],
 });
 const submitting = reactive({ value: false });
+const userStore = useUserStore();
 
 const isEdit = computed(() => Boolean(props.record?.id));
 const drawerTitle = computed(() => (isEdit.value ? '编辑菜单' : '新增菜单'));
+const isSuperAdmin = computed(() => isSuperAdminUser(userStore.userInfo));
+const shouldShowEditableControl = computed(
+  () => !isEdit.value || isSuperAdmin.value,
+);
 
 const actionTypeSelectOptions = computed(() =>
   props.actionTypeOptions.map((item) => ({
@@ -127,7 +136,6 @@ function buildPayload() {
     actionType: formState.actionType || 'Default',
     alwaysShow: Boolean(formState.alwaysShow),
     domain: formState.domain || '',
-    editable: formState.editable ?? true,
     enable: formState.enable ?? true,
     icon: formState.icon || '',
     label: formState.label || '',
@@ -143,6 +151,10 @@ function buildPayload() {
     target: formState.target || '',
   };
 
+  if (shouldShowEditableControl.value) {
+    payload.editable = formState.editable ?? true;
+  }
+
   if (isEdit.value) {
     payload.id = formState.id;
     payload.optimisticLock = formState.optimisticLock;
@@ -150,7 +162,6 @@ function buildPayload() {
       'actionType',
       'alwaysShow',
       'domain',
-      'editable',
       'enable',
       'icon',
       'label',
@@ -165,6 +176,10 @@ function buildPayload() {
       'remark',
       'target',
     ];
+
+    if (shouldShowEditableControl.value) {
+      payload.forceUpdateFields.push('editable');
+    }
   }
 
   return payload;
@@ -283,7 +298,10 @@ async function submit() {
               <Switch v-model:checked="formState.enable" />
               是否启用
             </span>
-            <span class="inline-flex items-center gap-2">
+            <span
+              v-if="shouldShowEditableControl"
+              class="inline-flex items-center gap-2"
+            >
               <Switch v-model:checked="formState.editable" />
               是否可编辑
             </span>

@@ -16,7 +16,7 @@ export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
   ...oakBaseAdminCrudResources.map((item) => ({
     deprecatedPaths:
       item.resource === 'RbacPermissionItem' ? ['/clob/V1/Permission'] : [],
-    icon: 'lucide:panel-right-open',
+    icon: item.icon,
     name: `${item.name}CrudPage`,
     path: `/clob/V1/${item.resource}`,
     resource: item.resource,

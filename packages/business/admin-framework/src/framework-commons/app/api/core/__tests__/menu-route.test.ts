@@ -52,6 +52,42 @@ describe('menu route conversion', () => {
     ).toBe('/system/com_levin_oak_base/role/index.vue');
   });
 
+  it('uses local mapping icon when backend still stores the old generic leaf icon', () => {
+    const route = convertMenuNodeForTest(
+      {
+        icon: 'lucide:panel-right-open',
+        name: '文章管理',
+        pageType: 'LocalPage-本地页面',
+        path: '/clob/V1/Article',
+      },
+      testBackendRouteMappings,
+    );
+
+    expect(route?.meta?.icon).toBe('lucide:file-text');
+  });
+
+  it('infers a contextual icon for unmapped backend leaves with stale generic icons', () => {
+    const route = convertMenuNodeForTest({
+      icon: 'lucide:panel-right-open',
+      name: '合同签署记录',
+      pageType: 'LocalPage-本地页面',
+      path: '/contract/V1/SignLog',
+    });
+
+    expect(route?.meta?.icon).toBe('lucide:pen-line');
+  });
+
+  it('preserves custom backend icons instead of inferred fallbacks', () => {
+    const route = convertMenuNodeForTest({
+      icon: 'lucide:star',
+      name: '商品订单',
+      pageType: 'LocalPage-本地页面',
+      path: '/trade/V1/ProductOrder',
+    });
+
+    expect(route?.meta?.icon).toBe('lucide:star');
+  });
+
   it('routes deprecated backend menu paths to their current local page mapping', () => {
     const route = convertMenuNodeForTest(
       {

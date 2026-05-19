@@ -90,6 +90,7 @@ import {
   shouldReloadDataListAfterAction,
 } from './crud-action-model';
 import { buildCrudConfirmConfig } from './crud-confirm';
+import { shouldShowCrudFormField } from './crud-form-field-visibility';
 import {
   filterCrudOperationsByListTable,
   groupCrudOperationsByRecordRef,
@@ -516,9 +517,11 @@ function sortFormLayoutFields(fields: CrudFieldConfig[]) {
 const visibleFormFields = computed(() =>
   sortFormLayoutFields(
     formFields.value.filter((field) =>
-      editingRecord.value
-        ? field.formEdit !== false
-        : field.formCreate !== false,
+      shouldShowCrudFormField(
+        field,
+        editingRecord.value ? 'edit' : 'create',
+        userStore.userInfo,
+      ),
     ),
   ),
 );
@@ -4498,6 +4501,11 @@ watch(tableColumnPreferenceStorageKey, () => {
                 >
                   编辑
                 </Button>
+                <slot
+                  name="row-actions"
+                  :record="record"
+                  :reload="loadList"
+                ></slot>
                 <Popconfirm
                   v-if="canShowBuiltinDelete(record)"
                   title="确认删除当前记录吗？"
@@ -4938,6 +4946,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               "
               v-model:value="formState[field.key]"
               :auto-size="{ minRows: 3, maxRows: 8 }"
+              :disabled="field.disabledOnEdit && !!editingRecord"
               :placeholder="getPlaceholder(field)"
             />
             <DatePicker

@@ -7,6 +7,7 @@ import {
   buildEnumOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
+import { transformSettingCrudSubmit } from '../setting-crud-submit';
 
 const settingValueTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Setting$ValueType',
@@ -97,7 +98,13 @@ export const settingPageCrudConfig: CrudPageConfig = {
       type: 'select',
       width: 120,
     },
-    { key: 'editor', label: '值编辑器', fullRow: true, type: 'textarea' },
+    {
+      key: 'editor',
+      label: '值编辑器',
+      disabledOnEdit: true,
+      fullRow: true,
+      type: 'text',
+    },
     { key: 'valueContent', label: '值', fullRow: true, type: 'textarea' },
     {
       key: 'nullable',
@@ -154,4 +161,5 @@ export const settingPageCrudConfig: CrudPageConfig = {
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '系统设置管理',
+  transformSubmit: transformSettingCrudSubmit,
 };

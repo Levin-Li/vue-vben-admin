@@ -6,6 +6,7 @@ import { Button, Input, Modal } from 'ant-design-vue';
 const props = withDefaults(
   defineProps<{
     disabled?: boolean;
+    inline?: boolean;
     language?: string;
     modalStyle?: Record<string, any>;
     modalWidth?: number | string;
@@ -14,6 +15,7 @@ const props = withDefaults(
   }>(),
   {
     disabled: false,
+    inline: false,
     language: 'text',
     modalWidth: 'min(70vw, 1280px)',
     title: '内容',
@@ -47,6 +49,11 @@ function handleOk() {
   open.value = false;
 }
 
+function setInlineValue(value: string) {
+  draftValue.value = value;
+  emit('update:modelValue', value);
+}
+
 watch(
   () => props.modelValue,
   (nextValue) => {
@@ -59,7 +66,16 @@ watch(
 </script>
 
 <template>
-  <div class="crud-code-editor-field">
+  <Input.TextArea
+    v-if="inline"
+    :auto-size="{ minRows: 18, maxRows: 28 }"
+    :class="editorClass"
+    :disabled="disabled"
+    :value="draftValue"
+    @update:value="setInlineValue"
+  />
+
+  <div v-else class="crud-code-editor-field">
     <Input
       :disabled="disabled"
       placeholder="点击编辑内容"
@@ -72,6 +88,7 @@ watch(
     <Modal
       v-model:open="open"
       destroy-on-close
+      ok-text="保存"
       :style="modalStyle"
       :title="modalTitle"
       :width="modalWidth"

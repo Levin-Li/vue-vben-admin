@@ -2,7 +2,9 @@
 import {
   computed,
   h,
+  onActivated,
   onBeforeUnmount,
+  onDeactivated,
   onMounted,
   reactive,
   ref,
@@ -51,6 +53,11 @@ interface AutoLoginPromptHandle {
   update: (config: Record<string, unknown>) => void;
 }
 
+interface AutoLoginPromptResult {
+  confirmed: boolean;
+  silent?: boolean;
+}
+
 const REMEMBER_ME_KEY = `REMEMBER_ME_USERNAME_${location.hostname}`;
 const AUTO_LOGIN_COUNTDOWN_SECONDS = 5;
 
@@ -88,7 +95,12 @@ const formState = reactive({
 
 let countdownTimer: null | ReturnType<typeof setInterval> = null;
 let autoLoginPrompt: AutoLoginPromptHandle | null = null;
+let autoLoginPromptResolve: null | ((
+  result: AutoLoginPromptResult,
+) => void) = null;
+let autoLoginPromptSequence = 0;
 let autoLoginPromptTimer: null | ReturnType<typeof setInterval> = null;
+let loginPageActive = true;
 
 const currentTab = computed<VerifyCodeTabOption>(() => {
   return (
@@ -169,34 +181,65 @@ function clearAutoLoginPromptTimer() {
   }
 }
 
-function destroyAutoLoginPrompt() {
+function cancelAutoLoginPrompt() {
+  const resolve = autoLoginPromptResolve;
+
   clearAutoLoginPromptTimer();
   autoLoginPrompt?.destroy();
   autoLoginPrompt = null;
+  autoLoginPromptResolve = null;
+  resolve?.({ confirmed: false, silent: true });
+  autoLoginPromptSequence += 1;
 }
 
 function confirmAutoLogin() {
-  destroyAutoLoginPrompt();
+  cancelAutoLoginPrompt();
 
-  return new Promise<boolean>((resolve) => {
+  if (!loginPageActive) {
+    return Promise.resolve({ confirmed: false, silent: true });
+  }
+
+  const promptSequence = ++autoLoginPromptSequence;
+
+  return new Promise<AutoLoginPromptResult>((resolve) => {
     let settled = false;
     let seconds = AUTO_LOGIN_COUNTDOWN_SECONDS;
 
-    const finish = (confirmed: boolean) => {
-      if (settled) {
+    const finish = (
+      confirmed: boolean,
+      destroyPrompt = false,
+      silent = false,
+    ) => {
+      if (settled || promptSequence !== autoLoginPromptSequence) {
         return;
       }
 
       settled = true;
       clearAutoLoginPromptTimer();
-      resolve(confirmed);
+      const prompt = autoLoginPrompt;
+      autoLoginPrompt = null;
+      autoLoginPromptResolve = null;
+
+      if (destroyPrompt) {
+        prompt?.destroy();
+      }
+
+      resolve({ confirmed: confirmed && loginPageActive, silent });
     };
 
     const updatePrompt = () => {
+      if (promptSequence !== autoLoginPromptSequence) {
+        return;
+      }
+
       autoLoginPrompt?.update({
         content: renderAutoLoginPromptContent(seconds),
         okText: `立即登录 (${seconds}s)`,
       });
+    };
+
+    autoLoginPromptResolve = (result: AutoLoginPromptResult) => {
+      finish(result.confirmed, true, result.silent);
     };
 
     autoLoginPrompt = Modal.confirm({
@@ -217,9 +260,7 @@ function confirmAutoLogin() {
       seconds -= 1;
 
       if (seconds <= 0) {
-        finish(true);
-        autoLoginPrompt?.destroy();
-        autoLoginPrompt = null;
+        finish(true, true);
         return;
       }
 
@@ -247,13 +288,15 @@ async function tryAutoLoginWithReturnedVerifyCode(verifyCode: string) {
 
   lastAutoLoginSignature.value = signature;
 
-  const confirmed = await confirmAutoLogin();
-  if (!confirmed) {
-    message.info('已取消本次自动登录');
+  const autoLoginResult = await confirmAutoLogin();
+  if (!autoLoginResult.confirmed) {
+    if (loginPageActive && !autoLoginResult.silent) {
+      message.info('已取消本次自动登录');
+    }
     return;
   }
 
-  if (authStore.loginLoading) {
+  if (!loginPageActive || authStore.loginLoading) {
     return;
   }
 
@@ -424,6 +467,10 @@ async function requestVerifyCode(options: RequestVerifyCodeOptions = {}) {
       }),
     );
 
+    if (!loginPageActive) {
+      return;
+    }
+
     const returnedCode = extractReturnedVerifyCode(payload);
 
     if (isCaptchaTab.value) {
@@ -543,14 +590,25 @@ watch(activeVerifyType, () => {
 });
 
 onMounted(() => {
+  loginPageActive = true;
   if (isCaptchaTab.value) {
     void requestVerifyCode();
   }
 });
 
+onActivated(() => {
+  loginPageActive = true;
+});
+
+onDeactivated(() => {
+  loginPageActive = false;
+  cancelAutoLoginPrompt();
+});
+
 onBeforeUnmount(() => {
+  loginPageActive = false;
   clearCountdown();
-  destroyAutoLoginPrompt();
+  cancelAutoLoginPrompt();
 });
 </script>
 

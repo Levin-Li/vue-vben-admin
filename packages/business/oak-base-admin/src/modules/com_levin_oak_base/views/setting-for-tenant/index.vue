@@ -1,8 +1,5 @@
 <script lang="ts" setup>
-import type {
-  SettingJsonSchemaSource,
-  TenantSettingItem,
-} from './setting-for-tenant';
+import type { TenantSettingItem } from './setting-for-tenant';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
@@ -13,41 +10,46 @@ import {
   Alert,
   Button,
   Empty,
-  Form,
-  Input,
-  InputNumber,
   message,
-  Select,
+  Modal,
   Spin,
-  Switch,
   Tabs,
   Tag,
   Tooltip,
 } from 'ant-design-vue';
 
 import { settingService } from '../../api/setting-service';
-import { requestClient } from '@levin/admin-framework';
-import CodeEditorField from '@levin/admin-framework/framework-commons/shared/code-editor-field.vue';
-import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
-import JsonSchemaFormField from '@levin/admin-framework/framework-commons/shared/json-schema-form-field.vue';
-import { normalizeJsonSchemaObject } from '@levin/admin-framework/framework-commons/shared/json-schema-form';
 
-import { modulePost } from '../api-module';
+import SettingValueContentField from '../setting-value-content-field.vue';
 import {
-  buildTenantSettingUpdatePayload,
   buildTenantSettingCategories,
-  getCodeEditorLanguage,
-  getEditorOptions,
-  getSettingJsonSchema,
-  getSettingJsonSchemaSource,
+  buildTenantSettingUpdatePayload,
   getSettingDisplayName,
   getSettingKey,
   isSettingEditable,
   isSettingValueChanged,
   parseSettingValueForEditor,
-  resolveSettingEditorKind,
   serializeSettingValueFromEditor,
 } from './setting-for-tenant';
+
+interface SettingPageService {
+  list(params?: any, options?: any): Promise<any>;
+  update(data?: any, options?: any): Promise<any>;
+}
+
+const props = withDefaults(
+  defineProps<{
+    emptyDescription?: string;
+    loadErrorMessage?: string;
+    service?: SettingPageService;
+    title?: string;
+  }>(),
+  {
+    emptyDescription: '暂无系统配置',
+    loadErrorMessage: '系统配置加载失败',
+    title: '系统配置',
+  },
+);
 
 const loading = ref(false);
 const errorMessage = ref('');
@@ -57,9 +59,10 @@ const activeGroupKeys = reactive<Record<string, string>>({});
 const draftValues = reactive<Record<string, any>>({});
 const originalValues = reactive<Record<string, string>>({});
 const savingKeys = reactive<Record<string, boolean>>({});
-const schemaErrorMessages = reactive<Record<string, string>>({});
-const schemaLoadingKeys = reactive<Record<string, boolean>>({});
-const resolvedJsonSchemas = reactive<Record<string, Record<string, any>>>({});
+const editValueModalOpen = ref(false);
+const editValueItem = ref<TenantSettingItem>();
+const editValueFormState = ref<Record<string, any>>({});
+const editValueSubmitting = ref(false);
 
 const categories = computed(() => buildTenantSettingCategories(settings.value));
 
@@ -79,6 +82,16 @@ const changedSettings = computed(() =>
 );
 
 const hasSettings = computed(() => settings.value.length > 0);
+
+const editValueTitle = computed(() => {
+  const item = editValueItem.value;
+  return item ? `编辑值 - ${getSettingDisplayName(item)}` : '编辑配置值';
+});
+
+const editValueModalBodyStyle = {
+  maxHeight: 'calc(100vh - 180px)',
+  overflowY: 'auto',
+};
 
 function normalizeSettingList(data: any): TenantSettingItem[] {
   const list: TenantSettingItem[] = Array.isArray(data)
@@ -104,80 +117,6 @@ function resetDraftState(nextSettings: TenantSettingItem[]) {
   });
 }
 
-function resetJsonSchemaState() {
-  Object.keys(schemaErrorMessages).forEach(
-    (key) => delete schemaErrorMessages[key],
-  );
-  Object.keys(schemaLoadingKeys).forEach(
-    (key) => delete schemaLoadingKeys[key],
-  );
-  Object.keys(resolvedJsonSchemas).forEach(
-    (key) => delete resolvedJsonSchemas[key],
-  );
-}
-
-function normalizeJsonSchemaResponse(data: any) {
-  return normalizeJsonSchemaObject(
-    data?.jsonSchema ??
-      data?.data?.jsonSchema ??
-      data?.schema ??
-      data?.data?.schema ??
-      data,
-  );
-}
-
-async function fetchJsonSchemaBySource(source: SettingJsonSchemaSource) {
-  if (source.kind === 'inline') {
-    return source.schema;
-  }
-
-  if (source.kind === 'java-type') {
-    const result = await modulePost<{
-      jsonSchema?: string;
-      schema?: Record<string, any> | string;
-    }>('/jsonSchema/genJsonSchema', {
-      typeGenericStr: source.typeGenericStr,
-    });
-    return normalizeJsonSchemaResponse(result);
-  }
-
-  const result = await requestClient.get(source.url, {
-    baseURL: /^https?:\/\//i.test(source.url) ? undefined : '',
-  });
-  return normalizeJsonSchemaResponse(result);
-}
-
-async function loadItemJsonSchema(item: TenantSettingItem) {
-  const key = getSettingKey(item);
-  const source = getSettingJsonSchemaSource(item);
-
-  if (!key || !source) {
-    return;
-  }
-
-  schemaLoadingKeys[key] = true;
-  delete schemaErrorMessages[key];
-
-  try {
-    const schema = await fetchJsonSchemaBySource(source);
-    if (schema) {
-      resolvedJsonSchemas[key] = schema;
-    } else {
-      schemaErrorMessages[key] = 'JSON Schema 解析失败';
-    }
-  } catch (error) {
-    console.error(error);
-    schemaErrorMessages[key] = 'JSON Schema 加载失败';
-  } finally {
-    delete schemaLoadingKeys[key];
-  }
-}
-
-async function loadJsonSchemas(nextSettings: TenantSettingItem[]) {
-  resetJsonSchemaState();
-  await Promise.all(nextSettings.map((item) => loadItemJsonSchema(item)));
-}
-
 function ensureActiveTabs() {
   const firstCategory = categories.value[0];
   if (
@@ -200,7 +139,7 @@ async function loadSettings() {
   errorMessage.value = '';
 
   try {
-    const result = await settingService.list({
+    const result = await (props.service || settingService).list({
       enable: true,
       isContainsPublicData: true,
       orderBy: 'orderCode',
@@ -211,11 +150,10 @@ async function loadSettings() {
 
     settings.value = normalizeSettingList(result);
     resetDraftState(settings.value);
-    await loadJsonSchemas(settings.value);
     ensureActiveTabs();
   } catch (error) {
     console.error(error);
-    errorMessage.value = '系统配置加载失败';
+    errorMessage.value = props.loadErrorMessage;
   } finally {
     loading.value = false;
   }
@@ -225,37 +163,25 @@ function getItemKey(item: TenantSettingItem) {
   return getSettingKey(item);
 }
 
-function getItemKind(item: TenantSettingItem) {
-  return resolveSettingEditorKind(item);
-}
-
-function getItemJsonSchema(item: TenantSettingItem) {
-  const key = getItemKey(item);
-  return resolvedJsonSchemas[key] || getSettingJsonSchema(item);
-}
-
-function isItemSchemaLoading(item: TenantSettingItem) {
-  return !!schemaLoadingKeys[getItemKey(item)];
-}
-
-function getItemSchemaErrorMessage(item: TenantSettingItem) {
-  return schemaErrorMessages[getItemKey(item)] || '';
-}
-
-function getItemPlaceholder(item: TenantSettingItem) {
-  return item.inputPlaceholder || `请输入${getSettingDisplayName(item)}`;
-}
-
-function getItemRemarkLabel(item: TenantSettingItem) {
-  return item.remark || undefined;
-}
-
 function getValue(item: TenantSettingItem) {
   return draftValues[getItemKey(item)];
 }
 
-function setValue(item: TenantSettingItem, value: any) {
-  draftValues[getItemKey(item)] = value;
+function getValuePreview(item: TenantSettingItem) {
+  const value = getValue(item);
+  if (value === undefined || value === null || value === '') {
+    return '-';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function isItemChanged(item: TenantSettingItem) {
@@ -272,21 +198,54 @@ function isItemSaving(item: TenantSettingItem) {
   return !!savingKeys[getItemKey(item)];
 }
 
-async function saveItem(item: TenantSettingItem) {
-  const key = getItemKey(item);
-  if (!key || !item.id || !isSettingEditable(item) || !isItemChanged(item)) {
+function openItemEditor(item: TenantSettingItem) {
+  if (
+    !isSettingEditable(item) ||
+    isItemSaving(item) ||
+    editValueSubmitting.value
+  ) {
     return;
   }
 
+  editValueItem.value = item;
+  editValueFormState.value = {
+    ...item,
+    valueContent: getValue(item),
+  };
+  editValueModalOpen.value = true;
+}
+
+async function saveEditValue() {
+  const item = editValueItem.value;
+  if (!item) {
+    return;
+  }
+
+  const key = getItemKey(item);
+  if (!key || !item.id || !isSettingEditable(item)) {
+    return;
+  }
+
+  const nextValue = editValueFormState.value.valueContent;
+  draftValues[key] = nextValue;
+
+  if (!isItemChanged(item)) {
+    editValueModalOpen.value = false;
+    return;
+  }
+
+  editValueSubmitting.value = true;
   savingKeys[key] = true;
 
   try {
-    await settingService.update(
-      buildTenantSettingUpdatePayload(item, draftValues[key]),
+    await (props.service || settingService).update(
+      buildTenantSettingUpdatePayload(item, nextValue),
     );
     message.success(`${getSettingDisplayName(item)}保存成功`);
+    editValueModalOpen.value = false;
     await loadSettings();
   } finally {
+    editValueSubmitting.value = false;
     delete savingKeys[key];
   }
 }
@@ -309,7 +268,7 @@ onMounted(() => {
       >
         <div class="flex items-center gap-2 text-sm">
           <span class="text-foreground font-medium">
-            系统配置({{ settings.length }})
+            {{ props.title }}({{ settings.length }})
           </span>
           <Tag v-if="changedSettings.length > 0" color="warning">
             待保存 {{ changedSettings.length }}
@@ -336,7 +295,10 @@ onMounted(() => {
       />
 
       <Spin :spinning="loading" class="min-h-0 flex-1">
-        <Empty v-if="!loading && !hasSettings" description="暂无系统配置" />
+        <Empty
+          v-if="!loading && !hasSettings"
+          :description="props.emptyDescription"
+        />
 
         <Tabs
           v-else
@@ -358,187 +320,56 @@ onMounted(() => {
                 :key="group.key"
                 :tab="group.name"
               >
-                <div class="grid gap-2">
+                <div class="tenant-setting-items-grid">
                   <div
                     v-for="item in group.settings"
                     :key="getItemKey(item)"
-                    class="bg-card rounded-lg px-4 py-3"
+                    class="tenant-setting-item bg-card"
                   >
-                    <div
-                      class="mb-2 flex min-w-0 flex-wrap items-start justify-between gap-3"
-                    >
-                      <div
-                        class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
-                      >
-                        <div class="text-sm font-semibold">
-                          {{ getSettingDisplayName(item) }}
-                        </div>
-                        <div
-                          v-if="item.code"
-                          class="text-muted-foreground text-xs leading-5"
-                        >
-                          编码：{{ item.code }}
-                        </div>
+                    <div class="tenant-setting-item-header">
+                      <div class="min-w-0">
+                        <Tooltip :title="getSettingDisplayName(item)">
+                          <div class="tenant-setting-item-title">
+                            {{ getSettingDisplayName(item) }}
+                          </div>
+                        </Tooltip>
+                        <Tooltip v-if="item.code" :title="item.code">
+                          <div class="tenant-setting-item-code">
+                            编码：{{ item.code }}
+                          </div>
+                        </Tooltip>
                       </div>
-                      <div class="flex shrink-0 flex-wrap items-center gap-2">
+                      <div class="tenant-setting-item-tags">
                         <Tag v-if="item.valueType">{{ item.valueType }}</Tag>
                         <Tag v-if="!isSettingEditable(item)" color="default">
                           只读
                         </Tag>
+                        <Tag v-if="isItemSaving(item)" color="processing">
+                          保存中
+                        </Tag>
                       </div>
                     </div>
 
-                    <Form layout="vertical">
-                      <Form.Item class="mb-0">
-                        <template v-if="getItemRemarkLabel(item)" #label>
-                          <span class="text-muted-foreground text-xs leading-5">
-                            {{ getItemRemarkLabel(item) }}
-                          </span>
-                        </template>
-                        <div class="flex min-w-0 items-start gap-3">
-                          <div class="min-w-0 flex-1">
-                            <Switch
-                              v-if="getItemKind(item) === 'switch'"
-                              :checked="getValue(item)"
-                              :disabled="!isSettingEditable(item)"
-                              @update:checked="setValue(item, $event)"
-                            />
-
-                            <InputNumber
-                              v-else-if="getItemKind(item) === 'number'"
-                              :disabled="!isSettingEditable(item)"
-                              :placeholder="getItemPlaceholder(item)"
-                              :value="getValue(item)"
-                              class="w-full"
-                              @update:value="setValue(item, $event)"
-                            />
-
-                            <Select
-                              v-else-if="getItemKind(item) === 'select'"
-                              :disabled="!isSettingEditable(item)"
-                              :options="getEditorOptions(item.editor)"
-                              :placeholder="getItemPlaceholder(item)"
-                              :value="getValue(item)"
-                              allow-clear
-                              class="w-full"
-                              show-search
-                              @update:value="setValue(item, $event)"
-                            />
-
-                            <JsonSchemaFormField
-                              v-else-if="getItemKind(item) === 'json-schema'"
-                              :disabled="!isSettingEditable(item)"
-                              :error-message="getItemSchemaErrorMessage(item)"
-                              :loading="isItemSchemaLoading(item)"
-                              :model-value="getValue(item)"
-                              :schema="getItemJsonSchema(item)"
-                              :title="getSettingDisplayName(item)"
-                              @update:model-value="setValue(item, $event)"
-                            />
-
-                            <JsonEditorField
-                              v-else-if="getItemKind(item) === 'json'"
-                              :disabled="!isSettingEditable(item)"
-                              :model-value="getValue(item)"
-                              :title="getSettingDisplayName(item)"
-                              @update:model-value="setValue(item, $event)"
-                            />
-
-                            <CodeEditorField
-                              v-else-if="getItemKind(item) === 'code'"
-                              :disabled="!isSettingEditable(item)"
-                              :language="getCodeEditorLanguage(item)"
-                              :model-value="getValue(item)"
-                              :title="getSettingDisplayName(item)"
-                              @update:model-value="setValue(item, $event)"
-                            />
-
-                            <div
-                              v-else-if="getItemKind(item) === 'image-url'"
-                              class="space-y-2"
-                            >
-                              <Input
-                                :disabled="!isSettingEditable(item)"
-                                :placeholder="getItemPlaceholder(item)"
-                                :value="getValue(item)"
-                                @update:value="setValue(item, $event)"
-                              >
-                                <template #prefix>
-                                  <IconifyIcon icon="lucide:image" />
-                                </template>
-                              </Input>
-                              <img
-                                v-if="getValue(item)"
-                                :alt="getSettingDisplayName(item)"
-                                class="max-h-32 rounded object-contain"
-                                :src="getValue(item)"
-                              />
-                            </div>
-
-                            <div
-                              v-else-if="getItemKind(item) === 'video-url'"
-                              class="space-y-2"
-                            >
-                              <Input
-                                :disabled="!isSettingEditable(item)"
-                                :placeholder="getItemPlaceholder(item)"
-                                :value="getValue(item)"
-                                @update:value="setValue(item, $event)"
-                              >
-                                <template #prefix>
-                                  <IconifyIcon icon="lucide:video" />
-                                </template>
-                              </Input>
-                              <video
-                                v-if="getValue(item)"
-                                class="max-h-40 w-full rounded bg-black"
-                                controls
-                                :src="getValue(item)"
-                              ></video>
-                            </div>
-
-                            <Input
-                              v-else-if="getItemKind(item) === 'file-url'"
-                              :disabled="!isSettingEditable(item)"
-                              :placeholder="getItemPlaceholder(item)"
-                              :value="getValue(item)"
-                              @update:value="setValue(item, $event)"
-                            >
-                              <template #prefix>
-                                <IconifyIcon icon="lucide:file" />
-                              </template>
-                            </Input>
-
-                            <Input.TextArea
-                              v-else-if="getItemKind(item) === 'textarea'"
-                              :auto-size="{ minRows: 3, maxRows: 8 }"
-                              :disabled="!isSettingEditable(item)"
-                              :placeholder="getItemPlaceholder(item)"
-                              :value="getValue(item)"
-                              @update:value="setValue(item, $event)"
-                            />
-
-                            <Input
-                              v-else
-                              :disabled="!isSettingEditable(item)"
-                              :placeholder="getItemPlaceholder(item)"
-                              :value="getValue(item)"
-                              @update:value="setValue(item, $event)"
-                            />
-                          </div>
-
-                          <Button
-                            :disabled="loading || !isItemChanged(item)"
-                            :loading="isItemSaving(item)"
-                            type="primary"
-                            @click="saveItem(item)"
-                          >
-                            <IconifyIcon class="size-4" icon="lucide:save" />
-                            保存
-                          </Button>
+                    <div class="tenant-setting-item-control">
+                      <Tooltip :title="getValuePreview(item)">
+                        <div class="tenant-setting-value-preview">
+                          {{ getValuePreview(item) }}
                         </div>
-                      </Form.Item>
-                    </Form>
+                      </Tooltip>
+
+                      <Button
+                        block
+                        :disabled="
+                          !isSettingEditable(item) ||
+                          isItemSaving(item) ||
+                          editValueSubmitting
+                        "
+                        @click="openItemEditor(item)"
+                      >
+                        <IconifyIcon class="size-4" icon="lucide:pencil" />
+                        编辑
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </Tabs.TabPane>
@@ -547,6 +378,22 @@ onMounted(() => {
         </Tabs>
       </Spin>
     </div>
+
+    <Modal
+      v-model:open="editValueModalOpen"
+      :body-style="editValueModalBodyStyle"
+      :confirm-loading="editValueSubmitting"
+      destroy-on-close
+      ok-text="保存"
+      :title="editValueTitle"
+      :width="'min(70vw, 1280px)'"
+      @ok="saveEditValue"
+    >
+      <div class="tenant-setting-edit-form">
+        <div class="text-foreground text-sm font-medium">值</div>
+        <SettingValueContentField :form-state="editValueFormState" inline />
+      </div>
+    </Modal>
   </Page>
 </template>
 
@@ -570,5 +417,103 @@ onMounted(() => {
 .tenant-setting-group-tabs :deep(.ant-tabs-tab) {
   margin-top: 0;
   padding: 8px 12px;
+}
+
+.tenant-setting-items-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(max(210px, calc((100% - 72px) / 7)), 1fr)
+  );
+  gap: 12px;
+  align-items: start;
+}
+
+.tenant-setting-item {
+  min-width: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.tenant-setting-item-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  min-height: 46px;
+  margin-bottom: 8px;
+}
+
+.tenant-setting-item-title {
+  overflow: hidden;
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-setting-item-code {
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-setting-item-tags {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.tenant-setting-item-tags :deep(.ant-tag) {
+  margin-inline-end: 0;
+}
+
+.tenant-setting-item-remark {
+  display: block;
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-setting-item-control {
+  display: grid;
+  gap: 8px;
+}
+
+.tenant-setting-value-preview {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  line-height: 20px;
+  padding: 5px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-setting-edit-form {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .tenant-setting-items-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

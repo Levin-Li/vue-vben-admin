@@ -7,6 +7,8 @@ import JsonEditorVue from 'json-editor-vue';
 const props = withDefaults(
   defineProps<{
     disabled?: boolean;
+    inline?: boolean;
+    inlineMinHeight?: string;
     modalStyle?: Record<string, any>;
     modalWidth?: number | string;
     modelValue?: any;
@@ -14,6 +16,8 @@ const props = withDefaults(
   }>(),
   {
     disabled: false,
+    inline: false,
+    inlineMinHeight: 'min(62vh, 640px)',
     modalWidth: 'min(70vw, 1280px)',
     title: 'JSON',
   },
@@ -88,12 +92,40 @@ const modalBodyStyle = {
 };
 
 const editorStyle = computed(() => ({
-  minHeight: 'min(62vh, 640px)',
+  height: props.inline ? props.inlineMinHeight : 'min(62vh, 640px)',
+  maxHeight: props.inline ? props.inlineMinHeight : 'min(62vh, 640px)',
+  minHeight: props.inline ? props.inlineMinHeight : 'min(62vh, 640px)',
 }));
+
+watch(
+  draftValue,
+  (nextValue) => {
+    if (props.inline) {
+      emit('update:modelValue', nextValue);
+    }
+  },
+  { deep: true },
+);
 </script>
 
 <template>
-  <div class="crud-json-editor-field">
+  <div
+    v-if="inline"
+    class="crud-json-editor-dialog crud-json-editor-inline"
+    :style="editorStyle"
+  >
+    <JsonEditorVue
+      v-model="draftValue"
+      :debounce="300"
+      :main-menu-bar="true"
+      :mode="editorMode"
+      :navigation-bar="false"
+      :status-bar="true"
+      :stringified="false"
+    />
+  </div>
+
+  <div v-else class="crud-json-editor-field">
     <Input
       :disabled="disabled"
       placeholder="点击编辑 JSON"
@@ -107,6 +139,7 @@ const editorStyle = computed(() => ({
       v-model:open="open"
       :body-style="modalBodyStyle"
       destroy-on-close
+      ok-text="保存"
       :style="modalStyle"
       :title="modalTitle"
       :width="modalWidth"
@@ -139,16 +172,24 @@ const editorStyle = computed(() => ({
 }
 
 .crud-json-editor-dialog {
-  overflow: hidden;
+  overflow: auto;
   border: 1px solid hsl(var(--border));
   border-radius: 8px;
 }
 
 .crud-json-editor-dialog :deep(.jse-main) {
+  height: 100%;
+  max-height: inherit;
   min-height: inherit;
 }
 
 .crud-json-editor-dialog :deep(.jse-contents) {
-  min-height: calc(min(62vh, 640px) - 48px);
+  height: calc(100% - 48px);
+  min-height: 0;
+  overflow: auto;
+}
+
+.crud-json-editor-inline :deep(.jse-contents) {
+  min-height: 0;
 }
 </style>

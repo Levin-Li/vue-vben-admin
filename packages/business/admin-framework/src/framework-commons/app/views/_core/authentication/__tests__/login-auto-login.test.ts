@@ -3,11 +3,25 @@ import { computed, defineComponent } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { authLogin, getVerifyCodeApi, modalConfirm } = vi.hoisted(() => ({
-  authLogin: vi.fn(),
-  getVerifyCodeApi: vi.fn(),
-  modalConfirm: vi.fn(() => ({ destroy: vi.fn(), update: vi.fn() })),
-}));
+const { authLogin, getVerifyCodeApi, modalConfirm, modalHandles } = vi.hoisted(
+  () => {
+    const modalHandles: any[] = [];
+    return {
+      authLogin: vi.fn(),
+      getVerifyCodeApi: vi.fn(),
+      modalConfirm: vi.fn((options: any) => {
+        const handle = {
+          destroy: vi.fn(),
+          options,
+          update: vi.fn(),
+        };
+        modalHandles.push(handle);
+        return handle;
+      }),
+      modalHandles,
+    };
+  },
+);
 
 vi.mock('@vben/locales', () => ({
   $t: (key: string) =>
@@ -135,6 +149,7 @@ describe('login auto-login prompt', () => {
     authLogin.mockReset();
     getVerifyCodeApi.mockReset();
     modalConfirm.mockClear();
+    modalHandles.length = 0;
   });
 
   afterEach(() => {
@@ -194,5 +209,60 @@ describe('login auto-login prompt', () => {
     });
 
     wrapper.unmount();
+  });
+
+  it('ignores stale auto-login prompt confirmations after a newer prompt opens', async () => {
+    getVerifyCodeApi
+      .mockResolvedValueOnce({
+        code: '1111',
+        interactionData: '',
+        interactionDataType: '',
+      })
+      .mockResolvedValueOnce({
+        code: '2222',
+        interactionData: '',
+        interactionDataType: '',
+      });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .setValue('admin@example.com');
+    await wrapper.find('input[placeholder="请输入手机号或邮箱"]').trigger('blur');
+    await flushPromises();
+
+    expect(modalConfirm).toHaveBeenCalledTimes(2);
+    expect(modalHandles[0]?.destroy).toHaveBeenCalledOnce();
+
+    await modalHandles[0]?.options?.onOk?.();
+    await flushPromises();
+
+    expect(authLogin).not.toHaveBeenCalled();
+
+    wrapper.unmount();
+  });
+
+  it('cancels the auto-login prompt when the login page is unmounted', async () => {
+    getVerifyCodeApi.mockResolvedValue({
+      code: '0462',
+      interactionData: '',
+      interactionDataType: '',
+    });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+    wrapper.unmount();
+
+    expect(modalHandles[0]?.destroy).toHaveBeenCalledOnce();
+
+    await modalHandles[0]?.options?.onOk?.();
+    await flushPromises();
+
+    expect(authLogin).not.toHaveBeenCalled();
   });
 });

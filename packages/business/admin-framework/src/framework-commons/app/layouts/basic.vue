@@ -149,6 +149,15 @@ const fixedProfileUserDropdownMenu = computed(() => ({
 }));
 
 const builtInUserDropdownExtensionMenus = computed(() => [
+  {
+    handler: () => {
+      return router.push('/clob/V1/MySetting');
+    },
+    icon: 'lucide:user-cog',
+    id: 'my-setting',
+    order: 100,
+    text: '我的设置',
+  },
   ...(canUploadPageRoutes.value
     ? [
         {
