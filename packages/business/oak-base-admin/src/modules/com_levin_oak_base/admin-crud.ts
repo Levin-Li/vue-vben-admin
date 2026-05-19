@@ -142,6 +142,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '通知处理日志',
   },
   {
+    icon: 'lucide:code-xml',
+    name: 'OnlineCodeGen',
+    resource: 'OnlineCodeGen',
+    title: '在线代码生成',
+  },
+  {
     icon: 'lucide:building-2',
     name: 'Org',
     resource: 'Org',
@@ -286,6 +292,7 @@ export const oakBaseAdminResourceViewMap: Record<
   Nation: () => import('./views/nation/index.vue'),
   Notice: () => import('./views/notice/index.vue'),
   NoticeProcessLog: () => import('./views/notice-process-log/index.vue'),
+  OnlineCodeGen: () => import('./views/online-code-gen/index.vue'),
   Org: () => import('./views/org/index.vue'),
   PayChannel: () => import('./views/pay-channel/index.vue'),
   PayOrder: () => import('./views/pay-order/index.vue'),

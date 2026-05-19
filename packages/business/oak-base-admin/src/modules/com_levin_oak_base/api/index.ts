@@ -22,6 +22,7 @@ export * from './menu-service';
 export * from './nation-service';
 export * from './notice-service';
 export * from './notice-process-log-service';
+export * from './online-code-gen-service';
 export * from './org-service';
 export * from './pay-channel-service';
 export * from './pay-order-service';

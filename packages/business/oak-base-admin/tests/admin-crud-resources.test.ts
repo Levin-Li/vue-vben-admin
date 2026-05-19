@@ -64,4 +64,36 @@ describe('oak base admin crud resources', () => {
     expect(articleMapping?.icon).toBe('lucide:file-text');
     expect(new Set(crudIcons).size).toBeGreaterThan(10);
   });
+
+  it('registers the online code generation controller as a local CRUD page', () => {
+    const [rootRoute] = createOakBaseAdminCrudRoutes();
+    const onlineCodeGenRoute = rootRoute?.children?.find(
+      (item) => item.path === '/clob/V1/OnlineCodeGen',
+    );
+    const onlineCodeGenMapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === '/clob/V1/OnlineCodeGen',
+    );
+
+    expect(onlineCodeGenRoute).toEqual(
+      expect.objectContaining({
+        name: 'AdminCrudOnlineCodeGen',
+        path: '/clob/V1/OnlineCodeGen',
+      }),
+    );
+    expect(onlineCodeGenRoute?.meta).toEqual(
+      expect.objectContaining({
+        crudResource: 'OnlineCodeGen',
+        icon: 'lucide:code-xml',
+        title: '在线代码生成',
+      }),
+    );
+    expect(onlineCodeGenMapping).toEqual(
+      expect.objectContaining({
+        resource: 'OnlineCodeGen',
+        sourceFilePath:
+          'modules/com_levin_oak_base/views/online-code-gen/index.vue',
+        viewPath: '/system/com_levin_oak_base/online-code-gen/index.vue',
+      }),
+    );
+  });
 });
