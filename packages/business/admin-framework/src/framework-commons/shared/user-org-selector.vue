@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PropType } from 'vue';
 import type {
+  UserOrgSelectorLoadOrgTree,
   UserOrgSelectorLoadUsers,
   UserOrgSelectorMode,
   UserOrgSelectorModelValue,
@@ -42,6 +43,9 @@ const props = defineProps({
   },
   loadUsers: {
     type: Function as PropType<UserOrgSelectorLoadUsers>,
+  },
+  loadOrgTree: {
+    type: Function as PropType<UserOrgSelectorLoadOrgTree>,
   },
   mode: {
     default: 'both',
@@ -200,10 +204,16 @@ async function loadOrgTree() {
   loading.value = true;
 
   try {
-    const data = await rbacService.fetchAuthorizedOrgTree({
-      assembleTree: true,
-      rootOrgIdList: props.orgRootIds,
-    });
+    const data = props.loadOrgTree
+      ? await props.loadOrgTree({
+          mode: props.mode,
+          orgRootIds: props.orgRootIds,
+          orgTypes: normalizedOrgTypes.value,
+        })
+      : await rbacService.fetchAuthorizedOrgTree({
+          assembleTree: true,
+          rootOrgIdList: props.orgRootIds,
+        });
 
     orgTreeData.value = buildUserOrgSelectorOrgTree(data || [], {
       mode: props.mode,

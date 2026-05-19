@@ -661,6 +661,7 @@ src/pages/system/com_project_contract/contract/index.vue
 - 只覆盖需要差异化的页面。
 - 不要把整个业务模块页面复制到主应用。
 - 主应用没有覆盖页面时，自动使用模块包默认页面。
+- 覆盖页面必须复用原页面注册路径；只能替换前端组件实现，不改变后端菜单 `path`、权限点、`backendRouteMappings.viewPath` 或上传页面路由语义。
 
 ## 九、菜单规则
 

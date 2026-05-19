@@ -43,13 +43,24 @@ const coreRoutes: RouteRecordRaw[] = [
     name: 'Root',
     path: '/',
     redirect: () => resolveRootRedirectPath(preferences.app.defaultHomePath),
-    children: homeRoutes.map((route) => ({
-      ...route,
-      meta: {
-        ...route.meta,
-        requiresAccess: true,
+    children: [
+      ...homeRoutes.map((route) => ({
+        ...route,
+        meta: {
+          ...route.meta,
+          requiresAccess: true,
+        },
+      })),
+      {
+        name: 'PublicComponentDemosDirect',
+        path: '/demos/public-components',
+        component: resolveAdminPage('/demos/public-components/index.vue'),
+        meta: {
+          hideInMenu: true,
+          title: $t('demos.publicComponents'),
+        },
       },
-    })),
+    ],
   },
   {
     component: AuthPageLayout,

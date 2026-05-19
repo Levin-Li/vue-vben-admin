@@ -1,6 +1,7 @@
 {
   "title": "Demos",
   "antd": "Ant Design Vue",
+  "publicComponents": "Public Components",
   "vben": {
     "title": "Project",
     "about": "About",

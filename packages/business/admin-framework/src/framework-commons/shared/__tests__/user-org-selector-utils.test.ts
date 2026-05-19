@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import type { UserOrgSelectorLoadOrgTree } from '../user-org-selector-types';
+
 import {
   buildUserOrgSelectorOrgTree,
   decodeUserOrgSelectorKey,
@@ -9,6 +11,31 @@ import {
 } from '../user-org-selector-utils';
 
 describe('user-org-selector-utils', () => {
+  it('exposes a mockable org tree loader contract for public component demos', async () => {
+    const loadOrgTree: UserOrgSelectorLoadOrgTree = async ({
+      mode,
+      orgTypes,
+    }) => [
+      {
+        id: `${mode}-${orgTypes.join('-') || 'all'}`,
+        name: '测试组织',
+      },
+    ];
+
+    await expect(
+      loadOrgTree({
+        mode: 'both',
+        orgRootIds: [],
+        orgTypes: ['Dept'],
+      }),
+    ).resolves.toEqual([
+      {
+        id: 'both-Dept',
+        name: '测试组织',
+      },
+    ]);
+  });
+
   it('keeps ancestor org nodes visible but disabled when only descendants match', () => {
     const tree = buildUserOrgSelectorOrgTree(
       [

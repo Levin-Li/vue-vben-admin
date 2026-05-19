@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildModuleSyncMenuPayload } from '@levin/admin-framework/framework-commons/app/utils/sync-menu-routes';
+
 import {
   createOakBaseAdminCrudRoutes,
+  oakBaseAdminModule,
   oakBaseAdminCrudResources,
 } from '../src/modules/com_levin_oak_base';
 import { oakBaseAdminBackendRouteMappings } from '../src/modules/com_levin_oak_base/backend-route-mappings';
@@ -63,6 +66,25 @@ describe('oak base admin crud resources', () => {
     expect(appClientMapping?.icon).toBe('lucide:app-window');
     expect(articleMapping?.icon).toBe('lucide:file-text');
     expect(new Set(crudIcons).size).toBeGreaterThan(10);
+  });
+
+  it('does not expose the data permission preview page for menu route upload', () => {
+    const payload = buildModuleSyncMenuPayload([oakBaseAdminModule]);
+
+    expect(
+      oakBaseAdminBackendRouteMappings.some(
+        (item) =>
+          item.path === '/system/com_levin_oak_base/data-permission-preview',
+      ),
+    ).toBe(false);
+    expect(
+      oakBaseAdminBackendRouteMappings.some(
+        (item) => item.resource === 'DataPermissionPreview',
+      ),
+    ).toBe(false);
+    expect(JSON.stringify(payload.menuList)).not.toContain(
+      '/system/com_levin_oak_base/data-permission-preview',
+    );
   });
 
   it('registers the online code generation controller as a local CRUD page', () => {

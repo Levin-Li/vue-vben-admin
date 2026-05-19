@@ -31,6 +31,16 @@ export type UserOrgSelectorLoadUsers = (
   context: UserOrgSelectorLoadUsersContext,
 ) => Promise<Record<string, any>[]>;
 
+export interface UserOrgSelectorLoadOrgTreeContext {
+  mode: UserOrgSelectorMode;
+  orgRootIds: string[];
+  orgTypes: string[];
+}
+
+export type UserOrgSelectorLoadOrgTree = (
+  context: UserOrgSelectorLoadOrgTreeContext,
+) => Promise<Record<string, any>[]>;
+
 export type UserOrgSelectorResolveRecords = (
   ids: string[],
 ) => Promise<UserOrgSelectorRecord[]>;

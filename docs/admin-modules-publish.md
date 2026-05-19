@@ -66,6 +66,35 @@ pnpm run publish:admin-modules
 
 发布使用 hosted 仓库，例如 `http://nexus.v-ma.com/repository/npm/`。入口应用安装依赖时使用 group 仓库，例如 `http://nexus.v-ma.com/repository/npm-public/`。
 
+### 本项目默认私服发现
+
+发布前先按“显式配置优先、本地项目配置兜底”的顺序确认私服信息，避免每次重新摸索：
+
+1. 优先使用命令行环境变量：`NPM_REGISTRY`、`NPM_CONFIG_REGISTRY` 或 `npm_config_registry`。
+2. 没有显式环境变量时，发布脚本读取前端工程 `.npmrc` 的 `registry=`。
+3. 使用 token 发布时，优先读取 `NPM_TOKEN`，其次读取 `NODE_AUTH_TOKEN`。
+4. 本项目 Nexus 同时承载 Maven 和 NPM 私服时，优先复用 Maven 本地认证：设置 `NPM_AUTH_FROM_MAVEN=true`，并通过 `MAVEN_SERVER_ID` 指定 `~/.m2/settings.xml` 中的 `<server><id>`，默认值是 `dist-repo`。
+
+当前本地发布的推荐命令是：
+
+```bash
+NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ \
+NPM_AUTH_FROM_MAVEN=true \
+MAVEN_SERVER_ID=dist-repo \
+pnpm run publish:admin-modules
+```
+
+批量发布 `packages` 目录下全部可发布包时使用同一套发现和认证规则：
+
+```bash
+NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ \
+NPM_AUTH_FROM_MAVEN=true \
+MAVEN_SERVER_ID=dist-repo \
+pnpm run publish:packages
+```
+
+发布脚本只会生成本次命令可用的临时 `.npmrc.publish.tmp`，结束后自动清理；不要把 token、Maven 密码或临时 npmrc 提交到仓库。规则文件只保留“发布前查项目发布文档和本地配置”的原则，具体私服地址和认证复用方式以本文档和本地 `settings.xml` 为准。
+
 ## 发布全部 packages 包
 
 如果要发布 `packages` 目录下的全部前端基础组件、工具包和业务模块，使用统一入口：
@@ -236,6 +265,8 @@ src/pages/system/com_levin_oak_base/role/index.vue
 ```
 
 如果入口应用没有提供覆盖文件，就自动使用业务模块或 `@levin/admin-framework` 中的默认页面。
+
+公共模块默认页和入口应用覆盖页共享同一页面注册路径。覆盖时只替换前端组件实现，不改变后端菜单 `path`、权限点、`backendRouteMappings.viewPath` 或“上传页面路由”同步语义。
 
 ## 主应用打包
 

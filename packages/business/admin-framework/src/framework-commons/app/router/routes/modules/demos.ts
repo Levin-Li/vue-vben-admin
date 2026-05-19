@@ -22,6 +22,14 @@ const routes: RouteRecordRaw[] = [
         path: '/demos/ant-design',
         component: resolveAdminPage('/demos/antd/index.vue'),
       },
+      {
+        meta: {
+          title: $t('demos.publicComponents'),
+        },
+        name: 'PublicComponentDemos',
+        path: '/demos/public-components',
+        component: resolveAdminPage('/demos/public-components/index.vue'),
+      },
     ],
   },
 ];

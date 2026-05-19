@@ -1,6 +1,7 @@
 {
   "title": "演示",
   "antd": "Ant Design Vue",
+  "publicComponents": "公共组件测试",
   "vben": {
     "title": "项目",
     "about": "关于",

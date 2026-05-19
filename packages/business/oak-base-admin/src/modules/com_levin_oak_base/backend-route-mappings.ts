@@ -33,13 +33,4 @@ export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
     title: '我的消息',
     viewPath: `${MODULE_VIEW_PREFIX}/my-messages/index.vue`,
   },
-  {
-    icon: 'lucide:shield-check',
-    name: 'DataPermissionPreview',
-    path: `${MODULE_VIEW_PREFIX}/data-permission-preview`,
-    resource: 'DataPermissionPreview',
-    sourceFilePath: `${MODULE_SOURCE_PREFIX}/data-permission-preview/index.vue`,
-    title: '数据权限分配预览',
-    viewPath: `${MODULE_VIEW_PREFIX}/data-permission-preview/index.vue`,
-  },
 ];
