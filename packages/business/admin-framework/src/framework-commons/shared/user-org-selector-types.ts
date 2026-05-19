@@ -4,6 +4,8 @@ export type UserOrgSelectorMode = 'both' | 'org' | 'user';
 
 export type UserOrgSelectorValueMode = 'id' | 'record';
 
+export type UserOrgSelectorOrgLoadMode = 'all' | 'lazy';
+
 export interface UserOrgSelectorRecord {
   id: string;
   kind: UserOrgSelectorKind;
@@ -32,8 +34,19 @@ export type UserOrgSelectorLoadUsers = (
 ) => Promise<Record<string, any>[]>;
 
 export interface UserOrgSelectorLoadOrgTreeContext {
+  allowSelectOrg: boolean;
+  allowSelectUser: boolean;
+  depth: number;
+  maxLoadDeep: number;
   mode: UserOrgSelectorMode;
+  onlyLeafNode: boolean;
+  onlyNotLeafNode: boolean;
+  onlyShowTypeMatchNode: boolean;
+  orgLoadMode: UserOrgSelectorOrgLoadMode;
   orgRootIds: string[];
+  parentOrg?: UserOrgSelectorRecord;
+  parentOrgId?: string;
+  rootOrgIdList: string[];
   orgTypes: string[];
 }
 
@@ -48,7 +61,10 @@ export type UserOrgSelectorResolveRecords = (
 export interface UserOrgTreeSelectNode extends UserOrgSelectorRecord {
   canLoadUsers?: boolean;
   children?: UserOrgTreeSelectNode[];
+  depth?: number;
   disabled?: boolean;
+  hasChildren?: boolean;
+  loadAttempted?: boolean;
   isLeaf?: boolean;
   key: string;
   label: string;

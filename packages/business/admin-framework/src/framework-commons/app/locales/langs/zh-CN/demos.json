@@ -1,7 +1,9 @@
 {
-  "title": "演示",
+  "title": "Demo",
   "antd": "Ant Design Vue",
-  "publicComponents": "公共组件测试",
+  "publicComponents": "公共组件",
+  "userOrgSelector": "组织用户选择器",
+  "permissions": "权限分配",
   "vben": {
     "title": "项目",
     "about": "关于",

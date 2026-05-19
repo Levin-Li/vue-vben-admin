@@ -1,7 +1,9 @@
 {
-  "title": "Demos",
+  "title": "Demo",
   "antd": "Ant Design Vue",
   "publicComponents": "Public Components",
+  "userOrgSelector": "User & Org Selector",
+  "permissions": "Permissions",
   "vben": {
     "title": "Project",
     "about": "About",

@@ -1,33 +1,21 @@
 <script lang="ts" setup>
 import type {
-  DataPermissionPreviewPayload,
-  DataPermissionSubjectType,
-  RbacMenuNode,
-  RbacModuleNode,
-} from '@levin/admin-framework/framework-commons/shared/data-permission-types';
-import type {
   UserOrgSelectorLoadOrgTree,
   UserOrgSelectorLoadUsers,
   UserOrgSelectorModelValue,
   UserOrgSelectorRecord,
 } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
 import {
-  Button,
   Card,
   Divider,
-  Radio,
-  Space,
-  Tag,
   TypographyText,
 } from 'ant-design-vue';
 
-import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
-import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
 import UserOrgSelector from '@levin/admin-framework/framework-commons/shared/user-org-selector.vue';
 
 const mockOrgTree = [
@@ -123,207 +111,27 @@ const mockUsersByOrg: Record<string, Record<string, any>[]> = {
   ],
 };
 
-const permissionModules: RbacModuleNode[] = [
-  {
-    id: '__menus__',
-    name: '系统菜单',
-    typeList: [
-      {
-        id: 'menu-type',
-        name: '菜单访问',
-        resList: [
-          {
-            id: 'menu-system',
-            name: '系统管理',
-            actionList: [
-              {
-                action: '展示',
-                id: 'menu-system-show',
-                permissionExpr: 'default:系统菜单:系统管理:展示',
-              },
-            ],
-          },
-          {
-            id: 'menu-user',
-            name: '用户管理',
-            actionList: [
-              {
-                action: '展示',
-                id: 'menu-user-show',
-                permissionExpr: 'default:系统菜单:用户管理:展示',
-              },
-              {
-                action: '新增',
-                id: 'menu-user-create',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-用户::新增',
-              },
-              {
-                action: '修改',
-                id: 'menu-user-update',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-用户::修改',
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'oak-base',
-    name: '基础业务模块',
-    typeList: [
-      {
-        id: 'system-data',
-        name: '系统数据',
-        resList: [
-          {
-            id: 'role',
-            name: '角色',
-            actionList: [
-              {
-                action: '查询列表',
-                id: 'role-list',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-角色::查询列表',
-              },
-              {
-                action: '分配权限',
-                id: 'role-permission',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-角色::分配权限',
-              },
-            ],
-          },
-          {
-            id: 'user',
-            name: '用户',
-            actionList: [
-              {
-                action: '查询列表',
-                id: 'user-list',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-用户::查询列表',
-              },
-              {
-                action: '数据权限分配',
-                id: 'user-data-permission',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-用户::数据权限分配',
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'content-module',
-    name: '内容模块',
-    typeList: [
-      {
-        id: 'content-data',
-        name: '内容数据',
-        resList: [
-          {
-            id: 'article',
-            name: '文章',
-            actionList: [
-              {
-                action: '发布',
-                id: 'article-publish',
-                permissionExpr: 'com.demo.content:内容数据-文章::发布',
-              },
-              {
-                action: '下架',
-                id: 'article-offline',
-                permissionExpr: 'com.demo.content:内容数据-文章::下架',
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
-
-const permissionMenuTree: RbacMenuNode[] = [
-  {
-    id: 'menu-system',
-    label: '系统管理',
-    moduleId: 'default',
-    children: [
-      {
-        id: 'menu-user',
-        label: '用户管理',
-        moduleId: 'default',
-        opButtonList: [
-          {
-            label: '新增',
-            requireAuthorization: 'com.levin.oak.base:系统数据-用户::新增',
-          },
-          {
-            label: '修改',
-            requireAuthorization: 'com.levin.oak.base:系统数据-用户::修改',
-          },
-        ],
-      },
-    ],
-  },
-];
-
-const rolePreviewPayload: DataPermissionPreviewPayload = {
-  detail: {
-    code: 'ROLE_FINANCE_ADMIN',
-    id: 'role-finance-admin',
-    name: '财务管理员',
-    optimisticLock: 1,
-    orgScopeList: [
-      {
-        isAllow: true,
-        orgId: 'org-hq',
-        orgScopeExpression: '/**',
-        orgScopeExpressionType: 'IdPath',
-        tenantMatchingExpression: '_DEFAULT_TENANT_',
-      },
-      {
-        isAllow: false,
-        orgId: 'org-branch',
-        orgScopeExpression: "org.type == 'Branch'",
-        orgScopeExpressionType: 'Groovy',
-        tenantMatchingExpression: '_DEFAULT_TENANT_',
-      },
-    ],
-    permissionList: [
-      'com.levin.oak.base:系统数据-角色::查询列表',
-      'com.levin.oak.base:系统数据-用户::数据权限分配',
-    ],
-  },
-  expressionTypes: ['IdPath', 'NamePath', 'Groovy', 'SpringEL'],
-  modules: permissionModules,
-  orgTree: mockOrgTree,
-};
-
-const userPreviewPayload: DataPermissionPreviewPayload = {
-  detail: {
-    id: 'user-zhang',
-    loginName: 'zhangsan',
-    name: '张三',
-    optimisticLock: 3,
-    orgName: '财务中心',
-    orgScopeList: [
-      {
-        isAllow: true,
-        orgId: 'org-finance',
-        orgScopeExpression: '/**',
-        orgScopeExpressionType: 'IdPath',
-        tenantMatchingExpression: '_DEFAULT_TENANT_',
-      },
-    ],
-  },
-  expressionTypes: rolePreviewPayload.expressionTypes,
-  orgTree: mockOrgTree,
+const lazyOrgChildrenByParent: Record<string, Record<string, any>[]> = {
+  'lazy-dept': [
+    {
+      id: 'lazy-team',
+      name: '懒加载研发小组',
+      type: 'Team',
+    },
+  ],
+  'lazy-empty': [],
+  'lazy-root': [
+    {
+      id: 'lazy-dept',
+      name: '懒加载研发部',
+      type: 'Dept',
+    },
+    {
+      id: 'lazy-empty',
+      name: '尝试后无下级',
+      type: 'Dept',
+    },
+  ],
 };
 
 const singleValue = ref<UserOrgSelectorModelValue>();
@@ -336,22 +144,36 @@ const userOnlyValue = ref<UserOrgSelectorModelValue>();
 const userOnlyRecords = ref<UserOrgSelectorRecord[]>([]);
 const recordValue = ref<UserOrgSelectorModelValue>([]);
 const recordRecords = ref<UserOrgSelectorRecord[]>([]);
+const advancedValue = ref<UserOrgSelectorModelValue>([]);
+const advancedRecords = ref<UserOrgSelectorRecord[]>([]);
+const lazyValue = ref<UserOrgSelectorModelValue>([]);
+const lazyRecords = ref<UserOrgSelectorRecord[]>([]);
+const lazyLoadLog = ref<Record<string, any>[]>([]);
 const lastSelectorChange = ref<Record<string, any>>({});
-const selectedPermissions = ref<string[]>([
-  'com.levin.oak.base:系统数据-角色::查询列表',
-]);
-const dataPermissionOpen = ref(false);
-const dataPermissionSubjectType = ref<DataPermissionSubjectType>('role');
-
-const dataPermissionPreviewPayload = computed(() =>
-  dataPermissionSubjectType.value === 'role'
-    ? rolePreviewPayload
-    : userPreviewPayload,
-);
-
-const selectedPermissionCount = computed(() => selectedPermissions.value.length);
 
 const loadMockOrgTree: UserOrgSelectorLoadOrgTree = async () => mockOrgTree;
+
+const loadLazyMockOrgTree: UserOrgSelectorLoadOrgTree = async (context) => {
+  lazyLoadLog.value = [
+    ...lazyLoadLog.value,
+    {
+      depth: context.depth,
+      parentOrgId: context.parentOrgId || null,
+    },
+  ];
+
+  if (!context.parentOrgId) {
+    return [
+      {
+        id: 'lazy-root',
+        name: '懒加载根组织',
+        type: 'Company',
+      },
+    ];
+  }
+
+  return lazyOrgChildrenByParent[context.parentOrgId] || [];
+};
 
 const loadMockUsers: UserOrgSelectorLoadUsers = async ({ orgId, userTypes }) => {
   const users = mockUsersByOrg[orgId] || [];
@@ -382,8 +204,8 @@ function formatJson(value: unknown) {
 
 <template>
   <Page
-    description="用于本地验证公共组件集成方式，不作为业务模块菜单页面上传。"
-    title="公共组件测试"
+    description="按组织和用户选择业务拆分的公共组件演示页面。"
+    title="组织用户选择器"
   >
     <div class="space-y-5">
       <Card
@@ -495,62 +317,59 @@ function formatJson(value: unknown) {
               lastChange: lastSelectorChange,
             }) }}</pre>
           </div>
-        </div>
-      </Card>
-
-      <Card
-        class="border-border border"
-        title="权限分配"
-      >
-        <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <ResourcePermissionTreeEditor
-            v-model:value="selectedPermissions"
-            :menu-tree="permissionMenuTree"
-            :modules="permissionModules"
-          />
 
           <div class="space-y-3 rounded-lg border border-border p-4">
-            <div class="flex items-center justify-between gap-3">
-              <div class="font-medium text-foreground">已选权限表达式</div>
-              <Tag>{{ selectedPermissionCount }}</Tag>
+            <div>
+              <div class="font-medium text-foreground">高级组织选择参数</div>
+              <div class="text-sm text-muted-foreground">
+                限制组织类型、只允许选择叶子组织，并最多选择 2 项。
+              </div>
             </div>
-            <pre class="max-h-[420px] overflow-auto rounded-lg bg-muted p-3 text-xs text-foreground">{{ formatJson(selectedPermissions) }}</pre>
+            <UserOrgSelector
+              v-model="advancedValue"
+              v-model:selected-records="advancedRecords"
+              :allow-select-user="false"
+              :load-org-tree="loadMockOrgTree"
+              :max-select-count="2"
+              :org-types="['Dept']"
+              mode="org"
+              multiple
+              only-leaf-node
+              placeholder="最多选择 2 个部门叶子节点"
+              @change="(selected, value) => captureSelectorChange('advanced-org', selected, value)"
+            />
+            <pre class="max-h-48 overflow-auto rounded-lg bg-muted p-3 text-xs text-foreground">{{ formatJson({
+              modelValue: advancedValue,
+              selectedRecords: advancedRecords,
+            }) }}</pre>
           </div>
-        </div>
-      </Card>
 
-      <Card
-        class="border-border border"
-        title="数据权限分配"
-      >
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div class="space-y-1">
-            <div class="font-medium text-foreground">
-              {{ dataPermissionSubjectType === 'role' ? '角色数据权限分配预览' : '用户数据权限分配预览' }}
+          <div class="space-y-3 rounded-lg border border-border p-4 xl:col-span-2">
+            <div>
+              <div class="font-medium text-foreground">懒加载组织树</div>
+              <div class="text-sm text-muted-foreground">
+                展开前不依赖后端子节点数量；展开尝试后再根据返回结果决定是否继续显示展开入口。
+              </div>
             </div>
-            <div class="text-sm text-muted-foreground">
-              使用静态 previewPayload 打开共享弹窗，保存时只模拟预览模式。
-            </div>
+            <UserOrgSelector
+              v-model="lazyValue"
+              v-model:selected-records="lazyRecords"
+              :allow-select-user="false"
+              :load-org-tree="loadLazyMockOrgTree"
+              mode="org"
+              multiple
+              org-load-mode="lazy"
+              placeholder="展开懒加载根组织后再选择"
+              @change="(selected, value) => captureSelectorChange('lazy-org', selected, value)"
+            />
+            <pre class="max-h-48 overflow-auto rounded-lg bg-muted p-3 text-xs text-foreground">{{ formatJson({
+              modelValue: lazyValue,
+              selectedRecords: lazyRecords,
+              loadLog: lazyLoadLog,
+            }) }}</pre>
           </div>
-
-          <Space wrap>
-            <Radio.Group v-model:value="dataPermissionSubjectType" button-style="solid">
-              <Radio.Button value="role">角色预览</Radio.Button>
-              <Radio.Button value="user">用户预览</Radio.Button>
-            </Radio.Group>
-            <Button type="primary" @click="dataPermissionOpen = true">
-              打开数据权限弹窗
-            </Button>
-          </Space>
         </div>
       </Card>
     </div>
-
-    <DataPermissionDialog
-      v-model:open="dataPermissionOpen"
-      :preview-payload="dataPermissionPreviewPayload"
-      :record="dataPermissionPreviewPayload.detail"
-      :subject-type="dataPermissionSubjectType"
-    />
   </Page>
 </template>

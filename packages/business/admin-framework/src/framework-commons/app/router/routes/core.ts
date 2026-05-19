@@ -54,10 +54,28 @@ const coreRoutes: RouteRecordRaw[] = [
       {
         name: 'PublicComponentDemosDirect',
         path: '/demos/public-components',
-        component: resolveAdminPage('/demos/public-components/index.vue'),
+        redirect: '/demos/public-components/user-org-selector',
         meta: {
           hideInMenu: true,
           title: $t('demos.publicComponents'),
+        },
+      },
+      {
+        name: 'UserOrgSelectorDemosDirect',
+        path: '/demos/public-components/user-org-selector',
+        component: resolveAdminPage('/demos/public-components/index.vue'),
+        meta: {
+          hideInMenu: true,
+          title: $t('demos.userOrgSelector'),
+        },
+      },
+      {
+        name: 'PermissionDemosDirect',
+        path: '/demos/public-components/permissions',
+        component: resolveAdminPage('/demos/public-components/permissions.vue'),
+        meta: {
+          hideInMenu: true,
+          title: $t('demos.permissions'),
         },
       },
     ],

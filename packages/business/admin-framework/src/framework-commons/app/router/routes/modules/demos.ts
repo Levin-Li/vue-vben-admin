@@ -28,7 +28,25 @@ const routes: RouteRecordRaw[] = [
         },
         name: 'PublicComponentDemos',
         path: '/demos/public-components',
-        component: resolveAdminPage('/demos/public-components/index.vue'),
+        redirect: '/demos/public-components/user-org-selector',
+        children: [
+          {
+            meta: {
+              title: $t('demos.userOrgSelector'),
+            },
+            name: 'UserOrgSelectorDemos',
+            path: '/demos/public-components/user-org-selector',
+            component: resolveAdminPage('/demos/public-components/index.vue'),
+          },
+          {
+            meta: {
+              title: $t('demos.permissions'),
+            },
+            name: 'PermissionDemos',
+            path: '/demos/public-components/permissions',
+            component: resolveAdminPage('/demos/public-components/permissions.vue'),
+          },
+        ],
       },
     ],
   },

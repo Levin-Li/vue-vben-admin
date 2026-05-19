@@ -1,6 +1,7 @@
 import type {
   UserOrgSelectorKind,
   UserOrgSelectorMode,
+  UserOrgSelectorOrgLoadMode,
   UserOrgSelectorRecord,
   UserOrgTreeSelectNode,
 } from './user-org-selector-types';
@@ -54,7 +55,34 @@ function getRawChildren(item: Record<string, any>) {
   return Array.isArray(children) ? children.filter(Boolean) : [];
 }
 
-function isTypeMatched(type: unknown, acceptedTypes: string[]) {
+function getRawOrgType(item: Record<string, any>) {
+  return item.type ?? item.orgType ?? item.typeCode ?? item.category;
+}
+
+function getRawHasChildren(item: Record<string, any>, childrenLength: number) {
+  if (childrenLength > 0) {
+    return true;
+  }
+
+  if (typeof item.isLeaf === 'boolean') {
+    return !item.isLeaf;
+  }
+
+  if (typeof item.hasChildren === 'boolean') {
+    return item.hasChildren;
+  }
+
+  if (typeof item.childrenCount === 'number') {
+    return item.childrenCount > 0;
+  }
+
+  return false;
+}
+
+export function isUserOrgSelectorTypeMatched(
+  type: unknown,
+  acceptedTypes: string[],
+) {
   if (acceptedTypes.length === 0) {
     return true;
   }
@@ -77,7 +105,7 @@ export function normalizeOrgSelectorRecord(
     kind: 'org',
     name,
     raw: item,
-    type: item.type,
+    type: getRawOrgType(item),
   };
 }
 
@@ -102,7 +130,7 @@ export function normalizeUserSelectorRecord(
     orgId: String(item.orgId ?? org?.id ?? ''),
     orgName: String(item.orgName ?? org?.name ?? ''),
     raw: item,
-    type: item.type,
+    type: item.type ?? item.userType ?? item.typeCode,
   };
 }
 
@@ -125,10 +153,21 @@ export function toUserOrgTreeSelectNode(
 export function buildUserOrgSelectorOrgTree(
   items: Record<string, any>[],
   options: {
-    mode: UserOrgSelectorMode;
+    allowSelectOrg?: boolean;
+    allowSelectUser?: boolean;
+    depth?: number;
+    maxLoadDeep?: number;
+    mode?: UserOrgSelectorMode;
+    onlyLeafNode?: boolean;
+    onlyNotLeafNode?: boolean;
+    onlyShowTypeMatchNode?: boolean;
+    orgLoadMode?: UserOrgSelectorOrgLoadMode;
     orgTypes: string[];
   },
 ): UserOrgTreeSelectNode[] {
+  const depth = options.depth ?? 1;
+  const maxLoadDeep = options.maxLoadDeep ?? 0;
+
   return items.reduce<UserOrgTreeSelectNode[]>((result, item) => {
     const record = normalizeOrgSelectorRecord(item);
 
@@ -136,22 +175,66 @@ export function buildUserOrgSelectorOrgTree(
       return result;
     }
 
-    const children = buildUserOrgSelectorOrgTree(getRawChildren(item), options);
-    const orgTypeMatched = isTypeMatched(record.type, options.orgTypes);
+    const rawChildren = getRawChildren(item);
+    const canBuildChildren = maxLoadDeep <= 0 || depth < maxLoadDeep;
+    const children = canBuildChildren
+      ? buildUserOrgSelectorOrgTree(rawChildren, {
+          ...options,
+          depth: depth + 1,
+        })
+      : [];
+    const orgTypeMatched = isUserOrgSelectorTypeMatched(
+      record.type,
+      options.orgTypes,
+    );
 
-    if (!orgTypeMatched && children.length === 0) {
+    if (
+      options.onlyShowTypeMatchNode &&
+      !orgTypeMatched &&
+      children.length > 0
+    ) {
+      result.push(...children);
       return result;
     }
 
-    const orgSelectable = canSelectKind(options.mode, 'org') && orgTypeMatched;
-    const canLoadUsers = canSelectKind(options.mode, 'user') && orgTypeMatched;
+    if (
+      options.onlyShowTypeMatchNode &&
+      !orgTypeMatched &&
+      children.length === 0
+    ) {
+      return result;
+    }
+
+    const hasChildren = getRawHasChildren(item, rawChildren.length);
+    const mode = options.mode ?? 'both';
+    const allowSelectOrg = options.allowSelectOrg ?? canSelectKind(mode, 'org');
+    const allowSelectUser =
+      options.allowSelectUser ?? canSelectKind(mode, 'user');
+    const canAttemptLazyLoad =
+      options.orgLoadMode === 'lazy' &&
+      (maxLoadDeep <= 0 || depth < maxLoadDeep);
+    const isLeaf =
+      options.orgLoadMode === 'lazy' && canAttemptLazyLoad
+        ? false
+        : !hasChildren;
+    const matchLeafRule =
+      (!options.onlyLeafNode || isLeaf) &&
+      (!options.onlyNotLeafNode || !isLeaf);
+    const orgSelectable = allowSelectOrg && orgTypeMatched && matchLeafRule;
+    const canLoadUsers = allowSelectUser && orgTypeMatched;
 
     result.push(
       toUserOrgTreeSelectNode(record, {
         canLoadUsers,
         children,
+        depth,
         disabled: !orgSelectable,
-        isLeaf: options.mode === 'org' ? children.length === 0 : false,
+        hasChildren,
+        isLeaf:
+          options.orgLoadMode === 'lazy'
+            ? !canAttemptLazyLoad && !canLoadUsers && children.length === 0
+            : !canLoadUsers && children.length === 0,
+        loadAttempted: false,
         selectable: orgSelectable,
       }),
     );
@@ -199,6 +282,30 @@ export function buildSelectedRecordGroupNode(
     selectable: false,
     disabled: true,
     children,
+  };
+}
+
+export function limitUserOrgSelectorRecords(
+  records: UserOrgSelectorRecord[],
+  maxSelectCount: number,
+) {
+  if (maxSelectCount === 1) {
+    return {
+      limited: records.length > 1,
+      records: records.slice(-1),
+    };
+  }
+
+  if (maxSelectCount > 1 && records.length > maxSelectCount) {
+    return {
+      limited: true,
+      records: records.slice(0, maxSelectCount),
+    };
+  }
+
+  return {
+    limited: false,
+    records,
   };
 }
 

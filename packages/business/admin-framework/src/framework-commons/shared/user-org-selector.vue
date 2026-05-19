@@ -5,6 +5,7 @@ import type {
   UserOrgSelectorLoadUsers,
   UserOrgSelectorMode,
   UserOrgSelectorModelValue,
+  UserOrgSelectorOrgLoadMode,
   UserOrgSelectorRecord,
   UserOrgSelectorResolveRecords,
   UserOrgSelectorValueMode,
@@ -23,6 +24,7 @@ import {
   decodeUserOrgSelectorKey,
   encodeUserOrgSelectorKey,
   flattenUserOrgTreeNodes,
+  limitUserOrgSelectorRecords,
   normalizeSelectorTypes,
   normalizeUserSelectorRecord,
   toUserOrgTreeSelectNode,
@@ -37,15 +39,41 @@ const props = defineProps({
     default: true,
     type: Boolean,
   },
+  allowSelectOrg: {
+    default: true,
+    type: Boolean,
+  },
+  allowSelectUser: {
+    default: true,
+    type: Boolean,
+  },
   disabled: {
     default: false,
     type: Boolean,
   },
+  maxLoadDeep: {
+    default: 0,
+    type: Number,
+  },
+  maxSelectCount: {
+    default: 0,
+    type: Number,
+  },
   loadUsers: {
+    type: Function as PropType<UserOrgSelectorLoadUsers>,
+  },
+  userLoadApi: {
     type: Function as PropType<UserOrgSelectorLoadUsers>,
   },
   loadOrgTree: {
     type: Function as PropType<UserOrgSelectorLoadOrgTree>,
+  },
+  orgLoadApi: {
+    type: Function as PropType<UserOrgSelectorLoadOrgTree>,
+  },
+  orgLoadMode: {
+    default: 'all',
+    type: String as PropType<UserOrgSelectorOrgLoadMode>,
   },
   mode: {
     default: 'both',
@@ -58,7 +86,23 @@ const props = defineProps({
     default: false,
     type: Boolean,
   },
+  onlyLeafNode: {
+    default: false,
+    type: Boolean,
+  },
+  onlyNotLeafNode: {
+    default: false,
+    type: Boolean,
+  },
+  onlyShowTypeMatchNode: {
+    default: false,
+    type: Boolean,
+  },
   orgRootIds: {
+    default: () => [],
+    type: Array as PropType<string[]>,
+  },
+  rootOrgIdList: {
     default: () => [],
     type: Array as PropType<string[]>,
   },
@@ -116,8 +160,8 @@ const loading = ref(false);
 const orgTreeData = ref<UserOrgTreeSelectNode[]>([]);
 const treeExpandedKeys = ref<string[]>([]);
 const selectedRecordMap = ref(new Map<string, UserOrgSelectorRecord>());
-const loadedUserOrgKeys = ref(new Set<string>());
-const loadingUserOrgKeys = ref(new Set<string>());
+const loadedOrgNodeKeys = ref(new Set<string>());
+const loadingOrgNodeKeys = ref(new Set<string>());
 
 const normalizedOrgTypes = computed(() =>
   normalizeSelectorTypes(props.orgTypes),
@@ -125,6 +169,21 @@ const normalizedOrgTypes = computed(() =>
 const normalizedUserTypes = computed(() =>
   normalizeSelectorTypes(props.userTypes),
 );
+const normalizedRootOrgIds = computed(() =>
+  props.rootOrgIdList.length > 0 ? props.rootOrgIdList : props.orgRootIds,
+);
+const allowSelectOrgByMode = computed(
+  () => props.allowSelectOrg && (props.mode === 'both' || props.mode === 'org'),
+);
+const allowSelectUserByMode = computed(
+  () =>
+    props.allowSelectUser && (props.mode === 'both' || props.mode === 'user'),
+);
+const effectiveMultiple = computed(() =>
+  props.maxSelectCount === 1 ? false : props.multiple,
+);
+const activeOrgLoadApi = computed(() => props.orgLoadApi || props.loadOrgTree);
+const activeUserLoadApi = computed(() => props.userLoadApi || props.loadUsers);
 
 const nodeMap = computed(() => {
   const map = new Map<string, UserOrgTreeSelectNode>();
@@ -145,7 +204,7 @@ const selectedKeys = computed(() => {
 });
 
 const treeValue = computed(() => {
-  if (props.multiple) {
+  if (effectiveMultiple.value) {
     return selectedKeys.value;
   }
 
@@ -187,7 +246,19 @@ watch(
 );
 
 watch(
-  () => [props.mode, props.orgTypes, props.orgRootIds],
+  () => [
+    props.allowSelectOrg,
+    props.allowSelectUser,
+    props.maxLoadDeep,
+    props.mode,
+    props.onlyLeafNode,
+    props.onlyNotLeafNode,
+    props.onlyShowTypeMatchNode,
+    props.orgLoadMode,
+    props.orgTypes,
+    props.orgRootIds,
+    props.rootOrgIdList,
+  ],
   () => {
     void loadOrgTree();
   },
@@ -197,6 +268,7 @@ watch(
 );
 
 onMounted(() => {
+  warnInvalidSelectorOptions();
   void loadOrgTree();
 });
 
@@ -204,23 +276,25 @@ async function loadOrgTree() {
   loading.value = true;
 
   try {
-    const data = props.loadOrgTree
-      ? await props.loadOrgTree({
-          mode: props.mode,
-          orgRootIds: props.orgRootIds,
-          orgTypes: normalizedOrgTypes.value,
-        })
+    const data = activeOrgLoadApi.value
+      ? await activeOrgLoadApi.value(buildOrgLoadContext())
       : await rbacService.fetchAuthorizedOrgTree({
           assembleTree: true,
-          rootOrgIdList: props.orgRootIds,
+          rootOrgIdList: normalizedRootOrgIds.value,
         });
 
     orgTreeData.value = buildUserOrgSelectorOrgTree(data || [], {
-      mode: props.mode,
+      allowSelectOrg: allowSelectOrgByMode.value,
+      allowSelectUser: allowSelectUserByMode.value,
+      maxLoadDeep: props.maxLoadDeep,
+      onlyLeafNode: props.onlyLeafNode,
+      onlyNotLeafNode: props.onlyNotLeafNode,
+      onlyShowTypeMatchNode: props.onlyShowTypeMatchNode,
+      orgLoadMode: props.orgLoadMode,
       orgTypes: normalizedOrgTypes.value,
     });
     treeExpandedKeys.value = [];
-    loadedUserOrgKeys.value = new Set();
+    loadedOrgNodeKeys.value = new Set();
   } catch (error) {
     orgTreeData.value = [];
     message.error('加载授权组织失败');
@@ -235,20 +309,24 @@ async function handleLoadData(treeNode: Record<string, any>) {
   const key = String(treeNode.key || treeNode.value || '');
   const node = nodeMap.value.get(key);
 
-  if (!node || node.kind !== 'org' || !node.canLoadUsers) {
+  if (!node || node.kind !== 'org') {
     return;
   }
 
-  if (loadedUserOrgKeys.value.has(key) || loadingUserOrgKeys.value.has(key)) {
+  if (loadedOrgNodeKeys.value.has(key) || loadingOrgNodeKeys.value.has(key)) {
     return;
   }
 
-  const nextLoadingKeys = new Set(loadingUserOrgKeys.value);
+  const nextLoadingKeys = new Set(loadingOrgNodeKeys.value);
   nextLoadingKeys.add(key);
-  loadingUserOrgKeys.value = nextLoadingKeys;
+  loadingOrgNodeKeys.value = nextLoadingKeys;
 
   try {
-    const users = await loadUsersForOrg(node);
+    const orgChildren =
+      props.orgLoadMode === 'lazy' && !node.loadAttempted && !node.isLeaf
+        ? await loadOrgChildren(node)
+        : [];
+    const users = node.canLoadUsers ? await loadUsersForOrg(node) : [];
     const userNodes = users
       .map((item) => normalizeUserSelectorRecord(item, node))
       .filter((record) => record.id)
@@ -260,28 +338,33 @@ async function handleLoadData(treeNode: Record<string, any>) {
       .map((record) =>
         toUserOrgTreeSelectNode(record, {
           isLeaf: true,
-          selectable: props.mode === 'both' || props.mode === 'user',
+          selectable: allowSelectUserByMode.value,
         }),
       );
 
-    node.children = mergeChildrenByKey(node.children || [], userNodes);
-    node.isLeaf = (node.children || []).length === 0;
+    node.children = mergeChildrenByKey(node.children || [], [
+      ...orgChildren,
+      ...userNodes,
+    ]);
+    node.loadAttempted = true;
+    node.hasChildren = orgChildren.length > 0;
+    node.isLeaf = orgChildren.length === 0 && userNodes.length === 0;
     orgTreeData.value = [...orgTreeData.value];
     mergeSelectedRecords(userNodes);
-    loadedUserOrgKeys.value = new Set([...loadedUserOrgKeys.value, key]);
+    loadedOrgNodeKeys.value = new Set([...loadedOrgNodeKeys.value, key]);
   } catch (error) {
-    message.error(`加载“${node.name}”下的用户失败`);
+    message.error(`加载“${node.name}”下的数据失败`);
     throw error;
   } finally {
-    const nextLoadingKeys = new Set(loadingUserOrgKeys.value);
+    const nextLoadingKeys = new Set(loadingOrgNodeKeys.value);
     nextLoadingKeys.delete(key);
-    loadingUserOrgKeys.value = nextLoadingKeys;
+    loadingOrgNodeKeys.value = nextLoadingKeys;
   }
 }
 
 async function loadUsersForOrg(org: UserOrgSelectorRecord) {
-  if (props.loadUsers) {
-    return props.loadUsers({
+  if (activeUserLoadApi.value) {
+    return activeUserLoadApi.value({
       org,
       orgId: org.id,
       userTypes: normalizedUserTypes.value,
@@ -307,11 +390,84 @@ async function loadUsersForOrg(org: UserOrgSelectorRecord) {
   return result.items || [];
 }
 
+async function loadOrgChildren(org: UserOrgTreeSelectNode) {
+  const data = activeOrgLoadApi.value
+    ? await activeOrgLoadApi.value(
+        buildOrgLoadContext({
+          depth: (org.depth || 1) + 1,
+          parentOrg: org,
+          parentOrgId: org.id,
+        }),
+      )
+    : await rbacService.fetchAuthorizedOrgTree({
+        assembleTree: true,
+        rootOrgIdList: [org.id],
+      });
+
+  const childData = extractLazyOrgChildren(data || [], org.id);
+
+  return buildUserOrgSelectorOrgTree(childData, {
+    allowSelectOrg: allowSelectOrgByMode.value,
+    allowSelectUser: allowSelectUserByMode.value,
+    depth: (org.depth || 1) + 1,
+    maxLoadDeep: props.maxLoadDeep,
+    onlyLeafNode: props.onlyLeafNode,
+    onlyNotLeafNode: props.onlyNotLeafNode,
+    onlyShowTypeMatchNode: props.onlyShowTypeMatchNode,
+    orgLoadMode: props.orgLoadMode,
+    orgTypes: normalizedOrgTypes.value,
+  });
+}
+
+function extractLazyOrgChildren(data: Record<string, any>[], parentOrgId: string) {
+  if (data.length === 1 && String(data[0]?.id ?? '') === parentOrgId) {
+    const children =
+      data[0]?.children ||
+      data[0]?.childList ||
+      data[0]?.subList ||
+      data[0]?.orgList ||
+      [];
+
+    return Array.isArray(children) ? children : [];
+  }
+
+  return data;
+}
+
+function buildOrgLoadContext(
+  extra: Partial<{
+    depth: number;
+    parentOrg: UserOrgSelectorRecord;
+    parentOrgId: string;
+  }> = {},
+) {
+  const rootOrgIdList = normalizedRootOrgIds.value;
+
+  return {
+    allowSelectOrg: allowSelectOrgByMode.value,
+    allowSelectUser: allowSelectUserByMode.value,
+    depth: extra.depth || 1,
+    maxLoadDeep: props.maxLoadDeep,
+    mode: props.mode,
+    onlyLeafNode: props.onlyLeafNode,
+    onlyNotLeafNode: props.onlyNotLeafNode,
+    onlyShowTypeMatchNode: props.onlyShowTypeMatchNode,
+    orgLoadMode: props.orgLoadMode,
+    orgRootIds: rootOrgIdList,
+    orgTypes: normalizedOrgTypes.value,
+    parentOrg: extra.parentOrg,
+    parentOrgId: extra.parentOrgId,
+    rootOrgIdList,
+  };
+}
+
 function handleChange(value?: string | string[]) {
   const values = Array.isArray(value) ? value : value ? [value] : [];
-  const records = values
-    .map((item) => getRecordByKey(item))
-    .filter(Boolean) as UserOrgSelectorRecord[];
+  const records = enforceSelectionLimit(
+    values
+      .map((item) => getRecordByKey(item))
+      .filter(Boolean) as UserOrgSelectorRecord[],
+  );
 
   mergeSelectedRecords(records);
 
@@ -322,11 +478,15 @@ function handleChange(value?: string | string[]) {
 
   emit('update:modelValue', nextValue);
   emit('update:selectedRecords', records);
-  emit('change', props.multiple ? records : records[0] || null, nextValue);
+  emit(
+    'change',
+    effectiveMultiple.value ? records : records[0] || null,
+    nextValue,
+  );
 }
 
 function getRecordModelValue(records: UserOrgSelectorRecord[]) {
-  if (props.multiple) {
+  if (effectiveMultiple.value) {
     return records;
   }
 
@@ -334,11 +494,29 @@ function getRecordModelValue(records: UserOrgSelectorRecord[]) {
 }
 
 function getIdModelValue(records: UserOrgSelectorRecord[]) {
-  if (props.multiple) {
+  if (effectiveMultiple.value) {
     return records.map((record) => record.id);
   }
 
   return records[0]?.id;
+}
+
+function warnInvalidSelectorOptions() {
+  if (props.onlyLeafNode && props.onlyNotLeafNode) {
+    console.warn(
+      '[UserOrgSelector] onlyLeafNode and onlyNotLeafNode cannot both be true.',
+    );
+  }
+}
+
+function enforceSelectionLimit(records: UserOrgSelectorRecord[]) {
+  const result = limitUserOrgSelectorRecords(records, props.maxSelectCount);
+
+  if (result.limited && props.maxSelectCount > 1) {
+    message.warning(`最多只能选择 ${props.maxSelectCount} 项`);
+  }
+
+  return result.records;
 }
 
 function toModelValueList(value: UserOrgSelectorModelValue) {
@@ -496,10 +674,10 @@ function mergeChildrenByKey(
     :disabled="disabled"
     :load-data="handleLoadData"
     :loading="loading"
-    :multiple="multiple"
+    :multiple="effectiveMultiple"
     :placeholder="placeholder"
     :show-search="showSearch"
-    :tree-checkable="multiple"
+    :tree-checkable="effectiveMultiple"
     :tree-data="displayTreeData"
     :value="treeValue"
     class="w-full"
