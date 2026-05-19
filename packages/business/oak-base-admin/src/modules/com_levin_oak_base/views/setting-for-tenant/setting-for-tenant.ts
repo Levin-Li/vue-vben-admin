@@ -441,6 +441,38 @@ export function serializeSettingValueFromEditor(
   return String(value);
 }
 
+export function formatSettingValuePreview(value: unknown) {
+  if (value === undefined || value === null || value === '') {
+    return '-';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+export function formatSettingValueInlinePreview(value: unknown) {
+  if (value === undefined || value === null || value === '') {
+    return '-';
+  }
+
+  if (typeof value === 'string') {
+    return value.replaceAll(/\s+/g, ' ').trim() || '-';
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 export function isSettingValueChanged(
   item: TenantSettingItem,
   editorValue: unknown,

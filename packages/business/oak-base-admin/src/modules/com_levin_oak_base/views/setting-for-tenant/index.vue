@@ -21,9 +21,12 @@ import {
 import { settingService } from '../../api/setting-service';
 
 import SettingValueContentField from '../setting-value-content-field.vue';
+import SettingValuePreviewModal from '../setting-value-preview-modal.vue';
 import {
   buildTenantSettingCategories,
   buildTenantSettingUpdatePayload,
+  formatSettingValueInlinePreview,
+  formatSettingValuePreview,
   getSettingDisplayName,
   getSettingKey,
   isSettingEditable,
@@ -63,6 +66,8 @@ const editValueModalOpen = ref(false);
 const editValueItem = ref<TenantSettingItem>();
 const editValueFormState = ref<Record<string, any>>({});
 const editValueSubmitting = ref(false);
+const previewValueModalOpen = ref(false);
+const previewValueItem = ref<TenantSettingItem>();
 
 const categories = computed(() => buildTenantSettingCategories(settings.value));
 
@@ -88,8 +93,17 @@ const editValueTitle = computed(() => {
   return item ? `编辑值 - ${getSettingDisplayName(item)}` : '编辑配置值';
 });
 
+const previewValueTitle = computed(() => {
+  const item = previewValueItem.value;
+  return item ? `查看值 - ${getSettingDisplayName(item)}` : '查看配置值';
+});
+
+const previewValue = computed(() =>
+  previewValueItem.value ? getValue(previewValueItem.value) : '',
+);
+
 const editValueModalBodyStyle = {
-  maxHeight: 'calc(100vh - 180px)',
+  maxHeight: 'calc(100vh - 160px)',
   overflowY: 'auto',
 };
 
@@ -168,20 +182,11 @@ function getValue(item: TenantSettingItem) {
 }
 
 function getValuePreview(item: TenantSettingItem) {
-  const value = getValue(item);
-  if (value === undefined || value === null || value === '') {
-    return '-';
-  }
+  return formatSettingValuePreview(getValue(item));
+}
 
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
+function getValueInlinePreview(item: TenantSettingItem) {
+  return formatSettingValueInlinePreview(getValue(item));
 }
 
 function isItemChanged(item: TenantSettingItem) {
@@ -213,6 +218,11 @@ function openItemEditor(item: TenantSettingItem) {
     valueContent: getValue(item),
   };
   editValueModalOpen.value = true;
+}
+
+function openItemPreview(item: TenantSettingItem) {
+  previewValueItem.value = item;
+  previewValueModalOpen.value = true;
 }
 
 async function saveEditValue() {
@@ -351,24 +361,33 @@ onMounted(() => {
                     </div>
 
                     <div class="tenant-setting-item-control">
-                      <Tooltip :title="getValuePreview(item)">
+                      <Tooltip
+                        :mouse-enter-delay="1.5"
+                        :title="getValuePreview(item)"
+                      >
                         <div class="tenant-setting-value-preview">
-                          {{ getValuePreview(item) }}
+                          {{ getValueInlinePreview(item) }}
                         </div>
                       </Tooltip>
 
-                      <Button
-                        block
-                        :disabled="
-                          !isSettingEditable(item) ||
-                          isItemSaving(item) ||
-                          editValueSubmitting
-                        "
-                        @click="openItemEditor(item)"
-                      >
-                        <IconifyIcon class="size-4" icon="lucide:pencil" />
-                        编辑
-                      </Button>
+                      <div class="tenant-setting-item-actions">
+                        <Button block @click="openItemPreview(item)">
+                          <IconifyIcon class="size-4" icon="lucide:eye" />
+                          查看
+                        </Button>
+                        <Button
+                          block
+                          :disabled="
+                            !isSettingEditable(item) ||
+                            isItemSaving(item) ||
+                            editValueSubmitting
+                          "
+                          @click="openItemEditor(item)"
+                        >
+                          <IconifyIcon class="size-4" icon="lucide:pencil" />
+                          编辑
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -386,7 +405,7 @@ onMounted(() => {
       destroy-on-close
       ok-text="保存"
       :title="editValueTitle"
-      :width="'min(70vw, 1280px)'"
+      :width="'min(82vw, 1480px)'"
       @ok="saveEditValue"
     >
       <div class="tenant-setting-edit-form">
@@ -394,6 +413,12 @@ onMounted(() => {
         <SettingValueContentField :form-state="editValueFormState" inline />
       </div>
     </Modal>
+
+    <SettingValuePreviewModal
+      v-model:open="previewValueModalOpen"
+      :title="previewValueTitle"
+      :value="previewValue"
+    />
   </Page>
 </template>
 
@@ -488,6 +513,12 @@ onMounted(() => {
 
 .tenant-setting-item-control {
   display: grid;
+  gap: 8px;
+}
+
+.tenant-setting-item-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 

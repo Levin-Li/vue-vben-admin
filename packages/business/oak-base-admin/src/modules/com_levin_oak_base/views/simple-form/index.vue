@@ -1,8 +1,13 @@
 <script lang="ts" setup>
-import CrudPage from '../crud-page.vue';
+import { simpleFormService } from '../../api/simple-form-service';
+import SimpleContentResourcePage from '../simple-content-resource-page.vue';
 import { simpleFormPageCrudConfig } from './config';
 </script>
 
 <template>
-  <CrudPage :config="simpleFormPageCrudConfig" />
+  <SimpleContentResourcePage
+    :config="simpleFormPageCrudConfig"
+    resource-kind="form"
+    :service="simpleFormService"
+  />
 </template>

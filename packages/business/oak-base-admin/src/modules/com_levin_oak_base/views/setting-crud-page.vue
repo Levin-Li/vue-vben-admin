@@ -8,11 +8,13 @@ import { Button, message, Modal } from 'ant-design-vue';
 import CrudPage from './crud-page.vue';
 import { moduleUpdateCrudRecord } from './api-module';
 import {
+  formatSettingValuePreview,
   getSettingDisplayName,
   isSettingEditable,
   serializeSettingValueFromEditor,
 } from './setting-for-tenant/setting-for-tenant';
 import SettingValueContentField from './setting-value-content-field.vue';
+import SettingValuePreviewModal from './setting-value-preview-modal.vue';
 
 const props = defineProps<{
   config: CrudPageConfig;
@@ -23,6 +25,8 @@ const editValueRecord = ref<Record<string, any> | null>(null);
 const editValueFormState = ref<Record<string, any>>({});
 const savingValue = ref(false);
 const reloadList = ref<(() => Promise<void> | void) | null>(null);
+const previewValueModalOpen = ref(false);
+const previewValueRecord = ref<Record<string, any> | null>(null);
 
 const editValueTitle = computed(() => {
   const name = editValueRecord.value
@@ -32,10 +36,27 @@ const editValueTitle = computed(() => {
   return name ? `编辑值 - ${name}` : '编辑值';
 });
 
+const previewValueTitle = computed(() => {
+  const name = previewValueRecord.value
+    ? getSettingDisplayName(previewValueRecord.value)
+    : '';
+
+  return name ? `查看值 - ${name}` : '查看值';
+});
+
+const previewValue = computed(() =>
+  formatSettingValuePreview(previewValueRecord.value?.valueContent),
+);
+
 const editValueModalBodyStyle = {
-  maxHeight: 'calc(100vh - 180px)',
+  maxHeight: 'calc(100vh - 160px)',
   overflowY: 'auto',
 };
+
+function openPreviewValue(record: Record<string, any>) {
+  previewValueRecord.value = record;
+  previewValueModalOpen.value = true;
+}
 
 function openEditValue(
   record: Record<string, any>,
@@ -101,6 +122,9 @@ async function saveEditValue() {
     </template>
 
     <template #row-actions="{ record, reload }">
+      <Button size="small" type="link" @click="openPreviewValue(record)">
+        查看值
+      </Button>
       <Button
         v-if="isSettingEditable(record)"
         size="small"
@@ -117,7 +141,7 @@ async function saveEditValue() {
     :body-style="editValueModalBodyStyle"
     :confirm-loading="savingValue"
     :title="editValueTitle"
-    :width="config.modalWidth || 'min(70vw, 1280px)'"
+    :width="config.modalWidth || 'min(82vw, 1480px)'"
     @ok="saveEditValue"
   >
     <div class="setting-edit-value-form">
@@ -125,6 +149,12 @@ async function saveEditValue() {
       <SettingValueContentField :form-state="editValueFormState" inline />
     </div>
   </Modal>
+
+  <SettingValuePreviewModal
+    v-model:open="previewValueModalOpen"
+    :title="previewValueTitle"
+    :value="previewValue"
+  />
 </template>
 
 <style scoped>
