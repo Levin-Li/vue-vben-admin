@@ -16,14 +16,15 @@ defineProps<{
     <!-- Router View with Transition and KeepAlive -->
     <RouterView v-slot="{ Component, route }">
       <Transition appear mode="out-in" name="slide-right">
-        <KeepAlive :include="['Login']">
-          <component
-            :is="Component"
-            :key="route.fullPath"
-            class="side-content mt-6 w-full sm:mx-auto md:max-w-md"
-            :data-side="dataSide"
-          />
-        </KeepAlive>
+        <div
+          :key="route.fullPath"
+          class="side-content mt-6 w-full sm:mx-auto md:max-w-md"
+          :data-side="dataSide"
+        >
+          <KeepAlive :include="['Login']">
+            <component :is="Component" />
+          </KeepAlive>
+        </div>
       </Transition>
     </RouterView>
 

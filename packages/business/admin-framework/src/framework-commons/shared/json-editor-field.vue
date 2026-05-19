@@ -120,6 +120,7 @@ watch(
       :main-menu-bar="true"
       :mode="editorMode"
       :navigation-bar="false"
+      :read-only="disabled"
       :status-bar="true"
       :stringified="false"
     />

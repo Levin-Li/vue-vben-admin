@@ -30,11 +30,13 @@ const emit = defineEmits<{
 }>();
 
 const activeModuleId = ref('');
+const expandedMenuNodeIds = ref<Set<string>>(new Set());
 const keyword = ref('');
 const MENU_MODULE_ID = '__menus__';
 const MENU_DISPLAY_ACTION = '展示';
 const MENU_PERMISSION_TYPE = '系统菜单';
 const DEFAULT_MENU_MODULE_ID = 'default';
+const DEFAULT_EXPANDED_MENU_DEPTH = 1;
 
 interface MenuPermissionNode {
   children: MenuPermissionNode[];
@@ -47,6 +49,11 @@ interface MenuPermissionNode {
   selfPermission: string;
   title: string;
   type: 'menu' | 'operation';
+}
+
+interface VisibleMenuPermissionNode extends MenuPermissionNode {
+  ancestorLineIndexes: number[];
+  isLastSibling: boolean;
 }
 
 const activeModule = computed(
@@ -123,6 +130,10 @@ const activeModulePermissions = computed(() => {
     return [];
   }
 
+  if (isMenuModuleActive.value) {
+    return menuPermissionTree.value.flatMap((node) => node.permissions);
+  }
+
   return (activeModule.value.typeList || []).flatMap((typeItem) =>
     (typeItem.resList || []).flatMap((resourceItem) =>
       (resourceItem.actionList || [])
@@ -155,7 +166,7 @@ const visibleMenuPermissionNodes = computed(() => {
     ? filterMenuPermissionTree(menuPermissionTree.value, normalizedKeyword)
     : menuPermissionTree.value;
 
-  return flattenMenuPermissionTree(nodes);
+  return flattenMenuPermissionTree(nodes, Boolean(normalizedKeyword));
 });
 
 const activeSelectedCount = computed(
@@ -180,6 +191,16 @@ watch(
 watch(activeModuleId, () => {
   keyword.value = '';
 });
+
+watch(
+  menuPermissionTree,
+  (nodes) => {
+    expandedMenuNodeIds.value = new Set(getDefaultExpandedMenuNodeIds(nodes));
+  },
+  {
+    immediate: true,
+  },
+);
 
 function handleToggle(permissionExpr: string, checked: boolean) {
   if (isSingleSelection.value) {
@@ -366,16 +387,82 @@ function filterMenuPermissionTree(
     .filter(Boolean) as MenuPermissionNode[];
 }
 
-function flattenMenuPermissionTree(nodes: MenuPermissionNode[]) {
-  return nodes.flatMap((node) =>
-    node.type === 'operation'
-      ? []
-      : [node, ...flattenMenuPermissionTree(node.children)],
-  );
+function flattenMenuPermissionTree(
+  nodes: MenuPermissionNode[],
+  forceExpanded = false,
+) {
+  return flattenVisibleMenuPermissionTree(nodes, [], forceExpanded);
+}
+
+function flattenVisibleMenuPermissionTree(
+  nodes: MenuPermissionNode[],
+  ancestorLineIndexes: number[] = [],
+  forceExpanded = false,
+): VisibleMenuPermissionNode[] {
+  const menuNodes = nodes.filter((node) => node.type === 'menu');
+
+  return menuNodes.flatMap((node, index) => {
+    const isLastSibling = index === menuNodes.length - 1;
+    const expanded =
+      forceExpanded || expandedMenuNodeIds.value.has(node.id) || !hasMenuChildren(node);
+    const childAncestorLineIndexes = isLastSibling
+      ? ancestorLineIndexes
+      : [...ancestorLineIndexes, node.depth];
+
+    return [
+      {
+        ...node,
+        ancestorLineIndexes,
+        isLastSibling,
+      },
+      ...(expanded
+        ? flattenVisibleMenuPermissionTree(
+            node.children,
+            childAncestorLineIndexes,
+            forceExpanded,
+          )
+        : []),
+    ];
+  });
 }
 
 function getMenuOperationChildren(node: MenuPermissionNode) {
   return node.children.filter((child) => child.type === 'operation');
+}
+
+function getMenuChildren(node: MenuPermissionNode) {
+  return node.children.filter((child) => child.type === 'menu');
+}
+
+function hasMenuChildren(node: MenuPermissionNode) {
+  return getMenuChildren(node).length > 0;
+}
+
+function getDefaultExpandedMenuNodeIds(nodes: MenuPermissionNode[]) {
+  return nodes.flatMap((node): string[] => {
+    const current =
+      node.depth <= DEFAULT_EXPANDED_MENU_DEPTH && hasMenuChildren(node)
+        ? [node.id]
+        : [];
+
+    return [...current, ...getDefaultExpandedMenuNodeIds(getMenuChildren(node))];
+  });
+}
+
+function isMenuNodeExpanded(node: MenuPermissionNode) {
+  return expandedMenuNodeIds.value.has(node.id);
+}
+
+function toggleMenuNodeExpanded(node: MenuPermissionNode) {
+  const next = new Set(expandedMenuNodeIds.value);
+
+  if (next.has(node.id)) {
+    next.delete(node.id);
+  } else {
+    next.add(node.id);
+  }
+
+  expandedMenuNodeIds.value = next;
 }
 
 function getResourcePermissions(resourceItem: RbacResourceNode) {
@@ -493,6 +580,10 @@ function isSomeSelected(permissions: string[]) {
           <Checkbox
             v-if="!isSingleSelection"
             :checked="isAllSelected(activeModulePermissions)"
+            :indeterminate="
+              isSomeSelected(activeModulePermissions) &&
+              !isAllSelected(activeModulePermissions)
+            "
             data-test="permission-module-toggle"
             @change="
               handleTogglePermissions(
@@ -528,54 +619,104 @@ function isSomeSelected(permissions: string[]) {
         <div
           v-for="node in visibleMenuPermissionNodes"
           :key="node.id"
-          class="hover:bg-muted/40 rounded-lg px-3 py-2 transition"
-          :style="{ paddingLeft: `${12 + node.depth * 24}px` }"
+          class="hover:bg-muted/40 relative rounded-lg py-2 pl-3 pr-3 transition"
         >
-          <Checkbox
-            :checked="isAllSelected(node.permissions)"
-            :indeterminate="
-              isSomeSelected(node.permissions) &&
-              !isAllSelected(node.permissions)
-            "
-            :data-test="`permission-${node.permissionExpr}`"
-            @change="
-              handleTogglePermissions(
-                node.permissions,
-                ($event.target as HTMLInputElement).checked,
-              )
-            "
-          >
-            <span class="text-foreground text-sm font-medium">
-              {{ node.title }}
-            </span>
-            <span
-              v-if="node.children.length > 0"
-              class="text-muted-foreground ml-2 text-xs"
-            >
-              {{ node.children.length }} 项
-            </span>
-          </Checkbox>
+          <span
+            v-for="lineDepth in node.ancestorLineIndexes"
+            :key="lineDepth"
+            class="border-border/80 pointer-events-none absolute bottom-0 top-0 border-l border-dashed"
+            :style="{ left: `${23 + lineDepth * 36}px` }"
+          ></span>
+          <span
+            v-if="node.depth > 0"
+            class="border-border/80 pointer-events-none absolute border-l border-t border-dashed"
+            :class="node.isLastSibling ? 'h-1/2 top-0' : 'bottom-0 top-0'"
+            :style="{
+              left: `${23 + (node.depth - 1) * 36}px`,
+              width: '24px',
+            }"
+          ></span>
 
           <div
-            v-if="getMenuOperationChildren(node).length > 0"
-            class="mt-3 flex flex-wrap gap-x-6 gap-y-3 pl-10"
+            class="relative flex items-start gap-1"
+            :style="{ paddingLeft: `${node.depth * 36}px` }"
           >
-            <Checkbox
-              v-for="operationNode in getMenuOperationChildren(node)"
-              :key="operationNode.id"
-              :checked="isActionSelected(operationNode.permissionExpr)"
-              :data-test="`permission-${operationNode.permissionExpr}`"
-              @change="
-                handleToggle(
-                  operationNode.permissionExpr,
-                  ($event.target as HTMLInputElement).checked,
-                )
-              "
+            <button
+              v-if="hasMenuChildren(node)"
+              :aria-expanded="isMenuNodeExpanded(node)"
+              :aria-label="isMenuNodeExpanded(node) ? '收起菜单' : '展开菜单'"
+              :data-test="`permission-menu-expand-${node.id}`"
+              class="text-muted-foreground hover:bg-muted hover:text-foreground mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded transition"
+              type="button"
+              @click="toggleMenuNodeExpanded(node)"
             >
-              <span class="text-foreground text-sm font-medium">
-                {{ operationNode.title }}
+              <span
+                class="text-xs leading-none transition-transform"
+                :class="isMenuNodeExpanded(node) ? 'rotate-90' : ''"
+              >
+                ▶
               </span>
-            </Checkbox>
+            </button>
+            <span v-else class="mt-0.5 size-5 shrink-0"></span>
+
+            <div class="min-w-0 flex-1">
+              <Checkbox
+                :checked="isAllSelected(node.permissions)"
+                :indeterminate="
+                  isSomeSelected(node.permissions) &&
+                  !isAllSelected(node.permissions)
+                "
+                :data-test="`permission-${node.permissionExpr}`"
+                @change="
+                  handleTogglePermissions(
+                    node.permissions,
+                    ($event.target as HTMLInputElement).checked,
+                  )
+                "
+              >
+                <span class="text-foreground text-sm font-medium">
+                  {{ node.title }}
+                </span>
+                <span
+                  v-if="node.children.length > 0"
+                  class="text-muted-foreground ml-2 text-xs"
+                >
+                  {{ node.children.length }} 项
+                </span>
+              </Checkbox>
+
+              <div
+                v-if="getMenuOperationChildren(node).length > 0"
+                class="mt-3 pl-10"
+              >
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                  <span
+                    class="text-muted-foreground inline-flex h-6 items-center text-xs font-medium"
+                  >
+                    操作
+                  </span>
+                  <Checkbox
+                    v-for="operationNode in getMenuOperationChildren(node)"
+                    :key="operationNode.id"
+                    :checked="isActionSelected(operationNode.permissionExpr)"
+                    :data-test="`permission-${operationNode.permissionExpr}`"
+                    @change="
+                      handleToggle(
+                        operationNode.permissionExpr,
+                        ($event.target as HTMLInputElement).checked,
+                      )
+                    "
+                  >
+                    <span
+                      class="inline-block max-w-[12rem] truncate align-bottom"
+                      :title="operationNode.title"
+                    >
+                      {{ operationNode.title }}
+                    </span>
+                  </Checkbox>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -590,6 +731,10 @@ function isSomeSelected(permissions: string[]) {
             <Checkbox
               v-if="!isSingleSelection"
               :checked="isAllSelected(getTypePermissions(typeItem))"
+              :indeterminate="
+                isSomeSelected(getTypePermissions(typeItem)) &&
+                !isAllSelected(getTypePermissions(typeItem))
+              "
               @change="
                 handleTogglePermissions(
                   getTypePermissions(typeItem),
@@ -623,6 +768,10 @@ function isSomeSelected(permissions: string[]) {
                 <Checkbox
                   v-if="!isSingleSelection"
                   :checked="isAllSelected(getResourcePermissions(resourceItem))"
+                  :indeterminate="
+                    isSomeSelected(getResourcePermissions(resourceItem)) &&
+                    !isAllSelected(getResourcePermissions(resourceItem))
+                  "
                   @change="
                     handleTogglePermissions(
                       getResourcePermissions(resourceItem),

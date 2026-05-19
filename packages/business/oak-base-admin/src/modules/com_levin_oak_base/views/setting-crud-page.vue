@@ -5,48 +5,37 @@ import { computed, ref } from 'vue';
 
 import { Button, message, Modal } from 'ant-design-vue';
 
-import CrudPage from './crud-page.vue';
 import { moduleUpdateCrudRecord } from './api-module';
+import CrudPage from './crud-page.vue';
 import {
-  formatSettingValuePreview,
   getSettingDisplayName,
   isSettingEditable,
   serializeSettingValueFromEditor,
 } from './setting-for-tenant/setting-for-tenant';
 import SettingValueContentField from './setting-value-content-field.vue';
-import SettingValuePreviewModal from './setting-value-preview-modal.vue';
 
 const props = defineProps<{
   config: CrudPageConfig;
 }>();
 
 const editValueModalOpen = ref(false);
-const editValueRecord = ref<Record<string, any> | null>(null);
+const editValueRecord = ref<null | Record<string, any>>(null);
 const editValueFormState = ref<Record<string, any>>({});
+const editValueMode = ref<'edit' | 'view'>('edit');
 const savingValue = ref(false);
 const reloadList = ref<(() => Promise<void> | void) | null>(null);
-const previewValueModalOpen = ref(false);
-const previewValueRecord = ref<Record<string, any> | null>(null);
+
+const editValueReadonly = computed(() => editValueMode.value === 'view');
+const canSaveEditValue = computed(() => editValueMode.value === 'edit');
 
 const editValueTitle = computed(() => {
   const name = editValueRecord.value
     ? getSettingDisplayName(editValueRecord.value)
     : '';
+  const actionName = editValueReadonly.value ? '查看值' : '编辑值';
 
-  return name ? `编辑值 - ${name}` : '编辑值';
+  return name ? `${actionName} - ${name}` : actionName;
 });
-
-const previewValueTitle = computed(() => {
-  const name = previewValueRecord.value
-    ? getSettingDisplayName(previewValueRecord.value)
-    : '';
-
-  return name ? `查看值 - ${name}` : '查看值';
-});
-
-const previewValue = computed(() =>
-  formatSettingValuePreview(previewValueRecord.value?.valueContent),
-);
 
 const editValueModalBodyStyle = {
   maxHeight: 'calc(100vh - 160px)',
@@ -54,14 +43,18 @@ const editValueModalBodyStyle = {
 };
 
 function openPreviewValue(record: Record<string, any>) {
-  previewValueRecord.value = record;
-  previewValueModalOpen.value = true;
+  editValueMode.value = 'view';
+  editValueRecord.value = record;
+  editValueFormState.value = { ...record };
+  reloadList.value = null;
+  editValueModalOpen.value = true;
 }
 
 function openEditValue(
   record: Record<string, any>,
   reload?: () => Promise<void> | void,
 ) {
+  editValueMode.value = 'edit';
   editValueRecord.value = record;
   editValueFormState.value = { ...record };
   reloadList.value = reload || null;
@@ -83,6 +76,10 @@ async function saveEditValue() {
   const record = editValueRecord.value;
 
   if (!record) {
+    return;
+  }
+
+  if (!canSaveEditValue.value) {
     return;
   }
 
@@ -140,21 +137,21 @@ async function saveEditValue() {
     v-model:open="editValueModalOpen"
     :body-style="editValueModalBodyStyle"
     :confirm-loading="savingValue"
+    :footer="editValueReadonly ? null : undefined"
+    ok-text="保存"
     :title="editValueTitle"
     :width="config.modalWidth || 'min(82vw, 1480px)'"
     @ok="saveEditValue"
   >
     <div class="setting-edit-value-form">
       <div class="text-sm font-medium">值</div>
-      <SettingValueContentField :form-state="editValueFormState" inline />
+      <SettingValueContentField
+        :disabled="editValueReadonly"
+        :form-state="editValueFormState"
+        inline
+      />
     </div>
   </Modal>
-
-  <SettingValuePreviewModal
-    v-model:open="previewValueModalOpen"
-    :title="previewValueTitle"
-    :value="previewValue"
-  />
 </template>
 
 <style scoped>

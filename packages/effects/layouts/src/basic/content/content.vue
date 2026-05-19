@@ -5,7 +5,7 @@ import type {
   RouteLocationNormalizedLoadedGeneric,
 } from 'vue-router';
 
-import { computed } from 'vue';
+import { computed, defineComponent, h, onErrorCaptured, ref, watch } from 'vue';
 import { RouterView } from 'vue-router';
 
 import { preferences, usePreferences } from '@vben/preferences';
@@ -20,6 +20,67 @@ const { keepAlive } = usePreferences();
 
 const { getCachedTabs, getExcludeCachedTabs, renderRouteView } =
   storeToRefs(tabbarStore);
+
+const RouteContentErrorBoundary = defineComponent({
+  name: 'RouteContentErrorBoundary',
+  props: {
+    routeKey: {
+      required: true,
+      type: String,
+    },
+  },
+  setup(props, { slots }) {
+    const error = ref<null | unknown>(null);
+
+    watch(
+      () => props.routeKey,
+      () => {
+        error.value = null;
+      },
+    );
+
+    onErrorCaptured((capturedError) => {
+      error.value = capturedError;
+      console.error(capturedError);
+      return false;
+    });
+
+    return () => {
+      if (!error.value) {
+        return slots.default?.();
+      }
+
+      const message =
+        error.value instanceof Error
+          ? error.value.message
+          : String(error.value || '未知错误');
+
+      return h(
+        'div',
+        {
+          class:
+            'border-border bg-card text-foreground m-4 rounded border p-6 shadow-sm',
+        },
+        [
+          h('div', { class: 'text-base font-medium' }, '当前页面渲染失败'),
+          h(
+            'div',
+            { class: 'text-muted-foreground mt-2 text-sm' },
+            '该错误已限制在当前页面。切换到其它菜单后页面会重新渲染。',
+          ),
+          h(
+            'pre',
+            {
+              class:
+                'bg-muted mt-4 max-h-40 overflow-auto rounded p-3 text-xs whitespace-pre-wrap',
+            },
+            message,
+          ),
+        ],
+      );
+    };
+  },
+});
 
 /**
  * 是否使用动画
@@ -40,7 +101,7 @@ function getTransitionName(_route: RouteLocationNormalizedLoaded) {
   }
 
   // 标签页未启用或者未开启缓存，则使用全局配置动画
-  if (!tabbar.enable || !keepAlive) {
+  if (!tabbar.enable || !keepAlive.value) {
     return transitionName;
   }
 
@@ -106,42 +167,52 @@ function transformComponent(
         appear
         mode="out-in"
       >
-        <KeepAlive
-          v-if="keepAlive"
-          :exclude="getExcludeCachedTabs"
-          :include="getCachedTabs"
+        <div
+          v-if="renderRouteView && Component && !route.meta.iframeSrc"
+          class="relative h-full min-h-0"
         >
-          <component
-            :is="transformComponent(Component, route)"
-            v-if="renderRouteView"
-            v-show="!route.meta.iframeSrc"
-            :key="getTabKey(route)"
-          />
-        </KeepAlive>
-        <component
-          :is="Component"
-          v-else-if="renderRouteView"
-          :key="getTabKey(route)"
-        />
+          <RouteContentErrorBoundary :route-key="getTabKey(route)">
+            <component
+              :is="transformComponent(Component, route)"
+              v-if="!keepAlive"
+              :key="getTabKey(route)"
+            />
+            <KeepAlive
+              v-else
+              :exclude="getExcludeCachedTabs"
+              :include="getCachedTabs"
+            >
+              <component
+                :is="transformComponent(Component, route)"
+                :key="getTabKey(route)"
+              />
+            </KeepAlive>
+          </RouteContentErrorBoundary>
+        </div>
       </Transition>
       <template v-else>
-        <KeepAlive
-          v-if="keepAlive"
-          :exclude="getExcludeCachedTabs"
-          :include="getCachedTabs"
+        <div
+          v-if="renderRouteView && Component && !route.meta.iframeSrc"
+          class="relative h-full min-h-0"
         >
-          <component
-            :is="transformComponent(Component, route)"
-            v-if="renderRouteView"
-            v-show="!route.meta.iframeSrc"
-            :key="getTabKey(route)"
-          />
-        </KeepAlive>
-        <component
-          :is="Component"
-          v-else-if="renderRouteView"
-          :key="getTabKey(route)"
-        />
+          <RouteContentErrorBoundary :route-key="getTabKey(route)">
+            <component
+              :is="transformComponent(Component, route)"
+              v-if="!keepAlive"
+              :key="getTabKey(route)"
+            />
+            <KeepAlive
+              v-else
+              :exclude="getExcludeCachedTabs"
+              :include="getCachedTabs"
+            >
+              <component
+                :is="transformComponent(Component, route)"
+                :key="getTabKey(route)"
+              />
+            </KeepAlive>
+          </RouteContentErrorBoundary>
+        </div>
       </template>
     </RouterView>
   </div>

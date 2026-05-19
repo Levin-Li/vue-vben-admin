@@ -85,6 +85,22 @@ export function useColumns(): VxeTableGridOptions<MenuRecord>['columns'] {
       title: '路径',
     },
     {
+      align: 'left',
+      field: 'viewPath',
+      headerAlign: 'center',
+      slots: { default: 'delayedPath' },
+      title: 'View Path',
+      width: 200,
+    },
+    {
+      align: 'left',
+      field: 'sourceFilePath',
+      headerAlign: 'center',
+      slots: { default: 'delayedPath' },
+      title: 'Source File Path',
+      width: 200,
+    },
+    {
       align: 'center',
       field: 'orderCode',
       title: '排序',

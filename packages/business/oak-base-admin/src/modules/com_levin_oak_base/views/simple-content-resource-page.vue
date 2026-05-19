@@ -312,7 +312,7 @@ async function submitRequireAuthorizations() {
         type="link"
         @click="openContentEditor(record, reload)"
       >
-        <IconifyIcon class="mr-1 size-4" icon="lucide:file-pen-line" />
+        <IconifyIcon class="mr-0.5 size-4" icon="lucide:file-pen-line" />
         编辑内容
       </Button>
       <Button
@@ -321,7 +321,7 @@ async function submitRequireAuthorizations() {
         type="link"
         @click="openPermissionEditor(record, reload)"
       >
-        <IconifyIcon class="mr-1 size-4" icon="lucide:shield-check" />
+        <IconifyIcon class="mr-0.5 size-4" icon="lucide:shield-check" />
         所需权限
       </Button>
     </template>

@@ -349,6 +349,18 @@ function isFieldVisible(field: CrudFieldConfig) {
   return true;
 }
 
+function isFieldDisabledOnEdit(field: CrudFieldConfig) {
+  if (!editingRecord.value) {
+    return false;
+  }
+
+  if (typeof field.disabledOnEdit === 'function') {
+    return field.disabledOnEdit({ userInfo: userStore.userInfo });
+  }
+
+  return field.disabledOnEdit === true;
+}
+
 const searchFields = computed(() =>
   props.config.fields
     .map((field, index) => ({ field, index }))
@@ -997,6 +1009,20 @@ function getFormFieldColumnSpan(field: CrudFieldConfig, columns: number) {
   }
 
   return Math.min(Math.max(field.span || 1, 1), columns);
+}
+
+function isLargeDisplayField(field: CrudFieldConfig | undefined, value: any) {
+  if (!field) {
+    return value && typeof value === 'object';
+  }
+
+  return (
+    shouldFormFieldSpanFullRow(field) ||
+    field.type === 'code' ||
+    field.type === 'css' ||
+    field.type === 'html' ||
+    field.type === 'json'
+  );
 }
 
 function estimateFormVisualRows(fields: CrudFieldConfig[], columns: number) {
@@ -3745,6 +3771,28 @@ function formatActionResultValue(key: string, value: any) {
   return formatCellValue(field, value);
 }
 
+function formatActionResultBlockValue(key: string, value: any) {
+  const field = getConfigField(key);
+  if (value && typeof value === 'object') {
+    return JSON.stringify(value, null, 2);
+  }
+
+  if (field?.type === 'json') {
+    const text = typeof value === 'string' ? value : JSON.stringify(value);
+    try {
+      return JSON.stringify(JSON.parse(text), null, 2);
+    } catch {
+      return text;
+    }
+  }
+
+  return formatActionResultValue(key, value);
+}
+
+function shouldActionResultEntrySpanFullRow(key: string, value: any) {
+  return isLargeDisplayField(getConfigField(key), value);
+}
+
 const actionResultEntries = computed(() => {
   const data = actionResultData.value;
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -4862,7 +4910,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               v-model:value="formState[field.key]"
               :allow-clear="true"
               :change-on-select="true"
-              :disabled="field.disabledOnEdit && !!editingRecord"
+              :disabled="isFieldDisabledOnEdit(field)"
               :options="getFieldOptions(field)"
               :placeholder="getPlaceholder(field)"
               class="w-full"
@@ -4873,7 +4921,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               v-model:value="formState[field.key]"
               :allow-clear="true"
               class="w-full"
-              :disabled="field.disabledOnEdit && !!editingRecord"
+              :disabled="isFieldDisabledOnEdit(field)"
               :loading="optionLoadingState[field.key]"
               :multiple="field.multiple"
               :placeholder="getPlaceholder(field)"
@@ -4922,7 +4970,7 @@ watch(tableColumnPreferenceStorageKey, () => {
             <JsonEditorField
               v-else-if="field.type === 'json'"
               v-model="formState[field.key]"
-              :disabled="field.disabledOnEdit && !!editingRecord"
+              :disabled="isFieldDisabledOnEdit(field)"
               :modal-style="modalStyle"
               :modal-width="modalWidth"
               :title="field.label"
@@ -4934,7 +4982,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                 field.type === 'html'
               "
               v-model="formState[field.key]"
-              :disabled="field.disabledOnEdit && !!editingRecord"
+              :disabled="isFieldDisabledOnEdit(field)"
               :language="getCodeEditorLanguage(field)"
               :modal-style="modalStyle"
               :modal-width="modalWidth"
@@ -4946,7 +4994,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               "
               v-model:value="formState[field.key]"
               :auto-size="{ minRows: 3, maxRows: 8 }"
-              :disabled="field.disabledOnEdit && !!editingRecord"
+              :disabled="isFieldDisabledOnEdit(field)"
               :placeholder="getPlaceholder(field)"
             />
             <DatePicker
@@ -4980,7 +5028,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               "
               v-model:value="formState[field.key]"
               :allow-clear="true"
-              :disabled="field.disabledOnEdit && !!editingRecord"
+              :disabled="isFieldDisabledOnEdit(field)"
               :options="getFieldOptions(field)"
               :placeholder="getPlaceholder(field)"
               :filter-option="
@@ -4996,7 +5044,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               "
               v-model:value="formState[field.key]"
               :allow-clear="true"
-              :disabled="field.disabledOnEdit && !!editingRecord"
+              :disabled="isFieldDisabledOnEdit(field)"
               :mode="field.multiple ? 'multiple' : undefined"
               :options="getFieldOptions(field)"
               :placeholder="getPlaceholder(field)"
@@ -5030,7 +5078,7 @@ watch(tableColumnPreferenceStorageKey, () => {
             <Input
               v-else
               v-model:value="formState[field.key]"
-              :disabled="field.disabledOnEdit && !!editingRecord"
+              :disabled="isFieldDisabledOnEdit(field)"
               class="w-full"
               :placeholder="getPlaceholder(field)"
             />
@@ -5083,24 +5131,26 @@ watch(tableColumnPreferenceStorageKey, () => {
         v-else-if="
           actionResultMode === 'showForm' && actionResultEntries.length > 0
         "
-        class="grid gap-4 md:grid-cols-2"
+        class="grid max-h-[72vh] gap-4 overflow-auto pr-1 md:grid-cols-2"
       >
         <div
           v-for="[key, value] in actionResultEntries"
           :key="key"
           class="border-border bg-muted/30 rounded-lg border p-4"
           :class="{
-            'md:col-span-2': typeof value === 'object',
+            'md:col-span-2': shouldActionResultEntrySpanFullRow(key, value),
           }"
         >
           <div class="mb-2 text-sm font-medium">
             {{ formatActionResultKey(key) }}
           </div>
           <div
-            v-if="typeof value === 'object'"
-            class="bg-background max-h-[24vh] overflow-auto rounded p-3 text-sm"
+            v-if="shouldActionResultEntrySpanFullRow(key, value)"
+            class="bg-background max-h-[42vh] overflow-auto rounded p-3 text-sm leading-6"
           >
-            <pre>{{ JSON.stringify(value, null, 2) }}</pre>
+            <pre class="whitespace-pre-wrap break-words">{{
+              formatActionResultBlockValue(key, value)
+            }}</pre>
           </div>
           <div v-else class="break-all text-sm">
             {{ formatActionResultValue(key, value) }}

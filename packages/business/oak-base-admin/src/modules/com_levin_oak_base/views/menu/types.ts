@@ -31,8 +31,10 @@ export interface MenuRecord {
   publicAccess?: boolean;
   remark?: string;
   requireAuthorizations?: string[];
+  sourceFilePath?: string;
   target?: string;
   tenantId?: string;
+  viewPath?: string;
 }
 
 export interface SelectOption {

@@ -19,9 +19,7 @@ import {
 } from 'ant-design-vue';
 
 import { settingService } from '../../api/setting-service';
-
 import SettingValueContentField from '../setting-value-content-field.vue';
-import SettingValuePreviewModal from '../setting-value-preview-modal.vue';
 import {
   buildTenantSettingCategories,
   buildTenantSettingUpdatePayload,
@@ -32,6 +30,7 @@ import {
   isSettingEditable,
   isSettingValueChanged,
   parseSettingValueForEditor,
+  resolveSettingEditorKind,
   serializeSettingValueFromEditor,
 } from './setting-for-tenant';
 
@@ -65,11 +64,12 @@ const savingKeys = reactive<Record<string, boolean>>({});
 const editValueModalOpen = ref(false);
 const editValueItem = ref<TenantSettingItem>();
 const editValueFormState = ref<Record<string, any>>({});
+const editValueMode = ref<'edit' | 'view'>('edit');
 const editValueSubmitting = ref(false);
-const previewValueModalOpen = ref(false);
-const previewValueItem = ref<TenantSettingItem>();
 
 const categories = computed(() => buildTenantSettingCategories(settings.value));
+const editValueReadonly = computed(() => editValueMode.value === 'view');
+const canSaveEditValue = computed(() => editValueMode.value === 'edit');
 
 const changedSettings = computed(() =>
   settings.value.filter((item) => {
@@ -90,22 +90,29 @@ const hasSettings = computed(() => settings.value.length > 0);
 
 const editValueTitle = computed(() => {
   const item = editValueItem.value;
-  return item ? `编辑值 - ${getSettingDisplayName(item)}` : '编辑配置值';
-});
+  const actionName = editValueReadonly.value ? '查看值' : '编辑值';
 
-const previewValueTitle = computed(() => {
-  const item = previewValueItem.value;
-  return item ? `查看值 - ${getSettingDisplayName(item)}` : '查看配置值';
+  return item ? `${actionName} - ${getSettingDisplayName(item)}` : actionName;
 });
-
-const previewValue = computed(() =>
-  previewValueItem.value ? getValue(previewValueItem.value) : '',
-);
 
 const editValueModalBodyStyle = {
   maxHeight: 'calc(100vh - 160px)',
   overflowY: 'auto',
 };
+const editValueModalWidth = computed(() => {
+  const item = editValueItem.value;
+  const editorKind = item ? resolveSettingEditorKind(item) : 'text';
+
+  if (editorKind === 'json' || editorKind === 'code') {
+    return 'min(82vw, 1480px)';
+  }
+
+  if (editorKind === 'json-schema') {
+    return 'min(70vw, 960px)';
+  }
+
+  return 'min(64vw, 880px)';
+});
 
 function normalizeSettingList(data: any): TenantSettingItem[] {
   const list: TenantSettingItem[] = Array.isArray(data)
@@ -212,6 +219,7 @@ function openItemEditor(item: TenantSettingItem) {
     return;
   }
 
+  editValueMode.value = 'edit';
   editValueItem.value = item;
   editValueFormState.value = {
     ...item,
@@ -221,13 +229,22 @@ function openItemEditor(item: TenantSettingItem) {
 }
 
 function openItemPreview(item: TenantSettingItem) {
-  previewValueItem.value = item;
-  previewValueModalOpen.value = true;
+  editValueMode.value = 'view';
+  editValueItem.value = item;
+  editValueFormState.value = {
+    ...item,
+    valueContent: getValue(item),
+  };
+  editValueModalOpen.value = true;
 }
 
 async function saveEditValue() {
   const item = editValueItem.value;
   if (!item) {
+    return;
+  }
+
+  if (!canSaveEditValue.value) {
     return;
   }
 
@@ -350,7 +367,12 @@ onMounted(() => {
                         </Tooltip>
                       </div>
                       <div class="tenant-setting-item-tags">
-                        <Tag v-if="item.valueType">{{ item.valueType }}</Tag>
+                        <Tag
+                          v-if="item.valueType"
+                          class="tenant-setting-type-tag"
+                        >
+                          {{ item.valueType }}
+                        </Tag>
                         <Tag v-if="!isSettingEditable(item)" color="default">
                           只读
                         </Tag>
@@ -363,6 +385,7 @@ onMounted(() => {
                     <div class="tenant-setting-item-control">
                       <Tooltip
                         :mouse-enter-delay="1.5"
+                        overlay-class-name="tenant-setting-value-tooltip"
                         :title="getValuePreview(item)"
                       >
                         <div class="tenant-setting-value-preview">
@@ -403,22 +426,21 @@ onMounted(() => {
       :body-style="editValueModalBodyStyle"
       :confirm-loading="editValueSubmitting"
       destroy-on-close
+      :footer="editValueReadonly ? null : undefined"
       ok-text="保存"
       :title="editValueTitle"
-      :width="'min(82vw, 1480px)'"
+      :width="editValueModalWidth"
       @ok="saveEditValue"
     >
       <div class="tenant-setting-edit-form">
         <div class="text-foreground text-sm font-medium">值</div>
-        <SettingValueContentField :form-state="editValueFormState" inline />
+        <SettingValueContentField
+          :disabled="editValueReadonly"
+          :form-state="editValueFormState"
+          inline
+        />
       </div>
     </Modal>
-
-    <SettingValuePreviewModal
-      v-model:open="previewValueModalOpen"
-      :title="previewValueTitle"
-      :value="previewValue"
-    />
   </Page>
 </template>
 
@@ -501,6 +523,12 @@ onMounted(() => {
   margin-inline-end: 0;
 }
 
+.tenant-setting-item-tags :deep(.tenant-setting-type-tag) {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 10%);
+  color: hsl(var(--primary));
+}
+
 .tenant-setting-item-remark {
   display: block;
   overflow: hidden;
@@ -534,6 +562,10 @@ onMounted(() => {
   padding: 5px 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+:global(.tenant-setting-value-tooltip .ant-tooltip-inner) {
+  max-width: min(640px, calc(100vw - 48px));
 }
 
 .tenant-setting-edit-form {

@@ -184,6 +184,32 @@ describe('login auto-login prompt', () => {
     wrapper.unmount();
   });
 
+  it('keeps original captcha image when wrapped response also returns a verify code', async () => {
+    const imageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ';
+    getVerifyCodeApi.mockResolvedValue({
+      code: '0462',
+      data: {
+        code: '0462',
+        interactionData: imageBase64,
+        interactionDataType: 'image/png',
+      },
+    });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+
+    expect(wrapper.find('img[alt="验证码"]').attributes('src')).toBe(
+      `data:image/png;base64,${imageBase64}`,
+    );
+    expect(wrapper.find('input[placeholder="请输入验证码"]').element.value).toBe(
+      '0462',
+    );
+
+    wrapper.unmount();
+  });
+
   it('refreshes the captcha when the account input loses focus on captcha login', async () => {
     getVerifyCodeApi.mockResolvedValue({
       code: '0462',

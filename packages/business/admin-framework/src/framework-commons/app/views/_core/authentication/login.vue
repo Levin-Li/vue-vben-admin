@@ -378,16 +378,16 @@ function startCountdown(seconds = 60) {
 }
 
 function resolveVerifyCodePayload(payload: any) {
-  if (payload?.interactionData || payload?.type || payload?.code) {
-    return payload;
-  }
-
   if (
     payload?.data?.interactionData ||
     payload?.data?.type ||
     payload?.data?.code
   ) {
     return payload.data;
+  }
+
+  if (payload?.interactionData || payload?.type || payload?.code) {
+    return payload;
   }
 
   return payload;

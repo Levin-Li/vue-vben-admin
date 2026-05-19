@@ -34,6 +34,10 @@ import {
   fallbackPageTypeOptions,
   useColumns,
 } from './data';
+import {
+  getOpButtonCount,
+  getRequireAuthorizationCount,
+} from './action-counts';
 import MenuFormDrawer from './menu-form-drawer.vue';
 import OpButtonEditor from './op-button-editor.vue';
 import {
@@ -70,6 +74,8 @@ const publicAccessSwitchLoadingId = ref('');
 const route = useRoute();
 const { hasPermission } = useRbacAccess();
 const MENU_PERMISSION_MODULE_ID = '__menus__';
+const MENU_ORDER_MAX = 2_147_483_647;
+const MENU_ORDER_MIN = -2_147_483_648;
 const MENU_ORDER_STEP = 100;
 
 const batchDeleteMenuPermission = buildApiMethodPermissions(
@@ -280,10 +286,78 @@ function getMenuOrderCode(row?: MenuRecord) {
   return row?.orderCode ?? 0;
 }
 
+function getMenuOrderBetween(
+  previousOrderCode: number | undefined,
+  nextOrderCode: number | undefined,
+) {
+  if (previousOrderCode === undefined && nextOrderCode === undefined) {
+    return MENU_ORDER_STEP;
+  }
+
+  if (previousOrderCode === undefined) {
+    const candidate = (nextOrderCode || 0) - MENU_ORDER_STEP;
+    return candidate >= MENU_ORDER_MIN ? candidate : undefined;
+  }
+
+  if (nextOrderCode === undefined) {
+    const candidate = previousOrderCode + MENU_ORDER_STEP;
+    return candidate <= MENU_ORDER_MAX ? candidate : undefined;
+  }
+
+  const gap = nextOrderCode - previousOrderCode;
+  if (gap > 1) {
+    return previousOrderCode + Math.floor(gap / 2);
+  }
+
+  return undefined;
+}
+
+function buildSingleMenuOrderUpdate(
+  row: MenuRecord,
+  direction: MenuMoveDirection,
+) {
+  const { currentIndex, siblings, targetIndex } = getMoveTargetIndex(
+    row,
+    direction,
+  );
+
+  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length) {
+    return undefined;
+  }
+
+  const previousBoundIndex =
+    direction === 'up' ? targetIndex - 1 : targetIndex;
+  const nextBoundIndex = direction === 'up' ? targetIndex : targetIndex + 1;
+  const nextOrderCode = getMenuOrderBetween(
+    previousBoundIndex >= 0
+      ? getMenuOrderCode(siblings[previousBoundIndex])
+      : undefined,
+    nextBoundIndex < siblings.length
+      ? getMenuOrderCode(siblings[nextBoundIndex])
+      : undefined,
+  );
+
+  if (nextOrderCode === undefined || nextOrderCode === getMenuOrderCode(row)) {
+    return undefined;
+  }
+
+  return {
+    id: row.id,
+    nextOrderCode,
+    optimisticLock: row.optimisticLock,
+    row,
+  };
+}
+
 function buildMenuOrderUpdates(
   row: MenuRecord,
   direction: MenuMoveDirection,
 ) {
+  const singleUpdate = buildSingleMenuOrderUpdate(row, direction);
+  if (singleUpdate) {
+    return [singleUpdate];
+  }
+
   const { currentIndex, siblings, targetIndex } = getMoveTargetIndex(
     row,
     direction,
@@ -298,26 +372,6 @@ function buildMenuOrderUpdates(
     nextSiblings[targetIndex],
     nextSiblings[currentIndex],
   ];
-
-  const currentOrderCode = getMenuOrderCode(siblings[currentIndex]);
-  const targetOrderCode = getMenuOrderCode(siblings[targetIndex]);
-
-  if (currentOrderCode !== targetOrderCode) {
-    return [
-      {
-        id: row.id,
-        nextOrderCode: targetOrderCode,
-        optimisticLock: row.optimisticLock,
-        row,
-      },
-      {
-        id: siblings[targetIndex]?.id,
-        nextOrderCode: currentOrderCode,
-        optimisticLock: siblings[targetIndex]?.optimisticLock,
-        row: siblings[targetIndex],
-      },
-    ].filter((item) => item.id && item.row);
-  }
 
   const startIndex = Math.min(currentIndex, targetIndex);
   const previousOrderCode = Math.max(
@@ -800,17 +854,49 @@ function renderIcon(row: MenuRecord) {
           </template>
 
           <template #title="{ row }">
-            <div class="flex min-w-0 items-center gap-2">
-              <component :is="renderIcon(row)" />
-              <span class="truncate font-medium">
-                {{ row.name || row.label || row.path || row.id || '-' }}
-              </span>
-              <span
-                v-if="row.label && row.label !== row.name"
-                class="text-muted-foreground"
-              >
-                {{ row.label }}
-              </span>
+            <div class="menu-title-cell">
+              <div class="menu-title-content">
+                <component :is="renderIcon(row)" />
+                <span class="truncate font-medium">
+                  {{ row.name || row.label || row.path || row.id || '-' }}
+                </span>
+                <span
+                  v-if="row.label && row.label !== row.name"
+                  class="text-muted-foreground"
+                >
+                  {{ row.label }}
+                </span>
+              </div>
+              <div v-if="canUpdateMenu" class="menu-title-order-actions">
+                <Tooltip title="上移">
+                  <Button
+                    :disabled="!canMoveMenu(row, 'up')"
+                    :loading="
+                      menuOrderLoadingKey === getMoveLoadingKey(row, 'up')
+                    "
+                    class="menu-order-icon-button"
+                    size="small"
+                    type="text"
+                    @click.stop="moveMenu(row, 'up')"
+                  >
+                    <IconifyIcon class="size-4" icon="lucide:arrow-up" />
+                  </Button>
+                </Tooltip>
+                <Tooltip title="下移">
+                  <Button
+                    :disabled="!canMoveMenu(row, 'down')"
+                    :loading="
+                      menuOrderLoadingKey === getMoveLoadingKey(row, 'down')
+                    "
+                    class="menu-order-icon-button"
+                    size="small"
+                    type="text"
+                    @click.stop="moveMenu(row, 'down')"
+                  >
+                    <IconifyIcon class="size-4" icon="lucide:arrow-down" />
+                  </Button>
+                </Tooltip>
+              </div>
             </div>
           </template>
 
@@ -826,6 +912,19 @@ function renderIcon(row: MenuRecord) {
                 {{ getOpButtonLabel(button) }}
               </Tag>
             </div>
+            <span v-else class="text-muted-foreground">-</span>
+          </template>
+
+          <template #delayedPath="{ row, column }">
+            <Tooltip
+              v-if="row[column.field]"
+              :mouse-enter-delay="1.5"
+              :title="row[column.field]"
+            >
+              <span class="menu-path-cell">
+                {{ row[column.field] }}
+              </span>
+            </Tooltip>
             <span v-else class="text-muted-foreground">-</span>
           </template>
 
@@ -855,34 +954,6 @@ function renderIcon(row: MenuRecord) {
 
           <template #operation="{ row }">
             <div class="flex justify-end gap-2">
-              <Tooltip title="上移">
-                <Button
-                  v-if="canUpdateMenu"
-                  :disabled="!canMoveMenu(row, 'up')"
-                  :loading="menuOrderLoadingKey === getMoveLoadingKey(row, 'up')"
-                  class="menu-order-icon-button"
-                  size="small"
-                  type="link"
-                  @click="moveMenu(row, 'up')"
-                >
-                  <IconifyIcon class="size-4" icon="lucide:chevron-up" />
-                </Button>
-              </Tooltip>
-              <Tooltip title="下移">
-                <Button
-                  v-if="canUpdateMenu"
-                  :disabled="!canMoveMenu(row, 'down')"
-                  :loading="
-                    menuOrderLoadingKey === getMoveLoadingKey(row, 'down')
-                  "
-                  class="menu-order-icon-button"
-                  size="small"
-                  type="link"
-                  @click="moveMenu(row, 'down')"
-                >
-                  <IconifyIcon class="size-4" icon="lucide:chevron-down" />
-                </Button>
-              </Tooltip>
               <Button
                 v-if="canCreateMenu"
                 size="small"
@@ -893,19 +964,35 @@ function renderIcon(row: MenuRecord) {
               </Button>
               <Button
                 v-if="canUpdateMenu && !row.publicAccess"
+                class="menu-action-count-button"
+                :data-count="getRequireAuthorizationCount(row)"
                 size="small"
                 type="link"
                 @click="openPermissionEditor(row)"
               >
                 所需权限
+                <span
+                  v-if="getRequireAuthorizationCount(row) > 0"
+                  class="menu-action-count-badge"
+                >
+                  {{ getRequireAuthorizationCount(row) }}
+                </span>
               </Button>
               <Button
                 v-if="canUpdateMenu"
+                class="menu-action-count-button"
+                :data-count="getOpButtonCount(row)"
                 size="small"
                 type="link"
                 @click="openOpButtonEditor(row)"
               >
                 页面操作
+                <span
+                  v-if="getOpButtonCount(row) > 0"
+                  class="menu-action-count-badge"
+                >
+                  {{ getOpButtonCount(row) }}
+                </span>
               </Button>
               <Button
                 v-if="canUpdateMenu"
@@ -957,12 +1044,93 @@ function renderIcon(row: MenuRecord) {
   transform: translate(0, 0) !important;
 }
 
+.menu-title-cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.menu-title-content {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-path-cell {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-title-order-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: hsl(var(--card) / 96%);
+  box-shadow:
+    0 4px 14px hsl(var(--foreground) / 8%),
+    0 0 0 1px hsl(var(--border) / 80%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.menu-title-cell:hover .menu-title-order-actions,
+.menu-title-cell:focus-within .menu-title-order-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .menu-order-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   min-width: 24px;
+  color: hsl(var(--foreground));
   padding-inline: 0;
+}
+
+.menu-order-icon-button:hover,
+.menu-order-icon-button:focus-visible {
+  color: hsl(var(--primary));
+}
+
+.menu-order-icon-button :deep(svg) {
+  color: currentColor;
+}
+
+.menu-action-count-button {
+  position: relative;
+  overflow: visible;
+}
+
+.menu-action-count-badge {
+  position: absolute;
+  top: -5px;
+  right: -3px;
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  color: hsl(var(--primary-foreground));
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  background: hsl(var(--primary));
+  border: 1px solid hsl(var(--background));
+  border-radius: 999px;
+  box-shadow: 0 2px 6px hsl(var(--primary) / 28%);
 }
 </style>

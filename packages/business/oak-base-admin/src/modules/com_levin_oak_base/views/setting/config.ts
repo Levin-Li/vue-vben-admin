@@ -1,10 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { settingService } from '../../api/setting-service';
+import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 
+import { settingService } from '../../api/setting-service';
 import {
-  DEFAULT_CRUD_MODAL_WIDTH,
   buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
 } from '../api-module';
 import { transformSettingCrudSubmit } from '../setting-crud-submit';
@@ -101,7 +102,7 @@ export const settingPageCrudConfig: CrudPageConfig = {
     {
       key: 'editor',
       label: '值编辑器',
-      disabledOnEdit: true,
+      disabledOnEdit: ({ userInfo }) => !isSuperAdminUser(userInfo),
       fullRow: true,
       type: 'text',
     },

@@ -37,7 +37,7 @@ export interface CrudFieldConfig {
   allowInput?: boolean;
   areaCascader?: CrudAreaCascaderConfig;
   defaultValue?: any;
-  disabledOnEdit?: boolean;
+  disabledOnEdit?: boolean | ((context: { userInfo: unknown }) => boolean);
   form?: boolean;
   formCreate?: boolean;
   formEdit?: boolean;

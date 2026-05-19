@@ -8,13 +8,12 @@ import { computed, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { Input, InputNumber, Select, Spin, Switch } from 'ant-design-vue';
-
 import { requestClient } from '@levin/admin-framework';
 import CodeEditorField from '@levin/admin-framework/framework-commons/shared/code-editor-field.vue';
 import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
-import JsonSchemaFormField from '@levin/admin-framework/framework-commons/shared/json-schema-form-field.vue';
 import { normalizeJsonSchemaObject } from '@levin/admin-framework/framework-commons/shared/json-schema-form';
+import JsonSchemaFormField from '@levin/admin-framework/framework-commons/shared/json-schema-form-field.vue';
+import { Input, InputNumber, Select, Spin, Switch } from 'ant-design-vue';
 
 import { modulePost } from './api-module';
 import {
@@ -28,6 +27,7 @@ import {
 } from './setting-for-tenant/setting-for-tenant';
 
 const props = defineProps<{
+  disabled?: boolean;
   formState: Record<string, any>;
   inline?: boolean;
 }>();
@@ -138,11 +138,13 @@ watch(
   <Switch
     v-if="editorKind === 'switch'"
     :checked="formState.valueContent"
+    :disabled="disabled"
     @update:checked="setValue"
   />
 
   <InputNumber
     v-else-if="editorKind === 'number'"
+    :disabled="disabled"
     :placeholder="placeholder"
     :value="formState.valueContent"
     class="w-full"
@@ -151,6 +153,7 @@ watch(
 
   <Select
     v-else-if="editorKind === 'select'"
+    :disabled="disabled"
     :options="editorOptions"
     :placeholder="placeholder"
     :value="formState.valueContent"
@@ -162,6 +165,7 @@ watch(
 
   <Spin v-else-if="editorKind === 'json-schema'" :spinning="schemaLoading">
     <JsonSchemaFormField
+      :disabled="disabled"
       :error-message="schemaErrorMessage"
       :inline="inline"
       :model-value="formState.valueContent"
@@ -173,6 +177,7 @@ watch(
 
   <JsonEditorField
     v-else-if="editorKind === 'json'"
+    :disabled="disabled"
     :inline="inline"
     :model-value="formState.valueContent"
     :title="settingTitle"
@@ -181,6 +186,7 @@ watch(
 
   <CodeEditorField
     v-else-if="editorKind === 'code'"
+    :disabled="disabled"
     :inline="inline"
     :language="getCodeEditorLanguage(setting)"
     :model-value="formState.valueContent"
@@ -190,6 +196,7 @@ watch(
 
   <div v-else-if="editorKind === 'image-url'" class="space-y-2">
     <Input
+      :disabled="disabled"
       :placeholder="placeholder"
       :value="formState.valueContent"
       @update:value="setValue"
@@ -208,6 +215,7 @@ watch(
 
   <div v-else-if="editorKind === 'video-url'" class="space-y-2">
     <Input
+      :disabled="disabled"
       :placeholder="placeholder"
       :value="formState.valueContent"
       @update:value="setValue"
@@ -226,6 +234,7 @@ watch(
 
   <Input
     v-else-if="editorKind === 'file-url'"
+    :disabled="disabled"
     :placeholder="placeholder"
     :value="formState.valueContent"
     @update:value="setValue"
@@ -238,6 +247,7 @@ watch(
   <Input.TextArea
     v-else-if="editorKind === 'textarea'"
     :auto-size="textAreaAutoSize"
+    :disabled="disabled"
     :placeholder="placeholder"
     :value="formState.valueContent"
     @update:value="setValue"
@@ -246,6 +256,7 @@ watch(
   <Input.TextArea
     v-else
     :auto-size="textAreaAutoSize"
+    :disabled="disabled"
     :placeholder="placeholder"
     :value="formState.valueContent"
     @update:value="setValue"
