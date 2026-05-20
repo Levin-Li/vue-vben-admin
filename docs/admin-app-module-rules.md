@@ -221,7 +221,7 @@ packages/business/admin-framework/
 规则：
 
 - 框架公共代码必须收敛到 `src/framework-commons`。
-- `src/index.ts` 只做稳定公共导出。
+- `src/index.ts` 是下游扩展 API 的统一公共入口，只显式导出稳定公共能力；业务模块和第三方项目不得为了使用语言包、页面覆盖、顶部扩展、用户菜单、浮动面板等扩展能力而直接引用框架内部实现目录。
 - 不允许把具体业务模块页面放进 `admin-framework`。
 - 不允许在框架包里写某个最终项目专用逻辑。
 

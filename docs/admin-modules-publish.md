@@ -207,7 +207,7 @@ configureAdminApplication({
 
 ## 框架公共代码目录
 
-框架公共代码统一放在 `src/framework-commons`。包根入口只转发稳定公共 API，目录级能力使用 `@levin/admin-framework/framework-commons/...` 引入：
+框架公共代码统一放在 `src/framework-commons`。包根入口显式导出稳定公共 API；下游扩展能力必须集中从 `@levin/admin-framework` 引入。`framework-commons` 是框架包内部实现目录，只有应用启动、公共 API service、内部运行时装配等已声明的 `dist` 子路径继续使用 `@levin/admin-framework/framework-commons/...`。
 
 ```text
 packages/business/admin-framework/src/framework-commons/index.ts

@@ -6,7 +6,6 @@ import type { LocaleSetupOptions, SupportedLanguagesType } from '@vben/locales';
 
 import { ref } from 'vue';
 
-import { collectAdminModuleLocales } from '@levin/admin-framework';
 import {
   $t,
   setupI18n as coreSetup,
@@ -14,11 +13,15 @@ import {
 } from '@vben/locales';
 import { preferences } from '@vben/preferences';
 
+import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 import antdEnLocale from 'ant-design-vue/es/locale/en_US';
 import antdDefaultLocale from 'ant-design-vue/es/locale/zh_CN';
 import dayjs from 'dayjs/esm';
 
-import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
+import {
+  collectAdminModuleLocales,
+  mergeAdminLocaleMessages,
+} from '../../locale-utils';
 
 const antdLocale = ref<Locale>(antdDefaultLocale);
 
@@ -41,10 +44,10 @@ async function loadMessages(
     localesMap[lang]?.(),
     loadThirdPartyMessage(lang),
   ]);
-  return {
-    ...(appLocaleMessages?.default || {}),
-    ...(moduleLocalesMap[lang] || {}),
-  } as Record<string, string>;
+  return mergeAdminLocaleMessages(
+    { ...appLocaleMessages?.default },
+    moduleLocalesMap[lang] || {},
+  ) as Record<string, string>;
 }
 
 /**

@@ -63,7 +63,7 @@ packages/business/admin-framework/src/framework-commons
 - 提供当前模块国际化。
 - 提供后端菜单路径到前端页面的映射。
 - 导出模块对象，供最终主应用启用。
-- 使用事件总线、顶部栏扩展区、可拖拽浮动面板等公共基础设施时，必须通过 `@levin/admin-framework/framework-commons` 的公共入口接入，不得直接引用框架内部实现文件。具体用法见 `docs/frontend-common-infrastructure.md`。
+- 使用事件总线、顶部栏扩展区、可拖拽浮动面板、用户菜单扩展、模块语言包、页面覆盖等面向下游的公共扩展能力时，必须通过 `@levin/admin-framework` 统一公共入口接入，不得直接引用框架内部实现文件。具体用法见 `docs/frontend-common-infrastructure.md`。
 
 业务模块目录必须按后端包名划分，例如：
 
@@ -124,10 +124,12 @@ packages/business/admin-framework/
   tsconfig.json
 ```
 
-根入口 `src/index.ts` 只导出稳定公共 API。框架内部能力通过明确子路径导出，例如：
+根入口 `src/index.ts` 是下游扩展 API 的统一公共入口，只显式导出稳定公共 API。`framework-commons` 是框架包内的实现目录，不能要求业务模块为了使用扩展能力而直接记住内部路径。新增语言包、页面覆盖、顶部扩展、用户菜单、浮动面板等下游扩展能力时，必须先从根入口导出，再写入文档示例。
 
 ```ts
-export * from './framework-commons';
+export * from './framework-commons/event-bus';
+export * from './framework-commons/locale-utils';
+export * from './framework-commons/page-registry';
 ```
 
 外部使用时优先使用稳定入口：
@@ -267,7 +269,7 @@ import { unmountGlobalLoading } from '@vben/utils';
 
 import {
   configureAdminApplication,
-  normalizeAdminGlobPageMap,
+  defineAdminPageOverrides,
   type AdminPageMap,
 } from '@levin/admin-framework';
 
@@ -280,9 +282,8 @@ import {
 import { enabledFrontendModules } from './modules/list';
 import { overridesPreferences } from './preferences';
 
-const pageOverrides = normalizeAdminGlobPageMap(
+const pageOverrides = defineAdminPageOverrides(
   import.meta.glob('./pages/**/*.vue') as AdminPageMap,
-  './pages',
 );
 
 configureAdminApplication({
@@ -331,7 +332,7 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 
 页面覆盖的本质是“同一个路由指向本地文件”：后端菜单 `path`、前端页面注册路径、访问 URL 和权限入口都保持不变，只把该路由最终加载的 Vue 组件从公共模块默认文件替换成最终主应用本地文件。实现上通过 `pageOverrides` / pageMap 的页面解析优先级完成，不通过重复注册同名同路径 Vue Router record 抢路由完成。框架和业务模块继续负责 Vue Router 路由、后端菜单映射、权限入口和默认页面注册；最终主应用通过 `pageOverrides` 注入覆盖页面映射。
 
-`src/pages` 是推荐约定目录，不是唯一允许目录。最简单方式是使用 `normalizeAdminGlobPageMap(import.meta.glob('./pages/**/*.vue'), './pages')`，让文件路径自动变成页面注册路径；需要更灵活的目录组织时，可以手写 `pageOverrides`，显式把同一个页面注册路径映射到任意本地文件。
+`src/pages` 是推荐约定目录，不是唯一允许目录。最简单方式是使用和多语言入口同风格的 `defineAdminPageOverrides(import.meta.glob('./pages/**/*.vue'))`，让文件路径自动变成页面注册路径；需要更灵活的目录组织时，可以手写 `pageOverrides`，显式把同一个页面注册路径映射到任意本地文件。
 
 页面解析优先级固定为：
 
@@ -405,10 +406,11 @@ src/modules/com_levin_oak_base/locales/
 模块通过 `locales` 字段暴露国际化内容：
 
 ```ts
-export const oakBaseAdminLocales = {
-  'zh-CN': zhCN,
-  'en-US': enUS,
-};
+import { defineAdminModuleLocales } from '@levin/admin-framework';
+
+export const oakBaseAdminLocales = defineAdminModuleLocales(
+  import.meta.glob('./locales/**/*.json', { eager: true }),
+);
 ```
 
 最终主应用统一收集并合并已启用模块的国际化资源。
@@ -419,7 +421,9 @@ export const oakBaseAdminLocales = {
 - 业务模块文案放在业务模块包。
 - 最终项目差异化文案放在主应用。
 - 模块内页面不得依赖其他业务模块的国际化 key。
+- 第三方模块只按约定把 JSON 放到 `locales/` 目录，并保留固定的 `defineAdminModuleLocales(import.meta.glob('./locales/**/*.json', { eager: true }))` 模板；扫描、合并和覆盖由框架处理。
 - 模块语言包 key 必须使用规范 locale，例如 `zh-CN`、`en-US`，不得为了兼容用户偏好或浏览器输入额外注册 `zh`、`en` 等短语言包；短语言输入由公共 `@vben/locales` 统一解析到同语系可用 locale 后再合并模块语言包。
+- 语言包覆盖是深合并覆盖，只需要写需要调整的 key；未声明的同级或子级 key 继续使用公共包、主应用或先前模块提供的默认翻译，不得整块复制原语言包。
 
 ## 依赖规则
 
@@ -901,7 +905,7 @@ pnpm overrides
 
 - 覆盖文件是否放在主应用 `src/pages` 下。
 - 覆盖路径是否和页面注册路径一致。
-- `pageOverrides` 是否通过 `normalizeAdminGlobPageMap` 注入。
+- `pageOverrides` 是否通过 `defineAdminPageOverrides` 注入。
 
 ## 推荐落地流程
 

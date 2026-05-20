@@ -22,6 +22,13 @@ export function normalizeAdminGlobPageMap(
   );
 }
 
+export function defineAdminPageOverrides(
+  pageMap: AdminPageMap,
+  sourcePrefix = './pages',
+): AdminPageMap {
+  return normalizeAdminGlobPageMap(pageMap, sourcePrefix);
+}
+
 export function createAdminPageResolver(pageMap: AdminPageMap) {
   return (pagePath: string, fallback?: AdminPageLoader): AdminPageLoader => {
     const normalizedPath = pagePath.startsWith('/') ? pagePath : `/${pagePath}`;

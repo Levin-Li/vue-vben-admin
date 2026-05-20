@@ -4,7 +4,7 @@
 
 框架事件总线是前端公共基础设施，只负责在同一前端运行时内发送事件、添加监听器、移除监听器和查看当前监听器。它不限制业务事件分类，也不替代 API service、Pinia、路由、组件 props 或持久化存储。
 
-公共入口统一从 `@levin/admin-framework/framework-commons` 引入。运行时只使用全局单例 `frameworkEventBus`。
+公共入口统一从 `@levin/admin-framework` 引入。运行时只使用全局单例 `frameworkEventBus`。
 
 ## 事件结构
 
@@ -46,7 +46,7 @@ import {
   getFrameworkEventListeners,
   removeFrameworkEventListener,
   setFrameworkEventListenerEnabled,
-} from '@levin/admin-framework/framework-commons';
+} from '@levin/admin-framework';
 
 const listenerId = addFrameworkEventListener(
   'tenant',
@@ -72,7 +72,7 @@ removeFrameworkEventListener(listenerId);
 如果当前代码更适合组件卸载时清理，也可以使用 `onFrameworkEvent`。它返回清理函数，并把事件对象传给监听器：
 
 ```ts
-import { onFrameworkEvent } from '@levin/admin-framework/framework-commons';
+import { onFrameworkEvent } from '@levin/admin-framework';
 
 const unsubscribe = onFrameworkEvent('ui', 'setting.changed', (event) => {
   console.log(event.type);
@@ -86,7 +86,7 @@ unsubscribe();
 ## 只监听一次
 
 ```ts
-import { onceFrameworkEvent } from '@levin/admin-framework/framework-commons';
+import { onceFrameworkEvent } from '@levin/admin-framework';
 
 onceFrameworkEvent('auth', 'login.success', (event) => {
   console.log(event.data);
@@ -114,7 +114,7 @@ import {
   getFrameworkEventListeners,
   removeFrameworkEventListener,
   setFrameworkEventListenerEnabled,
-} from '@levin/admin-framework/framework-commons';
+} from '@levin/admin-framework';
 
 const listeners = getFrameworkEventListeners();
 
@@ -196,6 +196,7 @@ const unsubscribe = onApiRequestTopic(
 - 业务模块发布事件时，应使用稳定的 `type` 和 `topic`，不要把临时页面文案作为 topic。
 - 业务模块监听事件时，应填写 `remark`，并在组件卸载或模块卸载时清理监听器。
 - 临时停用监听器时使用禁用，不要为了临时排查直接删除业务注册逻辑。
-- 不允许业务模块直接引用 `framework-commons` 内部实现文件；公共入口以 `@levin/admin-framework/framework-commons` 为准。
+- 不允许业务模块直接引用 `framework-commons` 内部实现文件；公共入口以 `@levin/admin-framework` 为准。
+- 新增跨模块通信扩展能力时，必须先集中到统一公共入口，再提供给下游模块使用。
 
 更多公共基础设施使用方式见 `docs/frontend-common-infrastructure.md`。

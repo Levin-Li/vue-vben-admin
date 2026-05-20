@@ -1,6 +1,6 @@
 {
   "name": "@levin/oak-base-admin",
-  "version": "5.6.31",
+  "version": "5.6.32",
   "description": "Levin Oak base admin frontend module.",
   "license": "MIT",
   "type": "module",
@@ -23,32 +23,38 @@
   "types": "./dist/modules/com_levin_oak_base/index.d.ts",
   "exports": {
     ".": {
+      "development": "./src/modules/com_levin_oak_base/index.ts",
       "types": "./dist/modules/com_levin_oak_base/index.d.ts",
       "default": "./dist/modules/com_levin_oak_base/index.mjs"
     },
     "./modules/com_levin_oak_base": {
+      "development": "./src/modules/com_levin_oak_base/index.ts",
       "types": "./dist/modules/com_levin_oak_base/index.d.ts",
       "default": "./dist/modules/com_levin_oak_base/index.mjs"
     },
     "./modules/com_levin_oak_base/*": {
+      "development": "./src/modules/com_levin_oak_base/*.ts",
       "types": "./dist/modules/com_levin_oak_base/*.d.ts",
       "default": "./dist/modules/com_levin_oak_base/*.mjs"
     },
     "./modules/com_levin_oak_base/api/*": {
+      "development": "./src/modules/com_levin_oak_base/api/*.ts",
       "types": "./dist/modules/com_levin_oak_base/api/*.d.ts",
       "default": "./dist/modules/com_levin_oak_base/api/*.mjs"
     },
     "./modules/com_levin_oak_base/views/*.vue": {
+      "development": "./src/modules/com_levin_oak_base/views/*.vue",
       "types": "./dist/modules/com_levin_oak_base/views/*.vue.d.ts",
       "default": "./dist/modules/com_levin_oak_base/views/*.vue"
     },
     "./modules/com_levin_oak_base/views/*": {
+      "development": "./src/modules/com_levin_oak_base/views/*.ts",
       "types": "./dist/modules/com_levin_oak_base/views/*.d.ts",
       "default": "./dist/modules/com_levin_oak_base/views/*.mjs"
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": "5.6.33",
+    "@levin/admin-framework": "5.6.34",
     "@vben/common-ui": "5.6.7",
     "@vben/icons": "5.6.6",
     "@vben/plugins": "5.6.6",

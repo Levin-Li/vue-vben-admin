@@ -1,8 +1,5 @@
-import enUS from './locales/en-US.json';
-import zhCN from './locales/zh-CN.json';
+import { defineAdminModuleLocales } from '@levin/admin-framework';
 
-export const oakBaseAdminLocales = {
-  'en-US': enUS,
-  'zh-CN': zhCN,
-};
-
+export const oakBaseAdminLocales = defineAdminModuleLocales(
+  import.meta.glob('./locales/**/*.json', { eager: true }),
+);

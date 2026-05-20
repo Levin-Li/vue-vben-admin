@@ -205,7 +205,7 @@ packages/business/admin-framework/
       shared/
 ```
 
-包根 `@levin/admin-framework` 继续作为稳定公共入口，只从 `src/framework-commons/index.ts` 转发。新代码必须按目录语义使用 `@levin/admin-framework/framework-commons/...`，不保留旧目录兼容入口。
+包根 `@levin/admin-framework` 是下游扩展 API 的统一公共入口，必须显式导出稳定能力。业务模块、第三方项目和宿主应用使用语言包、页面覆盖、顶部扩展、用户菜单、浮动面板等扩展能力时，只从这个统一入口导入。`framework-commons` 是框架包内部实现目录；应用启动、公共 API service、内部运行时装配等已声明的子路径可以继续使用 `@levin/admin-framework/framework-commons/...`。
 
 ### 模块包目录约定
 

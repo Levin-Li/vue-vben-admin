@@ -21,13 +21,12 @@ pnpm add @levin/oak-base-admin@5.6.8
 ```ts
 import {
   configureAdminApplication,
-  normalizeAdminGlobPageMap,
+  defineAdminPageOverrides,
   type AdminPageMap,
 } from '@levin/admin-framework';
 
-const pageOverrides = normalizeAdminGlobPageMap(
+const pageOverrides = defineAdminPageOverrides(
   import.meta.glob('./pages/**/*.vue') as AdminPageMap,
-  './pages',
 );
 
 configureAdminApplication({

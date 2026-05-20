@@ -4,7 +4,7 @@
 
 ## 公共入口
 
-业务模块必须从 `@levin/admin-framework/framework-commons` 引入这些能力，不得直接引用框架内部实现文件。
+业务模块必须从 `@levin/admin-framework` 引入这些能力，不得直接引用框架内部实现文件。
 
 允许：
 
@@ -14,7 +14,7 @@ import {
   useDraggableFloatingPanels,
   useLayoutHeaderExtensionArea,
   useUserDropdownMenuItems,
-} from '@levin/admin-framework/framework-commons';
+} from '@levin/admin-framework';
 ```
 
 `DraggableFloatingPanelHost` 是框架或宿主根应用的挂载组件，普通业务模块通常不需要直接引入。
@@ -25,6 +25,8 @@ import {
 import { useLayoutHeaderExtensionArea } from '@vben/layouts';
 import { useDraggableFloatingPanels } from '@levin/admin-framework/framework-commons/shared/draggable-floating-panel-service';
 ```
+
+`framework-commons` 是 `@levin/admin-framework` 包内的实现目录。业务模块和第三方项目只面向统一公共入口；新增下游扩展能力时，也必须先收口到统一入口，再写入文档示例。
 
 ## 事件总线
 
@@ -41,7 +43,7 @@ import { useDraggableFloatingPanels } from '@levin/admin-framework/framework-com
 发送事件：
 
 ```ts
-import { emitFrameworkEvent } from '@levin/admin-framework/framework-commons';
+import { emitFrameworkEvent } from '@levin/admin-framework';
 
 emitFrameworkEvent('tenant.site', 'changed', {
   tenantId: 'demo',
@@ -51,7 +53,7 @@ emitFrameworkEvent('tenant.site', 'changed', {
 添加监听器：
 
 ```ts
-import { onFrameworkEvent } from '@levin/admin-framework/framework-commons';
+import { onFrameworkEvent } from '@levin/admin-framework';
 
 const unsubscribe = onFrameworkEvent(
   'tenant.site',
@@ -89,7 +91,7 @@ import {
   getFrameworkEventListeners,
   removeFrameworkEventListener,
   setFrameworkEventListenerEnabled,
-} from '@levin/admin-framework/framework-commons';
+} from '@levin/admin-framework';
 
 const listeners = getFrameworkEventListeners();
 
@@ -124,7 +126,7 @@ API 请求事件的详细约定见 `docs/framework-event-bus.md` 和 `前端API�
 
 ```vue
 <script setup lang="ts">
-import { useLayoutHeaderExtensionArea } from '@levin/admin-framework/framework-commons';
+import { useLayoutHeaderExtensionArea } from '@levin/admin-framework';
 import CurrentMerchantSelect from './current-merchant-select.vue';
 
 const topCenter = useLayoutHeaderExtensionArea('center');
@@ -142,7 +144,7 @@ topCenter.add({
 
 ```vue
 <script setup lang="ts">
-import { useLayoutHeaderExtensionArea } from '@levin/admin-framework/framework-commons';
+import { useLayoutHeaderExtensionArea } from '@levin/admin-framework';
 import CurrentProjectSelect from './current-project-select.vue';
 
 const topRight = useLayoutHeaderExtensionArea('right');
@@ -183,7 +185,7 @@ topRight.add({
 
 ```vue
 <script setup lang="ts">
-import { useDraggableFloatingPanels } from '@levin/admin-framework/framework-commons';
+import { useDraggableFloatingPanels } from '@levin/admin-framework';
 import CurrentMerchantSelect from './current-merchant-select.vue';
 
 const floatingPanels = useDraggableFloatingPanels('project-publish');
@@ -254,7 +256,7 @@ floatingPanels.add({
 
 ```vue
 <script setup lang="ts">
-import { useUserDropdownMenuItems } from '@levin/admin-framework/framework-commons';
+import { useUserDropdownMenuItems } from '@levin/admin-framework';
 
 const userDropdownMenus = useUserDropdownMenuItems();
 
@@ -276,7 +278,7 @@ userDropdownMenus.add({
 import {
   addUserDropdownMenuItem,
   removeUserDropdownMenuItem,
-} from '@levin/admin-framework/framework-commons';
+} from '@levin/admin-framework';
 
 const dispose = addUserDropdownMenuItem({
   id: 'tenant-feedback',

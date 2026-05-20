@@ -1,6 +1,6 @@
 {
   "name": "@vben/layouts",
-  "version": "5.6.11",
+  "version": "5.6.12",
   "homepage": "https://github.com/vbenjs/vue-vben-admin",
   "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
@@ -29,6 +29,11 @@
       "types": "./src/index.ts",
       "development": "./src/index.ts",
       "default": "./dist/index.mjs"
+    },
+    "./basic/header-extension-area": {
+      "types": "./src/basic/header/header-extension-area.ts",
+      "development": "./src/basic/header/header-extension-area.ts",
+      "default": "./dist/basic/header/header-extension-area.mjs"
     }
   },
   "publishConfig": {
@@ -36,6 +41,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.mjs"
+      },
+      "./basic/header-extension-area": {
+        "types": "./dist/basic/header/header-extension-area.d.ts",
+        "default": "./dist/basic/header/header-extension-area.mjs"
       }
     }
   },

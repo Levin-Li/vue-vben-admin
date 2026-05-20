@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -9,14 +11,25 @@ import {
 } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const packagesRoot = resolve(frontendRoot, 'packages');
 const outputDir = resolve(frontendRoot, 'npm-packages');
 const rawArgs = process.argv.slice(2).filter((arg) => arg !== '--');
 const args = new Set(rawArgs);
-const mode = args.has('--list') ? 'list' : args.has('--publish') ? 'publish' : 'pack';
+function getMode() {
+  if (args.has('--list')) {
+    return 'list';
+  }
+
+  if (args.has('--publish')) {
+    return 'publish';
+  }
+
+  return 'pack';
+}
+
+const mode = getMode();
 const onlyPackages = rawArgs
   .filter((arg) => arg.startsWith('--only='))
   .map((arg) => arg.slice('--only='.length))
@@ -103,12 +116,14 @@ function readMavenServerAuth(serverId) {
     throw new Error(`未找到 Maven settings 文件：${settingsPath}`);
   }
 
-  const settingsXml = readFileSync(settingsPath, 'utf8').replace(
+  const settingsXml = readFileSync(settingsPath, 'utf8').replaceAll(
     /<!--[\s\S]*?-->/g,
     '',
   );
   const server = settingsXml.match(
-    new RegExp(`<server>[\\s\\S]*?<id>${serverId}</id>[\\s\\S]*?</server>`),
+    new RegExp(
+      String.raw`<server>[\s\S]*?<id>${serverId}</id>[\s\S]*?</server>`,
+    ),
   )?.[0];
 
   if (!server) {
@@ -153,12 +168,13 @@ function createPublishNpmrc() {
       : `${registryUrl.pathname}/`;
     const { auth } = readMavenServerAuth(mavenServerId);
 
-    lines.push(`//${registryUrl.host}${path}:_auth=${auth}`);
-    lines.push('auth-type=legacy');
+    lines.push(
+      `//${registryUrl.host}${path}:_auth=${auth}`,
+      'auth-type=legacy',
+    );
   }
 
-  lines.push('always-auth=true');
-  lines.push('');
+  lines.push('always-auth=true', '');
 
   writeFileSync(publishUserConfig, lines.join('\n'), { mode: 0o600 });
 
@@ -170,7 +186,7 @@ function run(command, commandArgs, options = {}) {
     cwd: options.cwd || frontendRoot,
     env: {
       ...process.env,
-      ...(options.env || {}),
+      ...options.env,
     },
     stdio: options.stdio || 'inherit',
   });
@@ -216,7 +232,9 @@ function getAllPackages() {
   const selectedPackages = packages.filter((packageInfo) =>
     onlyPackageSet.has(packageInfo.name),
   );
-  const foundNames = new Set(selectedPackages.map((packageInfo) => packageInfo.name));
+  const foundNames = new Set(
+    selectedPackages.map((packageInfo) => packageInfo.name),
+  );
   const missingNames = onlyPackages.filter((name) => !foundNames.has(name));
 
   if (missingNames.length > 0) {
@@ -247,9 +265,9 @@ function sortPackages(packages) {
     visiting.add(packageInfo.name);
 
     const dependencies = {
-      ...(packageInfo.packageJson.dependencies || {}),
-      ...(packageInfo.packageJson.peerDependencies || {}),
-      ...(packageInfo.packageJson.optionalDependencies || {}),
+      ...packageInfo.packageJson.dependencies,
+      ...packageInfo.packageJson.peerDependencies,
+      ...packageInfo.packageJson.optionalDependencies,
     };
 
     for (const dependencyName of Object.keys(dependencies)) {
@@ -277,9 +295,13 @@ function isLevinAdminPublishPackage(packageName) {
   );
 }
 
-function isSourcePublicExport(exportPath, exportValue) {
+function isSourcePublicExport(exportPath, exportValue, conditionName = '') {
   if (exportPath === './src' || exportPath.startsWith('./src/')) {
     return true;
+  }
+
+  if (conditionName === 'development') {
+    return false;
   }
 
   if (typeof exportValue === 'string') {
@@ -287,8 +309,8 @@ function isSourcePublicExport(exportPath, exportValue) {
   }
 
   if (exportValue && typeof exportValue === 'object') {
-    return Object.values(exportValue).some((value) =>
-      isSourcePublicExport(exportPath, value),
+    return Object.entries(exportValue).some(([key, value]) =>
+      isSourcePublicExport(exportPath, value, key),
     );
   }
 
@@ -300,7 +322,9 @@ function validatePackagePublishRules(packageInfo) {
     return;
   }
 
-  const publicSourceExports = Object.entries(packageInfo.packageJson.exports || {})
+  const publicSourceExports = Object.entries(
+    packageInfo.packageJson.exports || {},
+  )
     .filter(([exportPath, exportValue]) =>
       isSourcePublicExport(exportPath, exportValue),
     )
@@ -310,7 +334,7 @@ function validatePackagePublishRules(packageInfo) {
     throw new Error(
       `${packageInfo.name} 不能公开 src 导出：${publicSourceExports.join(
         ', ',
-      )}。Levin 后台模块发布包的正式入口必须指向 dist，src 只能随包作为源码查看和调试资料。`,
+      )}。Levin 后台模块发布包的正式默认入口必须指向 dist；src 只能随包作为源码查看资料，或通过 exports.development 用于本地源码联调。`,
     );
   }
 }
@@ -320,7 +344,11 @@ function packageVersionExists(packageInfo, publishEnv) {
     return false;
   }
 
-  const viewArgs = ['view', `${packageInfo.name}@${packageInfo.version}`, 'version'];
+  const viewArgs = [
+    'view',
+    `${packageInfo.name}@${packageInfo.version}`,
+    'version',
+  ];
 
   if (registry) {
     viewArgs.push('--registry', registry);
@@ -385,7 +413,9 @@ const selectedPackages = getAllPackages();
 
 if (mode === 'list') {
   for (const packageInfo of selectedPackages) {
-    console.log(`${packageInfo.name}@${packageInfo.version}\t${packageInfo.path}`);
+    console.log(
+      `${packageInfo.name}@${packageInfo.version}\t${packageInfo.path}`,
+    );
   }
   process.exit(0);
 }

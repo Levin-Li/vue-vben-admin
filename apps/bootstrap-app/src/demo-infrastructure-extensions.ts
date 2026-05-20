@@ -4,7 +4,7 @@ import {
   addDraggableFloatingPanel,
   addLayoutHeaderExtensionAreaItem,
   addUserDropdownMenuItem,
-} from '@levin/admin-framework/framework-commons';
+} from '@levin/admin-framework';
 
 function renderHeaderMarker(title: string, description: string) {
   return h(
@@ -47,7 +47,7 @@ function renderFloatingMarker(index: number) {
 export function registerDemoInfrastructureExtensions() {
   addUserDropdownMenuItem({
     handler: () => {
-      console.log('Demo 入口应用用户下拉菜单按钮被点击');
+      console.warn('Demo 入口应用用户下拉菜单按钮被点击');
     },
     icon: 'lucide:badge-plus',
     id: 'bootstrap-demo-user-dropdown-menu',
