@@ -67,7 +67,6 @@ import {
   deleteCrudRecord,
   fetchCrudList,
   fetchOptions,
-  fetchTreeOptions,
   updateCrudRecord,
 } from '../api';
 import {
@@ -76,8 +75,8 @@ import {
   uploadFileByFileStorageController,
 } from '../app/api/file-storage-service';
 import { rbacService } from '../app/api/rbac-service';
-import { requestClient } from '../runtime';
 import { useRbacAccess } from '../rbac-access';
+import { requestClient } from '../runtime';
 
 import {
   applyAreaCascaderValueToRecord,
@@ -98,6 +97,8 @@ import {
 import { buildCrudOperationPermissions } from './crud-permissions';
 import { normalizeLeftFixedTableColumns } from './crud-table-columns';
 import { evaluateCrudVisibleOn } from './crud-visible-on';
+import { buildDetailDisplayEntries } from './detail-display';
+import DetailDisplayPanel from './detail-display-panel.vue';
 import JsonEditorField from './json-editor-field.vue';
 
 const props = defineProps<{
@@ -3408,14 +3409,6 @@ function getTableField(key: unknown) {
   return tableFieldMap.value[key];
 }
 
-function getConfigField(key: unknown) {
-  if (typeof key !== 'string') {
-    return undefined;
-  }
-
-  return allFieldMap.value[key];
-}
-
 function getRecordValue(record: GenericRecord, key: unknown) {
   if (typeof key !== 'string') {
     return undefined;
@@ -3734,63 +3727,11 @@ function openActionResult(
   actionResultOpen.value = true;
 }
 
-function formatActionResultKey(key: string) {
-  const field = getConfigField(key);
-  if (field?.label) {
-    return field.label;
-  }
-
-  const keyLabelMap: Record<string, string> = {
-    id: 'ID',
-    name: '名称',
-  };
-
-  if (keyLabelMap[key]) {
-    return keyLabelMap[key];
-  }
-
-  return key
-    .replaceAll(/([A-Z])/g, ' $1')
-    .replace(/^./, (value) => value.toUpperCase());
-}
-
-function formatActionResultValue(key: string, value: any) {
-  const field = getConfigField(key);
-  if (!field) {
-    if (typeof value === 'boolean') {
-      return value ? '是' : '否';
-    }
-
-    return String(value);
-  }
-
-  if (Array.isArray(value) && (field.multiple || field.type === 'tags')) {
-    return getDisplayTagValues(field, value).join(', ');
-  }
-
-  return formatCellValue(field, value);
-}
-
-function formatActionResultBlockValue(key: string, value: any) {
-  const field = getConfigField(key);
-  if (value && typeof value === 'object') {
-    return JSON.stringify(value, null, 2);
-  }
-
-  if (field?.type === 'json') {
-    const text = typeof value === 'string' ? value : JSON.stringify(value);
-    try {
-      return JSON.stringify(JSON.parse(text), null, 2);
-    } catch {
-      return text;
-    }
-  }
-
-  return formatActionResultValue(key, value);
-}
-
-function shouldActionResultEntrySpanFullRow(key: string, value: any) {
-  return isLargeDisplayField(getConfigField(key), value);
+function getDetailDisplayFields() {
+  return props.config.fields.map((field) => ({
+    ...field,
+    options: getFieldOptions(field),
+  }));
 }
 
 const actionResultEntries = computed(() => {
@@ -3799,9 +3740,7 @@ const actionResultEntries = computed(() => {
     return [];
   }
 
-  return Object.entries(data).filter(
-    ([, value]) => value !== undefined && value !== null && value !== '',
-  );
+  return buildDetailDisplayEntries(data, getDetailDisplayFields());
 });
 
 const actionResultQrValue = computed(() => {
@@ -5127,36 +5066,12 @@ watch(tableColumnPreferenceStorageKey, () => {
           class="border-border h-[70vh] w-full rounded-lg border"
         ></iframe>
       </div>
-      <div
+      <DetailDisplayPanel
         v-else-if="
           actionResultMode === 'showForm' && actionResultEntries.length > 0
         "
-        class="grid max-h-[72vh] gap-4 overflow-auto pr-1 md:grid-cols-2"
-      >
-        <div
-          v-for="[key, value] in actionResultEntries"
-          :key="key"
-          class="border-border bg-muted/30 rounded-lg border p-4"
-          :class="{
-            'md:col-span-2': shouldActionResultEntrySpanFullRow(key, value),
-          }"
-        >
-          <div class="mb-2 text-sm font-medium">
-            {{ formatActionResultKey(key) }}
-          </div>
-          <div
-            v-if="shouldActionResultEntrySpanFullRow(key, value)"
-            class="bg-background max-h-[42vh] overflow-auto rounded p-3 text-sm leading-6"
-          >
-            <pre class="whitespace-pre-wrap break-words">{{
-              formatActionResultBlockValue(key, value)
-            }}</pre>
-          </div>
-          <div v-else class="break-all text-sm">
-            {{ formatActionResultValue(key, value) }}
-          </div>
-        </div>
-      </div>
+        :entries="actionResultEntries"
+      />
       <div
         v-else
         class="bg-muted max-h-[60vh] overflow-auto rounded p-3 text-sm"

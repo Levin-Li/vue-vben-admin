@@ -332,12 +332,43 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 
 页面覆盖的本质是“同一个路由指向本地文件”：后端菜单 `path`、前端页面注册路径、访问 URL 和权限入口都保持不变，只把该路由最终加载的 Vue 组件从公共模块默认文件替换成最终主应用本地文件。实现上通过 `pageOverrides` / pageMap 的页面解析优先级完成，不通过重复注册同名同路径 Vue Router record 抢路由完成。框架和业务模块继续负责 Vue Router 路由、后端菜单映射、权限入口和默认页面注册；最终主应用通过 `pageOverrides` 注入覆盖页面映射。
 
-`src/pages` 是推荐约定目录，不是唯一允许目录。最简单方式是使用和多语言入口同风格的 `defineAdminPageOverrides(import.meta.glob('./pages/**/*.vue'))`，让文件路径自动变成页面注册路径；需要更灵活的目录组织时，可以手写 `pageOverrides`，显式把同一个页面注册路径映射到任意本地文件。
+页面覆盖是公共框架的一等扩展能力，必须通过 `@levin/admin-framework` 的 `defineAdminPageOverrides` 或显式 `pageOverrides` 映射统一接入。`src/pages` 是推荐约定目录，不是唯一允许目录；真正稳定的是“同一个页面注册路径 `viewPath` 映射到新的本地组件”。
+
+默认用法：覆盖文件放在主应用 `src/pages` 下，文件路径自动转换成页面注册路径。
+
+```ts
+import {
+  defineAdminPageOverrides,
+  type AdminPageMap,
+} from '@levin/admin-framework';
+
+const pageOverrides = defineAdminPageOverrides(
+  import.meta.glob('./pages/**/*.vue') as AdminPageMap,
+);
+```
+
+自定义用法：覆盖文件放在其它有统一根目录的地方，传入 glob 和对应根目录前缀。
+
+```ts
+const pageOverrides = defineAdminPageOverrides(
+  import.meta.glob('./features/**/*.vue') as AdminPageMap,
+  './features',
+);
+```
+
+自定义方案 2：覆盖文件路径和 `viewPath` 没有简单前缀关系时，手写映射，显式把同一个页面注册路径指向任意本地文件。
+
+```ts
+const pageOverrides: AdminPageMap = {
+  '/system/com_levin_oak_base/role/index.vue': () =>
+    import('./features/rbac/pages/role-page.vue'),
+};
+```
 
 页面解析优先级固定为：
 
 ```text
-主应用 src/pages 覆盖页
+主应用 pageOverrides 覆盖层（默认约定为 src/pages）
   > 已启用业务模块页面
   > admin-framework 默认页面
 ```
@@ -415,13 +446,63 @@ export const oakBaseAdminLocales = defineAdminModuleLocales(
 
 最终主应用统一收集并合并已启用模块的国际化资源。
 
+国际化覆盖也是公共框架的一等扩展能力，必须通过 `@levin/admin-framework` 的 `defineAdminModuleLocales` 聚合。`./locales/**/*.json` 是推荐默认约定，不是唯一允许目录；真正稳定的是 JSON 文件路径中能解析出规范 locale code，例如 `zh-CN`、`en-US`。
+
+默认用法：语言包放在模块 `locales/` 目录下。
+
+```ts
+import { defineAdminModuleLocales } from '@levin/admin-framework';
+
+export const locales = defineAdminModuleLocales(
+  import.meta.glob('./locales/**/*.json', { eager: true }),
+);
+```
+
+支持的默认文件形态：
+
+```text
+locales/zh-CN.json
+locales/en-US.json
+locales/zh-CN/common.json
+locales/en-US/common.json
+```
+
+自定义用法：语言包放在其它目录，但仍通过同一个入口聚合。
+
+```ts
+export const locales = defineAdminModuleLocales(
+  import.meta.glob('./i18n/**/*.json', { eager: true }),
+);
+```
+
+支持的自定义文件形态：
+
+```text
+i18n/zh-CN.json
+i18n/en-US.json
+i18n/zh-CN/common.json
+i18n/en-US/common.json
+```
+
+自定义方案 2：不直接使用 `import.meta.glob('./locales/**/*.json')`，而是由模块自己组装记录对象，适合语言包来源需要按构建条件、模块分组或远端生成结果汇总的场景。
+
+```ts
+import zhCNCommon from './translations/zh-CN/common.json';
+import enUSCommon from './translations/en-US/common.json';
+
+export const locales = defineAdminModuleLocales({
+  './translations/zh-CN/common.json': zhCNCommon,
+  './translations/en-US/common.json': enUSCommon,
+});
+```
+
 规则：
 
 - 框架公共文案放在 `admin-framework`。
 - 业务模块文案放在业务模块包。
 - 最终项目差异化文案放在主应用。
 - 模块内页面不得依赖其他业务模块的国际化 key。
-- 第三方模块只按约定把 JSON 放到 `locales/` 目录，并保留固定的 `defineAdminModuleLocales(import.meta.glob('./locales/**/*.json', { eager: true }))` 模板；扫描、合并和覆盖由框架处理。
+- 第三方模块推荐把 JSON 放到 `locales/` 目录，并保留默认 `defineAdminModuleLocales(import.meta.glob('./locales/**/*.json', { eager: true }))` 模板；如需自定义目录或来源，可以改 glob 或传入显式记录对象，扫描、合并和覆盖仍由框架处理。
 - 模块语言包 key 必须使用规范 locale，例如 `zh-CN`、`en-US`，不得为了兼容用户偏好或浏览器输入额外注册 `zh`、`en` 等短语言包；短语言输入由公共 `@vben/locales` 统一解析到同语系可用 locale 后再合并模块语言包。
 - 语言包覆盖是深合并覆盖，只需要写需要调整的 key；未声明的同级或子级 key 继续使用公共包、主应用或先前模块提供的默认翻译，不得整块复制原语言包。
 
@@ -434,10 +515,10 @@ export const oakBaseAdminLocales = defineAdminModuleLocales(
 ```json
 {
   "peerDependencies": {
-    "@levin/admin-framework": "5.6.6",
-    "@vben/common-ui": "5.6.6",
+    "@levin/admin-framework": "5.6.38",
+    "@vben/common-ui": "5.6.8",
     "@vben/icons": "5.6.6",
-    "@vben/plugins": "5.6.6",
+    "@vben/plugins": "5.6.7",
     "@vben/stores": "5.6.6",
     "ant-design-vue": ">=4.0.0",
     "pinia": ">=3.0.0",
@@ -521,7 +602,7 @@ package-versions.json
 
 - 不直接手工改各子包的 `package.json.version`。
 - 修改版本时先改 `package-versions.json`。
-- 内部普通依赖使用 `workspace:*`，内部 `peerDependencies` 由同步脚本统一写入当前发布版本。
+- 内部普通依赖使用 `workspace:*`，内部 `peerDependencies` 由同步脚本统一写入 `package-versions.json` 中的精确当前版本，例如 `@vben/request: 5.6.7`。这些包是同一套内部发布物，入口应用应按 peer 声明安装配套版本，不使用宽松范围混装不同补丁版本。
 - 发布前必须同步并校验版本。
 
 命令：

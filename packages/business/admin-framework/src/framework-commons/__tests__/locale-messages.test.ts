@@ -103,4 +103,34 @@ describe('admin locale message merging', () => {
       },
     });
   });
+
+  it('loads module locale files from custom glob roots when paths contain locale codes', () => {
+    const locales = defineAdminModuleLocales({
+      './i18n/messages/en-US/common.json': {
+        default: {
+          save: 'Save',
+        },
+      },
+      './translations/zh-CN.json': {
+        default: {
+          common: {
+            save: '保存',
+          },
+        },
+      },
+    });
+
+    expect(locales).toEqual({
+      'en-US': {
+        common: {
+          save: 'Save',
+        },
+      },
+      'zh-CN': {
+        common: {
+          save: '保存',
+        },
+      },
+    });
+  });
 });

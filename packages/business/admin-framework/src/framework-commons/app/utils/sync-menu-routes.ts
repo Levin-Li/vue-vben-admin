@@ -59,6 +59,18 @@ function createRouteMappingLookup(
   return new Map(routeMappings.map((item) => [item.path, item]));
 }
 
+function normalizeSyncMenuModuleId(moduleId?: string) {
+  return String(moduleId || DEFAULT_SYNC_MENU_MODULE_ID).trim();
+}
+
+function normalizeSyncMenuPath(path: string) {
+  return String(path || '').trim();
+}
+
+function getSyncMenuKey(moduleId: string | undefined, path: string) {
+  return `${normalizeSyncMenuModuleId(moduleId)}\n${normalizeSyncMenuPath(path)}`;
+}
+
 function applyRouteMapping(
   item: SyncMenuItem,
   mapping?: AdminBackendRouteMapping,
@@ -114,15 +126,37 @@ function toSyncMenuItems(
   });
 }
 
-function collectSyncMenuPaths(
+function collectSyncMenuKeys(
   items: SyncMenuItem[],
-  paths = new Set<string>(),
+  keys = new Set<string>(),
 ) {
   items.forEach((item) => {
-    paths.add(item.path);
-    collectSyncMenuPaths(item.children || [], paths);
+    keys.add(getSyncMenuKey(item.moduleId, item.path));
+    collectSyncMenuKeys(item.children || [], keys);
   });
-  return paths;
+  return keys;
+}
+
+function dedupeSyncMenuItems(
+  items: SyncMenuItem[],
+  keys = new Set<string>(),
+): SyncMenuItem[] {
+  return items.flatMap((item) => {
+    const key = getSyncMenuKey(item.moduleId, item.path);
+
+    if (keys.has(key)) {
+      return [];
+    }
+
+    keys.add(key);
+
+    return [
+      {
+        ...item,
+        children: dedupeSyncMenuItems(item.children || [], keys),
+      },
+    ];
+  });
 }
 
 function toSyncMenuItemFromMapping(
@@ -149,23 +183,27 @@ function buildModuleMenuItems(module: AdminFrontendModule): SyncMenuItem[] {
     module.name,
     routeMappingLookup,
   );
-  const menuPaths = collectSyncMenuPaths(menuItems);
+  const menuKeys = collectSyncMenuKeys(menuItems);
 
   routeMappings.forEach((mapping) => {
-    if (menuPaths.has(mapping.path)) {
+    const key = getSyncMenuKey(module.name, mapping.path);
+
+    if (menuKeys.has(key)) {
       return;
     }
 
     menuItems.push(toSyncMenuItemFromMapping(mapping, module.name));
-    menuPaths.add(mapping.path);
+    menuKeys.add(key);
   });
 
-  return menuItems;
+  return dedupeSyncMenuItems(menuItems);
 }
 
 export function buildModuleSyncMenuPayload(modules: AdminFrontendModule[]) {
   return {
-    menuList: modules.flatMap((module) => buildModuleMenuItems(module)),
+    menuList: dedupeSyncMenuItems(
+      modules.flatMap((module) => buildModuleMenuItems(module)),
+    ),
   };
 }
 
@@ -176,18 +214,20 @@ export function buildSyncMenuPayload(
 ) {
   const routeMappingLookup = createRouteMappingLookup(routeMappings);
   const menuList = toSyncMenuItems(routes, moduleId, routeMappingLookup);
-  const menuPaths = collectSyncMenuPaths(menuList);
+  const menuKeys = collectSyncMenuKeys(menuList);
 
   routeMappings.forEach((mapping) => {
-    if (menuPaths.has(mapping.path)) {
+    const key = getSyncMenuKey(moduleId, mapping.path);
+
+    if (menuKeys.has(key)) {
       return;
     }
 
     menuList.push(toSyncMenuItemFromMapping(mapping, moduleId));
-    menuPaths.add(mapping.path);
+    menuKeys.add(key);
   });
 
   return {
-    menuList,
+    menuList: dedupeSyncMenuItems(menuList),
   };
 }

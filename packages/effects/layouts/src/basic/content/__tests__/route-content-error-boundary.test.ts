@@ -6,6 +6,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RouteContentErrorBoundary } from '../route-content-error-boundary';
 
+const alert = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+const refresh = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+
+vi.mock('@vben-core/popup-ui', () => ({
+  alert,
+}));
+
+vi.mock('@vben/hooks', () => ({
+  useRefresh: () => ({
+    refresh,
+  }),
+}));
+
 const BrokenPage = defineComponent({
   name: 'BrokenPage',
   setup() {
@@ -20,12 +33,42 @@ const HealthyPage = defineComponent({
   setup: () => () => h('div', { 'data-testid': 'healthy-page' }, '正常页面'),
 });
 
+const EventErrorPage = defineComponent({
+  name: 'EventErrorPage',
+  setup: () => () =>
+    h(
+      'button',
+      {
+        'data-testid': 'event-error-button',
+        onClick() {
+          throw Object.assign(new Error('接口保存失败'), {
+            response: {
+              data: {
+                msg: '接口保存失败',
+              },
+            },
+          });
+        },
+      },
+      '保存',
+    ),
+});
+
 describe('routeContentErrorBoundary', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    alert.mockReset();
+    alert.mockResolvedValue(undefined);
+    refresh.mockReset();
   });
 
-  it('isolates a route render error and recovers after route key changes', async () => {
+  async function flushAsyncWork() {
+    await nextTick();
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+
+  it('prompts to refresh the current route for render errors and recovers after route key changes', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const wrapper = mount({
@@ -46,10 +89,17 @@ describe('routeContentErrorBoundary', () => {
       `,
     });
 
-    await nextTick();
+    await flushAsyncWork();
 
     expect(wrapper.text()).toContain('当前页面渲染失败');
     expect(wrapper.text()).toContain('broken route page');
+    expect(alert).toHaveBeenCalledWith({
+      confirmText: '确定',
+      content: '发生未知错误，点击确定后将刷新当前页面。',
+      icon: 'error',
+      title: '未知错误',
+    });
+    expect(refresh).toHaveBeenCalledTimes(1);
     expect(wrapper.find('[data-testid="healthy-page"]').exists()).toBe(false);
 
     await wrapper.setData({
@@ -61,6 +111,35 @@ describe('routeContentErrorBoundary', () => {
     expect(wrapper.text()).not.toContain('当前页面渲染失败');
     expect(wrapper.find('[data-testid="healthy-page"]').text()).toBe(
       '正常页面',
+    );
+  });
+
+  it('does not replace the route content for event or request errors', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const wrapper = mount({
+      components: {
+        EventErrorPage,
+        RouteContentErrorBoundary,
+      },
+      data: () => ({
+        routeKey: 'event-error-route',
+      }),
+      template: `
+        <RouteContentErrorBoundary :route-key="routeKey">
+          <EventErrorPage />
+        </RouteContentErrorBoundary>
+      `,
+    });
+
+    await wrapper.find('[data-testid="event-error-button"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.text()).not.toContain('当前页面渲染失败');
+    expect(alert).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="event-error-button"]').exists()).toBe(
+      true,
     );
   });
 });

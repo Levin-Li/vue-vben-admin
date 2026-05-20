@@ -205,6 +205,31 @@ function run(command, commandArgs, options = {}) {
   return result;
 }
 
+function runCapture(command, commandArgs, options = {}) {
+  const result = spawnSync(command, commandArgs, {
+    cwd: options.cwd || frontendRoot,
+    env: {
+      ...process.env,
+      ...options.env,
+    },
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  if (result.status !== 0) {
+    const error = new Error(
+      `${command} ${commandArgs.join(' ')} 执行失败，退出码 ${
+        result.status || 1
+      }`,
+    );
+    error.exitCode = result.status || 1;
+    error.output = result.stdout || result.stderr || '';
+    throw error;
+  }
+
+  return result.stdout.trim();
+}
+
 function getAllPackages() {
   const packages = findPackageJsonFiles(packagesRoot)
     .map((packageJsonPath) => {
@@ -339,6 +364,64 @@ function validatePackagePublishRules(packageInfo) {
   }
 }
 
+function isInternalPackage(packageName) {
+  return /^@(levin|vben|vben-core)\//.test(packageName);
+}
+
+function getPublishedLatestVersion(packageName, publishEnv) {
+  if (!registry) {
+    return undefined;
+  }
+
+  const viewArgs = ['view', packageName, 'version', '--json'];
+  viewArgs.push('--registry', registry);
+
+  try {
+    const output = runCapture('npm', viewArgs, {
+      env: publishEnv,
+    });
+
+    return JSON.parse(output);
+  } catch {
+    return undefined;
+  }
+}
+
+function validateInternalPeerVersions(packageInfo, selectedPackageVersionByName, publishEnv) {
+  const peerDependencies = packageInfo.packageJson.peerDependencies || {};
+  const mismatches = [];
+
+  for (const [dependencyName, declaredVersion] of Object.entries(peerDependencies)) {
+    if (!isInternalPackage(dependencyName)) {
+      continue;
+    }
+
+    const expectedVersion =
+      selectedPackageVersionByName.get(dependencyName) ||
+      getPublishedLatestVersion(dependencyName, publishEnv);
+
+    if (!expectedVersion) {
+      continue;
+    }
+
+    if (declaredVersion !== expectedVersion) {
+      mismatches.push(
+        `${dependencyName}: ${declaredVersion} -> ${expectedVersion}`,
+      );
+    }
+  }
+
+  if (mismatches.length > 0) {
+    throw new Error(
+      `${packageInfo.name} 的内部 peerDependencies 未精确跟随当前内部发布版本：\n${mismatches
+        .map((item) => `- ${item}`)
+        .join(
+          '\n',
+        )}\n请先更新 package-versions.json 并运行 pnpm run sync:package-versions。`,
+    );
+  }
+}
+
 function packageVersionExists(packageInfo, publishEnv) {
   if (!registry || !skipExisting) {
     return false;
@@ -429,8 +512,20 @@ const userConfig = createPublishNpmrc();
 const publishEnv = userConfig ? { NPM_CONFIG_USERCONFIG: userConfig } : {};
 
 try {
+  const selectedPackageVersionByName = new Map(
+    selectedPackages.map((packageInfo) => [
+      packageInfo.name,
+      packageInfo.version,
+    ]),
+  );
+
   for (const packageInfo of selectedPackages) {
     validatePackagePublishRules(packageInfo);
+    validateInternalPeerVersions(
+      packageInfo,
+      selectedPackageVersionByName,
+      publishEnv,
+    );
   }
 
   for (const packageInfo of selectedPackages) {

@@ -138,7 +138,7 @@ pnpm run sync:package-versions
 pnpm run check:package-versions
 ```
 
-`pack:packages` 和 `publish:packages` 会在执行前自动同步版本和内部包引用，避免漏改某个子包。内部普通依赖统一使用 `workspace:*`，对外 `peerDependencies` 中的内部包版本统一同步为 `package-versions.json.default`。
+`pack:packages` 和 `publish:packages` 会在执行前自动同步版本和内部包引用，避免漏改某个子包。内部普通依赖统一使用 `workspace:*`；对外 `peerDependencies` 中的内部包版本统一同步为 `package-versions.json` 中的精确当前版本，例如 `@vben/request: 5.6.7`。这些包是同一套内部发布物，入口应用应按 peer 声明安装配套版本，不使用宽松范围混装不同补丁版本。发布脚本会在发布前校验内部 peer 是否等于本次待发布版本或私服当前 latest，不一致时会中断发布。
 
 ## 入口应用集成
 

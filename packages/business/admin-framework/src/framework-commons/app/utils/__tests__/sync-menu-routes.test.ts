@@ -163,4 +163,103 @@ describe('buildSyncMenuPayload', () => {
       ],
     });
   });
+
+  it('deduplicates uploaded menu items by module id and path', () => {
+    const payload = buildModuleSyncMenuPayload([
+      {
+        backendRouteMappings: [
+          {
+            icon: 'lucide:home',
+            name: 'HomeMapping',
+            resource: 'Home',
+            sourceFilePath: 'modules/com_levin_oak_base/views/home/index.vue',
+            path: '/clob/V1/index',
+            title: '首页映射',
+            viewPath: '/system/com_levin_oak_base/home/index.vue',
+          },
+        ],
+        name: 'com.levin.oak.base',
+        routes: [
+          {
+            component: {},
+            meta: {
+              icon: 'lucide:home',
+              title: '首页',
+            },
+            name: 'HomeRoute',
+            path: '/clob/V1/index',
+          },
+        ],
+        title: '基础模块',
+      },
+      {
+        backendRouteMappings: [],
+        name: 'com.levin.oak.base',
+        routes: [
+          {
+            component: {},
+            meta: {
+              icon: 'lucide:home',
+              title: '重复首页',
+            },
+            name: 'HomeRouteDuplicate',
+            path: '/clob/V1/index',
+          },
+        ],
+        title: '基础模块重复注册',
+      },
+    ]);
+
+    expect(payload.menuList).toHaveLength(1);
+    expect(payload.menuList[0]).toEqual(
+      expect.objectContaining({
+        label: '首页',
+        moduleId: 'com.levin.oak.base',
+        path: '/clob/V1/index',
+        sourceFilePath: 'modules/com_levin_oak_base/views/home/index.vue',
+        viewPath: '/system/com_levin_oak_base/home/index.vue',
+      }),
+    );
+  });
+
+  it('keeps the same path for different modules', () => {
+    const payload = buildModuleSyncMenuPayload([
+      {
+        backendRouteMappings: [],
+        name: 'com.levin.oak.base',
+        routes: [
+          {
+            component: {},
+            meta: {
+              title: '基础首页',
+            },
+            name: 'OakHome',
+            path: '/shared/index',
+          },
+        ],
+        title: '基础模块',
+      },
+      {
+        backendRouteMappings: [],
+        name: 'com.levin.contract',
+        routes: [
+          {
+            component: {},
+            meta: {
+              title: '合同首页',
+            },
+            name: 'ContractHome',
+            path: '/shared/index',
+          },
+        ],
+        title: '合同模块',
+      },
+    ]);
+
+    expect(payload.menuList).toHaveLength(2);
+    expect(payload.menuList.map((item) => item.moduleId)).toEqual([
+      'com.levin.oak.base',
+      'com.levin.contract',
+    ]);
+  });
 });
