@@ -5,13 +5,14 @@ import type {
   RouteLocationNormalizedLoadedGeneric,
 } from 'vue-router';
 
-import { computed, defineComponent, h, onErrorCaptured, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { RouterView } from 'vue-router';
 
 import { preferences, usePreferences } from '@vben/preferences';
 import { getTabKey, storeToRefs, useTabbarStore } from '@vben/stores';
 
 import { IFrameRouterView } from '../../iframe';
+import { RouteContentErrorBoundary } from './route-content-error-boundary';
 
 defineOptions({ name: 'LayoutContent' });
 
@@ -20,67 +21,6 @@ const { keepAlive } = usePreferences();
 
 const { getCachedTabs, getExcludeCachedTabs, renderRouteView } =
   storeToRefs(tabbarStore);
-
-const RouteContentErrorBoundary = defineComponent({
-  name: 'RouteContentErrorBoundary',
-  props: {
-    routeKey: {
-      required: true,
-      type: String,
-    },
-  },
-  setup(props, { slots }) {
-    const error = ref<null | unknown>(null);
-
-    watch(
-      () => props.routeKey,
-      () => {
-        error.value = null;
-      },
-    );
-
-    onErrorCaptured((capturedError) => {
-      error.value = capturedError;
-      console.error(capturedError);
-      return false;
-    });
-
-    return () => {
-      if (!error.value) {
-        return slots.default?.();
-      }
-
-      const message =
-        error.value instanceof Error
-          ? error.value.message
-          : String(error.value || '未知错误');
-
-      return h(
-        'div',
-        {
-          class:
-            'border-border bg-card text-foreground m-4 rounded border p-6 shadow-sm',
-        },
-        [
-          h('div', { class: 'text-base font-medium' }, '当前页面渲染失败'),
-          h(
-            'div',
-            { class: 'text-muted-foreground mt-2 text-sm' },
-            '该错误已限制在当前页面。切换到其它菜单后页面会重新渲染。',
-          ),
-          h(
-            'pre',
-            {
-              class:
-                'bg-muted mt-4 max-h-40 overflow-auto rounded p-3 text-xs whitespace-pre-wrap',
-            },
-            message,
-          ),
-        ],
-      );
-    };
-  },
-});
 
 /**
  * 是否使用动画

@@ -1,6 +1,6 @@
 {
   "name": "@levin/admin-framework",
-  "version": "5.6.30",
+  "version": "5.6.31",
   "description": "Common admin application framework contracts for Levin frontend modules.",
   "license": "MIT",
   "type": "module",
@@ -94,7 +94,7 @@
     "@vben/constants": "5.6.6",
     "@vben/hooks": "5.6.6",
     "@vben/icons": "5.6.6",
-    "@vben/layouts": "5.6.8",
+    "@vben/layouts": "5.6.10",
     "@vben/locales": "5.6.6",
     "@vben/plugins": "5.6.6",
     "@vben/preferences": "5.6.6",
