@@ -1,18 +1,16 @@
 <script lang="ts" setup>
-import type { VNode } from 'vue';
-import type {
-  RouteLocationNormalizedLoaded,
-  RouteLocationNormalizedLoadedGeneric,
-} from 'vue-router';
+import type { RouteLocationNormalizedLoaded } from 'vue-router';
 
 import { computed } from 'vue';
 import { RouterView } from 'vue-router';
 
 import { preferences, usePreferences } from '@vben/preferences';
-import { getTabKey, storeToRefs, useTabbarStore } from '@vben/stores';
+import { storeToRefs, useTabbarStore } from '@vben/stores';
 
 import { IFrameRouterView } from '../../iframe';
 import { RouteContentErrorBoundary } from './route-content-error-boundary';
+import { getRouteContentKey } from './route-content-key';
+import { RouteContentRenderer } from './route-content-renderer';
 
 defineOptions({ name: 'LayoutContent' });
 
@@ -55,46 +53,6 @@ function getTransitionName(_route: RouteLocationNormalizedLoaded) {
   // return inTabs && route.meta.loaded ? undefined : transitionName;
   return transitionName;
 }
-
-/**
- * 转换组件，自动添加 name
- * @param component
- */
-function transformComponent(
-  component: VNode,
-  route: RouteLocationNormalizedLoadedGeneric,
-) {
-  // 组件视图未找到，如果有设置后备视图，则返回后备视图，如果没有，则抛出错误
-  if (!component) {
-    console.error(
-      'Component view not found，please check the route configuration',
-    );
-    return undefined;
-  }
-
-  const routeName = route.name as string;
-  // 如果组件没有 name，则直接返回
-  if (!routeName) {
-    return component;
-  }
-  const componentName = (component?.type as any)?.name;
-
-  // 已经设置过 name，则直接返回
-  if (componentName) {
-    return component;
-  }
-
-  // componentName 与 routeName 一致，则直接返回
-  if (componentName === routeName) {
-    return component;
-  }
-
-  // 设置 name
-  component.type ||= {};
-  (component.type as any).name = routeName;
-
-  return component;
-}
 </script>
 
 <template>
@@ -111,22 +69,15 @@ function transformComponent(
           v-if="renderRouteView && Component && !route.meta.iframeSrc"
           class="relative h-full min-h-0"
         >
-          <RouteContentErrorBoundary :route-key="getTabKey(route)">
-            <component
-              :is="transformComponent(Component, route)"
-              v-if="!keepAlive"
-              :key="getTabKey(route)"
-            />
-            <KeepAlive
-              v-else
+          <RouteContentErrorBoundary :route-key="getRouteContentKey(route)">
+            <RouteContentRenderer
+              :component="Component"
               :exclude="getExcludeCachedTabs"
               :include="getCachedTabs"
-            >
-              <component
-                :is="transformComponent(Component, route)"
-                :key="getTabKey(route)"
-              />
-            </KeepAlive>
+              :keep-alive="keepAlive"
+              :route="route"
+              :route-key="getRouteContentKey(route)"
+            />
           </RouteContentErrorBoundary>
         </div>
       </Transition>
@@ -135,22 +86,15 @@ function transformComponent(
           v-if="renderRouteView && Component && !route.meta.iframeSrc"
           class="relative h-full min-h-0"
         >
-          <RouteContentErrorBoundary :route-key="getTabKey(route)">
-            <component
-              :is="transformComponent(Component, route)"
-              v-if="!keepAlive"
-              :key="getTabKey(route)"
-            />
-            <KeepAlive
-              v-else
+          <RouteContentErrorBoundary :route-key="getRouteContentKey(route)">
+            <RouteContentRenderer
+              :component="Component"
               :exclude="getExcludeCachedTabs"
               :include="getCachedTabs"
-            >
-              <component
-                :is="transformComponent(Component, route)"
-                :key="getTabKey(route)"
-              />
-            </KeepAlive>
+              :keep-alive="keepAlive"
+              :route="route"
+              :route-key="getRouteContentKey(route)"
+            />
           </RouteContentErrorBoundary>
         </div>
       </template>
