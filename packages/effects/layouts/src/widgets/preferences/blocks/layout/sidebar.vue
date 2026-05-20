@@ -91,7 +91,7 @@ const handleCheckboxChange = () => {
   <NumberFieldItem
     v-model="sidebarWidth"
     :disabled="!sidebarEnable || disabled"
-    :max="320"
+    :max="480"
     :min="160"
     :step="10"
   >

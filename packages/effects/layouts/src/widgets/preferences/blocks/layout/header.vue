@@ -7,6 +7,7 @@ import type {
 
 import { $t } from '@vben/locales';
 
+import NumberFieldItem from '../number-field-item.vue';
 import SelectItem from '../select-item.vue';
 import SwitchItem from '../switch-item.vue';
 import ToggleItem from '../toggle-item.vue';
@@ -14,6 +15,7 @@ import ToggleItem from '../toggle-item.vue';
 defineProps<{ disabled: boolean }>();
 
 const headerEnable = defineModel<boolean>('headerEnable');
+const headerHeight = defineModel<number>('headerHeight');
 const headerMode = defineModel<LayoutHeaderModeType>('headerMode');
 const headerMenuAlign =
   defineModel<LayoutHeaderMenuAlignType>('headerMenuAlign');
@@ -57,6 +59,15 @@ const headerMenuAlignItems: SelectOption[] = [
   <SwitchItem v-model="headerEnable" :disabled="disabled">
     {{ $t('preferences.header.visible') }}
   </SwitchItem>
+  <NumberFieldItem
+    v-model="headerHeight"
+    :disabled="!headerEnable || disabled"
+    :max="160"
+    :min="40"
+    :step="2"
+  >
+    {{ $t('preferences.header.height') }}
+  </NumberFieldItem>
   <SelectItem
     v-model="headerMode"
     :disabled="!headerEnable"

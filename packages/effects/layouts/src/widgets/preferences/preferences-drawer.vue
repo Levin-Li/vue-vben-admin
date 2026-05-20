@@ -324,8 +324,6 @@ async function handleReset() {
           <template #appearance>
             <Block :title="$t('preferences.theme.title')">
               <Theme
-                v-model:header-height="headerHeight"
-                v-model:sidebar-width="sidebarWidth"
                 v-model="themeMode"
                 v-model:theme-semi-dark-header="themeSemiDarkHeader"
                 v-model:theme-semi-dark-header-color="
@@ -384,6 +382,7 @@ async function handleReset() {
             <Block :title="$t('preferences.header.title')">
               <Header
                 v-model:header-enable="headerEnable"
+                v-model:header-height="headerHeight"
                 v-model:header-menu-align="headerMenuAlign"
                 v-model:header-mode="headerMode"
                 :disabled="isFullContent"
