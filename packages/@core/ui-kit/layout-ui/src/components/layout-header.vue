@@ -29,6 +29,10 @@ interface Props {
    */
   theme: string | undefined;
   /**
+   * 主题色
+   */
+  themeColor?: string;
+  /**
    * 宽度
    */
   width: string;
@@ -43,14 +47,15 @@ const props = withDefaults(defineProps<Props>(), {});
 const slots = useSlots();
 
 const style = computed((): CSSProperties => {
-  const { fullWidth, height, show } = props;
+  const { fullWidth, height, show, theme, themeColor } = props;
   const right = !show || !fullWidth ? undefined : 0;
 
   return {
+    ...(theme === 'dark' && themeColor ? { '--header': themeColor } : {}),
     height: `${height}px`,
     marginTop: show ? 0 : `-${height}px`,
     right,
-  };
+  } as CSSProperties;
 });
 
 const logoStyle = computed((): CSSProperties => {

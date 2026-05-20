@@ -8,9 +8,11 @@ export const DEFAULT_SYNC_MENU_MODULE_ID = 'com.levin.oak.base';
 
 export interface SyncMenuItem {
   children?: SyncMenuItem[];
+  enable?: boolean;
   icon?: string;
   label: string;
   moduleId?: string;
+  overrideExisting?: boolean;
   params?: string;
   path: string;
   remark?: string;

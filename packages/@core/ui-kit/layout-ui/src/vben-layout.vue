@@ -503,7 +503,9 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
       :mixed-width="sidebarMixedWidth"
       :show="showSidebar"
       :theme="sidebarTheme"
+      :theme-color="sidebarThemeColor"
       :theme-sub="sidebarThemeSub"
+      :theme-sub-color="sidebarThemeSubColor"
       :width="getSidebarWidth"
       :z-index="sidebarZIndex"
       @leave="() => emit('sideMouseLeave')"
@@ -549,6 +551,7 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
           :show="!isFullContent && !headerHidden"
           :sidebar-width="sidebarWidth"
           :theme="headerTheme"
+          :theme-color="headerThemeColor"
           :width="mainStyle.width"
           :z-index="headerZIndex"
         >

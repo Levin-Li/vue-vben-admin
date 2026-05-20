@@ -78,9 +78,17 @@ interface Props {
    */
   theme: string;
   /**
+   * 主题色
+   */
+  themeColor?: string;
+  /**
    * 子主题
    */
   themeSub: string;
+  /**
+   * 子主题色
+   */
+  themeSubColor?: string;
   /**
    * 宽度
    */
@@ -122,6 +130,30 @@ const asideRef = shallowRef<HTMLDivElement | null>();
 
 const hiddenSideStyle = computed((): CSSProperties => calcMenuWidthStyle(true));
 
+const colorVariables = computed((): CSSProperties => {
+  if (props.theme !== 'dark' || !props.themeColor) {
+    return {};
+  }
+
+  return {
+    '--menu': 'var(--sidebar)',
+    '--sidebar': props.themeColor,
+    '--sidebar-deep': props.themeColor,
+  } as CSSProperties;
+});
+
+const subColorVariables = computed((): CSSProperties => {
+  if (props.themeSub !== 'dark' || !props.themeSubColor) {
+    return {};
+  }
+
+  return {
+    '--menu': 'var(--sidebar)',
+    '--sidebar': props.themeSubColor,
+    '--sidebar-deep': props.themeSubColor,
+  } as CSSProperties;
+});
+
 const style = computed((): CSSProperties => {
   const { isSidebarMixed, marginTop, paddingTop, zIndex } = props;
 
@@ -133,7 +165,8 @@ const style = computed((): CSSProperties => {
     paddingTop: `${paddingTop}px`,
     zIndex,
     ...(isSidebarMixed && extraVisible.value ? { transition: 'none' } : {}),
-  };
+    ...colorVariables.value,
+  } as CSSProperties;
 });
 
 const extraStyle = computed((): CSSProperties => {
@@ -143,7 +176,8 @@ const extraStyle = computed((): CSSProperties => {
     left: `${width}px`,
     width: extraVisible.value && show ? `${extraWidth}px` : 0,
     zIndex,
-  };
+    ...subColorVariables.value,
+  } as CSSProperties;
 });
 
 const extraTitleStyle = computed((): CSSProperties => {

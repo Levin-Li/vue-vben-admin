@@ -119,7 +119,9 @@ exports[`defaultPreferences immutability test > should not modify the config obj
     "mode": "dark",
     "radius": "0.5",
     "semiDarkHeader": false,
+    "semiDarkHeaderColor": "hsl(222 10% 12%)",
     "semiDarkSidebar": false,
+    "semiDarkSidebarColor": "hsl(222 10% 12%)",
     "semiDarkSidebarSub": false,
   },
   "transition": {

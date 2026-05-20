@@ -120,7 +120,9 @@ const defaultPreferences: Preferences = {
     radius: '0.5',
     fontSize: 16,
     semiDarkHeader: false,
+    semiDarkHeaderColor: 'hsl(222 10% 12%)',
     semiDarkSidebar: false,
+    semiDarkSidebarColor: 'hsl(222 10% 12%)',
     semiDarkSidebarSub: false,
   },
   transition: {

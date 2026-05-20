@@ -251,8 +251,12 @@ interface ThemePreferences {
   radius: string;
   /** 是否开启半深色header（只在theme='light'时生效） */
   semiDarkHeader: boolean;
+  /** 半深色header颜色 */
+  semiDarkHeaderColor: string;
   /** 是否开启半深色菜单（只在theme='light'时生效） */
   semiDarkSidebar: boolean;
+  /** 半深色菜单颜色 */
+  semiDarkSidebarColor: string;
   /** 是否开启半深色子菜单（只在theme='light'时生效） */
   semiDarkSidebarSub: boolean;
 }

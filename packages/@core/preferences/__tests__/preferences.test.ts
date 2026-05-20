@@ -1,5 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.hoisted(() => {
+  function createMemoryStorage(): Storage {
+    const storage = new Map<string, string>();
+
+    return {
+      get length() {
+        return storage.size;
+      },
+      clear: () => storage.clear(),
+      getItem: (key: string) => storage.get(key) ?? null,
+      key: (index: number) => [...storage.keys()][index] ?? null,
+      removeItem: (key: string) => storage.delete(key),
+      setItem: (key: string, value: string) => storage.set(key, value),
+    };
+  }
+
+  const localStorage = createMemoryStorage();
+  const sessionStorage = createMemoryStorage();
+
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: localStorage,
+  });
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    configurable: true,
+    value: sessionStorage,
+  });
+});
+
 import { defaultPreferences } from '../src/config';
 import { PreferenceManager } from '../src/preferences';
 import { isDarkTheme } from '../src/update-css-variables';
@@ -65,6 +94,22 @@ describe('preferences', () => {
     expect(preferenceManager.getPreferences().theme.mode).toBe('light');
   });
 
+  it('updates semi dark area colors correctly', () => {
+    preferenceManager.updatePreferences({
+      theme: {
+        semiDarkHeaderColor: 'hsl(220 40% 10%)',
+        semiDarkSidebarColor: 'hsl(230 35% 12%)',
+      },
+    });
+
+    expect(preferenceManager.getPreferences().theme.semiDarkHeaderColor).toBe(
+      'hsl(220 40% 10%)',
+    );
+    expect(preferenceManager.getPreferences().theme.semiDarkSidebarColor).toBe(
+      'hsl(230 35% 12%)',
+    );
+  });
+
   it('updates color modes correctly', () => {
     preferenceManager.updatePreferences({
       app: { colorGrayMode: true, colorWeakMode: true },
@@ -125,6 +170,13 @@ describe('preferences', () => {
     });
 
     expect(preferenceManager.getPreferences().sidebar.width).toBe(200);
+  });
+  it('updates the header height correctly', () => {
+    preferenceManager.updatePreferences({
+      header: { height: 58 },
+    });
+
+    expect(preferenceManager.getPreferences().header.height).toBe(58);
   });
   it('updates the sidebar collapse state correctly', () => {
     preferenceManager.updatePreferences({

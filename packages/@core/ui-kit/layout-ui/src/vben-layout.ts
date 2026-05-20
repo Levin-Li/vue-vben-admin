@@ -77,6 +77,10 @@ interface VbenLayoutProps {
    */
   headerTheme?: ThemeModeType;
   /**
+   * header 顶栏主题色
+   */
+  headerThemeColor?: string;
+  /**
    * 是否显示header切换侧边栏按钮
    * @default
    */
@@ -147,10 +151,18 @@ interface VbenLayoutProps {
    */
   sidebarTheme?: ThemeModeType;
   /**
+   * 侧边栏主题色
+   */
+  sidebarThemeColor?: string;
+  /**
    * 侧边栏子栏
    * @default dark
    */
   sidebarThemeSub?: ThemeModeType;
+  /**
+   * 侧边栏子栏主题色
+   */
+  sidebarThemeSubColor?: string;
   /**
    * 侧边栏宽度
    * @default 210

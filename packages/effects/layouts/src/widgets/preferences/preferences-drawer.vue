@@ -88,8 +88,14 @@ const themeMode = defineModel<ThemeModeType>('themeMode');
 const themeRadius = defineModel<string>('themeRadius');
 const themeFontSize = defineModel<number>('themeFontSize');
 const themeSemiDarkSidebar = defineModel<boolean>('themeSemiDarkSidebar');
+const themeSemiDarkSidebarColor = defineModel<string>(
+  'themeSemiDarkSidebarColor',
+);
 const themeSemiDarkSidebarSub = defineModel<boolean>('themeSemiDarkSidebarSub');
 const themeSemiDarkHeader = defineModel<boolean>('themeSemiDarkHeader');
+const themeSemiDarkHeaderColor = defineModel<string>(
+  'themeSemiDarkHeaderColor',
+);
 
 const sidebarEnable = defineModel<boolean>('sidebarEnable');
 const sidebarWidth = defineModel<number>('sidebarWidth');
@@ -104,6 +110,7 @@ const sidebarExpandOnHover = defineModel<boolean>('sidebarExpandOnHover');
 const sidebarCollapsedButton = defineModel<boolean>('sidebarCollapsedButton');
 const sidebarFixedButton = defineModel<boolean>('sidebarFixedButton');
 const headerEnable = defineModel<boolean>('headerEnable');
+const headerHeight = defineModel<number>('headerHeight');
 const headerMode = defineModel<LayoutHeaderModeType>('headerMode');
 const headerMenuAlign =
   defineModel<LayoutHeaderMenuAlignType>('headerMenuAlign');
@@ -317,9 +324,17 @@ async function handleReset() {
           <template #appearance>
             <Block :title="$t('preferences.theme.title')">
               <Theme
+                v-model:header-height="headerHeight"
+                v-model:sidebar-width="sidebarWidth"
                 v-model="themeMode"
                 v-model:theme-semi-dark-header="themeSemiDarkHeader"
+                v-model:theme-semi-dark-header-color="
+                  themeSemiDarkHeaderColor
+                "
                 v-model:theme-semi-dark-sidebar="themeSemiDarkSidebar"
+                v-model:theme-semi-dark-sidebar-color="
+                  themeSemiDarkSidebarColor
+                "
                 v-model:theme-semi-dark-sidebar-sub="themeSemiDarkSidebarSub"
               />
             </Block>

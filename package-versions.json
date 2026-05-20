@@ -1,15 +1,18 @@
 {
   "default": "5.6.6",
   "packages": {
-    "@levin/admin-framework": "5.6.38",
-    "@levin/oak-base-admin": "5.6.36",
+    "@levin/admin-framework": "5.6.39",
+    "@levin/oak-base-admin": "5.6.37",
+    "@vben-core/layout-ui": "5.6.7",
     "@vben-core/menu-ui": "5.6.7",
+    "@vben-core/preferences": "5.6.7",
     "@vben-core/shared": "5.6.7",
     "@vben-core/typings": "5.6.7",
     "@vben/common-ui": "5.6.8",
-    "@vben/layouts": "5.6.12",
-    "@vben/locales": "5.6.8",
+    "@vben/layouts": "5.6.13",
+    "@vben/locales": "5.6.9",
     "@vben/plugins": "5.6.7",
+    "@vben/preferences": "5.6.7",
     "@vben/request": "5.6.7",
     "@vben/utils": "5.6.7"
   }

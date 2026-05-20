@@ -1,7 +1,10 @@
 <script lang="ts" setup>
 import type { VxeGridProps } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 
-import type { SyncMenuItem } from '@levin/admin-framework/framework-commons/app/utils/sync-menu-routes';
+import type {
+  EditableSyncMenuItem,
+  SyncMenuBooleanField,
+} from './sync-menu-routes-state';
 
 import { computed, ref, watch } from 'vue';
 
@@ -18,11 +21,16 @@ import { getAdminMenuSyncService } from '@levin/admin-framework';
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 import { buildModuleSyncMenuPayload } from '@levin/admin-framework/framework-commons/app/utils/sync-menu-routes';
-
-type EditableSyncMenuItem = SyncMenuItem & {
-  children?: EditableSyncMenuItem[];
-  key: string;
-};
+import {
+  countSyncMenuItems,
+  flattenSyncMenuItems,
+  isSyncMenuRowIndeterminate,
+  removeSyncMenuItemByKey,
+  syncAncestorKeysFromLeaves,
+  toEditableSyncMenuItems,
+  toSelectedSyncMenuItems,
+  toggleSyncMenuTreeKeys,
+} from './sync-menu-routes-state';
 
 const props = withDefaults(
   defineProps<{
@@ -40,6 +48,10 @@ const emit = defineEmits<{
 const loading = ref(false);
 const menuList = ref<EditableSyncMenuItem[]>([]);
 const selectedKeys = ref<Set<string>>(new Set());
+const optionKeys = ref<Record<SyncMenuBooleanField, Set<string>>>({
+  enable: new Set(),
+  overrideExisting: new Set(),
+});
 
 const gridOptions: VxeGridProps<EditableSyncMenuItem> = {
   columns: [
@@ -47,7 +59,20 @@ const gridOptions: VxeGridProps<EditableSyncMenuItem> = {
       align: 'center',
       fixed: 'left',
       slots: { default: 'select', header: 'selectHeader' },
-      width: 48,
+      title: '是否上传',
+      width: 86,
+    },
+    {
+      align: 'center',
+      slots: { default: 'overrideExisting', header: 'overrideExistingHeader' },
+      title: '是否覆盖',
+      width: 86,
+    },
+    {
+      align: 'center',
+      slots: { default: 'enable', header: 'enableHeader' },
+      title: '是否启用',
+      width: 86,
     },
     {
       fixed: 'left',
@@ -122,7 +147,7 @@ const [Grid, gridApi] = useVbenVxeGrid<EditableSyncMenuItem>({
   showSearchForm: false,
 });
 
-const totalCount = computed(() => countItems(menuList.value));
+const totalCount = computed(() => countSyncMenuItems(menuList.value));
 const selectedCount = computed(() => selectedKeys.value.size);
 const allSelected = computed(
   () => totalCount.value > 0 && selectedCount.value === totalCount.value,
@@ -130,105 +155,41 @@ const allSelected = computed(
 const partiallySelected = computed(
   () => selectedCount.value > 0 && !allSelected.value,
 );
+const allOverrideExistingSelected = computed(
+  () =>
+    totalCount.value > 0 &&
+    optionKeys.value.overrideExisting.size === totalCount.value,
+);
+const partiallyOverrideExistingSelected = computed(
+  () =>
+    optionKeys.value.overrideExisting.size > 0 &&
+    optionKeys.value.overrideExisting.size < totalCount.value,
+);
+const allEnableSelected = computed(
+  () =>
+    totalCount.value > 0 && optionKeys.value.enable.size === totalCount.value,
+);
+const partiallyEnableSelected = computed(
+  () =>
+    optionKeys.value.enable.size > 0 &&
+    optionKeys.value.enable.size < totalCount.value,
+);
 const openProxy = computed({
   get: () => props.open,
   set: (value) => emit('update:open', value),
 });
 
-function countItems(list: EditableSyncMenuItem[]): number {
-  return list.reduce(
-    (total, item) => total + 1 + countItems(item.children || []),
-    0,
-  );
-}
-
-function flattenItems(list: EditableSyncMenuItem[]): EditableSyncMenuItem[] {
-  return list.flatMap((item) => [item, ...flattenItems(item.children || [])]);
-}
-
-function toEditableItems(
-  list: SyncMenuItem[],
-  keyPrefix = 'route',
-): EditableSyncMenuItem[] {
-  return list.map((item, index) => {
-    const key = `${keyPrefix}-${index}`;
-    return {
-      ...item,
-      children: toEditableItems(item.children || [], key),
-      key,
-    };
-  });
-}
-
-function toSelectedSyncItems(
-  list: EditableSyncMenuItem[],
-  selectedKeys: Set<string>,
-): SyncMenuItem[] {
-  return list.flatMap(({ children, key, ...item }) => {
-    const selectedChildren = toSelectedSyncItems(children || [], selectedKeys);
-
-    if (!selectedKeys.has(key) && selectedChildren.length === 0) {
-      return [];
-    }
-
-    return [
-      {
-        ...item,
-        children: selectedChildren,
-      },
-    ];
-  });
-}
-
-function removeItemByKey(
-  list: EditableSyncMenuItem[],
-  key: string,
-): EditableSyncMenuItem[] {
-  return list
-    .filter((item) => item.key !== key)
-    .map((item) => ({
-      ...item,
-      children: removeItemByKey(item.children || [], key),
-    }));
-}
-
-function getSelfAndDescendantKeys(item: EditableSyncMenuItem): string[] {
-  return [
-    item.key,
-    ...flattenItems(item.children || []).map((child) => child.key),
-  ];
-}
-
-function syncAncestorSelectionFromLeaves(keys: Set<string>) {
-  function syncNodeFromLeaves(item: EditableSyncMenuItem) {
-    const children = item.children || [];
-
-    if (children.length === 0) {
-      return keys.has(item.key);
-    }
-
-    const allChildrenChecked = children.map(syncNodeFromLeaves).every(Boolean);
-
-    if (allChildrenChecked) {
-      keys.add(item.key);
-    } else {
-      keys.delete(item.key);
-    }
-
-    return keys.has(item.key);
-  }
-
-  menuList.value.forEach(syncNodeFromLeaves);
-  return keys;
-}
-
 function resetMenuList() {
-  menuList.value = toEditableItems(
+  menuList.value = toEditableSyncMenuItems(
     buildModuleSyncMenuPayload(getEnabledFrontendModules()).menuList,
   );
   selectedKeys.value = new Set(
-    flattenItems(menuList.value).map((item) => item.key),
+    flattenSyncMenuItems(menuList.value).map((item) => item.key),
   );
+  optionKeys.value = {
+    enable: new Set(),
+    overrideExisting: new Set(),
+  };
 }
 
 function readCheckboxChecked(event: { target?: { checked?: boolean } }) {
@@ -237,49 +198,82 @@ function readCheckboxChecked(event: { target?: { checked?: boolean } }) {
 
 function handleToggleAll(checked: boolean) {
   selectedKeys.value = checked
-    ? new Set(flattenItems(menuList.value).map((item) => item.key))
+    ? new Set(flattenSyncMenuItems(menuList.value).map((item) => item.key))
     : new Set();
 }
 
 function handleToggleRow(record: EditableSyncMenuItem, checked: boolean) {
-  const nextKeys = new Set(selectedKeys.value);
-  const targetKeys = getSelfAndDescendantKeys(record);
+  selectedKeys.value = toggleSyncMenuTreeKeys(
+    menuList.value,
+    selectedKeys.value,
+    record,
+    checked,
+  );
+}
 
-  targetKeys.forEach((key) => {
-    if (checked) {
-      nextKeys.add(key);
-    } else {
-      nextKeys.delete(key);
-    }
-  });
+function handleToggleOptionAll(
+  field: SyncMenuBooleanField,
+  checked: boolean,
+) {
+  optionKeys.value = {
+    ...optionKeys.value,
+    [field]: checked
+      ? new Set(flattenSyncMenuItems(menuList.value).map((item) => item.key))
+      : new Set(),
+  };
+}
 
-  selectedKeys.value = syncAncestorSelectionFromLeaves(nextKeys);
+function handleToggleOptionRow(
+  field: SyncMenuBooleanField,
+  record: EditableSyncMenuItem,
+  checked: boolean,
+) {
+  optionKeys.value = {
+    ...optionKeys.value,
+    [field]: toggleSyncMenuTreeKeys(
+      menuList.value,
+      optionKeys.value[field],
+      record,
+      checked,
+    ),
+  };
 }
 
 function handleDelete(record: EditableSyncMenuItem) {
-  menuList.value = removeItemByKey(menuList.value, record.key);
+  menuList.value = removeSyncMenuItemByKey(menuList.value, record.key);
   const availableKeys = new Set(
-    flattenItems(menuList.value).map((item) => item.key),
+    flattenSyncMenuItems(menuList.value).map((item) => item.key),
   );
 
-  selectedKeys.value = syncAncestorSelectionFromLeaves(
+  selectedKeys.value = syncAncestorKeysFromLeaves(
+    menuList.value,
     new Set([...selectedKeys.value].filter((key) => availableKeys.has(key))),
   );
-}
-
-function hasSelectedChild(record: EditableSyncMenuItem): boolean {
-  return (record.children || []).some(
-    (child) => selectedKeys.value.has(child.key) || hasSelectedChild(child),
-  );
-}
-
-function isRowIndeterminate(record: EditableSyncMenuItem) {
-  return !selectedKeys.value.has(record.key) && hasSelectedChild(record);
+  optionKeys.value = {
+    enable: syncAncestorKeysFromLeaves(
+      menuList.value,
+      new Set(
+        [...optionKeys.value.enable].filter((key) => availableKeys.has(key)),
+      ),
+    ),
+    overrideExisting: syncAncestorKeysFromLeaves(
+      menuList.value,
+      new Set(
+        [...optionKeys.value.overrideExisting].filter((key) =>
+          availableKeys.has(key),
+        ),
+      ),
+    ),
+  };
 }
 
 async function handleSubmit() {
   const payload = {
-    menuList: toSelectedSyncItems(menuList.value, selectedKeys.value),
+    menuList: toSelectedSyncMenuItems(
+      menuList.value,
+      selectedKeys.value,
+      optionKeys.value,
+    ),
   };
 
   if (payload.menuList.length === 0) {
@@ -328,7 +322,7 @@ watch(menuList, (data) => {
     :ok-button-props="{ disabled: selectedCount === 0 }"
     ok-text="上传"
     title="上传页面路由"
-    width="min(94vw, 1280px)"
+    width="85vw"
     @ok="handleSubmit"
   >
     <div class="text-muted-foreground mb-3 text-sm">
@@ -341,17 +335,71 @@ watch(menuList, (data) => {
 
     <Grid class="sync-menu-route-tree-grid">
       <template #selectHeader>
-        <Checkbox
-          :checked="allSelected"
-          :indeterminate="partiallySelected"
-          @change="handleToggleAll(readCheckboxChecked($event))"
-        />
+        <div class="sync-menu-route-option-header">
+          <span>是否上传</span>
+          <Checkbox
+            :checked="allSelected"
+            :indeterminate="partiallySelected"
+            @change="handleToggleAll(readCheckboxChecked($event))"
+          />
+        </div>
       </template>
       <template #select="{ row }">
         <Checkbox
           :checked="selectedKeys.has(row.key)"
-          :indeterminate="isRowIndeterminate(row)"
+          :indeterminate="isSyncMenuRowIndeterminate(row, selectedKeys)"
           @change="handleToggleRow(row, readCheckboxChecked($event))"
+        />
+      </template>
+      <template #overrideExistingHeader>
+        <div class="sync-menu-route-option-header">
+          <span>是否覆盖</span>
+          <Checkbox
+            :checked="allOverrideExistingSelected"
+            :indeterminate="partiallyOverrideExistingSelected"
+            @change="
+              handleToggleOptionAll(
+                'overrideExisting',
+                readCheckboxChecked($event),
+              )
+            "
+          />
+        </div>
+      </template>
+      <template #overrideExisting="{ row }">
+        <Checkbox
+          :checked="optionKeys.overrideExisting.has(row.key)"
+          :indeterminate="
+            isSyncMenuRowIndeterminate(row, optionKeys.overrideExisting)
+          "
+          @change="
+            handleToggleOptionRow(
+              'overrideExisting',
+              row,
+              readCheckboxChecked($event),
+            )
+          "
+        />
+      </template>
+      <template #enableHeader>
+        <div class="sync-menu-route-option-header">
+          <span>是否启用</span>
+          <Checkbox
+            :checked="allEnableSelected"
+            :indeterminate="partiallyEnableSelected"
+            @change="
+              handleToggleOptionAll('enable', readCheckboxChecked($event))
+            "
+          />
+        </div>
+      </template>
+      <template #enable="{ row }">
+        <Checkbox
+          :checked="optionKeys.enable.has(row.key)"
+          :indeterminate="isSyncMenuRowIndeterminate(row, optionKeys.enable)"
+          @change="
+            handleToggleOptionRow('enable', row, readCheckboxChecked($event))
+          "
         />
       </template>
       <template #label="{ row }">
@@ -386,6 +434,13 @@ watch(menuList, (data) => {
 
 <style scoped>
 .sync-menu-route-tree-grid :deep(.vxe-grid) {
-  border-radius: 10px;
+  border-radius: 8px;
+}
+
+.sync-menu-route-option-header {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+  white-space: nowrap;
 }
 </style>

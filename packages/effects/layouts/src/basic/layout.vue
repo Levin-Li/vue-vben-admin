@@ -15,7 +15,7 @@ import {
   usePreferences,
 } from '@vben/preferences';
 import { useAccessStore, useTabbarStore, useTimezoneStore } from '@vben/stores';
-import { cloneDeep, mapTree } from '@vben/utils';
+import { cloneDeep, convertToHslCssVar, mapTree } from '@vben/utils';
 
 import { VbenAdminLayout } from '@vben-core/layout-ui';
 import { VbenBackTop, VbenLogo } from '@vben-core/shadcn-ui';
@@ -68,6 +68,22 @@ const sidebarThemeSub = computed(() => {
 const headerTheme = computed(() => {
   const dark = isDark.value || preferences.theme.semiDarkHeader;
   return dark ? 'dark' : 'light';
+});
+
+const semiDarkSidebarStyleColor = computed(() => {
+  if (isDark.value || !preferences.theme.semiDarkSidebar) {
+    return undefined;
+  }
+
+  return convertToHslCssVar(preferences.theme.semiDarkSidebarColor);
+});
+
+const semiDarkHeaderStyleColor = computed(() => {
+  if (isDark.value || !preferences.theme.semiDarkHeader) {
+    return undefined;
+  }
+
+  return convertToHslCssVar(preferences.theme.semiDarkHeaderColor);
 });
 
 const logoClass = computed(() => {
@@ -230,6 +246,7 @@ const headerSlots = computed(() => {
     :header-hidden="preferences.header.hidden"
     :header-mode="preferences.header.mode"
     :header-theme="headerTheme"
+    :header-theme-color="semiDarkHeaderStyleColor"
     :header-toggle-sidebar-button="preferences.widget.sidebarToggle"
     :header-visible="preferences.header.enable"
     :is-mobile="preferences.app.isMobile"
@@ -245,7 +262,9 @@ const headerSlots = computed(() => {
     :sidebar-hidden="preferences.sidebar.hidden"
     :sidebar-mixed-width="preferences.sidebar.mixedWidth"
     :sidebar-theme="sidebarTheme"
+    :sidebar-theme-color="semiDarkSidebarStyleColor"
     :sidebar-theme-sub="sidebarThemeSub"
+    :sidebar-theme-sub-color="semiDarkSidebarStyleColor"
     :sidebar-width="preferences.sidebar.width"
     :side-collapse-width="preferences.sidebar.collapseWidth"
     :tabbar-enable="preferences.tabbar.enable"

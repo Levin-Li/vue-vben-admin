@@ -3,11 +3,20 @@ import type { Component } from 'vue';
 
 import type { ThemeModeType } from '@vben/types';
 
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 
 import { MoonStar, Sun, SunMoon } from '@vben/icons';
 import { $t } from '@vben/locales';
 import { usePreferences } from '@vben/preferences';
+import { convertToHsl, TinyColor } from '@vben/utils';
+
+import {
+  NumberField,
+  NumberFieldContent,
+  NumberFieldDecrement,
+  NumberFieldIncrement,
+  NumberFieldInput,
+} from '@vben-core/shadcn-ui';
 
 import SwitchItem from '../switch-item.vue';
 
@@ -17,10 +26,51 @@ defineOptions({
 
 const modelValue = defineModel<string>({ default: 'auto' });
 const themeSemiDarkSidebar = defineModel<boolean>('themeSemiDarkSidebar');
+const themeSemiDarkSidebarColor = defineModel<string>(
+  'themeSemiDarkSidebarColor',
+);
+const sidebarWidth = defineModel<number>('sidebarWidth', { default: 224 });
 const themeSemiDarkSidebarSub = defineModel<boolean>('themeSemiDarkSidebarSub');
 const themeSemiDarkHeader = defineModel<boolean>('themeSemiDarkHeader');
+const themeSemiDarkHeaderColor = defineModel<string>(
+  'themeSemiDarkHeaderColor',
+);
+const headerHeight = defineModel<number>('headerHeight', { default: 50 });
 
 const { layout } = usePreferences();
+
+const SIDEBAR_WIDTH_MIN = 160;
+const SIDEBAR_WIDTH_MAX = 480;
+const HEADER_HEIGHT_MIN = 40;
+const HEADER_HEIGHT_MAX = 160;
+
+function clampSize(value: number | undefined, min: number, max: number) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return min;
+  }
+
+  return Math.min(Math.max(numericValue, min), max);
+}
+
+const boundedSidebarWidth = computed({
+  get() {
+    return clampSize(sidebarWidth.value, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX);
+  },
+  set(value: number | undefined) {
+    sidebarWidth.value = clampSize(value, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX);
+  },
+});
+
+const boundedHeaderHeight = computed({
+  get() {
+    return clampSize(headerHeight.value, HEADER_HEIGHT_MIN, HEADER_HEIGHT_MAX);
+  },
+  set(value: number | undefined) {
+    headerHeight.value = clampSize(value, HEADER_HEIGHT_MIN, HEADER_HEIGHT_MAX);
+  },
+});
 
 watch(
   () => themeSemiDarkSidebar.value,
@@ -29,6 +79,28 @@ watch(
       themeSemiDarkSidebarSub.value = themeSemiDarkSidebar.value;
     }
   },
+);
+
+watch(
+  () => sidebarWidth.value,
+  (value) => {
+    const nextValue = clampSize(value, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX);
+    if (value !== nextValue) {
+      sidebarWidth.value = nextValue;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => headerHeight.value,
+  (value) => {
+    const nextValue = clampSize(value, HEADER_HEIGHT_MIN, HEADER_HEIGHT_MAX);
+    if (value !== nextValue) {
+      headerHeight.value = nextValue;
+    }
+  },
+  { immediate: true },
 );
 
 const THEME_PRESET: Array<{ icon: Component; name: ThemeModeType }> = [
@@ -63,6 +135,24 @@ function nameView(name: string) {
     }
   }
 }
+
+function getColorInputValue(value?: string) {
+  return new TinyColor(value || '').toHexString();
+}
+
+function updateSemiDarkColor(
+  field: 'header' | 'sidebar',
+  event: Event,
+) {
+  const target = event.target as HTMLInputElement;
+  const value = convertToHsl(target.value);
+
+  if (field === 'header') {
+    themeSemiDarkHeaderColor.value = value;
+  } else {
+    themeSemiDarkSidebarColor.value = value;
+  }
+}
 </script>
 
 <template>
@@ -95,6 +185,33 @@ function nameView(name: string) {
       class="mt-6"
     >
       {{ $t('preferences.theme.darkSidebar') }}
+      <template #shortcut>
+        <span class="semi-dark-shortcut">
+          <NumberField
+            v-model="boundedSidebarWidth"
+            :aria-label="$t('preferences.theme.darkSidebarWidth')"
+            :max="SIDEBAR_WIDTH_MAX"
+            :min="SIDEBAR_WIDTH_MIN"
+            :step="10"
+            class="semi-dark-size-field"
+            @click.stop
+          >
+            <NumberFieldContent>
+              <NumberFieldDecrement />
+              <NumberFieldInput />
+              <NumberFieldIncrement />
+            </NumberFieldContent>
+          </NumberField>
+          <input
+            :aria-label="$t('preferences.theme.darkSidebarColor')"
+            :value="getColorInputValue(themeSemiDarkSidebarColor)"
+            class="semi-dark-color-input"
+            type="color"
+            @click.stop
+            @input="updateSemiDarkColor('sidebar', $event)"
+          />
+        </span>
+      </template>
     </SwitchItem>
     <SwitchItem
       v-model="themeSemiDarkSidebarSub"
@@ -109,6 +226,67 @@ function nameView(name: string) {
     </SwitchItem>
     <SwitchItem v-model="themeSemiDarkHeader" :disabled="modelValue === 'dark'">
       {{ $t('preferences.theme.darkHeader') }}
+      <template #shortcut>
+        <span class="semi-dark-shortcut">
+          <NumberField
+            v-model="boundedHeaderHeight"
+            :aria-label="$t('preferences.theme.darkHeaderHeight')"
+            :max="HEADER_HEIGHT_MAX"
+            :min="HEADER_HEIGHT_MIN"
+            :step="1"
+            class="semi-dark-size-field"
+            @click.stop
+          >
+            <NumberFieldContent>
+              <NumberFieldDecrement />
+              <NumberFieldInput />
+              <NumberFieldIncrement />
+            </NumberFieldContent>
+          </NumberField>
+          <input
+            :aria-label="$t('preferences.theme.darkHeaderColor')"
+            :value="getColorInputValue(themeSemiDarkHeaderColor)"
+            class="semi-dark-color-input"
+            type="color"
+            @click.stop
+            @input="updateSemiDarkColor('header', $event)"
+          />
+        </span>
+      </template>
     </SwitchItem>
   </div>
 </template>
+
+<style scoped>
+.semi-dark-shortcut {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.semi-dark-size-field {
+  width: 92px;
+}
+
+.semi-dark-size-field :deep(input) {
+  height: 28px;
+}
+
+.semi-dark-color-input {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  height: 28px;
+  padding: 0;
+  width: 56px;
+}
+
+.semi-dark-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.semi-dark-color-input::-webkit-color-swatch {
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+}
+</style>
