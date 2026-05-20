@@ -13,6 +13,17 @@ import { createI18n } from 'vue-i18n';
 
 import { useSimpleLocale } from '@vben-core/composables';
 
+import enUSAuthentication from './langs/en-US/authentication.json';
+import enUSCommon from './langs/en-US/common.json';
+import enUSPreferences from './langs/en-US/preferences.json';
+import enUSProfile from './langs/en-US/profile.json';
+import enUSUi from './langs/en-US/ui.json';
+import zhCNAuthentication from './langs/zh-CN/authentication.json';
+import zhCNCommon from './langs/zh-CN/common.json';
+import zhCNPreferences from './langs/zh-CN/preferences.json';
+import zhCNProfile from './langs/zh-CN/profile.json';
+import zhCNUi from './langs/zh-CN/ui.json';
+
 const i18n = createI18n({
   fallbackLocale: 'zh-CN',
   globalInjection: true,
@@ -21,21 +32,45 @@ const i18n = createI18n({
   messages: {},
 });
 
-const modules = import.meta.glob('./langs/**/*.json');
+const baseLocaleMessages: Record<Locale, Record<string, any>> = {
+  'en-US': {
+    authentication: enUSAuthentication,
+    common: enUSCommon,
+    preferences: enUSPreferences,
+    profile: enUSProfile,
+    ui: enUSUi,
+  },
+  'zh-CN': {
+    authentication: zhCNAuthentication,
+    common: zhCNCommon,
+    preferences: zhCNPreferences,
+    profile: zhCNProfile,
+    ui: zhCNUi,
+  },
+};
 
 const { setSimpleLocale } = useSimpleLocale();
 
-const localesMap = loadLocalesMapFromDir(
-  /\.\/langs\/([^/]+)\/(.*)\.json$/,
-  modules,
-);
-let loadMessages: LoadMessageFn;
+const localesMap = loadStaticLocalesMap(baseLocaleMessages);
+const loadedLocales = new Set<Locale>();
+let loadMessages: LoadMessageFn = async () => ({});
 let defaultResolvedLocale: Locale = 'zh-CN';
 
 const preferredLocaleByLanguageFamily: Record<string, Locale> = {
   en: 'en-US',
   zh: 'zh-CN',
 };
+
+function loadStaticLocalesMap(
+  messagesByLocale: Record<Locale, Record<string, any>>,
+): Record<Locale, ImportLocaleFn> {
+  return Object.fromEntries(
+    Object.entries(messagesByLocale).map(([locale, messages]) => [
+      locale,
+      async () => ({ default: messages }),
+    ]),
+  );
+}
 
 /**
  * Load locale modules
@@ -244,7 +279,7 @@ async function loadLocaleMessages(lang: SupportedLanguagesType) {
     defaultLocale: defaultResolvedLocale,
   });
 
-  if (unref(i18n.global.locale) === locale) {
+  if (unref(i18n.global.locale) === locale && loadedLocales.has(locale)) {
     return setI18nLanguage(locale);
   }
   setSimpleLocale(locale as any);
@@ -253,10 +288,12 @@ async function loadLocaleMessages(lang: SupportedLanguagesType) {
 
   if (message?.default) {
     i18n.global.setLocaleMessage(locale, message.default);
+    loadedLocales.add(locale);
   }
 
   const mergeMessage = await loadMessages(locale);
   i18n.global.mergeLocaleMessage(locale, mergeMessage);
+  loadedLocales.add(locale);
 
   return setI18nLanguage(locale);
 }

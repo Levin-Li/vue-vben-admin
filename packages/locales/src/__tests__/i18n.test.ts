@@ -1,9 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { normalizeLocaleCode, resolveLocale } from '../i18n';
+import {
+  i18n,
+  loadLocaleMessages,
+  normalizeLocaleCode,
+  resolveLocale,
+} from '../i18n';
 
 describe('locale fallback resolution', () => {
   const supportedLocales = ['zh-CN', 'en-US'];
+
+  beforeEach(() => {
+    i18n.global.locale.value = '';
+    i18n.global.setLocaleMessage('zh-CN', {});
+  });
 
   it('normalizes underscores and locale segment case without changing the API', () => {
     expect(normalizeLocaleCode('zh_cn')).toBe('zh-CN');
@@ -74,5 +84,13 @@ describe('locale fallback resolution', () => {
         supportedLocales,
       }),
     ).toBe('zh-CN');
+  });
+
+  it('loads base zh-CN messages when callers pass the zh language family', async () => {
+    await loadLocaleMessages('zh');
+
+    expect(i18n.global.locale.value).toBe('zh-CN');
+    expect(i18n.global.t('authentication.welcomeBack')).toBe('欢迎回来');
+    expect(i18n.global.t('common.login')).toBe('登录');
   });
 });

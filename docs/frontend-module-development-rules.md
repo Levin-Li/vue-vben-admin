@@ -329,6 +329,10 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 
 所有页面都必须支持最终主应用覆盖。
 
+页面覆盖的本质是“同一个路由指向本地文件”：后端菜单 `path`、前端页面注册路径、访问 URL 和权限入口都保持不变，只把该路由最终加载的 Vue 组件从公共模块默认文件替换成最终主应用本地文件。实现上通过 `pageOverrides` / pageMap 的页面解析优先级完成，不通过重复注册同名同路径 Vue Router record 抢路由完成。框架和业务模块继续负责 Vue Router 路由、后端菜单映射、权限入口和默认页面注册；最终主应用通过 `pageOverrides` 注入覆盖页面映射。
+
+`src/pages` 是推荐约定目录，不是唯一允许目录。最简单方式是使用 `normalizeAdminGlobPageMap(import.meta.glob('./pages/**/*.vue'), './pages')`，让文件路径自动变成页面注册路径；需要更灵活的目录组织时，可以手写 `pageOverrides`，显式把同一个页面注册路径映射到任意本地文件。
+
 页面解析优先级固定为：
 
 ```text
@@ -337,19 +341,40 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
   > admin-framework 默认页面
 ```
 
-例如框架提供默认登录页，主应用需要替换登录页时，只需要新增：
+例如框架提供默认登录页，主应用需要替换登录页时，可以按推荐约定新增：
 
 ```text
 src/pages/_core/authentication/login.vue
 ```
 
+例如框架提供默认首页，主应用需要替换首页时，只需要新增：
+
+```text
+src/pages/_core/home/index.vue
+```
+
 例如业务模块提供默认角色页面，主应用需要替换时，只需要新增同规范路径的覆盖页面。
+
+```text
+src/pages/system/com_levin_oak_base/role/index.vue
+```
+
+也可以显式映射到其它本地文件：
+
+```ts
+const pageOverrides = {
+  '/system/com_levin_oak_base/role/index.vue': () =>
+    import('./features/rbac/pages/role-page.vue'),
+};
+```
 
 主应用没有覆盖文件时，自动使用业务模块或框架默认页面。
 
 这条规则用于保证最终系统只维护差异化页面，不复制公共框架和业务模块源码。
 
 公共模块可以提供具体功能页面的默认实现。最终主应用覆盖某个页面时，必须复用原页面注册路径；覆盖只替换前端组件实现，不改变后端菜单 `path`、权限点、`backendRouteMappings.viewPath` 或上传页面路由语义。
+
+只有新增全新访问 URL、改变菜单结构、改变权限入口或新增业务模块自己的页面入口时，才需要维护模块 `routes`、`backendRouteMappings` 或后端菜单。替换登录、首页、个人中心、基础模块 CRUD 页面等已有页面时，应优先使用 `src/pages` 覆盖文件，让同一个路由指向本地文件。
 
 ## 菜单规则
 
@@ -394,6 +419,7 @@ export const oakBaseAdminLocales = {
 - 业务模块文案放在业务模块包。
 - 最终项目差异化文案放在主应用。
 - 模块内页面不得依赖其他业务模块的国际化 key。
+- 模块语言包 key 必须使用规范 locale，例如 `zh-CN`、`en-US`，不得为了兼容用户偏好或浏览器输入额外注册 `zh`、`en` 等短语言包；短语言输入由公共 `@vben/locales` 统一解析到同语系可用 locale 后再合并模块语言包。
 
 ## 依赖规则
 
@@ -438,11 +464,11 @@ export const oakBaseAdminLocales = {
 NPM 包中建议同时包含：
 
 ```text
-dist/  正式运行入口和公共导出入口
+dist/  正式编译、运行和公共导出入口
 src/   随包源码资料,仅用于查看、调试和问题定位
 ```
 
-发布包可以携带 `src`，但 `src` 不属于第三方应用的公共编译入口。可发布的 Levin 后台框架包和业务模块包不得在 `exports` 中公开 `./src/*`，也不得把 `main`、`module`、`types` 或默认导出指向 `src`。第三方应用必须通过包根入口或明确的 `dist` 子路径导出使用构建结果。
+前端模块按 NPM 包交付，不按源码目录交付。发布包可以携带 `src` 和规则/手册文档，但它们只是发布物内的参考资料，用于源码查看、调试和问题定位，不属于第三方应用的公共编译入口。可发布的 Levin 后台框架包和业务模块包不得在 `exports` 中公开 `./src/*`，也不得把 `main`、`module`、`types` 或默认导出指向 `src`。第三方应用必须通过包根入口或明确的 `dist` 子路径导出使用构建结果。
 
 `package.json` 示例：
 
@@ -468,7 +494,7 @@ src/   随包源码资料,仅用于查看、调试和问题定位
 }
 ```
 
-正式运行和第三方集成必须走 `dist`。`src` 只用于源码查看和问题定位，入口应用不得直接依赖 `@levin/*/src/...` 或 `@levin/admin-framework/src/...` 这类源码深路径。发布脚本会校验 Levin 后台框架包和业务模块包是否公开了 `src` 导出，发现后应先移除再发布。
+正式编译、运行和第三方集成必须走 `dist`。`src` 和随包文档只用于源码查看、规则参考、调试和问题定位，入口应用不得直接依赖 `@levin/*/src/...` 或 `@levin/admin-framework/src/...` 这类源码深路径。发布脚本会校验 Levin 后台框架包和业务模块包是否公开了 `src` 导出，发现后应先移除再发布。
 
 ## 版本管理规则
 
