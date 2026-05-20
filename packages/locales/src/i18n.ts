@@ -14,6 +14,7 @@ import { createI18n } from 'vue-i18n';
 import { useSimpleLocale } from '@vben-core/composables';
 
 const i18n = createI18n({
+  fallbackLocale: 'zh-CN',
   globalInjection: true,
   legacy: false,
   locale: '',
@@ -29,6 +30,12 @@ const localesMap = loadLocalesMapFromDir(
   modules,
 );
 let loadMessages: LoadMessageFn;
+let defaultResolvedLocale: Locale = 'zh-CN';
+
+const preferredLocaleByLanguageFamily: Record<string, Locale> = {
+  en: 'en-US',
+  zh: 'zh-CN',
+};
 
 /**
  * Load locale modules
@@ -89,6 +96,116 @@ function loadLocalesMapFromDir(
   return localesMap;
 }
 
+function normalizeLocaleCode(locale?: string): Locale {
+  const normalized = String(locale || '')
+    .trim()
+    .replaceAll('_', '-');
+
+  if (!normalized) {
+    return '';
+  }
+
+  const [language = '', ...segments] = normalized.split('-').filter(Boolean);
+
+  return [
+    language.toLowerCase(),
+    ...segments.map((segment) => segment.toUpperCase()),
+  ].join('-');
+}
+
+function getSupportedLocales(locales: Record<Locale, ImportLocaleFn>) {
+  return Object.keys(locales).map((locale) => normalizeLocaleCode(locale));
+}
+
+function findLocaleIgnoreCase(
+  locale: string,
+  supportedLocales: Locale[],
+): Locale | undefined {
+  const normalized = normalizeLocaleCode(locale);
+
+  return supportedLocales.find(
+    (supportedLocale) =>
+      supportedLocale.toLowerCase() === normalized.toLowerCase(),
+  );
+}
+
+function getLocaleLoader(locale: Locale) {
+  const exactLoader = localesMap[locale];
+
+  if (exactLoader) {
+    return exactLoader;
+  }
+
+  const actualLocaleKey = Object.keys(localesMap).find(
+    (supportedLocale) =>
+      normalizeLocaleCode(supportedLocale).toLowerCase() ===
+      locale.toLowerCase(),
+  );
+
+  return actualLocaleKey ? localesMap[actualLocaleKey] : undefined;
+}
+
+function getLanguageFamily(locale: string) {
+  return normalizeLocaleCode(locale).split('-')[0] || '';
+}
+
+function resolveLocale(
+  locale: SupportedLanguagesType,
+  options: {
+    defaultLocale?: SupportedLanguagesType;
+    supportedLocales?: Locale[];
+  } = {},
+): Locale {
+  const supportedLocales =
+    options.supportedLocales?.map((item) => normalizeLocaleCode(item)) ||
+    getSupportedLocales(localesMap);
+
+  if (supportedLocales.length === 0) {
+    return normalizeLocaleCode(options.defaultLocale || locale);
+  }
+
+  const normalizedLocale = normalizeLocaleCode(locale);
+  const exactLocale = findLocaleIgnoreCase(normalizedLocale, supportedLocales);
+
+  if (exactLocale) {
+    return exactLocale;
+  }
+
+  const languageFamily = getLanguageFamily(normalizedLocale);
+
+  if (languageFamily) {
+    const defaultFamilyLocale =
+      getLanguageFamily(options.defaultLocale || '') === languageFamily
+        ? findLocaleIgnoreCase(
+            normalizeLocaleCode(options.defaultLocale),
+            supportedLocales,
+          )
+        : undefined;
+    const preferredFamilyLocale = findLocaleIgnoreCase(
+      preferredLocaleByLanguageFamily[languageFamily] || '',
+      supportedLocales,
+    );
+    const familyLocale =
+      defaultFamilyLocale ||
+      preferredFamilyLocale ||
+      supportedLocales.find(
+        (supportedLocale) =>
+          getLanguageFamily(supportedLocale) === languageFamily,
+      );
+
+    if (familyLocale) {
+      return familyLocale;
+    }
+  }
+
+  const defaultLocale = findLocaleIgnoreCase(
+    normalizeLocaleCode(options.defaultLocale),
+    supportedLocales,
+  );
+
+  return defaultLocale || supportedLocales[0] || normalizedLocale;
+}
+
 /**
  * Set i18n language
  * @param locale
@@ -101,6 +218,8 @@ function setI18nLanguage(locale: Locale) {
 
 async function setupI18n(app: App, options: LocaleSetupOptions = {}) {
   const { defaultLocale = 'zh-CN' } = options;
+  defaultResolvedLocale = resolveLocale(defaultLocale, { defaultLocale });
+  i18n.global.fallbackLocale.value = defaultResolvedLocale;
   // app可以自行扩展一些第三方库和组件库的国际化
   loadMessages = options.loadMessages || (async () => ({}));
   app.use(i18n);
@@ -121,27 +240,34 @@ async function setupI18n(app: App, options: LocaleSetupOptions = {}) {
  * @param lang
  */
 async function loadLocaleMessages(lang: SupportedLanguagesType) {
-  if (unref(i18n.global.locale) === lang) {
-    return setI18nLanguage(lang);
-  }
-  setSimpleLocale(lang);
+  const locale = resolveLocale(lang, {
+    defaultLocale: defaultResolvedLocale,
+  });
 
-  const message = await localesMap[lang]?.();
+  if (unref(i18n.global.locale) === locale) {
+    return setI18nLanguage(locale);
+  }
+  setSimpleLocale(locale as any);
+
+  const message = await getLocaleLoader(locale)?.();
 
   if (message?.default) {
-    i18n.global.setLocaleMessage(lang, message.default);
+    i18n.global.setLocaleMessage(locale, message.default);
   }
 
-  const mergeMessage = await loadMessages(lang);
-  i18n.global.mergeLocaleMessage(lang, mergeMessage);
+  const mergeMessage = await loadMessages(locale);
+  i18n.global.mergeLocaleMessage(locale, mergeMessage);
 
-  return setI18nLanguage(lang);
+  return setI18nLanguage(locale);
 }
 
 export {
+  getSupportedLocales,
   i18n,
   loadLocaleMessages,
   loadLocalesMap,
   loadLocalesMapFromDir,
+  normalizeLocaleCode,
+  resolveLocale,
   setupI18n,
 };

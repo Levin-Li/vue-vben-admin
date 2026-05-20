@@ -1,8 +1,11 @@
 import {
+  getSupportedLocales,
   i18n,
   loadLocaleMessages,
   loadLocalesMap,
   loadLocalesMapFromDir,
+  normalizeLocaleCode,
+  resolveLocale,
   setupI18n,
 } from './i18n';
 
@@ -12,10 +15,13 @@ const $te = i18n.global.te;
 export {
   $t,
   $te,
+  getSupportedLocales,
   i18n,
   loadLocaleMessages,
   loadLocalesMap,
   loadLocalesMapFromDir,
+  normalizeLocaleCode,
+  resolveLocale,
   setupI18n,
 };
 export {
