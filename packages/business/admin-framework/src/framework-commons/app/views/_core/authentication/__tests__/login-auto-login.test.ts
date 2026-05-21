@@ -137,8 +137,16 @@ vi.mock('ant-design-vue', () => {
 describe('login auto-login prompt', () => {
   beforeEach(() => {
     const storage = new Map<string, string>();
+    vi.stubGlobal('location', { hostname: 'example.test' });
     vi.stubGlobal('localStorage', {
+      clear: vi.fn(() => {
+        storage.clear();
+      }),
       getItem: vi.fn((key: string) => storage.get(key) ?? null),
+      key: vi.fn((index: number) => [...storage.keys()][index] ?? null),
+      get length() {
+        return storage.size;
+      },
       removeItem: vi.fn((key: string) => {
         storage.delete(key);
       }),
@@ -156,7 +164,42 @@ describe('login auto-login prompt', () => {
     vi.unstubAllGlobals();
   });
 
-  it('opens the auto-login prompt when initial captcha request returns a verify code', async () => {
+  it('does not prefill credentials on non-loopback hosts when no account was remembered', async () => {
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+
+    expect(
+      wrapper.find('input[placeholder="请输入手机号或邮箱"]').element.value,
+    ).toBe('');
+    expect(wrapper.find('input[placeholder="请输入登录密码"]').element.value).toBe(
+      '',
+    );
+    expect(getVerifyCodeApi).not.toHaveBeenCalled();
+
+    wrapper.unmount();
+  });
+
+  it('prefills local development credentials on 127.0.0.1', async () => {
+    vi.stubGlobal('location', { hostname: '127.0.0.1' });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+
+    expect(
+      wrapper.find('input[placeholder="请输入手机号或邮箱"]').element.value,
+    ).toBe('sa');
+    expect(wrapper.find('input[placeholder="请输入登录密码"]').element.value).toBe(
+      '123456',
+    );
+
+    wrapper.unmount();
+  });
+
+  it('opens the auto-login prompt when captcha refresh returns a verify code after password input', async () => {
     getVerifyCodeApi.mockResolvedValue({
       code: '0462',
       interactionData: '',
@@ -166,6 +209,12 @@ describe('login auto-login prompt', () => {
     const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
+    await flushPromises();
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .setValue('sa');
+    await wrapper.find('input[placeholder="请输入登录密码"]').setValue('123456');
+    await wrapper.find('button[aria-label="刷新验证码"]').trigger('click');
     await flushPromises();
 
     expect(getVerifyCodeApi).toHaveBeenCalledWith({
@@ -185,6 +234,7 @@ describe('login auto-login prompt', () => {
   });
 
   it('keeps original captcha image when wrapped response also returns a verify code', async () => {
+    vi.mocked(localStorage.getItem).mockReturnValue('sa');
     const imageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ';
     getVerifyCodeApi.mockResolvedValue({
       code: '0462',
@@ -257,11 +307,18 @@ describe('login auto-login prompt', () => {
     await wrapper
       .find('input[placeholder="请输入手机号或邮箱"]')
       .setValue('admin@example.com');
+    await wrapper.find('input[placeholder="请输入登录密码"]').setValue('123456');
     await wrapper.find('input[placeholder="请输入手机号或邮箱"]').trigger('blur');
     await flushPromises();
 
+    expect(modalConfirm).toHaveBeenCalledTimes(1);
+    await modalHandles[0]?.options?.onCancel?.();
+    await flushPromises();
+
+    await wrapper.find('button[aria-label="刷新验证码"]').trigger('click');
+    await flushPromises();
+
     expect(modalConfirm).toHaveBeenCalledTimes(2);
-    expect(modalHandles[0]?.destroy).toHaveBeenCalledOnce();
 
     await modalHandles[0]?.options?.onOk?.();
     await flushPromises();
@@ -281,6 +338,12 @@ describe('login auto-login prompt', () => {
     const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
+    await flushPromises();
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .setValue('admin@example.com');
+    await wrapper.find('input[placeholder="请输入登录密码"]').setValue('123456');
+    await wrapper.find('input[placeholder="请输入手机号或邮箱"]').trigger('blur');
     await flushPromises();
     wrapper.unmount();
 

@@ -5,7 +5,7 @@ Levin Oak 基础后台前端业务模块，提供 `com.levin.oak.base` 的基础
 ## 安装
 
 ```bash
-pnpm add @levin/admin-framework@5.6.43 @levin/oak-base-admin@5.6.41
+pnpm add @levin/admin-framework@5.6.44 @levin/oak-base-admin@5.6.42
 ```
 
 ## 启用
