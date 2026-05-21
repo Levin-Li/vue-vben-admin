@@ -199,6 +199,24 @@ describe('login auto-login prompt', () => {
     wrapper.unmount();
   });
 
+  it('prefills local development credentials on localhost', async () => {
+    vi.stubGlobal('location', { hostname: 'localhost' });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+
+    expect(
+      wrapper.find('input[placeholder="请输入手机号或邮箱"]').element.value,
+    ).toBe('sa');
+    expect(wrapper.find('input[placeholder="请输入登录密码"]').element.value).toBe(
+      '123456',
+    );
+
+    wrapper.unmount();
+  });
+
   it('opens the auto-login prompt when captcha refresh returns a verify code after password input', async () => {
     getVerifyCodeApi.mockResolvedValue({
       code: '0462',

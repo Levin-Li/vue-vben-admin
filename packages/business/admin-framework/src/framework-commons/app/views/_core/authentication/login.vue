@@ -79,7 +79,9 @@ const defaultVerifyTab: VerifyCodeTabOption = verifyTabs[0]!;
 const authStore = useAuthStore();
 const { techSupport } = useAuthBrand();
 const rememberedAccount = localStorage.getItem(REMEMBER_ME_KEY) || '';
-const isLoopbackBrowserHost = location.hostname === '127.0.0.1';
+const isLoopbackBrowserHost = ['127.0.0.1', 'localhost'].includes(
+  location.hostname,
+);
 
 const activeVerifyType = ref<VerifyCodeTab>('Captcha');
 const captchaImage = ref('');

@@ -5,13 +5,13 @@ Levin 后台基础组件和公共运行时框架包，面向第三方后台系�
 ## 安装
 
 ```bash
-pnpm add @levin/admin-framework@5.6.44
+pnpm add @levin/admin-framework@5.6.45
 ```
 
 通常还会按业务需要安装基础模块：
 
 ```bash
-pnpm add @levin/oak-base-admin@5.6.42
+pnpm add @levin/oak-base-admin@5.6.43
 ```
 
 ## 使用方式
