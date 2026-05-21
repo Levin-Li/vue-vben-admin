@@ -36,10 +36,7 @@ import {
   getAdminMenuSyncService,
   getAdminNoticeService,
 } from '@levin/admin-framework';
-import {
-  ADMIN_UI_BASE_SETTING_KEY,
-  rbacService,
-} from '@levin/admin-framework/framework-commons/app/api';
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
@@ -51,6 +48,7 @@ import {
   type FrameworkEventListenerInfo,
 } from '../../event-bus';
 import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-service';
+import { buildAdminUiBaseSettingPayload } from '../tenant-site-admin-ui-base-setting';
 import SyncMenuRoutesModal from './sync-menu-routes-modal.vue';
 
 type NoticeProcessStatus = 'Finished' | 'Processing' | 'Rejected';
@@ -237,12 +235,10 @@ async function handleSaveAdminUiBaseSetting() {
 
   try {
     await rbacService.adjustSiteUiSetting(
-      {
-        [ADMIN_UI_BASE_SETTING_KEY]: {
-          preferServerSetting: preferServerAdminUiBaseSetting.value,
-          setting: clonePreferences(),
-        },
-      },
+      buildAdminUiBaseSettingPayload(
+        clonePreferences(),
+        preferServerAdminUiBaseSetting.value,
+      ),
       {
         timeout: SAVE_ADMIN_UI_BASE_SETTING_TIMEOUT_MS,
       },

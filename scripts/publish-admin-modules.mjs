@@ -167,9 +167,13 @@ function run(command, commandArgs, extraEnv = {}, cwd = frontendRoot) {
   }
 }
 
-function isSourcePublicExport(exportPath, exportValue) {
+function isSourcePublicExport(exportPath, exportValue, conditionName = '') {
   if (exportPath === './src' || exportPath.startsWith('./src/')) {
     return true;
+  }
+
+  if (conditionName === 'development') {
+    return false;
   }
 
   if (typeof exportValue === 'string') {
@@ -177,8 +181,8 @@ function isSourcePublicExport(exportPath, exportValue) {
   }
 
   if (exportValue && typeof exportValue === 'object') {
-    return Object.values(exportValue).some((value) =>
-      isSourcePublicExport(exportPath, value),
+    return Object.entries(exportValue).some(([key, value]) =>
+      isSourcePublicExport(exportPath, value, key),
     );
   }
 
