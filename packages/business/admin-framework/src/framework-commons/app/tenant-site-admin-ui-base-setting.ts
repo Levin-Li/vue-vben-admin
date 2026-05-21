@@ -40,19 +40,6 @@ export function buildAdminUiBaseSettingPayload(
   };
 }
 
-function normalizeAdminUiBaseSetting(serverSetting: unknown) {
-  if (
-    isRecord(serverSetting) &&
-    isRecord(serverSetting[ADMIN_UI_BASE_SETTING_KEY]) &&
-    !('setting' in serverSetting) &&
-    !('preferServerSetting' in serverSetting)
-  ) {
-    return serverSetting[ADMIN_UI_BASE_SETTING_KEY];
-  }
-
-  return serverSetting;
-}
-
 function syncPreferencesEntryVisibility() {
   const userInfo = (useUserStore().userInfo || {}) as Record<string, any>;
 
@@ -69,9 +56,7 @@ function syncPreferencesEntryVisibility() {
 function applyTenantSiteAdminUiBaseSetting(
   data: null | RbacApi.TenantSiteInfo | undefined,
 ) {
-  const serverSetting = normalizeAdminUiBaseSetting(
-    data?.uiExInfo?.[ADMIN_UI_BASE_SETTING_KEY],
-  );
+  const serverSetting = data?.uiExInfo?.[ADMIN_UI_BASE_SETTING_KEY];
   const setting = isRecord(serverSetting?.setting)
     ? serverSetting.setting
     : serverSetting;

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { RbacModuleNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
+import type { PermissionTreeNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import type {
@@ -10,7 +10,6 @@ import type {
 
 import { computed, ref } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
 import { Button, Input, Modal, Spin, message } from 'ant-design-vue';
@@ -20,10 +19,15 @@ import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-acc
 import CodeEditorField from '@levin/admin-framework/framework-commons/shared/code-editor-field.vue';
 import { buildCrudOperationPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { evaluateCrudVisibleOn } from '@levin/admin-framework/framework-commons/shared/crud-visible-on';
+import { PermissionTreeNodeType } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
 import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
 
 import CrudPage from './crud-page.vue';
+import {
+  getRequireAuthorizationCount,
+  normalizePermissionValues,
+} from './simple-content-permissions';
 import {
   normalizeSimpleDetailRecord,
   parseSimpleContentValue,
@@ -56,14 +60,13 @@ const contentEditorMeta = ref<SimpleContentEditorMeta>({
 });
 const contentValue = ref<any>('');
 const contentReload = ref<ReloadList | null>(null);
-const permissionModules = ref<RbacModuleNode[]>([]);
+const permissionTree = ref<PermissionTreeNode[]>([]);
 const permissionLoading = ref(false);
 const permissionOpen = ref(false);
 const permissionRecord = ref<GenericRecord | null>(null);
 const permissionSelection = ref<string[]>([]);
 const permissionSubmitting = ref(false);
 const permissionReload = ref<ReloadList | null>(null);
-const MENU_PERMISSION_MODULE_ID = '__menus__';
 
 const updatePermissions = computed(
   () =>
@@ -92,17 +95,6 @@ function getRecordTitle(record: GenericRecord) {
 
 function getRecordId(record: GenericRecord) {
   return record[props.config.recordKey || 'id'] || record.id;
-}
-
-function normalizePermissionValues(value: any) {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item || '').trim()).filter(Boolean);
-  }
-
-  return String(value || '')
-    .split(/\r?\n|,/)
-    .map((item) => item.trim())
-    .filter(Boolean);
 }
 
 function getSupportEventsByCurrentStatus(record: GenericRecord) {
@@ -214,17 +206,17 @@ async function submitContent() {
   }
 }
 
-async function ensurePermissionModulesLoaded() {
-  if (permissionModules.value.length > 0) {
+async function ensurePermissionTreeLoaded() {
+  if (permissionTree.value.length > 0) {
     return;
   }
 
   permissionLoading.value = true;
   try {
-    permissionModules.value = (
-      ((await rbacService.fetchAuthorizedResourceModules()) ||
-        []) as RbacModuleNode[]
-    ).filter((item) => item.id !== MENU_PERMISSION_MODULE_ID);
+    permissionTree.value =
+      ((await rbacService.fetchAuthorizedPermissionTree({
+        excludeRootNodeTypes: [PermissionTreeNodeType.Menu],
+      })) || []) as PermissionTreeNode[];
   } catch (error) {
     console.error(error);
     message.error('加载资源权限列表失败');
@@ -252,7 +244,7 @@ async function openPermissionEditor(
     permissionSelection.value = normalizePermissionValues(
       freshRecord.requireAuthorizations,
     );
-    await ensurePermissionModulesLoaded();
+    await ensurePermissionTreeLoaded();
   } catch (error) {
     permissionOpen.value = false;
     console.error(error);
@@ -312,17 +304,23 @@ async function submitRequireAuthorizations() {
         type="link"
         @click="openContentEditor(record, reload)"
       >
-        <IconifyIcon class="mr-0.5 size-4" icon="lucide:file-pen-line" />
         编辑内容
       </Button>
       <Button
         v-if="canShowManagedActions(record)"
+        class="simple-action-count-button"
+        :data-count="getRequireAuthorizationCount(record)"
         size="small"
         type="link"
         @click="openPermissionEditor(record, reload)"
       >
-        <IconifyIcon class="mr-0.5 size-4" icon="lucide:shield-check" />
         所需权限
+        <span
+          v-if="getRequireAuthorizationCount(record) > 0"
+          class="simple-action-count-badge"
+        >
+          {{ getRequireAuthorizationCount(record) }}
+        </span>
       </Button>
     </template>
   </CrudPage>
@@ -373,9 +371,36 @@ async function submitRequireAuthorizations() {
       <Spin :spinning="permissionLoading">
         <ResourcePermissionTreeEditor
           v-model:value="permissionSelection"
-          :modules="permissionModules"
+          :permission-tree="permissionTree"
         />
       </Spin>
     </div>
   </Modal>
 </template>
+
+<style scoped>
+.simple-action-count-button {
+  position: relative;
+  overflow: visible;
+}
+
+.simple-action-count-badge {
+  position: absolute;
+  top: -5px;
+  right: -3px;
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  color: hsl(var(--primary-foreground));
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  background: hsl(var(--primary));
+  border: 1px solid hsl(var(--background));
+  border-radius: 999px;
+  box-shadow: 0 2px 6px hsl(var(--primary) / 28%);
+}
+</style>

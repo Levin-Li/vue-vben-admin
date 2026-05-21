@@ -1,12 +1,18 @@
 <script lang="ts" setup>
 import type {
+  PermissionTreeNode,
+  PermissionTreeNodeType,
   RbacMenuNode,
   RbacModuleNode,
   RbacResourceNode,
   RbacTypeNode,
 } from './data-permission-types';
 
+import { PermissionTreeNodeType as PermissionTreeNodeTypeEnum } from './data-permission-types';
+
 import { computed, ref, watch } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
 
 import { Checkbox, Radio } from 'ant-design-vue';
 
@@ -15,12 +21,15 @@ import { RbacPermissionMatchUtils } from '../rbac-permission-match';
 const props = withDefaults(
   defineProps<{
     menuTree?: RbacMenuNode[];
-    modules: RbacModuleNode[];
+    modules?: RbacModuleNode[];
+    permissionTree?: PermissionTreeNode[];
     selectionMode?: 'multiple' | 'single';
     value: string[];
   }>(),
   {
     menuTree: () => [],
+    modules: () => [],
+    permissionTree: () => [],
     selectionMode: 'multiple',
   },
 );
@@ -30,6 +39,8 @@ const emit = defineEmits<{
 }>();
 
 const activeModuleId = ref('');
+const activePermissionRootId = ref('');
+const expandedPermissionNodeIds = ref<Set<string>>(new Set());
 const expandedMenuNodeIds = ref<Set<string>>(new Set());
 const keyword = ref('');
 const MENU_MODULE_ID = '__menus__';
@@ -37,6 +48,11 @@ const MENU_DISPLAY_ACTION = '展示';
 const MENU_PERMISSION_TYPE = '系统菜单';
 const DEFAULT_MENU_MODULE_ID = 'default';
 const DEFAULT_EXPANDED_MENU_DEPTH = 1;
+const MENU_TREE_ROW_PADDING_LEFT = 12;
+const MENU_TREE_INDENT_SIZE = 36;
+const MENU_TREE_SWITCHER_SIZE = 20;
+const MENU_TREE_NODE_GAP = 4;
+const MENU_TREE_CHECKBOX_SIZE = 16;
 
 interface MenuPermissionNode {
   children: MenuPermissionNode[];
@@ -56,16 +72,44 @@ interface VisibleMenuPermissionNode extends MenuPermissionNode {
   isLastSibling: boolean;
 }
 
-const activeModule = computed(
-  () =>
+interface PermissionViewNode {
+  children: PermissionViewNode[];
+  depth: number;
+  id: string;
+  label: string;
+  nodeType: `${PermissionTreeNodeType}`;
+  pathText: string;
+  permissionExpr: string;
+  permissions: string[];
+  remark: string;
+  title: string;
+}
+
+interface VisiblePermissionViewNode extends PermissionViewNode {
+  ancestorLineIndexes: number[];
+  isLastSibling: boolean;
+}
+
+const hasPermissionTree = computed(() => props.permissionTree.length > 0);
+
+const activeModule = computed(() => {
+  if (hasPermissionTree.value) {
+    return undefined;
+  }
+
+  return (
     props.modules.find((item) => item.id === activeModuleId.value) ||
-    props.modules[0],
-);
+    props.modules[0]
+  );
+});
 
 const isMenuModuleActive = computed(
   () => activeModule.value?.id === MENU_MODULE_ID,
 );
 const isSingleSelection = computed(() => props.selectionMode === 'single');
+const activeModuleTitle = computed(
+  () => activeModule.value?.name || activeModule.value?.id || '',
+);
 
 function sortTypeList<T extends { id?: string; name?: string }>(items: T[]) {
   return items.toSorted((left, right) =>
@@ -169,11 +213,81 @@ const visibleMenuPermissionNodes = computed(() => {
   return flattenMenuPermissionTree(nodes, Boolean(normalizedKeyword));
 });
 
-const activeSelectedCount = computed(
+const menuPermissionViewTree = computed(() =>
+  convertMenuPermissionTreeToViewTree(menuPermissionTree.value),
+);
+
+const permissionViewTree = computed(() => {
+  const viewTree = buildPermissionViewTree(props.permissionTree || []);
+
+  if (menuPermissionViewTree.value.length === 0) {
+    return viewTree;
+  }
+
+  return viewTree.map((node) =>
+    node.id === MENU_MODULE_ID && shouldUseLegacyMenuPermissionTree(node)
+      ? {
+          ...node,
+          children: menuPermissionViewTree.value,
+          permissions: getPermissionNodePermissions(
+            menuPermissionViewTree.value,
+          ),
+        }
+      : node,
+  );
+});
+
+const activePermissionRoot = computed(
   () =>
-    activeModulePermissions.value.filter((permission) =>
-      RbacPermissionMatchUtils.simpleMatchList(permission, props.value),
-    ).length,
+    permissionViewTree.value.find(
+      (node) => node.id === activePermissionRootId.value,
+    ) || permissionViewTree.value[0],
+);
+
+const activePermissionViewTree = computed(() => {
+  const root = activePermissionRoot.value;
+
+  if (!root) {
+    return [];
+  }
+
+  return shiftPermissionViewTreeDepth(root.children, root.depth);
+});
+
+const visiblePermissionNodes = computed(() => {
+  const normalizedKeyword = keyword.value.trim().toLowerCase();
+  const nodes = normalizedKeyword
+    ? filterPermissionViewTree(
+        activePermissionViewTree.value,
+        normalizedKeyword,
+      )
+    : activePermissionViewTree.value;
+
+  return flattenPermissionViewTree(nodes, Boolean(normalizedKeyword));
+});
+
+const activeRootInlinePermissionNodes = computed(() =>
+  activePermissionViewTree.value.filter(
+    (node) => isInlinePermissionNode(node) && Boolean(node.permissionExpr),
+  ),
+);
+
+const activeTabPermissions = computed(() =>
+  hasPermissionTree.value
+    ? getPermissionNodePermissions(activePermissionViewTree.value)
+    : activeModulePermissions.value,
+);
+
+const activeSelectedCount = computed(() => {
+  return activeTabPermissions.value.filter((permission) =>
+    RbacPermissionMatchUtils.simpleMatchList(permission, props.value),
+  ).length;
+});
+
+const activePermissionCount = computed(() => activeTabPermissions.value.length);
+
+const activeUnselectedCount = computed(() =>
+  Math.max(activePermissionCount.value - activeSelectedCount.value, 0),
 );
 
 watch(
@@ -193,6 +307,22 @@ watch(activeModuleId, () => {
 });
 
 watch(
+  permissionViewTree,
+  (nodes) => {
+    if (!nodes.some((node) => node.id === activePermissionRootId.value)) {
+      activePermissionRootId.value = nodes[0]?.id || '';
+    }
+
+    expandedPermissionNodeIds.value = new Set(
+      getDefaultExpandedPermissionNodeIds(nodes),
+    );
+  },
+  {
+    immediate: true,
+  },
+);
+
+watch(
   menuPermissionTree,
   (nodes) => {
     expandedMenuNodeIds.value = new Set(getDefaultExpandedMenuNodeIds(nodes));
@@ -201,6 +331,12 @@ watch(
     immediate: true,
   },
 );
+
+watch(activePermissionRootId, () => {
+  if (hasPermissionTree.value) {
+    keyword.value = '';
+  }
+});
 
 function handleToggle(permissionExpr: string, checked: boolean) {
   if (isSingleSelection.value) {
@@ -226,6 +362,240 @@ function handleTogglePermissions(permissions: string[], checked: boolean) {
     : props.value.filter((item) => !validPermissions.includes(item));
 
   emit('update:value', next);
+}
+
+function buildPermissionViewTree(
+  nodes: PermissionTreeNode[],
+  depth = 0,
+  parentPath = '',
+): PermissionViewNode[] {
+  return nodes.filter(Boolean).flatMap((node, index) => {
+    const label = String(node.label || '').trim();
+    const title = String(label || node.name || node.id || '').trim();
+    const permissionExpr = String(node.permissionExpr || '').trim();
+    const remark = String(node.remark || '').trim();
+    const nodeType = node.nodeType;
+    const children = isInlinePermissionNodeType(nodeType)
+      ? []
+      : buildPermissionViewTree(
+          node.children || [],
+          depth + 1,
+          [parentPath, title].filter(Boolean).join(' / '),
+        );
+    const permissions = [
+      ...(permissionExpr ? [permissionExpr] : []),
+      ...getPermissionNodePermissions(children),
+    ];
+
+    if (!title && !permissionExpr && !isInlinePermissionNodeType(nodeType)) {
+      return shiftPermissionViewTreeDepth(children, 1);
+    }
+
+    return [
+      {
+        children,
+        depth,
+        id: String(node.id || `${parentPath || 'permission'}-${index}`),
+        label,
+        nodeType,
+        pathText: [parentPath, title, label, node.name, nodeType, permissionExpr]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase(),
+        permissionExpr,
+        permissions,
+        remark,
+        title,
+      },
+    ];
+  });
+}
+
+function shouldUseLegacyMenuPermissionTree(node: PermissionViewNode) {
+  if (node.children.length === 0) {
+    return true;
+  }
+
+  return node.children.some((child) =>
+    [
+      PermissionTreeNodeTypeEnum.Module,
+      PermissionTreeNodeTypeEnum.Resource,
+      PermissionTreeNodeTypeEnum.ResourceType,
+    ].includes(child.nodeType as PermissionTreeNodeTypeEnum),
+  );
+}
+
+function filterPermissionViewTree(
+  nodes: PermissionViewNode[],
+  normalizedKeyword: string,
+): PermissionViewNode[] {
+  return nodes
+    .map((node) => {
+      const children = filterPermissionViewTree(
+        node.children,
+        normalizedKeyword,
+      );
+      const matched = node.pathText.includes(normalizedKeyword);
+
+      if (!matched && children.length === 0) {
+        return null;
+      }
+
+      return {
+        ...node,
+        children,
+        permissions: [
+          ...(matched && node.permissionExpr ? [node.permissionExpr] : []),
+          ...getPermissionNodePermissions(children),
+        ],
+      };
+    })
+    .filter(Boolean) as PermissionViewNode[];
+}
+
+function shiftPermissionViewTreeDepth(
+  nodes: PermissionViewNode[],
+  depthOffset: number,
+): PermissionViewNode[] {
+  return nodes.map((node) => ({
+    ...node,
+    children: shiftPermissionViewTreeDepth(node.children, depthOffset),
+    depth: Math.max(0, node.depth - depthOffset),
+  }));
+}
+
+function flattenPermissionViewTree(
+  nodes: PermissionViewNode[],
+  forceExpanded = false,
+) {
+  return flattenVisiblePermissionViewTree(nodes, [], forceExpanded);
+}
+
+function flattenVisiblePermissionViewTree(
+  nodes: PermissionViewNode[],
+  ancestorLineIndexes: number[] = [],
+  forceExpanded = false,
+): VisiblePermissionViewNode[] {
+  const treeNodes = nodes.filter((node) => !isInlinePermissionNode(node));
+
+  return treeNodes.flatMap((node, index) => {
+    const isLastSibling = index === treeNodes.length - 1;
+    const expanded =
+      forceExpanded ||
+      expandedPermissionNodeIds.value.has(node.id) ||
+      !hasPermissionChildren(node);
+    const childAncestorLineIndexes = isLastSibling
+      ? ancestorLineIndexes
+      : [...ancestorLineIndexes, node.depth];
+
+    return [
+      {
+        ...node,
+        ancestorLineIndexes,
+        isLastSibling,
+      },
+      ...(expanded
+        ? flattenVisiblePermissionViewTree(
+            getPermissionTreeChildren(node),
+            childAncestorLineIndexes,
+            forceExpanded,
+          )
+        : []),
+    ];
+  });
+}
+
+function getPermissionNodePermissions(nodes: PermissionViewNode[]) {
+  return nodes.flatMap((node) => node.permissions).filter(Boolean);
+}
+
+function hasPermissionChildren(node: PermissionViewNode) {
+  return getPermissionTreeChildren(node).length > 0;
+}
+
+function isPermissionNodeExpanded(node: PermissionViewNode) {
+  return expandedPermissionNodeIds.value.has(node.id);
+}
+
+function togglePermissionNodeExpanded(node: PermissionViewNode) {
+  const next = new Set(expandedPermissionNodeIds.value);
+
+  if (next.has(node.id)) {
+    next.delete(node.id);
+  } else {
+    next.add(node.id);
+  }
+
+  expandedPermissionNodeIds.value = next;
+}
+
+function getDefaultExpandedPermissionNodeIds(nodes: PermissionViewNode[]) {
+  return nodes.flatMap((node): string[] => {
+    const current =
+      node.depth <= DEFAULT_EXPANDED_MENU_DEPTH && hasPermissionChildren(node)
+        ? [node.id]
+        : [];
+
+    return [
+      ...current,
+      ...getDefaultExpandedPermissionNodeIds(getPermissionTreeChildren(node)),
+    ];
+  });
+}
+
+function isInlinePermissionNode(node: PermissionViewNode) {
+  return isInlinePermissionNodeType(node.nodeType);
+}
+
+function isInlinePermissionNodeType(nodeType?: string) {
+  return (
+    nodeType === PermissionTreeNodeTypeEnum.Action ||
+    nodeType === PermissionTreeNodeTypeEnum.Permission
+  );
+}
+
+function getPermissionInlineChildren(node: PermissionViewNode) {
+  return node.children.filter(
+    (child) => isInlinePermissionNode(child) && Boolean(child.permissionExpr),
+  );
+}
+
+function getPermissionTreeChildren(node: PermissionViewNode) {
+  return node.children.filter((child) => !isInlinePermissionNode(child));
+}
+
+function getPermissionRowClass(node: VisiblePermissionViewNode) {
+  if (node.depth === 0) {
+    return 'bg-muted/20';
+  }
+
+  if (getPermissionInlineChildren(node).length > 0) {
+    return 'bg-background';
+  }
+
+  return 'bg-transparent';
+}
+
+function getPermissionNodeTypeIcon(nodeType?: string) {
+  const iconMap: Partial<Record<`${PermissionTreeNodeType}`, string>> = {
+    [PermissionTreeNodeTypeEnum.Action]: 'lucide:mouse-pointer-click',
+    [PermissionTreeNodeTypeEnum.Group]: 'lucide:folder-tree',
+    [PermissionTreeNodeTypeEnum.Menu]: 'lucide:panel-right-open',
+    [PermissionTreeNodeTypeEnum.Module]: 'lucide:box',
+    [PermissionTreeNodeTypeEnum.Permission]: 'lucide:key-round',
+    [PermissionTreeNodeTypeEnum.Resource]: 'lucide:file-text',
+    [PermissionTreeNodeTypeEnum.ResourceType]: 'lucide:layers-3',
+  };
+
+  return (
+    iconMap[nodeType as `${PermissionTreeNodeType}`] || 'lucide:circle-dot'
+  );
+}
+
+function getMenuPermissionNodeIcon(node: MenuPermissionNode) {
+  return node.type === 'operation'
+    ? getPermissionNodeTypeIcon(PermissionTreeNodeTypeEnum.Action)
+    : getPermissionNodeTypeIcon(PermissionTreeNodeTypeEnum.Menu);
 }
 
 function getMenuTitle(menuItem: RbacMenuNode) {
@@ -358,6 +728,39 @@ function buildMenuPermissionTree(
     .filter((node) => node.title && node.permissions.length > 0);
 }
 
+function convertMenuPermissionTreeToViewTree(
+  nodes: MenuPermissionNode[],
+): PermissionViewNode[] {
+  return nodes.map((node) => {
+    const children = convertMenuPermissionTreeToViewTree(node.children);
+    const nodeType =
+      node.type === 'operation'
+        ? PermissionTreeNodeTypeEnum.Action
+        : PermissionTreeNodeTypeEnum.Menu;
+
+    return {
+      children,
+      depth: node.depth + 1,
+      id: node.id,
+      label: node.title,
+      nodeType,
+      pathText: [
+        node.pathText,
+        nodeType,
+        node.selfPermission,
+        node.permissionExpr,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase(),
+      permissionExpr: node.selfPermission || node.permissionExpr,
+      permissions: node.permissions,
+      remark: '',
+      title: node.title,
+    };
+  });
+}
+
 function filterMenuPermissionTree(
   nodes: MenuPermissionNode[],
   normalizedKeyword: string,
@@ -404,7 +807,9 @@ function flattenVisibleMenuPermissionTree(
   return menuNodes.flatMap((node, index) => {
     const isLastSibling = index === menuNodes.length - 1;
     const expanded =
-      forceExpanded || expandedMenuNodeIds.value.has(node.id) || !hasMenuChildren(node);
+      forceExpanded ||
+      expandedMenuNodeIds.value.has(node.id) ||
+      !hasMenuChildren(node);
     const childAncestorLineIndexes = isLastSibling
       ? ancestorLineIndexes
       : [...ancestorLineIndexes, node.depth];
@@ -438,6 +843,18 @@ function hasMenuChildren(node: MenuPermissionNode) {
   return getMenuChildren(node).length > 0;
 }
 
+function getMenuPermissionRowClass(node: VisibleMenuPermissionNode) {
+  if (node.depth === 0) {
+    return 'bg-muted/20';
+  }
+
+  if (getMenuOperationChildren(node).length > 0) {
+    return 'bg-background';
+  }
+
+  return 'bg-transparent';
+}
+
 function getDefaultExpandedMenuNodeIds(nodes: MenuPermissionNode[]) {
   return nodes.flatMap((node): string[] => {
     const current =
@@ -445,8 +862,25 @@ function getDefaultExpandedMenuNodeIds(nodes: MenuPermissionNode[]) {
         ? [node.id]
         : [];
 
-    return [...current, ...getDefaultExpandedMenuNodeIds(getMenuChildren(node))];
+    return [
+      ...current,
+      ...getDefaultExpandedMenuNodeIds(getMenuChildren(node)),
+    ];
   });
+}
+
+function getMenuTreeGuideLineLeft(depth: number) {
+  return `${
+    MENU_TREE_ROW_PADDING_LEFT +
+    depth * MENU_TREE_INDENT_SIZE +
+    MENU_TREE_SWITCHER_SIZE +
+    MENU_TREE_NODE_GAP +
+    MENU_TREE_CHECKBOX_SIZE / 2
+  }px`;
+}
+
+function getMenuTreeNodePaddingLeft(depth: number) {
+  return `${depth * MENU_TREE_INDENT_SIZE}px`;
 }
 
 function isMenuNodeExpanded(node: MenuPermissionNode) {
@@ -549,11 +983,20 @@ function isAllSelected(permissions: string[]) {
 function isSomeSelected(permissions: string[]) {
   return permissions.some((permission) => isActionSelected(permission));
 }
+
+function getSelectedPermissionCount(permissions: string[]) {
+  return permissions.filter((permission) => isActionSelected(permission))
+    .length;
+}
+
+function getPermissionCountText(permissions: string[]) {
+  return `${getSelectedPermissionCount(permissions)}/${permissions.length}`;
+}
 </script>
 
 <template>
-  <div class="space-y-5">
-    <div class="flex flex-wrap gap-2">
+  <div class="permission-tree-editor space-y-5">
+    <div v-if="!hasPermissionTree" class="flex flex-wrap gap-2">
       <div
         v-for="moduleItem in modules"
         :key="moduleItem.id"
@@ -571,14 +1014,61 @@ function isSomeSelected(permissions: string[]) {
     </div>
 
     <div
-      v-if="activeModule"
-      :key="activeModule.id"
+      v-if="hasPermissionTree || activeModule"
+      :key="hasPermissionTree ? 'permission-tree' : activeModule?.id"
       class="bg-card space-y-4 rounded-2xl p-4"
     >
+      <div v-if="hasPermissionTree" class="flex flex-wrap gap-2">
+        <button
+          v-for="rootNode in permissionViewTree"
+          :key="rootNode.id"
+          :class="
+            activePermissionRoot?.id === rootNode.id
+              ? 'border-primary bg-primary/5 text-primary shadow-sm'
+              : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted'
+          "
+          :title="rootNode.title || undefined"
+          :data-test="`permission-root-tab-${rootNode.id}`"
+          class="cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition"
+          type="button"
+          @click="activePermissionRootId = rootNode.id"
+        >
+          {{ rootNode.title || rootNode.id }}
+          <span
+            v-if="rootNode.children.length > 0"
+            class="ml-1 text-xs opacity-75"
+          >
+            {{ rootNode.children.length }} 项
+          </span>
+        </button>
+      </div>
+
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="space-y-1">
           <Checkbox
-            v-if="!isSingleSelection"
+            v-if="!isSingleSelection && hasPermissionTree"
+            :checked="isAllSelected(activeTabPermissions)"
+            :indeterminate="
+              isSomeSelected(activeTabPermissions) &&
+              !isAllSelected(activeTabPermissions)
+            "
+            data-test="permission-tree-toggle"
+            @change="
+              handleTogglePermissions(
+                activeTabPermissions,
+                ($event.target as HTMLInputElement).checked,
+              )
+            "
+          >
+            <span class="text-foreground text-sm font-medium">
+              已选 {{ activeSelectedCount }}
+              <span class="text-muted-foreground ml-2">
+                未选 {{ activeUnselectedCount }}
+              </span>
+            </span>
+          </Checkbox>
+          <Checkbox
+            v-else-if="!isSingleSelection && activeModule"
             :checked="isAllSelected(activeModulePermissions)"
             :indeterminate="
               isSomeSelected(activeModulePermissions) &&
@@ -593,15 +1083,27 @@ function isSomeSelected(permissions: string[]) {
             "
           >
             <span class="text-foreground text-base font-semibold">
-              {{ activeModule.name || activeModule.id }}
+              {{ activeModuleTitle }}
             </span>
           </Checkbox>
-          <span v-else class="text-foreground text-base font-semibold">
-            {{ activeModule.name || activeModule.id }}
+          <span
+            v-else-if="hasPermissionTree"
+            class="text-foreground text-sm font-medium"
+          >
+            已选 {{ activeSelectedCount }}
+            <span class="text-muted-foreground ml-2">
+              未选 {{ activeUnselectedCount }}
+            </span>
           </span>
-          <div class="text-muted-foreground text-xs">
+          <span
+            v-else-if="activeModule"
+            class="text-foreground text-base font-semibold"
+          >
+            {{ activeModuleTitle }}
+          </span>
+          <div v-if="!hasPermissionTree" class="text-muted-foreground text-xs">
             已选 {{ activeSelectedCount }} /
-            {{ activeModulePermissions.length }}
+            {{ activePermissionCount }}
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
@@ -609,37 +1111,233 @@ function isSomeSelected(permissions: string[]) {
             v-model="keyword"
             class="border-border bg-background placeholder:text-muted-foreground focus:border-primary focus:ring-primary/10 w-full max-w-xs rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2"
             data-test="permission-search"
-            placeholder="搜索动作、资源或权限表达式"
+            :placeholder="
+              hasPermissionTree
+                ? '搜索节点、备注或权限表达式'
+                : '搜索动作、资源或权限表达式'
+            "
             type="text"
           />
         </div>
       </div>
 
-      <div v-if="isMenuModuleActive" class="space-y-1">
+      <div v-if="hasPermissionTree && !activeModule" class="space-y-1">
         <div
-          v-for="node in visibleMenuPermissionNodes"
+          v-if="activeRootInlinePermissionNodes.length > 0"
+          class="bg-muted/20 rounded-lg px-3 py-2"
+        >
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <component
+              :is="isSingleSelection ? Radio : Checkbox"
+              v-for="inlineNode in activeRootInlinePermissionNodes"
+              :key="inlineNode.id"
+              :checked="isActionSelected(inlineNode.permissionExpr)"
+              class="permission-tree-choice"
+              :data-test="`permission-${inlineNode.permissionExpr}`"
+              @change="
+                handleToggle(
+                  inlineNode.permissionExpr,
+                  ($event.target as HTMLInputElement).checked,
+                )
+              "
+            >
+              <span
+                class="inline-block max-w-[12rem] truncate align-bottom"
+                :title="inlineNode.title || undefined"
+              >
+                <IconifyIcon
+                  class="text-muted-foreground mr-1 inline size-3.5 align-[-2px]"
+                  :icon="getPermissionNodeTypeIcon(inlineNode.nodeType)"
+                />
+                {{ inlineNode.title }}
+              </span>
+            </component>
+          </div>
+        </div>
+        <div
+          v-for="node in visiblePermissionNodes"
           :key="node.id"
+          :class="getPermissionRowClass(node)"
           class="hover:bg-muted/40 relative rounded-lg py-2 pl-3 pr-3 transition"
         >
           <span
             v-for="lineDepth in node.ancestorLineIndexes"
             :key="lineDepth"
             class="border-border/80 pointer-events-none absolute bottom-0 top-0 border-l border-dashed"
-            :style="{ left: `${23 + lineDepth * 36}px` }"
+            :style="{ left: getMenuTreeGuideLineLeft(lineDepth) }"
           ></span>
           <span
             v-if="node.depth > 0"
-            class="border-border/80 pointer-events-none absolute border-l border-t border-dashed"
-            :class="node.isLastSibling ? 'h-1/2 top-0' : 'bottom-0 top-0'"
+            class="border-border/80 pointer-events-none absolute border-l border-dashed"
+            :class="node.isLastSibling ? 'top-0 h-[18px]' : 'bottom-0 top-0'"
+            :style="{ left: getMenuTreeGuideLineLeft(node.depth - 1) }"
+          ></span>
+          <span
+            v-if="node.depth > 0"
+            class="border-border/80 pointer-events-none absolute top-[18px] border-t border-dashed"
             :style="{
-              left: `${23 + (node.depth - 1) * 36}px`,
-              width: '24px',
+              left: getMenuTreeGuideLineLeft(node.depth - 1),
+              width: `${MENU_TREE_INDENT_SIZE}px`,
             }"
           ></span>
 
           <div
             class="relative flex items-start gap-1"
-            :style="{ paddingLeft: `${node.depth * 36}px` }"
+            :style="{ paddingLeft: getMenuTreeNodePaddingLeft(node.depth) }"
+          >
+            <button
+              v-if="hasPermissionChildren(node)"
+              :aria-expanded="isPermissionNodeExpanded(node)"
+              :aria-label="
+                isPermissionNodeExpanded(node) ? '收起权限节点' : '展开权限节点'
+              "
+              :data-test="`permission-tree-expand-${node.id}`"
+              class="text-muted-foreground hover:bg-muted hover:text-foreground mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded transition"
+              type="button"
+              @click="togglePermissionNodeExpanded(node)"
+            >
+              <span
+                class="text-xs leading-none transition-transform"
+                :class="isPermissionNodeExpanded(node) ? 'rotate-90' : ''"
+              >
+                ▶
+              </span>
+            </button>
+            <span v-else class="mt-0.5 size-5 shrink-0"></span>
+
+            <div class="min-w-0 flex-1">
+              <Checkbox
+                v-if="!isSingleSelection"
+                :checked="isAllSelected(node.permissions)"
+                class="permission-tree-choice"
+                :indeterminate="
+                  isSomeSelected(node.permissions) &&
+                  !isAllSelected(node.permissions)
+                "
+                :data-test="`permission-node-${node.id}`"
+                @change="
+                  handleTogglePermissions(
+                    node.permissions,
+                    ($event.target as HTMLInputElement).checked,
+                  )
+                "
+              >
+                <span
+                  class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
+                  :title="node.title || undefined"
+                >
+                  <IconifyIcon
+                    class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
+                    :icon="getPermissionNodeTypeIcon(node.nodeType)"
+                  />
+                  {{ node.title }}
+                </span>
+                <span
+                  v-if="node.permissions.length > 0"
+                  class="text-muted-foreground ml-2 text-xs leading-5"
+                >
+                  {{ getPermissionCountText(node.permissions) }}
+                </span>
+              </Checkbox>
+              <component
+                :is="Radio"
+                v-else-if="node.permissionExpr"
+                :checked="isActionSelected(node.permissionExpr)"
+                class="permission-tree-choice"
+                :data-test="`permission-${node.permissionExpr}`"
+                @change="handleToggle(node.permissionExpr, true)"
+              >
+                <span
+                  class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
+                  :title="node.title || undefined"
+                >
+                  <IconifyIcon
+                    class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
+                    :icon="getPermissionNodeTypeIcon(node.nodeType)"
+                  />
+                  {{ node.title }}
+                </span>
+              </component>
+              <span
+                v-else
+                class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
+                :title="node.title || undefined"
+              >
+                <IconifyIcon
+                  class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
+                  :icon="getPermissionNodeTypeIcon(node.nodeType)"
+                />
+                {{ node.title }}
+              </span>
+
+              <div
+                v-if="getPermissionInlineChildren(node).length > 0"
+                class="border-border/70 bg-muted/20 ml-7 mt-2 rounded-lg border-l px-3 py-2"
+              >
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                  <component
+                    :is="isSingleSelection ? Radio : Checkbox"
+                    v-for="inlineNode in getPermissionInlineChildren(node)"
+                    :key="inlineNode.id"
+                    :checked="isActionSelected(inlineNode.permissionExpr)"
+                    class="permission-tree-choice"
+                    :data-test="`permission-${inlineNode.permissionExpr}`"
+                    @change="
+                      handleToggle(
+                        inlineNode.permissionExpr,
+                        ($event.target as HTMLInputElement).checked,
+                      )
+                    "
+                  >
+                    <span
+                      class="inline-block max-w-[12rem] truncate align-bottom"
+                      :title="inlineNode.title || undefined"
+                    >
+                      <IconifyIcon
+                        class="text-muted-foreground mr-1 inline size-3.5 align-[-2px]"
+                        :icon="getPermissionNodeTypeIcon(inlineNode.nodeType)"
+                      />
+                      {{ inlineNode.title }}
+                    </span>
+                  </component>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="isMenuModuleActive" class="space-y-1">
+        <div
+          v-for="node in visibleMenuPermissionNodes"
+          :key="node.id"
+          :class="getMenuPermissionRowClass(node)"
+          class="hover:bg-muted/40 relative rounded-lg py-2 pl-3 pr-3 transition"
+        >
+          <span
+            v-for="lineDepth in node.ancestorLineIndexes"
+            :key="lineDepth"
+            class="border-border/80 pointer-events-none absolute bottom-0 top-0 border-l border-dashed"
+            :style="{ left: getMenuTreeGuideLineLeft(lineDepth) }"
+          ></span>
+          <span
+            v-if="node.depth > 0"
+            class="border-border/80 pointer-events-none absolute border-l border-dashed"
+            :class="node.isLastSibling ? 'top-0 h-[18px]' : 'bottom-0 top-0'"
+            :style="{ left: getMenuTreeGuideLineLeft(node.depth - 1) }"
+          ></span>
+          <span
+            v-if="node.depth > 0"
+            class="border-border/80 pointer-events-none absolute top-[18px] border-t border-dashed"
+            :style="{
+              left: getMenuTreeGuideLineLeft(node.depth - 1),
+              width: `${MENU_TREE_INDENT_SIZE}px`,
+            }"
+          ></span>
+
+          <div
+            class="relative flex items-start gap-1"
+            :style="{ paddingLeft: getMenuTreeNodePaddingLeft(node.depth) }"
           >
             <button
               v-if="hasMenuChildren(node)"
@@ -674,27 +1372,28 @@ function isSomeSelected(permissions: string[]) {
                   )
                 "
               >
-                <span class="text-foreground text-sm font-medium">
+                <span
+                  class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
+                >
+                  <IconifyIcon
+                    class="text-muted-foreground size-3.5 shrink-0"
+                    :icon="getMenuPermissionNodeIcon(node)"
+                  />
                   {{ node.title }}
                 </span>
                 <span
-                  v-if="node.children.length > 0"
+                  v-if="node.permissions.length > 0"
                   class="text-muted-foreground ml-2 text-xs"
                 >
-                  {{ node.children.length }} 项
+                  {{ getPermissionCountText(node.permissions) }}
                 </span>
               </Checkbox>
 
               <div
                 v-if="getMenuOperationChildren(node).length > 0"
-                class="mt-3 pl-10"
+                class="border-border/70 bg-muted/20 ml-7 mt-2 rounded-lg border-l px-3 py-2"
               >
                 <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-                  <span
-                    class="text-muted-foreground inline-flex h-6 items-center text-xs font-medium"
-                  >
-                    操作
-                  </span>
                   <Checkbox
                     v-for="operationNode in getMenuOperationChildren(node)"
                     :key="operationNode.id"
@@ -711,6 +1410,10 @@ function isSomeSelected(permissions: string[]) {
                       class="inline-block max-w-[12rem] truncate align-bottom"
                       :title="operationNode.title"
                     >
+                      <IconifyIcon
+                        class="text-muted-foreground mr-1 inline size-3.5 align-[-2px]"
+                        :icon="getMenuPermissionNodeIcon(operationNode)"
+                      />
                       {{ operationNode.title }}
                     </span>
                   </Checkbox>
@@ -820,9 +1523,15 @@ function isSomeSelected(permissions: string[]) {
 
       <div
         v-if="
-          isMenuModuleActive
-            ? visibleMenuPermissionNodes.length === 0
-            : filteredTypeList.length === 0
+          hasPermissionTree
+            ? activeModule
+              ? isMenuModuleActive
+                ? visibleMenuPermissionNodes.length === 0
+                : filteredTypeList.length === 0
+              : visiblePermissionNodes.length === 0
+            : isMenuModuleActive
+              ? visibleMenuPermissionNodes.length === 0
+              : filteredTypeList.length === 0
         "
         class="text-muted-foreground rounded-2xl px-4 py-8 text-center text-sm"
       >
@@ -831,3 +1540,24 @@ function isSomeSelected(permissions: string[]) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.permission-tree-editor :deep(.permission-tree-choice.ant-checkbox-wrapper),
+.permission-tree-editor :deep(.permission-tree-choice.ant-radio-wrapper) {
+  align-items: center;
+  line-height: 20px;
+}
+
+.permission-tree-editor :deep(.permission-tree-choice .ant-checkbox),
+.permission-tree-editor :deep(.permission-tree-choice .ant-radio) {
+  align-self: center;
+  top: 0;
+}
+
+.permission-tree-editor :deep(.permission-tree-choice .ant-checkbox + span),
+.permission-tree-editor :deep(.permission-tree-choice .ant-radio + span) {
+  align-items: center;
+  display: inline-flex;
+  min-height: 20px;
+}
+</style>

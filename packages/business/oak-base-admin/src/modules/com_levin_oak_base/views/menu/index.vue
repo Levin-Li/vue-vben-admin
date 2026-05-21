@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { RbacModuleNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
+import type { PermissionTreeNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import type { VxeTableGridOptions } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 
 import type { MenuOpButton, MenuRecord, SelectOption } from './types';
@@ -25,6 +25,7 @@ import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/ada
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { PermissionTreeNodeType } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
 import { menuService } from '../../api/menu-service';
 import { moduleFetchEnumOptions } from '@levin/oak-base-admin/modules/com_levin_oak_base/views/api-module';
@@ -61,7 +62,7 @@ const opButtonOpen = ref(false);
 const opButtonRecord = ref<MenuRecord | null>(null);
 const opButtonRows = ref<MenuOpButton[]>([]);
 const opButtonSubmitting = ref(false);
-const permissionModules = ref<RbacModuleNode[]>([]);
+const permissionTree = ref<PermissionTreeNode[]>([]);
 const permissionLoading = ref(false);
 const permissionOpen = ref(false);
 const permissionRecord = ref<MenuRecord | null>(null);
@@ -73,7 +74,6 @@ const menuOrderLoadingKey = ref('');
 const publicAccessSwitchLoadingId = ref('');
 const route = useRoute();
 const { hasPermission } = useRbacAccess();
-const MENU_PERMISSION_MODULE_ID = '__menus__';
 const MENU_ORDER_MAX = 2_147_483_647;
 const MENU_ORDER_MIN = -2_147_483_648;
 const MENU_ORDER_STEP = 100;
@@ -469,17 +469,17 @@ function openOpButtonEditor(row: MenuRecord) {
   opButtonOpen.value = true;
 }
 
-async function ensurePermissionModulesLoaded() {
-  if (permissionModules.value.length > 0) {
+async function ensurePermissionTreeLoaded() {
+  if (permissionTree.value.length > 0) {
     return;
   }
 
   permissionLoading.value = true;
   try {
-    permissionModules.value = (
-      ((await rbacService.fetchAuthorizedResourceModules()) ||
-        []) as RbacModuleNode[]
-    ).filter((item) => item.id !== MENU_PERMISSION_MODULE_ID);
+    permissionTree.value =
+      ((await rbacService.fetchAuthorizedPermissionTree({
+        excludeRootNodeTypes: [PermissionTreeNodeType.Menu],
+      })) || []) as PermissionTreeNode[];
   } catch (error) {
     console.error(error);
     message.error('加载资源权限列表失败');
@@ -502,7 +502,7 @@ async function openPermissionEditor(row: MenuRecord) {
   permissionRecord.value = row;
   permissionSelection.value = [...(row.requireAuthorizations || [])];
   permissionOpen.value = true;
-  await ensurePermissionModulesLoaded();
+  await ensurePermissionTreeLoaded();
 }
 
 function closePermissionEditor() {
@@ -820,7 +820,7 @@ function renderIcon(row: MenuRecord) {
         <Spin :spinning="permissionLoading">
           <ResourcePermissionTreeEditor
             v-model:value="permissionSelection"
-            :modules="permissionModules"
+            :permission-tree="permissionTree"
           />
         </Spin>
       </div>

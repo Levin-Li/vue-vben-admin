@@ -146,15 +146,32 @@ export class TenantSiteService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-租户站点',
-    action: '生成NG配置文件',
+    action: '生成NG配置',
   })
   @CRUD.Op({
-    confirmText: '确认生成当前站点的NG配置和证书文件吗？',
-    label: '生成NG配置和证书文件',
+    confirmText: '确认生成当前站点的NG配置吗？',
+    label: '生成NG配置',
     opRefTargetType: 'SingleRow',
   })
   async generateNginxConfig(id: string, data?: any, options?: any) {
     return this.post<TenantSiteRecord>('generateNginxConfig', {
+      ...options,
+      data: { ...(data || {}), id },
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-租户站点',
+    action: '生成证书文件',
+  })
+  @CRUD.Op({
+    confirmText: '确认生成当前站点的证书文件吗？',
+    label: '生成证书文件',
+    opRefTargetType: 'SingleRow',
+  })
+  async generateSslCertFiles(id: string, data?: any, options?: any) {
+    return this.post<TenantSiteRecord>('generateSslCertFiles', {
       ...options,
       data: { ...(data || {}), id },
     });

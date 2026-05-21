@@ -182,42 +182,6 @@ describe('tenant-site-admin-ui-base-setting', () => {
     });
   });
 
-  it('applies legacy nested server setting saved by the old upload payload', () => {
-    mocks.store.userInfo = { superAdmin: true };
-
-    const unsubscribe = registerTenantSiteAdminUiBaseSettingListener();
-
-    emitApiRequestEvent({
-      config: {
-        url: '/api/rbac/tenantSiteInfo',
-      },
-      data: {
-        uiExInfo: {
-          [ADMIN_UI_BASE_SETTING_KEY]: {
-            [ADMIN_UI_BASE_SETTING_KEY]: {
-              preferServerSetting: true,
-              setting: {
-                app: {
-                  enablePreferences: true,
-                  name: 'Nested Server App',
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    unsubscribe();
-
-    expect(mocks.updatePreferences).toHaveBeenNthCalledWith(1, {
-      app: {
-        enablePreferences: true,
-        name: 'Nested Server App',
-      },
-    });
-  });
-
   it('builds an unwrapped upload payload for the server setting endpoint', () => {
     const setting = {
       app: {

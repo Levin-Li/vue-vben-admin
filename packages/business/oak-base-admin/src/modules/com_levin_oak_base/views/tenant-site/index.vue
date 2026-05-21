@@ -15,16 +15,28 @@ const pageConfig = computed(() => ({
   rowActions: [
     ...(tenantSitePageCrudConfig.rowActions || []),
     {
-      confirmText: '确认生成当前站点的NG配置和证书文件吗？',
+      confirmText: '确认生成当前站点的NG配置吗？',
       handler: async (record: Record<string, any>) => {
         return tenantSiteService.generateNginxConfig(String(record.id || ''));
       },
-      label: '生成NG配置和证书文件',
+      label: '生成NG配置',
       permission: buildApiMethodPermissions(
         tenantSiteService,
         'generateNginxConfig',
       ),
-      visible: canGenerateNginxConfig,
+      visible: canGenerateSiteFiles,
+    },
+    {
+      confirmText: '确认生成当前站点的证书文件吗？',
+      handler: async (record: Record<string, any>) => {
+        return tenantSiteService.generateSslCertFiles(String(record.id || ''));
+      },
+      label: '生成证书文件',
+      permission: buildApiMethodPermissions(
+        tenantSiteService,
+        'generateSslCertFiles',
+      ),
+      visible: canGenerateSiteFiles,
     },
     {
       handler: async (record: Record<string, any>) => {
@@ -42,7 +54,7 @@ const pageConfig = computed(() => ({
   ],
 }));
 
-function canGenerateNginxConfig(record: Record<string, any>) {
+function canGenerateSiteFiles(record: Record<string, any>) {
   const domain = String(record?.domain || '').trim();
   return Boolean(record?.id && domain && !isLocalHostDomain(domain));
 }

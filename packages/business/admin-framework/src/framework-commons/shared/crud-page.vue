@@ -3528,6 +3528,11 @@ function getRowActions(record: GenericRecord) {
   );
 }
 
+function getActionBadgeCount(action: CrudRowAction, record: GenericRecord) {
+  const count = action.badgeCount?.(record) || 0;
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
 function getToolbarActions() {
   return actionGroups.value.toolbar.filter(
     (action) =>
@@ -4511,7 +4516,15 @@ watch(tableColumnPreferenceStorageKey, () => {
                     @confirm="runRowAction(action, record)"
                   >
                     <Button :danger="action.danger" size="small" type="link">
-                      {{ action.label }}
+                      <span class="vben-crud-row-action-content">
+                        <span>{{ action.label }}</span>
+                        <span
+                          v-if="getActionBadgeCount(action, record) > 0"
+                          class="vben-crud-row-action-badge"
+                        >
+                          {{ getActionBadgeCount(action, record) }}
+                        </span>
+                      </span>
                     </Button>
                   </Popconfirm>
                   <Button
@@ -4521,7 +4534,15 @@ watch(tableColumnPreferenceStorageKey, () => {
                     type="link"
                     @click="runRowAction(action, record)"
                   >
-                    {{ action.label }}
+                    <span class="vben-crud-row-action-content">
+                      <span>{{ action.label }}</span>
+                      <span
+                        v-if="getActionBadgeCount(action, record) > 0"
+                        class="vben-crud-row-action-badge"
+                      >
+                        {{ getActionBadgeCount(action, record) }}
+                      </span>
+                    </span>
                   </Button>
                 </template>
               </Space>
@@ -5359,6 +5380,32 @@ watch(tableColumnPreferenceStorageKey, () => {
 .vben-crud-column-pin:disabled {
   color: hsl(var(--muted-foreground) / 45%);
   cursor: not-allowed;
+}
+
+.vben-crud-row-action-content {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.vben-crud-row-action-badge {
+  position: absolute;
+  top: -8px;
+  right: -9px;
+  display: inline-flex;
+  min-width: 15px;
+  height: 15px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  color: hsl(var(--primary-foreground));
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 15px;
+  background: hsl(var(--primary));
+  border: 1px solid hsl(var(--background));
+  border-radius: 999px;
+  box-shadow: 0 2px 6px hsl(var(--primary) / 28%);
 }
 
 .vben-crud-column-pin:disabled:hover {

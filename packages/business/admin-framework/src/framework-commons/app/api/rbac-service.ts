@@ -119,6 +119,20 @@ export namespace RbacApi {
     isShowSysDefaultRes?: boolean;
   }
 
+  export interface AuthorizedPermissionTreeParams {
+    excludeRootNodeTypes?: string[];
+  }
+
+  export interface PermissionTreeNode {
+    children?: PermissionTreeNode[];
+    id: string;
+    label?: null | string;
+    name: string;
+    nodeType: string;
+    permissionExpr?: null | string;
+    remark?: null | string;
+  }
+
   export interface AuthorizedMenuListParams {
     loadAll?: boolean;
   }
@@ -127,6 +141,12 @@ export namespace RbacApi {
 }
 
 type BackendUserInfo = RbacApi.BackendUserInfo;
+
+function normalizeHomePath(homePath: unknown) {
+  return typeof homePath === 'string' && homePath.trim()
+    ? homePath.trim()
+    : '/';
+}
 
 function normalizeUserInfo(data: BackendUserInfo): UserInfo {
   const username =
@@ -137,7 +157,7 @@ function normalizeUserInfo(data: BackendUserInfo): UserInfo {
     ...data,
     avatar: data.avatar || '',
     desc: data.tenantId ? `租户：${data.tenantId}` : '平台管理用户',
-    homePath: '/',
+    homePath: normalizeHomePath(data.homePath),
     realName,
     roles: data.roleList || [],
     token: '',
@@ -362,6 +382,23 @@ export class RbacService extends RequestService {
           isShowSysDefaultRes: false,
           ...params,
         },
+      },
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '获取授权的纯树形资源权限',
+    onlyRequireAuthenticated: true,
+  })
+  async fetchAuthorizedPermissionTree(
+    params: RbacApi.AuthorizedPermissionTreeParams = {},
+  ) {
+    return requestClient.get<RbacApi.PermissionTreeNode[]>(
+      this.buildRequestPath('authorizedPermissionTree'),
+      {
+        params,
       },
     );
   }

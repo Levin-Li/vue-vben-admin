@@ -57,6 +57,26 @@ export interface RbacModuleNode {
   typeList?: RbacTypeNode[];
 }
 
+export enum PermissionTreeNodeType {
+  Action = 'Action',
+  Group = 'Group',
+  Menu = 'Menu',
+  Module = 'Module',
+  Permission = 'Permission',
+  Resource = 'Resource',
+  ResourceType = 'ResourceType',
+}
+
+export interface PermissionTreeNode {
+  children?: PermissionTreeNode[];
+  id: string;
+  label?: null | string;
+  name: string;
+  nodeType: `${PermissionTreeNodeType}`;
+  permissionExpr?: null | string;
+  remark?: null | string;
+}
+
 export interface RbacMenuNode {
   children?: null | RbacMenuNode[];
   id?: string;

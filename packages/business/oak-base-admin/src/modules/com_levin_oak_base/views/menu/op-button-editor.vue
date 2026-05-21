@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { MenuOpButton } from './types';
-import type { RbacModuleNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
+import type { PermissionTreeNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 
 import { computed, ref } from 'vue';
 
@@ -16,6 +16,7 @@ import {
 } from 'ant-design-vue';
 
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
+import { PermissionTreeNodeType } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
 
 const props = defineProps<{
@@ -32,11 +33,10 @@ const rows = computed({
 });
 
 const currentPermissionRowIndex = ref(-1);
-const modules = ref<RbacModuleNode[]>([]);
+const permissionTree = ref<PermissionTreeNode[]>([]);
 const permissionLoading = ref(false);
 const permissionModalOpen = ref(false);
 const permissionSelection = ref<string[]>([]);
-const MENU_MODULE_ID = '__menus__';
 
 const columns = [
   { dataIndex: 'label', title: '显示Label', width: 180 },
@@ -76,17 +76,17 @@ function getRowKey(record: MenuOpButton, index: number) {
 }
 
 async function ensurePermissionOptionsLoaded() {
-  if (modules.value.length > 0) {
+  if (permissionTree.value.length > 0) {
     return;
   }
 
   permissionLoading.value = true;
 
   try {
-    const modulesResp = await rbacService.fetchAuthorizedResourceModules();
-    modules.value = ((modulesResp || []) as RbacModuleNode[]).filter(
-      (item) => item.id !== MENU_MODULE_ID,
-    );
+    permissionTree.value =
+      ((await rbacService.fetchAuthorizedPermissionTree({
+        excludeRootNodeTypes: [PermissionTreeNodeType.Menu],
+      })) || []) as PermissionTreeNode[];
   } catch (error) {
     console.error(error);
     message.error('加载资源权限列表失败');
@@ -212,7 +212,7 @@ function clearPermission(index: number) {
         <Spin :spinning="permissionLoading">
           <ResourcePermissionTreeEditor
             v-model:value="permissionSelection"
-            :modules="modules"
+            :permission-tree="permissionTree"
             selection-mode="single"
           />
         </Spin>

@@ -1,6 +1,7 @@
-import { useAccessStore } from '@vben/stores';
+import { useAccessStore, useUserStore } from '@vben/stores';
 
 import RbacPermissionMatchUtils from './rbac-permission-match';
+import { isSuperAdminUser } from './shared/user-identity';
 
 type PermissionValue = null | string | string[] | undefined;
 
@@ -50,11 +51,16 @@ export function shouldRefreshAuthorizedPermissions(accessCodes: string[]) {
 
 export function useRbacAccess() {
   const accessStore = useAccessStore();
+  const userStore = useUserStore();
 
   function hasPermission(permission: PermissionValue) {
     const permissions = deduplicate(normalizePermissionValue(permission));
 
     if (permissions.length === 0) {
+      return true;
+    }
+
+    if (isSuperAdminUser(userStore.userInfo)) {
       return true;
     }
 

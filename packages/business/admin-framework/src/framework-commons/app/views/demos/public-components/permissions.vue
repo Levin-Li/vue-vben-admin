@@ -2,6 +2,7 @@
 import type {
   DataPermissionPreviewPayload,
   DataPermissionSubjectType,
+  PermissionTreeNode,
   RbacMenuNode,
   RbacModuleNode,
 } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
@@ -160,6 +161,76 @@ const permissionModules: RbacModuleNode[] = [
   },
 ];
 
+const permissionTree: PermissionTreeNode[] = [
+  {
+    id: 'system',
+    name: '系统管理',
+    nodeType: 'group',
+    remark: '仅用于组织系统管理相关权限',
+    children: [
+      {
+        id: 'role',
+        name: '角色',
+        nodeType: 'resource',
+        remark: '角色资源下的操作权限',
+        children: [
+          {
+            id: 'role-list',
+            name: '查询列表',
+            nodeType: 'action',
+            permissionExpr: 'com.levin.oak.base:系统数据-角色::查询列表',
+            remark: '允许查看角色列表',
+          },
+          {
+            id: 'role-permission',
+            name: '分配权限',
+            nodeType: 'action',
+            permissionExpr: 'com.levin.oak.base:系统数据-角色::分配权限',
+            remark: '允许打开角色权限分配弹窗',
+          },
+        ],
+      },
+      {
+        id: 'user',
+        name: '用户',
+        nodeType: 'resource',
+        remark: '用户资源下的操作权限',
+        children: [
+          {
+            id: 'user-list',
+            name: '查询列表',
+            nodeType: 'action',
+            permissionExpr: 'com.levin.oak.base:系统数据-用户::查询列表',
+            remark: '允许查看用户列表',
+          },
+          {
+            id: 'user-data-permission',
+            name: '数据权限分配',
+            nodeType: 'action',
+            permissionExpr:
+              'com.levin.oak.base:系统数据-用户::数据权限分配',
+            remark: '允许维护用户数据权限',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'content',
+    name: '内容管理',
+    nodeType: 'group',
+    children: [
+      {
+        id: 'article',
+        name: '文章发布',
+        nodeType: 'action',
+        permissionExpr: 'com.demo.content:内容数据-文章::发布',
+        remark: '允许发布内容文章',
+      },
+    ],
+  },
+];
+
 const permissionMenuTree: RbacMenuNode[] = [
   {
     id: 'menu-system',
@@ -272,6 +343,7 @@ function formatJson(value: unknown) {
             v-model:value="selectedPermissions"
             :menu-tree="permissionMenuTree"
             :modules="permissionModules"
+            :permission-tree="permissionTree"
           />
 
           <div class="space-y-3 rounded-lg border border-border p-4">

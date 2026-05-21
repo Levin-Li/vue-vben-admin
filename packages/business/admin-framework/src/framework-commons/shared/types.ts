@@ -70,6 +70,7 @@ export interface CrudFieldConfig {
 export interface CrudRowAction {
   action?: string;
   actionData?: string;
+  badgeCount?: (record: Record<string, any>) => number;
   confirmText?: string;
   confirmTitle?: string;
   danger?: boolean;

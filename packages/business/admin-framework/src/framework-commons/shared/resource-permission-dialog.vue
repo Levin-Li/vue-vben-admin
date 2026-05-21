@@ -1,5 +1,9 @@
 <script lang="ts" setup>
-import type { RbacMenuNode, RbacModuleNode } from './data-permission-types';
+import type {
+  PermissionTreeNode,
+  RbacMenuNode,
+  RbacModuleNode,
+} from './data-permission-types';
 
 import { computed, ref, watch } from 'vue';
 
@@ -40,6 +44,7 @@ const errorMessage = ref('');
 const loading = ref(false);
 const modules = ref<RbacModuleNode[]>([]);
 const menuTree = ref<RbacMenuNode[]>([]);
+const permissionTree = ref<PermissionTreeNode[]>([]);
 const saving = ref(false);
 const selectedPermissions = ref<string[]>([]);
 
@@ -70,23 +75,27 @@ async function loadData() {
   errorMessage.value = '';
 
   try {
-    const [detailResp, modulesResp, menuTreeResp] = await Promise.all([
+    const [detailResp, permissionTreeResp, modulesResp, menuTreeResp] =
+      await Promise.all([
       requestClient.get<Record<string, any>>(`${props.apiBase}/retrieve`, {
         params: {
           id: props.record.id,
         },
       }),
+      rbacService.fetchAuthorizedPermissionTree(),
       rbacService.fetchAuthorizedResourceModules(),
       rbacService.getAuthorizedMenuList(),
     ]);
 
     detail.value = detailResp;
+    permissionTree.value = (permissionTreeResp || []) as PermissionTreeNode[];
     modules.value = (modulesResp || []) as RbacModuleNode[];
     menuTree.value = (menuTreeResp || []) as RbacMenuNode[];
 
     const permissionState = splitMappedAndUnmappedPermissions(
       detailResp[props.permissionField] || [],
       modules.value,
+      permissionTree.value,
     );
     selectedPermissions.value = permissionState.mapped;
   } catch (error) {
@@ -167,6 +176,7 @@ watch(
           v-model:value="selectedPermissions"
           :menu-tree="menuTree"
           :modules="modules"
+          :permission-tree="permissionTree"
         />
       </Spin>
     </div>

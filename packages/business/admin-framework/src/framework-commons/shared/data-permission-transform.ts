@@ -2,6 +2,7 @@ import type {
   OrgScopeDraft,
   OrgScopeItem,
   OrgTreeNode,
+  PermissionTreeNode,
   RbacModuleNode,
 } from './data-permission-types';
 
@@ -217,11 +218,32 @@ export function collectKnownPermissionValues(modules: RbacModuleNode[]) {
   return values;
 }
 
+export function collectKnownPermissionTreeValues(nodes: PermissionTreeNode[]) {
+  const values = new Set<string>();
+
+  for (const node of nodes) {
+    if (node.permissionExpr) {
+      values.add(node.permissionExpr);
+    }
+
+    for (const childValue of collectKnownPermissionTreeValues(
+      node.children || [],
+    )) {
+      values.add(childValue);
+    }
+  }
+
+  return values;
+}
+
 export function splitMappedAndUnmappedPermissions(
   value: string[],
   modules: RbacModuleNode[],
+  permissionTree: PermissionTreeNode[] = [],
 ) {
-  const knownValues = collectKnownPermissionValues(modules);
+  const treeValues = collectKnownPermissionTreeValues(permissionTree);
+  const knownValues =
+    treeValues.size > 0 ? treeValues : collectKnownPermissionValues(modules);
   const mapped = [...knownValues].filter((permissionExpr) =>
     RbacPermissionMatchUtils.simpleMatchList(permissionExpr, value),
   );

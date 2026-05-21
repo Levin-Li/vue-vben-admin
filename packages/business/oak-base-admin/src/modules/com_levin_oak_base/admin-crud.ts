@@ -256,6 +256,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     resource: 'UrlExAcl',
     title: 'URL 访问控制',
   },
+  {
+    icon: 'lucide:users-round',
+    name: 'OrgUser',
+    resource: 'OrgUser',
+    title: '组织与用户',
+  },
   { icon: 'lucide:user', name: 'User', resource: 'User', title: '用户管理' },
   {
     icon: 'lucide:user-cog',
@@ -294,6 +300,7 @@ export const oakBaseAdminResourceViewMap: Record<
   NoticeProcessLog: () => import('./views/notice-process-log/index.vue'),
   OnlineCodeGen: () => import('./views/online-code-gen/index.vue'),
   Org: () => import('./views/org/index.vue'),
+  OrgUser: () => import('./views/org-user/index.vue'),
   PayChannel: () => import('./views/pay-channel/index.vue'),
   PayOrder: () => import('./views/pay-order/index.vue'),
   RbacPermissionItem: () => import('./views/rbac-permission-item/index.vue'),
