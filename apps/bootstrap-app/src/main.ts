@@ -7,6 +7,7 @@ import {
   type AdminPageMap,
 } from '@levin/admin-framework';
 import {
+  i18nResService,
   menuService,
   noticeService,
   userService,
@@ -22,6 +23,7 @@ const pageOverrides = normalizeAdminGlobPageMap(
 );
 
 configureAdminApplication({
+  i18nLabelSyncService: i18nResService,
   menuSyncService: menuService,
   modules: enabledFrontendModules,
   noticeService,

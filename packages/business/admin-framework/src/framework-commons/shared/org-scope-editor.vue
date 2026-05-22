@@ -28,6 +28,7 @@ import {
 } from './data-permission-transform';
 
 const props = defineProps<{
+  allowScriptExpressionTypes?: boolean;
   expressionTypes?: string[];
   loadTenantOptions?: (
     keyword?: string,
@@ -79,20 +80,25 @@ const allowOptions = [
   { label: '拒绝', value: false },
 ];
 
-const tenantMatchingModeOptions = [
-  { label: '默认租户', value: 'default' },
-  { label: '所有租户', value: 'all' },
-  { label: '无租户', value: 'none' },
-  { label: '指定租户', value: 'tenant' },
-  { label: '路径表达式', value: 'path' },
-  { label: 'Groovy 脚本', value: 'groovy' },
-];
+const tenantMatchingModeOptions = computed(() =>
+  [
+    { label: '默认租户', value: 'default' },
+    { label: '所有租户', value: 'all' },
+    { label: '无租户', value: 'none' },
+    { label: '指定租户', value: 'tenant' },
+    { label: '路径表达式', value: 'path' },
+    { label: 'Groovy 脚本', value: 'groovy' },
+  ].filter(
+    (option) => option.value !== 'groovy' || props.allowScriptExpressionTypes,
+  ),
+);
 
-const tenantMatchingExpressionPlaceholder = `普通文本按租户ID精确匹配；路径表达式使用 Spring PathPattern；Groovy 脚本会自动添加 ${TENANT_GROOVY_EXPRESSION_PREFIX} 前缀`;
 const tenantGroovyVariablesTip =
   'Groovy 可用变量：_tenant 当前租户；_user 当前登录用户；_scope 当前组织范围规则。';
 const orgScopeGroovyVariablesTip =
   'Groovy 可用变量：_org 当前被匹配组织节点；_user 当前登录用户。';
+const orgScopeSpringElVariablesTip =
+  'SpringEL 可用变量：_org 当前被匹配组织节点；_user 当前登录用户。';
 
 const editingIndex = ref<null | number>(null);
 const formOpen = ref(false);
@@ -120,15 +126,16 @@ const formState = reactive<
 const flatOrgTree = computed(() => flattenOrgTree(props.orgTree));
 
 const expressionTypeOptions = computed(() =>
-  (props.expressionTypes || ['IdPath', 'NamePath', 'Groovy', 'SpringEL']).map(
-    (value) => {
-      const normalizedValue = normalizeOrgScopeExpressionType(value);
-      return {
-        label: normalizedValue,
-        value: normalizedValue,
-      };
-    },
-  ),
+  (props.expressionTypes || ['IdPath', 'NamePath', 'Groovy', 'SpringEL'])
+    .map((value) => normalizeOrgScopeExpressionType(value))
+    .filter(
+      (value) =>
+        props.allowScriptExpressionTypes || !isScriptExpressionType(value),
+    )
+    .map((normalizedValue) => ({
+      label: normalizedValue,
+      value: normalizedValue,
+    })),
 );
 
 const orgSelectTreeData = computed<OrgSelectOption[]>(() => [
@@ -160,14 +167,28 @@ const tenantMatchingValuePlaceholder = computed(() => {
     return '请输入 Groovy 脚本内容，不需要手动输入 #!groovy: 前缀';
   }
 
-  return '请输入租户ID或 Spring PathPattern 表达式';
+  return '请输入租户ID或 *?通配表达式';
 });
 
 const orgScopeExpressionPlaceholder = computed(() =>
-  formState.orgScopeExpressionType === 'Groovy'
-    ? '请输入 Groovy 脚本，可使用 _org、_user'
-    : '请输入 Spring PathPattern、Groovy 或 SpringEL 表达式',
+  ({
+    Groovy: '请输入 Groovy 脚本，可使用 _org、_user',
+    SpringEL: '请输入 SpringEL 表达式，可使用 _org、_user',
+  })[formState.orgScopeExpressionType] ||
+  '请输入 *?通配表达式、Groovy 或 SpringEL 表达式',
 );
+
+const orgScopeExpressionVariablesTip = computed(() => {
+  if (formState.orgScopeExpressionType === 'Groovy') {
+    return orgScopeGroovyVariablesTip;
+  }
+
+  if (formState.orgScopeExpressionType === 'SpringEL') {
+    return orgScopeSpringElVariablesTip;
+  }
+
+  return '';
+});
 
 function normalizeOrgOptions(nodes: OrgTreeNode[]): OrgSelectOption[] {
   return nodes.map((node) => {
@@ -329,7 +350,14 @@ async function loadTenantOptions(keyword?: string) {
 }
 
 function handleTenantMatchingModeChange(value: unknown) {
-  tenantMatchingMode.value = String(value || 'default') as TenantMatchingMode;
+  const nextMode = String(value || 'default') as TenantMatchingMode;
+
+  if (nextMode === 'groovy' && !props.allowScriptExpressionTypes) {
+    message.warning('只有超级管理员可以选择 Groovy 租户匹配脚本');
+    return;
+  }
+
+  tenantMatchingMode.value = nextMode;
 
   if (!showTenantMatchingValueControl.value) {
     tenantMatchingValue.value = '';
@@ -450,9 +478,14 @@ function handleRemoveWithConfirm(index: number) {
 }
 
 function handleExpressionTypeChange(value: unknown) {
-  formState.orgScopeExpressionType = normalizeOrgScopeExpressionType(
-    String(value || ''),
-  );
+  const nextType = normalizeOrgScopeExpressionType(String(value || ''));
+
+  if (!props.allowScriptExpressionTypes && isScriptExpressionType(nextType)) {
+    message.warning('只有超级管理员可以选择 Groovy 或 SpringEL 表达式类型');
+    return;
+  }
+
+  formState.orgScopeExpressionType = nextType;
 }
 
 function handleScopeChange(value: unknown) {
@@ -496,6 +529,15 @@ function handleSubmitForm() {
     return;
   }
 
+  if (
+    isCustomScope() &&
+    !props.allowScriptExpressionTypes &&
+    isScriptExpressionType(formState.orgScopeExpressionType)
+  ) {
+    message.warning('只有超级管理员可以保存 Groovy 或 SpringEL 表达式类型');
+    return;
+  }
+
   if (isCustomScope() && !formState.orgScopeExpression) {
     message.warning('请输入组织范围表达式');
     return;
@@ -530,6 +572,10 @@ function handleSubmitForm() {
 
   emit('update:value', next);
   closeForm();
+}
+
+function isScriptExpressionType(expressionType?: string) {
+  return expressionType === 'Groovy' || expressionType === 'SpringEL';
 }
 
 function getExpressionPreview(draft: OrgScopeDraft) {
@@ -697,9 +743,6 @@ watch(formOpen, (open) => {
               }}
             </div>
           </div>
-          <span class="text-muted-foreground block text-xs">
-            {{ tenantMatchingExpressionPlaceholder }}
-          </span>
           <span
             v-if="tenantMatchingMode === 'groovy'"
             class="text-muted-foreground block text-xs"
@@ -768,10 +811,10 @@ watch(formOpen, (open) => {
               "
             ></textarea>
             <span
-              v-if="formState.orgScopeExpressionType === 'Groovy'"
+              v-if="orgScopeExpressionVariablesTip"
               class="text-muted-foreground block text-xs"
             >
-              {{ orgScopeGroovyVariablesTip }}
+              {{ orgScopeExpressionVariablesTip }}
             </span>
           </label>
         </template>

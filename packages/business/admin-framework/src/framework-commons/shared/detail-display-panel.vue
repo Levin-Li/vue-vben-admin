@@ -6,7 +6,7 @@ import { ref } from 'vue';
 
 import { JsonViewer } from '@vben/common-ui';
 
-import { Button, Input, Modal } from 'ant-design-vue';
+import { Button, Modal, Tooltip } from 'ant-design-vue';
 
 import {
   formatDetailDisplayValue,
@@ -49,6 +49,10 @@ function openJsonViewer(entry: DetailDisplayEntry) {
   jsonViewerValue.value = entry.value;
   jsonViewerOpen.value = true;
 }
+
+function getDisplayText(entry: DetailDisplayEntry) {
+  return formatDetailDisplayValue(entry);
+}
 </script>
 
 <template>
@@ -66,25 +70,32 @@ function openJsonViewer(entry: DetailDisplayEntry) {
         {{ entry.label }}
       </div>
       <div v-if="isDetailJsonValue(entry)" class="flex gap-2">
-        <Input.TextArea
-          :auto-size="{ minRows: 1 }"
-          class="flex-1"
-          readonly
-          :value="formatDetailJsonText(entry.value)"
-        />
+        <Tooltip
+          :overlay-class-name="'crud-detail-display-tooltip'"
+          :title="getDisplayText(entry)"
+        >
+          <pre
+            class="bg-background line-clamp-2 flex-1 rounded p-3 text-sm leading-6 break-all whitespace-pre-wrap"
+            data-test="detail-display-value"
+            >{{ formatDetailJsonText(entry.value) }}</pre
+          >
+        </Tooltip>
         <Button @click="openJsonViewer(entry)">查看 JSON</Button>
       </div>
-      <div
-        v-else-if="shouldSpanFullRow(entry)"
-        class="bg-background rounded p-3 text-sm leading-6"
+      <Tooltip
+        v-else
+        :overlay-class-name="'crud-detail-display-tooltip'"
+        :title="getDisplayText(entry)"
       >
-        <pre class="whitespace-pre-wrap break-words">{{
-          formatDetailDisplayValue(entry)
-        }}</pre>
-      </div>
-      <div v-else class="break-all text-sm">
-        {{ formatDetailDisplayValue(entry) }}
-      </div>
+        <pre
+          class="line-clamp-2 text-sm leading-6 break-all whitespace-pre-wrap"
+          :class="{
+            'bg-background rounded p-3': shouldSpanFullRow(entry),
+          }"
+          data-test="detail-display-value"
+          >{{ getDisplayText(entry) }}</pre
+        >
+      </Tooltip>
     </div>
   </div>
 
@@ -105,3 +116,17 @@ function openJsonViewer(entry: DetailDisplayEntry) {
     </div>
   </Modal>
 </template>
+
+<style scoped>
+:global(.crud-detail-display-tooltip) {
+  max-width: min(70vw, 960px);
+}
+
+:global(.crud-detail-display-tooltip .ant-tooltip-inner) {
+  max-height: 60vh;
+  min-width: 500px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+</style>

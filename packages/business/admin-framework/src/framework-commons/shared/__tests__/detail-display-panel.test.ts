@@ -1,7 +1,9 @@
 import { mount } from '@vue/test-utils';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 
 import { describe, expect, it, vi } from 'vitest';
+
+import { Tooltip } from 'ant-design-vue';
 
 import { buildDetailDisplayEntries } from '../detail-display';
 import DetailDisplayPanel from '../detail-display-panel.vue';
@@ -24,7 +26,7 @@ vi.mock('@vben/common-ui', () => ({
 }));
 
 describe('detail display panel', () => {
-  it('renders JSON as a readonly textarea with a viewer entry', async () => {
+  it('clamps detail values to two lines with wide tooltips', async () => {
     const entries = buildDetailDisplayEntries(
       {
         complexObject: { hidden: true },
@@ -72,8 +74,34 @@ describe('detail display panel', () => {
     expect(wrapper.text()).toContain('启用, 停用');
     expect(wrapper.text()).toContain('查看 JSON');
     expect(wrapper.text()).not.toContain('complexObject');
-    expect(wrapper.find('textarea[readonly]').exists()).toBe(true);
-    expect(wrapper.find('textarea').element.value).toBe(
+    expect(wrapper.find('textarea[readonly]').exists()).toBe(false);
+
+    const valueBlocks = wrapper.findAll('[data-test="detail-display-value"]');
+    expect(valueBlocks).toHaveLength(3);
+    expect(
+      valueBlocks.every((block) => block.classes().includes('line-clamp-2')),
+    ).toBe(true);
+    expect(valueBlocks[1].text()).toBe(
+      '{"enabled":true,"limits":[1,2]}',
+    );
+
+    const tooltips = wrapper.findAllComponents(Tooltip);
+    expect(tooltips).toHaveLength(3);
+    expect(
+      tooltips.every(
+        (tooltip) =>
+          tooltip.props('overlayClassName') === 'crud-detail-display-tooltip',
+      ),
+    ).toBe(true);
+
+    await valueBlocks[1].trigger('mouseenter');
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const tooltipInner = document.body.querySelector(
+      '.crud-detail-display-tooltip .ant-tooltip-inner',
+    );
+    expect(tooltipInner?.textContent).toContain(
       '{"enabled":true,"limits":[1,2]}',
     );
 

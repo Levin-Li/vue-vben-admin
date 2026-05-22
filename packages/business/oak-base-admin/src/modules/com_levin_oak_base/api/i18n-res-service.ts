@@ -2,6 +2,21 @@ import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
 import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
 
+export interface SyncI18nLabelItem {
+  category?: string;
+  domain?: string;
+  enable?: boolean;
+  label: string;
+  language: string;
+  moduleId?: string;
+  overrideExisting?: boolean;
+  resKey: string;
+}
+
+export interface SyncI18nLabelsPayload {
+  labelList: SyncI18nLabelItem[];
+}
+
 @Service({
   basePath: '/I18nRes',
   controllerClass: 'com.levin.oak.base.controller.BizI18nResController',
@@ -132,6 +147,31 @@ export class I18nResService extends RequestService {
     return this.get('stat', {
       ...options,
       params,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-国际化资源',
+    action: '查询服务端国际化标签',
+    onlyRequireAuthenticated: true,
+  })
+  async serverLabels(params?: any, options?: any) {
+    return this.get('serverLabels', {
+      ...options,
+      params,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-国际化资源',
+    action: '同步前端国际化标签到后端',
+  })
+  async syncLabels(data: SyncI18nLabelsPayload, options?: any) {
+    return this.post<number>('syncLabels', {
+      ...options,
+      data,
     });
   }
 

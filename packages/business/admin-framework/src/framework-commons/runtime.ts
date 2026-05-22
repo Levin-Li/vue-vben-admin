@@ -31,12 +31,18 @@ export interface AdminMenuSyncService {
   syncMenu(data?: any, options?: any): Promise<any>;
 }
 
+export interface AdminI18nLabelSyncService {
+  serverLabels?(params?: any, options?: any): Promise<any>;
+  syncLabels(data?: any, options?: any): Promise<any>;
+}
+
 export interface AdminUserSecurityService {
   resetMfaSecretKey(data?: any, options?: any): Promise<any>;
   viewMyMfaQrCode(params?: any, options?: any): Promise<any>;
 }
 
 export interface AdminFrameworkRuntime {
+  i18nLabelSyncService?: AdminI18nLabelSyncService;
   menuSyncService?: AdminMenuSyncService;
   noticeService?: AdminNoticeService;
   requestClient: AdminRequestClient;
@@ -69,6 +75,10 @@ export function getAdminRequestClient() {
 
 export function getAdminMenuSyncService() {
   return runtime?.menuSyncService;
+}
+
+export function getAdminI18nLabelSyncService() {
+  return runtime?.i18nLabelSyncService;
 }
 
 export function getAdminNoticeService() {

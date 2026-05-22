@@ -23,6 +23,7 @@ interface RouteMappingLookup {
 
 const DEFAULT_LEAF_MENU_ICON = 'lucide:panel-right-open';
 const DEFAULT_GROUP_MENU_ICON = 'lucide:folder-tree';
+const NOT_FOUND_PAGE_COMPONENT = '/_core/fallback/not-found.vue';
 const DEFAULT_BACKEND_MENU_ICONS = new Set([
   DEFAULT_GROUP_MENU_ICON,
   DEFAULT_LEAF_MENU_ICON,
@@ -188,6 +189,20 @@ function toMeta(
   };
 }
 
+function toMissingRouteMeta(item: BackendMenuInfo, normalizedPath: string) {
+  const { backendIframeSrc: _backendIframeSrc, ...meta } = toMeta(
+    item,
+    normalizedPath,
+    {
+      hideInTab: true,
+      menuRouteMissingPage: true,
+      title: item.name || '404',
+    },
+  );
+
+  return meta;
+}
+
 function findRouteMapping(lookup: RouteMappingLookup, normalizedPath: string) {
   return (
     lookup.byPath.get(normalizedPath) ||
@@ -287,6 +302,15 @@ function convertLeafRoute(
     };
   }
 
+  if (pageType === 'LocalPage') {
+    return {
+      component: NOT_FOUND_PAGE_COMPONENT,
+      meta: toMissingRouteMeta(item, normalizedPath),
+      name: toRouteName('NotFound', item),
+      path: finalPath,
+    };
+  }
+
   if (pageType === 'HtmlPage') {
     return {
       component: 'IFrameView',
@@ -299,10 +323,12 @@ function convertLeafRoute(
   }
 
   return {
-    component: mapping?.viewPath || '/system/shared/controller-crud-page.vue',
-    meta: toMeta(item, normalizedPath),
-    name: toRouteName('Crud', item),
-    path: routePath || `/menu/${item.id || 'unknown'}`,
+    component: mapping?.viewPath || NOT_FOUND_PAGE_COMPONENT,
+    meta: mapping
+      ? toMeta(item, normalizedPath)
+      : toMissingRouteMeta(item, normalizedPath),
+    name: mapping?.name || toRouteName('NotFound', item),
+    path: routePath,
   };
 }
 

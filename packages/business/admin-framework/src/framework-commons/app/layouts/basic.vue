@@ -47,8 +47,10 @@ import {
   setFrameworkEventListenerEnabled,
   type FrameworkEventListenerInfo,
 } from '../../event-bus';
+import { getAdminI18nLabelSyncService } from '../../runtime';
 import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-service';
 import { buildAdminUiBaseSettingPayload } from '../tenant-site-admin-ui-base-setting';
+import SyncI18nLabelsModal from './sync-i18n-labels-modal.vue';
 import SyncMenuRoutesModal from './sync-menu-routes-modal.vue';
 
 type NoticeProcessStatus = 'Finished' | 'Processing' | 'Rejected';
@@ -118,6 +120,7 @@ const ProfileCenter = defineAsyncComponent(
 );
 const profileModalOpen = ref(false);
 const syncMenuRoutesModalOpen = ref(false);
+const syncI18nLabelsModalOpen = ref(false);
 const saveAdminUiBaseSettingModalOpen = ref(false);
 const saveAdminUiBaseSettingLoading = ref(false);
 const eventListenerManagerOpen = ref(false);
@@ -135,6 +138,13 @@ const extensionUserDropdownMenus = getUserDropdownMenuItems();
 const canUploadPageRoutes = computed(() => {
   const userInfo = (userStore.userInfo || {}) as Record<string, any>;
   return userInfo.superAdmin === true && Boolean(getAdminMenuSyncService());
+});
+
+const canUploadI18nLabels = computed(() => {
+  const userInfo = (userStore.userInfo || {}) as Record<string, any>;
+  return (
+    userInfo.superAdmin === true && Boolean(getAdminI18nLabelSyncService())
+  );
 });
 
 const fixedProfileUserDropdownMenu = computed(() => ({
@@ -167,6 +177,19 @@ const builtInUserDropdownExtensionMenus = computed(() => [
           order: 200,
           text: '上传页面路由',
         },
+        ...(canUploadI18nLabels.value
+          ? [
+              {
+                handler: () => {
+                  syncI18nLabelsModalOpen.value = true;
+                },
+                icon: 'lucide:languages',
+                id: 'sync-i18n-labels',
+                order: 250,
+                text: '上传国际化标签',
+              },
+            ]
+          : []),
         {
           handler: () => {
             preferServerAdminUiBaseSetting.value = true;
@@ -602,6 +625,7 @@ watch(
         <ProfileCenter class="max-h-[72vh] overflow-y-auto" />
       </Modal>
       <SyncMenuRoutesModal v-model:open="syncMenuRoutesModalOpen" />
+      <SyncI18nLabelsModal v-model:open="syncI18nLabelsModalOpen" />
       <Modal
         v-model:open="saveAdminUiBaseSettingModalOpen"
         :confirm-loading="saveAdminUiBaseSettingLoading"

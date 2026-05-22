@@ -95,6 +95,10 @@ import {
   groupCrudOperationsByRecordRef,
 } from './crud-operation-placement';
 import { buildCrudOperationPermissions } from './crud-permissions';
+import {
+  shouldApplyFieldOptionsRequest,
+  shouldReloadRemoteOptionsOnDropdownOpen,
+} from './crud-select-options';
 import { normalizeLeftFixedTableColumns } from './crud-table-columns';
 import { evaluateCrudVisibleOn } from './crud-visible-on';
 import { buildDetailDisplayEntries } from './detail-display';
@@ -205,6 +209,7 @@ const uploadPreviewOpen = ref(false);
 const uploadPreviewUrl = ref('');
 const optionState = reactive<Record<string, any[]>>({});
 const optionLoadingState = reactive<Record<string, boolean>>({});
+const optionRequestVersions = reactive<Record<string, number>>({});
 const quickSwitchLoadingState = reactive<Record<string, boolean>>({});
 const searchState = reactive<GenericRecord>({});
 const formState = reactive<GenericRecord>({});
@@ -1854,15 +1859,33 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
     return;
   }
 
+  const requestVersion = (optionRequestVersions[field.key] || 0) + 1;
+  optionRequestVersions[field.key] = requestVersion;
   optionLoadingState[field.key] = true;
 
   try {
-    optionState[field.key] = await loader(keyword);
+    const options = await loader(keyword);
+
+    if (
+      shouldApplyFieldOptionsRequest(
+        requestVersion,
+        optionRequestVersions[field.key],
+      )
+    ) {
+      optionState[field.key] = options;
+    }
   } catch (error) {
     console.error(error);
     message.warning(`${field.label}选项加载失败`);
   } finally {
-    optionLoadingState[field.key] = false;
+    if (
+      shouldApplyFieldOptionsRequest(
+        requestVersion,
+        optionRequestVersions[field.key],
+      )
+    ) {
+      optionLoadingState[field.key] = false;
+    }
   }
 }
 
@@ -3259,6 +3282,25 @@ function handleSearchSelectSearch(field: CrudFieldConfig, keyword: string) {
   void loadFieldOptions(field, keyword);
 }
 
+function restoreRemoteFieldOptions(field: CrudFieldConfig) {
+  if (!shouldReloadRemoteOptionsOnDropdownOpen(field)) {
+    return;
+  }
+
+  void loadFieldOptions(field, '');
+}
+
+function handleSelectDropdownVisibleChange(
+  field: CrudFieldConfig,
+  open: boolean,
+) {
+  if (!open) {
+    return;
+  }
+
+  restoreRemoteFieldOptions(field);
+}
+
 function handleSelectChange(field: CrudFieldConfig, value: any) {
   if (!field.allowInput || field.multiple || value) {
     return;
@@ -3300,6 +3342,18 @@ function formatCellValue(field: CrudFieldConfig, value: any) {
   const matched = options.find((item) => item.value === value);
 
   return matched?.label || String(value);
+}
+
+function getCellDisplayText(field: CrudFieldConfig | undefined, value: any) {
+  if (!field) {
+    return '-';
+  }
+
+  if (field.type === 'tags' || field.multiple) {
+    return getDisplayTagValues(field, value).join(', ') || '-';
+  }
+
+  return formatCellValue(field, value);
 }
 
 function getCodeEditorLanguage(field: CrudFieldConfig) {
@@ -3446,13 +3500,17 @@ function getDisplayTagValues(field: CrudFieldConfig | undefined, value: any) {
   );
 }
 
-function shouldUseCellTooltip(field: CrudFieldConfig | undefined, value: any) {
+function shouldTruncateCellText(
+  field: CrudFieldConfig | undefined,
+  value: any,
+) {
   if (!field) {
     return false;
   }
 
-  const text = formatCellValue(field, value);
+  const text = getCellDisplayText(field, value);
   return (
+    field.cellSingleLine ||
     [
       'code',
       'css',
@@ -3461,7 +3519,16 @@ function shouldUseCellTooltip(field: CrudFieldConfig | undefined, value: any) {
       'string-array',
       'tags',
       'textarea',
-    ].includes(field.type || '') || text.length > 28
+    ].includes(field.type || '') ||
+    text.length > 28
+  );
+}
+
+function shouldUseCellTooltip(field: CrudFieldConfig | undefined, value: any) {
+  return (
+    field?.cellTooltip !== false &&
+    shouldTruncateCellText(field, value) &&
+    getCellDisplayText(field, value) !== '-'
   );
 }
 
@@ -4078,6 +4145,10 @@ watch(tableColumnPreferenceStorageKey, () => {
                 :tree-data="getFieldOptions(item.field)"
                 tree-default-expand-all
                 tree-node-filter-prop="label"
+                @blur="() => restoreRemoteFieldOptions(item.field)"
+                @dropdown-visible-change="
+                  (open) => handleSelectDropdownVisibleChange(item.field, open)
+                "
               />
               <AutoComplete
                 v-else-if="
@@ -4097,6 +4168,10 @@ watch(tableColumnPreferenceStorageKey, () => {
                 "
                 :loading="optionLoadingState[item.field.key]"
                 class="w-full"
+                @blur="() => restoreRemoteFieldOptions(item.field)"
+                @dropdown-visible-change="
+                  (open) => handleSelectDropdownVisibleChange(item.field, open)
+                "
                 @search="handleSearchSelectSearch(item.field, $event)"
               />
               <Select
@@ -4117,7 +4192,11 @@ watch(tableColumnPreferenceStorageKey, () => {
                 :loading="optionLoadingState[item.field.key]"
                 class="w-full"
                 show-search
+                @blur="() => restoreRemoteFieldOptions(item.field)"
                 @change="(value) => handleSearchSelectChange(item.field, value)"
+                @dropdown-visible-change="
+                  (open) => handleSelectDropdownVisibleChange(item.field, open)
+                "
                 @search="handleSearchSelectSearch(item.field, $event)"
               />
               <Select
@@ -4667,7 +4746,32 @@ watch(tableColumnPreferenceStorageKey, () => {
                     getTableField(column.key)?.multiple
                   "
                 >
-                  <Space :size="4" wrap>
+                  <Tooltip
+                    v-if="
+                      shouldUseCellTooltip(
+                        getTableField(column.key),
+                        getRecordValue(record, column.key),
+                      )
+                    "
+                    :title="
+                      getCellDisplayText(
+                        getTableField(column.key),
+                        getRecordValue(record, column.key),
+                      )
+                    "
+                  >
+                    <span
+                      class="inline-block max-w-[240px] truncate align-bottom"
+                    >
+                      {{
+                        getCellDisplayText(
+                          getTableField(column.key),
+                          getRecordValue(record, column.key),
+                        )
+                      }}
+                    </span>
+                  </Tooltip>
+                  <Space v-else :size="4" wrap>
                     <Tag
                       v-for="tag in getDisplayTagValues(
                         getTableField(column.key),
@@ -4703,8 +4807,8 @@ watch(tableColumnPreferenceStorageKey, () => {
                     )
                   "
                   :title="
-                    formatCellValue(
-                      getTableField(column.key)!,
+                    getCellDisplayText(
+                      getTableField(column.key),
                       getRecordValue(record, column.key),
                     )
                   "
@@ -4713,17 +4817,33 @@ watch(tableColumnPreferenceStorageKey, () => {
                     class="inline-block max-w-[240px] truncate align-bottom"
                   >
                     {{
-                      formatCellValue(
-                        getTableField(column.key)!,
+                      getCellDisplayText(
+                        getTableField(column.key),
                         getRecordValue(record, column.key),
                       )
                     }}
                   </span>
                 </Tooltip>
+                <span
+                  v-else-if="
+                    shouldTruncateCellText(
+                      getTableField(column.key),
+                      getRecordValue(record, column.key),
+                    )
+                  "
+                  class="inline-block max-w-[240px] truncate align-bottom"
+                >
+                  {{
+                    getCellDisplayText(
+                      getTableField(column.key),
+                      getRecordValue(record, column.key),
+                    )
+                  }}
+                </span>
                 <template v-else>
                   {{
-                    formatCellValue(
-                      getTableField(column.key)!,
+                    getCellDisplayText(
+                      getTableField(column.key),
                       getRecordValue(record, column.key),
                     )
                   }}
@@ -4828,6 +4948,7 @@ watch(tableColumnPreferenceStorageKey, () => {
             :key="field.key"
             :label="field.label"
             :required="field.required"
+            :extra="field.help"
             class="mb-0 w-full justify-self-center"
             :class="{
               'col-span-full':
@@ -4890,6 +5011,10 @@ watch(tableColumnPreferenceStorageKey, () => {
               :tree-data="getFieldOptions(field)"
               tree-default-expand-all
               tree-node-filter-prop="label"
+              @blur="() => restoreRemoteFieldOptions(field)"
+              @dropdown-visible-change="
+                (open) => handleSelectDropdownVisibleChange(field, open)
+              "
             />
             <div
               v-else-if="isFileUploadField(field)"
@@ -4996,6 +5121,10 @@ watch(tableColumnPreferenceStorageKey, () => {
               "
               :loading="optionLoadingState[field.key]"
               class="w-full"
+              @blur="() => restoreRemoteFieldOptions(field)"
+              @dropdown-visible-change="
+                (open) => handleSelectDropdownVisibleChange(field, open)
+              "
               @search="handleSelectSearch(field, $event)"
             />
             <Select
@@ -5014,7 +5143,11 @@ watch(tableColumnPreferenceStorageKey, () => {
               :loading="optionLoadingState[field.key]"
               class="w-full"
               show-search
+              @blur="() => restoreRemoteFieldOptions(field)"
               @change="(value) => handleSelectChange(field, value)"
+              @dropdown-visible-change="
+                (open) => handleSelectDropdownVisibleChange(field, open)
+              "
               @search="handleSelectSearch(field, $event)"
             />
             <Select
@@ -5029,6 +5162,10 @@ watch(tableColumnPreferenceStorageKey, () => {
               class="w-full"
               mode="tags"
               show-search
+              @blur="() => restoreRemoteFieldOptions(field)"
+              @dropdown-visible-change="
+                (open) => handleSelectDropdownVisibleChange(field, open)
+              "
               @search="handleSelectSearch(field, $event)"
             />
             <Switch

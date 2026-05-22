@@ -20,6 +20,7 @@ import {
 } from './data-permission-transform';
 import { tenantOptionsLoader } from './config-helpers';
 import OrgScopeEditor from './org-scope-editor.vue';
+import { isSuperAdminUser } from './user-identity';
 
 const props = defineProps<{
   open: boolean;
@@ -55,45 +56,7 @@ const expressionTypes = computed(
       'SpringEL',
     ],
 );
-const isSuperAdmin = computed(() => {
-  const userInfo = (userStore.userInfo || {}) as Record<string, any>;
-  const roleValues = new Set<string>();
-  const appendRole = (role: any) => {
-    if (!role) {
-      return;
-    }
-
-    if (typeof role === 'string') {
-      roleValues.add(role);
-      return;
-    }
-
-    for (const key of ['code', 'id', 'name', 'roleCode', 'value']) {
-      if (role[key]) {
-        roleValues.add(String(role[key]));
-      }
-    }
-  };
-
-  for (const role of Array.isArray(userInfo.roles) ? userInfo.roles : []) {
-    appendRole(role);
-  }
-
-  for (const role of Array.isArray(userInfo.roleList)
-    ? userInfo.roleList
-    : []) {
-    appendRole(role);
-  }
-
-  return (
-    userInfo.superAdmin === true ||
-    userInfo.isSuperAdmin === true ||
-    userInfo.sa === true ||
-    userInfo.loginName === 'sa' ||
-    userInfo.username === 'sa' ||
-    roleValues.has('R_SA')
-  );
-});
+const isSuperAdmin = computed(() => isSuperAdminUser(userStore.userInfo));
 const summaryText = computed(() => {
   if (!detail.value) {
     return '';
@@ -271,10 +234,11 @@ watch(
       <Spin :spinning="loading">
         <OrgScopeEditor
           v-model:value="orgScopeDrafts"
+          :allow-script-expression-types="isSuperAdmin"
           :expression-types="expressionTypes"
           :load-tenant-options="tenantOptionsLoader"
           :org-tree="orgTree"
-          :show-tenant-matching-expression="isSuperAdmin"
+          :show-tenant-matching-expression="true"
         />
       </Spin>
     </div>

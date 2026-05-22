@@ -118,6 +118,38 @@ describe('menu route conversion', () => {
     ).toBe('/system/com_levin_oak_base/setting-for-tenant/index.vue');
   });
 
+  it('routes unmapped LocalPage backend menus to the 404 page', () => {
+    const route = convertMenuNodeForTest(
+      {
+        name: '用户扩展信息',
+        pageType: 'LocalPage-本地页面',
+        path: '/cvf/V1/UserExt',
+      },
+      testBackendRouteMappings,
+    );
+
+    expect(route?.component).toBe('/_core/fallback/not-found.vue');
+    expect(route?.path).toBe('/cvf/V1/UserExt');
+    expect(route?.meta?.backendIframeSrc).toBeUndefined();
+    expect(route?.meta?.menuRouteMissingPage).toBe(true);
+  });
+
+  it('routes unmapped old backend page types to the 404 page', () => {
+    const route = convertMenuNodeForTest(
+      {
+        name: '旧 AMIS 页面',
+        pageType: 'AmisPage-Amis页面',
+        path: '/cvf/merchant',
+      },
+      testBackendRouteMappings,
+    );
+
+    expect(route?.component).toBe('/_core/fallback/not-found.vue');
+    expect(route?.path).toBe('/cvf/merchant');
+    expect(route?.meta?.backendIframeSrc).toBeUndefined();
+    expect(route?.meta?.menuRouteMissingPage).toBe(true);
+  });
+
   it('routes HtmlPage to iframe view', () => {
     const route = convertMenuNodeForTest({
       name: '外部页面',

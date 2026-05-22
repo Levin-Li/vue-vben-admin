@@ -18,6 +18,39 @@ import {
 const roleTypeOptionsLoader = () =>
   moduleFetchDictOptions('com.levin.oak.base.entities.Role.type');
 
+function normalizeRoleConstraintValues(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (item === null || item === undefined) {
+        return '';
+      }
+
+      return String(item).trim();
+    })
+    .filter(Boolean);
+}
+
+async function validateRoleConstraintSubmit(values: Record<string, any>) {
+  const exclusiveRoles = new Set(
+    normalizeRoleConstraintValues(values.exclusiveRoleList),
+  );
+  const duplicatedRoles = normalizeRoleConstraintValues(
+    values.coexistRoleList,
+  ).filter((role) => exclusiveRoles.has(role));
+
+  if (duplicatedRoles.length > 0) {
+    throw new Error(
+      `互斥角色列表和必须共存角色列表不能同时包含：${duplicatedRoles.join('、')}`,
+    );
+  }
+
+  return values;
+}
+
 const rolePageCrudConfig: CrudPageConfig = {
   apiBase: '/Role',
   apiService: roleService,
@@ -69,20 +102,28 @@ const rolePageCrudConfig: CrudPageConfig = {
     {
       key: 'exclusiveRoleList',
       label: '互斥角色列表',
+      cellSingleLine: true,
+      help: '把当前角色分配给用户时，用户不能已拥有这里选择的任一角色；用于配置不能同时拥有的角色组合。留空表示不限制互斥角色。',
       loadOptions: roleOptionsLoader,
       multiple: true,
       placeholder: '选择互斥角色',
       remoteSearch: true,
+      table: true,
       type: 'role-select',
+      width: 220,
     },
     {
       key: 'coexistRoleList',
       label: '必须共存角色列表',
+      cellSingleLine: true,
+      help: '把当前角色分配给用户时，用户必须已拥有这里选择的全部角色；用于配置分配当前角色前必须具备的前置角色。留空表示不要求共存角色。',
       loadOptions: roleOptionsLoader,
       multiple: true,
       placeholder: '选择必须共存的角色',
       remoteSearch: true,
+      table: true,
       type: 'role-select',
+      width: 220,
     },
     {
       key: 'inType',
@@ -144,6 +185,7 @@ const rolePageCrudConfig: CrudPageConfig = {
     {
       key: 'permissionList',
       label: '资源权限列表',
+      cellTooltip: false,
       fullRow: true,
       form: false,
       placeholder: '一行一个权限表达式',
@@ -154,8 +196,13 @@ const rolePageCrudConfig: CrudPageConfig = {
     {
       key: 'assignPreCondition',
       label: '角色分配前置条件',
+      cellSingleLine: true,
       fullRow: true,
+      help: '填写角色分配前置条件表达式，默认按 Groovy 表达式判断；可使用 _tenant（当前租户）、_user（被分配用户）、_role（当前角色）变量，表达式满足时才允许分配。示例：_user.type == "2"。留空表示不限制。',
+      placeholder: '例如：_user.type == "2" && _tenant != null；留空表示不限制',
+      table: true,
       type: 'textarea',
+      width: 260,
     },
     { key: 'exInfo', label: '扩展信息', fullRow: true, type: 'json' },
     { key: 'orderCode', label: '排序代码', type: 'number' },
@@ -197,6 +244,7 @@ const rolePageCrudConfig: CrudPageConfig = {
   ],
   modalWidth: 1120,
   title: '角色管理',
+  transformSubmit: validateRoleConstraintSubmit,
 };
 
 export function useRolePageConfig() {

@@ -60,9 +60,13 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'label',
-      label: '标签',
+      label: '标签值',
+      formCreate: true,
+      formEdit: true,
+      fullRow: true,
       required: true,
       table: true,
+      type: 'textarea',
       width: 180,
     },
     {
@@ -86,6 +90,13 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       width: 140,
+    },
+    {
+      key: 'moduleId',
+      label: '模块ID',
+      search: true,
+      table: true,
+      width: 180,
     },
     {
       key: 'nationCode',

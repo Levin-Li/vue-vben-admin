@@ -36,13 +36,16 @@ export interface CrudAreaCascaderConfig {
 export interface CrudFieldConfig {
   allowInput?: boolean;
   areaCascader?: CrudAreaCascaderConfig;
+  cellSingleLine?: boolean;
+  cellTooltip?: boolean;
   defaultValue?: any;
   disabledOnEdit?: boolean | ((context: { userInfo: unknown }) => boolean);
+  fixed?: 'left' | 'right' | boolean;
   form?: boolean;
   formCreate?: boolean;
   formEdit?: boolean;
   fullRow?: boolean;
-  fixed?: 'left' | 'right' | boolean;
+  help?: string;
   key: string;
   label: string;
   layoutGroup?: string;
