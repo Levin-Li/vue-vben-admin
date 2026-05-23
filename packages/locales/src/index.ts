@@ -1,5 +1,6 @@
 import {
   getSupportedLocales,
+  getBaseLocaleMessages,
   i18n,
   loadLocaleMessages,
   loadLocalesMap,
@@ -16,6 +17,7 @@ export {
   $t,
   $te,
   getSupportedLocales,
+  getBaseLocaleMessages,
   i18n,
   loadLocaleMessages,
   loadLocalesMap,

@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
 
-import type { ThemeModeType } from '@vben/types';
+import type { BuiltinThemeType, ThemeModeType } from '@vben/types';
 
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 
 import { MoonStar, Sun, SunMoon } from '@vben/icons';
 import { $t } from '@vben/locales';
-import { usePreferences } from '@vben/preferences';
-import { convertToHsl, TinyColor } from '@vben/utils';
+import { BUILT_IN_THEME_PRESETS, usePreferences } from '@vben/preferences';
+import { TinyColor } from '@vben/utils';
 
 import SwitchItem from '../switch-item.vue';
 
@@ -16,6 +16,9 @@ defineOptions({
   name: 'PreferenceTheme',
 });
 
+const emit = defineEmits<{
+  openColorSettings: [target: 'header' | 'sidebar'];
+}>();
 const modelValue = defineModel<string>({ default: 'auto' });
 const themeSemiDarkSidebar = defineModel<boolean>('themeSemiDarkSidebar');
 const themeSemiDarkSidebarColor = defineModel<string>(
@@ -28,6 +31,13 @@ const themeSemiDarkHeaderColor = defineModel<string>(
 );
 
 const { layout } = usePreferences();
+
+const semiDarkSidebarColorName = computed(() =>
+  getColorPresetName(themeSemiDarkSidebarColor.value),
+);
+const semiDarkHeaderColorName = computed(() =>
+  getColorPresetName(themeSemiDarkHeaderColor.value),
+);
 
 watch(
   () => themeSemiDarkSidebar.value,
@@ -71,22 +81,78 @@ function nameView(name: string) {
   }
 }
 
-function getColorInputValue(value?: string) {
-  return new TinyColor(value || '').toHexString();
+function builtinThemeName(name: BuiltinThemeType) {
+  switch (name) {
+    case 'custom': {
+      return $t('preferences.theme.builtin.custom');
+    }
+    case 'deep-blue': {
+      return $t('preferences.theme.builtin.deepBlue');
+    }
+    case 'deep-green': {
+      return $t('preferences.theme.builtin.deepGreen');
+    }
+    case 'gray': {
+      return $t('preferences.theme.builtin.gray');
+    }
+    case 'green': {
+      return $t('preferences.theme.builtin.green');
+    }
+    case 'neutral': {
+      return $t('preferences.theme.builtin.neutral');
+    }
+    case 'orange': {
+      return $t('preferences.theme.builtin.orange');
+    }
+    case 'pink': {
+      return $t('preferences.theme.builtin.pink');
+    }
+    case 'rose': {
+      return $t('preferences.theme.builtin.rose');
+    }
+    case 'sky-blue': {
+      return $t('preferences.theme.builtin.skyBlue');
+    }
+    case 'slate': {
+      return $t('preferences.theme.builtin.slate');
+    }
+    case 'violet': {
+      return $t('preferences.theme.builtin.violet');
+    }
+    case 'yellow': {
+      return $t('preferences.theme.builtin.yellow');
+    }
+    case 'zinc': {
+      return $t('preferences.theme.builtin.zinc');
+    }
+    default: {
+      return $t('preferences.theme.builtin.default');
+    }
+  }
 }
 
-function updateSemiDarkColor(
-  field: 'header' | 'sidebar',
-  event: Event,
-) {
-  const target = event.target as HTMLInputElement;
-  const value = convertToHsl(target.value);
+function getColorPresetName(value?: string) {
+  const valueColor = new TinyColor(value || '');
 
-  if (field === 'header') {
-    themeSemiDarkHeaderColor.value = value;
-  } else {
-    themeSemiDarkSidebarColor.value = value;
+  if (!valueColor.isValid) {
+    return $t('preferences.theme.builtin.custom');
   }
+
+  const valueHex = valueColor.toHexString();
+  const preset = BUILT_IN_THEME_PRESETS.find((item) => {
+    if (!item.color) {
+      return false;
+    }
+    return new TinyColor(item.color).toHexString() === valueHex;
+  });
+
+  return preset
+    ? builtinThemeName(preset.type)
+    : $t('preferences.theme.builtin.custom');
+}
+
+function openColorSettings(target: 'header' | 'sidebar') {
+  emit('openColorSettings', target);
 }
 </script>
 
@@ -118,19 +184,24 @@ function updateSemiDarkColor(
       "
       :tip="$t('preferences.theme.darkSidebarTip')"
       class="mt-6"
+      shortcut-class="semi-dark-shortcut"
     >
       {{ $t('preferences.theme.darkSidebar') }}
       <template #shortcut>
-        <span class="semi-dark-shortcut">
-          <input
-            :aria-label="$t('preferences.theme.darkSidebarColor')"
-            :value="getColorInputValue(themeSemiDarkSidebarColor)"
-            class="semi-dark-color-input"
-            type="color"
-            @click.stop
-            @input="updateSemiDarkColor('sidebar', $event)"
-          />
-        </span>
+        <button
+          :aria-label="$t('preferences.theme.darkSidebarColor')"
+          class="semi-dark-color-button"
+          type="button"
+          @click.stop="openColorSettings('sidebar')"
+        >
+          <span
+            :style="{ backgroundColor: themeSemiDarkSidebarColor }"
+            class="semi-dark-color-preview"
+          ></span>
+          <span class="semi-dark-color-name">
+            {{ semiDarkSidebarColorName }}
+          </span>
+        </button>
       </template>
     </SwitchItem>
     <SwitchItem
@@ -144,45 +215,67 @@ function updateSemiDarkColor(
     >
       {{ $t('preferences.theme.darkSidebarSub') }}
     </SwitchItem>
-    <SwitchItem v-model="themeSemiDarkHeader" :disabled="modelValue === 'dark'">
+    <SwitchItem
+      v-model="themeSemiDarkHeader"
+      :disabled="modelValue === 'dark'"
+      shortcut-class="semi-dark-shortcut"
+    >
       {{ $t('preferences.theme.darkHeader') }}
       <template #shortcut>
-        <span class="semi-dark-shortcut">
-          <input
-            :aria-label="$t('preferences.theme.darkHeaderColor')"
-            :value="getColorInputValue(themeSemiDarkHeaderColor)"
-            class="semi-dark-color-input"
-            type="color"
-            @click.stop
-            @input="updateSemiDarkColor('header', $event)"
-          />
-        </span>
+        <button
+          :aria-label="$t('preferences.theme.darkHeaderColor')"
+          class="semi-dark-color-button"
+          type="button"
+          @click.stop="openColorSettings('header')"
+        >
+          <span
+            :style="{ backgroundColor: themeSemiDarkHeaderColor }"
+            class="semi-dark-color-preview"
+          ></span>
+          <span class="semi-dark-color-name">
+            {{ semiDarkHeaderColorName }}
+          </span>
+        </button>
       </template>
     </SwitchItem>
   </div>
 </template>
 
 <style scoped>
-.semi-dark-shortcut {
-  align-items: center;
-  display: inline-flex;
+:deep(.semi-dark-shortcut) {
+  display: flex;
+  flex: 0 0 160px;
+  justify-content: flex-end;
+  margin-left: auto;
+  margin-right: 12px;
+  min-width: 0;
 }
 
-.semi-dark-color-input {
-  background: transparent;
-  border: 0;
+.semi-dark-color-button {
+  align-items: center;
+  color: hsl(var(--foreground));
   cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: flex-end;
+  max-width: 150px;
+  min-width: 112px;
+}
+
+.semi-dark-color-preview {
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  flex: 0 0 auto;
   height: 28px;
-  padding: 0;
   width: 56px;
 }
 
-.semi-dark-color-input::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.semi-dark-color-input::-webkit-color-swatch {
-  border: 1px solid hsl(var(--border));
-  border-radius: 6px;
+.semi-dark-color-name {
+  font-size: 12px;
+  max-width: 72px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

@@ -9,16 +9,24 @@ defineOptions({
   name: 'PreferenceSwitchItem',
 });
 
-withDefaults(defineProps<{ disabled?: boolean; tip?: string }>(), {
-  disabled: false,
-  tip: '',
-});
+const props = withDefaults(
+  defineProps<{ disabled?: boolean; shortcutClass?: string; tip?: string }>(),
+  {
+    disabled: false,
+    shortcutClass: 'ml-auto mr-2 text-xs opacity-60',
+    tip: '',
+  },
+);
 
 const checked = defineModel<boolean>();
 
 const slots = useSlots();
 
 function handleClick() {
+  if (props.disabled) {
+    return;
+  }
+
   checked.value = !checked.value;
 }
 </script>
@@ -26,7 +34,7 @@ function handleClick() {
 <template>
   <div
     :class="{
-      'pointer-events-none opacity-50': disabled,
+      'opacity-50': disabled,
     }"
     class="hover:bg-accent my-1 flex w-full items-center justify-between rounded-md px-2 py-2.5"
     @click="handleClick"
@@ -47,9 +55,9 @@ function handleClick() {
         </slot>
       </VbenTooltip>
     </span>
-    <span v-if="$slots.shortcut" class="ml-auto mr-2 text-xs opacity-60">
+    <span v-if="$slots.shortcut" :class="props.shortcutClass">
       <slot name="shortcut"></slot>
     </span>
-    <Switch v-model="checked" @click.stop />
+    <Switch v-model="checked" :disabled="disabled" @click.stop />
   </div>
 </template>

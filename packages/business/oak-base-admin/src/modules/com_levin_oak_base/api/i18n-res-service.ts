@@ -17,6 +17,32 @@ export interface SyncI18nLabelsPayload {
   labelList: SyncI18nLabelItem[];
 }
 
+export interface UploadModuleI18nLabelsPayload {
+  appCode?: string;
+  appVersion: string;
+  domain?: string;
+  enable?: boolean;
+  modules: Array<{
+    languages: Record<string, Record<string, string>>;
+    moduleId: string;
+  }>;
+  overrideExisting?: boolean;
+  siteId?: string;
+  tenantId?: string;
+  terminalType?: string;
+}
+
+export interface RuntimeI18nLabelsPayload {
+  appCode: string;
+  appVersion: string;
+  domain?: string;
+  language: string;
+  moduleIds: string[];
+  siteId?: string;
+  terminalType: string;
+  valueType?: 'Label' | 'ResValue';
+}
+
 @Service({
   basePath: '/I18nRes',
   controllerClass: 'com.levin.oak.base.controller.BizI18nResController',
@@ -170,6 +196,31 @@ export class I18nResService extends RequestService {
   })
   async syncLabels(data: SyncI18nLabelsPayload, options?: any) {
     return this.post<number>('syncLabels', {
+      ...options,
+      data,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-国际化资源',
+    action: '按模块上传客户端国际化资源',
+  })
+  async uploadModuleLabels(data: UploadModuleI18nLabelsPayload, options?: any) {
+    return this.post('uploadModuleLabels', {
+      ...options,
+      data,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-国际化资源',
+    action: '获取运行时国际化资源',
+    ignored: true,
+  })
+  async runtimeLabels(data: RuntimeI18nLabelsPayload, options?: any) {
+    return this.post('runtimeLabels', {
       ...options,
       data,
     });

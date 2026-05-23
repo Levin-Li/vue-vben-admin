@@ -39,8 +39,8 @@ import {
   Animation,
   Block,
   Breadcrumb,
-  BuiltinTheme,
   ColorMode,
+  ColorSettings,
   Content,
   Copyright,
   FontSize,
@@ -83,6 +83,9 @@ const transitionLoading = defineModel<boolean>('transitionLoading');
 const transitionEnable = defineModel<boolean>('transitionEnable');
 
 const themeColorPrimary = defineModel<string>('themeColorPrimary');
+const themeColorDestructive = defineModel<string>('themeColorDestructive');
+const themeColorSuccess = defineModel<string>('themeColorSuccess');
+const themeColorWarning = defineModel<string>('themeColorWarning');
 const themeBuiltinType = defineModel<BuiltinThemeType>('themeBuiltinType');
 const themeMode = defineModel<ThemeModeType>('themeMode');
 const themeRadius = defineModel<string>('themeRadius');
@@ -195,6 +198,7 @@ const { copy } = useClipboard({ legacy: true });
 const [Drawer] = useVbenDrawer();
 
 const activeTab = ref('appearance');
+const colorSettingsRef = ref<InstanceType<typeof ColorSettings>>();
 
 const tabs = computed((): SegmentedItem[] => {
   return [
@@ -247,6 +251,10 @@ async function handleReset() {
   }
   resetPreferences();
   await loadLocaleMessages(preferences.app.locale);
+}
+
+function openColorSettings(target: 'header' | 'primary' | 'sidebar') {
+  colorSettingsRef.value?.open(target);
 }
 </script>
 
@@ -326,20 +334,27 @@ async function handleReset() {
               <Theme
                 v-model="themeMode"
                 v-model:theme-semi-dark-header="themeSemiDarkHeader"
-                v-model:theme-semi-dark-header-color="
-                  themeSemiDarkHeaderColor
-                "
+                v-model:theme-semi-dark-header-color="themeSemiDarkHeaderColor"
                 v-model:theme-semi-dark-sidebar="themeSemiDarkSidebar"
                 v-model:theme-semi-dark-sidebar-color="
                   themeSemiDarkSidebarColor
                 "
                 v-model:theme-semi-dark-sidebar-sub="themeSemiDarkSidebarSub"
+                @open-color-settings="openColorSettings"
               />
             </Block>
-            <Block :title="$t('preferences.theme.builtin.title')">
-              <BuiltinTheme
+            <Block :title="$t('preferences.theme.themeColor')">
+              <ColorSettings
+                ref="colorSettingsRef"
                 v-model="themeBuiltinType"
+                v-model:theme-color-destructive="themeColorDestructive"
                 v-model:theme-color-primary="themeColorPrimary"
+                v-model:theme-color-success="themeColorSuccess"
+                v-model:theme-color-warning="themeColorWarning"
+                v-model:theme-semi-dark-header-color="themeSemiDarkHeaderColor"
+                v-model:theme-semi-dark-sidebar-color="
+                  themeSemiDarkSidebarColor
+                "
                 :is-dark="isDark"
               />
             </Block>

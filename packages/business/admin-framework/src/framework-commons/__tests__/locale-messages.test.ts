@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   collectAdminModuleLocales,
   defineAdminModuleLocales,
+  expandAdminLocaleLabels,
   mergeAdminLocaleMessages,
 } from '../locale-utils';
 
@@ -129,6 +130,48 @@ describe('admin locale message merging', () => {
       'zh-CN': {
         common: {
           save: '保存',
+        },
+      },
+    });
+  });
+
+  it('expands server flat labels and deep-merges them like local file overrides', () => {
+    const localMessages = mergeAdminLocaleMessages(
+      {
+        common: {
+          cancel: '取消',
+          login: '登录',
+        },
+        page: {
+          home: {
+            title: '首页',
+          },
+        },
+      },
+      {
+        common: {
+          login: '本地模块登录',
+        },
+      },
+    );
+
+    const messages = mergeAdminLocaleMessages(
+      localMessages,
+      expandAdminLocaleLabels({
+        'common.login': '服务端登录',
+        'page.home.subtitle': '服务端副标题',
+      }),
+    );
+
+    expect(messages).toEqual({
+      common: {
+        cancel: '取消',
+        login: '服务端登录',
+      },
+      page: {
+        home: {
+          subtitle: '服务端副标题',
+          title: '首页',
         },
       },
     });

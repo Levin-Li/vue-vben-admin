@@ -32,8 +32,10 @@ export interface AdminMenuSyncService {
 }
 
 export interface AdminI18nLabelSyncService {
+  runtimeLabels?(data?: any, options?: any): Promise<any>;
   serverLabels?(params?: any, options?: any): Promise<any>;
   syncLabels(data?: any, options?: any): Promise<any>;
+  uploadModuleLabels?(data?: any, options?: any): Promise<any>;
 }
 
 export interface AdminUserSecurityService {

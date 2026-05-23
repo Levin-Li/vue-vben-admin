@@ -56,6 +56,19 @@ const loadedLocales = new Set<Locale>();
 let loadMessages: LoadMessageFn = async () => ({});
 let defaultResolvedLocale: Locale = 'zh-CN';
 
+function cloneLocaleMessages(messages: Record<string, any>) {
+  return JSON.parse(JSON.stringify(messages)) as Record<string, any>;
+}
+
+function getBaseLocaleMessages() {
+  return Object.fromEntries(
+    Object.entries(baseLocaleMessages).map(([locale, messages]) => [
+      locale,
+      cloneLocaleMessages(messages),
+    ]),
+  ) as Record<Locale, Record<string, any>>;
+}
+
 const preferredLocaleByLanguageFamily: Record<string, Locale> = {
   en: 'en-US',
   zh: 'zh-CN',
@@ -300,6 +313,7 @@ async function loadLocaleMessages(lang: SupportedLanguagesType) {
 
 export {
   getSupportedLocales,
+  getBaseLocaleMessages,
   i18n,
   loadLocaleMessages,
   loadLocalesMap,

@@ -1,22 +1,21 @@
 <script lang="ts" setup>
 import type { VxeGridProps } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 
-import { computed, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 
-import { Button, Checkbox, Input, message, Modal, Popconfirm } from 'ant-design-vue';
+import { Checkbox, Input, message, Modal, Select, Tag } from 'ant-design-vue';
 
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
-import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 
 import { getAdminI18nLabelSyncService } from '../../runtime';
+import { adminFrameworkLocales } from '../locales';
+import { getApplicationI18nModules } from '../utils/application-i18n-modules';
 import {
-  buildModuleSyncI18nLabelsPayload,
-  type SyncI18nLabelItem,
+  buildModuleUploadI18nLabelsPayload,
+  buildSyncI18nModuleTree,
+  flattenSyncI18nTreeNodes,
+  type SyncI18nTreeNode,
 } from '../utils/sync-i18n-labels';
-
-type EditableSyncI18nLabelItem = SyncI18nLabelItem & {
-  key: string;
-};
 
 const props = withDefaults(
   defineProps<{
@@ -32,12 +31,33 @@ const emit = defineEmits<{
 }>();
 
 const loading = ref(false);
-const labelList = ref<EditableSyncI18nLabelItem[]>([]);
+const treeRows = ref<SyncI18nTreeNode[]>([]);
 const selectedKeys = ref<Set<string>>(new Set());
-const overrideExistingKeys = ref<Set<string>>(new Set());
-const enableKeys = ref<Set<string>>(new Set());
+const overrideExisting = ref(false);
+const enable = ref(true);
+const viteEnv = (import.meta as unknown as { env: Record<string, string> }).env;
+const uploadContext = reactive<{
+  appCode: string;
+  domain: string;
+  tenantId: string;
+  terminalType?: string;
+}>({
+  appCode: '',
+  domain: '',
+  tenantId: '',
+  terminalType: 'Admin',
+});
 
-const gridOptions: VxeGridProps<EditableSyncI18nLabelItem> = {
+const terminalTypeOptions = [
+  { label: '管理后台', value: 'Admin' },
+  { label: 'PC网站', value: 'Web' },
+  { label: 'H5', value: 'H5' },
+  { label: '小程序', value: 'MiniProgram' },
+  { label: 'App', value: 'App' },
+  { label: '开放API', value: 'OpenApi' },
+];
+
+const gridOptions: VxeGridProps<SyncI18nTreeNode> = {
   columns: [
     {
       align: 'center',
@@ -47,21 +67,11 @@ const gridOptions: VxeGridProps<EditableSyncI18nLabelItem> = {
       width: 86,
     },
     {
-      align: 'center',
-      slots: { default: 'overrideExisting', header: 'overrideExistingHeader' },
-      title: '是否覆盖',
-      width: 86,
-    },
-    {
-      align: 'center',
-      slots: { default: 'enable', header: 'enableHeader' },
-      title: '是否启用',
-      width: 86,
-    },
-    {
       field: 'moduleTitle',
-      minWidth: 140,
-      title: '模块',
+      minWidth: 240,
+      slots: { default: 'name' },
+      title: '模块 / 语言包',
+      treeNode: true,
     },
     {
       field: 'language',
@@ -69,32 +79,27 @@ const gridOptions: VxeGridProps<EditableSyncI18nLabelItem> = {
       title: '语言',
     },
     {
-      field: 'resKey',
-      minWidth: 260,
-      slots: { default: 'resKey' },
-      title: '资源键',
-    },
-    {
-      field: 'label',
-      minWidth: 320,
-      slots: { default: 'label' },
-      title: '当前标签值',
+      align: 'right',
+      field: 'keyCount',
+      headerAlign: 'right',
+      minWidth: 120,
+      slots: { default: 'keyCount' },
+      title: '可上传 Key 数',
     },
     {
       field: 'moduleId',
-      minWidth: 180,
+      minWidth: 220,
       slots: { default: 'moduleId' },
       title: '模块ID',
     },
     {
-      field: 'actions',
-      fixed: 'right',
-      slots: { default: 'actions' },
-      title: '操作',
-      width: 100,
+      field: 'labels',
+      minWidth: 360,
+      slots: { default: 'labels' },
+      title: 'Key 预览',
     },
   ],
-  data: labelList.value,
+  data: treeRows.value,
   height: 520,
   keepSource: true,
   pagerConfig: {
@@ -107,135 +112,160 @@ const gridOptions: VxeGridProps<EditableSyncI18nLabelItem> = {
   toolbarConfig: {
     enabled: false,
   },
+  treeConfig: {
+    childrenField: 'children',
+    rowField: 'key',
+    transform: false,
+  },
 };
 
-const [Grid, gridApi] = useVbenVxeGrid<EditableSyncI18nLabelItem>({
+const [Grid, gridApi] = useVbenVxeGrid<SyncI18nTreeNode>({
   gridOptions,
   showSearchForm: false,
 });
 
-const totalCount = computed(() => labelList.value.length);
-const selectedCount = computed(() => selectedKeys.value.size);
+const flatRows = computed(() => flattenSyncI18nTreeNodes(treeRows.value));
+const languageRows = computed(() =>
+  flatRows.value.filter((item) => item.nodeType === 'language'),
+);
+const selectedLanguageRows = computed(() =>
+  languageRows.value.filter((item) => selectedKeys.value.has(item.key)),
+);
+const totalModuleCount = computed(() => treeRows.value.length);
+const totalRowCount = computed(() => flatRows.value.length);
+const selectedRowCount = computed(() => selectedKeys.value.size);
+const selectedModuleCount = computed(
+  () => new Set(selectedLanguageRows.value.map((item) => item.moduleId)).size,
+);
+const totalKeyCount = computed(() =>
+  languageRows.value.reduce((total, item) => total + item.keyCount, 0),
+);
+const selectedKeyCount = computed(() =>
+  selectedLanguageRows.value.reduce((total, item) => total + item.keyCount, 0),
+);
 const allSelected = computed(
-  () => totalCount.value > 0 && selectedCount.value === totalCount.value,
+  () =>
+    totalRowCount.value > 0 && selectedRowCount.value === totalRowCount.value,
 );
 const partiallySelected = computed(
-  () => selectedCount.value > 0 && !allSelected.value,
-);
-const allOverrideExistingSelected = computed(
-  () =>
-    totalCount.value > 0 && overrideExistingKeys.value.size === totalCount.value,
-);
-const partiallyOverrideExistingSelected = computed(
-  () =>
-    overrideExistingKeys.value.size > 0 &&
-    overrideExistingKeys.value.size < totalCount.value,
-);
-const allEnableSelected = computed(
-  () => totalCount.value > 0 && enableKeys.value.size === totalCount.value,
-);
-const partiallyEnableSelected = computed(
-  () => enableKeys.value.size > 0 && enableKeys.value.size < totalCount.value,
+  () => selectedRowCount.value > 0 && !allSelected.value,
 );
 const openProxy = computed({
   get: () => props.open,
   set: (value) => emit('update:open', value),
 });
 
-function resetLabelList() {
-  labelList.value = buildModuleSyncI18nLabelsPayload(
-    getEnabledFrontendModules(),
-  ).labelList.map((item, index) => ({
-    ...item,
-    key: `label-${index}`,
-  }));
-  selectedKeys.value = new Set(labelList.value.map((item) => item.key));
-  overrideExistingKeys.value = new Set();
-  enableKeys.value = new Set();
+function resetModuleRows() {
+  treeRows.value = buildSyncI18nModuleTree(
+    getApplicationI18nModules(adminFrameworkLocales),
+  );
+  selectedKeys.value = new Set(
+    flattenSyncI18nTreeNodes(treeRows.value).map((item) => item.key),
+  );
+  overrideExisting.value = false;
+  enable.value = true;
+  uploadContext.appCode = viteEnv.VITE_APP_NAMESPACE || '';
+  uploadContext.domain = globalThis.location?.hostname || '';
+  uploadContext.tenantId = '';
+  uploadContext.terminalType = 'Admin';
 }
 
 function readCheckboxChecked(event: { target?: { checked?: boolean } }) {
   return Boolean(event.target?.checked);
 }
 
-function buildAllKeys(checked: boolean): Set<string> {
-  return checked
-    ? new Set(labelList.value.map((item) => item.key))
-    : new Set<string>();
+function syncAncestorKeys(keys: Set<string>) {
+  function syncNode(item: SyncI18nTreeNode) {
+    const children = item.children || [];
+    if (children.length === 0) {
+      return keys.has(item.key);
+    }
+
+    const allChildrenChecked = children.map(syncNode).every(Boolean);
+    if (allChildrenChecked) {
+      keys.add(item.key);
+    } else {
+      keys.delete(item.key);
+    }
+
+    return keys.has(item.key);
+  }
+
+  treeRows.value.forEach(syncNode);
+  return keys;
 }
 
-function toggleKey(keys: Set<string>, key: string, checked: boolean) {
-  const nextKeys = new Set(keys);
-  if (checked) {
-    nextKeys.add(key);
-  } else {
-    nextKeys.delete(key);
-  }
-  return nextKeys;
+function getSelfAndDescendantKeys(row: SyncI18nTreeNode) {
+  return [
+    row.key,
+    ...flattenSyncI18nTreeNodes(row.children || []).map((item) => item.key),
+  ];
 }
 
 function setSelectedAll(checked: boolean) {
-  selectedKeys.value = buildAllKeys(checked);
+  selectedKeys.value = checked
+    ? new Set(flattenSyncI18nTreeNodes(treeRows.value).map((item) => item.key))
+    : new Set();
 }
 
-function toggleSelected(key: string, checked: boolean) {
-  selectedKeys.value = toggleKey(selectedKeys.value, key, checked);
+function toggleSelected(row: SyncI18nTreeNode, checked: boolean) {
+  const nextKeys = new Set(selectedKeys.value);
+  getSelfAndDescendantKeys(row).forEach((key) => {
+    if (checked) {
+      nextKeys.add(key);
+    } else {
+      nextKeys.delete(key);
+    }
+  });
+  selectedKeys.value = syncAncestorKeys(nextKeys);
 }
 
-function setOverrideExistingAll(checked: boolean) {
-  overrideExistingKeys.value = buildAllKeys(checked);
-}
-
-function toggleOverrideExisting(key: string, checked: boolean) {
-  overrideExistingKeys.value = toggleKey(
-    overrideExistingKeys.value,
-    key,
-    checked,
+function hasCheckedDescendant(row: SyncI18nTreeNode): boolean {
+  return (row.children || []).some(
+    (child) => selectedKeys.value.has(child.key) || hasCheckedDescendant(child),
   );
 }
 
-function setEnableAll(checked: boolean) {
-  enableKeys.value = buildAllKeys(checked);
+function isRowIndeterminate(row: SyncI18nTreeNode) {
+  return !selectedKeys.value.has(row.key) && hasCheckedDescendant(row);
 }
 
-function toggleEnable(key: string, checked: boolean) {
-  enableKeys.value = toggleKey(enableKeys.value, key, checked);
+function getPreviewKeys(row: SyncI18nTreeNode) {
+  return Object.keys(row.labels || {}).slice(0, 6);
 }
 
-function handleDelete(record: EditableSyncI18nLabelItem) {
-  labelList.value = labelList.value.filter((item) => item.key !== record.key);
-  selectedKeys.value.delete(record.key);
-  overrideExistingKeys.value.delete(record.key);
-  enableKeys.value.delete(record.key);
-  selectedKeys.value = new Set(selectedKeys.value);
-  overrideExistingKeys.value = new Set(overrideExistingKeys.value);
-  enableKeys.value = new Set(enableKeys.value);
+function getRowName(row: SyncI18nTreeNode) {
+  return row.nodeType === 'language'
+    ? `${row.language} 语言包`
+    : row.moduleTitle || row.moduleId;
 }
 
 async function handleSubmit() {
   const labelSyncService = getAdminI18nLabelSyncService();
-  if (!labelSyncService) {
-    message.warning('当前应用没有配置国际化标签同步服务');
+  if (!labelSyncService?.uploadModuleLabels) {
+    message.warning('当前应用没有配置国际化资源上传服务');
     return;
   }
 
-  const labelListPayload = labelList.value
-    .filter((item) => selectedKeys.value.has(item.key))
-    .map(({ key, moduleTitle, ...item }) => ({
-      ...item,
-      enable: enableKeys.value.has(key),
-      overrideExisting: overrideExistingKeys.value.has(key),
-    }));
-
-  if (labelListPayload.length === 0) {
-    message.warning('请先选择要上传的国际化标签');
+  if (selectedLanguageRows.value.length === 0) {
+    message.warning('请先选择要上传的国际化资源模块');
     return;
   }
 
   loading.value = true;
   try {
-    await labelSyncService.syncLabels({ labelList: labelListPayload });
-    message.success('上传国际化标签成功');
+    await labelSyncService.uploadModuleLabels(
+      buildModuleUploadI18nLabelsPayload(selectedLanguageRows.value, {
+        appCode: uploadContext.appCode,
+        appVersion: viteEnv.VITE_APP_VERSION || '',
+        domain: uploadContext.domain,
+        enable: enable.value,
+        overrideExisting: overrideExisting.value,
+        tenantId: uploadContext.tenantId,
+        terminalType: uploadContext.terminalType,
+      }),
+    );
+    message.success('上传国际化资源成功');
     openProxy.value = false;
   } finally {
     loading.value = false;
@@ -246,7 +276,7 @@ watch(
   () => props.open,
   (open) => {
     if (open) {
-      resetLabelList();
+      resetModuleRows();
     }
   },
   {
@@ -254,7 +284,7 @@ watch(
   },
 );
 
-watch(labelList, (data) => {
+watch(treeRows, (data) => {
   gridApi.setGridOptions({ data });
 });
 </script>
@@ -262,23 +292,73 @@ watch(labelList, (data) => {
 <template>
   <Modal
     v-model:open="openProxy"
-    :confirm-loading="loading"
     :body-style="{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }"
-    :ok-button-props="{ disabled: selectedCount === 0 }"
+    :confirm-loading="loading"
+    :ok-button-props="{ disabled: selectedLanguageRows.length === 0 }"
     ok-text="上传"
-    title="上传国际化标签"
+    title="上传国际化资源"
     width="85vw"
     @ok="handleSubmit"
   >
-    <div class="text-muted-foreground mb-3 text-sm">
-      共
-      {{ totalCount }}
-      个已启用前端模块的本地国际化标签，已选择
-      {{ selectedCount }}
-      个。可在上传前修改标签值，或删除不需要同步的标签。
+    <div class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <label class="sync-i18n-label-context-field">
+        <span>应用编码</span>
+        <Input
+          v-model:value="uploadContext.appCode"
+          allow-clear
+          placeholder="全部应用"
+        />
+      </label>
+      <label class="sync-i18n-label-context-field">
+        <span>终端类型</span>
+        <Select
+          v-model:value="uploadContext.terminalType"
+          allow-clear
+          :options="terminalTypeOptions"
+          placeholder="全部终端"
+        />
+      </label>
+      <label class="sync-i18n-label-context-field">
+        <span>租户ID</span>
+        <Input
+          v-model:value="uploadContext.tenantId"
+          allow-clear
+          placeholder="全部租户"
+        />
+      </label>
+      <label class="sync-i18n-label-context-field">
+        <span>域名</span>
+        <Input
+          v-model:value="uploadContext.domain"
+          allow-clear
+          placeholder="全部域名"
+        />
+      </label>
     </div>
 
-    <Grid class="sync-i18n-label-grid">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="text-muted-foreground text-sm">
+        当前应用共有
+        {{ totalModuleCount }}
+        个模块、
+        {{ languageRows.length }}
+        个语言包、
+        {{ totalKeyCount }}
+        个 key 可上传，已选择
+        {{ selectedModuleCount }}
+        个模块、
+        {{ selectedLanguageRows.length }}
+        个语言包、
+        {{ selectedKeyCount }}
+        个 key。
+      </div>
+      <div class="flex flex-wrap items-center gap-4 text-sm">
+        <Checkbox v-model:checked="overrideExisting">覆盖已有</Checkbox>
+        <Checkbox v-model:checked="enable">上传后启用</Checkbox>
+      </div>
+    </div>
+
+    <Grid class="sync-i18n-label-tree-grid">
       <template #selectHeader>
         <div class="sync-i18n-label-option-header">
           <span>是否上传</span>
@@ -292,65 +372,41 @@ watch(labelList, (data) => {
       <template #select="{ row }">
         <Checkbox
           :checked="selectedKeys.has(row.key)"
-          @change="toggleSelected(row.key, readCheckboxChecked($event))"
+          :indeterminate="isRowIndeterminate(row)"
+          @change="toggleSelected(row, readCheckboxChecked($event))"
         />
       </template>
-      <template #overrideExistingHeader>
-        <div class="sync-i18n-label-option-header">
-          <span>是否覆盖</span>
-          <Checkbox
-            :checked="allOverrideExistingSelected"
-            :indeterminate="partiallyOverrideExistingSelected"
-            @change="
-              setOverrideExistingAll(readCheckboxChecked($event))
-            "
-          />
-        </div>
+      <template #name="{ row }">
+        <span>{{ getRowName(row) }}</span>
       </template>
-      <template #overrideExisting="{ row }">
-        <Checkbox
-          :checked="overrideExistingKeys.has(row.key)"
-          @change="
-            toggleOverrideExisting(row.key, readCheckboxChecked($event))
-          "
-        />
-      </template>
-      <template #enableHeader>
-        <div class="sync-i18n-label-option-header">
-          <span>是否启用</span>
-          <Checkbox
-            :checked="allEnableSelected"
-            :indeterminate="partiallyEnableSelected"
-            @change="setEnableAll(readCheckboxChecked($event))"
-          />
-        </div>
-      </template>
-      <template #enable="{ row }">
-        <Checkbox
-          :checked="enableKeys.has(row.key)"
-          @change="toggleEnable(row.key, readCheckboxChecked($event))"
-        />
-      </template>
-      <template #resKey="{ row }">
-        <span class="font-mono text-xs">{{ row.resKey }}</span>
-      </template>
-      <template #label="{ row }">
-        <Input v-model:value="row.label" placeholder="请输入标签值" />
+      <template #keyCount="{ row }">
+        <Tag color="blue">{{ row.keyCount }}</Tag>
       </template>
       <template #moduleId="{ row }">
         <span class="font-mono text-xs">{{ row.moduleId }}</span>
       </template>
-      <template #actions="{ row }">
-        <Popconfirm title="确认删除该标签？" @confirm="handleDelete(row)">
-          <Button danger size="small" type="link">删除</Button>
-        </Popconfirm>
+      <template #labels="{ row }">
+        <div class="flex max-w-full flex-wrap gap-1">
+          <span
+            v-if="row.nodeType === 'module'"
+            class="text-muted-foreground text-xs"
+          >
+            展开查看语言包
+          </span>
+          <Tag v-for="key in getPreviewKeys(row)" :key="key">
+            {{ key }}
+          </Tag>
+          <Tag v-if="row.nodeType === 'language' && row.keyCount > 6">
+            +{{ row.keyCount - 6 }}
+          </Tag>
+        </div>
       </template>
     </Grid>
   </Modal>
 </template>
 
 <style scoped>
-.sync-i18n-label-grid :deep(.vxe-grid) {
+.sync-i18n-label-tree-grid :deep(.vxe-grid) {
   border-radius: 8px;
 }
 
@@ -359,5 +415,15 @@ watch(labelList, (data) => {
   display: inline-flex;
   gap: 4px;
   white-space: nowrap;
+}
+
+.sync-i18n-label-context-field {
+  display: grid;
+  gap: 6px;
+}
+
+.sync-i18n-label-context-field > span {
+  font-size: 13px;
+  line-height: 1.3;
 }
 </style>

@@ -20,12 +20,17 @@ import dayjs from 'dayjs/esm';
 
 import {
   collectAdminModuleLocales,
+  defineAdminModuleLocales,
   mergeAdminLocaleMessages,
 } from '../../locale-utils';
+import { loadRuntimeI18nLabels } from '../utils/runtime-i18n-labels';
 
 const antdLocale = ref<Locale>(antdDefaultLocale);
 
 const modules = import.meta.glob('./langs/**/*.json');
+const adminFrameworkLocales = defineAdminModuleLocales(
+  import.meta.glob('./langs/**/*.json', { eager: true }),
+);
 const moduleLocalesMap = collectAdminModuleLocales(getEnabledFrontendModules());
 
 const localesMap = loadLocalesMapFromDir(
@@ -40,13 +45,24 @@ const localesMap = loadLocalesMapFromDir(
 async function loadMessages(
   lang: SupportedLanguagesType,
 ): Promise<Record<string, string>> {
-  const [appLocaleMessages] = await Promise.all([
+  const [appLocaleMessages, runtimeMessages] = await Promise.all([
     localesMap[lang]?.(),
+    loadRuntimeI18nLabels({
+      adminFrameworkLocales,
+      appCode: import.meta.env.VITE_APP_NAMESPACE,
+      appVersion: import.meta.env.VITE_APP_VERSION,
+      domain: globalThis.location?.hostname,
+      language: lang,
+      terminalType: 'Admin',
+    }),
     loadThirdPartyMessage(lang),
   ]);
   return mergeAdminLocaleMessages(
-    { ...appLocaleMessages?.default },
-    moduleLocalesMap[lang] || {},
+    mergeAdminLocaleMessages(
+      { ...appLocaleMessages?.default },
+      moduleLocalesMap[lang] || {},
+    ),
+    runtimeMessages,
   ) as Record<string, string>;
 }
 
@@ -111,4 +127,4 @@ async function setupI18n(app: App, options: LocaleSetupOptions = {}) {
   });
 }
 
-export { $t, antdLocale, setupI18n };
+export { $t, adminFrameworkLocales, antdLocale, setupI18n };

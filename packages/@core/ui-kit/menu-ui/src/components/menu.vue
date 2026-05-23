@@ -735,6 +735,10 @@ $namespace: vben;
 
   @include menu-item;
 
+  &:not(.is-active) {
+    background: transparent;
+  }
+
   &.is-active {
     fill: var(--menu-item-active-color);
 

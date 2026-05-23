@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  getBaseLocaleMessages,
   i18n,
   loadLocaleMessages,
   normalizeLocaleCode,
@@ -92,5 +93,13 @@ describe('locale fallback resolution', () => {
     expect(i18n.global.locale.value).toBe('zh-CN');
     expect(i18n.global.t('authentication.welcomeBack')).toBe('欢迎回来');
     expect(i18n.global.t('common.login')).toBe('登录');
+  });
+
+  it('exposes the full base locale messages for application-level uploads', () => {
+    const messages = getBaseLocaleMessages();
+
+    expect(messages['zh-CN']?.common?.login).toBe('登录');
+    expect(messages['en-US']?.common?.login).toBe('Login');
+    expect(Object.keys(messages['zh-CN'] || {})).toContain('preferences');
   });
 });

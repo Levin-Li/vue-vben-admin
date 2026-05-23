@@ -143,7 +143,8 @@ const canUploadPageRoutes = computed(() => {
 const canUploadI18nLabels = computed(() => {
   const userInfo = (userStore.userInfo || {}) as Record<string, any>;
   return (
-    userInfo.superAdmin === true && Boolean(getAdminI18nLabelSyncService())
+    userInfo.superAdmin === true &&
+    Boolean(getAdminI18nLabelSyncService()?.uploadModuleLabels)
   );
 });
 
@@ -156,62 +157,64 @@ const fixedProfileUserDropdownMenu = computed(() => ({
   text: $t('page.auth.profile'),
 }));
 
-const builtInUserDropdownExtensionMenus = computed(() => [
-  {
-    handler: () => {
-      return router.push('/clob/V1/MySetting');
+const builtInUserDropdownExtensionMenus = computed(() =>
+  [
+    {
+      handler: () => {
+        return router.push('/clob/V1/MySetting');
+      },
+      icon: 'lucide:user-cog',
+      id: 'my-setting',
+      order: 100,
+      text: '我的设置',
     },
-    icon: 'lucide:user-cog',
-    id: 'my-setting',
-    order: 100,
-    text: '我的设置',
-  },
-  ...(canUploadPageRoutes.value
-    ? [
-        {
-          handler: () => {
-            syncMenuRoutesModalOpen.value = true;
+    ...(canUploadPageRoutes.value
+      ? [
+          {
+            handler: () => {
+              syncMenuRoutesModalOpen.value = true;
+            },
+            icon: 'lucide:cloud-upload',
+            id: 'sync-menu-routes',
+            order: 200,
+            text: '上传页面路由',
           },
-          icon: 'lucide:cloud-upload',
-          id: 'sync-menu-routes',
-          order: 200,
-          text: '上传页面路由',
-        },
-        ...(canUploadI18nLabels.value
-          ? [
-              {
-                handler: () => {
-                  syncI18nLabelsModalOpen.value = true;
-                },
-                icon: 'lucide:languages',
-                id: 'sync-i18n-labels',
-                order: 250,
-                text: '上传国际化标签',
-              },
-            ]
-          : []),
-        {
-          handler: () => {
-            preferServerAdminUiBaseSetting.value = true;
-            saveAdminUiBaseSettingModalOpen.value = true;
+          {
+            handler: () => {
+              preferServerAdminUiBaseSetting.value = true;
+              saveAdminUiBaseSettingModalOpen.value = true;
+            },
+            icon: 'lucide:settings',
+            id: 'save-admin-ui-base-setting',
+            order: 300,
+            text: '上传界面设置',
           },
-          icon: 'lucide:settings',
-          id: 'save-admin-ui-base-setting',
-          order: 300,
-          text: '上传界面设置',
-        },
-        {
-          handler: () => {
-            openEventListenerManager();
+          {
+            handler: () => {
+              openEventListenerManager();
+            },
+            icon: 'lucide:list-tree',
+            id: 'event-listener-manager',
+            order: 400,
+            text: '监听器管理',
           },
-          icon: 'lucide:list-tree',
-          id: 'event-listener-manager',
-          order: 400,
-          text: '监听器管理',
-        },
-      ]
-    : []),
-]);
+        ]
+      : []),
+    ...(canUploadI18nLabels.value
+      ? [
+          {
+            handler: () => {
+              syncI18nLabelsModalOpen.value = true;
+            },
+            icon: 'lucide:languages',
+            id: 'sync-i18n-labels',
+            order: 250,
+            text: '上传国际化资源',
+          },
+        ]
+      : []),
+  ].toSorted((left, right) => left.order - right.order),
+);
 
 const systemMenus = computed(() => builtInUserDropdownExtensionMenus.value);
 

@@ -24,6 +24,36 @@ export function mergeAdminLocaleMessages(
   return target;
 }
 
+export function expandAdminLocaleLabels(labels: Record<string, unknown>) {
+  const messages: AdminLocaleMessages = {};
+
+  for (const [key, value] of Object.entries(labels)) {
+    const paths = key
+      .split('.')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (paths.length === 0 || value === undefined || value === null) {
+      continue;
+    }
+
+    let current = messages;
+    paths.forEach((path, index) => {
+      if (index === paths.length - 1) {
+        current[path] = value;
+        return;
+      }
+
+      const next = current[path];
+      if (!isPlainObject(next)) {
+        current[path] = {};
+      }
+      current = current[path] as AdminLocaleMessages;
+    });
+  }
+
+  return messages;
+}
+
 function normalizeAdminLocaleCode(locale: string) {
   const [language = '', ...segments] = locale
     .trim()
