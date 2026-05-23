@@ -13,6 +13,7 @@ import {
   formatDetailJsonText,
   isDetailJsonValue,
 } from './detail-display';
+import { CRUD_TOOLTIP_MOUSE_ENTER_DELAY } from './crud-tooltip-preview';
 
 const props = defineProps<{
   entries: DetailDisplayEntry[];
@@ -71,11 +72,12 @@ function getDisplayText(entry: DetailDisplayEntry) {
       </div>
       <div v-if="isDetailJsonValue(entry)" class="flex gap-2">
         <Tooltip
+          :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
           :overlay-class-name="'crud-detail-display-tooltip'"
           :title="getDisplayText(entry)"
         >
           <pre
-            class="bg-background line-clamp-2 flex-1 rounded p-3 text-sm leading-6 break-all whitespace-pre-wrap"
+            class="bg-background line-clamp-2 flex-1 whitespace-pre-wrap break-all rounded p-3 text-sm leading-6"
             data-test="detail-display-value"
             >{{ formatDetailJsonText(entry.value) }}</pre
           >
@@ -84,11 +86,12 @@ function getDisplayText(entry: DetailDisplayEntry) {
       </div>
       <Tooltip
         v-else
+        :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
         :overlay-class-name="'crud-detail-display-tooltip'"
         :title="getDisplayText(entry)"
       >
         <pre
-          class="line-clamp-2 text-sm leading-6 break-all whitespace-pre-wrap"
+          class="line-clamp-2 whitespace-pre-wrap break-all text-sm leading-6"
           :class="{
             'bg-background rounded p-3': shouldSpanFullRow(entry),
           }"

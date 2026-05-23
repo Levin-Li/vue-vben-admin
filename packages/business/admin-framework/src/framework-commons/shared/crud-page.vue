@@ -89,6 +89,10 @@ import {
   shouldReloadDataListAfterAction,
 } from './crud-action-model';
 import { buildCrudConfirmConfig } from './crud-confirm';
+import {
+  buildActionLogTooltipItems,
+  hasDisplayableActionLog,
+} from './crud-action-log-tooltip';
 import { shouldShowCrudFormField } from './crud-form-field-visibility';
 import {
   filterCrudOperationsByListTable,
@@ -100,6 +104,11 @@ import {
   shouldReloadRemoteOptionsOnDropdownOpen,
 } from './crud-select-options';
 import { normalizeLeftFixedTableColumns } from './crud-table-columns';
+import {
+  buildCrudCollectionTooltipText,
+  buildCrudTooltipText,
+  CRUD_TOOLTIP_MOUSE_ENTER_DELAY,
+} from './crud-tooltip-preview';
 import { evaluateCrudVisibleOn } from './crud-visible-on';
 import { buildDetailDisplayEntries } from './detail-display';
 import DetailDisplayPanel from './detail-display-panel.vue';
@@ -3443,6 +3452,25 @@ function getStatusTagColor(field: CrudFieldConfig | undefined, value: any) {
   return 'blue';
 }
 
+function getStatusTagText(field: CrudFieldConfig | undefined, value: any) {
+  if (field?.type === 'switch') {
+    return value ? '启用' : '关闭';
+  }
+
+  return formatCellValue(field!, value);
+}
+
+function shouldShowActionLogTooltip(
+  field: CrudFieldConfig | undefined,
+  record: GenericRecord,
+) {
+  return isStatusLikeField(field) && hasDisplayableActionLog(record.actionLog);
+}
+
+function getActionLogTooltipItems(record: GenericRecord) {
+  return buildActionLogTooltipItems(record.actionLog);
+}
+
 function isLinkField(field: CrudFieldConfig | undefined, value: any) {
   if (!field || value === null || value === undefined || value === '') {
     return false;
@@ -3498,6 +3526,28 @@ function getDisplayTagValues(field: CrudFieldConfig | undefined, value: any) {
     (value) =>
       options.find((option) => String(option.value) === value)?.label || value,
   );
+}
+
+function getTagTooltipText(field: CrudFieldConfig | undefined, value: any) {
+  return buildCrudCollectionTooltipText(getDisplayTagValues(field, value));
+}
+
+function getCellTooltipText(field: CrudFieldConfig | undefined, value: any) {
+  const text = getCellDisplayText(field, value);
+
+  if (!field || text === '-') {
+    return text;
+  }
+
+  if (
+    field.type === 'tags' ||
+    field.type === 'string-array' ||
+    field.multiple
+  ) {
+    return getTagTooltipText(field, value);
+  }
+
+  return buildCrudTooltipText(text);
 }
 
 function shouldTruncateCellText(
@@ -4651,6 +4701,55 @@ watch(tableColumnPreferenceStorageKey, () => {
                     )
                 "
               />
+              <Tooltip
+                v-else-if="
+                  shouldShowActionLogTooltip(getTableField(column.key), record)
+                "
+                :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
+                overlay-class-name="vben-crud-action-log-tooltip"
+              >
+                <template #title>
+                  <div class="vben-crud-action-log-tooltip-content">
+                    <div
+                      v-for="item in getActionLogTooltipItems(record)"
+                      :key="item.key"
+                      class="vben-crud-action-log-tooltip-item"
+                    >
+                      <div
+                        v-for="row in item.rows"
+                        :key="`${item.key}-${row.label}`"
+                        class="vben-crud-action-log-tooltip-row"
+                      >
+                        <span class="vben-crud-action-log-tooltip-label">
+                          {{ row.label }}
+                        </span>
+                        <span class="vben-crud-action-log-tooltip-value">
+                          {{ row.value }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+                <Tag
+                  :color="
+                    getTableField(column.key)?.type === 'switch'
+                      ? getRecordValue(record, column.key)
+                        ? 'green'
+                        : 'default'
+                      : getStatusTagColor(
+                          getTableField(column.key),
+                          getRecordValue(record, column.key),
+                        )
+                  "
+                >
+                  {{
+                    getStatusTagText(
+                      getTableField(column.key),
+                      getRecordValue(record, column.key),
+                    )
+                  }}
+                </Tag>
+              </Tooltip>
               <Tag
                 v-else-if="isStatusLikeField(getTableField(column.key))"
                 :color="
@@ -4665,14 +4764,10 @@ watch(tableColumnPreferenceStorageKey, () => {
                 "
               >
                 {{
-                  getTableField(column.key)?.type === 'switch'
-                    ? getRecordValue(record, column.key)
-                      ? '启用'
-                      : '关闭'
-                    : formatCellValue(
-                        getTableField(column.key)!,
-                        getRecordValue(record, column.key),
-                      )
+                  getStatusTagText(
+                    getTableField(column.key),
+                    getRecordValue(record, column.key),
+                  )
                 }}
               </Tag>
               <Image
@@ -4753,8 +4848,10 @@ watch(tableColumnPreferenceStorageKey, () => {
                         getRecordValue(record, column.key),
                       )
                     "
+                    :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
+                    overlay-class-name="vben-crud-cell-tooltip"
                     :title="
-                      getCellDisplayText(
+                      getCellTooltipText(
                         getTableField(column.key),
                         getRecordValue(record, column.key),
                       )
@@ -4788,9 +4885,11 @@ watch(tableColumnPreferenceStorageKey, () => {
                           getRecordValue(record, column.key),
                         ).length > 3
                       "
+                      :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
+                      overlay-class-name="vben-crud-cell-tooltip"
                       :title="
-                        formatCellValue(
-                          getTableField(column.key)!,
+                        getTagTooltipText(
+                          getTableField(column.key),
                           getRecordValue(record, column.key),
                         )
                       "
@@ -4806,8 +4905,10 @@ watch(tableColumnPreferenceStorageKey, () => {
                       getRecordValue(record, column.key),
                     )
                   "
+                  :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
+                  overlay-class-name="vben-crud-cell-tooltip"
                   :title="
-                    getCellDisplayText(
+                    getCellTooltipText(
                       getTableField(column.key),
                       getRecordValue(record, column.key),
                     )
@@ -5543,6 +5644,64 @@ watch(tableColumnPreferenceStorageKey, () => {
   border: 1px solid hsl(var(--background));
   border-radius: 999px;
   box-shadow: 0 2px 6px hsl(var(--primary) / 28%);
+}
+
+:global(.vben-crud-action-log-tooltip) {
+  max-width: min(420px, calc(100vw - 48px));
+}
+
+:global(.vben-crud-action-log-tooltip .ant-tooltip-inner) {
+  width: min(340px, calc(100vw - 48px));
+  max-height: min(40vh, 320px);
+  overflow: auto;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+:global(.vben-crud-cell-tooltip) {
+  max-width: min(420px, calc(100vw - 48px));
+}
+
+:global(.vben-crud-cell-tooltip .ant-tooltip-inner) {
+  max-width: min(420px, calc(100vw - 48px));
+  max-height: min(40vh, 320px);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.vben-crud-action-log-tooltip-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.vben-crud-action-log-tooltip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vben-crud-action-log-tooltip-row {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.vben-crud-action-log-tooltip-label {
+  white-space: nowrap;
+  opacity: 0.76;
+}
+
+.vben-crud-action-log-tooltip-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .vben-crud-column-pin:disabled:hover {

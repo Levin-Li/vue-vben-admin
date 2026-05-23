@@ -81,9 +81,7 @@ describe('detail display panel', () => {
     expect(
       valueBlocks.every((block) => block.classes().includes('line-clamp-2')),
     ).toBe(true);
-    expect(valueBlocks[1].text()).toBe(
-      '{"enabled":true,"limits":[1,2]}',
-    );
+    expect(valueBlocks[1].text()).toBe('{"enabled":true,"limits":[1,2]}');
 
     const tooltips = wrapper.findAllComponents(Tooltip);
     expect(tooltips).toHaveLength(3);
@@ -93,10 +91,13 @@ describe('detail display panel', () => {
           tooltip.props('overlayClassName') === 'crud-detail-display-tooltip',
       ),
     ).toBe(true);
+    expect(
+      tooltips.every((tooltip) => tooltip.props('mouseEnterDelay') === 1),
+    ).toBe(true);
 
     await valueBlocks[1].trigger('mouseenter');
     await nextTick();
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 1100));
 
     const tooltipInner = document.body.querySelector(
       '.crud-detail-display-tooltip .ant-tooltip-inner',
