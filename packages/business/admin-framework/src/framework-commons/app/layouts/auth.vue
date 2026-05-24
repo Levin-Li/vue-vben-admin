@@ -13,7 +13,7 @@ import { preferences, usePreferences } from '@vben/preferences';
 import { useAuthBrand } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/auth-brand';
 
 const { authPanelCenter, isDark } = usePreferences();
-const { appName, brand, copyright, loadAuthBrand, logo } = useAuthBrand();
+const { appName, copyright, loadAuthBrand, logo } = useAuthBrand();
 
 const displayLogo = computed(
   () =>
@@ -31,7 +31,7 @@ onMounted(() => {
 <template>
   <div
     :class="[isDark ? 'dark' : '']"
-    class="relative min-h-screen overflow-hidden bg-[#f4f8ff] text-slate-900 dark:bg-[#07111f] dark:text-slate-100"
+    class="auth-shell relative flex h-screen flex-col overflow-hidden text-foreground"
   >
     <div class="absolute inset-0 overflow-hidden">
       <div class="auth-glow auth-glow-one"></div>
@@ -42,9 +42,9 @@ onMounted(() => {
     <header
       class="relative z-10 flex items-center justify-between px-6 py-6 lg:px-10"
     >
-      <div class="flex items-center gap-3">
+      <div class="auth-brand-card flex items-center gap-3">
         <div
-          class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/85 shadow-[0_12px_30px_rgba(46,109,255,0.15)] ring-1 ring-white/70 dark:bg-slate-900/80 dark:ring-white/10"
+          class="auth-brand-logo flex h-12 w-12 items-center justify-center rounded-2xl"
         >
           <img
             v-if="displayLogo"
@@ -54,20 +54,13 @@ onMounted(() => {
           />
         </div>
         <div>
-          <div
-            class="text-sm font-medium uppercase text-sky-600 dark:text-sky-300"
-          >
-            {{ brand.eyebrow }}
-          </div>
-          <div class="text-lg font-semibold text-slate-900 dark:text-slate-50">
+          <div class="auth-brand-title text-lg font-semibold">
             {{ appName }}
           </div>
         </div>
       </div>
 
-      <div
-        class="flex items-center gap-1 rounded-full border border-white/65 bg-white/70 px-3 py-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/45"
-      >
+      <div class="auth-toolbar flex items-center gap-1 rounded-full px-3 py-1.5">
         <AuthenticationColorToggle />
         <AuthenticationLayoutToggle />
         <LanguageToggle v-if="preferences.widget.languageToggle" />
@@ -75,141 +68,177 @@ onMounted(() => {
       </div>
     </header>
 
-    <main class="relative z-10 px-6 pb-8 lg:px-10 lg:pb-10">
+    <main class="relative z-10 flex-1 overflow-hidden px-6 pb-16 lg:px-10 lg:pb-20">
       <div
-        class="mx-auto grid min-h-[calc(100vh-112px)] max-w-[1520px] items-center gap-8 xl:grid-cols-[1.12fr_0.88fr]"
+        class="mx-auto grid h-full min-h-0 max-w-[1520px] items-center gap-8 xl:grid-cols-[1.12fr_0.88fr]"
         :class="{ 'grid-cols-1': authPanelCenter }"
       >
         <section
           v-if="!authPanelCenter"
-          class="hidden min-h-[720px] overflow-hidden p-10 xl:block"
+          class="hidden h-full min-h-0 overflow-hidden p-10 xl:block"
         >
-          <div class="auth-line-art h-full">
+          <div class="auth-flow-art h-full">
             <svg
               aria-hidden="true"
               class="h-full w-full"
               fill="none"
-              viewBox="0 0 760 640"
+              viewBox="0 0 900 520"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <path
-                class="auth-line-muted"
-                d="M104 534c70-34 112-26 164 22 48 44 98 42 152-2 72-58 144-66 238-18"
-              />
+              <g class="auth-flow-left-lines">
+                <path
+                  v-for="(path, index) in [
+                    'M166 45C230 64 282 126 318 172',
+                    'M134 140C216 126 278 176 318 214',
+                    'M122 235C196 228 268 232 312 248',
+                    'M118 330C198 354 270 292 314 270',
+                    'M124 425C204 466 274 330 320 292',
+                    'M146 520C222 574 292 374 326 318',
+                    'M192 615C260 642 316 390 338 324',
+                  ]"
+                  :key="index"
+                  class="auth-flow-feed-line"
+                  :d="path"
+                  :style="{ '--delay': `${0.28 + index * 0.22}s` }"
+                />
+              </g>
 
-              <path
-                class="auth-line-flow auth-line-accent"
-                d="M212 238c64-72 166-96 260-48"
-              />
-              <path
-                class="auth-line-flow auth-line-success"
-                d="M548 250c44 38 60 92 42 148"
-              />
-              <path
-                class="auth-line-flow auth-line-warm"
-                d="M510 458c-70 54-176 64-262 10"
-              />
+              <g class="auth-flow-left-nodes">
+                <g
+                  v-for="(node, index) in [
+                    [108, 14],
+                    [76, 109],
+                    [64, 204],
+                    [60, 299],
+                    [66, 394],
+                    [88, 489],
+                    [134, 584],
+                  ]"
+                  :key="index"
+                  class="auth-flow-node auth-flow-platform"
+                  :style="{ '--delay': `${index * 0.18}s` }"
+                  :transform="`translate(${node[0]} ${node[1]}) scale(1.3)`"
+                >
+                  <rect height="48" rx="18" width="58" />
+                  <circle class="auth-flow-node-mark" cx="29" cy="24" r="15" />
+                  <path
+                    class="auth-flow-node-glyph"
+                    :d="[
+                      'M21 17h16v14H21zM25 13h8v4M25 24h8',
+                      'M21 17h16M21 24h16M21 31h16M23 15l12 18',
+                      'M20 24a9 9 0 1 0 18 0 9 9 0 1 0-18 0M29 15v18M21 24h16',
+                      'M21 17h16v14H21zM25 21h8M25 27h8',
+                      'M22 19h14v10H22zM25 16h8v3M25 32h8',
+                      'M21 29h16M23 19h12l2 10H21z',
+                      'M22 17h14v14H22zM25 21h8M25 26h8'
+                    ][index]"
+                  />
+                </g>
+              </g>
 
-              <rect
-                class="auth-line-card"
-                height="264"
-                rx="34"
-                width="330"
-                x="214"
-                y="174"
-              />
-              <path class="auth-line-main" d="M248 226h118M398 226h82" />
-              <path class="auth-line-muted" d="M248 270h228" />
-              <path class="auth-line-muted" d="M248 314h176" />
-              <path class="auth-line-muted" d="M248 358h214" />
-              <path class="auth-line-accent" d="M248 402h82" />
-              <path class="auth-line-success" d="M376 402h86" />
+              <g class="auth-flow-orbit auth-flow-orbit-left">
+                <circle class="auth-flow-ring-shadow" cx="350" cy="260" r="138" />
+                <circle class="auth-flow-ring-track" cx="350" cy="260" r="122" />
+                <circle class="auth-flow-ring-main" cx="350" cy="260" r="122" />
+                <circle class="auth-flow-ring-dash" cx="350" cy="260" r="154" />
+              </g>
 
-              <circle class="auth-line-hub-fill" cx="380" cy="318" r="54" />
-              <circle class="auth-line-accent" cx="380" cy="318" r="54" />
-              <path class="auth-line-main" d="M350 318h60" />
-              <path class="auth-line-main" d="M380 288v60" />
-              <circle class="auth-line-soft-fill" cx="380" cy="318" r="16" />
+              <g class="auth-flow-core" transform="translate(350 260)">
+                <circle r="92" />
+                <path
+                  class="auth-flow-stack auth-flow-primary-fill"
+                  d="m0-48 50 28L0 8-50-20 0-48Z"
+                />
+                <path
+                  class="auth-flow-stack"
+                  d="m-40 10 40 22 40-22M-40 36 0 58l40-22"
+                />
+              </g>
 
-              <rect
-                class="auth-line-mini-card"
-                height="186"
-                rx="26"
-                width="162"
-                x="96"
-                y="190"
-              />
-              <path class="auth-line-main" d="M130 234h58M130 270h88" />
-              <path class="auth-line-muted" d="M130 306h62M130 336h84" />
-              <path class="auth-line-accent" d="M130 354h18M160 354h18" />
-              <path class="auth-line-accent" d="M196 354h18" />
-              <circle class="auth-line-warm" cx="220" cy="230" r="18" />
-              <path class="auth-line-warm" d="M210 230h20M220 220v20" />
+              <g class="auth-flow-main-connector">
+                <path d="M460 260h82" />
+                <circle cx="460" cy="260" r="7" />
+                <circle cx="542" cy="260" r="7" />
+              </g>
 
-              <rect
-                class="auth-line-mini-card"
-                height="170"
-                rx="26"
-                width="174"
-                x="508"
-                y="140"
-              />
-              <path class="auth-line-main" d="M544 184h72M544 220h92" />
-              <path class="auth-line-muted" d="M544 252h54" />
-              <circle class="auth-line-success" cx="626" cy="254" r="24" />
-              <path class="auth-line-success" d="m614 254 9 9 18-22" />
+              <g class="auth-flow-right-lines">
+                <path
+                  v-for="(path, index) in [
+                    'M716 170C758 120 810 92 858 76',
+                    'M732 218C786 184 832 166 886 162',
+                    'M736 274C798 288 840 290 890 286',
+                    'M720 338C780 374 818 396 846 400',
+                    'M650 356C678 410 686 448 668 468',
+                  ]"
+                  :key="index"
+                  class="auth-flow-spread-line"
+                  :d="path"
+                  :style="{ '--delay': `${3.1 + index * 0.2}s` }"
+                />
+              </g>
 
-              <rect
-                class="auth-line-mini-card"
-                height="160"
-                rx="26"
-                width="188"
-                x="482"
-                y="382"
-              />
-              <path class="auth-line-main" d="M524 430h74M524 464h96" />
-              <path class="auth-line-accent" d="M514 488h102" />
-              <path class="auth-line-main" d="M518 414h22l16 46h58l14-34h-74" />
-              <circle class="auth-line-main" cx="566" cy="492" r="7" />
-              <circle class="auth-line-main" cx="612" cy="492" r="7" />
+              <g class="auth-flow-orbit auth-flow-orbit-right">
+                <circle class="auth-flow-ring-shadow" cx="640" cy="260" r="142" />
+                <circle class="auth-flow-ring-track" cx="640" cy="260" r="126" />
+                <circle class="auth-flow-ring-main auth-flow-ring-main-alt" cx="640" cy="260" r="126" />
+                <circle class="auth-flow-ring-dash" cx="640" cy="260" r="166" />
+              </g>
 
-              <rect
-                class="auth-line-mini-card"
-                height="150"
-                rx="26"
-                width="180"
-                x="118"
-                y="408"
-              />
-              <path class="auth-line-main" d="M158 452h70M158 486h100" />
-              <path class="auth-line-muted" d="M158 514h58" />
-              <path
-                class="auth-line-warm"
-                d="M246 438c22 0 38 16 38 36s-16 36-38 36-38-16-38-36 16-36 38-36Z"
-              />
-              <path class="auth-line-warm" d="M246 454v40M228 474h36" />
+              <g class="auth-flow-core auth-flow-core-right" transform="translate(640 260)">
+                <circle r="96" />
+                <g class="auth-flow-stream">
+                  <circle cx="-42" cy="-36" r="9" />
+                  <circle cx="-42" cy="-12" r="9" />
+                  <circle cx="-42" cy="12" r="9" />
+                  <circle cx="-42" cy="36" r="9" />
+                  <path d="M-24-36C18-36 18-8 52-8" />
+                  <path d="M-24-12C12-12 20-4 52-4" />
+                  <path d="M-24 12C12 12 20 4 52 4" />
+                  <path d="M-24 36C18 36 18 8 52 8" />
+                  <circle cx="60" cy="0" r="9" />
+                </g>
+              </g>
 
-              <path class="auth-line-accent" d="M258 284h74" />
-              <path class="auth-line-success" d="M466 268h70" />
-              <path class="auth-line-warm" d="M458 430h62" />
-              <path class="auth-line-accent" d="M288 458h74" />
+              <g class="auth-flow-right-nodes">
+                <g
+                  v-for="(node, index) in [
+                    [800, 74],
+                    [858, 162],
+                    [862, 286],
+                    [812, 400],
+                    [668, 468],
+                  ]"
+                  :key="index"
+                  class="auth-flow-capability"
+                  :style="{ '--delay': `${3.3 + index * 0.2}s` }"
+                  :transform="`translate(${node[0]} ${node[1]})`"
+                >
+                  <circle r="42" />
+                  <path
+                    class="auth-flow-capability-icon"
+                    :d="[
+                      'M-18-10h36v24h-36zM10-2h12v10H10M-10-16h20v6',
+                      'M-14-18H6l10 10v26h-30zM6-18v10h10M-6-2h14M-6 8h14',
+                      'M-16-18h28v34h-28zM-8-6h12M-8 4h10M5 11l6 6 12-16',
+                      'M-14-18h28v36l-7-4-7 4-7-4-7 4zM-6-4h12M-6 6h12',
+                      'M-22 4h28v12h-28zM6-4h12l10 10v10H6zM-14 18a5 5 0 1 0 0 0.1M18 18a5 5 0 1 0 0 0.1'
+                    ][index]"
+                  />
+                </g>
+              </g>
 
-              <circle
-                class="auth-line-dot auth-line-accent"
-                cx="258"
-                cy="284"
-              />
-              <circle
-                class="auth-line-dot auth-line-success"
-                cx="536"
-                cy="268"
-              />
-              <circle class="auth-line-dot auth-line-warm" cx="520" cy="430" />
-              <circle
-                class="auth-line-dot auth-line-accent"
-                cx="288"
-                cy="458"
-              />
+              <g class="auth-flow-points">
+                <circle cx="238" cy="118" r="6" />
+                <circle cx="232" cy="174" r="6" />
+                <circle cx="222" cy="234" r="6" />
+                <circle cx="228" cy="302" r="6" />
+                <circle cx="258" cy="392" r="6" />
+                <circle cx="548" cy="260" r="6" />
+                <circle cx="776" cy="150" r="6" />
+                <circle cx="806" cy="230" r="6" />
+                <circle cx="808" cy="304" r="6" />
+                <circle cx="776" cy="374" r="6" />
+              </g>
             </svg>
           </div>
         </section>
@@ -218,15 +247,9 @@ onMounted(() => {
           class="mx-auto flex w-full max-w-[620px] items-center justify-center"
           :class="{ 'max-w-[780px]': authPanelCenter }"
         >
-          <div
-            class="auth-panel bg-white/82 dark:bg-slate-950/58 relative w-full overflow-hidden rounded-[36px] border border-white/70 p-3 shadow-[0_32px_80px_rgba(15,23,42,0.12)] backdrop-blur-2xl dark:border-white/10"
-          >
-            <div
-              class="pointer-events-none absolute inset-x-6 top-0 h-24 bg-gradient-to-b from-sky-200/45 to-transparent blur-2xl dark:from-sky-500/20"
-            ></div>
-            <div
-              class="relative rounded-[30px] border border-slate-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,250,255,0.9))] px-5 py-6 sm:px-8 sm:py-8 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(7,18,35,0.92),rgba(6,16,30,0.88))]"
-            >
+          <div class="auth-panel relative w-full overflow-hidden rounded-[36px] p-3">
+            <div class="auth-panel-glow pointer-events-none absolute inset-x-8 top-0 h-28"></div>
+            <div class="auth-card relative rounded-[30px] px-5 py-6 sm:px-8 sm:py-8">
               <RouterView v-slot="{ Component, route }">
                 <Transition appear mode="out-in" name="slide-right">
                   <div :key="route.fullPath" class="w-full">
@@ -236,27 +259,233 @@ onMounted(() => {
                   </div>
                 </Transition>
               </RouterView>
-
-              <div
-                class="mt-8 border-t border-slate-100/80 pt-5 text-center text-xs text-slate-500 dark:border-white/5 dark:text-slate-400"
-              >
-                {{ copyright }}
-              </div>
             </div>
           </div>
         </section>
       </div>
     </main>
+
+    <footer
+      class="auth-page-footer fixed inset-x-0 bottom-6 z-10 flex justify-center px-6"
+    >
+      <div class="auth-copyright text-center text-xs">
+        {{ copyright }}
+      </div>
+    </footer>
   </div>
 </template>
 
 <style scoped>
+.auth-shell {
+  background:
+    radial-gradient(
+      circle at 8% 10%,
+      hsl(var(--primary) / 0.18),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 88% 94%,
+      hsl(var(--primary) / 0.2),
+      transparent 26%
+    ),
+    linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.08),
+      hsl(var(--background)) 34%,
+      hsl(var(--primary) / 0.06)
+    );
+}
+
+.auth-brand-card {
+  border-radius: 22px;
+  padding: 6px 8px;
+}
+
+.auth-brand-logo {
+  background: transparent;
+}
+
+.auth-brand-logo::after {
+  display: none;
+}
+
+.auth-brand-eyebrow {
+  color: hsl(var(--primary));
+  letter-spacing: 0;
+}
+
+.auth-brand-title {
+  color: hsl(var(--foreground));
+}
+
+.auth-toolbar {
+  border: 1px solid hsl(var(--primary) / 0.12);
+  background: hsl(var(--card) / 0.78);
+  box-shadow:
+    0 18px 46px hsl(var(--primary) / 0.15),
+    inset 0 1px 0 hsl(var(--background) / 0.86);
+  backdrop-filter: blur(18px);
+}
+
+.auth-panel {
+  border: 1px solid hsl(var(--primary) / 0.14);
+  background:
+    linear-gradient(
+      145deg,
+      hsl(var(--card) / 0.82),
+      hsl(var(--primary) / 0.09)
+    ),
+    hsl(var(--card) / 0.74);
+  box-shadow:
+    0 34px 90px hsl(var(--primary) / 0.18),
+    0 18px 44px hsl(var(--foreground) / 0.07),
+    inset 0 1px 0 hsl(var(--background) / 0.9);
+  backdrop-filter: blur(24px);
+}
+
+.auth-panel-glow {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--primary) / 0.22),
+    transparent
+  );
+  filter: blur(28px);
+}
+
+.auth-card {
+  border: 1px solid hsl(var(--primary) / 0.1);
+  background:
+    linear-gradient(
+      180deg,
+      hsl(var(--card) / 0.98),
+      hsl(var(--primary) / 0.045)
+    ),
+    hsl(var(--card) / 0.95);
+  box-shadow: inset 0 1px 0 hsl(var(--background) / 0.92);
+}
+
+.auth-copyright {
+  max-width: 100%;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.6;
+  text-wrap: balance;
+}
+
+.auth-card :deep(.ant-tabs-nav) {
+  margin-bottom: 18px;
+}
+
+.auth-card :deep(.ant-tabs-ink-bar) {
+  height: 3px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+}
+
+.auth-card :deep(.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn),
+.auth-card :deep(.ant-tabs-tab:hover) {
+  color: hsl(var(--primary));
+}
+
+.auth-card :deep(.ant-alert-info) {
+  border-color: hsl(var(--primary) / 0.12);
+  background: hsl(var(--primary) / 0.075);
+}
+
+.auth-card :deep(.ant-alert-info .ant-alert-icon) {
+  color: hsl(var(--primary));
+}
+
+.auth-card :deep(.ant-input),
+.auth-card :deep(.ant-input-affix-wrapper) {
+  border-color: hsl(var(--border));
+  background: hsl(var(--background) / 0.82);
+}
+
+.auth-card :deep(.ant-input:hover),
+.auth-card :deep(.ant-input-affix-wrapper:hover),
+.auth-card :deep(.ant-input:focus),
+.auth-card :deep(.ant-input-affix-wrapper-focused) {
+  border-color: hsl(var(--primary) / 0.5);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
+}
+
+.auth-card :deep(.ant-btn-primary) {
+  border-color: hsl(var(--primary));
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.9),
+    hsl(var(--primary))
+  );
+  box-shadow: 0 14px 28px hsl(var(--primary) / 0.22);
+}
+
+.auth-card :deep(.ant-checkbox-checked .ant-checkbox-inner) {
+  border-color: hsl(var(--primary));
+  background-color: hsl(var(--primary));
+}
+
+@media (min-width: 1024px) and (max-height: 760px) {
+  .auth-shell header {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .auth-shell main {
+    padding-bottom: 72px;
+  }
+
+  .auth-shell main > div {
+    min-height: auto;
+    align-items: start;
+  }
+
+  .auth-brand-card {
+    padding: 4px 6px;
+  }
+
+  .auth-brand-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 18px;
+  }
+
+  .auth-brand-title {
+    font-size: 16px;
+    line-height: 1.35;
+  }
+
+  .auth-panel {
+    padding: 8px;
+  }
+
+  .auth-card {
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+
+  .auth-card :deep(.mb-6) {
+    margin-bottom: 14px;
+  }
+
+  .auth-card :deep(.ant-tabs-nav) {
+    margin-bottom: 12px;
+  }
+
+  .auth-card :deep(.space-y-4 > :not([hidden]) ~ :not([hidden])) {
+    margin-top: 12px;
+  }
+
+  .auth-copyright {
+    font-size: 11px;
+  }
+}
+
 .auth-grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+    linear-gradient(hsl(var(--primary) / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--primary) / 0.045) 1px, transparent 1px);
   background-position: center center;
   background-size: 42px 42px;
   mask-image: radial-gradient(circle at center, black 35%, transparent 78%);
@@ -274,7 +503,7 @@ onMounted(() => {
   left: -60px;
   height: 320px;
   width: 320px;
-  background: rgba(56, 189, 248, 0.28);
+  background: hsl(var(--primary) / 0.1);
 }
 
 .auth-glow-two {
@@ -282,136 +511,320 @@ onMounted(() => {
   bottom: -80px;
   height: 360px;
   width: 360px;
-  background: rgba(99, 102, 241, 0.2);
+  background: hsl(var(--primary) / 0.16);
 }
 
 .dark .auth-grid {
   background-image:
-    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+    linear-gradient(hsl(var(--primary) / 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--primary) / 0.08) 1px, transparent 1px);
 }
 
-.auth-line-art {
-  color: rgb(51 65 85 / 0.55);
+.auth-flow-art {
+  color: hsl(var(--primary));
+  transform: translate(-28px, 22px);
 }
 
-.auth-line-main,
-.auth-line-muted,
-.auth-line-accent,
-.auth-line-success,
-.auth-line-warm {
+.auth-flow-art svg {
+  overflow: visible;
+}
+
+.auth-flow-feed-line,
+.auth-flow-spread-line,
+.auth-flow-main-connector path,
+.auth-flow-stream path {
+  fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.2;
 }
 
-.auth-line-main {
-  stroke: rgb(51 65 85 / 0.55);
+.auth-flow-feed-line,
+.auth-flow-spread-line {
+  stroke: hsl(var(--primary) / 0.24);
+  stroke-dasharray: 260;
+  stroke-dashoffset: 260;
+  stroke-width: 2;
+  animation: auth-flow-line 7.2s ease-in-out infinite;
+  animation-delay: var(--delay);
+  opacity: 0;
 }
 
-.auth-line-muted {
-  stroke: rgb(71 85 105 / 0.24);
+.auth-flow-node,
+.auth-flow-capability {
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
-.auth-line-accent {
-  stroke: rgb(14 165 233 / 0.72);
+.auth-flow-node {
+  animation: auth-flow-node-in 7.2s ease-in-out infinite;
+  animation-delay: var(--delay);
+  opacity: 0;
 }
 
-.auth-line-success {
-  stroke: rgb(16 185 129 / 0.72);
+.auth-flow-node rect {
+  fill: hsl(var(--background) / 0.72);
+  stroke: hsl(var(--primary) / 0.12);
+  stroke-width: 1.4;
+  filter: drop-shadow(0 12px 22px hsl(var(--primary) / 0.1));
 }
 
-.auth-line-warm {
-  stroke: rgb(245 158 11 / 0.72);
+.auth-flow-node-mark {
+  fill: hsl(var(--primary) / 0.07);
+  stroke: hsl(var(--primary) / 0.14);
 }
 
-.auth-line-flow {
-  stroke-width: 2.6;
+.auth-flow-node-glyph {
+  fill: none;
+  stroke: hsl(var(--primary) / 0.52);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.1;
 }
 
-.auth-line-card {
-  fill: rgb(255 255 255 / 0.36);
-  stroke: rgb(51 65 85 / 0.32);
-  stroke-width: 2.2;
+.auth-flow-orbit {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: auth-flow-spin 22s linear infinite;
 }
 
-.auth-line-mini-card {
-  fill: rgb(255 255 255 / 0.28);
-  stroke: rgb(71 85 105 / 0.22);
-  stroke-width: 2.2;
+.auth-flow-orbit-right {
+  animation-duration: 28s;
+  animation-direction: reverse;
 }
 
-.auth-line-hub-fill {
-  fill: rgb(14 165 233 / 0.08);
+.auth-flow-ring-shadow {
+  fill: hsl(var(--primary) / 0.03);
 }
 
-.auth-line-dot {
-  stroke-width: 0;
+.auth-flow-ring-track {
+  fill: hsl(var(--background) / 0.36);
+  stroke: hsl(var(--primary) / 0.06);
+  stroke-width: 6;
 }
 
-.auth-line-dot.auth-line-accent {
-  fill: rgb(14 165 233 / 0.72);
+.auth-flow-ring-main {
+  stroke: hsl(var(--primary) / 0.28);
+  stroke-dasharray: 300 470;
+  stroke-linecap: round;
+  stroke-width: 6;
+  filter: drop-shadow(0 0 12px hsl(var(--primary) / 0.1));
 }
 
-.auth-line-dot.auth-line-success {
-  fill: rgb(16 185 129 / 0.72);
+.auth-flow-ring-main-alt {
+  stroke-width: 7;
 }
 
-.auth-line-dot.auth-line-warm {
-  fill: rgb(245 158 11 / 0.72);
+.auth-flow-ring-dash {
+  stroke: hsl(var(--primary) / 0.12);
+  stroke-dasharray: 6 14;
+  stroke-linecap: round;
+  stroke-width: 1.6;
 }
 
-.auth-line-soft-fill {
-  fill: rgb(255 255 255 / 0.34);
+.auth-flow-core {
+  animation: auth-flow-core-pulse 7.2s ease-in-out infinite;
+  animation-delay: 1.65s;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
-.dark .auth-line-main {
-  stroke: rgb(226 232 240 / 0.5);
+.auth-flow-core > circle {
+  fill: hsl(var(--background) / 0.6);
+  stroke: hsl(var(--primary) / 0.08);
 }
 
-.dark .auth-line-muted {
-  stroke: rgb(226 232 240 / 0.18);
+.auth-flow-primary-fill {
+  fill: hsl(var(--primary) / 0.44);
 }
 
-.dark .auth-line-accent {
-  stroke: rgb(125 211 252 / 0.75);
+.auth-flow-stack {
+  stroke: hsl(var(--primary) / 0.46);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 7;
 }
 
-.dark .auth-line-success {
-  stroke: rgb(52 211 153 / 0.76);
+.auth-flow-main-connector {
+  animation: auth-flow-connector 7.2s ease-in-out infinite;
+  animation-delay: 2.35s;
+  opacity: 0;
 }
 
-.dark .auth-line-warm {
-  stroke: rgb(251 191 36 / 0.76);
+.auth-flow-main-connector path {
+  stroke: hsl(var(--primary) / 0.34);
+  stroke-dasharray: 82;
+  stroke-dashoffset: 82;
+  stroke-width: 3;
 }
 
-.dark .auth-line-card {
-  fill: rgb(15 23 42 / 0.3);
-  stroke: rgb(226 232 240 / 0.24);
+.auth-flow-main-connector circle,
+.auth-flow-points circle,
+.auth-flow-stream circle {
+  fill: hsl(var(--primary) / 0.44);
+  filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.16));
 }
 
-.dark .auth-line-mini-card {
-  fill: rgb(15 23 42 / 0.22);
-  stroke: rgb(226 232 240 / 0.17);
+.auth-flow-core-right {
+  animation-delay: 2.85s;
 }
 
-.dark .auth-line-hub-fill {
-  fill: rgb(14 165 233 / 0.12);
+.auth-flow-stream {
+  fill: none;
+  stroke: hsl(var(--primary) / 0.46);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
 }
 
-.dark .auth-line-dot.auth-line-accent {
-  fill: rgb(125 211 252 / 0.75);
+.auth-flow-stream path {
+  stroke-dasharray: 86;
+  stroke-dashoffset: 86;
+  animation: auth-flow-stream 7.2s ease-in-out infinite;
+  animation-delay: 3s;
 }
 
-.dark .auth-line-dot.auth-line-success {
-  fill: rgb(52 211 153 / 0.76);
+.auth-flow-capability {
+  animation: auth-flow-node-in 7.2s ease-in-out infinite;
+  animation-delay: var(--delay);
+  opacity: 0;
 }
 
-.dark .auth-line-dot.auth-line-warm {
-  fill: rgb(251 191 36 / 0.76);
+.auth-flow-capability circle {
+  fill: hsl(var(--background) / 0.6);
+  stroke: hsl(var(--primary) / 0.1);
+  stroke-width: 1.6;
+  filter: drop-shadow(0 16px 28px hsl(var(--primary) / 0.1));
 }
 
-.dark .auth-line-soft-fill {
-  fill: rgb(15 23 42 / 0.28);
+.auth-flow-capability-icon {
+  fill: none;
+  stroke: hsl(var(--primary) / 0.52);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.auth-flow-points circle {
+  animation: auth-flow-point 7.2s ease-in-out infinite;
+}
+
+.dark .auth-flow-node rect,
+.dark .auth-flow-capability circle,
+.dark .auth-flow-core > circle {
+  fill: hsl(var(--card) / 0.36);
+}
+
+@keyframes auth-flow-node-in {
+  0%,
+  6% {
+    opacity: 0;
+  }
+
+  14%,
+  74% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.28;
+  }
+}
+
+@keyframes auth-flow-line {
+  0%,
+  8% {
+    opacity: 0;
+    stroke-dashoffset: 260;
+  }
+
+  22%,
+  72% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+
+  100% {
+    opacity: 0.18;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes auth-flow-core-pulse {
+  0%,
+  18% {
+    opacity: 0;
+  }
+
+  30%,
+  82% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.42;
+  }
+}
+
+@keyframes auth-flow-connector {
+  0%,
+  24% {
+    opacity: 0;
+  }
+
+  36%,
+  78% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes auth-flow-stream {
+  0%,
+  35% {
+    stroke-dashoffset: 86;
+  }
+
+  52%,
+  84% {
+    stroke-dashoffset: 0;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes auth-flow-point {
+  0%,
+  30% {
+    opacity: 0.18;
+  }
+
+  48%,
+  78% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes auth-flow-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-flow-art * {
+    animation: none !important;
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+  }
 }
 </style>

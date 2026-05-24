@@ -42,7 +42,19 @@ const brandState = ref<BrandState>({ ...defaultState });
 let loadingPromise: null | Promise<void> = null;
 
 function normalizeText(value: unknown) {
-  return String(value ?? '').trim();
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : '';
+  }
+
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  return value.trim();
 }
 
 function getCurrentDomain() {
@@ -50,7 +62,14 @@ function getCurrentDomain() {
 }
 
 function getUiValue(record: BrandRecord | null | undefined, ...keys: string[]) {
-  const stores = [record?.uiExInfo].filter(Boolean);
+  const uiExInfo = record?.uiExInfo;
+  const stores = [
+    uiExInfo,
+    uiExInfo?.auth,
+    uiExInfo?.brand,
+    uiExInfo?.login,
+    uiExInfo?.site,
+  ].filter(Boolean);
 
   for (const store of stores) {
     for (const key of keys) {
@@ -66,6 +85,17 @@ function getUiValue(record: BrandRecord | null | undefined, ...keys: string[]) {
 
 function getFirstText(...values: unknown[]) {
   return values.map((value) => normalizeText(value)).find(Boolean) || '';
+}
+
+function getNestedRecordValue(
+  record: BrandRecord | null | undefined,
+  nestedKey: string,
+  valueKey: string,
+) {
+  const nested = record?.[nestedKey];
+  return nested && typeof nested === 'object'
+    ? normalizeText((nested as Record<string, any>)[valueKey])
+    : '';
 }
 
 function updateFavicon(shortcutIcon: string) {
@@ -95,21 +125,34 @@ function mergeBrandState(
   record: BrandRecord | null,
   domain: string,
 ): BrandState {
+  const siteDomain = getFirstText(record?.domain, record?.appAuthDomain, domain);
   const name = getFirstText(
-    getUiValue(record, 'systemName', 'sysName', 'appName', 'name'),
-    record?.sysName,
     record?.name,
+    getUiValue(
+      record,
+      'siteName',
+      'siteTitle',
+      'name',
+      'systemName',
+      'sysName',
+      'appName',
+      'appTitle',
+      'title',
+    ),
+    record?.sysName,
+    getNestedRecordValue(record, 'brand', 'name'),
     defaultState.name,
   );
   const logo = getFirstText(
-    getUiValue(record, 'logo', 'sysLogo'),
-    record?.sysLogo,
     record?.logo,
+    getUiValue(record, 'logo', 'sysLogo', 'siteLogo', 'appLogo'),
+    record?.sysLogo,
+    getNestedRecordValue(record, 'brand', 'logo'),
     defaultState.logo,
   );
   const shortcutIcon = getFirstText(
-    getUiValue(record, 'shortcutIcon', 'favicon'),
     record?.shortcutIcon,
+    getUiValue(record, 'shortcutIcon', 'favicon', 'siteIcon', 'appIcon'),
     logo,
   );
   const techSupport = getFirstText(
@@ -118,17 +161,16 @@ function mergeBrandState(
   );
   const copyright = getFirstText(
     record?.copyright,
-    getUiValue(record, 'copyright'),
-    `Copyright © ${currentYear} ${name} · 多租户后台管理平台`,
+    getUiValue(record, 'copyright', 'copyrightText'),
+    defaultState.copyright,
   );
 
   return {
     copyright,
-    domain: getFirstText(record?.domain, domain),
+    domain: siteDomain,
     eyebrow: getFirstText(
+      siteDomain,
       getUiValue(record, 'brandName', 'eyebrow'),
-      record?.domain,
-      domain,
       defaultState.eyebrow,
     ),
     heroDesc: getFirstText(
