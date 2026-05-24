@@ -436,7 +436,7 @@ onMounted(() => {
 
   .auth-shell main > div {
     min-height: auto;
-    align-items: start;
+    align-items: center;
   }
 
   .auth-brand-card {
@@ -455,6 +455,7 @@ onMounted(() => {
   }
 
   .auth-panel {
+    transform: translateY(14px);
     padding: 8px;
   }
 
@@ -478,6 +479,7 @@ onMounted(() => {
   .auth-copyright {
     font-size: 11px;
   }
+
 }
 
 .auth-grid {
@@ -527,6 +529,12 @@ onMounted(() => {
 
 .auth-flow-art svg {
   overflow: visible;
+}
+
+@media (min-width: 1024px) and (max-height: 760px) {
+  .auth-flow-art {
+    transform: translate(-28px, 14px);
+  }
 }
 
 .auth-flow-feed-line,
