@@ -84,7 +84,7 @@ const currentColorInputLabel = computed(() => {
 
 const currentColorSettingsTitle = computed(() => {
   if (activeTarget.value === 'primary') {
-    return $t('preferences.theme.colorSettings');
+    return $t('preferences.theme.themeColor');
   }
   return getColorTargetLabel(activeTarget.value);
 });
@@ -127,7 +127,7 @@ function getColorTargetLabel(target: ColorTarget) {
       return $t('preferences.theme.warningColor');
     }
     default: {
-      return $t('preferences.theme.colorSettings');
+      return $t('preferences.theme.themeColor');
     }
   }
 }
@@ -344,7 +344,7 @@ defineExpose({ open });
     >
       <span class="flex items-center gap-2 text-sm">
         <Palette class="size-4" />
-        {{ $t('preferences.theme.colorSettings') }}
+        {{ $t('preferences.theme.themeColor') }}
       </span>
       <span class="color-settings-summary">
         <span
@@ -388,7 +388,7 @@ defineExpose({ open });
       <div class="space-y-5">
         <section class="space-y-3">
           <h4 class="text-sm font-medium">
-            {{ $t('preferences.theme.builtinColor') }}
+            {{ $t('preferences.theme.builtin.title') }}
           </h4>
           <BuiltinTheme
             v-model="editorBuiltinType"

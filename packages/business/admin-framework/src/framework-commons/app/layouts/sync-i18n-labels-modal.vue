@@ -35,14 +35,17 @@ const treeRows = ref<SyncI18nTreeNode[]>([]);
 const selectedKeys = ref<Set<string>>(new Set());
 const overrideExisting = ref(false);
 const enable = ref(true);
+const tenantShared = ref(true);
 const viteEnv = (import.meta as unknown as { env: Record<string, string> }).env;
 const uploadContext = reactive<{
   appCode: string;
+  appVersion: string;
   domain: string;
   tenantId: string;
   terminalType?: string;
 }>({
   appCode: '',
+  appVersion: '',
   domain: '',
   tenantId: '',
   terminalType: 'Admin',
@@ -164,7 +167,9 @@ function resetModuleRows() {
   );
   overrideExisting.value = false;
   enable.value = true;
+  tenantShared.value = true;
   uploadContext.appCode = viteEnv.VITE_APP_NAMESPACE || '';
+  uploadContext.appVersion = viteEnv.VITE_APP_VERSION || '';
   uploadContext.domain = globalThis.location?.hostname || '';
   uploadContext.tenantId = '';
   uploadContext.terminalType = 'Admin';
@@ -257,11 +262,12 @@ async function handleSubmit() {
     await labelSyncService.uploadModuleLabels(
       buildModuleUploadI18nLabelsPayload(selectedLanguageRows.value, {
         appCode: uploadContext.appCode,
-        appVersion: viteEnv.VITE_APP_VERSION || '',
+        appVersion: uploadContext.appVersion,
         domain: uploadContext.domain,
         enable: enable.value,
         overrideExisting: overrideExisting.value,
         tenantId: uploadContext.tenantId,
+        tenantShared: tenantShared.value,
         terminalType: uploadContext.terminalType,
       }),
     );
@@ -300,13 +306,21 @@ watch(treeRows, (data) => {
     width="85vw"
     @ok="handleSubmit"
   >
-    <div class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
       <label class="sync-i18n-label-context-field">
         <span>应用编码</span>
         <Input
           v-model:value="uploadContext.appCode"
           allow-clear
           placeholder="全部应用"
+        />
+      </label>
+      <label class="sync-i18n-label-context-field">
+        <span>应用版本号</span>
+        <Input
+          v-model:value="uploadContext.appVersion"
+          allow-clear
+          placeholder="全部版本"
         />
       </label>
       <label class="sync-i18n-label-context-field">
@@ -355,6 +369,7 @@ watch(treeRows, (data) => {
       <div class="flex flex-wrap items-center gap-4 text-sm">
         <Checkbox v-model:checked="overrideExisting">覆盖已有</Checkbox>
         <Checkbox v-model:checked="enable">上传后启用</Checkbox>
+        <Checkbox v-model:checked="tenantShared">租户共享</Checkbox>
       </div>
     </div>
 

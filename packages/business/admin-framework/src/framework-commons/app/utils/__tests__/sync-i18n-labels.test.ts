@@ -259,17 +259,44 @@ describe('sync i18n labels payload', () => {
 
     const payload = buildModuleUploadI18nLabelsPayload(languageNodes, {
       appCode: '   ',
-      appVersion: '5.5.9',
+      appVersion: '   ',
       domain: '   ',
       tenantId: '',
       terminalType: undefined,
     });
 
-    expect(payload.appVersion).toBe('5.5.9');
+    expect(payload.appVersion).toBe('');
     expect(payload).not.toHaveProperty('appCode');
     expect(payload).not.toHaveProperty('domain');
     expect(payload).not.toHaveProperty('tenantId');
     expect(payload).not.toHaveProperty('terminalType');
+  });
+
+  it('includes tenant sharing option for uploaded labels by default', () => {
+    const tree = buildSyncI18nModuleTree([
+      {
+        locales: {
+          'zh-CN': {
+            common: {
+              save: '保存',
+            },
+          },
+        },
+        name: 'com.levin.oak.base',
+        title: '基础模块',
+      },
+    ]);
+    const languageNodes = flattenSyncI18nTreeNodes(tree).filter(
+      (item) => item.nodeType === 'language',
+    );
+
+    const payload = buildModuleUploadI18nLabelsPayload(languageNodes, {
+      appCode: 'mall',
+      appVersion: '1.0.0',
+      tenantShared: true,
+    });
+
+    expect(payload.tenantShared).toBe(true);
   });
 
   it('deduplicates labels by module, language and resource key', () => {

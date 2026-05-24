@@ -27,6 +27,7 @@ export interface UploadI18nLabelsPayload {
   overrideExisting?: boolean;
   siteId?: string;
   tenantId?: string;
+  tenantShared?: boolean;
   terminalType?: string;
 }
 
@@ -38,6 +39,7 @@ export interface BuildUploadI18nLabelsOptions {
   overrideExisting?: boolean;
   siteId?: string;
   tenantId?: string;
+  tenantShared?: boolean;
   terminalType?: string;
 }
 
@@ -190,6 +192,7 @@ export function buildModuleUploadI18nLabelsPayload(
     enable: options.enable,
     modules: [...moduleMap.values()],
     overrideExisting: options.overrideExisting,
+    tenantShared: options.tenantShared,
   };
 
   const appCode = normalizeOptionalText(options.appCode);

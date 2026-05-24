@@ -29,6 +29,7 @@ export interface UploadModuleI18nLabelsPayload {
   overrideExisting?: boolean;
   siteId?: string;
   tenantId?: string;
+  tenantShared?: boolean;
   terminalType?: string;
 }
 
