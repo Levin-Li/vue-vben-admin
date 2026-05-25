@@ -7,7 +7,6 @@
 
 必读入口：
 
-- `docs/frontend-rules/前端项目开发规则.md`
 - `docs/frontend-rules/前端页面开发规则.md`
 - `docs/frontend-rules/前端API开发规则.md`
 - `docs/frontend-rules/前端页面操作规则.md`
