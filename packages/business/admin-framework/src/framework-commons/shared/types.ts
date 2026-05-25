@@ -40,6 +40,7 @@ export interface CrudFieldConfig {
   cellTooltip?: boolean;
   defaultValue?: any;
   disabledOnEdit?: boolean | ((context: { userInfo: unknown }) => boolean);
+  export?: boolean;
   fixed?: 'left' | 'right' | boolean;
   form?: boolean;
   formCreate?: boolean;

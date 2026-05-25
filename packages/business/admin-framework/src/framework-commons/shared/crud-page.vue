@@ -179,6 +179,8 @@ interface TableSorterState {
 const DEFAULT_SEARCH_COLLAPSED_COUNT = 3;
 const DEFAULT_CRUD_MODAL_WIDTH = 'min(70vw, 1280px)';
 const DEFAULT_FORM_ROW_HEIGHT = 78;
+const EXPORT_LIMIT_ERROR_MESSAGE = 'EXPORT_LIMIT_EXCEEDED';
+const EXPORT_MAX_RECORDS = 50_000;
 const EXPORT_PAGE_SIZE = 2000;
 const FORM_GRID_COLUMN_GAP = 16;
 const MAX_SEARCH_COLUMN_COUNT = 7;
@@ -212,8 +214,10 @@ const actionResultData = ref<any>(null);
 const actionResultMode = ref<NormalizedCrudAction>('showSchema');
 const exportModalOpen = ref(false);
 const exporting = ref(false);
+const exportLimitChecking = ref(false);
 const exportSelectedFieldKeys = ref<string[]>([]);
 const exportFieldOrderKeys = ref<string[]>([]);
+const exportFieldAliases = ref<Record<string, string>>({});
 const uploadPreviewOpen = ref(false);
 const uploadPreviewUrl = ref('');
 const optionState = reactive<Record<string, any[]>>({});
@@ -603,6 +607,15 @@ const orderedVisibleTableFields = computed(() => {
   return [...leftFixedFields, ...normalFields, ...rightFixedFields];
 });
 
+function isExportableField(field: CrudFieldConfig) {
+  return (
+    isFieldVisible(field) &&
+    field.type !== 'password' &&
+    field.export !== false &&
+    (field.table || field.export === true)
+  );
+}
+
 const exportableFields = computed(() => {
   const orderedKeys = new Set<string>();
   const fieldsInCurrentOrder: CrudFieldConfig[] = [];
@@ -612,7 +625,7 @@ const exportableFields = computed(() => {
     ...orderedTableFields.value,
   ]) {
     const key = String(field.key);
-    if (field.type !== 'password' && !orderedKeys.has(key)) {
+    if (isExportableField(field) && !orderedKeys.has(key)) {
       orderedKeys.add(key);
       fieldsInCurrentOrder.push(field);
     }
@@ -620,8 +633,7 @@ const exportableFields = computed(() => {
 
   const remainingFields = props.config.fields.filter(
     (field) =>
-      isFieldVisible(field) &&
-      field.type !== 'password' &&
+      isExportableField(field) &&
       !orderedKeys.has(String(field.key)),
   );
 
@@ -1923,14 +1935,12 @@ function getDefaultExportFieldOrder() {
 
 function getDefaultSelectedExportFieldKeys() {
   return orderedVisibleTableFields.value
-    .filter((field) => field.type !== 'password')
+    .filter(isExportableField)
     .map((field) => String(field.key));
 }
 
-function openExportModal() {
-  exportFieldOrderKeys.value = getDefaultExportFieldOrder();
-  exportSelectedFieldKeys.value = getDefaultSelectedExportFieldKeys();
-  exportModalOpen.value = true;
+function getDefaultExportFieldAliases() {
+  return {};
 }
 
 function setExportFieldSelected(key: string, selected: boolean) {
@@ -1975,6 +1985,12 @@ function escapeExcelXmlValue(value: any) {
     .replaceAll('"', '&quot;');
 }
 
+function getExportFieldHeader(field: CrudFieldConfig) {
+  const alias = exportFieldAliases.value[String(field.key)]?.trim();
+
+  return alias || field.label || field.key;
+}
+
 function getSafeWorksheetName(name: string) {
   const safeName = String(name || 'Sheet1')
     .replaceAll(/[\\/?*\[\]:]/g, '')
@@ -2016,15 +2032,15 @@ function formatExportCellValue(field: CrudFieldConfig, record: GenericRecord) {
     return tenant.id ? `${tenant.name} (${tenant.id})` : tenant.name;
   }
 
-  if (isBooleanEnableField(field)) {
-    return value ? '启用' : '禁用';
+  if (isStatusLikeField(field)) {
+    return getStatusTagText(field, value);
   }
 
   if (isNumericField(field)) {
     return formatNumericValue(field, value);
   }
 
-  return String(formatCellValue(field, value)).replace(/^-$/, '');
+  return String(getCellDisplayText(field, value)).replace(/^-$/, '');
 }
 
 function buildExcelXml(fields: CrudFieldConfig[], records: GenericRecord[]) {
@@ -2032,7 +2048,7 @@ function buildExcelXml(fields: CrudFieldConfig[], records: GenericRecord[]) {
     .map(
       (field) =>
         `<Cell><Data ss:Type="String">${escapeExcelXmlValue(
-          field.label || field.key,
+          getExportFieldHeader(field),
         )}</Data></Cell>`,
     )
     .join('');
@@ -2083,6 +2099,61 @@ function downloadExcelXml(xml: string, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+function buildExportQueryParams(pageIndex: number, pageSize: number) {
+  return {
+    ...props.config.defaultQuery,
+    ...buildSearchParams(),
+    ...buildSortParams(),
+    pageIndex,
+    pageSize,
+  };
+}
+
+function showExportLimitWarning() {
+  message.warning('最多只能导出5万条记录，请缩小导出范围');
+}
+
+async function checkExportRecordLimit() {
+  const result = await fetchCrudList<GenericRecord>(
+    activeListPath.value,
+    buildExportQueryParams(1, 1),
+    props.config.apiModuleBase,
+  );
+  const total = Number(result.totals || 0);
+
+  if (Number.isFinite(total) && total > EXPORT_MAX_RECORDS) {
+    showExportLimitWarning();
+    return false;
+  }
+
+  return true;
+}
+
+async function openExportModal() {
+  if (exportLimitChecking.value) {
+    return;
+  }
+
+  exportLimitChecking.value = true;
+
+  try {
+    const canExport = await checkExportRecordLimit();
+    if (!canExport) {
+      return;
+    }
+
+    exportFieldOrderKeys.value = getDefaultExportFieldOrder();
+    exportSelectedFieldKeys.value = getDefaultSelectedExportFieldKeys();
+    exportFieldAliases.value = getDefaultExportFieldAliases();
+    exportModalOpen.value = true;
+  } catch (error) {
+    console.error(error);
+    message.error('导出前检查失败');
+  } finally {
+    exportLimitChecking.value = false;
+  }
+}
+
 async function fetchExportRecords() {
   const records: GenericRecord[] = [];
   let pageIndex = 1;
@@ -2090,13 +2161,7 @@ async function fetchExportRecords() {
   while (true) {
     const result = await fetchCrudList<GenericRecord>(
       activeListPath.value,
-      {
-        ...props.config.defaultQuery,
-        ...buildSearchParams(),
-        ...buildSortParams(),
-        pageIndex,
-        pageSize: EXPORT_PAGE_SIZE,
-      },
+      buildExportQueryParams(pageIndex, EXPORT_PAGE_SIZE),
       props.config.apiModuleBase,
     );
     const items = result.items || [];
@@ -2106,6 +2171,11 @@ async function fetchExportRecords() {
     }
 
     records.push(...items);
+
+    if (records.length > EXPORT_MAX_RECORDS) {
+      showExportLimitWarning();
+      throw new Error(EXPORT_LIMIT_ERROR_MESSAGE);
+    }
 
     if (items.length < EXPORT_PAGE_SIZE) {
       break;
@@ -2131,9 +2201,25 @@ async function handleExportConfirm() {
     const records = await fetchExportRecords();
     const xml = buildExcelXml(fields, records);
     downloadExcelXml(xml, getExportFileName());
-    message.success(`导出成功，共 ${records.length} 条`);
     exportModalOpen.value = false;
+
+    try {
+      await loadList();
+    } catch (error) {
+      console.error(error);
+      message.warning(`导出成功，共 ${records.length} 条，列表刷新失败`);
+      return;
+    }
+
+    message.success(`导出成功，共 ${records.length} 条`);
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === EXPORT_LIMIT_ERROR_MESSAGE
+    ) {
+      return;
+    }
+
     console.error(error);
     message.error('导出失败');
   } finally {
@@ -4156,6 +4242,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               <DatePicker.RangePicker
                 v-else-if="item.kind === 'range' && item.format !== 'time'"
                 v-model:value="searchState[item.key]"
+                :allow-clear="true"
                 class="w-full"
                 :placeholder="['开始时间', '结束时间']"
                 :show-time="item.format === 'datetime'"
@@ -4168,6 +4255,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               <TimePicker.RangePicker
                 v-else-if="item.kind === 'range'"
                 v-model:value="searchState[item.key]"
+                :allow-clear="true"
                 class="w-full"
                 :placeholder="['开始时间', '结束时间']"
                 value-format="HH:mm:ss"
@@ -4265,6 +4353,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                   item.field.type === 'datetime' || item.field.type === 'date'
                 "
                 v-model:value="searchState[item.field.key]"
+                :allow-clear="true"
                 class="w-full"
                 :placeholder="getPlaceholder(item.field)"
                 :show-time="item.field.type === 'datetime'"
@@ -4277,6 +4366,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               <TimePicker
                 v-else-if="item.field.type === 'time'"
                 v-model:value="searchState[item.field.key]"
+                :allow-clear="true"
                 class="w-full"
                 :placeholder="getPlaceholder(item.field)"
                 value-format="HH:mm:ss"
@@ -4284,12 +4374,14 @@ watch(tableColumnPreferenceStorageKey, () => {
               <InputNumber
                 v-else-if="item.field.type === 'number'"
                 v-model:value="searchState[item.field.key]"
+                :allow-clear="true"
                 :placeholder="getPlaceholder(item.field)"
                 class="w-full"
               />
               <Input
                 v-else
                 v-model:value="searchState[item.field.key]"
+                allow-clear
                 :placeholder="getPlaceholder(item.field)"
                 class="w-full"
               />
@@ -4383,7 +4475,8 @@ watch(tableColumnPreferenceStorageKey, () => {
                 aria-label="导出"
                 class="vben-crud-table-tool-button"
                 shape="circle"
-                :disabled="exportableFields.length === 0"
+                :disabled="exportableFields.length === 0 || exportLimitChecking"
+                :loading="exportLimitChecking"
                 @click="openExportModal"
               >
                 <IconifyIcon class="size-4" icon="lucide:download" />
@@ -4960,7 +5053,7 @@ watch(tableColumnPreferenceStorageKey, () => {
       :confirm-loading="exporting"
       :open="exportModalOpen"
       title="导出 Excel"
-      width="520px"
+      width="720px"
       destroy-on-close
       @cancel="exportModalOpen = false"
       @ok="handleExportConfirm"
@@ -4980,10 +5073,15 @@ watch(tableColumnPreferenceStorageKey, () => {
             class="text-muted-foreground mt-2 flex items-center gap-1 text-xs"
           >
             <IconifyIcon class="size-3.5" icon="lucide:arrow-up-down" />
-            默认按当前表格列顺序导出，可使用上下箭头调整导出列顺序
+            默认按当前表格列顺序导出，可调整导出列顺序和导出表头别名
           </div>
         </div>
         <div class="flex max-h-[420px] flex-col overflow-auto">
+          <div class="vben-crud-export-field-header">
+            <span>字段</span>
+            <span>导出列别名</span>
+            <span>排序</span>
+          </div>
           <div
             v-for="(field, index) in orderedExportFields"
             :key="field.key"
@@ -4998,6 +5096,13 @@ watch(tableColumnPreferenceStorageKey, () => {
             >
               {{ field.label }}
             </Checkbox>
+            <Input
+              v-model:value="exportFieldAliases[String(field.key)]"
+              allow-clear
+              class="vben-crud-export-alias-input"
+              :placeholder="field.label"
+              size="small"
+            />
             <Space :size="2">
               <button
                 type="button"
@@ -5708,11 +5813,21 @@ watch(tableColumnPreferenceStorageKey, () => {
   color: hsl(var(--muted-foreground) / 45%);
 }
 
-.vben-crud-export-field-row {
-  display: flex;
+.vben-crud-export-field-header {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(180px, 240px) 56px;
   gap: 8px;
   align-items: center;
-  justify-content: space-between;
+  padding: 4px 0 6px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+.vben-crud-export-field-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(180px, 240px) 56px;
+  gap: 8px;
+  align-items: center;
   min-width: 0;
   padding: 6px 0;
   border-radius: var(--radius);
@@ -5731,5 +5846,9 @@ watch(tableColumnPreferenceStorageKey, () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.vben-crud-export-alias-input {
+  min-width: 0;
 }
 </style>
