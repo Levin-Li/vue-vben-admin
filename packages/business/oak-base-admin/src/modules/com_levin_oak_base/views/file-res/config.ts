@@ -206,5 +206,5 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  title: '文件资源管理',
+  title: '文件资源库',
 };

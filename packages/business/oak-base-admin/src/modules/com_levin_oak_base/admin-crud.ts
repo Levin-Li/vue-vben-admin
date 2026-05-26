@@ -90,7 +90,7 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     icon: 'lucide:folder-open',
     name: 'FileRes',
     resource: 'FileRes',
-    title: '文件资源',
+    title: '文件资源库',
   },
   {
     icon: 'lucide:wallet',
