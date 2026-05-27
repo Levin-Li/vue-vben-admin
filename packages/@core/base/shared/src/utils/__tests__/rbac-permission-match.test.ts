@@ -17,12 +17,22 @@ describe('SpringPatternMatchUtils', () => {
     expect(
       SpringPatternMatchUtils.simpleMatch('user:*:edit', 'user:1:edit'),
     ).toBe(true);
+    expect(SpringPatternMatchUtils.simpleMatch('user:?', 'user:1')).toBe(true);
+    expect(SpringPatternMatchUtils.simpleMatch('user:?', 'user:12')).toBe(
+      false,
+    );
+    expect(SpringPatternMatchUtils.simpleMatch('/api/?/*', '/api/v/demo')).toBe(
+      true,
+    );
   });
 
   it('rejects missing values and non-matching patterns', () => {
     expect(SpringPatternMatchUtils.simpleMatch('', 'user:list')).toBe(false);
     expect(SpringPatternMatchUtils.simpleMatch('user:*', '')).toBe(false);
     expect(SpringPatternMatchUtils.simpleMatch('user:edit', 'user:list')).toBe(
+      false,
+    );
+    expect(SpringPatternMatchUtils.simpleMatch('file.v?', 'file-v1')).toBe(
       false,
     );
   });

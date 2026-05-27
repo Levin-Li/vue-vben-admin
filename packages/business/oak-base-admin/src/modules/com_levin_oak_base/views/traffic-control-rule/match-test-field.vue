@@ -1,13 +1,13 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
-import { PatternListEditor } from '@levin/admin-framework';
+import type { PatternMatchMode } from '@levin/admin-framework';
 import type { CrudFieldConfig } from '@levin/admin-framework/framework-commons/shared/types';
-import type { SelectOption } from '@levin/admin-framework';
 
 import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
 import { Alert, Button, Form, Input, Modal, Space, Tag } from 'ant-design-vue';
 
+import PatternListFormField from '../pattern-list-form-field.vue';
 import {
   matchRuleList,
   normalizePatternList,
@@ -24,30 +24,20 @@ const emit = defineEmits<{
   'update:modelValue': [value: unknown];
 }>();
 
-const localOptions = ref<SelectOption[]>([]);
-const loading = ref(false);
 const testerOpen = ref(false);
 const nameInputValue = ref('');
 const valueInputValue = ref('');
 const tested = ref(false);
-let loadSeq = 0;
 
 const isNameValueRule = computed(() => props.ruleKind === 'nameValue');
 const modelProxy = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
 });
-const fieldOptions = computed(() => [
-  ...(props.field.options || []),
-  ...localOptions.value,
-]);
-const patternOptions = computed(() =>
-  fieldOptions.value.map((option) => ({
-    description: String((option as Record<string, unknown>).description || ''),
-    disabled: !!(option as Record<string, unknown>).disabled,
-    label: String(option.label ?? option.value ?? ''),
-    value: String(option.value ?? ''),
-  })),
+const patternMatchMode = computed(
+  () =>
+    ((props.field as unknown as { matchMode?: PatternMatchMode }).matchMode ||
+      'any') as PatternMatchMode,
 );
 const ruleMatchResult = computed(() =>
   matchRuleList(props.modelValue, nameInputValue.value, valueInputValue.value),
@@ -79,37 +69,6 @@ watch(testerOpen, (open) => {
   }
 });
 
-async function loadOptions(keyword = '') {
-  if (!props.field.loadOptions) {
-    return;
-  }
-
-  const currentSeq = ++loadSeq;
-  loading.value = true;
-
-  try {
-    const options = await props.field.loadOptions(keyword);
-
-    if (currentSeq === loadSeq) {
-      localOptions.value = options;
-    }
-  } finally {
-    if (currentSeq === loadSeq) {
-      loading.value = false;
-    }
-  }
-}
-
-function handleSearch(keyword: string) {
-  void loadOptions(keyword);
-}
-
-function handleDropdownVisibleChange(open: boolean) {
-  if (open) {
-    void loadOptions();
-  }
-}
-
 function openTester() {
   testerOpen.value = true;
 }
@@ -117,10 +76,6 @@ function openTester() {
 function testMatch() {
   tested.value = true;
 }
-
-onMounted(() => {
-  void loadOptions();
-});
 </script>
 
 <template>
@@ -132,16 +87,12 @@ onMounted(() => {
       :modal-width="'min(70vw, 1280px)'"
       :title="field.label"
     />
-    <PatternListEditor
+    <PatternListFormField
       v-else
       v-model="modelProxy"
       class="min-w-0 flex-1"
-      :loading="loading"
-      :options="patternOptions"
-      :placeholder="field.placeholder || `请输入${field.label}`"
-      :test-placeholder="`测试${field.label}`"
-      @dropdown-visible-change="handleDropdownVisibleChange"
-      @search="handleSearch"
+      :field="field"
+      :match-mode="patternMatchMode"
     />
     <Button v-if="isNameValueRule" @click="openTester">测试匹配</Button>
   </div>

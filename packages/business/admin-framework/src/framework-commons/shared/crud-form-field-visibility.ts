@@ -13,6 +13,10 @@ export function shouldShowCrudFormField(
   mode: CrudFormMode,
   userInfo: unknown,
 ) {
+  if (field.formVisibleForSuperAdmin && !isSuperAdminUser(userInfo)) {
+    return false;
+  }
+
   if (
     mode === 'edit' &&
     isEditableControlField(field) &&

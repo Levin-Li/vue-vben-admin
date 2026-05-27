@@ -131,7 +131,6 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'currencyCodeList',
       label: '支持货币代码',
-      fullRow: true,
       loadOptions: currencyCodeOptionsLoader,
       multiple: true,
       type: 'select',

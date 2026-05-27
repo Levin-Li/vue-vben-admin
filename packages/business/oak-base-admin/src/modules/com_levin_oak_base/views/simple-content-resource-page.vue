@@ -12,7 +12,17 @@ import { computed, ref } from 'vue';
 
 import { useUserStore } from '@vben/stores';
 
-import { Button, Input, Modal, Spin, message } from 'ant-design-vue';
+import {
+  Button,
+  Divider,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Space,
+  Spin,
+  message,
+} from 'ant-design-vue';
 
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
@@ -60,6 +70,21 @@ const contentEditorMeta = ref<SimpleContentEditorMeta>({
 });
 const contentValue = ref<any>('');
 const contentReload = ref<ReloadList | null>(null);
+const scriptTestBodyText = ref('{}');
+const scriptTestHeadersText = ref('{}');
+const scriptTestLoading = ref(false);
+const scriptTestMethod = ref('POST');
+const scriptTestPath = ref('');
+const scriptTestQueryText = ref('{}');
+const scriptTestResult = ref('');
+const scriptTestTimeoutMs = ref(3000);
+const scriptTestMethodOptions = [
+  { label: 'GET', value: 'GET' },
+  { label: 'POST', value: 'POST' },
+  { label: 'PUT', value: 'PUT' },
+  { label: 'PATCH', value: 'PATCH' },
+  { label: 'DELETE', value: 'DELETE' },
+];
 const permissionTree = ref<PermissionTreeNode[]>([]);
 const permissionLoading = ref(false);
 const permissionOpen = ref(false);
@@ -88,6 +113,12 @@ const permissionModalTitle = computed(() =>
     ? `所需权限 - ${getRecordTitle(permissionRecord.value)}`
     : '所需权限',
 );
+const canShowScriptTestPanel = computed(
+  () =>
+    props.resourceKind === 'api' &&
+    contentEditorMeta.value.kind === 'code' &&
+    Boolean(props.service.testScript),
+);
 
 function getRecordTitle(record: GenericRecord) {
   return String(record.name || record.title || record.id || '当前记录').trim();
@@ -95,6 +126,15 @@ function getRecordTitle(record: GenericRecord) {
 
 function getRecordId(record: GenericRecord) {
   return record[props.config.recordKey || 'id'] || record.id;
+}
+
+function getRecordMethod(record: GenericRecord) {
+  const methods = String(record.methods || 'POST')
+    .split(',')
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
+
+  return methods[0] || 'POST';
 }
 
 function getSupportEventsByCurrentStatus(record: GenericRecord) {
@@ -158,6 +198,13 @@ async function openContentEditor(record: GenericRecord, reload?: ReloadList) {
     contentRecord.value = freshRecord;
     contentEditorMeta.value = meta;
     contentValue.value = parseSimpleContentValue(meta, freshRecord.content);
+    scriptTestBodyText.value = '{}';
+    scriptTestHeadersText.value = '{}';
+    scriptTestMethod.value = getRecordMethod(freshRecord);
+    scriptTestPath.value = String(freshRecord.path || '');
+    scriptTestQueryText.value = '{}';
+    scriptTestResult.value = '';
+    scriptTestTimeoutMs.value = 3000;
   } catch (error) {
     contentOpen.value = false;
     console.error(error);
@@ -172,6 +219,7 @@ function closeContentEditor() {
   contentRecord.value = null;
   contentValue.value = '';
   contentReload.value = null;
+  scriptTestResult.value = '';
 }
 
 async function submitContent() {
@@ -203,6 +251,79 @@ async function submitContent() {
     message.error('内容更新失败');
   } finally {
     contentSubmitting.value = false;
+  }
+}
+
+function parseJsonInput(text: string, defaultValue: any) {
+  const value = text.trim();
+
+  if (!value) {
+    return defaultValue;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : 'JSON格式不正确',
+    );
+  }
+}
+
+async function testScriptContent() {
+  const record = contentRecord.value;
+
+  if (!record || !props.service.testScript) {
+    message.warning('当前接口不支持脚本测试');
+    return;
+  }
+
+  let headers: Record<string, any>;
+  let query: Record<string, any>;
+  let body: any;
+
+  try {
+    headers = parseJsonInput(scriptTestHeadersText.value, {});
+    query = parseJsonInput(scriptTestQueryText.value, {});
+    body = parseJsonInput(scriptTestBodyText.value, {});
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : error;
+    message.error(`测试参数JSON格式不正确：${reason}`);
+    return;
+  }
+
+  scriptTestLoading.value = true;
+  scriptTestResult.value = '';
+
+  try {
+    const result = await props.service.testScript({
+      body,
+      content: serializeSimpleContentValue(
+        contentEditorMeta.value,
+        contentValue.value,
+      ),
+      headers,
+      id: record.id,
+      language: record.language,
+      method: scriptTestMethod.value,
+      path: scriptTestPath.value,
+      query,
+      setting: record.setting,
+      timeoutMs: scriptTestTimeoutMs.value,
+    });
+
+    scriptTestResult.value = JSON.stringify(result, null, 2);
+
+    if (result?.success === false) {
+      message.warning('脚本测试执行失败');
+    } else {
+      message.success('脚本测试执行完成');
+    }
+  } catch (error) {
+    console.error(error);
+    message.error('脚本测试请求失败');
+  } finally {
+    scriptTestLoading.value = false;
   }
 }
 
@@ -336,25 +457,88 @@ async function submitRequireAuthorizations() {
     @ok="submitContent"
   >
     <Spin :spinning="contentLoading">
-      <JsonEditorField
-        v-if="contentEditorMeta.kind === 'json'"
-        v-model="contentValue"
-        inline
-        inline-min-height="min(70vh, 760px)"
-        :title="contentEditorMeta.title"
-      />
-      <CodeEditorField
-        v-else-if="contentEditorMeta.kind === 'code'"
-        v-model="contentValue"
-        inline
-        :language="contentEditorMeta.language"
-        :title="contentEditorMeta.title"
-      />
-      <Input.TextArea
-        v-else
-        v-model:value="contentValue"
-        :auto-size="{ minRows: 18, maxRows: 28 }"
-      />
+      <div
+        :class="
+          canShowScriptTestPanel
+            ? 'simple-content-editor-grid'
+            : 'simple-content-editor-single'
+        "
+      >
+        <div class="simple-content-editor-main">
+          <JsonEditorField
+            v-if="contentEditorMeta.kind === 'json'"
+            v-model="contentValue"
+            inline
+            inline-min-height="min(70vh, 760px)"
+            :title="contentEditorMeta.title"
+          />
+          <CodeEditorField
+            v-else-if="contentEditorMeta.kind === 'code'"
+            v-model="contentValue"
+            inline
+            :language="contentEditorMeta.language"
+            :title="contentEditorMeta.title"
+          />
+          <Input.TextArea
+            v-else
+            v-model:value="contentValue"
+            :auto-size="{ minRows: 18, maxRows: 28 }"
+          />
+        </div>
+
+        <div v-if="canShowScriptTestPanel" class="simple-script-test-panel">
+          <div class="simple-script-test-title">脚本测试</div>
+          <Space class="mb-3 w-full" :size="8">
+            <Select
+              v-model:value="scriptTestMethod"
+              class="simple-script-test-method"
+              :options="scriptTestMethodOptions"
+            />
+            <Input
+              v-model:value="scriptTestPath"
+              placeholder="测试路径"
+            />
+            <InputNumber
+              v-model:value="scriptTestTimeoutMs"
+              :max="10000"
+              :min="100"
+              :step="100"
+            />
+          </Space>
+          <div class="simple-script-test-label">Headers JSON</div>
+          <Input.TextArea
+            v-model:value="scriptTestHeadersText"
+            class="simple-script-test-textarea"
+            :auto-size="{ minRows: 3, maxRows: 6 }"
+          />
+          <div class="simple-script-test-label">Query JSON</div>
+          <Input.TextArea
+            v-model:value="scriptTestQueryText"
+            class="simple-script-test-textarea"
+            :auto-size="{ minRows: 3, maxRows: 6 }"
+          />
+          <div class="simple-script-test-label">Body JSON</div>
+          <Input.TextArea
+            v-model:value="scriptTestBodyText"
+            class="simple-script-test-textarea"
+            :auto-size="{ minRows: 5, maxRows: 10 }"
+          />
+          <Button
+            block
+            class="mt-2"
+            :loading="scriptTestLoading"
+            type="primary"
+            @click="testScriptContent"
+          >
+            运行测试
+          </Button>
+          <Divider class="my-3" />
+          <div class="simple-script-test-label">测试结果</div>
+          <pre class="simple-script-test-result">{{
+            scriptTestResult || '暂无测试结果'
+          }}</pre>
+        </div>
+      </div>
     </Spin>
   </Modal>
 
@@ -402,5 +586,70 @@ async function submitRequireAuthorizations() {
   border: 1px solid hsl(var(--background));
   border-radius: 999px;
   box-shadow: 0 2px 6px hsl(var(--primary) / 28%);
+}
+
+.simple-content-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 16px;
+}
+
+.simple-content-editor-main,
+.simple-content-editor-single {
+  min-width: 0;
+}
+
+.simple-script-test-panel {
+  min-width: 0;
+  padding-left: 16px;
+  border-left: 1px solid hsl(var(--border));
+}
+
+.simple-script-test-title {
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.simple-script-test-method {
+  width: 98px;
+  flex: 0 0 98px;
+}
+
+.simple-script-test-label {
+  margin: 10px 0 6px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+
+.simple-script-test-textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+}
+
+.simple-script-test-result {
+  min-height: 120px;
+  max-height: 220px;
+  padding: 10px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  background: hsl(var(--muted) / 55%);
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+}
+
+@media (max-width: 1180px) {
+  .simple-content-editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .simple-script-test-panel {
+    padding-top: 16px;
+    padding-left: 0;
+    border-top: 1px solid hsl(var(--border));
+    border-left: 0;
+  }
 }
 </style>

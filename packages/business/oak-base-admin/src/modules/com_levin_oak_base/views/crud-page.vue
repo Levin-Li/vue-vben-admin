@@ -5,7 +5,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import SharedCrudPage from '@levin/admin-framework/framework-commons/shared/crud-page.vue';
 
-import { OAK_BASE_API_MODULE } from './api-module';
+import { moduleExportTemplateService, OAK_BASE_API_MODULE } from './api-module';
 
 const props = defineProps<{
   config: CrudPageConfig;
@@ -14,6 +14,8 @@ const props = defineProps<{
 const mergedConfig = computed<CrudPageConfig>(() => ({
   ...props.config,
   apiModuleBase: props.config.apiModuleBase || OAK_BASE_API_MODULE,
+  exportTemplateService:
+    props.config.exportTemplateService || moduleExportTemplateService,
 }));
 </script>
 

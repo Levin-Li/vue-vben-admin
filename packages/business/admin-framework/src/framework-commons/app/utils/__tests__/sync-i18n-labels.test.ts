@@ -265,7 +265,7 @@ describe('sync i18n labels payload', () => {
       terminalType: undefined,
     });
 
-    expect(payload.appVersion).toBe('');
+    expect(payload).not.toHaveProperty('appVersion');
     expect(payload).not.toHaveProperty('appCode');
     expect(payload).not.toHaveProperty('domain');
     expect(payload).not.toHaveProperty('tenantId');

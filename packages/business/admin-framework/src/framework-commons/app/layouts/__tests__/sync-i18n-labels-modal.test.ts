@@ -158,8 +158,9 @@ describe('sync i18n labels modal', () => {
     await wrapper.get('[data-test="ok"]').trigger('click');
 
     expect(uploadModuleLabels).toHaveBeenCalledTimes(1);
-    expect(uploadModuleLabels.mock.calls[0]?.[0]).toMatchObject({
-      appVersion: '',
+    const payload = uploadModuleLabels.mock.calls[0]?.[0];
+    expect(payload).not.toHaveProperty('appVersion');
+    expect(payload).toMatchObject({
       tenantShared: true,
     });
 

@@ -21,6 +21,33 @@ let stopUserRoleVisibilityWatcher: (() => void) | undefined;
 export interface AdminUiBaseSettingPayload {
   preferServerSetting: boolean;
   setting: Record<string, any>;
+  uploadTarget: AdminUiBaseSettingUploadTarget;
+}
+
+export type AdminUiBaseSettingUploadTarget = 'Tenant' | 'TenantSite';
+
+export const DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET: AdminUiBaseSettingUploadTarget =
+  'TenantSite';
+
+function stripAdminUiBaseSettingArtifacts(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripAdminUiBaseSettingArtifacts(item));
+  }
+
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(
+        ([key]) =>
+          key !== ADMIN_UI_BASE_SETTING_KEY &&
+          key !== 'preferServerSetting' &&
+          key !== 'uploadTarget',
+      )
+      .map(([key, item]) => [key, stripAdminUiBaseSettingArtifacts(item)]),
+  );
 }
 
 function shouldShowPreferencesEntry(
@@ -33,10 +60,12 @@ function shouldShowPreferencesEntry(
 export function buildAdminUiBaseSettingPayload(
   setting: Record<string, any>,
   preferServerSetting: boolean,
+  uploadTarget: AdminUiBaseSettingUploadTarget = DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET,
 ): AdminUiBaseSettingPayload {
   return {
     preferServerSetting,
-    setting,
+    setting: stripAdminUiBaseSettingArtifacts(setting) as Record<string, any>,
+    uploadTarget,
   };
 }
 
@@ -57,12 +86,15 @@ function applyTenantSiteAdminUiBaseSetting(
   data: null | RbacApi.TenantSiteInfo | undefined,
 ) {
   const serverSetting = data?.uiExInfo?.[ADMIN_UI_BASE_SETTING_KEY];
-  const setting = isRecord(serverSetting?.setting)
-    ? serverSetting.setting
-    : serverSetting;
   const preferServerSetting = !(
     isRecord(serverSetting) && serverSetting.preferServerSetting === false
   );
+  const setting = isRecord(serverSetting?.setting)
+    ? (stripAdminUiBaseSettingArtifacts(serverSetting.setting) as Record<
+        string,
+        any
+      >)
+    : undefined;
 
   if (!preferServerSetting) {
     latestPreferServerSetting = false;

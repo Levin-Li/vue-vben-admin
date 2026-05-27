@@ -41,6 +41,27 @@ describe('role page config', () => {
     }
   });
 
+  it('starts role list constraints on separate form rows', () => {
+    const { config } = useRolePageConfig();
+
+    for (const key of ['exclusiveRoleList', 'coexistRoleList']) {
+      const field = config.value.fields.find((item) => item.key === key) as any;
+
+      expect(field, key).toBeTruthy();
+      expect(field.layoutNewRow, key).toBe(true);
+    }
+  });
+
+  it('limits role assignment precondition form field to super admins', () => {
+    const { config } = useRolePageConfig();
+    const field = config.value.fields.find(
+      (item) => item.key === 'assignPreCondition',
+    ) as any;
+
+    expect(field).toBeTruthy();
+    expect(field.formVisibleForSuperAdmin).toBe(true);
+  });
+
   it('rejects creating overlapping mutually exclusive and coexisting roles', async () => {
     const { config } = useRolePageConfig();
 

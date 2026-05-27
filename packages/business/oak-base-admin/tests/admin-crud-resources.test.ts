@@ -47,23 +47,23 @@ describe('oak base admin crud resources', () => {
 
   it('keeps resource-specific menu icons in generated routes and backend mappings', () => {
     const [rootRoute] = createOakBaseAdminCrudRoutes();
-    const appClientRoute = rootRoute?.children?.find(
-      (item) => item.path === '/clob/V1/AppClient',
+    const clientAppRoute = rootRoute?.children?.find(
+      (item) => item.path === '/clob/V1/ClientApp',
     );
     const articleRoute = rootRoute?.children?.find(
       (item) => item.path === '/clob/V1/Article',
     );
-    const appClientMapping = oakBaseAdminBackendRouteMappings.find(
-      (item) => item.path === '/clob/V1/AppClient',
+    const clientAppMapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === '/clob/V1/ClientApp',
     );
     const articleMapping = oakBaseAdminBackendRouteMappings.find(
       (item) => item.path === '/clob/V1/Article',
     );
     const crudIcons = oakBaseAdminCrudResources.map((item) => item.icon);
 
-    expect(appClientRoute?.meta?.icon).toBe('lucide:app-window');
+    expect(clientAppRoute?.meta?.icon).toBe('lucide:app-window');
     expect(articleRoute?.meta?.icon).toBe('lucide:file-text');
-    expect(appClientMapping?.icon).toBe('lucide:app-window');
+    expect(clientAppMapping?.icon).toBe('lucide:app-window');
     expect(articleMapping?.icon).toBe('lucide:file-text');
     expect(new Set(crudIcons).size).toBeGreaterThan(10);
   });

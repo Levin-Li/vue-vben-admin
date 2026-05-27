@@ -34,40 +34,40 @@ describe('traffic control rule page config', () => {
     const fields = trafficControlRulePageCrudConfig.fields;
 
     expect(fields.find((field) => field.key === 'urlPathList')).toMatchObject({
-      fullRow: true,
       key: 'urlPathList',
       label: 'URL包含列表',
       loadOptions: expect.any(Function),
       remoteSearch: true,
       search: true,
+      span: 2,
       table: true,
       type: 'tags',
     });
     expect(
       fields.find((field) => field.key === 'urlPathExcludeList'),
     ).toMatchObject({
-      fullRow: true,
       key: 'urlPathExcludeList',
       label: 'URL排除列表',
       loadOptions: expect.any(Function),
       remoteSearch: true,
+      span: 2,
       type: 'tags',
     });
     expect(fields.find((field) => field.key === 'ipList')).toMatchObject({
-      fullRow: true,
       key: 'ipList',
       label: 'IP包含列表',
       search: true,
+      span: 2,
       table: true,
       type: 'tags',
     });
     expect(fields.find((field) => field.key === 'domainList')).toMatchObject({
-      fullRow: true,
       help: expect.stringContaining('租户站点'),
       key: 'domainList',
       label: '域名包含列表',
       loadOptions: expect.any(Function),
       remoteSearch: true,
+      span: 2,
       type: 'tags',
     });
     expect(
@@ -104,8 +104,8 @@ describe('traffic control rule page config', () => {
     ).toEqual(
       patternEditorFieldKeys.map((key) =>
         expect.objectContaining({
-          fullRow: true,
           key,
+          span: 2,
           type: 'tags',
         }),
       ),
@@ -118,7 +118,6 @@ describe('traffic control rule page config', () => {
     );
 
     expect(field).toMatchObject({
-      fullRow: true,
       key: 'limitDimensionList',
       label: '限流维度',
       options: expect.arrayContaining([
@@ -131,6 +130,7 @@ describe('traffic control rule page config', () => {
         expect.objectContaining({ value: 'Header' }),
         expect.objectContaining({ value: 'Param' }),
       ]),
+      span: 2,
       type: 'tags',
     });
   });

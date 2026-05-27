@@ -32,9 +32,9 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   },
   {
     icon: 'lucide:app-window',
-    name: 'AppClient',
-    resource: 'AppClient',
-    title: '应用客户端',
+    name: 'ClientApp',
+    resource: 'ClientApp',
+    title: '客户端应用',
   },
   { icon: 'lucide:map', name: 'Area', resource: 'Area', title: '区域管理' },
   {
@@ -283,7 +283,7 @@ export const oakBaseAdminResourceViewMap: Record<
 > = {
   AccessLog: () => import('./views/access-log/index.vue'),
   Address: () => import('./views/address/index.vue'),
-  AppClient: () => import('./views/app-client/index.vue'),
+  ClientApp: () => import('./views/client-app/index.vue'),
   Area: () => import('./views/area/index.vue'),
   Article: () => import('./views/article/index.vue'),
   ArticleChannel: () => import('./views/article-channel/index.vue'),

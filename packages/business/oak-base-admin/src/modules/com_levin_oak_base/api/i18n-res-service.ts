@@ -19,7 +19,7 @@ export interface SyncI18nLabelsPayload {
 
 export interface UploadModuleI18nLabelsPayload {
   appCode?: string;
-  appVersion: string;
+  appVersion?: string;
   domain?: string;
   enable?: boolean;
   modules: Array<{

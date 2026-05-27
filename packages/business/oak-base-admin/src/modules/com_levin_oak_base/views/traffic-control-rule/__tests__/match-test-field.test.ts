@@ -13,6 +13,7 @@ vi.mock('@levin/admin-framework', async (importOriginal) => {
       name: 'PatternListEditor',
       props: [
         'loading',
+        'matchMode',
         'modelValue',
         'options',
         'placeholder',
@@ -64,6 +65,7 @@ describe('traffic control match test field', () => {
         value: '/api/order/*',
       },
     ]);
+    expect(editor.props('matchMode')).toBe('any');
 
     await wrapper.find('[data-test="pattern-list-editor"]').trigger('click');
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([['/demo/*']]);
@@ -100,6 +102,23 @@ describe('traffic control match test field', () => {
         value: 'Header',
       },
     ]);
+  });
+
+  it('passes configured match mode to the shared editor', async () => {
+    const wrapper = mount(MatchTestField, {
+      props: {
+        field: {
+          key: 'ipList',
+          label: 'IP包含列表',
+          matchMode: 'all',
+        } as any,
+        modelValue: ['10.*', '*.1'],
+      },
+    });
+
+    expect(
+      wrapper.findComponent({ name: 'PatternListEditor' }).props('matchMode'),
+    ).toBe('all');
   });
 
   it('keeps name value rules on the JSON editor', async () => {

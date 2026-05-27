@@ -34,6 +34,37 @@ describe('crud form field visibility', () => {
     ).toBe(true);
   });
 
+  it('hides super-admin-only form fields in create forms for normal users', () => {
+    expect(
+      shouldShowCrudFormField(
+        {
+          formVisibleForSuperAdmin: true,
+          key: 'assignPreCondition',
+          label: '角色分配前置条件',
+          type: 'textarea',
+        },
+        'create',
+        { username: 'normal-user' },
+      ),
+    ).toBe(false);
+  });
+
+  it('shows super-admin-only form fields in create and edit forms for super admins', () => {
+    const field = {
+      formVisibleForSuperAdmin: true,
+      key: 'assignPreCondition',
+      label: '角色分配前置条件',
+      type: 'textarea' as const,
+    };
+
+    expect(shouldShowCrudFormField(field, 'create', { superAdmin: true })).toBe(
+      true,
+    );
+    expect(shouldShowCrudFormField(field, 'edit', { superAdmin: true })).toBe(
+      true,
+    );
+  });
+
   it('recognizes super admins from role identity values', () => {
     expect(
       isSuperAdminUser({

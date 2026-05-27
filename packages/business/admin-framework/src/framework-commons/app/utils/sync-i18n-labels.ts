@@ -20,7 +20,7 @@ export interface UploadI18nModuleItem {
 
 export interface UploadI18nLabelsPayload {
   appCode?: string;
-  appVersion: string;
+  appVersion?: string;
   domain?: string;
   enable?: boolean;
   modules: UploadI18nModuleItem[];
@@ -33,7 +33,7 @@ export interface UploadI18nLabelsPayload {
 
 export interface BuildUploadI18nLabelsOptions {
   appCode?: string;
-  appVersion: string;
+  appVersion?: string;
   domain?: string;
   enable?: boolean;
   overrideExisting?: boolean;
@@ -188,7 +188,6 @@ export function buildModuleUploadI18nLabelsPayload(
     });
 
   const payload: UploadI18nLabelsPayload = {
-    appVersion: normalizeOptionalText(options.appVersion) || '',
     enable: options.enable,
     modules: [...moduleMap.values()],
     overrideExisting: options.overrideExisting,
@@ -196,6 +195,7 @@ export function buildModuleUploadI18nLabelsPayload(
   };
 
   const appCode = normalizeOptionalText(options.appCode);
+  const appVersion = normalizeOptionalText(options.appVersion);
   const domain = normalizeOptionalText(options.domain);
   const siteId = normalizeOptionalText(options.siteId);
   const tenantId = normalizeOptionalText(options.tenantId);
@@ -203,6 +203,9 @@ export function buildModuleUploadI18nLabelsPayload(
 
   if (appCode) {
     payload.appCode = appCode;
+  }
+  if (appVersion) {
+    payload.appVersion = appVersion;
   }
   if (domain) {
     payload.domain = domain;

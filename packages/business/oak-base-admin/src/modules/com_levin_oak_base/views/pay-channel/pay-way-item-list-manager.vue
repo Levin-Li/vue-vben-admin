@@ -1,13 +1,17 @@
 <script lang="ts" setup>
 import type { SelectOption } from '@levin/admin-framework/framework-commons/app/api';
+import type { UploadFile } from 'ant-design-vue';
 
 import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Plus } from '@vben/icons';
 
+import { uploadFileByFileStorageController } from '@levin/admin-framework/framework-commons/app/api/file-storage-service';
+
 import {
   Button,
   Form,
+  Image,
   Input,
   InputNumber,
   message,
@@ -17,9 +21,15 @@ import {
   Space,
   Switch,
   Tag,
+  Upload,
 } from 'ant-design-vue';
 
-import { buildDictOptionsLoader, buildEnumOptionsLoader } from '../api-module';
+import {
+  buildDictOptionsLoader,
+  buildEnumOptionsLoader,
+  FILE_STORAGE_SINGLE_UPLOAD_PATH,
+  OAK_BASE_API_MODULE,
+} from '../api-module';
 
 export interface PayWayItemValue {
   currencyCode?: string;
@@ -44,6 +54,8 @@ const payWayOptions = ref<SelectOption[]>([]);
 const currencyCodeOptions = ref<SelectOption[]>([]);
 const editorOpen = ref(false);
 const editingIndex = ref(-1);
+const logoPreviewOpen = ref(false);
+const logoPreviewUrl = ref('');
 const draft = reactive<PayWayItemValue>({
   currencyCode: '',
   desc: '',
@@ -55,6 +67,21 @@ const draft = reactive<PayWayItemValue>({
   title: '',
 });
 const editorModalStyle = { maxWidth: 'min(70vw, 720px)' };
+
+const logoFileList = computed<UploadFile[]>(() => {
+  const logo = draft.logo?.trim();
+
+  return logo
+    ? [
+        {
+          name: resolveUrlFileName(logo, 'logo'),
+          status: 'done',
+          uid: 'pay-way-logo',
+          url: logo,
+        },
+      ]
+    : [];
+});
 
 const normalizedItems = computed(() =>
   Array.isArray(props.items)
@@ -91,6 +118,29 @@ function updateItems(items: PayWayItemValue[]) {
   emit('update:items', items);
 }
 
+function resolveUrlFileName(url: string, fallback: string) {
+  const normalizedUrl = url.trim();
+
+  if (!normalizedUrl) {
+    return fallback;
+  }
+
+  try {
+    const parsedUrl = new URL(normalizedUrl, window.location.origin);
+    const name = decodeURIComponent(
+      parsedUrl.pathname.split('/').filter(Boolean).pop() || '',
+    );
+
+    return name || fallback;
+  } catch {
+    const name = decodeURIComponent(
+      normalizedUrl.split('?')[0]?.split('/').filter(Boolean).pop() || '',
+    );
+
+    return name || fallback;
+  }
+}
+
 function handleCreate() {
   editingIndex.value = -1;
   resetDraft();
@@ -115,6 +165,42 @@ function handleDelete(index: number) {
   updateItems(
     normalizedItems.value.filter((_, itemIndex) => itemIndex !== index),
   );
+}
+
+async function uploadLogo(options: any) {
+  try {
+    const file = options.file as File;
+    const url = await uploadFileByFileStorageController(
+      file,
+      OAK_BASE_API_MODULE,
+      FILE_STORAGE_SINGLE_UPLOAD_PATH,
+    );
+    const normalizedUrl = url.trim();
+
+    draft.logo = normalizedUrl;
+    options.onSuccess?.(normalizedUrl);
+    message.success('logo已上传');
+  } catch (error) {
+    console.error(error);
+    options.onError?.(error);
+    message.error('logo上传失败');
+  }
+}
+
+function removeLogo() {
+  draft.logo = '';
+  return true;
+}
+
+function previewLogo(file: UploadFile) {
+  const url = file.url || draft.logo?.trim();
+
+  if (!url) {
+    return;
+  }
+
+  logoPreviewUrl.value = url;
+  logoPreviewOpen.value = true;
 }
 
 function getPayWayLabel(value: string) {
@@ -293,7 +379,23 @@ onMounted(async () => {
           <Switch v-model:checked="draft.disabled" />
         </Form.Item>
         <Form.Item class="col-span-full" label="logo">
-          <Input v-model:value="draft.logo" placeholder="请输入logo" />
+          <Upload
+            accept="image/*"
+            :custom-request="uploadLogo"
+            :file-list="logoFileList"
+            list-type="picture-card"
+            :max-count="1"
+            @preview="previewLogo"
+            @remove="removeLogo"
+          >
+            <div
+              v-if="!draft.logo"
+              class="flex h-full w-full flex-col items-center justify-center gap-1"
+            >
+              <Plus class="size-5" />
+              <span class="text-xs">上传logo</span>
+            </div>
+          </Upload>
         </Form.Item>
         <Form.Item class="col-span-full" label="描述">
           <Input.TextArea
@@ -305,4 +407,15 @@ onMounted(async () => {
       </div>
     </Form>
   </Modal>
+
+  <Image
+    :preview="{
+      visible: logoPreviewOpen,
+      onVisibleChange: (visible: boolean) => {
+        logoPreviewOpen = visible;
+      },
+    }"
+    :src="logoPreviewUrl"
+    class="hidden"
+  />
 </template>

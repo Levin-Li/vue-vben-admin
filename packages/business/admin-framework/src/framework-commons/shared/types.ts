@@ -45,6 +45,7 @@ export interface CrudFieldConfig {
   form?: boolean;
   formCreate?: boolean;
   formEdit?: boolean;
+  formVisibleForSuperAdmin?: boolean;
   fullRow?: boolean;
   help?: string;
   key: string;
@@ -53,6 +54,7 @@ export interface CrudFieldConfig {
   layoutNewRow?: boolean;
   layoutOrder?: number;
   loadOptions?: (keyword?: string) => Promise<SelectOption[]>;
+  maxLength?: number;
   multiple?: boolean;
   options?: SelectOption[];
   placeholder?: string;
@@ -107,6 +109,60 @@ export interface CrudApiService {
   update?: (data?: any, options?: any) => Promise<any>;
 }
 
+export interface CrudExportTemplateField {
+  alias?: string;
+  key: string;
+  label?: string;
+  order?: number;
+  selected?: boolean;
+}
+
+export interface CrudExportTemplateConfig {
+  fieldAliases?: Record<string, string>;
+  fieldOrderKeys?: string[];
+  fields?: CrudExportTemplateField[];
+  selectedFieldKeys?: string[];
+  version?: number;
+}
+
+export interface CrudExportTemplateRecord {
+  category?: string;
+  code?: string;
+  config?: CrudExportTemplateConfig | string | null;
+  fileType?: string;
+  groupName?: string;
+  id?: number | string;
+  name: string;
+  orgId?: null | string;
+  orgShared?: boolean;
+  ownerId?: null | string;
+  targetType?: string;
+  tenantId?: null | string;
+  tenantShared?: boolean;
+  type?: string;
+}
+
+export interface CrudExportTemplateContext {
+  apiBase: string;
+  apiModuleBase?: string;
+  listPath: string;
+  listTableName?: string;
+  listTitle: string;
+  targetType: string;
+  title: string;
+}
+
+export interface CrudExportTemplateService {
+  create?: (
+    data: Record<string, any>,
+    context: CrudExportTemplateContext,
+  ) => Promise<any>;
+  list?: (
+    params: Record<string, any>,
+    context: CrudExportTemplateContext,
+  ) => Promise<CrudExportTemplateRecord[] | { items?: CrudExportTemplateRecord[] }>;
+}
+
 export interface CrudListTableConfig {
   allowCreate?: boolean;
   allowDelete?: boolean;
@@ -141,6 +197,7 @@ export interface CrudPageConfig {
   description?: string;
   editPermission?: string | string[];
   editVisibleOn?: string;
+  exportTemplateService?: CrudExportTemplateService;
   fields: CrudFieldConfig[];
   listPath?: string;
   listTables?: CrudListTableConfig[];

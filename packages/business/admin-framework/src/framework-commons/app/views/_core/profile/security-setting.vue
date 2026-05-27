@@ -365,7 +365,7 @@ onMounted(() => {
               :loading="loading.phoneSubmit"
               @click="submitPhone"
             >
-              {{ isTelephoneBound ? '保存手机号' : '绑定手机号' }}
+              提交绑定
             </Button>
           </Form>
         </Card>
@@ -445,7 +445,7 @@ onMounted(() => {
               :loading="loading.emailSubmit"
               @click="submitEmail"
             >
-              {{ isEmailBound ? '保存邮箱' : '绑定邮箱' }}
+              提交绑定
             </Button>
           </Form>
         </Card>

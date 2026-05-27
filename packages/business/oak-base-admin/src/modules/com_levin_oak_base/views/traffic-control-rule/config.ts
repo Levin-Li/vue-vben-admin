@@ -38,6 +38,8 @@ const methodOptions = [
   { label: 'PATCH', value: 'PATCH' },
 ];
 
+const ANY_MATCH_HELP = '支持*和?匹配，本字段内任一命中。';
+
 function transformRuleSubmit(values: Record<string, any>) {
   return { ...values };
 }
@@ -99,11 +101,11 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'urlPathList',
       label: 'URL包含列表',
-      fullRow: true,
-      help: '可搜索授权控制器路径填入，也可手动配置通配符数组；支持*和?，例如 /api/order/*、/api/order/??/detail。',
+      help: '可搜索授权控制器路径填入，也可手动配置通配符数组；支持*和?，例如 /api/order/*、/api/order/??/detail。本字段内任一命中。',
       loadOptions: authorizedControllerPathOptionsLoader,
       remoteSearch: true,
       search: true,
+      span: 2,
       table: true,
       type: 'tags',
       width: 220,
@@ -111,19 +113,19 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'urlPathExcludeList',
       label: 'URL排除列表',
-      fullRow: true,
-      help: '可搜索授权控制器路径填入，也可手动配置通配符数组；命中排除列表时跳过当前限流规则。',
+      help: '可搜索授权控制器路径填入，也可手动配置通配符数组；支持*和?；命中排除列表时跳过当前限流规则。',
       loadOptions: authorizedControllerPathOptionsLoader,
       remoteSearch: true,
+      span: 2,
       type: 'tags',
     },
     {
       key: 'methodList',
       label: '请求方法',
-      fullRow: true,
-      help: '按数组配置，可配置多个请求方法。',
+      help: ANY_MATCH_HELP,
       options: methodOptions,
       search: true,
+      span: 2,
       table: true,
       type: 'tags',
       width: 140,
@@ -131,25 +133,25 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'domainList',
       label: '域名包含列表',
-      fullRow: true,
-      help: '从租户站点查询域名，支持手动补充*和?通配符；例如 *.example.com。',
+      help: '从租户站点查询域名，也可手动补充通配符；支持*和?，例如 *.example.com。本字段内任一命中。',
       loadOptions: tenantSiteDomainOptionsLoader,
       remoteSearch: true,
+      span: 2,
       type: 'tags',
     },
     {
       key: 'regionList',
       label: '地区包含列表',
-      fullRow: true,
-      help: '按数组配置，通常根据IP判别地区，支持*和?。',
+      help: ANY_MATCH_HELP,
+      span: 2,
       type: 'tags',
     },
     {
       key: 'ipList',
       label: 'IP包含列表',
-      fullRow: true,
-      help: '按数组配置，支持*和?；例如 10.0.?.*。',
+      help: '支持*和?匹配，例如 10.0.?.*；本字段内任一命中。',
       search: true,
+      span: 2,
       table: true,
       type: 'tags',
       width: 180,
@@ -157,25 +159,25 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'ipExcludeList',
       label: 'IP排除列表',
-      fullRow: true,
-      help: '按数组配置，命中排除列表时跳过当前限流规则。',
+      help: '支持*和?匹配；命中排除列表时跳过当前限流规则。',
+      span: 2,
       type: 'tags',
     },
     {
       key: 'userTypeList',
       label: '用户类型',
-      fullRow: true,
-      help: '按数组配置，支持*和?。',
+      help: ANY_MATCH_HELP,
       loadOptions: userTypeOptionsLoader,
+      span: 2,
       type: 'tags',
     },
     {
       key: 'userRoleList',
       label: '用户角色',
-      fullRow: true,
-      help: '按数组配置，支持*和?。',
+      help: ANY_MATCH_HELP,
       loadOptions: roleOptionsLoader,
       remoteSearch: true,
+      span: 2,
       type: 'tags',
     },
     {
@@ -199,9 +201,9 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'limitDimensionList',
       label: '限流维度',
-      fullRow: true,
-      help: '系统始终包含规则ID；选择Header或Param时只使用已配置且命中的请求头或参数。',
+      help: '系统始终包含规则ID；选择Header或Param时只使用已配置且命中的请求头或参数。本字段内任一命中。',
       options: limitDimensionOptions,
+      span: 2,
       table: true,
       type: 'tags',
       width: 220,

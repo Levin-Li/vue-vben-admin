@@ -1,5 +1,21 @@
+function toWildcardRegExp(pattern: string): RegExp {
+  let source = '';
+
+  for (const char of pattern) {
+    if (char === '*') {
+      source += '.*';
+    } else if (char === '?') {
+      source += '.';
+    } else {
+      source += char.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+    }
+  }
+
+  return new RegExp(`^${source}$`);
+}
+
 /**
- * Mirrors the backend SpringPatternMatchUtils simple wildcard semantics.
+ * Mirrors backend-style simple wildcard semantics, with `?` as one character.
  */
 export default class SpringPatternMatchUtils {
   public static simpleMatch(
@@ -10,46 +26,10 @@ export default class SpringPatternMatchUtils {
       return false;
     }
 
-    const firstIndex = pattern.indexOf('*');
-    if (firstIndex === -1) {
+    if (!pattern.includes('*') && !pattern.includes('?')) {
       return pattern === str;
     }
 
-    if (firstIndex === 0) {
-      if (pattern.length === 1) {
-        return true;
-      }
-
-      const nextIndex = pattern.indexOf('*', 1);
-      if (nextIndex === -1) {
-        return str.endsWith(pattern.substring(1));
-      }
-
-      const part = pattern.substring(1, nextIndex);
-      if (part.length === 0) {
-        return this.simpleMatch(pattern.substring(nextIndex), str);
-      }
-
-      let partIndex = str.indexOf(part);
-      while (partIndex !== -1) {
-        if (
-          this.simpleMatch(
-            pattern.substring(nextIndex),
-            str.substring(partIndex + part.length),
-          )
-        ) {
-          return true;
-        }
-        partIndex = str.indexOf(part, partIndex + 1);
-      }
-
-      return false;
-    }
-
-    return (
-      str.length >= firstIndex &&
-      pattern.startsWith(str.substring(0, firstIndex)) &&
-      this.simpleMatch(pattern.substring(firstIndex), str.substring(firstIndex))
-    );
+    return toWildcardRegExp(pattern).test(str);
   }
 }

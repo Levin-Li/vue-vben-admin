@@ -3,6 +3,9 @@ import type { TableColumnsType, UploadFile } from 'ant-design-vue';
 
 import type { NormalizedCrudAction } from './crud-action-model';
 import type {
+  CrudExportTemplateConfig,
+  CrudExportTemplateContext,
+  CrudExportTemplateRecord,
   CrudFieldConfig,
   CrudListTableConfig,
   CrudPageConfig,
@@ -182,6 +185,15 @@ const DEFAULT_FORM_ROW_HEIGHT = 78;
 const EXPORT_LIMIT_ERROR_MESSAGE = 'EXPORT_LIMIT_EXCEEDED';
 const EXPORT_MAX_RECORDS = 50_000;
 const EXPORT_PAGE_SIZE = 2000;
+const EXPORT_TEMPLATE_CATEGORY = 'CrudExport';
+const EXPORT_TEMPLATE_FILE_TYPE = 'Excel';
+const EXPORT_TEMPLATE_TYPE = 'Export';
+const EXPORT_TEMPLATE_SCOPE_OPTIONS = [
+  { label: '个人模板', value: 'personal' },
+  { label: '平台共享', value: 'platform' },
+  { label: '租户共享', value: 'tenant' },
+  { label: '组织共享', value: 'org' },
+] as const;
 const FORM_GRID_COLUMN_GAP = 16;
 const MAX_SEARCH_COLUMN_COUNT = 7;
 const MIN_SEARCH_COLUMN_WIDTH = 280;
@@ -201,6 +213,9 @@ const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
 const route = useRoute();
 
+type ExportTemplateSaveScope =
+  (typeof EXPORT_TEMPLATE_SCOPE_OPTIONS)[number]['value'];
+
 const dataSource = ref<GenericRecord[]>([]);
 const editingRecord = ref<GenericRecord | null>(null);
 const loading = ref(false);
@@ -218,6 +233,10 @@ const exportLimitChecking = ref(false);
 const exportSelectedFieldKeys = ref<string[]>([]);
 const exportFieldOrderKeys = ref<string[]>([]);
 const exportFieldAliases = ref<Record<string, string>>({});
+const exportTemplates = ref<CrudExportTemplateRecord[]>([]);
+const exportTemplateLoading = ref(false);
+const exportTemplateSaving = ref(false);
+const selectedExportTemplateId = ref<string | undefined>();
 const uploadPreviewOpen = ref(false);
 const uploadPreviewUrl = ref('');
 const optionState = reactive<Record<string, any[]>>({});
@@ -632,9 +651,7 @@ const exportableFields = computed(() => {
   }
 
   const remainingFields = props.config.fields.filter(
-    (field) =>
-      isExportableField(field) &&
-      !orderedKeys.has(String(field.key)),
+    (field) => isExportableField(field) && !orderedKeys.has(String(field.key)),
   );
 
   return [...fieldsInCurrentOrder, ...remainingFields];
@@ -686,6 +703,40 @@ const exportFieldsIndeterminate = computed(
     exportableFields.value.some((field) =>
       exportSelectedFieldKeys.value.includes(String(field.key)),
     ),
+);
+
+const exportTemplateContext = computed<CrudExportTemplateContext>(() => {
+  const activeIndex = activeListTable.value
+    ? Math.max(0, listTables.value.indexOf(activeListTable.value))
+    : 0;
+  const listTitle = activeListTable.value
+    ? getListTableTitle(activeListTable.value, activeIndex)
+    : '列表';
+  const targetParts = [
+    props.config.apiModuleBase,
+    props.config.apiBase,
+    activeListPath.value,
+    activeListTableName.value,
+  ].filter(Boolean);
+
+  return {
+    apiBase: props.config.apiBase,
+    apiModuleBase: props.config.apiModuleBase,
+    listPath: activeListPath.value,
+    listTableName: activeListTableName.value,
+    listTitle,
+    targetType: targetParts.join(':'),
+    title: props.config.title,
+  };
+});
+
+const exportTemplateOptions = computed(() =>
+  exportTemplates.value
+    .map((item) => ({
+      label: item.name,
+      value: getExportTemplateValue(item),
+    }))
+    .filter((item) => item.value !== undefined),
 );
 
 const tableColumnPreferenceStorageKey = computed(() => {
@@ -1021,6 +1072,10 @@ function resolveTableColumnWidth(field: CrudFieldConfig) {
 }
 
 function shouldFormFieldSpanFullRow(field: CrudFieldConfig) {
+  if (field.span && field.span > 0) {
+    return false;
+  }
+
   return (
     field.fullRow ||
     field.span === -1 ||
@@ -1196,7 +1251,19 @@ const formContainerStyle = computed(() => ({
 }));
 
 function getFormItemStyle(field: CrudFieldConfig) {
-  return field.layoutNewRow ? { gridColumnStart: 1 } : undefined;
+  const columns = formColumnCount.value;
+  const span = getFormFieldColumnSpan(field, columns);
+  const style: Record<string, number | string> = {};
+
+  if (span > 1) {
+    style.gridColumn = field.layoutNewRow
+      ? `1 / span ${span}`
+      : `span ${span} / span ${span}`;
+  } else if (field.layoutNewRow) {
+    style.gridColumnStart = 1;
+  }
+
+  return Object.keys(style).length > 0 ? style : undefined;
 }
 
 const modalMaxWidth = computed(() => {
@@ -1943,6 +2010,494 @@ function getDefaultExportFieldAliases() {
   return {};
 }
 
+function normalizeExportTemplateList(
+  result: CrudExportTemplateRecord[] | { items?: CrudExportTemplateRecord[] },
+) {
+  return Array.isArray(result) ? result : result.items || [];
+}
+
+function normalizeExportTemplateConfig(
+  value: CrudExportTemplateRecord['config'],
+): CrudExportTemplateConfig {
+  if (!value) {
+    return {};
+  }
+
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) || {};
+    } catch {
+      return {};
+    }
+  }
+
+  return value;
+}
+
+function normalizeCreatedExportTemplate(
+  value: any,
+): Partial<CrudExportTemplateRecord> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const nested =
+    value.data || value.item || value.record || value.result || value.entity;
+
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    return nested;
+  }
+
+  return value;
+}
+
+function getExportTemplateValue(template: CrudExportTemplateRecord) {
+  if (template.id !== undefined && template.id !== null) {
+    return String(template.id);
+  }
+
+  const code = String(template.code || '').trim();
+
+  return code || undefined;
+}
+
+function isSameExportTemplate(
+  template: CrudExportTemplateRecord,
+  target: CrudExportTemplateRecord,
+) {
+  const templateValue = getExportTemplateValue(template);
+  const targetValue = getExportTemplateValue(target);
+
+  if (templateValue && targetValue && templateValue === targetValue) {
+    return true;
+  }
+
+  return Boolean(
+    template.code &&
+    target.code &&
+    String(template.code) === String(target.code),
+  );
+}
+
+function findExportTemplate(target: CrudExportTemplateRecord) {
+  return exportTemplates.value.find((item) =>
+    isSameExportTemplate(item, target),
+  );
+}
+
+function upsertExportTemplate(template: CrudExportTemplateRecord) {
+  const existingIndex = exportTemplates.value.findIndex((item) =>
+    isSameExportTemplate(item, template),
+  );
+
+  if (existingIndex >= 0) {
+    exportTemplates.value.splice(existingIndex, 1, {
+      ...exportTemplates.value[existingIndex],
+      ...template,
+    });
+    return;
+  }
+
+  exportTemplates.value = [template, ...exportTemplates.value];
+}
+
+function getExportTemplateNameSeed() {
+  const context = exportTemplateContext.value;
+
+  return `${context.title}${context.listTitle}导出模板`;
+}
+
+function getExportTemplateCode(name: string) {
+  const source = `${exportTemplateContext.value.targetType}:${name}:${Date.now()}`;
+  let hash = 0;
+
+  for (const char of source) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+
+  return `crud-export-${Date.now().toString(36)}-${hash.toString(36)}`.slice(
+    0,
+    128,
+  );
+}
+
+function buildExportTemplateConfig(): CrudExportTemplateConfig {
+  const selectedKeys = exportSelectedFieldKeys.value.map(String);
+  const aliasEntries = Object.entries(exportFieldAliases.value)
+    .map(([key, value]) => [key, String(value || '').trim()] as const)
+    .filter(([, value]) => value);
+  const fieldAliases = Object.fromEntries(aliasEntries);
+  const orderedFields = orderedExportFields.value;
+
+  return {
+    fieldAliases,
+    fieldOrderKeys: orderedFields.map((field) => String(field.key)),
+    fields: orderedFields.map((field, index) => {
+      const key = String(field.key);
+
+      return {
+        alias: fieldAliases[key] || '',
+        key,
+        label: field.label,
+        order: index,
+        selected: selectedKeys.includes(key),
+      };
+    }),
+    selectedFieldKeys: selectedKeys,
+    version: 1,
+  };
+}
+
+function applyExportTemplateConfig(config: CrudExportTemplateConfig) {
+  const availableKeys = new Set(
+    exportableFields.value.map((field) => String(field.key)),
+  );
+  const templateFields = Array.isArray(config.fields) ? config.fields : [];
+  const orderedFieldKeys = [...templateFields]
+    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+    .map((field) => String(field.key));
+  const orderKeys = (
+    Array.isArray(config.fieldOrderKeys)
+      ? config.fieldOrderKeys
+      : orderedFieldKeys
+  )
+    .map(String)
+    .filter((key) => availableKeys.has(key));
+  const selectedKeys = (
+    Array.isArray(config.selectedFieldKeys)
+      ? config.selectedFieldKeys
+      : templateFields
+          .filter((field) => field.selected !== false)
+          .map((field) => field.key)
+  )
+    .map(String)
+    .filter((key) => availableKeys.has(key));
+  const fieldAliases = templateFields.reduce<Record<string, string>>(
+    (aliases, field) => {
+      const key = String(field.key);
+      const alias = String(field.alias || '').trim();
+
+      if (availableKeys.has(key) && alias) {
+        aliases[key] = alias;
+      }
+
+      return aliases;
+    },
+    {},
+  );
+  const aliases = {
+    ...fieldAliases,
+    ...(config.fieldAliases || {}),
+  };
+
+  exportFieldOrderKeys.value = orderKeys.length
+    ? orderKeys
+    : getDefaultExportFieldOrder();
+  exportSelectedFieldKeys.value = selectedKeys;
+  exportFieldAliases.value = Object.fromEntries(
+    Object.entries(aliases)
+      .map(([key, value]) => [key, String(value || '').trim()] as const)
+      .filter(([key, value]) => availableKeys.has(key) && value),
+  );
+}
+
+async function loadExportTemplates() {
+  const list = props.config.exportTemplateService?.list;
+
+  if (!list) {
+    exportTemplates.value = [];
+    return;
+  }
+
+  exportTemplateLoading.value = true;
+
+  try {
+    const context = exportTemplateContext.value;
+    const result = await list(
+      {
+        category: EXPORT_TEMPLATE_CATEGORY,
+        enable: true,
+        fileType: EXPORT_TEMPLATE_FILE_TYPE,
+        orderBy: 'lastUpdateTime',
+        orderDir: 'Desc',
+        pageIndex: 1,
+        pageSize: 200,
+        targetType: context.targetType,
+        type: EXPORT_TEMPLATE_TYPE,
+      },
+      context,
+    );
+
+    exportTemplates.value = normalizeExportTemplateList(result);
+  } catch (error) {
+    console.error(error);
+    message.warning('导出模板加载失败');
+  } finally {
+    exportTemplateLoading.value = false;
+  }
+}
+
+function handleExportTemplateChange(value?: number | string) {
+  selectedExportTemplateId.value =
+    value === undefined || value === null ? undefined : String(value);
+
+  if (!selectedExportTemplateId.value) {
+    return;
+  }
+
+  const template = exportTemplates.value.find(
+    (item) => getExportTemplateValue(item) === selectedExportTemplateId.value,
+  );
+
+  if (!template) {
+    return;
+  }
+
+  applyExportTemplateConfig(normalizeExportTemplateConfig(template.config));
+  message.success(`已应用导出模板：${template.name}`);
+}
+
+function normalizeExportTemplateOwnerValue(value: unknown) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const text = String(value).trim();
+
+  return text || null;
+}
+
+function getCurrentExportTemplateUserValue(...keys: string[]) {
+  const userInfo = (userStore.userInfo || {}) as Record<string, any>;
+
+  for (const key of keys) {
+    const value = normalizeExportTemplateOwnerValue(userInfo[key]);
+
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getCurrentExportTemplateOrgValue() {
+  const userInfo = (userStore.userInfo || {}) as Record<string, any>;
+  const directValue = getCurrentExportTemplateUserValue(
+    'orgId',
+    'organizationId',
+    'deptId',
+    'currentOrgId',
+    'defaultOrgId',
+  );
+
+  if (directValue !== null) {
+    return directValue;
+  }
+
+  const org = userInfo.org || userInfo.organization || userInfo.dept;
+
+  if (org && typeof org === 'object') {
+    const orgRecord = org as Record<string, any>;
+
+    return normalizeExportTemplateOwnerValue(orgRecord.id ?? orgRecord.value);
+  }
+
+  return null;
+}
+
+function buildExportTemplateScopePayload(scope: ExportTemplateSaveScope) {
+  const tenantId = getCurrentExportTemplateUserValue('tenantId');
+  const orgId = getCurrentExportTemplateOrgValue();
+  const ownerId = getCurrentExportTemplateUserValue('userId', 'id');
+
+  if (scope === 'platform') {
+    return {
+      orgId: null,
+      orgShared: true,
+      ownerId: null,
+      tenantId: null,
+      tenantShared: true,
+    };
+  }
+
+  if (scope === 'tenant') {
+    return {
+      orgId: null,
+      orgShared: true,
+      ownerId: null,
+      tenantId,
+      tenantShared: false,
+    };
+  }
+
+  if (scope === 'org') {
+    return {
+      orgId,
+      orgShared: false,
+      ownerId: null,
+      tenantId,
+      tenantShared: false,
+    };
+  }
+
+  return {
+    orgId,
+    orgShared: false,
+    ownerId,
+    tenantId,
+    tenantShared: false,
+  };
+}
+
+async function saveExportTemplate(
+  name: string,
+  scope: ExportTemplateSaveScope,
+) {
+  const create = props.config.exportTemplateService?.create;
+
+  if (!create) {
+    message.warning('当前页面未配置导出模板保存接口');
+    return;
+  }
+
+  if (selectedExportFields.value.length === 0) {
+    message.warning('请至少选择一个导出字段');
+    return;
+  }
+
+  exportTemplateSaving.value = true;
+
+  try {
+    const context = exportTemplateContext.value;
+    const payload = {
+      category: EXPORT_TEMPLATE_CATEGORY,
+      code: getExportTemplateCode(name),
+      config: buildExportTemplateConfig(),
+      editable: true,
+      enable: true,
+      fileType: EXPORT_TEMPLATE_FILE_TYPE,
+      groupName: context.title,
+      name,
+      ...buildExportTemplateScopePayload(scope),
+      targetType: context.targetType,
+      type: EXPORT_TEMPLATE_TYPE,
+    };
+    const created = normalizeCreatedExportTemplate(
+      await create(payload, context),
+    );
+    const savedTemplate = {
+      ...payload,
+      ...created,
+      config: payload.config,
+      name: String(created.name || payload.name),
+    } as CrudExportTemplateRecord;
+
+    message.success('导出模板已保存');
+    await loadExportTemplates();
+    const refreshedTemplate =
+      findExportTemplate(savedTemplate) || savedTemplate;
+
+    upsertExportTemplate(refreshedTemplate);
+    selectedExportTemplateId.value = getExportTemplateValue(refreshedTemplate);
+    applyExportTemplateConfig(
+      normalizeExportTemplateConfig(refreshedTemplate.config),
+    );
+  } catch (error) {
+    console.error(error);
+    message.error('导出模板保存失败');
+    throw error;
+  } finally {
+    exportTemplateSaving.value = false;
+  }
+}
+
+function promptSaveExportTemplate() {
+  if (selectedExportFields.value.length === 0) {
+    message.warning('请至少选择一个导出字段');
+    return;
+  }
+
+  let templateName = getExportTemplateNameSeed();
+  let templateScope: ExportTemplateSaveScope = 'personal';
+  const templateScopeName = `export-template-scope-${Date.now()}`;
+
+  Modal.confirm({
+    bodyStyle: {
+      minHeight: '300px',
+    },
+    class: 'vben-crud-export-save-template-modal',
+    content: () =>
+      h('div', { class: 'vben-crud-export-save-template-form' }, [
+        h('label', { class: 'vben-crud-export-save-template-field' }, [
+          h('span', { class: 'vben-crud-export-save-template-label' }, [
+            h(
+              'span',
+              { class: 'vben-crud-export-save-template-required' },
+              '*',
+            ),
+            '模板名称',
+          ]),
+          h(Input, {
+            autofocus: true,
+            maxlength: 128,
+            placeholder: '请输入模板名称',
+            value: templateName,
+            'onUpdate:value': (value: string) => {
+              templateName = value;
+            },
+            onChange: (event: Event) => {
+              templateName = (event.target as HTMLInputElement).value;
+            },
+          }),
+        ]),
+        h(
+          'div',
+          { class: 'vben-crud-export-save-template-scope' },
+          EXPORT_TEMPLATE_SCOPE_OPTIONS.map((option) =>
+            h(
+              'label',
+              {
+                class: 'vben-crud-export-save-template-scope-option',
+                key: option.value,
+              },
+              [
+                h('input', {
+                  checked: option.value === templateScope,
+                  name: templateScopeName,
+                  type: 'radio',
+                  value: option.value,
+                  onChange: (event: Event) => {
+                    const input = event.target as HTMLInputElement;
+
+                    if (input.checked) {
+                      templateScope =
+                        (input.value as ExportTemplateSaveScope) || 'personal';
+                    }
+                  },
+                }),
+                h('span', option.label),
+              ],
+            ),
+          ),
+        ),
+      ]),
+    okText: '保存',
+    onOk: async () => {
+      const name = templateName.trim();
+
+      if (!name) {
+        message.warning('请输入模板名称');
+        throw new Error('EMPTY_EXPORT_TEMPLATE_NAME');
+      }
+
+      await saveExportTemplate(name, templateScope);
+    },
+    title: '另存为导出模板',
+    width: 750,
+  });
+}
+
 function setExportFieldSelected(key: string, selected: boolean) {
   const fieldKey = String(key);
   const nextKeys = exportSelectedFieldKeys.value.filter(
@@ -2145,6 +2700,8 @@ async function openExportModal() {
     exportFieldOrderKeys.value = getDefaultExportFieldOrder();
     exportSelectedFieldKeys.value = getDefaultSelectedExportFieldKeys();
     exportFieldAliases.value = getDefaultExportFieldAliases();
+    selectedExportTemplateId.value = undefined;
+    await loadExportTemplates();
     exportModalOpen.value = true;
   } catch (error) {
     console.error(error);
@@ -4382,6 +4939,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                 v-else
                 v-model:value="searchState[item.field.key]"
                 allow-clear
+                :maxlength="item.field.maxLength"
                 :placeholder="getPlaceholder(item.field)"
                 class="w-full"
               />
@@ -5059,6 +5617,30 @@ watch(tableColumnPreferenceStorageKey, () => {
       @ok="handleExportConfirm"
     >
       <div class="vben-crud-export-modal">
+        <div class="vben-crud-export-template-bar">
+          <Select
+            :value="selectedExportTemplateId"
+            allow-clear
+            class="vben-crud-export-template-select"
+            :disabled="exportTemplateSaving"
+            :loading="exportTemplateLoading"
+            :options="exportTemplateOptions"
+            placeholder="选择导出模板"
+            size="small"
+            @change="handleExportTemplateChange"
+          />
+          <Button
+            size="small"
+            :disabled="exportTemplateLoading"
+            :loading="exportTemplateSaving"
+            @click="promptSaveExportTemplate"
+          >
+            <template #icon>
+              <IconifyIcon class="size-3.5" icon="lucide:save" />
+            </template>
+            另存为模板
+          </Button>
+        </div>
         <div class="border-border mb-2 border-b pb-2">
           <Checkbox
             :checked="allExportFieldsSelected"
@@ -5160,15 +5742,12 @@ watch(tableColumnPreferenceStorageKey, () => {
               'col-span-full':
                 field.fullRow ||
                 field.span === -1 ||
-                field.type === 'textarea' ||
-                field.type === 'string-array' ||
-                field.type === 'tags',
+                (!field.span &&
+                  (field.type === 'textarea' ||
+                    field.type === 'string-array' ||
+                    field.type === 'tags')),
               'md:col-span-2':
-                field.span === 2 &&
-                !field.fullRow &&
-                field.type !== 'textarea' &&
-                field.type !== 'string-array' &&
-                field.type !== 'tags',
+                field.span === 2 && !field.fullRow && field.span !== -1,
               'max-w-[480px]':
                 !field.fullRow &&
                 field.span !== -1 &&
@@ -5190,6 +5769,8 @@ watch(tableColumnPreferenceStorageKey, () => {
               v-else-if="field.type === 'password'"
               v-model:value="formState[field.key]"
               class="w-full"
+              :disabled="isFieldDisabledOnEdit(field)"
+              :maxlength="field.maxLength"
               :placeholder="getPlaceholder(field)"
             />
             <Cascader
@@ -5286,6 +5867,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               v-model:value="formState[field.key]"
               :auto-size="{ minRows: 3, maxRows: 8 }"
               :disabled="isFieldDisabledOnEdit(field)"
+              :maxlength="field.maxLength"
               :placeholder="getPlaceholder(field)"
             />
             <DatePicker
@@ -5383,6 +5965,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               v-model:value="formState[field.key]"
               :disabled="isFieldDisabledOnEdit(field)"
               class="w-full"
+              :maxlength="field.maxLength"
               :placeholder="getPlaceholder(field)"
             />
           </Form.Item>
@@ -5811,6 +6394,73 @@ watch(tableColumnPreferenceStorageKey, () => {
 
 .vben-crud-column-pin:disabled:hover {
   color: hsl(var(--muted-foreground) / 45%);
+}
+
+.vben-crud-export-template-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.vben-crud-export-template-select {
+  min-width: 0;
+  flex: 1;
+}
+
+:global(.vben-crud-export-save-template-form) {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 240px;
+  padding-top: 8px;
+}
+
+:global(.vben-crud-export-save-template-field) {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+:global(.vben-crud-export-save-template-label) {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+:global(.vben-crud-export-save-template-required) {
+  color: hsl(var(--destructive));
+}
+
+:global(.vben-crud-export-save-template-scope) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+  padding-left: 86px;
+}
+
+:global(.vben-crud-export-save-template-scope-option) {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  cursor: pointer;
+}
+
+:global(.vben-crud-export-save-template-scope-option input) {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: hsl(var(--primary));
+  cursor: pointer;
+}
+
+:global(.vben-crud-export-save-template-scope-option span) {
+  min-width: 0;
+  white-space: normal;
 }
 
 .vben-crud-export-field-header {

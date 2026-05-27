@@ -29,6 +29,7 @@ import {
   message,
   Modal,
   Popconfirm,
+  Radio,
   Tag,
 } from 'ant-design-vue';
 
@@ -40,6 +41,7 @@ import { rbacService } from '@levin/admin-framework/framework-commons/app/api';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
+import { useAuthBrand } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/auth-brand';
 
 import {
   getFrameworkEventListeners,
@@ -49,7 +51,11 @@ import {
 } from '../../event-bus';
 import { getAdminI18nLabelSyncService } from '../../runtime';
 import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-service';
-import { buildAdminUiBaseSettingPayload } from '../tenant-site-admin-ui-base-setting';
+import {
+  buildAdminUiBaseSettingPayload,
+  DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET,
+  type AdminUiBaseSettingUploadTarget,
+} from '../tenant-site-admin-ui-base-setting';
 import SyncI18nLabelsModal from './sync-i18n-labels-modal.vue';
 import SyncMenuRoutesModal from './sync-menu-routes-modal.vue';
 
@@ -112,6 +118,7 @@ const headerTopSlots = computed(() => {
 });
 const accessStore = useAccessStore();
 const router = useRouter();
+const { appName, loadAuthBrand } = useAuthBrand();
 const LoginForm = defineAsyncComponent(
   resolveAdminPage('/_core/authentication/login.vue'),
 );
@@ -126,7 +133,17 @@ const saveAdminUiBaseSettingLoading = ref(false);
 const eventListenerManagerOpen = ref(false);
 const eventListeners = ref<FrameworkEventListenerInfo[]>([]);
 const preferServerAdminUiBaseSetting = ref(true);
+const adminUiBaseSettingUploadTarget = ref<AdminUiBaseSettingUploadTarget>(
+  DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET,
+);
 const SAVE_ADMIN_UI_BASE_SETTING_TIMEOUT_MS = 15_000;
+const adminUiBaseSettingUploadTargetOptions: Array<{
+  label: string;
+  value: AdminUiBaseSettingUploadTarget;
+}> = [
+  { label: '租户站点', value: 'TenantSite' },
+  { label: '租户', value: 'Tenant' },
+];
 const eventListenerManagerModalMaxWidth = 'min(70vw, 960px)';
 const eventListenerManagerModalStyle = {
   maxWidth: eventListenerManagerModalMaxWidth,
@@ -182,6 +199,8 @@ const builtInUserDropdownExtensionMenus = computed(() =>
           {
             handler: () => {
               preferServerAdminUiBaseSetting.value = true;
+              adminUiBaseSettingUploadTarget.value =
+                DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET;
               saveAdminUiBaseSettingModalOpen.value = true;
             },
             icon: 'lucide:settings',
@@ -264,6 +283,7 @@ async function handleSaveAdminUiBaseSetting() {
       buildAdminUiBaseSettingPayload(
         clonePreferences(),
         preferServerAdminUiBaseSetting.value,
+        adminUiBaseSettingUploadTarget.value,
       ),
       {
         timeout: SAVE_ADMIN_UI_BASE_SETTING_TIMEOUT_MS,
@@ -579,6 +599,9 @@ function handleViewAllNotifications() {
 }
 
 onMounted(() => {
+  loadAuthBrand().catch((error) => {
+    console.warn('加载租户站点品牌信息失败', error);
+  });
   loadNotifications().catch((error) => {
     console.warn('加载通知失败', error);
   });
@@ -617,6 +640,9 @@ watch(
 
 <template>
   <BasicLayout @clear-preferences-and-logout="handleLogout">
+    <template #logo-text>
+      {{ appName }}
+    </template>
     <template #user-dropdown>
       <Modal
         v-model:open="profileModalOpen"
@@ -637,9 +663,19 @@ watch(
         @cancel="resetSaveAdminUiBaseSettingLoading"
         @ok="handleSaveAdminUiBaseSetting"
       >
-        <Checkbox v-model:checked="preferServerAdminUiBaseSetting">
-          优先使用服务端设置参数
-        </Checkbox>
+        <div class="flex flex-col gap-4">
+          <label class="block space-y-2 text-sm">
+            <span class="text-muted-foreground block">上传目标</span>
+            <Radio.Group
+              v-model:value="adminUiBaseSettingUploadTarget"
+              :options="adminUiBaseSettingUploadTargetOptions"
+              option-type="button"
+            />
+          </label>
+          <Checkbox v-model:checked="preferServerAdminUiBaseSetting">
+            优先使用服务端设置参数
+          </Checkbox>
+        </div>
       </Modal>
       <Modal
         v-model:open="eventListenerManagerOpen"

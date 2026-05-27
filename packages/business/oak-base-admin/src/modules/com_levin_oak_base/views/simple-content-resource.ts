@@ -14,6 +14,7 @@ export interface SimpleContentEditorMeta {
 
 export interface SimpleContentResourceService extends CrudApiService {
   retrieve?: (params?: any, options?: any) => Promise<any>;
+  testScript?: (data?: any, options?: any) => Promise<any>;
   update?: (data?: any, options?: any) => Promise<any>;
 }
 

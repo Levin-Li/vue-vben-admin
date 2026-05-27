@@ -144,6 +144,22 @@ export const payOrderPageCrudConfig: CrudPageConfig = {
     },
     { key: 'payAppName', label: '支付工具名称', table: true, width: 160 },
     {
+      key: 'bankSerialNo',
+      label: '银行流水号',
+      maxLength: 128,
+      search: true,
+      table: true,
+      width: 180,
+    },
+    {
+      key: 'channelOrderNo',
+      label: '通道订单号',
+      maxLength: 128,
+      search: true,
+      table: true,
+      width: 180,
+    },
+    {
       key: 'inPayWay',
       label: '支付方式',
       form: false,

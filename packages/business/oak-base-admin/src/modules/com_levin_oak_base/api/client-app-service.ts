@@ -3,30 +3,20 @@ import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
-  basePath: '/AppClient',
-  controllerClass: 'com.levin.oak.base.controller.BizAppClientController',
-  description: '应用接入管理',
-  title: '应用接入',
-  type: '系统数据-应用接入',
+  basePath: '/ClientApp',
+  controllerClass: 'com.levin.oak.base.controller.BizClientAppController',
+  description: '客户端应用管理',
+  title: '客户端应用',
+  type: '系统数据-客户端应用',
 })
-export class AppClientService extends RequestService {
+export class ClientAppService extends RequestService {
   constructor() {
     super(OAK_BASE_API_MODULE);
   }
 
   @ResAuthorize({
-    ignored: true,
-  })
-  async auth(params?: any, options?: any) {
-    return this.get('auth', {
-      ...options,
-      params,
-    });
-  }
-
-  @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-应用接入',
+    type: '系统数据-客户端应用',
     action: '批量新增',
   })
   async batchCreate(data?: any, options?: any) {
@@ -38,7 +28,7 @@ export class AppClientService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-应用接入',
+    type: '系统数据-客户端应用',
     action: '批量删除',
   })
   @CRUD.Op({
@@ -53,7 +43,7 @@ export class AppClientService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-应用接入',
+    type: '系统数据-客户端应用',
     action: '批量更新',
   })
   async batchUpdate(data?: any, options?: any) {
@@ -65,7 +55,7 @@ export class AppClientService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-应用接入',
+    type: '系统数据-客户端应用',
     action: '清除缓存',
   })
   async clearCache(params?: any, options?: any) {
@@ -77,7 +67,7 @@ export class AppClientService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-应用接入',
+    type: '系统数据-客户端应用',
     action: '新增',
   })
   @CRUD.Op({
@@ -92,7 +82,7 @@ export class AppClientService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-应用接入',
+    type: '系统数据-客户端应用',
     action: '删除',
   })
   @CRUD.Op()
@@ -105,11 +95,11 @@ export class AppClientService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-应用接入',
+    type: '系统数据-客户端应用',
     action: '查询列表',
   })
   @CRUD.ListTable({
-    refEntityClass: 'com.levin.oak.base.entities.AppClient',
+    refEntityClass: 'com.levin.oak.base.entities.ClientApp',
   })
   async list(params?: any, options?: any) {
     return this.get('list', {
@@ -120,7 +110,7 @@ export class AppClientService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-应用接入',
+    type: '系统数据-客户端应用',
     action: '查看详情',
   })
   @CRUD.Op({
@@ -135,7 +125,7 @@ export class AppClientService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-应用接入',
+    type: '系统数据-客户端应用',
     action: '更新',
   })
   @CRUD.Op()
@@ -147,4 +137,4 @@ export class AppClientService extends RequestService {
   }
 }
 
-export const appClientService = new AppClientService();
+export const clientAppService = new ClientAppService();
