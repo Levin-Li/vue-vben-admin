@@ -1,6 +1,10 @@
 import type { SelectOption } from '@levin/admin-framework';
 import type { DomainDnsRecord, DomainRecord } from '../api/domain-service';
-import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
+import type { TenantSiteRecord } from '../api/tenant-site-service';
+import type {
+  CrudExportTemplateService,
+  CrudPageConfig,
+} from '@levin/admin-framework/framework-commons/shared/types';
 import type {
   TenantSiteOption,
   TenantSiteProvider,
@@ -130,6 +134,13 @@ export const moduleDeleteCrudRecord = (
   key: string = 'id',
 ) => deleteCrudRecord(path, id, key, OAK_BASE_API_MODULE);
 
+export const moduleExportTemplateService: CrudExportTemplateService = {
+  create: (data) =>
+    moduleCreateCrudRecord('/ImportExportTemplate/create', data),
+  list: (params) =>
+    moduleFetchCrudList('/ImportExportTemplate/list', params),
+};
+
 export const tenantOptionsLoader = buildModuleOptionsLoader('/Tenant/list');
 export const areaOptionsLoader = buildModuleOptionsLoader('/Area/list');
 export const articleChannelOptionsLoader = buildModuleOptionsLoader(
@@ -184,6 +195,78 @@ export const tenantSiteDnsDomainOptionsLoader = async () => {
   return [...optionMap.values()].sort((left, right) =>
     String(left.label).localeCompare(String(right.label)),
   );
+};
+export const tenantSiteDomainOptionsLoader = async (keyword?: string) => {
+  const tenantSites = await moduleFetchCrudList<TenantSiteRecord>(
+    '/TenantSite/list',
+    {
+      enable: true,
+      pageIndex: 1,
+      pageSize: 500,
+    },
+  );
+  const normalizedKeyword = String(keyword || '').trim().toLowerCase();
+  const optionMap = new Map<string, SelectOption>();
+
+  for (const site of tenantSites.items || []) {
+    const domain = String(site?.domain || '').trim().replace(/\.$/, '');
+
+    if (!domain) {
+      continue;
+    }
+
+    const siteName = String(site?.name || '').trim();
+    const label = siteName ? `${domain}（${siteName}）` : domain;
+
+    if (
+      normalizedKeyword &&
+      !domain.toLowerCase().includes(normalizedKeyword) &&
+      !siteName.toLowerCase().includes(normalizedKeyword)
+    ) {
+      continue;
+    }
+
+    optionMap.set(domain, {
+      label,
+      value: domain,
+    });
+  }
+
+  return [...optionMap.values()].sort((left, right) =>
+    String(left.label).localeCompare(String(right.label)),
+  );
+};
+export const authorizedControllerPathOptionsLoader = async (
+  keyword?: string,
+) => {
+  const normalizedKeyword = String(keyword || '').trim();
+  const pathList = await rbacService.authorizedControllerPathList({
+    ...(normalizedKeyword ? { keyword: normalizedKeyword } : {}),
+  });
+  const optionMap = new Map<string, SelectOption>();
+
+  for (const item of pathList || []) {
+    const url = String(item?.url || '').trim();
+
+    if (!url) {
+      continue;
+    }
+
+    const name = String(item?.name || '').trim();
+    const description = String(item?.description || '').trim();
+    const labelParts = name && name !== url ? [name, url] : [url];
+
+    if (description) {
+      labelParts.push(description);
+    }
+
+    optionMap.set(url, {
+      label: labelParts.join('  '),
+      value: url,
+    });
+  }
+
+  return [...optionMap.values()];
 };
 export const jobPostOptionsLoader = buildModuleOptionsLoader('/JobPost/list');
 export const menuOptionsLoader = buildModuleOptionsLoader('/Menu/list');

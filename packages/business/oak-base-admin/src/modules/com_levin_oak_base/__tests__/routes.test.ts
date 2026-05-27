@@ -72,4 +72,35 @@ describe('oak base admin routes', () => {
       ]),
     );
   });
+
+  it('registers the traffic control rule CRUD route and backend mapping', () => {
+    const module = createOakBaseAdminModule();
+    const root = module.routes?.[0];
+
+    expect(root?.children).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          meta: expect.objectContaining({
+            crudResource: 'TrafficControlRule',
+            title: '流量控制',
+          }),
+          name: 'AdminCrudTrafficControlRule',
+          path: '/clob/V1/TrafficControlRule',
+        }),
+      ]),
+    );
+
+    expect(oakBaseAdminBackendRouteMappings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: '/clob/V1/TrafficControlRule',
+          sourceFilePath:
+            'modules/com_levin_oak_base/views/traffic-control-rule/index.vue',
+          title: '流量控制',
+          viewPath:
+            '/system/com_levin_oak_base/traffic-control-rule/index.vue',
+        }),
+      ]),
+    );
+  });
 });

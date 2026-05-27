@@ -22,6 +22,8 @@ export { default as DraggableFloatingPanelHost } from './shared/draggable-floati
  */
 export * from './shared/draggable-floating-panel-service';
 export { default as DraggableFloatingPanel } from './shared/draggable-floating-panel.vue';
+export { default as PatternListEditor } from './shared/pattern-list-editor.vue';
+export * from './shared/pattern-list-utils';
 /**
  * Dynamic user-dropdown menu registry.
  *

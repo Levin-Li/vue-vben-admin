@@ -70,4 +70,21 @@ describe('RbacService user info', () => {
       },
     });
   });
+
+  it('queries authorized controller paths with optional keyword', async () => {
+    mocks.requestGet.mockResolvedValueOnce([]);
+
+    const service = new RbacService();
+
+    await service.authorizedControllerPathList({ keyword: '订单' });
+
+    expect(mocks.requestGet).toHaveBeenCalledWith(
+      '/rbac/authorizedControllerPathList',
+      {
+        params: {
+          keyword: '订单',
+        },
+      },
+    );
+  });
 });

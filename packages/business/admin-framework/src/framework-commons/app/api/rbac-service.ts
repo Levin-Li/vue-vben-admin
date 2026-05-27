@@ -137,6 +137,16 @@ export namespace RbacApi {
     loadAll?: boolean;
   }
 
+  export interface AuthorizedControllerPathInfo {
+    description?: null | string;
+    name?: null | string;
+    url?: null | string;
+  }
+
+  export interface AuthorizedControllerPathListParams {
+    keyword?: string;
+  }
+
   export interface AdjustSiteUiSettingParams extends Record<string, any> {}
 }
 
@@ -429,6 +439,23 @@ export class RbacService extends RequestService {
           loadAll: false,
           ...params,
         },
+      },
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '查询授权的控制器路径',
+    ignored: true,
+  })
+  async authorizedControllerPathList(
+    params: RbacApi.AuthorizedControllerPathListParams = {},
+  ) {
+    return requestClient.get<RbacApi.AuthorizedControllerPathInfo[]>(
+      this.buildRequestPath('authorizedControllerPathList'),
+      {
+        params,
       },
     );
   }

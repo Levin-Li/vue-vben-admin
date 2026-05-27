@@ -12,6 +12,7 @@ export { default as RbacPermissionMatchUtils } from './framework-commons/rbac-pe
 export * from './framework-commons/request-service';
 export * from './framework-commons/runtime';
 export * from './framework-commons/shared/draggable-floating-panel-service';
+export * from './framework-commons/shared/pattern-list-utils';
 export * from './framework-commons/shared/user-dropdown-menu-service';
 export * from './framework-commons/shared/user-org-selector-types';
 
@@ -30,6 +31,9 @@ export const DraggableFloatingPanel = defineAsyncComponent(
 );
 export const DraggableFloatingPanelHost = defineAsyncComponent(
   () => import('./framework-commons/shared/draggable-floating-panel-host.vue'),
+);
+export const PatternListEditor = defineAsyncComponent(
+  () => import('./framework-commons/shared/pattern-list-editor.vue'),
 );
 export const UserOrgSelector = defineAsyncComponent(
   () => import('./framework-commons/shared/user-org-selector.vue'),

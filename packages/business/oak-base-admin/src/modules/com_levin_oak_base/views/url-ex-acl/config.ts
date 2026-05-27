@@ -2,6 +2,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { urlExAclService } from '../../api/url-ex-acl-service';
 import {
+  authorizedControllerPathOptionsLoader,
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   roleOptionsLoader,
@@ -105,12 +106,18 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
       key: 'urlPathList',
       label: 'URL包含列表',
       fullRow: true,
+      help: '可搜索授权控制器路径填入，也可手动配置通配符数组；支持*和?，例如 /api/order/*、/api/order/??/detail。',
+      loadOptions: authorizedControllerPathOptionsLoader,
+      remoteSearch: true,
       type: 'tags',
     },
     {
       key: 'urlPathExcludeList',
       label: 'URL排除列表',
       fullRow: true,
+      help: '可搜索授权控制器路径填入，也可手动配置通配符数组；命中排除列表时跳过当前访问控制规则。',
+      loadOptions: authorizedControllerPathOptionsLoader,
+      remoteSearch: true,
       type: 'tags',
     },
     {

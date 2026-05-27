@@ -251,6 +251,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '租户站点',
   },
   {
+    icon: 'lucide:gauge',
+    name: 'TrafficControlRule',
+    resource: 'TrafficControlRule',
+    title: '流量控制',
+  },
+  {
     icon: 'lucide:lock-keyhole',
     name: 'UrlExAcl',
     resource: 'UrlExAcl',
@@ -318,6 +324,8 @@ export const oakBaseAdminResourceViewMap: Record<
   Tenant: () => import('./views/tenant/index.vue'),
   TenantApp: () => import('./views/tenant-app/index.vue'),
   TenantSite: () => import('./views/tenant-site/index.vue'),
+  TrafficControlRule: () =>
+    import('./views/traffic-control-rule/index.vue'),
   UrlExAcl: () => import('./views/url-ex-acl/index.vue'),
   User: () => import('./views/user/index.vue'),
   UserSetting: () => import('./views/user-setting/index.vue'),

@@ -39,6 +39,7 @@ export * from './social-user-service';
 export * from './tenant-service';
 export * from './tenant-app-service';
 export * from './tenant-site-service';
+export * from './traffic-control-rule-service';
 export * from './url-ex-acl-service';
 export * from './user-service';
 export * from './user-setting-service';

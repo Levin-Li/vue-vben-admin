@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   defineAdminModuleLocales,
   defineAdminPageOverrides,
+  matchPatternList,
+  PatternListEditor,
   useDraggableFloatingPanels,
   useLayoutHeaderExtensionArea,
   useUserDropdownMenuItems,
@@ -12,6 +14,8 @@ describe('@levin/admin-framework public entry', () => {
   it('exports downstream extension helpers from the package root', () => {
     expect(typeof defineAdminModuleLocales).toBe('function');
     expect(typeof defineAdminPageOverrides).toBe('function');
+    expect(typeof matchPatternList).toBe('function');
+    expect(PatternListEditor).toBeTruthy();
     expect(typeof useDraggableFloatingPanels).toBe('function');
     expect(typeof useLayoutHeaderExtensionArea).toBe('function');
     expect(typeof useUserDropdownMenuItems).toBe('function');
