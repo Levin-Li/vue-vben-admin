@@ -435,6 +435,7 @@ function updateTestValue(value: string) {
 
     <Modal
       v-model:open="testOpen"
+      :mask-closable="false"
       title="测试匹配"
       @ok="submitTest"
       @cancel="testSubmitted = false"

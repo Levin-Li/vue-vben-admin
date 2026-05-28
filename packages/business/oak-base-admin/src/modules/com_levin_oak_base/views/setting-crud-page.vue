@@ -138,6 +138,7 @@ async function saveEditValue() {
     :body-style="editValueModalBodyStyle"
     :confirm-loading="savingValue"
     :footer="editValueReadonly ? null : undefined"
+    :mask-closable="false"
     ok-text="保存"
     :title="editValueTitle"
     :width="config.modalWidth || 'min(82vw, 1480px)'"

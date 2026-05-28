@@ -14,7 +14,7 @@ vi.mock(
 );
 
 vi.mock('../../api-module', () => ({
-  DEFAULT_CRUD_MODAL_WIDTH: '70%',
+  DEFAULT_CRUD_MODAL_WIDTH: '80%',
   buildDictOptionsLoader: () => async () => [],
   buildEnumOptionsLoader: () => async () => [],
   tenantOptionsLoader: async () => [],

@@ -144,7 +144,7 @@ const adminUiBaseSettingUploadTargetOptions: Array<{
   { label: '租户站点', value: 'TenantSite' },
   { label: '租户', value: 'Tenant' },
 ];
-const eventListenerManagerModalMaxWidth = 'min(70vw, 960px)';
+const eventListenerManagerModalMaxWidth = 'min(80vw, 960px)';
 const eventListenerManagerModalStyle = {
   maxWidth: eventListenerManagerModalMaxWidth,
 };
@@ -647,6 +647,7 @@ watch(
       <Modal
         v-model:open="profileModalOpen"
         :footer="null"
+        :mask-closable="false"
         :title="$t('page.auth.profile')"
         :width="960"
         destroy-on-close
@@ -658,6 +659,7 @@ watch(
       <Modal
         v-model:open="saveAdminUiBaseSettingModalOpen"
         :confirm-loading="saveAdminUiBaseSettingLoading"
+        :mask-closable="false"
         title="上传界面设置"
         @after-close="resetSaveAdminUiBaseSettingLoading"
         @cancel="resetSaveAdminUiBaseSettingLoading"
@@ -680,6 +682,7 @@ watch(
       <Modal
         v-model:open="eventListenerManagerOpen"
         :footer="null"
+        :mask-closable="false"
         :style="eventListenerManagerModalStyle"
         :width="eventListenerManagerModalMaxWidth"
         title="监听器管理"

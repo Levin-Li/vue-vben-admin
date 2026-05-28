@@ -96,17 +96,8 @@ export const fileResPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     {
-      key: 'coverUrl',
-      label: '封面图',
-      table: true,
-      type: 'image',
-      uploadPath: FILE_STORAGE_SINGLE_UPLOAD_PATH,
-      width: 120,
-    },
-    {
       key: 'paths',
       label: '文件路径',
-      fullRow: true,
       multiple: true,
       type: 'file',
       uploadPath: FILE_STORAGE_MULTI_UPLOAD_PATH,
@@ -114,7 +105,6 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'tagList',
       label: '标签列表',
-      fullRow: true,
       type: 'tags',
     },
     {
@@ -182,9 +172,18 @@ export const fileResPageCrudConfig: CrudPageConfig = {
       type: 'json',
     },
     {
+      key: 'coverUrl',
+      label: '封面图',
+      layoutNewRow: true,
+      table: true,
+      type: 'image',
+      uploadPath: FILE_STORAGE_SINGLE_UPLOAD_PATH,
+      width: 120,
+    },
+    {
       key: 'remark',
       label: '备注',
-      fullRow: true,
+      span: 2,
       type: 'textarea',
     },
     {

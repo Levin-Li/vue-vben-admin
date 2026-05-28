@@ -66,7 +66,7 @@ const draft = reactive<PayWayItemValue>({
   rate: undefined,
   title: '',
 });
-const editorModalStyle = { maxWidth: 'min(70vw, 720px)' };
+const editorModalStyle = { maxWidth: 'min(80vw, 720px)' };
 
 const logoFileList = computed<UploadFile[]>(() => {
   const logo = draft.logo?.trim();
@@ -335,6 +335,7 @@ onMounted(async () => {
 
   <Modal
     v-model:open="editorOpen"
+    :mask-closable="false"
     :style="editorModalStyle"
     :title="editingIndex >= 0 ? '编辑支付方式' : '新增支付方式'"
     width="fit-content"

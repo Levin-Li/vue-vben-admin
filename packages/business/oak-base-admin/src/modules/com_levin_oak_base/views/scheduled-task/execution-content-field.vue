@@ -12,6 +12,7 @@ import {
   Space,
   Spin,
   Tabs,
+  Tooltip,
   message,
 } from 'ant-design-vue';
 
@@ -50,13 +51,18 @@ const groovyDebugTimeoutSeconds = ref<number>();
 
 const normalizedType = computed(() => String(props.executionContentType || ''));
 const isGroovy = computed(() => normalizedType.value === 'GroovyScript');
-const canEditGroovy = computed(() => !isGroovy.value || props.groovyAllowed === true);
+const canEditGroovy = computed(
+  () => !isGroovy.value || props.groovyAllowed === true,
+);
 const isSpringBean = computed(
   () =>
     normalizedType.value === 'SpringBeanName' ||
     normalizedType.value === 'SpringBeanClassName',
 );
 const taskId = computed(() => props.task?.id || props.editingRecord?.id);
+const groovyDebugDisabledReason = computed(() =>
+  taskId.value ? '' : '新增任务保存后才能调试',
+);
 
 const placeholder = computed(() => {
   if (normalizedType.value === 'SpringBeanName') {
@@ -66,7 +72,9 @@ const placeholder = computed(() => {
     return '请选择 Spring Bean 类名';
   }
   if (isGroovy.value) {
-    return canEditGroovy.value ? '点击编辑 Groovy 脚本' : '只有超级管理员可以编辑 Groovy 脚本';
+    return canEditGroovy.value
+      ? '点击编辑 Groovy 脚本'
+      : '只有超级管理员可以编辑 Groovy 脚本';
   }
   return '请先选择执行内容类型';
 });
@@ -188,7 +196,9 @@ function openGroovyEditor() {
   groovyDraftValue.value = props.modelValue || '';
   groovyDebugParamsText.value = toPrettyJson(props.task?.runParams || {});
   groovyDebugTimeoutSeconds.value =
-    props.task?.timeoutSeconds == null ? undefined : Number(props.task.timeoutSeconds);
+    props.task?.timeoutSeconds == null
+      ? undefined
+      : Number(props.task.timeoutSeconds);
   groovyEditorTab.value = 'code';
   groovyDebugTab.value = 'input';
   groovyEditorOpen.value = true;
@@ -325,6 +335,7 @@ watch(
       <Modal
         :body-style="{ maxHeight: 'calc(100vh - 220px)', overflow: 'auto' }"
         destroy-on-close
+        :mask-closable="false"
         :open="groovyEditorOpen"
         ok-text="保存"
         title="编辑 Groovy 脚本"
@@ -375,14 +386,18 @@ watch(
                       :min="1"
                       placeholder="超时秒"
                     />
-                    <Button
-                      :disabled="!taskId"
-                      :loading="groovyDebugLoading"
-                      type="primary"
-                      @click="runGroovyDebug"
-                    >
-                      运行调试
-                    </Button>
+                    <Tooltip :title="groovyDebugDisabledReason || undefined">
+                      <span class="inline-block">
+                        <Button
+                          :disabled="!!groovyDebugDisabledReason"
+                          :loading="groovyDebugLoading"
+                          type="primary"
+                          @click="runGroovyDebug"
+                        >
+                          运行调试
+                        </Button>
+                      </span>
+                    </Tooltip>
                   </Space>
                   <div class="scheduled-task-script-debug-tip">
                     在线调试只引用服务端已保存脚本，不会携带当前未保存代码；新增任务请先保存后再调试。
@@ -423,7 +438,9 @@ watch(
                   </section>
                   <section class="scheduled-task-script-help-section">
                     <h4>示例</h4>
-                    <pre class="scheduled-task-script-help-code">{{ groovyHelpExample }}</pre>
+                    <pre class="scheduled-task-script-help-code">{{
+                      groovyHelpExample
+                    }}</pre>
                   </section>
                 </div>
               </Tabs.TabPane>
@@ -449,12 +466,7 @@ watch(
       />
     </Spin>
 
-    <Alert
-      v-else
-      :message="helpText || placeholder"
-      show-icon
-      type="warning"
-    />
+    <Alert v-else :message="helpText || placeholder" show-icon type="warning" />
 
     <div v-if="helpText" class="execution-content-help">
       {{ helpText }}

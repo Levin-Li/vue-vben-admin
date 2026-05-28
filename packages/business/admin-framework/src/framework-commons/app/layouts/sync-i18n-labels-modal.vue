@@ -300,6 +300,7 @@ watch(treeRows, (data) => {
     v-model:open="openProxy"
     :body-style="{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }"
     :confirm-loading="loading"
+    :mask-closable="false"
     :ok-button-props="{ disabled: selectedLanguageRows.length === 0 }"
     ok-text="上传"
     title="上传国际化资源"

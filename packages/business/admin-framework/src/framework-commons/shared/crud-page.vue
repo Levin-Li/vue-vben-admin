@@ -137,6 +137,8 @@ import { shouldShowCrudFormField } from './crud-form-field-visibility';
 import {
   getContainerColumnCount,
   getFormFieldColumnSpan,
+  getFormGridContentMaxWidth,
+  getFormModalRecommendedMaxWidth,
   MAX_SEARCH_COLUMN_COUNT,
   MIN_SEARCH_COLUMN_WIDTH,
   resolveFormColumnCount,
@@ -166,6 +168,10 @@ import { evaluateCrudVisibleOn } from './crud-visible-on';
 import CronExpressionField from './cron-expression-field.vue';
 import { buildDetailDisplayEntries } from './detail-display';
 import DetailDisplayPanel from './detail-display-panel.vue';
+import {
+  DEFAULT_CONTENT_MODAL_BODY_STYLE,
+  DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+} from './config-helpers';
 import JsonEditorField from './json-editor-field.vue';
 import JsonSchemaEditorField from './json-schema-editor-field.vue';
 import {
@@ -237,7 +243,7 @@ interface TableSorterState {
 }
 
 const DEFAULT_SEARCH_COLLAPSED_COUNT = 3;
-const DEFAULT_CRUD_MODAL_WIDTH = 'min(70vw, 1280px)';
+const DEFAULT_CRUD_MODAL_WIDTH = 'min(80vw, 1280px)';
 const EXPORT_LIMIT_ERROR_MESSAGE = 'EXPORT_LIMIT_EXCEEDED';
 const EXPORT_MAX_RECORDS = 50_000;
 const EXPORT_PAGE_SIZE = 2000;
@@ -314,7 +320,7 @@ const listToolbarRef = ref<HTMLElement | null>(null);
 const tableScrollY = ref(360);
 const tableFullscreen = ref(false);
 const activeListTableKey = ref('');
-const listTableTabsCollapsed = ref(false);
+const listTableTabsCollapsed = ref(true);
 const isDraggingListTableTabs = ref(false);
 const listTableTabsHandleTooltipOpen = ref(false);
 const hiddenTableColumnKeys = ref<string[]>([]);
@@ -1157,11 +1163,10 @@ function resolveTableColumnWidth(field: CrudFieldConfig) {
 }
 
 function getModalAvailableWidth() {
-  const configuredWidth = props.config.modalWidth;
   const configuredMaxWidth =
-    typeof configuredWidth === 'number' ? configuredWidth : 1280;
+    getConfiguredModalMaxWidthPx(props.config.modalWidth) || 1280;
 
-  return Math.min(viewportWidth.value * 0.7, configuredMaxWidth);
+  return Math.min(viewportWidth.value * 0.8, configuredMaxWidth);
 }
 
 const searchColumnCount = computed(() =>
@@ -1188,6 +1193,9 @@ const formColumnCount = computed(() => {
 
 const formGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${formColumnCount.value}, minmax(0, 1fr))`,
+  margin: '0 auto',
+  maxWidth: `${getFormGridContentMaxWidth(formColumnCount.value)}px`,
+  width: '100%',
 }));
 
 const formContainerStyle = computed(() => ({
@@ -1222,31 +1230,64 @@ function shouldFormItemSpanTwoColumns(field: CrudFieldConfig) {
   );
 }
 
-function shouldConstrainFormItemWidth(field: CrudFieldConfig) {
+function getConfiguredModalMaxWidthPx(
+  configuredWidth: CrudPageConfig['modalWidth'],
+) {
+  if (typeof configuredWidth === 'number' && Number.isFinite(configuredWidth)) {
+    return configuredWidth;
+  }
+
+  if (typeof configuredWidth !== 'string') {
+    return undefined;
+  }
+
+  const widthText = configuredWidth.trim();
+  const pixelMatches = [...widthText.matchAll(/(\d+(?:\.\d+)?)px/g)];
+  const lastPixelMatch = pixelMatches.at(-1);
+
+  if (!lastPixelMatch) {
+    return undefined;
+  }
+
+  const width = Number(lastPixelMatch[1]);
+  return Number.isFinite(width) ? width : undefined;
+}
+
+function isDefaultCrudModalWidth(
+  configuredWidth: CrudPageConfig['modalWidth'],
+) {
   return (
-    getFormFieldColumnSpan(field, formColumnCount.value) === 1 &&
-    !shouldFormFieldSpanFullRow(field) &&
-    field.type !== 'textarea' &&
-    field.type !== 'string-array' &&
-    field.type !== 'tags'
+    configuredWidth === undefined ||
+    String(configuredWidth).trim() === DEFAULT_CRUD_MODAL_WIDTH
   );
 }
 
-const modalMaxWidth = computed(() => {
-  const configuredWidth = props.config.modalWidth || DEFAULT_CRUD_MODAL_WIDTH;
+const resolvedModalMaxWidthPx = computed(() => {
+  const recommendedWidth = getFormModalRecommendedMaxWidth(
+    formColumnCount.value,
+  );
 
-  if (typeof configuredWidth === 'number') {
-    return `min(70vw, ${configuredWidth}px)`;
+  if (isDefaultCrudModalWidth(props.config.modalWidth)) {
+    return recommendedWidth;
   }
 
-  return String(configuredWidth).trim() || DEFAULT_CRUD_MODAL_WIDTH;
+  const configuredWidth =
+    getConfiguredModalMaxWidthPx(props.config.modalWidth) || recommendedWidth;
+
+  return Math.max(configuredWidth, recommendedWidth);
+});
+
+const modalMaxWidth = computed(() => {
+  return `min(80vw, ${resolvedModalMaxWidthPx.value}px)`;
 });
 
 const modalStyle = computed(() => ({
+  maxHeight: DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
   maxWidth: modalMaxWidth.value,
 }));
 
 const modalWidth = computed(() => modalMaxWidth.value);
+const modalBodyStyle = DEFAULT_CONTENT_MODAL_BODY_STYLE;
 
 function handleViewportResize() {
   viewportWidth.value = window.innerWidth;
@@ -5887,7 +5928,9 @@ watch(tableColumnPreferenceStorageKey, () => {
 
     <Modal
       v-if="canCreate || (canEdit && editingRecord)"
+      :body-style="modalBodyStyle"
       :confirm-loading="submitting"
+      :mask-closable="false"
       :open="modalOpen"
       :title="
         editingRecord
@@ -5912,12 +5955,11 @@ watch(tableColumnPreferenceStorageKey, () => {
             :label="field.label"
             :required="field.required"
             :extra="field.help"
-            class="mb-0 w-full justify-self-center"
+            class="mb-0 w-full"
             :class="{
               'vben-crud-form-item-new-row': field.layoutNewRow,
               'col-span-full': shouldFormItemSpanFullRow(field),
               'md:col-span-2': shouldFormItemSpanTwoColumns(field),
-              'max-w-[480px]': shouldConstrainFormItemWidth(field),
             }"
             :style="getFormItemStyle(field)"
           >
@@ -6054,6 +6096,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               "
               v-model:value="formState[field.key]"
               :auto-size="{ minRows: 3, maxRows: 8 }"
+              class="w-full"
               :disabled="isFieldDisabledOnEdit(field)"
               :maxlength="field.maxLength"
               :placeholder="getPlaceholder(field)"
@@ -6163,9 +6206,10 @@ watch(tableColumnPreferenceStorageKey, () => {
 
     <Modal
       v-model:open="actionResultOpen"
+      :body-style="modalBodyStyle"
       :footer="null"
       :title="actionResultTitle"
-      :width="actionResultMode === 'showForm' ? '70vw' : '720px'"
+      :width="actionResultMode === 'showForm' ? '80vw' : '720px'"
     >
       <div
         v-if="actionResultMode === 'showQrCode'"

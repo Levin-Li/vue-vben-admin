@@ -3,7 +3,13 @@ import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
 
 export const OAK_BASE_API_MODULE = '/com.levin.oak.base/V1/api';
-export const DEFAULT_CRUD_MODAL_WIDTH = 'min(70vw, 1280px)';
+export const DEFAULT_CRUD_MODAL_WIDTH = 'min(80vw, 1280px)';
+export const DEFAULT_CONTENT_MODAL_MAX_HEIGHT = '90vh';
+export const DEFAULT_CONTENT_MODAL_BODY_MAX_HEIGHT = 'calc(90vh - 128px)';
+export const DEFAULT_CONTENT_MODAL_BODY_STYLE = {
+  maxHeight: DEFAULT_CONTENT_MODAL_BODY_MAX_HEIGHT,
+  overflowY: 'auto',
+} as const;
 
 export function withOptionSearchParams(
   defaultParams: Record<string, any>,

@@ -8,6 +8,8 @@ import { JsonViewer } from '@vben/common-ui';
 
 import { Button, Modal, Tooltip } from 'ant-design-vue';
 
+import { DEFAULT_CONTENT_MODAL_BODY_STYLE } from './config-helpers';
+
 import {
   formatDetailDisplayValue,
   formatDetailJsonText,
@@ -104,6 +106,7 @@ function getDisplayText(entry: DetailDisplayEntry) {
 
   <Modal
     v-model:open="jsonViewerOpen"
+    :body-style="DEFAULT_CONTENT_MODAL_BODY_STYLE"
     :footer="null"
     :title="jsonViewerTitle"
     width="min(82vw, 1280px)"
@@ -122,7 +125,7 @@ function getDisplayText(entry: DetailDisplayEntry) {
 
 <style scoped>
 :global(.crud-detail-display-tooltip) {
-  max-width: min(70vw, 960px);
+  max-width: min(80vw, 960px);
 }
 
 :global(.crud-detail-display-tooltip .ant-tooltip-inner) {

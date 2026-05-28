@@ -51,6 +51,7 @@ export const demoPageCrudConfig: CrudPageConfig = {
     {
       key: 'imageUrl',
       label: '单张图片',
+      layoutNewRow: true,
       table: true,
       type: 'image',
       width: 120,
@@ -58,12 +59,19 @@ export const demoPageCrudConfig: CrudPageConfig = {
     {
       key: 'imageUrls',
       label: '图片集',
-      fullRow: true,
       multiple: true,
       type: 'image',
     },
-    { key: 'fileUrl', label: '文件链接', type: 'file' },
-    { key: 'pdfFileUrl', label: 'PDF文件', type: 'file' },
+    {
+      key: 'fileUrl',
+      label: '文件链接',
+      type: 'file',
+    },
+    {
+      key: 'pdfFileUrl',
+      label: 'PDF文件',
+      type: 'file',
+    },
     { key: 'num', label: '数值', type: 'number' },
     {
       key: 'gteLocalDateTime',

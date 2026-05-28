@@ -89,7 +89,7 @@ function getMappingFieldLabel(
 <template>
   <Modal
     :keyboard="!importing"
-    :mask-closable="!importing"
+    :mask-closable="false"
     :open="open"
     title="导入数据"
     width="980px"

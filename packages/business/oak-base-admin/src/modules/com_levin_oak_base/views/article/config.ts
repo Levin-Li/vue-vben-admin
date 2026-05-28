@@ -195,7 +195,6 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'coverImgUrls',
       label: '封面图',
-      fullRow: true,
       multiple: true,
       table: true,
       type: 'image',
@@ -205,13 +204,14 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'keywords',
       label: '关键字',
-      fullRow: true,
+      layoutNewRow: true,
+      span: 2,
       type: 'tags',
     },
     {
       key: 'tagList',
       label: '标签列表',
-      fullRow: true,
+      span: 2,
       type: 'tags',
     },
     {

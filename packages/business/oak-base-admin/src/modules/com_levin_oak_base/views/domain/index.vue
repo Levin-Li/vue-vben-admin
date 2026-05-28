@@ -430,6 +430,7 @@ onMounted(async () => {
         v-model:open="domainApplyOpen"
         :confirm-loading="domainApplying"
         destroy-on-close
+        :mask-closable="false"
         title="申请域名"
         @cancel="closeDomainApply"
         @ok="

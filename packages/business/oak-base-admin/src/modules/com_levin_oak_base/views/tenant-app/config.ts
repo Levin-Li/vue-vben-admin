@@ -73,7 +73,12 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
     { key: 'logo', label: '应用Logo', table: true, type: 'image', width: 120 },
     { key: 'entryUrl', label: '应用入口', table: true, width: 220 },
     { key: 'infoUrl', label: '应用说明页', table: true, width: 220 },
-    { key: 'modules', label: '模块列表', fullRow: true, type: 'tags' },
+    {
+      key: 'modules',
+      label: '模块列表',
+      span: 2,
+      type: 'tags',
+    },
     { key: 'appSecret', label: '应用密钥', type: 'password' },
     {
       key: 'salePrice',

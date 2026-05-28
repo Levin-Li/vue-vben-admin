@@ -144,7 +144,12 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
       remoteSearch: true,
       type: 'role-select',
     },
-    { key: 'anyUserTypes', label: '任意用户类型', fullRow: true, type: 'tags' },
+    {
+      key: 'anyUserTypes',
+      label: '任意用户类型',
+      span: 2,
+      type: 'tags',
+    },
     {
       key: 'enable',
       label: '是否启用',

@@ -996,6 +996,7 @@ function getPreviewIcon(record: FileResourceRecord) {
     <Modal
       v-model:open="editorOpen"
       :confirm-loading="editorSaving"
+      :mask-closable="false"
       :title="getEditorTitle()"
       width="min(960px, 90vw)"
       @cancel="closeEditor"

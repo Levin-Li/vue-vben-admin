@@ -45,7 +45,9 @@ function transformRuleSubmit(values: Record<string, any>) {
   return {
     ...values,
     headerRuleList: normalizeNameValueRuleList(values.headerRuleList),
-    requestParamRuleList: normalizeNameValueRuleList(values.requestParamRuleList),
+    requestParamRuleList: normalizeNameValueRuleList(
+      values.requestParamRuleList,
+    ),
   };
 }
 
@@ -127,6 +129,7 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
       key: 'urlPathList',
       label: 'URL包含列表',
       help: '可搜索授权控制器路径填入，也可手动配置通配符数组；支持*和?，例如 /api/order/*、/api/order/??/detail。本字段内任一命中。',
+      layoutNewRow: true,
       loadOptions: authorizedControllerPathOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -280,13 +283,13 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'rejectMessage',
       label: '拒绝提示',
-      span: 2,
+      fullRow: true,
+      layoutNewRow: true,
       type: 'textarea',
     },
     {
       key: 'exInfo',
       label: '扩展信息',
-      fullRow: true,
       type: 'json',
     },
     {

@@ -108,7 +108,7 @@ const editValueModalWidth = computed(() => {
   }
 
   if (editorKind === 'json-schema') {
-    return 'min(70vw, 960px)';
+    return 'min(80vw, 960px)';
   }
 
   return 'min(64vw, 880px)';
@@ -427,6 +427,7 @@ onMounted(() => {
       :confirm-loading="editValueSubmitting"
       destroy-on-close
       :footer="editValueReadonly ? null : undefined"
+      :mask-closable="false"
       ok-text="保存"
       :title="editValueTitle"
       :width="editValueModalWidth"

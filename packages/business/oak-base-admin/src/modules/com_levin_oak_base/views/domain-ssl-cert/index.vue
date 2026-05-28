@@ -328,6 +328,7 @@ watch(
       <Modal
         v-model:open="manualOpen"
         :confirm-loading="manualSubmitting"
+        :mask-closable="false"
         :width="960"
         destroy-on-close
         title="手动配置证书"

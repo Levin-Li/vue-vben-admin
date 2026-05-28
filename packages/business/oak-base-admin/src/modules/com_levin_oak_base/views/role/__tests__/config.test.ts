@@ -8,7 +8,7 @@ vi.mock('../../../api/role-service', () => ({
 
 vi.mock('../../api-module', () => ({
   confidentialLevelOptionsLoader: async () => [],
-  DEFAULT_CRUD_MODAL_WIDTH: 'min(70vw, 1280px)',
+  DEFAULT_CRUD_MODAL_WIDTH: 'min(80vw, 1280px)',
   moduleFetchDictOptions: () => async () => [],
   roleOptionsLoader: async () => [],
   tenantOptionsLoader: async () => [],
@@ -57,7 +57,7 @@ describe('role page config', () => {
   it('uses the shared large modal width for balanced form columns', () => {
     const { config } = useRolePageConfig();
 
-    expect(config.value.modalWidth).toBe('min(70vw, 1280px)');
+    expect(config.value.modalWidth).toBe('min(80vw, 1280px)');
   });
 
   it('limits role assignment precondition form field to super admins', () => {

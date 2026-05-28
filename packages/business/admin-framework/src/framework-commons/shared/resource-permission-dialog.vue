@@ -151,6 +151,7 @@ watch(
 <template>
   <Modal
     :confirm-loading="saving"
+    :mask-closable="false"
     :ok-button-props="{ disabled: saveDisabled }"
     :open="open"
     :title="dialogTitle"

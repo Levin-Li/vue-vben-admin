@@ -138,6 +138,7 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'icon',
       label: '图标',
+      layoutNewRow: true,
       table: true,
       type: 'image',
       uploadPath: FILE_STORAGE_SINGLE_UPLOAD_PATH,
@@ -152,7 +153,6 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'coverImgUrls',
       label: '封面图片',
-      fullRow: true,
       multiple: true,
       type: 'image',
       uploadPath: FILE_STORAGE_MULTI_UPLOAD_PATH,
@@ -160,7 +160,6 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'imgUrls',
       label: '图片',
-      fullRow: true,
       multiple: true,
       type: 'image',
       uploadPath: FILE_STORAGE_MULTI_UPLOAD_PATH,
@@ -168,13 +167,14 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'avUrls',
       label: '音视频地址',
-      fullRow: true,
+      layoutNewRow: true,
+      span: 2,
       type: 'tags',
     },
     {
       key: 'keywords',
       label: '关键字',
-      fullRow: true,
+      span: 2,
       type: 'tags',
     },
     {

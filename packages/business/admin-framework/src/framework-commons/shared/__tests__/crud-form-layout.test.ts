@@ -6,7 +6,8 @@ import {
   estimateFormVisualRows,
   getContainerColumnCount,
   getFormFieldColumnSpan,
-  getFormFieldVisualAffinityKey,
+  getFormGridContentMaxWidth,
+  getFormModalRecommendedMaxWidth,
   resolveFormColumnCount,
   resolveSearchCollapsedCount,
   sortFormLayoutFields,
@@ -20,14 +21,14 @@ describe('crud form layout', () => {
     type: 'text',
   });
 
-  it('lets explicit positive span override tag field defaults', () => {
+  it('uses only static layout config for field spans', () => {
     const source = readFileSync(
       'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
       'utf8',
     );
     const spanClassBlock = source.slice(
       source.indexOf("'md:col-span-2'"),
-      source.indexOf("'max-w-[480px]'"),
+      source.indexOf(':style="getFormItemStyle(field)"'),
     );
 
     expect(source).toContain('style.gridColumn');
@@ -36,9 +37,7 @@ describe('crud form layout', () => {
     );
     expect(source).toContain('grid-column-start: 1 !important');
     expect(spanClassBlock).toContain('shouldFormItemSpanTwoColumns(field)');
-    expect(spanClassBlock).not.toContain("field.type !== 'tags'");
-    expect(spanClassBlock).not.toContain("field.type !== 'string-array'");
-    expect(spanClassBlock).not.toContain("field.type !== 'textarea'");
+    expect(spanClassBlock).not.toContain('field.type');
 
     expect(
       getFormFieldColumnSpan(
@@ -48,10 +47,16 @@ describe('crud form layout', () => {
     ).toBe(2);
     expect(
       getFormFieldColumnSpan({ key: 'tags', label: '标签', type: 'tags' }, 4),
+    ).toBe(1);
+    expect(
+      getFormFieldColumnSpan(
+        { key: 'tags', label: '标签', fullRow: true, type: 'tags' },
+        4,
+      ),
     ).toBe(4);
   });
 
-  it('keeps json fields compact by default while honoring explicit span config', () => {
+  it('keeps fields one column by default while honoring explicit json layout config', () => {
     const source = readFileSync(
       'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
       'utf8',
@@ -63,8 +68,14 @@ describe('crud form layout', () => {
     expect(source).toContain(
       "'md:col-span-2': shouldFormItemSpanTwoColumns(field)",
     );
+    expect(source).not.toContain('shouldConstrainFormItemWidth');
     expect(source).toContain(
-      "'max-w-[480px]': shouldConstrainFormItemWidth(field)",
+      "maxWidth: `${getFormGridContentMaxWidth(formColumnCount.value)}px`",
+    );
+    expect(source).not.toContain('justify-self-center');
+    expect(source).toContain('class="w-full"');
+    expect(source).toContain(
+      'return `min(80vw, ${resolvedModalMaxWidthPx.value}px)`',
     );
 
     const defaultJsonField: CrudFieldConfig = {
@@ -79,19 +90,96 @@ describe('crud form layout', () => {
       span: -1,
       type: 'json',
     };
+    const fullRowJsonField: CrudFieldConfig = {
+      fullRow: true,
+      key: 'config',
+      label: '配置',
+      type: 'json',
+    };
+    const fullRowWithSpanJsonField: CrudFieldConfig = {
+      fullRow: true,
+      key: 'config',
+      label: '配置',
+      span: 2,
+      type: 'json',
+    };
 
     expect(getFormFieldColumnSpan(defaultJsonField, 4)).toBe(1);
     expect(getFormFieldColumnSpan(explicitWideJsonField, 4)).toBe(4);
-    expect(getFormFieldVisualAffinityKey(defaultJsonField)).toBe(
-      getFormFieldVisualAffinityKey({
-        key: 'name',
-        label: '名称',
-        type: 'text',
-      }),
+    expect(getFormFieldColumnSpan(fullRowJsonField, 4)).toBe(4);
+    expect(getFormFieldColumnSpan(fullRowWithSpanJsonField, 4)).toBe(4);
+    expect(getFormFieldColumnSpan(textField('name'), 4)).toBe(1);
+  });
+
+  it('uses the current content-form modal width cap and full-width controls', () => {
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'utf8',
     );
+
+    expect(source).toContain(
+      "const DEFAULT_CRUD_MODAL_WIDTH = 'min(80vw, 1280px)'",
+    );
+    expect(source).toContain('viewportWidth.value * 0.8');
+    expect(source).toContain('DEFAULT_CONTENT_MODAL_MAX_HEIGHT');
+    expect(source).toContain('DEFAULT_CONTENT_MODAL_BODY_STYLE');
+    expect(source).toContain(':body-style="modalBodyStyle"');
+    expect(source).toContain(':mask-closable="false"');
+    expect(source).not.toContain('min(70vw');
+    expect(source).not.toContain('max-w-[480px]');
+    expect(source).not.toContain('justify-self-center');
+    expect(source).toContain('<Input.TextArea');
+    expect(source).toContain('class="w-full"');
+  });
+
+  it('uses one shared content grid boundary for compact and full-row fields', () => {
+    expect(getFormGridContentMaxWidth(1)).toBe(480);
+    expect(getFormGridContentMaxWidth(2)).toBe(976);
+    expect(getFormGridContentMaxWidth(3)).toBe(1472);
+  });
+
+  it('keeps modal width recommendations monotonic by form column count', () => {
+    expect(getFormModalRecommendedMaxWidth(1)).toBe(560);
+    expect(getFormModalRecommendedMaxWidth(2)).toBe(960);
+    expect(getFormModalRecommendedMaxWidth(3)).toBe(1120);
+    expect(getFormModalRecommendedMaxWidth(4)).toBe(1280);
+    expect(getFormModalRecommendedMaxWidth(5)).toBe(1480);
   });
 
   it('allows four form columns on desktop-width modals', () => {
+    expect(
+      resolveFormColumnCount({
+        fields: Array.from({ length: 24 }, (_, index) =>
+          textField(`field${index}`),
+        ),
+        modalAvailableWidth: 1280,
+        viewportHeight: 900,
+        viewportWidth: 1440,
+      }),
+    ).toBe(4);
+  });
+
+  it('falls back through the recommended width tiers when the modal is too narrow', () => {
+    expect(
+      resolveFormColumnCount({
+        fields: Array.from({ length: 24 }, (_, index) =>
+          textField(`field${index}`),
+        ),
+        modalAvailableWidth: 1008,
+        viewportHeight: 900,
+        viewportWidth: 1440,
+      }),
+    ).toBe(2);
+    expect(
+      resolveFormColumnCount({
+        fields: Array.from({ length: 24 }, (_, index) =>
+          textField(`field${index}`),
+        ),
+        modalAvailableWidth: 1120,
+        viewportHeight: 900,
+        viewportWidth: 1440,
+      }),
+    ).toBe(3);
     expect(
       resolveFormColumnCount({
         fields: Array.from({ length: 24 }, (_, index) =>
@@ -158,7 +246,7 @@ describe('crud form layout', () => {
     expect(resolveSearchCollapsedCount(8, 1, 4)).toBe(4);
   });
 
-  it('groups visually similar flexible fields inside the same form layout group', () => {
+  it('keeps source order unless static layout group or order config says otherwise', () => {
     const fields: CrudFieldConfig[] = [
       { key: 'name', label: '名称', layoutGroup: 'basic', type: 'text' },
       {
@@ -178,16 +266,13 @@ describe('crud form layout', () => {
 
     expect(sortFormLayoutFields(fields).map((field) => field.key)).toEqual([
       'name',
-      'code',
       'enabled',
+      'code',
       'editable',
     ]);
-    expect(getFormFieldVisualAffinityKey(fields[0]!)).toBe(
-      getFormFieldVisualAffinityKey(fields[2]!),
-    );
   });
 
-  it('keeps explicit layout controls as barriers while grouping flexible fields', () => {
+  it('uses only static layout group and order config when sorting fields', () => {
     const fields: CrudFieldConfig[] = [
       { key: 'name', label: '名称', layoutGroup: 'basic', type: 'text' },
       {
@@ -202,6 +287,7 @@ describe('crud form layout', () => {
         key: 'editable',
         label: '是否可编辑',
         layoutGroup: 'basic',
+        layoutOrder: 0.5,
         type: 'switch',
       },
       {
@@ -215,9 +301,9 @@ describe('crud form layout', () => {
     expect(sortFormLayoutFields(fields).map((field) => field.key)).toEqual([
       'ownerId',
       'name',
+      'editable',
       'enabled',
       'code',
-      'editable',
     ]);
   });
 });

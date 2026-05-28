@@ -9,7 +9,7 @@ vi.mock('../../../api/url-ex-acl-service', () => ({
 vi.mock('../../api-module', () => ({
   authorizedControllerPathOptionsLoader: async () => [],
   buildEnumOptionsLoader: () => async () => [],
-  DEFAULT_CRUD_MODAL_WIDTH: '70%',
+  DEFAULT_CRUD_MODAL_WIDTH: '80%',
   roleOptionsLoader: async () => [],
   tenantSiteDomainOptionsLoader: async () => [],
   tenantOptionsLoader: async () => [],

@@ -413,7 +413,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'tagList',
       label: '标签列表',
-      fullRow: true,
+      layoutNewRow: true,
+      span: 2,
       table: true,
       type: 'tags',
       width: 180,
@@ -428,7 +429,7 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'domainList',
       label: '可登录域名列表',
-      fullRow: true,
+      span: 2,
       placeholder: '输入域名后回车，空值或空列表表示不限制',
       table: true,
       type: 'tags',

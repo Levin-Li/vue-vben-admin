@@ -34,7 +34,9 @@ function buildScheduledTaskAction(methodName: ScheduledTaskActionMethod) {
     });
 }
 
-function buildScheduledTaskActionPermission(methodName: ScheduledTaskActionMethod) {
+function buildScheduledTaskActionPermission(
+  methodName: ScheduledTaskActionMethod,
+) {
   return buildApiMethodPermissions(scheduledTaskService, methodName);
 }
 
@@ -207,13 +209,11 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'schedulerConfig',
       label: '调度器配置',
-      fullRow: true,
       type: 'json',
     },
     {
       key: 'runParams',
       label: '执行参数',
-      fullRow: true,
       type: 'json',
     },
     {

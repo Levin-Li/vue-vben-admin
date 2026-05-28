@@ -38,7 +38,7 @@ const draft = reactive<DictItemValue>({
   name: '',
   remark: '',
 });
-const editorModalStyle = { maxWidth: 'min(70vw, 640px)' };
+const editorModalStyle = { maxWidth: 'min(80vw, 640px)' };
 
 const normalizedItems = computed(() =>
   Array.isArray(props.items)
@@ -184,6 +184,7 @@ function handleSave() {
 
   <Modal
     v-model:open="editorOpen"
+    :mask-closable="false"
     :style="editorModalStyle"
     :title="editingIndex >= 0 ? '编辑字典项' : '新增字典项'"
     width="fit-content"

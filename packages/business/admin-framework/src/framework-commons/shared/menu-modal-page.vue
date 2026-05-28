@@ -20,6 +20,7 @@ const open = ref(true);
     <Modal
       v-model:open="open"
       :footer="null"
+      :mask-closable="false"
       :title="String(route.meta.title || '弹窗页面')"
       width="960px"
     >

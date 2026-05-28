@@ -10,7 +10,7 @@ vi.mock('../../api-module', () => ({
   authorizedControllerPathOptionsLoader: async () => [],
   buildDictOptionsLoader: () => async () => [],
   buildEnumOptionsLoader: () => async () => [],
-  DEFAULT_CRUD_MODAL_WIDTH: '70%',
+  DEFAULT_CRUD_MODAL_WIDTH: '80%',
   roleOptionsLoader: async () => [],
   tenantSiteDomainOptionsLoader: async () => [],
   tenantOptionsLoader: async () => [],
@@ -139,8 +139,9 @@ describe('traffic control rule page config', () => {
       visibleForSaasUser: true,
     });
     expect(fieldsByKey('rejectMessage')).toMatchObject({
+      fullRow: true,
       key: 'rejectMessage',
-      span: 2,
+      layoutNewRow: true,
       type: 'textarea',
     });
   });
@@ -193,5 +194,7 @@ describe('traffic control rule page config', () => {
 });
 
 function fieldsByKey(key: string) {
-  return trafficControlRulePageCrudConfig.fields.find((field) => field.key === key);
+  return trafficControlRulePageCrudConfig.fields.find(
+    (field) => field.key === key,
+  );
 }

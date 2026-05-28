@@ -45,6 +45,7 @@ const emit = defineEmits<{
 <template>
   <Modal
     :confirm-loading="confirmLoading"
+    :mask-closable="false"
     :open="open"
     title="导出 Excel"
     width="720px"

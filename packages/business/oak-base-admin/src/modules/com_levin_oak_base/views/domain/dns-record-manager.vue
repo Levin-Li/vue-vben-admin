@@ -517,6 +517,7 @@ watch(
     <AModal
       :confirm-loading="submitting"
       :destroy-on-close="true"
+      :mask-closable="false"
       :open="editorOpen"
       :title="editorMode === 'edit' ? '编辑解析记录' : '新增解析记录'"
       @cancel="closeEditor"

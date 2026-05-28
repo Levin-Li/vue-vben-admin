@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Input, Modal } from 'ant-design-vue';
@@ -7,6 +9,21 @@ import JsonSchemaFormField from '../json-schema-form-field.vue';
 describe('json schema form field', () => {
   afterEach(() => {
     document.body.innerHTML = '';
+  });
+
+  it('fills the assigned grid columns without an inner 480px cap', () => {
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/shared/json-schema-form-field.vue',
+      'utf8',
+    );
+
+    expect(source).toContain(':style="popupGridStyle"');
+    expect(source).toContain(
+      'gridTemplateColumns: `repeat(${popupColumnCount.value}, minmax(0, 1fr))`',
+    );
+    expect(source).not.toContain('max-width: 480px');
+    expect(source).not.toContain('justify-self-center');
+    expect(source).toContain('class="w-full"');
   });
 
   it('preserves json metadata when saving from the default popup editor', async () => {

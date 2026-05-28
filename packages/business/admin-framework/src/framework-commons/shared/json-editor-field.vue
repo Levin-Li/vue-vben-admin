@@ -4,6 +4,11 @@ import { computed, ref, watch } from 'vue';
 import { Input, Modal } from 'ant-design-vue';
 import JsonEditorVue from 'json-editor-vue';
 
+import {
+  DEFAULT_CONTENT_MODAL_BODY_STYLE,
+  DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+} from './config-helpers';
+
 const props = withDefaults(
   defineProps<{
     disabled?: boolean;
@@ -18,7 +23,7 @@ const props = withDefaults(
     disabled: false,
     inline: false,
     inlineMinHeight: 'min(62vh, 640px)',
-    modalWidth: 'min(70vw, 1280px)',
+    modalWidth: 'min(80vw, 1280px)',
     title: 'JSON',
   },
 );
@@ -88,8 +93,14 @@ watch(
 );
 
 const modalBodyStyle = {
+  ...DEFAULT_CONTENT_MODAL_BODY_STYLE,
   paddingTop: '12px',
 };
+
+const contentModalStyle = computed(() => ({
+  maxHeight: DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+  ...(props.modalStyle || {}),
+}));
 
 const editorStyle = computed(() => ({
   height: props.inline ? props.inlineMinHeight : 'min(62vh, 640px)',
@@ -140,8 +151,9 @@ watch(
       v-model:open="open"
       :body-style="modalBodyStyle"
       destroy-on-close
+      :mask-closable="false"
       ok-text="保存"
-      :style="modalStyle"
+      :style="contentModalStyle"
       :title="modalTitle"
       :width="modalWidth"
       @ok="handleOk"

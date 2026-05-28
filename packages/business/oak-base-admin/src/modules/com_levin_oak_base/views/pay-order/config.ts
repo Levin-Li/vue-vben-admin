@@ -199,8 +199,16 @@ export const payOrderPageCrudConfig: CrudPageConfig = {
       fullRow: true,
       type: 'textarea',
     },
-    { key: 'payInfo', label: '支付快照信息', fullRow: true, type: 'json' },
-    { key: 'exchangeInfo', label: '换汇信息', fullRow: true, type: 'json' },
+    {
+      key: 'payInfo',
+      label: '支付快照信息',
+      type: 'json',
+    },
+    {
+      key: 'exchangeInfo',
+      label: '换汇信息',
+      type: 'json',
+    },
     {
       key: 'gtePayTime',
       label: '支付时间开始',

@@ -202,6 +202,7 @@ function clearPermission(index: number) {
     <Modal
       v-model:open="permissionModalOpen"
       :confirm-loading="permissionLoading"
+      :mask-closable="false"
       :ok-button-props="{ disabled: permissionLoading }"
       title="选择资源权限"
       :width="1080"

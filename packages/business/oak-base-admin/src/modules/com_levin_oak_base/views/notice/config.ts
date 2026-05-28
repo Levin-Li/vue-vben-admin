@@ -153,13 +153,11 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'matchCategoryList',
       label: '匹配用户类别',
-      fullRow: true,
       type: 'tags',
     },
     {
       key: 'matchJobPostCodeList',
       label: '匹配岗位编码',
-      fullRow: true,
       loadOptions: jobPostOptionsLoader,
       multiple: true,
       remoteSearch: true,
@@ -168,7 +166,6 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'matchRoleCodeList',
       label: '匹配角色列表',
-      fullRow: true,
       loadOptions: roleOptionsLoader,
       multiple: true,
       remoteSearch: true,

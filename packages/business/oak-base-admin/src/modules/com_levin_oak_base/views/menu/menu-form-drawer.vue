@@ -226,7 +226,7 @@ async function submit() {
   <Drawer
     :open="open"
     :title="drawerTitle"
-    width="min(70vw, 1120px)"
+    width="min(80vw, 1120px)"
     @close="close"
   >
     <Form layout="vertical">

@@ -160,7 +160,11 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
       label: '支持支付方式',
       fullRow: true,
     },
-    { key: 'detailInfo', label: '通道详情', fullRow: true, type: 'json' },
+    {
+      key: 'detailInfo',
+      label: '通道详情',
+      type: 'json',
+    },
     {
       key: 'enable',
       label: '是否启用',

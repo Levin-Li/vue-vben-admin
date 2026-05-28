@@ -3,6 +3,11 @@ import { computed, ref, watch } from 'vue';
 
 import { Button, Input, Modal } from 'ant-design-vue';
 
+import {
+  DEFAULT_CONTENT_MODAL_BODY_STYLE,
+  DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+} from './config-helpers';
+
 const props = withDefaults(
   defineProps<{
     disabled?: boolean;
@@ -17,7 +22,7 @@ const props = withDefaults(
     disabled: false,
     inline: false,
     language: 'text',
-    modalWidth: 'min(70vw, 1280px)',
+    modalWidth: 'min(80vw, 1280px)',
     title: '内容',
   },
 );
@@ -33,6 +38,10 @@ const previewText = computed(() => props.modelValue || '');
 const modalTitle = computed(() => `编辑${props.title}`);
 const editorClass = computed(() => ({
   'font-mono': props.language !== 'rich-text',
+}));
+const contentModalStyle = computed(() => ({
+  maxHeight: DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+  ...(props.modalStyle || {}),
 }));
 
 function openEditor() {
@@ -87,9 +96,11 @@ watch(
 
     <Modal
       v-model:open="open"
+      :body-style="DEFAULT_CONTENT_MODAL_BODY_STYLE"
       destroy-on-close
+      :mask-closable="false"
       ok-text="保存"
-      :style="modalStyle"
+      :style="contentModalStyle"
       :title="modalTitle"
       :width="modalWidth"
       @ok="handleOk"

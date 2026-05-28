@@ -2,10 +2,18 @@ import type { CrudFieldConfig } from './types';
 
 export const DEFAULT_FORM_ROW_HEIGHT = 78;
 export const FORM_GRID_COLUMN_GAP = 16;
+export const FORM_FIELD_MAX_WIDTH = 480;
 export const MAX_SEARCH_COLUMN_COUNT = 7;
 export const MIN_FORM_COLUMN_WIDTH = 240;
 export const MIN_SEARCH_COLUMN_WIDTH = 280;
 export const SEARCH_GRID_COLUMN_GAP = 16;
+export const FORM_MODAL_RECOMMENDED_MAX_WIDTH_BY_COLUMN = {
+  1: 560,
+  2: 960,
+  3: 1120,
+  4: 1280,
+  5: 1480,
+} as const;
 
 const FORM_LAYOUT_GROUP_ORDER = [
   'ownership',
@@ -16,21 +24,6 @@ const FORM_LAYOUT_GROUP_ORDER = [
   'extension',
   'remark',
   'audit',
-];
-
-const FORM_FIELD_COMPONENT_FAMILY_ORDER = [
-  'text',
-  'number',
-  'select',
-  'tree-select',
-  'cascader',
-  'date',
-  'time',
-  'switch',
-  'editor',
-  'upload',
-  'list',
-  'other',
 ];
 
 function clampInteger(value: number, min: number, max: number) {
@@ -106,49 +99,24 @@ export function getResponsiveFormColumnLimit(
   return target;
 }
 
-export function getFormFieldVisualWeight(field: CrudFieldConfig) {
-  if (isCompactJsonFormField(field)) {
-    return 1;
-  }
+export function getFormGridContentMaxWidth(columns: number) {
+  const safeColumns = clampInteger(columns, 1, 5);
 
-  if (field.type === 'switch') {
-    return 0.6;
-  }
-
-  if (
-    field.type === 'code' ||
-    field.type === 'css' ||
-    field.type === 'file' ||
-    field.type === 'html' ||
-    field.type === 'image' ||
-    field.type === 'textarea'
-  ) {
-    return 2;
-  }
-
-  if (field.type === 'string-array' || field.type === 'tags') {
-    return 3;
-  }
-
-  return 1;
+  return (
+    safeColumns * FORM_FIELD_MAX_WIDTH +
+    (safeColumns - 1) * FORM_GRID_COLUMN_GAP
+  );
 }
 
-export function isCompactJsonFormField(field: CrudFieldConfig) {
-  return field.type === 'json';
+export function getFormModalRecommendedMaxWidth(columns: number) {
+  const safeColumns = clampInteger(columns, 1, 5) as
+    keyof typeof FORM_MODAL_RECOMMENDED_MAX_WIDTH_BY_COLUMN;
+
+  return FORM_MODAL_RECOMMENDED_MAX_WIDTH_BY_COLUMN[safeColumns];
 }
 
 export function shouldFormFieldSpanFullRow(field: CrudFieldConfig) {
-  if (field.span && field.span > 0) {
-    return false;
-  }
-
-  return (
-    field.fullRow ||
-    field.span === -1 ||
-    field.type === 'textarea' ||
-    field.type === 'string-array' ||
-    field.type === 'tags'
-  );
+  return field.fullRow === true || field.span === -1;
 }
 
 export function getFormFieldColumnSpan(
@@ -171,95 +139,8 @@ function getFormLayoutGroupIndex(field: CrudFieldConfig, index: number) {
   return groupIndex >= 0 ? groupIndex : FORM_LAYOUT_GROUP_ORDER.length;
 }
 
-function getFormFieldComponentFamily(field: CrudFieldConfig) {
-  switch (field.type) {
-    case 'area-cascader': {
-      return 'cascader';
-    }
-    case 'code':
-    case 'cron':
-    case 'css':
-    case 'html':
-    case 'textarea': {
-      return 'editor';
-    }
-    case 'json': {
-      return 'text';
-    }
-    case 'date':
-    case 'datetime': {
-      return 'date';
-    }
-    case 'file':
-    case 'image': {
-      return 'upload';
-    }
-    case 'number': {
-      return 'number';
-    }
-    case 'org-tree-select': {
-      return 'tree-select';
-    }
-    case 'role-select':
-    case 'select':
-    case 'tenant': {
-      return 'select';
-    }
-    case 'string-array':
-    case 'tags': {
-      return 'list';
-    }
-    case 'switch': {
-      return 'switch';
-    }
-    case 'time': {
-      return 'time';
-    }
-    case 'password':
-    case 'text':
-    case undefined: {
-      return 'text';
-    }
-    default: {
-      return 'other';
-    }
-  }
-}
-
-function getFormFieldComponentFamilyRank(field: CrudFieldConfig) {
-  const familyIndex = FORM_FIELD_COMPONENT_FAMILY_ORDER.indexOf(
-    getFormFieldComponentFamily(field),
-  );
-
-  return familyIndex >= 0
-    ? familyIndex
-    : FORM_FIELD_COMPONENT_FAMILY_ORDER.length;
-}
-
-export function getFormFieldVisualAffinityKey(field: CrudFieldConfig) {
-  const span = getFormFieldColumnSpan(field, 5);
-  const multiplicity = field.multiple ? 'multiple' : 'single';
-
-  return [
-    String(getFormFieldComponentFamilyRank(field)).padStart(2, '0'),
-    getFormFieldVisualWeight(field).toFixed(1),
-    String(span).padStart(2, '0'),
-    multiplicity,
-  ].join(':');
-}
-
-function canSortByVisualAffinity(field: CrudFieldConfig) {
-  return (
-    field.layoutOrder === undefined &&
-    !field.layoutNewRow &&
-    !field.fullRow &&
-    field.span === undefined &&
-    !shouldFormFieldSpanFullRow(field)
-  );
-}
-
 export function sortFormLayoutFields(fields: CrudFieldConfig[]) {
-  const sortedEntries = fields
+  return fields
     .map((field, index) => ({
       field,
       groupIndex: getFormLayoutGroupIndex(field, index),
@@ -275,53 +156,8 @@ export function sortFormLayoutFields(fields: CrudFieldConfig[]) {
 
       const orderDiff = a.order - b.order;
       return orderDiff !== 0 ? orderDiff : a.index - b.index;
-    });
-
-  const result: CrudFieldConfig[] = [];
-  let segment: typeof sortedEntries = [];
-
-  function flushSegment() {
-    if (segment.length > 0) {
-      result.push(
-        ...segment
-          .sort((a, b) => {
-            const affinityDiff = getFormFieldVisualAffinityKey(
-              a.field,
-            ).localeCompare(getFormFieldVisualAffinityKey(b.field));
-
-            return affinityDiff !== 0 ? affinityDiff : a.index - b.index;
-          })
-          .map((entry) => entry.field),
-      );
-      segment = [];
-    }
-  }
-
-  for (const entry of sortedEntries) {
-    const lastSegmentEntry = segment[segment.length - 1];
-    const canSortEntry = canSortByVisualAffinity(entry.field);
-    const canJoinSegment =
-      canSortEntry &&
-      (!lastSegmentEntry || lastSegmentEntry.groupIndex === entry.groupIndex);
-
-    if (canJoinSegment) {
-      segment.push(entry);
-      continue;
-    }
-
-    flushSegment();
-
-    if (canSortEntry) {
-      segment.push(entry);
-      continue;
-    }
-
-    result.push(entry.field);
-  }
-
-  flushSegment();
-
-  return result;
+    })
+    .map((entry) => entry.field);
 }
 
 export function estimateFormVisualRows(
@@ -346,7 +182,7 @@ export function estimateFormVisualRows(
     }
 
     const span = getFormFieldColumnSpan(field, columns);
-    const weight = getFormFieldVisualWeight(field);
+    const weight = 1;
 
     if (usedColumns > 0 && usedColumns + span > columns) {
       flushRow();
@@ -365,12 +201,6 @@ export function estimateFormVisualRows(
   return rows;
 }
 
-function getMediaFieldCount(fields: CrudFieldConfig[]) {
-  return fields.filter(
-    (field) => field.type === 'image' || field.type === 'file',
-  ).length;
-}
-
 export function resolveFormColumnCount({
   configuredMaxColumns,
   fields,
@@ -384,10 +214,7 @@ export function resolveFormColumnCount({
   viewportHeight: number;
   viewportWidth: number;
 }) {
-  const totalWeight = fields.reduce(
-    (sum, field) => sum + getFormFieldVisualWeight(field),
-    0,
-  );
+  const totalWeight = fields.length;
   const normalizedConfiguredMaxColumns = Number.isFinite(configuredMaxColumns)
     ? configuredMaxColumns!
     : 5;
@@ -401,7 +228,7 @@ export function resolveFormColumnCount({
     columns = 5;
   } else if (totalWeight > 18) {
     columns = 4;
-  } else if (totalWeight > 10 || getMediaFieldCount(fields) >= 2) {
+  } else if (totalWeight > 10) {
     columns = 3;
   } else if (totalWeight > 6) {
     columns = 2;
@@ -414,16 +241,19 @@ export function resolveFormColumnCount({
   }
 
   while (
+    columns > 1 &&
+    modalAvailableWidth < getFormModalRecommendedMaxWidth(columns)
+  ) {
+    columns -= 1;
+  }
+
+  while (
     columns < maxColumns &&
     estimateFormVisualRows(fields, columns) * DEFAULT_FORM_ROW_HEIGHT >
       viewportHeight * 0.75
   ) {
     const nextColumns = columns + 1;
-    const nextColumnWidth =
-      (modalAvailableWidth - (nextColumns - 1) * FORM_GRID_COLUMN_GAP - 48) /
-      nextColumns;
-
-    if (nextColumnWidth < MIN_FORM_COLUMN_WIDTH) {
+    if (modalAvailableWidth < getFormModalRecommendedMaxWidth(nextColumns)) {
       break;
     }
 

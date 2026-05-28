@@ -79,8 +79,18 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       type: 'select',
       width: 220,
     },
-    { key: 'shortcutIcon', label: 'shortcutIcon', type: 'image' },
-    { key: 'logo', label: 'Logo', table: true, type: 'image', width: 90 },
+    {
+      key: 'shortcutIcon',
+      label: 'shortcutIcon',
+      type: 'image',
+    },
+    {
+      key: 'logo',
+      label: 'Logo',
+      table: true,
+      type: 'image',
+      width: 90,
+    },
     {
       key: 'gteExpiredTime',
       label: '站点到期开始',
@@ -104,8 +114,8 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     },
     { key: 'techSupport', label: '技术支持', fullRow: true, type: 'textarea' },
     { key: 'copyright', label: '版权声明', fullRow: true, type: 'textarea' },
-    { key: 'uiExInfo', label: '前端展示扩展信息', span: 2, type: 'json' },
-    { key: 'exInfo', label: '扩展信息', span: 2, type: 'json' },
+    { key: 'uiExInfo', label: '前端展示扩展信息', type: 'json' },
+    { key: 'exInfo', label: '扩展信息', type: 'json' },
     { key: 'orderCode', label: '排序代码', layoutNewRow: true, type: 'number' },
     {
       key: 'enable',

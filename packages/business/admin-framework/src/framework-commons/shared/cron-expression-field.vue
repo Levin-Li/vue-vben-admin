@@ -3,6 +3,11 @@ import { computed, reactive, ref, watch } from 'vue';
 
 import { Button, Input, Modal, Radio, Select } from 'ant-design-vue';
 
+import {
+  DEFAULT_CONTENT_MODAL_BODY_STYLE,
+  DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+} from './config-helpers';
+
 type CronSegmentKey =
   | 'dayOfMonth'
   | 'dayOfWeek'
@@ -59,7 +64,7 @@ const props = withDefaults(
   }>(),
   {
     disabled: false,
-    modalWidth: 'min(70vw, 980px)',
+    modalWidth: 'min(80vw, 980px)',
     placeholder: '点击编辑 Cron 表达式',
     title: 'Cron 表达式',
   },
@@ -77,6 +82,10 @@ const draftSegments = reactive<Record<CronSegmentKey, CronSegmentState>>(
 
 const previewText = computed(() => props.modelValue || '');
 const modalTitle = computed(() => `编辑${props.title}`);
+const contentModalStyle = computed(() => ({
+  maxHeight: DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+  ...(props.modalStyle || {}),
+}));
 const draftExpression = computed(() =>
   CRON_SEGMENTS.map((segment) =>
     buildSegmentExpression(draftSegments[segment.key], segment),
@@ -382,10 +391,12 @@ watch(
 
     <Modal
       v-model:open="open"
+      :body-style="DEFAULT_CONTENT_MODAL_BODY_STYLE"
       destroy-on-close
+      :mask-closable="false"
       ok-text="应用"
       :ok-button-props="okButtonProps"
-      :style="modalStyle"
+      :style="contentModalStyle"
       :title="modalTitle"
       :width="modalWidth"
       @ok="handleOk"

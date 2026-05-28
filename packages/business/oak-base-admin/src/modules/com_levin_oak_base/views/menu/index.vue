@@ -798,6 +798,7 @@ function renderIcon(row: MenuRecord) {
 
     <Modal
       :confirm-loading="opButtonSubmitting"
+      :mask-closable="false"
       :open="opButtonOpen"
       :title="opButtonModalTitle"
       width="min(76vw, 1180px)"
@@ -809,6 +810,7 @@ function renderIcon(row: MenuRecord) {
 
     <Modal
       :confirm-loading="permissionSubmitting"
+      :mask-closable="false"
       :open="permissionOpen"
       :title="permissionModalTitle"
       :width="1080"

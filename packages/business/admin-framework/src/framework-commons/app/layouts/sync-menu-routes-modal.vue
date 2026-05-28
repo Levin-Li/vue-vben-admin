@@ -319,6 +319,7 @@ watch(menuList, (data) => {
     v-model:open="openProxy"
     :confirm-loading="loading"
     :body-style="{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }"
+    :mask-closable="false"
     :ok-button-props="{ disabled: selectedCount === 0 }"
     ok-text="上传"
     title="上传页面路由"

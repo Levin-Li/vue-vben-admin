@@ -1,5 +1,14 @@
 <script lang="ts" setup>
-import { computed, reactive, ref, watch } from 'vue';
+import type { CrudFieldConfig } from './types';
+
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue';
 
 import {
   Button,
@@ -17,6 +26,14 @@ import {
   getJsonSchemaPathValue,
   setJsonSchemaPathValue,
 } from './json-schema-form';
+import {
+  getFormGridContentMaxWidth,
+  resolveFormColumnCount,
+} from './crud-form-layout';
+import {
+  DEFAULT_CONTENT_MODAL_BODY_STYLE,
+  DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+} from './config-helpers';
 
 const props = withDefaults(
   defineProps<{
@@ -35,7 +52,7 @@ const props = withDefaults(
     errorMessage: '',
     inline: false,
     loading: false,
-    modalWidth: 'min(70vw, 1120px)',
+    modalWidth: 'min(80vw, 1120px)',
     schema: () => ({}),
     title: 'JSON',
   },
@@ -48,6 +65,60 @@ const emit = defineEmits<{
 const open = ref(false);
 const draftValue = ref<Record<string, any>>({});
 const complexTextValues = reactive<Record<string, string>>({});
+const viewportWidth = ref(0);
+const viewportHeight = ref(0);
+
+function syncViewportSize() {
+  if (typeof window === 'undefined') {
+    viewportWidth.value = 0;
+    viewportHeight.value = 0;
+    return;
+  }
+
+  viewportWidth.value = window.innerWidth;
+  viewportHeight.value = window.innerHeight;
+}
+
+function getConfiguredModalMaxWidthPx(configuredWidth?: number | string) {
+  if (typeof configuredWidth === 'number' && Number.isFinite(configuredWidth)) {
+    return configuredWidth;
+  }
+
+  if (typeof configuredWidth !== 'string') {
+    return undefined;
+  }
+
+  const widthText = configuredWidth.trim();
+  const pixelMatches = [...widthText.matchAll(/(\d+(?:\.\d+)?)px/g)];
+  const lastPixelMatch = pixelMatches.at(-1);
+
+  if (!lastPixelMatch) {
+    return undefined;
+  }
+
+  const width = Number(lastPixelMatch[1]);
+  return Number.isFinite(width) ? width : undefined;
+}
+
+function getLayoutFieldType(field: { kind: string }) {
+  if (field.kind === 'boolean') {
+    return 'switch';
+  }
+
+  if (field.kind === 'number') {
+    return 'number';
+  }
+
+  if (field.kind === 'textarea') {
+    return 'textarea';
+  }
+
+  if (field.kind === 'json') {
+    return 'json';
+  }
+
+  return 'text';
+}
 
 function cloneObjectValue(value: any) {
   if (value === undefined || value === null || value === '') {
@@ -77,6 +148,54 @@ function cloneObjectValue(value: any) {
 }
 
 const fields = computed(() => buildJsonSchemaFormFields(props.schema));
+const layoutFields = computed<CrudFieldConfig[]>(() =>
+  fields.value.map((field) => ({
+    key: field.pathKey,
+    label: field.label,
+    fullRow:
+      field.kind === 'section' ||
+      field.kind === 'json' ||
+      field.kind === 'textarea',
+    layoutNewRow: field.kind === 'section',
+    span:
+      field.kind === 'section' ||
+      field.kind === 'json' ||
+      field.kind === 'textarea'
+        ? -1
+        : 1,
+    type: getLayoutFieldType(field),
+  })),
+);
+const modalAvailableWidth = computed(() => {
+  const configuredWidth = getConfiguredModalMaxWidthPx(props.modalWidth);
+  const viewportLimit =
+    viewportWidth.value > 0 ? viewportWidth.value * 0.8 : 0;
+  const configuredLimit = configuredWidth ?? (viewportLimit || 1120);
+
+  if (viewportLimit > 0) {
+    return Math.min(viewportLimit, configuredLimit);
+  }
+
+  return configuredLimit;
+});
+const popupColumnCount = computed(() =>
+  resolveFormColumnCount({
+    fields: layoutFields.value,
+    modalAvailableWidth: modalAvailableWidth.value,
+    viewportHeight: viewportHeight.value || 900,
+    viewportWidth: viewportWidth.value || 1440,
+  }),
+);
+const popupGridStyle = computed(() => ({
+  gridTemplateColumns: `repeat(${popupColumnCount.value}, minmax(0, 1fr))`,
+  margin: '0 auto',
+  maxWidth: `${getFormGridContentMaxWidth(popupColumnCount.value)}px`,
+  width: '100%',
+}));
+const contentModalStyle = computed(() => ({
+  maxHeight: DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+  ...(props.modalStyle || {}),
+}));
 
 const previewText = computed(() => {
   if (
@@ -212,6 +331,17 @@ watch(fields, () => {
     resetComplexTextValues();
   }
 });
+
+onMounted(() => {
+  syncViewportSize();
+  window.addEventListener('resize', syncViewportSize);
+});
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', syncViewportSize);
+  }
+});
 </script>
 
 <template>
@@ -299,6 +429,7 @@ watch(fields, () => {
               :disabled="disabled || field.readOnly"
               :placeholder="`请输入${field.label} JSON`"
               :value="complexTextValues[field.pathKey]"
+              class="w-full"
               @update:value="
                 setComplexFieldValue(field.path, field.pathKey, $event)
               "
@@ -310,6 +441,7 @@ watch(fields, () => {
               :disabled="disabled || field.readOnly"
               :placeholder="`请输入${field.label}`"
               :value="getFieldValue(field.path)"
+              class="w-full"
               @update:value="setFieldValue(field.path, $event)"
             />
 
@@ -318,6 +450,7 @@ watch(fields, () => {
               :disabled="disabled || field.readOnly"
               :placeholder="`请输入${field.label}`"
               :value="getFieldValue(field.path)"
+              class="w-full"
               @update:value="setFieldValue(field.path, $event)"
             />
           </Form.Item>
@@ -350,15 +483,20 @@ watch(fields, () => {
     <Modal
       v-if="!inline"
       v-model:open="open"
+      :body-style="DEFAULT_CONTENT_MODAL_BODY_STYLE"
       destroy-on-close
+      :mask-closable="false"
       ok-text="保存"
-      :style="modalStyle"
+      :style="contentModalStyle"
       :title="modalTitle"
       :width="modalWidth"
       @ok="handleOk"
     >
       <Form layout="vertical">
-        <div class="crud-json-schema-form-grid">
+        <div
+          class="crud-json-schema-form-grid crud-json-schema-form-grid--popup"
+          :style="popupGridStyle"
+        >
           <template v-for="field in fields" :key="field.pathKey">
             <div
               v-if="field.kind === 'section'"
@@ -407,43 +545,46 @@ watch(fields, () => {
                 @update:checked="setFieldValue(field.path, $event)"
               />
 
-              <InputNumber
-                v-else-if="field.kind === 'number'"
-                :disabled="disabled || field.readOnly"
-                :placeholder="`请输入${field.label}`"
-                :value="getFieldValue(field.path)"
-                class="w-full"
-                @update:value="setFieldValue(field.path, $event)"
-              />
+            <InputNumber
+              v-else-if="field.kind === 'number'"
+              :disabled="disabled || field.readOnly"
+              :placeholder="`请输入${field.label}`"
+              :value="getFieldValue(field.path)"
+              class="w-full"
+              @update:value="setFieldValue(field.path, $event)"
+            />
 
-              <Input.TextArea
-                v-else-if="field.kind === 'json'"
-                :auto-size="{ minRows: 3, maxRows: 8 }"
-                :disabled="disabled || field.readOnly"
-                :placeholder="`请输入${field.label} JSON`"
-                :value="complexTextValues[field.pathKey]"
-                @update:value="
-                  setComplexFieldValue(field.path, field.pathKey, $event)
-                "
-              />
+            <Input.TextArea
+              v-else-if="field.kind === 'json'"
+              :auto-size="{ minRows: 3, maxRows: 8 }"
+              :disabled="disabled || field.readOnly"
+              :placeholder="`请输入${field.label} JSON`"
+              :value="complexTextValues[field.pathKey]"
+              class="w-full"
+              @update:value="
+                setComplexFieldValue(field.path, field.pathKey, $event)
+              "
+            />
 
-              <Input.TextArea
-                v-else-if="field.kind === 'textarea'"
-                :auto-size="{ minRows: 3, maxRows: 8 }"
-                :disabled="disabled || field.readOnly"
-                :placeholder="`请输入${field.label}`"
-                :value="getFieldValue(field.path)"
-                @update:value="setFieldValue(field.path, $event)"
-              />
+            <Input.TextArea
+              v-else-if="field.kind === 'textarea'"
+              :auto-size="{ minRows: 3, maxRows: 8 }"
+              :disabled="disabled || field.readOnly"
+              :placeholder="`请输入${field.label}`"
+              :value="getFieldValue(field.path)"
+              class="w-full"
+              @update:value="setFieldValue(field.path, $event)"
+            />
 
-              <Input
-                v-else
-                :disabled="disabled || field.readOnly"
-                :placeholder="`请输入${field.label}`"
-                :value="getFieldValue(field.path)"
-                @update:value="setFieldValue(field.path, $event)"
-              />
-            </Form.Item>
+            <Input
+              v-else
+              :disabled="disabled || field.readOnly"
+              :placeholder="`请输入${field.label}`"
+              :value="getFieldValue(field.path)"
+              class="w-full"
+              @update:value="setFieldValue(field.path, $event)"
+            />
+          </Form.Item>
           </template>
 
           <div
@@ -502,8 +643,7 @@ watch(fields, () => {
 
 .crud-json-schema-form-item {
   width: 100%;
-  max-width: 480px;
-  justify-self: center;
+  min-width: 0;
 }
 
 .crud-json-schema-form-grid :deep(.ant-form-item) {

@@ -32,7 +32,7 @@ const packageRoots = args.has('--all')
   ? adminModulePackages.map((packagePath) => resolve(frontendRoot, packagePath))
   : [process.cwd()];
 const effectiveRuleFiles = includeProjectRule
-  ? ['前端项目开发规则.md', ...ruleFiles]
+  ? ['前端模块开发规则.md', ...ruleFiles]
   : ruleFiles;
 
 function readPackageName(packageRoot) {
@@ -55,7 +55,7 @@ function writePackageAgents(packageRoot, packageName) {
 
 必读入口：
 
-${includeProjectRule ? '- `docs/frontend-rules/前端项目开发规则.md`\n' : ''}- \`docs/frontend-rules/前端页面开发规则.md\`
+${includeProjectRule ? '- `docs/frontend-rules/前端模块开发规则.md`\n' : ''}- \`docs/frontend-rules/前端页面开发规则.md\`
 - \`docs/frontend-rules/前端API开发规则.md\`
 - \`docs/frontend-rules/前端页面操作规则.md\`
 - \`docs/frontend-rules/前端页面校验规则.md\`
@@ -73,13 +73,13 @@ function writeRuleDocsAgents(packageRoot) {
   const content = `# Published Frontend Rules AGENTS.md
 
 <INSTRUCTIONS>
-本文件适用于随包发布的 \`docs/frontend-rules/\` 目录。源码工作区不固定保存前端项目规则副本;打包和发布流程会按需临时写入 \`前端项目开发规则.md\`，并在结束后清理。
+本文件适用于随包发布的 \`docs/frontend-rules/\` 目录。源码工作区不固定保存前端模块规则副本;打包和发布流程会按需临时写入 \`前端模块开发规则.md\`，并在结束后清理。
 
 ## 必读规则
 
 按任务类型读取对应专项规则:
 
-${includeProjectRule ? '- 前端项目总规则、浏览器验证、打包和发布规则: `前端项目开发规则.md`\n' : ''}- 页面开发、布局、组件、主题和CRUD页面: \`前端页面开发规则.md\`
+${includeProjectRule ? '- 前端模块总规则、浏览器验证、打包和发布规则: `前端模块开发规则.md`\n' : ''}- 页面开发、布局、组件、主题和CRUD页面: \`前端页面开发规则.md\`
 - API封装、接口请求、服务层调用和后端接口对接: \`前端API开发规则.md\`
 - 页面操作、按钮、动作归属和交互流程: \`前端页面操作规则.md\`
 - 表单校验、字段校验和提交前校验: \`前端页面校验规则.md\`

@@ -13,7 +13,7 @@ vi.mock('../../../api/client-app-service', () => ({
 }));
 
 vi.mock('../../api-module', () => ({
-  DEFAULT_CRUD_MODAL_WIDTH: '70%',
+  DEFAULT_CRUD_MODAL_WIDTH: '80%',
   authorizedControllerPathOptionsLoader:
     mocks.authorizedControllerPathOptionsLoader,
   tenantOptionsLoader: async () => [],
@@ -54,7 +54,7 @@ describe('client app page config', () => {
     );
   });
 
-  it('keeps credential and wildcard editors aligned with related short fields', () => {
+  it('keeps credential and access editors in deliberate full-width sections', () => {
     const fields = clientAppPageCrudConfig.fields;
     const indexOf = (key: string) =>
       fields.findIndex((field) => field.key === key);
@@ -64,31 +64,32 @@ describe('client app page config', () => {
     expect(indexOf('expiredTime')).toBeLessThan(indexOf('appSignSecret'));
     expect(fields.find((field) => field.key === 'appSignSecret')).toMatchObject(
       {
-        span: 3,
+        fullRow: true,
+        layoutGroup: 'basic',
+        layoutNewRow: true,
       },
     );
     expect(
       fields.find((field) => field.key === 'allowedPathPatterns'),
     ).toMatchObject({
-      layoutGroup: 'business',
+      fullRow: true,
+      layoutGroup: 'content',
       layoutNewRow: true,
-      layoutOrder: 10,
-      span: 2,
     });
     expect(fields.find((field) => field.key === 'allowedIpList')).toMatchObject(
       {
-        layoutGroup: 'business',
-        layoutOrder: 20,
-        span: 2,
+        fullRow: true,
+        layoutGroup: 'content',
       },
     );
+    expect(fields.find((field) => field.key === 'remark')).toMatchObject({
+      fullRow: true,
+      layoutGroup: 'remark',
+      type: 'textarea',
+    });
     expect(fields.find((field) => field.key === 'exInfo')).toMatchObject({
       layoutGroup: 'extension',
       layoutNewRow: true,
-    });
-    expect(fields.find((field) => field.key === 'orderCode')).toMatchObject({
-      layoutGroup: 'business',
-      layoutOrder: 30,
     });
     expect(visualIndexOf('allowedPathPatterns')).toBeLessThan(
       visualIndexOf('allowedIpList'),
@@ -99,6 +100,7 @@ describe('client app page config', () => {
     expect(visualIndexOf('orderCode')).toBeLessThan(visualIndexOf('enable'));
     expect(visualIndexOf('enable')).toBeLessThan(visualIndexOf('editable'));
     expect(visualIndexOf('editable')).toBeLessThan(visualIndexOf('exInfo'));
+    expect(visualIndexOf('exInfo')).toBeLessThan(visualIndexOf('remark'));
   });
 
   it('generates appId on create and serializes wildcard lists', async () => {

@@ -8,7 +8,7 @@ vi.mock('../../../api/i18n-res-service', () => ({
 
 vi.mock('../../api-module', () => ({
   buildDictOptionsLoader: () => async () => [],
-  DEFAULT_CRUD_MODAL_WIDTH: '70%',
+  DEFAULT_CRUD_MODAL_WIDTH: '80%',
   tenantOptionsLoader: async () => [],
 }));
 

@@ -592,6 +592,7 @@ onMounted(async () => {
     <Modal
       v-model:open="roleModalOpen"
       :confirm-loading="roleSubmitting"
+      :mask-closable="false"
       title="分配角色"
       :width="720"
       @ok="submitRoleForm"
@@ -617,6 +618,7 @@ onMounted(async () => {
     <Modal
       v-model:open="orgModalOpen"
       :confirm-loading="orgSubmitting"
+      :mask-closable="false"
       :title="orgModalMode === 'edit' ? '编辑组织' : '新增组织'"
       :width="DEFAULT_CRUD_MODAL_WIDTH"
       @ok="submitOrgForm"

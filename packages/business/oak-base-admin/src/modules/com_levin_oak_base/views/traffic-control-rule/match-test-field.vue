@@ -90,7 +90,12 @@ function testMatch() {
     @test="openTester"
   />
 
-  <Modal v-model:open="testerOpen" :footer="null" :title="modalTitle">
+  <Modal
+    v-model:open="testerOpen"
+    :footer="null"
+    :mask-closable="false"
+    :title="modalTitle"
+  >
     <Form layout="vertical">
       <template v-if="isNameValueRule">
         <Form.Item label="实际名称">

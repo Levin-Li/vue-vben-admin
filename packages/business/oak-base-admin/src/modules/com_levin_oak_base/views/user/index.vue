@@ -122,6 +122,7 @@ watch(dialogOpen, (open) => {
   <Modal
     v-model:open="roleModalOpen"
     :confirm-loading="roleSubmitting"
+    :mask-closable="false"
     title="分配角色"
     :width="720"
     @ok="submitRoleForm"

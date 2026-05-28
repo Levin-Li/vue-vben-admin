@@ -174,7 +174,6 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'config',
       label: '配置',
-      fullRow: true,
       type: 'json',
     },
     {

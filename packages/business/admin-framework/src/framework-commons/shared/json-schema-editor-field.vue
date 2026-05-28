@@ -27,7 +27,7 @@ const props = withDefaults(
   {
     disabled: false,
     inline: false,
-    modalWidth: 'min(70vw, 1120px)',
+    modalWidth: 'min(80vw, 1120px)',
     schemaSource: undefined,
     title: 'JSON',
   },

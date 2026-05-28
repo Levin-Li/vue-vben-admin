@@ -1,7 +1,7 @@
 # Published Frontend Rules AGENTS.md
 
 <INSTRUCTIONS>
-本文件适用于随包发布的 `docs/frontend-rules/` 目录。源码工作区不固定保存前端项目规则副本;打包和发布流程会按需临时写入 `前端项目开发规则.md`，并在结束后清理。
+本文件适用于随包发布的 `docs/frontend-rules/` 目录。源码工作区不固定保存前端模块规则副本;打包和发布流程会按需临时写入 `前端模块开发规则.md`，并在结束后清理。
 
 ## 必读规则
 

@@ -689,6 +689,7 @@ watch(formOpen, (open) => {
       :open="formOpen"
       :title="editingIndex === null ? '新增组织范围规则' : '编辑组织范围规则'"
       destroy-on-close
+      :mask-closable="false"
       @cancel="closeForm"
       @ok="handleSubmitForm"
     >

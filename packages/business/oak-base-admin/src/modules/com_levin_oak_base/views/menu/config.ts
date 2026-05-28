@@ -127,7 +127,7 @@ export const menuPageCrudConfig: CrudPageConfig = {
     {
       key: 'requireAuthorizations',
       label: '所需权限',
-      fullRow: true,
+      span: 2,
       placeholder: '一行一个权限或角色',
       table: true,
       type: 'string-array',

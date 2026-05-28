@@ -1418,6 +1418,7 @@ async function submitRequireAuthorizations() {
     :body-style="{ maxHeight: 'calc(100vh - 220px)', overflow: 'auto' }"
     :confirm-loading="contentSubmitting"
     destroy-on-close
+    :mask-closable="false"
     :open="contentOpen"
     :title="contentModalTitle"
     width="min(86vw, 1480px)"
@@ -1720,6 +1721,7 @@ async function submitRequireAuthorizations() {
   <Modal
     destroy-on-close
     :footer="null"
+    :mask-closable="false"
     :open="scriptTestInputOpen"
     title="填写测试参数"
     :width="920"
@@ -1783,6 +1785,7 @@ async function submitRequireAuthorizations() {
   <Modal
     :confirm-loading="permissionSubmitting"
     destroy-on-close
+    :mask-closable="false"
     :open="permissionOpen"
     :title="permissionModalTitle"
     :width="1080"

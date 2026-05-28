@@ -151,7 +151,7 @@ export const domainPageCrudConfig: CrudPageConfig = {
       label: 'DNS记录快照',
       type: 'json',
     },
-    { key: 'nameservers', label: 'NS服务器', span: 2, type: 'json' },
+    { key: 'nameservers', label: 'NS服务器', type: 'json' },
     {
       key: 'exInfo',
       label: '扩展信息',
@@ -192,7 +192,13 @@ export const domainPageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    {
+      key: 'remark',
+      label: '备注',
+      fullRow: true,
+      layoutNewRow: true,
+      type: 'textarea',
+    },
   ],
   modalWidth: 1200,
   title: '根域名管理',
