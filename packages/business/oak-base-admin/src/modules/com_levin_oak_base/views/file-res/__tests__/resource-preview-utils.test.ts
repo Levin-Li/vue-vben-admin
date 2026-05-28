@@ -7,21 +7,37 @@ import {
   createZipBlob,
   inferResourceType,
   normalizeTagInput,
+  resolveResourceCoverUrl,
   normalizeStringList,
   resolveResourceUrl,
   sanitizeFileName,
 } from '../resource-preview-utils';
 
 describe('file resource preview utils', () => {
-  it('normalizes JSON string paths and resolves cover before paths', () => {
+  it('normalizes JSON string paths and keeps non-image covers separate from file urls', () => {
     expect(normalizeStringList('["/lfs/a.png","/lfs/b.png"]')).toEqual([
       '/lfs/a.png',
       '/lfs/b.png',
     ]);
     expect(
       resolveResourceUrl({
+        type: 'Image',
         coverUrl: '/lfs/cover.png',
         paths: ['/lfs/a.png'],
+      }),
+    ).toBe('/lfs/cover.png');
+    expect(
+      resolveResourceUrl({
+        type: 'Document',
+        coverUrl: '/lfs/cover.png',
+        paths: ['/lfs/a.pdf'],
+      }),
+    ).toBe('/lfs/a.pdf');
+    expect(
+      resolveResourceCoverUrl({
+        type: 'Document',
+        coverUrl: '/lfs/cover.png',
+        paths: ['/lfs/a.pdf'],
       }),
     ).toBe('/lfs/cover.png');
   });

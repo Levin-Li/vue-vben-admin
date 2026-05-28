@@ -137,6 +137,8 @@ export const moduleDeleteCrudRecord = (
 export const moduleExportTemplateService: CrudExportTemplateService = {
   create: (data) =>
     moduleCreateCrudRecord('/ImportExportTemplate/create', data),
+  delete: (params) =>
+    moduleDeleteCrudRecord('/ImportExportTemplate/delete', params?.id),
   list: (params) =>
     moduleFetchCrudList('/ImportExportTemplate/list', params),
 };

@@ -53,9 +53,31 @@ describe('PatternListEditor', () => {
       wrapper.find('.pattern-list-editor__draft-row').exists(),
     ).toBe(true);
     expect(wrapper.text()).toContain('暂无内容');
+    expect(wrapper.find('[data-test="pattern-list-empty-text"]').exists()).toBe(
+      true,
+    );
+    expect(
+      wrapper.find('[data-test="pattern-list-empty-image"]').exists(),
+    ).toBe(false);
     expect(wrapper.find('[data-test="pattern-list-hint"]').text()).toContain(
       '支持*和?匹配',
     );
+  });
+
+  it('shows the empty image only when explicitly enabled', () => {
+    const wrapper = mount(PatternListEditor, {
+      props: {
+        modelValue: [],
+        showEmptyImage: true,
+      },
+    });
+
+    expect(
+      wrapper.find('[data-test="pattern-list-empty-image"]').exists(),
+    ).toBe(true);
+    expect(
+      wrapper.find('[data-test="pattern-list-empty-text"]').exists(),
+    ).toBe(false);
   });
 
   it('edits and deletes rows with icon actions', async () => {
@@ -83,6 +105,44 @@ describe('PatternListEditor', () => {
       .trigger('click');
 
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([['/demo/*']]);
+  });
+
+  it('uses caller validation before adding and editing entries', async () => {
+    const validateItem = vi.fn((value: string) =>
+      value.includes('=') ? true : '必须包含等号',
+    );
+    const wrapper = mount(PatternListEditor, {
+      props: {
+        modelValue: ['tenant=demo'],
+        validateItem,
+      },
+    });
+
+    await wrapper
+      .find('[data-test="pattern-list-draft"] input')
+      .setValue('invalid');
+    await wrapper.find('[data-test="pattern-list-add"]').trigger('click');
+
+    expect(validateItem).toHaveBeenCalledWith('invalid');
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+
+    await wrapper
+      .find('[data-test="pattern-list-draft"] input')
+      .setValue('status=ok');
+    await wrapper.find('[data-test="pattern-list-add"]').trigger('click');
+
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([
+      ['tenant=demo', 'status=ok'],
+    ]);
+
+    await wrapper.setProps({ modelValue: ['tenant=demo'] });
+    await wrapper.find('[data-test="pattern-list-edit"]').trigger('click');
+    await wrapper
+      .find('[data-test="pattern-list-edit-input"]')
+      .setValue('still-invalid');
+    await wrapper.find('[data-test="pattern-list-save"]').trigger('click');
+
+    expect(wrapper.emitted('update:modelValue')?.length).toBe(1);
   });
 
   it('copies single entries and JSON arrays', async () => {
@@ -146,6 +206,24 @@ describe('PatternListEditor', () => {
     await flushPromises();
 
     expect(document.body.textContent).toContain('匹配成功');
+
+    wrapper.unmount();
+  });
+
+  it('lets callers replace the default test modal with custom testing', async () => {
+    const wrapper = mount(PatternListEditor, {
+      attachTo: document.body,
+      props: {
+        customTest: true,
+        modelValue: ['tenant=demo'],
+      },
+    });
+
+    await wrapper.find('[data-test="pattern-list-test"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.emitted('test')).toHaveLength(1);
+    expect(document.body.querySelector('.ant-modal')).toBeNull();
 
     wrapper.unmount();
   });

@@ -14,6 +14,7 @@ export interface SimpleContentEditorMeta {
 
 export interface SimpleContentResourceService extends CrudApiService {
   retrieve?: (params?: any, options?: any) => Promise<any>;
+  retrieveContent?: (params?: any, options?: any) => Promise<any>;
   testScript?: (data?: any, options?: any) => Promise<any>;
   update?: (data?: any, options?: any) => Promise<any>;
 }
@@ -54,12 +55,10 @@ export function resolveSimpleContentEditorMeta(
   record: Record<string, any>,
 ): SimpleContentEditorMeta {
   if (kind === 'api') {
-    const language = normalizeType(record.language);
-
     return {
       kind: 'code',
-      language: language === 'javascript' ? 'javascript' : language || 'groovy',
-      title: language === 'javascript' ? 'JavaScript' : 'Groovy',
+      language: 'groovy',
+      title: 'Groovy',
     };
   }
 

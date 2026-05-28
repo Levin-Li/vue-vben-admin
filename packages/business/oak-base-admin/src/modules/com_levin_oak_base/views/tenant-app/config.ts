@@ -55,6 +55,7 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
       table: true,
       width: 160,
     },
+    { key: 'pinyinName', label: '拼音名', table: true, width: 160 },
     {
       key: 'gteExpiredTime',
       label: '到期时间开始',
@@ -102,8 +103,7 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'exInfo', label: '扩展信息', fullRow: true, type: 'json' },
-    { key: 'pinyinName', label: '拼音名', table: true, width: 160 },
+    { key: 'exInfo', label: '扩展信息', type: 'json' },
     {
       key: 'enable',
       label: '是否启用',

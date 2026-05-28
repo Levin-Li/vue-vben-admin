@@ -5,6 +5,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { roleService } from '../../api/role-service';
 import {
   confidentialLevelOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
   moduleFetchDictOptions,
   roleOptionsLoader,
   tenantOptionsLoader,
@@ -104,6 +105,7 @@ const rolePageCrudConfig: CrudPageConfig = {
       label: '互斥角色列表',
       cellSingleLine: true,
       help: '把当前角色分配给用户时，用户不能已拥有这里选择的任一角色；用于配置不能同时拥有的角色组合。留空表示不限制互斥角色。',
+      fullRow: true,
       layoutNewRow: true,
       loadOptions: roleOptionsLoader,
       multiple: true,
@@ -118,6 +120,7 @@ const rolePageCrudConfig: CrudPageConfig = {
       label: '必须共存角色列表',
       cellSingleLine: true,
       help: '把当前角色分配给用户时，用户必须已拥有这里选择的全部角色；用于配置分配当前角色前必须具备的前置角色。留空表示不要求共存角色。',
+      fullRow: true,
       layoutNewRow: true,
       loadOptions: roleOptionsLoader,
       multiple: true,
@@ -207,7 +210,7 @@ const rolePageCrudConfig: CrudPageConfig = {
       type: 'textarea',
       width: 260,
     },
-    { key: 'exInfo', label: '扩展信息', fullRow: true, type: 'json' },
+    { key: 'exInfo', label: '扩展信息', type: 'json' },
     { key: 'orderCode', label: '排序代码', type: 'number' },
     {
       key: 'enable',
@@ -245,7 +248,7 @@ const rolePageCrudConfig: CrudPageConfig = {
     },
     { key: 'remark', label: '备注', search: true, type: 'textarea' },
   ],
-  modalWidth: 1120,
+  modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '角色管理',
   transformSubmit: validateRoleConstraintSubmit,
 };

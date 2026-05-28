@@ -13,6 +13,8 @@ const patternFieldKeys = [
   'osList',
   'userTypeList',
   'userRoleList',
+  'requestParamRuleList',
+  'headerRuleList',
 ];
 
 describe('url ex acl page', () => {
@@ -23,10 +25,13 @@ describe('url ex acl page', () => {
     );
 
     expect(source).toContain('PatternListFormField');
+    expect(source).toContain('MatchTestField');
 
     for (const key of patternFieldKeys) {
       expect(source).toContain(`#form-field-${key}`);
       expect(source).toContain(`v-model="formState[field.key]"`);
     }
+
+    expect(source).toContain('rule-kind="nameValue"');
   });
 });

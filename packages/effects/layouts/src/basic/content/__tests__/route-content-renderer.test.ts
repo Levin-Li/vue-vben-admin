@@ -9,6 +9,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RouteContentErrorBoundary } from '../route-content-error-boundary';
 import { RouteContentRenderer } from '../route-content-renderer';
 
+const refresh = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+
+vi.mock('@vben/hooks', () => ({
+  useRefresh: () => ({
+    refresh,
+  }),
+}));
+
 const HealthyPage = defineComponent({
   name: 'HealthyPage',
   setup: () => () => h('div', { 'data-testid': 'healthy-page' }, '正常页面'),
@@ -27,6 +35,7 @@ function createRoute(name: string) {
 describe('routeContentRenderer', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    refresh.mockReset();
   });
 
   it('renders the vnode provided by router-view slots', () => {

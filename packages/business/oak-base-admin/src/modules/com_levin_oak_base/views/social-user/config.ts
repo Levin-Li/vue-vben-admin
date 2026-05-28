@@ -96,7 +96,7 @@ export const socialUserPageCrudConfig: CrudPageConfig = {
       width: 100,
     },
     { key: 'registerSource', label: '注册来源', table: true, width: 140 },
-    { key: 'exInfo', label: '扩展信息', fullRow: true, type: 'json' },
+    { key: 'exInfo', label: '扩展信息', type: 'json' },
     {
       key: 'enable',
       label: '是否启用',

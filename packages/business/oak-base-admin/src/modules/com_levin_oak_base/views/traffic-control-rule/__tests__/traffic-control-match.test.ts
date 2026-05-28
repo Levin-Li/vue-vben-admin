@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   matchPatternList,
+  normalizeNameValueRuleList,
   matchRuleList,
   normalizePatternList,
   normalizeRuleList,
+  validateNameValueRuleItem,
   wildcardMatch,
 } from '../traffic-control-match';
 
@@ -64,14 +66,30 @@ describe('traffic control match helpers', () => {
         valuePatterns: ['*'],
       },
     ]);
+    expect(normalizeRuleList(['tenant*=ma?ket-*'])).toEqual([
+      {
+        namePatterns: ['tenant*'],
+        required: true,
+        valuePatterns: ['ma?ket-*'],
+      },
+    ]);
+    expect(normalizeNameValueRuleList(['tenant*=ma?ket-*'])).toEqual([
+      'tenant*=ma?ket-*',
+    ]);
 
-    const result = matchRuleList(
-      [{ name: 'X-Tenant-*', value: 'vip?' }],
-      'x-tenant-id',
-      'vip1',
-    );
+    const result = matchRuleList(['X-Tenant-*=vip?'], 'x-tenant-id', 'vip1');
 
     expect(result.matched).toBe(true);
     expect(result.matchedRules[0]?.namePatterns).toEqual(['X-Tenant-*']);
+  });
+
+  it('validates name value rule items before saving them', () => {
+    expect(validateNameValueRuleItem('tenant=demo')).toBe(true);
+    expect(validateNameValueRuleItem('tenant')).toContain('一个等号');
+    expect(validateNameValueRuleItem('tenant=demo=extra')).toContain(
+      '一个等号',
+    );
+    expect(validateNameValueRuleItem('tenant=')).toContain('不能为空');
+    expect(validateNameValueRuleItem('=demo')).toContain('不能为空');
   });
 });

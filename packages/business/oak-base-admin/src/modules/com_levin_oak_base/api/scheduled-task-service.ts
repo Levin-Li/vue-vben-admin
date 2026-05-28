@@ -126,6 +126,70 @@ export class ScheduledTaskService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-调度任务',
+    action: '单次触发',
+  })
+  @CRUD.Op()
+  async triggerOnce(data?: any, options?: any) {
+    return this.post('triggerOnce', {
+      ...options,
+      data,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-调度任务',
+    action: '在线调试Groovy脚本',
+  })
+  @CRUD.Op()
+  async debugGroovy(data?: any, options?: any) {
+    return this.post('debugGroovy', {
+      ...options,
+      data,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-调度任务',
+    action: '同步调度器',
+  })
+  @CRUD.Op()
+  async syncScheduler(data?: any, options?: any) {
+    return this.post('syncScheduler', {
+      ...options,
+      data,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-调度任务',
+    action: '停止调度',
+  })
+  @CRUD.Op()
+  async stopScheduler(data?: any, options?: any) {
+    return this.post('stopScheduler', {
+      ...options,
+      data,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-调度任务',
+    action: '查询执行内容候选项',
+  })
+  async executionContentCandidates(params?: any, options?: any) {
+    return this.get('executionContentCandidates', {
+      ...options,
+      params,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-调度任务',
     action: '更新',
   })
   @CRUD.Op()

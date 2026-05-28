@@ -16,9 +16,14 @@ const simpleApiCategoryOptionsLoader = buildDictOptionsLoader(
 const simpleApiTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.SimpleApi$Type',
 );
-const simpleApiLanguageOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.SimpleApi$Language',
-);
+const simpleApiLanguageOptions = [{ label: 'Groovy', value: 'Groovy' }];
+const httpMethodOptions = [
+  { label: 'GET', value: 'GET' },
+  { label: 'POST', value: 'POST' },
+  { label: 'PUT', value: 'PUT' },
+  { label: 'DELETE', value: 'DELETE' },
+  { label: 'PATCH', value: 'PATCH' },
+];
 const simpleStatusOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.enums.SimpleFlowStatus',
 );
@@ -100,13 +105,20 @@ export const simpleApiPageCrudConfig: CrudPageConfig = {
       type: 'select',
     },
     { key: 'containsName', label: '名称', form: false, search: true },
-    { key: 'methods', label: 'HTTP方法', form: false, search: true },
+    {
+      key: 'methods',
+      label: 'HTTP方法',
+      form: false,
+      options: httpMethodOptions,
+      search: true,
+      type: 'select',
+    },
     {
       key: 'inLanguage',
       label: '脚本语言',
       form: false,
-      loadOptions: simpleApiLanguageOptionsLoader,
       multiple: true,
+      options: simpleApiLanguageOptions,
       search: true,
       type: 'select',
     },
@@ -163,11 +175,18 @@ export const simpleApiPageCrudConfig: CrudPageConfig = {
       type: 'select',
       width: 120,
     },
-    { key: 'methods', label: 'HTTP方法', table: true, width: 120 },
+    {
+      key: 'methods',
+      label: 'HTTP方法',
+      options: httpMethodOptions,
+      table: true,
+      type: 'select',
+      width: 120,
+    },
     {
       key: 'language',
       label: '脚本语言',
-      loadOptions: simpleApiLanguageOptionsLoader,
+      options: simpleApiLanguageOptions,
       required: true,
       table: true,
       type: 'select',
@@ -224,11 +243,18 @@ export const simpleApiPageCrudConfig: CrudPageConfig = {
     {
       key: 'requireAuthorizations',
       label: '权限或角色',
+      form: false,
       fullRow: true,
       type: 'tags',
     },
-    { key: 'content', label: '内容', fullRow: true, type: 'textarea' },
-    { key: 'setting', label: '设置', fullRow: true, type: 'json' },
+    {
+      key: 'content',
+      label: '内容',
+      form: false,
+      fullRow: true,
+      type: 'textarea',
+    },
+    { key: 'setting', label: '设置', form: false, type: 'json' },
     { key: 'auditRemark', label: '审核说明', fullRow: true, type: 'textarea' },
     { key: 'orderCode', label: '排序代码', type: 'number' },
     {

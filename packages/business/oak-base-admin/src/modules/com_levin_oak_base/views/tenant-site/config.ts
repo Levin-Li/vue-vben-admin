@@ -104,9 +104,9 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     },
     { key: 'techSupport', label: '技术支持', fullRow: true, type: 'textarea' },
     { key: 'copyright', label: '版权声明', fullRow: true, type: 'textarea' },
-    { key: 'uiExInfo', label: '前端展示扩展信息', fullRow: true, type: 'json' },
-    { key: 'exInfo', label: '扩展信息', fullRow: true, type: 'json' },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
+    { key: 'uiExInfo', label: '前端展示扩展信息', span: 2, type: 'json' },
+    { key: 'exInfo', label: '扩展信息', span: 2, type: 'json' },
+    { key: 'orderCode', label: '排序代码', layoutNewRow: true, type: 'number' },
     {
       key: 'enable',
       label: '是否启用',

@@ -204,10 +204,9 @@ export const fundAccountLogPageCrudConfig: CrudPageConfig = {
       key: 'tradeLog',
       form: false,
       label: '交易过程信息',
-      fullRow: true,
       type: 'json',
     },
-    { key: 'extInfo', label: '交易扩展信息', fullRow: true, type: 'json' },
+    { key: 'extInfo', label: '交易扩展信息', type: 'json' },
     {
       key: 'confidentialLevel',
       label: '机密等级',

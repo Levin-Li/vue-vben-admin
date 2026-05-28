@@ -11,6 +11,7 @@ vi.mock('../../api-module', () => ({
   buildEnumOptionsLoader: () => async () => [],
   DEFAULT_CRUD_MODAL_WIDTH: '70%',
   roleOptionsLoader: async () => [],
+  tenantSiteDomainOptionsLoader: async () => [],
   tenantOptionsLoader: async () => [],
 }));
 
@@ -26,6 +27,8 @@ describe('url ex acl page config', () => {
     'osList',
     'userTypeList',
     'userRoleList',
+    'requestParamRuleList',
+    'headerRuleList',
   ];
 
   it('uses authorized controller path lookup for URL include and exclude fields', () => {
@@ -73,6 +76,62 @@ describe('url ex acl page config', () => {
       loadOptions: expect.any(Function),
       remoteSearch: true,
       type: 'tags',
+    });
+    expect(fields.find((field) => field.key === 'methodList')).toMatchObject({
+      key: 'methodList',
+      label: '请求方法包含列表',
+      options: expect.arrayContaining([
+        expect.objectContaining({ value: 'GET' }),
+        expect.objectContaining({ value: 'POST' }),
+        expect.objectContaining({ value: 'PUT' }),
+        expect.objectContaining({ value: 'DELETE' }),
+        expect.objectContaining({ value: 'PATCH' }),
+      ]),
+      span: 2,
+      type: 'tags',
+    });
+    expect(fields.find((field) => field.key === 'domainList')).toMatchObject({
+      key: 'domainList',
+      label: '域名包含列表',
+      loadOptions: expect.any(Function),
+      remoteSearch: true,
+      span: 2,
+      type: 'tags',
+    });
+    expect(
+      fields.find((field) => field.key === 'requestParamRuleList'),
+    ).toMatchObject({
+      help: expect.stringContaining('name=value'),
+      key: 'requestParamRuleList',
+      label: '请求参数匹配列表',
+      placeholder: '例如 tenant*=ma?ket-*',
+      span: 2,
+      type: 'tags',
+    });
+    expect(fields.find((field) => field.key === 'headerRuleList')).toMatchObject({
+      help: expect.stringContaining('name=value'),
+      key: 'headerRuleList',
+      label: '请求头匹配列表',
+      placeholder: '例如 X-Tenant-*=vip?',
+      span: 2,
+      type: 'tags',
+    });
+  });
+
+  it('normalizes parameter and header rule lists without storing URL encoded text', () => {
+    expect(
+      urlExAclPageCrudConfig.transformSubmit?.(
+        {
+          headerRuleList: [{ name: 'X-Tenant-*', value: 'vip?' }],
+          requestParamRuleList: ['tenant*=ma?ket-*'],
+          urlPathList: ['/api/*'],
+        },
+        null,
+      ),
+    ).toMatchObject({
+      headerRuleList: ['X-Tenant-*=vip?'],
+      requestParamRuleList: ['tenant*=ma?ket-*'],
+      urlPathList: ['/api/*'],
     });
   });
 });

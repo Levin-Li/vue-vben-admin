@@ -11,16 +11,22 @@ defineOptions({
 
 const props = withDefaults(
   defineProps<{
+    customTest?: boolean;
     field: CrudFieldConfig;
     matchMode?: PatternMatchMode;
     modelValue: unknown;
+    testable?: boolean;
+    validateItem?: (value: string) => boolean | string | undefined;
   }>(),
   {
+    customTest: false,
     matchMode: 'any',
+    testable: true,
   },
 );
 
 const emit = defineEmits<{
+  test: [];
   'update:modelValue': [value: unknown];
 }>();
 
@@ -45,6 +51,7 @@ const patternOptions = computed(() =>
   })),
 );
 const editorHint = computed(() => (props.field.help ? '' : undefined));
+const showEmptyImage = computed(() => props.field.showEmptyImage === true);
 
 async function loadOptions(keyword = '') {
   if (!props.field.loadOptions) {
@@ -88,11 +95,16 @@ onMounted(() => {
     class="min-w-0"
     :loading="loading"
     :hint="editorHint"
+    :custom-test="customTest"
     :match-mode="matchMode"
     :options="patternOptions"
     :placeholder="field.placeholder || `请输入${field.label}`"
+    :show-empty-image="showEmptyImage"
+    :testable="testable"
     :test-placeholder="`测试${field.label}`"
+    :validate-item="validateItem"
     @dropdown-visible-change="handleDropdownVisibleChange"
     @search="handleSearch"
+    @test="$emit('test')"
   />
 </template>

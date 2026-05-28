@@ -117,6 +117,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '国际化资源',
   },
   {
+    icon: 'lucide:file-spreadsheet',
+    name: 'ImportExportTemplate',
+    resource: 'ImportExportTemplate',
+    title: '导入导出模板',
+  },
+  {
     icon: 'lucide:briefcase-business',
     name: 'JobPost',
     resource: 'JobPost',
@@ -299,6 +305,8 @@ export const oakBaseAdminResourceViewMap: Record<
   FundAccountLog: () => import('./views/fund-account-log/index.vue'),
   FundExchangeRule: () => import('./views/fund-exchange-rule/index.vue'),
   I18nRes: () => import('./views/i18n-res/index.vue'),
+  ImportExportTemplate: () =>
+    import('./views/import-export-template/index.vue'),
   JobPost: () => import('./views/job-post/index.vue'),
   Menu: () => import('./views/menu/index.vue'),
   Nation: () => import('./views/nation/index.vue'),

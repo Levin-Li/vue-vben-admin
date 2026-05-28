@@ -92,16 +92,66 @@ import {
   shouldReloadDataListAfterAction,
 } from './crud-action-model';
 import { buildCrudConfirmConfig } from './crud-confirm';
+import CrudExportPanel from './crud-export-panel.vue';
+import CrudImportPanel from './crud-import-panel.vue';
+import {
+  buildCrudExportTemplateTargetTypeVariants,
+  CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES,
+  CRUD_EXPORT_TEMPLATE_CATEGORY as EXPORT_TEMPLATE_CATEGORY,
+  CRUD_EXPORT_TEMPLATE_FILE_TYPE as EXPORT_TEMPLATE_FILE_TYPE,
+  CRUD_EXPORT_TEMPLATE_SAVE_TYPE as EXPORT_TEMPLATE_TYPE,
+  CRUD_IMPORT_TEMPLATE_CATEGORY,
+  CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES,
+  CRUD_IMPORT_TEMPLATE_SAVE_TYPE as IMPORT_TEMPLATE_TYPE,
+} from './crud-export-template';
+import {
+  buildDefaultImportMappings,
+  buildImportRecords,
+  chunkImportRecords,
+  CRUD_IMPORT_BATCH_SIZE,
+  normalizeImportTemplateConfig,
+  parseImportFile,
+  type CrudImportMapping,
+  type ParsedImportSheet,
+} from './crud-import';
+import { buildExcelXml, downloadExcelXml } from './crud-file-export';
+import {
+  buildCrudTemplateCode,
+  buildCrudTemplateScopePayload,
+  canShowCrudTemplateDelete,
+  dedupeCrudTemplates,
+  getCrudTemplateDeleteParams,
+  getCrudTemplateValue,
+  isSameCrudTemplate,
+  normalizeCreatedCrudTemplate,
+  normalizeCrudTemplateConfig,
+  normalizeCrudTemplateList,
+  removeCrudTemplateFromList,
+  type CrudTemplateSaveScope,
+} from './crud-template-service';
 import {
   buildActionLogTooltipItems,
   hasDisplayableActionLog,
 } from './crud-action-log-tooltip';
 import { shouldShowCrudFormField } from './crud-form-field-visibility';
 import {
+  getContainerColumnCount,
+  getFormFieldColumnSpan,
+  MAX_SEARCH_COLUMN_COUNT,
+  MIN_SEARCH_COLUMN_WIDTH,
+  resolveFormColumnCount,
+  resolveSearchCollapsedCount,
+  shouldFormFieldSpanFullRow,
+  sortFormLayoutFields,
+} from './crud-form-layout';
+import {
   filterCrudOperationsByListTable,
   groupCrudOperationsByRecordRef,
 } from './crud-operation-placement';
-import { buildCrudOperationPermissions } from './crud-permissions';
+import {
+  buildApiMethodPermissions,
+  buildCrudOperationPermissions,
+} from './crud-permissions';
 import {
   shouldApplyFieldOptionsRequest,
   shouldReloadRemoteOptionsOnDropdownOpen,
@@ -113,9 +163,16 @@ import {
   CRUD_TOOLTIP_MOUSE_ENTER_DELAY,
 } from './crud-tooltip-preview';
 import { evaluateCrudVisibleOn } from './crud-visible-on';
+import CronExpressionField from './cron-expression-field.vue';
 import { buildDetailDisplayEntries } from './detail-display';
 import DetailDisplayPanel from './detail-display-panel.vue';
 import JsonEditorField from './json-editor-field.vue';
+import JsonSchemaEditorField from './json-schema-editor-field.vue';
+import {
+  getJsonSchemaSourceInput,
+  hasCrudFieldJsonSchema,
+  isCrudFieldJsonSchemaInline,
+} from './json-schema-source';
 
 const props = defineProps<{
   config: CrudPageConfig;
@@ -181,24 +238,15 @@ interface TableSorterState {
 
 const DEFAULT_SEARCH_COLLAPSED_COUNT = 3;
 const DEFAULT_CRUD_MODAL_WIDTH = 'min(70vw, 1280px)';
-const DEFAULT_FORM_ROW_HEIGHT = 78;
 const EXPORT_LIMIT_ERROR_MESSAGE = 'EXPORT_LIMIT_EXCEEDED';
 const EXPORT_MAX_RECORDS = 50_000;
 const EXPORT_PAGE_SIZE = 2000;
-const EXPORT_TEMPLATE_CATEGORY = 'CrudExport';
-const EXPORT_TEMPLATE_FILE_TYPE = 'Excel';
-const EXPORT_TEMPLATE_TYPE = 'Export';
 const EXPORT_TEMPLATE_SCOPE_OPTIONS = [
   { label: '个人模板', value: 'personal' },
   { label: '平台共享', value: 'platform' },
   { label: '租户共享', value: 'tenant' },
   { label: '组织共享', value: 'org' },
 ] as const;
-const FORM_GRID_COLUMN_GAP = 16;
-const MAX_SEARCH_COLUMN_COUNT = 7;
-const MIN_SEARCH_COLUMN_WIDTH = 280;
-const SEARCH_GRID_COLUMN_GAP = 16;
-const MIN_FORM_COLUMN_WIDTH = 240;
 const TABLE_COLUMN_PREFERENCE_VERSION = 2;
 const TABLE_MIN_SCROLL_Y = 160;
 const TABLE_SECTION_VERTICAL_PADDING = 32;
@@ -214,7 +262,8 @@ const userStore = useUserStore();
 const route = useRoute();
 
 type ExportTemplateSaveScope =
-  (typeof EXPORT_TEMPLATE_SCOPE_OPTIONS)[number]['value'];
+  (typeof EXPORT_TEMPLATE_SCOPE_OPTIONS)[number]['value'] &
+    CrudTemplateSaveScope;
 
 const dataSource = ref<GenericRecord[]>([]);
 const editingRecord = ref<GenericRecord | null>(null);
@@ -237,6 +286,18 @@ const exportTemplates = ref<CrudExportTemplateRecord[]>([]);
 const exportTemplateLoading = ref(false);
 const exportTemplateSaving = ref(false);
 const selectedExportTemplateId = ref<string | undefined>();
+const importModalOpen = ref(false);
+const importConsoleOpen = ref(false);
+const importing = ref(false);
+const importStopRequested = ref(false);
+const importTemplateLoading = ref(false);
+const importTemplateSaving = ref(false);
+const importTemplates = ref<CrudExportTemplateRecord[]>([]);
+const selectedImportTemplateId = ref<string | undefined>();
+const importSheet = ref<ParsedImportSheet | null>(null);
+const importMappings = ref<CrudImportMapping[]>([]);
+const importFileName = ref('');
+const importConsoleLines = ref<string[]>([]);
 const uploadPreviewOpen = ref(false);
 const uploadPreviewUrl = ref('');
 const optionState = reactive<Record<string, any[]>>({});
@@ -399,6 +460,10 @@ function isFieldDisabledOnEdit(field: CrudFieldConfig) {
   return field.disabledOnEdit === true;
 }
 
+function shouldUseJsonSchemaEditor(field: CrudFieldConfig, value?: any) {
+  return field.type === 'json' && hasCrudFieldJsonSchema(field, value);
+}
+
 const searchFields = computed(() =>
   props.config.fields
     .map((field, index) => ({ field, index }))
@@ -527,42 +592,6 @@ const formFields = computed(() =>
     (field) => field.form !== false && isFieldVisible(field),
   ),
 );
-
-const FORM_LAYOUT_GROUP_ORDER = [
-  'ownership',
-  'basic',
-  'media',
-  'content',
-  'business',
-  'extension',
-  'remark',
-  'audit',
-];
-
-function getFormLayoutGroupIndex(field: CrudFieldConfig, index: number) {
-  if (!field.layoutGroup) {
-    return FORM_LAYOUT_GROUP_ORDER.length + index / 1000;
-  }
-
-  const groupIndex = FORM_LAYOUT_GROUP_ORDER.indexOf(field.layoutGroup);
-  return groupIndex >= 0 ? groupIndex : FORM_LAYOUT_GROUP_ORDER.length;
-}
-
-function sortFormLayoutFields(fields: CrudFieldConfig[]) {
-  return [...fields].sort((a, b) => {
-    const aIndex = fields.indexOf(a);
-    const bIndex = fields.indexOf(b);
-    const groupDiff =
-      getFormLayoutGroupIndex(a, aIndex) - getFormLayoutGroupIndex(b, bIndex);
-
-    if (groupDiff !== 0) {
-      return groupDiff;
-    }
-
-    const orderDiff = (a.layoutOrder ?? aIndex) - (b.layoutOrder ?? bIndex);
-    return orderDiff !== 0 ? orderDiff : aIndex - bIndex;
-  });
-}
 
 const visibleFormFields = computed(() =>
   sortFormLayoutFields(
@@ -734,10 +763,109 @@ const exportTemplateOptions = computed(() =>
   exportTemplates.value
     .map((item) => ({
       label: item.name,
-      value: getExportTemplateValue(item),
+      value: getCrudTemplateValue(item),
     }))
     .filter((item) => item.value !== undefined),
 );
+
+const importTemplateOptions = computed(() =>
+  importTemplates.value
+    .map((item) => ({
+      label: item.name,
+      value: getCrudTemplateValue(item),
+    }))
+    .filter((item) => item.value !== undefined),
+);
+
+const selectedExportTemplate = computed(() =>
+  exportTemplates.value.find(
+    (item) => getCrudTemplateValue(item) === selectedExportTemplateId.value,
+  ),
+);
+
+const selectedImportTemplate = computed(() =>
+  importTemplates.value.find(
+    (item) => getCrudTemplateValue(item) === selectedImportTemplateId.value,
+  ),
+);
+
+const selectedExportTemplateCanDelete = computed(() =>
+  selectedExportTemplate.value
+    ? canShowTemplateDelete(selectedExportTemplate.value)
+    : false,
+);
+
+const selectedImportTemplateCanDelete = computed(() =>
+  selectedImportTemplate.value
+    ? canShowTemplateDelete(selectedImportTemplate.value)
+    : false,
+);
+
+const importableFields = computed(() =>
+  props.config.fields.filter(
+    (field) =>
+      field.key &&
+      field.form !== false &&
+      field.formCreate !== false &&
+      field.allowInput !== false &&
+      field.type !== 'image' &&
+      field.type !== 'file' &&
+      shouldShowCrudFormField(field, 'create', userStore.userInfo),
+  ),
+);
+
+const importHeaderOptions = computed(() =>
+  (importSheet.value?.headers || []).map((header) => ({
+    label: header,
+    value: header,
+  })),
+);
+
+const importPreviewResult = computed(() =>
+  importSheet.value
+    ? buildImportRecords(importSheet.value, importMappings.value)
+    : { records: [], rowErrors: [] },
+);
+
+const importCanStart = computed(
+  () =>
+    Boolean(importSheet.value) && importPreviewResult.value.records.length > 0,
+);
+
+const importPreviewRows = computed(() =>
+  importPreviewResult.value.records.slice(0, 20),
+);
+
+const importPreviewColumns = computed<TableColumnsType>(() =>
+  importMappings.value
+    .filter((mapping) => mapping.header)
+    .map((mapping) => {
+      const field = importableFields.value.find(
+        (item) => String(item.key) === String(mapping.fieldKey),
+      );
+
+      return {
+        dataIndex: mapping.fieldKey,
+        key: mapping.fieldKey,
+        title: field?.label || mapping.fieldKey,
+        width: 140,
+      };
+    }),
+);
+
+const importTemplateDeletePermission = computed(() => {
+  const methodPermissions = buildApiMethodPermissions(
+    props.config.exportTemplateService,
+    'delete',
+  );
+
+  return methodPermissions.length > 0
+    ? methodPermissions
+    : [
+        'com.levin.oak.base:系统数据-导入导出模板::删除',
+        '/ImportExportTemplate/delete',
+      ];
+});
 
 const tableColumnPreferenceStorageKey = computed(() => {
   const routeKey =
@@ -909,6 +1037,16 @@ const canCreate = computed(
     ),
 );
 
+const canImport = computed(() => {
+  const apiService = props.config.apiService;
+
+  if (!apiService || typeof apiService.batchCreate !== 'function') {
+    return false;
+  }
+
+  return hasPermission(buildApiMethodPermissions(apiService, 'batchCreate'));
+});
+
 const canRetrieve = computed(
   () =>
     props.config.allowRetrieve === true &&
@@ -959,21 +1097,11 @@ const searchCollapsedCount = computed(
 );
 
 const effectiveSearchCollapsedCount = computed(() => {
-  if (searchColumnCount.value <= 1) {
-    return Math.min(searchCollapsedCount.value, searchFieldItems.value.length);
-  }
-
-  const fieldsBeforeActionColumn = searchColumnCount.value - 1;
-  const usedColumnsInActionRow =
-    searchCollapsedCount.value % searchColumnCount.value;
-  const additionalFields =
-    (fieldsBeforeActionColumn -
-      usedColumnsInActionRow +
-      searchColumnCount.value) %
-    searchColumnCount.value;
-  const targetCount = searchCollapsedCount.value + additionalFields;
-
-  return Math.min(targetCount, searchFieldItems.value.length);
+  return resolveSearchCollapsedCount(
+    searchFieldItems.value.length,
+    searchColumnCount.value,
+    searchCollapsedCount.value,
+  );
 });
 
 const showAdvancedSearchToggle = computed(
@@ -987,49 +1115,6 @@ const visibleSearchFieldItems = computed(() => {
 
   return searchFieldItems.value.slice(0, effectiveSearchCollapsedCount.value);
 });
-
-function getResponsiveColumnCount(targetCount: number) {
-  if (viewportWidth.value < 768) {
-    return 1;
-  }
-
-  if (viewportWidth.value < 1024) {
-    return Math.min(targetCount, 2);
-  }
-
-  if (viewportWidth.value < 1440) {
-    return Math.min(targetCount, 3);
-  }
-
-  if (viewportWidth.value < 1920) {
-    return Math.min(targetCount, 4);
-  }
-
-  return targetCount;
-}
-
-function getFormFieldVisualWeight(field: CrudFieldConfig) {
-  if (field.type === 'switch') {
-    return 0.6;
-  }
-
-  if (
-    field.type === 'code' ||
-    field.type === 'css' ||
-    field.type === 'file' ||
-    field.type === 'html' ||
-    field.type === 'image' ||
-    field.type === 'textarea'
-  ) {
-    return 2;
-  }
-
-  if (field.type === 'string-array' || field.type === 'tags') {
-    return 3;
-  }
-
-  return 1;
-}
 
 function isTableFieldSortable(field: CrudFieldConfig) {
   return field.sortable !== false && field.key !== '__tenant';
@@ -1071,109 +1156,12 @@ function resolveTableColumnWidth(field: CrudFieldConfig) {
   );
 }
 
-function shouldFormFieldSpanFullRow(field: CrudFieldConfig) {
-  if (field.span && field.span > 0) {
-    return false;
-  }
-
-  return (
-    field.fullRow ||
-    field.span === -1 ||
-    field.type === 'textarea' ||
-    field.type === 'string-array' ||
-    field.type === 'tags'
-  );
-}
-
-function getFormFieldColumnSpan(field: CrudFieldConfig, columns: number) {
-  if (shouldFormFieldSpanFullRow(field)) {
-    return columns;
-  }
-
-  return Math.min(Math.max(field.span || 1, 1), columns);
-}
-
-function isLargeDisplayField(field: CrudFieldConfig | undefined, value: any) {
-  if (!field) {
-    return value && typeof value === 'object';
-  }
-
-  return (
-    shouldFormFieldSpanFullRow(field) ||
-    field.type === 'code' ||
-    field.type === 'css' ||
-    field.type === 'html' ||
-    field.type === 'json'
-  );
-}
-
-function estimateFormVisualRows(fields: CrudFieldConfig[], columns: number) {
-  let usedColumns = 0;
-  let currentRowWeight = 0;
-  let rows = 0;
-
-  function flushRow() {
-    if (usedColumns > 0) {
-      rows += currentRowWeight || 1;
-      usedColumns = 0;
-      currentRowWeight = 0;
-    }
-  }
-
-  for (const field of fields) {
-    if (field.layoutNewRow) {
-      flushRow();
-    }
-
-    const span = getFormFieldColumnSpan(field, columns);
-    const weight = getFormFieldVisualWeight(field);
-
-    if (usedColumns > 0 && usedColumns + span > columns) {
-      flushRow();
-    }
-
-    usedColumns += span;
-    currentRowWeight = Math.max(currentRowWeight, weight);
-
-    if (span === columns || usedColumns >= columns) {
-      flushRow();
-    }
-  }
-
-  flushRow();
-
-  return rows;
-}
-
 function getModalAvailableWidth() {
   const configuredWidth = props.config.modalWidth;
   const configuredMaxWidth =
     typeof configuredWidth === 'number' ? configuredWidth : 1280;
 
   return Math.min(viewportWidth.value * 0.7, configuredMaxWidth);
-}
-
-function getMediaFieldCount(fields: CrudFieldConfig[]) {
-  return fields.filter(
-    (field) => field.type === 'image' || field.type === 'file',
-  ).length;
-}
-
-function getContainerColumnCount(
-  containerWidth: number,
-  minColumnWidth: number,
-  maxColumns: number,
-) {
-  if (containerWidth < 768) {
-    return 1;
-  }
-
-  const columns = Math.floor(
-    (containerWidth + SEARCH_GRID_COLUMN_GAP) /
-      (minColumnWidth + SEARCH_GRID_COLUMN_GAP),
-  );
-
-  return Math.min(Math.max(columns, 1), maxColumns);
 }
 
 const searchColumnCount = computed(() =>
@@ -1189,56 +1177,13 @@ const searchGridStyle = computed(() => ({
 }));
 
 const formColumnCount = computed(() => {
-  const totalWeight = visibleFormFields.value.reduce(
-    (sum, field) => sum + getFormFieldVisualWeight(field),
-    0,
-  );
-  const maxColumns = getResponsiveColumnCount(5);
-  let columns = 1;
-
-  if (totalWeight > 30) {
-    columns = 5;
-  } else if (totalWeight > 18) {
-    columns = 4;
-  } else if (
-    totalWeight > 10 ||
-    getMediaFieldCount(visibleFormFields.value) >= 2
-  ) {
-    columns = 3;
-  } else if (totalWeight > 6) {
-    columns = 2;
-  }
-
-  columns = Math.min(columns, maxColumns);
-
-  while (
-    columns > 1 &&
-    estimateFormVisualRows(visibleFormFields.value, columns) < 3
-  ) {
-    columns -= 1;
-  }
-
-  while (
-    columns < maxColumns &&
-    estimateFormVisualRows(visibleFormFields.value, columns) *
-      DEFAULT_FORM_ROW_HEIGHT >
-      viewportHeight.value * 0.75
-  ) {
-    const nextColumns = columns + 1;
-    const nextColumnWidth =
-      (getModalAvailableWidth() -
-        (nextColumns - 1) * FORM_GRID_COLUMN_GAP -
-        48) /
-      nextColumns;
-
-    if (nextColumnWidth < MIN_FORM_COLUMN_WIDTH) {
-      break;
-    }
-
-    columns = nextColumns;
-  }
-
-  return columns;
+  return resolveFormColumnCount({
+    configuredMaxColumns: props.config.formMaxColumns,
+    fields: visibleFormFields.value,
+    modalAvailableWidth: getModalAvailableWidth(),
+    viewportHeight: viewportHeight.value,
+    viewportWidth: viewportWidth.value,
+  });
 });
 
 const formGridStyle = computed(() => ({
@@ -1264,6 +1209,27 @@ function getFormItemStyle(field: CrudFieldConfig) {
   }
 
   return Object.keys(style).length > 0 ? style : undefined;
+}
+
+function shouldFormItemSpanFullRow(field: CrudFieldConfig) {
+  return shouldFormFieldSpanFullRow(field);
+}
+
+function shouldFormItemSpanTwoColumns(field: CrudFieldConfig) {
+  return (
+    getFormFieldColumnSpan(field, formColumnCount.value) === 2 &&
+    !shouldFormFieldSpanFullRow(field)
+  );
+}
+
+function shouldConstrainFormItemWidth(field: CrudFieldConfig) {
+  return (
+    getFormFieldColumnSpan(field, formColumnCount.value) === 1 &&
+    !shouldFormFieldSpanFullRow(field) &&
+    field.type !== 'textarea' &&
+    field.type !== 'string-array' &&
+    field.type !== 'tags'
+  );
 }
 
 const modalMaxWidth = computed(() => {
@@ -2010,84 +1976,13 @@ function getDefaultExportFieldAliases() {
   return {};
 }
 
-function normalizeExportTemplateList(
-  result: CrudExportTemplateRecord[] | { items?: CrudExportTemplateRecord[] },
-) {
-  return Array.isArray(result) ? result : result.items || [];
-}
-
-function normalizeExportTemplateConfig(
-  value: CrudExportTemplateRecord['config'],
-): CrudExportTemplateConfig {
-  if (!value) {
-    return {};
-  }
-
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value) || {};
-    } catch {
-      return {};
-    }
-  }
-
-  return value;
-}
-
-function normalizeCreatedExportTemplate(
-  value: any,
-): Partial<CrudExportTemplateRecord> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
-
-  const nested =
-    value.data || value.item || value.record || value.result || value.entity;
-
-  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
-    return nested;
-  }
-
-  return value;
-}
-
-function getExportTemplateValue(template: CrudExportTemplateRecord) {
-  if (template.id !== undefined && template.id !== null) {
-    return String(template.id);
-  }
-
-  const code = String(template.code || '').trim();
-
-  return code || undefined;
-}
-
-function isSameExportTemplate(
-  template: CrudExportTemplateRecord,
-  target: CrudExportTemplateRecord,
-) {
-  const templateValue = getExportTemplateValue(template);
-  const targetValue = getExportTemplateValue(target);
-
-  if (templateValue && targetValue && templateValue === targetValue) {
-    return true;
-  }
-
-  return Boolean(
-    template.code &&
-    target.code &&
-    String(template.code) === String(target.code),
-  );
-}
-
 function findExportTemplate(target: CrudExportTemplateRecord) {
-  return exportTemplates.value.find((item) =>
-    isSameExportTemplate(item, target),
-  );
+  return exportTemplates.value.find((item) => isSameCrudTemplate(item, target));
 }
 
 function upsertExportTemplate(template: CrudExportTemplateRecord) {
   const existingIndex = exportTemplates.value.findIndex((item) =>
-    isSameExportTemplate(item, template),
+    isSameCrudTemplate(item, template),
   );
 
   if (existingIndex >= 0) {
@@ -2105,20 +2000,6 @@ function getExportTemplateNameSeed() {
   const context = exportTemplateContext.value;
 
   return `${context.title}${context.listTitle}导出模板`;
-}
-
-function getExportTemplateCode(name: string) {
-  const source = `${exportTemplateContext.value.targetType}:${name}:${Date.now()}`;
-  let hash = 0;
-
-  for (const char of source) {
-    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  }
-
-  return `crud-export-${Date.now().toString(36)}-${hash.toString(36)}`.slice(
-    0,
-    128,
-  );
 }
 
 function buildExportTemplateConfig(): CrudExportTemplateConfig {
@@ -2213,27 +2094,77 @@ async function loadExportTemplates() {
 
   try {
     const context = exportTemplateContext.value;
-    const result = await list(
-      {
-        category: EXPORT_TEMPLATE_CATEGORY,
-        enable: true,
-        fileType: EXPORT_TEMPLATE_FILE_TYPE,
-        orderBy: 'lastUpdateTime',
-        orderDir: 'Desc',
-        pageIndex: 1,
-        pageSize: 200,
-        targetType: context.targetType,
-        type: EXPORT_TEMPLATE_TYPE,
-      },
-      context,
+    const targetTypes = buildCrudExportTemplateTargetTypeVariants(context);
+    const resultList = await Promise.all(
+      targetTypes.map((targetType) =>
+        list(
+          {
+            category: EXPORT_TEMPLATE_CATEGORY,
+            enable: true,
+            fileType: EXPORT_TEMPLATE_FILE_TYPE,
+            inType: [...CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES],
+            orderBy: 'lastUpdateTime',
+            orderDir: 'Desc',
+            pageIndex: 1,
+            pageSize: 200,
+            targetType,
+          },
+          context,
+        ),
+      ),
     );
 
-    exportTemplates.value = normalizeExportTemplateList(result);
+    exportTemplates.value = dedupeCrudTemplates(
+      resultList.flatMap((result) => normalizeCrudTemplateList(result)),
+    );
   } catch (error) {
     console.error(error);
     message.warning('导出模板加载失败');
   } finally {
     exportTemplateLoading.value = false;
+  }
+}
+
+async function loadImportTemplates() {
+  const list = props.config.exportTemplateService?.list;
+
+  if (!list) {
+    importTemplates.value = [];
+    return;
+  }
+
+  importTemplateLoading.value = true;
+
+  try {
+    const context = exportTemplateContext.value;
+    const targetTypes = buildCrudExportTemplateTargetTypeVariants(context);
+    const resultList = await Promise.all(
+      targetTypes.map((targetType) =>
+        list(
+          {
+            category: CRUD_IMPORT_TEMPLATE_CATEGORY,
+            enable: true,
+            fileType: EXPORT_TEMPLATE_FILE_TYPE,
+            inType: [...CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES],
+            orderBy: 'lastUpdateTime',
+            orderDir: 'Desc',
+            pageIndex: 1,
+            pageSize: 200,
+            targetType,
+          },
+          context,
+        ),
+      ),
+    );
+
+    importTemplates.value = dedupeCrudTemplates(
+      resultList.flatMap((result) => normalizeCrudTemplateList(result)),
+    );
+  } catch (error) {
+    console.error(error);
+    message.warning('导入模板加载失败');
+  } finally {
+    importTemplateLoading.value = false;
   }
 }
 
@@ -2246,108 +2177,64 @@ function handleExportTemplateChange(value?: number | string) {
   }
 
   const template = exportTemplates.value.find(
-    (item) => getExportTemplateValue(item) === selectedExportTemplateId.value,
+    (item) => getCrudTemplateValue(item) === selectedExportTemplateId.value,
   );
 
   if (!template) {
     return;
   }
 
-  applyExportTemplateConfig(normalizeExportTemplateConfig(template.config));
+  applyExportTemplateConfig(normalizeCrudTemplateConfig(template.config));
   message.success(`已应用导出模板：${template.name}`);
 }
 
-function normalizeExportTemplateOwnerValue(value: unknown) {
-  if (value === undefined || value === null) {
-    return null;
-  }
+function canShowTemplateDelete(template: CrudExportTemplateRecord) {
+  const deleteAction = props.config.exportTemplateService?.delete;
 
-  const text = String(value).trim();
-
-  return text || null;
+  return Boolean(
+    deleteAction &&
+    canShowCrudTemplateDelete({
+      hasDeletePermission: hasPermission(importTemplateDeletePermission.value),
+      template,
+      userInfo: userStore.userInfo as Record<string, any> | undefined,
+    }),
+  );
 }
 
-function getCurrentExportTemplateUserValue(...keys: string[]) {
-  const userInfo = (userStore.userInfo || {}) as Record<string, any>;
+async function deleteTemplate(
+  template: CrudExportTemplateRecord,
+  kind: 'export' | 'import',
+) {
+  const deleteAction = props.config.exportTemplateService?.delete;
 
-  for (const key of keys) {
-    const value = normalizeExportTemplateOwnerValue(userInfo[key]);
+  if (!deleteAction || !canShowTemplateDelete(template)) {
+    return;
+  }
 
-    if (value !== null) {
-      return value;
+  await deleteAction(
+    getCrudTemplateDeleteParams(template),
+    exportTemplateContext.value,
+  );
+
+  if (kind === 'export') {
+    exportTemplates.value = removeCrudTemplateFromList(
+      exportTemplates.value,
+      template,
+    );
+    if (selectedExportTemplateId.value === getCrudTemplateValue(template)) {
+      selectedExportTemplateId.value = undefined;
+    }
+  } else {
+    importTemplates.value = removeCrudTemplateFromList(
+      importTemplates.value,
+      template,
+    );
+    if (selectedImportTemplateId.value === getCrudTemplateValue(template)) {
+      selectedImportTemplateId.value = undefined;
     }
   }
 
-  return null;
-}
-
-function getCurrentExportTemplateOrgValue() {
-  const userInfo = (userStore.userInfo || {}) as Record<string, any>;
-  const directValue = getCurrentExportTemplateUserValue(
-    'orgId',
-    'organizationId',
-    'deptId',
-    'currentOrgId',
-    'defaultOrgId',
-  );
-
-  if (directValue !== null) {
-    return directValue;
-  }
-
-  const org = userInfo.org || userInfo.organization || userInfo.dept;
-
-  if (org && typeof org === 'object') {
-    const orgRecord = org as Record<string, any>;
-
-    return normalizeExportTemplateOwnerValue(orgRecord.id ?? orgRecord.value);
-  }
-
-  return null;
-}
-
-function buildExportTemplateScopePayload(scope: ExportTemplateSaveScope) {
-  const tenantId = getCurrentExportTemplateUserValue('tenantId');
-  const orgId = getCurrentExportTemplateOrgValue();
-  const ownerId = getCurrentExportTemplateUserValue('userId', 'id');
-
-  if (scope === 'platform') {
-    return {
-      orgId: null,
-      orgShared: true,
-      ownerId: null,
-      tenantId: null,
-      tenantShared: true,
-    };
-  }
-
-  if (scope === 'tenant') {
-    return {
-      orgId: null,
-      orgShared: true,
-      ownerId: null,
-      tenantId,
-      tenantShared: false,
-    };
-  }
-
-  if (scope === 'org') {
-    return {
-      orgId,
-      orgShared: false,
-      ownerId: null,
-      tenantId,
-      tenantShared: false,
-    };
-  }
-
-  return {
-    orgId,
-    orgShared: false,
-    ownerId,
-    tenantId,
-    tenantShared: false,
-  };
+  message.success('模板已删除');
 }
 
 async function saveExportTemplate(
@@ -2372,18 +2259,21 @@ async function saveExportTemplate(
     const context = exportTemplateContext.value;
     const payload = {
       category: EXPORT_TEMPLATE_CATEGORY,
-      code: getExportTemplateCode(name),
+      code: buildCrudTemplateCode('crud-export', context, name),
       config: buildExportTemplateConfig(),
       editable: true,
       enable: true,
       fileType: EXPORT_TEMPLATE_FILE_TYPE,
       groupName: context.title,
       name,
-      ...buildExportTemplateScopePayload(scope),
+      ...buildCrudTemplateScopePayload(
+        scope,
+        userStore.userInfo as Record<string, any> | undefined,
+      ),
       targetType: context.targetType,
       type: EXPORT_TEMPLATE_TYPE,
     };
-    const created = normalizeCreatedExportTemplate(
+    const created = normalizeCreatedCrudTemplate(
       await create(payload, context),
     );
     const savedTemplate = {
@@ -2399,9 +2289,9 @@ async function saveExportTemplate(
       findExportTemplate(savedTemplate) || savedTemplate;
 
     upsertExportTemplate(refreshedTemplate);
-    selectedExportTemplateId.value = getExportTemplateValue(refreshedTemplate);
+    selectedExportTemplateId.value = getCrudTemplateValue(refreshedTemplate);
     applyExportTemplateConfig(
-      normalizeExportTemplateConfig(refreshedTemplate.config),
+      normalizeCrudTemplateConfig(refreshedTemplate.config),
     );
   } catch (error) {
     console.error(error);
@@ -2517,6 +2407,10 @@ function setAllExportFieldsSelected(selected: boolean) {
     : [];
 }
 
+function updateExportFieldAlias(key: string, value: string) {
+  exportFieldAliases.value[String(key)] = value;
+}
+
 function moveExportField(field: CrudFieldConfig, offset: -1 | 1) {
   const fieldKey = String(field.key);
   const orderedKeys = orderedExportFields.value.map((item) => String(item.key));
@@ -2532,27 +2426,10 @@ function moveExportField(field: CrudFieldConfig, offset: -1 | 1) {
   exportFieldOrderKeys.value = orderedKeys;
 }
 
-function escapeExcelXmlValue(value: any) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
 function getExportFieldHeader(field: CrudFieldConfig) {
   const alias = exportFieldAliases.value[String(field.key)]?.trim();
 
   return alias || field.label || field.key;
-}
-
-function getSafeWorksheetName(name: string) {
-  const safeName = String(name || 'Sheet1')
-    .replaceAll(/[\\/?*\[\]:]/g, '')
-    .slice(0, 31)
-    .trim();
-
-  return safeName || 'Sheet1';
 }
 
 function getExportFileName() {
@@ -2596,62 +2473,6 @@ function formatExportCellValue(field: CrudFieldConfig, record: GenericRecord) {
   }
 
   return String(getCellDisplayText(field, value)).replace(/^-$/, '');
-}
-
-function buildExcelXml(fields: CrudFieldConfig[], records: GenericRecord[]) {
-  const headerXml = fields
-    .map(
-      (field) =>
-        `<Cell><Data ss:Type="String">${escapeExcelXmlValue(
-          getExportFieldHeader(field),
-        )}</Data></Cell>`,
-    )
-    .join('');
-  const rowXml = records
-    .map((record) => {
-      const cells = fields
-        .map(
-          (field) =>
-            `<Cell><Data ss:Type="String">${escapeExcelXmlValue(
-              formatExportCellValue(field, record),
-            )}</Data></Cell>`,
-        )
-        .join('');
-
-      return `<Row>${cells}</Row>`;
-    })
-    .join('');
-  const worksheetName = getSafeWorksheetName(props.config.title);
-
-  return `<?xml version="1.0"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <Worksheet ss:Name="${escapeExcelXmlValue(worksheetName)}">
-  <Table>
-   <Row>${headerXml}</Row>
-   ${rowXml}
-  </Table>
- </Worksheet>
-</Workbook>`;
-}
-
-function downloadExcelXml(xml: string, fileName: string) {
-  const blob = new Blob([xml], {
-    type: 'application/vnd.ms-excel;charset=utf-8',
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-
-  link.href = url;
-  link.download = fileName;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
 }
 
 function buildExportQueryParams(pageIndex: number, pageSize: number) {
@@ -2711,6 +2532,383 @@ async function openExportModal() {
   }
 }
 
+function resetImportState() {
+  importSheet.value = null;
+  importMappings.value = [];
+  importFileName.value = '';
+  selectedImportTemplateId.value = undefined;
+}
+
+async function openImportModal() {
+  if (!canImport.value) {
+    return;
+  }
+
+  resetImportState();
+  await loadImportTemplates();
+  importModalOpen.value = true;
+}
+
+async function handleImportFileChange(file: File) {
+  try {
+    const sheet = await parseImportFile(file);
+
+    if (sheet.headers.length === 0) {
+      message.warning('文件中没有可导入的数据');
+      return;
+    }
+
+    importFileName.value = file.name;
+    importSheet.value = sheet;
+    importMappings.value = buildDefaultImportMappings(
+      sheet.headers,
+      importableFields.value,
+    );
+    selectedImportTemplateId.value = undefined;
+    message.success(`已读取 ${sheet.rows.length} 行数据`);
+  } catch (error) {
+    console.error(error);
+    message.error(getCrudErrorMessage(error, '导入文件解析失败'));
+  }
+}
+
+function updateImportMapping(
+  fieldKey: string,
+  patch: Partial<CrudImportMapping>,
+) {
+  importMappings.value = importMappings.value.map((mapping) =>
+    mapping.fieldKey === fieldKey ? { ...mapping, ...patch } : mapping,
+  );
+}
+
+function getImportTemplateNameSeed() {
+  const context = exportTemplateContext.value;
+
+  return `${context.title}${context.listTitle}导入模板`;
+}
+
+function buildImportTemplateConfig() {
+  return {
+    mappings: importMappings.value.map((mapping) => ({ ...mapping })),
+    version: 1,
+  };
+}
+
+function applyImportTemplateConfig(config: { mappings?: CrudImportMapping[] }) {
+  const availableKeys = new Set(
+    importableFields.value.map((field) => String(field.key)),
+  );
+  const currentMappings = new Map(
+    importMappings.value.map((mapping) => [mapping.fieldKey, mapping] as const),
+  );
+
+  importMappings.value = (config.mappings || [])
+    .filter((mapping) => availableKeys.has(String(mapping.fieldKey)))
+    .map((mapping) => ({
+      ...currentMappings.get(String(mapping.fieldKey)),
+      ...mapping,
+      fieldKey: String(mapping.fieldKey),
+    }));
+
+  for (const field of importableFields.value) {
+    const fieldKey = String(field.key);
+
+    if (
+      !importMappings.value.some((mapping) => mapping.fieldKey === fieldKey)
+    ) {
+      importMappings.value.push({
+        converter: 'trim',
+        fieldKey,
+      });
+    }
+  }
+}
+
+function handleImportTemplateChange(value?: number | string) {
+  selectedImportTemplateId.value =
+    value === undefined || value === null ? undefined : String(value);
+
+  if (!selectedImportTemplateId.value) {
+    return;
+  }
+
+  const template = importTemplates.value.find(
+    (item) => getCrudTemplateValue(item) === selectedImportTemplateId.value,
+  );
+
+  if (!template) {
+    return;
+  }
+
+  applyImportTemplateConfig(normalizeImportTemplateConfig(template.config));
+  message.success(`已应用导入模板：${template.name}`);
+}
+
+async function saveImportTemplate(
+  name: string,
+  scope: ExportTemplateSaveScope,
+) {
+  const create = props.config.exportTemplateService?.create;
+
+  if (!create) {
+    message.warning('当前页面未配置导入模板保存接口');
+    return;
+  }
+
+  if (importMappings.value.every((mapping) => !mapping.header)) {
+    message.warning('请至少映射一个导入字段');
+    return;
+  }
+
+  importTemplateSaving.value = true;
+
+  try {
+    const context = exportTemplateContext.value;
+    const payload = {
+      category: CRUD_IMPORT_TEMPLATE_CATEGORY,
+      code: buildCrudTemplateCode('crud-import', context, name, 'import'),
+      config: buildImportTemplateConfig(),
+      editable: true,
+      enable: true,
+      fileType: EXPORT_TEMPLATE_FILE_TYPE,
+      groupName: context.title,
+      name,
+      ...buildCrudTemplateScopePayload(
+        scope,
+        userStore.userInfo as Record<string, any> | undefined,
+      ),
+      targetType: context.targetType,
+      type: IMPORT_TEMPLATE_TYPE,
+    };
+    const created = normalizeCreatedCrudTemplate(
+      await create(payload, context),
+    );
+    const savedTemplate = {
+      ...payload,
+      ...created,
+      config: payload.config,
+      name: String(created.name || payload.name),
+    } as CrudExportTemplateRecord;
+
+    message.success('导入模板已保存');
+    await loadImportTemplates();
+    const refreshedTemplate =
+      importTemplates.value.find((item) =>
+        isSameCrudTemplate(item, savedTemplate),
+      ) || savedTemplate;
+
+    if (
+      !importTemplates.value.some((item) =>
+        isSameCrudTemplate(item, refreshedTemplate),
+      )
+    ) {
+      importTemplates.value = [refreshedTemplate, ...importTemplates.value];
+    }
+
+    selectedImportTemplateId.value = getCrudTemplateValue(refreshedTemplate);
+  } catch (error) {
+    console.error(error);
+    message.error('导入模板保存失败');
+    throw error;
+  } finally {
+    importTemplateSaving.value = false;
+  }
+}
+
+function promptSaveImportTemplate() {
+  if (importMappings.value.every((mapping) => !mapping.header)) {
+    message.warning('请至少映射一个导入字段');
+    return;
+  }
+
+  let templateName = getImportTemplateNameSeed();
+  let templateScope: ExportTemplateSaveScope = 'personal';
+  const templateScopeName = `import-template-scope-${Date.now()}`;
+
+  Modal.confirm({
+    bodyStyle: {
+      minHeight: '300px',
+    },
+    class: 'vben-crud-export-save-template-modal',
+    content: () =>
+      h('div', { class: 'vben-crud-export-save-template-form' }, [
+        h('label', { class: 'vben-crud-export-save-template-field' }, [
+          h('span', { class: 'vben-crud-export-save-template-label' }, [
+            h(
+              'span',
+              { class: 'vben-crud-export-save-template-required' },
+              '*',
+            ),
+            '模板名称',
+          ]),
+          h(Input, {
+            autofocus: true,
+            maxlength: 128,
+            placeholder: '请输入模板名称',
+            value: templateName,
+            'onUpdate:value': (value: string) => {
+              templateName = value;
+            },
+            onChange: (event: Event) => {
+              templateName = (event.target as HTMLInputElement).value;
+            },
+          }),
+        ]),
+        h(
+          'div',
+          { class: 'vben-crud-export-save-template-scope' },
+          EXPORT_TEMPLATE_SCOPE_OPTIONS.map((option) =>
+            h(
+              'label',
+              {
+                class: 'vben-crud-export-save-template-scope-option',
+                key: option.value,
+              },
+              [
+                h('input', {
+                  checked: option.value === templateScope,
+                  name: templateScopeName,
+                  type: 'radio',
+                  value: option.value,
+                  onChange: (event: Event) => {
+                    const input = event.target as HTMLInputElement;
+
+                    if (input.checked) {
+                      templateScope =
+                        (input.value as ExportTemplateSaveScope) || 'personal';
+                    }
+                  },
+                }),
+                h('span', option.label),
+              ],
+            ),
+          ),
+        ),
+      ]),
+    okText: '保存',
+    onOk: async () => {
+      const name = templateName.trim();
+
+      if (!name) {
+        message.warning('请输入模板名称');
+        throw new Error('EMPTY_IMPORT_TEMPLATE_NAME');
+      }
+
+      await saveImportTemplate(name, templateScope);
+    },
+    title: '另存为导入模板',
+    width: 750,
+  });
+}
+
+function appendImportConsole(line: string, payload?: unknown) {
+  const time = new Date().toLocaleTimeString();
+  const text =
+    payload === undefined
+      ? line
+      : `${line}\n${JSON.stringify(payload, null, 2)}`;
+
+  importConsoleLines.value.push(`[${time}] ${text}`);
+}
+
+function clearImportConsole() {
+  importConsoleLines.value = [];
+}
+
+function stopImport() {
+  if (!importing.value) {
+    return;
+  }
+
+  importStopRequested.value = true;
+  appendImportConsole('已请求停止导入，当前批次完成后不再提交后续批次');
+}
+
+async function copyImportConsole() {
+  try {
+    await navigator.clipboard?.writeText(importConsoleLines.value.join('\n'));
+    message.success('控制台内容已复制');
+  } catch {
+    message.warning('复制失败');
+  }
+}
+
+async function handleImportConfirm() {
+  const apiService = props.config.apiService;
+
+  if (!apiService?.batchCreate || !importSheet.value) {
+    return;
+  }
+
+  const { records, rowErrors } = importPreviewResult.value;
+
+  if (rowErrors.length > 0) {
+    message.warning('存在转换错误，请修正映射或数据后再导入');
+    importConsoleOpen.value = true;
+    appendImportConsole('导入预检失败', rowErrors);
+    return;
+  }
+
+  if (records.length === 0) {
+    message.warning('没有可导入的数据');
+    return;
+  }
+
+  importing.value = true;
+  importStopRequested.value = false;
+  importConsoleOpen.value = true;
+  appendImportConsole(
+    `开始导入 ${records.length} 条数据，每批 ${CRUD_IMPORT_BATCH_SIZE} 条`,
+  );
+
+  let successCount = 0;
+  const chunks = chunkImportRecords(records);
+  let stopped = false;
+
+  try {
+    for (let index = 0; index < chunks.length; index += 1) {
+      if (importStopRequested.value) {
+        stopped = true;
+        appendImportConsole(
+          `导入已停止，已完成 ${successCount} 条，剩余 ${records.length - successCount} 条未提交`,
+        );
+        break;
+      }
+
+      const chunk = chunks[index] || [];
+
+      appendImportConsole(`提交第 ${index + 1}/${chunks.length} 批`, {
+        count: chunk.length,
+      });
+      const result = await apiService.batchCreate(chunk);
+
+      successCount += chunk.length;
+      appendImportConsole(`第 ${index + 1} 批导入成功`, result);
+    }
+
+    if (!stopped) {
+      appendImportConsole(`导入完成，成功 ${successCount} 条`);
+      message.success(`导入完成，成功 ${successCount} 条`);
+      importModalOpen.value = false;
+    } else {
+      message.warning(`导入已停止，成功 ${successCount} 条`);
+    }
+
+    if (successCount > 0) {
+      await loadList();
+    }
+  } catch (error) {
+    console.error(error);
+    appendImportConsole('导入失败', {
+      error: getCrudErrorMessage(error, '导入失败'),
+      response: (error as any)?.response?.data,
+    });
+    message.error('导入失败，详情见控制台');
+  } finally {
+    importing.value = false;
+  }
+}
+
 async function fetchExportRecords() {
   const records: GenericRecord[] = [];
   let pageIndex = 1;
@@ -2756,7 +2954,13 @@ async function handleExportConfirm() {
 
   try {
     const records = await fetchExportRecords();
-    const xml = buildExcelXml(fields, records);
+    const xml = buildExcelXml({
+      fields,
+      formatCellValue: formatExportCellValue,
+      getFieldHeader: getExportFieldHeader,
+      records,
+      worksheetName: props.config.title,
+    });
     downloadExcelXml(xml, getExportFileName());
     exportModalOpen.value = false;
 
@@ -5041,6 +5245,18 @@ watch(tableColumnPreferenceStorageKey, () => {
               </Button>
             </Tooltip>
 
+            <Tooltip title="导入">
+              <Button
+                v-if="canImport"
+                aria-label="导入"
+                class="vben-crud-table-tool-button"
+                shape="circle"
+                @click="openImportModal"
+              >
+                <IconifyIcon class="size-4" icon="lucide:upload" />
+              </Button>
+            </Tooltip>
+
             <Tooltip title="刷新">
               <Button
                 aria-label="刷新"
@@ -5607,108 +5823,67 @@ watch(tableColumnPreferenceStorageKey, () => {
       </div>
     </div>
 
-    <Modal
+    <CrudExportPanel
+      v-model:open="exportModalOpen"
+      :all-fields-selected="allExportFieldsSelected"
       :confirm-loading="exporting"
-      :open="exportModalOpen"
-      title="导出 Excel"
-      width="720px"
-      destroy-on-close
-      @cancel="exportModalOpen = false"
-      @ok="handleExportConfirm"
-    >
-      <div class="vben-crud-export-modal">
-        <div class="vben-crud-export-template-bar">
-          <Select
-            :value="selectedExportTemplateId"
-            allow-clear
-            class="vben-crud-export-template-select"
-            :disabled="exportTemplateSaving"
-            :loading="exportTemplateLoading"
-            :options="exportTemplateOptions"
-            placeholder="选择导出模板"
-            size="small"
-            @change="handleExportTemplateChange"
-          />
-          <Button
-            size="small"
-            :disabled="exportTemplateLoading"
-            :loading="exportTemplateSaving"
-            @click="promptSaveExportTemplate"
-          >
-            <template #icon>
-              <IconifyIcon class="size-3.5" icon="lucide:save" />
-            </template>
-            另存为模板
-          </Button>
-        </div>
-        <div class="border-border mb-2 border-b pb-2">
-          <Checkbox
-            :checked="allExportFieldsSelected"
-            :indeterminate="exportFieldsIndeterminate"
-            @change="
-              (event) => setAllExportFieldsSelected(event.target.checked)
-            "
-          >
-            全部字段
-          </Checkbox>
-          <div
-            class="text-muted-foreground mt-2 flex items-center gap-1 text-xs"
-          >
-            <IconifyIcon class="size-3.5" icon="lucide:arrow-up-down" />
-            默认按当前表格列顺序导出，可调整导出列顺序和导出表头别名
-          </div>
-        </div>
-        <div class="flex max-h-[420px] flex-col overflow-auto">
-          <div class="vben-crud-export-field-header">
-            <span>字段</span>
-            <span>导出列别名</span>
-            <span>排序</span>
-          </div>
-          <div
-            v-for="(field, index) in orderedExportFields"
-            :key="field.key"
-            class="vben-crud-export-field-row"
-          >
-            <Checkbox
-              :checked="exportSelectedFieldKeys.includes(String(field.key))"
-              @change="
-                (event) =>
-                  setExportFieldSelected(field.key, event.target.checked)
-              "
-            >
-              {{ field.label }}
-            </Checkbox>
-            <Input
-              v-model:value="exportFieldAliases[String(field.key)]"
-              allow-clear
-              class="vben-crud-export-alias-input"
-              :placeholder="field.label"
-              size="small"
-            />
-            <Space :size="2">
-              <button
-                type="button"
-                class="vben-crud-column-pin"
-                :disabled="index <= 0"
-                title="上移"
-                @click="moveExportField(field, -1)"
-              >
-                <ArrowUp class="size-4" />
-              </button>
-              <button
-                type="button"
-                class="vben-crud-column-pin"
-                :disabled="index >= orderedExportFields.length - 1"
-                title="下移"
-                @click="moveExportField(field, 1)"
-              >
-                <ArrowDown class="size-4" />
-              </button>
-            </Space>
-          </div>
-        </div>
-      </div>
-    </Modal>
+      :field-aliases="exportFieldAliases"
+      :fields-indeterminate="exportFieldsIndeterminate"
+      :ordered-fields="orderedExportFields"
+      :selected-field-keys="exportSelectedFieldKeys"
+      :selected-template="selectedExportTemplate"
+      :selected-template-can-delete="selectedExportTemplateCanDelete"
+      :selected-template-id="selectedExportTemplateId"
+      :template-loading="exportTemplateLoading"
+      :template-options="exportTemplateOptions"
+      :template-saving="exportTemplateSaving"
+      @confirm="handleExportConfirm"
+      @delete-template="
+        selectedExportTemplate &&
+        deleteTemplate(selectedExportTemplate, 'export')
+      "
+      @move-field="moveExportField"
+      @save-template="promptSaveExportTemplate"
+      @set-all-fields-selected="setAllExportFieldsSelected"
+      @set-field-selected="setExportFieldSelected"
+      @template-change="handleExportTemplateChange"
+      @update-field-alias="updateExportFieldAlias"
+    />
+
+    <CrudImportPanel
+      v-model:console-open="importConsoleOpen"
+      v-model:open="importModalOpen"
+      :can-start="importCanStart"
+      :console-lines="importConsoleLines"
+      :file-name="importFileName"
+      :header-options="importHeaderOptions"
+      :importable-fields="importableFields"
+      :importing="importing"
+      :mappings="importMappings"
+      :preview-columns="importPreviewColumns"
+      :preview-rows="importPreviewRows"
+      :row-count="importSheet?.rows.length || 0"
+      :row-errors="importPreviewResult.rowErrors"
+      :selected-template="selectedImportTemplate"
+      :selected-template-can-delete="selectedImportTemplateCanDelete"
+      :selected-template-id="selectedImportTemplateId"
+      :stop-requested="importStopRequested"
+      :template-loading="importTemplateLoading"
+      :template-options="importTemplateOptions"
+      :template-saving="importTemplateSaving"
+      @clear-console="clearImportConsole"
+      @confirm="handleImportConfirm"
+      @copy-console="copyImportConsole"
+      @delete-template="
+        selectedImportTemplate &&
+        deleteTemplate(selectedImportTemplate, 'import')
+      "
+      @file-change="handleImportFileChange"
+      @save-template="promptSaveImportTemplate"
+      @stop="stopImport"
+      @template-change="handleImportTemplateChange"
+      @update-mapping="updateImportMapping"
+    />
 
     <Modal
       v-if="canCreate || (canEdit && editingRecord)"
@@ -5739,21 +5914,10 @@ watch(tableColumnPreferenceStorageKey, () => {
             :extra="field.help"
             class="mb-0 w-full justify-self-center"
             :class="{
-              'col-span-full':
-                field.fullRow ||
-                field.span === -1 ||
-                (!field.span &&
-                  (field.type === 'textarea' ||
-                    field.type === 'string-array' ||
-                    field.type === 'tags')),
-              'md:col-span-2':
-                field.span === 2 && !field.fullRow && field.span !== -1,
-              'max-w-[480px]':
-                !field.fullRow &&
-                field.span !== -1 &&
-                field.type !== 'textarea' &&
-                field.type !== 'string-array' &&
-                field.type !== 'tags',
+              'vben-crud-form-item-new-row': field.layoutNewRow,
+              'col-span-full': shouldFormItemSpanFullRow(field),
+              'md:col-span-2': shouldFormItemSpanTwoColumns(field),
+              'max-w-[480px]': shouldConstrainFormItemWidth(field),
             }"
             :style="getFormItemStyle(field)"
           >
@@ -5840,11 +6004,35 @@ watch(tableColumnPreferenceStorageKey, () => {
               </Upload>
             </div>
             <JsonEditorField
-              v-else-if="field.type === 'json'"
+              v-else-if="
+                field.type === 'json' &&
+                !shouldUseJsonSchemaEditor(field, formState[field.key])
+              "
               v-model="formState[field.key]"
               :disabled="isFieldDisabledOnEdit(field)"
               :modal-style="modalStyle"
               :modal-width="modalWidth"
+              :title="field.label"
+            />
+            <JsonSchemaEditorField
+              v-else-if="shouldUseJsonSchemaEditor(field, formState[field.key])"
+              v-model="formState[field.key]"
+              :disabled="isFieldDisabledOnEdit(field)"
+              :inline="isCrudFieldJsonSchemaInline(field)"
+              :modal-style="modalStyle"
+              :modal-width="modalWidth"
+              :schema-source="
+                getJsonSchemaSourceInput(field, formState[field.key])
+              "
+              :title="field.label"
+            />
+            <CronExpressionField
+              v-else-if="field.type === 'cron'"
+              v-model="formState[field.key]"
+              :disabled="isFieldDisabledOnEdit(field)"
+              :modal-style="modalStyle"
+              :modal-width="modalWidth"
+              :placeholder="getPlaceholder(field)"
               :title="field.label"
             />
             <CodeEditorField
@@ -6396,18 +6584,6 @@ watch(tableColumnPreferenceStorageKey, () => {
   color: hsl(var(--muted-foreground) / 45%);
 }
 
-.vben-crud-export-template-bar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.vben-crud-export-template-select {
-  min-width: 0;
-  flex: 1;
-}
-
 :global(.vben-crud-export-save-template-form) {
   display: flex;
   flex-direction: column;
@@ -6463,42 +6639,7 @@ watch(tableColumnPreferenceStorageKey, () => {
   white-space: normal;
 }
 
-.vben-crud-export-field-header {
-  display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(180px, 240px) 56px;
-  gap: 8px;
-  align-items: center;
-  padding: 4px 0 6px;
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-}
-
-.vben-crud-export-field-row {
-  display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(180px, 240px) 56px;
-  gap: 8px;
-  align-items: center;
-  min-width: 0;
-  padding: 6px 0;
-  border-radius: var(--radius);
-}
-
-.vben-crud-export-field-row:hover {
-  background: hsl(var(--muted) / 60%);
-}
-
-.vben-crud-export-field-row :deep(.ant-checkbox-wrapper) {
-  min-width: 0;
-  flex: 1;
-}
-
-.vben-crud-export-field-row :deep(.ant-checkbox + span) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vben-crud-export-alias-input {
-  min-width: 0;
+.vben-crud-form-item-new-row {
+  grid-column-start: 1 !important;
 }
 </style>

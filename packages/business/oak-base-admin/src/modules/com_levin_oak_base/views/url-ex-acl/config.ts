@@ -6,12 +6,30 @@ import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   roleOptionsLoader,
+  tenantSiteDomainOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
+import { normalizeNameValueRuleList } from '../traffic-control-rule/traffic-control-match';
 
 const interceptTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.UrlExAcl$InterceptType',
 );
+
+const methodOptions = [
+  { label: 'GET', value: 'GET' },
+  { label: 'POST', value: 'POST' },
+  { label: 'PUT', value: 'PUT' },
+  { label: 'DELETE', value: 'DELETE' },
+  { label: 'PATCH', value: 'PATCH' },
+];
+
+function transformUrlAclSubmit(values: Record<string, any>) {
+  return {
+    ...values,
+    headerRuleList: normalizeNameValueRuleList(values.headerRuleList),
+    requestParamRuleList: normalizeNameValueRuleList(values.requestParamRuleList),
+  };
+}
 
 export const urlExAclPageCrudConfig: CrudPageConfig = {
   apiBase: '/UrlExAcl',
@@ -124,6 +142,7 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
       key: 'methodList',
       label: '请求方法包含列表',
       help: '支持*和?匹配，本字段内任一命中。',
+      options: methodOptions,
       span: 2,
       type: 'tags',
     },
@@ -131,6 +150,8 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
       key: 'domainList',
       label: '域名包含列表',
       help: '支持*和?匹配，本字段内任一命中。',
+      loadOptions: tenantSiteDomainOptionsLoader,
+      remoteSearch: true,
       span: 2,
       type: 'tags',
     },
@@ -179,6 +200,22 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
       type: 'tags',
     },
     {
+      key: 'requestParamRuleList',
+      label: '请求参数匹配列表',
+      help: '每项使用未编码的name=value，必须且只能包含一个等号；名称和值支持*和?。示例：tenant*=ma?ket-*、status=*。',
+      placeholder: '例如 tenant*=ma?ket-*',
+      span: 2,
+      type: 'tags',
+    },
+    {
+      key: 'headerRuleList',
+      label: '请求头匹配列表',
+      help: '每项使用未编码的name=value，必须且只能包含一个等号；名称和值支持*和?。示例：X-Tenant-*=vip?、X-Client-App-Id=*。',
+      placeholder: '例如 X-Tenant-*=vip?',
+      span: 2,
+      type: 'tags',
+    },
+    {
       key: 'exInfo',
       label: '扩展信息',
       fullRow: true,
@@ -209,4 +246,5 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: 'URL访问控制管理',
+  transformSubmit: transformUrlAclSubmit,
 };

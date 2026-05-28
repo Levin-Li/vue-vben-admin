@@ -4,7 +4,6 @@ import { computed, ref, watch } from 'vue';
 import type { PatternMatchMode } from '@levin/admin-framework';
 import type { CrudFieldConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
 import { Alert, Button, Form, Input, Modal, Space, Tag } from 'ant-design-vue';
 
 import PatternListFormField from '../pattern-list-form-field.vue';
@@ -12,6 +11,7 @@ import {
   matchRuleList,
   normalizePatternList,
   normalizeRuleList,
+  validateNameValueRuleItem,
 } from './traffic-control-match';
 
 const props = defineProps<{
@@ -79,23 +79,16 @@ function testMatch() {
 </script>
 
 <template>
-  <div class="flex w-full items-start gap-2">
-    <JsonEditorField
-      v-if="isNameValueRule"
-      v-model="modelProxy"
-      class="min-w-0 flex-1"
-      :modal-width="'min(70vw, 1280px)'"
-      :title="field.label"
-    />
-    <PatternListFormField
-      v-else
-      v-model="modelProxy"
-      class="min-w-0 flex-1"
-      :field="field"
-      :match-mode="patternMatchMode"
-    />
-    <Button v-if="isNameValueRule" @click="openTester">测试匹配</Button>
-  </div>
+  <PatternListFormField
+    v-model="modelProxy"
+    class="min-w-0"
+    :custom-test="isNameValueRule"
+    :field="field"
+    :match-mode="patternMatchMode"
+    :testable="true"
+    :validate-item="isNameValueRule ? validateNameValueRuleItem : undefined"
+    @test="openTester"
+  />
 
   <Modal v-model:open="testerOpen" :footer="null" :title="modalTitle">
     <Form layout="vertical">

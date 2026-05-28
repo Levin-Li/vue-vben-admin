@@ -231,6 +231,22 @@ export class SimpleApiService extends RequestService {
     domain: 'com.levin.oak.base',
     type: '专家数据-简单动态接口',
     res: '',
+    action: '读取脚本内容',
+  })
+  @CRUD.Op({
+    confirmText: 'None',
+  })
+  async retrieveContent(params?: any, options?: any) {
+    return this.get('retrieveContent', {
+      ...options,
+      params,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '专家数据-简单动态接口',
+    res: '',
     action: '统计',
   })
   async stat(params?: any, options?: any) {

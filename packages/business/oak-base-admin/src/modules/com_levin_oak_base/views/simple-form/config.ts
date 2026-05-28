@@ -201,13 +201,20 @@ export const simpleFormPageCrudConfig: CrudPageConfig = {
     {
       key: 'requireAuthorizations',
       label: '权限或角色',
+      form: false,
       fullRow: true,
       type: 'tags',
     },
-    { key: 'content', label: '内容', fullRow: true, type: 'textarea' },
-    { key: 'setting', label: '设置', fullRow: true, type: 'json' },
-    { key: 'auditRemark', label: '审核说明', fullRow: true, type: 'textarea' },
+    {
+      key: 'content',
+      label: '内容',
+      form: false,
+      fullRow: true,
+      type: 'textarea',
+    },
     { key: 'orderCode', label: '排序代码', type: 'number' },
+    { key: 'setting', label: '设置', type: 'json' },
+    { key: 'auditRemark', label: '审核说明', fullRow: true, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',

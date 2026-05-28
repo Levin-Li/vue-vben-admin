@@ -9,34 +9,24 @@ vi.mock('@levin/admin-framework', async (importOriginal) => {
   return {
     ...actual,
     PatternListEditor: {
-      emits: ['dropdownVisibleChange', 'search', 'update:modelValue'],
+      emits: ['dropdownVisibleChange', 'search', 'test', 'update:modelValue'],
       name: 'PatternListEditor',
       props: [
+        'customTest',
         'loading',
         'matchMode',
         'modelValue',
         'options',
         'placeholder',
+        'testable',
         'testPlaceholder',
+        'validateItem',
       ],
       template:
-        '<button data-test="pattern-list-editor" @click="$emit(\'update:modelValue\', [\'/demo/*\'])"></button>',
+        '<button data-test="pattern-list-editor" @click="$emit(\'update:modelValue\', [\'/demo/*\'])"></button><button data-test="pattern-list-test" @click="$emit(\'test\')"></button>',
     },
   };
 });
-
-vi.mock(
-  '@levin/admin-framework/framework-commons/shared/json-editor-field.vue',
-  () => ({
-    default: {
-      emits: ['update:modelValue'],
-      name: 'JsonEditorField',
-      props: ['modelValue'],
-      template:
-        "<button data-test=\"json-editor\" @click=\"$emit('update:modelValue', [{ name: 'X-*', value: 'vip?' }])\"></button>",
-    },
-  }),
-);
 
 describe('traffic control match test field', () => {
   it('uses the shared pattern list editor for list fields', async () => {
@@ -121,28 +111,34 @@ describe('traffic control match test field', () => {
     ).toBe('all');
   });
 
-  it('keeps name value rules on the JSON editor', async () => {
+  it('uses the shared pattern list editor with custom testing for name value rules', async () => {
     const wrapper = mount(MatchTestField, {
+      attachTo: document.body,
       props: {
         field: {
           key: 'headerRuleList',
-          label: '请求头匹配数组',
+          label: '请求头匹配列表',
         },
-        modelValue: [{ name: 'X-*', value: 'vip?' }],
+        modelValue: ['X-*=vip?'],
         ruleKind: 'nameValue',
       },
     });
 
-    expect(wrapper.findComponent({ name: 'JsonEditorField' }).exists()).toBe(
-      true,
-    );
-    expect(wrapper.findComponent({ name: 'PatternListEditor' }).exists()).toBe(
-      false,
-    );
+    const editor = wrapper.findComponent({ name: 'PatternListEditor' });
+    expect(editor.exists()).toBe(true);
+    expect(editor.props('testable')).toBe(true);
+    expect(editor.props('customTest')).toBe(true);
+    expect(editor.props('validateItem')).toEqual(expect.any(Function));
 
-    await wrapper.find('[data-test="json-editor"]').trigger('click');
+    await wrapper.find('[data-test="pattern-list-editor"]').trigger('click');
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([
-      [{ name: 'X-*', value: 'vip?' }],
+      ['/demo/*'],
     ]);
+
+    await wrapper.find('[data-test="pattern-list-test"]').trigger('click');
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('请求头匹配列表 - 测试匹配');
+    wrapper.unmount();
   });
 });

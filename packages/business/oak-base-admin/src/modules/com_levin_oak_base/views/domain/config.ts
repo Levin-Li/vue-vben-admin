@@ -151,11 +151,10 @@ export const domainPageCrudConfig: CrudPageConfig = {
       label: 'DNS记录快照',
       type: 'json',
     },
-    { key: 'nameservers', label: 'NS服务器', fullRow: true, type: 'json' },
+    { key: 'nameservers', label: 'NS服务器', span: 2, type: 'json' },
     {
       key: 'exInfo',
       label: '扩展信息',
-      fullRow: true,
       type: 'json',
     },
     { key: 'orderCode', label: '排序代码', type: 'number' },

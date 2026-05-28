@@ -523,10 +523,9 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'exInfo',
       label: '扩展信息',
-      fullRow: true,
       type: 'json',
     },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
+    { key: 'orderCode', label: '排序代码', layoutNewRow: true, type: 'number' },
     {
       key: 'enable',
       label: '是否启用',

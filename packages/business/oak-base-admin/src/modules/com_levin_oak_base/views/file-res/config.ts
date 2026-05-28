@@ -179,7 +179,6 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'exInfo',
       label: '扩展信息',
-      fullRow: true,
       type: 'json',
     },
     {

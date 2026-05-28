@@ -8,6 +8,7 @@ vi.mock('../../../api/role-service', () => ({
 
 vi.mock('../../api-module', () => ({
   confidentialLevelOptionsLoader: async () => [],
+  DEFAULT_CRUD_MODAL_WIDTH: 'min(70vw, 1280px)',
   moduleFetchDictOptions: () => async () => [],
   roleOptionsLoader: async () => [],
   tenantOptionsLoader: async () => [],
@@ -41,7 +42,7 @@ describe('role page config', () => {
     }
   });
 
-  it('starts role list constraints on separate form rows', () => {
+  it('lays out role list constraints as separate full-width form rows', () => {
     const { config } = useRolePageConfig();
 
     for (const key of ['exclusiveRoleList', 'coexistRoleList']) {
@@ -49,7 +50,14 @@ describe('role page config', () => {
 
       expect(field, key).toBeTruthy();
       expect(field.layoutNewRow, key).toBe(true);
+      expect(field.fullRow, key).toBe(true);
     }
+  });
+
+  it('uses the shared large modal width for balanced form columns', () => {
+    const { config } = useRolePageConfig();
+
+    expect(config.value.modalWidth).toBe('min(70vw, 1280px)');
   });
 
   it('limits role assignment precondition form field to super admins', () => {

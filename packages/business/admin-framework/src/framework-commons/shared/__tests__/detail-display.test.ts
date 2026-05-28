@@ -43,9 +43,9 @@ describe('detail display rules', () => {
       fields,
     );
 
-    const [levelsEntry, statusEntry] = entries;
+    const [statusEntry, levelsEntry] = entries;
 
-    expect(entries.map((entry) => entry.key)).toEqual(['levels', 'status']);
+    expect(entries.map((entry) => entry.key)).toEqual(['status', 'levels']);
     expect(levelsEntry).toBeDefined();
     expect(statusEntry).toBeDefined();
     if (!levelsEntry || !statusEntry) {
@@ -53,6 +53,64 @@ describe('detail display rules', () => {
     }
     expect(formatDetailDisplayValue(levelsEntry)).toBe('一级, 二级');
     expect(formatDetailDisplayValue(statusEntry)).toBe('启用');
+  });
+
+  it('orders detail entries by the same coordinated form layout rules', () => {
+    const entries = buildDetailDisplayEntries(
+      {
+        allowedIpList: ['10.0.*'],
+        allowedPathPatterns: ['/api/*'],
+        editable: true,
+        exInfo: { level: 1 },
+        orderCode: 100,
+      },
+      [
+        {
+          key: 'exInfo',
+          label: '扩展信息',
+          layoutGroup: 'extension',
+          layoutNewRow: true,
+          type: 'json',
+        },
+        {
+          key: 'orderCode',
+          label: '排序代码',
+          layoutGroup: 'business',
+          layoutOrder: 30,
+          type: 'number',
+        },
+        {
+          key: 'editable',
+          label: '是否可编辑',
+          layoutGroup: 'business',
+          layoutOrder: 40,
+          type: 'switch',
+        },
+        {
+          key: 'allowedPathPatterns',
+          label: '允许访问路径',
+          layoutGroup: 'business',
+          layoutNewRow: true,
+          layoutOrder: 10,
+          type: 'tags',
+        },
+        {
+          key: 'allowedIpList',
+          label: '允许访问IP',
+          layoutGroup: 'business',
+          layoutOrder: 20,
+          type: 'tags',
+        },
+      ] as any[],
+    );
+
+    expect(entries.map((entry) => entry.key)).toEqual([
+      'allowedPathPatterns',
+      'allowedIpList',
+      'orderCode',
+      'editable',
+      'exInfo',
+    ]);
   });
 
   it('keeps explicit JSON values and marks them for Json Viewer', () => {

@@ -2,12 +2,11 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { clientAppService } from '../../api/client-app-service';
 import {
+  authorizedControllerPathOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
   userOptionsLoader,
 } from '../api-module';
-
-const CLIENT_APP_PATTERN_SEPARATOR = '\n';
 
 function generateClientAppId() {
   const randomPart =
@@ -18,15 +17,17 @@ function generateClientAppId() {
   return `app_${randomPart}`;
 }
 
-function stringifyPatternListValue(value: unknown) {
+function normalizePatternListValue(value: unknown) {
   if (Array.isArray(value)) {
-    return value
-      .map((item) => String(item ?? '').trim())
-      .filter(Boolean)
-      .join(CLIENT_APP_PATTERN_SEPARATOR);
+    return value.map((item) => String(item ?? '').trim()).filter(Boolean);
   }
 
-  return value;
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim();
+    return trimmedValue ? [trimmedValue] : [];
+  }
+
+  return [];
 }
 
 function transformClientAppSubmit(
@@ -35,8 +36,8 @@ function transformClientAppSubmit(
 ) {
   const payload = {
     ...values,
-    allowedIpList: stringifyPatternListValue(values.allowedIpList),
-    allowedPathPatterns: stringifyPatternListValue(values.allowedPathPatterns),
+    allowedIpList: normalizePatternListValue(values.allowedIpList),
+    allowedPathPatterns: normalizePatternListValue(values.allowedPathPatterns),
   };
 
   if (editingRecord) {
@@ -137,29 +138,6 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       width: 130,
     },
     {
-      key: 'appSignSecret',
-      label: '签名密钥',
-      disabledOnEdit: true,
-      fullRow: true,
-      help: '新增时由后端自动生成，编辑时不允许修改。',
-      type: 'password',
-    },
-    {
-      key: 'allowedPathPatterns',
-      label: '允许访问路径',
-      fullRow: true,
-      help: '支持*和?通配匹配，例如 /api/order/*、/api/order/??/detail。',
-      required: true,
-      type: 'tags',
-    },
-    {
-      key: 'allowedIpList',
-      label: '允许访问IP',
-      fullRow: true,
-      help: '支持*和?通配匹配，例如 10.0.?.*；空表示不限制。',
-      type: 'tags',
-    },
-    {
       key: 'expiredTime',
       label: '过期时间',
       search: true,
@@ -167,10 +145,56 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'exInfo', label: '扩展信息', fullRow: true, type: 'json' },
+    {
+      key: 'appSignSecret',
+      label: '签名密钥',
+      disabledOnEdit: true,
+      help: '新增时由后端自动生成，编辑时不允许修改。',
+      span: 3,
+      type: 'password',
+    },
+    {
+      key: 'allowedPathPatterns',
+      label: '允许访问路径',
+      help: '可搜索授权控制器URL路径填入，也可手动配置通配符路径；支持*和?，例如 /api/order/*、/api/order/??/detail。',
+      layoutGroup: 'business',
+      layoutNewRow: true,
+      layoutOrder: 10,
+      loadOptions: authorizedControllerPathOptionsLoader,
+      remoteSearch: true,
+      required: true,
+      span: 2,
+      type: 'tags',
+    },
+    {
+      key: 'allowedIpList',
+      label: '允许访问IP',
+      help: '支持*和?通配匹配，例如 10.0.?.*；空表示不限制。',
+      layoutGroup: 'business',
+      layoutOrder: 20,
+      span: 2,
+      type: 'tags',
+    },
+    {
+      key: 'exInfo',
+      label: '扩展信息',
+      layoutGroup: 'extension',
+      layoutNewRow: true,
+      layoutOrder: 10,
+      type: 'json',
+    },
+    {
+      key: 'orderCode',
+      label: '排序代码',
+      layoutGroup: 'business',
+      layoutOrder: 30,
+      type: 'number',
+    },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       search: true,
       table: true,
       type: 'switch',
@@ -180,14 +204,15 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', layoutGroup: 'remark', type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',

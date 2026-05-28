@@ -26,6 +26,9 @@ vi.mock('@vben/common-ui', () => ({
 }));
 
 vi.mock('@vben/hooks', () => ({
+  useAppConfig: () => ({
+    apiURL: '',
+  }),
   useWatermark: () => ({
     destroyWatermark: vi.fn(),
     updateWatermark: vi.fn(),
@@ -134,8 +137,9 @@ vi.mock('../sync-menu-routes-modal.vue', () => ({
   },
 }));
 
-vi.mock('../../tenant-site-admin-ui-base-setting', () => ({
+vi.mock('../tenant-site-admin-ui-base-setting', () => ({
   buildAdminUiBaseSettingPayload: vi.fn(),
+  DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET: 'TenantSite',
 }));
 
 import Basic from '../basic.vue';

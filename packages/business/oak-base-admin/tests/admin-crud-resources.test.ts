@@ -118,4 +118,52 @@ describe('oak base admin crud resources', () => {
       }),
     );
   });
+
+  it('registers import export templates under the CRUD root menu', () => {
+    const [rootRoute] = createOakBaseAdminCrudRoutes();
+    const templateRoute = rootRoute?.children?.find(
+      (item) => item.path === '/clob/V1/ImportExportTemplate',
+    );
+    const templateMapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === '/clob/V1/ImportExportTemplate',
+    );
+    const payload = buildModuleSyncMenuPayload([oakBaseAdminModule]);
+    const rootMenu = payload.menuList.find((item) => item.path === '/clob/V1/index');
+    const templateMenu = rootMenu?.children?.find(
+      (item) => item.path === '/clob/V1/ImportExportTemplate',
+    );
+
+    expect(templateRoute).toEqual(
+      expect.objectContaining({
+        name: 'AdminCrudImportExportTemplate',
+        path: '/clob/V1/ImportExportTemplate',
+      }),
+    );
+    expect(templateRoute?.meta).toEqual(
+      expect.objectContaining({
+        crudResource: 'ImportExportTemplate',
+        icon: 'lucide:file-spreadsheet',
+        title: '导入导出模板',
+      }),
+    );
+    expect(templateMapping).toEqual(
+      expect.objectContaining({
+        resource: 'ImportExportTemplate',
+        sourceFilePath:
+          'modules/com_levin_oak_base/views/import-export-template/index.vue',
+        viewPath: '/system/com_levin_oak_base/import-export-template/index.vue',
+      }),
+    );
+    expect(templateMenu).toEqual(
+      expect.objectContaining({
+        label: '导入导出模板',
+        path: '/clob/V1/ImportExportTemplate',
+      }),
+    );
+    expect(
+      payload.menuList.some(
+        (item) => item.path === '/clob/V1/ImportExportTemplate',
+      ),
+    ).toBe(false);
+  });
 });

@@ -30,6 +30,7 @@ defineOptions({
 
 const props = withDefaults(
   defineProps<{
+    customTest?: boolean;
     disabled?: boolean;
     loading?: boolean;
     matchMode?: PatternMatchMode;
@@ -37,10 +38,14 @@ const props = withDefaults(
     hint?: string;
     options?: PatternListOption[];
     placeholder?: string;
+    showEmptyImage?: boolean;
+    testable?: boolean;
     testPlaceholder?: string;
     testValue?: string;
+    validateItem?: (value: string) => boolean | string | undefined;
   }>(),
   {
+    customTest: false,
     disabled: false,
     hint: '支持*和?匹配。',
     loading: false,
@@ -48,6 +53,8 @@ const props = withDefaults(
     modelValue: () => [],
     options: () => [],
     placeholder: '输入或选择匹配规则',
+    showEmptyImage: false,
+    testable: true,
     testPlaceholder: '输入待匹配文本',
     testValue: '',
   },
@@ -57,6 +64,7 @@ const emit = defineEmits<{
   change: [value: string[], matchMode: PatternMatchMode];
   dropdownVisibleChange: [open: boolean];
   search: [keyword: string];
+  test: [];
   'update:matchMode': [value: PatternMatchMode];
   'update:modelValue': [value: string[]];
   'update:testValue': [value: string];
@@ -138,6 +146,10 @@ function appendDraftPattern() {
     return;
   }
 
+  if (!validatePatterns(values)) {
+    return;
+  }
+
   updatePatterns([...patterns.value, ...values]);
   draftValue.value = '';
 }
@@ -161,12 +173,13 @@ function commitEdit() {
     return;
   }
 
+  const values = normalizePatternList(editingValue.value);
+  if (!validatePatterns(values)) {
+    return;
+  }
+
   const next = [...patterns.value];
-  next.splice(
-    editingIndex.value,
-    1,
-    ...normalizePatternList(editingValue.value),
-  );
+  next.splice(editingIndex.value, 1, ...values);
   updatePatterns(next);
   cancelEdit();
 }
@@ -194,8 +207,35 @@ async function copyText(value: string, successText: string) {
 }
 
 function openTestModal() {
+  if (props.customTest) {
+    emit('test');
+    return;
+  }
+
   testOpen.value = true;
   testSubmitted.value = false;
+}
+
+function validatePatterns(values: string[]) {
+  if (!props.validateItem) {
+    return true;
+  }
+
+  for (const value of values) {
+    const result = props.validateItem(value);
+    if (result === true || result === undefined) {
+      continue;
+    }
+
+    message.warning(
+      typeof result === 'string' && result.trim()
+        ? result
+        : `匹配项格式不正确：${value}`,
+    );
+    return false;
+  }
+
+  return true;
 }
 
 function submitTest() {
@@ -338,12 +378,22 @@ function updateTestValue(value: string) {
             </div>
           </div>
         </div>
-        <Empty
-          v-else
-          :image="Empty.PRESENTED_IMAGE_SIMPLE"
-          class="my-2"
-          description="暂无内容"
-        />
+        <template v-else>
+          <Empty
+            v-if="showEmptyImage"
+            :image="Empty.PRESENTED_IMAGE_SIMPLE"
+            class="my-2"
+            data-test="pattern-list-empty-image"
+            description="暂无内容"
+          />
+          <div
+            v-else
+            class="text-muted-foreground flex min-h-[52px] items-center justify-center text-sm"
+            data-test="pattern-list-empty-text"
+          >
+            暂无内容
+          </div>
+        </template>
       </div>
       <div
         v-if="hint"
@@ -357,7 +407,7 @@ function updateTestValue(value: string) {
     <div
       class="pattern-list-editor__actions flex flex-col items-center gap-2 pt-[44px]"
     >
-      <Tooltip :title="`测试匹配（${matchModeLabel}）`">
+      <Tooltip v-if="testable" :title="`测试匹配（${matchModeLabel}）`">
         <Button
           :disabled="disabled"
           data-test="pattern-list-test"

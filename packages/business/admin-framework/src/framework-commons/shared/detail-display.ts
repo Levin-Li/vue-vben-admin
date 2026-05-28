@@ -1,5 +1,7 @@
 import type { CrudFieldConfig } from './types';
 
+import { sortFormLayoutFields } from './crud-form-layout';
+
 export type DetailDisplayEntryKind = 'array' | 'json' | 'scalar';
 
 export interface DetailDisplayEntry {
@@ -177,18 +179,33 @@ export function buildDetailDisplayEntries(
   fields: CrudFieldConfig[],
 ) {
   const fieldMap = new Map(fields.map((field) => [field.key, field]));
+  const fieldOrderMap = new Map(
+    sortFormLayoutFields(fields).map((field, index) => [field.key, index]),
+  );
 
   return Object.entries(data)
-    .filter(([, value]) => !isEmptyValue(value))
-    .map(([key, value]) => {
+    .map(([key, value], index) => {
       const field = fieldMap.get(key);
       return {
         field,
+        index,
         key,
         kind: getEntryKind(field, value),
         label: getEntryLabel(key, field),
+        order: fieldOrderMap.get(key) ?? fields.length + index,
         value,
-      } satisfies DetailDisplayEntry;
+      };
     })
-    .filter((entry) => shouldShowDetailValue(entry.field, entry.value));
+    .filter((entry) => shouldShowDetailValue(entry.field, entry.value))
+    .sort((a, b) => a.order - b.order)
+    .map(
+      ({ field, key, kind, label, value }) =>
+        ({
+          field,
+          key,
+          kind,
+          label,
+          value,
+        }) satisfies DetailDisplayEntry,
+    );
 }

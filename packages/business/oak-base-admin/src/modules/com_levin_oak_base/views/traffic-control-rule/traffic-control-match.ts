@@ -25,6 +25,16 @@ function normalizeText(value: unknown) {
   return String(value ?? '').trim();
 }
 
+function encodeMatchPart(value: string, preserveWildcard = false) {
+  const encoded = encodeURIComponent(value);
+
+  if (!preserveWildcard) {
+    return encoded;
+  }
+
+  return encoded.replaceAll('%2A', '*').replaceAll('%3F', '?');
+}
+
 export function normalizePatternList(value: unknown): string[] {
   return normalizeCommonPatternList(value);
 }
@@ -41,6 +51,32 @@ export function wildcardMatch(pattern: string, input: string) {
     normalizedPattern.toLowerCase(),
     normalizedInput.toLowerCase(),
   );
+}
+
+export function validateNameValueRuleItem(value: string) {
+  const text = normalizeText(value);
+  const separatorCount = [...text].filter((char) => char === '=').length;
+
+  if (separatorCount !== 1) {
+    return '请求参数/请求头匹配项必须且只能包含一个等号';
+  }
+
+  const [rawName, rawValue] = text.split('=');
+  const name = normalizeText(rawName);
+  const itemValue = normalizeText(rawValue);
+
+  if (!name || !itemValue) {
+    return '等号左右两边都不能为空';
+  }
+
+  try {
+    encodeURIComponent(name);
+    encodeURIComponent(itemValue);
+  } catch {
+    return '等号左右两边必须是可进行URL编码的文本';
+  }
+
+  return true;
 }
 
 export function matchPatternList(
@@ -99,13 +135,16 @@ function normalizeSimpleRule(entry: unknown): null | TrafficControlSimpleRule {
       return null;
     }
 
-    const [rawName, ...rawValueParts] = text.split('=');
-    const rawValue = rawValueParts.join('=');
+    if (validateNameValueRuleItem(text) !== true) {
+      return null;
+    }
+
+    const [rawName, rawValue] = text.split('=');
 
     return {
       namePatterns: normalizePatternList(rawName),
       required: true,
-      valuePatterns: normalizePatternList(rawValue || '*'),
+      valuePatterns: normalizePatternList(rawValue),
     };
   }
 
@@ -203,12 +242,14 @@ export function matchRuleList(
   const name = normalizeText(nameValue);
   const value = normalizeText(rawValue);
   const rules = normalizeRuleList(rulesSource);
+  const encodedName = encodeMatchPart(name);
+  const encodedValue = encodeMatchPart(value);
   const matchedRules = rules.filter((rule) => {
     const nameMatched = rule.namePatterns.some((pattern) =>
-      wildcardMatch(pattern, name),
+      wildcardMatch(encodeMatchPart(pattern, true), encodedName),
     );
     const valueMatched = rule.valuePatterns.some((pattern) =>
-      wildcardMatch(pattern, value),
+      wildcardMatch(encodeMatchPart(pattern, true), encodedValue),
     );
 
     return nameMatched && valueMatched;
@@ -219,4 +260,12 @@ export function matchRuleList(
     matchedRules,
     rules,
   };
+}
+
+export function normalizeNameValueRuleList(source: unknown): string[] {
+  return normalizeRuleList(source).flatMap((rule) =>
+    rule.namePatterns.flatMap((namePattern) =>
+      rule.valuePatterns.map((valuePattern) => `${namePattern}=${valuePattern}`),
+    ),
+  );
 }

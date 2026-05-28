@@ -56,3 +56,22 @@ export function isSuperAdminUser(userInfo: unknown) {
     roleValues.has('R_SA')
   );
 }
+
+export function isTopSuperAdminUser(userInfo: unknown) {
+  if (!userInfo || typeof userInfo !== 'object') {
+    return false;
+  }
+
+  const userRecord = userInfo as Record<string, unknown>;
+  const roleValues = collectRoleIdentityValues(userRecord);
+
+  return (
+    userRecord.topSuperAdmin === true ||
+    userRecord.isTopSuperAdmin === true ||
+    userRecord.tsa === true ||
+    userRecord.loginName === 'sa' ||
+    userRecord.username === 'sa' ||
+    roleValues.has('R_TSA') ||
+    roleValues.has('TopSuperAdmin')
+  );
+}

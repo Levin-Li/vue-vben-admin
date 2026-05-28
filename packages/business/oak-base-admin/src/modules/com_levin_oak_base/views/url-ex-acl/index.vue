@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import CrudPage from '../crud-page.vue';
 import PatternListFormField from '../pattern-list-form-field.vue';
+import MatchTestField from '../traffic-control-rule/match-test-field.vue';
 import { urlExAclPageCrudConfig } from './config';
 </script>
 
@@ -35,6 +36,20 @@ import { urlExAclPageCrudConfig } from './config';
     </template>
     <template #form-field-userRoleList="{ field, formState }">
       <PatternListFormField v-model="formState[field.key]" :field="field" />
+    </template>
+    <template #form-field-requestParamRuleList="{ field, formState }">
+      <MatchTestField
+        v-model="formState[field.key]"
+        :field="field"
+        rule-kind="nameValue"
+      />
+    </template>
+    <template #form-field-headerRuleList="{ field, formState }">
+      <MatchTestField
+        v-model="formState[field.key]"
+        :field="field"
+        rule-kind="nameValue"
+      />
     </template>
   </CrudPage>
 </template>

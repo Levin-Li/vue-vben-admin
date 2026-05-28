@@ -127,11 +127,16 @@ export function resolveResourceUrl(record: FileResourceRecord): string {
   const paths = normalizeStringList(record.paths);
   const coverUrl = String(record.coverUrl || '').trim();
 
-  if (coverUrl) {
+  if (isImageResource(record) && coverUrl) {
     return coverUrl;
   }
 
-  return paths[0] || '';
+  return paths[0] || coverUrl;
+}
+
+export function resolveResourceCoverUrl(record: FileResourceRecord): string {
+  const coverUrl = String(record.coverUrl || '').trim();
+  return coverUrl || normalizeStringList(record.paths)[0] || '';
 }
 
 export function resolveDownloadUrls(record: FileResourceRecord): string[] {

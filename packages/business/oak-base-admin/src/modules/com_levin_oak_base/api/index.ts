@@ -17,6 +17,7 @@ export * from './fund-account-service';
 export * from './fund-account-log-service';
 export * from './fund-exchange-rule-service';
 export * from './i18n-res-service';
+export * from './import-export-template-service';
 export * from './job-post-service';
 export * from './menu-service';
 export * from './nation-service';

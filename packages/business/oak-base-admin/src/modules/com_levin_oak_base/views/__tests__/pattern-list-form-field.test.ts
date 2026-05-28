@@ -8,10 +8,10 @@ vi.mock('@levin/admin-framework', async (importOriginal) => {
 
   return {
     ...actual,
-    PatternListEditor: {
-      emits: ['dropdownVisibleChange', 'search', 'update:modelValue'],
-      name: 'PatternListEditor',
-      props: ['hint', 'modelValue', 'placeholder'],
+      PatternListEditor: {
+        emits: ['dropdownVisibleChange', 'search', 'update:modelValue'],
+        name: 'PatternListEditor',
+      props: ['hint', 'modelValue', 'placeholder', 'showEmptyImage'],
       template: '<div data-test="pattern-list-editor"></div>',
     },
   };
@@ -49,5 +49,24 @@ describe('pattern list form field', () => {
     expect(
       wrapper.findComponent({ name: 'PatternListEditor' }).props('hint'),
     ).toBeUndefined();
+  });
+
+  it('passes through explicit empty image display config', () => {
+    const wrapper = mount(PatternListFormField, {
+      props: {
+        field: {
+          key: 'methodList',
+          label: '请求方法包含列表',
+          showEmptyImage: true,
+        } as any,
+        modelValue: [],
+      },
+    });
+
+    expect(
+      wrapper
+        .findComponent({ name: 'PatternListEditor' })
+        .props('showEmptyImage'),
+    ).toBe(true);
   });
 });

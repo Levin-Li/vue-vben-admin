@@ -27,6 +27,8 @@ describe('traffic control rule page config', () => {
     'ipExcludeList',
     'userTypeList',
     'userRoleList',
+    'requestParamRuleList',
+    'headerRuleList',
     'limitDimensionList',
   ];
 
@@ -73,24 +75,22 @@ describe('traffic control rule page config', () => {
     expect(
       fields.find((field) => field.key === 'requestParamRuleList'),
     ).toMatchObject({
-      fullRow: true,
-      help: expect.stringContaining('"name":"tenant*"'),
+      help: expect.stringContaining('name=value'),
       key: 'requestParamRuleList',
-      label: '请求参数匹配数组',
-      placeholder:
-        '[{"name":"tenant*","value":"ma?ket-*"},{"name":"status","value":"*"}]',
-      type: 'json',
+      label: '请求参数匹配列表',
+      placeholder: '例如 tenant*=ma?ket-*',
+      span: 2,
+      type: 'tags',
     });
     expect(
       fields.find((field) => field.key === 'headerRuleList'),
     ).toMatchObject({
-      fullRow: true,
-      help: expect.stringContaining('"name":"X-Tenant-*"'),
+      help: expect.stringContaining('name=value'),
       key: 'headerRuleList',
-      label: '请求头匹配数组',
-      placeholder:
-        '[{"name":"X-Tenant-*","value":"vip?"},{"name":"X-Client-App-Id","value":"*"}]',
-      type: 'json',
+      label: '请求头匹配列表',
+      placeholder: '例如 X-Tenant-*=vip?',
+      span: 2,
+      type: 'tags',
     });
   });
 
@@ -110,6 +110,39 @@ describe('traffic control rule page config', () => {
         }),
       ),
     );
+  });
+
+  it('keeps the dynamic tenant field first and caps the dialog at four columns', () => {
+    const formKeys = trafficControlRulePageCrudConfig.fields
+      .filter((field) => field.form !== false)
+      .map((field) => field.key);
+
+    expect(trafficControlRulePageCrudConfig.formMaxColumns).toBe(4);
+    expect(formKeys.slice(0, 5)).toEqual([
+      'tenantId',
+      'name',
+      'enable',
+      'editable',
+      'urlPathList',
+    ]);
+    expect(formKeys.slice(-7, -3)).toEqual([
+      'windowSeconds',
+      'burstCount',
+      'rejectStatus',
+      'orderCode',
+    ]);
+    expect(formKeys.slice(-3)).toEqual(['rejectMessage', 'exInfo', 'remark']);
+    expect(fieldsByKey('tenantId')).toMatchObject({
+      key: 'tenantId',
+      layoutGroup: 'ownership',
+      layoutOrder: 1,
+      visibleForSaasUser: true,
+    });
+    expect(fieldsByKey('rejectMessage')).toMatchObject({
+      key: 'rejectMessage',
+      span: 2,
+      type: 'textarea',
+    });
   });
 
   it('offers the supported limit dimensions in the form', () => {
@@ -143,18 +176,22 @@ describe('traffic control rule page config', () => {
           ipList: ['10.0.?.*'],
           limitDimensionList: ['Rule', 'Header', 'Param'],
           methodList: ['GET', 'POST'],
-          requestParamRuleList: [{ name: 'tenant*', value: 'ma?ket-*' }],
+          requestParamRuleList: ['tenant*=ma?ket-*'],
           urlPathList: ['/api/order/*'],
         },
         null,
       ),
     ).toMatchObject({
-      headerRuleList: [{ name: 'X-Tenant-*', value: 'vip?' }],
+      headerRuleList: ['X-Tenant-*=vip?'],
       ipList: ['10.0.?.*'],
       limitDimensionList: ['Rule', 'Header', 'Param'],
       methodList: ['GET', 'POST'],
-      requestParamRuleList: [{ name: 'tenant*', value: 'ma?ket-*' }],
+      requestParamRuleList: ['tenant*=ma?ket-*'],
       urlPathList: ['/api/order/*'],
     });
   });
 });
+
+function fieldsByKey(key: string) {
+  return trafficControlRulePageCrudConfig.fields.find((field) => field.key === key);
+}

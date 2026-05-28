@@ -118,7 +118,6 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
       key: 'exInfo',
       formCreate: false,
       label: '扩展信息',
-      fullRow: true,
       type: 'json',
     },
     { key: 'orderCode', formCreate: false, label: '排序代码', type: 'number' },

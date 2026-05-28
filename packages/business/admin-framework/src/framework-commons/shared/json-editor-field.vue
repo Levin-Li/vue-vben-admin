@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
 
-import { Button, Input, Modal } from 'ant-design-vue';
+import { Input, Modal } from 'ant-design-vue';
 import JsonEditorVue from 'json-editor-vue';
 
 const props = withDefaults(
@@ -133,8 +133,8 @@ watch(
       readonly
       :value="previewText"
       @click="openEditor"
+      @keydown.enter.prevent="openEditor"
     />
-    <Button :disabled="disabled" @click="openEditor">编辑</Button>
 
     <Modal
       v-model:open="open"
@@ -163,9 +163,7 @@ watch(
 
 <style scoped>
 .crud-json-editor-field {
-  display: flex;
   width: 100%;
-  gap: 8px;
 }
 
 .crud-json-editor-field :deep(.ant-input) {

@@ -10,6 +10,7 @@ import {
   tenantSiteDomainOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
+import { normalizeNameValueRuleList } from './traffic-control-match';
 
 const algorithmOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.TrafficControlRule$Algorithm',
@@ -41,7 +42,11 @@ const methodOptions = [
 const ANY_MATCH_HELP = '支持*和?匹配，本字段内任一命中。';
 
 function transformRuleSubmit(values: Record<string, any>) {
-  return { ...values };
+  return {
+    ...values,
+    headerRuleList: normalizeNameValueRuleList(values.headerRuleList),
+    requestParamRuleList: normalizeNameValueRuleList(values.requestParamRuleList),
+  };
 }
 
 export const trafficControlRulePageCrudConfig: CrudPageConfig = {
@@ -63,15 +68,6 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
   },
   fields: [
     {
-      key: 'tenantId',
-      label: '归属租户',
-      loadOptions: tenantOptionsLoader,
-      remoteSearch: true,
-      search: true,
-      type: 'select',
-      visibleForSaasUser: true,
-    },
-    {
       key: '__tenant',
       label: '归属租户',
       fixed: 'left',
@@ -80,6 +76,17 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
       type: 'tenant',
       visibleForSaasUser: true,
       width: 180,
+    },
+    {
+      key: 'tenantId',
+      label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutOrder: 1,
+      loadOptions: tenantOptionsLoader,
+      remoteSearch: true,
+      search: true,
+      type: 'select',
+      visibleForSaasUser: true,
     },
     {
       key: 'id',
@@ -97,6 +104,24 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       width: 180,
+    },
+    {
+      key: 'enable',
+      label: '是否启用',
+      search: true,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+      width: 100,
+    },
+    {
+      key: 'editable',
+      label: '是否可编辑',
+      search: true,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+      width: 110,
     },
     {
       key: 'urlPathList',
@@ -182,21 +207,19 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'requestParamRuleList',
-      label: '请求参数匹配数组',
-      fullRow: true,
-      help: 'JSON数组，每项配置name和value，名称和值支持*和?；示例：[{"name":"tenant*","value":"ma?ket-*"},{"name":"status","value":"*"}]。',
-      placeholder:
-        '[{"name":"tenant*","value":"ma?ket-*"},{"name":"status","value":"*"}]',
-      type: 'json',
+      label: '请求参数匹配列表',
+      help: '每项使用未编码的name=value，必须且只能包含一个等号；名称和值支持*和?。示例：tenant*=ma?ket-*、status=*。',
+      placeholder: '例如 tenant*=ma?ket-*',
+      span: 2,
+      type: 'tags',
     },
     {
       key: 'headerRuleList',
-      label: '请求头匹配数组',
-      fullRow: true,
-      help: 'JSON数组，每项配置name和value，名称和值支持*和?；示例：[{"name":"X-Tenant-*","value":"vip?"},{"name":"X-Client-App-Id","value":"*"}]。',
-      placeholder:
-        '[{"name":"X-Tenant-*","value":"vip?"},{"name":"X-Client-App-Id","value":"*"}]',
-      type: 'json',
+      label: '请求头匹配列表',
+      help: '每项使用未编码的name=value，必须且只能包含一个等号；名称和值支持*和?。示例：X-Tenant-*=vip?、X-Client-App-Id=*。',
+      placeholder: '例如 X-Tenant-*=vip?',
+      span: 2,
+      type: 'tags',
     },
     {
       key: 'limitDimensionList',
@@ -249,34 +272,16 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
       valueType: 'number',
     },
     {
-      key: 'rejectMessage',
-      label: '拒绝提示',
-      fullRow: true,
-      type: 'textarea',
-    },
-    {
-      key: 'enable',
-      label: '是否启用',
-      search: true,
-      table: true,
-      type: 'switch',
-      valueType: 'boolean',
-      width: 100,
-    },
-    {
-      key: 'editable',
-      label: '是否可编辑',
-      search: true,
-      table: true,
-      type: 'switch',
-      valueType: 'boolean',
-      width: 110,
-    },
-    {
       key: 'orderCode',
       label: '排序代码',
       type: 'number',
       valueType: 'number',
+    },
+    {
+      key: 'rejectMessage',
+      label: '拒绝提示',
+      span: 2,
+      type: 'textarea',
     },
     {
       key: 'exInfo',
@@ -307,6 +312,7 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
       width: 180,
     },
   ],
+  formMaxColumns: 4,
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '流量控制规则管理',
   transformSubmit: (values) => transformRuleSubmit(values),

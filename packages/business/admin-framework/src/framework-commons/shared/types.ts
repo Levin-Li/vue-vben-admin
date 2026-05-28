@@ -4,6 +4,7 @@ export type CrudFieldType =
   | 'area-cascader'
   | 'code'
   | 'css'
+  | 'cron'
   | 'date'
   | 'datetime'
   | 'file'
@@ -34,6 +35,12 @@ export interface CrudAreaCascaderConfig {
 }
 
 export interface CrudFieldConfig {
+  '@JsonSchema'?: Record<string, any> | string;
+  '@JsonSchemaInline'?: boolean;
+  '@JsonSchemaMode'?: 'inline' | 'popup';
+  '@Jsonschema'?: Record<string, any> | string;
+  '@JsonschemaInline'?: boolean;
+  '@JsonschemaMode'?: 'inline' | 'popup';
   allowInput?: boolean;
   areaCascader?: CrudAreaCascaderConfig;
   cellSingleLine?: boolean;
@@ -50,6 +57,15 @@ export interface CrudFieldConfig {
   help?: string;
   key: string;
   label: string;
+  JsonSchema?: Record<string, any> | string;
+  JsonSchemaInline?: boolean;
+  JsonSchemaMode?: 'inline' | 'popup';
+  Jsonschema?: Record<string, any> | string;
+  JsonschemaInline?: boolean;
+  JsonschemaMode?: 'inline' | 'popup';
+  jsonSchema?: Record<string, any> | string;
+  jsonSchemaInline?: boolean;
+  jsonSchemaMode?: 'inline' | 'popup';
   layoutGroup?: string;
   layoutNewRow?: boolean;
   layoutOrder?: number;
@@ -63,6 +79,7 @@ export interface CrudFieldConfig {
   search?: boolean;
   searchOrder?: number;
   searchParamName?: string;
+  showEmptyImage?: boolean;
   sortable?: boolean;
   span?: number;
   table?: boolean;
@@ -102,6 +119,7 @@ export type CrudPathConfig =
     ) => string);
 
 export interface CrudApiService {
+  batchCreate?: (data?: any, options?: any) => Promise<any>;
   create?: (data?: any, options?: any) => Promise<any>;
   delete?: (params?: any, options?: any) => Promise<any>;
   list?: (params?: any, options?: any) => Promise<any>;
@@ -128,7 +146,8 @@ export interface CrudExportTemplateConfig {
 export interface CrudExportTemplateRecord {
   category?: string;
   code?: string;
-  config?: CrudExportTemplateConfig | string | null;
+  config?: any;
+  editable?: boolean;
   fileType?: string;
   groupName?: string;
   id?: number | string;
@@ -155,6 +174,10 @@ export interface CrudExportTemplateContext {
 export interface CrudExportTemplateService {
   create?: (
     data: Record<string, any>,
+    context: CrudExportTemplateContext,
+  ) => Promise<any>;
+  delete?: (
+    params: Record<string, any>,
     context: CrudExportTemplateContext,
   ) => Promise<any>;
   list?: (
@@ -199,6 +222,7 @@ export interface CrudPageConfig {
   editVisibleOn?: string;
   exportTemplateService?: CrudExportTemplateService;
   fields: CrudFieldConfig[];
+  formMaxColumns?: number;
   listPath?: string;
   listTables?: CrudListTableConfig[];
   modalWidth?: number | string;
