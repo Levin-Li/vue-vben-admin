@@ -15,6 +15,7 @@ import {
   message,
   Modal,
   Popconfirm,
+  Popover,
   Select,
   Spin,
   Switch,
@@ -31,7 +32,6 @@ import { userService } from '../../api/user-service';
 import CrudPage from '../crud-page.vue';
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
-  OAK_BASE_API_MODULE,
   orgTypeOptionsLoader,
 } from '../api-module';
 import {
@@ -48,8 +48,60 @@ interface OrgTreeNode {
   key: string;
   label: string;
   title: string;
+  type?: string;
   value: string;
 }
+
+interface StringSelectOption {
+  children?: StringSelectOption[];
+  disabled?: boolean;
+  label: string;
+  value: string;
+}
+
+const ORG_TYPE_ICON_MAP: Record<string, string> = {
+  Agent: 'lucide:handshake',
+  Branch: 'lucide:git-branch',
+  Channel: 'lucide:route',
+  Company: 'lucide:building-2',
+  Customer: 'lucide:user-round-check',
+  Department: 'lucide:network',
+  DirectStore: 'lucide:store',
+  Distributor: 'lucide:warehouse',
+  ExternalOrg: 'lucide:building',
+  FranchiseStore: 'lucide:handshake',
+  Group: 'lucide:users-round',
+  Individual: 'lucide:user-round',
+  MainStore: 'lucide:landmark',
+  Merchant: 'lucide:store',
+  OnlineFlagshipStore: 'lucide:badge-check',
+  OnlineStore: 'lucide:monitor-smartphone',
+  Store: 'lucide:store',
+  TempOrg: 'lucide:clock-3',
+  Vendor: 'lucide:truck',
+};
+
+const ORG_TYPE_LABEL_MAP: Record<string, string> = {
+  Agent: '代理商',
+  Branch: '分公司',
+  Channel: '渠道商',
+  Company: '公司',
+  Customer: '客户',
+  Department: '部门',
+  DirectStore: '直营店',
+  Distributor: '经销商',
+  ExternalOrg: '外部机构',
+  FranchiseStore: '加盟店',
+  Group: '小组',
+  Individual: '个体户',
+  MainStore: '总店',
+  Merchant: '商户',
+  OnlineFlagshipStore: '线上旗舰店',
+  OnlineStore: '线上门店',
+  Store: '门店',
+  TempOrg: '临时组织',
+  Vendor: '供应商',
+};
 
 const dialogOpen = ref(false);
 const pageKey = ref(0);
@@ -57,7 +109,7 @@ const selectedRecord = ref<null | Record<string, any>>(null);
 const roleModalOpen = ref(false);
 const roleSubmitting = ref(false);
 const roleOptionsLoading = ref(false);
-const roleOptions = ref<SelectOption[]>([]);
+const roleOptions = ref<StringSelectOption[]>([]);
 const roleFormState = reactive({
   id: '',
   roleList: [] as string[],
@@ -109,6 +161,47 @@ const filteredOrgTreeData = computed(() => {
 const orgParentTreeData = computed(() =>
   disableOrgTreeNode(orgTreeData.value, orgFormState.id),
 );
+
+const orgTypeSelectOptions = computed(() => {
+  const options = orgTypeOptions.value.filter(
+    (option) => option.value !== 'Store',
+  );
+  const legacyStoreOption = orgTypeOptions.value.find(
+    (option) => option.value === 'Store',
+  );
+
+  if (orgFormState.type === 'Store' && legacyStoreOption) {
+    return [...options, legacyStoreOption];
+  }
+
+  return options;
+});
+
+const orgTypeLegendItems = computed(() => {
+  const source =
+    orgTypeOptions.value.length > 0
+      ? orgTypeOptions.value
+      : Object.entries(ORG_TYPE_LABEL_MAP).map(([value, label]) => ({
+          label,
+          value,
+        }));
+  const usedValues = new Set<string>();
+
+  return source
+    .map((option) => ({
+      icon: getOrgTypeIcon(option.value),
+      label: option.label || getOrgTypeLabel(option.value),
+      value: option.value,
+    }))
+    .filter((item) => {
+      if (usedValues.has(item.value)) {
+        return false;
+      }
+
+      usedValues.add(item.value);
+      return true;
+    });
+});
 
 const userConfig = computed(() => ({
   ...userPageCrudConfig,
@@ -171,9 +264,33 @@ function toOrgTreeNodes(options: SelectOption[]): OrgTreeNode[] {
         key: id,
         label,
         title: label,
+        type: option.type ? String(option.type) : undefined,
         value: id,
       };
     });
+}
+
+function getOrgTypeIcon(type?: string) {
+  return type ? ORG_TYPE_ICON_MAP[type] || 'lucide:building' : 'lucide:building';
+}
+
+function getOrgTypeLabel(type?: string) {
+  if (!type) {
+    return '组织';
+  }
+
+  const option = orgTypeOptions.value.find((item) => item.value === type);
+
+  return option?.label || ORG_TYPE_LABEL_MAP[type] || type;
+}
+
+function toStringSelectOptions(options: SelectOption[]): StringSelectOption[] {
+  return options.map((option) => ({
+    children: option.children ? toStringSelectOptions(option.children) : undefined,
+    disabled: option.disabled,
+    label: option.label,
+    value: String(option.value),
+  }));
 }
 
 function collectOrgKeys(nodes: OrgTreeNode[]): string[] {
@@ -265,7 +382,7 @@ async function loadRoleOptions(keyword = '') {
   roleOptionsLoading.value = true;
 
   try {
-    roleOptions.value = await roleOptionsLoader(keyword);
+    roleOptions.value = toStringSelectOptions(await roleOptionsLoader(keyword));
   } finally {
     roleOptionsLoading.value = false;
   }
@@ -484,6 +601,37 @@ onMounted(async () => {
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2">
+          <Popover placement="bottomRight" trigger="click">
+            <template #title>类型图标</template>
+            <template #content>
+              <div class="user-org-type-legend">
+                <div
+                  v-for="item in orgTypeLegendItems"
+                  :key="item.value"
+                  class="user-org-type-legend-item"
+                >
+                  <IconifyIcon
+                    aria-hidden="true"
+                    class="size-4 shrink-0"
+                    :icon="item.icon"
+                  />
+                  <span class="min-w-0 truncate">{{ item.label }}</span>
+                </div>
+              </div>
+            </template>
+            <Button
+              aria-label="查看组织类型图标"
+              class="inline-flex items-center justify-center"
+              shape="circle"
+              size="small"
+              title="类型图标"
+            >
+              <IconifyIcon
+                class="block size-4 leading-none"
+                icon="lucide:badge-help"
+              />
+            </Button>
+          </Popover>
           <Tooltip title="刷新">
             <Button
               :loading="orgTreeLoading"
@@ -528,7 +676,16 @@ onMounted(async () => {
               @mouseenter="hoveredOrgId = String(node.key)"
               @mouseleave="hoveredOrgId = ''"
             >
-              <span class="min-w-0 flex-1 truncate">{{ node.title }}</span>
+              <span class="min-w-0 flex flex-1 items-center gap-2 truncate">
+                <Tooltip :title="getOrgTypeLabel(node.type)">
+                  <IconifyIcon
+                    aria-hidden="true"
+                    class="user-org-tree-node-icon size-4"
+                    :icon="getOrgTypeIcon(node.type)"
+                  />
+                </Tooltip>
+                <span class="min-w-0 truncate">{{ node.title }}</span>
+              </span>
               <span
                 v-if="hoveredOrgId === String(node.key)"
                 class="user-org-tree-actions"
@@ -640,7 +797,7 @@ onMounted(async () => {
           <Form.Item label="组织类型">
             <Select
               v-model:value="orgFormState.type"
-              :options="orgTypeOptions"
+              :options="orgTypeSelectOptions"
               placeholder="请选择组织类型"
             />
           </Form.Item>
@@ -727,6 +884,27 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.user-org-tree-node-icon {
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+.user-org-type-legend {
+  display: grid;
+  width: min(320px, 72vw);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.user-org-type-legend-item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: hsl(var(--foreground));
+  line-height: 22px;
 }
 
 .user-org-tree-actions {
