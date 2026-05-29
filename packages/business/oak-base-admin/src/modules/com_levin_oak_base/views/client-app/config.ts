@@ -8,13 +8,21 @@ import {
   userOptionsLoader,
 } from '../api-module';
 
-function generateClientAppId() {
+function generateUuidPart(length: number) {
   const randomPart =
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID().replaceAll('-', '')
       : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 
-  return `app_${randomPart}`;
+  return randomPart.padEnd(length, randomPart).slice(0, length);
+}
+
+function generateClientAppId() {
+  return `app_${generateUuidPart(16)}`;
+}
+
+function generateClientAppSecret() {
+  return generateUuidPart(32);
 }
 
 function normalizePatternListValue(value: unknown) {
@@ -51,7 +59,7 @@ function transformClientAppSubmit(
   }
 
   if (!String(payload.appSignSecret || '').trim()) {
-    delete payload.appSignSecret;
+    payload.appSignSecret = generateClientAppSecret();
   }
 
   return payload;
@@ -162,7 +170,7 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       label: '签名密钥',
       disabledOnEdit: true,
       fullRow: true,
-      help: '新增时由后端自动生成，编辑时不允许修改。',
+      help: '新增时由前端自动生成，编辑时不允许修改。',
       layoutGroup: 'basic',
       layoutNewRow: true,
       layoutOrder: 60,

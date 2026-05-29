@@ -103,7 +103,7 @@ describe('client app page config', () => {
     expect(visualIndexOf('exInfo')).toBeLessThan(visualIndexOf('remark'));
   });
 
-  it('generates appId on create and serializes wildcard lists', async () => {
+  it('generates credentials on create and serializes wildcard lists', async () => {
     const payload = await clientAppPageCrudConfig.transformSubmit!(
       {
         allowedIpList: ['10.0.?.*', '127.0.0.1'],
@@ -115,7 +115,8 @@ describe('client app page config', () => {
     );
 
     expect(payload.appId).toMatch(/^app_/);
-    expect(payload.appSignSecret).toBeUndefined();
+    expect(payload.appId).toHaveLength(20);
+    expect(payload.appSignSecret).toHaveLength(32);
     expect(payload.allowedIpList).toEqual(['10.0.?.*', '127.0.0.1']);
     expect(payload.allowedPathPatterns).toEqual(['/api/order/*']);
   });
