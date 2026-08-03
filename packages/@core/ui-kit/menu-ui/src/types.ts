@@ -1,4 +1,4 @@
-import type { Component, Ref } from 'vue';
+import type { Component, Ref, StyleValue } from 'vue';
 
 import type { MenuRecordBadgeRaw, ThemeModeType } from '@vben-core/typings';
 
@@ -53,6 +53,11 @@ interface MenuProps {
    * @default dark
    */
   theme?: ThemeModeType;
+
+  /**
+   * @zh_CN 折叠菜单弹窗样式
+   */
+  popupStyle?: StyleValue;
 }
 
 interface SubMenuProps extends MenuRecordBadgeRaw {

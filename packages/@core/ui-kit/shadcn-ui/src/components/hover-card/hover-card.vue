@@ -6,6 +6,7 @@ import type {
 } from 'reka-ui';
 
 import type { ClassType } from '@vben-core/typings';
+import type { StyleValue } from 'vue';
 
 import { computed } from 'vue';
 
@@ -17,6 +18,7 @@ interface Props extends HoverCardRootProps {
   class?: ClassType;
   contentClass?: ClassType;
   contentProps?: HoverCardContentProps;
+  contentStyle?: StyleValue;
 }
 
 const props = defineProps<Props>();
@@ -28,6 +30,7 @@ const delegatedProps = computed(() => {
     class: _cls,
     contentClass: _,
     contentProps: _cProps,
+    contentStyle: _cStyle,
     ...delegated
   } = props;
 
@@ -46,6 +49,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits);
     </HoverCardTrigger>
     <HoverCardContent
       :class="contentClass"
+      :style="contentStyle"
       v-bind="contentProps"
       class="side-content z-popup"
     >

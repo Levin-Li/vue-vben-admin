@@ -83,6 +83,7 @@ export interface CrudFieldConfig {
   sortable?: boolean;
   span?: number;
   table?: boolean;
+  tableValue?: (record: Record<string, any>) => any;
   type?: CrudFieldType;
   uploadPath?: string;
   valueType?: 'boolean' | 'number' | 'string';
@@ -183,7 +184,9 @@ export interface CrudExportTemplateService {
   list?: (
     params: Record<string, any>,
     context: CrudExportTemplateContext,
-  ) => Promise<CrudExportTemplateRecord[] | { items?: CrudExportTemplateRecord[] }>;
+  ) => Promise<
+    CrudExportTemplateRecord[] | { items?: CrudExportTemplateRecord[] }
+  >;
 }
 
 export interface CrudListTableConfig {

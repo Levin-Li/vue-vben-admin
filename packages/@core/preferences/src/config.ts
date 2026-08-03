@@ -124,6 +124,8 @@ const defaultPreferences: Preferences = {
     semiDarkSidebar: false,
     semiDarkSidebarColor: 'hsl(222 10% 12%)',
     semiDarkSidebarSub: false,
+    sidebarMenuBackgroundColor: 'hsl(222 10% 12%)',
+    sidebarMenuBackgroundColorCustom: false,
   },
   transition: {
     enable: true,

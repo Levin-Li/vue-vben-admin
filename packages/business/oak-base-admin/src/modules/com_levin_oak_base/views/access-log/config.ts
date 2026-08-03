@@ -3,6 +3,20 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { accessLogService } from '../../api/access-log-service';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
+function formatAccessLogRequestInfo(record: Record<string, any>) {
+  const method = String(record.requestMethod || '').trim();
+  const uri = String(record.requestUri || '').trim();
+
+  return [method, uri].filter(Boolean).join(' ');
+}
+
+function formatAccessLogSourceInfo(record: Record<string, any>) {
+  const remoteAddr = String(record.remoteAddr || '').trim();
+  const accessRegion = String(record.accessRegion || '').trim();
+
+  return [remoteAddr, accessRegion].filter(Boolean).join('\n');
+}
+
 export const accessLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/AccessLog',
   apiService: accessLogService,
@@ -75,8 +89,14 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
     { key: 'containsBizType', label: '业务类型', form: false, search: true },
     { key: 'bizType', label: '业务类型', table: true, width: 140 },
     { key: 'containsRequestUri', label: '请求URI', form: false, search: true },
-    { key: 'requestUri', label: '请求URI', table: true, width: 220 },
-    { key: 'requestMethod', label: '请求方法', table: true, width: 120 },
+    {
+      key: 'requestUri',
+      label: '请求信息',
+      table: true,
+      tableValue: formatAccessLogRequestInfo,
+      width: 320,
+    },
+    { key: 'requestMethod', label: '请求方法', table: false },
     {
       key: 'responseStatus',
       label: '响应状态码',
@@ -84,7 +104,14 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
       type: 'number',
       width: 120,
     },
-    { key: 'remoteAddr', label: '操作IP地址', table: true, width: 140 },
+    {
+      key: 'remoteAddr',
+      label: '来源信息',
+      table: true,
+      tableValue: formatAccessLogSourceInfo,
+      width: 180,
+    },
+    { key: 'accessRegion', label: '访问归属地', form: false, table: false },
     {
       key: 'gteCreateTime',
       label: '访问时间开始',
@@ -125,6 +152,14 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
       form: false,
       label: '响应体',
       fullRow: true,
+      type: 'textarea',
+    },
+    {
+      key: 'exceptionInfo',
+      form: false,
+      label: '异常信息',
+      fullRow: true,
+      table: false,
       type: 'textarea',
     },
     {

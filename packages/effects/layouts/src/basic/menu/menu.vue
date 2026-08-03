@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { StyleValue } from 'vue';
+
 import type { MenuRecordRaw, ThemeModeType } from '@vben/types';
 
 import { Menu } from '@vben-core/menu-ui';
@@ -11,6 +13,7 @@ interface Props {
   defaultOpeneds?: string[];
   menus?: MenuRecordRaw[];
   mode?: 'horizontal' | 'vertical';
+  popupStyle?: StyleValue;
   rounded?: boolean;
   scrollToActive?: boolean;
   theme?: ThemeModeType;
@@ -43,6 +46,7 @@ function handleMenuOpen(key: string, path: string[]) {
     :default-active="defaultActive"
     :menus="menus"
     :mode="mode"
+    :popup-style="popupStyle"
     :rounded="rounded"
     scroll-to-active
     :theme="theme"

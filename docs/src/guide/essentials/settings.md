@@ -313,6 +313,8 @@ const defaultPreferences: Preferences = {
     radius: '0.5',
     semiDarkHeader: false,
     semiDarkSidebar: false,
+    sidebarMenuBackgroundColor: 'hsl(222 10% 12%)',
+    sidebarMenuBackgroundColorCustom: false,
   },
   transition: {
     enable: true,
@@ -559,6 +561,10 @@ interface ThemePreferences {
   semiDarkHeader: boolean;
   /** 是否开启半深色菜单（只在theme='light'时生效） */
   semiDarkSidebar: boolean;
+  /** 深色侧边栏导航菜单背景色 */
+  sidebarMenuBackgroundColor: string;
+  /** 是否自定义深色侧边栏导航菜单背景色 */
+  sidebarMenuBackgroundColorCustom: boolean;
 }
 
 interface TransitionPreferences {

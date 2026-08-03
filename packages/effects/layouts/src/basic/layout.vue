@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { SetupContext } from 'vue';
+import type { CSSProperties, SetupContext } from 'vue';
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
 
 import type { MenuRecordRaw } from '@vben/types';
@@ -15,7 +15,7 @@ import {
   usePreferences,
 } from '@vben/preferences';
 import { useAccessStore, useTabbarStore, useTimezoneStore } from '@vben/stores';
-import { cloneDeep, convertToHslCssVar, mapTree } from '@vben/utils';
+import { cloneDeep, convertToHslCssVar, mapTree, TinyColor } from '@vben/utils';
 
 import { VbenAdminLayout } from '@vben-core/layout-ui';
 import { VbenBackTop, VbenLogo } from '@vben-core/shadcn-ui';
@@ -84,6 +84,41 @@ const semiDarkHeaderStyleColor = computed(() => {
   }
 
   return convertToHslCssVar(preferences.theme.semiDarkHeaderColor);
+});
+
+const sidebarMenuStyleColors = computed(() => {
+  if (sidebarTheme.value !== 'dark' || isDark.value) {
+    return {};
+  }
+
+  const menuBackgroundColor = preferences.theme.sidebarMenuBackgroundColorCustom
+    ? preferences.theme.sidebarMenuBackgroundColor
+    : preferences.theme.semiDarkSidebarColor;
+
+  return {
+    background: convertToHslCssVar(menuBackgroundColor),
+    hoverBackground: convertToHslCssVar(
+      new TinyColor(menuBackgroundColor).brighten(7).toHslString(),
+    ),
+  };
+});
+
+const sidebarMenuPopupStyle = computed(() => {
+  const { background, hoverBackground } = sidebarMenuStyleColors.value;
+
+  return {
+    ...(background ? { '--sidebar-menu-background-color': background } : {}),
+    ...(hoverBackground
+      ? { '--sidebar-menu-hover-background-color': hoverBackground }
+      : {}),
+    ...(!isDark.value
+      ? {
+          '--sidebar-menu-active-background-color': 'hsl(var(--primary) / 15%)',
+          '--sidebar-menu-active-color': 'hsl(var(--primary))',
+          '--sidebar-menu-border-color': '#fff',
+        }
+      : {}),
+  } as CSSProperties;
 });
 
 const logoClass = computed(() => {
@@ -261,6 +296,11 @@ const headerSlots = computed(() => {
     :sidebar-extra-collapsed-width="preferences.sidebar.extraCollapsedWidth"
     :sidebar-hidden="preferences.sidebar.hidden"
     :sidebar-mixed-width="preferences.sidebar.mixedWidth"
+    :sidebar-menu-background-color="sidebarMenuStyleColors.background"
+    :sidebar-menu-hover-background-color="
+      sidebarMenuStyleColors.hoverBackground
+    "
+    :sidebar-menu-use-primary-active-color="!isDark"
     :sidebar-theme="sidebarTheme"
     :sidebar-theme-color="semiDarkSidebarStyleColor"
     :sidebar-theme-sub="sidebarThemeSub"
@@ -355,6 +395,7 @@ const headerSlots = computed(() => {
         :collapse-show-title="preferences.sidebar.collapsedShowTitle"
         :default-active="sidebarActive"
         :menus="wrapperMenus(sidebarMenus)"
+        :popup-style="sidebarMenuPopupStyle"
         :rounded="isMenuRounded"
         :theme="sidebarTheme"
         mode="vertical"
@@ -379,6 +420,7 @@ const headerSlots = computed(() => {
         :accordion="preferences.navigation.accordion"
         :collapse="preferences.sidebar.extraCollapse"
         :menus="wrapperMenus(extraMenus)"
+        :popup-style="sidebarMenuPopupStyle"
         :rounded="isMenuRounded"
         :theme="sidebarThemeSub"
       />

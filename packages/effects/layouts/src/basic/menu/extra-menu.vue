@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { StyleValue } from 'vue';
+
 import type { MenuRecordRaw, ThemeModeType } from '@vben/types';
 
 import { useRoute } from 'vue-router';
@@ -14,6 +16,7 @@ interface Props {
   defaultOpeneds?: string[];
   menus?: MenuRecordRaw[];
   mode?: 'horizontal' | 'vertical';
+  popupStyle?: StyleValue;
   rounded?: boolean;
   scrollToActive?: boolean;
   theme?: ThemeModeType;
@@ -38,6 +41,7 @@ async function handleSelect(key: string) {
     :collapse="collapse"
     :default-active="route.meta?.activePath || route.path"
     :menus="menus"
+    :popup-style="popupStyle"
     :rounded="rounded"
     :theme="theme"
     mode="vertical"

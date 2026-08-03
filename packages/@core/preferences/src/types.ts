@@ -259,6 +259,10 @@ interface ThemePreferences {
   semiDarkSidebarColor: string;
   /** 是否开启半深色子菜单（只在theme='light'时生效） */
   semiDarkSidebarSub: boolean;
+  /** 深色侧边栏菜单背景颜色 */
+  sidebarMenuBackgroundColor: string;
+  /** 是否自定义深色侧边栏菜单背景颜色 */
+  sidebarMenuBackgroundColorCustom: boolean;
 }
 
 interface TransitionPreferences {

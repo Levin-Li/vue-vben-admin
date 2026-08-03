@@ -123,6 +123,8 @@ exports[`defaultPreferences immutability test > should not modify the config obj
     "semiDarkSidebar": false,
     "semiDarkSidebarColor": "hsl(222 10% 12%)",
     "semiDarkSidebarSub": false,
+    "sidebarMenuBackgroundColor": "hsl(222 10% 12%)",
+    "sidebarMenuBackgroundColorCustom": false,
   },
   "transition": {
     "enable": true,

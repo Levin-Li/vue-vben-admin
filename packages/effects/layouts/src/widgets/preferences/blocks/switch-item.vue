@@ -10,8 +10,14 @@ defineOptions({
 });
 
 const props = withDefaults(
-  defineProps<{ disabled?: boolean; shortcutClass?: string; tip?: string }>(),
+  defineProps<{
+    beforeSwitchClass?: string;
+    disabled?: boolean;
+    shortcutClass?: string;
+    tip?: string;
+  }>(),
   {
+    beforeSwitchClass: 'ml-auto mr-2 text-xs opacity-60',
     disabled: false,
     shortcutClass: 'ml-auto mr-2 text-xs opacity-60',
     tip: '',
@@ -55,9 +61,20 @@ function handleClick() {
         </slot>
       </VbenTooltip>
     </span>
-    <span v-if="$slots.shortcut" :class="props.shortcutClass">
-      <slot name="shortcut"></slot>
-    </span>
-    <Switch v-model="checked" :disabled="disabled" @click.stop />
+    <template v-if="$slots['before-switch']">
+      <span :class="props.beforeSwitchClass">
+        <slot name="before-switch"></slot>
+      </span>
+      <Switch v-model="checked" :disabled="disabled" @click.stop />
+      <span v-if="$slots.shortcut" :class="props.shortcutClass">
+        <slot name="shortcut"></slot>
+      </span>
+    </template>
+    <template v-else>
+      <span v-if="$slots.shortcut" :class="props.shortcutClass">
+        <slot name="shortcut"></slot>
+      </span>
+      <Switch v-model="checked" :disabled="disabled" @click.stop />
+    </template>
   </div>
 </template>

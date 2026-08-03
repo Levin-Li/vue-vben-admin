@@ -98,13 +98,25 @@ $namespace: vben;
       // color: hsl(var(--foreground) / 80%);
 
       &:not(.is-active):hover {
+        background-color: hsl(
+          var(--sidebar-menu-hover-background-color, var(--accent))
+        ) !important;
         @apply text-foreground;
       }
 
       &.is-active {
+        background-color: var(
+          --sidebar-menu-active-background-color,
+          hsl(var(--accent))
+        ) !important;
+        color: var(
+          --sidebar-menu-active-color,
+          hsl(var(--accent-foreground))
+        ) !important;
+
         .#{$namespace}-normal-menu__name,
         .#{$namespace}-normal-menu__icon {
-          @apply text-foreground;
+          color: inherit !important;
         }
       }
     }

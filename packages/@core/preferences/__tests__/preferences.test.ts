@@ -110,6 +110,20 @@ describe('preferences', () => {
     );
   });
 
+  it('updates sidebar navigation menu colors correctly', () => {
+    preferenceManager.updatePreferences({
+      theme: {
+        sidebarMenuBackgroundColor: 'hsl(218 22% 12%)',
+        sidebarMenuBackgroundColorCustom: true,
+      },
+    });
+
+    expect(preferenceManager.getPreferences().theme).toMatchObject({
+      sidebarMenuBackgroundColor: 'hsl(218 22% 12%)',
+      sidebarMenuBackgroundColorCustom: true,
+    });
+  });
+
   it('updates color modes correctly', () => {
     preferenceManager.updatePreferences({
       app: { colorGrayMode: true, colorWeakMode: true },

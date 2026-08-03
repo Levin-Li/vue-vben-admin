@@ -48,6 +48,12 @@ interface Props {
    * @default 60
    */
   marginTop?: number;
+  /** 菜单背景色 */
+  menuBackgroundColor?: string;
+  /** 菜单悬停背景色 */
+  menuHoverBackgroundColor?: string;
+  /** 全局浅色主题下，菜单选中项使用主题色 */
+  menuUsePrimaryActiveColor?: boolean;
   /**
    * 混合菜单宽度
    * @default 80
@@ -130,32 +136,65 @@ const asideRef = shallowRef<HTMLDivElement | null>();
 
 const hiddenSideStyle = computed((): CSSProperties => calcMenuWidthStyle(true));
 
+const menuBackgroundVariables = computed((): CSSProperties => {
+  if (props.theme !== 'dark') {
+    return {};
+  }
+
+  return {
+    ...(props.menuBackgroundColor
+      ? { '--sidebar-menu-background-color': props.menuBackgroundColor }
+      : {}),
+    ...(props.menuHoverBackgroundColor
+      ? {
+          '--sidebar-menu-hover-background-color':
+            props.menuHoverBackgroundColor,
+        }
+      : {}),
+    ...(props.menuUsePrimaryActiveColor
+      ? {
+          '--sidebar-menu-active-background-color': 'hsl(var(--primary) / 15%)',
+          '--sidebar-menu-active-color': 'hsl(var(--primary))',
+        }
+      : {}),
+  } as CSSProperties;
+});
+
 const colorVariables = computed((): CSSProperties => {
   if (props.theme !== 'dark' || !props.themeColor) {
-    return {};
+    return menuBackgroundVariables.value;
   }
 
   return {
     '--menu': 'var(--sidebar)',
     '--sidebar': props.themeColor,
     '--sidebar-deep': props.themeColor,
+    ...menuBackgroundVariables.value,
   } as CSSProperties;
 });
 
 const subColorVariables = computed((): CSSProperties => {
   if (props.themeSub !== 'dark' || !props.themeSubColor) {
-    return {};
+    return menuBackgroundVariables.value;
   }
 
   return {
     '--menu': 'var(--sidebar)',
     '--sidebar': props.themeSubColor,
     '--sidebar-deep': props.themeSubColor,
+    ...menuBackgroundVariables.value,
   } as CSSProperties;
 });
 
 const style = computed((): CSSProperties => {
-  const { isSidebarMixed, marginTop, paddingTop, zIndex } = props;
+  const {
+    isSidebarMixed,
+    marginTop,
+    menuBackgroundColor,
+    menuUsePrimaryActiveColor,
+    paddingTop,
+    zIndex,
+  } = props;
 
   return {
     '--scroll-shadow': 'var(--sidebar)',
@@ -164,18 +203,35 @@ const style = computed((): CSSProperties => {
     marginTop: `${marginTop}px`,
     paddingTop: `${paddingTop}px`,
     zIndex,
+    ...(menuUsePrimaryActiveColor && menuBackgroundColor
+      ? { borderRightColor: '#fff' }
+      : {}),
     ...(isSidebarMixed && extraVisible.value ? { transition: 'none' } : {}),
     ...colorVariables.value,
   } as CSSProperties;
 });
 
 const extraStyle = computed((): CSSProperties => {
-  const { extraWidth, show, width, zIndex } = props;
+  const {
+    extraWidth,
+    menuBackgroundColor,
+    menuUsePrimaryActiveColor,
+    show,
+    width,
+    zIndex,
+  } = props;
 
   return {
+    backgroundColor:
+      menuUsePrimaryActiveColor && props.themeColor
+        ? `hsl(${props.themeColor})`
+        : 'hsl(var(--sidebar))',
     left: `${width}px`,
     width: extraVisible.value && show ? `${extraWidth}px` : 0,
     zIndex,
+    ...(menuUsePrimaryActiveColor && menuBackgroundColor
+      ? { borderColor: '#fff' }
+      : {}),
     ...subColorVariables.value,
   } as CSSProperties;
 });
@@ -200,6 +256,8 @@ const contentStyle = computed((): CSSProperties => {
   const { collapseHeight, headerHeight } = props;
 
   return {
+    backgroundColor:
+      'hsl(var(--sidebar-menu-background-color, var(--sidebar)))',
     height: `calc(100% - ${headerHeight + collapseHeight}px)`,
     paddingTop: '8px',
     ...contentWidthStyle.value,
@@ -219,7 +277,11 @@ const headerStyle = computed((): CSSProperties => {
 const extraContentStyle = computed((): CSSProperties => {
   const { collapseHeight, headerHeight } = props;
   return {
-    height: `calc(100% - ${headerHeight + collapseHeight}px)`,
+    backgroundColor:
+      'hsl(var(--sidebar-menu-background-color, var(--sidebar)))',
+    height: `calc(100% - ${
+      (extraCollapse.value ? 0 : headerHeight) + collapseHeight
+    }px)`,
   };
 });
 

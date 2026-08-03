@@ -16,6 +16,7 @@ import BuiltinTheme from './builtin.vue';
 type ColorTarget =
   | 'destructive'
   | 'header'
+  | 'menuBackground'
   | 'primary'
   | 'sidebar'
   | 'success'
@@ -40,6 +41,9 @@ const themeSemiDarkSidebarColor = defineModel<string>(
 const themeSemiDarkHeaderColor = defineModel<string>(
   'themeSemiDarkHeaderColor',
 );
+const themeSidebarMenuBackgroundColor = defineModel<string>(
+  'themeSidebarMenuBackgroundColor',
+);
 
 const activeTarget = ref<ColorTarget>('primary');
 const editorBuiltinType = ref<BuiltinThemeType>('default');
@@ -59,6 +63,9 @@ const activeColor = computed(() => {
     }
     case 'header': {
       return themeSemiDarkHeaderColor.value;
+    }
+    case 'menuBackground': {
+      return themeSidebarMenuBackgroundColor.value;
     }
     case 'sidebar': {
       return themeSemiDarkSidebarColor.value;
@@ -116,6 +123,9 @@ function getColorTargetLabel(target: ColorTarget) {
     }
     case 'header': {
       return $t('preferences.theme.darkHeaderColor');
+    }
+    case 'menuBackground': {
+      return $t('preferences.theme.navigationMenuBackgroundColor');
     }
     case 'sidebar': {
       return $t('preferences.theme.darkSidebarColor');
@@ -274,6 +284,11 @@ function resetThemeColors() {
     return;
   }
 
+  if (activeTarget.value === 'menuBackground') {
+    editorColor.value = initialTheme.sidebarMenuBackgroundColor;
+    return;
+  }
+
   if (activeTarget.value === 'sidebar') {
     editorColor.value = initialTheme.semiDarkSidebarColor;
     return;
@@ -308,6 +323,11 @@ watch(editorColor, (value) => {
     }
     case 'header': {
       themeSemiDarkHeaderColor.value = value;
+
+      break;
+    }
+    case 'menuBackground': {
+      themeSidebarMenuBackgroundColor.value = value;
 
       break;
     }

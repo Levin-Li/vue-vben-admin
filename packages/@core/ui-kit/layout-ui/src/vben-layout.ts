@@ -154,6 +154,12 @@ interface VbenLayoutProps {
    * 侧边栏主题色
    */
   sidebarThemeColor?: string;
+  /** 侧边栏菜单背景色 */
+  sidebarMenuBackgroundColor?: string;
+  /** 侧边栏菜单悬停背景色 */
+  sidebarMenuHoverBackgroundColor?: string;
+  /** 全局浅色主题下，侧边栏菜单选中项使用主题色 */
+  sidebarMenuUsePrimaryActiveColor?: boolean;
   /**
    * 侧边栏子栏
    * @default dark

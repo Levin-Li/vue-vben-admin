@@ -213,6 +213,7 @@ onBeforeUnmount(() => {
           mode === 'horizontal' ? 'is-horizontal' : '',
         ]"
         :content-props="contentProps"
+        :content-style="rootMenu.props.popupStyle"
         :open="true"
         :open-delay="0"
       >

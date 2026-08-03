@@ -314,6 +314,8 @@ const defaultPreferences: Preferences = {
     radius: '0.5',
     semiDarkHeader: false,
     semiDarkSidebar: false,
+    sidebarMenuBackgroundColor: 'hsl(222 10% 12%)',
+    sidebarMenuBackgroundColorCustom: false,
   },
   transition: {
     enable: true,
@@ -557,6 +559,10 @@ interface ThemePreferences {
   semiDarkHeader: boolean;
   /** Whether to enable semi-dark sidebar (only effective when theme='light') */
   semiDarkSidebar: boolean;
+  /** Dark sidebar navigation menu background color */
+  sidebarMenuBackgroundColor: string;
+  /** Whether to use a custom dark sidebar navigation menu background color */
+  sidebarMenuBackgroundColorCustom: boolean;
 }
 
 interface TransitionPreferences {

@@ -99,6 +99,12 @@ const themeSemiDarkHeader = defineModel<boolean>('themeSemiDarkHeader');
 const themeSemiDarkHeaderColor = defineModel<string>(
   'themeSemiDarkHeaderColor',
 );
+const themeSidebarMenuBackgroundColor = defineModel<string>(
+  'themeSidebarMenuBackgroundColor',
+);
+const themeSidebarMenuBackgroundColorCustom = defineModel<boolean>(
+  'themeSidebarMenuBackgroundColorCustom',
+);
 
 const sidebarEnable = defineModel<boolean>('sidebarEnable');
 const sidebarWidth = defineModel<number>('sidebarWidth');
@@ -253,7 +259,9 @@ async function handleReset() {
   await loadLocaleMessages(preferences.app.locale);
 }
 
-function openColorSettings(target: 'header' | 'primary' | 'sidebar') {
+function openColorSettings(
+  target: 'header' | 'menuBackground' | 'primary' | 'sidebar',
+) {
   colorSettingsRef.value?.open(target);
 }
 </script>
@@ -340,6 +348,12 @@ function openColorSettings(target: 'header' | 'primary' | 'sidebar') {
                   themeSemiDarkSidebarColor
                 "
                 v-model:theme-semi-dark-sidebar-sub="themeSemiDarkSidebarSub"
+                v-model:theme-sidebar-menu-background-color="
+                  themeSidebarMenuBackgroundColor
+                "
+                v-model:theme-sidebar-menu-background-color-custom="
+                  themeSidebarMenuBackgroundColorCustom
+                "
                 @open-color-settings="openColorSettings"
               />
             </Block>
@@ -354,6 +368,9 @@ function openColorSettings(target: 'header' | 'primary' | 'sidebar') {
                 v-model:theme-semi-dark-header-color="themeSemiDarkHeaderColor"
                 v-model:theme-semi-dark-sidebar-color="
                   themeSemiDarkSidebarColor
+                "
+                v-model:theme-sidebar-menu-background-color="
+                  themeSidebarMenuBackgroundColor
                 "
                 :is-dark="isDark"
               />

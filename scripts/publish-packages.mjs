@@ -120,11 +120,9 @@ function readMavenServerAuth(serverId) {
     /<!--[\s\S]*?-->/g,
     '',
   );
-  const server = settingsXml.match(
-    new RegExp(
-      String.raw`<server>[\s\S]*?<id>${serverId}</id>[\s\S]*?</server>`,
-    ),
-  )?.[0];
+  const server = (settingsXml.match(/<server>[\s\S]*?<\/server>/g) || []).find(
+    (candidate) => candidate.includes(`<id>${serverId}</id>`),
+  );
 
   if (!server) {
     throw new Error(`未找到 Maven server：${serverId}`);
@@ -468,12 +466,7 @@ function packPackage(packageInfo) {
 }
 
 function publishPackage(packageInfo, publishEnv) {
-  const publishArgs = [
-    '--filter',
-    packageInfo.name,
-    'publish',
-    '--no-git-checks',
-  ];
+  const publishArgs = ['publish', '--ignore-scripts'];
 
   if (registry) {
     publishArgs.push('--registry', registry);
@@ -483,7 +476,8 @@ function publishPackage(packageInfo, publishEnv) {
     publishArgs.push('--tag', tag);
   }
 
-  run('pnpm', publishArgs, {
+  run('npm', publishArgs, {
+    cwd: packageInfo.dir,
     env: publishEnv,
   });
 }

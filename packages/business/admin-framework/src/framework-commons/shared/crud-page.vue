@@ -2494,7 +2494,7 @@ function getExportFileName() {
 }
 
 function formatExportCellValue(field: CrudFieldConfig, record: GenericRecord) {
-  const value = getRecordValue(record, field.key);
+  const value = getTableFieldValue(field, record);
 
   if (value === null || value === undefined || value === '') {
     return '';
@@ -4392,6 +4392,22 @@ function getRecordValue(record: GenericRecord, key: unknown) {
   return current;
 }
 
+function getTableFieldValue(field: CrudFieldConfig, record: GenericRecord) {
+  return typeof field.tableValue === 'function'
+    ? field.tableValue(record)
+    : getRecordValue(record, field.key);
+}
+
+function getTableCellValue(record: GenericRecord, key: unknown) {
+  const field = getTableField(key);
+
+  if (!field) {
+    return getRecordValue(record, key);
+  }
+
+  return getTableFieldValue(field, record);
+}
+
 function getTagValues(value: any) {
   if (Array.isArray(value)) {
     return value.map(String).filter(Boolean);
@@ -4960,7 +4976,7 @@ watch(tableColumnPreferenceStorageKey, () => {
 <template>
   <Page
     auto-content-height
-    content-class="!bg-transparent !p-0 min-w-0 !overflow-hidden"
+    content-class="!bg-transparent min-w-0 !overflow-hidden"
   >
     <div
       ref="crudPageRef"
@@ -5509,7 +5525,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                 :column="column"
                 :field="getTableField(column.key)"
                 :record="record"
-                :value="getRecordValue(record, column.key)"
+                :value="getTableCellValue(record, column.key)"
               ></slot>
             </template>
             <template v-else-if="column.key === '__actions'">
@@ -5703,17 +5719,17 @@ watch(tableColumnPreferenceStorageKey, () => {
                 v-else-if="
                   isLinkField(
                     getTableField(column.key),
-                    getRecordValue(record, column.key),
+                    getTableCellValue(record, column.key),
                   )
                 "
-                :href="String(getRecordValue(record, column.key) || '')"
+                :href="String(getTableCellValue(record, column.key) || '')"
                 rel="noopener noreferrer"
                 target="_blank"
               >
                 {{
                   formatCellValue(
                     getTableField(column.key)!,
-                    getRecordValue(record, column.key),
+                    getTableCellValue(record, column.key),
                   )
                 }}
               </a>
@@ -5738,7 +5754,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                 {{
                   formatNumericValue(
                     getTableField(column.key),
-                    getRecordValue(record, column.key),
+                    getTableCellValue(record, column.key),
                   )
                 }}
               </span>
@@ -5753,7 +5769,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                     v-if="
                       shouldUseCellTooltip(
                         getTableField(column.key),
-                        getRecordValue(record, column.key),
+                        getTableCellValue(record, column.key),
                       )
                     "
                     :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
@@ -5761,7 +5777,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                     :title="
                       getCellTooltipText(
                         getTableField(column.key),
-                        getRecordValue(record, column.key),
+                        getTableCellValue(record, column.key),
                       )
                     "
                   >
@@ -5771,7 +5787,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                       {{
                         getCellDisplayText(
                           getTableField(column.key),
-                          getRecordValue(record, column.key),
+                          getTableCellValue(record, column.key),
                         )
                       }}
                     </span>
@@ -5780,7 +5796,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                     <Tag
                       v-for="tag in getDisplayTagValues(
                         getTableField(column.key),
-                        getRecordValue(record, column.key),
+                        getTableCellValue(record, column.key),
                       ).slice(0, 3)"
                       :key="tag"
                     >
@@ -5790,7 +5806,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                       v-if="
                         getDisplayTagValues(
                           getTableField(column.key),
-                          getRecordValue(record, column.key),
+                          getTableCellValue(record, column.key),
                         ).length > 3
                       "
                       :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
@@ -5798,7 +5814,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                       :title="
                         getTagTooltipText(
                           getTableField(column.key),
-                          getRecordValue(record, column.key),
+                          getTableCellValue(record, column.key),
                         )
                       "
                     >
@@ -5810,7 +5826,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                   v-else-if="
                     shouldUseCellTooltip(
                       getTableField(column.key),
-                      getRecordValue(record, column.key),
+                      getTableCellValue(record, column.key),
                     )
                   "
                   :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
@@ -5818,7 +5834,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                   :title="
                     getCellTooltipText(
                       getTableField(column.key),
-                      getRecordValue(record, column.key),
+                      getTableCellValue(record, column.key),
                     )
                   "
                 >
@@ -5828,7 +5844,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                     {{
                       getCellDisplayText(
                         getTableField(column.key),
-                        getRecordValue(record, column.key),
+                        getTableCellValue(record, column.key),
                       )
                     }}
                   </span>
@@ -5837,7 +5853,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                   v-else-if="
                     shouldTruncateCellText(
                       getTableField(column.key),
-                      getRecordValue(record, column.key),
+                      getTableCellValue(record, column.key),
                     )
                   "
                   class="inline-block max-w-[240px] truncate align-bottom"
@@ -5845,7 +5861,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                   {{
                     getCellDisplayText(
                       getTableField(column.key),
-                      getRecordValue(record, column.key),
+                      getTableCellValue(record, column.key),
                     )
                   }}
                 </span>
@@ -5853,7 +5869,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                   {{
                     getCellDisplayText(
                       getTableField(column.key),
-                      getRecordValue(record, column.key),
+                      getTableCellValue(record, column.key),
                     )
                   }}
                 </template>

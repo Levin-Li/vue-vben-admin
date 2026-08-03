@@ -12,12 +12,14 @@ import { TinyColor } from '@vben/utils';
 
 import SwitchItem from '../switch-item.vue';
 
+type NavigationMenuColorTarget = 'menuBackground';
+
 defineOptions({
   name: 'PreferenceTheme',
 });
 
 const emit = defineEmits<{
-  openColorSettings: [target: 'header' | 'sidebar'];
+  openColorSettings: [target: 'header' | 'sidebar' | NavigationMenuColorTarget];
 }>();
 const modelValue = defineModel<string>({ default: 'auto' });
 const themeSemiDarkSidebar = defineModel<boolean>('themeSemiDarkSidebar');
@@ -28,6 +30,12 @@ const themeSemiDarkSidebarSub = defineModel<boolean>('themeSemiDarkSidebarSub');
 const themeSemiDarkHeader = defineModel<boolean>('themeSemiDarkHeader');
 const themeSemiDarkHeaderColor = defineModel<string>(
   'themeSemiDarkHeaderColor',
+);
+const themeSidebarMenuBackgroundColor = defineModel<string>(
+  'themeSidebarMenuBackgroundColor',
+);
+const themeSidebarMenuBackgroundColorCustom = defineModel<boolean>(
+  'themeSidebarMenuBackgroundColorCustom',
 );
 
 const { layout } = usePreferences();
@@ -151,7 +159,9 @@ function getColorPresetName(value?: string) {
     : $t('preferences.theme.builtin.custom');
 }
 
-function openColorSettings(target: 'header' | 'sidebar') {
+function openColorSettings(
+  target: 'header' | 'sidebar' | NavigationMenuColorTarget,
+) {
   emit('openColorSettings', target);
 }
 </script>
@@ -187,10 +197,16 @@ function openColorSettings(target: 'header' | 'sidebar') {
       shortcut-class="semi-dark-shortcut"
     >
       {{ $t('preferences.theme.darkSidebar') }}
+      <template #before-switch>
+        <span class="semi-dark-color-name">
+          {{ semiDarkSidebarColorName }}
+        </span>
+      </template>
       <template #shortcut>
         <button
           :aria-label="$t('preferences.theme.darkSidebarColor')"
-          class="semi-dark-color-button"
+          :disabled="!themeSemiDarkSidebar || modelValue === 'dark'"
+          class="semi-dark-color-button semi-dark-color-preview-button"
           type="button"
           @click.stop="openColorSettings('sidebar')"
         >
@@ -198,9 +214,30 @@ function openColorSettings(target: 'header' | 'sidebar') {
             :style="{ backgroundColor: themeSemiDarkSidebarColor }"
             class="semi-dark-color-preview"
           ></span>
-          <span class="semi-dark-color-name">
-            {{ semiDarkSidebarColorName }}
-          </span>
+        </button>
+      </template>
+    </SwitchItem>
+    <SwitchItem
+      v-model="themeSidebarMenuBackgroundColorCustom"
+      shortcut-class="semi-dark-shortcut"
+    >
+      {{ $t('preferences.theme.navigationMenuBackgroundColor') }}
+      <template #before-switch>
+        <span class="semi-dark-color-name">
+          {{ $t('preferences.theme.builtin.custom') }}
+        </span>
+      </template>
+      <template #shortcut>
+        <button
+          :aria-label="$t('preferences.theme.navigationMenuBackgroundColor')"
+          :disabled="!themeSidebarMenuBackgroundColorCustom"
+          class="navigation-menu-color-preview"
+          type="button"
+          @click.stop="openColorSettings('menuBackground')"
+        >
+          <span
+            :style="{ backgroundColor: themeSidebarMenuBackgroundColor }"
+          ></span>
         </button>
       </template>
     </SwitchItem>
@@ -221,10 +258,16 @@ function openColorSettings(target: 'header' | 'sidebar') {
       shortcut-class="semi-dark-shortcut"
     >
       {{ $t('preferences.theme.darkHeader') }}
+      <template #before-switch>
+        <span class="semi-dark-color-name">
+          {{ semiDarkHeaderColorName }}
+        </span>
+      </template>
       <template #shortcut>
         <button
           :aria-label="$t('preferences.theme.darkHeaderColor')"
-          class="semi-dark-color-button"
+          :disabled="!themeSemiDarkHeader || modelValue === 'dark'"
+          class="semi-dark-color-button semi-dark-color-preview-button"
           type="button"
           @click.stop="openColorSettings('header')"
         >
@@ -232,9 +275,6 @@ function openColorSettings(target: 'header' | 'sidebar') {
             :style="{ backgroundColor: themeSemiDarkHeaderColor }"
             class="semi-dark-color-preview"
           ></span>
-          <span class="semi-dark-color-name">
-            {{ semiDarkHeaderColorName }}
-          </span>
         </button>
       </template>
     </SwitchItem>
@@ -244,10 +284,10 @@ function openColorSettings(target: 'header' | 'sidebar') {
 <style scoped>
 :deep(.semi-dark-shortcut) {
   display: flex;
-  flex: 0 0 160px;
+  flex: 0 0 auto;
   justify-content: flex-end;
-  margin-left: auto;
-  margin-right: 12px;
+  margin-left: 12px;
+  margin-right: 0;
   min-width: 0;
 }
 
@@ -262,12 +302,21 @@ function openColorSettings(target: 'header' | 'sidebar') {
   min-width: 112px;
 }
 
+.semi-dark-color-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .semi-dark-color-preview {
   border: 1px solid hsl(var(--border));
   border-radius: 6px;
   flex: 0 0 auto;
   height: 28px;
   width: 56px;
+}
+
+.semi-dark-color-preview-button {
+  min-width: 56px;
 }
 
 .semi-dark-color-name {
@@ -277,5 +326,25 @@ function openColorSettings(target: 'header' | 'sidebar') {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.navigation-menu-color-preview {
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  height: 28px;
+  overflow: hidden;
+  width: 56px;
+}
+
+.navigation-menu-color-preview:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.navigation-menu-color-preview span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  width: 100%;
 }
 </style>

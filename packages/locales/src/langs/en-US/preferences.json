@@ -128,6 +128,7 @@
     "dark": "Dark",
     "darkSidebar": "Semi Dark Sidebar",
     "darkSidebarColor": "Semi Dark Sidebar Color",
+    "navigationMenuBackgroundColor": "Navigation Menu Background Color",
     "darkSidebarTip": "It can be enabled when the theme is light, and the layout is neither 'Horizontal' nor 'Full Content'.",
     "darkSidebarSub": "Semi Dark Sidebar Sub",
     "darkSidebarSubTip": "It can be enabled when the theme is light, the semi dark sidebar is enabled, and the layout uses 'Two-Column' menu mode.",
