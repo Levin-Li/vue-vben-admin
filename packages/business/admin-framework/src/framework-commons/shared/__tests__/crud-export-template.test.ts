@@ -33,6 +33,7 @@ describe('crud export template flow', () => {
     );
 
     expect(configBlock).toContain('fieldAliases');
+    expect(configBlock).toContain('fieldConverters');
     expect(configBlock).toContain('fieldOrderKeys');
     expect(configBlock).toContain('selectedFieldKeys');
     expect(configBlock).toContain('selected: selectedKeys.includes(key)');
@@ -46,6 +47,8 @@ describe('crud export template flow', () => {
     expect(source).toContain("title: '另存为导出模板'");
     expect(source).toContain('@save-template="promptSaveExportTemplate"');
     expect(exportPanelSource).toContain("emit('saveTemplate')");
+    expect(exportPanelSource).toContain('updateFieldConverter:');
+    expect(source).toContain('formatCrudExportValue(');
   });
 
   it('loads compatible export templates by type and target variants', () => {

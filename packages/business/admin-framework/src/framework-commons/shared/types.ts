@@ -1,5 +1,7 @@
 import type { SelectOption } from '../api';
 
+import type { CrudExportConverter } from './crud-value-converter';
+
 export type CrudFieldType =
   | 'area-cascader'
   | 'code'
@@ -130,6 +132,7 @@ export interface CrudApiService {
 
 export interface CrudExportTemplateField {
   alias?: string;
+  converter?: CrudExportConverter;
   key: string;
   label?: string;
   order?: number;

@@ -35,6 +35,7 @@ const compactJsonFields = [
   'pay-order/config.ts:exchangeInfo',
   'role/config.ts:exInfo',
   'service-plugin/config.ts:exInfo',
+  'service-plugin-setting/config.ts:value',
   'simple-api/config.ts:setting',
   'simple-form/config.ts:setting',
   'simple-page/config.ts:setting',

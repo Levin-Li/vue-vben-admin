@@ -1,0 +1,110 @@
+import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
+
+import { servicePluginSettingService } from '../../api/service-plugin-setting-service';
+import {
+  DEFAULT_CRUD_MODAL_WIDTH,
+  tenantOptionsLoader,
+} from '../api-module';
+
+export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
+  apiBase: '/ServicePluginSetting',
+  apiService: servicePluginSettingService,
+  defaultFormValues: {
+    enable: true,
+    orderCode: 1000,
+    value: {},
+  },
+  defaultQuery: {
+    loadServicePlugin: true,
+    pageIndex: 1,
+    pageSize: 10,
+  },
+  fields: [
+    {
+      key: 'tenantId',
+      label: '归属租户',
+      loadOptions: tenantOptionsLoader,
+      remoteSearch: true,
+      type: 'select',
+      visibleForSaasUser: true,
+    },
+    {
+      key: '__tenant',
+      label: '归属租户',
+      fixed: 'left',
+      form: false,
+      table: true,
+      type: 'tenant',
+      visibleForSaasUser: true,
+      width: 160,
+    },
+    {
+      key: 'id',
+      label: '设置ID',
+      fixed: 'left',
+      form: false,
+      search: true,
+      table: false,
+      width: 180,
+    },
+    {
+      key: 'servicePluginId',
+      label: '服务插件',
+      required: true,
+      search: true,
+      table: true,
+      type: 'select',
+      width: 180,
+    },
+    {
+      key: 'servicePluginProviderCode',
+      label: '供应商',
+      required: true,
+      search: true,
+      table: true,
+      type: 'select',
+      width: 160,
+    },
+    { key: 'domain', label: '域名', search: true, table: true, width: 160 },
+    {
+      key: 'value',
+      label: '供应商配置',
+      form: false,
+      table: false,
+      type: 'json',
+    },
+    {
+      key: 'orderCode',
+      label: '排序代码',
+      type: 'number',
+    },
+    {
+      key: 'enable',
+      label: '是否启用',
+      search: true,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+      width: 100,
+    },
+    {
+      key: 'createTime',
+      label: '创建时间',
+      form: false,
+      table: true,
+      type: 'datetime',
+      width: 150,
+    },
+    {
+      key: 'lastUpdateTime',
+      label: '更新时间',
+      form: false,
+      table: true,
+      type: 'datetime',
+      width: 150,
+    },
+    { key: 'remark', label: '备注', type: 'textarea' },
+  ],
+  modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
+  title: '服务插件设置管理',
+};

@@ -49,12 +49,6 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     resource: 'ArticleChannel',
     title: '文章栏目',
   },
-  {
-    icon: 'lucide:landmark',
-    name: 'BankBranch',
-    resource: 'BankBranch',
-    title: '银行网点',
-  },
   { icon: 'lucide:badge', name: 'Brand', resource: 'Brand', title: '品牌管理' },
   {
     icon: 'lucide:users',
@@ -197,6 +191,18 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '服务插件',
   },
   {
+    icon: 'lucide:plug-zap',
+    name: 'ServicePluginSetting',
+    resource: 'ServicePluginSetting',
+    title: '服务插件设置',
+  },
+  {
+    icon: 'lucide:plug-zap',
+    name: 'TenantPluginSetting',
+    resource: 'TenantPluginSetting',
+    title: '租户插件设置',
+  },
+  {
     icon: 'lucide:settings',
     name: 'Setting',
     resource: 'Setting',
@@ -293,7 +299,6 @@ export const oakBaseAdminResourceViewMap: Record<
   Area: () => import('./views/area/index.vue'),
   Article: () => import('./views/article/index.vue'),
   ArticleChannel: () => import('./views/article-channel/index.vue'),
-  BankBranch: () => import('./views/bank-branch/index.vue'),
   Brand: () => import('./views/brand/index.vue'),
   Customer: () => import('./views/customer/index.vue'),
   Demo: () => import('./views/demo/index.vue'),
@@ -322,6 +327,9 @@ export const oakBaseAdminResourceViewMap: Record<
   ScheduledLog: () => import('./views/scheduled-log/index.vue'),
   ScheduledTask: () => import('./views/scheduled-task/index.vue'),
   ServicePlugin: () => import('./views/service-plugin/index.vue'),
+  ServicePluginSetting: () =>
+    import('./views/service-plugin-setting/index.vue'),
+  TenantPluginSetting: () => import('./views/tenant-plugin-setting/index.vue'),
   Setting: () => import('./views/setting/index.vue'),
   SettingForTenant: () => import('./views/setting-for-tenant/index.vue'),
   MySetting: () => import('./views/my-setting/index.vue'),
@@ -332,8 +340,7 @@ export const oakBaseAdminResourceViewMap: Record<
   Tenant: () => import('./views/tenant/index.vue'),
   TenantApp: () => import('./views/tenant-app/index.vue'),
   TenantSite: () => import('./views/tenant-site/index.vue'),
-  TrafficControlRule: () =>
-    import('./views/traffic-control-rule/index.vue'),
+  TrafficControlRule: () => import('./views/traffic-control-rule/index.vue'),
   UrlExAcl: () => import('./views/url-ex-acl/index.vue'),
   User: () => import('./views/user/index.vue'),
   UserSetting: () => import('./views/user-setting/index.vue'),

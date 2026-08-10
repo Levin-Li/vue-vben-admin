@@ -11,6 +11,8 @@ const props = defineProps<{
   config: CrudPageConfig;
 }>();
 
+defineSlots<Record<string, (slotProps: Record<string, any>) => any>>();
+
 const mergedConfig = computed<CrudPageConfig>(() => ({
   ...props.config,
   apiModuleBase: props.config.apiModuleBase || OAK_BASE_API_MODULE,

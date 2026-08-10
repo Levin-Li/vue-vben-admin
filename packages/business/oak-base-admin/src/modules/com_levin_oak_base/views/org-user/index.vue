@@ -877,10 +877,15 @@ onMounted(async () => {
   overflow: auto;
 }
 
+.user-org-tree :deep(.ant-tree-node-content-wrapper) {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .user-org-tree-node {
   display: flex;
+  flex: 1;
   min-width: 0;
-  width: 100%;
   align-items: center;
   justify-content: space-between;
   gap: 8px;

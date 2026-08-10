@@ -111,7 +111,9 @@ describe('OrgScopeEditor', () => {
       wrapper.find('[data-test="org-expression-editor"]').attributes(
         'placeholder',
       ),
-    ).toBe('请输入 *?通配表达式、Groovy 或 SpringEL 表达式');
+    ).toBe('请输入 *?通配表达式');
+    expect(wrapper.text()).not.toContain('Groovy');
+    expect(wrapper.text()).not.toContain('SpringEL');
   });
 
   it('shows script expression types when scripts are allowed', async () => {
@@ -170,6 +172,45 @@ describe('OrgScopeEditor', () => {
     expect(wrapper.find('input').attributes('placeholder')).toBe(
       '请输入租户ID或 *?通配表达式',
     );
+  });
+
+  it('does not expose an existing tenant Groovy script when scripts are not allowed', async () => {
+    const wrapper = mount(OrgScopeEditor, {
+      props: {
+        orgTree: [],
+        showTenantMatchingExpression: true,
+        value: [
+          {
+            isAllow: true,
+            orgId: 'org-hq',
+            orgName: '集团总部',
+            orgScopeExpression: '/**',
+            orgScopeExpressionType: 'IdPath',
+            tenantMatchingExpression: '#!groovy:_tenant.id == 1',
+          },
+        ],
+      },
+    });
+
+    await wrapper.get('[data-test="org-edit-org-hq"]').trigger('click');
+    await flushPromises();
+
+    const tenantModeOptions = wrapper
+      .findAll('[data-test="select"]')[0]!
+      .findAll('option')
+      .map((option) => option.text());
+
+    expect(tenantModeOptions).toEqual([
+      '默认租户',
+      '所有租户',
+      '无租户',
+      '指定租户',
+      '路径表达式',
+    ]);
+    expect(wrapper.findAll('[data-test="select"]')[0]!.element.value).toBe(
+      'default',
+    );
+    expect(wrapper.text()).not.toContain('Groovy');
   });
 
   it('shows tenant Groovy mode when scripts are allowed', async () => {

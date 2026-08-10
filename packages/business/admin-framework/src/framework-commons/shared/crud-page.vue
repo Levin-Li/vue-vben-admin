@@ -116,7 +116,12 @@ import {
 } from './crud-import';
 import { buildExcelXml, downloadExcelXml } from './crud-file-export';
 import {
+  formatCrudExportValue,
+  type CrudExportConverter,
+} from './crud-value-converter';
+import {
   buildCrudTemplateCode,
+  buildCrudTemplateScopeQueryVariants,
   buildCrudTemplateScopePayload,
   canShowCrudTemplateDelete,
   dedupeCrudTemplates,
@@ -288,6 +293,7 @@ const exportLimitChecking = ref(false);
 const exportSelectedFieldKeys = ref<string[]>([]);
 const exportFieldOrderKeys = ref<string[]>([]);
 const exportFieldAliases = ref<Record<string, string>>({});
+const exportFieldConverters = ref<Record<string, CrudExportConverter>>({});
 const exportTemplates = ref<CrudExportTemplateRecord[]>([]);
 const exportTemplateLoading = ref(false);
 const exportTemplateSaving = ref(false);
@@ -2017,6 +2023,10 @@ function getDefaultExportFieldAliases() {
   return {};
 }
 
+function getDefaultExportFieldConverters() {
+  return {};
+}
+
 function findExportTemplate(target: CrudExportTemplateRecord) {
   return exportTemplates.value.find((item) => isSameCrudTemplate(item, target));
 }
@@ -2049,6 +2059,7 @@ function buildExportTemplateConfig(): CrudExportTemplateConfig {
     .map(([key, value]) => [key, String(value || '').trim()] as const)
     .filter(([, value]) => value);
   const fieldAliases = Object.fromEntries(aliasEntries);
+  const fieldConverters = exportFieldConverters.value;
   const orderedFields = orderedExportFields.value;
 
   return {
@@ -2059,6 +2070,7 @@ function buildExportTemplateConfig(): CrudExportTemplateConfig {
 
       return {
         alias: fieldAliases[key] || '',
+        converter: fieldConverters[key],
         key,
         label: field.label,
         order: index,
@@ -2066,7 +2078,7 @@ function buildExportTemplateConfig(): CrudExportTemplateConfig {
       };
     }),
     selectedFieldKeys: selectedKeys,
-    version: 1,
+    version: 2,
   };
 }
 
@@ -2111,6 +2123,18 @@ function applyExportTemplateConfig(config: CrudExportTemplateConfig) {
     ...fieldAliases,
     ...(config.fieldAliases || {}),
   };
+  const converters = templateFields.reduce<Record<string, CrudExportConverter>>(
+    (result, field) => {
+      const key = String(field.key);
+
+      if (availableKeys.has(key) && field.converter) {
+        result[key] = field.converter;
+      }
+
+      return result;
+    },
+    {},
+  );
 
   exportFieldOrderKeys.value = orderKeys.length
     ? orderKeys
@@ -2121,6 +2145,7 @@ function applyExportTemplateConfig(config: CrudExportTemplateConfig) {
       .map(([key, value]) => [key, String(value || '').trim()] as const)
       .filter(([key, value]) => availableKeys.has(key) && value),
   );
+  exportFieldConverters.value = converters;
 }
 
 async function loadExportTemplates() {
@@ -2137,21 +2162,18 @@ async function loadExportTemplates() {
     const context = exportTemplateContext.value;
     const targetTypes = buildCrudExportTemplateTargetTypeVariants(context);
     const resultList = await Promise.all(
-      targetTypes.map((targetType) =>
-        list(
-          {
-            category: EXPORT_TEMPLATE_CATEGORY,
-            enable: true,
-            fileType: EXPORT_TEMPLATE_FILE_TYPE,
-            inType: [...CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES],
-            orderBy: 'lastUpdateTime',
-            orderDir: 'Desc',
-            pageIndex: 1,
-            pageSize: 200,
-            targetType,
-          },
-          context,
-        ),
+      targetTypes.flatMap((targetType) =>
+        buildCrudTemplateScopeQueryVariants({
+          category: EXPORT_TEMPLATE_CATEGORY,
+          enable: true,
+          fileType: EXPORT_TEMPLATE_FILE_TYPE,
+          inType: [...CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES],
+          orderBy: 'lastUpdateTime',
+          orderDir: 'Desc',
+          pageIndex: 1,
+          pageSize: 200,
+          targetType,
+        }).map((params) => list(params, context)),
       ),
     );
 
@@ -2180,21 +2202,18 @@ async function loadImportTemplates() {
     const context = exportTemplateContext.value;
     const targetTypes = buildCrudExportTemplateTargetTypeVariants(context);
     const resultList = await Promise.all(
-      targetTypes.map((targetType) =>
-        list(
-          {
-            category: CRUD_IMPORT_TEMPLATE_CATEGORY,
-            enable: true,
-            fileType: EXPORT_TEMPLATE_FILE_TYPE,
-            inType: [...CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES],
-            orderBy: 'lastUpdateTime',
-            orderDir: 'Desc',
-            pageIndex: 1,
-            pageSize: 200,
-            targetType,
-          },
-          context,
-        ),
+      targetTypes.flatMap((targetType) =>
+        buildCrudTemplateScopeQueryVariants({
+          category: CRUD_IMPORT_TEMPLATE_CATEGORY,
+          enable: true,
+          fileType: EXPORT_TEMPLATE_FILE_TYPE,
+          inType: [...CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES],
+          orderBy: 'lastUpdateTime',
+          orderDir: 'Desc',
+          pageIndex: 1,
+          pageSize: 200,
+          targetType,
+        }).map((params) => list(params, context)),
       ),
     );
 
@@ -2231,10 +2250,12 @@ function handleExportTemplateChange(value?: number | string) {
 
 function canShowTemplateDelete(template: CrudExportTemplateRecord) {
   const deleteAction = props.config.exportTemplateService?.delete;
+  const deleteParams = getCrudTemplateDeleteParams(template);
 
   return Boolean(
     deleteAction &&
-    canShowCrudTemplateDelete({
+      deleteParams &&
+      canShowCrudTemplateDelete({
       hasDeletePermission: hasPermission(importTemplateDeletePermission.value),
       template,
       userInfo: userStore.userInfo as Record<string, any> | undefined,
@@ -2252,10 +2273,13 @@ async function deleteTemplate(
     return;
   }
 
-  await deleteAction(
-    getCrudTemplateDeleteParams(template),
-    exportTemplateContext.value,
-  );
+  const deleteParams = getCrudTemplateDeleteParams(template);
+
+  if (!deleteParams) {
+    return;
+  }
+
+  await deleteAction(deleteParams, exportTemplateContext.value);
 
   if (kind === 'export') {
     exportTemplates.value = removeCrudTemplateFromList(
@@ -2452,6 +2476,13 @@ function updateExportFieldAlias(key: string, value: string) {
   exportFieldAliases.value[String(key)] = value;
 }
 
+function updateExportFieldConverter(
+  key: string,
+  converter: CrudExportConverter,
+) {
+  exportFieldConverters.value[String(key)] = converter;
+}
+
 function moveExportField(field: CrudFieldConfig, offset: -1 | 1) {
   const fieldKey = String(field.key);
   const orderedKeys = orderedExportFields.value.map((item) => String(item.key));
@@ -2500,20 +2531,24 @@ function formatExportCellValue(field: CrudFieldConfig, record: GenericRecord) {
     return '';
   }
 
+  let displayValue: string;
+
   if (field.type === 'tenant') {
     const tenant = getTenantDisplay(record);
-    return tenant.id ? `${tenant.name} (${tenant.id})` : tenant.name;
+    displayValue = tenant.id ? `${tenant.name} (${tenant.id})` : tenant.name;
+  } else if (isStatusLikeField(field)) {
+    displayValue = getStatusTagText(field, value);
+  } else if (isNumericField(field)) {
+    displayValue = formatNumericValue(field, value);
+  } else {
+    displayValue = String(getCellDisplayText(field, value)).replace(/^-$/, '');
   }
 
-  if (isStatusLikeField(field)) {
-    return getStatusTagText(field, value);
-  }
-
-  if (isNumericField(field)) {
-    return formatNumericValue(field, value);
-  }
-
-  return String(getCellDisplayText(field, value)).replace(/^-$/, '');
+  return formatCrudExportValue(
+    value,
+    exportFieldConverters.value[String(field.key)],
+    displayValue,
+  );
 }
 
 function buildExportQueryParams(pageIndex: number, pageSize: number) {
@@ -2562,6 +2597,7 @@ async function openExportModal() {
     exportFieldOrderKeys.value = getDefaultExportFieldOrder();
     exportSelectedFieldKeys.value = getDefaultSelectedExportFieldKeys();
     exportFieldAliases.value = getDefaultExportFieldAliases();
+    exportFieldConverters.value = getDefaultExportFieldConverters();
     selectedExportTemplateId.value = undefined;
     await loadExportTemplates();
     exportModalOpen.value = true;
@@ -5298,7 +5334,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                 :loading="exportLimitChecking"
                 @click="openExportModal"
               >
-                <IconifyIcon class="size-4" icon="lucide:download" />
+                <IconifyIcon class="size-4" icon="lucide:upload" />
               </Button>
             </Tooltip>
 
@@ -5310,7 +5346,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                 shape="circle"
                 @click="openImportModal"
               >
-                <IconifyIcon class="size-4" icon="lucide:upload" />
+                <IconifyIcon class="size-4" icon="lucide:download" />
               </Button>
             </Tooltip>
 
@@ -5885,6 +5921,7 @@ watch(tableColumnPreferenceStorageKey, () => {
       :all-fields-selected="allExportFieldsSelected"
       :confirm-loading="exporting"
       :field-aliases="exportFieldAliases"
+      :field-converters="exportFieldConverters"
       :fields-indeterminate="exportFieldsIndeterminate"
       :ordered-fields="orderedExportFields"
       :selected-field-keys="exportSelectedFieldKeys"
@@ -5905,6 +5942,7 @@ watch(tableColumnPreferenceStorageKey, () => {
       @set-field-selected="setExportFieldSelected"
       @template-change="handleExportTemplateChange"
       @update-field-alias="updateExportFieldAlias"
+      @update-field-converter="updateExportFieldConverter"
     />
 
     <CrudImportPanel

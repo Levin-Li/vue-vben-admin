@@ -3,20 +3,20 @@ import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
-  basePath: '/BankBranch',
-  controllerClass: 'com.levin.oak.base.controller.BizBankBranchController',
-  description: '银行分支机构管理',
-  title: '银行分支机构',
-  type: '业务数据-银行分支机构',
+  basePath: '/ServicePluginSetting',
+  controllerClass: 'com.levin.oak.base.controller.BizServicePluginSettingController',
+  description: '服务插件设置管理',
+  title: '服务插件设置',
+  type: '专家数据-服务插件设置',
 })
-export class BankBranchService extends RequestService {
+export class ServicePluginSettingService extends RequestService {
   constructor() {
     super(OAK_BASE_API_MODULE);
   }
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据-银行分支机构',
+    type: '专家数据-服务插件设置',
     action: '批量新增',
   })
   async batchCreate(data?: any, options?: any) {
@@ -28,7 +28,7 @@ export class BankBranchService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据-银行分支机构',
+    type: '专家数据-服务插件设置',
     action: '批量删除',
   })
   @CRUD.Op({
@@ -43,7 +43,7 @@ export class BankBranchService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据-银行分支机构',
+    type: '专家数据-服务插件设置',
     action: '批量更新',
   })
   async batchUpdate(data?: any, options?: any) {
@@ -55,19 +55,7 @@ export class BankBranchService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据-银行分支机构',
-    action: '清除缓存',
-  })
-  async clearCache(params?: any, options?: any) {
-    return this.get('clearCache', {
-      ...options,
-      params,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '业务数据-银行分支机构',
+    type: '专家数据-服务插件设置',
     action: '新增',
   })
   @CRUD.Op({
@@ -82,7 +70,7 @@ export class BankBranchService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据-银行分支机构',
+    type: '专家数据-服务插件设置',
     action: '删除',
   })
   @CRUD.Op()
@@ -95,11 +83,11 @@ export class BankBranchService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据-银行分支机构',
+    type: '专家数据-服务插件设置',
     action: '查询列表',
   })
   @CRUD.ListTable({
-    refEntityClass: 'com.levin.oak.base.entities.BankBranch',
+    refEntityClass: 'com.levin.oak.base.entities.ServicePluginSetting',
   })
   async list(params?: any, options?: any) {
     return this.get('list', {
@@ -110,7 +98,7 @@ export class BankBranchService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据-银行分支机构',
+    type: '专家数据-服务插件设置',
     action: '查看详情',
   })
   @CRUD.Op({
@@ -125,7 +113,7 @@ export class BankBranchService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据-银行分支机构',
+    type: '专家数据-服务插件设置',
     action: '统计',
   })
   async stat(params?: any, options?: any) {
@@ -137,7 +125,7 @@ export class BankBranchService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据-银行分支机构',
+    type: '专家数据-服务插件设置',
     action: '更新',
   })
   @CRUD.Op()
@@ -149,4 +137,4 @@ export class BankBranchService extends RequestService {
   }
 }
 
-export const bankBranchService = new BankBranchService();
+export const servicePluginSettingService = new ServicePluginSettingService();

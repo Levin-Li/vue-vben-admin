@@ -162,7 +162,7 @@ function getMappingFieldLabel(
         </Button>
         <input
           ref="fileInputRef"
-          accept=".csv,.xls,.xml,.html"
+          accept=".csv,.xls,.xlsx,.xml,.html"
           class="hidden"
           type="file"
           @change="handleFileChange"

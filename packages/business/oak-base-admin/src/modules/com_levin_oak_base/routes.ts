@@ -11,4 +11,14 @@ export const oakBaseAdminRoutes: RouteRecordRaw[] = [
     name: 'AdminCrudSettingForTenant',
     path: '/clob/V1/SettingForTenant',
   },
+  {
+    component: () => import('./views/tenant-plugin-setting/index.vue'),
+    meta: {
+      crudResource: 'TenantPluginSetting',
+      icon: 'lucide:plug-zap',
+      title: '租户插件设置',
+    },
+    name: 'AdminCrudTenantPluginSetting',
+    path: '/clob/V1/TenantPluginSetting',
+  },
 ];

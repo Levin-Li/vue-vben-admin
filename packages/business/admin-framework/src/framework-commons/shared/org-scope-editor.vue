@@ -170,13 +170,20 @@ const tenantMatchingValuePlaceholder = computed(() => {
   return '请输入租户ID或 *?通配表达式';
 });
 
-const orgScopeExpressionPlaceholder = computed(() =>
-  ({
+const orgScopeExpressionPlaceholder = computed(() => {
+  const scriptExpressionPlaceholders: Record<string, string> = {
     Groovy: '请输入 Groovy 脚本，可使用 _org、_user',
     SpringEL: '请输入 SpringEL 表达式，可使用 _org、_user',
-  })[formState.orgScopeExpressionType] ||
-  '请输入 *?通配表达式、Groovy 或 SpringEL 表达式',
-);
+  };
+  const defaultPlaceholder = props.allowScriptExpressionTypes
+    ? '请输入 *?通配表达式、Groovy 或 SpringEL 表达式'
+    : '请输入 *?通配表达式';
+
+  return (
+    scriptExpressionPlaceholders[formState.orgScopeExpressionType] ||
+    defaultPlaceholder
+  );
+});
 
 const orgScopeExpressionVariablesTip = computed(() => {
   if (formState.orgScopeExpressionType === 'Groovy') {
@@ -322,8 +329,13 @@ function syncTenantMatchingExpression() {
 
 function applyTenantMatchingExpression(value?: string) {
   const parsed = parseTenantMatchingExpression(value);
-  tenantMatchingMode.value = parsed.mode;
-  tenantMatchingValue.value = parsed.value;
+  const safeParsed =
+    !props.allowScriptExpressionTypes && parsed.mode === 'groovy'
+      ? { mode: 'default', value: '' }
+      : parsed;
+
+  tenantMatchingMode.value = safeParsed.mode;
+  tenantMatchingValue.value = safeParsed.value;
   syncTenantMatchingExpression();
 }
 
@@ -385,6 +397,17 @@ function getDraftScopeLabel(draft: OrgScopeDraft) {
     scopeOptions.find((item) => item.value === scopeKey)?.label ||
     '自定义表达式'
   );
+}
+
+function getTenantMatchingExpressionDisplayLabel(value?: string) {
+  if (
+    !props.allowScriptExpressionTypes &&
+    String(value || '').startsWith(TENANT_GROOVY_EXPRESSION_PREFIX)
+  ) {
+    return getTenantMatchingExpressionLabel(DEFAULT_TENANT_MATCHING_EXPRESSION);
+  }
+
+  return getTenantMatchingExpressionLabel(value);
 }
 
 function resetForm() {
@@ -632,7 +655,7 @@ watch(formOpen, (open) => {
             <td v-if="showTenantMatchingExpression" class="px-3 py-2">
               <span class="line-clamp-2 break-all">
                 {{
-                  getTenantMatchingExpressionLabel(
+                  getTenantMatchingExpressionDisplayLabel(
                     draft.tenantMatchingExpression,
                   )
                 }}
@@ -738,7 +761,7 @@ watch(formOpen, (open) => {
               class="border-border bg-muted text-muted-foreground flex min-h-9 items-center rounded border px-3"
             >
               {{
-                getTenantMatchingExpressionLabel(
+                getTenantMatchingExpressionDisplayLabel(
                   formState.tenantMatchingExpression,
                 )
               }}

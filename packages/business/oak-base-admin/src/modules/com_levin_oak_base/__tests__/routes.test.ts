@@ -20,6 +20,21 @@ describe('oak base admin routes', () => {
     );
   });
 
+  it('registers the tenant plugin setting page in the explicit route table', () => {
+    expect(oakBaseAdminRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          meta: expect.objectContaining({
+            crudResource: 'TenantPluginSetting',
+            title: '租户插件设置',
+          }),
+          name: 'AdminCrudTenantPluginSetting',
+          path: '/clob/V1/TenantPluginSetting',
+        }),
+      ]),
+    );
+  });
+
   it('keeps the tenant setting route when generated CRUD routes are disabled', () => {
     const module = createOakBaseAdminModule({ crud: false });
 
@@ -27,6 +42,9 @@ describe('oak base admin routes', () => {
       expect.arrayContaining([
         expect.objectContaining({
           path: '/clob/V1/SettingForTenant',
+        }),
+        expect.objectContaining({
+          path: '/clob/V1/TenantPluginSetting',
         }),
       ]),
     );
@@ -97,8 +115,7 @@ describe('oak base admin routes', () => {
           sourceFilePath:
             'modules/com_levin_oak_base/views/traffic-control-rule/index.vue',
           title: '流量控制',
-          viewPath:
-            '/system/com_levin_oak_base/traffic-control-rule/index.vue',
+          viewPath: '/system/com_levin_oak_base/traffic-control-rule/index.vue',
         }),
       ]),
     );

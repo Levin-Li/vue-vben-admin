@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { CrudExportTemplateRecord, CrudFieldConfig } from './types';
+import type { CrudExportConverter } from './crud-value-converter';
 
 import { ArrowDown, ArrowUp, IconifyIcon } from '@vben/icons';
 
@@ -13,10 +14,13 @@ import {
   Space,
 } from 'ant-design-vue';
 
+import { CRUD_EXPORT_CONVERTER_OPTIONS } from './crud-value-converter';
+
 defineProps<{
   allFieldsSelected: boolean;
   confirmLoading: boolean;
   fieldAliases: Record<string, string>;
+  fieldConverters: Record<string, CrudExportConverter>;
   fieldsIndeterminate: boolean;
   open: boolean;
   orderedFields: CrudFieldConfig[];
@@ -39,6 +43,7 @@ const emit = defineEmits<{
   templateChange: [value?: number | string];
   'update:open': [value: boolean];
   updateFieldAlias: [key: string, value: string];
+  updateFieldConverter: [key: string, value: CrudExportConverter];
 }>();
 </script>
 
@@ -102,13 +107,14 @@ const emit = defineEmits<{
         </Checkbox>
         <div class="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
           <IconifyIcon class="size-3.5" icon="lucide:arrow-up-down" />
-          默认按当前表格列顺序导出，可调整导出列顺序和导出表头别名
+          默认按当前表格列顺序导出，可调整列映射、转换、顺序和导出表头
         </div>
       </div>
       <div class="flex max-h-[420px] flex-col overflow-auto">
         <div class="vben-crud-export-field-header">
           <span>字段</span>
           <span>导出列别名</span>
+          <span>转换</span>
           <span>排序</span>
         </div>
         <div
@@ -137,6 +143,19 @@ const emit = defineEmits<{
             size="small"
             @update:value="
               (value) => emit('updateFieldAlias', String(field.key), value)
+            "
+          />
+          <Select
+            :options="CRUD_EXPORT_CONVERTER_OPTIONS"
+            :value="fieldConverters[String(field.key)] || 'display'"
+            size="small"
+            @change="
+              (value) =>
+                emit(
+                  'updateFieldConverter',
+                  String(field.key),
+                  value as CrudExportConverter,
+                )
             "
           />
           <Space :size="2">
@@ -180,7 +199,10 @@ const emit = defineEmits<{
 
 .vben-crud-export-field-header {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(180px, 240px) 56px;
+  grid-template-columns: minmax(120px, 1fr) minmax(150px, 210px) minmax(
+      120px,
+      150px
+    ) 56px;
   gap: 8px;
   align-items: center;
   padding: 4px 0 6px;
@@ -190,7 +212,10 @@ const emit = defineEmits<{
 
 .vben-crud-export-field-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(180px, 240px) 56px;
+  grid-template-columns: minmax(120px, 1fr) minmax(150px, 210px) minmax(
+      120px,
+      150px
+    ) 56px;
   gap: 8px;
   align-items: center;
   min-width: 0;

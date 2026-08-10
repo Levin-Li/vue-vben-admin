@@ -9,19 +9,14 @@ import {
 export const servicePluginPageCrudConfig: CrudPageConfig = {
   apiBase: '/ServicePlugin',
   apiService: servicePluginService,
-  defaultFormValues: {
-    editable: true,
-    enable: true,
-    orderCode: 100,
-  },
   defaultQuery: {
     pageIndex: 1,
     pageSize: 10,
   },
   listTables: [
     {
-      allowCreate: true,
-      allowDelete: true,
+      allowCreate: false,
+      allowDelete: false,
       allowEdit: true,
       allowRetrieve: true,
       key: 'list',
@@ -76,34 +71,31 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     {
-      key: 'containsPinyinName',
-      label: '拼音名',
-      form: false,
-      search: true,
-    },
-    {
-      key: 'pinyinName',
-      label: '拼音名',
-      table: true,
-      width: 160,
-    },
-    {
-      key: 'type',
-      label: '插件类型',
+      key: 'categoryName',
+      label: '分类名称',
       search: true,
       table: true,
       width: 140,
     },
     {
-      key: 'className',
-      label: '插件类名',
+      key: 'groupName',
+      label: '分组名称',
       search: true,
       table: true,
-      width: 220,
+      width: 140,
+    },
+    {
+      key: 'pluginTypeName',
+      label: '插件类型名称',
+      form: false,
+      search: true,
+      table: true,
+      width: 140,
     },
     {
       key: 'logo',
       label: 'Logo',
+      form: false,
       table: true,
       type: 'image',
       uploadPath: FILE_STORAGE_SINGLE_UPLOAD_PATH,
@@ -112,6 +104,7 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '到期时间',
+      form: true,
       table: true,
       type: 'datetime',
       width: 180,
@@ -119,6 +112,7 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      form: false,
       search: true,
       table: true,
       type: 'switch',
@@ -128,6 +122,7 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      form: false,
       search: true,
       table: true,
       type: 'switch',
@@ -137,11 +132,13 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
     {
       key: 'exInfo',
       label: '扩展信息',
+      form: false,
       type: 'json',
     },
     {
       key: 'remark',
       label: '备注',
+      form: false,
       fullRow: true,
       type: 'textarea',
     },

@@ -1,25 +1,17 @@
 import type { CrudFieldConfig } from './types';
 
+import {
+  convertCrudValue,
+  CRUD_IMPORT_CONVERTER_OPTIONS,
+  type CrudImportConverter,
+} from './crud-value-converter';
+
+export {
+  CRUD_IMPORT_CONVERTER_OPTIONS,
+  type CrudImportConverter,
+} from './crud-value-converter';
+
 export const CRUD_IMPORT_BATCH_SIZE = 2000;
-
-export type CrudImportConverter =
-  | 'boolean'
-  | 'date'
-  | 'datetime'
-  | 'json'
-  | 'number'
-  | 'string'
-  | 'trim';
-
-export const CRUD_IMPORT_CONVERTER_OPTIONS = [
-  { label: '去空格文本', value: 'trim' },
-  { label: '原始文本', value: 'string' },
-  { label: '数字', value: 'number' },
-  { label: '布尔', value: 'boolean' },
-  { label: '日期', value: 'date' },
-  { label: '日期时间', value: 'datetime' },
-  { label: 'JSON', value: 'json' },
-] as const;
 
 export interface CrudImportMapping {
   converter?: CrudImportConverter;
@@ -197,12 +189,204 @@ export async function parseImportFile(file: File): Promise<ParsedImportSheet> {
   const fileName = file.name || '';
 
   if (fileName.toLowerCase().endsWith('.xlsx')) {
-    throw new Error(
-      '当前导入不内置 xlsx 解析库，请另存为 CSV 或系统导出的 .xls 文件后导入。',
-    );
+    return parseXlsxBuffer(await file.arrayBuffer());
   }
 
   return parseSpreadsheetText(await file.text(), fileName);
+}
+
+function readZipUint16(view: DataView, offset: number) {
+  return view.getUint16(offset, true);
+}
+
+function readZipUint32(view: DataView, offset: number) {
+  return view.getUint32(offset, true);
+}
+
+async function inflateZipEntry(data: Uint8Array, compression: number) {
+  if (compression === 0) {
+    return data;
+  }
+
+  if (
+    compression !== 8 ||
+    typeof (globalThis as any).DecompressionStream !== 'function'
+  ) {
+    throw new Error(
+      '当前浏览器无法解压该 XLSX 文件，请改用 CSV 或系统导出的 .xls 文件。',
+    );
+  }
+
+  const stream = new Blob([data])
+    .stream()
+    .pipeThrough(new (globalThis as any).DecompressionStream('deflate-raw'));
+
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+async function readXlsxZipEntries(buffer: ArrayBuffer) {
+  const data = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+  const minimumEndRecordOffset = Math.max(0, data.length - 65_557);
+  let endOffset = -1;
+
+  for (
+    let offset = data.length - 22;
+    offset >= minimumEndRecordOffset;
+    offset -= 1
+  ) {
+    if (readZipUint32(view, offset) === 0x0605_4b50) {
+      endOffset = offset;
+      break;
+    }
+  }
+
+  if (endOffset < 0) {
+    throw new Error('不是有效的 XLSX 文件。');
+  }
+
+  const entryCount = readZipUint16(view, endOffset + 10);
+  let directoryOffset = readZipUint32(view, endOffset + 16);
+  const decoder = new TextDecoder();
+  const entries = new Map<string, Uint8Array>();
+
+  for (let index = 0; index < entryCount; index += 1) {
+    if (readZipUint32(view, directoryOffset) !== 0x0201_4b50) {
+      throw new Error('XLSX 文件目录损坏。');
+    }
+
+    const compression = readZipUint16(view, directoryOffset + 10);
+    const compressedSize = readZipUint32(view, directoryOffset + 20);
+    const fileNameLength = readZipUint16(view, directoryOffset + 28);
+    const extraLength = readZipUint16(view, directoryOffset + 30);
+    const commentLength = readZipUint16(view, directoryOffset + 32);
+    const localOffset = readZipUint32(view, directoryOffset + 42);
+    const fileName = decoder.decode(
+      data.slice(directoryOffset + 46, directoryOffset + 46 + fileNameLength),
+    );
+
+    if (readZipUint32(view, localOffset) !== 0x0403_4b50) {
+      throw new Error('XLSX 文件条目损坏。');
+    }
+
+    const localNameLength = readZipUint16(view, localOffset + 26);
+    const localExtraLength = readZipUint16(view, localOffset + 28);
+    const contentOffset = localOffset + 30 + localNameLength + localExtraLength;
+    const compressed = data.slice(
+      contentOffset,
+      contentOffset + compressedSize,
+    );
+
+    entries.set(fileName, await inflateZipEntry(compressed, compression));
+    directoryOffset += 46 + fileNameLength + extraLength + commentLength;
+  }
+
+  return entries;
+}
+
+function getXlsxCellColumnIndex(reference: string | null) {
+  const column = reference?.match(/^[A-Z]+/i)?.[0];
+
+  if (!column) {
+    return undefined;
+  }
+
+  return (
+    [...column.toUpperCase()].reduce(
+      (result, char) => result * 26 + char.charCodeAt(0) - 64,
+      0,
+    ) - 1
+  );
+}
+
+function getXlsxEntryText(entries: Map<string, Uint8Array>, name: string) {
+  const entry = entries.get(name);
+
+  return entry ? new TextDecoder().decode(entry) : undefined;
+}
+
+function getFirstXlsxSheetPath(entries: Map<string, Uint8Array>) {
+  const workbook = getXlsxEntryText(entries, 'xl/workbook.xml');
+  const relationships = getXlsxEntryText(entries, 'xl/_rels/workbook.xml.rels');
+
+  if (!workbook || !relationships || typeof DOMParser === 'undefined') {
+    return 'xl/worksheets/sheet1.xml';
+  }
+
+  const workbookDoc = new DOMParser().parseFromString(workbook, 'text/xml');
+  const relationDoc = new DOMParser().parseFromString(
+    relationships,
+    'text/xml',
+  );
+  const relationId = workbookDoc.querySelector('sheet')?.getAttribute('r:id');
+  const target = [...relationDoc.querySelectorAll('Relationship')]
+    .find((item) => item.getAttribute('Id') === relationId)
+    ?.getAttribute('Target');
+
+  if (!target) {
+    return 'xl/worksheets/sheet1.xml';
+  }
+
+  return `xl/${target.replace(/^\/+/, '').replace(/^xl\//, '')}`;
+}
+
+export async function parseXlsxBuffer(
+  buffer: ArrayBuffer,
+): Promise<ParsedImportSheet> {
+  if (typeof DOMParser === 'undefined') {
+    throw new Error('当前环境不支持 XLSX 解析。');
+  }
+
+  const entries = await readXlsxZipEntries(buffer);
+  const worksheet = getXlsxEntryText(entries, getFirstXlsxSheetPath(entries));
+
+  if (!worksheet) {
+    throw new Error('XLSX 文件中没有可读取的工作表。');
+  }
+
+  const sharedStringsDoc = getXlsxEntryText(entries, 'xl/sharedStrings.xml');
+  const sharedStrings = sharedStringsDoc
+    ? [
+        ...new DOMParser()
+          .parseFromString(sharedStringsDoc, 'text/xml')
+          .querySelectorAll('si'),
+      ].map((item) => item.textContent || '')
+    : [];
+  const worksheetDoc = new DOMParser().parseFromString(worksheet, 'text/xml');
+  const rows = [...worksheetDoc.querySelectorAll('sheetData > row')].map(
+    (rowNode) => {
+      const row: string[] = [];
+
+      for (const cell of [...rowNode.querySelectorAll('c')]) {
+        const index = getXlsxCellColumnIndex(cell.getAttribute('r'));
+        const value = cell.querySelector('v')?.textContent || '';
+        const inlineText = cell.querySelector('is')?.textContent || '';
+        const cellValue =
+          cell.getAttribute('t') === 's'
+            ? sharedStrings[Number(value)] || ''
+            : cell.getAttribute('t') === 'inlineStr'
+              ? inlineText
+              : value;
+
+        if (index !== undefined) {
+          row[index] = cellValue;
+        } else {
+          row.push(cellValue);
+        }
+      }
+
+      return row;
+    },
+  );
+
+  const [headerRow = [], ...dataRows] = rows;
+
+  return {
+    headers: headerRow.map(
+      (header, index) => normalizeText(header) || `列${index + 1}`,
+    ),
+    rows: dataRows.filter((row) => row.some((value) => normalizeText(value))),
+  };
 }
 
 export function buildDefaultImportMappings(
@@ -256,50 +440,6 @@ export function inferImportConverter(
   return 'trim';
 }
 
-function convertImportValue(value: string, converter: CrudImportConverter) {
-  const text = normalizeText(value);
-
-  if (!text) {
-    return undefined;
-  }
-
-  if (converter === 'string') {
-    return value;
-  }
-
-  if (converter === 'number') {
-    const numberValue = Number(text);
-
-    if (!Number.isFinite(numberValue)) {
-      throw new TypeError(`不是有效数字：${value}`);
-    }
-
-    return numberValue;
-  }
-
-  if (converter === 'boolean') {
-    if (['1', 'true', 'y', 'yes', '启用', '是'].includes(text.toLowerCase())) {
-      return true;
-    }
-
-    if (['0', 'false', 'n', 'no', '否', '禁用'].includes(text.toLowerCase())) {
-      return false;
-    }
-
-    throw new Error(`不是有效布尔值：${value}`);
-  }
-
-  if (converter === 'json') {
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw new Error(`不是有效 JSON：${value}`);
-    }
-  }
-
-  return text;
-}
-
 function getRowValue(row: string[], headers: string[], header?: string) {
   if (!header) {
     return '';
@@ -314,9 +454,23 @@ export function buildImportRecords(
   sheet: ParsedImportSheet,
   mappings: CrudImportMapping[],
 ): BuildImportRecordsResult {
-  const activeMappings = mappings.filter((mapping) => mapping.header);
   const records: Record<string, any>[] = [];
   const rowErrors: BuildImportRecordsResult['rowErrors'] = [];
+  const activeMappings = mappings.filter((mapping) => {
+    if (!mapping.header) {
+      return false;
+    }
+
+    if (sheet.headers.includes(mapping.header)) {
+      return true;
+    }
+
+    rowErrors.push({
+      message: `${mapping.fieldKey}: 找不到来源列：${mapping.header}`,
+      rowIndex: 1,
+    });
+    return false;
+  });
 
   sheet.rows.forEach((row, rowIndex) => {
     const record: Record<string, any> = {};
@@ -341,7 +495,7 @@ export function buildImportRecords(
       }
 
       try {
-        record[mapping.fieldKey] = convertImportValue(
+        record[mapping.fieldKey] = convertCrudValue(
           value,
           mapping.converter || 'trim',
         );
@@ -387,13 +541,40 @@ export function normalizeImportTemplateConfig(
     return {};
   }
 
+  let config = value;
+
   if (typeof value === 'string') {
     try {
-      return JSON.parse(value) || {};
+      config = JSON.parse(value) || {};
     } catch {
       return {};
     }
   }
 
-  return value;
+  if (!config || typeof config !== 'object') {
+    return {};
+  }
+
+  if (Array.isArray(config.mappings)) {
+    return config;
+  }
+
+  const legacyFields = (config as any).fields;
+
+  if (!Array.isArray(legacyFields)) {
+    return config;
+  }
+
+  return {
+    ...config,
+    mappings: legacyFields
+      .filter((field) => field?.target)
+      .map((field) => ({
+        converter: field.converter,
+        defaultValue: field.defaultValue,
+        fieldKey: String(field.target),
+        header: field.source ? String(field.source) : undefined,
+        required: field.required === true,
+      })),
+  };
 }

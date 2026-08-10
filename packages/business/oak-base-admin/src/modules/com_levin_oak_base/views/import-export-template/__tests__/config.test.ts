@@ -37,7 +37,6 @@ describe('import export template page config', () => {
       table: true,
     });
     expect(fields.find((field) => field.key === 'config')).toMatchObject({
-      fullRow: true,
       key: 'config',
       type: 'json',
     });

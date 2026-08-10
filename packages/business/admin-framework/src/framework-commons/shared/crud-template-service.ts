@@ -115,9 +115,11 @@ export function removeCrudTemplateFromList(
 export function getCrudTemplateDeleteParams(
   template: CrudExportTemplateRecord,
 ) {
-  const value = getCrudTemplateValue(template);
+  if (template.id === undefined || template.id === null) {
+    return undefined;
+  }
 
-  return value ? { id: value } : { code: template.code };
+  return { id: String(template.id) };
 }
 
 export function buildCrudTemplateCode(
@@ -366,4 +368,20 @@ export function buildCrudTemplateScopePayload(
     tenantId,
     tenantShared: false,
   };
+}
+
+/**
+ * The backend's multi-tenant filters only include shared records when the
+ * matching request flag is true. Query every visibility scope that the save
+ * dialog can create, then let the caller deduplicate overlapping records.
+ */
+export function buildCrudTemplateScopeQueryVariants<
+  T extends Record<string, unknown>,
+>(query: T) {
+  return [
+    query,
+    { ...query, orgShared: true },
+    { ...query, tenantShared: true },
+    { ...query, orgShared: true, tenantShared: true },
+  ];
 }
