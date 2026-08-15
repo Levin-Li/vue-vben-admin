@@ -7,25 +7,12 @@ const {
   authLogin,
   authLoginWithPasswordChallenge,
   getVerifyCodeApi,
-  modalConfirm,
-  modalHandles,
   startPasswordLoginApi,
 } = vi.hoisted(() => {
-  const modalHandles: any[] = [];
   return {
     authLogin: vi.fn(),
     authLoginWithPasswordChallenge: vi.fn(),
     getVerifyCodeApi: vi.fn(),
-    modalConfirm: vi.fn((options: any) => {
-      const handle = {
-        destroy: vi.fn(),
-        options,
-        update: vi.fn(),
-      };
-      modalHandles.push(handle);
-      return handle;
-    }),
-    modalHandles,
     startPasswordLoginApi: vi.fn(),
   };
 });
@@ -120,23 +107,18 @@ vi.mock('ant-design-vue', () => {
       success: vi.fn(),
       warning: vi.fn(),
     },
-    Modal: Object.assign(
-      defineComponent({
-        emits: ['cancel', 'ok', 'update:open'],
-        props: ['confirmLoading', 'open', 'title'],
-        template: `
-          <div v-if="open" role="dialog">
-            <h2>{{ title }}</h2>
-            <slot />
-            <button data-test="dialog-cancel" type="button" @click="$emit('cancel')">取消</button>
-            <button :disabled="confirmLoading" data-test="dialog-login" type="button" @click="$emit('ok')">登录</button>
-          </div>
-        `,
-      }),
-      {
-        confirm: modalConfirm,
-      },
-    ),
+    Modal: defineComponent({
+      emits: ['cancel', 'ok', 'update:open'],
+      props: ['confirmLoading', 'open', 'title'],
+      template: `
+        <div v-if="open" role="dialog">
+          <h2>{{ title }}</h2>
+          <slot />
+          <button data-test="dialog-cancel" type="button" @click="$emit('cancel')">取消</button>
+          <button :disabled="confirmLoading" data-test="dialog-login" type="button" @click="$emit('ok')">登录</button>
+        </div>
+      `,
+    }),
     Tabs: Object.assign(
       defineComponent({
         template: '<div><slot /></div>',
@@ -182,11 +164,10 @@ describe('login auto-login prompt', () => {
       challengeId: 'challenge-1',
       verifyCodeType: 'Captcha',
     });
-    modalConfirm.mockClear();
-    modalHandles.length = 0;
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -247,7 +228,7 @@ describe('login auto-login prompt', () => {
     wrapper.unmount();
   });
 
-  it('opens the auto-login prompt when captcha refresh returns a verify code after password input', async () => {
+  it('shows a three-second in-dialog countdown when captcha returns a verify code', async () => {
     getVerifyCodeApi.mockResolvedValue({
       code: '0462',
       interactionData: '',
@@ -266,8 +247,6 @@ describe('login auto-login prompt', () => {
       .setValue('123456');
     await wrapper.find('button[type="primary"]').trigger('click');
     await flushPromises();
-    await wrapper.find('button[aria-label="刷新验证码"]').trigger('click');
-    await flushPromises();
 
     expect(getVerifyCodeApi).toHaveBeenCalledWith({
       account: 'sa',
@@ -276,13 +255,42 @@ describe('login auto-login prompt', () => {
     expect(
       wrapper.find('input[placeholder="请输入验证码"]').element.value,
     ).toBe('0462');
-    expect(modalConfirm).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: '即将自动登录',
-      }),
-    );
+    expect(wrapper.text()).toContain('3 秒后将自动登录');
 
     wrapper.unmount();
+  });
+
+  it('automatically completes password login after the three-second countdown', async () => {
+    vi.useFakeTimers();
+    getVerifyCodeApi.mockResolvedValue({
+      code: '0462',
+      interactionData: '',
+      interactionDataType: '',
+    });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .setValue('sa');
+    await wrapper
+      .find('input[placeholder="请输入登录密码"]')
+      .setValue('123456');
+    await wrapper.find('button[type="primary"]').trigger('click');
+    await flushPromises();
+
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(authLoginWithPasswordChallenge).toHaveBeenCalledWith({
+      account: 'sa',
+      loginVerifyChallengeId: 'challenge-1',
+      verifyCode: '0462',
+      verifyCodeType: 'Captcha',
+    });
+
+    wrapper.unmount();
+    vi.useRealTimers();
   });
 
   it('keeps original captcha image when wrapped response also returns a verify code', async () => {

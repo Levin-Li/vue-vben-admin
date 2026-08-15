@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import {
   computed,
-  h,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -52,18 +51,8 @@ interface RequestVerifyCodeOptions {
   force?: boolean;
 }
 
-interface AutoLoginPromptHandle {
-  destroy: () => void;
-  update: (config: Record<string, unknown>) => void;
-}
-
-interface AutoLoginPromptResult {
-  confirmed: boolean;
-  silent?: boolean;
-}
-
 const REMEMBER_ME_KEY = `REMEMBER_ME_USERNAME_${location.hostname}`;
-const AUTO_LOGIN_COUNTDOWN_SECONDS = 5;
+const AUTO_LOGIN_COUNTDOWN_SECONDS = 3;
 
 const verifyTabs: VerifyCodeTabOption[] = [
   {
@@ -96,6 +85,7 @@ const countdown = ref(0);
 const verifyAssetLoading = ref(false);
 const rememberMe = ref(!!rememberedAccount);
 const lastAutoLoginSignature = ref('');
+const autoLoginCountdown = ref(0);
 
 const formState = reactive({
   account: rememberedAccount || (isLoopbackBrowserHost ? 'sa' : ''),
@@ -104,11 +94,7 @@ const formState = reactive({
 });
 
 let countdownTimer: null | ReturnType<typeof setInterval> = null;
-let autoLoginPrompt: AutoLoginPromptHandle | null = null;
-let autoLoginPromptResolve: null | ((result: AutoLoginPromptResult) => void) =
-  null;
-let autoLoginPromptSequence = 0;
-let autoLoginPromptTimer: null | ReturnType<typeof setInterval> = null;
+let autoLoginTimer: null | ReturnType<typeof setInterval> = null;
 let loginPageActive = true;
 
 const currentTab = computed<VerifyCodeTabOption>(() => {
@@ -170,125 +156,15 @@ function resolveAutoLoginSignature(verifyCode: string) {
   ].join('\n');
 }
 
-function renderAutoLoginPromptContent(seconds: number) {
-  return h('div', { class: 'space-y-3 pt-1' }, [
-    h(
-      'div',
-      { class: 'text-sm leading-6 text-muted-foreground' },
-      '检测到验证码已自动返回，系统即将使用当前账号信息登录。',
-    ),
-    h(
-      'div',
-      {
-        class:
-          'rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground',
-      },
-      `${seconds} 秒后自动登录`,
-    ),
-    h(
-      'div',
-      { class: 'text-xs leading-5 text-muted-foreground' },
-      '取消后本次只填入验证码，不会自动提交登录。',
-    ),
-  ]);
-}
-
-function clearAutoLoginPromptTimer() {
-  if (autoLoginPromptTimer) {
-    clearInterval(autoLoginPromptTimer);
-    autoLoginPromptTimer = null;
+function clearAutoLoginCountdown() {
+  if (autoLoginTimer) {
+    clearInterval(autoLoginTimer);
+    autoLoginTimer = null;
   }
+  autoLoginCountdown.value = 0;
 }
 
-function cancelAutoLoginPrompt() {
-  const resolve = autoLoginPromptResolve;
-
-  clearAutoLoginPromptTimer();
-  autoLoginPrompt?.destroy();
-  autoLoginPrompt = null;
-  autoLoginPromptResolve = null;
-  resolve?.({ confirmed: false, silent: true });
-  autoLoginPromptSequence += 1;
-}
-
-function confirmAutoLogin() {
-  cancelAutoLoginPrompt();
-
-  if (!loginPageActive) {
-    return Promise.resolve({ confirmed: false, silent: true });
-  }
-
-  const promptSequence = ++autoLoginPromptSequence;
-
-  return new Promise<AutoLoginPromptResult>((resolve) => {
-    let settled = false;
-    let seconds = AUTO_LOGIN_COUNTDOWN_SECONDS;
-
-    const finish = (
-      confirmed: boolean,
-      destroyPrompt = false,
-      silent = false,
-    ) => {
-      if (settled || promptSequence !== autoLoginPromptSequence) {
-        return;
-      }
-
-      settled = true;
-      clearAutoLoginPromptTimer();
-      const prompt = autoLoginPrompt;
-      autoLoginPrompt = null;
-      autoLoginPromptResolve = null;
-
-      if (destroyPrompt) {
-        prompt?.destroy();
-      }
-
-      resolve({ confirmed: confirmed && loginPageActive, silent });
-    };
-
-    const updatePrompt = () => {
-      if (promptSequence !== autoLoginPromptSequence) {
-        return;
-      }
-
-      autoLoginPrompt?.update({
-        content: renderAutoLoginPromptContent(seconds),
-        okText: `立即登录 (${seconds}s)`,
-      });
-    };
-
-    autoLoginPromptResolve = (result: AutoLoginPromptResult) => {
-      finish(result.confirmed, true, result.silent);
-    };
-
-    autoLoginPrompt = Modal.confirm({
-      centered: true,
-      content: renderAutoLoginPromptContent(seconds),
-      cancelText: '取消本次自动登录',
-      okText: `立即登录 (${seconds}s)`,
-      title: '即将自动登录',
-      onCancel: () => {
-        finish(false);
-      },
-      onOk: () => {
-        finish(true);
-      },
-    }) as AutoLoginPromptHandle;
-
-    autoLoginPromptTimer = setInterval(() => {
-      seconds -= 1;
-
-      if (seconds <= 0) {
-        finish(true, true);
-        return;
-      }
-
-      updatePrompt();
-    }, 1000);
-  });
-}
-
-async function tryAutoLoginWithReturnedVerifyCode(verifyCode: string) {
+function tryAutoLoginWithReturnedVerifyCode(verifyCode: string) {
   if (!verifyCode || authStore.loginLoading) {
     return;
   }
@@ -306,28 +182,23 @@ async function tryAutoLoginWithReturnedVerifyCode(verifyCode: string) {
   }
 
   lastAutoLoginSignature.value = signature;
-
-  const autoLoginResult = await confirmAutoLogin();
-  if (!autoLoginResult.confirmed) {
-    if (loginPageActive && !autoLoginResult.silent) {
-      message.info('已取消本次自动登录');
+  clearAutoLoginCountdown();
+  autoLoginCountdown.value = AUTO_LOGIN_COUNTDOWN_SECONDS;
+  autoLoginTimer = setInterval(() => {
+    autoLoginCountdown.value -= 1;
+    if (autoLoginCountdown.value > 0) {
+      return;
     }
-    return;
-  }
 
-  if (!loginPageActive || authStore.loginLoading) {
-    return;
-  }
-
-  try {
-    if (isPasswordCaptchaMode.value) {
-      await completePasswordLogin();
-    } else {
-      await handleSubmit();
+    clearAutoLoginCountdown();
+    if (!loginPageActive || authStore.loginLoading) {
+      return;
     }
-  } catch {
-    // 登录失败由统一 API 错误处理展示；这里避免误报为“获取验证码失败”。
-  }
+
+    void (isPasswordCaptchaMode.value
+      ? completePasswordLogin()
+      : handleSubmit());
+  }, 1000);
 }
 
 function getErrorSearchText(error: any) {
@@ -563,6 +434,8 @@ async function handleSubmit() {
     return;
   }
 
+  clearAutoLoginCountdown();
+
   const account = normalizeAccount();
   const password = formState.password.trim();
 
@@ -608,6 +481,8 @@ async function completePasswordLogin() {
     return;
   }
 
+  clearAutoLoginCountdown();
+
   const verifyCode = formState.verifyCode.trim();
   if (!verifyCode) {
     message.warning(
@@ -647,7 +522,8 @@ async function startPasswordLogin(account: string, password: string) {
     localStorage.setItem(REMEMBER_ME_KEY, rememberMe.value ? account : '');
 
     if (challenge.verifyCodeType === 'Captcha') {
-      await requestVerifyCode({ autoLogin: false, force: true });
+      passwordVerifyDialogOpen.value = true;
+      await requestVerifyCode({ force: true });
     } else if (!challenge.verifyCodeType) {
       await authStore.authLoginWithPasswordChallenge({
         account,
@@ -665,6 +541,7 @@ async function startPasswordLogin(account: string, password: string) {
 }
 
 function resetPasswordLoginChallenge() {
+  clearAutoLoginCountdown();
   passwordVerifyDialogOpen.value = false;
   passwordLoginChallengeId.value = '';
   passwordVerifyCodeType.value = undefined;
@@ -698,13 +575,13 @@ onActivated(() => {
 
 onDeactivated(() => {
   loginPageActive = false;
-  cancelAutoLoginPrompt();
+  clearAutoLoginCountdown();
 });
 
 onBeforeUnmount(() => {
   loginPageActive = false;
   clearCountdown();
-  cancelAutoLoginPrompt();
+  clearAutoLoginCountdown();
 });
 </script>
 
@@ -853,6 +730,7 @@ onBeforeUnmount(() => {
                   : '请输入验证码'
               "
               size="large"
+              @update:value="clearAutoLoginCountdown"
             />
 
             <Tooltip v-if="isPasswordCaptchaMode" title="刷新验证码">
@@ -892,6 +770,12 @@ onBeforeUnmount(() => {
               </span>
             </Tooltip>
           </div>
+          <p
+            v-if="isPasswordCaptchaMode && autoLoginCountdown > 0"
+            class="text-muted-foreground mt-2 text-xs"
+          >
+            验证码已自动填入，{{ autoLoginCountdown }} 秒后将自动登录。
+          </p>
         </div>
       </div>
     </Modal>
