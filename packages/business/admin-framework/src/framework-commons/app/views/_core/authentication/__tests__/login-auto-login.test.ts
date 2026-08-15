@@ -3,11 +3,19 @@ import { computed, defineComponent } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { authLogin, getVerifyCodeApi, modalConfirm, modalHandles } = vi.hoisted(
+const {
+  authLogin,
+  authLoginWithPasswordChallenge,
+  getVerifyCodeApi,
+  modalConfirm,
+  modalHandles,
+  startPasswordLoginApi,
+} = vi.hoisted(
   () => {
     const modalHandles: any[] = [];
     return {
       authLogin: vi.fn(),
+      authLoginWithPasswordChallenge: vi.fn(),
       getVerifyCodeApi: vi.fn(),
       modalConfirm: vi.fn((options: any) => {
         const handle = {
@@ -19,6 +27,7 @@ const { authLogin, getVerifyCodeApi, modalConfirm, modalHandles } = vi.hoisted(
         return handle;
       }),
       modalHandles,
+      startPasswordLoginApi: vi.fn(),
     };
   },
 );
@@ -33,11 +42,13 @@ vi.mock('@vben/locales', () => ({
 
 vi.mock('@levin/admin-framework/framework-commons/app/api', () => ({
   getVerifyCodeApi,
+  startPasswordLoginApi,
 }));
 
 vi.mock('@levin/admin-framework/framework-commons/app/store', () => ({
   useAuthStore: () => ({
     authLogin,
+    authLoginWithPasswordChallenge,
     loginLoading: false,
   }),
 }));
@@ -155,7 +166,13 @@ describe('login auto-login prompt', () => {
       }),
     });
     authLogin.mockReset();
+    authLoginWithPasswordChallenge.mockReset();
     getVerifyCodeApi.mockReset();
+    startPasswordLoginApi.mockReset();
+    startPasswordLoginApi.mockResolvedValue({
+      challengeId: 'challenge-1',
+      verifyCodeType: 'Captcha',
+    });
     modalConfirm.mockClear();
     modalHandles.length = 0;
   });
@@ -232,6 +249,8 @@ describe('login auto-login prompt', () => {
       .find('input[placeholder="请输入手机号或邮箱"]')
       .setValue('sa');
     await wrapper.find('input[placeholder="请输入登录密码"]').setValue('123456');
+    await wrapper.find('button[type="primary"]').trigger('click');
+    await flushPromises();
     await wrapper.find('button[aria-label="刷新验证码"]').trigger('click');
     await flushPromises();
 
@@ -267,6 +286,9 @@ describe('login auto-login prompt', () => {
     const wrapper = mount(Login);
 
     await flushPromises();
+    await wrapper.find('input[placeholder="请输入登录密码"]').setValue('123456');
+    await wrapper.find('button[type="primary"]').trigger('click');
+    await flushPromises();
 
     expect(wrapper.find('img[alt="验证码"]').attributes('src')).toBe(
       `data:image/png;base64,${imageBase64}`,
@@ -278,7 +300,7 @@ describe('login auto-login prompt', () => {
     wrapper.unmount();
   });
 
-  it('refreshes the captcha when the account input loses focus on captcha login', async () => {
+  it('does not query a verification method when the password-login account loses focus', async () => {
     getVerifyCodeApi.mockResolvedValue({
       code: '0462',
       interactionData: '',
@@ -297,79 +319,47 @@ describe('login auto-login prompt', () => {
     await wrapper.find('input[placeholder="请输入手机号或邮箱"]').trigger('blur');
     await flushPromises();
 
-    expect(getVerifyCodeApi).toHaveBeenCalledWith({
-      account: 'admin@example.com',
-      verifyCodeType: 'Captcha',
-    });
+    expect(startPasswordLoginApi).not.toHaveBeenCalled();
+    expect(getVerifyCodeApi).not.toHaveBeenCalled();
 
     wrapper.unmount();
   });
 
-  it('ignores stale auto-login prompt confirmations after a newer prompt opens', async () => {
-    getVerifyCodeApi
-      .mockResolvedValueOnce({
-        code: '1111',
-        interactionData: '',
-        interactionDataType: '',
-      })
-      .mockResolvedValueOnce({
-        code: '2222',
-        interactionData: '',
-        interactionDataType: '',
-      });
-
-    const Login = (await import('../login.vue')).default;
-    const wrapper = mount(Login);
-
-    await flushPromises();
-    await wrapper
-      .find('input[placeholder="请输入手机号或邮箱"]')
-      .setValue('admin@example.com');
-    await wrapper.find('input[placeholder="请输入登录密码"]').setValue('123456');
-    await wrapper.find('input[placeholder="请输入手机号或邮箱"]').trigger('blur');
-    await flushPromises();
-
-    expect(modalConfirm).toHaveBeenCalledTimes(1);
-    await modalHandles[0]?.options?.onCancel?.();
-    await flushPromises();
-
-    await wrapper.find('button[aria-label="刷新验证码"]').trigger('click');
-    await flushPromises();
-
-    expect(modalConfirm).toHaveBeenCalledTimes(2);
-
-    await modalHandles[0]?.options?.onOk?.();
-    await flushPromises();
-
-    expect(authLogin).not.toHaveBeenCalled();
-
-    wrapper.unmount();
-  });
-
-  it('cancels the auto-login prompt when the login page is unmounted', async () => {
-    getVerifyCodeApi.mockResolvedValue({
-      code: '0462',
-      interactionData: '',
-      interactionDataType: '',
+  it('shows MFA only after a successful password-login challenge', async () => {
+    startPasswordLoginApi.mockResolvedValue({
+      challengeId: 'mfa-challenge',
+      verifyCodeType: 'Mfa',
     });
 
     const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
-    await flushPromises();
     await wrapper
       .find('input[placeholder="请输入手机号或邮箱"]')
-      .setValue('admin@example.com');
+      .setValue('mfa-user');
     await wrapper.find('input[placeholder="请输入登录密码"]').setValue('123456');
-    await wrapper.find('input[placeholder="请输入手机号或邮箱"]').trigger('blur');
+    await wrapper.find('button[type="primary"]').trigger('click');
     await flushPromises();
+
+    expect(startPasswordLoginApi).toHaveBeenCalledWith({
+      account: 'mfa-user',
+      password: '123456',
+    });
+    expect(wrapper.text()).toContain('MFA验证码');
+    expect(wrapper.find('button[aria-label="刷新验证码"]').exists()).toBe(false);
+    expect(getVerifyCodeApi).not.toHaveBeenCalled();
+
+    await wrapper.find('input[placeholder="请输入MFA验证码"]').setValue('123456');
+    await wrapper.find('button[type="primary"]').trigger('click');
+
+    expect(authLoginWithPasswordChallenge).toHaveBeenCalledWith({
+      account: 'mfa-user',
+      loginVerifyChallengeId: 'mfa-challenge',
+      verifyCode: '123456',
+      verifyCodeType: 'Mfa',
+    });
+
     wrapper.unmount();
-
-    expect(modalHandles[0]?.destroy).toHaveBeenCalledOnce();
-
-    await modalHandles[0]?.options?.onOk?.();
-    await flushPromises();
-
-    expect(authLogin).not.toHaveBeenCalled();
   });
+
 });

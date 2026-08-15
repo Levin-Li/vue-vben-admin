@@ -6,6 +6,7 @@ import {
 
 export namespace AuthApi {
   export type LoginParams = RbacApi.LoginParams;
+  export type PasswordLoginChallenge = RbacApi.PasswordLoginChallenge;
   export type LoginResult = RbacApi.LoginResult;
   export type RefreshTokenResult =
     | string
@@ -17,6 +18,14 @@ export namespace AuthApi {
 
 export async function loginApi(data: AuthApi.LoginParams) {
   return rbacService.login(data);
+}
+
+export async function startPasswordLoginApi(data: AuthApi.LoginParams) {
+  return rbacService.startPasswordLogin(data);
+}
+
+export async function completePasswordLoginApi(data: AuthApi.LoginParams) {
+  return rbacService.completePasswordLogin(data);
 }
 
 /**

@@ -11,6 +11,7 @@ import { notification } from 'ant-design-vue';
 import { defineStore } from 'pinia';
 
 import {
+  completePasswordLoginApi,
   getAccessCodesApi,
   getUserInfoApi,
   loginApi,
@@ -35,11 +36,26 @@ export const useAuthStore = defineStore('auth', () => {
     params: Recordable<any>,
     onSuccess?: () => Promise<void> | void,
   ) {
+    return loginWith(params, loginApi, onSuccess);
+  }
+
+  async function authLoginWithPasswordChallenge(
+    params: Recordable<any>,
+    onSuccess?: () => Promise<void> | void,
+  ) {
+    return loginWith(params, completePasswordLoginApi, onSuccess);
+  }
+
+  async function loginWith(
+    params: Recordable<any>,
+    login: typeof loginApi,
+    onSuccess?: () => Promise<void> | void,
+  ) {
     // 异步处理用户登录操作并获取 accessToken
     let userInfo: null | UserInfo = null;
     try {
       loginLoading.value = true;
-      const { accessToken } = await loginApi(params);
+      const { accessToken } = await login(params);
 
       // 如果成功获取到 accessToken
       if (accessToken) {
@@ -130,6 +146,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     $reset,
     authLogin,
+    authLoginWithPasswordChallenge,
     ensureAccessCodesLoaded,
     fetchUserInfo,
     loginLoading,

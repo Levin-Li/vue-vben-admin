@@ -11,9 +11,15 @@ export const ADMIN_UI_BASE_SETTING_KEY = 'admin-ui-base-setting';
 export namespace RbacApi {
   export interface LoginParams {
     account?: string;
+    loginVerifyChallengeId?: string;
     password?: string;
     verifyCode?: string;
     verifyCodeType?: string;
+  }
+
+  export interface PasswordLoginChallenge {
+    challengeId: string;
+    verifyCodeType?: 'Captcha' | 'Mfa';
   }
 
   export interface RegisterParams extends Record<string, any> {
@@ -254,6 +260,32 @@ export class RbacService extends RequestService {
   async login(data: RbacApi.LoginParams) {
     return requestClient.post<RbacApi.LoginResult>(
       this.buildRequestPath('login'),
+      data,
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '创建密码登录验证码挑战',
+    ignored: true,
+  })
+  async startPasswordLogin(data: RbacApi.LoginParams) {
+    return requestClient.post<RbacApi.PasswordLoginChallenge>(
+      this.buildRequestPath('loginVerifyChallenge'),
+      data,
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '完成密码登录验证码挑战',
+    ignored: true,
+  })
+  async completePasswordLogin(data: RbacApi.LoginParams) {
+    return requestClient.post<RbacApi.LoginResult>(
+      this.buildRequestPath('loginVerifyChallenge/complete'),
       data,
     );
   }
