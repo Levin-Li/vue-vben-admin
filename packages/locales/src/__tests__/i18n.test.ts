@@ -101,11 +101,11 @@ describe('locale fallback resolution', () => {
     expect(messages['zh-CN']?.common?.login).toBe('登录');
     expect(messages['en-US']?.common?.login).toBe('Login');
     expect(Object.keys(messages['zh-CN'] || {})).toContain('preferences');
-    expect(messages['zh-CN']?.preferences?.clearAndRestoreDefaults).toBe(
-      '清空缓存 & 恢复默认值',
+    expect(messages['zh-CN']?.preferences?.restoreDefaults).toBe(
+      '恢复默认设置',
     );
-    expect(messages['en-US']?.preferences?.clearAndRestoreDefaults).toBe(
-      'Clear Cache & Restore Defaults',
+    expect(messages['en-US']?.preferences?.restoreDefaults).toBe(
+      'Restore Defaults',
     );
   });
 });

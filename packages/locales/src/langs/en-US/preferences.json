@@ -33,7 +33,7 @@
   "copyPreferences": "Copy Preferences",
   "copyPreferencesSuccessTitle": "Copy successful",
   "copyPreferencesSuccess": "Copy successful, please override in `src/preferences.ts` under app",
-  "clearAndRestoreDefaults": "Clear Cache & Restore Defaults",
+  "restoreDefaults": "Restore Defaults",
   "mode": "Mode",
   "general": "General",
   "language": "Language",

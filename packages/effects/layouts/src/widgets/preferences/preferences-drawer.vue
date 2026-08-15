@@ -525,7 +525,7 @@ function openColorSettings(
           variant="ghost"
           @click="handleClearCacheAndRestoreDefaults"
         >
-          {{ $t('preferences.clearAndRestoreDefaults') }}
+          {{ $t('preferences.restoreDefaults') }}
         </VbenButton>
       </template>
     </Drawer>
