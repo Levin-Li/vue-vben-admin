@@ -30,6 +30,31 @@ If these configurations do not meet your needs, you can implement your own login
 
 :::
 
+## Password Login Challenge and MFA
+
+The base module does not look up an account's MFA state when the account field loses focus. After the user clicks Login, the client calls `startPasswordLoginApi({ account, password })`. Only after the server has audited the password, domain, and tenant does it return a one-time `challengeId` and `verifyCodeType`.
+
+```ts
+const challenge = await startPasswordLoginApi({ account, password });
+
+await completePasswordLoginApi({
+  account,
+  loginVerifyChallengeId: challenge.challengeId,
+  verifyCode,
+  verifyCodeType: challenge.verifyCodeType,
+});
+```
+
+Keep the following boundaries:
+
+- `Mfa` opens a Google Authenticator dialog for the current six-digit code. Do not fall back to a captcha or add another “Next” action.
+- `Captcha` completes in a separate security dialog. When a code is filled automatically, show a red five-second countdown and submit automatically. Cancel the countdown when the user types, refreshes the image, or closes the dialog.
+- A challenge with no verification type can be completed immediately; create the session and redirect on success.
+- SMS and email code login keep their existing flow and do not create a password-login challenge.
+- Clear the `challengeId`, code, and countdown after cancellation, failure, or account changes; never reuse a challenge.
+
+Do not add an account-blur endpoint that reports supported verification methods: it broadens account-enumeration risk. See the root project document `docs/15-密码登录挑战与MFA安全开发指南.md` for the backend contract and revalidation rules.
+
 ## Login Form Adjustment
 
 If you want to adjust the content of the login form, you can configure the `AuthenticationLogin` component parameters in `src/views/_core/authentication/login.vue` within your application:

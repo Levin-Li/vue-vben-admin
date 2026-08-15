@@ -179,6 +179,8 @@ The project offers a wide range of preference settings for dynamically configuri
 
 If you cannot find documentation for a setting, you can try configuring it yourself and then click `Copy Preferences` to override the project defaults. The configuration file is located in the application directory under `preferences.ts`, where you can override the framework's default configurations to achieve custom settings.
 
+The Preferences panel action **Restore Defaults** clears only preference-owned cache and applies defaults immediately. It does not log the user out, remove the authentication session, or interrupt the current business page.
+
 ```ts
 import { useAppConfig } from '@vben/hooks';
 import { defineOverridesPreferences } from '@vben/preferences';

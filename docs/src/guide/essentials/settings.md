@@ -178,6 +178,8 @@ const { otherApiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 
 如果你找不到文档说明，可以尝试自己配置好以后，点击`复制偏好设置`，覆盖项目默认即可。配置文件位于应用目录下的`preferences.ts`，在这里，你可以覆盖框架默认的配置，实现自定义配置。
 
+偏好设置面板的“恢复默认设置”只清除偏好设置自身的缓存并立即恢复默认值，不会退出登录、删除认证会话或影响当前业务页面。
+
 ```ts
 import { useAppConfig } from '@vben/hooks';
 import { defineOverridesPreferences } from '@vben/preferences';

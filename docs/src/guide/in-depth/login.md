@@ -110,6 +110,31 @@ outline: deep
 
 :::
 
+## 密码登录挑战与 MFA
+
+基础模块的密码登录不是在账号失焦时查询账号的 MFA 状态。用户点击登录后，前端先调用 `startPasswordLoginApi({ account, password })`；服务端完成账号密码、域名和租户审计后才返回一次性 `challengeId` 与 `verifyCodeType`。
+
+```ts
+const challenge = await startPasswordLoginApi({ account, password });
+
+await completePasswordLoginApi({
+  account,
+  loginVerifyChallengeId: challenge.challengeId,
+  verifyCode,
+  verifyCodeType: challenge.verifyCodeType,
+});
+```
+
+实现时请遵守以下边界：
+
+- `Mfa` 必须显示 Google Authenticator 验证弹窗，明确提示输入当前六位验证码；不要回退到图片验证码，也不要再增加“下一步”按钮。
+- `Captcha` 在独立安全验证弹窗中完成；验证码可自动填入时，显示红色 5 秒倒计时并自动提交。用户输入、刷新或关闭弹窗时必须取消倒计时。
+- 未要求验证码的挑战可直接调用完成接口；完成成功后立即建立会话并跳转。
+- 短信和邮箱验证码登录保持原有流程，不创建密码登录挑战。
+- 取消、失败或账号变更时清除 `challengeId`、验证码和倒计时，禁止重用挑战。
+
+不得在账号输入框失焦时增加“查询该账号支持哪些验证码”的接口：这会扩大账号枚举面。完整后端接口和安全复核约束见根项目 `docs/15-密码登录挑战与MFA安全开发指南.md`。
+
 ::: tip Note
 
 如果这些配置不能满足你的需求，你可以自行实现登录表单及相关登录逻辑或者给我们提交 `PR`。
