@@ -228,7 +228,7 @@ describe('login auto-login prompt', () => {
     wrapper.unmount();
   });
 
-  it('shows a three-second in-dialog countdown when captcha returns a verify code', async () => {
+  it('shows a five-second in-dialog countdown when captcha returns a verify code', async () => {
     getVerifyCodeApi.mockResolvedValue({
       code: '0462',
       interactionData: '',
@@ -255,12 +255,17 @@ describe('login auto-login prompt', () => {
     expect(
       wrapper.find('input[placeholder="请输入验证码"]').element.value,
     ).toBe('0462');
-    expect(wrapper.text()).toContain('3 秒后将自动登录');
+    const countdown = wrapper.get('[data-test="auto-login-countdown"]');
+    expect(countdown.text()).toBe('5');
+    expect(countdown.classes()).toContain('text-destructive');
+    expect(countdown.classes()).toContain('text-lg');
+    expect(countdown.classes()).toContain('motion-safe:animate-bounce');
+    expect(wrapper.text()).toContain('5 秒后将自动登录');
 
     wrapper.unmount();
   });
 
-  it('automatically completes password login after the three-second countdown', async () => {
+  it('automatically completes password login after the five-second countdown', async () => {
     vi.useFakeTimers();
     getVerifyCodeApi.mockResolvedValue({
       code: '0462',
@@ -280,7 +285,7 @@ describe('login auto-login prompt', () => {
     await wrapper.find('button[type="primary"]').trigger('click');
     await flushPromises();
 
-    await vi.advanceTimersByTimeAsync(3000);
+    await vi.advanceTimersByTimeAsync(5000);
 
     expect(authLoginWithPasswordChallenge).toHaveBeenCalledWith({
       account: 'sa',

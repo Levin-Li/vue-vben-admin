@@ -34,8 +34,6 @@ withDefaults(defineProps<Props>(), {
   theme: 'light',
 });
 
-const emit = defineEmits<{ clearPreferencesAndLogout: [] }>();
-
 const REFERENCE_VALUE = 50;
 
 const accessStore = useAccessStore();
@@ -140,9 +138,6 @@ const leftSlots = computed(() => {
   return list.toSorted((a, b) => a.index - b.index);
 });
 
-function clearPreferencesAndLogout() {
-  emit('clearPreferencesAndLogout');
-}
 </script>
 
 <template>
@@ -226,10 +221,7 @@ function clearPreferencesAndLogout() {
           </template>
 
           <template v-else-if="slot.name === 'preferences'">
-            <PreferencesButton
-              class="mr-1"
-              @clear-preferences-and-logout="clearPreferencesAndLogout"
-            />
+            <PreferencesButton class="mr-1" />
           </template>
           <template v-else-if="slot.name === 'theme-toggle'">
             <ThemeToggle class="mr-1 mt-[2px]" />

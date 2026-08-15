@@ -57,8 +57,6 @@ import {
   Widget,
 } from './blocks';
 
-const emit = defineEmits<{ clearPreferencesAndLogout: [] }>();
-
 const message = globalShareState.getMessage();
 
 const appLocale = defineModel<SupportedLanguagesType>('appLocale');
@@ -245,10 +243,10 @@ async function handleCopy() {
   );
 }
 
-async function handleClearCache() {
-  resetPreferences();
+async function handleClearCacheAndRestoreDefaults() {
   clearCache();
-  emit('clearPreferencesAndLogout');
+  resetPreferences();
+  await loadLocaleMessages(preferences.app.locale);
 }
 
 async function handleReset() {
@@ -525,9 +523,9 @@ function openColorSettings(
           class="mr-4 w-full"
           size="sm"
           variant="ghost"
-          @click="handleClearCache"
+          @click="handleClearCacheAndRestoreDefaults"
         >
-          {{ $t('preferences.clearAndLogout') }}
+          {{ $t('preferences.clearAndRestoreDefaults') }}
         </VbenButton>
       </template>
     </Drawer>

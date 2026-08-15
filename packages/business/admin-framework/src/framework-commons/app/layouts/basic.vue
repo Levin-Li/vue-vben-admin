@@ -639,7 +639,7 @@ watch(
 </script>
 
 <template>
-  <BasicLayout @clear-preferences-and-logout="handleLogout">
+  <BasicLayout>
     <template #logo-text>
       {{ appName }}
     </template>

@@ -52,7 +52,7 @@ interface RequestVerifyCodeOptions {
 }
 
 const REMEMBER_ME_KEY = `REMEMBER_ME_USERNAME_${location.hostname}`;
-const AUTO_LOGIN_COUNTDOWN_SECONDS = 3;
+const AUTO_LOGIN_COUNTDOWN_SECONDS = 5;
 
 const verifyTabs: VerifyCodeTabOption[] = [
   {
@@ -774,7 +774,14 @@ onBeforeUnmount(() => {
             v-if="isPasswordCaptchaMode && autoLoginCountdown > 0"
             class="text-muted-foreground mt-2 text-xs"
           >
-            验证码已自动填入，{{ autoLoginCountdown }} 秒后将自动登录。
+            验证码已自动填入，
+            <span
+              data-test="auto-login-countdown"
+              class="text-destructive inline-block text-lg font-semibold tabular-nums leading-none motion-safe:animate-bounce"
+            >
+              {{ autoLoginCountdown }}
+            </span>
+            秒后将自动登录。
           </p>
         </div>
       </div>

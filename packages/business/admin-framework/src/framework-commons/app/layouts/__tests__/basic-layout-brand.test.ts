@@ -37,7 +37,6 @@ vi.mock('@vben/hooks', () => ({
 
 vi.mock('@vben/layouts', () => ({
   BasicLayout: {
-    emits: ['clear-preferences-and-logout'],
     template: `
       <section data-testid="basic-layout">
         <div data-testid="logo-text"><slot name="logo-text" /></div>
