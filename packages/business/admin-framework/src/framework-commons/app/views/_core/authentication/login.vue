@@ -39,7 +39,6 @@ import {
 defineOptions({ name: 'Login' });
 
 type VerifyCodeTab = 'Captcha' | 'Contact';
-type PasswordLoginStep = 'Credentials' | 'Verify';
 type PasswordVerifyCodeType = 'Captcha' | 'Mfa';
 
 interface VerifyCodeTabOption {
@@ -89,9 +88,9 @@ const isLoopbackBrowserHost = ['127.0.0.1', 'localhost'].includes(
 );
 
 const activeVerifyType = ref<VerifyCodeTab>('Captcha');
-const passwordLoginStep = ref<PasswordLoginStep>('Credentials');
 const passwordLoginChallengeId = ref('');
 const passwordVerifyCodeType = ref<PasswordVerifyCodeType | undefined>();
+const passwordVerifyDialogOpen = ref(false);
 const captchaImage = ref('');
 const countdown = ref(0);
 const verifyAssetLoading = ref(false);
@@ -106,9 +105,8 @@ const formState = reactive({
 
 let countdownTimer: null | ReturnType<typeof setInterval> = null;
 let autoLoginPrompt: AutoLoginPromptHandle | null = null;
-let autoLoginPromptResolve: null | ((
-  result: AutoLoginPromptResult,
-) => void) = null;
+let autoLoginPromptResolve: null | ((result: AutoLoginPromptResult) => void) =
+  null;
 let autoLoginPromptSequence = 0;
 let autoLoginPromptTimer: null | ReturnType<typeof setInterval> = null;
 let loginPageActive = true;
@@ -122,14 +120,17 @@ const currentTab = computed<VerifyCodeTabOption>(() => {
 
 const isContactTab = computed(() => activeVerifyType.value === 'Contact');
 const isCaptchaTab = computed(() => activeVerifyType.value === 'Captcha');
-const isPasswordVerificationStep = computed(
-  () => isCaptchaTab.value && passwordLoginStep.value === 'Verify',
-);
 const isPasswordCaptchaMode = computed(
-  () => isPasswordVerificationStep.value && passwordVerifyCodeType.value === 'Captcha',
+  () =>
+    isCaptchaTab.value &&
+    !!passwordLoginChallengeId.value &&
+    passwordVerifyCodeType.value === 'Captcha',
 );
 const isPasswordMfaMode = computed(
-  () => isPasswordVerificationStep.value && passwordVerifyCodeType.value === 'Mfa',
+  () =>
+    isCaptchaTab.value &&
+    !!passwordLoginChallengeId.value &&
+    passwordVerifyCodeType.value === 'Mfa',
 );
 
 const resolvedVerifyCodeType = computed(() =>
@@ -138,17 +139,7 @@ const resolvedVerifyCodeType = computed(() =>
     : passwordVerifyCodeType.value || 'Captcha',
 );
 
-const currentTabDescription = computed(() => {
-  if (isPasswordMfaMode.value) {
-    return '账号密码已验证，请输入认证器生成的 MFA 验证码。';
-  }
-
-  if (isPasswordCaptchaMode.value) {
-    return '账号密码已验证，请输入图片验证码完成登录。';
-  }
-
-  return currentTab.value.description;
-});
+const currentTabDescription = computed(() => currentTab.value.description);
 
 const actionButtonText = computed(() => {
   if (verifyAssetLoading.value) {
@@ -163,14 +154,6 @@ const actionButtonText = computed(() => {
 });
 
 const verifyCodeUsageText = computed(() => {
-  if (isPasswordCaptchaMode.value) {
-    return '图片';
-  }
-
-  if (isPasswordMfaMode.value) {
-    return 'MFA';
-  }
-
   return resolvedVerifyCodeType.value === 'Email' ? '邮箱' : '短信';
 });
 
@@ -337,7 +320,11 @@ async function tryAutoLoginWithReturnedVerifyCode(verifyCode: string) {
   }
 
   try {
-    await handleSubmit();
+    if (isPasswordCaptchaMode.value) {
+      await completePasswordLogin();
+    } else {
+      await handleSubmit();
+    }
   } catch {
     // 登录失败由统一 API 错误处理展示；这里避免误报为“获取验证码失败”。
   }
@@ -577,7 +564,6 @@ async function handleSubmit() {
   }
 
   const account = normalizeAccount();
-  const verifyCode = formState.verifyCode.trim();
   const password = formState.password.trim();
 
   if (!account) {
@@ -590,10 +576,12 @@ async function handleSubmit() {
     return;
   }
 
-  if (isCaptchaTab.value && passwordLoginStep.value === 'Credentials') {
+  if (isCaptchaTab.value) {
     await startPasswordLogin(account, password);
     return;
   }
+
+  const verifyCode = formState.verifyCode.trim();
 
   if (!verifyCode) {
     message.warning('请输入验证码');
@@ -603,26 +591,46 @@ async function handleSubmit() {
   localStorage.setItem(REMEMBER_ME_KEY, rememberMe.value ? account : '');
 
   try {
-    if (isCaptchaTab.value) {
-      await authStore.authLoginWithPasswordChallenge({
-        account,
-        loginVerifyChallengeId: passwordLoginChallengeId.value,
-        verifyCode,
-        verifyCodeType: resolvedVerifyCodeType.value,
-      });
-    } else {
-      await authStore.authLogin({
-        account,
-        verifyCode,
-        verifyCodeType: resolvedVerifyCodeType.value,
-      });
-    }
+    await authStore.authLogin({
+      account,
+      verifyCode,
+      verifyCodeType: resolvedVerifyCodeType.value,
+    });
   } catch (error) {
-    if (isCaptchaTab.value) {
-      resetPasswordLoginChallenge();
-    } else if (shouldRefreshVerifyCodeForLoginError(error)) {
+    if (shouldRefreshVerifyCodeForLoginError(error)) {
       await refreshVerifyCodeAfterLoginError();
     }
+  }
+}
+
+async function completePasswordLogin() {
+  if (authStore.loginLoading || !passwordLoginChallengeId.value) {
+    return;
+  }
+
+  const verifyCode = formState.verifyCode.trim();
+  if (!verifyCode) {
+    message.warning(
+      isPasswordMfaMode.value ? '请输入 Google 验证器验证码' : '请输入验证码',
+    );
+    return;
+  }
+
+  const account = normalizeAccount();
+  if (!account) {
+    resetPasswordLoginChallenge();
+    return;
+  }
+
+  try {
+    await authStore.authLoginWithPasswordChallenge({
+      account,
+      loginVerifyChallengeId: passwordLoginChallengeId.value,
+      verifyCode,
+      verifyCodeType: resolvedVerifyCodeType.value,
+    });
+  } catch {
+    resetPasswordLoginChallenge();
   }
 }
 
@@ -633,7 +641,6 @@ async function startPasswordLogin(account: string, password: string) {
 
     passwordLoginChallengeId.value = challenge.challengeId;
     passwordVerifyCodeType.value = challenge.verifyCodeType;
-    passwordLoginStep.value = 'Verify';
     formState.verifyCode = '';
     captchaImage.value = '';
 
@@ -646,7 +653,10 @@ async function startPasswordLogin(account: string, password: string) {
         account,
         loginVerifyChallengeId: challenge.challengeId,
       });
+      return;
     }
+
+    passwordVerifyDialogOpen.value = true;
   } catch {
     resetPasswordLoginChallenge();
   } finally {
@@ -655,12 +665,21 @@ async function startPasswordLogin(account: string, password: string) {
 }
 
 function resetPasswordLoginChallenge() {
-  passwordLoginStep.value = 'Credentials';
+  passwordVerifyDialogOpen.value = false;
   passwordLoginChallengeId.value = '';
   passwordVerifyCodeType.value = undefined;
   formState.verifyCode = '';
   captchaImage.value = '';
   lastAutoLoginSignature.value = '';
+}
+
+function handlePasswordVerifyDialogOpenChange(open: boolean) {
+  if (!open) {
+    resetPasswordLoginChallenge();
+    return;
+  }
+
+  passwordVerifyDialogOpen.value = true;
 }
 
 watch(activeVerifyType, () => {
@@ -725,7 +744,9 @@ onBeforeUnmount(() => {
           autocomplete="username"
           placeholder="请输入手机号或邮箱"
           size="large"
-          @update:value="() => isPasswordVerificationStep && resetPasswordLoginChallenge()"
+          @update:value="
+            () => passwordVerifyDialogOpen && resetPasswordLoginChallenge()
+          "
         />
       </div>
 
@@ -741,54 +762,19 @@ onBeforeUnmount(() => {
         />
       </div>
 
-      <div v-if="isContactTab || isPasswordVerificationStep">
+      <div v-if="isContactTab">
         <label class="text-foreground mb-2 block text-sm font-medium">
-          {{ isPasswordMfaMode ? 'MFA验证码' : '验证码' }}
+          验证码
         </label>
         <div class="flex items-stretch gap-3">
           <Input
             v-model:value="formState.verifyCode"
             class="flex-1"
-            :placeholder="isPasswordMfaMode ? '请输入MFA验证码' : '请输入验证码'"
+            :placeholder="
+              isPasswordMfaMode ? '请输入MFA验证码' : '请输入验证码'
+            "
             size="large"
           />
-
-          <Tooltip v-if="isPasswordCaptchaMode" title="刷新验证码">
-            <span class="inline-flex">
-              <button
-                :aria-busy="verifyAssetLoading"
-                :disabled="verifyAssetLoading"
-                aria-label="刷新验证码"
-                class="border-border bg-muted text-muted-foreground hover:border-primary hover:text-primary flex h-10 min-w-[116px] items-center justify-center overflow-hidden rounded-md border transition disabled:cursor-not-allowed disabled:opacity-70"
-                type="button"
-                @click="() => requestVerifyCode()"
-              >
-                <img
-                  v-if="captchaImage"
-                  :src="captchaImage"
-                  alt="验证码"
-                  class="h-full w-full object-cover"
-                />
-                <svg
-                  v-else
-                  :class="{ 'animate-spin': verifyAssetLoading }"
-                  aria-hidden="true"
-                  class="size-5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M21 12a9 9 0 0 1-15.2 6.5" />
-                  <path d="M3 12A9 9 0 0 1 18.2 5.5" />
-                  <path d="M18 2v4h-4" />
-                  <path d="M6 22v-4h4" />
-                </svg>
-              </button>
-            </span>
-          </Tooltip>
 
           <Button
             v-if="isContactTab"
@@ -808,9 +794,7 @@ onBeforeUnmount(() => {
         <span class="text-muted-foreground text-xs">
           <template v-if="techSupport"> 技术支持：{{ techSupport }} </template>
           <template v-else>
-            <template v-if="isCaptchaTab && !isPasswordVerificationStep">
-              请先验证账号密码
-            </template>
+            <template v-if="isCaptchaTab"> 登录后将进行安全验证 </template>
             <template v-else>
               当前使用 {{ verifyCodeUsageText }} 验证码
             </template>
@@ -826,8 +810,90 @@ onBeforeUnmount(() => {
         type="primary"
         @click="handleSubmit"
       >
-        {{ isCaptchaTab && !isPasswordVerificationStep ? '下一步' : $t('common.login') }}
+        {{ $t('common.login') }}
       </Button>
     </div>
+
+    <Modal
+      :cancel-text="'取消'"
+      :closable="!authStore.loginLoading"
+      :confirm-loading="authStore.loginLoading"
+      :mask-closable="!authStore.loginLoading"
+      :ok-text="$t('common.login')"
+      :open="passwordVerifyDialogOpen"
+      :title="isPasswordMfaMode ? 'Google 验证器验证' : '安全验证'"
+      centered
+      destroy-on-close
+      @cancel="resetPasswordLoginChallenge"
+      @ok="completePasswordLogin"
+      @update:open="handlePasswordVerifyDialogOpenChange"
+    >
+      <div class="space-y-4" @keydown.enter.prevent="completePasswordLogin">
+        <Alert
+          :message="
+            isPasswordMfaMode
+              ? '请打开 Google Authenticator，输入当前显示的 6 位验证码。'
+              : '请输入图片中的验证码以完成登录。'
+          "
+          show-icon
+          type="info"
+        />
+
+        <div>
+          <label class="text-foreground mb-2 block text-sm font-medium">
+            {{ isPasswordMfaMode ? 'Google 验证器验证码' : '验证码' }}
+          </label>
+          <div class="flex items-stretch gap-3">
+            <Input
+              v-model:value="formState.verifyCode"
+              class="flex-1"
+              :placeholder="
+                isPasswordMfaMode
+                  ? '请输入 Google 验证器验证码'
+                  : '请输入验证码'
+              "
+              size="large"
+            />
+
+            <Tooltip v-if="isPasswordCaptchaMode" title="刷新验证码">
+              <span class="inline-flex">
+                <button
+                  :aria-busy="verifyAssetLoading"
+                  :disabled="verifyAssetLoading"
+                  aria-label="刷新验证码"
+                  class="border-border bg-muted text-muted-foreground hover:border-primary hover:text-primary flex h-10 min-w-[116px] items-center justify-center overflow-hidden rounded-md border transition disabled:cursor-not-allowed disabled:opacity-70"
+                  type="button"
+                  @click="() => requestVerifyCode()"
+                >
+                  <img
+                    v-if="captchaImage"
+                    :src="captchaImage"
+                    alt="验证码"
+                    class="h-full w-full object-cover"
+                  />
+                  <svg
+                    v-else
+                    :class="{ 'animate-spin': verifyAssetLoading }"
+                    aria-hidden="true"
+                    class="size-5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M21 12a9 9 0 0 1-15.2 6.5" />
+                    <path d="M3 12A9 9 0 0 1 18.2 5.5" />
+                    <path d="M18 2v4h-4" />
+                    <path d="M6 22v-4h4" />
+                  </svg>
+                </button>
+              </span>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>

@@ -10,27 +10,25 @@ const {
   modalConfirm,
   modalHandles,
   startPasswordLoginApi,
-} = vi.hoisted(
-  () => {
-    const modalHandles: any[] = [];
-    return {
-      authLogin: vi.fn(),
-      authLoginWithPasswordChallenge: vi.fn(),
-      getVerifyCodeApi: vi.fn(),
-      modalConfirm: vi.fn((options: any) => {
-        const handle = {
-          destroy: vi.fn(),
-          options,
-          update: vi.fn(),
-        };
-        modalHandles.push(handle);
-        return handle;
-      }),
-      modalHandles,
-      startPasswordLoginApi: vi.fn(),
-    };
-  },
-);
+} = vi.hoisted(() => {
+  const modalHandles: any[] = [];
+  return {
+    authLogin: vi.fn(),
+    authLoginWithPasswordChallenge: vi.fn(),
+    getVerifyCodeApi: vi.fn(),
+    modalConfirm: vi.fn((options: any) => {
+      const handle = {
+        destroy: vi.fn(),
+        options,
+        update: vi.fn(),
+      };
+      modalHandles.push(handle);
+      return handle;
+    }),
+    modalHandles,
+    startPasswordLoginApi: vi.fn(),
+  };
+});
 
 vi.mock('@vben/locales', () => ({
   $t: (key: string) =>
@@ -65,10 +63,7 @@ vi.mock('ant-design-vue', () => {
       emits: ['blur', 'update:value'],
       methods: {
         updateValue(event: Event) {
-          this.$emit(
-            'update:value',
-            (event.target as HTMLInputElement).value,
-          );
+          this.$emit('update:value', (event.target as HTMLInputElement).value);
         },
       },
       props: ['autocomplete', 'placeholder', 'size', 'value'],
@@ -125,9 +120,23 @@ vi.mock('ant-design-vue', () => {
       success: vi.fn(),
       warning: vi.fn(),
     },
-    Modal: {
-      confirm: modalConfirm,
-    },
+    Modal: Object.assign(
+      defineComponent({
+        emits: ['cancel', 'ok', 'update:open'],
+        props: ['confirmLoading', 'open', 'title'],
+        template: `
+          <div v-if="open" role="dialog">
+            <h2>{{ title }}</h2>
+            <slot />
+            <button data-test="dialog-cancel" type="button" @click="$emit('cancel')">取消</button>
+            <button :disabled="confirmLoading" data-test="dialog-login" type="button" @click="$emit('ok')">登录</button>
+          </div>
+        `,
+      }),
+      {
+        confirm: modalConfirm,
+      },
+    ),
     Tabs: Object.assign(
       defineComponent({
         template: '<div><slot /></div>',
@@ -190,9 +199,13 @@ describe('login auto-login prompt', () => {
     expect(
       wrapper.find('input[placeholder="请输入手机号或邮箱"]').element.value,
     ).toBe('');
-    expect(wrapper.find('input[placeholder="请输入登录密码"]').element.value).toBe(
-      '',
+    expect(
+      wrapper.find('input[placeholder="请输入登录密码"]').element.value,
+    ).toBe('');
+    expect(wrapper.find('input[placeholder="请输入验证码"]').exists()).toBe(
+      false,
     );
+    expect(wrapper.find('button[type="primary"]').text()).toBe('登录');
     expect(getVerifyCodeApi).not.toHaveBeenCalled();
 
     wrapper.unmount();
@@ -209,9 +222,9 @@ describe('login auto-login prompt', () => {
     expect(
       wrapper.find('input[placeholder="请输入手机号或邮箱"]').element.value,
     ).toBe('sa');
-    expect(wrapper.find('input[placeholder="请输入登录密码"]').element.value).toBe(
-      '123456',
-    );
+    expect(
+      wrapper.find('input[placeholder="请输入登录密码"]').element.value,
+    ).toBe('123456');
 
     wrapper.unmount();
   });
@@ -227,9 +240,9 @@ describe('login auto-login prompt', () => {
     expect(
       wrapper.find('input[placeholder="请输入手机号或邮箱"]').element.value,
     ).toBe('sa');
-    expect(wrapper.find('input[placeholder="请输入登录密码"]').element.value).toBe(
-      '123456',
-    );
+    expect(
+      wrapper.find('input[placeholder="请输入登录密码"]').element.value,
+    ).toBe('123456');
 
     wrapper.unmount();
   });
@@ -248,7 +261,9 @@ describe('login auto-login prompt', () => {
     await wrapper
       .find('input[placeholder="请输入手机号或邮箱"]')
       .setValue('sa');
-    await wrapper.find('input[placeholder="请输入登录密码"]').setValue('123456');
+    await wrapper
+      .find('input[placeholder="请输入登录密码"]')
+      .setValue('123456');
     await wrapper.find('button[type="primary"]').trigger('click');
     await flushPromises();
     await wrapper.find('button[aria-label="刷新验证码"]').trigger('click');
@@ -258,9 +273,9 @@ describe('login auto-login prompt', () => {
       account: 'sa',
       verifyCodeType: 'Captcha',
     });
-    expect(wrapper.find('input[placeholder="请输入验证码"]').element.value).toBe(
-      '0462',
-    );
+    expect(
+      wrapper.find('input[placeholder="请输入验证码"]').element.value,
+    ).toBe('0462');
     expect(modalConfirm).toHaveBeenCalledWith(
       expect.objectContaining({
         title: '即将自动登录',
@@ -286,16 +301,18 @@ describe('login auto-login prompt', () => {
     const wrapper = mount(Login);
 
     await flushPromises();
-    await wrapper.find('input[placeholder="请输入登录密码"]').setValue('123456');
+    await wrapper
+      .find('input[placeholder="请输入登录密码"]')
+      .setValue('123456');
     await wrapper.find('button[type="primary"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.find('img[alt="验证码"]').attributes('src')).toBe(
       `data:image/png;base64,${imageBase64}`,
     );
-    expect(wrapper.find('input[placeholder="请输入验证码"]').element.value).toBe(
-      '0462',
-    );
+    expect(
+      wrapper.find('input[placeholder="请输入验证码"]').element.value,
+    ).toBe('0462');
 
     wrapper.unmount();
   });
@@ -316,7 +333,9 @@ describe('login auto-login prompt', () => {
     await wrapper
       .find('input[placeholder="请输入手机号或邮箱"]')
       .setValue('admin@example.com');
-    await wrapper.find('input[placeholder="请输入手机号或邮箱"]').trigger('blur');
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .trigger('blur');
     await flushPromises();
 
     expect(startPasswordLoginApi).not.toHaveBeenCalled();
@@ -337,7 +356,9 @@ describe('login auto-login prompt', () => {
     await wrapper
       .find('input[placeholder="请输入手机号或邮箱"]')
       .setValue('mfa-user');
-    await wrapper.find('input[placeholder="请输入登录密码"]').setValue('123456');
+    await wrapper
+      .find('input[placeholder="请输入登录密码"]')
+      .setValue('123456');
     await wrapper.find('button[type="primary"]').trigger('click');
     await flushPromises();
 
@@ -345,12 +366,18 @@ describe('login auto-login prompt', () => {
       account: 'mfa-user',
       password: '123456',
     });
-    expect(wrapper.text()).toContain('MFA验证码');
-    expect(wrapper.find('button[aria-label="刷新验证码"]').exists()).toBe(false);
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('Google 验证器验证');
+    expect(wrapper.text()).toContain('Google Authenticator');
+    expect(wrapper.find('button[aria-label="刷新验证码"]').exists()).toBe(
+      false,
+    );
     expect(getVerifyCodeApi).not.toHaveBeenCalled();
 
-    await wrapper.find('input[placeholder="请输入MFA验证码"]').setValue('123456');
-    await wrapper.find('button[type="primary"]').trigger('click');
+    await wrapper
+      .find('input[placeholder="请输入 Google 验证器验证码"]')
+      .setValue('123456');
+    await wrapper.find('[data-test="dialog-login"]').trigger('click');
 
     expect(authLoginWithPasswordChallenge).toHaveBeenCalledWith({
       account: 'mfa-user',
@@ -361,5 +388,4 @@ describe('login auto-login prompt', () => {
 
     wrapper.unmount();
   });
-
 });
