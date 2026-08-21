@@ -836,12 +836,10 @@ async function completePasswordLogin(verifyCodeValue?: unknown) {
 
   clearAutoLoginCountdown();
 
-  const rawVerifyCode = verifyCodeValue ?? formState.verifyCode;
-  const verifyCode = typeof rawVerifyCode === 'string'
-    ? rawVerifyCode.trim()
-    : rawVerifyCode == null
-      ? ''
-      : JSON.stringify(rawVerifyCode);
+  // Ant Design Modal 的 ok 回调会传入 MouseEvent；不能让它覆盖输入框验证码。
+  const verifyCode = typeof verifyCodeValue === 'string'
+    ? verifyCodeValue.trim()
+    : formState.verifyCode.trim();
   if (!verifyCode) {
     message.warning(
       isPasswordMfaMode.value

@@ -6,7 +6,7 @@ import { ref } from 'vue';
 
 import { JsonViewer } from '@vben/common-ui';
 
-import { Button, Modal, Tooltip } from 'ant-design-vue';
+import { Button, Modal, QRCode, Tooltip } from 'ant-design-vue';
 
 import { DEFAULT_CONTENT_MODAL_BODY_STYLE } from './config-helpers';
 
@@ -39,7 +39,8 @@ function isLargeDisplayField(field: CrudFieldConfig | undefined, value: any) {
     field.type === 'code' ||
     field.type === 'css' ||
     field.type === 'html' ||
-    field.type === 'json'
+    field.type === 'json' ||
+    field.type === 'qrcode'
   );
 }
 
@@ -85,6 +86,13 @@ function getDisplayText(entry: DetailDisplayEntry) {
           >
         </Tooltip>
         <Button @click="openJsonViewer(entry)">查看 JSON</Button>
+      </div>
+      <div v-else-if="entry.kind === 'qrcode'" class="flex justify-center py-2">
+        <QRCode
+          :size="168"
+          :value="String(entry.value)"
+          data-test="detail-display-qrcode"
+        />
       </div>
       <Tooltip
         v-else

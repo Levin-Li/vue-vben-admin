@@ -468,6 +468,7 @@ export const userPageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       type: 'select',
+      valueType: 'number',
       width: 120,
     },
     {
@@ -477,6 +478,7 @@ export const userPageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       type: 'select',
+      valueType: 'number',
       width: 160,
     },
     {
@@ -566,6 +568,14 @@ export const userPageCrudConfig: CrudPageConfig = {
       label: '备注',
       fullRow: true,
       type: 'textarea',
+    },
+    {
+      form: false,
+      fullRow: true,
+      key: 'mfaQrCode',
+      label: 'MFA二维码',
+      table: false,
+      type: 'qrcode',
     },
   ],
   modalWidth: 1120,

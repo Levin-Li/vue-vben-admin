@@ -67,6 +67,8 @@ export const dictPageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'select',
     },
+    { key: 'category', label: '类别', form: false, search: true },
+    { key: 'groupName', label: '分组', form: false, search: true },
     {
       key: 'gteCreateTime',
       label: '创建时间开始',
@@ -110,6 +112,22 @@ export const dictPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'select',
       width: 120,
+    },
+    {
+      key: 'category',
+      label: '类别',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
+      table: true,
+      width: 140,
+    },
+    {
+      key: 'groupName',
+      label: '分组',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
+      table: true,
+      width: 140,
     },
     {
       key: 'itemList',

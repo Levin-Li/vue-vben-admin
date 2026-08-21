@@ -176,6 +176,7 @@ const rolePageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       type: 'select',
+      valueType: 'number',
       width: 120,
     },
     {
@@ -185,6 +186,7 @@ const rolePageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       type: 'select',
+      valueType: 'number',
       width: 160,
     },
     {

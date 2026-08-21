@@ -165,6 +165,7 @@ import {
   shouldReloadRemoteOptionsOnDropdownOpen,
 } from './crud-select-options';
 import { normalizeLeftFixedTableColumns } from './crud-table-columns';
+import { serializeCrudFieldValue } from './crud-field-value';
 import {
   buildCrudCollectionTooltipText,
   buildCrudTooltipText,
@@ -1757,44 +1758,6 @@ function normalizeFormValue(field: CrudFieldConfig, value: any) {
   return value;
 }
 
-function serializeScalarValue(field: CrudFieldConfig, value: any) {
-  if (value === '' || value === null || value === undefined) {
-    return undefined;
-  }
-
-  if (field.valueType === 'number' || field.type === 'number') {
-    const numberValue = Number(value);
-    if (!Number.isFinite(numberValue)) {
-      throw new TypeError(`${field.label}的值[${value}]不是有效数字`);
-    }
-    return numberValue;
-  }
-
-  if (field.valueType === 'boolean') {
-    if (typeof value === 'boolean') {
-      return value;
-    }
-
-    if (String(value).toLowerCase() === 'true') {
-      return true;
-    }
-
-    if (String(value).toLowerCase() === 'false') {
-      return false;
-    }
-  }
-
-  return value;
-}
-
-function serializeFieldValue(field: CrudFieldConfig, value: any) {
-  if (Array.isArray(value)) {
-    return value.map((item) => serializeScalarValue(field, item));
-  }
-
-  return serializeScalarValue(field, value);
-}
-
 function serializeFormValue(field: CrudFieldConfig, value: any) {
   if (field.type === 'json') {
     if (value === null || value === undefined || value === '') {
@@ -1832,7 +1795,7 @@ function serializeFormValue(field: CrudFieldConfig, value: any) {
       .filter(Boolean);
   }
 
-  return serializeFieldValue(field, value);
+  return serializeCrudFieldValue(field, value);
 }
 
 function isChoiceFormField(field: CrudFieldConfig) {
@@ -1895,7 +1858,7 @@ function buildSearchParams() {
     const value =
       field.type === 'string-array' || field.type === 'tags'
         ? serializeFormValue(field, searchState[field.key])
-        : serializeFieldValue(field, searchState[field.key]);
+        : serializeCrudFieldValue(field, searchState[field.key]);
     if (value === undefined || (Array.isArray(value) && value.length === 0)) {
       continue;
     }
@@ -2260,8 +2223,8 @@ function canShowTemplateDelete(template: CrudExportTemplateRecord) {
 
   return Boolean(
     deleteAction &&
-      deleteParams &&
-      canShowCrudTemplateDelete({
+    deleteParams &&
+    canShowCrudTemplateDelete({
       hasDeletePermission: hasPermission(importTemplateDeletePermission.value),
       template,
       userInfo: userStore.userInfo as Record<string, any> | undefined,

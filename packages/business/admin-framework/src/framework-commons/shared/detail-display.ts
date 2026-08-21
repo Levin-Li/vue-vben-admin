@@ -2,7 +2,7 @@ import type { CrudFieldConfig } from './types';
 
 import { sortFormLayoutFields } from './crud-form-layout';
 
-export type DetailDisplayEntryKind = 'array' | 'json' | 'scalar';
+export type DetailDisplayEntryKind = 'array' | 'json' | 'qrcode' | 'scalar';
 
 export interface DetailDisplayEntry {
   field?: CrudFieldConfig;
@@ -80,6 +80,10 @@ function getEntryLabel(key: string, field?: CrudFieldConfig) {
 }
 
 function getEntryKind(field: CrudFieldConfig | undefined, value: any) {
+  if (field?.type === 'qrcode') {
+    return 'qrcode';
+  }
+
   if (field?.type === 'json') {
     return 'json';
   }

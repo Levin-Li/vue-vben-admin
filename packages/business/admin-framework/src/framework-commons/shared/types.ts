@@ -16,6 +16,7 @@ export type CrudFieldType =
   | 'number'
   | 'org-tree-select'
   | 'password'
+  | 'qrcode'
   | 'role-select'
   | 'select'
   | 'string-array'

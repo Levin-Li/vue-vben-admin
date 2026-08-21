@@ -192,6 +192,7 @@ export const orgPageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       type: 'select',
+      valueType: 'number',
       width: 120,
     },
     {

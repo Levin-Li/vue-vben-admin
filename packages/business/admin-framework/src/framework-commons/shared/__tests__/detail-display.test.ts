@@ -28,6 +28,7 @@ const fields = [
   },
   { key: 'tags', label: '标签', type: 'tags' },
   { key: 'setting', label: '设置', type: 'json' },
+  { fullRow: true, key: 'mfaQrCode', label: 'MFA二维码', type: 'qrcode' },
   { key: 'plainList', label: '普通列表' },
   { key: 'complexList', label: '复杂列表' },
 ] as any[];
@@ -130,6 +131,21 @@ describe('detail display rules', () => {
     expect(entry && formatDetailDisplayValue(entry)).toBe(
       '{"auth":{"enabled":true}}',
     );
+  });
+
+  it('marks explicitly configured QR fields without treating their URI as text', () => {
+    const [entry] = buildDetailDisplayEntries(
+      {
+        mfaQrCode: 'otpauth://totp/example?secret=ABC',
+      },
+      fields,
+    );
+
+    expect(entry).toMatchObject({
+      key: 'mfaQrCode',
+      kind: 'qrcode',
+      label: 'MFA二维码',
+    });
   });
 
   it('keeps primitive arrays but filters complex object arrays by default', () => {

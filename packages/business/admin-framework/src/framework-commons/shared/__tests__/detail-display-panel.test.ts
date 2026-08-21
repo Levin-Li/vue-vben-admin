@@ -30,6 +30,7 @@ describe('detail display panel', () => {
     const entries = buildDetailDisplayEntries(
       {
         complexObject: { hidden: true },
+        mfaQrCode: 'otpauth://totp/example?secret=ABC',
         mode: 'A',
         setting: { enabled: true, limits: [1, 2] },
         statuses: ['A', 'B'],
@@ -43,6 +44,12 @@ describe('detail display panel', () => {
             { label: '模式 B', value: 'B' },
           ],
           type: 'select',
+        },
+        {
+          fullRow: true,
+          key: 'mfaQrCode',
+          label: 'MFA二维码',
+          type: 'qrcode',
         },
         {
           fullRow: true,
@@ -73,8 +80,13 @@ describe('detail display panel', () => {
     expect(wrapper.text()).toContain('模式 A');
     expect(wrapper.text()).toContain('启用, 停用');
     expect(wrapper.text()).toContain('查看 JSON');
+    expect(wrapper.text()).toContain('MFA二维码');
+    expect(wrapper.text()).not.toContain('otpauth://totp/example?secret=ABC');
     expect(wrapper.text()).not.toContain('complexObject');
     expect(wrapper.find('textarea[readonly]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="detail-display-qrcode"]').exists()).toBe(
+      true,
+    );
 
     const valueBlocks = wrapper.findAll('[data-test="detail-display-value"]');
     expect(valueBlocks).toHaveLength(3);

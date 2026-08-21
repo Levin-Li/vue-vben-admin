@@ -32,6 +32,16 @@ describe('dict page config', () => {
       layoutGroup: 'business',
       layoutNewRow: true,
     });
+    expect(fields.find((field) => field.key === 'category' && field.table)).toMatchObject({
+      layoutGroup: 'basic',
+      layoutOrder: 40,
+      table: true,
+    });
+    expect(fields.find((field) => field.key === 'groupName' && field.table)).toMatchObject({
+      layoutGroup: 'basic',
+      layoutOrder: 50,
+      table: true,
+    });
     expect(fields.find((field) => field.key === 'remark')).toMatchObject({
       fullRow: true,
       layoutGroup: 'remark',
@@ -41,6 +51,8 @@ describe('dict page config', () => {
     expect(visualIndexOf('tenantId')).toBeLessThan(visualIndexOf('name'));
     expect(visualIndexOf('name')).toBeLessThan(visualIndexOf('code'));
     expect(visualIndexOf('code')).toBeLessThan(visualIndexOf('type'));
+    expect(visualIndexOf('type')).toBeLessThan(visualIndexOf('category'));
+    expect(visualIndexOf('category')).toBeLessThan(visualIndexOf('groupName'));
     expect(visualIndexOf('type')).toBeLessThan(visualIndexOf('itemList'));
     expect(visualIndexOf('itemList')).toBeLessThan(visualIndexOf('orderCode'));
     expect(visualIndexOf('editable')).toBeLessThan(visualIndexOf('remark'));
