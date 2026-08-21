@@ -5,14 +5,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   authLogin,
+  authLoginWithAccessToken,
   authLoginWithPasswordChallenge,
   getVerifyCodeApi,
+  messageWarning,
+  oauthService,
   startPasswordLoginApi,
 } = vi.hoisted(() => {
   return {
     authLogin: vi.fn(),
+    authLoginWithAccessToken: vi.fn(),
     authLoginWithPasswordChallenge: vi.fn(),
     getVerifyCodeApi: vi.fn(),
+    messageWarning: vi.fn(),
+    oauthService: {
+      createTransaction: vi.fn(),
+      exchangeTransaction: vi.fn(),
+      getSupportedPlatforms: vi.fn(),
+      getTransaction: vi.fn(),
+    },
     startPasswordLoginApi: vi.fn(),
   };
 });
@@ -27,12 +38,14 @@ vi.mock('@vben/locales', () => ({
 
 vi.mock('@levin/admin-framework/framework-commons/app/api', () => ({
   getVerifyCodeApi,
+  oauthService,
   startPasswordLoginApi,
 }));
 
 vi.mock('@levin/admin-framework/framework-commons/app/store', () => ({
   useAuthStore: () => ({
     authLogin,
+    authLoginWithAccessToken,
     authLoginWithPasswordChallenge,
     loginLoading: false,
   }),
@@ -105,7 +118,7 @@ vi.mock('ant-design-vue', () => {
       error: vi.fn(),
       info: vi.fn(),
       success: vi.fn(),
-      warning: vi.fn(),
+      warning: messageWarning,
     },
     Modal: defineComponent({
       emits: ['cancel', 'ok', 'update:open'],
@@ -131,7 +144,8 @@ vi.mock('ant-design-vue', () => {
       },
     ),
     Tooltip: defineComponent({
-      template: '<span><slot /></span>',
+      props: ['title'],
+      template: '<span :title="title"><slot /></span>',
     }),
   };
 });
@@ -157,18 +171,162 @@ describe('login auto-login prompt', () => {
       }),
     });
     authLogin.mockReset();
+    authLoginWithAccessToken.mockReset();
     authLoginWithPasswordChallenge.mockReset();
     getVerifyCodeApi.mockReset();
+    messageWarning.mockReset();
+    oauthService.createTransaction.mockReset();
+    oauthService.exchangeTransaction.mockReset();
+    oauthService.getSupportedPlatforms.mockReset();
+    oauthService.getTransaction.mockReset();
     startPasswordLoginApi.mockReset();
     startPasswordLoginApi.mockResolvedValue({
       challengeId: 'challenge-1',
       verifyCodeType: 'Captcha',
     });
+    oauthService.getSupportedPlatforms.mockResolvedValue([]);
+    vi.stubGlobal(
+      'open',
+      vi.fn(() => ({
+        close: vi.fn(),
+        closed: false,
+        location: {
+          replace: vi.fn(),
+        },
+        opener: null,
+      })),
+    );
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it('hides the OAuth login section when the tenant has no scan platforms', async () => {
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+
+    expect(oauthService.getSupportedPlatforms).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('[data-test="oauth-login-section"]').exists()).toBe(
+      false,
+    );
+
+    wrapper.unmount();
+  });
+
+  it('creates an OAuth transaction and exchanges the token after polling completes', async () => {
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      {
+        code: 'WECHAT_OPEN',
+        name: '微信',
+        supports: ['qr_login'],
+      },
+    ]);
+    oauthService.createTransaction.mockResolvedValue({
+      authorizeUrl: 'https://oauth.example.test/wechat',
+      id: 'tx-login-1',
+    });
+    oauthService.getTransaction.mockResolvedValue({
+      id: 'tx-login-1',
+      status: 'COMPLETED',
+    });
+    oauthService.exchangeTransaction.mockResolvedValue({
+      accessToken: 'oauth-access-token',
+    });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+    const oauthButton = wrapper.find('[aria-label="微信"]');
+    expect(oauthButton.exists()).toBe(true);
+    expect(oauthButton.text()).toBe('');
+    expect(oauthButton.element.parentElement?.getAttribute('title')).toBe(
+      '微信',
+    );
+
+    await oauthButton.trigger('click');
+    await flushPromises();
+
+    expect(oauthService.createTransaction).toHaveBeenCalledWith({
+      callbackUrl: 'https://example.test/',
+      platform: 'WECHAT_OPEN',
+      purpose: 'LOGIN',
+    });
+    expect(oauthService.getTransaction).toHaveBeenCalledWith('tx-login-1');
+    expect(oauthService.exchangeTransaction).toHaveBeenCalledWith('tx-login-1');
+    expect(authLoginWithAccessToken).toHaveBeenCalledWith('oauth-access-token');
+
+    wrapper.unmount();
+  });
+
+  it('closes the waiting dialog when OAuth polling reports a failed transaction', async () => {
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      {
+        code: 'WECHAT_OPEN',
+        name: '微信',
+        supports: ['qr_login'],
+      },
+    ]);
+    oauthService.createTransaction.mockResolvedValue({
+      authorizeUrl: 'https://oauth.example.test/wechat',
+      id: 'tx-login-failed',
+    });
+    oauthService.getTransaction.mockResolvedValue({
+      errorMessage: '第三方授权失败',
+      id: 'tx-login-failed',
+      status: 'FAILED',
+    });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+    await wrapper.find('[aria-label="微信"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('等待第三方授权登录');
+    expect(messageWarning).toHaveBeenCalledWith('第三方授权失败');
+
+    wrapper.unmount();
+  });
+
+  it('closes the waiting dialog after three minutes without OAuth completion', async () => {
+    vi.useFakeTimers();
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      {
+        code: 'WECHAT_OPEN',
+        name: '微信',
+        supports: ['qr_login'],
+      },
+    ]);
+    oauthService.createTransaction.mockResolvedValue({
+      authorizeUrl: 'https://oauth.example.test/wechat',
+      id: 'tx-login-timeout',
+    });
+    oauthService.getTransaction.mockResolvedValue({
+      id: 'tx-login-timeout',
+      status: 'PENDING',
+    });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+    await wrapper.find('[aria-label="微信"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('等待【微信】授权登录');
+
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('等待第三方授权登录');
+    expect(messageWarning).toHaveBeenCalledWith('第三方授权已超时');
+
+    wrapper.unmount();
   });
 
   it('does not prefill credentials on non-loopback hosts when no account was remembered', async () => {
@@ -380,17 +538,27 @@ describe('login auto-login prompt', () => {
       password: '123456',
     });
     expect(wrapper.find('[role="dialog"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain('Google 验证器验证');
-    expect(wrapper.text()).toContain('Google Authenticator');
+    expect(wrapper.text()).toContain('MFA 验证');
+    expect(wrapper.text()).toContain('Microsoft Authenticator');
     expect(wrapper.find('button[aria-label="刷新验证码"]').exists()).toBe(
       false,
     );
     expect(getVerifyCodeApi).not.toHaveBeenCalled();
 
     await wrapper
-      .find('input[placeholder="请输入 Google 验证器验证码"]')
+      .find('input[placeholder="请输入 MFA 验证码"]')
+      .setValue('12a345');
+    await flushPromises();
+
+    expect(
+      wrapper.find('input[placeholder="请输入 MFA 验证码"]').element.value,
+    ).toBe('12345');
+    expect(authLoginWithPasswordChallenge).not.toHaveBeenCalled();
+
+    await wrapper
+      .find('input[placeholder="请输入 MFA 验证码"]')
       .setValue('123456');
-    await wrapper.find('[data-test="dialog-login"]').trigger('click');
+    await flushPromises();
 
     expect(authLoginWithPasswordChallenge).toHaveBeenCalledWith({
       account: 'mfa-user',
@@ -398,6 +566,115 @@ describe('login auto-login prompt', () => {
       verifyCode: '123456',
       verifyCodeType: 'Mfa',
     });
+
+    wrapper.unmount();
+  });
+
+  it('keeps the MFA dialog open and renews the challenge after a code error', async () => {
+    startPasswordLoginApi
+      .mockResolvedValueOnce({
+        challengeId: 'mfa-challenge-1',
+        verifyCodeType: 'Mfa',
+      })
+      .mockResolvedValueOnce({
+        challengeId: 'mfa-challenge-2',
+        verifyCodeType: 'Mfa',
+      });
+    authLoginWithPasswordChallenge.mockRejectedValueOnce(
+      new Error('验证码错误'),
+    );
+
+    const { default: Login } = await import('../login.vue');
+    const wrapper = mount(Login);
+
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .setValue('mfa-user');
+    await wrapper
+      .find('input[placeholder="请输入登录密码"]')
+      .setValue('123456');
+    await wrapper.find('button[type="primary"]').trigger('click');
+    await flushPromises();
+
+    await wrapper
+      .find('input[placeholder="请输入 MFA 验证码"]')
+      .setValue('123456');
+    await flushPromises();
+
+    expect(startPasswordLoginApi).toHaveBeenCalledTimes(2);
+    expect(startPasswordLoginApi).toHaveBeenLastCalledWith({
+      account: 'mfa-user',
+      password: '123456',
+    });
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true);
+    expect(
+      wrapper.find('input[placeholder="请输入 MFA 验证码"]').element.value,
+    ).toBe('');
+
+    wrapper.unmount();
+  });
+
+  it('renders the shared behavior captcha and submits its encoded payload with the password challenge', async () => {
+    startPasswordLoginApi.mockResolvedValue({
+      challengeId: 'hmi-challenge',
+      verifyCodeType: 'Hmi',
+    });
+    getVerifyCodeApi.mockResolvedValue({
+      interactionData: {
+        challengeId: 'hmi-captcha-id',
+        mode: 'TEXT_CLICK',
+        publicData: {
+          image: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
+          thumb: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
+          viewport: { height: 180, width: 320 },
+        },
+      },
+    });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .setValue('hmi-user');
+    await wrapper
+      .find('input[placeholder="请输入登录密码"]')
+      .setValue('123456');
+    await wrapper.find('button[type="primary"]').trigger('click');
+    await flushPromises();
+
+    expect(getVerifyCodeApi).toHaveBeenCalledWith({
+      account: 'hmi-user',
+      verifyCodeType: 'Hmi',
+    });
+    wrapper.findComponent({ name: 'BehaviorCaptcha' }).vm.$emit(
+      'complete',
+      JSON.stringify({
+        answer: { points: [{ x: 80, y: 60 }] },
+        challengeId: 'hmi-captcha-id',
+        data: 'hmi-captcha-id',
+        mode: 'TEXT_CLICK',
+        operations: [{ type: 'click', x: 80, y: 60 }],
+      }),
+    );
+    await flushPromises();
+
+    expect(authLoginWithPasswordChallenge).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: 'hmi-user',
+        loginVerifyChallengeId: 'hmi-challenge',
+        verifyCodeType: 'Hmi',
+      }),
+    );
+    const submitted = authLoginWithPasswordChallenge.mock.calls.at(-1)?.[0];
+    expect(JSON.parse(submitted?.verifyCode || '{}')).toEqual(
+      expect.objectContaining({
+        challengeId: 'hmi-captcha-id',
+        data: 'hmi-captcha-id',
+        mode: 'TEXT_CLICK',
+        operations: expect.any(Array),
+      }),
+    );
 
     wrapper.unmount();
   });

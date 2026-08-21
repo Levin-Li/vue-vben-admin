@@ -32,17 +32,39 @@ defineOptions({
 });
 
 const props = withDefaults(defineProps<Props>(), {
+  baseBackgroundColor: 'hsl(var(--background-deep))',
   contentCompact: 'wide',
   contentCompactWidth: 1200,
+  contentBackgroundColor: 'transparent',
   contentPadding: 0,
-  contentPaddingBottom: 0,
-  contentPaddingLeft: 0,
-  contentPaddingRight: 0,
-  contentPaddingTop: 0,
+  contentMarginBottom: 0,
+  contentMarginLeft: 0,
+  contentMarginRight: 0,
+  contentMarginTop: 0,
+  contentRadiusTopLeft: 0,
+  contentRadiusTopRight: 0,
+  contentRadiusBottomRight: 0,
+  contentRadiusBottomLeft: 0,
+  contentBorderTopWidth: 0,
+  contentBorderRightWidth: 0,
+  contentBorderBottomWidth: 0,
+  contentBorderLeftWidth: 0,
   footerEnable: false,
   footerFixed: true,
   footerHeight: 32,
   headerHeight: 50,
+  headerMarginTop: 0,
+  headerMarginRight: 0,
+  headerMarginBottom: 0,
+  headerMarginLeft: 0,
+  headerRadiusTopLeft: 0,
+  headerRadiusTopRight: 0,
+  headerRadiusBottomRight: 0,
+  headerRadiusBottomLeft: 0,
+  headerBorderTopWidth: 0,
+  headerBorderRightWidth: 0,
+  headerBorderBottomWidth: 0,
+  headerBorderLeftWidth: 0,
   headerHidden: false,
   headerMode: 'fixed',
   headerToggleSidebarButton: true,
@@ -52,15 +74,43 @@ const props = withDefaults(defineProps<Props>(), {
   sidebarCollapsedButton: true,
   sidebarCollapseShowTitle: false,
   sidebarExtraCollapsedWidth: 60,
+  sidebarExtraMenuVisible: true,
   sidebarFixedButton: true,
   sidebarHidden: false,
   sidebarMixedWidth: 80,
+  sidebarMixedMenuGap: 6,
+  sidebarMenuItemGap: 4,
   sidebarTheme: 'dark',
   sidebarThemeSub: 'dark',
   sidebarWidth: 180,
+  sidebarMarginTop: 0,
+  sidebarMarginRight: 0,
+  sidebarMarginBottom: 0,
+  sidebarMarginLeft: 0,
+  sidebarRadiusTopLeft: 0,
+  sidebarRadiusTopRight: 0,
+  sidebarRadiusBottomRight: 0,
+  sidebarRadiusBottomLeft: 0,
+  sidebarBorderTopWidth: 0,
+  sidebarBorderRightWidth: 0,
+  sidebarBorderBottomWidth: 0,
+  sidebarBorderLeftWidth: 0,
   sideCollapseWidth: 60,
   tabbarEnable: true,
   tabbarHeight: 40,
+  tabbarBackgroundColor: 'hsl(var(--background))',
+  tabbarMarginTop: 0,
+  tabbarMarginRight: 0,
+  tabbarMarginBottom: 0,
+  tabbarMarginLeft: 0,
+  tabbarRadiusTopLeft: 0,
+  tabbarRadiusTopRight: 0,
+  tabbarRadiusBottomRight: 0,
+  tabbarRadiusBottomLeft: 0,
+  tabbarBorderTopWidth: 0,
+  tabbarBorderRightWidth: 0,
+  tabbarBorderBottomWidth: 1,
+  tabbarBorderLeftWidth: 0,
   zIndex: 200,
 });
 
@@ -108,13 +158,18 @@ const {
  */
 const isHeaderAutoMode = computed(() => props.headerMode === 'auto');
 
+const headerOuterHeight = computed(() => {
+  return props.headerHeight + props.headerMarginTop + props.headerMarginBottom;
+});
+
 const headerWrapperHeight = computed(() => {
   let height = 0;
   if (props.headerVisible && !props.headerHidden) {
-    height += props.headerHeight;
+    height += headerOuterHeight.value;
   }
   if (props.tabbarEnable) {
-    height += props.tabbarHeight;
+    height +=
+      props.tabbarHeight + props.tabbarMarginTop + props.tabbarMarginBottom;
   }
   return height;
 });
@@ -140,9 +195,9 @@ const sidebarEnableState = computed(() => {
 /**
  * 侧边区域离顶部高度
  */
-const sidebarMarginTop = computed(() => {
-  const { headerHeight, isMobile } = props;
-  return isMixedNav.value && !isMobile ? headerHeight : 0;
+const sidebarOffsetTop = computed(() => {
+  const { isMobile } = props;
+  return isMixedNav.value && !isMobile ? headerOuterHeight.value : 0;
 });
 
 /**
@@ -214,6 +269,13 @@ const showSidebar = computed(() => {
   return isSideMode.value && sidebarEnable.value && !props.sidebarHidden;
 });
 
+const sidebarHorizontalMargins = computed(() => {
+  if (!showSidebar.value || props.isMobile) {
+    return 0;
+  }
+  return props.sidebarMarginLeft + props.sidebarMarginRight;
+});
+
 /**
  * 遮罩可见性
  */
@@ -233,8 +295,8 @@ const mainStyle = computed(() => {
     // fixed模式下生效
     const isSideNavEffective =
       (isSidebarMixedNav.value || isHeaderMixedNav.value) &&
-      sidebarExpandOnHover.value &&
-      sidebarExtraVisible.value;
+      sidebarExtraVisible.value &&
+      props.sidebarExtraMenuVisible;
 
     if (isSideNavEffective) {
       const sideCollapseWidth = sidebarCollapse.value
@@ -245,13 +307,15 @@ const mainStyle = computed(() => {
         : props.sidebarWidth;
 
       // 100% - 侧边菜单混合宽度 - 菜单宽度
-      sidebarAndExtraWidth = `${sideCollapseWidth + sideWidth}px`;
+      sidebarAndExtraWidth = `${
+        sideCollapseWidth + sideWidth + sidebarHorizontalMargins.value * 2
+      }px`;
       width = `calc(100% - ${sidebarAndExtraWidth})`;
     } else {
       sidebarAndExtraWidth =
         sidebarExpandOnHovering.value && !sidebarExpandOnHover.value
-          ? `${getSideCollapseWidth.value}px`
-          : `${getSidebarWidth.value}px`;
+          ? `${getSideCollapseWidth.value + sidebarHorizontalMargins.value}px`
+          : `${getSidebarWidth.value + sidebarHorizontalMargins.value}px`;
       width = `calc(100% - ${sidebarAndExtraWidth})`;
     }
   }
@@ -294,19 +358,21 @@ const tabbarStyle = computed((): CSSProperties => {
 });
 
 const contentStyle = computed((): CSSProperties => {
-  const fixed = headerFixed.value;
-
   const { footerEnable, footerFixed, footerHeight } = props;
   return {
-    marginTop:
-      fixed &&
-      !isFullContent.value &&
-      !headerIsHidden.value &&
-      (!isHeaderAutoMode.value || scrollY.value < headerWrapperHeight.value)
-        ? `${headerWrapperHeight.value}px`
-        : 0,
     paddingBottom: `${footerEnable && footerFixed ? footerHeight : 0}px`,
   };
+});
+
+const contentOffsetTop = computed(() => {
+  const fixed = headerFixed.value;
+
+  return fixed &&
+    !isFullContent.value &&
+    !headerIsHidden.value &&
+    (!isHeaderAutoMode.value || scrollY.value < headerWrapperHeight.value)
+    ? headerWrapperHeight.value
+    : 0;
 });
 
 const headerZIndex = computed(() => {
@@ -318,6 +384,7 @@ const headerZIndex = computed(() => {
 const headerWrapperStyle = computed((): CSSProperties => {
   const fixed = headerFixed.value;
   return {
+    backgroundColor: props.baseBackgroundColor,
     height: isFullContent.value ? '0' : `${headerWrapperHeight.value}px`,
     left: isMixedNav.value ? 0 : mainStyle.value.sidebarAndExtraWidth,
     position: fixed ? 'fixed' : 'static',
@@ -483,7 +550,12 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
 </script>
 
 <template>
-  <div class="relative flex min-h-full w-full">
+  <div
+    :class="[
+      'relative flex w-full',
+      isMobile ? 'min-h-full' : 'h-full min-h-0',
+    ]"
+  >
     <LayoutSidebar
       v-if="sidebarEnableState"
       v-model:collapse="sidebarCollapse"
@@ -496,14 +568,29 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
       :collapse-width="getSideCollapseWidth"
       :dom-visible="!isMobile"
       :extra-width="sidebarExtraWidth"
+      :extra-menu-visible="sidebarExtraMenuVisible"
       :fixed-extra="sidebarExpandOnHover"
       :header-height="isMixedNav ? 0 : headerHeight"
       :is-sidebar-mixed="isSidebarMixedNav || isHeaderMixedNav"
-      :margin-top="sidebarMarginTop"
+      :offset-top="sidebarOffsetTop"
       :menu-background-color="sidebarMenuBackgroundColor"
       :menu-hover-background-color="sidebarMenuHoverBackgroundColor"
       :menu-use-primary-active-color="sidebarMenuUsePrimaryActiveColor"
       :mixed-width="sidebarMixedWidth"
+      :extra-gap="sidebarMixedMenuGap"
+      :menu-item-gap="sidebarMenuItemGap"
+      :margin-bottom="sidebarMarginBottom"
+      :margin-left="sidebarMarginLeft"
+      :margin-right="sidebarMarginRight"
+      :margin-top="sidebarMarginTop"
+      :radius-top-left="sidebarRadiusTopLeft"
+      :radius-top-right="sidebarRadiusTopRight"
+      :radius-bottom-right="sidebarRadiusBottomRight"
+      :radius-bottom-left="sidebarRadiusBottomLeft"
+      :border-top-width="sidebarBorderTopWidth"
+      :border-right-width="sidebarBorderRightWidth"
+      :border-bottom-width="sidebarBorderBottomWidth"
+      :border-left-width="sidebarBorderLeftWidth"
       :show="showSidebar"
       :theme="sidebarTheme"
       :theme-color="sidebarThemeColor"
@@ -534,7 +621,10 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
 
     <div
       ref="contentRef"
-      class="flex flex-1 flex-col overflow-hidden transition-all duration-300 ease-in"
+      :class="[
+        'flex flex-1 flex-col transition-all duration-300 ease-in',
+        isMobile ? 'overflow-visible' : 'min-h-0 overflow-hidden',
+      ]"
     >
       <div
         :class="[
@@ -544,12 +634,24 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
           SCROLL_FIXED_CLASS,
         ]"
         :style="headerWrapperStyle"
-        class="overflow-hidden transition-all duration-200"
+        class="overflow-visible transition-all duration-200"
       >
         <LayoutHeader
           v-if="headerVisible"
           :full-width="!isSideMode"
           :height="headerHeight"
+          :margin-top="headerMarginTop"
+          :margin-right="headerMarginRight"
+          :margin-bottom="headerMarginBottom"
+          :margin-left="headerMarginLeft"
+          :radius-top-left="headerRadiusTopLeft"
+          :radius-top-right="headerRadiusTopRight"
+          :radius-bottom-right="headerRadiusBottomRight"
+          :radius-bottom-left="headerRadiusBottomLeft"
+          :border-top-width="headerBorderTopWidth"
+          :border-right-width="headerBorderRightWidth"
+          :border-bottom-width="headerBorderBottomWidth"
+          :border-left-width="headerBorderLeftWidth"
           :is-mobile="isMobile"
           :show="!isFullContent && !headerHidden"
           :sidebar-width="sidebarWidth"
@@ -565,7 +667,7 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
           <template #toggle-button>
             <VbenIconButton
               v-if="showHeaderToggleButton"
-              class="my-0 mr-1 rounded-md"
+              class="header-theme-control my-0 mr-1 rounded-md"
               @click="handleHeaderToggle"
             >
               <IconifyIcon v-if="showSidebar" icon="ep:fold" />
@@ -577,7 +679,20 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
 
         <LayoutTabbar
           v-if="tabbarEnable"
+          :background-color="tabbarBackgroundColor"
+          :border-bottom-width="tabbarBorderBottomWidth"
+          :border-left-width="tabbarBorderLeftWidth"
+          :border-right-width="tabbarBorderRightWidth"
+          :border-top-width="tabbarBorderTopWidth"
           :height="tabbarHeight"
+          :margin-bottom="tabbarMarginBottom"
+          :margin-left="tabbarMarginLeft"
+          :margin-right="tabbarMarginRight"
+          :margin-top="tabbarMarginTop"
+          :radius-bottom-left="tabbarRadiusBottomLeft"
+          :radius-bottom-right="tabbarRadiusBottomRight"
+          :radius-top-left="tabbarRadiusTopLeft"
+          :radius-top-right="tabbarRadiusTopRight"
           :style="tabbarStyle"
         >
           <slot name="tabbar"></slot>
@@ -589,13 +704,26 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
         :id="idMainContent"
         :content-compact="contentCompact"
         :content-compact-width="contentCompactWidth"
+        :background-color="contentBackgroundColor"
+        :offset-top="contentOffsetTop"
         :padding="contentPadding"
-        :padding-bottom="contentPaddingBottom"
-        :padding-left="contentPaddingLeft"
-        :padding-right="contentPaddingRight"
-        :padding-top="contentPaddingTop"
+        :margin-bottom="contentMarginBottom"
+        :margin-left="contentMarginLeft"
+        :margin-right="contentMarginRight"
+        :margin-top="contentMarginTop"
+        :radius-top-left="contentRadiusTopLeft"
+        :radius-top-right="contentRadiusTopRight"
+        :radius-bottom-right="contentRadiusBottomRight"
+        :radius-bottom-left="contentRadiusBottomLeft"
+        :border-top-width="contentBorderTopWidth"
+        :border-right-width="contentBorderRightWidth"
+        :border-bottom-width="contentBorderBottomWidth"
+        :border-left-width="contentBorderLeftWidth"
         :style="contentStyle"
-        class="transition-[margin-top] duration-200"
+        :class="[
+          'transition-[margin-top] duration-200',
+          isMobile ? 'min-h-full' : 'min-h-0',
+        ]"
       >
         <slot name="content"></slot>
 
@@ -624,3 +752,21 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
     ></div>
   </div>
 </template>
+
+<style lang="scss">
+.header-theme-control {
+  background-color: var(--header-control-background, transparent) !important;
+  color: var(--header-control-foreground, inherit);
+
+  &:hover {
+    background-color: var(
+      --header-control-background-hover,
+      hsl(var(--accent))
+    ) !important;
+  }
+
+  svg {
+    color: currentColor;
+  }
+}
+</style>

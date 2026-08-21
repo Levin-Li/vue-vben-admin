@@ -11,15 +11,21 @@ import { convertToHsl, TinyColor } from '@vben/utils';
 import { useVbenModal } from '@vben-core/popup-ui';
 import { Input, VbenButton } from '@vben-core/shadcn-ui';
 
+import BackgroundSettings from './background-settings.vue';
 import BuiltinTheme from './builtin.vue';
 
 type ColorTarget =
+  | 'baseBackground'
+  | 'contentBackground'
   | 'destructive'
   | 'header'
+  | 'headerMenuBackground'
+  | 'headerMenuTheme'
   | 'menuBackground'
   | 'primary'
   | 'sidebar'
   | 'success'
+  | 'tabbarBackground'
   | 'warning';
 
 defineOptions({
@@ -32,17 +38,51 @@ const themeColorPrimary = defineModel<string>('themeColorPrimary');
 const themeColorDestructive = defineModel<string>('themeColorDestructive');
 const themeColorSuccess = defineModel<string>('themeColorSuccess');
 const themeColorWarning = defineModel<string>('themeColorWarning');
+const themeBaseBackgroundColor = defineModel<string>(
+  'themeBaseBackgroundColor',
+);
+const themeBaseBackgroundTransparency = defineModel<number>(
+  'themeBaseBackgroundTransparency',
+);
+const themeContentBackgroundColor = defineModel<string>(
+  'themeContentBackgroundColor',
+);
+const themeContentBackgroundTransparency = defineModel<number>(
+  'themeContentBackgroundTransparency',
+);
 const themeBuiltinType = defineModel<BuiltinThemeType>('themeBuiltinType', {
   default: 'default',
 });
 const themeSemiDarkSidebarColor = defineModel<string>(
   'themeSemiDarkSidebarColor',
 );
+const themeSemiDarkSidebarColorTransparency = defineModel<number>(
+  'themeSemiDarkSidebarColorTransparency',
+);
 const themeSemiDarkHeaderColor = defineModel<string>(
   'themeSemiDarkHeaderColor',
 );
+const themeSemiDarkHeaderColorTransparency = defineModel<number>(
+  'themeSemiDarkHeaderColorTransparency',
+);
+const themeHeaderMenuThemeColor = defineModel<string>(
+  'themeHeaderMenuThemeColor',
+);
+const themeHeaderMenuBackgroundColor = defineModel<string>(
+  'themeHeaderMenuBackgroundColor',
+);
+const themeHeaderMenuBackgroundColorTransparency = defineModel<number>(
+  'themeHeaderMenuBackgroundColorTransparency',
+);
 const themeSidebarMenuBackgroundColor = defineModel<string>(
   'themeSidebarMenuBackgroundColor',
+);
+const themeSidebarMenuBackgroundColorTransparency = defineModel<number>(
+  'themeSidebarMenuBackgroundColorTransparency',
+);
+const tabbarBackgroundColor = defineModel<string>('tabbarBackgroundColor');
+const tabbarBackgroundTransparency = defineModel<number>(
+  'tabbarBackgroundTransparency',
 );
 
 const activeTarget = ref<ColorTarget>('primary');
@@ -58,11 +98,23 @@ const [Modal, modalApi] = useVbenModal({
 
 const activeColor = computed(() => {
   switch (activeTarget.value) {
+    case 'baseBackground': {
+      return themeBaseBackgroundColor.value;
+    }
+    case 'contentBackground': {
+      return themeContentBackgroundColor.value;
+    }
     case 'destructive': {
       return themeColorDestructive.value;
     }
     case 'header': {
       return themeSemiDarkHeaderColor.value;
+    }
+    case 'headerMenuBackground': {
+      return themeHeaderMenuBackgroundColor.value;
+    }
+    case 'headerMenuTheme': {
+      return themeHeaderMenuThemeColor.value;
     }
     case 'menuBackground': {
       return themeSidebarMenuBackgroundColor.value;
@@ -73,6 +125,9 @@ const activeColor = computed(() => {
     case 'success': {
       return themeColorSuccess.value;
     }
+    case 'tabbarBackground': {
+      return tabbarBackgroundColor.value;
+    }
     case 'warning': {
       return themeColorWarning.value;
     }
@@ -80,6 +135,82 @@ const activeColor = computed(() => {
       return themeColorPrimary.value;
     }
   }
+});
+
+const isBackgroundTarget = computed(() =>
+  [
+    'baseBackground',
+    'contentBackground',
+    'header',
+    'headerMenuBackground',
+    'menuBackground',
+    'sidebar',
+    'tabbarBackground',
+  ].includes(activeTarget.value),
+);
+
+const activeBackgroundTransparency = computed({
+  get: () => {
+    switch (activeTarget.value) {
+      case 'baseBackground': {
+        return themeBaseBackgroundTransparency.value ?? 0;
+      }
+      case 'contentBackground': {
+        return themeContentBackgroundTransparency.value ?? 0;
+      }
+      case 'header': {
+        return themeSemiDarkHeaderColorTransparency.value ?? 0;
+      }
+      case 'headerMenuBackground': {
+        return themeHeaderMenuBackgroundColorTransparency.value ?? 0;
+      }
+      case 'menuBackground': {
+        return themeSidebarMenuBackgroundColorTransparency.value ?? 0;
+      }
+      case 'sidebar': {
+        return themeSemiDarkSidebarColorTransparency.value ?? 0;
+      }
+      case 'tabbarBackground': {
+        return tabbarBackgroundTransparency.value ?? 0;
+      }
+      default: {
+        return 0;
+      }
+    }
+  },
+  set: (value: number) => {
+    const transparency = Math.min(100, Math.max(0, Number(value) || 0));
+    switch (activeTarget.value) {
+      case 'baseBackground': {
+        themeBaseBackgroundTransparency.value = transparency;
+        break;
+      }
+      case 'contentBackground': {
+        themeContentBackgroundTransparency.value = transparency;
+        break;
+      }
+      case 'header': {
+        themeSemiDarkHeaderColorTransparency.value = transparency;
+        break;
+      }
+      case 'headerMenuBackground': {
+        themeHeaderMenuBackgroundColorTransparency.value = transparency;
+        break;
+      }
+      case 'menuBackground': {
+        themeSidebarMenuBackgroundColorTransparency.value = transparency;
+        break;
+      }
+      case 'sidebar': {
+        themeSemiDarkSidebarColorTransparency.value = transparency;
+        break;
+      }
+      case 'tabbarBackground': {
+        tabbarBackgroundTransparency.value = transparency;
+        break;
+      }
+    }
+  },
 });
 
 const currentColorInputLabel = computed(() => {
@@ -118,11 +249,23 @@ const semanticColorItems = computed(() => {
 
 function getColorTargetLabel(target: ColorTarget) {
   switch (target) {
+    case 'baseBackground': {
+      return $t('preferences.theme.baseBackgroundColor');
+    }
+    case 'contentBackground': {
+      return $t('preferences.theme.contentBackgroundColor');
+    }
     case 'destructive': {
       return $t('preferences.theme.destructiveColor');
     }
     case 'header': {
       return $t('preferences.theme.darkHeaderColor');
+    }
+    case 'headerMenuBackground': {
+      return $t('preferences.theme.headerNavigationMenuBackgroundColor');
+    }
+    case 'headerMenuTheme': {
+      return $t('preferences.theme.headerThemeColor');
     }
     case 'menuBackground': {
       return $t('preferences.theme.navigationMenuBackgroundColor');
@@ -132,6 +275,9 @@ function getColorTargetLabel(target: ColorTarget) {
     }
     case 'success': {
       return $t('preferences.theme.successColor');
+    }
+    case 'tabbarBackground': {
+      return $t('preferences.tabbar.backgroundColor');
     }
     case 'warning': {
       return $t('preferences.theme.warningColor');
@@ -272,7 +418,23 @@ function updateColorFromEvent(event: Event) {
 }
 
 function resetThemeColors() {
-  const initialTheme = preferencesManager.getInitialPreferences().theme;
+  const initialPreferences = preferencesManager.getInitialPreferences();
+  const initialTheme = initialPreferences.theme;
+
+  if (activeTarget.value === 'baseBackground') {
+    editorColor.value = initialTheme.baseBackgroundColor;
+    return;
+  }
+
+  if (activeTarget.value === 'contentBackground') {
+    editorColor.value = initialTheme.contentBackgroundColor;
+    return;
+  }
+
+  if (activeTarget.value === 'tabbarBackground') {
+    editorColor.value = initialPreferences.tabbar.backgroundColor;
+    return;
+  }
 
   if (activeTarget.value === 'destructive') {
     editorColor.value = initialTheme.colorDestructive;
@@ -281,6 +443,16 @@ function resetThemeColors() {
 
   if (activeTarget.value === 'header') {
     editorColor.value = initialTheme.semiDarkHeaderColor;
+    return;
+  }
+
+  if (activeTarget.value === 'headerMenuTheme') {
+    editorColor.value = initialTheme.headerMenuThemeColor;
+    return;
+  }
+
+  if (activeTarget.value === 'headerMenuBackground') {
+    editorColor.value = initialTheme.headerMenuBackgroundColor;
     return;
   }
 
@@ -316,6 +488,16 @@ watch(editorBuiltinType, (value) => {
 
 watch(editorColor, (value) => {
   switch (activeTarget.value) {
+    case 'baseBackground': {
+      themeBaseBackgroundColor.value = value;
+
+      break;
+    }
+    case 'contentBackground': {
+      themeContentBackgroundColor.value = value;
+
+      break;
+    }
     case 'destructive': {
       themeColorDestructive.value = value;
 
@@ -323,6 +505,16 @@ watch(editorColor, (value) => {
     }
     case 'header': {
       themeSemiDarkHeaderColor.value = value;
+
+      break;
+    }
+    case 'headerMenuBackground': {
+      themeHeaderMenuBackgroundColor.value = value;
+
+      break;
+    }
+    case 'headerMenuTheme': {
+      themeHeaderMenuThemeColor.value = value;
 
       break;
     }
@@ -338,6 +530,11 @@ watch(editorColor, (value) => {
     }
     case 'success': {
       themeColorSuccess.value = value;
+
+      break;
+    }
+    case 'tabbarBackground': {
+      tabbarBackgroundColor.value = value;
 
       break;
     }
@@ -435,6 +632,10 @@ defineExpose({ open });
             />
           </div>
         </section>
+        <BackgroundSettings
+          v-if="isBackgroundTarget"
+          v-model:transparency="activeBackgroundTransparency"
+        />
       </div>
 
       <template #footer>

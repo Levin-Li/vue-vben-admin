@@ -51,7 +51,7 @@ Keep the following boundaries:
 - `Captcha` completes in a separate security dialog. When a code is filled automatically, show a red five-second countdown and submit automatically. Cancel the countdown when the user types, refreshes the image, or closes the dialog.
 - A challenge with no verification type can be completed immediately; create the session and redirect on success.
 - SMS and email code login keep their existing flow and do not create a password-login challenge.
-- Clear the `challengeId`, code, and countdown after cancellation, failure, or account changes; never reuse a challenge.
+- On a verification-code error, keep the dialog open, clear the code, and create a new challenge; never reuse the failed challenge. Clear the challenge, code, and countdown after cancellation, account changes, or account/domain/policy revalidation failures.
 
 Do not add an account-blur endpoint that reports supported verification methods: it broadens account-enumeration risk. See the root project document `docs/15-密码登录挑战与MFA安全开发指南.md` for the backend contract and revalidation rules.
 

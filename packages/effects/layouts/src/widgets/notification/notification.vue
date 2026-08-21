@@ -108,6 +108,11 @@ function navigateTo(
   <VbenPopover
     v-model:open="open"
     content-class="relative right-2 w-[360px] p-0"
+    :content-props="{
+      style: {
+        backgroundColor: 'hsl(var(--header-menu-background, var(--popover)))',
+      },
+    }"
   >
     <template #trigger>
       <div class="flex-center mr-2 h-full" @click.stop="toggle()">
@@ -236,11 +241,25 @@ function navigateTo(
 
 <style scoped>
 :deep(.bell-button) {
+  background-color: var(--header-control-background, transparent);
+  color: var(--header-control-foreground, hsl(var(--foreground)));
+
   &:hover {
+    background-color: var(
+      --header-control-background-hover,
+      hsl(var(--accent))
+    );
+    color: var(--header-control-foreground, hsl(var(--accent-foreground)));
+
     svg {
       animation: bell-ring 1s both;
     }
   }
+}
+
+:deep([data-state='open'] .bell-button) {
+  background-color: var(--header-control-background-hover, hsl(var(--accent)));
+  color: var(--header-control-foreground, hsl(var(--accent-foreground)));
 }
 
 @keyframes bell-ring {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  brightenColor,
   convertToHsl,
   convertToHslCssVar,
   convertToRgb,
@@ -32,6 +33,10 @@ describe('color conversion functions', () => {
     expect(convertToHslCssVar(color)).toEqual(expectedHsl);
   });
 
+  it('preserves CSS HSL values when converting to a CSS variable', () => {
+    expect(convertToHslCssVar('hsl(222 10% 12%)')).toEqual('222 10% 12%');
+  });
+
   it('should correctly convert color to RGB CSS variable format', () => {
     const color = 'hsl(284, 100%, 50%)';
     const expectedRgb = 'rgb(187, 0, 255)';
@@ -54,5 +59,11 @@ describe('isValidColor', () => {
     // 测试无效颜色
     expect(isValidColor('invalid color')).toBe(false);
     expect(isValidColor()).toBe(false);
+  });
+});
+
+describe('brightenColor', () => {
+  it('returns an hsl color with increased lightness', () => {
+    expect(brightenColor('hsl(222 10% 12%)', 40)).toBe('hsl(222, 10%, 52%)');
   });
 });

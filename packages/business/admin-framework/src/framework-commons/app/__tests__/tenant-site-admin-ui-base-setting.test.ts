@@ -211,6 +211,20 @@ describe('tenant-site-admin-ui-base-setting', () => {
     });
   });
 
+  it('builds an upload payload for the platform target', () => {
+    const setting = {
+      app: {
+        name: 'Platform App',
+      },
+    };
+
+    expect(buildAdminUiBaseSettingPayload(setting, true, 'Platform')).toEqual({
+      preferServerSetting: true,
+      setting,
+      uploadTarget: 'Platform',
+    });
+  });
+
   it('strips leaked setting wrappers before uploading preferences', () => {
     const setting = {
       [ADMIN_UI_BASE_SETTING_KEY]: {

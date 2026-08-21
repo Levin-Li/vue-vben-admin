@@ -24,7 +24,10 @@ export interface AdminUiBaseSettingPayload {
   uploadTarget: AdminUiBaseSettingUploadTarget;
 }
 
-export type AdminUiBaseSettingUploadTarget = 'Tenant' | 'TenantSite';
+export type AdminUiBaseSettingUploadTarget =
+  | 'Platform'
+  | 'Tenant'
+  | 'TenantSite';
 
 export const DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET: AdminUiBaseSettingUploadTarget =
   'TenantSite';

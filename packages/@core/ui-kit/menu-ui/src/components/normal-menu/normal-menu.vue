@@ -79,7 +79,7 @@ function handleEnter(menu: MenuRecordRaw) {
 $namespace: vben;
 
 .#{$namespace}-normal-menu {
-  --menu-item-margin-y: 4px;
+  --menu-item-margin-y: var(--sidebar-menu-item-gap, 4px);
   --menu-item-margin-x: 0px;
   --menu-item-padding-y: 9px;
   --menu-item-padding-x: 0px;

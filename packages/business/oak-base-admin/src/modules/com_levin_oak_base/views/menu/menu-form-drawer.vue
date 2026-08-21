@@ -21,6 +21,7 @@ import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/share
 
 import { menuService } from '../../api/menu-service';
 
+import MenuIconPicker from './menu-icon-picker.vue';
 import { buildParentTreeOptions } from './menu-tree-utils';
 
 const props = defineProps<{
@@ -282,7 +283,7 @@ async function submit() {
           <Input v-model:value="formState.domain" placeholder="请输入域名" />
         </Form.Item>
         <Form.Item label="图标">
-          <Input v-model:value="formState.icon" placeholder="请输入图标" />
+          <MenuIconPicker v-model="formState.icon" />
         </Form.Item>
         <Form.Item label="排序代码">
           <InputNumber

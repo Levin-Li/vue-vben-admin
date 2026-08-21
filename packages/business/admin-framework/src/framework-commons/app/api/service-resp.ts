@@ -11,6 +11,27 @@ export interface ServiceRespLike {
   successful?: boolean;
 }
 
+export const UNAUTHORIZED_REQUEST_MESSAGE = '未授权的请求';
+
+/** Mirrors com.levin.commons.service.domain.ServiceResp.ErrorType. */
+export enum ErrorType {
+  BizWarning = 1,
+  BizError = 10_000,
+  AuthenticationError = 20_000,
+  AuthorizationError = 25_000,
+  ResourceError = 30_000,
+  SystemInnerError = 40_000,
+  UnknownError = 50_000,
+}
+
+const ERROR_TYPES_BY_DESCENDING_BASE_CODE = Object.values(ErrorType)
+  .filter((value): value is ErrorType => typeof value === 'number')
+  .sort((left, right) => right - left);
+
+function getErrorTypeName(errorType: ErrorType) {
+  return ErrorType[errorType];
+}
+
 export function isServiceResp(value: unknown): value is ServiceRespLike {
   if (!value || typeof value !== 'object') {
     return false;
@@ -49,41 +70,30 @@ export function getServiceRespType(responseData: ServiceRespLike) {
     return '';
   }
 
-  if (code < 10_000) {
-    return 'BizWarning';
+  if (!Number.isFinite(code)) {
+    return getErrorTypeName(ErrorType.UnknownError);
   }
 
-  if (code < 20_000) {
-    return 'BizError';
-  }
-
-  if (code < 25_000) {
-    return 'AuthenticationError';
-  }
-
-  if (code < 30_000) {
-    return 'AuthorizationError';
-  }
-
-  if (code < 40_000) {
-    return 'ResourceError';
-  }
-
-  if (code < 50_000) {
-    return 'SystemInnerError';
-  }
-
-  return 'UnknownError';
+  const errorType = ERROR_TYPES_BY_DESCENDING_BASE_CODE.find(
+    (candidate) => code >= candidate,
+  );
+  return getErrorTypeName(errorType ?? ErrorType.BizWarning);
 }
 
 const SERVICE_RESP_ERROR_TYPE_MESSAGE_KEYS: Record<string, string> = {
-  AuthenticationError: 'ui.serviceResp.errorType.authentication',
-  AuthorizationError: 'ui.serviceResp.errorType.authorization',
-  BizError: 'ui.serviceResp.errorType.bizError',
-  BizWarning: 'ui.serviceResp.errorType.bizWarning',
-  ResourceError: 'ui.serviceResp.errorType.resource',
-  SystemInnerError: 'ui.serviceResp.errorType.systemInner',
-  UnknownError: 'ui.serviceResp.errorType.unknown',
+  [getErrorTypeName(ErrorType.AuthenticationError)]:
+    'ui.serviceResp.errorType.authentication',
+  [getErrorTypeName(ErrorType.AuthorizationError)]:
+    'ui.serviceResp.errorType.authorization',
+  [getErrorTypeName(ErrorType.BizError)]: 'ui.serviceResp.errorType.bizError',
+  [getErrorTypeName(ErrorType.BizWarning)]:
+    'ui.serviceResp.errorType.bizWarning',
+  [getErrorTypeName(ErrorType.ResourceError)]:
+    'ui.serviceResp.errorType.resource',
+  [getErrorTypeName(ErrorType.SystemInnerError)]:
+    'ui.serviceResp.errorType.systemInner',
+  [getErrorTypeName(ErrorType.UnknownError)]:
+    'ui.serviceResp.errorType.unknown',
 };
 
 function getServiceRespTypeMessage(errorType: string) {
@@ -100,17 +110,32 @@ function getBackendMessage(responseData: ServiceRespLike) {
   return responseData.msg || responseData.detailMsg || '';
 }
 
-function isServiceRespBizErrorType(errorType: string) {
-  return errorType === 'BizError' || errorType === 'BizWarning';
+export function getAuthorizationMessage(
+  responseData?: Pick<ServiceRespLike, 'msg'>,
+) {
+  return responseData?.msg || UNAUTHORIZED_REQUEST_MESSAGE;
 }
 
-function isServiceRespBizError(responseData: ServiceRespLike) {
+export function getHttpAuthorizationMessage(
+  status: unknown,
+  responseData?: Pick<ServiceRespLike, 'msg'>,
+) {
+  return Number(status) === 403 ? getAuthorizationMessage(responseData) : '';
+}
+
+function isBusinessErrorType(errorType: string) {
+  return (
+    errorType === getErrorTypeName(ErrorType.BizError) ||
+    errorType === getErrorTypeName(ErrorType.BizWarning)
+  );
+}
+
+export function isBusinessErrorResponse(responseData: ServiceRespLike) {
   if (responseData.bizError === true) {
     return true;
   }
 
-  const code = getServiceRespCode(responseData);
-  return code > 0 && code < 20_000;
+  return isBusinessErrorType(getServiceRespType(responseData));
 }
 
 export function getServiceRespMessage(responseData: ServiceRespLike) {
@@ -118,10 +143,11 @@ export function getServiceRespMessage(responseData: ServiceRespLike) {
   const errorTypeMessage = getServiceRespTypeMessage(errorType);
   const backendMessage = getBackendMessage(responseData);
 
-  if (
-    isServiceRespBizError(responseData) ||
-    isServiceRespBizErrorType(errorType)
-  ) {
+  if (errorType === getErrorTypeName(ErrorType.AuthorizationError)) {
+    return getAuthorizationMessage(responseData);
+  }
+
+  if (isBusinessErrorResponse(responseData) || isBusinessErrorType(errorType)) {
     return backendMessage || errorTypeMessage || errorType || '接口处理失败';
   }
 

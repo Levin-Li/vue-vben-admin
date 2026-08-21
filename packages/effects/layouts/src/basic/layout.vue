@@ -11,6 +11,7 @@ import { useRefresh } from '@vben/hooks';
 import { $t, i18n } from '@vben/locales';
 import {
   preferences,
+  resolveBackgroundColor,
   updatePreferences,
   usePreferences,
 } from '@vben/preferences';
@@ -75,7 +76,12 @@ const semiDarkSidebarStyleColor = computed(() => {
     return undefined;
   }
 
-  return convertToHslCssVar(preferences.theme.semiDarkSidebarColor);
+  return convertToHslCssVar(
+    resolveBackgroundColor(
+      preferences.theme.semiDarkSidebarColor,
+      preferences.theme.semiDarkSidebarColorTransparency,
+    ),
+  );
 });
 
 const semiDarkHeaderStyleColor = computed(() => {
@@ -83,7 +89,47 @@ const semiDarkHeaderStyleColor = computed(() => {
     return undefined;
   }
 
-  return convertToHslCssVar(preferences.theme.semiDarkHeaderColor);
+  return convertToHslCssVar(
+    resolveBackgroundColor(
+      preferences.theme.semiDarkHeaderColor,
+      preferences.theme.semiDarkHeaderColorTransparency,
+    ),
+  );
+});
+
+const headerMenuPopupStyle = computed((): CSSProperties => {
+  if (isDark.value || !preferences.theme.semiDarkHeader) {
+    return {};
+  }
+
+  return {
+    '--menu-background-color': 'hsl(var(--header-menu-background))',
+    '--sidebar-menu-background-color': 'var(--header-menu-background)',
+    '--menu-item-active-background-color':
+      'hsl(var(--header-menu-theme-color, var(--primary)))',
+    '--menu-item-active-color': 'hsl(var(--primary-foreground))',
+    '--menu-item-color': 'hsl(var(--primary-foreground))',
+    '--menu-item-hover-background-color':
+      'hsl(var(--header-menu-theme-color, var(--primary)))',
+    '--menu-item-hover-color': 'hsl(var(--primary-foreground))',
+    '--menu-submenu-active-background-color':
+      'hsl(var(--header-menu-theme-color, var(--primary)))',
+    '--menu-submenu-active-color': 'hsl(var(--primary-foreground))',
+    '--menu-submenu-hover-background-color':
+      'hsl(var(--header-menu-theme-color, var(--primary)))',
+    '--menu-submenu-hover-color': 'hsl(var(--primary-foreground))',
+  };
+});
+
+const headerMenuStyle = computed((): CSSProperties => {
+  if (isDark.value || !preferences.theme.semiDarkHeader) {
+    return {};
+  }
+
+  return {
+    ...headerMenuPopupStyle.value,
+    '--menu-background-color': 'transparent',
+  };
 });
 
 const sidebarMenuStyleColors = computed(() => {
@@ -92,8 +138,14 @@ const sidebarMenuStyleColors = computed(() => {
   }
 
   const menuBackgroundColor = preferences.theme.sidebarMenuBackgroundColorCustom
-    ? preferences.theme.sidebarMenuBackgroundColor
-    : preferences.theme.semiDarkSidebarColor;
+    ? resolveBackgroundColor(
+        preferences.theme.sidebarMenuBackgroundColor,
+        preferences.theme.sidebarMenuBackgroundColorTransparency,
+      )
+    : resolveBackgroundColor(
+        preferences.theme.semiDarkSidebarColor,
+        preferences.theme.semiDarkSidebarColorTransparency,
+      );
 
   return {
     background: convertToHslCssVar(menuBackgroundColor),
@@ -111,14 +163,53 @@ const sidebarMenuPopupStyle = computed(() => {
     ...(hoverBackground
       ? { '--sidebar-menu-hover-background-color': hoverBackground }
       : {}),
-    ...(!isDark.value
-      ? {
+    ...(isDark.value
+      ? {}
+      : {
           '--sidebar-menu-active-background-color': 'hsl(var(--primary) / 15%)',
           '--sidebar-menu-active-color': 'hsl(var(--primary))',
           '--sidebar-menu-border-color': '#fff',
-        }
-      : {}),
+        }),
   } as CSSProperties;
+});
+
+const baseBackgroundColor = computed(() => {
+  if (isDark.value) {
+    return 'hsl(var(--background-deep))';
+  }
+
+  return preferences.theme.baseBackgroundColorCustom
+    ? resolveBackgroundColor(
+        preferences.theme.baseBackgroundColor,
+        preferences.theme.baseBackgroundTransparency,
+      )
+    : 'hsl(var(--background-deep))';
+});
+
+const contentBackgroundColor = computed(() => {
+  if (!preferences.theme.contentBackgroundColorCustom) {
+    return 'transparent';
+  }
+
+  return resolveBackgroundColor(
+    preferences.theme.contentBackgroundColor,
+    preferences.theme.contentBackgroundTransparency,
+  );
+});
+
+const tabbarBackgroundColor = computed(() => {
+  if (!preferences.tabbar.backgroundColorCustom) {
+    return 'hsl(var(--background))';
+  }
+
+  return resolveBackgroundColor(
+    preferences.tabbar.backgroundColor,
+    preferences.tabbar.backgroundTransparency,
+  );
+});
+
+const baseLayoutStyle = computed((): CSSProperties => {
+  return { backgroundColor: baseBackgroundColor.value };
 });
 
 const logoClass = computed(() => {
@@ -263,17 +354,40 @@ const headerSlots = computed(() => {
 <template>
   <VbenAdminLayout
     v-model:sidebar-extra-visible="sidebarExtraVisible"
+    :style="baseLayoutStyle"
+    :base-background-color="baseBackgroundColor"
     :content-compact="preferences.app.contentCompact"
     :content-compact-width="preferences.app.contentCompactWidth"
+    :content-background-color="contentBackgroundColor"
     :content-padding="preferences.app.contentPadding"
-    :content-padding-bottom="preferences.app.contentPaddingBottom"
-    :content-padding-left="preferences.app.contentPaddingLeft"
-    :content-padding-right="preferences.app.contentPaddingRight"
-    :content-padding-top="preferences.app.contentPaddingTop"
+    :content-margin-bottom="preferences.app.contentMarginBottom"
+    :content-margin-left="preferences.app.contentMarginLeft"
+    :content-margin-right="preferences.app.contentMarginRight"
+    :content-margin-top="preferences.app.contentMarginTop"
+    :content-radius-top-left="preferences.app.contentRadiusTopLeft"
+    :content-radius-top-right="preferences.app.contentRadiusTopRight"
+    :content-radius-bottom-right="preferences.app.contentRadiusBottomRight"
+    :content-radius-bottom-left="preferences.app.contentRadiusBottomLeft"
+    :content-border-top-width="preferences.app.contentBorderTopWidth"
+    :content-border-right-width="preferences.app.contentBorderRightWidth"
+    :content-border-bottom-width="preferences.app.contentBorderBottomWidth"
+    :content-border-left-width="preferences.app.contentBorderLeftWidth"
     :footer-enable="preferences.footer.enable"
     :footer-fixed="preferences.footer.fixed"
     :footer-height="preferences.footer.height"
     :header-height="preferences.header.height"
+    :header-margin-top="preferences.header.marginTop"
+    :header-margin-right="preferences.header.marginRight"
+    :header-margin-bottom="preferences.header.marginBottom"
+    :header-margin-left="preferences.header.marginLeft"
+    :header-radius-top-left="preferences.header.radiusTopLeft"
+    :header-radius-top-right="preferences.header.radiusTopRight"
+    :header-radius-bottom-right="preferences.header.radiusBottomRight"
+    :header-radius-bottom-left="preferences.header.radiusBottomLeft"
+    :header-border-top-width="preferences.header.borderTopWidth"
+    :header-border-right-width="preferences.header.borderRightWidth"
+    :header-border-bottom-width="preferences.header.borderBottomWidth"
+    :header-border-left-width="preferences.header.borderLeftWidth"
     :header-hidden="preferences.header.hidden"
     :header-mode="preferences.header.mode"
     :header-theme="headerTheme"
@@ -290,8 +404,11 @@ const headerSlots = computed(() => {
     :sidebar-expand-on-hover="preferences.sidebar.expandOnHover"
     :sidebar-extra-collapse="preferences.sidebar.extraCollapse"
     :sidebar-extra-collapsed-width="preferences.sidebar.extraCollapsedWidth"
+    :sidebar-extra-menu-visible="extraMenus.length > 0"
     :sidebar-hidden="preferences.sidebar.hidden"
     :sidebar-mixed-width="preferences.sidebar.mixedWidth"
+    :sidebar-mixed-menu-gap="preferences.sidebar.mixedMenuGap"
+    :sidebar-menu-item-gap="preferences.sidebar.menuItemGap"
     :sidebar-menu-background-color="sidebarMenuStyleColors.background"
     :sidebar-menu-hover-background-color="
       sidebarMenuStyleColors.hoverBackground
@@ -302,9 +419,34 @@ const headerSlots = computed(() => {
     :sidebar-theme-sub="sidebarThemeSub"
     :sidebar-theme-sub-color="semiDarkSidebarStyleColor"
     :sidebar-width="preferences.sidebar.width"
+    :sidebar-margin-top="preferences.sidebar.marginTop"
+    :sidebar-margin-right="preferences.sidebar.marginRight"
+    :sidebar-margin-bottom="preferences.sidebar.marginBottom"
+    :sidebar-margin-left="preferences.sidebar.marginLeft"
+    :sidebar-radius-top-left="preferences.sidebar.radiusTopLeft"
+    :sidebar-radius-top-right="preferences.sidebar.radiusTopRight"
+    :sidebar-radius-bottom-right="preferences.sidebar.radiusBottomRight"
+    :sidebar-radius-bottom-left="preferences.sidebar.radiusBottomLeft"
+    :sidebar-border-top-width="preferences.sidebar.borderTopWidth"
+    :sidebar-border-right-width="preferences.sidebar.borderRightWidth"
+    :sidebar-border-bottom-width="preferences.sidebar.borderBottomWidth"
+    :sidebar-border-left-width="preferences.sidebar.borderLeftWidth"
     :side-collapse-width="preferences.sidebar.collapseWidth"
     :tabbar-enable="preferences.tabbar.enable"
+    :tabbar-background-color="tabbarBackgroundColor"
     :tabbar-height="preferences.tabbar.height"
+    :tabbar-margin-top="preferences.tabbar.marginTop"
+    :tabbar-margin-right="preferences.tabbar.marginRight"
+    :tabbar-margin-bottom="preferences.tabbar.marginBottom"
+    :tabbar-margin-left="preferences.tabbar.marginLeft"
+    :tabbar-radius-top-left="preferences.tabbar.radiusTopLeft"
+    :tabbar-radius-top-right="preferences.tabbar.radiusTopRight"
+    :tabbar-radius-bottom-right="preferences.tabbar.radiusBottomRight"
+    :tabbar-radius-bottom-left="preferences.tabbar.radiusBottomLeft"
+    :tabbar-border-top-width="preferences.tabbar.borderTopWidth"
+    :tabbar-border-right-width="preferences.tabbar.borderRightWidth"
+    :tabbar-border-bottom-width="preferences.tabbar.borderBottomWidth"
+    :tabbar-border-left-width="preferences.tabbar.borderLeftWidth"
     :z-index="preferences.app.zIndex"
     @side-mouse-leave="handleSideMouseLeave"
     @toggle-sidebar="toggleSidebar"
@@ -359,8 +501,10 @@ const headerSlots = computed(() => {
           <LayoutMenu
             :default-active="headerActive"
             :menus="wrapperMenus(headerMenus)"
+            :popup-style="headerMenuPopupStyle"
             :rounded="isMenuRounded"
             :theme="headerTheme"
+            :style="headerMenuStyle"
             class="w-full"
             mode="horizontal"
             @select="handleMenuSelect"

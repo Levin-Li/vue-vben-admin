@@ -11,6 +11,7 @@ export * from './demo-service';
 export * from './dict-service';
 export * from './domain-service';
 export * from './domain-ssl-cert-service';
+export * from './email-relay-route-service';
 export * from './file-res-service';
 export * from './fund-account-service';
 export * from './fund-account-log-service';

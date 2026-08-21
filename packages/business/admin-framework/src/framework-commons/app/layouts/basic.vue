@@ -141,6 +141,7 @@ const adminUiBaseSettingUploadTargetOptions: Array<{
   label: string;
   value: AdminUiBaseSettingUploadTarget;
 }> = [
+  { label: '平台', value: 'Platform' },
   { label: '租户站点', value: 'TenantSite' },
   { label: '租户', value: 'Tenant' },
 ];
@@ -247,7 +248,7 @@ const menus = computed(() => {
 });
 
 const avatar = computed(() => {
-  return userStore.userInfo?.avatar ?? preferences.app.defaultAvatar;
+  return userStore.userInfo?.avatar || preferences.app.defaultAvatar;
 });
 
 const userDropdownDescription = computed(() => {

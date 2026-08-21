@@ -133,20 +133,20 @@ onMounted(() => {
       </template>
     </Modal>
     <div
-      class="md:bg-accent group flex h-8 cursor-pointer items-center gap-3 rounded-2xl border-none bg-none px-2 py-0.5 outline-none"
+      class="header-global-search group flex h-8 cursor-pointer items-center gap-3 rounded-2xl border-none bg-none px-2 py-0.5 outline-none"
       @click="toggleOpen()"
     >
       <Search
-        class="text-muted-foreground group-hover:text-foreground size-4 group-hover:opacity-100"
+        class="header-global-search__icon size-4 group-hover:opacity-100"
       />
       <span
-        class="text-muted-foreground group-hover:text-foreground hidden text-xs duration-300 md:block"
+        class="header-global-search__label hidden text-xs duration-300 md:block"
       >
         {{ $t('ui.widgets.search.title') }}
       </span>
       <span
         v-if="enableShortcutKey"
-        class="bg-background border-foreground/60 text-muted-foreground group-hover:text-foreground relative hidden rounded-sm rounded-r-xl px-1.5 py-1 text-xs leading-none group-hover:opacity-100 md:block"
+        class="header-global-search__shortcut relative hidden rounded-sm rounded-r-xl px-1.5 py-1 text-xs leading-none group-hover:opacity-100 md:block"
       >
         {{ isWindowsOs() ? 'Ctrl' : '⌘' }}
         <kbd>K</kbd>
@@ -155,3 +155,47 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style lang="scss" scoped>
+@media (min-width: 768px) {
+  .header-global-search {
+    background-color: var(
+      --header-control-background,
+      hsl(var(--accent))
+    ) !important;
+  }
+}
+
+.header-global-search {
+  color: var(--header-control-foreground, hsl(var(--foreground)));
+
+  &__icon,
+  &__label {
+    color: var(--header-control-muted-foreground, hsl(var(--muted-foreground)));
+  }
+
+  &__shortcut {
+    border-color: var(--header-control-border, hsl(var(--foreground) / 60%));
+    background-color: var(
+      --header-control-shortcut-background,
+      hsl(var(--background))
+    );
+    color: var(--header-control-muted-foreground, hsl(var(--muted-foreground)));
+  }
+
+  &:hover {
+    @media (min-width: 768px) {
+      background-color: var(
+        --header-control-background-hover,
+        hsl(var(--accent))
+      ) !important;
+    }
+
+    .header-global-search__icon,
+    .header-global-search__label,
+    .header-global-search__shortcut {
+      color: var(--header-control-foreground, hsl(var(--foreground)));
+    }
+  }
+}
+</style>

@@ -3,9 +3,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { i18n } from '@vben/locales';
 
 import {
+  ErrorType,
+  getHttpAuthorizationMessage,
   getServiceRespMessage,
   getServiceRespType,
   isServiceResp,
+  UNAUTHORIZED_REQUEST_MESSAGE,
   unwrapServiceResp,
 } from '../service-resp';
 
@@ -93,8 +96,8 @@ describe('service-resp', () => {
         detailMsg: 'Not logged in',
       }),
     ).toBe('登录认证过期，请重新登录后继续。');
-    expect(getServiceRespMessage({ code: 25_000 })).toBe(
-      '没有权限执行该操作。',
+    expect(getServiceRespMessage({ code: ErrorType.AuthorizationError })).toBe(
+      UNAUTHORIZED_REQUEST_MESSAGE,
     );
     expect(getServiceRespMessage({ code: 30_000 })).toBe(
       '请求的资源不存在或不可用。',
@@ -107,6 +110,45 @@ describe('service-resp', () => {
     );
   });
 
+  it('prefers the backend message for AuthorizationError responses', () => {
+    expect(
+      getServiceRespMessage({
+        code: ErrorType.AuthorizationError,
+        errorType: ErrorType[ErrorType.AuthorizationError],
+        msg: '鉴权异常：Unauthorized operation',
+      }),
+    ).toBe('鉴权异常：Unauthorized operation');
+  });
+
+  it('uses the unified message when AuthorizationError has no backend msg', () => {
+    expect(
+      getServiceRespMessage({
+        errorType: ErrorType[ErrorType.AuthorizationError],
+      }),
+    ).toBe(UNAUTHORIZED_REQUEST_MESSAGE);
+  });
+
+  it('uses the same authorization message policy for code 25000', () => {
+    expect(
+      getServiceRespMessage({
+        code: ErrorType.AuthorizationError,
+        msg: '当前账号没有该接口权限',
+      }),
+    ).toBe('当前账号没有该接口权限');
+
+    expect(getServiceRespMessage({ code: ErrorType.AuthorizationError })).toBe(
+      UNAUTHORIZED_REQUEST_MESSAGE,
+    );
+  });
+
+  it('uses the authorization policy as the HTTP 403 fallback', () => {
+    expect(getHttpAuthorizationMessage(403, { msg: '接口访问被拒绝' })).toBe(
+      '接口访问被拒绝',
+    );
+    expect(getHttpAuthorizationMessage(403)).toBe(UNAUTHORIZED_REQUEST_MESSAGE);
+    expect(getHttpAuthorizationMessage(401)).toBe('');
+  });
+
   it('keeps backend messages for fixed business error types', () => {
     expect(
       getServiceRespMessage({
@@ -117,6 +159,8 @@ describe('service-resp', () => {
   });
 
   it('derives error type from code when errorType is absent', () => {
-    expect(getServiceRespType({ code: 25_000 })).toBe('AuthorizationError');
+    expect(getServiceRespType({ code: ErrorType.AuthorizationError })).toBe(
+      ErrorType[ErrorType.AuthorizationError],
+    );
   });
 });

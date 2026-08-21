@@ -8,6 +8,7 @@ import { $t } from '@vben/locales';
 import NumberFieldItem from '../number-field-item.vue';
 import SelectItem from '../select-item.vue';
 import SwitchItem from '../switch-item.vue';
+import ShellStyle from './shell-style.vue';
 
 defineOptions({
   name: 'PreferenceTabsConfig',
@@ -16,6 +17,19 @@ defineOptions({
 defineProps<{ disabled?: boolean }>();
 
 const tabbarEnable = defineModel<boolean>('tabbarEnable');
+const tabbarHeight = defineModel<number>('tabbarHeight');
+const tabbarMarginTop = defineModel<number>('tabbarMarginTop');
+const tabbarMarginRight = defineModel<number>('tabbarMarginRight');
+const tabbarMarginBottom = defineModel<number>('tabbarMarginBottom');
+const tabbarMarginLeft = defineModel<number>('tabbarMarginLeft');
+const tabbarRadiusTopLeft = defineModel<number>('tabbarRadiusTopLeft');
+const tabbarRadiusTopRight = defineModel<number>('tabbarRadiusTopRight');
+const tabbarRadiusBottomRight = defineModel<number>('tabbarRadiusBottomRight');
+const tabbarRadiusBottomLeft = defineModel<number>('tabbarRadiusBottomLeft');
+const tabbarBorderTopWidth = defineModel<number>('tabbarBorderTopWidth');
+const tabbarBorderRightWidth = defineModel<number>('tabbarBorderRightWidth');
+const tabbarBorderBottomWidth = defineModel<number>('tabbarBorderBottomWidth');
+const tabbarBorderLeftWidth = defineModel<number>('tabbarBorderLeftWidth');
 const tabbarShowIcon = defineModel<boolean>('tabbarShowIcon');
 const tabbarPersist = defineModel<boolean>('tabbarPersist');
 const tabbarVisitHistory = defineModel<boolean>('tabbarVisitHistory');
@@ -54,6 +68,15 @@ const styleItems = computed((): SelectOption[] => [
   <SwitchItem v-model="tabbarEnable" :disabled="disabled">
     {{ $t('preferences.tabbar.enable') }}
   </SwitchItem>
+  <NumberFieldItem
+    v-model="tabbarHeight"
+    :disabled="!tabbarEnable || disabled"
+    :max="120"
+    :min="28"
+    :step="2"
+  >
+    {{ $t('preferences.tabbar.height') }}
+  </NumberFieldItem>
   <SwitchItem v-model="tabbarPersist" :disabled="!tabbarEnable">
     {{ $t('preferences.tabbar.persist') }}
   </SwitchItem>
@@ -99,4 +122,19 @@ const styleItems = computed((): SelectOption[] => [
   <SelectItem v-model="tabbarStyleType" :items="styleItems">
     {{ $t('preferences.tabbar.styleType.title') }}
   </SelectItem>
+  <ShellStyle
+    v-model:border-bottom-width="tabbarBorderBottomWidth"
+    v-model:border-left-width="tabbarBorderLeftWidth"
+    v-model:border-right-width="tabbarBorderRightWidth"
+    v-model:border-top-width="tabbarBorderTopWidth"
+    v-model:margin-bottom="tabbarMarginBottom"
+    v-model:margin-left="tabbarMarginLeft"
+    v-model:margin-right="tabbarMarginRight"
+    v-model:margin-top="tabbarMarginTop"
+    v-model:radius-top-left="tabbarRadiusTopLeft"
+    v-model:radius-top-right="tabbarRadiusTopRight"
+    v-model:radius-bottom-right="tabbarRadiusBottomRight"
+    v-model:radius-bottom-left="tabbarRadiusBottomLeft"
+    :disabled="!tabbarEnable || disabled"
+  />
 </template>

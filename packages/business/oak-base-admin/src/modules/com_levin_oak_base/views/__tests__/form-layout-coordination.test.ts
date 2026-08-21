@@ -295,6 +295,8 @@ function isAllowedFullRowHighComponent(file: string, field: CrudFieldConfig) {
   return (
     file.endsWith('client-app/config.ts') &&
     ['allowedIpList', 'allowedPathPatterns'].includes(field.key)
+  ) || (
+    file.endsWith('email-relay-route/config.ts') && field.key === 'targetList'
   );
 }
 

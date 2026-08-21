@@ -60,12 +60,22 @@ export default defineConfig(async () => {
             target: backendTarget,
             ws: true,
           },
+          '/behavior-captcha': {
+            changeOrigin: false,
+            target: backendTarget,
+            ws: true,
+          },
           '/com.levin.oak.base': {
             changeOrigin: false,
             target: backendTarget,
             ws: true,
           },
           '/lfs': {
+            changeOrigin: false,
+            target: backendTarget,
+            ws: true,
+          },
+          '/oauth': {
             changeOrigin: false,
             target: backendTarget,
             ws: true,

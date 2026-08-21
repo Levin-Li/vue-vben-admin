@@ -31,7 +31,7 @@ vi.hoisted(() => {
 
 import { defaultPreferences } from '../src/config';
 import { PreferenceManager } from '../src/preferences';
-import { isDarkTheme } from '../src/update-css-variables';
+import { isDarkTheme, updateCSSVariables } from '../src/update-css-variables';
 
 describe('preferences', () => {
   let preferenceManager: PreferenceManager;
@@ -51,6 +51,8 @@ describe('preferences', () => {
     })),
   );
   beforeEach(() => {
+    globalThis.localStorage.clear();
+    globalThis.sessionStorage.clear();
     preferenceManager = new PreferenceManager();
   });
 
@@ -97,6 +99,8 @@ describe('preferences', () => {
   it('updates semi dark area colors correctly', () => {
     preferenceManager.updatePreferences({
       theme: {
+        headerMenuThemeColor: 'hsl(204 84% 44%)',
+        headerMenuThemeColorCustom: true,
         semiDarkHeaderColor: 'hsl(220 40% 10%)',
         semiDarkSidebarColor: 'hsl(230 35% 12%)',
       },
@@ -108,6 +112,133 @@ describe('preferences', () => {
     expect(preferenceManager.getPreferences().theme.semiDarkSidebarColor).toBe(
       'hsl(230 35% 12%)',
     );
+    expect(preferenceManager.getPreferences().theme).toMatchObject({
+      headerMenuThemeColor: 'hsl(204 84% 44%)',
+      headerMenuThemeColorCustom: true,
+    });
+  });
+
+  it('uses navigation background for topbar popups and resolves the topbar theme by priority', () => {
+    const preferences = structuredClone(defaultPreferences);
+    preferences.theme.mode = 'light';
+    preferences.theme.semiDarkHeader = true;
+    preferences.theme.semiDarkSidebarColor = 'hsl(222 10% 12%)';
+    preferences.theme.sidebarMenuBackgroundColorCustom = false;
+    preferences.theme.headerMenuThemeColorCustom = false;
+
+    updateCSSVariables(preferences);
+
+    expect(
+      document.documentElement.style.getPropertyValue('--header-menu-background'),
+    ).toBe('222 10% 12%');
+    expect(
+      document.documentElement.style.getPropertyValue('--header-menu-theme-color'),
+    ).toBe('222 10% 52%');
+
+    preferences.theme.sidebarMenuBackgroundColorCustom = true;
+    preferences.theme.sidebarMenuBackgroundColor = 'hsl(42 84% 61%)';
+    preferences.theme.baseBackgroundColorCustom = true;
+    preferences.theme.baseBackgroundColor = 'hsl(210 40% 96%)';
+
+    updateCSSVariables(preferences);
+
+    expect(
+      document.documentElement.style.getPropertyValue('--header-menu-background'),
+    ).toBe('42 84% 61%');
+    expect(
+      document.documentElement.style.getPropertyValue('--header-menu-theme-color'),
+    ).toBe('210 40% 96%');
+
+    preferences.theme.headerMenuBackgroundColorCustom = true;
+    preferences.theme.headerMenuBackgroundColor = 'hsl(348 100% 61%)';
+
+    updateCSSVariables(preferences);
+
+    expect(
+      document.documentElement.style.getPropertyValue('--header-menu-background'),
+    ).toBe('348 100% 61%');
+
+    preferences.theme.headerMenuThemeColorCustom = true;
+    preferences.theme.headerMenuThemeColor = 'hsl(204 84% 44%)';
+
+    updateCSSVariables(preferences);
+
+    expect(
+      document.documentElement.style.getPropertyValue('--header-menu-background'),
+    ).toBe('348 100% 61%');
+    expect(
+      document.documentElement.style.getPropertyValue('--header-menu-theme-color'),
+    ).toBe('204 84% 44%');
+
+    preferences.theme.semiDarkHeader = false;
+
+    updateCSSVariables(preferences);
+
+    expect(
+      document.documentElement.style.getPropertyValue('--header-menu-background'),
+    ).toBe('');
+    expect(
+      document.documentElement.style.getPropertyValue('--header-menu-theme-color'),
+    ).toBe('');
+  });
+
+  it('updates the custom base layout background correctly', () => {
+    preferenceManager.updatePreferences({
+      theme: {
+        baseBackgroundColor: 'hsl(210 40% 96%)',
+        baseBackgroundColorCustom: true,
+      },
+    });
+
+    expect(preferenceManager.getPreferences().theme.baseBackgroundColor).toBe(
+      'hsl(210 40% 96%)',
+    );
+    expect(
+      preferenceManager.getPreferences().theme.baseBackgroundColorCustom,
+    ).toBe(true);
+  });
+
+  it('updates the custom content background correctly', () => {
+    preferenceManager.updatePreferences({
+      theme: {
+        contentBackgroundColor: 'hsl(210 40% 96%)',
+        contentBackgroundColorCustom: true,
+      },
+    });
+
+    expect(preferenceManager.getPreferences().theme).toMatchObject({
+      contentBackgroundColor: 'hsl(210 40% 96%)',
+      contentBackgroundColorCustom: true,
+    });
+  });
+
+  it('keeps new background and tabbar appearance fields compatible with partial settings', () => {
+    preferenceManager.updatePreferences({
+      tabbar: {
+        backgroundColorCustom: true,
+        backgroundTransparency: 36,
+        borderBottomWidth: 2,
+        height: 46,
+        marginTop: 8,
+        radiusTopLeft: 12,
+      },
+      theme: {
+        baseBackgroundTransparency: 28,
+      },
+    });
+
+    expect(preferenceManager.getPreferences()).toMatchObject({
+      tabbar: {
+        backgroundTransparency: 36,
+        borderBottomWidth: 2,
+        height: 46,
+        marginTop: 8,
+        radiusTopLeft: 12,
+      },
+      theme: {
+        baseBackgroundTransparency: 28,
+      },
+    });
   });
 
   it('updates sidebar navigation menu colors correctly', () => {
@@ -185,12 +316,74 @@ describe('preferences', () => {
 
     expect(preferenceManager.getPreferences().sidebar.width).toBe(200);
   });
+  it('updates sidebar menu spacing preferences correctly', () => {
+    preferenceManager.updatePreferences({
+      sidebar: { menuItemGap: 7, mixedMenuGap: 9 },
+    });
+
+    expect(preferenceManager.getPreferences().sidebar).toMatchObject({
+      menuItemGap: 7,
+      mixedMenuGap: 9,
+    });
+  });
   it('updates the header height correctly', () => {
     preferenceManager.updatePreferences({
       header: { height: 58 },
     });
 
     expect(preferenceManager.getPreferences().header.height).toBe(58);
+  });
+  it('updates layout shell styles independently', () => {
+    preferenceManager.updatePreferences({
+      app: {
+        contentBorderLeftWidth: 3,
+        contentMarginTop: 16,
+        contentRadiusTopLeft: 12,
+      },
+      header: {
+        borderBottomWidth: 2,
+        marginRight: 10,
+        radiusTopRight: 8,
+      },
+      sidebar: {
+        borderRightWidth: 1,
+        marginLeft: 12,
+        radiusBottomLeft: 10,
+      },
+    });
+
+    expect(preferenceManager.getPreferences()).toMatchObject({
+      app: {
+        contentBorderLeftWidth: 3,
+        contentMarginTop: 16,
+        contentRadiusTopLeft: 12,
+      },
+      header: { borderBottomWidth: 2, marginRight: 10, radiusTopRight: 8 },
+      sidebar: { borderRightWidth: 1, marginLeft: 12, radiusBottomLeft: 10 },
+    });
+  });
+  it('persists layout shell styles after reloading preferences', async () => {
+    const options = { namespace: 'layout-shell-test', overrides: {} };
+    await preferenceManager.initPreferences(options);
+
+    preferenceManager.updatePreferences({
+      app: {
+        contentBorderTopWidth: 2,
+        contentMarginTop: 12,
+        contentRadiusTopLeft: 14,
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const reloadedManager = new PreferenceManager();
+    await reloadedManager.initPreferences(options);
+
+    expect(reloadedManager.getPreferences().app).toMatchObject({
+      contentBorderTopWidth: 2,
+      contentMarginTop: 12,
+      contentRadiusTopLeft: 14,
+    });
   });
   it('updates the sidebar collapse state correctly', () => {
     preferenceManager.updatePreferences({

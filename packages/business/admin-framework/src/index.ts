@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue';
 
 export * from './framework-commons/api';
 export * from './framework-commons/api-authorize';
+export * from './framework-commons/app/views/_core/authentication/behavior-captcha';
 export * from './framework-commons/app/options';
 export * from './framework-commons/event-bus';
 export * from './framework-commons/locale-utils';
@@ -28,6 +29,10 @@ export {
 
 export const DraggableFloatingPanel = defineAsyncComponent(
   () => import('./framework-commons/shared/draggable-floating-panel.vue'),
+);
+export const BehaviorCaptcha = defineAsyncComponent(
+  () =>
+    import('./framework-commons/app/views/_core/authentication/behavior-captcha.vue'),
 );
 export const DraggableFloatingPanelHost = defineAsyncComponent(
   () => import('./framework-commons/shared/draggable-floating-panel-host.vue'),

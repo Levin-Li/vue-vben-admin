@@ -89,6 +89,7 @@ const props = withDefaults(defineProps<Props>(), {
   description: '',
   enableShortcutKey: true,
   menus: () => [],
+  profileMenu: undefined,
   showShortcutKey: true,
   systemMenus: () => [],
   tagText: '',
@@ -213,13 +214,26 @@ if (enableShortcutKey.value) {
 
   <DropdownMenu v-model:open="openPopover">
     <DropdownMenuTrigger ref="refTrigger" :disabled="props.trigger === 'hover'">
-      <div class="hover:bg-accent ml-1 mr-2 cursor-pointer rounded-full p-1.5">
-        <div class="hover:text-accent-foreground flex-center">
+      <div
+        class="header-user-dropdown ml-1 mr-2 cursor-pointer rounded-full px-1.5 py-1"
+      >
+        <div class="flex items-center gap-2">
           <VbenAvatar :alt="text" :src="avatar" class="size-8" dot />
+          <span
+            v-if="text"
+            class="user-dropdown-trigger__name min-w-[3em] max-w-[8em] truncate text-sm font-medium"
+          >
+            {{ text }}
+          </span>
         </div>
       </div>
     </DropdownMenuTrigger>
-    <DropdownMenuContent class="mr-2 min-w-[240px] p-0 pb-1">
+    <DropdownMenuContent
+      class="mr-2 min-w-[240px] p-0 pb-1"
+      :style="{
+        backgroundColor: 'hsl(var(--header-menu-background, var(--popover)))',
+      }"
+    >
       <div ref="refContent">
         <DropdownMenuLabel class="flex items-center p-3">
           <VbenAvatar
@@ -310,3 +324,27 @@ if (enableShortcutKey.value) {
     </DropdownMenuContent>
   </DropdownMenu>
 </template>
+
+<style lang="scss" scoped>
+.header-user-dropdown {
+  background-color: var(--header-control-background, transparent);
+  color: var(--header-control-foreground, inherit);
+
+  &__name {
+    color: inherit;
+  }
+
+  &:hover {
+    background-color: var(
+      --header-control-background-hover,
+      hsl(var(--accent))
+    );
+    color: var(--header-control-foreground, hsl(var(--accent-foreground)));
+  }
+}
+
+:deep([data-state='open']) .header-user-dropdown {
+  background-color: var(--header-control-background-hover, hsl(var(--accent)));
+  color: var(--header-control-foreground, hsl(var(--accent-foreground)));
+}
+</style>

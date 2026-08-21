@@ -9,6 +9,7 @@ import ProfileBase from './base-setting.vue';
 import ProfileNotificationSetting from './notification-setting.vue';
 import ProfilePasswordSetting from './password-setting.vue';
 import ProfileSecuritySetting from './security-setting.vue';
+import ProfileSocialAccountSetting from './social-account-setting.vue';
 
 const userStore = useUserStore();
 
@@ -22,6 +23,10 @@ const tabs = ref([
   {
     label: '安全设置',
     value: 'security',
+  },
+  {
+    label: '第三方账号绑定',
+    value: 'social-account',
   },
   {
     label: '修改密码',
@@ -46,6 +51,7 @@ const tabs = ref([
     <template #content>
       <ProfileBase v-if="tabsValue === 'basic'" />
       <ProfileSecuritySetting v-if="tabsValue === 'security'" />
+      <ProfileSocialAccountSetting v-if="tabsValue === 'social-account'" />
       <ProfilePasswordSetting v-if="tabsValue === 'password'" />
       <ProfileNotificationSetting v-if="tabsValue === 'notice'" />
     </template>

@@ -161,6 +161,7 @@ import {
 } from './crud-permissions';
 import {
   shouldApplyFieldOptionsRequest,
+  shouldLoadFieldOptions,
   shouldReloadRemoteOptionsOnDropdownOpen,
 } from './crud-select-options';
 import { normalizeLeftFixedTableColumns } from './crud-table-columns';
@@ -1993,7 +1994,12 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
 async function loadOptions() {
   await Promise.all(
     props.config.fields
-      .filter((field) => field.loadOptions || getDefaultOptionsLoader(field))
+      .filter((field) =>
+        shouldLoadFieldOptions(
+          Boolean(field.loadOptions || getDefaultOptionsLoader(field)),
+          isFieldVisible(field),
+        ),
+      )
       .map((field) => loadFieldOptions(field)),
   );
 }

@@ -20,14 +20,11 @@ import {
   getVerifyCodeApi,
   updateLoginInfoApi,
 } from '@levin/admin-framework/framework-commons/app/api';
-import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
 import { extractReturnedVerifyCode } from '../authentication/login-verify-type';
 
 type VerifyCodeType = 'Email' | 'Sms';
-
 const userStore = useUserStore();
-const authStore = useAuthStore();
 
 interface UserMfaInfo {
   id?: string;
@@ -50,7 +47,6 @@ const emailForm = reactive({
 
 const loading = reactive<Record<string, boolean>>({});
 const mfaInfo = ref<null | UserMfaInfo>(null);
-
 const currentUser = computed(() => userStore.userInfo as Record<string, any>);
 const currentUserId = computed(() =>
   String(currentUser.value?.id || '').trim(),

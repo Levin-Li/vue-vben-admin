@@ -55,10 +55,18 @@ export function resolveSimpleContentEditorMeta(
   record: Record<string, any>,
 ): SimpleContentEditorMeta {
   if (kind === 'api') {
+    const language = normalizeType(record.language);
+    const codeLanguageMap: Record<string, string> = {
+      javascript: 'javascript',
+      js: 'javascript',
+      groovy: 'groovy',
+    };
+    const resolvedLanguage = codeLanguageMap[language] || 'groovy';
+
     return {
       kind: 'code',
-      language: 'groovy',
-      title: 'Groovy',
+      language: resolvedLanguage,
+      title: resolvedLanguage === 'javascript' ? 'JavaScript' : 'Groovy',
     };
   }
 

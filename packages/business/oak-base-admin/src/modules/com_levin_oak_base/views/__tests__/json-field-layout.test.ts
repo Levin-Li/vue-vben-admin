@@ -54,6 +54,7 @@ const compactJsonFields = [
 
 const wideJsonFields = [
   'domain/config.ts:dnsRecords',
+  'email-relay-route/config.ts:targetList',
 ];
 
 function getJsonFieldSource(source: string, key: string) {

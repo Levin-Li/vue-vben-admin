@@ -79,10 +79,7 @@ function useExtraMenu(
   ) => {
     extraMenus.value = rootMenu?.children ?? extraRootMenus.value ?? [];
     extraActiveMenu.value = menu.parents?.[parentLevel.value] ?? menu.path;
-
-    if (preferences.sidebar.expandOnHover) {
-      sidebarExtraVisible.value = extraMenus.value.length > 0;
-    }
+    sidebarExtraVisible.value = extraMenus.value.length > 0;
   };
 
   /**
@@ -99,6 +96,7 @@ function useExtraMenu(
     );
     extraActiveMenu.value = rootMenuPath ?? findMenu?.path ?? '';
     extraMenus.value = rootMenu?.children ?? [];
+    sidebarExtraVisible.value = extraMenus.value.length > 0;
   };
 
   const handleMenuMouseEnter = (menu: MenuRecordRaw) => {
@@ -121,13 +119,11 @@ function useExtraMenu(
     if (rootMenuPath) defaultSubMap.set(rootMenuPath, currentPath);
     extraActiveMenu.value = rootMenuPath ?? findMenu?.path ?? '';
     extraMenus.value = rootMenu?.children ?? [];
-    if (preferences.sidebar.expandOnHover) {
-      sidebarExtraVisible.value = extraMenus.value.length > 0;
-    }
+    sidebarExtraVisible.value = extraMenus.value.length > 0;
   }
 
   watch(
-    () => [route.path, preferences.app.layout],
+    [() => route.path, () => preferences.app.layout, menus],
     ([path]) => {
       calcExtraMenus(path || '');
     },

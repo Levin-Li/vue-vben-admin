@@ -19,7 +19,7 @@ export namespace RbacApi {
 
   export interface PasswordLoginChallenge {
     challengeId: string;
-    verifyCodeType?: 'Captcha' | 'Mfa';
+    verifyCodeType?: 'Captcha' | 'Hmi' | 'Mfa';
   }
 
   export interface RegisterParams extends Record<string, any> {
@@ -53,7 +53,7 @@ export namespace RbacApi {
   export interface VerifyCodeResult {
     account?: string;
     code?: null | string;
-    interactionData?: null | string;
+    interactionData?: null | Record<string, any> | string;
     interactionDataType?: null | string;
     isMock?: boolean;
     isSuccessful?: boolean;

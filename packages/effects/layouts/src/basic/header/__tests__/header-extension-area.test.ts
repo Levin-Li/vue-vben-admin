@@ -1,7 +1,33 @@
-import { computed, defineComponent, h, nextTick } from 'vue';
+import { readFileSync } from 'node:fs';
 
 import { mount } from '@vue/test-utils';
+import { computed, defineComponent, h, nextTick } from 'vue';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  addLayoutHeaderExtensionAreaItem,
+  clearLayoutHeaderExtensionArea,
+  removeLayoutHeaderExtensionAreaItem,
+  useLayoutHeaderExtensionArea,
+} from '../header-extension-area';
+import LayoutHeader from '../header.vue';
+
+const layoutPreferences = vi.hoisted(() => ({
+  preferencesButtonPosition: {
+    fixed: false,
+    header: false,
+  },
+  widget: {
+    fullscreen: false,
+    globalSearch: false,
+    languageToggle: false,
+    notification: false,
+    refresh: false,
+    themeToggle: false,
+    timezone: false,
+  },
+}));
 
 vi.mock('@vben/hooks', () => ({
   useRefresh: () => ({
@@ -21,23 +47,18 @@ vi.mock('@vben/preferences', () => ({
     header: {
       menuAlign: 'start',
     },
-    widget: {
-      fullscreen: false,
-      globalSearch: false,
-      languageToggle: false,
-      notification: false,
-      refresh: false,
-      themeToggle: false,
-      timezone: false,
-    },
+    widget: layoutPreferences.widget,
   },
   usePreferences: () => ({
     globalSearchShortcutKey: computed(() => false),
-    preferencesButtonPosition: computed(() => ({
-      fixed: false,
-      header: false,
-    })),
+    preferencesButtonPosition: computed(
+      () => layoutPreferences.preferencesButtonPosition,
+    ),
   }),
+}));
+
+vi.mock('@vben/locales', () => ({
+  $t: (key: string) => key,
 }));
 
 vi.mock('@vben/stores', () => ({
@@ -53,7 +74,17 @@ vi.mock('@vben-core/shadcn-ui', () => ({
   }),
   VbenIconButton: defineComponent({
     name: 'VbenIconButton',
-    setup: (_props, { slots }) => () => h('button', slots.default?.()),
+    setup:
+      (_props, { slots }) =>
+      () =>
+        h('button', slots.default?.()),
+  }),
+  VbenTooltip: defineComponent({
+    name: 'VbenTooltip',
+    setup:
+      (_props, { slots }) =>
+      () =>
+        h('div', { class: 'tooltip-stub' }, slots.trigger?.()),
   }),
 }));
 
@@ -73,18 +104,162 @@ vi.mock('../../../widgets', () => {
   };
 });
 
-import {
-  addLayoutHeaderExtensionAreaItem,
-  clearLayoutHeaderExtensionArea,
-  removeLayoutHeaderExtensionAreaItem,
-  useLayoutHeaderExtensionArea,
-} from '../header-extension-area';
-import LayoutHeader from '../header.vue';
-
 describe('layout header extension area', () => {
   beforeEach(() => {
     clearLayoutHeaderExtensionArea('center');
     clearLayoutHeaderExtensionArea('right');
+    Object.assign(layoutPreferences.preferencesButtonPosition, {
+      fixed: false,
+      header: false,
+    });
+    Object.assign(layoutPreferences.widget, {
+      fullscreen: false,
+      globalSearch: false,
+      languageToggle: false,
+      notification: false,
+      refresh: false,
+      themeToggle: false,
+      timezone: false,
+    });
+  });
+
+  it('groups enabled interface utilities into a compact vertical action list', () => {
+    Object.assign(layoutPreferences.preferencesButtonPosition, {
+      header: true,
+    });
+    Object.assign(layoutPreferences.widget, {
+      fullscreen: true,
+      languageToggle: true,
+      themeToggle: true,
+      timezone: true,
+    });
+
+    const wrapper = mount(LayoutHeader);
+    const quickActions = wrapper.find('[data-testid="header-quick-actions"]');
+
+    expect(quickActions.attributes('aria-label')).toBe(
+      'ui.widgets.quickActions',
+    );
+    expect(quickActions.findAll('.header-quick-actions__item')).toHaveLength(5);
+    expect(
+      quickActions.findComponent({ name: 'PreferencesButton' }).exists(),
+    ).toBe(true);
+    expect(quickActions.findComponent({ name: 'ThemeToggle' }).exists()).toBe(
+      true,
+    );
+    expect(
+      quickActions.findComponent({ name: 'LanguageToggle' }).exists(),
+    ).toBe(true);
+    expect(
+      quickActions.findComponent({ name: 'TimezoneButton' }).exists(),
+    ).toBe(true);
+    expect(
+      quickActions.findComponent({ name: 'VbenFullScreen' }).exists(),
+    ).toBe(true);
+  });
+
+  it('keeps the header wrapper open for the expanded quick-action overlay', () => {
+    const source = readFileSync(
+      'packages/@core/ui-kit/layout-ui/src/vben-layout.vue',
+      'utf8',
+    );
+
+    expect(source).toContain(
+      'class="overflow-visible transition-all duration-200"',
+    );
+  });
+
+  it('does not clip the quick-action overlay when the header has rounded corners', () => {
+    const source = readFileSync(
+      'packages/@core/ui-kit/layout-ui/src/components/layout-header.vue',
+      'utf8',
+    );
+
+    expect(source).not.toContain("{ overflow: 'hidden' }");
+  });
+
+  it('uses theme tokens for controls when a custom header color is active', () => {
+    const layoutHeaderSource = readFileSync(
+      'packages/@core/ui-kit/layout-ui/src/components/layout-header.vue',
+      'utf8',
+    );
+    const globalSearchSource = readFileSync(
+      'packages/effects/layouts/src/widgets/global-search/global-search.vue',
+      'utf8',
+    );
+    const layoutSource = readFileSync(
+      'packages/@core/ui-kit/layout-ui/src/vben-layout.vue',
+      'utf8',
+    );
+    const userDropdownSource = readFileSync(
+      'packages/effects/layouts/src/widgets/user-dropdown/user-dropdown.vue',
+      'utf8',
+    );
+
+    expect(layoutHeaderSource).toContain(
+      "'--header-control-background': 'transparent'",
+    );
+    expect(layoutHeaderSource).toContain(
+      "'hsl(var(--header-menu-theme-color, var(--primary)))'",
+    );
+    expect(layoutHeaderSource).toContain(
+      "'--header-control-foreground': 'hsl(var(--primary-foreground))'",
+    );
+    expect(layoutHeaderSource).toContain(
+      "'hsl(var(--header-menu-background, var(--header)))'",
+    );
+    expect(globalSearchSource).toContain('header-global-search');
+    expect(globalSearchSource).toContain('--header-control-background');
+    expect(layoutSource).toContain('header-theme-control');
+    expect(userDropdownSource).toContain('header-user-dropdown');
+    expect(userDropdownSource).toContain("[data-state='open']");
+    expect(userDropdownSource).toContain('--header-menu-background');
+  });
+
+  it('separates the topbar interaction theme from popup menu backgrounds', () => {
+    const basicLayoutSource = readFileSync(
+      'packages/effects/layouts/src/basic/layout.vue',
+      'utf8',
+    );
+    const notificationSource = readFileSync(
+      'packages/effects/layouts/src/widgets/notification/notification.vue',
+      'utf8',
+    );
+
+    expect(basicLayoutSource).toContain('const headerMenuPopupStyle');
+    expect(basicLayoutSource).toContain('--header-menu-background');
+    expect(basicLayoutSource).toContain(
+      "'--menu-submenu-active-background-color':",
+    );
+    expect(basicLayoutSource).toContain('--header-menu-theme-color');
+    expect(notificationSource).toContain('--header-menu-background');
+
+    const preferencesSource = readFileSync(
+      'packages/@core/preferences/src/update-css-variables.ts',
+      'utf8',
+    );
+    expect(preferencesSource).toContain('headerMenuBackgroundColorCustom');
+    expect(preferencesSource).toContain('sidebarMenuBackgroundColorCustom');
+  });
+
+  it('uses the dark theme base background without changing saved preferences', () => {
+    const source = readFileSync(
+      'packages/effects/layouts/src/basic/layout.vue',
+      'utf8',
+    );
+    const baseBackgroundSection = source.slice(
+      source.indexOf('const baseBackgroundColor'),
+      source.indexOf('const baseLayoutStyle'),
+    );
+
+    expect(baseBackgroundSection).toContain('if (isDark.value)');
+    expect(baseBackgroundSection).toContain(
+      "return 'hsl(var(--background-deep))';",
+    );
+    expect(baseBackgroundSection).toContain(
+      'preferences.theme.baseBackgroundColorCustom',
+    );
+    expect(baseBackgroundSection).not.toContain('updatePreferences');
   });
 
   it('renders documented header slots in the expected order', () => {
@@ -93,8 +268,10 @@ describe('layout header extension area', () => {
         breadcrumb: '<span data-testid="breadcrumb">breadcrumb</span>',
         'header-left-10': '<span data-testid="left-before">left-before</span>',
         'header-left-60': '<span data-testid="left-after">left-after</span>',
-        'header-right-10': '<span data-testid="right-before">right-before</span>',
-        'header-right-160': '<span data-testid="right-after">right-after</span>',
+        'header-right-10':
+          '<span data-testid="right-before">right-before</span>',
+        'header-right-160':
+          '<span data-testid="right-after">right-after</span>',
         'header-top-center': '<span data-testid="top-center">top-center</span>',
         'header-top-right': '<span data-testid="top-right">top-right</span>',
         'user-dropdown': '<span data-testid="user-dropdown">user</span>',
@@ -122,7 +299,9 @@ describe('layout header extension area', () => {
       },
     });
 
-    expect(wrapper.find('[data-testid="header-center-a"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="header-center-a"]').exists()).toBe(
+      false,
+    );
     expect(wrapper.find('[data-testid="header-right-a"]').exists()).toBe(false);
 
     const disposeCenter = addLayoutHeaderExtensionAreaItem('center', {
@@ -158,8 +337,12 @@ describe('layout header extension area', () => {
     removeLayoutHeaderExtensionAreaItem('center', 'center-a');
     await nextTick();
 
-    expect(wrapper.find('[data-testid="header-center-a"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="header-center-b"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="header-center-a"]').exists()).toBe(
+      false,
+    );
+    expect(wrapper.find('[data-testid="header-center-b"]').exists()).toBe(
+      false,
+    );
     expect(wrapper.find('[data-testid="header-right-a"]').exists()).toBe(false);
   });
 
@@ -208,9 +391,9 @@ describe('layout header extension area', () => {
     const emptyWrapper = mount(LayoutHeader);
     await nextTick();
 
-    expect(emptyWrapper.find('[data-testid="use-header-center"]').exists()).toBe(
-      false,
-    );
+    expect(
+      emptyWrapper.find('[data-testid="use-header-center"]').exists(),
+    ).toBe(false);
     expect(emptyWrapper.find('[data-testid="use-header-right"]').exists()).toBe(
       false,
     );

@@ -19,7 +19,9 @@ import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store
 import { createDynamicVerifyCodeInterceptor } from './dynamic-verify-code';
 import { emitApiRequestEvent } from './request-events';
 import {
+  getHttpAuthorizationMessage,
   getServiceRespMessage,
+  isBusinessErrorResponse,
   isServiceResp,
   unwrapServiceResp,
 } from './service-resp';
@@ -27,26 +29,16 @@ import {
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 const REQUEST_TIMEOUT_MS = 180_000;
 
-function isBusinessError(responseData: Record<string, any>) {
-  if (!responseData || typeof responseData !== 'object') {
-    return false;
-  }
-
-  if (responseData.bizError === true) {
-    return true;
-  }
-
-  const errorType = String(responseData.errorType || '');
-  if (errorType.includes('Biz')) {
-    return true;
-  }
-
-  const code = Number(responseData.code);
-  return Number.isFinite(code) && code >= 10_000 && code < 20_000;
-}
-
 function getUnifiedErrorMessage(msg: string, error: any) {
   const responseData = error?.response?.data ?? {};
+  const httpAuthorizationMessage = getHttpAuthorizationMessage(
+    error?.response?.status,
+    responseData,
+  );
+  if (httpAuthorizationMessage) {
+    return httpAuthorizationMessage;
+  }
+
   if (isServiceResp(responseData)) {
     return getServiceRespMessage(responseData);
   }
@@ -58,7 +50,7 @@ function getUnifiedErrorMessage(msg: string, error: any) {
     responseData?.detailMsg ??
     msg;
 
-  if (isBusinessError(responseData)) {
+  if (isBusinessErrorResponse(responseData)) {
     return backendMessage || '业务处理失败';
   }
 

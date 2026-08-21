@@ -203,6 +203,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '租户插件设置',
   },
   {
+    icon: 'lucide:mail',
+    name: 'EmailRelayRoute',
+    resource: 'EmailRelayRoute',
+    title: '邮件中转路由',
+  },
+  {
     icon: 'lucide:settings',
     name: 'Setting',
     resource: 'Setting',
@@ -305,6 +311,7 @@ export const oakBaseAdminResourceViewMap: Record<
   Dict: () => import('./views/dict/index.vue'),
   Domain: () => import('./views/domain/index.vue'),
   DomainSslCert: () => import('./views/domain-ssl-cert/index.vue'),
+  EmailRelayRoute: () => import('./views/email-relay-route/index.vue'),
   FileRes: () => import('./views/file-res/index.vue'),
   FundAccount: () => import('./views/fund-account/index.vue'),
   FundAccountLog: () => import('./views/fund-account-log/index.vue'),

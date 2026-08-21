@@ -65,6 +65,32 @@ const appLayout = defineModel<LayoutType>('appLayout');
 const appColorGrayMode = defineModel<boolean>('appColorGrayMode');
 const appColorWeakMode = defineModel<boolean>('appColorWeakMode');
 const appContentCompact = defineModel<ContentCompactType>('appContentCompact');
+const appContentMarginTop = defineModel<number>('appContentMarginTop');
+const appContentMarginRight = defineModel<number>('appContentMarginRight');
+const appContentMarginBottom = defineModel<number>('appContentMarginBottom');
+const appContentMarginLeft = defineModel<number>('appContentMarginLeft');
+const appContentRadiusTopLeft = defineModel<number>('appContentRadiusTopLeft');
+const appContentRadiusTopRight = defineModel<number>(
+  'appContentRadiusTopRight',
+);
+const appContentRadiusBottomRight = defineModel<number>(
+  'appContentRadiusBottomRight',
+);
+const appContentRadiusBottomLeft = defineModel<number>(
+  'appContentRadiusBottomLeft',
+);
+const appContentBorderTopWidth = defineModel<number>(
+  'appContentBorderTopWidth',
+);
+const appContentBorderRightWidth = defineModel<number>(
+  'appContentBorderRightWidth',
+);
+const appContentBorderBottomWidth = defineModel<number>(
+  'appContentBorderBottomWidth',
+);
+const appContentBorderLeftWidth = defineModel<number>(
+  'appContentBorderLeftWidth',
+);
 const appWatermark = defineModel<boolean>('appWatermark');
 const appWatermarkContent = defineModel<string>('appWatermarkContent');
 const appEnableCheckUpdates = defineModel<boolean>('appEnableCheckUpdates');
@@ -84,6 +110,24 @@ const themeColorPrimary = defineModel<string>('themeColorPrimary');
 const themeColorDestructive = defineModel<string>('themeColorDestructive');
 const themeColorSuccess = defineModel<string>('themeColorSuccess');
 const themeColorWarning = defineModel<string>('themeColorWarning');
+const themeBaseBackgroundColor = defineModel<string>(
+  'themeBaseBackgroundColor',
+);
+const themeBaseBackgroundColorCustom = defineModel<boolean>(
+  'themeBaseBackgroundColorCustom',
+);
+const themeBaseBackgroundTransparency = defineModel<number>(
+  'themeBaseBackgroundTransparency',
+);
+const themeContentBackgroundColor = defineModel<string>(
+  'themeContentBackgroundColor',
+);
+const themeContentBackgroundColorCustom = defineModel<boolean>(
+  'themeContentBackgroundColorCustom',
+);
+const themeContentBackgroundTransparency = defineModel<number>(
+  'themeContentBackgroundTransparency',
+);
 const themeBuiltinType = defineModel<BuiltinThemeType>('themeBuiltinType');
 const themeMode = defineModel<ThemeModeType>('themeMode');
 const themeRadius = defineModel<string>('themeRadius');
@@ -92,10 +136,31 @@ const themeSemiDarkSidebar = defineModel<boolean>('themeSemiDarkSidebar');
 const themeSemiDarkSidebarColor = defineModel<string>(
   'themeSemiDarkSidebarColor',
 );
+const themeSemiDarkSidebarColorTransparency = defineModel<number>(
+  'themeSemiDarkSidebarColorTransparency',
+);
 const themeSemiDarkSidebarSub = defineModel<boolean>('themeSemiDarkSidebarSub');
 const themeSemiDarkHeader = defineModel<boolean>('themeSemiDarkHeader');
 const themeSemiDarkHeaderColor = defineModel<string>(
   'themeSemiDarkHeaderColor',
+);
+const themeSemiDarkHeaderColorTransparency = defineModel<number>(
+  'themeSemiDarkHeaderColorTransparency',
+);
+const themeHeaderMenuThemeColor = defineModel<string>(
+  'themeHeaderMenuThemeColor',
+);
+const themeHeaderMenuThemeColorCustom = defineModel<boolean>(
+  'themeHeaderMenuThemeColorCustom',
+);
+const themeHeaderMenuBackgroundColor = defineModel<string>(
+  'themeHeaderMenuBackgroundColor',
+);
+const themeHeaderMenuBackgroundColorCustom = defineModel<boolean>(
+  'themeHeaderMenuBackgroundColorCustom',
+);
+const themeHeaderMenuBackgroundColorTransparency = defineModel<number>(
+  'themeHeaderMenuBackgroundColorTransparency',
 );
 const themeSidebarMenuBackgroundColor = defineModel<string>(
   'themeSidebarMenuBackgroundColor',
@@ -103,9 +168,14 @@ const themeSidebarMenuBackgroundColor = defineModel<string>(
 const themeSidebarMenuBackgroundColorCustom = defineModel<boolean>(
   'themeSidebarMenuBackgroundColorCustom',
 );
+const themeSidebarMenuBackgroundColorTransparency = defineModel<number>(
+  'themeSidebarMenuBackgroundColorTransparency',
+);
 
 const sidebarEnable = defineModel<boolean>('sidebarEnable');
 const sidebarWidth = defineModel<number>('sidebarWidth');
+const sidebarMixedMenuGap = defineModel<number>('sidebarMixedMenuGap');
+const sidebarMenuItemGap = defineModel<number>('sidebarMenuItemGap');
 const sidebarCollapsed = defineModel<boolean>('sidebarCollapsed');
 const sidebarCollapsedShowTitle = defineModel<boolean>(
   'sidebarCollapsedShowTitle',
@@ -116,8 +186,36 @@ const sidebarAutoActivateChild = defineModel<boolean>(
 const sidebarExpandOnHover = defineModel<boolean>('sidebarExpandOnHover');
 const sidebarCollapsedButton = defineModel<boolean>('sidebarCollapsedButton');
 const sidebarFixedButton = defineModel<boolean>('sidebarFixedButton');
+const sidebarMarginTop = defineModel<number>('sidebarMarginTop');
+const sidebarMarginRight = defineModel<number>('sidebarMarginRight');
+const sidebarMarginBottom = defineModel<number>('sidebarMarginBottom');
+const sidebarMarginLeft = defineModel<number>('sidebarMarginLeft');
+const sidebarRadiusTopLeft = defineModel<number>('sidebarRadiusTopLeft');
+const sidebarRadiusTopRight = defineModel<number>('sidebarRadiusTopRight');
+const sidebarRadiusBottomRight = defineModel<number>(
+  'sidebarRadiusBottomRight',
+);
+const sidebarRadiusBottomLeft = defineModel<number>('sidebarRadiusBottomLeft');
+const sidebarBorderTopWidth = defineModel<number>('sidebarBorderTopWidth');
+const sidebarBorderRightWidth = defineModel<number>('sidebarBorderRightWidth');
+const sidebarBorderBottomWidth = defineModel<number>(
+  'sidebarBorderBottomWidth',
+);
+const sidebarBorderLeftWidth = defineModel<number>('sidebarBorderLeftWidth');
 const headerEnable = defineModel<boolean>('headerEnable');
 const headerHeight = defineModel<number>('headerHeight');
+const headerMarginTop = defineModel<number>('headerMarginTop');
+const headerMarginRight = defineModel<number>('headerMarginRight');
+const headerMarginBottom = defineModel<number>('headerMarginBottom');
+const headerMarginLeft = defineModel<number>('headerMarginLeft');
+const headerRadiusTopLeft = defineModel<number>('headerRadiusTopLeft');
+const headerRadiusTopRight = defineModel<number>('headerRadiusTopRight');
+const headerRadiusBottomRight = defineModel<number>('headerRadiusBottomRight');
+const headerRadiusBottomLeft = defineModel<number>('headerRadiusBottomLeft');
+const headerBorderTopWidth = defineModel<number>('headerBorderTopWidth');
+const headerBorderRightWidth = defineModel<number>('headerBorderRightWidth');
+const headerBorderBottomWidth = defineModel<number>('headerBorderBottomWidth');
+const headerBorderLeftWidth = defineModel<number>('headerBorderLeftWidth');
 const headerMode = defineModel<LayoutHeaderModeType>('headerMode');
 const headerMenuAlign =
   defineModel<LayoutHeaderMenuAlignType>('headerMenuAlign');
@@ -131,6 +229,26 @@ const breadcrumbStyleType = defineModel<BreadcrumbStyleType>(
 const breadcrumbHideOnlyOne = defineModel<boolean>('breadcrumbHideOnlyOne');
 
 const tabbarEnable = defineModel<boolean>('tabbarEnable');
+const tabbarHeight = defineModel<number>('tabbarHeight');
+const tabbarBackgroundColor = defineModel<string>('tabbarBackgroundColor');
+const tabbarBackgroundColorCustom = defineModel<boolean>(
+  'tabbarBackgroundColorCustom',
+);
+const tabbarBackgroundTransparency = defineModel<number>(
+  'tabbarBackgroundTransparency',
+);
+const tabbarMarginTop = defineModel<number>('tabbarMarginTop');
+const tabbarMarginRight = defineModel<number>('tabbarMarginRight');
+const tabbarMarginBottom = defineModel<number>('tabbarMarginBottom');
+const tabbarMarginLeft = defineModel<number>('tabbarMarginLeft');
+const tabbarRadiusTopLeft = defineModel<number>('tabbarRadiusTopLeft');
+const tabbarRadiusTopRight = defineModel<number>('tabbarRadiusTopRight');
+const tabbarRadiusBottomRight = defineModel<number>('tabbarRadiusBottomRight');
+const tabbarRadiusBottomLeft = defineModel<number>('tabbarRadiusBottomLeft');
+const tabbarBorderTopWidth = defineModel<number>('tabbarBorderTopWidth');
+const tabbarBorderRightWidth = defineModel<number>('tabbarBorderRightWidth');
+const tabbarBorderBottomWidth = defineModel<number>('tabbarBorderBottomWidth');
+const tabbarBorderLeftWidth = defineModel<number>('tabbarBorderLeftWidth');
 const tabbarShowIcon = defineModel<boolean>('tabbarShowIcon');
 const tabbarShowMore = defineModel<boolean>('tabbarShowMore');
 const tabbarShowMaximize = defineModel<boolean>('tabbarShowMaximize');
@@ -258,7 +376,16 @@ async function handleReset() {
 }
 
 function openColorSettings(
-  target: 'header' | 'menuBackground' | 'primary' | 'sidebar',
+  target:
+    | 'baseBackground'
+    | 'contentBackground'
+    | 'header'
+    | 'headerMenuBackground'
+    | 'headerMenuTheme'
+    | 'menuBackground'
+    | 'primary'
+    | 'sidebar'
+    | 'tabbarBackground',
 ) {
   colorSettingsRef.value?.open(target);
 }
@@ -339,8 +466,34 @@ function openColorSettings(
             <Block :title="$t('preferences.theme.title')">
               <Theme
                 v-model="themeMode"
+                v-model:theme-base-background-color="themeBaseBackgroundColor"
+                v-model:theme-base-background-color-custom="
+                  themeBaseBackgroundColorCustom
+                "
+                v-model:theme-content-background-color="
+                  themeContentBackgroundColor
+                "
+                v-model:theme-content-background-color-custom="
+                  themeContentBackgroundColorCustom
+                "
+                v-model:tabbar-background-color="tabbarBackgroundColor"
+                v-model:tabbar-background-color-custom="
+                  tabbarBackgroundColorCustom
+                "
                 v-model:theme-semi-dark-header="themeSemiDarkHeader"
                 v-model:theme-semi-dark-header-color="themeSemiDarkHeaderColor"
+                v-model:theme-header-menu-theme-color="
+                  themeHeaderMenuThemeColor
+                "
+                v-model:theme-header-menu-theme-color-custom="
+                  themeHeaderMenuThemeColorCustom
+                "
+                v-model:theme-header-menu-background-color="
+                  themeHeaderMenuBackgroundColor
+                "
+                v-model:theme-header-menu-background-color-custom="
+                  themeHeaderMenuBackgroundColorCustom
+                "
                 v-model:theme-semi-dark-sidebar="themeSemiDarkSidebar"
                 v-model:theme-semi-dark-sidebar-color="
                   themeSemiDarkSidebarColor
@@ -359,16 +512,48 @@ function openColorSettings(
               <ColorSettings
                 ref="colorSettingsRef"
                 v-model="themeBuiltinType"
+                v-model:theme-base-background-color="themeBaseBackgroundColor"
+                v-model:theme-base-background-transparency="
+                  themeBaseBackgroundTransparency
+                "
+                v-model:theme-content-background-color="
+                  themeContentBackgroundColor
+                "
+                v-model:theme-content-background-transparency="
+                  themeContentBackgroundTransparency
+                "
                 v-model:theme-color-destructive="themeColorDestructive"
                 v-model:theme-color-primary="themeColorPrimary"
                 v-model:theme-color-success="themeColorSuccess"
                 v-model:theme-color-warning="themeColorWarning"
                 v-model:theme-semi-dark-header-color="themeSemiDarkHeaderColor"
+                v-model:theme-semi-dark-header-color-transparency="
+                  themeSemiDarkHeaderColorTransparency
+                "
+                v-model:theme-header-menu-theme-color="
+                  themeHeaderMenuThemeColor
+                "
+                v-model:theme-header-menu-background-color="
+                  themeHeaderMenuBackgroundColor
+                "
+                v-model:theme-header-menu-background-color-transparency="
+                  themeHeaderMenuBackgroundColorTransparency
+                "
                 v-model:theme-semi-dark-sidebar-color="
                   themeSemiDarkSidebarColor
                 "
+                v-model:theme-semi-dark-sidebar-color-transparency="
+                  themeSemiDarkSidebarColorTransparency
+                "
                 v-model:theme-sidebar-menu-background-color="
                   themeSidebarMenuBackgroundColor
+                "
+                v-model:theme-sidebar-menu-background-color-transparency="
+                  themeSidebarMenuBackgroundColorTransparency
+                "
+                v-model:tabbar-background-color="tabbarBackgroundColor"
+                v-model:tabbar-background-transparency="
+                  tabbarBackgroundTransparency
                 "
                 :is-dark="isDark"
               />
@@ -391,7 +576,25 @@ function openColorSettings(
               <Layout v-model="appLayout" />
             </Block>
             <Block :title="$t('preferences.content')">
-              <Content v-model="appContentCompact" />
+              <Content
+                v-model="appContentCompact"
+                v-model:content-border-bottom-width="
+                  appContentBorderBottomWidth
+                "
+                v-model:content-border-left-width="appContentBorderLeftWidth"
+                v-model:content-border-right-width="appContentBorderRightWidth"
+                v-model:content-border-top-width="appContentBorderTopWidth"
+                v-model:content-margin-bottom="appContentMarginBottom"
+                v-model:content-margin-left="appContentMarginLeft"
+                v-model:content-margin-right="appContentMarginRight"
+                v-model:content-margin-top="appContentMarginTop"
+                v-model:content-radius-top-left="appContentRadiusTopLeft"
+                v-model:content-radius-top-right="appContentRadiusTopRight"
+                v-model:content-radius-bottom-right="
+                  appContentRadiusBottomRight
+                "
+                v-model:content-radius-bottom-left="appContentRadiusBottomLeft"
+              />
             </Block>
 
             <Block :title="$t('preferences.sidebar.title')">
@@ -402,8 +605,22 @@ function openColorSettings(
                 v-model:sidebar-enable="sidebarEnable"
                 v-model:sidebar-expand-on-hover="sidebarExpandOnHover"
                 v-model:sidebar-width="sidebarWidth"
+                v-model:sidebar-mixed-menu-gap="sidebarMixedMenuGap"
+                v-model:sidebar-menu-item-gap="sidebarMenuItemGap"
                 v-model:sidebar-collapsed-button="sidebarCollapsedButton"
                 v-model:sidebar-fixed-button="sidebarFixedButton"
+                v-model:sidebar-margin-top="sidebarMarginTop"
+                v-model:sidebar-margin-right="sidebarMarginRight"
+                v-model:sidebar-margin-bottom="sidebarMarginBottom"
+                v-model:sidebar-margin-left="sidebarMarginLeft"
+                v-model:sidebar-radius-top-left="sidebarRadiusTopLeft"
+                v-model:sidebar-radius-top-right="sidebarRadiusTopRight"
+                v-model:sidebar-radius-bottom-right="sidebarRadiusBottomRight"
+                v-model:sidebar-radius-bottom-left="sidebarRadiusBottomLeft"
+                v-model:sidebar-border-top-width="sidebarBorderTopWidth"
+                v-model:sidebar-border-right-width="sidebarBorderRightWidth"
+                v-model:sidebar-border-bottom-width="sidebarBorderBottomWidth"
+                v-model:sidebar-border-left-width="sidebarBorderLeftWidth"
                 :current-layout="appLayout"
                 :disabled="!isSideMode"
               />
@@ -415,6 +632,18 @@ function openColorSettings(
                 v-model:header-height="headerHeight"
                 v-model:header-menu-align="headerMenuAlign"
                 v-model:header-mode="headerMode"
+                v-model:header-margin-top="headerMarginTop"
+                v-model:header-margin-right="headerMarginRight"
+                v-model:header-margin-bottom="headerMarginBottom"
+                v-model:header-margin-left="headerMarginLeft"
+                v-model:header-radius-top-left="headerRadiusTopLeft"
+                v-model:header-radius-top-right="headerRadiusTopRight"
+                v-model:header-radius-bottom-right="headerRadiusBottomRight"
+                v-model:header-radius-bottom-left="headerRadiusBottomLeft"
+                v-model:header-border-top-width="headerBorderTopWidth"
+                v-model:header-border-right-width="headerBorderRightWidth"
+                v-model:header-border-bottom-width="headerBorderBottomWidth"
+                v-model:header-border-left-width="headerBorderLeftWidth"
                 :disabled="isFullContent"
               />
             </Block>
@@ -424,6 +653,7 @@ function openColorSettings(
                 v-model:navigation-accordion="navigationAccordion"
                 v-model:navigation-split="navigationSplit"
                 v-model:navigation-style-type="navigationStyleType"
+                v-model:tabbar-enable="tabbarEnable"
                 :disabled="isFullContent"
                 :disabled-navigation-split="!isMixedNav"
               />
@@ -444,6 +674,19 @@ function openColorSettings(
             </Block>
             <Block :title="$t('preferences.tabbar.title')">
               <Tabbar
+                v-model:tabbar-height="tabbarHeight"
+                v-model:tabbar-margin-top="tabbarMarginTop"
+                v-model:tabbar-margin-right="tabbarMarginRight"
+                v-model:tabbar-margin-bottom="tabbarMarginBottom"
+                v-model:tabbar-margin-left="tabbarMarginLeft"
+                v-model:tabbar-radius-top-left="tabbarRadiusTopLeft"
+                v-model:tabbar-radius-top-right="tabbarRadiusTopRight"
+                v-model:tabbar-radius-bottom-right="tabbarRadiusBottomRight"
+                v-model:tabbar-radius-bottom-left="tabbarRadiusBottomLeft"
+                v-model:tabbar-border-top-width="tabbarBorderTopWidth"
+                v-model:tabbar-border-right-width="tabbarBorderRightWidth"
+                v-model:tabbar-border-bottom-width="tabbarBorderBottomWidth"
+                v-model:tabbar-border-left-width="tabbarBorderLeftWidth"
                 v-model:tabbar-draggable="tabbarDraggable"
                 v-model:tabbar-enable="tabbarEnable"
                 v-model:tabbar-persist="tabbarPersist"
@@ -519,13 +762,12 @@ function openColorSettings(
           {{ $t('preferences.copyPreferences') }}
         </VbenButton>
         <VbenButton
-          :disabled="!diffPreference"
           class="mr-4 w-full"
           size="sm"
           variant="ghost"
           @click="handleClearCacheAndRestoreDefaults"
         >
-          {{ $t('preferences.restoreDefaults') }}
+          {{ $t('preferences.clearCacheAndRestoreDefaults') }}
         </VbenButton>
       </template>
     </Drawer>

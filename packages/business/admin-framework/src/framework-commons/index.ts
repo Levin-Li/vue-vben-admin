@@ -1,5 +1,6 @@
 export * from './api';
 export * from './api-authorize';
+export * from './app/views/_core/authentication/behavior-captcha';
 export * from './app/options';
 export * from './event-bus';
 export * from './locale-utils';
@@ -10,6 +11,7 @@ export * from './rbac-access';
 export { default as RbacPermissionMatchUtils } from './rbac-permission-match';
 export * from './request-service';
 export * from './runtime';
+export { default as BehaviorCaptcha } from './app/views/_core/authentication/behavior-captcha.vue';
 export { default as DraggableFloatingPanelHost } from './shared/draggable-floating-panel-host.vue';
 /**
  * Browser-window draggable floating panels.

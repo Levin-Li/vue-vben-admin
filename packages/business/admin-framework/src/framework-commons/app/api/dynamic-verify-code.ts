@@ -11,6 +11,12 @@ import { CanceledError } from '@vben/request';
 
 import { Button, Input, message, Modal } from 'ant-design-vue';
 
+import BehaviorCaptcha from '../views/_core/authentication/behavior-captcha.vue';
+import {
+  normalizeBehaviorCaptchaChallenge,
+  type BehaviorCaptchaChallenge,
+} from '../views/_core/authentication/behavior-captcha';
+
 type DynamicVerifyRequestConfig = RequestClientConfig & {
   __dynamicVerifyKeepRaw?: boolean;
   __dynamicVerifyRetried?: boolean;
@@ -284,8 +290,24 @@ function isCaptchaVerify(type?: string) {
   return type === 'Captcha';
 }
 
+function isBehaviorVerify(type?: string) {
+  return type === 'Hmi';
+}
+
 function shouldShowGetCodeButton(type?: string) {
-  return type !== 'Mfa' && !isCaptchaVerify(type);
+  return type !== 'Mfa' && !isCaptchaVerify(type) && !isBehaviorVerify(type);
+}
+
+function parseBehaviorChallengeInput(value?: string) {
+  if (!value) {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
 }
 
 function promptDynamicVerifyCode(
@@ -301,8 +323,10 @@ function promptDynamicVerifyCode(
     let applyResult: DynamicVerifyApplyResult | undefined;
     let applying = false;
     let applyPromise: Promise<DynamicVerifyApplyResult> | undefined;
+    let behaviorChallenge: BehaviorCaptchaChallenge | null = null;
     let modalRef:
       | {
+          destroy?: () => void;
           update?: (config: Record<string, unknown>) => void;
         }
       | undefined;
@@ -331,6 +355,11 @@ function promptDynamicVerifyCode(
       applyPromise = applyCode()
         .then((result) => {
           applyResult = result;
+          behaviorChallenge = isBehaviorVerify(result.type)
+            ? normalizeBehaviorCaptchaChallenge(
+                parseBehaviorChallengeInput(result.interactionData),
+              )
+            : null;
           return result;
         })
         .finally(() => {
@@ -375,13 +404,27 @@ function promptDynamicVerifyCode(
       );
     };
 
+    const resolveBehaviorVerify = (verifyCode: string) => {
+      if (!applyResult) {
+        return;
+      }
+
+      settled = true;
+      resolve({
+        paramName: applyResult.paramName,
+        verifyCode,
+        verifyId: applyResult.verifyId,
+      });
+      modalRef?.destroy?.();
+    };
+
     const renderContent = () => {
       const type = getCurrentType();
       const description =
         info.friendlyMessage ||
         info.prompt ||
         '当前接口需要完成验证码验证后才能继续。';
-      const interactionData = isCaptchaVerify(type)
+      const interactionData = isCaptchaVerify(type) || isBehaviorVerify(type)
         ? undefined
         : applyResult?.interactionData;
       const serverPrompt = applyResult?.friendlyMessage;
@@ -395,29 +438,50 @@ function promptDynamicVerifyCode(
           },
           [description],
         ),
+        isBehaviorVerify(type)
+          ? behaviorChallenge
+            ? h(BehaviorCaptcha, {
+                challenge: behaviorChallenge,
+                loading: applying,
+                onComplete: resolveBehaviorVerify,
+                onRefresh: () => triggerApply(true),
+              })
+            : applyResult
+              ? h(
+                  'div',
+                  {
+                    style:
+                      'margin-top:12px;padding:12px;border-radius:12px;border:1px solid hsl(var(--destructive));background:hsl(var(--destructive) / 0.08);color:hsl(var(--destructive));line-height:1.6;',
+                  },
+                  '当前服务端返回了未注册的行为验证码模式，前端无法完成本次验证。',
+                )
+              : undefined
+          : undefined,
         renderInteractionData(interactionData),
-        h(
-          'div',
-          {
-            style:
-              'display:flex;width:100%;gap:8px;align-items:center;margin-top:12px;',
-          },
-          [
-            h(Input, {
-              allowClear: true,
-              autofocus: true,
-              placeholder: `请输入${getVerifyTypeLabel(type)}`,
-              style: 'flex:1;min-width:0;',
-              'onUpdate:value': (value: string) => {
-                verifyCode = value;
+        !isBehaviorVerify(type)
+          ? h(
+              'div',
+              {
+                style:
+                  'display:flex;width:100%;gap:8px;align-items:center;margin-top:12px;',
               },
-              onPressEnter: () => {
-                // Ant Design Vue 的 confirm 无法直接触发 OK，这里只负责保存输入值。
-              },
-            }),
-            renderActionControl(type),
-          ],
-        ),
+              [
+                h(Input, {
+                  allowClear: true,
+                  autofocus: true,
+                  placeholder: `请输入${getVerifyTypeLabel(type)}`,
+                  style: 'flex:1;min-width:0;',
+                  'onUpdate:value': (value: string) => {
+                    verifyCode = value;
+                  },
+                  onPressEnter: () => {
+                    // Ant Design Vue 的 confirm 无法直接触发 OK，这里只负责保存输入值。
+                  },
+                }),
+                renderActionControl(type),
+              ],
+            )
+          : undefined,
         serverPrompt
           ? h(
               'div',
@@ -447,6 +511,21 @@ function promptDynamicVerifyCode(
       },
       onOk: async () => {
         const type = getCurrentType();
+        if (isBehaviorVerify(type)) {
+          await triggerApply();
+
+          if (!behaviorChallenge) {
+            const error = new Error('当前行为验证码模式暂不支持');
+            settled = true;
+            reject(error);
+            message.warning('当前行为验证码模式暂不支持');
+            return Promise.reject(error);
+          }
+
+          message.warning('请先完成行为验证码');
+          return Promise.reject(new Error('请先完成行为验证码'));
+        }
+
         if (!applyResult && shouldShowGetCodeButton(type)) {
           message.warning('请先获取验证码');
           return Promise.reject(new Error('请先获取验证码'));

@@ -47,6 +47,10 @@ export interface TenantSettingCategory {
   name: string;
 }
 
+export interface BuildTenantSettingCategoriesOptions {
+  includeDisabled?: boolean;
+}
+
 export type SettingJsonSchemaSource =
   | {
       kind: 'inline';
@@ -500,11 +504,12 @@ export function buildTenantSettingUpdatePayload(
 
 export function buildTenantSettingCategories(
   settings: TenantSettingItem[],
+  { includeDisabled = false }: BuildTenantSettingCategoriesOptions = {},
 ): TenantSettingCategory[] {
   const categoryMap = new Map<string, TenantSettingCategory>();
 
   settings
-    .filter((item) => item.enable !== false)
+    .filter((item) => includeDisabled || item.enable !== false)
     .toSorted(compareSettingItems)
     .forEach((item) => {
       const categoryName = getNamedKey(

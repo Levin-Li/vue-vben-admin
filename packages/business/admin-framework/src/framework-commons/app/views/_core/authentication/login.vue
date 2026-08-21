@@ -11,6 +11,7 @@ import {
 } from 'vue';
 
 import { $t } from '@vben/locales';
+import { IconifyIcon } from '@vben/icons';
 
 import {
   Alert,
@@ -25,11 +26,18 @@ import {
 
 import {
   getVerifyCodeApi,
+  oauthService,
   startPasswordLoginApi,
 } from '@levin/admin-framework/framework-commons/app/api';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
 import { useAuthBrand } from './auth-brand';
+import BehaviorCaptcha from './behavior-captcha.vue';
+import {
+  getBehaviorCaptchaInstruction,
+  normalizeBehaviorCaptchaChallenge,
+  type BehaviorCaptchaChallenge,
+} from './behavior-captcha';
 import {
   extractReturnedVerifyCode,
   resolveContactVerifyCodeType,
@@ -38,7 +46,7 @@ import {
 defineOptions({ name: 'Login' });
 
 type VerifyCodeTab = 'Captcha' | 'Contact';
-type PasswordVerifyCodeType = 'Captcha' | 'Mfa';
+type PasswordVerifyCodeType = 'Captcha' | 'Hmi' | 'Mfa';
 
 interface VerifyCodeTabOption {
   description: string;
@@ -53,6 +61,17 @@ interface RequestVerifyCodeOptions {
 
 const REMEMBER_ME_KEY = `REMEMBER_ME_USERNAME_${location.hostname}`;
 const AUTO_LOGIN_COUNTDOWN_SECONDS = 5;
+const OAUTH_LOGIN_TRANSACTION_STORAGE_KEY = `LOGIN_OAUTH_TRANSACTION_${location.pathname}`;
+const OAUTH_LOGIN_POLL_INTERVAL_MS = 1500;
+const OAUTH_LOGIN_POLL_TIMEOUT_MS = 3 * 60 * 1000;
+
+interface OAuthLoginPlatform {
+  authUrl?: string;
+  code: string;
+  description: string;
+  displayName: string;
+  iconUrl: string;
+}
 
 const verifyTabs: VerifyCodeTabOption[] = [
   {
@@ -81,11 +100,37 @@ const passwordLoginChallengeId = ref('');
 const passwordVerifyCodeType = ref<PasswordVerifyCodeType | undefined>();
 const passwordVerifyDialogOpen = ref(false);
 const captchaImage = ref('');
+const hmiCaptchaChallenge = ref<BehaviorCaptchaChallenge | null>(null);
+
+const passwordVerifyDialogWidth = computed(() => {
+  if (!isPasswordHmiMode.value || !hmiCaptchaChallenge.value) {
+    return undefined;
+  }
+  const challengeWidth = Number(hmiCaptchaChallenge.value.payload?.width) || 427;
+  return challengeWidth + 80;
+});
 const countdown = ref(0);
 const verifyAssetLoading = ref(false);
 const rememberMe = ref(!!rememberedAccount);
 const lastAutoLoginSignature = ref('');
 const autoLoginCountdown = ref(0);
+const oauthPlatformsLoading = ref(false);
+const oauthPlatforms = ref<OAuthLoginPlatform[]>([]);
+const oauthLoginModalOpen = ref(false);
+const oauthLoginErrorMessage = ref('');
+const oauthLoginStatusMessage = ref('');
+const oauthLoginActivePlatform = ref<null | OAuthLoginPlatform>(null);
+const oauthLoginActiveTransactionId = ref('');
+const oauthLoginAuthorizeUrl = ref('');
+const oauthTransactionSubmitting = ref(false);
+const oauthTransactionExchanging = ref(false);
+const oauthRemainingSeconds = ref(0);
+
+let oauthPollingTimer: null | ReturnType<typeof setInterval> = null;
+let oauthCountdownTimer: null | ReturnType<typeof setInterval> = null;
+let oauthPollingInFlight = false;
+let oauthPollingStartedAt = 0;
+let oauthPopupWindow: null | Window = null;
 
 const formState = reactive({
   account: rememberedAccount || (isLoopbackBrowserHost ? 'sa' : ''),
@@ -118,6 +163,18 @@ const isPasswordMfaMode = computed(
     !!passwordLoginChallengeId.value &&
     passwordVerifyCodeType.value === 'Mfa',
 );
+const isPasswordHmiMode = computed(
+  () =>
+    isCaptchaTab.value &&
+    !!passwordLoginChallengeId.value &&
+    passwordVerifyCodeType.value === 'Hmi',
+);
+const isPasswordInteractiveVerifyMode = computed(
+  () => isPasswordCaptchaMode.value || isPasswordHmiMode.value,
+);
+const passwordBehaviorInstruction = computed(() =>
+  getBehaviorCaptchaInstruction(hmiCaptchaChallenge.value?.mode),
+);
 
 const resolvedVerifyCodeType = computed(() =>
   isContactTab.value
@@ -142,6 +199,285 @@ const actionButtonText = computed(() => {
 const verifyCodeUsageText = computed(() => {
   return resolvedVerifyCodeType.value === 'Email' ? '邮箱' : '短信';
 });
+
+const hasOAuthPlatforms = computed(() => oauthPlatforms.value.length > 0);
+const oauthWaitProgress = computed(() =>
+  Math.max(
+    0,
+    Math.round(
+      (oauthRemainingSeconds.value / (OAUTH_LOGIN_POLL_TIMEOUT_MS / 1000)) *
+        100,
+    ),
+  ),
+);
+
+function unwrapOAuthPayload<T extends Record<string, any> | null | undefined>(
+  payload: T,
+) {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const nestedPayload = payload.data;
+  if (
+    nestedPayload &&
+    typeof nestedPayload === 'object' &&
+    [
+      'accessToken',
+      'authUrl',
+      'authorizeUrl',
+      'capabilities',
+      'code',
+      'id',
+      'items',
+      'loginTicket',
+      'platform',
+      'records',
+      'status',
+      'supports',
+      'token',
+    ].some((key) => key in nestedPayload)
+  ) {
+    return nestedPayload;
+  }
+
+  return payload;
+}
+
+function extractOAuthPlatforms(payload: any) {
+  const normalizedPayload = unwrapOAuthPayload(payload);
+  if (Array.isArray(normalizedPayload)) {
+    return normalizedPayload;
+  }
+
+  if (Array.isArray(normalizedPayload?.items)) {
+    return normalizedPayload.items;
+  }
+
+  if (Array.isArray(normalizedPayload?.records)) {
+    return normalizedPayload.records;
+  }
+
+  if (Array.isArray(normalizedPayload?.data)) {
+    return normalizedPayload.data;
+  }
+
+  return [];
+}
+
+function resolvePlatformCode(platform: Record<string, any>) {
+  return String(
+    platform.code || platform.platform || platform.id || platform.name || '',
+  )
+    .trim()
+    .toUpperCase();
+}
+
+function resolvePlatformDisplayName(platform: Record<string, any>) {
+  return String(
+    platform.title ||
+      platform.name ||
+      platform.platformName ||
+      platform.platform ||
+      platform.code ||
+      '第三方平台',
+  ).trim();
+}
+
+function supportsOauthLogin(platform: Record<string, any>) {
+  if (typeof platform.capabilities?.oauth === 'boolean') {
+    return platform.capabilities.oauth;
+  }
+
+  const capabilityEntries = [
+    ...(Array.isArray(platform.capabilities) ? platform.capabilities : []),
+    ...(Array.isArray(platform.capability) ? platform.capability : []),
+    ...(Array.isArray(platform.supports) ? platform.supports : []),
+    platform.authType,
+  ]
+    .map((item) =>
+      String(item || '')
+        .trim()
+        .toLowerCase(),
+    )
+    .filter(Boolean);
+
+  if (capabilityEntries.length === 0) {
+    return true;
+  }
+
+  return capabilityEntries.some((item) =>
+    ['oauth', 'authorization', 'auth', 'qr_login', 'qr-login'].some((keyword) =>
+      item.includes(keyword),
+    ),
+  );
+}
+
+function normalizeOAuthPlatform(
+  platform: Record<string, any>,
+): OAuthLoginPlatform | null {
+  const code = resolvePlatformCode(platform);
+  if (!code || !supportsOauthLogin(platform)) {
+    return null;
+  }
+
+  return {
+    authUrl: String(
+      platform.authorizeUrl || platform.authUrl || platform.loginUrl || '',
+    ).trim(),
+    code,
+    description: String(platform.description || '').trim(),
+    displayName: resolvePlatformDisplayName(platform),
+    iconUrl: String(platform.iconUrl || platform.icon || '').trim(),
+  };
+}
+
+function resolveOAuthTransaction(payload: any) {
+  return unwrapOAuthPayload(payload) || {};
+}
+
+function resolveOAuthExchangeResult(payload: any) {
+  return unwrapOAuthPayload(payload) || {};
+}
+
+function resolveOAuthTransactionStatus(transaction: Record<string, any>) {
+  return String(transaction.status || 'PENDING')
+    .trim()
+    .toUpperCase();
+}
+
+function resolveOAuthAuthorizeUrl(transaction: Record<string, any>) {
+  return String(
+    transaction.authorizeUrl ||
+      transaction.authUrl ||
+      transaction.qrCodeUrl ||
+      transaction.providerData?.authorizeUrl ||
+      transaction.providerData?.authUrl ||
+      '',
+  ).trim();
+}
+
+function resolveOAuthAccessToken(result: Record<string, any>) {
+  return String(
+    result.accessToken ||
+      result.token ||
+      result.data?.accessToken ||
+      result.data?.token ||
+      '',
+  ).trim();
+}
+
+function buildOAuthLoginCallbackUrl() {
+  if (typeof location.href === 'string' && location.href) {
+    return location.href;
+  }
+
+  return `https://${location.hostname}/`;
+}
+
+function saveOAuthResumeTransaction(
+  transactionId: string,
+  platformCode: string,
+  authorizeUrl: string,
+) {
+  sessionStorage.setItem(
+    OAUTH_LOGIN_TRANSACTION_STORAGE_KEY,
+    JSON.stringify({
+      authorizeUrl,
+      platformCode,
+      transactionId,
+    }),
+  );
+}
+
+function readOAuthResumeTransaction() {
+  const rawValue = sessionStorage.getItem(OAUTH_LOGIN_TRANSACTION_STORAGE_KEY);
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue);
+    const transactionId = String(parsedValue?.transactionId || '').trim();
+    const platformCode = String(parsedValue?.platformCode || '').trim();
+
+    if (!transactionId || !platformCode) {
+      return null;
+    }
+
+    return {
+      authorizeUrl: String(parsedValue?.authorizeUrl || '').trim(),
+      platformCode: platformCode.toUpperCase(),
+      transactionId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearOAuthResumeTransaction() {
+  sessionStorage.removeItem(OAUTH_LOGIN_TRANSACTION_STORAGE_KEY);
+}
+
+function consumeOAuthCallbackError() {
+  if (typeof location.href !== 'string' || !location.href) {
+    return false;
+  }
+
+  const callbackUrl = new URL(location.href);
+  const errorMessage = callbackUrl.searchParams.get('oauthError');
+  if (!errorMessage) {
+    return false;
+  }
+
+  clearOAuthResumeTransaction();
+  callbackUrl.searchParams.delete('oauthError');
+  window.history.replaceState({}, '', callbackUrl.toString());
+  message.error(errorMessage);
+  return true;
+}
+
+function clearOAuthPolling() {
+  if (oauthPollingTimer) {
+    clearInterval(oauthPollingTimer);
+    oauthPollingTimer = null;
+  }
+  if (oauthCountdownTimer) {
+    clearInterval(oauthCountdownTimer);
+    oauthCountdownTimer = null;
+  }
+  oauthPollingStartedAt = 0;
+  oauthRemainingSeconds.value = 0;
+}
+
+function formatOAuthRemainingTime() {
+  const minutes = Math.floor(oauthRemainingSeconds.value / 60);
+  const seconds = oauthRemainingSeconds.value % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function closeOAuthPopupWindow() {
+  if (oauthPopupWindow && !oauthPopupWindow.closed) {
+    oauthPopupWindow.close();
+  }
+  oauthPopupWindow = null;
+}
+
+function resetOAuthLoginState(options: { keepDialog?: boolean } = {}) {
+  clearOAuthPolling();
+  oauthPollingInFlight = false;
+  oauthTransactionExchanging.value = false;
+  oauthTransactionSubmitting.value = false;
+  oauthLoginActivePlatform.value = null;
+  oauthLoginActiveTransactionId.value = '';
+  oauthLoginAuthorizeUrl.value = '';
+  oauthLoginStatusMessage.value = '';
+  oauthLoginErrorMessage.value = '';
+  if (!options.keepDialog) {
+    oauthLoginModalOpen.value = false;
+  }
+  closeOAuthPopupWindow();
+}
 
 function normalizeAccount() {
   return formState.account.trim();
@@ -352,7 +688,7 @@ async function requestVerifyCode(options: RequestVerifyCodeOptions = {}) {
     return;
   }
 
-  if (isCaptchaTab.value && !isPasswordCaptchaMode.value) {
+  if (isCaptchaTab.value && !isPasswordInteractiveVerifyMode.value) {
     return;
   }
 
@@ -370,6 +706,22 @@ async function requestVerifyCode(options: RequestVerifyCodeOptions = {}) {
     }
 
     const returnedCode = extractReturnedVerifyCode(payload);
+
+    if (isPasswordHmiMode.value) {
+      const interactionData = payload?.interactionData;
+      const interaction = normalizeBehaviorCaptchaChallenge(
+        typeof interactionData === 'string'
+          ? JSON.parse(interactionData)
+          : interactionData,
+      );
+
+      if (!interaction) {
+        throw new Error('当前没有获取到人机验证码');
+      }
+
+      hmiCaptchaChallenge.value = interaction;
+      return;
+    }
 
     if (isPasswordCaptchaMode.value) {
       const interactionData = String(payload?.interactionData || '').trim();
@@ -420,8 +772,9 @@ async function requestVerifyCode(options: RequestVerifyCodeOptions = {}) {
         : '短信验证码已发送，请注意查收',
     );
   } catch (error: any) {
-    if (isPasswordCaptchaMode.value) {
+    if (isPasswordInteractiveVerifyMode.value) {
       captchaImage.value = '';
+      hmiCaptchaChallenge.value = null;
     }
     message.error(error?.message || '获取验证码失败');
   } finally {
@@ -476,17 +829,26 @@ async function handleSubmit() {
   }
 }
 
-async function completePasswordLogin() {
+async function completePasswordLogin(verifyCodeValue?: unknown) {
   if (authStore.loginLoading || !passwordLoginChallengeId.value) {
     return;
   }
 
   clearAutoLoginCountdown();
 
-  const verifyCode = formState.verifyCode.trim();
+  const rawVerifyCode = verifyCodeValue ?? formState.verifyCode;
+  const verifyCode = typeof rawVerifyCode === 'string'
+    ? rawVerifyCode.trim()
+    : rawVerifyCode == null
+      ? ''
+      : JSON.stringify(rawVerifyCode);
   if (!verifyCode) {
     message.warning(
-      isPasswordMfaMode.value ? '请输入 Google 验证器验证码' : '请输入验证码',
+      isPasswordMfaMode.value
+        ? '请输入 MFA 验证码'
+        : isPasswordHmiMode.value
+          ? '请先完成行为验证码'
+          : '请输入验证码',
     );
     return;
   }
@@ -504,12 +866,55 @@ async function completePasswordLogin() {
       verifyCode,
       verifyCodeType: resolvedVerifyCodeType.value,
     });
-  } catch {
+  } catch (error) {
+    if (shouldRefreshVerifyCodeForLoginError(error)) {
+      formState.verifyCode = '';
+      lastAutoLoginSignature.value = '';
+      await startPasswordLogin(account, formState.password.trim(), {
+        autoLogin: false,
+      });
+      return;
+    }
+
     resetPasswordLoginChallenge();
   }
 }
 
-async function startPasswordLogin(account: string, password: string) {
+function completePasswordLoginWithHmiVerifyCode(verifyCode: unknown) {
+  if (typeof verifyCode !== 'string') {
+    return;
+  }
+  formState.verifyCode = verifyCode;
+  void completePasswordLogin(verifyCode);
+}
+
+function handlePasswordVerifyCodeInput(value: string) {
+  clearAutoLoginCountdown();
+
+  const verifyCode = isPasswordMfaMode.value
+    ? String(value || '')
+        .replaceAll(/\D/g, '')
+        .slice(0, 6)
+    : value;
+
+  if (formState.verifyCode !== verifyCode) {
+    formState.verifyCode = verifyCode;
+  }
+
+  if (
+    isPasswordMfaMode.value &&
+    verifyCode.length === 6 &&
+    !authStore.loginLoading
+  ) {
+    void completePasswordLogin(verifyCode);
+  }
+}
+
+async function startPasswordLogin(
+  account: string,
+  password: string,
+  options: RequestVerifyCodeOptions = {},
+) {
   try {
     verifyAssetLoading.value = true;
     const challenge = await startPasswordLoginApi({ account, password });
@@ -518,12 +923,19 @@ async function startPasswordLogin(account: string, password: string) {
     passwordVerifyCodeType.value = challenge.verifyCodeType;
     formState.verifyCode = '';
     captchaImage.value = '';
+    hmiCaptchaChallenge.value = null;
 
     localStorage.setItem(REMEMBER_ME_KEY, rememberMe.value ? account : '');
 
-    if (challenge.verifyCodeType === 'Captcha') {
+    if (
+      challenge.verifyCodeType === 'Captcha' ||
+      challenge.verifyCodeType === 'Hmi'
+    ) {
       passwordVerifyDialogOpen.value = true;
-      await requestVerifyCode({ force: true });
+      await requestVerifyCode({
+        autoLogin: options.autoLogin,
+        force: true,
+      });
     } else if (!challenge.verifyCodeType) {
       await authStore.authLoginWithPasswordChallenge({
         account,
@@ -547,6 +959,7 @@ function resetPasswordLoginChallenge() {
   passwordVerifyCodeType.value = undefined;
   formState.verifyCode = '';
   captchaImage.value = '';
+  hmiCaptchaChallenge.value = null;
   lastAutoLoginSignature.value = '';
 }
 
@@ -559,6 +972,277 @@ function handlePasswordVerifyDialogOpenChange(open: boolean) {
   passwordVerifyDialogOpen.value = true;
 }
 
+async function loadOAuthPlatforms() {
+  try {
+    oauthPlatformsLoading.value = true;
+    const rawPlatforms = extractOAuthPlatforms(
+      await oauthService.getSupportedPlatforms(),
+    );
+
+    oauthPlatforms.value = rawPlatforms
+      .map((platform) => normalizeOAuthPlatform(platform))
+      .filter((platform): platform is OAuthLoginPlatform => Boolean(platform));
+  } catch (error: any) {
+    oauthPlatforms.value = [];
+    message.error(error?.message || '加载第三方登录平台失败');
+  } finally {
+    oauthPlatformsLoading.value = false;
+  }
+}
+
+function findOAuthPlatform(platformCode: string) {
+  return (
+    oauthPlatforms.value.find((platform) => platform.code === platformCode) ||
+    null
+  );
+}
+
+function openOAuthAuthorizeWindow(authorizeUrl: string) {
+  const popup = window.open(
+    'about:blank',
+    'oauth-login',
+    'popup=yes,width=720,height=780',
+  );
+
+  if (popup) {
+    // `noopener`/`noreferrer` may return null even when the popup opened,
+    // which would incorrectly trigger the full-page fallback and open two pages.
+    popup.opener = null;
+    popup.location.replace(authorizeUrl);
+    oauthPopupWindow = popup;
+    oauthLoginStatusMessage.value = `已打开【${oauthLoginActivePlatform.value?.displayName || '第三方平台'}】授权窗口，请在新窗口完成授权并等待登录结果。`;
+    return;
+  }
+
+  message.warning('浏览器拦截了授权窗口，请允许弹窗后再试。');
+  oauthLoginErrorMessage.value = '';
+  oauthLoginStatusMessage.value = '';
+}
+
+async function finishOAuthLoginTransaction(transactionId: string) {
+  if (oauthTransactionExchanging.value) {
+    return;
+  }
+
+  oauthTransactionExchanging.value = true;
+
+  try {
+    const exchangeResult = resolveOAuthExchangeResult(
+      await oauthService.exchangeTransaction(transactionId),
+    );
+    const accessToken = resolveOAuthAccessToken(exchangeResult);
+
+    if (!accessToken) {
+      throw new Error('第三方授权已完成，但没有取回访问令牌');
+    }
+
+    clearOAuthResumeTransaction();
+    resetOAuthLoginState();
+    await authStore.authLoginWithAccessToken(accessToken);
+  } catch (error: any) {
+    oauthLoginErrorMessage.value =
+      error?.message || '兑换第三方授权结果失败，请稍后重试';
+    oauthLoginStatusMessage.value = oauthLoginErrorMessage.value;
+    message.error(oauthLoginErrorMessage.value);
+  } finally {
+    oauthTransactionExchanging.value = false;
+  }
+}
+
+async function pollOAuthLoginTransaction(transactionId: string) {
+  if (oauthPollingInFlight || oauthTransactionExchanging.value) {
+    return;
+  }
+
+  oauthPollingInFlight = true;
+
+  try {
+    const transaction = resolveOAuthTransaction(
+      await oauthService.getTransaction(transactionId),
+    );
+    const status = resolveOAuthTransactionStatus(transaction);
+    const transactionMessage = String(
+      transaction.message || transaction.errorMessage || '',
+    ).trim();
+
+    if (transactionMessage) {
+      oauthLoginStatusMessage.value = transactionMessage;
+    }
+
+    if (['AUTHORIZED', 'COMPLETED', 'EXCHANGED'].includes(status)) {
+      clearOAuthPolling();
+      await finishOAuthLoginTransaction(transactionId);
+      return;
+    }
+
+    if (['CANCELLED', 'EXPIRED', 'FAILED'].includes(status)) {
+      clearOAuthPolling();
+      clearOAuthResumeTransaction();
+      message.warning(transactionMessage || '第三方授权未完成');
+      oauthLoginErrorMessage.value = '';
+      oauthLoginStatusMessage.value = '';
+      oauthLoginModalOpen.value = false;
+      closeOAuthPopupWindow();
+      return;
+    }
+
+    if (
+      oauthPopupWindow?.closed &&
+      !oauthLoginStatusMessage.value.includes('关闭')
+    ) {
+      await cancelOAuthLoginTransaction(transactionId);
+    }
+  } catch (error: any) {
+    const errorText = getErrorSearchText(error);
+    if (errorText.includes('第三方登录事务已失效')) {
+      clearOAuthPolling();
+      clearOAuthResumeTransaction();
+      message.warning('第三方授权事务已失效');
+      oauthLoginErrorMessage.value = '';
+      oauthLoginStatusMessage.value = '';
+      oauthLoginModalOpen.value = false;
+      return;
+    }
+
+    oauthLoginStatusMessage.value =
+      error?.message || '获取第三方授权状态失败，正在重试...';
+  } finally {
+    oauthPollingInFlight = false;
+  }
+}
+
+async function cancelOAuthLoginTransaction(transactionId: string) {
+  clearOAuthPolling();
+  clearOAuthResumeTransaction();
+  try {
+    await oauthService.cancelTransaction(transactionId, {
+      __silentError: true,
+    });
+  } catch {
+    // 事务可能已由授权回调完成或超时，前端仍应结束等待状态。
+  }
+  message.info('已取消第三方登录。');
+  oauthLoginErrorMessage.value = '';
+  oauthLoginStatusMessage.value = '';
+  oauthLoginModalOpen.value = false;
+  closeOAuthPopupWindow();
+}
+
+function beginOAuthLoginPolling(transactionId: string) {
+  clearOAuthPolling();
+  oauthPollingStartedAt = Date.now();
+  oauthRemainingSeconds.value = OAUTH_LOGIN_POLL_TIMEOUT_MS / 1000;
+  oauthCountdownTimer = setInterval(() => {
+    oauthRemainingSeconds.value = Math.max(
+      0,
+      Math.ceil(
+        (OAUTH_LOGIN_POLL_TIMEOUT_MS - (Date.now() - oauthPollingStartedAt)) /
+          1000,
+      ),
+    );
+  }, 1000);
+  oauthLoginActiveTransactionId.value = transactionId;
+  oauthPollingTimer = setInterval(() => {
+    if (Date.now() - oauthPollingStartedAt >= OAUTH_LOGIN_POLL_TIMEOUT_MS) {
+      clearOAuthPolling();
+      clearOAuthResumeTransaction();
+      message.warning('第三方授权已超时');
+      oauthLoginErrorMessage.value = '';
+      oauthLoginStatusMessage.value = '';
+      oauthLoginModalOpen.value = false;
+      closeOAuthPopupWindow();
+      return;
+    }
+    void pollOAuthLoginTransaction(transactionId);
+  }, OAUTH_LOGIN_POLL_INTERVAL_MS);
+  void pollOAuthLoginTransaction(transactionId);
+}
+
+async function startOAuthLogin(platform: OAuthLoginPlatform) {
+  if (oauthTransactionSubmitting.value || authStore.loginLoading) {
+    return;
+  }
+
+  try {
+    oauthTransactionSubmitting.value = true;
+    oauthLoginModalOpen.value = true;
+    oauthLoginErrorMessage.value = '';
+    oauthLoginStatusMessage.value = '正在创建第三方授权事务...';
+    oauthLoginActivePlatform.value = platform;
+
+    const transaction = resolveOAuthTransaction(
+      await oauthService.createTransaction({
+        callbackUrl: buildOAuthLoginCallbackUrl(),
+        platform: platform.code,
+        purpose: 'LOGIN',
+      }),
+    );
+    const transactionId = String(
+      transaction.transactionId || transaction.id || '',
+    ).trim();
+    const authorizeUrl =
+      resolveOAuthAuthorizeUrl(transaction) || platform.authUrl;
+
+    if (!transactionId) {
+      throw new Error('创建第三方授权事务失败：缺少事务编号');
+    }
+
+    if (!authorizeUrl) {
+      throw new Error('创建第三方授权事务失败：缺少授权地址');
+    }
+
+    oauthLoginAuthorizeUrl.value = authorizeUrl;
+    saveOAuthResumeTransaction(transactionId, platform.code, authorizeUrl);
+    beginOAuthLoginPolling(transactionId);
+    openOAuthAuthorizeWindow(authorizeUrl);
+  } catch (error: any) {
+    oauthLoginErrorMessage.value =
+      error?.message || '发起第三方授权失败，请稍后重试';
+    oauthLoginStatusMessage.value = oauthLoginErrorMessage.value;
+    message.error(oauthLoginErrorMessage.value);
+  } finally {
+    oauthTransactionSubmitting.value = false;
+  }
+}
+
+function cancelOAuthLogin() {
+  clearOAuthResumeTransaction();
+  resetOAuthLoginState();
+}
+
+function reopenOAuthLoginWindow() {
+  const platform = oauthLoginActivePlatform.value;
+  if (!platform) {
+    return;
+  }
+
+  clearOAuthResumeTransaction();
+  resetOAuthLoginState({ keepDialog: true });
+  void startOAuthLogin(platform);
+}
+
+function resumeOAuthLoginFromStorage() {
+  const pendingTransaction = readOAuthResumeTransaction();
+  if (!pendingTransaction) {
+    return;
+  }
+
+  oauthLoginModalOpen.value = true;
+  oauthLoginErrorMessage.value = '';
+  oauthLoginStatusMessage.value = '正在恢复第三方授权状态...';
+  oauthLoginAuthorizeUrl.value = pendingTransaction.authorizeUrl;
+  oauthLoginActivePlatform.value = findOAuthPlatform(
+    pendingTransaction.platformCode,
+  ) || {
+    authUrl: pendingTransaction.authorizeUrl,
+    code: pendingTransaction.platformCode,
+    description: '',
+    displayName: pendingTransaction.platformCode,
+    iconUrl: '',
+  };
+  beginOAuthLoginPolling(pendingTransaction.transactionId);
+}
+
 watch(activeVerifyType, () => {
   resetPasswordLoginChallenge();
   clearCountdown();
@@ -567,21 +1251,32 @@ watch(activeVerifyType, () => {
 
 onMounted(() => {
   loginPageActive = true;
+  const hasOAuthCallbackError = consumeOAuthCallbackError();
+  void loadOAuthPlatforms().finally(() => {
+    if (!hasOAuthCallbackError) {
+      resumeOAuthLoginFromStorage();
+    }
+  });
 });
 
 onActivated(() => {
   loginPageActive = true;
+  if (!oauthLoginActiveTransactionId.value) {
+    resumeOAuthLoginFromStorage();
+  }
 });
 
 onDeactivated(() => {
   loginPageActive = false;
   clearAutoLoginCountdown();
+  clearOAuthPolling();
 });
 
 onBeforeUnmount(() => {
   loginPageActive = false;
   clearCountdown();
   clearAutoLoginCountdown();
+  resetOAuthLoginState({ keepDialog: true });
 });
 </script>
 
@@ -689,16 +1384,126 @@ onBeforeUnmount(() => {
       >
         {{ $t('common.login') }}
       </Button>
+
+      <div
+        v-if="hasOAuthPlatforms"
+        data-test="oauth-login-section"
+        class="border-border mt-3 border-t pt-4"
+      >
+        <div class="text-muted-foreground mb-3 text-sm">其它第3方登录</div>
+
+        <div class="flex flex-wrap gap-3">
+          <Tooltip
+            v-for="platform in oauthPlatforms"
+            :key="platform.code"
+            :title="platform.description || platform.displayName"
+          >
+            <Button
+              :aria-label="platform.displayName"
+              :disabled="oauthTransactionSubmitting"
+              class="size-11 !p-0"
+              html-type="button"
+              shape="circle"
+              @click="startOAuthLogin(platform)"
+            >
+              <img
+                v-if="platform.iconUrl"
+                :alt="`${platform.displayName} 图标`"
+                :src="platform.iconUrl"
+                class="size-6 rounded-sm object-cover"
+              />
+              <IconifyIcon
+                v-else
+                aria-hidden="true"
+                class="size-6"
+                icon="lucide:scan-line"
+              />
+            </Button>
+          </Tooltip>
+        </div>
+
+        <Alert
+          v-if="oauthLoginStatusMessage"
+          class="mt-3"
+          :message="oauthLoginStatusMessage"
+          show-icon
+          type="info"
+        />
+      </div>
     </div>
+
+    <Modal
+      :cancel-text="'取消等待'"
+      :closable="!oauthTransactionExchanging"
+      :confirm-loading="oauthTransactionExchanging"
+      :footer="null"
+      :mask-closable="false"
+      :open="oauthLoginModalOpen"
+      :title="`等待【${oauthLoginActivePlatform?.displayName || '第三方平台'}】授权登录`"
+      centered
+      @cancel="cancelOAuthLogin"
+      @update:open="(open) => !open && cancelOAuthLogin()"
+    >
+      <div class="space-y-5 py-2">
+        <Alert
+          v-if="!isPasswordHmiMode"
+          :message="
+            oauthLoginErrorMessage ||
+            oauthLoginStatusMessage ||
+            `请在【${oauthLoginActivePlatform?.displayName || '第三方平台'}】授权窗口完成授权，当前页面将自动完成登录。`
+          "
+          show-icon
+          :type="oauthLoginErrorMessage ? 'warning' : 'info'"
+        />
+        <div v-if="!oauthLoginErrorMessage" class="space-y-3">
+          <div class="flex items-center justify-center gap-3 text-sm">
+            <IconifyIcon
+              aria-label="正在等待授权"
+              class="text-primary size-7 animate-spin"
+              icon="lucide:loader-circle"
+            />
+            <span class="text-muted-foreground">
+              正在等待【{{
+                oauthLoginActivePlatform?.displayName || '第三方平台'
+              }}】授权结果
+            </span>
+          </div>
+          <div
+            aria-label="第三方授权剩余时间"
+            class="bg-muted h-2 overflow-hidden rounded-full"
+            role="progressbar"
+            :aria-valuenow="oauthWaitProgress"
+            aria-valuemax="100"
+            aria-valuemin="0"
+          >
+            <div
+              class="bg-primary h-full rounded-full transition-all duration-1000"
+              :style="{ width: `${oauthWaitProgress}%` }"
+            />
+          </div>
+          <div class="text-muted-foreground text-center text-xs">
+            剩余等待时间 {{ formatOAuthRemainingTime() }}
+          </div>
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <Button @click="cancelOAuthLogin">取消</Button>
+      </div>
+    </Modal>
 
     <Modal
       :cancel-text="'取消'"
       :closable="!authStore.loginLoading"
       :confirm-loading="authStore.loginLoading"
+      :ok-button-props="{
+        disabled: isPasswordHmiMode,
+        style: isPasswordHmiMode ? { display: 'none' } : undefined,
+      }"
       :mask-closable="!authStore.loginLoading"
-      :ok-text="$t('common.login')"
+      :ok-text="isPasswordHmiMode ? '完成验证后自动登录' : $t('common.login')"
       :open="passwordVerifyDialogOpen"
-      :title="isPasswordMfaMode ? 'Google 验证器验证' : '安全验证'"
+      :title="isPasswordMfaMode ? 'MFA 验证' : '安全验证'"
+      :width="passwordVerifyDialogWidth"
       centered
       destroy-on-close
       @cancel="resetPasswordLoginChallenge"
@@ -709,28 +1514,47 @@ onBeforeUnmount(() => {
         <Alert
           :message="
             isPasswordMfaMode
-              ? '请打开 Google Authenticator，输入当前显示的 6 位验证码。'
-              : '请输入图片中的验证码以完成登录。'
+              ? '请使用 Microsoft Authenticator 或其他兼容 TOTP 的认证器，输入当前显示的 6 位 MFA 验证码。'
+              : isPasswordHmiMode
+                ? `${passwordBehaviorInstruction} 验证通过后将自动登录。`
+                : '请输入图片中的验证码以完成登录。'
           "
           show-icon
           type="info"
         />
 
-        <div>
-          <label class="text-foreground mb-2 block text-sm font-medium">
-            {{ isPasswordMfaMode ? 'Google 验证器验证码' : '验证码' }}
+        <div :class="isPasswordHmiMode ? '' : undefined">
+          <label
+            v-if="!isPasswordHmiMode"
+            class="text-foreground mb-2 block text-sm font-medium"
+          >
+            {{
+              isPasswordMfaMode
+                ? 'MFA 验证码'
+                : isPasswordHmiMode
+                  ? '行为验证'
+                  : '验证码'
+            }}
           </label>
+          <BehaviorCaptcha
+            v-if="isPasswordHmiMode"
+            :challenge="hmiCaptchaChallenge"
+            :loading="verifyAssetLoading || authStore.loginLoading"
+            @complete="completePasswordLoginWithHmiVerifyCode"
+            @refresh="() => requestVerifyCode({ force: true })"
+          />
           <div class="flex items-stretch gap-3">
             <Input
-              v-model:value="formState.verifyCode"
+              v-if="!isPasswordHmiMode"
+              :value="formState.verifyCode"
               class="flex-1"
+              :inputmode="isPasswordMfaMode ? 'numeric' : undefined"
+              :maxlength="isPasswordMfaMode ? 6 : undefined"
               :placeholder="
-                isPasswordMfaMode
-                  ? '请输入 Google 验证器验证码'
-                  : '请输入验证码'
+                isPasswordMfaMode ? '请输入 MFA 验证码' : '请输入验证码'
               "
               size="large"
-              @update:value="clearAutoLoginCountdown"
+              @update:value="handlePasswordVerifyCodeInput"
             />
 
             <Tooltip v-if="isPasswordCaptchaMode" title="刷新验证码">

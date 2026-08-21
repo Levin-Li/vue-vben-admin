@@ -2,13 +2,61 @@ import { RequestClient } from '@vben/request';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../views/_core/authentication/behavior-captcha.vue', async () => {
+  const { defineComponent, h } = await import('vue');
+
+  return {
+    default: defineComponent({
+      emits: ['complete', 'refresh'],
+      name: 'BehaviorCaptcha',
+      props: {
+        challenge: {
+          default: null,
+          type: Object,
+        },
+        loading: {
+          default: false,
+          type: Boolean,
+        },
+      },
+      setup() {
+        return () => h('behavior-captcha-stub');
+      },
+    }),
+  };
+});
+
 import { createDynamicVerifyCodeInterceptor } from '../dynamic-verify-code';
 import { unwrapServiceResp } from '../service-resp';
 
 const captchaSvgBase64 =
-  'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMTIiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAxMTIgNDAiPjxyZWN0IHdpZHRoPSIxMTIiIGhlaWdodD0iNDAiIHJ4PSI2IiBmaWxsPSIjZjhmYWZjIi8+PHRleHQgeD0iNTYiIHk9IjI3IiBmb250LXNpemU9IjI0IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMTExODI3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4xNzA3PC90ZXh0PjxsaW5lIHgxPSI2IiB5MT0iMzAiIHgyPSIxMDYiIHkyPSIxMCIgc3Ryb2tlPSIjNmQ1ZGZjIiBzdHJva2Utd2lkdGg9IjEiLz48L3N2Zz4=';
+  'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMTIiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAxMTIgNDAiPjxyZWN0IHdpZHRoPSIxMTIiIGhlaWdodD0iNDAiIHJ4PSI2IiBmaWxsPSIjZjhmYWZjIi8+PHRleHQgeD0iNTYiIHk9IjI3IiBmb250LXNpemU9IjI0IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LWZlaWdodD0iNzAwIiBmaWxsPSIjMTExODI3IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4xNzA3PC90ZXh0PjxsaW5lIHgxPSI2IiB5MT0iMzAiIHgyPSIxMDYiIHkyPSIxMCIgc3Ryb2tlPSIjNmQ1ZGZjIiBzdHJva2Utd2lkdGg9IjEiLz48L3N2Zz4=';
+const hmiChallengeJson = encodeURIComponent(
+  JSON.stringify({
+    challengeId: 'hmi-1',
+    mode: 'click',
+    publicData: {
+      image: captchaSvgBase64,
+      thumb: captchaSvgBase64,
+      viewport: { height: 180, width: 320 },
+    },
+  }),
+);
+const unknownHmiChallengeJson = encodeURIComponent(
+  JSON.stringify({
+    challengeId: 'hmi-unknown',
+    mode: 'UNKNOWN_MODE',
+    publicData: {},
+  }),
+);
 
-const { findNode, modalConfirm, modalInstances, vnodeText } = vi.hoisted(() => {
+const {
+  findBehaviorCaptchaNode,
+  findNode,
+  modalConfirm,
+  modalInstances,
+  vnodeText,
+} = vi.hoisted(() => {
   const findNode = (node: any, type: string): any => {
     if (!node) {
       return undefined;
@@ -27,6 +75,32 @@ const { findNode, modalConfirm, modalInstances, vnodeText } = vi.hoisted(() => {
 
     for (const child of children) {
       const matched = findNode(child, type);
+      if (matched) {
+        return matched;
+      }
+    }
+
+    return undefined;
+  };
+  const findBehaviorCaptchaNode = (node: any): any => {
+    if (!node) {
+      return undefined;
+    }
+
+    const componentName = node.type?.name || node.type?.__name;
+    if (componentName === 'BehaviorCaptcha') {
+      return node;
+    }
+
+    const children =
+      typeof node.children === 'function' ? node.children() : node.children;
+
+    if (!Array.isArray(children)) {
+      return undefined;
+    }
+
+    for (const child of children) {
+      const matched = findBehaviorCaptchaNode(child);
       if (matched) {
         return matched;
       }
@@ -54,33 +128,40 @@ const { findNode, modalConfirm, modalInstances, vnodeText } = vi.hoisted(() => {
     return '';
   };
 
+  const modalConfirm = vi.fn((options: any) => {
+    const state = {
+      options,
+      update: vi.fn((nextOptions: any) => {
+        state.options = {
+          ...state.options,
+          ...nextOptions,
+        };
+      }),
+    };
+    modalInstances.push(state);
+
+    queueMicrotask(async () => {
+      const getCodeButton = findNode(state.options.content, 'button');
+      if (!getCodeButton && vnodeText(state.options.title).includes('人机')) {
+        return;
+      }
+
+      await getCodeButton?.props?.onClick?.();
+
+      const inputNode = findNode(state.options.content, 'input');
+      inputNode?.props?.['onUpdate:value']?.('123456');
+      await state.options.onOk?.();
+    });
+
+    return {
+      update: state.update,
+    };
+  });
+
   return {
+    findBehaviorCaptchaNode,
     findNode,
-    modalConfirm: vi.fn((options: any) => {
-      const state = {
-        options,
-        update: vi.fn((nextOptions: any) => {
-          state.options = {
-            ...state.options,
-            ...nextOptions,
-          };
-        }),
-      };
-      modalInstances.push(state);
-
-      queueMicrotask(async () => {
-        const getCodeButton = findNode(state.options.content, 'button');
-        await getCodeButton?.props?.onClick?.();
-
-        const inputNode = findNode(state.options.content, 'input');
-        inputNode?.props?.['onUpdate:value']?.('123456');
-        await state.options.onOk?.();
-      });
-
-      return {
-        update: state.update,
-      };
-    }),
+    modalConfirm,
     modalInstances,
     vnodeText,
   };
@@ -455,6 +536,201 @@ describe('dynamic verify code interceptor', () => {
       expect(seenRequests[2]?.headers?.['-DynamicVerifyCode-']).toBeUndefined();
     },
   );
+
+  it('reuses the shared behavior captcha component for Hmi verify and replays the request after refresh', async () => {
+    const seenRequests: Array<{
+      data: any;
+      headers: Record<string, any>;
+      method?: string;
+      url?: string;
+    }> = [];
+
+    const client = new RequestClient({
+      adapter: async (config) => {
+        seenRequests.push({
+          data: config.data,
+          headers: { ...config.headers },
+          method: config.method,
+          url: config.url,
+        });
+
+        if (
+          config.headers?.['DVC-hmi-token'] &&
+          config.headers?.['-DynamicVerifyCode-VerifyId'] === 'verify-Hmi-2'
+        ) {
+          return {
+            config,
+            data: {
+              code: 0,
+              data: { ok: true, verifyType: 'Hmi' },
+            },
+            headers: {},
+            status: 200,
+            statusText: 'OK',
+          };
+        }
+
+        if (config.headers?.['-DynamicVerifyCode-'] === 'Apply') {
+          const verifyId =
+            seenRequests.filter(
+              (item) => item.headers?.['-DynamicVerifyCode-'] === 'Apply',
+            ).length > 1
+              ? 'verify-Hmi-2'
+              : 'verify-Hmi-1';
+
+          return {
+            config,
+            data: null,
+            headers: {
+              '-DynamicVerifyCode-VerifyId': verifyId,
+              '-DynamicVerifyCode-ParamName': 'DVC-hmi-token',
+              '-DynamicVerifyCode-Type': 'Hmi',
+              '-DynamicVerifyCode--InteractionData': hmiChallengeJson,
+            },
+            status: 200,
+            statusText: 'OK',
+          };
+        }
+
+        return {
+          config,
+          data: null,
+          headers: {
+            '-DynamicVerifyCode-': 'Apply',
+            '-DynamicVerifyCode-Prompt': encodeURIComponent('需要行为验证'),
+            '-DynamicVerifyCode-Type': 'Hmi',
+          },
+          status: 200,
+          statusText: 'OK',
+        };
+      },
+      responseReturn: 'data',
+    });
+
+    client.addResponseInterceptor(createDynamicVerifyCodeInterceptor(client));
+    client.addResponseInterceptor({
+      fulfilled: (response: any) => {
+        if (
+          response.config.__dynamicVerifyKeepRaw ||
+          response.config.responseReturn === 'raw'
+        ) {
+          return response;
+        }
+
+        return unwrapServiceResp(response.data);
+      },
+    });
+
+    const pending = client.post('/protected-hmi', { amount: 1 });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(modalConfirm).toHaveBeenCalledTimes(1);
+    const modalOptions = modalConfirm.mock.calls[0]?.[0];
+    expect(vnodeText(modalOptions.title)).toBe('该操作需要人机验证');
+
+    for (let index = 0; index < 6; index += 1) {
+      if ((modalInstances[0]?.update.mock.calls.length || 0) >= 2) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    let behaviorNode = findBehaviorCaptchaNode(
+      modalInstances[0]?.update.mock.calls.at(-1)?.[0]?.content ||
+        modalInstances[0]?.options.content,
+    );
+    expect(behaviorNode).toBeTruthy();
+    await behaviorNode?.props?.onRefresh?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    behaviorNode = findBehaviorCaptchaNode(
+      modalInstances[0]?.update.mock.calls.at(-1)?.[0]?.content ||
+        modalInstances[0]?.options.content,
+    );
+    behaviorNode?.props?.onComplete?.(
+      JSON.stringify({
+        challengeId: 'hmi-1',
+        data: 'hmi-1',
+        mode: 'CLICK',
+        operations: [{ type: 'click', x: 80, y: 60 }],
+      }),
+    );
+
+    await expect(pending).resolves.toEqual({
+      ok: true,
+      verifyType: 'Hmi',
+    });
+
+    expect(seenRequests).toHaveLength(4);
+    expect(seenRequests[1]?.headers?.['-DynamicVerifyCode-']).toBe('Apply');
+    expect(seenRequests[2]?.headers?.['-DynamicVerifyCode-']).toBe('Apply');
+    expect(seenRequests[3]?.headers?.['DVC-hmi-token']).toContain(
+      '"mode":"CLICK"',
+    );
+    expect(seenRequests[3]?.headers?.['-DynamicVerifyCode-VerifyId']).toBe(
+      'verify-Hmi-2',
+    );
+  });
+
+  it('rejects unknown behavior captcha modes instead of falling back to plain text input', async () => {
+    const client = new RequestClient({
+      adapter: async (config) => {
+        if (config.headers?.['-DynamicVerifyCode-'] === 'Apply') {
+          return {
+            config,
+            data: null,
+            headers: {
+              '-DynamicVerifyCode-VerifyId': 'verify-hmi-unknown',
+              '-DynamicVerifyCode-ParamName': 'DVC-hmi-token',
+              '-DynamicVerifyCode-Type': 'Hmi',
+              '-DynamicVerifyCode--InteractionData': unknownHmiChallengeJson,
+            },
+            status: 200,
+            statusText: 'OK',
+          };
+        }
+
+        return {
+          config,
+          data: null,
+          headers: {
+            '-DynamicVerifyCode-': 'Apply',
+            '-DynamicVerifyCode-Prompt': encodeURIComponent('需要行为验证'),
+            '-DynamicVerifyCode-Type': 'Hmi',
+          },
+          status: 200,
+          statusText: 'OK',
+        };
+      },
+      responseReturn: 'data',
+    });
+
+    client.addResponseInterceptor(createDynamicVerifyCodeInterceptor(client));
+    client.addResponseInterceptor({
+      fulfilled: (response: any) => {
+        if (
+          response.config.__dynamicVerifyKeepRaw ||
+          response.config.responseReturn === 'raw'
+        ) {
+          return response;
+        }
+
+        return unwrapServiceResp(response.data);
+      },
+    });
+
+    const pending = client.post('/protected-hmi-unknown');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(modalConfirm).toHaveBeenCalledTimes(1);
+    await expect(modalConfirm.mock.calls[0]?.[0]?.onOk?.()).rejects.toThrow(
+      '当前行为验证码模式暂不支持',
+    );
+    await expect(pending).rejects.toThrow(
+      '当前行为验证码模式暂不支持',
+    );
+  });
 
   it('reads dynamic verify response headers case-insensitively', async () => {
     const seenHeaders: Record<string, any>[] = [];

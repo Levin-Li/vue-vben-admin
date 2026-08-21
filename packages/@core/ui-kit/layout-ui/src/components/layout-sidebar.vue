@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CSSProperties } from 'vue';
 
-import { computed, shallowRef, useSlots, watchEffect } from 'vue';
+import { computed, shallowRef, useSlots } from 'vue';
 
 import { VbenScrollbar } from '@vben-core/shadcn-ui';
 
@@ -29,6 +29,10 @@ interface Props {
    * 扩展区域宽度
    */
   extraWidth: number;
+  /** 当前是否有可展示的扩展菜单 */
+  extraMenuVisible?: boolean;
+  /** 双列菜单一级栏与二级菜单面板的间隔 */
+  extraGap?: number;
   /**
    * 固定扩展区域
    * @default false
@@ -44,26 +48,50 @@ interface Props {
    */
   isSidebarMixed?: boolean;
   /**
-   * 顶部margin
+   * 侧边栏布局顶部偏移量
    * @default 60
    */
-  marginTop?: number;
+  offsetTop?: number;
   /** 菜单背景色 */
   menuBackgroundColor?: string;
   /** 菜单悬停背景色 */
   menuHoverBackgroundColor?: string;
   /** 全局浅色主题下，菜单选中项使用主题色 */
   menuUsePrimaryActiveColor?: boolean;
+  /** 菜单项之间的纵向间隔 */
+  menuItemGap?: number;
   /**
    * 混合菜单宽度
    * @default 80
    */
   mixedWidth?: number;
   /**
-   * 顶部padding
+   * 顶部外边距
    * @default 60
    */
-  paddingTop?: number;
+  marginTop?: number;
+  /** 右外边距 */
+  marginRight?: number;
+  /** 下外边距 */
+  marginBottom?: number;
+  /** 左外边距 */
+  marginLeft?: number;
+  /** 左上圆角 */
+  radiusTopLeft?: number;
+  /** 右上圆角 */
+  radiusTopRight?: number;
+  /** 右下圆角 */
+  radiusBottomRight?: number;
+  /** 左下圆角 */
+  radiusBottomLeft?: number;
+  /** 上边框宽度 */
+  borderTopWidth?: number;
+  /** 右边框宽度 */
+  borderRightWidth?: number;
+  /** 下边框宽度 */
+  borderBottomWidth?: number;
+  /** 左边框宽度 */
+  borderLeftWidth?: number;
   /**
    * 是否显示
    * @default true
@@ -111,10 +139,24 @@ const props = withDefaults(defineProps<Props>(), {
   collapseWidth: 48,
   domVisible: true,
   fixedExtra: false,
+  extraMenuVisible: true,
+  extraGap: 6,
   isSidebarMixed: false,
-  marginTop: 0,
+  offsetTop: 0,
   mixedWidth: 70,
-  paddingTop: 0,
+  menuItemGap: 4,
+  marginRight: 0,
+  marginBottom: 0,
+  marginLeft: 0,
+  marginTop: 0,
+  radiusTopLeft: 0,
+  radiusTopRight: 0,
+  radiusBottomRight: 0,
+  radiusBottomLeft: 0,
+  borderTopWidth: 0,
+  borderRightWidth: 0,
+  borderBottomWidth: 0,
+  borderLeftWidth: 0,
   show: true,
   showCollapseButton: true,
   showFixedButton: true,
@@ -135,6 +177,10 @@ const slots = useSlots();
 const asideRef = shallowRef<HTMLDivElement | null>();
 
 const hiddenSideStyle = computed((): CSSProperties => calcMenuWidthStyle(true));
+
+const shouldShowExtra = computed(
+  () => props.isSidebarMixed && extraVisible.value && props.extraMenuVisible,
+);
 
 const menuBackgroundVariables = computed((): CSSProperties => {
   if (props.theme !== 'dark') {
@@ -173,66 +219,103 @@ const colorVariables = computed((): CSSProperties => {
   } as CSSProperties;
 });
 
-const subColorVariables = computed((): CSSProperties => {
-  if (props.themeSub !== 'dark' || !props.themeSubColor) {
-    return menuBackgroundVariables.value;
-  }
-
-  return {
-    '--menu': 'var(--sidebar)',
-    '--sidebar': props.themeSubColor,
-    '--sidebar-deep': props.themeSubColor,
-    ...menuBackgroundVariables.value,
-  } as CSSProperties;
-});
-
 const style = computed((): CSSProperties => {
   const {
+    borderBottomWidth,
+    borderLeftWidth,
+    borderRightWidth,
+    borderTopWidth,
     isSidebarMixed,
+    offsetTop,
     marginTop,
     menuBackgroundColor,
     menuUsePrimaryActiveColor,
-    paddingTop,
+    marginRight,
+    marginBottom,
+    marginLeft,
+    radiusTopLeft,
+    radiusTopRight,
+    radiusBottomRight,
+    radiusBottomLeft,
     zIndex,
   } = props;
 
   return {
     '--scroll-shadow': 'var(--sidebar)',
     ...calcMenuWidthStyle(false),
-    height: `calc(100% - ${marginTop}px)`,
-    marginTop: `${marginTop}px`,
-    paddingTop: `${paddingTop}px`,
+    height: `calc(100% - ${offsetTop + marginTop + marginBottom}px)`,
+    marginTop: `${offsetTop + marginTop}px`,
+    marginRight: `${marginRight}px`,
+    marginBottom: `${marginBottom}px`,
+    marginLeft: `${marginLeft}px`,
+    boxSizing: 'border-box',
+    borderColor: 'hsl(var(--border))',
+    borderStyle: 'solid',
+    borderTopWidth: `${borderTopWidth}px`,
+    borderRightWidth: `${borderRightWidth}px`,
+    borderBottomWidth: `${borderBottomWidth}px`,
+    borderLeftWidth: `${borderLeftWidth}px`,
+    borderRadius: `${radiusTopLeft}px ${radiusTopRight}px ${radiusBottomRight}px ${radiusBottomLeft}px`,
     zIndex,
     ...(menuUsePrimaryActiveColor && menuBackgroundColor
       ? { borderRightColor: '#fff' }
       : {}),
     ...(isSidebarMixed && extraVisible.value ? { transition: 'none' } : {}),
+    ...(radiusTopLeft || radiusTopRight || radiusBottomRight || radiusBottomLeft
+      ? { overflow: 'hidden' }
+      : {}),
     ...colorVariables.value,
   } as CSSProperties;
 });
 
 const extraStyle = computed((): CSSProperties => {
   const {
+    borderBottomWidth,
+    borderLeftWidth,
+    borderRightWidth,
+    borderTopWidth,
     extraWidth,
+    extraGap,
+    marginBottom,
+    marginLeft,
+    marginRight,
+    marginTop,
     menuBackgroundColor,
     menuUsePrimaryActiveColor,
+    offsetTop,
+    radiusBottomLeft,
+    radiusBottomRight,
+    radiusTopLeft,
+    radiusTopRight,
     show,
     width,
     zIndex,
   } = props;
+  const visible = shouldShowExtra.value && show;
 
   return {
-    backgroundColor:
-      menuUsePrimaryActiveColor && props.themeColor
-        ? `hsl(${props.themeColor})`
-        : 'hsl(var(--sidebar))',
-    left: `${width}px`,
-    width: extraVisible.value && show ? `${extraWidth}px` : 0,
+    '--scroll-shadow': 'var(--sidebar)',
+    backgroundColor: 'hsl(var(--sidebar))',
+    boxSizing: 'border-box',
+    borderColor: 'hsl(var(--border))',
+    borderStyle: 'solid',
+    borderTopWidth: `${borderTopWidth}px`,
+    borderRightWidth: `${borderRightWidth}px`,
+    borderBottomWidth: `${borderBottomWidth}px`,
+    borderLeftWidth: `${borderLeftWidth}px`,
+    borderRadius: `${radiusTopLeft}px ${radiusTopRight}px ${radiusBottomRight}px ${radiusBottomLeft}px`,
+    height: `calc(100% - ${offsetTop + marginTop + marginBottom}px)`,
+    left: `${width + marginLeft + extraGap}px`,
+    marginTop: `${offsetTop + marginTop}px`,
+    marginRight: `${marginRight}px`,
+    marginBottom: `${marginBottom}px`,
+    marginLeft: '0px',
+    width: visible ? `${extraWidth}px` : 0,
     zIndex,
     ...(menuUsePrimaryActiveColor && menuBackgroundColor
       ? { borderColor: '#fff' }
       : {}),
-    ...subColorVariables.value,
+    ...colorVariables.value,
   } as CSSProperties;
 });
 
@@ -260,6 +343,7 @@ const contentStyle = computed((): CSSProperties => {
       'hsl(var(--sidebar-menu-background-color, var(--sidebar)))',
     height: `calc(100% - ${headerHeight + collapseHeight}px)`,
     paddingTop: '8px',
+    '--sidebar-menu-item-gap': `${props.menuItemGap}px`,
     ...contentWidthStyle.value,
   };
 });
@@ -282,6 +366,7 @@ const extraContentStyle = computed((): CSSProperties => {
     height: `calc(100% - ${
       (extraCollapse.value ? 0 : headerHeight) + collapseHeight
     }px)`,
+    '--sidebar-menu-item-gap': `${props.menuItemGap}px`,
   };
 });
 
@@ -291,17 +376,21 @@ const collapseStyle = computed((): CSSProperties => {
   };
 });
 
-watchEffect(() => {
-  extraVisible.value = props.fixedExtra ? true : extraVisible.value;
-});
-
 function calcMenuWidthStyle(isHiddenDom: boolean): CSSProperties {
-  const { extraWidth, fixedExtra, isSidebarMixed, show, width } = props;
+  const {
+    extraWidth,
+    extraGap,
+    isSidebarMixed,
+    marginLeft,
+    marginRight,
+    show,
+    width,
+  } = props;
 
   let widthValue =
     width === 0
       ? '0px'
-      : `${width + (isSidebarMixed && fixedExtra && extraVisible.value ? extraWidth : 0)}px`;
+      : `${width}px`;
 
   const { collapseWidth } = props;
 
@@ -309,13 +398,22 @@ function calcMenuWidthStyle(isHiddenDom: boolean): CSSProperties {
     widthValue = `${collapseWidth}px`;
   }
 
+  const hasExtraMenu = isHiddenDom && shouldShowExtra.value && show;
+  const placeholderWidth = isHiddenDom && show
+    ? hasExtraMenu
+      ? `calc(${widthValue} + ${
+          marginLeft + extraGap + extraWidth + marginRight
+        }px)`
+      : `calc(${widthValue} + ${marginLeft + marginRight}px)`
+    : widthValue;
+
   return {
-    ...(widthValue === '0px' ? { overflow: 'hidden' } : {}),
-    flex: `0 0 ${widthValue}`,
-    marginLeft: show ? 0 : `-${widthValue}`,
-    maxWidth: widthValue,
-    minWidth: widthValue,
-    width: widthValue,
+    ...(placeholderWidth === '0px' ? { overflow: 'hidden' } : {}),
+    flex: `0 0 ${placeholderWidth}`,
+    marginLeft: show ? 0 : `-${placeholderWidth}`,
+    maxWidth: placeholderWidth,
+    minWidth: placeholderWidth,
+    width: placeholderWidth,
   };
 }
 
@@ -364,7 +462,7 @@ function handleMouseleave() {
       theme,
       {
         'bg-sidebar-deep': isSidebarMixed,
-        'border-r border-border bg-sidebar': !isSidebarMixed,
+        'bg-sidebar': !isSidebarMixed,
       },
     ]"
     :style="style"
@@ -379,7 +477,12 @@ function handleMouseleave() {
     <div v-if="slots.logo" :style="headerStyle">
       <slot name="logo"></slot>
     </div>
-    <VbenScrollbar :style="contentStyle" shadow shadow-border>
+    <VbenScrollbar
+      :style="contentStyle"
+      class="layout-sidebar-scrollbar"
+      shadow
+      shadow-border
+    >
       <slot></slot>
     </VbenScrollbar>
 
@@ -390,16 +493,13 @@ function handleMouseleave() {
     />
   </aside>
   <div
-    v-if="isSidebarMixed"
+    v-if="shouldShowExtra"
     ref="asideRef"
     :class="[
-      themeSub,
-      {
-        'border-l': extraVisible,
-      },
+      theme,
     ]"
     :style="extraStyle"
-    class="fixed top-0 h-full overflow-hidden border-r border-border bg-sidebar transition-all duration-200"
+    class="fixed top-0 overflow-hidden bg-sidebar transition-all duration-200"
   >
     <SidebarCollapseButton
       v-if="isSidebarMixed && expandOnHover"
@@ -415,7 +515,7 @@ function handleMouseleave() {
     </div>
     <VbenScrollbar
       :style="extraContentStyle"
-      class="border-border py-2"
+      class="layout-sidebar-scrollbar border-border py-2"
       shadow
       shadow-border
     >
@@ -423,3 +523,9 @@ function handleMouseleave() {
     </VbenScrollbar>
   </div>
 </template>
+
+<style scoped>
+.layout-sidebar-scrollbar :deep([data-reka-scroll-area-viewport]) {
+  overscroll-behavior-y: none;
+}
+</style>

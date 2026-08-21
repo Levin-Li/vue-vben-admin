@@ -465,6 +465,15 @@ function handleOrgSelect(keys: Array<number | string>) {
   }
 }
 
+function handleOrgNodeFocusOut(event: FocusEvent) {
+  const currentTarget = event.currentTarget as HTMLElement;
+  const nextTarget = event.relatedTarget;
+
+  if (!(nextTarget instanceof Node) || !currentTarget.contains(nextTarget)) {
+    hoveredOrgId.value = '';
+  }
+}
+
 function openCreateOrgModal(parentId = '') {
   orgModalMode.value = 'create';
   resetOrgForm({
@@ -589,9 +598,9 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="user-org-page flex min-h-0 gap-2">
+  <div class="user-org-page flex min-h-0 gap-4 p-4">
     <aside
-      class="user-org-sidebar border-border bg-card flex h-full w-[320px] shrink-0 flex-col rounded-lg border p-4"
+      class="user-org-sidebar border-border bg-card flex w-[320px] shrink-0 flex-col rounded-lg border p-4"
     >
       <div class="mb-3 flex items-center justify-between gap-2">
         <div class="min-w-0">
@@ -672,11 +681,20 @@ onMounted(async () => {
         >
           <template #title="node">
             <div
+              :class="{
+                'user-org-tree-node--actions-visible':
+                  hoveredOrgId === String(node.key),
+              }"
               class="user-org-tree-node"
+              tabindex="0"
+              @focusin="hoveredOrgId = String(node.key)"
+              @focusout="handleOrgNodeFocusOut"
               @mouseenter="hoveredOrgId = String(node.key)"
               @mouseleave="hoveredOrgId = ''"
             >
-              <span class="min-w-0 flex flex-1 items-center gap-2 truncate">
+              <span
+                class="user-org-tree-node-title min-w-0 flex flex-1 items-center gap-2 truncate"
+              >
                 <Tooltip :title="getOrgTypeLabel(node.type)">
                   <IconifyIcon
                     aria-hidden="true"
@@ -690,35 +708,41 @@ onMounted(async () => {
                 v-if="hoveredOrgId === String(node.key)"
                 class="user-org-tree-actions"
               >
-                <Button
-                  size="small"
-                  title="新增下级组织"
-                  type="text"
-                  @click.stop="openCreateOrgModal(String(node.key))"
-                >
-                  +
-                </Button>
-                <Button
-                  size="small"
-                  title="编辑组织"
-                  type="text"
-                  @click.stop="openEditOrgModal(String(node.key))"
-                >
-                  编辑
-                </Button>
+                <Tooltip title="新增下级组织">
+                  <Button
+                    aria-label="新增下级组织"
+                    size="small"
+                    type="text"
+                    @click.stop="openCreateOrgModal(String(node.key))"
+                  >
+                    <IconifyIcon aria-hidden="true" icon="lucide:plus" />
+                  </Button>
+                </Tooltip>
+                <Tooltip title="编辑组织">
+                  <Button
+                    aria-label="编辑组织"
+                    size="small"
+                    type="text"
+                    @click.stop="openEditOrgModal(String(node.key))"
+                  >
+                    <IconifyIcon aria-hidden="true" icon="lucide:pencil" />
+                  </Button>
+                </Tooltip>
                 <Popconfirm
                   title="确认删除当前组织节点吗？"
                   @confirm="deleteOrg(String(node.key))"
                 >
-                  <Button
-                    danger
-                    size="small"
-                    title="删除组织"
-                    type="text"
-                    @click.stop
-                  >
-                    -
-                  </Button>
+                  <Tooltip title="删除组织">
+                    <Button
+                      aria-label="删除组织"
+                      danger
+                      size="small"
+                      type="text"
+                      @click.stop
+                    >
+                      <IconifyIcon aria-hidden="true" icon="lucide:trash-2" />
+                    </Button>
+                  </Tooltip>
                 </Popconfirm>
               </span>
             </div>
@@ -728,7 +752,7 @@ onMounted(async () => {
       </Spin>
     </aside>
 
-    <main class="min-h-0 min-w-0 flex-1">
+    <main class="user-org-main min-h-0 min-w-0 flex-1">
       <CrudPage v-if="selectedOrgId" :key="crudPageKey" :config="userConfig" />
       <div
         v-else
@@ -847,20 +871,30 @@ onMounted(async () => {
 
 <style scoped>
 .user-org-page {
-  --user-org-sidebar-height: calc(100vh - 132px);
-
-  height: var(--user-org-sidebar-height);
+  height: 100%;
   min-height: 520px;
 }
 
 .user-org-sidebar {
   min-height: 0;
+  position: relative;
+  z-index: 3;
+  overflow: visible;
+}
+
+.user-org-main :deep(.vben-crud-page) {
+  margin: -1rem;
+}
+
+.user-org-main {
+  position: relative;
+  z-index: 1;
 }
 
 .user-org-sidebar :deep(.ant-spin-nested-loading) {
   min-height: 0;
   flex: 1;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .user-org-sidebar :deep(.ant-spin-container) {
@@ -868,27 +902,38 @@ onMounted(async () => {
   min-height: 0;
   height: 100%;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .user-org-tree {
   min-height: 0;
   flex: 1;
-  overflow: auto;
+  position: relative;
+  z-index: 1;
+  overflow-y: auto;
+  overflow-x: visible;
 }
 
 .user-org-tree :deep(.ant-tree-node-content-wrapper) {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .user-org-tree-node {
   display: flex;
   flex: 1;
   min-width: 0;
+  min-height: 28px;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  position: relative;
+}
+
+.user-org-tree-node--actions-visible .user-org-tree-node-title {
+  padding-right: 88px;
+}
+
+.user-org-tree-node--actions-visible {
+  z-index: 2;
 }
 
 .user-org-tree-node-icon {
@@ -913,14 +958,23 @@ onMounted(async () => {
 }
 
 .user-org-tree-actions {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  z-index: 20;
   display: inline-flex;
-  flex-shrink: 0;
   align-items: center;
   gap: 2px;
+  padding: 2px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  background: hsl(var(--popover));
+  box-shadow: 0 4px 10px hsl(var(--foreground) / 12%);
+  transform: translateY(-50%);
 }
 
 .user-org-tree-actions :deep(.ant-btn) {
-  min-width: 24px;
-  padding-inline: 4px;
+  min-width: 22px;
+  padding-inline: 3px;
 }
 </style>

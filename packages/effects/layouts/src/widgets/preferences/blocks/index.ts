@@ -9,6 +9,7 @@ export { default as Header } from './layout/header.vue';
 export { default as Layout } from './layout/layout.vue';
 export { default as Navigation } from './layout/navigation.vue';
 export { default as Sidebar } from './layout/sidebar.vue';
+export { default as ShellStyle } from './layout/shell-style.vue';
 export { default as Tabbar } from './layout/tabbar.vue';
 export { default as Widget } from './layout/widget.vue';
 export { default as GlobalShortcutKeys } from './shortcut-keys/global.vue';

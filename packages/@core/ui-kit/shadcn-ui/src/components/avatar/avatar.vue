@@ -11,6 +11,8 @@ import type { ClassType } from '@vben-core/typings';
 
 import { computed } from 'vue';
 
+import { UserRound } from 'lucide-vue-next';
+
 import { Avatar, AvatarFallback, AvatarImage } from '../../ui';
 
 interface Props extends AvatarFallbackProps, AvatarImageProps, AvatarRootProps {
@@ -42,10 +44,6 @@ const imageStyle = computed<CSSProperties>(() => {
   return {};
 });
 
-const text = computed(() => {
-  return props.alt.slice(-2).toUpperCase();
-});
-
 const rootStyle = computed(() => {
   return props.size !== undefined && props.size > 0
     ? {
@@ -64,7 +62,9 @@ const rootStyle = computed(() => {
   >
     <Avatar :class="props.class" class="size-full">
       <AvatarImage :alt="alt" :src="src" :style="imageStyle" />
-      <AvatarFallback>{{ text }}</AvatarFallback>
+      <AvatarFallback class="bg-muted text-muted-foreground">
+        <UserRound aria-hidden="true" class="size-1/2" />
+      </AvatarFallback>
     </Avatar>
     <span
       v-if="dot"

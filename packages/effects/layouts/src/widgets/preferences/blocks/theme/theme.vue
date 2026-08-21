@@ -12,16 +12,38 @@ import { TinyColor } from '@vben/utils';
 
 import SwitchItem from '../switch-item.vue';
 
-type NavigationMenuColorTarget = 'menuBackground';
+type ThemeColorTarget =
+  | 'baseBackground'
+  | 'contentBackground'
+  | 'headerMenuBackground'
+  | 'headerMenuTheme'
+  | 'menuBackground'
+  | 'tabbarBackground';
 
 defineOptions({
   name: 'PreferenceTheme',
 });
 
 const emit = defineEmits<{
-  openColorSettings: [target: 'header' | 'sidebar' | NavigationMenuColorTarget];
+  openColorSettings: [target: 'header' | 'sidebar' | ThemeColorTarget];
 }>();
 const modelValue = defineModel<string>({ default: 'auto' });
+const themeBaseBackgroundColor = defineModel<string>(
+  'themeBaseBackgroundColor',
+);
+const themeBaseBackgroundColorCustom = defineModel<boolean>(
+  'themeBaseBackgroundColorCustom',
+);
+const themeContentBackgroundColor = defineModel<string>(
+  'themeContentBackgroundColor',
+);
+const themeContentBackgroundColorCustom = defineModel<boolean>(
+  'themeContentBackgroundColorCustom',
+);
+const tabbarBackgroundColor = defineModel<string>('tabbarBackgroundColor');
+const tabbarBackgroundColorCustom = defineModel<boolean>(
+  'tabbarBackgroundColorCustom',
+);
 const themeSemiDarkSidebar = defineModel<boolean>('themeSemiDarkSidebar');
 const themeSemiDarkSidebarColor = defineModel<string>(
   'themeSemiDarkSidebarColor',
@@ -30,6 +52,18 @@ const themeSemiDarkSidebarSub = defineModel<boolean>('themeSemiDarkSidebarSub');
 const themeSemiDarkHeader = defineModel<boolean>('themeSemiDarkHeader');
 const themeSemiDarkHeaderColor = defineModel<string>(
   'themeSemiDarkHeaderColor',
+);
+const themeHeaderMenuThemeColor = defineModel<string>(
+  'themeHeaderMenuThemeColor',
+);
+const themeHeaderMenuThemeColorCustom = defineModel<boolean>(
+  'themeHeaderMenuThemeColorCustom',
+);
+const themeHeaderMenuBackgroundColor = defineModel<string>(
+  'themeHeaderMenuBackgroundColor',
+);
+const themeHeaderMenuBackgroundColorCustom = defineModel<boolean>(
+  'themeHeaderMenuBackgroundColorCustom',
 );
 const themeSidebarMenuBackgroundColor = defineModel<string>(
   'themeSidebarMenuBackgroundColor',
@@ -159,9 +193,7 @@ function getColorPresetName(value?: string) {
     : $t('preferences.theme.builtin.custom');
 }
 
-function openColorSettings(
-  target: 'header' | 'sidebar' | NavigationMenuColorTarget,
-) {
+function openColorSettings(target: 'header' | 'sidebar' | ThemeColorTarget) {
   emit('openColorSettings', target);
 }
 </script>
@@ -184,6 +216,77 @@ function openColorSettings(
         </div>
       </div>
     </template>
+
+    <SwitchItem
+      v-model="themeBaseBackgroundColorCustom"
+      shortcut-class="semi-dark-shortcut"
+    >
+      {{ $t('preferences.theme.baseBackgroundColor') }}
+      <template #before-switch>
+        <span class="semi-dark-color-name">
+          {{ $t('preferences.theme.builtin.custom') }}
+        </span>
+      </template>
+      <template #shortcut>
+        <button
+          :aria-label="$t('preferences.theme.baseBackgroundColor')"
+          :disabled="!themeBaseBackgroundColorCustom"
+          class="navigation-menu-color-preview"
+          type="button"
+          @click.stop="openColorSettings('baseBackground')"
+        >
+          <span :style="{ backgroundColor: themeBaseBackgroundColor }"></span>
+        </button>
+      </template>
+    </SwitchItem>
+
+    <SwitchItem
+      v-model="themeContentBackgroundColorCustom"
+      shortcut-class="semi-dark-shortcut"
+    >
+      {{ $t('preferences.theme.contentBackgroundColor') }}
+      <template #before-switch>
+        <span class="semi-dark-color-name">
+          {{ $t('preferences.theme.builtin.custom') }}
+        </span>
+      </template>
+      <template #shortcut>
+        <button
+          :aria-label="$t('preferences.theme.contentBackgroundColor')"
+          :disabled="!themeContentBackgroundColorCustom"
+          class="navigation-menu-color-preview"
+          type="button"
+          @click.stop="openColorSettings('contentBackground')"
+        >
+          <span
+            :style="{ backgroundColor: themeContentBackgroundColor }"
+          ></span>
+        </button>
+      </template>
+    </SwitchItem>
+
+    <SwitchItem
+      v-model="tabbarBackgroundColorCustom"
+      shortcut-class="semi-dark-shortcut"
+    >
+      {{ $t('preferences.tabbar.backgroundColor') }}
+      <template #before-switch>
+        <span class="semi-dark-color-name">
+          {{ $t('preferences.theme.builtin.custom') }}
+        </span>
+      </template>
+      <template #shortcut>
+        <button
+          :aria-label="$t('preferences.tabbar.backgroundColor')"
+          :disabled="!tabbarBackgroundColorCustom"
+          class="navigation-menu-color-preview"
+          type="button"
+          @click.stop="openColorSettings('tabbarBackground')"
+        >
+          <span :style="{ backgroundColor: tabbarBackgroundColor }"></span>
+        </button>
+      </template>
+    </SwitchItem>
 
     <SwitchItem
       v-model="themeSemiDarkSidebar"
@@ -273,6 +376,68 @@ function openColorSettings(
         >
           <span
             :style="{ backgroundColor: themeSemiDarkHeaderColor }"
+            class="semi-dark-color-preview"
+          ></span>
+        </button>
+      </template>
+    </SwitchItem>
+    <SwitchItem
+      v-model="themeHeaderMenuThemeColorCustom"
+      :disabled="modelValue === 'dark' || !themeSemiDarkHeader"
+      shortcut-class="semi-dark-shortcut"
+    >
+      {{ $t('preferences.theme.headerThemeColor') }}
+      <template #before-switch>
+        <span class="semi-dark-color-name">
+          {{ $t('preferences.theme.builtin.custom') }}
+        </span>
+      </template>
+      <template #shortcut>
+        <button
+          :aria-label="$t('preferences.theme.headerThemeColor')"
+          :disabled="
+            !themeHeaderMenuThemeColorCustom ||
+            !themeSemiDarkHeader ||
+            modelValue === 'dark'
+          "
+          class="semi-dark-color-button semi-dark-color-preview-button"
+          type="button"
+          @click.stop="openColorSettings('headerMenuTheme')"
+        >
+          <span
+            :style="{ backgroundColor: themeHeaderMenuThemeColor }"
+            class="semi-dark-color-preview"
+          ></span>
+        </button>
+      </template>
+    </SwitchItem>
+    <SwitchItem
+      v-model="themeHeaderMenuBackgroundColorCustom"
+      :disabled="modelValue === 'dark' || !themeSemiDarkHeader"
+      shortcut-class="semi-dark-shortcut"
+    >
+      {{ $t('preferences.theme.headerNavigationMenuBackgroundColor') }}
+      <template #before-switch>
+        <span class="semi-dark-color-name">
+          {{ $t('preferences.theme.builtin.custom') }}
+        </span>
+      </template>
+      <template #shortcut>
+        <button
+          :aria-label="
+            $t('preferences.theme.headerNavigationMenuBackgroundColor')
+          "
+          :disabled="
+            !themeHeaderMenuBackgroundColorCustom ||
+            !themeSemiDarkHeader ||
+            modelValue === 'dark'
+          "
+          class="semi-dark-color-button semi-dark-color-preview-button"
+          type="button"
+          @click.stop="openColorSettings('headerMenuBackground')"
+        >
+          <span
+            :style="{ backgroundColor: themeHeaderMenuBackgroundColor }"
             class="semi-dark-color-preview"
           ></span>
         </button>

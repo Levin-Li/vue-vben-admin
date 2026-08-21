@@ -6,6 +6,8 @@ import type {
 } from '@vben-core/typings';
 
 interface VbenLayoutProps {
+  /** 最外层基础背景色，用于顶栏承载区等布局留白 */
+  baseBackgroundColor?: string;
   /**
    * 内容区域定宽
    * @default 'wide'
@@ -16,31 +18,49 @@ interface VbenLayoutProps {
    * @default 1200
    */
   contentCompactWidth?: number;
+  /** 内容区域背景色；未自定义时传 transparent */
+  contentBackgroundColor?: string;
   /**
    * padding
    * @default 16
    */
   contentPadding?: number;
   /**
-   * paddingBottom
+   * marginBottom
    * @default 16
    */
-  contentPaddingBottom?: number;
+  contentMarginBottom?: number;
   /**
-   * paddingLeft
+   * marginLeft
    * @default 16
    */
-  contentPaddingLeft?: number;
+  contentMarginLeft?: number;
   /**
-   * paddingRight
+   * marginRight
    * @default 16
    */
-  contentPaddingRight?: number;
+  contentMarginRight?: number;
   /**
-   * paddingTop
+   * marginTop
    * @default 16
    */
-  contentPaddingTop?: number;
+  contentMarginTop?: number;
+  /** 内容左上圆角 */
+  contentRadiusTopLeft?: number;
+  /** 内容右上圆角 */
+  contentRadiusTopRight?: number;
+  /** 内容右下圆角 */
+  contentRadiusBottomRight?: number;
+  /** 内容左下圆角 */
+  contentRadiusBottomLeft?: number;
+  /** 内容上边框宽度 */
+  contentBorderTopWidth?: number;
+  /** 内容右边框宽度 */
+  contentBorderRightWidth?: number;
+  /** 内容下边框宽度 */
+  contentBorderBottomWidth?: number;
+  /** 内容左边框宽度 */
+  contentBorderLeftWidth?: number;
   /**
    * footer 是否可见
    * @default false
@@ -62,6 +82,30 @@ interface VbenLayoutProps {
    * @default 48
    */
   headerHeight?: number;
+  /** 顶栏上外边距 */
+  headerMarginTop?: number;
+  /** 顶栏右外边距 */
+  headerMarginRight?: number;
+  /** 顶栏下外边距 */
+  headerMarginBottom?: number;
+  /** 顶栏左外边距 */
+  headerMarginLeft?: number;
+  /** 顶栏左上圆角 */
+  headerRadiusTopLeft?: number;
+  /** 顶栏右上圆角 */
+  headerRadiusTopRight?: number;
+  /** 顶栏右下圆角 */
+  headerRadiusBottomRight?: number;
+  /** 顶栏左下圆角 */
+  headerRadiusBottomLeft?: number;
+  /** 顶栏上边框宽度 */
+  headerBorderTopWidth?: number;
+  /** 顶栏右边框宽度 */
+  headerBorderRightWidth?: number;
+  /** 顶栏下边框宽度 */
+  headerBorderBottomWidth?: number;
+  /** 顶栏左边框宽度 */
+  headerBorderLeftWidth?: number;
   /**
    * 顶栏是否隐藏
    * @default false
@@ -130,6 +174,8 @@ interface VbenLayoutProps {
    * @default 48
    */
   sidebarExtraCollapsedWidth?: number;
+  /** 当前双列菜单是否有可展示的第二列菜单项 */
+  sidebarExtraMenuVisible?: boolean;
   /**
    * 侧边菜单折叠按钮是否固定
    * @default true
@@ -174,6 +220,38 @@ interface VbenLayoutProps {
    * @default 210
    */
   sidebarWidth?: number;
+  /** 双列菜单一级栏与二级菜单面板的间隔
+   * @default 6
+   */
+  sidebarMixedMenuGap?: number;
+  /** 侧边栏菜单项之间的纵向间隔
+   * @default 4
+   */
+  sidebarMenuItemGap?: number;
+  /** 侧边栏上外边距 */
+  sidebarMarginTop?: number;
+  /** 侧边栏右外边距 */
+  sidebarMarginRight?: number;
+  /** 侧边栏下外边距 */
+  sidebarMarginBottom?: number;
+  /** 侧边栏左外边距 */
+  sidebarMarginLeft?: number;
+  /** 侧边栏左上圆角 */
+  sidebarRadiusTopLeft?: number;
+  /** 侧边栏右上圆角 */
+  sidebarRadiusTopRight?: number;
+  /** 侧边栏右下圆角 */
+  sidebarRadiusBottomRight?: number;
+  /** 侧边栏左下圆角 */
+  sidebarRadiusBottomLeft?: number;
+  /** 侧边栏上边框宽度 */
+  sidebarBorderTopWidth?: number;
+  /** 侧边栏右边框宽度 */
+  sidebarBorderRightWidth?: number;
+  /** 侧边栏下边框宽度 */
+  sidebarBorderBottomWidth?: number;
+  /** 侧边栏左边框宽度 */
+  sidebarBorderLeftWidth?: number;
   /**
    *  侧边菜单折叠宽度
    * @default 48
@@ -189,6 +267,32 @@ interface VbenLayoutProps {
    * @default 30
    */
   tabbarHeight?: number;
+  /** 标签栏背景色 */
+  tabbarBackgroundColor?: string;
+  /** 标签栏上外边距 */
+  tabbarMarginTop?: number;
+  /** 标签栏右外边距 */
+  tabbarMarginRight?: number;
+  /** 标签栏下外边距 */
+  tabbarMarginBottom?: number;
+  /** 标签栏左外边距 */
+  tabbarMarginLeft?: number;
+  /** 标签栏左上圆角 */
+  tabbarRadiusTopLeft?: number;
+  /** 标签栏右上圆角 */
+  tabbarRadiusTopRight?: number;
+  /** 标签栏右下圆角 */
+  tabbarRadiusBottomRight?: number;
+  /** 标签栏左下圆角 */
+  tabbarRadiusBottomLeft?: number;
+  /** 标签栏上边框宽度 */
+  tabbarBorderTopWidth?: number;
+  /** 标签栏右边框宽度 */
+  tabbarBorderRightWidth?: number;
+  /** 标签栏下边框宽度 */
+  tabbarBorderBottomWidth?: number;
+  /** 标签栏左边框宽度 */
+  tabbarBorderLeftWidth?: number;
   /**
    * zIndex
    * @default 100

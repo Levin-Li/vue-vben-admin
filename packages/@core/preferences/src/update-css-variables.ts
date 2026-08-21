@@ -1,8 +1,13 @@
 import type { Preferences } from './types';
 
-import { generatorColorVariables } from '@vben-core/shared/color';
+import {
+  brightenColor,
+  convertToHslCssVar,
+  generatorColorVariables,
+} from '@vben-core/shared/color';
 import { updateCSSVariables as executeUpdateCSSVariables } from '@vben-core/shared/utils';
 
+import { resolveBackgroundColor } from './background-color';
 import { BUILT_IN_THEME_PRESETS } from './constants';
 
 /**
@@ -79,6 +84,59 @@ function updateCSSVariables(preferences: Preferences) {
       `calc(${fontSize}px * 0.875)`,
     );
   }
+
+  updateHeaderMenuThemeVariables(preferences);
+}
+
+/**
+ * 将顶栏交互主题与下拉面板背景放在根节点，保证 teleport 到 body 的通知和下拉菜单也能使用同一来源。
+ */
+function updateHeaderMenuThemeVariables(preferences: Preferences) {
+  const root = document.documentElement;
+  const theme = preferences.theme;
+
+  if (isDarkTheme(theme.mode) || !theme.semiDarkHeader) {
+    root.style.removeProperty('--header-menu-background');
+    root.style.removeProperty('--header-menu-theme-color');
+    return;
+  }
+
+  let menuBackgroundColor: string;
+  if (theme.headerMenuBackgroundColorCustom) {
+    menuBackgroundColor = resolveBackgroundColor(
+      theme.headerMenuBackgroundColor,
+      theme.headerMenuBackgroundColorTransparency,
+    );
+  } else if (theme.sidebarMenuBackgroundColorCustom) {
+    menuBackgroundColor = resolveBackgroundColor(
+      theme.sidebarMenuBackgroundColor,
+      theme.sidebarMenuBackgroundColorTransparency,
+    );
+  } else {
+    menuBackgroundColor = resolveBackgroundColor(
+      theme.semiDarkSidebarColor,
+      theme.semiDarkSidebarColorTransparency,
+    );
+  }
+
+  root.style.setProperty(
+    '--header-menu-background',
+    convertToHslCssVar(menuBackgroundColor),
+  );
+
+  let headerThemeColor: string;
+  if (theme.headerMenuThemeColorCustom) {
+    headerThemeColor = theme.headerMenuThemeColor;
+  } else if (theme.baseBackgroundColorCustom) {
+    headerThemeColor = theme.baseBackgroundColor;
+  } else {
+    headerThemeColor = brightenColor(theme.semiDarkHeaderColor, 40);
+  }
+
+  root.style.setProperty(
+    '--header-menu-theme-color',
+    convertToHslCssVar(headerThemeColor),
+  );
 }
 
 /**

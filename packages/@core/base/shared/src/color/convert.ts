@@ -24,9 +24,39 @@ function convertToHsl(color: string): string {
  * @returns {string} 可以作为CSS变量使用的HSL格式的颜色字符串。
  */
 function convertToHslCssVar(color: string): string {
+  const cssHsl = color.match(
+    /^hsl\(\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%(?:\s*\/\s*([\d.]+))?\s*\)$/i,
+  );
+
+  if (cssHsl) {
+    const [, hue, saturation, lightness, alpha] = cssHsl;
+    const hsl = `${hue} ${saturation}% ${lightness}%`;
+
+    return alpha ? `${hsl} / ${alpha}` : hsl;
+  }
+
   const { a, h, l, s } = new TinyColor(color).toHsl();
   const hsl = `${Math.round(h)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
   return a < 1 ? `${hsl} / ${a}` : hsl;
+}
+
+/**
+ * 按 HSL 明度提亮颜色，返回可直接用于 CSS 的 HSL 字符串。
+ */
+function brightenColor(color: string, amount: number): string {
+  const cssHsl = color.match(
+    /^hsl\(\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%(?:\s*\/\s*([\d.]+))?\s*\)$/i,
+  );
+
+  if (cssHsl) {
+    const [, hue, saturation, lightness, alpha] = cssHsl;
+    const brighterLightness = Math.min(100, Number(lightness) + amount);
+    const hsl = `hsl(${hue}, ${saturation}%, ${brighterLightness}%)`;
+
+    return alpha ? `${hsl} / ${alpha}` : hsl;
+  }
+
+  return new TinyColor(color).brighten(amount).toHslString();
 }
 
 /**
@@ -54,6 +84,7 @@ function isValidColor(color?: string) {
 }
 
 export {
+  brightenColor,
   convertToHsl,
   convertToHslCssVar,
   convertToRgb,

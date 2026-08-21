@@ -12,3 +12,10 @@ export function shouldApplyFieldOptionsRequest(
 ) {
   return requestVersion === latestRequestVersion;
 }
+
+export function shouldLoadFieldOptions(
+  hasOptionsLoader: boolean,
+  isFieldVisible: boolean,
+) {
+  return hasOptionsLoader && isFieldVisible;
+}

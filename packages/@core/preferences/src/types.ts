@@ -37,14 +37,30 @@ interface AppPreferences {
   contentCompactWidth: number;
   /** 内容内边距 */
   contentPadding: number;
-  /** 内容底部内边距 */
-  contentPaddingBottom: number;
-  /** 内容左侧内边距 */
-  contentPaddingLeft: number;
-  /** 内容右侧内边距 */
-  contentPaddingRight: number;
-  /** 内容顶部内边距 */
-  contentPaddingTop: number;
+  /** 内容底部外边距 */
+  contentMarginBottom: number;
+  /** 内容左侧外边距 */
+  contentMarginLeft: number;
+  /** 内容右侧外边距 */
+  contentMarginRight: number;
+  /** 内容顶部外边距 */
+  contentMarginTop: number;
+  /** 内容左上圆角 */
+  contentRadiusTopLeft: number;
+  /** 内容右上圆角 */
+  contentRadiusTopRight: number;
+  /** 内容右下圆角 */
+  contentRadiusBottomRight: number;
+  /** 内容左下圆角 */
+  contentRadiusBottomLeft: number;
+  /** 内容上边框宽度 */
+  contentBorderTopWidth: number;
+  /** 内容右边框宽度 */
+  contentBorderRightWidth: number;
+  /** 内容下边框宽度 */
+  contentBorderBottomWidth: number;
+  /** 内容左边框宽度 */
+  contentBorderLeftWidth: number;
   // /** 应用默认头像 */
   defaultAvatar: string;
   /** 默认首页地址 */
@@ -131,6 +147,30 @@ interface HeaderPreferences {
   enable: boolean;
   /** 顶栏高度 */
   height: number;
+  /** 顶栏上外边距 */
+  marginTop: number;
+  /** 顶栏右外边距 */
+  marginRight: number;
+  /** 顶栏下外边距 */
+  marginBottom: number;
+  /** 顶栏左外边距 */
+  marginLeft: number;
+  /** 顶栏左上圆角 */
+  radiusTopLeft: number;
+  /** 顶栏右上圆角 */
+  radiusTopRight: number;
+  /** 顶栏右下圆角 */
+  radiusBottomRight: number;
+  /** 顶栏左下圆角 */
+  radiusBottomLeft: number;
+  /** 顶栏上边框宽度 */
+  borderTopWidth: number;
+  /** 顶栏右边框宽度 */
+  borderRightWidth: number;
+  /** 顶栏下边框宽度 */
+  borderBottomWidth: number;
+  /** 顶栏左边框宽度 */
+  borderLeftWidth: number;
   /** 顶栏是否隐藏,css-隐藏 */
   hidden: boolean;
   /** 顶栏菜单位置 */
@@ -184,8 +224,36 @@ interface SidebarPreferences {
   hidden: boolean;
   /** 混合侧边栏宽度 */
   mixedWidth: number;
+  /** 双列菜单一级栏与二级菜单面板的间隔 */
+  mixedMenuGap: number;
+  /** 侧边栏菜单项之间的纵向间隔 */
+  menuItemGap: number;
   /** 侧边栏宽度 */
   width: number;
+  /** 侧边栏上外边距 */
+  marginTop: number;
+  /** 侧边栏右外边距 */
+  marginRight: number;
+  /** 侧边栏下外边距 */
+  marginBottom: number;
+  /** 侧边栏左外边距 */
+  marginLeft: number;
+  /** 侧边栏左上圆角 */
+  radiusTopLeft: number;
+  /** 侧边栏右上圆角 */
+  radiusTopRight: number;
+  /** 侧边栏右下圆角 */
+  radiusBottomRight: number;
+  /** 侧边栏左下圆角 */
+  radiusBottomLeft: number;
+  /** 侧边栏上边框宽度 */
+  borderTopWidth: number;
+  /** 侧边栏右边框宽度 */
+  borderRightWidth: number;
+  /** 侧边栏下边框宽度 */
+  borderBottomWidth: number;
+  /** 侧边栏左边框宽度 */
+  borderLeftWidth: number;
 }
 
 interface ShortcutKeyPreferences {
@@ -202,6 +270,36 @@ interface ShortcutKeyPreferences {
 }
 
 interface TabbarPreferences {
+  /** 标签栏背景色 */
+  backgroundColor: string;
+  /** 是否自定义标签栏背景色 */
+  backgroundColorCustom: boolean;
+  /** 标签栏背景透明度（0-100，0 为不透明） */
+  backgroundTransparency: number;
+  /** 标签栏上外边距 */
+  marginTop: number;
+  /** 标签栏右外边距 */
+  marginRight: number;
+  /** 标签栏下外边距 */
+  marginBottom: number;
+  /** 标签栏左外边距 */
+  marginLeft: number;
+  /** 标签栏左上圆角 */
+  radiusTopLeft: number;
+  /** 标签栏右上圆角 */
+  radiusTopRight: number;
+  /** 标签栏右下圆角 */
+  radiusBottomRight: number;
+  /** 标签栏左下圆角 */
+  radiusBottomLeft: number;
+  /** 标签栏上边框宽度 */
+  borderTopWidth: number;
+  /** 标签栏右边框宽度 */
+  borderRightWidth: number;
+  /** 标签栏下边框宽度 */
+  borderBottomWidth: number;
+  /** 标签栏左边框宽度 */
+  borderLeftWidth: number;
   /** 是否开启多标签页拖拽 */
   draggable: boolean;
   /** 是否开启多标签页 */
@@ -233,6 +331,18 @@ interface TabbarPreferences {
 }
 
 interface ThemePreferences {
+  /** 基础布局背景色 */
+  baseBackgroundColor: string;
+  /** 是否自定义基础布局背景色 */
+  baseBackgroundColorCustom: boolean;
+  /** 基础布局背景透明度（0-100，0 为不透明） */
+  baseBackgroundTransparency: number;
+  /** 内容区域背景色 */
+  contentBackgroundColor: string;
+  /** 是否自定义内容区域背景色 */
+  contentBackgroundColorCustom: boolean;
+  /** 内容区域背景透明度（0-100，0 为不透明） */
+  contentBackgroundTransparency: number;
   /** 内置主题名 */
   builtinType: BuiltinThemeType;
   /** 错误色 */
@@ -253,16 +363,32 @@ interface ThemePreferences {
   semiDarkHeader: boolean;
   /** 半深色header颜色 */
   semiDarkHeaderColor: string;
+  /** 顶栏背景透明度（0-100，0 为不透明） */
+  semiDarkHeaderColorTransparency: number;
+  /** 顶栏菜单主题色 */
+  headerMenuThemeColor: string;
+  /** 是否自定义顶栏菜单主题色 */
+  headerMenuThemeColorCustom: boolean;
+  /** 顶栏导航菜单背景色 */
+  headerMenuBackgroundColor: string;
+  /** 是否自定义顶栏导航菜单背景色 */
+  headerMenuBackgroundColorCustom: boolean;
+  /** 顶栏导航菜单背景透明度（0-100，0 为不透明） */
+  headerMenuBackgroundColorTransparency: number;
   /** 是否开启半深色菜单（只在theme='light'时生效） */
   semiDarkSidebar: boolean;
   /** 半深色菜单颜色 */
   semiDarkSidebarColor: string;
+  /** 侧边栏背景透明度（0-100，0 为不透明） */
+  semiDarkSidebarColorTransparency: number;
   /** 是否开启半深色子菜单（只在theme='light'时生效） */
   semiDarkSidebarSub: boolean;
   /** 深色侧边栏菜单背景颜色 */
   sidebarMenuBackgroundColor: string;
   /** 是否自定义深色侧边栏菜单背景颜色 */
   sidebarMenuBackgroundColorCustom: boolean;
+  /** 侧边栏导航菜单背景透明度（0-100，0 为不透明） */
+  sidebarMenuBackgroundColorTransparency: number;
 }
 
 interface TransitionPreferences {
