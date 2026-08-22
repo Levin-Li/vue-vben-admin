@@ -38,6 +38,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   },
   { icon: 'lucide:map', name: 'Area', resource: 'Area', title: '区域管理' },
   {
+    icon: 'lucide:waypoints',
+    name: 'MenuDisplayLayout',
+    resource: 'MenuDisplayLayout',
+    title: '自定义菜单',
+  },
+  {
     icon: 'lucide:file-text',
     name: 'Article',
     resource: 'Article',
@@ -321,6 +327,7 @@ export const oakBaseAdminResourceViewMap: Record<
     import('./views/import-export-template/index.vue'),
   JobPost: () => import('./views/job-post/index.vue'),
   Menu: () => import('./views/menu/index.vue'),
+  MenuDisplayLayout: () => import('./views/menu-display-layout/index.vue'),
   Nation: () => import('./views/nation/index.vue'),
   Notice: () => import('./views/notice/index.vue'),
   NoticeProcessLog: () => import('./views/notice-process-log/index.vue'),
