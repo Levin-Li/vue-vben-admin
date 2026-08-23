@@ -403,6 +403,7 @@ describe('menu route conversion', () => {
       meta: { hideInMenu: true },
       path: '',
     });
+    expect(route?.children?.[0]?.name).not.toBe(route?.name);
     expect(route?.children?.[1]?.path).toBe('/clob/V1/Role');
   });
 

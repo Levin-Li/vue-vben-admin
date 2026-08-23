@@ -106,6 +106,10 @@ function toRouteName(path: string) {
   return toPathRouteName(path);
 }
 
+function toDefaultChildRouteName(routeName: string) {
+  return `${routeName}__default`;
+}
+
 function buildIframeSrc(path: string) {
   if (!path || path === '/') {
     return '/admin';
@@ -316,6 +320,7 @@ export function convertMenuNode(
         {
           ...groupPageRoute,
           meta: { ...groupPageRoute.meta, hideInMenu: true },
+          name: toDefaultChildRouteName(groupPageRoute.name),
           path: '',
         },
         ...children,

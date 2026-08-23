@@ -50,7 +50,7 @@ describe('ResourcePermissionTreeEditor', () => {
     expect(wrapper.text()).toContain('简单页面');
   });
 
-  it('marks the top menu module as indeterminate when one menu permission is selected', () => {
+  it('does not mark a menu as authorized when only a CRUD action is selected', () => {
     const wrapper = mount(ResourcePermissionTreeEditor, {
       props: {
         menuTree: [
@@ -67,12 +67,12 @@ describe('ResourcePermissionTreeEditor', () => {
                   {
                     label: '查看详情',
                     requireAuthorization:
-                      'framework-base:系统菜单:访问日志:查看详情',
+                      'framework-base:系统数据-系统菜单:访问日志:查看详情',
                   },
                   {
                     label: '更新',
                     requireAuthorization:
-                      'framework-base:系统菜单:访问日志:更新',
+                      'framework-base:系统数据-系统菜单:访问日志:更新',
                   },
                 ],
               },
@@ -96,12 +96,12 @@ describe('ResourcePermissionTreeEditor', () => {
                         action: '查看详情',
                         label: '查看详情',
                         permissionExpr:
-                          'framework-base:系统菜单:访问日志:查看详情',
+                          'framework-base:系统数据-系统菜单:访问日志:查看详情',
                       },
                       {
                         action: '更新',
                         label: '更新',
-                        permissionExpr: 'framework-base:系统菜单:访问日志:更新',
+                        permissionExpr: 'framework-base:系统数据-系统菜单:访问日志:更新',
                       },
                     ],
                   },
@@ -110,14 +110,12 @@ describe('ResourcePermissionTreeEditor', () => {
             ],
           },
         ],
-        value: ['framework-base:系统菜单:访问日志:查看详情'],
+        value: ['framework-base:系统数据-系统菜单:访问日志:查看详情'],
       },
     });
 
-    expect(wrapper.text()).toContain('系统菜单');
-    expect(
-      wrapper.findAll('.ant-checkbox-indeterminate').length,
-    ).toBeGreaterThanOrEqual(2);
+    expect(wrapper.text()).toContain('展示未授权');
+    expect(wrapper.findAll('.ant-checkbox-indeterminate')).toHaveLength(1);
   });
 
   it('renders menu operations as simple checkbox items instead of prominent buttons', () => {
@@ -137,7 +135,7 @@ describe('ResourcePermissionTreeEditor', () => {
                   {
                     label: '查看详情',
                     requireAuthorization:
-                      'framework-base:系统菜单:访问日志:查看详情',
+                      'framework-base:系统数据-系统菜单:访问日志:查看详情',
                   },
                 ],
               },
@@ -161,7 +159,7 @@ describe('ResourcePermissionTreeEditor', () => {
                         action: '查看详情',
                         label: '查看详情',
                         permissionExpr:
-                          'framework-base:系统菜单:访问日志:查看详情',
+                          'framework-base:系统数据-系统菜单:访问日志:查看详情',
                       },
                     ],
                   },
@@ -175,7 +173,7 @@ describe('ResourcePermissionTreeEditor', () => {
     });
 
     const operation = wrapper.get(
-      '[data-test="permission-framework-base:系统菜单:访问日志:查看详情"]',
+      '[data-test="permission-framework-base:系统数据-系统菜单:访问日志:查看详情"]',
     );
 
     expect(operation.element.tagName).not.toBe('BUTTON');
@@ -204,7 +202,7 @@ describe('ResourcePermissionTreeEditor', () => {
                       {
                         label: '更新',
                         requireAuthorization:
-                          'framework-base:系统菜单:地址:更新',
+                          'framework-base:系统数据-系统菜单:地址:更新',
                       },
                     ],
                   },
@@ -229,7 +227,7 @@ describe('ResourcePermissionTreeEditor', () => {
                       {
                         action: '更新',
                         label: '更新',
-                        permissionExpr: 'framework-base:系统菜单:地址:更新',
+                        permissionExpr: 'framework-base:系统数据-系统菜单:地址:更新',
                       },
                     ],
                   },
@@ -273,7 +271,7 @@ describe('ResourcePermissionTreeEditor', () => {
                       {
                         label: '更新',
                         requireAuthorization:
-                          'framework-base:系统菜单:地址:更新',
+                          'framework-base:系统数据-系统菜单:地址:更新',
                       },
                     ],
                   },
@@ -298,7 +296,7 @@ describe('ResourcePermissionTreeEditor', () => {
                       {
                         action: '更新',
                         label: '更新',
-                        permissionExpr: 'framework-base:系统菜单:地址:更新',
+                        permissionExpr: 'framework-base:系统数据-系统菜单:地址:更新',
                       },
                     ],
                   },
@@ -348,7 +346,7 @@ describe('ResourcePermissionTreeEditor', () => {
                           {
                             label: '更新',
                             requireAuthorization:
-                              'framework-base:系统菜单:地址详情:更新',
+                              'framework-base:系统数据-系统菜单:地址详情:更新',
                           },
                         ],
                       },
@@ -375,7 +373,7 @@ describe('ResourcePermissionTreeEditor', () => {
                       {
                         action: '更新',
                         label: '更新',
-                        permissionExpr: 'framework-base:系统菜单:地址详情:更新',
+                        permissionExpr: 'framework-base:系统数据-系统菜单:地址详情:更新',
                       },
                     ],
                   },
@@ -455,7 +453,7 @@ describe('ResourcePermissionTreeEditor', () => {
                 label: '地址管理',
                 name: '地址',
                 nodeType: 'Menu',
-                permissionExpr: 'com.levin.oak.base:系统菜单:地址:展示',
+                permissionExpr: 'com.levin.oak.base:系统数据-系统菜单:地址:展示',
                 remark: '/clob/V1/Address',
               },
             ],
@@ -486,7 +484,7 @@ describe('ResourcePermissionTreeEditor', () => {
                 label: '',
                 name: '地址',
                 nodeType: 'Menu',
-                permissionExpr: 'com.levin.oak.base:系统菜单:地址:展示',
+                permissionExpr: 'com.levin.oak.base:系统数据-系统菜单:地址:展示',
                 remark: '/clob/V1/Address',
               },
             ],
@@ -513,7 +511,7 @@ describe('ResourcePermissionTreeEditor', () => {
             opButtonList: [
               {
                 label: '旧操作',
-                requireAuthorization: 'framework-base:系统菜单:旧角色:旧操作',
+                requireAuthorization: 'framework-base:系统数据-系统菜单:旧角色:旧操作',
               },
             ],
           },
@@ -530,7 +528,7 @@ describe('ResourcePermissionTreeEditor', () => {
                 label: '地址管理',
                 name: '地址',
                 nodeType: 'Menu',
-                permissionExpr: 'com.levin.oak.base:系统菜单:地址:展示',
+                permissionExpr: 'com.levin.oak.base:系统数据-系统菜单:地址:展示',
                 remark: '/clob/V1/Address',
               },
             ],
@@ -559,7 +557,7 @@ describe('ResourcePermissionTreeEditor', () => {
                 id: 'base-menu',
                 name: 'framework-base',
                 nodeType: 'Resource',
-                permissionExpr: 'framework-base:系统菜单:展示',
+                permissionExpr: 'framework-base:系统数据-系统菜单:展示',
               },
             ],
           },
@@ -720,20 +718,20 @@ describe('ResourcePermissionTreeEditor', () => {
                 id: 'framework-base-menu',
                 name: 'framework-base',
                 nodeType: 'Menu',
-                permissionExpr: 'framework-base:系统菜单:framework-base:展示',
+                permissionExpr: 'framework-base:系统数据-系统菜单:framework-base:展示',
                 children: [
                   {
                     id: 'role-menu',
                     name: '角色管理',
                     nodeType: 'Menu',
-                    permissionExpr: 'framework-base:系统菜单:角色管理:展示',
+                    permissionExpr: 'framework-base:系统数据-系统菜单:角色管理:展示',
                     children: [
                       {
                         id: 'role-menu:op:assign',
                         name: '分配权限',
                         nodeType: 'Action',
                         permissionExpr:
-                          'framework-base:系统菜单:角色管理:分配权限',
+                          'framework-base:系统数据-系统菜单:角色管理:分配权限',
                       },
                     ],
                   },
@@ -797,7 +795,7 @@ describe('ResourcePermissionTreeEditor', () => {
     expect(
       wrapper
         .get(
-          '[data-test="permission-framework-base:系统菜单:角色管理:分配权限"]',
+          '[data-test="permission-framework-base:系统数据-系统菜单:角色管理:分配权限"]',
         )
         .exists(),
     ).toBe(true);
@@ -853,7 +851,7 @@ describe('ResourcePermissionTreeEditor', () => {
                   {
                     label: '分配权限',
                     requireAuthorization:
-                      'framework-base:系统菜单:角色管理:分配权限',
+                      'framework-base:系统数据-系统菜单:角色管理:分配权限',
                   },
                 ],
               },
@@ -877,7 +875,7 @@ describe('ResourcePermissionTreeEditor', () => {
                         action: '分配权限',
                         label: '分配权限',
                         permissionExpr:
-                          'framework-base:系统菜单:角色管理:分配权限',
+                          'framework-base:系统数据-系统菜单:角色管理:分配权限',
                       },
                     ],
                   },
@@ -933,7 +931,7 @@ describe('ResourcePermissionTreeEditor', () => {
     expect(
       wrapper
         .find(
-          '[data-test="permission-framework-base:系统菜单:角色管理:分配权限"]',
+          '[data-test="permission-framework-base:系统数据-系统菜单:角色管理:分配权限"]',
         )
         .exists(),
     ).toBe(true);
@@ -952,7 +950,7 @@ describe('ResourcePermissionTreeEditor', () => {
                 id: 'menu-view',
                 name: '菜单展示',
                 nodeType: 'Permission',
-                permissionExpr: 'framework-base:系统菜单:展示',
+                permissionExpr: 'framework-base:系统数据-系统菜单:展示',
               },
             ],
           },

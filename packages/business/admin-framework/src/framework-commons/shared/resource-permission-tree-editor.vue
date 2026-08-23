@@ -45,7 +45,7 @@ const expandedMenuNodeIds = ref<Set<string>>(new Set());
 const keyword = ref('');
 const MENU_MODULE_ID = '__menus__';
 const MENU_DISPLAY_ACTION = '展示';
-const MENU_PERMISSION_TYPE = '系统菜单';
+const MENU_PERMISSION_TYPE = '系统数据-系统菜单';
 const DEFAULT_MENU_MODULE_ID = 'default';
 const DEFAULT_EXPANDED_MENU_DEPTH = 1;
 const MENU_TREE_ROW_PADDING_LEFT = 12;
@@ -703,10 +703,7 @@ function buildMenuPermissionTree(
         [parentPath, title].filter(Boolean).join(' / '),
       );
       const children = [...operationChildren, ...menuChildren];
-      const selfPermissions =
-        permissionExpr && knownMenuPermissions.value.has(permissionExpr)
-          ? [permissionExpr]
-          : [];
+      const selfPermissions = permissionExpr ? [permissionExpr] : [];
       const childPermissions = children.flatMap((child) => child.permissions);
 
       return {
@@ -1359,15 +1356,12 @@ function getPermissionCountText(permissions: string[]) {
 
             <div class="min-w-0 flex-1">
               <Checkbox
-                :checked="isAllSelected(node.permissions)"
-                :indeterminate="
-                  isSomeSelected(node.permissions) &&
-                  !isAllSelected(node.permissions)
-                "
+                :checked="isActionSelected(node.selfPermission)"
+                :disabled="!node.selfPermission"
                 :data-test="`permission-${node.permissionExpr}`"
                 @change="
-                  handleTogglePermissions(
-                    node.permissions,
+                  handleToggle(
+                    node.selfPermission,
                     ($event.target as HTMLInputElement).checked,
                   )
                 "
@@ -1381,11 +1375,8 @@ function getPermissionCountText(permissions: string[]) {
                   />
                   {{ node.title }}
                 </span>
-                <span
-                  v-if="node.permissions.length > 0"
-                  class="text-muted-foreground ml-2 text-xs"
-                >
-                  {{ getPermissionCountText(node.permissions) }}
+                <span v-if="node.selfPermission" class="text-muted-foreground ml-2 text-xs">
+                  {{ isActionSelected(node.selfPermission) ? '展示已授权' : '展示未授权' }}
                 </span>
               </Checkbox>
 
