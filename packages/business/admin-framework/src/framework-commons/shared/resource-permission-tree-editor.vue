@@ -14,7 +14,7 @@ import { computed, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { Checkbox, Radio } from 'ant-design-vue';
+import { Checkbox, Radio, Tooltip } from 'ant-design-vue';
 
 import { RbacPermissionMatchUtils } from '../rbac-permission-match';
 
@@ -338,15 +338,56 @@ watch(activePermissionRootId, () => {
   }
 });
 
-function handleToggle(permissionExpr: string, checked: boolean) {
-  if (isSingleSelection.value) {
-    emit('update:value', checked ? [permissionExpr] : []);
+function normalizePermissionExpr(permissionExpr?: string) {
+  return String(permissionExpr || '').trim();
+}
+
+function isValidPermissionExpr(permissionExpr?: string) {
+  const normalized = normalizePermissionExpr(permissionExpr);
+  if (!normalized) {
+    return true;
+  }
+
+  const parts = normalized.split(':');
+  return parts.length === 4 && Boolean(parts[0] && parts[1] && parts[3]);
+}
+
+function handleToggle(
+  permissionExpr: string,
+  checked: boolean,
+  parentPermissionExpr = '',
+) {
+  const normalizedPermissionExpr = normalizePermissionExpr(permissionExpr);
+  if (!normalizedPermissionExpr || !isValidPermissionExpr(normalizedPermissionExpr)) {
+    if (checked) {
+      emit(
+        'update:value',
+        props.value.filter((item) => item !== permissionExpr),
+      );
+    }
     return;
   }
 
-  const next = checked
-    ? [...new Set([permissionExpr, ...props.value])]
-    : props.value.filter((item) => item !== permissionExpr);
+  if (isSingleSelection.value) {
+    emit('update:value', checked ? [normalizedPermissionExpr] : []);
+    return;
+  }
+
+  let next = checked
+    ? [...new Set([normalizedPermissionExpr, ...props.value])]
+    : props.value.filter((item) => item !== normalizedPermissionExpr);
+
+  const normalizedParentPermissionExpr = normalizePermissionExpr(
+    parentPermissionExpr,
+  );
+  if (
+    normalizedParentPermissionExpr &&
+    normalizedParentPermissionExpr !== normalizedPermissionExpr &&
+    isValidPermissionExpr(normalizedParentPermissionExpr) &&
+    !next.includes(normalizedParentPermissionExpr)
+  ) {
+    next = [normalizedParentPermissionExpr, ...next];
+  }
 
   emit('update:value', next);
 }
@@ -356,7 +397,9 @@ function handleTogglePermissions(permissions: string[], checked: boolean) {
     return;
   }
 
-  const validPermissions = permissions.filter(Boolean);
+  const validPermissions = permissions
+    .map(normalizePermissionExpr)
+    .filter((permission) => permission && isValidPermissionExpr(permission));
   const next = checked
     ? [...new Set([...validPermissions, ...props.value])]
     : props.value.filter((item) => !validPermissions.includes(item));
@@ -445,7 +488,7 @@ function filterPermissionViewTree(
         ...node,
         children,
         permissions: [
-          ...(matched && node.permissionExpr ? [node.permissionExpr] : []),
+          ...(node.permissionExpr ? [node.permissionExpr] : []),
           ...getPermissionNodePermissions(children),
         ],
       };
@@ -511,6 +554,16 @@ function getPermissionNodePermissions(nodes: PermissionViewNode[]) {
 
 function hasPermissionChildren(node: PermissionViewNode) {
   return getPermissionTreeChildren(node).length > 0;
+}
+
+function hasOwnPermissionMarker(node: PermissionViewNode) {
+  const permissionExpr = normalizePermissionExpr(node.permissionExpr);
+  return (
+    (hasPermissionChildren(node) ||
+      getPermissionInlineChildren(node).length > 0) &&
+    Boolean(permissionExpr) &&
+    isValidPermissionExpr(permissionExpr)
+  );
 }
 
 function isPermissionNodeExpanded(node: PermissionViewNode) {
@@ -774,8 +827,7 @@ function filterMenuPermissionTree(
         return null;
       }
 
-      const selfPermissions =
-        matched && node.selfPermission ? [node.selfPermission] : [];
+      const selfPermissions = node.selfPermission ? [node.selfPermission] : [];
       const childPermissions = children.flatMap((child) => child.permissions);
 
       return {
@@ -981,6 +1033,20 @@ function isSomeSelected(permissions: string[]) {
   return permissions.some((permission) => isActionSelected(permission));
 }
 
+function isPermissionNodeSelected(
+  _permissionExpr: string,
+  permissions: string[],
+) {
+  return isSomeSelected(permissions);
+}
+
+function isPermissionNodeIndeterminate(
+  _permissionExpr: string,
+  _permissions: string[],
+) {
+  return false;
+}
+
 function getSelectedPermissionCount(permissions: string[]) {
   return permissions.filter((permission) => isActionSelected(permission))
     .length;
@@ -1132,9 +1198,9 @@ function getPermissionCountText(permissions: string[]) {
               class="permission-tree-choice"
               :data-test="`permission-${inlineNode.permissionExpr}`"
               @change="
-                handleToggle(
-                  inlineNode.permissionExpr,
-                  ($event.target as HTMLInputElement).checked,
+                        handleToggle(
+                          inlineNode.permissionExpr,
+                          ($event.target as HTMLInputElement).checked,
                 )
               "
             >
@@ -1205,12 +1271,9 @@ function getPermissionCountText(permissions: string[]) {
             <div class="min-w-0 flex-1">
               <Checkbox
                 v-if="!isSingleSelection"
-                :checked="isAllSelected(node.permissions)"
+                :checked="isPermissionNodeSelected(node.permissionExpr, node.permissions)"
                 class="permission-tree-choice"
-                :indeterminate="
-                  isSomeSelected(node.permissions) &&
-                  !isAllSelected(node.permissions)
-                "
+                :indeterminate="isPermissionNodeIndeterminate(node.permissionExpr, node.permissions)"
                 :data-test="`permission-node-${node.id}`"
                 @change="
                   handleTogglePermissions(
@@ -1227,6 +1290,9 @@ function getPermissionCountText(permissions: string[]) {
                     class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
                     :icon="getPermissionNodeTypeIcon(node.nodeType)"
                   />
+                  <Tooltip v-if="hasOwnPermissionMarker(node)" :title="`节点自身权限：${node.permissionExpr}`">
+                    <span class="bg-primary size-2 rounded-full" aria-label="节点自身权限"></span>
+                  </Tooltip>
                   {{ node.title }}
                 </span>
                 <span
@@ -1283,6 +1349,7 @@ function getPermissionCountText(permissions: string[]) {
                       handleToggle(
                         inlineNode.permissionExpr,
                         ($event.target as HTMLInputElement).checked,
+                        node.permissionExpr,
                       )
                     "
                   >
@@ -1356,12 +1423,12 @@ function getPermissionCountText(permissions: string[]) {
 
             <div class="min-w-0 flex-1">
               <Checkbox
-                :checked="isActionSelected(node.selfPermission)"
-                :disabled="!node.selfPermission"
+                :checked="isPermissionNodeSelected(node.selfPermission, node.permissions)"
+                :indeterminate="isPermissionNodeIndeterminate(node.selfPermission, node.permissions)"
                 :data-test="`permission-${node.permissionExpr}`"
-                @change="
-                  handleToggle(
-                    node.selfPermission,
+                    @change="
+                  handleTogglePermissions(
+                    node.permissions,
                     ($event.target as HTMLInputElement).checked,
                   )
                 "
@@ -1373,10 +1440,16 @@ function getPermissionCountText(permissions: string[]) {
                     class="text-muted-foreground size-3.5 shrink-0"
                     :icon="getMenuPermissionNodeIcon(node)"
                   />
+                  <Tooltip
+                    v-if="node.children.length > 0 && normalizePermissionExpr(node.selfPermission) && isValidPermissionExpr(node.selfPermission)"
+                    :title="`节点自身权限：${node.selfPermission}`"
+                  >
+                    <span class="bg-primary size-2 rounded-full" aria-label="节点自身权限"></span>
+                  </Tooltip>
                   {{ node.title }}
                 </span>
-                <span v-if="node.selfPermission" class="text-muted-foreground ml-2 text-xs">
-                  {{ isActionSelected(node.selfPermission) ? '展示已授权' : '展示未授权' }}
+                <span v-if="node.permissions.length > 0" class="text-muted-foreground ml-2 text-xs">
+                  {{ getPermissionCountText(node.permissions) }}
                 </span>
               </Checkbox>
 
@@ -1391,9 +1464,10 @@ function getPermissionCountText(permissions: string[]) {
                     :checked="isActionSelected(operationNode.permissionExpr)"
                     :data-test="`permission-${operationNode.permissionExpr}`"
                     @change="
-                      handleToggle(
-                        operationNode.permissionExpr,
-                        ($event.target as HTMLInputElement).checked,
+                        handleToggle(
+                          operationNode.permissionExpr,
+                          ($event.target as HTMLInputElement).checked,
+                          node.selfPermission,
                       )
                     "
                   >

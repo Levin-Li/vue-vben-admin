@@ -35,6 +35,146 @@ const modules = [
 ];
 
 describe('ResourcePermissionTreeEditor', () => {
+  it('keeps a filtered parent permission expression when saving its subtree', async () => {
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: '__menus__',
+            name: '系统菜单',
+            nodeType: 'Menu',
+            children: [
+              {
+                id: 'backend-management',
+                name: '后台管理',
+                nodeType: 'Menu',
+                permissionExpr: 'framework-base:系统数据-系统菜单:后台管理:展示',
+                children: [
+                  {
+                    id: 'backend-management:query',
+                    name: '查询列表',
+                    nodeType: 'Action',
+                    permissionExpr:
+                      'framework-base:系统数据-系统菜单:后台管理:查询列表',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        value: [],
+      },
+    });
+
+    await wrapper.get('[data-test="permission-search"]').setValue('查询列表');
+    await wrapper
+      .get('[data-test="permission-node-backend-management"]')
+      .setValue(true);
+
+    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual(
+      expect.arrayContaining([
+        'framework-base:系统数据-系统菜单:后台管理:展示',
+        'framework-base:系统数据-系统菜单:后台管理:查询列表',
+      ]),
+    );
+  });
+
+  it('keeps a selected parent permission when its last selected child is cleared', async () => {
+    const parentPermission = 'framework-base:系统数据-系统菜单:后台管理:展示';
+    const childPermission =
+      'framework-base:系统数据-系统菜单:后台管理:查询列表';
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: '__menus__',
+            name: '系统菜单',
+            nodeType: 'Menu',
+            children: [
+              {
+                id: 'backend-management',
+                name: '后台管理',
+                nodeType: 'Menu',
+                permissionExpr: parentPermission,
+                children: [
+                  {
+                    id: 'backend-management:query',
+                    name: '查询列表',
+                    nodeType: 'Action',
+                    permissionExpr: childPermission,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        value: [childPermission],
+      },
+    });
+
+    await wrapper
+      .get(`[data-test="permission-${childPermission}"]`)
+      .setValue(false);
+
+    const nextPermissions = wrapper.emitted('update:value')?.at(-1)?.[0] as string[];
+    expect(nextPermissions).toEqual([
+      parentPermission,
+    ]);
+    await wrapper.setProps({ value: nextPermissions });
+    expect(
+      (wrapper.get('[data-test="permission-node-backend-management"]')
+        .element as HTMLInputElement).checked,
+    ).toBe(true);
+  });
+
+  it('selects a parent permission when a child permission is selected', async () => {
+    const parentPermission = 'framework-base:系统数据-系统菜单:后台管理:展示';
+    const childPermission =
+      'framework-base:系统数据-系统菜单:后台管理:查询列表';
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: '__menus__',
+            name: '系统菜单',
+            nodeType: 'Menu',
+            children: [
+              {
+                id: 'backend-management',
+                name: '后台管理',
+                nodeType: 'Menu',
+                permissionExpr: parentPermission,
+                children: [
+                  {
+                    id: 'backend-management:query',
+                    name: '查询列表',
+                    nodeType: 'Action',
+                    permissionExpr: childPermission,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        value: [],
+      },
+    });
+
+    await wrapper
+      .get(`[data-test="permission-${childPermission}"]`)
+      .setValue(true);
+
+    const nextPermissions = wrapper.emitted('update:value')?.at(-1)?.[0] as string[];
+    expect(nextPermissions).toEqual(
+      expect.arrayContaining([parentPermission, childPermission]),
+    );
+    await wrapper.setProps({ value: nextPermissions });
+    expect(
+      (wrapper.get('[data-test="permission-node-backend-management"]')
+        .element as HTMLInputElement).checked,
+    ).toBe(true);
+  });
+
   it('marks module, type, and resource parents as indeterminate when one child action is selected', () => {
     const wrapper = mount(ResourcePermissionTreeEditor, {
       props: {
@@ -50,7 +190,7 @@ describe('ResourcePermissionTreeEditor', () => {
     expect(wrapper.text()).toContain('简单页面');
   });
 
-  it('does not mark a menu as authorized when only a CRUD action is selected', () => {
+  it('includes a menu permission together with its child operations', () => {
     const wrapper = mount(ResourcePermissionTreeEditor, {
       props: {
         menuTree: [
@@ -114,8 +254,8 @@ describe('ResourcePermissionTreeEditor', () => {
       },
     });
 
-    expect(wrapper.text()).toContain('展示未授权');
-    expect(wrapper.findAll('.ant-checkbox-indeterminate')).toHaveLength(1);
+    expect(wrapper.text()).toContain('访问日志');
+    expect(wrapper.text()).toContain('1/3');
   });
 
   it('renders menu operations as simple checkbox items instead of prominent buttons', () => {

@@ -12,6 +12,8 @@ import { Alert, message, Modal, Spin } from 'ant-design-vue';
 import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
 import {
+  collectKnownPermissionTreeValues,
+  collectKnownPermissionValues,
   collectPermissionValues,
   splitMappedAndUnmappedPermissions,
 } from './data-permission-transform';
@@ -62,6 +64,13 @@ const saveDisabled = computed(
   () => loading.value || saving.value || !detail.value?.id,
 );
 
+const knownPermissionValues = computed(() => {
+  const treeValues = collectKnownPermissionTreeValues(permissionTree.value);
+  return treeValues.size > 0
+    ? treeValues
+    : collectKnownPermissionValues(modules.value);
+});
+
 function closeDialog() {
   emit('update:open', false);
 }
@@ -111,15 +120,24 @@ async function handleSave() {
     return;
   }
 
+  const permissions = collectPermissionValues(selectedPermissions.value);
+  const invalidPermissions = permissions.filter(
+    (permission) =>
+      !permission || !knownPermissionValues.value.has(permission),
+  );
+
+  if (invalidPermissions.length > 0) {
+    errorMessage.value = `存在无效权限表达式，未提交保存：${invalidPermissions.join('、')}`;
+    return;
+  }
+
   saving.value = true;
 
   try {
     const payload: Record<string, any> = {
       forceUpdateFields: [props.permissionField],
       id: detail.value.id,
-      [props.permissionField]: collectPermissionValues(
-        selectedPermissions.value,
-      ),
+      [props.permissionField]: permissions,
     };
 
     if (detail.value.optimisticLock !== undefined) {

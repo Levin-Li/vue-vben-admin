@@ -59,7 +59,7 @@
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": "5.6.59",
+    "@levin/admin-framework": "5.6.60",
     "@vben/common-ui": "5.6.9",
     "@vben/icons": "5.6.7",
     "@vben/plugins": "5.6.8",
