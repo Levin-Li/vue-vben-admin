@@ -2,7 +2,7 @@ import type { MenuRecordRaw } from '@vben/types';
 import type { ComputedRef, Ref } from 'vue';
 
 import { computed, onBeforeMount, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { preferences, usePreferences } from '@vben/preferences';
 import { useAccessStore } from '@vben/stores';
@@ -24,6 +24,7 @@ interface MixedMenuState {
 
 function useMixedMenu(): MixedMenuState {
   const { navigation, willOpenedByWindow } = useNavigation();
+  const router = useRouter();
   const accessStore = useAccessStore();
   const route = useRoute();
   const splitSideMenus = ref<MenuRecordRaw[]>([]);
@@ -127,6 +128,20 @@ function useMixedMenu(): MixedMenuState {
    * @param parentsPath 父级路径
    */
   const handleMenuOpen = (key: string, parentsPath: string[]) => {
+    const targetRoute = router.resolve(key);
+    const isNavigableGroup = targetRoute.matched.some(
+      (record) =>
+        record.meta.navigateOnClick ||
+        record.meta.preserveComponentWhenChildren,
+    );
+
+    if (isNavigableGroup) {
+      if (preferences.tabbar.enable) {
+        navigation(key);
+      }
+      return;
+    }
+
     if (parentsPath.length <= 1 && preferences.sidebar.autoActivateChild) {
       navigation(
         defaultSubMap.has(key) ? (defaultSubMap.get(key) as string) : key,

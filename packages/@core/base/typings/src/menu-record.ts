@@ -51,6 +51,11 @@ interface MenuRecordRaw extends MenuRecordBadgeRaw {
    */
   name: string;
   /**
+   * 分组菜单点击时是否同时进入自身页面
+   * @default false
+   */
+  navigateOnClick?: boolean;
+  /**
    * 排序号
    */
   order?: number;

@@ -122,15 +122,19 @@ vi.mock('ant-design-vue', () => {
     },
     Modal: defineComponent({
       emits: ['cancel', 'ok', 'update:open'],
-      props: ['confirmLoading', 'open', 'title'],
+      props: ['confirmLoading', 'open', 'title', 'width'],
       template: `
-        <div v-if="open" role="dialog">
+        <div v-if="open" :data-width="width" role="dialog">
           <h2>{{ title }}</h2>
           <slot />
           <button data-test="dialog-cancel" type="button" @click="$emit('cancel')">取消</button>
           <button :disabled="confirmLoading" data-test="dialog-login" type="button" @click="$emit('ok')">登录</button>
         </div>
       `,
+    }),
+    Spin: defineComponent({
+      props: ['size'],
+      template: '<span class="ant-spin"><slot /></span>',
     }),
     Tabs: Object.assign(
       defineComponent({
@@ -622,7 +626,7 @@ describe('login auto-login prompt', () => {
     getVerifyCodeApi.mockResolvedValue({
       interactionData: {
         challengeId: 'hmi-captcha-id',
-        mode: 'TEXT_CLICK',
+        mode: 'CLICK',
         publicData: {
           image: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
           thumb: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
@@ -647,13 +651,16 @@ describe('login auto-login prompt', () => {
       account: 'hmi-user',
       verifyCodeType: 'Hmi',
     });
+    expect(wrapper.find('[role="dialog"]').attributes('data-width')).toBe(
+      '368',
+    );
     wrapper.findComponent({ name: 'BehaviorCaptcha' }).vm.$emit(
       'complete',
       JSON.stringify({
         answer: { points: [{ x: 80, y: 60 }] },
         challengeId: 'hmi-captcha-id',
         data: 'hmi-captcha-id',
-        mode: 'TEXT_CLICK',
+        mode: 'CLICK',
         operations: [{ type: 'click', x: 80, y: 60 }],
       }),
     );
@@ -671,11 +678,44 @@ describe('login auto-login prompt', () => {
       expect.objectContaining({
         challengeId: 'hmi-captcha-id',
         data: 'hmi-captcha-id',
-        mode: 'TEXT_CLICK',
+        mode: 'CLICK',
         operations: expect.any(Array),
       }),
     );
 
+    wrapper.unmount();
+  });
+
+  it('closes the dialog and shows a temporary warning for unsupported behavior captcha types', async () => {
+    startPasswordLoginApi.mockResolvedValue({
+      challengeId: 'unsupported-hmi-challenge',
+      verifyCodeType: 'Hmi',
+    });
+    getVerifyCodeApi.mockResolvedValue({
+      interactionData: {
+        challengeId: 'unsupported-hmi-captcha',
+        mode: 'ROTATE',
+        publicData: {
+          image: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
+          thumb: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
+        },
+      },
+    });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .setValue('hmi-user');
+    await wrapper
+      .find('input[placeholder="请输入登录密码"]')
+      .setValue('123456');
+    await wrapper.find('button[type="primary"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    expect(messageWarning).toHaveBeenCalledWith('当前行为验证码类型暂不支持');
     wrapper.unmount();
   });
 });

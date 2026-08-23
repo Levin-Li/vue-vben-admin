@@ -650,10 +650,12 @@ onMounted(async () => {
               size="small"
               @click="loadOrgTree"
             >
-              <IconifyIcon
-                class="block size-4 leading-none"
-                icon="lucide:refresh-cw"
-              />
+              <template #icon>
+                <IconifyIcon
+                  class="block size-4 leading-none"
+                  icon="lucide:refresh-cw"
+                />
+              </template>
             </Button>
           </Tooltip>
           <Button size="small" type="primary" @click="openCreateOrgModal('')">

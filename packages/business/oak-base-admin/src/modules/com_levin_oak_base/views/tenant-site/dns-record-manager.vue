@@ -317,7 +317,9 @@ watch(
     <template #extra>
       <Space>
         <Button :loading="loading" @click="loadRecords">
-          <IconifyIcon class="mr-1 size-4" icon="lucide:refresh-cw" />
+          <template #icon>
+            <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+          </template>
           刷新
         </Button>
         <Button type="primary" @click="openCreateEditor">

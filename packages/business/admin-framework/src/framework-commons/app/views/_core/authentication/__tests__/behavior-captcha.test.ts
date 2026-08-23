@@ -1,5 +1,6 @@
 import { Click as GoCaptchaClick, Slide as GoCaptchaSlide } from 'go-captcha-vue';
 import { mount } from '@vue/test-utils';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -8,6 +9,11 @@ import {
   type BehaviorCaptchaMode,
 } from '../behavior-captcha';
 import BehaviorCaptcha from '../behavior-captcha.vue';
+
+const componentSource = readFileSync(
+  'packages/business/admin-framework/src/framework-commons/app/views/_core/authentication/behavior-captcha.vue',
+  'utf8',
+);
 
 const masterImage =
   'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAH/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAEFAqf/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/Aaf/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/Aaf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAY/Aqf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/IV//2gAMAwEAAgADAAAAEP/EABQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQMBAT8QH//EABQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQIBAT8QH//EABQQAQAAAAAAAAAAAAAAAAAAABD/2gAIAQEAAT8QH//Z';
@@ -75,6 +81,45 @@ describe('BehaviorCaptcha', () => {
     });
     clickEvents(wrapper).refresh();
     expect(wrapper.emitted('refresh')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('removes the third-party captcha card border without changing its controls', () => {
+    expect(componentSource).toMatch(
+      /:deep\(\.go-captcha\.gc-theme\)\s*\{\s*border:\s*0;/,
+    );
+  });
+
+  it('centers the third-party loading indicator within the captcha image area', () => {
+    expect(componentSource).toMatch(
+      /:deep\(\.go-captcha \.gc-body \.gc-body-inner\)[\s\S]*?width:\s*100%;/,
+    );
+    expect(componentSource).toMatch(
+      /:deep\(\.go-captcha \.gc-body \.gc-loading\)[\s\S]*?inset:\s*0;[\s\S]*?margin:\s*0;/,
+    );
+  });
+
+  it('shows a circular loading indicator until a captcha challenge is ready', () => {
+    const wrapper = mount(BehaviorCaptcha, {
+      props: { challenge: null, loading: true },
+    });
+
+    expect(wrapper.find('[data-test="behavior-captcha-loading"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.text()).not.toContain('当前行为验证码类型暂不支持');
+    wrapper.unmount();
+  });
+
+  it('overlays the loading indicator on an existing captcha instead of adding a sibling column', () => {
+    const wrapper = mount(BehaviorCaptcha, {
+      props: { challenge: challenge('CLICK'), loading: true },
+    });
+
+    expect(wrapper.get('[data-test="behavior-captcha-loading"]').classes()).toEqual(
+      expect.arrayContaining(['absolute', 'inset-0']),
+    );
+    expect(wrapper.findComponent(GoCaptchaClick).exists()).toBe(true);
     wrapper.unmount();
   });
 

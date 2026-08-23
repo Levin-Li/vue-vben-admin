@@ -119,6 +119,30 @@ describe('generateMenus', () => {
     );
   });
 
+  it('keeps a group page navigation marker for submenu title clicks', () => {
+    const menus = generateMenus(
+      [
+        {
+          children: [{ name: 'child', path: 'child' }],
+          meta: { navigateOnClick: true, title: '可访问分组' },
+          name: 'group',
+          path: '/group',
+        },
+      ] as RouteRecordRaw[],
+      {
+        getRoutes: vi.fn(() => [
+          { name: 'group', path: '/group' },
+          { name: 'child', path: '/group/child' },
+        ]),
+      } as any,
+    );
+
+    expect(menus[0]).toMatchObject({
+      navigateOnClick: true,
+      path: '/group',
+    });
+  });
+
   it('handles dynamic route parameters correctly', async () => {
     const mockRoutesWithParams = [
       {

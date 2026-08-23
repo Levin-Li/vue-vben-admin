@@ -149,8 +149,18 @@
   "theme": {
     "title": "主题",
     "radius": "圆角",
-    "fontSize": "字体大小",
-    "fontSizeTip": "调整全局字体大小，实时预览效果",
+    "fontSize": "基础字号",
+    "fontFamily": "字体",
+    "fontFamilyTip": "例如：PingFang SC, Microsoft YaHei, sans-serif",
+    "fontSizeTip": "调整普通内容的基础字号，实时预览效果",
+    "fontSizeScale": "字号倍率",
+    "headingFontSizeScale": "标题字号倍率",
+    "sidebarMenuFontSizeScale": "左侧菜单字号倍率",
+    "headerMenuFontSizeScale": "顶部栏字号倍率",
+    "tabbarFontSizeScale": "标题栏字号倍率",
+    "breadcrumbFontSizeScale": "面包屑导航字号倍率",
+    "footerFontSizeScale": "底栏字号倍率",
+    "fontSizeScaleTip": "标题和导航字号 = 基础字号 × 对应倍率",
     "light": "浅色",
     "dark": "深色",
     "darkSidebar": "侧边栏背景色",
@@ -212,7 +222,8 @@
   "footer": {
     "title": "底栏",
     "visible": "显示底栏",
-    "fixed": "固定在底部"
+    "fixed": "固定在底部",
+    "backgroundColor": "底栏背景色"
   },
   "copyright": {
     "title": "版权",

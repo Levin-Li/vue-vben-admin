@@ -134,11 +134,15 @@ class PreferenceManager {
    * @param updates - 更新的偏好设置
    */
   private handleUpdates(updates: DeepPartial<Preferences>) {
-    const { theme, app } = updates;
+    const { theme, app, footer } = updates;
 
     if (
-      theme &&
-      (Object.keys(theme).length > 0 || Reflect.has(theme, 'fontSize'))
+      (theme &&
+        (Object.keys(theme).length > 0 || Reflect.has(theme, 'fontSize'))) ||
+      (footer &&
+        (Reflect.has(footer, 'backgroundColor') ||
+          Reflect.has(footer, 'backgroundColorCustom') ||
+          Reflect.has(footer, 'backgroundTransparency')))
     ) {
       updateCSSVariables(this.state);
     }

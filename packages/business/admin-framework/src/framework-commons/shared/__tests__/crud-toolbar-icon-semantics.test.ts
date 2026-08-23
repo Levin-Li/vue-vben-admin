@@ -19,4 +19,13 @@ describe('crud toolbar import/export icons', () => {
     expect(getToolbarButtonBlock('导出')).toContain('icon="lucide:upload"');
     expect(getToolbarButtonBlock('导入')).toContain('icon="lucide:download"');
   });
+
+  it('uses the icon slot for loading toolbar buttons', () => {
+    expect(getToolbarButtonBlock('导出')).toMatch(
+      /<template #icon>\s*<IconifyIcon class="size-4" icon="lucide:upload"/,
+    );
+    expect(getToolbarButtonBlock('刷新')).toMatch(
+      /<template #icon>\s*<IconifyIcon class="size-4" icon="lucide:refresh-cw"/,
+    );
+  });
 });

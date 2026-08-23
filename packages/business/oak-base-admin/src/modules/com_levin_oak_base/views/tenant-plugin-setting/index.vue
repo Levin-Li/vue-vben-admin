@@ -539,7 +539,9 @@ onMounted(() => {
               type="text"
               @click="loadSettings"
             >
-              <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+              <template #icon>
+                <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+              </template>
             </Button>
           </Tooltip>
           <span class="text-foreground text-sm font-medium">

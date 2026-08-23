@@ -18,6 +18,7 @@ type ColorTarget =
   | 'baseBackground'
   | 'contentBackground'
   | 'destructive'
+  | 'footerBackground'
   | 'header'
   | 'headerMenuBackground'
   | 'headerMenuTheme'
@@ -81,6 +82,10 @@ const themeSidebarMenuBackgroundColorTransparency = defineModel<number>(
   'themeSidebarMenuBackgroundColorTransparency',
 );
 const tabbarBackgroundColor = defineModel<string>('tabbarBackgroundColor');
+const footerBackgroundColor = defineModel<string>('footerBackgroundColor');
+const footerBackgroundTransparency = defineModel<number>(
+  'footerBackgroundTransparency',
+);
 const tabbarBackgroundTransparency = defineModel<number>(
   'tabbarBackgroundTransparency',
 );
@@ -106,6 +111,9 @@ const activeColor = computed(() => {
     }
     case 'destructive': {
       return themeColorDestructive.value;
+    }
+    case 'footerBackground': {
+      return footerBackgroundColor.value;
     }
     case 'header': {
       return themeSemiDarkHeaderColor.value;
@@ -141,6 +149,7 @@ const isBackgroundTarget = computed(() =>
   [
     'baseBackground',
     'contentBackground',
+    'footerBackground',
     'header',
     'headerMenuBackground',
     'menuBackground',
@@ -157,6 +166,9 @@ const activeBackgroundTransparency = computed({
       }
       case 'contentBackground': {
         return themeContentBackgroundTransparency.value ?? 0;
+      }
+      case 'footerBackground': {
+        return footerBackgroundTransparency.value ?? 0;
       }
       case 'header': {
         return themeSemiDarkHeaderColorTransparency.value ?? 0;
@@ -187,6 +199,10 @@ const activeBackgroundTransparency = computed({
       }
       case 'contentBackground': {
         themeContentBackgroundTransparency.value = transparency;
+        break;
+      }
+      case 'footerBackground': {
+        footerBackgroundTransparency.value = transparency;
         break;
       }
       case 'header': {
@@ -257,6 +273,9 @@ function getColorTargetLabel(target: ColorTarget) {
     }
     case 'destructive': {
       return $t('preferences.theme.destructiveColor');
+    }
+    case 'footerBackground': {
+      return $t('preferences.footer.backgroundColor');
     }
     case 'header': {
       return $t('preferences.theme.darkHeaderColor');
@@ -436,6 +455,11 @@ function resetThemeColors() {
     return;
   }
 
+  if (activeTarget.value === 'footerBackground') {
+    editorColor.value = initialPreferences.footer.backgroundColor;
+    return;
+  }
+
   if (activeTarget.value === 'destructive') {
     editorColor.value = initialTheme.colorDestructive;
     return;
@@ -495,6 +519,11 @@ watch(editorColor, (value) => {
     }
     case 'contentBackground': {
       themeContentBackgroundColor.value = value;
+
+      break;
+    }
+    case 'footerBackground': {
+      footerBackgroundColor.value = value;
 
       break;
     }

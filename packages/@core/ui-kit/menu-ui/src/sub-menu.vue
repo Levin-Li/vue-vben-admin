@@ -53,6 +53,7 @@ const hasChildren = computed(() => {
     :active-icon="menu.activeIcon"
     :disabled="menu.disabled"
     :icon="menu.icon"
+    :navigate-on-click="menu.navigateOnClick"
     :path="menu.path"
   >
     <template #content>

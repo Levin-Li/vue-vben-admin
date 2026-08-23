@@ -107,5 +107,11 @@ describe('locale fallback resolution', () => {
     expect(messages['en-US']?.preferences?.clearCacheAndRestoreDefaults).toBe(
       'Clear Cache and Restore Defaults',
     );
+    expect(messages['zh-CN']?.preferences?.theme.headingFontSizeScale).toBe(
+      '标题字号倍率',
+    );
+    expect(messages['en-US']?.preferences?.theme.headingFontSizeScale).toBe(
+      'Heading Font Scale',
+    );
   });
 });

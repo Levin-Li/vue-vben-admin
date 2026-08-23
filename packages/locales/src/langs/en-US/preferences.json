@@ -149,8 +149,18 @@
   "theme": {
     "title": "Theme",
     "radius": "Radius",
-    "fontSize": "Font Size",
-    "fontSizeTip": "Adjust global font size with real-time preview",
+    "fontSize": "Base Font Size",
+    "fontFamily": "Font",
+    "fontFamilyTip": "For example: Inter, Arial, sans-serif",
+    "fontSizeTip": "Adjust the base font size for regular content with real-time preview",
+    "fontSizeScale": "Font Scales",
+    "headingFontSizeScale": "Heading Font Scale",
+    "sidebarMenuFontSizeScale": "Sidebar Menu Font Scale",
+    "headerMenuFontSizeScale": "Top Bar Font Scale",
+    "tabbarFontSizeScale": "Tab Bar Font Scale",
+    "breadcrumbFontSizeScale": "Breadcrumb Font Scale",
+    "footerFontSizeScale": "Footer Font Scale",
+    "fontSizeScaleTip": "Heading and navigation size = base font size × corresponding scale",
     "light": "Light",
     "dark": "Dark",
     "darkSidebar": "Semi Dark Sidebar",
@@ -212,7 +222,8 @@
   "footer": {
     "title": "Footer",
     "visible": "Show Footer",
-    "fixed": "Fixed at Bottom"
+    "fixed": "Fixed at Bottom",
+    "backgroundColor": "Footer Background Color"
   },
   "copyright": {
     "title": "Copyright",

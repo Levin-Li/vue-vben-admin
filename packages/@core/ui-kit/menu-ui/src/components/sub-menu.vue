@@ -118,6 +118,13 @@ function handleClick() {
     parentPaths: parentPaths.value,
     path: props.path,
   });
+
+  if (props.navigateOnClick) {
+    rootMenu?.handleMenuItemClick({
+      parentPaths: parentPaths.value,
+      path: props.path,
+    });
+  }
 }
 
 function handleMouseenter(event: FocusEvent | MouseEvent, showTimeout = 300) {
@@ -227,6 +234,7 @@ onBeforeUnmount(() => {
             :level="currentLevel"
             :path="path"
             @click.stop="handleClick"
+            @selectstart.prevent
           >
             <template #title>
               <slot name="title"></slot>
@@ -259,6 +267,7 @@ onBeforeUnmount(() => {
         :level="currentLevel"
         :path="path"
         @click.stop="handleClick"
+        @selectstart.prevent
       >
         <slot name="content"></slot>
         <template #title>

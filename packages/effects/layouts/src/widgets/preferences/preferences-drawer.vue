@@ -43,6 +43,7 @@ import {
   ColorSettings,
   Content,
   Copyright,
+  FontScale,
   FontSize,
   Footer,
   General,
@@ -132,6 +133,25 @@ const themeBuiltinType = defineModel<BuiltinThemeType>('themeBuiltinType');
 const themeMode = defineModel<ThemeModeType>('themeMode');
 const themeRadius = defineModel<string>('themeRadius');
 const themeFontSize = defineModel<number>('themeFontSize');
+const themeFontFamily = defineModel<string>('themeFontFamily');
+const themeHeadingFontSizeScale = defineModel<number>(
+  'themeHeadingFontSizeScale',
+);
+const themeSidebarMenuFontSizeScale = defineModel<number>(
+  'themeSidebarMenuFontSizeScale',
+);
+const themeHeaderMenuFontSizeScale = defineModel<number>(
+  'themeHeaderMenuFontSizeScale',
+);
+const themeTabbarFontSizeScale = defineModel<number>(
+  'themeTabbarFontSizeScale',
+);
+const themeBreadcrumbFontSizeScale = defineModel<number>(
+  'themeBreadcrumbFontSizeScale',
+);
+const themeFooterFontSizeScale = defineModel<number>(
+  'themeFooterFontSizeScale',
+);
 const themeSemiDarkSidebar = defineModel<boolean>('themeSemiDarkSidebar');
 const themeSemiDarkSidebarColor = defineModel<string>(
   'themeSemiDarkSidebarColor',
@@ -272,6 +292,22 @@ const navigationAccordion = defineModel<boolean>('navigationAccordion');
 
 const footerEnable = defineModel<boolean>('footerEnable');
 const footerFixed = defineModel<boolean>('footerFixed');
+const footerHeight = defineModel<number>('footerHeight');
+const footerMarginTop = defineModel<number>('footerMarginTop');
+const footerMarginRight = defineModel<number>('footerMarginRight');
+const footerMarginBottom = defineModel<number>('footerMarginBottom');
+const footerMarginLeft = defineModel<number>('footerMarginLeft');
+const footerRadiusTopLeft = defineModel<number>('footerRadiusTopLeft');
+const footerRadiusTopRight = defineModel<number>('footerRadiusTopRight');
+const footerRadiusBottomRight = defineModel<number>('footerRadiusBottomRight');
+const footerRadiusBottomLeft = defineModel<number>('footerRadiusBottomLeft');
+const footerBackgroundColor = defineModel<string>('footerBackgroundColor');
+const footerBackgroundColorCustom = defineModel<boolean>(
+  'footerBackgroundColorCustom',
+);
+const footerBackgroundTransparency = defineModel<number>(
+  'footerBackgroundTransparency',
+);
 
 const copyrightSettingShow = defineModel<boolean>('copyrightSettingShow');
 const copyrightEnable = defineModel<boolean>('copyrightEnable');
@@ -379,6 +415,7 @@ function openColorSettings(
   target:
     | 'baseBackground'
     | 'contentBackground'
+    | 'footerBackground'
     | 'header'
     | 'headerMenuBackground'
     | 'headerMenuTheme'
@@ -480,6 +517,10 @@ function openColorSettings(
                 v-model:tabbar-background-color-custom="
                   tabbarBackgroundColorCustom
                 "
+                v-model:footer-background-color="footerBackgroundColor"
+                v-model:footer-background-color-custom="
+                  footerBackgroundColorCustom
+                "
                 v-model:theme-semi-dark-header="themeSemiDarkHeader"
                 v-model:theme-semi-dark-header-color="themeSemiDarkHeaderColor"
                 v-model:theme-header-menu-theme-color="
@@ -555,6 +596,10 @@ function openColorSettings(
                 v-model:tabbar-background-transparency="
                   tabbarBackgroundTransparency
                 "
+                v-model:footer-background-color="footerBackgroundColor"
+                v-model:footer-background-transparency="
+                  footerBackgroundTransparency
+                "
                 :is-dark="isDark"
               />
             </Block>
@@ -563,6 +608,52 @@ function openColorSettings(
             </Block>
             <Block :title="$t('preferences.theme.fontSize')">
               <FontSize v-model="themeFontSize" />
+            </Block>
+            <Block :title="$t('preferences.theme.fontFamily')">
+              <input v-model="themeFontFamily" class="h-10 w-full rounded border border-border px-3" :placeholder="$t('preferences.theme.fontFamilyTip')" />
+            </Block>
+            <Block :title="$t('preferences.theme.fontSizeScale')">
+              <div class="grid grid-cols-3 gap-3">
+                <label class="space-y-1">
+                  <span class="text-muted-foreground block text-xs">{{
+                    $t('preferences.theme.headingFontSizeScale')
+                  }}</span>
+                  <FontScale v-model="themeHeadingFontSizeScale" />
+                </label>
+                <label class="space-y-1">
+                  <span class="text-muted-foreground block text-xs">{{
+                    $t('preferences.theme.sidebarMenuFontSizeScale')
+                  }}</span>
+                  <FontScale v-model="themeSidebarMenuFontSizeScale" />
+                </label>
+                <label class="space-y-1">
+                  <span class="text-muted-foreground block text-xs">{{
+                    $t('preferences.theme.headerMenuFontSizeScale')
+                  }}</span>
+                  <FontScale v-model="themeHeaderMenuFontSizeScale" />
+                </label>
+                <label class="space-y-1">
+                  <span class="text-muted-foreground block text-xs">{{
+                    $t('preferences.theme.tabbarFontSizeScale')
+                  }}</span>
+                  <FontScale v-model="themeTabbarFontSizeScale" />
+                </label>
+                <label class="space-y-1">
+                  <span class="text-muted-foreground block text-xs">{{
+                    $t('preferences.theme.breadcrumbFontSizeScale')
+                  }}</span>
+                  <FontScale v-model="themeBreadcrumbFontSizeScale" />
+                </label>
+                <label class="space-y-1">
+                  <span class="text-muted-foreground block text-xs">{{
+                    $t('preferences.theme.footerFontSizeScale')
+                  }}</span>
+                  <FontScale v-model="themeFooterFontSizeScale" />
+                </label>
+              </div>
+              <div class="text-muted-foreground mt-3 text-xs">
+                {{ $t('preferences.theme.fontSizeScaleTip') }}
+              </div>
             </Block>
             <Block :title="$t('preferences.other')">
               <ColorMode
@@ -717,6 +808,19 @@ function openColorSettings(
             </Block>
             <Block :title="$t('preferences.footer.title')">
               <Footer
+                v-model:footer-height="footerHeight"
+                v-model:footer-margin-top="footerMarginTop"
+                v-model:footer-margin-right="footerMarginRight"
+                v-model:footer-margin-bottom="footerMarginBottom"
+                v-model:footer-margin-left="footerMarginLeft"
+                v-model:footer-radius-top-left="footerRadiusTopLeft"
+                v-model:footer-radius-top-right="footerRadiusTopRight"
+                v-model:footer-radius-bottom-right="footerRadiusBottomRight"
+                v-model:footer-radius-bottom-left="footerRadiusBottomLeft"
+                v-model:footer-background-color="footerBackgroundColor"
+                v-model:footer-background-color-custom="
+                  footerBackgroundColorCustom
+                "
                 v-model:footer-enable="footerEnable"
                 v-model:footer-fixed="footerFixed"
               />

@@ -68,7 +68,17 @@ function handleSelect(path: string) {
     :breadcrumbs="breadcrumbs"
     :show-icon="showIcon"
     :style-type="type"
-    class="ml-2"
+    class="breadcrumb-font-scale ml-2"
     @select="handleSelect"
   />
 </template>
+
+<style scoped>
+.breadcrumb-font-scale {
+  font-size: var(--font-size-breadcrumb);
+}
+
+.breadcrumb-font-scale :deep(:is(a, button, div, span)) {
+  font-size: inherit !important;
+}
+</style>

@@ -754,7 +754,9 @@ function getPreviewIcon(record: FileResourceRecord) {
             </Button>
             <Button @click="resetSearch">重置</Button>
             <Button :loading="loading" @click="loadRecords">
-              <IconifyIcon class="mr-1 size-4" icon="lucide:refresh-cw" />
+              <template #icon>
+                <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+              </template>
               刷新
             </Button>
           </Space>
@@ -792,7 +794,9 @@ function getPreviewIcon(record: FileResourceRecord) {
         type="primary"
         @click="startArchiveDownload"
       >
-        <IconifyIcon class="mr-1 size-4" icon="lucide:package-down" />
+        <template #icon>
+          <IconifyIcon class="size-4" icon="lucide:package-down" />
+        </template>
         打包下载
       </Button>
     </div>

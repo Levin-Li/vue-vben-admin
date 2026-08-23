@@ -881,7 +881,9 @@ function renderIcon(row: MenuRecord) {
                     type="text"
                     @click.stop="moveMenu(row, 'up')"
                   >
-                    <IconifyIcon class="size-4" icon="lucide:arrow-up" />
+                    <template #icon>
+                      <IconifyIcon class="size-4" icon="lucide:arrow-up" />
+                    </template>
                   </Button>
                 </Tooltip>
                 <Tooltip title="下移">
@@ -895,7 +897,9 @@ function renderIcon(row: MenuRecord) {
                     type="text"
                     @click.stop="moveMenu(row, 'down')"
                   >
-                    <IconifyIcon class="size-4" icon="lucide:arrow-down" />
+                    <template #icon>
+                      <IconifyIcon class="size-4" icon="lucide:arrow-down" />
+                    </template>
                   </Button>
                 </Tooltip>
               </div>

@@ -5303,7 +5303,9 @@ watch(tableColumnPreferenceStorageKey, () => {
                 :loading="exportLimitChecking"
                 @click="openExportModal"
               >
-                <IconifyIcon class="size-4" icon="lucide:upload" />
+                <template #icon>
+                  <IconifyIcon class="size-4" icon="lucide:upload" />
+                </template>
               </Button>
             </Tooltip>
 
@@ -5327,7 +5329,9 @@ watch(tableColumnPreferenceStorageKey, () => {
                 :loading="loading"
                 @click="refreshTable"
               >
-                <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+                <template #icon>
+                  <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+                </template>
               </Button>
             </Tooltip>
 

@@ -570,7 +570,9 @@ onMounted(loadMessages);
               type="text"
               @click="() => loadMessages()"
             >
-              <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+              <template #icon>
+                <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+              </template>
             </Button>
           </Tooltip>
         </div>
@@ -654,7 +656,9 @@ onMounted(loadMessages);
                   type="link"
                   @click="markRead(item)"
                 >
-                  <IconifyIcon class="size-4" icon="lucide:check-check" />
+                  <template #icon>
+                    <IconifyIcon class="size-4" icon="lucide:check-check" />
+                  </template>
                   已读
                 </Button>
                 <Button
@@ -664,7 +668,9 @@ onMounted(loadMessages);
                   type="link"
                   @click="rejectMessage(item)"
                 >
-                  <IconifyIcon class="size-4" icon="lucide:bell-off" />
+                  <template #icon>
+                    <IconifyIcon class="size-4" icon="lucide:bell-off" />
+                  </template>
                   拒绝
                 </Button>
               </div>

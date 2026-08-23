@@ -77,6 +77,10 @@ interface SubMenuProps extends MenuRecordBadgeRaw {
    * @zh_CN submenu 名称
    */
   path: string;
+  /**
+   * @zh_CN 点击分组标题时是否同时触发菜单选择
+   */
+  navigateOnClick?: boolean;
 }
 
 interface MenuItemProps extends MenuRecordBadgeRaw {

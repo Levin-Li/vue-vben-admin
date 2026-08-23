@@ -3,6 +3,7 @@ import 'go-captcha-vue/dist/style.css';
 
 import { Click as GoCaptchaClick, Slide as GoCaptchaSlide } from 'go-captcha-vue';
 import { computed, ref, watch } from 'vue';
+import { Spin } from 'ant-design-vue';
 
 import {
   encodeBehaviorCaptchaResult,
@@ -180,28 +181,50 @@ watch(
     class="behavior-captcha-card flex justify-center"
     :data-test="`captcha-mode-${challenge?.mode || 'UNSUPPORTED'}`"
   >
-    <GoCaptchaClick
-      v-if="challenge && !isSlide && data.image && data.thumb"
-      :config="config"
-      :data="data"
-      :events="events"
-    />
-    <GoCaptchaSlide
-      v-if="challenge && isSlide && slideData.image && slideData.thumb"
-      :config="config"
-      :data="slideData"
-      :events="slideEvents"
-    />
-    <p
-      v-if="!challenge || !data.image || !data.thumb"
-      class="text-muted-foreground py-6 text-center text-sm"
-    >
-      当前行为验证码类型暂不支持。
-    </p>
+    <div class="behavior-captcha-stage relative min-h-[240px] w-full">
+      <div
+        v-if="loading || !challenge"
+        class="behavior-captcha-loading absolute inset-0 z-10 flex items-center justify-center"
+        data-test="behavior-captcha-loading"
+      >
+        <Spin size="large" />
+      </div>
+      <GoCaptchaClick
+        v-if="challenge && !isSlide && data.image && data.thumb"
+        :config="config"
+        :data="data"
+        :events="events"
+      />
+      <GoCaptchaSlide
+        v-if="challenge && isSlide && slideData.image && slideData.thumb"
+        :config="config"
+        :data="slideData"
+        :events="slideEvents"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
+:deep(.go-captcha.gc-theme) {
+  border: 0;
+}
+
+:deep(.go-captcha .gc-body .gc-body-inner) {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+:deep(.go-captcha .gc-body .gc-loading) {
+  align-items: center;
+  height: auto;
+  inset: 0;
+  justify-content: center;
+  margin: 0;
+  width: auto;
+}
+
 :deep(.gc-button-block) {
   display: none;
 }

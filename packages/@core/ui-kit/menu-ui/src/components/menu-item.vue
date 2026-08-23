@@ -91,6 +91,7 @@ onBeforeUnmount(() => {
     ]"
     role="menuitem"
     @click.stop="handleClick"
+    @selectstart.prevent
   >
     <VbenTooltip
       v-if="showTooltip"

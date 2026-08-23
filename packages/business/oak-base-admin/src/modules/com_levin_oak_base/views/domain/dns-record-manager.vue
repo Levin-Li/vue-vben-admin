@@ -416,7 +416,9 @@ watch(
     <template #extra>
       <Space>
         <Button :loading="loading" @click="loadRecords">
-          <IconifyIcon class="mr-1 size-4" icon="lucide:refresh-cw" />
+          <template #icon>
+            <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
+          </template>
           刷新
         </Button>
         <Popconfirm
@@ -425,7 +427,9 @@ watch(
           @confirm="deleteSelectedRecords"
         >
           <Button danger :loading="batchDeleting">
-            <IconifyIcon class="mr-1 size-4" icon="lucide:trash-2" />
+            <template #icon>
+              <IconifyIcon class="size-4" icon="lucide:trash-2" />
+            </template>
             批量删除
           </Button>
         </Popconfirm>

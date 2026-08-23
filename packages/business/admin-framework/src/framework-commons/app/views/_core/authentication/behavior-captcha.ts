@@ -65,6 +65,10 @@ export function getBehaviorCaptchaInstruction(mode?: BehaviorCaptchaMode | null)
   return mode ? MODE_INSTRUCTIONS[mode] : '请完成当前行为验证。';
 }
 
+export function isSupportedBehaviorCaptchaMode(value: unknown) {
+  return Boolean(canonicalMode(value));
+}
+
 /**
  * Normalizes the GoCaptcha Click-compatible server contract. The image pair is
  * deliberately opaque to the browser: target rectangles remain server-only.

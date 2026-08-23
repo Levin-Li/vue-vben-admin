@@ -75,17 +75,92 @@ function updateCSSVariables(preferences: Preferences) {
   // 更新字体大小
   if (Reflect.has(theme, 'fontSize')) {
     const fontSize = theme.fontSize;
+    const headingFontSizeScale = theme.headingFontSizeScale ?? 1.25;
+    const sidebarMenuFontSizeScale = theme.sidebarMenuFontSizeScale ?? 0.875;
+    const headerMenuFontSizeScale = theme.headerMenuFontSizeScale ?? 0.875;
+    const tabbarFontSizeScale = theme.tabbarFontSizeScale ?? 0.875;
+    const breadcrumbFontSizeScale = theme.breadcrumbFontSizeScale ?? 0.875;
+    const footerFontSizeScale = theme.footerFontSizeScale ?? 0.875;
+
     document.documentElement.style.setProperty(
       '--font-size-base',
       `${fontSize}px`,
     );
     document.documentElement.style.setProperty(
+      '--font-size-heading',
+      `calc(${fontSize}px * ${headingFontSizeScale})`,
+    );
+    document.documentElement.style.setProperty(
+      '--font-size-sidebar-menu',
+      `calc(${fontSize}px * ${sidebarMenuFontSizeScale})`,
+    );
+    document.documentElement.style.setProperty(
+      '--font-size-header-menu',
+      `calc(${fontSize}px * ${headerMenuFontSizeScale})`,
+    );
+    document.documentElement.style.setProperty(
+      '--font-size-tabbar',
+      `calc(${fontSize}px * ${tabbarFontSizeScale})`,
+    );
+    document.documentElement.style.setProperty(
+      '--font-size-breadcrumb',
+      `calc(${fontSize}px * ${breadcrumbFontSizeScale})`,
+    );
+    document.documentElement.style.setProperty(
+      '--font-size-footer',
+      `calc(${fontSize}px * ${footerFontSizeScale})`,
+    );
+    document.documentElement.style.setProperty(
       '--menu-font-size',
-      `calc(${fontSize}px * 0.875)`,
+      'var(--font-size-sidebar-menu)',
     );
   }
 
+  if (Reflect.has(theme, 'fontFamily')) {
+    root.style.setProperty('--font-family-custom', theme.fontFamily || 'inherit');
+  }
+
   updateHeaderMenuThemeVariables(preferences);
+  updateFooterBackgroundVariable(preferences);
+}
+
+function updateFooterBackgroundVariable(preferences: Preferences) {
+  const root = document.documentElement;
+  const footer = preferences.footer;
+
+  root.style.setProperty('--footer-margin-top', `${footer.marginTop}px`);
+  root.style.setProperty('--footer-margin-right', `${footer.marginRight}px`);
+  root.style.setProperty('--footer-margin-bottom', `${footer.marginBottom}px`);
+  root.style.setProperty('--footer-margin-left', `${footer.marginLeft}px`);
+  root.style.setProperty(
+    '--footer-radius-top-left',
+    `${footer.radiusTopLeft}px`,
+  );
+  root.style.setProperty(
+    '--footer-radius-top-right',
+    `${footer.radiusTopRight}px`,
+  );
+  root.style.setProperty(
+    '--footer-radius-bottom-right',
+    `${footer.radiusBottomRight}px`,
+  );
+  root.style.setProperty(
+    '--footer-radius-bottom-left',
+    `${footer.radiusBottomLeft}px`,
+  );
+
+  if (!footer.backgroundColorCustom) {
+    root.style.removeProperty('--footer-background');
+    return;
+  }
+
+  root.style.setProperty(
+    '--footer-background',
+    resolveBackgroundColor(
+      footer.backgroundColor,
+      footer.backgroundTransparency,
+    ),
+  );
 }
 
 /**

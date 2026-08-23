@@ -140,11 +140,12 @@ const leftSlots = computed(() => {
   });
   return list.toSorted((a, b) => a.index - b.index);
 });
-
 </script>
 
 <template>
-  <div class="relative flex h-full min-w-0 flex-1 items-center">
+  <div
+    class="layout-header-font-scale relative flex h-full min-w-0 flex-1 items-center"
+  >
     <template
       v-for="slot in leftSlots.filter((item) => item.index < REFERENCE_VALUE)"
       :key="slot.name"
@@ -297,6 +298,16 @@ const leftSlots = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.layout-header-font-scale {
+  font-size: var(--font-size-header-menu);
+}
+
+.layout-header-font-scale :deep(:is(a, button, input, kbd, p, span)) {
+  font-size: inherit !important;
+}
+</style>
 <style lang="scss" scoped>
 .menu-align-start {
   --menu-align: start;

@@ -122,11 +122,16 @@ const headerMenuPopupStyle = computed((): CSSProperties => {
 });
 
 const headerMenuStyle = computed((): CSSProperties => {
+  const fontSizeStyle = {
+    '--menu-font-size': 'var(--font-size-header-menu)',
+  };
+
   if (isDark.value || !preferences.theme.semiDarkHeader) {
-    return {};
+    return fontSizeStyle;
   }
 
   return {
+    ...fontSizeStyle,
     ...headerMenuPopupStyle.value,
     '--menu-background-color': 'transparent',
   };
@@ -278,12 +283,20 @@ const {
  * @param deep 是否深度包装。对于双列布局，只需要包装第一层，因为更深层的数据会在扩展菜单中重新包装
  */
 function wrapperMenus(menus: MenuRecordRaw[], deep: boolean = true) {
+  const wrapMenu = (item: MenuRecordRaw) => {
+    const { navigateOnClick: _navigateOnClick, ...menu } = cloneDeep(item);
+    return {
+      ...menu,
+      name: $t(item.name),
+    };
+  };
+
   return deep
     ? mapTree(menus, (item) => {
-        return { ...cloneDeep(item), name: $t(item.name) };
+        return wrapMenu(item);
       })
     : menus.map((item) => {
-        return { ...cloneDeep(item), name: $t(item.name) };
+        return wrapMenu(item);
       });
 }
 

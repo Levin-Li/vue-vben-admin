@@ -19,6 +19,7 @@
     overscroll-behavior: none;
     scroll-behavior: smooth;
     font-size: var(--font-size-base, 16px);
+    font-family: var(--font-family-custom, var(--font-family));
     font-variation-settings: normal;
     font-synthesis-weight: none;
     line-height: 1.15;

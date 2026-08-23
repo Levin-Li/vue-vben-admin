@@ -15,6 +15,7 @@ import SwitchItem from '../switch-item.vue';
 type ThemeColorTarget =
   | 'baseBackground'
   | 'contentBackground'
+  | 'footerBackground'
   | 'headerMenuBackground'
   | 'headerMenuTheme'
   | 'menuBackground'
@@ -43,6 +44,10 @@ const themeContentBackgroundColorCustom = defineModel<boolean>(
 const tabbarBackgroundColor = defineModel<string>('tabbarBackgroundColor');
 const tabbarBackgroundColorCustom = defineModel<boolean>(
   'tabbarBackgroundColorCustom',
+);
+const footerBackgroundColor = defineModel<string>('footerBackgroundColor');
+const footerBackgroundColorCustom = defineModel<boolean>(
+  'footerBackgroundColorCustom',
 );
 const themeSemiDarkSidebar = defineModel<boolean>('themeSemiDarkSidebar');
 const themeSemiDarkSidebarColor = defineModel<string>(
@@ -288,6 +293,7 @@ function openColorSettings(target: 'header' | 'sidebar' | ThemeColorTarget) {
       </template>
     </SwitchItem>
 
+
     <SwitchItem
       v-model="themeSemiDarkSidebar"
       :disabled="
@@ -440,6 +446,28 @@ function openColorSettings(target: 'header' | 'sidebar' | ThemeColorTarget) {
             :style="{ backgroundColor: themeHeaderMenuBackgroundColor }"
             class="semi-dark-color-preview"
           ></span>
+        </button>
+      </template>
+    </SwitchItem>
+
+    <SwitchItem
+      v-model="footerBackgroundColorCustom"
+      shortcut-class="semi-dark-shortcut"
+    >
+      {{ $t('preferences.footer.backgroundColor') }}
+      <template #before-switch>
+        <span class="semi-dark-color-name">
+          {{ $t('preferences.theme.builtin.custom') }}
+        </span>
+      </template>
+      <template #shortcut>
+        <button
+          :disabled="!footerBackgroundColorCustom"
+          class="navigation-menu-color-preview"
+          type="button"
+          @click.stop="openColorSettings('footerBackground')"
+        >
+          <span :style="{ backgroundColor: footerBackgroundColor }"></span>
         </button>
       </template>
     </SwitchItem>

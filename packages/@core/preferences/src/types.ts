@@ -134,12 +134,26 @@ interface CopyrightPreferences {
 }
 
 interface FooterPreferences {
+  /** 底栏背景色 */
+  backgroundColor: string;
+  /** 是否自定义底栏背景色 */
+  backgroundColorCustom: boolean;
+  /** 底栏背景透明度（0-100，0 为不透明） */
+  backgroundTransparency: number;
   /** 底栏是否可见 */
   enable: boolean;
   /** 底栏是否固定 */
   fixed: boolean;
   /** 底栏高度 */
   height: number;
+  marginTop: number;
+  marginRight: number;
+  marginBottom: number;
+  marginLeft: number;
+  radiusTopLeft: number;
+  radiusTopRight: number;
+  radiusBottomRight: number;
+  radiusBottomLeft: number;
 }
 
 interface HeaderPreferences {
@@ -355,6 +369,20 @@ interface ThemePreferences {
   colorWarning: string;
   /** 字体大小（单位：px） */
   fontSize: number;
+  /** 自定义字体族 */
+  fontFamily: string;
+  /** 标题字号相对基础字号的倍率 */
+  headingFontSizeScale: number;
+  /** 左侧菜单字号相对基础字号的倍率 */
+  sidebarMenuFontSizeScale: number;
+  /** 顶部导航字号相对基础字号的倍率 */
+  headerMenuFontSizeScale: number;
+  /** 页签标题栏字号相对基础字号的倍率 */
+  tabbarFontSizeScale: number;
+  /** 面包屑导航字号相对基础字号的倍率 */
+  breadcrumbFontSizeScale: number;
+  /** 底栏字号相对基础字号的倍率 */
+  footerFontSizeScale: number;
   /** 当前主题 */
   mode: ThemeModeType;
   /** 圆角 */

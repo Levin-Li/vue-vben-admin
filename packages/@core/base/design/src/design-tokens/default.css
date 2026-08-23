@@ -93,7 +93,13 @@
 
   /* 基本文字大小 */
   --font-size-base: 16px;
-  --menu-font-size: calc(var(--font-size-base) * 0.875);
+  --font-size-heading: calc(var(--font-size-base) * 1.25);
+  --font-size-sidebar-menu: calc(var(--font-size-base) * 0.875);
+  --font-size-header-menu: calc(var(--font-size-base) * 0.875);
+  --font-size-tabbar: calc(var(--font-size-base) * 0.875);
+  --font-size-breadcrumb: calc(var(--font-size-base) * 0.875);
+  --font-size-footer: calc(var(--font-size-base) * 0.875);
+  --menu-font-size: var(--font-size-sidebar-menu);
 
   /* =============component & UI============= */
 

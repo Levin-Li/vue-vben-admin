@@ -390,7 +390,9 @@ $namespace: vben;
     var(--menu-item-margin-x);
   font-size: var(--menu-font-size) !important;
   color: var(--menu-item-color);
+  user-select: none;
   white-space: nowrap;
+  -webkit-user-select: none;
   text-decoration: none;
   cursor: pointer;
   list-style: none;
@@ -529,6 +531,7 @@ $namespace: vben;
 
   // .vben-menu__popup,
   &.is-horizontal {
+    --menu-font-size: var(--font-size-header-menu);
     --menu-item-padding-y: 0px;
     --menu-item-padding-x: 10px;
     --menu-item-margin-y: 0px;
@@ -805,7 +808,7 @@ $namespace: vben;
       display: inline-flex;
       margin-top: 8px;
       margin-bottom: 0;
-      font-size: calc(var(--font-size-base, 16px) * 0.75);
+      font-size: var(--font-size-sidebar-menu);
       font-weight: 400;
       line-height: normal;
       transition: all 0.25s ease;
@@ -896,7 +899,7 @@ $namespace: vben;
       flex-shrink: 0;
       margin-top: 8px;
       margin-bottom: 0;
-      font-size: 12px;
+      font-size: var(--font-size-sidebar-menu);
       font-weight: 400;
       line-height: normal;
       transition: all 0.25s ease;

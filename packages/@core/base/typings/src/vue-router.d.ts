@@ -94,6 +94,16 @@ interface RouteMeta {
    */
   link?: string;
   /**
+   * 分组菜单同时拥有自身页面时，点击分组标题进入该页面
+   * @default false
+   */
+  navigateOnClick?: boolean;
+  /**
+   * 顶级分组拥有默认子页面时保留路由容器，确保子页面可以渲染
+   * @default false
+   */
+  preserveComponentWhenChildren?: boolean;
+  /**
    * 路由是否已经加载过
    */
   loaded?: boolean;

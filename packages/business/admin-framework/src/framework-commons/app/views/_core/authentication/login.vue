@@ -35,6 +35,7 @@ import { useAuthBrand } from './auth-brand';
 import BehaviorCaptcha from './behavior-captcha.vue';
 import {
   getBehaviorCaptchaInstruction,
+  isSupportedBehaviorCaptchaMode,
   normalizeBehaviorCaptchaChallenge,
   type BehaviorCaptchaChallenge,
 } from './behavior-captcha';
@@ -107,7 +108,7 @@ const passwordVerifyDialogWidth = computed(() => {
     return undefined;
   }
   const challengeWidth = Number(hmiCaptchaChallenge.value.payload?.width) || 427;
-  return challengeWidth + 80;
+  return challengeWidth + 48;
 });
 const countdown = ref(0);
 const verifyAssetLoading = ref(false);
@@ -709,14 +710,27 @@ async function requestVerifyCode(options: RequestVerifyCodeOptions = {}) {
 
     if (isPasswordHmiMode.value) {
       const interactionData = payload?.interactionData;
-      const interaction = normalizeBehaviorCaptchaChallenge(
+      const interactionSource =
         typeof interactionData === 'string'
           ? JSON.parse(interactionData)
-          : interactionData,
+          : interactionData;
+      const interaction = normalizeBehaviorCaptchaChallenge(
+        interactionSource,
       );
 
       if (!interaction) {
-        throw new Error('当前没有获取到人机验证码');
+        const mode = String(
+          interactionSource && typeof interactionSource === 'object'
+            ? interactionSource.mode || interactionSource.type || ''
+            : '',
+        ).trim();
+        if (mode && !isSupportedBehaviorCaptchaMode(mode)) {
+          message.warning('当前行为验证码类型暂不支持');
+        } else {
+          message.error('当前没有获取到人机验证码');
+        }
+        resetPasswordLoginChallenge();
+        return;
       }
 
       hmiCaptchaChallenge.value = interaction;
@@ -772,9 +786,13 @@ async function requestVerifyCode(options: RequestVerifyCodeOptions = {}) {
         : '短信验证码已发送，请注意查收',
     );
   } catch (error: any) {
+    const isHmiRequest = isPasswordHmiMode.value;
     if (isPasswordInteractiveVerifyMode.value) {
       captchaImage.value = '';
       hmiCaptchaChallenge.value = null;
+    }
+    if (isHmiRequest) {
+      resetPasswordLoginChallenge();
     }
     message.error(error?.message || '获取验证码失败');
   } finally {
@@ -934,6 +952,9 @@ async function startPasswordLogin(
         autoLogin: options.autoLogin,
         force: true,
       });
+      if (!passwordLoginChallengeId.value) {
+        return;
+      }
     } else if (!challenge.verifyCodeType) {
       await authStore.authLoginWithPasswordChallenge({
         account,

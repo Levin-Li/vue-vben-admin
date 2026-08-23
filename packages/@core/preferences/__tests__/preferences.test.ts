@@ -96,6 +96,71 @@ describe('preferences', () => {
     expect(preferenceManager.getPreferences().theme.mode).toBe('light');
   });
 
+  it('updates font scale CSS variables from theme preferences', () => {
+    const preferences = structuredClone(defaultPreferences);
+    preferences.theme.fontSize = 18;
+    preferences.theme.headingFontSizeScale = 1.25;
+    preferences.theme.sidebarMenuFontSizeScale = 0.8;
+    preferences.theme.headerMenuFontSizeScale = 1.1;
+    preferences.theme.tabbarFontSizeScale = 1.2;
+    preferences.theme.breadcrumbFontSizeScale = 0.9;
+    preferences.theme.footerFontSizeScale = 1.05;
+
+    updateCSSVariables(preferences);
+
+    const { style } = document.documentElement;
+    expect(style.getPropertyValue('--font-size-base')).toBe('18px');
+    expect(style.getPropertyValue('--font-size-heading')).toBe(
+      'calc(18px * 1.25)',
+    );
+    expect(style.getPropertyValue('--font-size-sidebar-menu')).toBe(
+      'calc(18px * 0.8)',
+    );
+    expect(style.getPropertyValue('--font-size-header-menu')).toBe(
+      'calc(18px * 1.1)',
+    );
+    expect(style.getPropertyValue('--font-size-tabbar')).toBe(
+      'calc(18px * 1.2)',
+    );
+    expect(style.getPropertyValue('--font-size-breadcrumb')).toBe(
+      'calc(18px * 0.9)',
+    );
+    expect(style.getPropertyValue('--font-size-footer')).toBe(
+      'calc(18px * 1.05)',
+    );
+    expect(style.getPropertyValue('--menu-font-size')).toBe(
+      'var(--font-size-sidebar-menu)',
+    );
+  });
+
+  it('applies header menu font scale updates through preference manager', () => {
+    preferenceManager.updatePreferences({
+      theme: { headerMenuFontSizeScale: 1.5 },
+    });
+
+    expect(
+      preferenceManager.getPreferences().theme.headerMenuFontSizeScale,
+    ).toBe(1.5);
+    expect(
+      document.documentElement.style.getPropertyValue(
+        '--font-size-header-menu',
+      ),
+    ).toBe('calc(16px * 1.5)');
+  });
+
+  it('applies custom footer backgrounds through preference manager', () => {
+    preferenceManager.updatePreferences({
+      footer: {
+        backgroundColor: '#123456',
+        backgroundColorCustom: true,
+      },
+    });
+
+    expect(
+      document.documentElement.style.getPropertyValue('--footer-background'),
+    ).toBe('hsl(210, 65%, 20%)');
+  });
+
   it('updates semi dark area colors correctly', () => {
     preferenceManager.updatePreferences({
       theme: {
@@ -129,10 +194,14 @@ describe('preferences', () => {
     updateCSSVariables(preferences);
 
     expect(
-      document.documentElement.style.getPropertyValue('--header-menu-background'),
+      document.documentElement.style.getPropertyValue(
+        '--header-menu-background',
+      ),
     ).toBe('222 10% 12%');
     expect(
-      document.documentElement.style.getPropertyValue('--header-menu-theme-color'),
+      document.documentElement.style.getPropertyValue(
+        '--header-menu-theme-color',
+      ),
     ).toBe('222 10% 52%');
 
     preferences.theme.sidebarMenuBackgroundColorCustom = true;
@@ -143,10 +212,14 @@ describe('preferences', () => {
     updateCSSVariables(preferences);
 
     expect(
-      document.documentElement.style.getPropertyValue('--header-menu-background'),
+      document.documentElement.style.getPropertyValue(
+        '--header-menu-background',
+      ),
     ).toBe('42 84% 61%');
     expect(
-      document.documentElement.style.getPropertyValue('--header-menu-theme-color'),
+      document.documentElement.style.getPropertyValue(
+        '--header-menu-theme-color',
+      ),
     ).toBe('210 40% 96%');
 
     preferences.theme.headerMenuBackgroundColorCustom = true;
@@ -155,7 +228,9 @@ describe('preferences', () => {
     updateCSSVariables(preferences);
 
     expect(
-      document.documentElement.style.getPropertyValue('--header-menu-background'),
+      document.documentElement.style.getPropertyValue(
+        '--header-menu-background',
+      ),
     ).toBe('348 100% 61%');
 
     preferences.theme.headerMenuThemeColorCustom = true;
@@ -164,10 +239,14 @@ describe('preferences', () => {
     updateCSSVariables(preferences);
 
     expect(
-      document.documentElement.style.getPropertyValue('--header-menu-background'),
+      document.documentElement.style.getPropertyValue(
+        '--header-menu-background',
+      ),
     ).toBe('348 100% 61%');
     expect(
-      document.documentElement.style.getPropertyValue('--header-menu-theme-color'),
+      document.documentElement.style.getPropertyValue(
+        '--header-menu-theme-color',
+      ),
     ).toBe('204 84% 44%');
 
     preferences.theme.semiDarkHeader = false;
@@ -175,10 +254,14 @@ describe('preferences', () => {
     updateCSSVariables(preferences);
 
     expect(
-      document.documentElement.style.getPropertyValue('--header-menu-background'),
+      document.documentElement.style.getPropertyValue(
+        '--header-menu-background',
+      ),
     ).toBe('');
     expect(
-      document.documentElement.style.getPropertyValue('--header-menu-theme-color'),
+      document.documentElement.style.getPropertyValue(
+        '--header-menu-theme-color',
+      ),
     ).toBe('');
   });
 
