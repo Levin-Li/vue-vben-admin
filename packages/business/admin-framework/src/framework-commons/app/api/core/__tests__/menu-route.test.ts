@@ -61,7 +61,7 @@ describe('menu route conversion', () => {
     expect(route?.meta?.icon).toBe('lucide:file-text');
   });
 
-  it('infers a contextual icon for unmapped backend leaves with stale generic icons', () => {
+  it('uses the generic leaf icon when an unmapped backend leaf has no explicit icon', () => {
     const route = convertMenuNodeForTest({
       icon: 'lucide:panel-right-open',
       name: '合同签署记录',
@@ -69,10 +69,10 @@ describe('menu route conversion', () => {
       path: '/contract/V1/SignLog',
     });
 
-    expect(route?.meta?.icon).toBe('lucide:pen-line');
+    expect(route?.meta?.icon).toBe('lucide:panel-right-open');
   });
 
-  it('preserves custom backend icons instead of inferred fallbacks', () => {
+  it('preserves explicit backend icons', () => {
     const route = convertMenuNodeForTest({
       icon: 'lucide:star',
       name: '商品订单',

@@ -32,29 +32,6 @@ const DEFAULT_BACKEND_MENU_ICONS = new Set([
   DEFAULT_LEAF_MENU_ICON,
 ]);
 
-const INFERRED_MENU_ICONS: Array<[RegExp, string]> = [
-  [/合同模板|template/i, 'lucide:layout-template'],
-  [/合同签署|签署|sign/i, 'lucide:pen-line'],
-  [/合同文件|文件|file/i, 'lucide:folder-open'],
-  [/合同|contract/i, 'lucide:scroll-text'],
-  [/工作流|workflow/i, 'lucide:workflow'],
-  [/审计|日志|log/i, 'lucide:history'],
-  [/全域资金|资金账户|账户资产|资金|fund|asset|wallet/i, 'lucide:wallet'],
-  [/动账|流水|明细|账单|receipt|bill/i, 'lucide:receipt-text'],
-  [/订单|order/i, 'lucide:shopping-cart'],
-  [/商品|product|goods/i, 'lucide:package'],
-  [/商户信息|组织|org|organization/i, 'lucide:building-2'],
-  [/商户|店铺|门店|merchant|shop|store/i, 'lucide:store'],
-  [/合作商|partner/i, 'lucide:handshake'],
-  [/项目管理|项目|project/i, 'lucide:folder-kanban'],
-  [/开票|invoice/i, 'lucide:receipt'],
-  [/结算|settlement/i, 'lucide:banknote'],
-  [/终端|terminal/i, 'lucide:monitor'],
-  [/交易|trade|transaction/i, 'lucide:chart-column'],
-  [/扩展信息|扩展|extension/i, 'lucide:list-tree'],
-  [/代码生成|code/i, 'lucide:code-xml'],
-];
-
 function createRouteMappingLookup(
   routeMappings: AdminBackendRouteMapping[] = [],
 ): RouteMappingLookup {
@@ -141,29 +118,16 @@ function buildIframeSrc(path: string) {
   return `/admin/m${path}`;
 }
 
-function inferMenuIcon(item: BackendMenuInfo, normalizedPath: string) {
-  const haystack = [
-    item.name,
-    item.path,
-    normalizedPath,
-    extractResourceFromMenuPath(normalizedPath),
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  return INFERRED_MENU_ICONS.find(([pattern]) => pattern.test(haystack))?.[1];
-}
-
 function resolveBackendMenuIcon(
   item: BackendMenuInfo,
-  normalizedPath: string,
+  _normalizedPath: string,
   fallbackIcon: string,
 ) {
   if (item.icon && !DEFAULT_BACKEND_MENU_ICONS.has(item.icon)) {
     return item.icon;
   }
 
-  return inferMenuIcon(item, normalizedPath) || fallbackIcon;
+  return fallbackIcon;
 }
 
 function toMeta(
