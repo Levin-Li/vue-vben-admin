@@ -33,12 +33,10 @@ export interface AdminModuleContext<
 }
 
 export interface AdminBackendRouteMapping {
-  deprecatedPaths?: string[];
   icon: string;
-  name: string;
   path: string;
   resource: string;
-  sourceFilePath?: string;
+  sourceFilePath: string;
   title: string;
   viewPath: string;
 }

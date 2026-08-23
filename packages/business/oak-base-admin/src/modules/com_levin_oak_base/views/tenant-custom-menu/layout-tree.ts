@@ -1,8 +1,9 @@
-export interface MenuDisplayLayoutItem {
-  children?: MenuDisplayLayoutItem[];
+export interface TenantCustomMenuItem {
+  children?: TenantCustomMenuItem[];
   enable?: boolean;
   key: string;
   label: string;
+  name?: string;
   path?: string;
 }
 
@@ -26,14 +27,14 @@ export function canDragLayoutItem(key: string, virtualRootKey: string) {
   return key !== virtualRootKey;
 }
 
-export function cloneLayoutItems(items: MenuDisplayLayoutItem[] = []) {
+export function cloneLayoutItems(items: TenantCustomMenuItem[] = []) {
   return items.map((item) => ({
     ...item,
     children: cloneLayoutItems(item.children),
   }));
 }
 
-export function toPersistedLayoutItems(items: MenuDisplayLayoutItem[] = []) {
+export function toPersistedLayoutItems(items: TenantCustomMenuItem[] = []) {
   return items.map(({ children, enable, label, path }) => ({
     ...(children?.length ? { children: toPersistedLayoutItems(children) } : {}),
     ...(enable === false ? { enable: false } : {}),
@@ -42,7 +43,7 @@ export function toPersistedLayoutItems(items: MenuDisplayLayoutItem[] = []) {
   }));
 }
 
-export function collectLayoutPaths(items: MenuDisplayLayoutItem[] = []) {
+export function collectLayoutPaths(items: TenantCustomMenuItem[] = []) {
   const paths = new Set<string>();
 
   for (const item of items) {
@@ -57,9 +58,9 @@ export function collectLayoutPaths(items: MenuDisplayLayoutItem[] = []) {
 }
 
 export function findLayoutItem(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   key: string,
-): MenuDisplayLayoutItem | undefined {
+): TenantCustomMenuItem | undefined {
   for (const item of items) {
     if (item.key === key) {
       return item;
@@ -74,7 +75,7 @@ export function findLayoutItem(
 }
 
 export function updateLayoutItemValue(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   key: string,
   field: 'enable' | 'label',
   value: boolean | string,
@@ -93,9 +94,9 @@ export function updateLayoutItemValue(
 }
 
 export function removeLayoutItem(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   key: string,
-): MenuDisplayLayoutItem | undefined {
+): TenantCustomMenuItem | undefined {
   const index = items.findIndex((item) => item.key === key);
   if (index >= 0) {
     return items.splice(index, 1)[0];
@@ -112,9 +113,9 @@ export function removeLayoutItem(
 }
 
 export function appendLayoutItem(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   parentKey: string | undefined,
-  item: MenuDisplayLayoutItem,
+  item: TenantCustomMenuItem,
 ) {
   if (!parentKey) {
     items.push(item);
@@ -132,10 +133,10 @@ export function appendLayoutItem(
 }
 
 export function appendLayoutItemAtTarget(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   virtualRootKey: string,
   targetKey: string,
-  item: MenuDisplayLayoutItem,
+  item: TenantCustomMenuItem,
 ) {
   if (targetKey === virtualRootKey) {
     items.push(item);
@@ -146,7 +147,7 @@ export function appendLayoutItemAtTarget(
 }
 
 export function hasLayoutPathAtTarget(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   virtualRootKey: string,
   targetKey: string,
   path: string,
@@ -166,10 +167,10 @@ export function hasLayoutPathAtTarget(
 }
 
 export function appendLayoutItemsAtTarget(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   virtualRootKey: string,
   targetKey: string,
-  candidates: MenuDisplayLayoutItem[],
+  candidates: TenantCustomMenuItem[],
 ) {
   let added = 0;
   let skipped = 0;
@@ -198,9 +199,9 @@ export function appendLayoutItemsAtTarget(
 }
 
 export function insertLayoutItemBeside(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   targetKey: string,
-  item: MenuDisplayLayoutItem,
+  item: TenantCustomMenuItem,
   after = false,
 ): boolean {
   const index = items.findIndex((candidate) => candidate.key === targetKey);
@@ -215,7 +216,7 @@ export function insertLayoutItemBeside(
 }
 
 export function canMoveLayoutItem(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   key: string,
   direction: LayoutMoveDirection,
 ): boolean {
@@ -231,7 +232,7 @@ export function canMoveLayoutItem(
 }
 
 export function moveLayoutItem(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   key: string,
   direction: LayoutMoveDirection,
 ): boolean {
@@ -251,7 +252,7 @@ export function moveLayoutItem(
   );
 }
 
-export function toLayoutItem(source: MenuDisplaySource): MenuDisplayLayoutItem {
+export function toLayoutItem(source: MenuDisplaySource): TenantCustomMenuItem {
   const path = String(source.path || '').trim();
   const label =
     source.label || source.name || source.title || path || '未命名菜单';
@@ -273,6 +274,46 @@ export function flattenMenuSources(items?: MenuDisplaySource[]) {
   }
 
   return result;
+}
+
+export function filterTreeByLabel<T extends { children?: T[]; key: string }>(
+  items: T[] = [],
+  keyword: string,
+  getLabel: (item: T) => string,
+): T[] {
+  const normalizedKeyword = keyword.trim().toLocaleLowerCase();
+  if (!normalizedKeyword) {
+    return items;
+  }
+
+  return items.flatMap((item) => {
+    const children = filterTreeByLabel(
+      item.children || [],
+      normalizedKeyword,
+      getLabel,
+    );
+    const matches = getLabel(item)
+      .trim()
+      .toLocaleLowerCase()
+      .includes(normalizedKeyword);
+    if (!matches && !children.length) {
+      return [];
+    }
+
+    return [{ ...item, children }];
+  });
+}
+
+export function collectExpandedTreeKeys<
+  T extends { children?: T[]; key: string },
+>(items: T[] = []): string[] {
+  return items.flatMap((item) => {
+    const children = item.children || [];
+    return [
+      ...(children.length ? [item.key] : []),
+      ...collectExpandedTreeKeys(children),
+    ];
+  });
 }
 
 export function keepLayoutRootExpanded(

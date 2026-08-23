@@ -7,7 +7,9 @@ import {
   appendLayoutItemsAtTarget,
   appendLayoutItemAtTarget,
   canDragLayoutItem,
+  collectExpandedTreeKeys,
   collectLayoutPaths,
+  filterTreeByLabel,
   findLayoutItem,
   flattenMenuSources,
   hasLayoutPathAtTarget,
@@ -21,7 +23,7 @@ import {
 } from '../layout-tree';
 
 const adjusterSource = readFileSync(
-  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/menu-display-layout/index.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/tenant-custom-menu/index.vue',
   'utf8',
 );
 
@@ -146,6 +148,48 @@ describe('menu display layout tree', () => {
     ).toEqual([{ children: {}, label: '后台管理' }]);
   });
 
+  it('filters by name, label, or path while preserving matching ancestors and their expand keys', () => {
+    const items = [
+      {
+        children: [
+          {
+            key: 'menu:reports',
+            label: '报表中心',
+            name: 'report-center',
+            path: '/report/center',
+          },
+          { key: 'menu:settings', label: '系统设置' },
+        ],
+        key: 'group:system',
+        label: '后台管理',
+      },
+    ];
+
+    const searchableText = (item: (typeof items)[number] | (typeof items)[number]['children'][number]) =>
+      [item.name, item.label, item.path].filter(Boolean).join(' ');
+    const filtered = filterTreeByLabel(items, 'report-center', searchableText);
+
+    expect(filtered).toEqual([
+      {
+        children: [
+          {
+            children: [],
+            key: 'menu:reports',
+            label: '报表中心',
+            name: 'report-center',
+            path: '/report/center',
+          },
+        ],
+        key: 'group:system',
+        label: '后台管理',
+      },
+    ]);
+    expect(collectExpandedTreeKeys(filtered)).toEqual(['group:system']);
+    expect(
+      filterTreeByLabel(items, '/report/center', searchableText),
+    ).toHaveLength(1);
+  });
+
   it('keeps the virtual menu-list root expanded while preserving child state', () => {
     expect(keepLayoutRootExpanded(['group:reports'], 'root:my-menu')).toEqual([
       'root:my-menu',
@@ -237,6 +281,17 @@ describe('menu display layout tree', () => {
     expect(getAdjusterFunctionSource('addMenusToSelectedTarget')).toMatch(
       /if \(added\) \{\s+layoutItems\.value = cloneLayoutItems\(layoutItems\.value\);[\s\S]*?clearSourceMenuChecks\(\);/,
     );
+  });
+
+  it('refreshes the CRUD list and advances the local optimistic lock after saving a layout', () => {
+    const saveLayoutSource = getAdjusterFunctionSource('saveLayout');
+
+    expect(saveLayoutSource).toContain(
+      'layout.optimisticLock = (layout.optimisticLock ?? 0) + 1;',
+    );
+    expect(saveLayoutSource).toContain('await layoutListReload.value?.();');
+    expect(adjusterSource).toContain('<template #row-actions="{ record, reload }">');
+    expect(adjusterSource).toContain('@click="openLayoutAdjuster(record, reload)"');
   });
 
   it('switches the source-menu action between select-all and clear-selected', () => {

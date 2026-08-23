@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import { toPathRouteName } from '@levin/admin-framework';
+
 export const oakBaseAdminRoutes: RouteRecordRaw[] = [
   {
     component: () => import('./views/setting-for-tenant/index.vue'),
@@ -8,7 +10,7 @@ export const oakBaseAdminRoutes: RouteRecordRaw[] = [
       icon: 'lucide:building',
       title: '租户系统设置',
     },
-    name: 'AdminCrudSettingForTenant',
+    name: toPathRouteName('/clob/V1/SettingForTenant'),
     path: '/clob/V1/SettingForTenant',
   },
   {
@@ -18,7 +20,7 @@ export const oakBaseAdminRoutes: RouteRecordRaw[] = [
       icon: 'lucide:plug-zap',
       title: '租户插件设置',
     },
-    name: 'AdminCrudTenantPluginSetting',
+    name: toPathRouteName('/clob/V1/TenantPluginSetting'),
     path: '/clob/V1/TenantPluginSetting',
   },
 ];

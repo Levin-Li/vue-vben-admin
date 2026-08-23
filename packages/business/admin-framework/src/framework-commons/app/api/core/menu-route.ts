@@ -1,6 +1,8 @@
 import type { AdminBackendRouteMapping } from '@levin/admin-framework';
 import type { RouteRecordStringComponent } from '@vben/types';
 
+import { toPathRouteName } from '../../../page-registry';
+
 export interface BackendMenuInfo {
   actionType?: null | string;
   alwaysShow?: boolean;
@@ -23,6 +25,7 @@ interface RouteMappingLookup {
 
 const DEFAULT_LEAF_MENU_ICON = 'lucide:panel-right-open';
 const DEFAULT_GROUP_MENU_ICON = 'lucide:folder-tree';
+const FORBIDDEN_PAGE_COMPONENT = '/_core/fallback/forbidden.vue';
 const NOT_FOUND_PAGE_COMPONENT = '/_core/fallback/not-found.vue';
 const DEFAULT_BACKEND_MENU_ICONS = new Set([
   DEFAULT_GROUP_MENU_ICON,
@@ -59,9 +62,6 @@ function createRouteMappingLookup(
 
   routeMappings.forEach((item) => {
     byPath.set(item.path, item);
-    item.deprecatedPaths?.forEach((path) => {
-      byPath.set(path, item);
-    });
   });
 
   return {
@@ -125,12 +125,8 @@ function toAuthority(item: BackendMenuInfo) {
     : undefined;
 }
 
-function toRouteName(prefix: string, item: BackendMenuInfo) {
-  const raw = item.path || item.name || item.id || prefix;
-  const normalized =
-    raw.replaceAll(/[^a-z0-9]+/gi, '_').replaceAll(/^_+|_+$/g, '') || prefix;
-
-  return `${prefix}_${normalized}`;
+function toRouteName(path: string) {
+  return toPathRouteName(path);
 }
 
 function buildIframeSrc(path: string) {
@@ -232,7 +228,7 @@ function convertLeafRoute(
       meta: toMeta(item, '/index', {
         title: item.name || '首页',
       }),
-      name: 'Index',
+      name: toRouteName('/index'),
       path: '/index',
     };
   }
@@ -250,7 +246,7 @@ function convertLeafRoute(
         link: normalizedPath,
         openInNewWindow: true,
       }),
-      name: toRouteName('NewWindow', item),
+      name: toRouteName(finalPath),
       path: finalPath,
     };
   }
@@ -262,7 +258,7 @@ function convertLeafRoute(
         link: normalizedPath,
         redirectPath: normalizedPath,
       }),
-      name: toRouteName('Redirect', item),
+      name: toRouteName(finalPath),
       path: finalPath,
     };
   }
@@ -271,7 +267,7 @@ function convertLeafRoute(
     return {
       component: '/system/shared/menu-modal-page.vue',
       meta: toMeta(item, normalizedPath),
-      name: toRouteName('Modal', item),
+      name: toRouteName(finalPath),
       path: finalPath,
     };
   }
@@ -280,7 +276,7 @@ function convertLeafRoute(
     return {
       component: '/system/shared/server-action-page.vue',
       meta: toMeta(item, normalizedPath),
-      name: toRouteName('ServerAction', item),
+      name: toRouteName(finalPath),
       path: finalPath,
     };
   }
@@ -297,7 +293,7 @@ function convertLeafRoute(
         order: item.orderCode,
         title: mapping.title || item.name || normalizedPath || '未命名页面',
       },
-      name: mapping.name,
+      name: toRouteName(routePath),
       path: routePath,
     };
   }
@@ -306,7 +302,7 @@ function convertLeafRoute(
     return {
       component: NOT_FOUND_PAGE_COMPONENT,
       meta: toMissingRouteMeta(item, normalizedPath),
-      name: toRouteName('NotFound', item),
+      name: toRouteName(finalPath),
       path: finalPath,
     };
   }
@@ -317,7 +313,7 @@ function convertLeafRoute(
       meta: toMeta(item, normalizedPath, {
         link: buildIframeSrc(normalizedPath),
       }),
-      name: toRouteName('Html', item),
+      name: toRouteName(finalPath),
       path: finalPath,
     };
   }
@@ -327,7 +323,7 @@ function convertLeafRoute(
     meta: mapping
       ? toMeta(item, normalizedPath)
       : toMissingRouteMeta(item, normalizedPath),
-    name: mapping?.name || toRouteName('NotFound', item),
+    name: toRouteName(routePath),
     path: routePath,
   };
 }
@@ -342,10 +338,35 @@ export function convertMenuNode(
     .map((child) => convertMenuNode(child, lookup, depth + 1))
     .filter(Boolean) as RouteRecordStringComponent[];
 
-  if (children.length > 0) {
+  const canRenderGroupPage =
+    children.length > 0 &&
+    Boolean(normalizedPath) &&
+    normalizedPath !== '/' &&
+    (normalizePageType(item.pageType) !== 'LocalPage' ||
+      Boolean(findRouteMapping(lookup, normalizedPath)));
+  const groupPageRoute = canRenderGroupPage
+    ? convertLeafRoute(item, normalizedPath, lookup)
+    : undefined;
+  const groupChildren = groupPageRoute
+    ? [
+        {
+          ...groupPageRoute,
+          meta: { ...groupPageRoute.meta, hideInMenu: true },
+          path: '',
+        },
+        ...children,
+      ]
+    : children;
+
+  if (groupChildren.length > 0) {
+    const routePath =
+      normalizedPath && normalizedPath !== '/'
+        ? normalizedPath
+        : `/menu/${item.id || 'root'}`;
+
     return {
-      children,
-      component: depth === 0 ? 'BasicLayout' : 'RouteView',
+      children: groupChildren,
+      component: groupPageRoute || depth > 0 ? 'RouteView' : 'BasicLayout',
       meta: {
         authority: toAuthority(item),
         alwaysShow: item.alwaysShow,
@@ -357,15 +378,14 @@ export function convertMenuNode(
         ),
         menuActionType: normalizeActionType(item.actionType),
         menuPageType: normalizePageType(item.pageType),
+        navigateOnClick: Boolean(groupPageRoute),
         order: item.orderCode,
+        preserveComponentWhenChildren: Boolean(groupPageRoute),
         title: item.name || normalizedPath || '未命名分组',
       },
-      name: toRouteName('Group', item),
-      path:
-        normalizedPath && normalizedPath !== '/'
-          ? normalizedPath
-          : `/menu/${item.id || 'root'}`,
-      redirect: children[0]?.path,
+      name: toRouteName(routePath),
+      path: routePath,
+      ...(groupPageRoute ? {} : { redirect: children[0]?.path }),
     };
   }
 
@@ -393,14 +413,15 @@ export function buildMenuRoutes(
     }
 
     routes.push({
-      component: mapping.viewPath,
+      component: FORBIDDEN_PAGE_COMPONENT,
       meta: {
         crudResource: mapping.resource,
         hideInMenu: true,
         icon: mapping.icon,
+        menuRouteForbidden: true,
         title: mapping.title,
       },
-      name: mapping.name,
+      name: toRouteName(mapping.path),
       path: mapping.path,
     });
     existingPaths.add(mapping.path);

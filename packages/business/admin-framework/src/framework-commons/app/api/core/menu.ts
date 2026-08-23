@@ -1,6 +1,9 @@
 import type { RouteRecordStringComponent } from '@vben/types';
 
-import { collectAdminModuleBackendRouteMappings } from '@levin/admin-framework';
+import {
+  collectAdminModuleBackendRouteMappings,
+  toPathRouteName,
+} from '@levin/admin-framework';
 
 import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 
@@ -14,7 +17,7 @@ const MY_MESSAGES_ROUTE: RouteRecordStringComponent = {
     icon: 'lucide:bell',
     title: '我的消息',
   },
-  name: 'MyMessagesPage',
+  name: toPathRouteName('/clob/V1/MyMessages'),
   path: '/clob/V1/MyMessages',
 };
 

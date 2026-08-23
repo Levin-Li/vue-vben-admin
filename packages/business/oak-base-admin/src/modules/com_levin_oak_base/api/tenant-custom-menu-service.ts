@@ -4,21 +4,21 @@ import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
-  basePath: '/MenuDisplayLayout',
+  basePath: '/TenantCustomMenu',
   controllerClass:
-    'com.levin.oak.base.controller.BizMenuDisplayLayoutController',
-  description: '自定义菜单管理',
-  title: '自定义菜单',
-  type: '系统数据-自定义菜单',
+    'com.levin.oak.base.controller.BizTenantCustomMenuController',
+  description: '租户自定义菜单管理',
+  title: '租户自定义菜单',
+  type: '系统数据-租户自定义菜单',
 })
-export class MenuDisplayLayoutService extends RequestService {
+export class TenantCustomMenuService extends RequestService {
   constructor() {
     super(OAK_BASE_API_MODULE);
   }
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-自定义菜单',
+    type: '系统数据-租户自定义菜单',
     action: '清除缓存',
   })
   async clearCache(params?: any, options?: any) {
@@ -30,7 +30,7 @@ export class MenuDisplayLayoutService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-自定义菜单',
+    type: '系统数据-租户自定义菜单',
     action: '新增',
   })
   @CRUD.Op({
@@ -45,7 +45,7 @@ export class MenuDisplayLayoutService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-自定义菜单',
+    type: '系统数据-租户自定义菜单',
     action: '删除',
   })
   @CRUD.Op()
@@ -58,11 +58,11 @@ export class MenuDisplayLayoutService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-自定义菜单',
+    type: '系统数据-租户自定义菜单',
     action: '查询列表',
   })
   @CRUD.ListTable({
-    refEntityClass: 'com.levin.oak.base.entities.MenuDisplayLayout',
+    refEntityClass: 'com.levin.oak.base.entities.TenantCustomMenu',
   })
   async list(params?: any, options?: any) {
     return this.get('list', {
@@ -73,7 +73,7 @@ export class MenuDisplayLayoutService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-自定义菜单',
+    type: '系统数据-租户自定义菜单',
     action: '查看详情',
   })
   @CRUD.Op({
@@ -88,7 +88,7 @@ export class MenuDisplayLayoutService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-自定义菜单',
+    type: '系统数据-租户自定义菜单',
     action: '统计',
   })
   async stat(params?: any, options?: any) {
@@ -100,7 +100,7 @@ export class MenuDisplayLayoutService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-自定义菜单',
+    type: '系统数据-租户自定义菜单',
     action: '更新',
   })
   @CRUD.Op()
@@ -112,4 +112,4 @@ export class MenuDisplayLayoutService extends RequestService {
   }
 }
 
-export const menuDisplayLayoutService = new MenuDisplayLayoutService();
+export const tenantCustomMenuService = new TenantCustomMenuService();

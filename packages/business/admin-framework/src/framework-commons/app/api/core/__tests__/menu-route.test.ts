@@ -5,7 +5,6 @@ import { buildMenuRoutes, convertMenuNodeForTest } from '../menu-route';
 const testBackendRouteMappings = [
   {
     icon: 'lucide:shield-check',
-    name: 'Role',
     resource: 'Role',
     path: '/clob/V1/Role',
     title: '角色管理',
@@ -13,16 +12,13 @@ const testBackendRouteMappings = [
   },
   {
     icon: 'lucide:file-text',
-    name: 'Article',
     resource: 'Article',
     path: '/clob/V1/Article',
     title: '文章管理',
     viewPath: '/system/com_levin_oak_base/article/index.vue',
   },
   {
-    deprecatedPaths: ['/clob/V1/Permission'],
     icon: 'lucide:shield',
-    name: 'RbacPermissionItem',
     resource: 'RbacPermissionItem',
     path: '/clob/V1/RbacPermissionItem',
     title: '权限项定义',
@@ -30,7 +26,6 @@ const testBackendRouteMappings = [
   },
   {
     icon: 'lucide:settings',
-    name: 'SettingForTenant',
     resource: 'SettingForTenant',
     path: '/clob/V1/SettingForTenant',
     title: '租户系统设置',
@@ -88,7 +83,7 @@ describe('menu route conversion', () => {
     expect(route?.meta?.icon).toBe('lucide:star');
   });
 
-  it('routes deprecated backend menu paths to their current local page mapping', () => {
+  it('routes removed backend menu paths to the 404 page', () => {
     const route = convertMenuNodeForTest(
       {
         name: '权限管理',
@@ -98,11 +93,9 @@ describe('menu route conversion', () => {
       testBackendRouteMappings,
     );
 
-    expect(route?.path).toBe('/clob/V1/RbacPermissionItem');
-    expect(route?.meta?.title).toBe('权限项定义');
-    expect(route?.component).toBe(
-      '/system/com_levin_oak_base/rbac-permission-item/index.vue',
-    );
+    expect(route?.path).toBe('/clob/V1/Permission');
+    expect(route?.component).toBe('/_core/fallback/not-found.vue');
+    expect(route?.meta?.menuRouteMissingPage).toBe(true);
   });
 
   it('routes tenant setting path to the tenant setting local page', () => {
@@ -209,11 +202,124 @@ describe('menu route conversion', () => {
     expect(route?.meta?.openInNewWindow).toBe(true);
   });
 
-  it('does not create visible menus when backend menus are empty', () => {
+  it('routes pages absent from backend menus to the forbidden page', () => {
     const routes = buildMenuRoutes([], testBackendRouteMappings);
+    const roleRoute = routes.find((route) => route.path === '/clob/V1/Role');
 
     expect(routes.every((route) => route.meta?.hideInMenu)).toBe(true);
-    expect(routes.some((route) => route.path === '/clob/V1/Role')).toBe(true);
+    expect(roleRoute?.component).toBe('/_core/fallback/forbidden.vue');
+    expect(roleRoute?.meta?.menuRouteForbidden).toBe(true);
+  });
+
+  it('keeps a custom-layout leaf on its mapped page instead of adding a forbidden duplicate', () => {
+    const routes = buildMenuRoutes(
+      [
+        {
+          children: [
+            {
+              name: '自定义菜单',
+              pageType: 'LocalPage-本地页面',
+              path: '/clob/V1/TenantCustomMenu',
+            },
+          ],
+          id: 'custom-layout-group',
+          name: '测试分组',
+        },
+      ],
+      [
+        {
+          icon: 'lucide:waypoints',
+          resource: 'TenantCustomMenu',
+          path: '/clob/V1/TenantCustomMenu',
+          title: '自定义菜单',
+          viewPath: '/system/com_levin_oak_base/tenant-custom-menu/index.vue',
+        },
+      ],
+    );
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0]?.children?.[0]?.component).toBe(
+      '/system/com_levin_oak_base/tenant-custom-menu/index.vue',
+    );
+    expect(routes[0]?.children?.[0]?.meta?.menuRouteForbidden).toBeUndefined();
+  });
+
+  it('uses virtual-group ids to keep Chinese-named custom groups from replacing each other', () => {
+    const routes = buildMenuRoutes(
+      [
+        {
+          children: [
+            {
+              name: '自定义菜单',
+              pageType: 'LocalPage-本地页面',
+              path: '/clob/V1/TenantCustomMenu',
+            },
+          ],
+          id: 'tenant-custom-menu:root:0',
+          name: '测试分组',
+        },
+        {
+          children: [
+            {
+              name: '用户管理',
+              pageType: 'LocalPage-本地页面',
+              path: '/clob/V1/User',
+            },
+          ],
+          id: 'tenant-custom-menu:root:1',
+          name: '系统管理',
+        },
+      ],
+      [
+        {
+          icon: 'lucide:waypoints',
+          resource: 'TenantCustomMenu',
+          path: '/clob/V1/TenantCustomMenu',
+          title: '自定义菜单',
+          viewPath: '/system/com_levin_oak_base/tenant-custom-menu/index.vue',
+        },
+        {
+          icon: 'lucide:users',
+          resource: 'User',
+          path: '/clob/V1/User',
+          title: '用户管理',
+          viewPath: '/system/com_levin_oak_base/user/index.vue',
+        },
+      ],
+    );
+
+    expect(routes.map((route) => route.name)).toEqual([
+      '_menu_tenant-custom-menu:root:0',
+      '_menu_tenant-custom-menu:root:1',
+    ]);
+    expect(routes[0]?.children?.[0]?.component).toBe(
+      '/system/com_levin_oak_base/tenant-custom-menu/index.vue',
+    );
+    expect(routes[1]?.children?.[0]?.component).toBe(
+      '/system/com_levin_oak_base/user/index.vue',
+    );
+  });
+
+  it('keeps a virtual-group route name stable when its editable label changes', () => {
+    const buildGroupRoute = (name: string) =>
+      convertMenuNodeForTest({
+        children: [
+          {
+            name: '用户管理',
+            pageType: 'LocalPage-本地页面',
+            path: '/clob/V1/User',
+          },
+        ],
+        id: 'tenant-custom-menu:root:0',
+        name,
+      });
+
+    expect(buildGroupRoute('测试分组')?.name).toBe(
+      '_menu_tenant-custom-menu:root:0',
+    );
+    expect(buildGroupRoute('已修改的分组')?.name).toBe(
+      '_menu_tenant-custom-menu:root:0',
+    );
   });
 
   it('routes backend root menu to the default frontend home page', () => {
@@ -223,7 +329,7 @@ describe('menu route conversion', () => {
       path: '/',
     });
 
-    expect(route?.name).toBe('Index');
+    expect(route?.name).toBe('_index');
     expect(route?.path).toBe('/index');
     expect(route?.component).toBe('/_core/home/index.vue');
   });
@@ -268,6 +374,36 @@ describe('menu route conversion', () => {
     expect(nestedGroup?.children?.[0]?.component).toBe(
       '/system/com_levin_oak_base/article/index.vue',
     );
+  });
+
+  it('keeps a group page accessible while preserving its child menus', () => {
+    const route = convertMenuNodeForTest(
+      {
+        children: [
+          {
+            name: '角色管理',
+            pageType: 'LocalPage-本地页面',
+            path: '/clob/V1/Role',
+          },
+        ],
+        id: 'group:country',
+        name: '国家地区',
+        pageType: 'LocalPage-本地页面',
+        path: '/clob/V1/Article',
+      },
+      testBackendRouteMappings,
+    );
+
+    expect(route?.component).toBe('RouteView');
+    expect(route?.redirect).toBeUndefined();
+    expect(route?.meta?.navigateOnClick).toBe(true);
+    expect(route?.meta?.preserveComponentWhenChildren).toBe(true);
+    expect(route?.children?.[0]).toMatchObject({
+      component: '/system/com_levin_oak_base/article/index.vue',
+      meta: { hideInMenu: true },
+      path: '',
+    });
+    expect(route?.children?.[1]?.path).toBe('/clob/V1/Role');
   });
 
   it('keeps third-level menu groups from creating another basic layout', () => {

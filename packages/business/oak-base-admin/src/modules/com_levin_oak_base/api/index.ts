@@ -20,7 +20,7 @@ export * from './i18n-res-service';
 export * from './import-export-template-service';
 export * from './job-post-service';
 export * from './menu-service';
-export * from './menu-display-layout-service';
+export * from './tenant-custom-menu-service';
 export * from './nation-service';
 export * from './notice-service';
 export * from './notice-process-log-service';

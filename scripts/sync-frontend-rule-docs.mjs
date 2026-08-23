@@ -24,10 +24,7 @@ const ruleFiles = [
 ];
 
 const args = new Set(process.argv.slice(2));
-const includeProjectRule =
-  args.has('--include-project-rule') ||
-  process.env.FRONTEND_RULES_INCLUDE_PROJECT_RULE === 'true' ||
-  process.env.FRONTEND_RULES_INCLUDE_PROJECT_RULE === '1';
+const includeProjectRule = true;
 const packageRoots = args.has('--all')
   ? adminModulePackages.map((packagePath) => resolve(frontendRoot, packagePath))
   : [process.cwd()];

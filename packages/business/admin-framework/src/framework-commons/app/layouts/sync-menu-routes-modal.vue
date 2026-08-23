@@ -331,7 +331,7 @@ watch(menuList, (data) => {
       {{ totalCount }}
       个已启用前端模块的本地页面路由，已选择
       {{ selectedCount }}
-      个。可在上传前修改名称、备注，或删除不需要同步的页面。
+      个。可在上传前修改名称、备注，或删除不需要同步的路由菜单。
     </div>
 
     <Grid class="sync-menu-route-tree-grid">
@@ -416,10 +416,14 @@ watch(menuList, (data) => {
         <Input v-model:value="row.remark" placeholder="请输入备注" />
       </template>
       <template #viewPath="{ row }">
-        <span class="font-mono text-xs">{{ row.viewPath || '-' }}</span>
+        <span class="font-mono text-xs">
+          {{ row.viewPath || '目录节点（无页面）' }}
+        </span>
       </template>
       <template #sourceFilePath="{ row }">
-        <span class="font-mono text-xs">{{ row.sourceFilePath || '-' }}</span>
+        <span class="font-mono text-xs">
+          {{ row.sourceFilePath || '目录节点（无页面）' }}
+        </span>
       </template>
       <template #actions="{ row }">
         <Popconfirm

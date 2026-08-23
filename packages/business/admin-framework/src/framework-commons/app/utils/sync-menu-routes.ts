@@ -4,6 +4,8 @@ import type {
 } from '@levin/admin-framework';
 import type { RouteRecordRaw } from 'vue-router';
 
+import { toPathRouteName } from '../../page-registry';
+
 export const DEFAULT_SYNC_MENU_MODULE_ID = 'com.levin.oak.base';
 
 export interface SyncMenuItem {
@@ -58,6 +60,14 @@ function shouldSkipRoute(route: RouteRecordRaw) {
 function createRouteMappingLookup(
   routeMappings: AdminBackendRouteMapping[] = [],
 ) {
+  routeMappings.forEach((mapping) => {
+    if (!hasText(mapping.sourceFilePath) || !hasText(mapping.viewPath)) {
+      throw new Error(
+        `页面映射不完整：${mapping.path}。必须同时提供 viewPath 和 sourceFilePath。`,
+      );
+    }
+  });
+
   return new Map(routeMappings.map((item) => [item.path, item]));
 }
 
@@ -93,6 +103,7 @@ function toSyncMenuItems(
   moduleId: string,
   routeMappingLookup = createRouteMappingLookup(),
   parentPath = '',
+  requirePageMapping = false,
 ): SyncMenuItem[] {
   return routes.flatMap((route) => {
     const path = normalizePath(parentPath, route.path);
@@ -101,6 +112,7 @@ function toSyncMenuItems(
       moduleId,
       routeMappingLookup,
       path,
+      requirePageMapping,
     );
 
     if (shouldSkipRoute(route)) {
@@ -112,6 +124,13 @@ function toSyncMenuItems(
       return children;
     }
 
+    const mapping = routeMappingLookup.get(path);
+    if (requirePageMapping && children.length === 0 && !mapping) {
+      throw new Error(
+        `页面路由缺少完整映射：${path}。请在 backendRouteMappings 中提供 viewPath 和 sourceFilePath。`,
+      );
+    }
+
     return [
       applyRouteMapping(
         {
@@ -120,9 +139,9 @@ function toSyncMenuItems(
           label,
           moduleId,
           path,
-          remark: String(route.name || ''),
+          remark: toPathRouteName(path),
         },
-        routeMappingLookup.get(path),
+        mapping,
       ),
     ];
   });
@@ -171,7 +190,7 @@ function toSyncMenuItemFromMapping(
     label: mapping.title,
     moduleId,
     path: mapping.path,
-    remark: mapping.name,
+    remark: toPathRouteName(mapping.path),
     sourceFilePath: mapping.sourceFilePath,
     viewPath: mapping.viewPath,
   };
@@ -184,6 +203,8 @@ function buildModuleMenuItems(module: AdminFrontendModule): SyncMenuItem[] {
     module.routes || [],
     module.name,
     routeMappingLookup,
+    '',
+    true,
   );
   const menuKeys = collectSyncMenuKeys(menuItems);
 

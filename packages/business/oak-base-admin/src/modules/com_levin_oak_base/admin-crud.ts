@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import { toPathRouteName } from '@levin/admin-framework';
+
 export interface OakBaseAdminCrudResource {
   icon: string;
   name: string;
@@ -12,7 +14,6 @@ export interface CreateOakBaseAdminCrudRoutesOptions {
   icon?: string;
   localViewMap?: Record<string, NonNullable<RouteRecordRaw['component']>>;
   order?: number;
-  rootName?: string;
   rootPath?: string;
   title?: string;
 }
@@ -39,9 +40,9 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   { icon: 'lucide:map', name: 'Area', resource: 'Area', title: '区域管理' },
   {
     icon: 'lucide:waypoints',
-    name: 'MenuDisplayLayout',
-    resource: 'MenuDisplayLayout',
-    title: '自定义菜单',
+    name: 'TenantCustomMenu',
+    resource: 'TenantCustomMenu',
+    title: '租户自定义菜单',
   },
   {
     icon: 'lucide:file-text',
@@ -327,7 +328,7 @@ export const oakBaseAdminResourceViewMap: Record<
     import('./views/import-export-template/index.vue'),
   JobPost: () => import('./views/job-post/index.vue'),
   Menu: () => import('./views/menu/index.vue'),
-  MenuDisplayLayout: () => import('./views/menu-display-layout/index.vue'),
+  TenantCustomMenu: () => import('./views/tenant-custom-menu/index.vue'),
   Nation: () => import('./views/nation/index.vue'),
   Notice: () => import('./views/notice/index.vue'),
   NoticeProcessLog: () => import('./views/notice-process-log/index.vue'),
@@ -368,7 +369,6 @@ export function createOakBaseAdminCrudRoutes(
     icon = 'lucide:database',
     localViewMap = {},
     order = 120,
-    rootName = 'AdminCrudPages',
     rootPath = '/clob/V1/index',
     title = '后台管理',
   } = options;
@@ -380,7 +380,7 @@ export function createOakBaseAdminCrudRoutes(
         order,
         title,
       },
-      name: rootName,
+      name: toPathRouteName(rootPath),
       path: rootPath,
       children: oakBaseAdminCrudResources.map<RouteRecordRaw>((item) => {
         const component =
@@ -392,6 +392,8 @@ export function createOakBaseAdminCrudRoutes(
           throw new Error(`Missing admin page component for ${item.resource}.`);
         }
 
+        const path = `/clob/V1/${item.resource}`;
+
         return {
           component,
           meta: {
@@ -399,8 +401,8 @@ export function createOakBaseAdminCrudRoutes(
             icon: item.icon,
             title: item.title,
           },
-          name: `AdminCrud${item.name}`,
-          path: `/clob/V1/${item.resource}`,
+          name: toPathRouteName(path),
+          path,
         };
       }),
     },

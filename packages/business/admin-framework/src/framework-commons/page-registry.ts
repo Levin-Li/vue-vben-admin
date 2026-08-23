@@ -1,6 +1,15 @@
 export type AdminPageLoader = () => Promise<any>;
 export type AdminPageMap = Record<string, AdminPageLoader>;
 
+/**
+ * 从完整路由路径生成内部唯一标识。
+ *
+ * 路径是路由的唯一来源，保留路径其余字符，仅将每个斜杠替换为下划线。
+ */
+export function toPathRouteName(path: string): string {
+  return path.replaceAll('/', '_');
+}
+
 export function mergeAdminPageMaps(...pageMaps: AdminPageMap[]): AdminPageMap {
   return Object.assign({}, ...pageMaps);
 }

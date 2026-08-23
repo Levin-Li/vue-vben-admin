@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   defineAdminPageOverrides,
   normalizeAdminGlobPageMap,
+  toPathRouteName,
   type AdminPageMap,
 } from '../page-registry';
 
@@ -10,6 +11,12 @@ const loginLoader = async () => ({ default: 'login' });
 const roleLoader = async () => ({ default: 'role' });
 
 describe('admin page registry helpers', () => {
+  it('derives an internal route name by replacing every path slash', () => {
+    expect(toPathRouteName('/clob/V1/TenantCustomMenu')).toBe(
+      '_clob_V1_TenantCustomMenu',
+    );
+  });
+
   it('defines page overrides from the default pages directory', () => {
     const overrides = defineAdminPageOverrides({
       './pages/_core/authentication/login.vue': loginLoader,

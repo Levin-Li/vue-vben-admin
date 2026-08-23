@@ -10,6 +10,24 @@ import {
 import { oakBaseAdminBackendRouteMappings } from '../src/modules/com_levin_oak_base/backend-route-mappings';
 
 describe('oak base admin crud resources', () => {
+  it('does not store names in CRUD route mappings and derives route names from paths', () => {
+    expect(
+      oakBaseAdminBackendRouteMappings.every(
+        (mapping) => !Object.hasOwn(mapping, 'name'),
+      ),
+    ).toBe(true);
+
+    const [rootRoute] = createOakBaseAdminCrudRoutes();
+    expect(rootRoute?.name).toBe(
+      String(rootRoute?.path).replaceAll('/', '_'),
+    );
+    expect(
+      rootRoute?.children?.every(
+        ({ name, path }) => String(name) === String(path).replaceAll('/', '_'),
+      ),
+    ).toBe(true);
+  });
+
   it('uses the current rbac permission item page instead of the removed permission page', () => {
     expect(oakBaseAdminCrudResources).toEqual(
       expect.arrayContaining([
@@ -34,7 +52,7 @@ describe('oak base admin crud resources', () => {
 
     expect(rootRoute).toEqual(
       expect.objectContaining({
-        name: 'AdminCrudPages',
+        name: '_clob_V1_index',
         path: '/clob/V1/index',
       }),
     );
@@ -98,7 +116,7 @@ describe('oak base admin crud resources', () => {
 
     expect(onlineCodeGenRoute).toEqual(
       expect.objectContaining({
-        name: 'AdminCrudOnlineCodeGen',
+        name: '_clob_V1_OnlineCodeGen',
         path: '/clob/V1/OnlineCodeGen',
       }),
     );
@@ -135,7 +153,7 @@ describe('oak base admin crud resources', () => {
 
     expect(templateRoute).toEqual(
       expect.objectContaining({
-        name: 'AdminCrudImportExportTemplate',
+        name: '_clob_V1_ImportExportTemplate',
         path: '/clob/V1/ImportExportTemplate',
       }),
     );

@@ -26,10 +26,10 @@ import {
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 
-import { menuDisplayLayoutService } from '../../api/menu-display-layout-service';
+import { tenantCustomMenuService } from '../../api/tenant-custom-menu-service';
 import { menuService } from '../../api/menu-service';
 import CrudPage from '../crud-page.vue';
-import { menuDisplayLayoutPageCrudConfig } from './config';
+import { tenantCustomMenuPageCrudConfig } from './config';
 import {
   appendLayoutItem,
   appendLayoutItemAtTarget,
@@ -37,6 +37,8 @@ import {
   canDragLayoutItem,
   canMoveLayoutItem,
   cloneLayoutItems,
+  collectExpandedTreeKeys,
+  filterTreeByLabel,
   flattenMenuSources,
   hasLayoutPathAtTarget,
   insertLayoutItemBeside,
@@ -45,14 +47,14 @@ import {
   removeLayoutItem,
   toLayoutItem,
   toPersistedLayoutItems,
-  type MenuDisplayLayoutItem,
+  type TenantCustomMenuItem,
   type MenuDisplaySource,
   updateLayoutItemValue,
 } from './layout-tree';
 
 interface LayoutRecord {
   id: string;
-  itemList?: Array<Omit<MenuDisplayLayoutItem, 'key'>>;
+  itemList?: Array<Omit<TenantCustomMenuItem, 'key'>>;
   name: string;
   optimisticLock?: number;
   orderCode?: number;
@@ -67,6 +69,7 @@ interface SourceTreeNode extends MenuDisplaySource {
 }
 
 type LayoutDropMode = 'after' | 'before' | 'child';
+type ReloadLayoutList = () => Promise<void> | void;
 
 const MY_MENU_ROOT_KEY = 'root:my-menu';
 const MY_MENU_ROOT_LABEL = '菜单列表';
@@ -75,13 +78,16 @@ const LEGACY_MY_MENU_ROOT_LABEL = '我的菜单';
 const loading = ref(false);
 const saving = ref(false);
 const layoutRecords = ref<LayoutRecord[]>([]);
+const layoutListReload = ref<ReloadLayoutList>();
 const menuSources = ref<MenuDisplaySource[]>([]);
 const selectedLayoutId = ref<string>();
 const selectedItemKey = ref<string>();
 const selectedSourceKeys = ref<string[]>([]);
 const checkedLayoutKeys = ref<string[]>([]);
+const sourceSearchText = ref('');
+const layoutSearchText = ref('');
 const layoutExpandedKeys = ref<string[]>([MY_MENU_ROOT_KEY]);
-const layoutItems = ref<MenuDisplayLayoutItem[]>([]);
+const layoutItems = ref<TenantCustomMenuItem[]>([]);
 const isAdjusting = ref(false);
 const adjustingLayout = ref(false);
 const draggedSource = ref<MenuDisplaySource>();
@@ -103,15 +109,15 @@ const newGroupForm = reactive({
 const { hasPermission } = useRbacAccess();
 
 const createPermission = buildApiMethodPermissions(
-  menuDisplayLayoutService,
+  tenantCustomMenuService,
   'create',
 );
 const deletePermission = buildApiMethodPermissions(
-  menuDisplayLayoutService,
+  tenantCustomMenuService,
   'delete',
 );
 const updatePermission = buildApiMethodPermissions(
-  menuDisplayLayoutService,
+  tenantCustomMenuService,
   'update',
 );
 const canCreate = computed(() => hasPermission(createPermission));
@@ -135,6 +141,19 @@ const layoutOptions = computed(() =>
   })),
 );
 const sourceTreeData = computed(() => buildSourceTree(menuSources.value));
+const filteredSourceTreeData = computed(() =>
+  filterTreeByLabel(
+    sourceTreeData.value,
+    sourceSearchText.value,
+    (item) =>
+      [item.name, item.label, item.path, item.title]
+        .filter(Boolean)
+        .join(' '),
+  ),
+);
+const sourceSearchExpandedKeys = computed(() =>
+  collectExpandedTreeKeys(filteredSourceTreeData.value),
+);
 const sourceByKey = computed(
   () =>
     new Map(
@@ -153,9 +172,27 @@ const checkedLayoutItemKeys = computed(() =>
 const hasCheckedLayoutItems = computed(
   () => checkedLayoutItemKeys.value.length > 0,
 );
+const filteredLayoutItems = computed(() =>
+  filterTreeByLabel(
+    layoutItems.value,
+    layoutSearchText.value,
+    (item) => [item.name, item.label, item.path].filter(Boolean).join(' '),
+  ),
+);
+const hasLayoutSearchResults = computed(
+  () => filteredLayoutItems.value.length > 0,
+);
+const visibleLayoutExpandedKeys = computed(() =>
+  layoutSearchText.value.trim()
+    ? keepLayoutRootExpanded(
+        collectExpandedTreeKeys(filteredLayoutItems.value),
+        MY_MENU_ROOT_KEY,
+      )
+    : layoutExpandedKeys.value,
+);
 const layoutTreeData = computed<DataNode[]>(() => [
   {
-    children: toLayoutTreeData(layoutItems.value, sourcePathSet.value),
+    children: toLayoutTreeData(filteredLayoutItems.value, sourcePathSet.value),
     dataRef: {
       enable: true,
       key: MY_MENU_ROOT_KEY,
@@ -221,7 +258,7 @@ function sortSourceTree(items: SourceTreeNode[]): SourceTreeNode[] {
 }
 
 function toLayoutTreeData(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   validPaths: Set<string>,
 ): DataNode[] {
   return items.map((item) => {
@@ -243,9 +280,9 @@ function toLayoutTreeData(
 }
 
 function normalizeLayoutItems(
-  items: Array<Omit<MenuDisplayLayoutItem, 'key'>> = [],
+  items: Array<Omit<TenantCustomMenuItem, 'key'>> = [],
   parentKey = 'root',
-): MenuDisplayLayoutItem[] {
+): TenantCustomMenuItem[] {
   const sourceItems =
     parentKey === 'root' &&
     items.length === 1 &&
@@ -273,7 +310,7 @@ async function loadPage() {
   loading.value = true;
   try {
     const [layouts, menus] = await Promise.all([
-      menuDisplayLayoutService.list({
+      tenantCustomMenuService.list({
         pageIndex: 1,
         pageSize: 500,
       }),
@@ -377,7 +414,7 @@ function handleLayoutCheck(checkedKeys: unknown) {
   checkedLayoutKeys.value = keys.map(String);
 }
 
-function collectLayoutItemKeys(item: MenuDisplayLayoutItem): string[] {
+function collectLayoutItemKeys(item: TenantCustomMenuItem): string[] {
   return [
     item.key,
     ...(item.children || []).flatMap((child) => collectLayoutItemKeys(child)),
@@ -385,7 +422,7 @@ function collectLayoutItemKeys(item: MenuDisplayLayoutItem): string[] {
 }
 
 function syncLayoutAncestorChecks(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   checkedKeys: Set<string>,
 ) {
   return items.every((item) => {
@@ -606,7 +643,7 @@ function createLayoutItemForTarget(
 }
 
 function findLayoutParentKey(
-  items: MenuDisplayLayoutItem[],
+  items: TenantCustomMenuItem[],
   key: string,
   parentKey = MY_MENU_ROOT_KEY,
 ): string | undefined {
@@ -714,7 +751,7 @@ function addGroup() {
     return;
   }
 
-  const item: MenuDisplayLayoutItem = {
+  const item: TenantCustomMenuItem = {
     key: `group:${crypto.randomUUID()}`,
     label,
   };
@@ -724,8 +761,8 @@ function addGroup() {
   newGroupOpen.value = false;
 }
 
-function addChildLayoutItem(parent: MenuDisplayLayoutItem) {
-  const item: MenuDisplayLayoutItem = {
+function addChildLayoutItem(parent: TenantCustomMenuItem) {
+  const item: TenantCustomMenuItem = {
     key: `group:${crypto.randomUUID()}`,
     label: '新菜单',
   };
@@ -802,8 +839,8 @@ function removeCheckedLayoutItems() {
 }
 
 function getLayoutTreeItem(dataRef: DataNode) {
-  return (dataRef.dataRef as MenuDisplayLayoutItem | undefined) ||
-    (dataRef as MenuDisplayLayoutItem);
+  return (dataRef.dataRef as TenantCustomMenuItem | undefined) ||
+    (dataRef as TenantCustomMenuItem);
 }
 
 function updateLayoutItem(
@@ -905,7 +942,7 @@ async function createLayout() {
 
   saving.value = true;
   try {
-    await menuDisplayLayoutService.create({
+    await tenantCustomMenuService.create({
       enable: true,
       itemList: [],
       name,
@@ -928,13 +965,19 @@ async function saveLayout() {
 
   saving.value = true;
   try {
-    await menuDisplayLayoutService.update({
+    await tenantCustomMenuService.update({
       forceUpdateFields: ['itemList'],
       id: layout.id,
       itemList: toPersistedLayoutItems(layoutItems.value),
       optimisticLock: layout.optimisticLock,
     });
     layout.itemList = toPersistedLayoutItems(layoutItems.value);
+    layout.optimisticLock = (layout.optimisticLock ?? 0) + 1;
+    try {
+      await layoutListReload.value?.();
+    } catch {
+      message.warning('菜单已保存，但列表刷新失败');
+    }
     message.success('菜单展示布局已保存');
   } finally {
     saving.value = false;
@@ -949,7 +992,7 @@ async function deleteLayout() {
 
   saving.value = true;
   try {
-    await menuDisplayLayoutService.delete({ id: layout.id });
+    await tenantCustomMenuService.delete({ id: layout.id });
     selectedLayoutId.value = undefined;
     await loadPage();
     message.success('菜单展示布局已删除');
@@ -958,11 +1001,17 @@ async function deleteLayout() {
   }
 }
 
-async function openLayoutAdjuster(record: LayoutRecord) {
+async function openLayoutAdjuster(
+  record: LayoutRecord,
+  reload?: ReloadLayoutList,
+) {
   adjustingLayout.value = true;
   selectedLayoutId.value = record.id;
   selectedItemKey.value = MY_MENU_ROOT_KEY;
   checkedLayoutKeys.value = [];
+  layoutListReload.value = reload;
+  sourceSearchText.value = '';
+  layoutSearchText.value = '';
   layoutRecords.value = [record];
   layoutItems.value = normalizeLayoutItems(record.itemList || []);
   isAdjusting.value = true;
@@ -981,17 +1030,20 @@ function closeLayoutAdjuster() {
   isAdjusting.value = false;
   selectedItemKey.value = undefined;
   checkedLayoutKeys.value = [];
+  layoutListReload.value = undefined;
+  sourceSearchText.value = '';
+  layoutSearchText.value = '';
 }
 </script>
 
 <template>
-  <CrudPage :config="menuDisplayLayoutPageCrudConfig">
-    <template #row-actions="{ record }">
+  <CrudPage :config="tenantCustomMenuPageCrudConfig">
+    <template #row-actions="{ record, reload }">
       <Button
         v-if="canUpdate"
         size="small"
         type="link"
-        @click="openLayoutAdjuster(record)"
+        @click="openLayoutAdjuster(record, reload)"
       >
         调整菜单
       </Button>
@@ -1036,6 +1088,12 @@ function closeLayoutAdjuster() {
           <template #title>
             <div class="flex w-full items-center gap-2">
               <span>系统菜单</span>
+              <Input
+                v-model:value="sourceSearchText"
+                allow-clear
+                class="w-48"
+                placeholder="搜索菜单"
+              />
               <div class="flex-1" />
               <Button
                 size="small"
@@ -1046,12 +1104,15 @@ function closeLayoutAdjuster() {
             </div>
           </template>
           <Tree
-            v-if="sourceTreeData.length"
+            v-if="filteredSourceTreeData.length"
             checkable
             class="min-h-0"
             default-expand-all
             :checked-keys="selectedSourceKeys"
-            :tree-data="sourceTreeData"
+            :expanded-keys="
+              sourceSearchText.trim() ? sourceSearchExpandedKeys : undefined
+            "
+            :tree-data="filteredSourceTreeData"
             @check="handleSourceCheck"
           >
             <template #title="{ dataRef }">
@@ -1101,7 +1162,12 @@ function closeLayoutAdjuster() {
               </Tooltip>
             </template>
           </Tree>
-          <Empty v-else description="暂无可用菜单" />
+          <Empty
+            v-else
+            :description="
+              sourceSearchText.trim() ? '未找到匹配菜单' : '暂无可用菜单'
+            "
+          />
         </Card>
 
         <div class="flex items-center justify-center">
@@ -1126,6 +1192,12 @@ function closeLayoutAdjuster() {
           <template #title>
             <div class="flex w-full items-center gap-2">
               <span>我的菜单</span>
+              <Input
+                v-model:value="layoutSearchText"
+                allow-clear
+                class="w-48"
+                placeholder="搜索菜单"
+              />
               <div class="flex-1" />
               <Button
                 size="small"
@@ -1147,13 +1219,17 @@ function closeLayoutAdjuster() {
             v-if="!hasCurrentLayout"
             description="请先新增一个菜单展示布局"
           />
+          <Empty
+            v-else-if="layoutSearchText.trim() && !hasLayoutSearchResults"
+            description="未找到匹配菜单"
+          />
           <Tree
             v-else
             checkable
             class="-ml-2 -mt-2 min-h-0"
             :checked-keys="checkedLayoutKeys"
             :draggable="layoutTreeDraggable"
-            :expanded-keys="layoutExpandedKeys"
+            :expanded-keys="visibleLayoutExpandedKeys"
             :selected-keys="selectedItemKey ? [selectedItemKey] : []"
             :tree-data="layoutTreeData"
             @dragend="clearLayoutDropTarget"

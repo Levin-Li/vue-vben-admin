@@ -8,6 +8,52 @@ import {
 } from '../sync-menu-routes';
 
 describe('buildSyncMenuPayload', () => {
+  it('rejects module leaf routes without a complete page mapping', () => {
+    expect(() =>
+      buildModuleSyncMenuPayload([
+        {
+          backendRouteMappings: [],
+          name: 'com.levin.example',
+          routes: [
+            {
+              component: {},
+              meta: { title: '示例页面' },
+              name: '_example_V1_Example',
+              path: '/example/V1/Example',
+            },
+          ],
+          title: '示例模块',
+        },
+      ]),
+    ).toThrow(
+      '页面路由缺少完整映射：/example/V1/Example。请在 backendRouteMappings 中提供 viewPath 和 sourceFilePath。',
+    );
+  });
+
+  it('rejects incomplete module page mappings', () => {
+    expect(() =>
+      buildModuleSyncMenuPayload([
+        {
+          backendRouteMappings: [
+            {
+              icon: 'lucide:file',
+              path: '/example/V1/Example',
+              resource: 'Example',
+              sourceFilePath: '',
+              title: '示例页面',
+              viewPath: '/system/com_levin_example/example/index.vue',
+            },
+          ],
+          name: 'com.levin.example',
+          routes: [],
+          title: '示例模块',
+        },
+      ]),
+    ).toThrow(
+      '页面映射不完整：/example/V1/Example。必须同时提供 viewPath 和 sourceFilePath。',
+    );
+  });
+
   it('converts visible local routes to sync menu items', () => {
     const routes: RouteRecordRaw[] = [
       {
@@ -18,7 +64,7 @@ describe('buildSyncMenuPayload', () => {
               icon: 'lucide:user',
               title: '用户管理',
             },
-            name: 'User',
+            name: '_system_user',
             path: 'user',
           },
           {
@@ -27,7 +73,7 @@ describe('buildSyncMenuPayload', () => {
               hideInMenu: true,
               title: '隐藏页面',
             },
-            name: 'Hidden',
+            name: '_system_hidden',
             path: 'hidden',
           },
           {
@@ -36,7 +82,7 @@ describe('buildSyncMenuPayload', () => {
               link: 'https://example.com',
               title: '外链',
             },
-            name: 'Link',
+            name: '_system_link',
             path: 'link',
           },
         ],
@@ -44,7 +90,7 @@ describe('buildSyncMenuPayload', () => {
           icon: 'lucide:settings',
           title: '系统管理',
         },
-        name: 'System',
+        name: '_system',
         path: '/system',
       },
     ];
@@ -59,14 +105,14 @@ describe('buildSyncMenuPayload', () => {
               label: '用户管理',
               moduleId: 'com.levin.oak.base',
               path: '/system/user',
-              remark: 'User',
+              remark: '_system_user',
             },
           ],
           icon: 'lucide:settings',
           label: '系统管理',
           moduleId: 'com.levin.oak.base',
           path: '/system',
-          remark: 'System',
+          remark: '_system',
         },
       ],
     });
@@ -78,7 +124,6 @@ describe('buildSyncMenuPayload', () => {
         backendRouteMappings: [
           {
             icon: 'lucide:user',
-            name: 'UserCrudPage',
             resource: 'User',
             sourceFilePath: 'modules/com_levin_oak_base/views/user/index.vue',
             path: '/clob/V1/User',
@@ -96,7 +141,7 @@ describe('buildSyncMenuPayload', () => {
                   icon: 'lucide:user',
                   title: '用户管理',
                 },
-                name: 'User',
+                name: '_clob_V1_User',
                 path: '/clob/V1/User',
               },
             ],
@@ -104,7 +149,7 @@ describe('buildSyncMenuPayload', () => {
               icon: 'lucide:database',
               title: '基础模块',
             },
-            name: 'OakBase',
+            name: '_oak-base',
             path: '/oak-base',
           },
         ],
@@ -114,7 +159,6 @@ describe('buildSyncMenuPayload', () => {
         backendRouteMappings: [
           {
             icon: 'lucide:file-text',
-            name: 'ContractCrudPage',
             resource: 'Contract',
             sourceFilePath:
               'modules/com_levin_contract/views/contract/index.vue',
@@ -139,7 +183,7 @@ describe('buildSyncMenuPayload', () => {
               label: '用户管理',
               moduleId: 'com.levin.oak.base',
               path: '/clob/V1/User',
-              remark: 'User',
+              remark: '_clob_V1_User',
               sourceFilePath: 'modules/com_levin_oak_base/views/user/index.vue',
               viewPath: '/system/com_levin_oak_base/user/index.vue',
             },
@@ -148,7 +192,7 @@ describe('buildSyncMenuPayload', () => {
           label: '基础模块',
           moduleId: 'com.levin.oak.base',
           path: '/oak-base',
-          remark: 'OakBase',
+          remark: '_oak-base',
         },
         {
           children: [],
@@ -156,7 +200,7 @@ describe('buildSyncMenuPayload', () => {
           label: '合同管理',
           moduleId: 'com.levin.contract',
           path: '/contract/V1/Contract',
-          remark: 'ContractCrudPage',
+          remark: '_contract_V1_Contract',
           sourceFilePath: 'modules/com_levin_contract/views/contract/index.vue',
           viewPath: '/system/com_levin_contract/contract/index.vue',
         },
@@ -170,7 +214,6 @@ describe('buildSyncMenuPayload', () => {
         backendRouteMappings: [
           {
             icon: 'lucide:home',
-            name: 'HomeMapping',
             resource: 'Home',
             sourceFilePath: 'modules/com_levin_oak_base/views/home/index.vue',
             path: '/clob/V1/index',
@@ -186,14 +229,23 @@ describe('buildSyncMenuPayload', () => {
               icon: 'lucide:home',
               title: '首页',
             },
-            name: 'HomeRoute',
+            name: '_clob_V1_index',
             path: '/clob/V1/index',
           },
         ],
         title: '基础模块',
       },
       {
-        backendRouteMappings: [],
+        backendRouteMappings: [
+          {
+            icon: 'lucide:home',
+            path: '/clob/V1/index',
+            resource: 'Home',
+            sourceFilePath: 'modules/com_levin_oak_base/views/home/index.vue',
+            title: '首页映射',
+            viewPath: '/system/com_levin_oak_base/home/index.vue',
+          },
+        ],
         name: 'com.levin.oak.base',
         routes: [
           {
@@ -202,7 +254,7 @@ describe('buildSyncMenuPayload', () => {
               icon: 'lucide:home',
               title: '重复首页',
             },
-            name: 'HomeRouteDuplicate',
+            name: '_clob_V1_index',
             path: '/clob/V1/index',
           },
         ],
@@ -225,7 +277,16 @@ describe('buildSyncMenuPayload', () => {
   it('keeps the same path for different modules', () => {
     const payload = buildModuleSyncMenuPayload([
       {
-        backendRouteMappings: [],
+        backendRouteMappings: [
+          {
+            icon: 'lucide:home',
+            path: '/shared/index',
+            resource: 'OakSharedHome',
+            sourceFilePath: 'modules/com_levin_oak_base/views/shared/index.vue',
+            title: '基础首页',
+            viewPath: '/system/com_levin_oak_base/shared/index.vue',
+          },
+        ],
         name: 'com.levin.oak.base',
         routes: [
           {
@@ -233,14 +294,23 @@ describe('buildSyncMenuPayload', () => {
             meta: {
               title: '基础首页',
             },
-            name: 'OakHome',
+            name: '_shared_index',
             path: '/shared/index',
           },
         ],
         title: '基础模块',
       },
       {
-        backendRouteMappings: [],
+        backendRouteMappings: [
+          {
+            icon: 'lucide:home',
+            path: '/shared/index',
+            resource: 'ContractSharedHome',
+            sourceFilePath: 'modules/com_levin_contract/views/shared/index.vue',
+            title: '合同首页',
+            viewPath: '/system/com_levin_contract/shared/index.vue',
+          },
+        ],
         name: 'com.levin.contract',
         routes: [
           {
@@ -248,7 +318,7 @@ describe('buildSyncMenuPayload', () => {
             meta: {
               title: '合同首页',
             },
-            name: 'ContractHome',
+            name: '_shared_index',
             path: '/shared/index',
           },
         ],
