@@ -11,9 +11,12 @@ import { spawnSync } from 'node:child_process';
 import {
   acquirePublishLock,
   packPackage,
+  packWorkspacePackage,
   releasePublishLock,
+  verifyTarballDependencyProtocols,
   verifyBuiltRouteAssets,
   verifyTarballRouteAssets,
+  verifyTarballStandaloneInstall,
 } from './publish-artifact-gate.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,11 +63,12 @@ function readProjectRegistry() {
   return registryLine?.slice('registry='.length) || undefined;
 }
 
+const fallbackRegistry = readProjectRegistry();
 const registry =
   process.env.NPM_REGISTRY ||
   process.env.NPM_CONFIG_REGISTRY ||
   process.env.npm_config_registry ||
-  readProjectRegistry();
+  fallbackRegistry;
 const tag = process.env.NPM_TAG || undefined;
 const token =
   process.env.NPM_TOKEN ||
@@ -238,13 +242,14 @@ try {
     mkdirSync(outputDir, { recursive: true });
 
     for (const packageInfo of selectedPackages) {
-      const tarball = packPackage(packageInfo, outputDir);
+      const tarball = packWorkspacePackage(packageInfo, outputDir);
       verifyTarballRouteAssets(
         packageInfo,
         tarball,
         routeAssetsByPackage.get(packageInfo.name),
         '本地 tarball',
       );
+      verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
     }
 
     console.log(`Packed admin modules to ${outputDir}`);
@@ -252,7 +257,11 @@ try {
     const userConfig = createPublishNpmrc();
     const publishEnv = userConfig ? { NPM_CONFIG_USERCONFIG: userConfig } : {};
     const remotePackEnv = registry
-      ? { ...publishEnv, NPM_CONFIG_REGISTRY: registry }
+      ? {
+          ...publishEnv,
+          NPM_CONFIG_FALLBACK_REGISTRY: fallbackRegistry,
+          NPM_CONFIG_REGISTRY: registry,
+        }
       : publishEnv;
 
     try {
@@ -262,10 +271,12 @@ try {
       for (const packageInfo of selectedPackages) {
         const json = JSON.parse(readFileSync(resolve(packageInfo.dir, 'package.json'), 'utf8'));
         const packageOutputDir = resolve(packageTarballDir, json.name.replaceAll('/', '__'));
-        const tarball = packPackage(packageInfo, packageOutputDir);
+        const tarball = packWorkspacePackage(packageInfo, packageOutputDir);
         const routeAssets = routeAssetsByPackage.get(packageInfo.name);
 
         verifyTarballRouteAssets(packageInfo, tarball, routeAssets, '本地 tarball');
+        verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
+        verifyTarballStandaloneInstall(packageInfo, tarball, remotePackEnv);
 
         const publishArgs = ['publish', tarball, '--ignore-scripts'];
 
@@ -291,6 +302,7 @@ try {
           frontendRoot,
         );
         verifyTarballRouteAssets(packageInfo, remoteTarball, routeAssets, '私服 tarball');
+        verifyTarballDependencyProtocols(packageInfo, remoteTarball, '私服 tarball');
       }
     } finally {
       if (userConfig) {

@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   existsSync,
+  mkdtempSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -8,7 +9,8 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, join, relative, resolve } from 'node:path';
 
 export function getDynamicRouteVueAssets(packageInfo) {
   const sourceRoot = resolve(packageInfo.dir, 'src');
@@ -50,6 +52,101 @@ export function verifyTarballRouteAssets(packageInfo, tarballPath, requiredPaths
   assertRequiredPaths(packageInfo, requiredPaths, new Set(entries), location);
 }
 
+export function verifyTarballDependencyProtocols(packageInfo, tarballPath, location) {
+  const manifest = JSON.parse(
+    execFileSync('tar', ['-xOf', tarballPath, 'package/package.json'], {
+      encoding: 'utf8',
+    }),
+  );
+  const invalidDependencies = [];
+
+  for (const section of [
+    'dependencies',
+    'optionalDependencies',
+    'peerDependencies',
+    'devDependencies',
+  ]) {
+    for (const [name, version] of Object.entries(manifest[section] || {})) {
+      if (isForbiddenPublishedDependencyProtocol(version)) {
+        invalidDependencies.push(`${section}.${name}=${version}`);
+      }
+    }
+  }
+
+  if (invalidDependencies.length > 0) {
+    throw new Error(
+      `${packageInfo.name} ${location}包含未转换的依赖协议: ${invalidDependencies.join(', ')}`,
+    );
+  }
+}
+
+export function verifyTarballStandaloneInstall(packageInfo, tarballPath, extraEnv = {}) {
+  const consumerDir = mkdtempSync(
+    join(tmpdir(), 'levin-package-install-smoke-'),
+  );
+
+  try {
+    writeFileSync(
+      resolve(consumerDir, 'package.json'),
+      `${JSON.stringify(
+        {
+          dependencies: {
+            [packageInfo.name]: `file:${tarballPath}`,
+          },
+          name: 'levin-package-install-smoke',
+          private: true,
+          version: '0.0.0',
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    writeStandaloneConsumerNpmrc(consumerDir, extraEnv);
+
+    const installEnv = { ...process.env, ...extraEnv };
+    delete installEnv.NPM_CONFIG_FALLBACK_REGISTRY;
+    delete installEnv.NPM_CONFIG_REGISTRY;
+    delete installEnv.NPM_CONFIG_USERCONFIG;
+
+    const result = spawnSync(
+      'pnpm',
+      ['install', '--ignore-scripts', '--no-lockfile'],
+      {
+        cwd: consumerDir,
+        encoding: 'utf8',
+        env: installEnv,
+      },
+    );
+
+    if (result.status !== 0) {
+      throw new Error(
+        `${packageInfo.name} 独立安装烟测失败: ${result.stderr || result.stdout}`,
+      );
+    }
+  } finally {
+    rmSync(consumerDir, { recursive: true, force: true });
+  }
+}
+
+export function packWorkspacePackage(packageInfo, destination) {
+  mkdirSync(destination, { recursive: true });
+  const result = spawnSync(
+    'pnpm',
+    ['pack', '--json', '--pack-destination', destination],
+    {
+      cwd: packageInfo.dir,
+      encoding: 'utf8',
+      env: process.env,
+    },
+  );
+
+  if (result.status !== 0) {
+    throw new Error(`pnpm pack 失败: ${result.stderr || result.stdout}`);
+  }
+
+  return resolve(destination, JSON.parse(result.stdout).filename);
+}
+
 export function packPackage(packageInfo, destination, packageSpec, extraEnv = {}, cwd) {
   mkdirSync(destination, { recursive: true });
   const args = ['pack'];
@@ -68,6 +165,45 @@ export function packPackage(packageInfo, destination, packageSpec, extraEnv = {}
   }
 
   return resolve(destination, JSON.parse(result.stdout)[0].filename);
+}
+
+function isForbiddenPublishedDependencyProtocol(version) {
+  return /^(catalog:|workspace:)/.test(String(version));
+}
+
+function writeStandaloneConsumerNpmrc(consumerDir, extraEnv) {
+  const internalRegistry = String(extraEnv.NPM_CONFIG_REGISTRY || '').trim();
+  const fallbackRegistry = String(
+    extraEnv.NPM_CONFIG_FALLBACK_REGISTRY || '',
+  ).trim();
+
+  if (!internalRegistry || !fallbackRegistry) {
+    return;
+  }
+
+  const authLines = readFileSync(
+    String(extraEnv.NPM_CONFIG_USERCONFIG || ''),
+    'utf8',
+  )
+    .split(/\r?\n/)
+    .filter(
+      (line) =>
+        line.startsWith('//') ||
+        line.startsWith('always-auth=') ||
+        line.startsWith('auth-type='),
+    );
+
+  writeFileSync(
+    resolve(consumerDir, '.npmrc'),
+    [
+      `registry=${fallbackRegistry}`,
+      `@levin:registry=${internalRegistry}`,
+      `@vben:registry=${internalRegistry}`,
+      `@vben-core:registry=${internalRegistry}`,
+      ...authLines,
+      '',
+    ].join('\n'),
+  );
 }
 
 export function acquirePublishLock(lockPath) {
