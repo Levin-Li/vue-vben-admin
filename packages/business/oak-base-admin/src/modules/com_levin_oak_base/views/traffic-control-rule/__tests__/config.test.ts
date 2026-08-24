@@ -136,7 +136,7 @@ describe('traffic control rule page config', () => {
       key: 'tenantId',
       layoutGroup: 'ownership',
       layoutOrder: 1,
-      visibleForSaasUser: true,
+      visibleForPlatformUser: true,
     });
     expect(fieldsByKey('rejectMessage')).toMatchObject({
       fullRow: true,

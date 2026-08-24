@@ -26,7 +26,7 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       type: 'select',
-      visibleForSaasUser: true,
+      visibleForPlatformUser: true,
     },
     {
       key: '__tenant',
@@ -35,7 +35,7 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
       form: false,
       table: true,
       type: 'tenant',
-      visibleForSaasUser: true,
+      visibleForPlatformUser: true,
       width: 160,
     },
     {

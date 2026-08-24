@@ -17,8 +17,8 @@ export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
   defaultQuery: { pageIndex: 1, pageSize: 10 },
   description: '将自定义域名邮件路由至一个或多个外部邮箱和 HTTPS Webhook。DNS 按 Forward Email 验证记录手动配置；Webhook 由 Forward Email 原生投递，按其 X-Webhook-Signature 和重试语义处理。',
   fields: [
-    { key: 'tenantId', label: '所属租户', loadOptions: tenantOptionsLoader, remoteSearch: true, search: true, type: 'select', visibleForSaasUser: true },
-    { key: '__tenant', label: '所属租户', fixed: 'left', form: false, table: true, type: 'tenant', visibleForSaasUser: true, width: 160 },
+    { key: 'tenantId', label: '所属租户', loadOptions: tenantOptionsLoader, remoteSearch: true, search: true, type: 'select', visibleForPlatformUser: true },
+    { key: '__tenant', label: '所属租户', fixed: 'left', form: false, table: true, type: 'tenant', visibleForPlatformUser: true, width: 160 },
     { key: 'id', label: '路由ID', fixed: 'left', form: false, table: true, width: 160 },
     { key: 'name', label: '路由名称', required: true, search: true, table: true, width: 180 },
     { key: 'mailDomain', label: '邮件域名', required: true, search: true, table: true, width: 240 },

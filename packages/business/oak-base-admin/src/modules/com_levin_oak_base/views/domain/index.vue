@@ -168,7 +168,7 @@ function filterSelectOption(input: string, option: any) {
   return label.includes(keyword) || value.includes(keyword);
 }
 
-const isSaasUser = computed(() => {
+const isPlatformUser = computed(() => {
   const userInfo = userStore.userInfo as Record<string, any>;
   let roles: any[] = [];
 
@@ -179,8 +179,8 @@ const isSaasUser = computed(() => {
   }
 
   return (
-    userInfo?.saasUser === true ||
-    userInfo?.isSaasUser === true ||
+    userInfo?.platformUser === true ||
+    userInfo?.isPlatformUser === true ||
     userInfo?.saasAdmin === true ||
     userInfo?.isSaasAdmin === true ||
     roles.some((role) => String(role || '').startsWith('R_SAAS'))
@@ -391,7 +391,7 @@ async function submitDomainApply(loadList?: () => Promise<void> | void) {
       domain,
       domainApplyApi,
       providerName: applyDomainForm.providerName,
-      tenantId: isSaasUser.value ? applyDomainForm.tenantId : undefined,
+      tenantId: isPlatformUser.value ? applyDomainForm.tenantId : undefined,
     });
     message.success('域名申请成功');
     closeDomainApply();
@@ -405,7 +405,7 @@ async function submitDomainApply(loadList?: () => Promise<void> | void) {
 
 onMounted(async () => {
   providerOptions.value = await tenantSiteVendorOptionsLoader();
-  if (isSaasUser.value) {
+  if (isPlatformUser.value) {
     tenantOptions.value = await tenantOptionsLoader();
   }
 });
@@ -438,7 +438,7 @@ onMounted(async () => {
         "
       >
         <Form layout="vertical">
-          <Form.Item v-if="isSaasUser" label="所属租户">
+          <Form.Item v-if="isPlatformUser" label="所属租户">
             <Select
               v-model:value="applyDomainForm.tenantId"
               allow-clear

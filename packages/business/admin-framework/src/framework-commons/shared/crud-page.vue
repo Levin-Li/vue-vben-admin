@@ -435,7 +435,7 @@ let listTableTabsDragState: null | {
   startY: number;
 } = null;
 
-const isSaasUser = computed(() => {
+const isPlatformUser = computed(() => {
   const userInfo = userStore.userInfo as Record<string, any>;
   let roles: any[] = [];
 
@@ -446,8 +446,8 @@ const isSaasUser = computed(() => {
   }
 
   return (
-    userInfo?.saasUser === true ||
-    userInfo?.isSaasUser === true ||
+    userInfo?.platformUser === true ||
+    userInfo?.isPlatformUser === true ||
     userInfo?.saasAdmin === true ||
     userInfo?.isSaasAdmin === true ||
     roles.some((role) => String(role || '').startsWith('R_SAAS'))
@@ -455,8 +455,8 @@ const isSaasUser = computed(() => {
 });
 
 function isFieldVisible(field: CrudFieldConfig) {
-  if (field.visibleForSaasUser) {
-    return isSaasUser.value;
+  if (field.visibleForPlatformUser) {
+    return isPlatformUser.value;
   }
 
   return true;

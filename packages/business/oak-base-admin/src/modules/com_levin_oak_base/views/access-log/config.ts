@@ -36,7 +36,7 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
       remoteSearch: true,
       search: true,
       type: 'select',
-      visibleForSaasUser: true,
+      visibleForPlatformUser: true,
     },
     {
       key: 'containsRemoteAddr',
@@ -52,7 +52,7 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
       form: false,
       table: true,
       type: 'tenant',
-      visibleForSaasUser: true,
+      visibleForPlatformUser: true,
       width: 180,
     },
     {

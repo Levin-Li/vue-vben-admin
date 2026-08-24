@@ -19,7 +19,7 @@ export const demoPageCrudConfig: CrudPageConfig = {
       remoteSearch: true,
       search: true,
       type: 'select',
-      visibleForSaasUser: true,
+      visibleForPlatformUser: true,
     },
     {
       key: '__tenant',
@@ -28,7 +28,7 @@ export const demoPageCrudConfig: CrudPageConfig = {
       form: false,
       table: true,
       type: 'tenant',
-      visibleForSaasUser: true,
+      visibleForPlatformUser: true,
       width: 180,
     },
     {

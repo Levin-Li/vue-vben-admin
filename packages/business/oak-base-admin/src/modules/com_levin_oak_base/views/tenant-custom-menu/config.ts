@@ -9,8 +9,8 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
   defaultFormValues: { editable: true, enable: true, itemList: [], orderCode: 1000 },
   defaultQuery: { pageIndex: 1, pageSize: 10 },
   fields: [
-    { key: 'tenantId', label: '归属租户', loadOptions: tenantOptionsLoader, remoteSearch: true, search: true, type: 'select', visibleForSaasUser: true },
-    { key: '__tenant', label: '归属租户', fixed: 'left', form: false, table: true, type: 'tenant', visibleForSaasUser: true, width: 180 },
+    { key: 'tenantId', label: '归属租户', loadOptions: tenantOptionsLoader, remoteSearch: true, search: true, type: 'select', visibleForPlatformUser: true },
+    { key: '__tenant', label: '归属租户', fixed: 'left', form: false, table: true, type: 'tenant', visibleForPlatformUser: true, width: 180 },
     { key: 'id', label: '布局ID', fixed: 'left', form: false, search: true, table: true, width: 180 },
     { key: 'containsName', label: '名称', form: false, search: true },
     { key: 'name', label: '名称', required: true, table: true, width: 180 },

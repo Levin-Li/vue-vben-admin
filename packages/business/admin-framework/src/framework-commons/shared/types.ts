@@ -90,7 +90,7 @@ export interface CrudFieldConfig {
   type?: CrudFieldType;
   uploadPath?: string;
   valueType?: 'boolean' | 'number' | 'string';
-  visibleForSaasUser?: boolean;
+  visibleForPlatformUser?: boolean;
   width?: number;
 }
 

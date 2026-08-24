@@ -37,7 +37,7 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
       remoteSearch: true,
       search: true,
       type: 'select',
-      visibleForSaasUser: true,
+      visibleForPlatformUser: true,
     },
     {
       key: '__tenant',
@@ -46,7 +46,7 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
       form: false,
       table: true,
       type: 'tenant',
-      visibleForSaasUser: true,
+      visibleForPlatformUser: true,
       width: 180,
     },
     {
