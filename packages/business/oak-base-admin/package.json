@@ -1,6 +1,6 @@
 {
   "name": "@levin/oak-base-admin",
-  "version": "5.6.60",
+  "version": "5.6.61",
   "description": "Levin Oak base admin frontend module.",
   "license": "MIT",
   "type": "module",
@@ -59,7 +59,7 @@
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": "5.6.62",
+    "@levin/admin-framework": "5.6.63",
     "@vben/common-ui": "5.6.10",
     "@vben/icons": "5.6.8",
     "@vben/plugins": "5.6.9",
