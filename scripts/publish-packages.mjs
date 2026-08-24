@@ -502,6 +502,9 @@ if (selectedPackages.length === 0) {
 
 const userConfig = createPublishNpmrc();
 const publishEnv = userConfig ? { NPM_CONFIG_USERCONFIG: userConfig } : {};
+const remotePackEnv = registry
+  ? { ...publishEnv, NPM_CONFIG_REGISTRY: registry }
+  : publishEnv;
 
 if (mode === 'publish') {
   acquirePublishLock(publishLockPath);
@@ -557,7 +560,7 @@ try {
           packageInfo,
           resolve(packageOutputDir, 'remote'),
           `${packageInfo.name}@${packageInfo.version}`,
-          publishEnv,
+          remotePackEnv,
           frontendRoot,
         );
         verifyTarballRouteAssets(packageInfo, remoteTarball, routeAssets, '私服 tarball');
@@ -575,7 +578,7 @@ try {
         packageInfo,
         resolve(packageOutputDir, 'remote'),
         `${packageInfo.name}@${packageInfo.version}`,
-        publishEnv,
+        remotePackEnv,
         frontendRoot,
       );
       verifyTarballRouteAssets(packageInfo, remoteTarball, routeAssets, '私服 tarball');

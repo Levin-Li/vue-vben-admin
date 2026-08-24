@@ -251,6 +251,9 @@ try {
   } else {
     const userConfig = createPublishNpmrc();
     const publishEnv = userConfig ? { NPM_CONFIG_USERCONFIG: userConfig } : {};
+    const remotePackEnv = registry
+      ? { ...publishEnv, NPM_CONFIG_REGISTRY: registry }
+      : publishEnv;
 
     try {
       rmSync(packageTarballDir, { recursive: true, force: true });
@@ -284,7 +287,7 @@ try {
           packageInfo,
           resolve(packageOutputDir, 'remote'),
           `${json.name}@${json.version}`,
-          publishEnv,
+          remotePackEnv,
           frontendRoot,
         );
         verifyTarballRouteAssets(packageInfo, remoteTarball, routeAssets, '私服 tarball');
