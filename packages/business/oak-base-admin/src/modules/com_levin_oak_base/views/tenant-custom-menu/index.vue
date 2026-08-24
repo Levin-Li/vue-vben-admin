@@ -444,6 +444,7 @@ function syncLayoutAncestorChecks(
 function toggleLayoutItemCheck(dataRef: DataNode) {
   const item = getLayoutTreeItem(dataRef);
   if (item.key === MY_MENU_ROOT_KEY) {
+    selectedItemKey.value = MY_MENU_ROOT_KEY;
     return;
   }
 

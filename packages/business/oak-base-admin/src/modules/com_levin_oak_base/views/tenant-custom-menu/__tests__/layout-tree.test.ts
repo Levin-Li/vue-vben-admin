@@ -311,13 +311,17 @@ describe('menu display layout tree', () => {
     expect(adjusterSource).toContain('@click.stop="addMenu(dataRef)"');
   });
 
-  it('toggles layout-menu checks from node content without changing the current target selection', () => {
+  it('toggles non-root layout-menu checks without changing the current target selection', () => {
     expect(adjusterSource).toContain('function toggleLayoutItemCheck');
     expect(adjusterSource).toContain('function syncLayoutAncestorChecks');
     expect(adjusterSource).toContain('function collectLayoutItemKeys');
     expect(adjusterSource).toContain('syncLayoutAncestorChecks(layoutItems.value, checkedKeys);');
     expect(adjusterSource).toContain('@click.stop="toggleLayoutItemCheck(dataRef)"');
-    expect(getAdjusterFunctionSource('toggleLayoutItemCheck')).not.toMatch(
+    const toggleSource = getAdjusterFunctionSource('toggleLayoutItemCheck');
+    const nonRootCheckSource = toggleSource.slice(
+      toggleSource.indexOf('const checkedKeys'),
+    );
+    expect(nonRootCheckSource).not.toMatch(
       /selectedItemKey\.value\s*=/,
     );
   });
@@ -564,6 +568,12 @@ describe('menu display layout tree', () => {
   it('selects the permanent virtual root when opening the layout adjuster', () => {
     expect(adjusterSource).toMatch(
       /async function openLayoutAdjuster[\s\S]*?selectedItemKey\.value = MY_MENU_ROOT_KEY/,
+    );
+  });
+
+  it('selects the virtual root as the menu-add target without batch-checking it', () => {
+    expect(getAdjusterFunctionSource('toggleLayoutItemCheck')).toMatch(
+      /if \(item\.key === MY_MENU_ROOT_KEY\) \{\s+selectedItemKey\.value = MY_MENU_ROOT_KEY;\s+return;/,
     );
   });
 

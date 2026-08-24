@@ -1,7 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { tenantCustomMenuService } from '../../api/tenant-custom-menu-service';
-import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
+import {
+  DEFAULT_CRUD_MODAL_WIDTH,
+  tenantOptionsLoader,
+  tenantSiteDomainOptionsLoader,
+} from '../api-module';
 
 export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantCustomMenu',
@@ -14,7 +18,19 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     { key: 'id', label: '布局ID', fixed: 'left', form: false, search: true, table: true, width: 180 },
     { key: 'containsName', label: '名称', form: false, search: true },
     { key: 'name', label: '名称', required: true, table: true, width: 180 },
-    { key: 'domain', label: '域名', placeholder: '留空表示租户公共菜单', search: true, table: true, type: 'input', width: 220 },
+    {
+      key: 'domain',
+      label: '域名',
+      allowInput: true,
+      help: '可从租户站点查询选择，也可直接录入；留空表示租户公共菜单',
+      loadOptions: tenantSiteDomainOptionsLoader,
+      placeholder: '输入或从租户站点选择域名',
+      remoteSearch: true,
+      search: true,
+      table: true,
+      type: 'select',
+      width: 220,
+    },
     { key: 'itemList', form: false, label: '菜单列表', type: 'json' },
     { key: 'orderCode', label: '排序代码', table: true, type: 'number', width: 110 },
     { key: 'enable', label: '是否启用', search: true, table: true, type: 'switch', valueType: 'boolean', width: 100 },
