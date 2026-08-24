@@ -2,14 +2,19 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
+import {
+  acquirePublishLock,
+  packPackage,
+  releasePublishLock,
+  verifyBuiltRouteAssets,
+  verifyTarballRouteAssets,
+} from './publish-artifact-gate.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDir = resolve(frontendRoot, 'npm-packages');
@@ -28,9 +33,12 @@ const onlyPackage = process.argv
   .slice(2)
   .find((arg) => arg.startsWith('--only='))
   ?.slice('--only='.length);
-const selectedPackages = onlyPackage
+const selectedPackages = (onlyPackage
   ? packages.filter((packageInfo) => packageInfo.name === onlyPackage)
-  : packages;
+  : packages).map((packageInfo) => ({
+  ...packageInfo,
+  dir: resolve(frontendRoot, packageInfo.path),
+}));
 
 if (onlyPackage && selectedPackages.length === 0) {
   throw new Error(`Unknown admin module package: ${onlyPackage}`);
@@ -68,113 +76,8 @@ const authFromMaven =
   process.env.NPM_AUTH_FROM_MAVEN === '1';
 const mavenServerId = process.env.MAVEN_SERVER_ID || 'dist-repo';
 const publishUserConfig = resolve(frontendRoot, '.npmrc.publish.tmp');
-const publishLockPath = resolve(frontendRoot, '.publish-admin-modules.lock');
+const publishLockPath = resolve(frontendRoot, '.frontend-package-publish.lock');
 const packageTarballDir = resolve(outputDir, '.publish-tarballs');
-
-function walkFiles(directory) {
-  if (!existsSync(directory)) {
-    return [];
-  }
-
-  return readdirSync(directory, { recursive: true })
-    .map((entry) => resolve(directory, entry))
-    .filter((entry) => statSync(entry).isFile());
-}
-
-function getPackageInfo(packageInfo) {
-  const packageJsonPath = resolve(frontendRoot, packageInfo.path, 'package.json');
-  return {
-    directory: dirname(packageJsonPath),
-    json: JSON.parse(readFileSync(packageJsonPath, 'utf8')),
-  };
-}
-
-function getDynamicRouteVueAssets(packageInfo) {
-  const { directory } = getPackageInfo(packageInfo);
-  const sourceRoot = resolve(directory, 'src');
-  const dynamicImportPattern = /import\(\s*['"](\.\/views\/[^'"]+\.vue)['"]\s*\)/g;
-  const assets = new Set();
-
-  for (const sourceFile of walkFiles(sourceRoot)) {
-    if (!sourceFile.endsWith('.ts') || sourceFile.includes('/__tests__/')) {
-      continue;
-    }
-
-    const source = readFileSync(sourceFile, 'utf8');
-    for (const match of source.matchAll(dynamicImportPattern)) {
-      const asset = relative(sourceRoot, resolve(dirname(sourceFile), match[1]));
-      if (asset.startsWith('../')) {
-        throw new Error(`${packageInfo.name} 路由 Vue 文件越过 src 目录: ${match[1]}`);
-      }
-      assets.add(`dist/${asset}`);
-    }
-  }
-
-  return [...assets].sort();
-}
-
-function assertRequiredPaths(packageInfo, paths, actualPaths, location) {
-  for (const path of paths) {
-    if (!actualPaths.has(path)) {
-      throw new Error(`${packageInfo.name} ${location}缺少动态路由 Vue 文件: ${path}`);
-    }
-  }
-}
-
-function verifyBuiltRouteAssets(packageInfo) {
-  const { directory } = getPackageInfo(packageInfo);
-  const requiredPaths = getDynamicRouteVueAssets(packageInfo);
-  const actualPaths = new Set(
-    walkFiles(resolve(directory, 'dist')).map((file) => relative(directory, file)),
-  );
-  assertRequiredPaths(packageInfo, requiredPaths, actualPaths, '构建产物');
-  return requiredPaths;
-}
-
-function verifyTarballRouteAssets(packageInfo, tarballPath, requiredPaths, location) {
-  const entries = execFileSync('tar', ['-tzf', tarballPath], { encoding: 'utf8' })
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((entry) => entry.replace(/^package\//, ''));
-  assertRequiredPaths(packageInfo, requiredPaths, new Set(entries), location);
-}
-
-function packPackage(packageInfo, destination, packageSpec, extraEnv = {}, cwd) {
-  mkdirSync(destination, { recursive: true });
-  const args = ['pack'];
-  if (packageSpec) {
-    args.push(packageSpec);
-  }
-  args.push('--json', '--pack-destination', destination);
-
-  const result = spawnSync('npm', args, {
-    cwd: cwd || getPackageInfo(packageInfo).directory,
-    encoding: 'utf8',
-    env: { ...process.env, ...extraEnv },
-  });
-  if (result.status !== 0) {
-    throw new Error(`npm ${args.join(' ')} failed: ${result.stderr || result.stdout}`);
-  }
-
-  const packed = JSON.parse(result.stdout)[0];
-  return resolve(destination, packed.filename);
-}
-
-function acquirePublishLock() {
-  try {
-    mkdirSync(publishLockPath);
-    writeFileSync(resolve(publishLockPath, 'owner.txt'), `${process.pid}\n`);
-  } catch (error) {
-    if (error?.code === 'EEXIST') {
-      throw new Error(`已有前端公共包发布正在执行: ${publishLockPath}`);
-    }
-    throw error;
-  }
-}
-
-function releasePublishLock() {
-  rmSync(publishLockPath, { recursive: true, force: true });
-}
 
 function getRegistryAuthLine(registryUrl) {
   const url = new URL(registryUrl);
@@ -321,7 +224,7 @@ for (const packageInfo of selectedPackages) {
 }
 
 if (mode === 'publish') {
-  acquirePublishLock();
+  acquirePublishLock(publishLockPath);
 }
 
 try {
@@ -354,7 +257,7 @@ try {
       mkdirSync(packageTarballDir, { recursive: true });
 
       for (const packageInfo of selectedPackages) {
-        const { json } = getPackageInfo(packageInfo);
+        const json = JSON.parse(readFileSync(resolve(packageInfo.dir, 'package.json'), 'utf8'));
         const packageOutputDir = resolve(packageTarballDir, json.name.replaceAll('/', '__'));
         const tarball = packPackage(packageInfo, packageOutputDir);
         const routeAssets = routeAssetsByPackage.get(packageInfo.name);
@@ -394,6 +297,6 @@ try {
   }
 } finally {
   if (mode === 'publish') {
-    releasePublishLock();
+    releasePublishLock(publishLockPath);
   }
 }

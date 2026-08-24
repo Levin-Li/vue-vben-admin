@@ -11,6 +11,13 @@ import {
 } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  acquirePublishLock,
+  packPackage,
+  releasePublishLock,
+  verifyBuiltRouteAssets,
+  verifyTarballRouteAssets,
+} from './publish-artifact-gate.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const packagesRoot = resolve(frontendRoot, 'packages');
@@ -50,6 +57,8 @@ const authFromMaven =
   process.env.NPM_AUTH_FROM_MAVEN === '1';
 const mavenServerId = process.env.MAVEN_SERVER_ID || 'dist-repo';
 const publishUserConfig = resolve(frontendRoot, '.npmrc.publish.tmp');
+const publishLockPath = resolve(frontendRoot, '.frontend-package-publish.lock');
+const packageTarballDir = resolve(outputDir, '.publish-tarballs');
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'));
@@ -455,18 +464,8 @@ function buildPackage(packageInfo) {
   run('pnpm', ['--filter', packageInfo.name, 'build']);
 }
 
-function packPackage(packageInfo) {
-  run('pnpm', [
-    '--filter',
-    packageInfo.name,
-    'pack',
-    '--pack-destination',
-    outputDir,
-  ]);
-}
-
-function publishPackage(packageInfo, publishEnv) {
-  const publishArgs = ['publish', '--ignore-scripts'];
+function publishPackage(tarball, publishEnv) {
+  const publishArgs = ['publish', tarball, '--ignore-scripts'];
 
   if (registry) {
     publishArgs.push('--registry', registry);
@@ -477,7 +476,6 @@ function publishPackage(packageInfo, publishEnv) {
   }
 
   run('npm', publishArgs, {
-    cwd: packageInfo.dir,
     env: publishEnv,
   });
 }
@@ -505,6 +503,10 @@ if (selectedPackages.length === 0) {
 const userConfig = createPublishNpmrc();
 const publishEnv = userConfig ? { NPM_CONFIG_USERCONFIG: userConfig } : {};
 
+if (mode === 'publish') {
+  acquirePublishLock(publishLockPath);
+}
+
 try {
   const selectedPackageVersionByName = new Map(
     selectedPackages.map((packageInfo) => [
@@ -522,28 +524,61 @@ try {
     );
   }
 
+  const routeAssetsByPackage = new Map();
   for (const packageInfo of selectedPackages) {
     buildPackage(packageInfo);
+    routeAssetsByPackage.set(packageInfo.name, verifyBuiltRouteAssets(packageInfo));
   }
 
   if (mode === 'pack') {
     mkdirSync(outputDir, { recursive: true });
 
     for (const packageInfo of selectedPackages) {
-      packPackage(packageInfo);
+      const tarball = packPackage(packageInfo, outputDir);
+      verifyTarballRouteAssets(
+        packageInfo,
+        tarball,
+        routeAssetsByPackage.get(packageInfo.name),
+        '本地 tarball',
+      );
     }
 
     console.log(`已打包 ${selectedPackages.length} 个包到 ${outputDir}`);
   } else {
+    rmSync(packageTarballDir, { recursive: true, force: true });
+    mkdirSync(packageTarballDir, { recursive: true });
+
     for (const packageInfo of selectedPackages) {
+      const routeAssets = routeAssetsByPackage.get(packageInfo.name);
+      const packageOutputDir = resolve(packageTarballDir, packageInfo.name.replaceAll('/', '__'));
+
       if (packageVersionExists(packageInfo, publishEnv)) {
+        const remoteTarball = packPackage(
+          packageInfo,
+          resolve(packageOutputDir, 'remote'),
+          `${packageInfo.name}@${packageInfo.version}`,
+          publishEnv,
+          frontendRoot,
+        );
+        verifyTarballRouteAssets(packageInfo, remoteTarball, routeAssets, '私服 tarball');
         console.log(
           `跳过 ${packageInfo.name}@${packageInfo.version}：私服中已存在该版本。`,
         );
         continue;
       }
 
-      publishPackage(packageInfo, publishEnv);
+      const tarball = packPackage(packageInfo, packageOutputDir);
+      verifyTarballRouteAssets(packageInfo, tarball, routeAssets, '本地 tarball');
+      publishPackage(tarball, publishEnv);
+
+      const remoteTarball = packPackage(
+        packageInfo,
+        resolve(packageOutputDir, 'remote'),
+        `${packageInfo.name}@${packageInfo.version}`,
+        publishEnv,
+        frontendRoot,
+      );
+      verifyTarballRouteAssets(packageInfo, remoteTarball, routeAssets, '私服 tarball');
     }
   }
 } catch (error) {
@@ -552,6 +587,9 @@ try {
 } finally {
   if (userConfig) {
     rmSync(userConfig, { force: true });
+  }
+  if (mode === 'publish') {
+    releasePublishLock(publishLockPath);
   }
 }
 
