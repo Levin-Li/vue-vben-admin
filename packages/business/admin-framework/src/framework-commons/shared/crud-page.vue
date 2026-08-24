@@ -138,6 +138,12 @@ import {
   buildActionLogTooltipItems,
   hasDisplayableActionLog,
 } from './crud-action-log-tooltip';
+import {
+  getCrudBooleanDisplayText,
+  getCrudBooleanTagColor,
+  isCrudBooleanField,
+  isCrudEnableBooleanField,
+} from './crud-boolean-display';
 import { shouldShowCrudFormField } from './crud-form-field-visibility';
 import {
   getContainerColumnCount,
@@ -4224,8 +4230,9 @@ function formatCellValue(field: CrudFieldConfig, value: any) {
     return '-';
   }
 
-  if (field.type === 'switch') {
-    return value ? '是' : '否';
+  const booleanDisplayText = getCrudBooleanDisplayText(field, value);
+  if (booleanDisplayText) {
+    return booleanDisplayText;
   }
 
   if (field.type === 'string-array' || field.type === 'tags') {
@@ -4303,21 +4310,14 @@ function isStatusLikeField(field: CrudFieldConfig | undefined) {
   }
 
   return (
-    field.type === 'switch' ||
+    isCrudBooleanField(field) ||
     (field.type === 'select' &&
       (/status|state/i.test(field.key) || /状态/.test(field.label)))
   );
 }
 
 function isBooleanEnableField(field: CrudFieldConfig | undefined) {
-  if (!field || field.type !== 'switch' || field.valueType !== 'boolean') {
-    return false;
-  }
-
-  return (
-    /^(is)?(enable|enabled|disable|disabled)$/i.test(field.key) ||
-    /启用|禁用/.test(field.label)
-  );
+  return isCrudEnableBooleanField(field);
 }
 
 function canQuickUpdateBooleanEnableField(
@@ -4328,6 +4328,10 @@ function canQuickUpdateBooleanEnableField(
 }
 
 function getStatusTagColor(field: CrudFieldConfig | undefined, value: any) {
+  if (isCrudBooleanField(field) && typeof value === 'boolean') {
+    return getCrudBooleanTagColor(value);
+  }
+
   const text = String(formatCellValue(field || ({} as CrudFieldConfig), value));
 
   if (/成功|正常|启用|生效|已支付|完成|通过|发布|在线|可用/.test(text)) {
@@ -4346,18 +4350,27 @@ function getStatusTagColor(field: CrudFieldConfig | undefined, value: any) {
 }
 
 function getStatusTagText(field: CrudFieldConfig | undefined, value: any) {
-  if (field?.type === 'switch') {
-    return value ? '启用' : '关闭';
+  const booleanDisplayText = getCrudBooleanDisplayText(field, value);
+  if (booleanDisplayText) {
+    return booleanDisplayText;
   }
 
   return formatCellValue(field!, value);
+}
+
+function shouldRenderStatusTag(field: CrudFieldConfig | undefined, value: any) {
+  return !isCrudBooleanField(field) || typeof value === 'boolean';
 }
 
 function shouldShowActionLogTooltip(
   field: CrudFieldConfig | undefined,
   record: GenericRecord,
 ) {
-  return isStatusLikeField(field) && hasDisplayableActionLog(record.actionLog);
+  return (
+    isStatusLikeField(field) &&
+    shouldRenderStatusTag(field, getRecordValue(record, field?.key)) &&
+    hasDisplayableActionLog(record.actionLog)
+  );
 }
 
 function getActionLogTooltipItems(record: GenericRecord) {
@@ -5665,14 +5678,10 @@ watch(tableColumnPreferenceStorageKey, () => {
                 </template>
                 <Tag
                   :color="
-                    getTableField(column.key)?.type === 'switch'
-                      ? getRecordValue(record, column.key)
-                        ? 'green'
-                        : 'default'
-                      : getStatusTagColor(
-                          getTableField(column.key),
-                          getRecordValue(record, column.key),
-                        )
+                    getStatusTagColor(
+                      getTableField(column.key),
+                      getRecordValue(record, column.key),
+                    )
                   "
                 >
                   {{
@@ -5684,16 +5693,18 @@ watch(tableColumnPreferenceStorageKey, () => {
                 </Tag>
               </Tooltip>
               <Tag
-                v-else-if="isStatusLikeField(getTableField(column.key))"
+                v-else-if="
+                  isStatusLikeField(getTableField(column.key)) &&
+                  shouldRenderStatusTag(
+                    getTableField(column.key),
+                    getRecordValue(record, column.key),
+                  )
+                "
                 :color="
-                  getTableField(column.key)?.type === 'switch'
-                    ? getRecordValue(record, column.key)
-                      ? 'green'
-                      : 'default'
-                    : getStatusTagColor(
-                        getTableField(column.key),
-                        getRecordValue(record, column.key),
-                      )
+                  getStatusTagColor(
+                    getTableField(column.key),
+                    getRecordValue(record, column.key),
+                  )
                 "
               >
                 {{
@@ -6217,6 +6228,10 @@ watch(tableColumnPreferenceStorageKey, () => {
             <Switch
               v-else-if="field.type === 'switch'"
               v-model:checked="formState[field.key]"
+              :checked-children="getCrudBooleanDisplayText(field, true) || '是'"
+              :un-checked-children="
+                getCrudBooleanDisplayText(field, false) || '否'
+              "
             />
             <Input
               v-else

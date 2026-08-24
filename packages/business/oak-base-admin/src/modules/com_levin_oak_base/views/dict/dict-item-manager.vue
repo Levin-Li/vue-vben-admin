@@ -158,8 +158,8 @@ function handleSave() {
             <td class="px-3 py-2">{{ item.name || '-' }}</td>
             <td class="px-3 py-2">{{ item.code || '-' }}</td>
             <td class="px-3 py-2">
-              <Tag :color="item.disabled ? 'default' : 'green'">
-                {{ item.disabled ? '禁用' : '启用' }}
+              <Tag :color="item.disabled ? 'green' : 'default'">
+                {{ item.disabled ? '是' : '否' }}
               </Tag>
             </td>
             <td class="px-3 py-2">{{ item.remark || '-' }}</td>
