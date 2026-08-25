@@ -259,7 +259,7 @@ function convertLeafRoute(
         menuActionType: actionType,
         menuPageType: pageType,
         order: item.orderCode,
-        title: mapping.title || item.name || normalizedPath || '未命名页面',
+        title: item.name || mapping.title || normalizedPath || '未命名页面',
       },
       name: toRouteName(routePath),
       path: routePath,

@@ -47,6 +47,32 @@ describe('menu route conversion', () => {
     ).toBe('/system/com_levin_oak_base/role/index.vue');
   });
 
+  it('uses a custom menu label as the mapped local page title', () => {
+    const route = convertMenuNodeForTest(
+      {
+        name: '自定义菜单',
+        pageType: 'LocalPage-本地页面',
+        path: '/clob/V1/Role',
+      },
+      testBackendRouteMappings,
+    );
+
+    expect(route?.meta?.title).toBe('自定义菜单');
+  });
+
+  it('falls back to the local page title when the menu label is empty', () => {
+    const route = convertMenuNodeForTest(
+      {
+        name: '',
+        pageType: 'LocalPage-本地页面',
+        path: '/clob/V1/Role',
+      },
+      testBackendRouteMappings,
+    );
+
+    expect(route?.meta?.title).toBe('角色管理');
+  });
+
   it('uses local mapping icon when backend still stores the old generic leaf icon', () => {
     const route = convertMenuNodeForTest(
       {

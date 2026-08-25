@@ -1,7 +1,7 @@
 {
   "default": "5.6.8",
   "packages": {
-    "@levin/admin-framework": "5.6.64",
+    "@levin/admin-framework": "5.6.65",
     "@levin/oak-base-admin": "5.6.63",
     "@vben-core/design": "5.6.9",
     "@vben-core/layout-ui": "5.6.12",
