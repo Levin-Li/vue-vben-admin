@@ -146,6 +146,11 @@ import {
 } from './crud-boolean-display';
 import { shouldShowCrudFormField } from './crud-form-field-visibility';
 import {
+  buildCrudDeleteParams,
+  buildCrudRetrieveParams,
+  omitNonPlatformTenantId,
+} from './crud-retrieve-context';
+import {
   getContainerColumnCount,
   getFormFieldColumnSpan,
   getFormGridContentMaxWidth,
@@ -3092,14 +3097,9 @@ function handleEdit(record: GenericRecord) {
 }
 
 async function handleRetrieve(record: GenericRecord) {
-  const params = Object.fromEntries(
-    Object.entries({
-      [recordKey.value]: record?.[recordKey.value],
-      orgId: record?.orgId,
-      tenantId: record?.tenantId,
-    }).filter(
-      ([, value]) => value !== undefined && value !== null && value !== '',
-    ),
+  const params = buildCrudRetrieveParams(
+    record,
+    recordKey.value,
   );
 
   const response =
@@ -3124,12 +3124,11 @@ async function handleRetrieve(record: GenericRecord) {
 }
 
 async function handleDelete(record: GenericRecord) {
-  const recordId = record?.[recordKey.value];
+  const deleteParams = buildCrudDeleteParams(record, recordKey.value);
+  const recordId = deleteParams[recordKey.value];
 
   if (props.config.apiService?.delete && !props.config.deletePath) {
-    await props.config.apiService.delete({
-      [recordKey.value]: recordId,
-    });
+    await props.config.apiService.delete(deleteParams);
   } else {
     await deleteCrudRecord(
       props.config.deletePath || `${props.config.apiBase}/delete`,
@@ -3195,9 +3194,13 @@ async function handleSubmit() {
       payload,
       editingRecord.value,
     );
-    const finalPayload = props.config.transformSubmit
+    const transformedPayload = props.config.transformSubmit
       ? await props.config.transformSubmit(payload, editingRecord.value)
       : payload;
+    const finalPayload = omitNonPlatformTenantId(
+      transformedPayload,
+      isPlatformUser.value,
+    );
 
     if (isCreating) {
       if (props.config.apiService?.create && !props.config.createPath) {
