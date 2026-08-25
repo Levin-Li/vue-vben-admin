@@ -38,8 +38,11 @@ import {
   canMoveLayoutItem,
   cloneLayoutItems,
   collectExpandedTreeKeys,
+  findDuplicateLayoutLabel,
+  findLayoutItem,
   filterTreeByLabel,
   flattenMenuSources,
+  hasLayoutLabelAtTarget,
   hasLayoutPathAtTarget,
   insertLayoutItemBeside,
   keepLayoutRootExpanded,
@@ -407,7 +410,14 @@ function toggleAllSourceMenuChecks() {
     .filter((key): key is string => Boolean(key));
 }
 
-function handleLayoutCheck(checkedKeys: unknown) {
+function handleLayoutCheck(
+  checkedKeys: unknown,
+  info?: { node?: { eventKey?: number | string; key?: number | string } },
+) {
+  const key = getTreeNodeKey(info?.node);
+  if (key) {
+    selectedItemKey.value = key;
+  }
   const keys = Array.isArray(checkedKeys)
     ? checkedKeys
     : (checkedKeys as { checked?: unknown[] })?.checked || [];
@@ -443,8 +453,8 @@ function syncLayoutAncestorChecks(
 
 function toggleLayoutItemCheck(dataRef: DataNode) {
   const item = getLayoutTreeItem(dataRef);
+  selectedItemKey.value = item.key;
   if (item.key === MY_MENU_ROOT_KEY) {
-    selectedItemKey.value = MY_MENU_ROOT_KEY;
     return;
   }
 
@@ -505,7 +515,9 @@ function addMenusToSelectedTarget(sources: MenuDisplaySource[]) {
   }
   if (skipped) {
     message.warning(
-      added ? `已添加 ${added} 个菜单，${skipped} 个菜单已经添加` : '菜单已经添加',
+      added
+        ? `已添加 ${added} 个菜单，${skipped} 个菜单名称或路径重复`
+        : '菜单名称或路径重复',
     );
   } else {
     message.success(`已添加 ${added} 个菜单`);
@@ -672,17 +684,30 @@ function appendSourceAtTarget(
     );
     return false;
   }
+  const destinationKey =
+    dropMode === 'child'
+      ? targetKey
+      : findLayoutParentKey(layoutItems.value, targetKey) || MY_MENU_ROOT_KEY;
   if (
     hasLayoutPathAtTarget(
       layoutItems.value,
       MY_MENU_ROOT_KEY,
-      dropMode === 'child'
-        ? targetKey
-        : findLayoutParentKey(layoutItems.value, targetKey) || MY_MENU_ROOT_KEY,
+      destinationKey,
       sourceItem.path,
     )
   ) {
     message.warning('菜单已经添加');
+    return false;
+  }
+  if (
+    hasLayoutLabelAtTarget(
+      layoutItems.value,
+      MY_MENU_ROOT_KEY,
+      destinationKey,
+      sourceItem.label,
+    )
+  ) {
+    message.warning('同一节点下不能存在同名菜单');
     return false;
   }
 
@@ -756,7 +781,10 @@ function addGroup() {
     key: `group:${crypto.randomUUID()}`,
     label,
   };
-  appendLayoutItem(layoutItems.value, selectedItemKey.value, item);
+  if (!appendLayoutItem(layoutItems.value, selectedItemKey.value, item)) {
+    message.warning('同一节点下不能存在同名菜单');
+    return;
+  }
   layoutItems.value = cloneLayoutItems(layoutItems.value);
   expandLayoutParent(selectedItemKey.value);
   newGroupOpen.value = false;
@@ -767,10 +795,16 @@ function addChildLayoutItem(parent: TenantCustomMenuItem) {
     key: `group:${crypto.randomUUID()}`,
     label: '新菜单',
   };
-  if (parent.key === MY_MENU_ROOT_KEY) {
-    layoutItems.value.push(item);
-  } else {
-    appendLayoutItem(layoutItems.value, parent.key, item);
+  if (
+    !appendLayoutItemAtTarget(
+      layoutItems.value,
+      MY_MENU_ROOT_KEY,
+      parent.key,
+      item,
+    )
+  ) {
+    message.warning('同一节点下不能存在同名菜单');
+    return;
   }
   layoutItems.value = cloneLayoutItems(layoutItems.value);
   expandLayoutParent(parent.key);
@@ -849,10 +883,24 @@ function updateLayoutItem(
   field: 'enable' | 'label',
   value: boolean | string,
 ) {
+  const item = getLayoutTreeItem(dataRef);
+  if (
+    field === 'label' &&
+    hasLayoutLabelAtTarget(
+      layoutItems.value,
+      MY_MENU_ROOT_KEY,
+      findLayoutParentKey(layoutItems.value, item.key) || MY_MENU_ROOT_KEY,
+      String(value),
+      item.key,
+    )
+  ) {
+    message.warning('同一节点下不能存在同名菜单');
+    return;
+  }
   if (
     !updateLayoutItemValue(
       layoutItems.value,
-      getLayoutTreeItem(dataRef).key,
+      item.key,
       field,
       value,
     )
@@ -894,14 +942,32 @@ function handleLayoutDrop(info: any) {
     return;
   }
 
+  const movedAsChild = dropMode ? dropMode === 'child' : !info.dropToGap;
+  const moveAfter = dropMode ? dropMode === 'after' : Number(info.dropPosition) > 0;
+  const destinationKey = movedAsChild
+    ? targetKey
+    : findLayoutParentKey(layoutItems.value, targetKey) || MY_MENU_ROOT_KEY;
+  const movedItem = findLayoutItem(layoutItems.value, dragKey);
+  if (
+    movedItem &&
+    hasLayoutLabelAtTarget(
+      layoutItems.value,
+      MY_MENU_ROOT_KEY,
+      destinationKey,
+      movedItem.label,
+      movedItem.key,
+    )
+  ) {
+    message.warning('同一节点下不能存在同名菜单');
+    return;
+  }
+
   const next = cloneLayoutItems(layoutItems.value);
   const moved = removeLayoutItem(next, dragKey);
   if (!moved) {
     return;
   }
 
-  const movedAsChild = dropMode ? dropMode === 'child' : !info.dropToGap;
-  const moveAfter = dropMode ? dropMode === 'after' : Number(info.dropPosition) > 0;
   const success =
     targetKey === MY_MENU_ROOT_KEY
       ? (
@@ -961,6 +1027,12 @@ async function saveLayout() {
   const layout = currentLayout.value;
   if (!layout) {
     message.warning('请先新增或选择一个布局');
+    return;
+  }
+
+  const duplicateLabel = findDuplicateLayoutLabel(layoutItems.value);
+  if (duplicateLabel) {
+    message.warning(`同一节点下不能存在同名菜单：${duplicateLabel}`);
     return;
   }
 
@@ -1287,7 +1359,7 @@ function closeLayoutAdjuster() {
                         "
                         class="layout-menu-label-input w-full"
                         :value="getLayoutTreeItem(dataRef).label"
-                        @click.stop
+                        @click.stop="selectedItemKey = dataRef.key"
                         @mousedown.stop
                         @update:value="
                           (value) => updateLayoutItem(dataRef, 'label', value)

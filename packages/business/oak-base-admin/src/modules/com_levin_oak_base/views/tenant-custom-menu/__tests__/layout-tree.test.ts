@@ -9,9 +9,11 @@ import {
   canDragLayoutItem,
   collectExpandedTreeKeys,
   collectLayoutPaths,
+  findDuplicateLayoutLabel,
   filterTreeByLabel,
   findLayoutItem,
   flattenMenuSources,
+  hasLayoutLabelAtTarget,
   hasLayoutPathAtTarget,
   insertLayoutItemBeside,
   keepLayoutRootExpanded,
@@ -254,6 +256,38 @@ describe('menu display layout tree', () => {
     ).toBe(false);
   });
 
+  it('requires unique labels among siblings while allowing the same label in another branch', () => {
+    const items = [
+      {
+        children: [{ key: 'menu:a:report', label: '报表', path: '/a/report' }],
+        key: 'group:a',
+        label: '分组 A',
+      },
+      {
+        children: [{ key: 'menu:b:report', label: 'Report', path: '/b/report' }],
+        key: 'group:b',
+        label: '分组 B',
+      },
+    ];
+
+    expect(
+      hasLayoutLabelAtTarget(items, 'root:my-menu', 'group:a', ' 报表 '),
+    ).toBe(true);
+    expect(
+      hasLayoutLabelAtTarget(items, 'root:my-menu', 'group:b', '报表'),
+    ).toBe(false);
+    expect(
+      hasLayoutLabelAtTarget(items, 'root:my-menu', 'group:b', 'report'),
+    ).toBe(true);
+    expect(findDuplicateLayoutLabel(items)).toBeUndefined();
+    items[0]?.children?.push({
+      key: 'menu:a:report-copy',
+      label: ' 报表 ',
+      path: '/a/report-copy',
+    });
+    expect(findDuplicateLayoutLabel(items)).toBe(' 报表 ');
+  });
+
   it('adds non-duplicate menu items in a batch while skipping duplicates at the same target', () => {
     const items = [
       {
@@ -275,6 +309,22 @@ describe('menu display layout tree', () => {
       '/report',
       '/daily',
     ]);
+  });
+
+  it('skips a batch menu whose label duplicates a sibling with another path', () => {
+    const items = [
+      {
+        children: [{ key: 'menu:group:report', label: '报表', path: '/report' }],
+        key: 'group:reports',
+        label: '报表分组',
+      },
+    ];
+
+    expect(
+      appendLayoutItemsAtTarget(items, 'root:my-menu', 'group:reports', [
+        { key: 'menu:group:report-copy', label: '报表', path: '/report-copy' },
+      ]),
+    ).toEqual({ added: 0, skipped: 1 });
   });
 
   it('clears source-menu checks after a successful batch add', () => {
@@ -311,18 +361,18 @@ describe('menu display layout tree', () => {
     expect(adjusterSource).toContain('@click.stop="addMenu(dataRef)"');
   });
 
-  it('toggles non-root layout-menu checks without changing the current target selection', () => {
+  it('selects a non-root layout-menu target while toggling its check state', () => {
     expect(adjusterSource).toContain('function toggleLayoutItemCheck');
     expect(adjusterSource).toContain('function syncLayoutAncestorChecks');
     expect(adjusterSource).toContain('function collectLayoutItemKeys');
     expect(adjusterSource).toContain('syncLayoutAncestorChecks(layoutItems.value, checkedKeys);');
     expect(adjusterSource).toContain('@click.stop="toggleLayoutItemCheck(dataRef)"');
     const toggleSource = getAdjusterFunctionSource('toggleLayoutItemCheck');
-    const nonRootCheckSource = toggleSource.slice(
-      toggleSource.indexOf('const checkedKeys'),
+    expect(toggleSource).toMatch(
+      /const item = getLayoutTreeItem\(dataRef\);\s+selectedItemKey\.value = item\.key;/,
     );
-    expect(nonRootCheckSource).not.toMatch(
-      /selectedItemKey\.value\s*=/,
+    expect(getAdjusterFunctionSource('handleLayoutCheck')).toContain(
+      'selectedItemKey.value = key;',
     );
   });
 
@@ -346,6 +396,24 @@ describe('menu display layout tree', () => {
         label: '报表',
       },
     ]);
+  });
+
+  it('guards label edits, new groups, child menus, drag moves, and saves against sibling duplicates', () => {
+    for (const name of [
+      'addChildLayoutItem',
+      'addGroup',
+      'appendSourceAtTarget',
+      'handleLayoutDrop',
+      'saveLayout',
+      'updateLayoutItem',
+    ]) {
+      expect(getAdjusterFunctionSource(name)).toContain(
+        '同一节点下不能存在同名菜单',
+      );
+    }
+    expect(getAdjusterFunctionSource('saveLayout')).toContain(
+      'findDuplicateLayoutLabel(layoutItems.value)',
+    );
   });
 
   it('moves a layout node only within its siblings', () => {
@@ -573,7 +641,13 @@ describe('menu display layout tree', () => {
 
   it('selects the virtual root as the menu-add target without batch-checking it', () => {
     expect(getAdjusterFunctionSource('toggleLayoutItemCheck')).toMatch(
-      /if \(item\.key === MY_MENU_ROOT_KEY\) \{\s+selectedItemKey\.value = MY_MENU_ROOT_KEY;\s+return;/,
+      /if \(item\.key === MY_MENU_ROOT_KEY\) \{\s+return;/,
+    );
+  });
+
+  it('selects a label-edit target when its input consumes the tree click', () => {
+    expect(adjusterSource).toContain(
+      '@click.stop="selectedItemKey = dataRef.key"',
     );
   });
 

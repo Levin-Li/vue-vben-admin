@@ -118,6 +118,9 @@ export function appendLayoutItem(
   item: TenantCustomMenuItem,
 ) {
   if (!parentKey) {
+    if (hasDuplicateLayoutLabel(items, item.label)) {
+      return false;
+    }
     items.push(item);
     return true;
   }
@@ -128,6 +131,9 @@ export function appendLayoutItem(
   }
 
   parent.children ||= [];
+  if (hasDuplicateLayoutLabel(parent.children, item.label)) {
+    return false;
+  }
   parent.children.push(item);
   return true;
 }
@@ -139,8 +145,7 @@ export function appendLayoutItemAtTarget(
   item: TenantCustomMenuItem,
 ) {
   if (targetKey === virtualRootKey) {
-    items.push(item);
-    return true;
+    return appendLayoutItem(items, undefined, item);
   }
 
   return appendLayoutItem(items, targetKey, item);
@@ -166,6 +171,56 @@ export function hasLayoutPathAtTarget(
   );
 }
 
+function normalizeLayoutLabel(label: string) {
+  return String(label || '').trim().toLocaleLowerCase();
+}
+
+function hasDuplicateLayoutLabel(
+  items: TenantCustomMenuItem[],
+  label: string,
+  excludingKey?: string,
+) {
+  const normalizedLabel = normalizeLayoutLabel(label);
+  return items.some(
+    (item) =>
+      item.key !== excludingKey &&
+      normalizeLayoutLabel(item.label) === normalizedLabel,
+  );
+}
+
+export function hasLayoutLabelAtTarget(
+  items: TenantCustomMenuItem[],
+  virtualRootKey: string,
+  targetKey: string,
+  label: string,
+  excludingKey?: string,
+) {
+  const siblings =
+    targetKey === virtualRootKey
+      ? items
+      : findLayoutItem(items, targetKey)?.children || [];
+  return hasDuplicateLayoutLabel(siblings, label, excludingKey);
+}
+
+export function findDuplicateLayoutLabel(
+  items: TenantCustomMenuItem[],
+): string | undefined {
+  const labels = new Set<string>();
+
+  for (const item of items) {
+    const normalizedLabel = normalizeLayoutLabel(item.label);
+    if (labels.has(normalizedLabel)) {
+      return item.label;
+    }
+    labels.add(normalizedLabel);
+
+    const duplicateLabel = findDuplicateLayoutLabel(item.children || []);
+    if (duplicateLabel) {
+      return duplicateLabel;
+    }
+  }
+}
+
 export function appendLayoutItemsAtTarget(
   items: TenantCustomMenuItem[],
   virtualRootKey: string,
@@ -182,6 +237,12 @@ export function appendLayoutItemsAtTarget(
         virtualRootKey,
         targetKey,
         item.path || '',
+      )
+      || hasLayoutLabelAtTarget(
+        items,
+        virtualRootKey,
+        targetKey,
+        item.label,
       )
     ) {
       skipped += 1;
@@ -206,6 +267,9 @@ export function insertLayoutItemBeside(
 ): boolean {
   const index = items.findIndex((candidate) => candidate.key === targetKey);
   if (index >= 0) {
+    if (hasDuplicateLayoutLabel(items, item.label, item.key)) {
+      return false;
+    }
     items.splice(index + (after ? 1 : 0), 0, item);
     return true;
   }
