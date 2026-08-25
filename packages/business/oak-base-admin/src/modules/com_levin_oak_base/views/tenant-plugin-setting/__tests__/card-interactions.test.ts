@@ -101,4 +101,12 @@ describe('租户插件设置卡片交互', () => {
     expect(source).toContain('暂无可选供应商，请先在服务插件管理中启用');
     expect(source).toContain(':placeholder="basicProviderPlaceholder"');
   });
+
+  it('保留定制页面与路由内容区之间的外层留白', () => {
+    const source = readFileSync(pagePath, 'utf8');
+
+    expect(source).toContain(
+      'content-class="!bg-card !m-4 !p-4 min-w-0 !overflow-hidden rounded-lg"',
+    );
+  });
 });
