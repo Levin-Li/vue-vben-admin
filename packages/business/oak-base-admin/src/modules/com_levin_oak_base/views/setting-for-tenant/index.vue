@@ -287,7 +287,7 @@ onMounted(() => {
 <template>
   <Page
     auto-content-height
-    content-class="!bg-card !p-4 min-w-0 !overflow-hidden"
+    content-class="!bg-card !m-4 !p-4 min-w-0 !overflow-hidden rounded-lg"
   >
     <div class="relative flex h-full min-h-0 flex-col gap-2">
       <div
