@@ -144,6 +144,10 @@ import {
   isCrudBooleanField,
   isCrudEnableBooleanField,
 } from './crud-boolean-display';
+import {
+  canMutateCrudRecord as canMutateEditableCrudRecord,
+  shouldApplyEditableSearchDefault,
+} from './crud-editable-access';
 import { shouldShowCrudFormField } from './crud-form-field-visibility';
 import {
   buildCrudDeleteParams,
@@ -200,6 +204,10 @@ import {
 
 const props = defineProps<{
   config: CrudPageConfig;
+  /**
+   * Render inside a parent page that owns the available height.
+   */
+  embedded?: boolean;
 }>();
 const slots = useSlots();
 
@@ -3246,8 +3254,21 @@ function resetSearch() {
     searchState[item.field.key] = undefined;
   }
 
+  applyEditableSearchDefault();
+
   pagination.current = 1;
   loadList();
+}
+
+function applyEditableSearchDefault() {
+  if (
+    shouldApplyEditableSearchDefault(
+      isPlatformUser.value,
+      searchFieldItems.value,
+    )
+  ) {
+    searchState.editable = 'true';
+  }
 }
 
 function normalizeTableSorter(sorter: any): TableSorterState {
@@ -4683,6 +4704,7 @@ function requestRejectReason(
 function canShowBuiltinEdit(record: GenericRecord) {
   return (
     canEdit.value &&
+    canMutateCrudRecord(record) &&
     canUseCurrentStatusEvent(record, '编辑') &&
     (!props.config.editVisibleOn ||
       evaluateCrudVisibleOn(
@@ -4690,6 +4712,14 @@ function canShowBuiltinEdit(record: GenericRecord) {
         record,
         userStore.userInfo,
       ))
+  );
+}
+
+function canMutateCrudRecord(record: GenericRecord) {
+  return canMutateEditableCrudRecord(
+    props.config.fields,
+    record,
+    userStore.userInfo,
   );
 }
 
@@ -4753,6 +4783,7 @@ function canShowBuiltinDetail(record: GenericRecord) {
 function canShowBuiltinDelete(record: GenericRecord) {
   return (
     canDelete.value &&
+    canMutateCrudRecord(record) &&
     canUseCurrentStatusEvent(record, '删除') &&
     (!props.config.deleteVisibleOn ||
       evaluateCrudVisibleOn(
@@ -4916,6 +4947,7 @@ onMounted(async () => {
   window.addEventListener('resize', handleViewportResize);
   window.addEventListener('paste', handlePasteUpload);
   loadTableColumnPreference();
+  applyEditableSearchDefault();
   await loadOptions();
   await loadList();
   await nextTick();
@@ -4996,8 +5028,13 @@ watch(tableColumnPreferenceStorageKey, () => {
 
 <template>
   <Page
-    auto-content-height
-    content-class="!bg-transparent min-w-0 !overflow-hidden"
+    :auto-content-height="!embedded"
+    :class="embedded ? '!min-h-0 flex-1' : undefined"
+    :content-class="
+      embedded
+        ? 'flex min-h-0 flex-1 flex-col !bg-transparent min-w-0 !overflow-hidden !p-0'
+        : '!bg-transparent min-w-0 !overflow-hidden !p-0'
+    "
   >
     <div
       ref="crudPageRef"

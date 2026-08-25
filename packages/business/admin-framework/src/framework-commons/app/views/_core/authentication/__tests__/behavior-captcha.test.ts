@@ -99,6 +99,15 @@ describe('BehaviorCaptcha', () => {
     );
   });
 
+  it('keeps enough header space for the enlarged click-order thumbnail', () => {
+    expect(componentSource).toMatch(
+      /captcha-mode-CLICK'\] \.go-captcha \.gc-header\)[\s\S]*?height:\s*56px;/,
+    );
+    expect(componentSource).toMatch(
+      /captcha-mode-CLICK'\] \.go-captcha \.gc-header img\)[\s\S]*?max-height:\s*56px;/,
+    );
+  });
+
   it('shows a circular loading indicator until a captcha challenge is ready', () => {
     const wrapper = mount(BehaviorCaptcha, {
       props: { challenge: null, loading: true },

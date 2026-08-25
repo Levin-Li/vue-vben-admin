@@ -38,6 +38,7 @@ export interface TenantSiteRecord {
   domainDnsRecords?: TenantSiteDnsRecord[];
   id?: string;
   name?: string;
+  type?: string;
 }
 
 @Service({

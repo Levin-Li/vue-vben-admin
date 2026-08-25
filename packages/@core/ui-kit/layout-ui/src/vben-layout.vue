@@ -325,15 +325,12 @@ const mainStyle = computed(() => {
   };
 });
 
-// 计算 tabbar 的样式
-const tabbarStyle = computed((): CSSProperties => {
-  let width = '';
+// 计算 tabbar 的结构定位偏移
+const tabbarLayout = computed(() => {
   let marginLeft = 0;
+  let widthOffset = 0;
 
-  // 如果不是混合导航，tabbar 的宽度为 100%
-  if (!isMixedNav.value || props.sidebarHidden) {
-    width = '100%';
-  } else if (sidebarEnable.value) {
+  if (isMixedNav.value && !props.sidebarHidden && sidebarEnable.value) {
     // 鼠标在侧边栏上时，且侧边栏展开时的宽度
     const onHoveringWidth = sidebarExpandOnHover.value
       ? props.sidebarWidth
@@ -344,16 +341,14 @@ const tabbarStyle = computed((): CSSProperties => {
       ? getSideCollapseWidth.value
       : onHoveringWidth;
 
-    // 设置 tabbar 的宽度，计算方式为 100% 减去侧边栏的宽度
-    width = `calc(100% - ${sidebarCollapse.value ? getSidebarWidth.value : onHoveringWidth}px)`;
-  } else {
-    // 默认情况下，tabbar 的宽度为 100%
-    width = '100%';
+    widthOffset = sidebarCollapse.value
+      ? getSidebarWidth.value
+      : onHoveringWidth;
   }
 
   return {
-    marginLeft: `${marginLeft}px`,
-    width,
+    marginLeft,
+    widthOffset,
   };
 });
 
@@ -685,6 +680,8 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
           :border-right-width="tabbarBorderRightWidth"
           :border-top-width="tabbarBorderTopWidth"
           :height="tabbarHeight"
+          :layout-margin-left="tabbarLayout.marginLeft"
+          :layout-width-offset="tabbarLayout.widthOffset"
           :margin-bottom="tabbarMarginBottom"
           :margin-left="tabbarMarginLeft"
           :margin-right="tabbarMarginRight"
@@ -693,7 +690,6 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
           :radius-bottom-right="tabbarRadiusBottomRight"
           :radius-top-left="tabbarRadiusTopLeft"
           :radius-top-right="tabbarRadiusTopRight"
-          :style="tabbarStyle"
         >
           <slot name="tabbar"></slot>
         </LayoutTabbar>

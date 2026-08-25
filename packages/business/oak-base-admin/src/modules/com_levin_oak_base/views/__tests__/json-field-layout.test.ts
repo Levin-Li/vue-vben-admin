@@ -45,6 +45,7 @@ const compactJsonFields = [
   'tenant/config.ts:uiExInfo',
   'tenant/config.ts:exInfo',
   'tenant-app/config.ts:exInfo',
+  'tenant-custom-menu/config.ts:itemList',
   'tenant-site/config.ts:uiExInfo',
   'tenant-site/config.ts:exInfo',
   'traffic-control-rule/config.ts:exInfo',

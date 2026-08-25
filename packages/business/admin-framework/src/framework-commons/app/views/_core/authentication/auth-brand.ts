@@ -7,6 +7,8 @@ import {
   type RbacApi,
 } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 
+import { getLoginHeroImage } from './login-hero-image';
+
 type BrandRecord = RbacApi.TenantSiteInfo;
 
 interface BrandState {
@@ -14,6 +16,8 @@ interface BrandState {
   domain: string;
   eyebrow: string;
   heroDesc: string;
+  heroImage: string;
+  titleImage: string;
   heroTitle: string;
   loaded: boolean;
   loading: boolean;
@@ -29,6 +33,8 @@ const defaultState: BrandState = {
   domain: '',
   eyebrow: 'Framework Base',
   heroDesc: '工程化、高性能、跨组件库的前端模版',
+  heroImage: '',
+  titleImage: '',
   heroTitle: '开箱即用的大型中后台管理系统',
   loaded: false,
   loading: false,
@@ -98,6 +104,39 @@ function getNestedRecordValue(
     : '';
 }
 
+function getEnabledAdminUiSetting(record: BrandRecord | null | undefined) {
+  const setting = record?.uiExInfo?.['admin-ui-base-setting'];
+  return setting?.preferServerSetting === false ? undefined : setting?.setting;
+}
+
+function getAdminUiSettingValue(
+  record: BrandRecord | null | undefined,
+  section: string,
+  key: string,
+) {
+  const sectionValue = getEnabledAdminUiSetting(record)?.[section];
+  return sectionValue && typeof sectionValue === 'object'
+    ? normalizeText(sectionValue[key])
+    : '';
+}
+
+function getAdminUiSettingCopyright(record: BrandRecord | null | undefined) {
+  const copyright = getEnabledAdminUiSetting(record)?.copyright;
+
+  if (!copyright || copyright.enable !== true) {
+    return '';
+  }
+
+  const date = normalizeText(copyright.date);
+  const companyName = normalizeText(copyright.companyName);
+  const icp = normalizeText(copyright.icp);
+  const content = [date, companyName].filter(Boolean).join(' ');
+
+  return [content ? `Copyright © ${content}` : '', icp]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function updateFavicon(shortcutIcon: string) {
   if (!shortcutIcon) {
     return;
@@ -125,8 +164,14 @@ function mergeBrandState(
   record: BrandRecord | null,
   domain: string,
 ): BrandState {
-  const siteDomain = getFirstText(record?.domain, record?.appAuthDomain, domain);
+  const siteDomain = getFirstText(
+    record?.domain,
+    record?.appAuthDomain,
+    domain,
+  );
   const name = getFirstText(
+    getAdminUiSettingValue(record, 'login', 'systemName'),
+    getAdminUiSettingValue(record, 'app', 'name'),
     record?.name,
     getUiValue(
       record,
@@ -144,6 +189,8 @@ function mergeBrandState(
     defaultState.name,
   );
   const logo = getFirstText(
+    getAdminUiSettingValue(record, 'login', 'systemLogo'),
+    getAdminUiSettingValue(record, 'logo', 'source'),
     record?.logo,
     getUiValue(record, 'logo', 'sysLogo', 'siteLogo', 'appLogo'),
     record?.sysLogo,
@@ -160,6 +207,7 @@ function mergeBrandState(
     getUiValue(record, 'techSupport', 'support', 'supportText'),
   );
   const copyright = getFirstText(
+    getAdminUiSettingCopyright(record),
     record?.copyright,
     getUiValue(record, 'copyright', 'copyrightText'),
     defaultState.copyright,
@@ -178,6 +226,8 @@ function mergeBrandState(
       techSupport,
       defaultState.heroDesc,
     ),
+    heroImage: getLoginHeroImage(record?.uiExInfo),
+    titleImage: getAdminUiSettingValue(record, 'login', 'titleImage'),
     heroTitle: getFirstText(
       getUiValue(record, 'loginTitle', 'heroTitle'),
       name,
@@ -232,6 +282,8 @@ export function useAuthBrand() {
     brand: readonly(brandState),
     copyright: computed(() => brandState.value.copyright),
     heroDesc: computed(() => brandState.value.heroDesc),
+    heroImage: computed(() => brandState.value.heroImage),
+    titleImage: computed(() => brandState.value.titleImage),
     heroTitle: computed(() => brandState.value.heroTitle),
     loadAuthBrand,
     logo: computed(() => brandState.value.logo),

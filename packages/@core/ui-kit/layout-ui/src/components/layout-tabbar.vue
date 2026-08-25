@@ -18,6 +18,10 @@ interface Props {
    * 高度
    */
   height: number;
+  /** 布局为侧边栏预留的左侧偏移 */
+  layoutMarginLeft?: number;
+  /** 布局为侧边栏预留的宽度 */
+  layoutWidthOffset?: number;
   /** 下外边距 */
   marginBottom?: number;
   /** 左外边距 */
@@ -42,6 +46,8 @@ const props = withDefaults(defineProps<Props>(), {
   borderLeftWidth: 0,
   borderRightWidth: 0,
   borderTopWidth: 0,
+  layoutMarginLeft: 0,
+  layoutWidthOffset: 0,
   marginBottom: 0,
   marginLeft: 0,
   marginRight: 0,
@@ -60,6 +66,8 @@ const style = computed((): CSSProperties => {
     borderRightWidth,
     borderTopWidth,
     height,
+    layoutMarginLeft,
+    layoutWidthOffset,
     marginBottom,
     marginLeft,
     marginRight,
@@ -69,6 +77,7 @@ const style = computed((): CSSProperties => {
     radiusTopLeft,
     radiusTopRight,
   } = props;
+  const horizontalMargin = marginLeft + marginRight;
   return {
     backgroundColor,
     borderBottomLeftRadius: `${radiusBottomLeft}px`,
@@ -83,10 +92,10 @@ const style = computed((): CSSProperties => {
     borderBottomWidth: `${borderBottomWidth}px`,
     height: `${height}px`,
     marginBottom: `${marginBottom}px`,
-    marginLeft: `${marginLeft}px`,
+    marginLeft: `${layoutMarginLeft + marginLeft}px`,
     marginRight: `${marginRight}px`,
     marginTop: `${marginTop}px`,
-    width: `calc(100% - ${marginLeft + marginRight}px)`,
+    width: `calc(100% - ${layoutWidthOffset + horizontalMargin}px)`,
   };
 });
 </script>

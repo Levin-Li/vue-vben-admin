@@ -67,6 +67,13 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       width: 150,
     },
     {
+      key: 'type',
+      label: '站点类型',
+      search: true,
+      table: true,
+      width: 140,
+    },
+    {
       key: 'domain',
       label: '完整域名',
       allowInput: true,
@@ -82,6 +89,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'shortcutIcon',
       label: 'shortcutIcon',
+      layoutNewRow: true,
       type: 'image',
     },
     {

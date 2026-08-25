@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { RouterView } from 'vue-router';
 
 import {
@@ -13,15 +13,35 @@ import { preferences, usePreferences } from '@vben/preferences';
 import { useAuthBrand } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/auth-brand';
 
 const { authPanelCenter, isDark } = usePreferences();
-const { appName, copyright, loadAuthBrand, logo } = useAuthBrand();
+const { appName, copyright, heroImage, loadAuthBrand, logo, titleImage } = useAuthBrand();
+const heroImageLoadFailed = ref(false);
+const logoLoadFailed = ref(false);
+const titleImageLoadFailed = ref(false);
 
-const displayLogo = computed(
-  () =>
-    logo.value ||
-    (isDark.value && preferences.logo.sourceDark
-      ? preferences.logo.sourceDark
-      : preferences.logo.source),
+const fallbackLogo = computed(() =>
+  isDark.value && preferences.logo.sourceDark
+    ? preferences.logo.sourceDark
+    : preferences.logo.source,
 );
+const displayLogo = computed(() =>
+  logoLoadFailed.value ? fallbackLogo.value : logo.value || fallbackLogo.value,
+);
+
+const displayHeroImage = computed(
+  () => Boolean(heroImage.value) && !heroImageLoadFailed.value,
+);
+
+watch(heroImage, () => {
+  heroImageLoadFailed.value = false;
+});
+
+watch(() => logo?.value, () => {
+  logoLoadFailed.value = false;
+});
+
+watch(() => titleImage?.value, () => {
+  titleImageLoadFailed.value = false;
+});
 
 onMounted(() => {
   void loadAuthBrand();
@@ -51,6 +71,7 @@ onMounted(() => {
             :alt="appName"
             :src="displayLogo"
             class="h-8 w-8 object-contain"
+            @error="logoLoadFailed = true"
           />
         </div>
         <div>
@@ -77,8 +98,23 @@ onMounted(() => {
           v-if="!authPanelCenter"
           class="hidden h-full min-h-0 overflow-hidden p-10 xl:block"
         >
+          <img
+            v-if="titleImage && !titleImageLoadFailed"
+            :alt="`${appName} 标题图`"
+            :src="titleImage"
+            class="mx-auto mb-6 block max-h-24 max-w-full object-contain"
+            @error="titleImageLoadFailed = true"
+          />
           <div class="auth-flow-art h-full">
+            <img
+              v-if="displayHeroImage"
+              :alt="`${appName} 登录页插画`"
+              :src="heroImage"
+              class="h-full w-full object-contain"
+              @error="heroImageLoadFailed = true"
+            />
             <svg
+              v-else
               aria-hidden="true"
               class="h-full w-full"
               fill="none"
@@ -221,7 +257,7 @@ onMounted(() => {
                       'M-14-18H6l10 10v26h-30zM6-18v10h10M-6-2h14M-6 8h14',
                       'M-16-18h28v34h-28zM-8-6h12M-8 4h10M5 11l6 6 12-16',
                       'M-14-18h28v36l-7-4-7 4-7-4-7 4zM-6-4h12M-6 6h12',
-                      'M-22 4h28v12h-28zM6-4h12l10 10v10H6zM-14 18a5 5 0 1 0 0 0.1M18 18a5 5 0 1 0 0 0.1'
+                      'M-22 4h28v12h-28zM6-4h12l10 10v10H6zM-14 18a5 5 0 1 0 0 0.1M18 18a5 5 0 1 0 0.1'
                     ][index]"
                   />
                 </g>

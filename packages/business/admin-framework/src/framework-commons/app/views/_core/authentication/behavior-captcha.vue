@@ -225,6 +225,15 @@ watch(
   width: auto;
 }
 
+:deep(.behavior-captcha-card[data-test='captcha-mode-CLICK'] .go-captcha .gc-header) {
+  height: 56px;
+}
+
+:deep(.behavior-captcha-card[data-test='captcha-mode-CLICK'] .go-captcha .gc-header img) {
+  flex: 0 0 auto;
+  max-height: 56px;
+}
+
 :deep(.gc-button-block) {
   display: none;
 }

@@ -6,18 +6,17 @@ const pagePath =
   'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/org-user/index.vue';
 
 describe('组织与用户页面组织树', () => {
-  it('让组织树与用户 CRUD 内容共用外侧间距和高度', () => {
+  it('让组织树与用户 CRUD 内容共用零外侧内边距和高度', () => {
     const source = readFileSync(pagePath, 'utf8');
 
-    expect(source).toContain('user-org-page flex min-h-0 gap-4 p-4');
+    expect(source).toContain('user-org-page flex min-h-0 gap-[8px]');
+    expect(source).not.toContain('user-org-page flex min-h-0 gap-4');
     expect(source).toContain('user-org-main min-h-0 min-w-0 flex-1');
     expect(source).not.toContain('--user-org-sidebar-height');
     expect(source).toMatch(
       /\.user-org-page\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*520px;/s,
     );
-    expect(source).toMatch(
-      /\.user-org-main\s*:deep\(\.vben-crud-page\)\s*\{[^}]*margin:\s*-1rem;/s,
-    );
+    expect(source).not.toContain('.user-org-main :deep(.vben-crud-page)');
   });
 
   it('将悬停操作放入节点右侧的浮动工具条，避免遮挡标题', () => {

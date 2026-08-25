@@ -11,13 +11,7 @@ defineOptions({
   name: 'Copyright',
 });
 
-withDefaults(defineProps<Props>(), {
-  companyName: 'Vben Admin',
-  companySiteLink: '',
-  date: '2024',
-  icp: '',
-  icpLink: '',
-});
+defineProps<Props>();
 </script>
 
 <template>

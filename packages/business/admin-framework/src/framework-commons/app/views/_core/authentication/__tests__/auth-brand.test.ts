@@ -15,11 +15,14 @@ vi.mock('@vben/preferences', () => ({
   },
 }));
 
-vi.mock('@levin/admin-framework/framework-commons/app/api/rbac-service', () => ({
-  rbacService: {
-    getTenantSiteInfo: mocks.getTenantSiteInfo,
-  },
-}));
+vi.mock(
+  '@levin/admin-framework/framework-commons/app/api/rbac-service',
+  () => ({
+    rbacService: {
+      getTenantSiteInfo: mocks.getTenantSiteInfo,
+    },
+  }),
+);
 
 const currentYear = new Date().getFullYear();
 const defaultCopyright = `Copyright © ${currentYear} Levin Main App · 多租户后台管理平台`;
@@ -86,5 +89,100 @@ describe('auth brand tenant site mapping', () => {
 
     expect(brand.appName.value).toBe('租户门户');
     expect(brand.copyright.value).toBe(defaultCopyright);
+  });
+
+  it('reads the login illustration from the merged admin UI setting', async () => {
+    const brand = await loadBrand({
+      uiExInfo: {
+        'admin-ui-base-setting': {
+          setting: {
+            login: {
+              heroImage: '/tenant-login-hero.png',
+            },
+          },
+        },
+      },
+    });
+
+    expect(brand.heroImage.value).toBe('/tenant-login-hero.png');
+  });
+
+  it('uses the enabled interface-settings copyright for the login footer', async () => {
+    const brand = await loadBrand({
+      uiExInfo: {
+        'admin-ui-base-setting': {
+          setting: {
+            copyright: {
+              companyName: 'Levin',
+              date: '2026',
+              enable: true,
+              icp: 'ICP备案号',
+            },
+          },
+        },
+      },
+    });
+
+    expect(brand.copyright.value).toBe('Copyright © 2026 Levin · ICP备案号');
+  });
+
+  it('uses enabled interface settings for the login name and logo', async () => {
+    const brand = await loadBrand({
+      logo: '/tenant-logo.svg',
+      name: '租户门户',
+      uiExInfo: {
+        'admin-ui-base-setting': {
+          preferServerSetting: true,
+          setting: {
+            app: { name: '界面设置名称' },
+            logo: { source: '/interface-settings-logo.svg' },
+          },
+        },
+      },
+    });
+
+    expect(brand.appName.value).toBe('界面设置名称');
+    expect(brand.logo.value).toBe('/interface-settings-logo.svg');
+  });
+
+  it('reads all login-brand settings from the merged interface setting', async () => {
+    const brand = await loadBrand({
+      uiExInfo: {
+        'admin-ui-base-setting': {
+          setting: {
+            login: {
+              heroImage: '/login-hero.png',
+              systemLogo: '/login-logo.png',
+              systemName: '登录站点',
+              titleImage: '/login-title.png',
+            },
+          },
+        },
+      },
+    });
+
+    expect(brand.appName.value).toBe('登录站点');
+    expect(brand.heroImage.value).toBe('/login-hero.png');
+    expect(brand.logo.value).toBe('/login-logo.png');
+    expect(brand.titleImage.value).toBe('/login-title.png');
+  });
+
+  it('falls back to site branding when interface settings are disabled', async () => {
+    const brand = await loadBrand({
+      logo: '/tenant-logo.svg',
+      name: '租户门户',
+      uiExInfo: {
+        'admin-ui-base-setting': {
+          preferServerSetting: false,
+          setting: {
+            app: { name: '界面设置名称' },
+            logo: { source: '/interface-settings-logo.svg' },
+          },
+        },
+      },
+    });
+
+    expect(brand.appName.value).toBe('租户门户');
+    expect(brand.logo.value).toBe('/tenant-logo.svg');
   });
 });

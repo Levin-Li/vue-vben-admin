@@ -598,7 +598,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="user-org-page flex min-h-0 gap-4 p-4">
+  <div class="user-org-page flex min-h-0 gap-[8px]">
     <aside
       class="user-org-sidebar border-border bg-card flex w-[320px] shrink-0 flex-col rounded-lg border p-4"
     >
@@ -882,10 +882,6 @@ onMounted(async () => {
   position: relative;
   z-index: 3;
   overflow: visible;
-}
-
-.user-org-main :deep(.vben-crud-page) {
-  margin: -1rem;
 }
 
 .user-org-main {

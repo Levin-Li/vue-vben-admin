@@ -3,6 +3,8 @@ import { ResAuthorize, Service } from '../../api-authorize';
 import { RequestService } from '../../request-service';
 import { requestClient } from './request';
 
+export const FILE_STORAGE_API_MODULE = '/com.levin.oak.base/V1/api';
+
 function normalizeUploadUrl(result: any) {
   if (typeof result === 'string' && result.trim()) {
     return result.trim();
@@ -61,7 +63,7 @@ export class FileStorageService extends RequestService {
     uploadPath: string = this.getSingleUploadPath(),
   ) {
     const result = await requestClient.upload<any>(
-      buildModuleRequestPath(uploadPath),
+      buildModuleRequestPath(uploadPath, FILE_STORAGE_API_MODULE),
       {
         file,
       },
@@ -92,7 +94,7 @@ export const FILE_STORAGE_MULTI_UPLOAD_PATH =
 
 export async function uploadFileByFileStorageController(
   file: Blob | File,
-  moduleBase?: string,
+  moduleBase: string = FILE_STORAGE_API_MODULE,
   uploadPath: string = FILE_STORAGE_SINGLE_UPLOAD_PATH,
 ) {
   const result = await requestClient.upload<any>(
