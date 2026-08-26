@@ -14,6 +14,14 @@ export interface TimezoneOption {
 
 export const MOCK_USERS: UserInfo[] = [
   {
+    id: 99,
+    password: '123456',
+    realName: 'Super Admin',
+    roles: ['super'],
+    username: 'sa',
+    homePath: '/clob/V1/Partner',
+  },
+  {
     id: 0,
     password: '123456',
     realName: 'Vben',
@@ -39,6 +47,10 @@ export const MOCK_USERS: UserInfo[] = [
 ];
 
 export const MOCK_CODES = [
+  {
+    codes: ['AC_100100', 'AC_100110', 'AC_100120', 'AC_100010'],
+    username: 'sa',
+  },
   // super
   {
     codes: ['AC_100100', 'AC_100110', 'AC_100120', 'AC_100010'],
@@ -177,6 +189,10 @@ const createDemosMenus = (role: 'admin' | 'super' | 'user') => {
 };
 
 export const MOCK_MENUS = [
+  {
+    menus: [...dashboardMenus, ...createDemosMenus('super')],
+    username: 'sa',
+  },
   {
     menus: [...dashboardMenus, ...createDemosMenus('super')],
     username: 'vben',

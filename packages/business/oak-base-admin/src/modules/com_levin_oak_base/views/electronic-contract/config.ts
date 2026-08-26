@@ -62,7 +62,12 @@ export const electronicContractPageCrudConfig: CrudPageConfig =
       { key: 'contentHash', label: '合同内容哈希值', width: 180 },
       { key: 'sourceFileMimeType', label: '原始文件类型', width: 180 },
       { key: 'expireTime', label: '签署截止时间', type: 'datetime', table: true, width: 180 },
-      { key: 'contractPartySnapshot', label: '签约主体快照', type: 'json' },
+      {
+        key: 'contractPartySnapshot',
+        label: '甲乙双方签约主体快照',
+        help: '仅支持 PartyA（甲方，签署顺序 1）与 PartyB（乙方，签署顺序 2）各一方；不支持第三方或多方签署。',
+        type: 'json',
+      },
       { key: 'sealPositionOverrides', label: '签章位置覆盖', type: 'json' },
       { key: 'status', label: '签署状态', search: true, table: true, width: 120, form: false },
       { key: 'providerFlowId', label: '供应商流程号', form: false, table: true, width: 180 },

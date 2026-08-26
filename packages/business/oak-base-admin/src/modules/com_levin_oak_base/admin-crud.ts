@@ -336,6 +336,9 @@ export const oakBaseAdminResourceViewMap: Record<
   Dict: () => import('./views/dict/index.vue'),
   Domain: () => import('./views/domain/index.vue'),
   ElectronicContract: () => import('./views/electronic-contract/index.vue'),
+  ElectronicInvoice: () => import('./views/electronic-invoice/index.vue'),
+  ElectronicInvoiceProviderConnection: () =>
+    import('./views/electronic-invoice-provider-connection/index.vue'),
   ElectronicContractTemplate: () =>
     import('./views/electronic-contract-template/index.vue'),
   DomainSslCert: () => import('./views/domain-ssl-cert/index.vue'),

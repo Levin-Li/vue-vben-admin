@@ -29,6 +29,8 @@ const previewPositionsText = ref(
 );
 const previewError = ref('');
 
+previewUrl.value = '/mock-files/electronic-contract-sample.docx';
+
 const previewPositions = computed<ContractSealPosition[]>(() => {
   try {
     previewError.value = '';
