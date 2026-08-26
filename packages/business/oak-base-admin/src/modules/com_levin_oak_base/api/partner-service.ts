@@ -38,6 +38,30 @@ export class PartnerService extends RequestService {
     return this.put('updatePartner', { ...options, data });
   }
 
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-合作伙伴', action: '提交认证' })
+  @CRUD.Op({ label: '提交认证' })
+  async submitCertification(data?: any, options?: any) {
+    return this.post('submitCertification', { ...options, data });
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-合作伙伴', action: '认证通过' })
+  @CRUD.Op({ label: '认证通过' })
+  async approveCertification(data?: any, options?: any) {
+    return this.post('approveCertification', { ...options, data });
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-合作伙伴', action: '认证拒绝' })
+  @CRUD.Op({ label: '认证拒绝' })
+  async rejectCertification(data?: any, options?: any) {
+    return this.post('rejectCertification', { ...options, data });
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-合作伙伴', action: '撤销认证' })
+  @CRUD.Op({ label: '撤销认证' })
+  async revokeCertification(data?: any, options?: any) {
+    return this.post('revokeCertification', { ...options, data });
+  }
+
   @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-合作伙伴', action: '删除' })
   @CRUD.Op()
   async delete(params?: any, options?: any) {

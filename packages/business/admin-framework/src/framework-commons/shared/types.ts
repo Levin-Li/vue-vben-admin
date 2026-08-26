@@ -70,6 +70,7 @@ export interface CrudFieldConfig {
   jsonSchemaInline?: boolean;
   jsonSchemaMode?: 'inline' | 'popup';
   layoutGroup?: string;
+  layoutGroupTitle?: string;
   layoutNewRow?: boolean;
   layoutOrder?: number;
   loadOptions?: (keyword?: string) => Promise<SelectOption[]>;

@@ -638,6 +638,15 @@ const visibleFormFields = computed(() =>
   ),
 );
 
+function shouldShowFormGroupTitle(field: CrudFieldConfig) {
+  if (!field.layoutGroupTitle?.trim()) {
+    return false;
+  }
+  return visibleFormFields.value.findIndex(
+    (item) => item.layoutGroup === field.layoutGroup,
+  ) === visibleFormFields.value.indexOf(field);
+}
+
 const tableFields = computed(() =>
   props.config.fields.filter((field) => field.table && isFieldVisible(field)),
 );
@@ -6027,9 +6036,14 @@ watch(tableColumnPreferenceStorageKey, () => {
         :style="formContainerStyle"
       >
         <div class="grid gap-x-4 gap-y-4" :style="formGridStyle">
-          <Form.Item
-            v-for="field in visibleFormFields"
-            :key="field.key"
+          <template v-for="field in visibleFormFields" :key="field.key">
+            <div
+              v-if="shouldShowFormGroupTitle(field)"
+              class="col-span-full border-border/70 mt-2 border-t pt-4 text-sm font-semibold"
+            >
+              {{ field.layoutGroupTitle }}
+            </div>
+            <Form.Item
             :label="field.label"
             :required="field.required"
             :extra="field.help"
@@ -6281,7 +6295,8 @@ watch(tableColumnPreferenceStorageKey, () => {
               :maxlength="field.maxLength"
               :placeholder="getPlaceholder(field)"
             />
-          </Form.Item>
+            </Form.Item>
+          </template>
         </div>
       </Form>
     </Modal>

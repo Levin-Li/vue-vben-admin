@@ -59,6 +59,7 @@ export const electronicContractPageCrudConfig: CrudPageConfig =
       { key: 'sourceFileName', label: '原始文件名', table: true, width: 220 },
       { key: 'sourceFileUrl', label: '原始文件链接', span: 2 },
       { key: 'sourceFileHash', label: '原始文件哈希', width: 180 },
+      { key: 'contentHash', label: '合同内容哈希值', width: 180 },
       { key: 'sourceFileMimeType', label: '原始文件类型', width: 180 },
       { key: 'expireTime', label: '签署截止时间', type: 'datetime', table: true, width: 180 },
       { key: 'contractPartySnapshot', label: '签约主体快照', type: 'json' },
