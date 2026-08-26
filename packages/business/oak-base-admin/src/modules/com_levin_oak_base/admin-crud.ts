@@ -82,6 +82,18 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '根域名管理',
   },
   {
+    icon: 'lucide:file-signature',
+    name: 'ElectronicContract',
+    resource: 'ElectronicContract',
+    title: '电子合同',
+  },
+  {
+    icon: 'lucide:file-stack',
+    name: 'ElectronicContractTemplate',
+    resource: 'ElectronicContractTemplate',
+    title: '电子合同模板',
+  },
+  {
     icon: 'lucide:shield-check',
     name: 'DomainSslCert',
     resource: 'DomainSslCert',
@@ -171,6 +183,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     name: 'PayOrder',
     resource: 'PayOrder',
     title: '支付订单',
+  },
+  {
+    icon: 'lucide:handshake',
+    name: 'Partner',
+    resource: 'Partner',
+    title: '合作伙伴',
   },
   {
     icon: 'lucide:key-round',
@@ -317,6 +335,9 @@ export const oakBaseAdminResourceViewMap: Record<
   Demo: () => import('./views/demo/index.vue'),
   Dict: () => import('./views/dict/index.vue'),
   Domain: () => import('./views/domain/index.vue'),
+  ElectronicContract: () => import('./views/electronic-contract/index.vue'),
+  ElectronicContractTemplate: () =>
+    import('./views/electronic-contract-template/index.vue'),
   DomainSslCert: () => import('./views/domain-ssl-cert/index.vue'),
   EmailRelayRoute: () => import('./views/email-relay-route/index.vue'),
   FileRes: () => import('./views/file-res/index.vue'),
@@ -337,6 +358,7 @@ export const oakBaseAdminResourceViewMap: Record<
   OrgUser: () => import('./views/org-user/index.vue'),
   PayChannel: () => import('./views/pay-channel/index.vue'),
   PayOrder: () => import('./views/pay-order/index.vue'),
+  Partner: () => import('./views/partner/index.vue'),
   RbacPermissionItem: () => import('./views/rbac-permission-item/index.vue'),
   Role: () => import('./views/role/index.vue'),
   ScheduledLog: () => import('./views/scheduled-log/index.vue'),

@@ -80,5 +80,8 @@
     "pinia": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"
+  },
+  "dependencies": {
+    "docx-preview": "^0.4.0"
   }
 }
