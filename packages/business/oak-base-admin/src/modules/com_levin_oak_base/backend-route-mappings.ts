@@ -12,6 +12,8 @@ const MODULE_SOURCE_PREFIX = 'modules/com_levin_oak_base/views';
 const CRUD_PAGE_DIRECTORY_OVERRIDES: Readonly<Record<string, string>> = {
   EContract: 'electronic-contract',
   EContractTemplate: 'electronic-contract-template',
+  EInvoice: 'electronic-invoice',
+  EInvoiceProviderConnection: 'electronic-invoice-provider-connection',
 };
 const CRUD_ROUTE_PATH_PREFIX = '/clob/V1';
 
@@ -38,6 +40,14 @@ function createCrudBackendRouteMapping(
 }
 
 export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
+  {
+    icon: 'lucide:house',
+    path: '/clob/V1/index',
+    resource: 'AdminHome',
+    sourceFilePath: `${MODULE_SOURCE_PREFIX}/home/index.vue`,
+    title: '后台管理',
+    viewPath: `${MODULE_VIEW_PREFIX}/home/index.vue`,
+  },
   ...oakBaseAdminCrudResources.map(createCrudBackendRouteMapping),
   {
     icon: 'lucide:bell',

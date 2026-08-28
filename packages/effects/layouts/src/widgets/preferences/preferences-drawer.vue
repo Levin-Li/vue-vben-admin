@@ -16,8 +16,6 @@ import type { SegmentedItem } from '@vben-core/shadcn-ui';
 
 import { computed, ref } from 'vue';
 
-import { Upload } from 'ant-design-vue';
-
 import { Copy, Pin, PinOff, RotateCw } from '@vben/icons';
 import { $t, loadLocaleMessages } from '@vben/locales';
 import {
@@ -44,7 +42,6 @@ import {
   ColorMode,
   ColorSettings,
   Content,
-  Copyright,
   FontScale,
   FontSize,
   Footer,
@@ -61,54 +58,6 @@ import {
 } from './blocks';
 
 const message = globalShareState.getMessage();
-const LOGIN_IMAGE_UPLOAD_EVENT = 'levin:request-login-image-upload';
-const LOGIN_BRAND_UPDATE_EVENT = 'levin:update-login-brand';
-const loginBrandFileLists = ref<Record<string, any[]>>({});
-
-function requestLoginImageUpload(field: 'heroImage' | 'systemLogo' | 'titleImage') {
-  window.dispatchEvent(new CustomEvent(LOGIN_IMAGE_UPLOAD_EVENT, { detail: field }));
-}
-
-function getLoginBrandFileList(field: 'heroImage' | 'systemLogo' | 'titleImage') {
-  return loginBrandFileLists.value[field] || [];
-}
-
-function uploadLoginBrandImage(
-  field: 'heroImage' | 'systemLogo' | 'titleImage',
-  options: any,
-) {
-  window.dispatchEvent(
-    new CustomEvent(LOGIN_IMAGE_UPLOAD_EVENT, {
-      detail: {
-        field,
-        file: options.file,
-        onError: options.onError,
-        onSuccess: (url: string) => {
-          loginBrandFileLists.value = {
-            ...loginBrandFileLists.value,
-            [field]: [
-              {
-                name: options.file.name,
-                status: 'done',
-                uid: `${field}:${url}`,
-                url,
-              },
-            ],
-          };
-          options.onSuccess?.(url);
-        },
-      },
-    }),
-  );
-}
-
-function updateLoginSystemName(event: Event) {
-  window.dispatchEvent(
-    new CustomEvent(LOGIN_BRAND_UPDATE_EVENT, {
-      detail: { systemName: (event.target as HTMLInputElement).value },
-    }),
-  );
-}
 
 const appLocale = defineModel<SupportedLanguagesType>('appLocale');
 const appDynamicTitle = defineModel<boolean>('appDynamicTitle');
@@ -143,6 +92,11 @@ const appContentBorderLeftWidth = defineModel<number>(
   'appContentBorderLeftWidth',
 );
 const appWatermark = defineModel<boolean>('appWatermark');
+const appWatermarkColor = defineModel<string>('appWatermarkColor');
+const appWatermarkColorCustom = defineModel<boolean>('appWatermarkColorCustom');
+const appWatermarkTransparency = defineModel<number>(
+  'appWatermarkTransparency',
+);
 const appWatermarkContent = defineModel<string>('appWatermarkContent');
 const appEnableCheckUpdates = defineModel<boolean>('appEnableCheckUpdates');
 const appEnableStickyPreferencesNavigationBar = defineModel<boolean>(
@@ -359,16 +313,6 @@ const footerBackgroundTransparency = defineModel<number>(
   'footerBackgroundTransparency',
 );
 
-const copyrightSettingShow = defineModel<boolean>('copyrightSettingShow');
-const copyrightEnable = defineModel<boolean>('copyrightEnable');
-const copyrightCompanyName = defineModel<string>('copyrightCompanyName');
-const copyrightCompanySiteLink = defineModel<string>(
-  'copyrightCompanySiteLink',
-);
-const copyrightDate = defineModel<string>('copyrightDate');
-const copyrightIcp = defineModel<string>('copyrightIcp');
-const copyrightIcpLink = defineModel<string>('copyrightIcpLink');
-
 const shortcutKeysEnable = defineModel<boolean>('shortcutKeysEnable');
 const shortcutKeysGlobalSearch = defineModel<boolean>(
   'shortcutKeysGlobalSearch',
@@ -407,6 +351,7 @@ const [Drawer] = useVbenDrawer();
 
 const activeTab = ref('appearance');
 const colorSettingsRef = ref<InstanceType<typeof ColorSettings>>();
+const watermarkColorSettingsRef = ref<InstanceType<typeof ColorSettings>>();
 
 const tabs = computed((): SegmentedItem[] => {
   return [
@@ -472,8 +417,14 @@ function openColorSettings(
     | 'menuBackground'
     | 'primary'
     | 'sidebar'
-    | 'tabbarBackground',
+    | 'tabbarBackground'
+    | 'watermark',
 ) {
+  if (target === 'watermark') {
+    watermarkColorSettingsRef.value?.open(target);
+    return;
+  }
+
   colorSettingsRef.value?.open(target);
 }
 </script>
@@ -536,35 +487,11 @@ function openColorSettings(
                 v-model:app-enable-check-updates="appEnableCheckUpdates"
                 v-model:app-locale="appLocale"
                 v-model:app-watermark="appWatermark"
+                v-model:app-watermark-color="appWatermarkColor"
+                v-model:app-watermark-color-custom="appWatermarkColorCustom"
                 v-model:app-watermark-content="appWatermarkContent"
+                @open-color-settings="openColorSettings"
               />
-            </Block>
-
-            <Block
-              v-if="copyrightSettingShow"
-              :title="$t('preferences.copyright.title')"
-            >
-              <Copyright
-                v-model:copyright-company-name="copyrightCompanyName"
-                v-model:copyright-company-site-link="copyrightCompanySiteLink"
-                v-model:copyright-date="copyrightDate"
-                v-model:copyright-enable="copyrightEnable"
-                v-model:copyright-icp="copyrightIcp"
-                v-model:copyright-icp-link="copyrightIcpLink"
-                :disabled="!footerEnable"
-              />
-            </Block>
-
-            <Block title="登录">
-              <div class="space-y-3 py-1">
-                <div class="grid grid-cols-3 gap-3">
-                  <Upload accept="image/png,.png" :custom-request="(options) => uploadLoginBrandImage('heroImage', options)" :file-list="getLoginBrandFileList('heroImage')" list-type="picture-card" :max-count="1"><div>＋<br />主图</div></Upload>
-                  <Upload accept="image/png,.png" :custom-request="(options) => uploadLoginBrandImage('titleImage', options)" :file-list="getLoginBrandFileList('titleImage')" list-type="picture-card" :max-count="1"><div>＋<br />标题图</div></Upload>
-                  <Upload accept="image/png,.png" :custom-request="(options) => uploadLoginBrandImage('systemLogo', options)" :file-list="getLoginBrandFileList('systemLogo')" list-type="picture-card" :max-count="1"><div>＋<br />系统 Logo</div></Upload>
-                </div>
-                <p class="text-destructive text-xs">仅支持 PNG 格式图片，单张文件必须小于 600 KB。</p>
-                <div class="flex items-center justify-between gap-3"><span class="text-sm">系统名称</span><input class="w-48 rounded border px-3 py-2 text-sm" placeholder="请输入系统名称" @change="updateLoginSystemName" /></div>
-              </div>
             </Block>
 
             <Block :title="$t('preferences.animation.title')">
@@ -630,32 +557,40 @@ function openColorSettings(
               <ColorSettings
                 ref="colorSettingsRef"
                 v-model="themeBuiltinType"
+                v-model:footer-background-color="footerBackgroundColor"
+                v-model:footer-background-transparency="
+                  footerBackgroundTransparency
+                "
+                v-model:tabbar-background-color="tabbarBackgroundColor"
+                v-model:tabbar-background-transparency="
+                  tabbarBackgroundTransparency
+                "
                 v-model:theme-base-background-color="themeBaseBackgroundColor"
                 v-model:theme-base-background-transparency="
                   themeBaseBackgroundTransparency
                 "
+                v-model:theme-color-destructive="themeColorDestructive"
+                v-model:theme-color-primary="themeColorPrimary"
+                v-model:theme-color-success="themeColorSuccess"
+                v-model:theme-color-warning="themeColorWarning"
                 v-model:theme-content-background-color="
                   themeContentBackgroundColor
                 "
                 v-model:theme-content-background-transparency="
                   themeContentBackgroundTransparency
                 "
-                v-model:theme-color-destructive="themeColorDestructive"
-                v-model:theme-color-primary="themeColorPrimary"
-                v-model:theme-color-success="themeColorSuccess"
-                v-model:theme-color-warning="themeColorWarning"
-                v-model:theme-semi-dark-header-color="themeSemiDarkHeaderColor"
-                v-model:theme-semi-dark-header-color-transparency="
-                  themeSemiDarkHeaderColorTransparency
-                "
-                v-model:theme-header-menu-theme-color="
-                  themeHeaderMenuThemeColor
-                "
                 v-model:theme-header-menu-background-color="
                   themeHeaderMenuBackgroundColor
                 "
                 v-model:theme-header-menu-background-color-transparency="
                   themeHeaderMenuBackgroundColorTransparency
+                "
+                v-model:theme-header-menu-theme-color="
+                  themeHeaderMenuThemeColor
+                "
+                v-model:theme-semi-dark-header-color="themeSemiDarkHeaderColor"
+                v-model:theme-semi-dark-header-color-transparency="
+                  themeSemiDarkHeaderColorTransparency
                 "
                 v-model:theme-semi-dark-sidebar-color="
                   themeSemiDarkSidebarColor
@@ -668,14 +603,6 @@ function openColorSettings(
                 "
                 v-model:theme-sidebar-menu-background-color-transparency="
                   themeSidebarMenuBackgroundColorTransparency
-                "
-                v-model:tabbar-background-color="tabbarBackgroundColor"
-                v-model:tabbar-background-transparency="
-                  tabbarBackgroundTransparency
-                "
-                v-model:footer-background-color="footerBackgroundColor"
-                v-model:footer-background-transparency="
-                  footerBackgroundTransparency
                 "
                 :is-dark="isDark"
               />
@@ -919,6 +846,13 @@ function openColorSettings(
             </Block>
           </template>
         </VbenSegmented>
+        <ColorSettings
+          ref="watermarkColorSettingsRef"
+          v-model:app-watermark-color="appWatermarkColor"
+          v-model:app-watermark-transparency="appWatermarkTransparency"
+          hide-entries
+          :is-dark="isDark"
+        />
       </div>
 
       <template #footer>

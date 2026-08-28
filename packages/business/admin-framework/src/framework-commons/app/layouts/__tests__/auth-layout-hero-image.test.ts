@@ -3,11 +3,11 @@ import { nextTick, ref } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  heroImage: undefined as any,
+  heroImageCandidates: undefined as any,
   loadAuthBrand: vi.fn().mockResolvedValue(undefined),
 }));
 
-mocks.heroImage = ref('');
+mocks.heroImageCandidates = ref<string[]>([]);
 
 vi.mock('@vben/layouts', () => ({
   AuthenticationColorToggle: { template: '<div />' },
@@ -35,9 +35,10 @@ vi.mock(
     useAuthBrand: () => ({
       appName: ref('租户门户'),
       copyright: ref('Copyright'),
-      heroImage: mocks.heroImage,
+      heroImageCandidates: mocks.heroImageCandidates,
       loadAuthBrand: mocks.loadAuthBrand,
-      logo: ref('/logo.svg'),
+      logoCandidates: ref(['/logo.svg']),
+      titleImageCandidates: ref([]),
     }),
   }),
 );
@@ -57,13 +58,25 @@ describe('authentication layout login hero image', () => {
     await flushPromises();
     expect(wrapper.find('.auth-flow-art svg').exists()).toBe(true);
 
-    mocks.heroImage.value = '/tenant-login-hero.png';
+    mocks.heroImageCandidates.value = ['/tenant-login-hero.png'];
     await nextTick();
     expect(wrapper.find('.auth-flow-art img').attributes('src')).toBe(
       '/tenant-login-hero.png',
     );
 
     await wrapper.find('.auth-flow-art img').trigger('error');
+    await nextTick();
     expect(wrapper.find('.auth-flow-art svg').exists()).toBe(true);
+
+    mocks.heroImageCandidates.value = [
+      '/ui-setting-hero.png',
+      '/tenant-site-hero.png',
+    ];
+    await nextTick();
+    await wrapper.find('.auth-flow-art img').trigger('error');
+    await nextTick();
+    expect(wrapper.find('.auth-flow-art img').attributes('src')).toBe(
+      '/tenant-site-hero.png',
+    );
   });
 });

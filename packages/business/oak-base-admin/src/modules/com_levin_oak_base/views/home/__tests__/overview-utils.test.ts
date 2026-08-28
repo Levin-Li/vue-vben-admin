@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { resolveOverviewTotal } from '../overview-utils';
 
-describe('resolveOverviewTotal', () => {
+describe('模块首页统计', () => {
   it('uses the server total before the current page records', () => {
     expect(
       resolveOverviewTotal({

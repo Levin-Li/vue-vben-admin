@@ -18,6 +18,7 @@ import {
   verifyTarballRouteAssets,
   verifyTarballStandaloneInstall,
 } from './publish-artifact-gate.mjs';
+import { validateInternalPeerVersions } from './internal-peer-dependency-guard.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDir = resolve(frontendRoot, 'npm-packages');
@@ -36,9 +37,11 @@ const onlyPackage = process.argv
   .slice(2)
   .find((arg) => arg.startsWith('--only='))
   ?.slice('--only='.length);
-const selectedPackages = (onlyPackage
-  ? packages.filter((packageInfo) => packageInfo.name === onlyPackage)
-  : packages).map((packageInfo) => ({
+let selectedPackages = (
+  onlyPackage
+    ? packages.filter((packageInfo) => packageInfo.name === onlyPackage)
+    : packages
+).map((packageInfo) => ({
   ...packageInfo,
   dir: resolve(frontendRoot, packageInfo.path),
 }));
@@ -183,6 +186,39 @@ function run(command, commandArgs, extraEnv = {}, cwd = frontendRoot) {
   }
 }
 
+run('node', ['./scripts/sync-package-versions.mjs']);
+selectedPackages = (
+  onlyPackage
+    ? packages.filter((packageInfo) => packageInfo.name === onlyPackage)
+    : packages
+).map((packageInfo) => ({
+  ...packageInfo,
+  dir: resolve(frontendRoot, packageInfo.path),
+}));
+
+const versionConfig = JSON.parse(
+  readFileSync(resolve(frontendRoot, 'package-versions.json'), 'utf8'),
+);
+const selectedPackageVersionByName = new Map(
+  selectedPackages.map((packageInfo) => {
+    const packageJson = JSON.parse(
+      readFileSync(resolve(packageInfo.dir, 'package.json'), 'utf8'),
+    );
+    return [packageInfo.name, packageJson.version];
+  }),
+);
+
+for (const packageInfo of selectedPackages) {
+  const packageJson = JSON.parse(
+    readFileSync(resolve(packageInfo.dir, 'package.json'), 'utf8'),
+  );
+  validateInternalPeerVersions(
+    { ...packageInfo, packageJson },
+    selectedPackageVersionByName,
+    versionConfig,
+  );
+}
+
 function isSourcePublicExport(exportPath, exportValue, conditionName = '') {
   if (exportPath === './src' || exportPath.startsWith('./src/')) {
     return true;
@@ -206,7 +242,11 @@ function isSourcePublicExport(exportPath, exportValue, conditionName = '') {
 }
 
 function validatePackagePublishRules(packageInfo) {
-  const packageJsonPath = resolve(frontendRoot, packageInfo.path, 'package.json');
+  const packageJsonPath = resolve(
+    frontendRoot,
+    packageInfo.path,
+    'package.json',
+  );
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
   const publicSourceExports = Object.entries(packageJson.exports || {})
     .filter(([exportPath, exportValue]) =>
@@ -235,7 +275,10 @@ try {
   const routeAssetsByPackage = new Map();
   for (const packageInfo of selectedPackages) {
     run('pnpm', ['--filter', packageInfo.name, 'build']);
-    routeAssetsByPackage.set(packageInfo.name, verifyBuiltRouteAssets(packageInfo));
+    routeAssetsByPackage.set(
+      packageInfo.name,
+      verifyBuiltRouteAssets(packageInfo),
+    );
   }
 
   if (mode === 'pack') {
@@ -269,12 +312,22 @@ try {
       mkdirSync(packageTarballDir, { recursive: true });
 
       for (const packageInfo of selectedPackages) {
-        const json = JSON.parse(readFileSync(resolve(packageInfo.dir, 'package.json'), 'utf8'));
-        const packageOutputDir = resolve(packageTarballDir, json.name.replaceAll('/', '__'));
+        const json = JSON.parse(
+          readFileSync(resolve(packageInfo.dir, 'package.json'), 'utf8'),
+        );
+        const packageOutputDir = resolve(
+          packageTarballDir,
+          json.name.replaceAll('/', '__'),
+        );
         const tarball = packWorkspacePackage(packageInfo, packageOutputDir);
         const routeAssets = routeAssetsByPackage.get(packageInfo.name);
 
-        verifyTarballRouteAssets(packageInfo, tarball, routeAssets, '本地 tarball');
+        verifyTarballRouteAssets(
+          packageInfo,
+          tarball,
+          routeAssets,
+          '本地 tarball',
+        );
         verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
         verifyTarballStandaloneInstall(packageInfo, tarball, remotePackEnv);
 
@@ -301,8 +354,17 @@ try {
           remotePackEnv,
           frontendRoot,
         );
-        verifyTarballRouteAssets(packageInfo, remoteTarball, routeAssets, '私服 tarball');
-        verifyTarballDependencyProtocols(packageInfo, remoteTarball, '私服 tarball');
+        verifyTarballRouteAssets(
+          packageInfo,
+          remoteTarball,
+          routeAssets,
+          '私服 tarball',
+        );
+        verifyTarballDependencyProtocols(
+          packageInfo,
+          remoteTarball,
+          '私服 tarball',
+        );
       }
     } finally {
       if (userConfig) {

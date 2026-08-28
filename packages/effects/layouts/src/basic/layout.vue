@@ -23,7 +23,6 @@ import { VbenBackTop, VbenLogo } from '@vben-core/shadcn-ui';
 
 import { Breadcrumb, CheckUpdates, Preferences } from '../widgets';
 import { LayoutContent, LayoutContentSpinner } from './content';
-import { Copyright } from './copyright';
 import { LayoutFooter } from './footer';
 import { LayoutHeader } from './header';
 import {
@@ -606,12 +605,9 @@ const headerSlots = computed(() => {
     </template>
 
     <!-- 页脚 -->
-    <template v-if="preferences.footer.enable" #footer>
+    <template v-if="preferences.footer.enable && $slots.footer" #footer>
       <LayoutFooter>
-        <Copyright
-          v-if="preferences.copyright.enable"
-          v-bind="preferences.copyright"
-        />
+        <slot name="footer"></slot>
       </LayoutFooter>
     </template>
 

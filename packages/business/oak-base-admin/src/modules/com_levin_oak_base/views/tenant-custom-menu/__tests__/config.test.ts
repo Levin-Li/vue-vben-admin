@@ -1,37 +1,21 @@
-import { describe, expect, it, vi } from 'vitest';
-
-const { tenantSiteDomainOptionsLoader } = vi.hoisted(() => ({
-  tenantSiteDomainOptionsLoader: vi.fn(async () => []),
-}));
-
-vi.mock('../../../api/tenant-custom-menu-service', () => ({
-  tenantCustomMenuService: {},
-}));
-
-vi.mock('../../api-module', () => ({
-  DEFAULT_CRUD_MODAL_WIDTH: '80%',
-  tenantOptionsLoader: async () => [],
-  tenantSiteDomainOptionsLoader,
-}));
+import { describe, expect, it } from 'vitest';
 
 import { tenantCustomMenuPageCrudConfig } from '../config';
 
-describe('tenant custom menu page config', () => {
-  it('offers tenant-site domains while retaining direct domain input', () => {
-    const field = tenantCustomMenuPageCrudConfig.fields.find(
-      (item) => item.key === 'domain',
-    );
+describe('tenant custom menu audience fields', () => {
+  it('uses clearable single-select fields so empty values represent wildcards', () => {
+    for (const key of ['userType', 'orgType']) {
+      const field = tenantCustomMenuPageCrudConfig.fields.find(
+        (item) => item.key === key,
+      );
 
-    expect(field).toMatchObject({
-      allowInput: true,
-      help: expect.stringContaining('租户站点'),
-      key: 'domain',
-      loadOptions: tenantSiteDomainOptionsLoader,
-      placeholder: '输入或从租户站点选择域名',
-      remoteSearch: true,
-      search: true,
-      table: true,
-      type: 'select',
-    });
+      expect(field).toMatchObject({
+        search: true,
+        table: true,
+        type: 'select',
+      });
+      expect(field?.multiple).toBeUndefined();
+      expect(field?.help).toContain('留空表示匹配任意');
+    }
   });
 });

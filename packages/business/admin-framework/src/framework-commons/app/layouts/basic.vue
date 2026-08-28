@@ -5,8 +5,6 @@ import {
   computed,
   defineAsyncComponent,
   onMounted,
-  onUnmounted,
-  reactive,
   ref,
   useSlots,
   watch,
@@ -44,12 +42,6 @@ import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 import { useAuthBrand } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/auth-brand';
-import {
-  getLoginHeroImage,
-  LOGIN_HERO_IMAGE_MAX_BYTES,
-  validateLoginHeroImageFile,
-} from '@levin/admin-framework/framework-commons/app/views/_core/authentication/login-hero-image';
-import { uploadFileByFileStorageController } from '@levin/admin-framework/framework-commons/app/api/file-storage-service';
 
 import {
   getFrameworkEventListeners,
@@ -126,7 +118,7 @@ const headerTopSlots = computed(() => {
 });
 const accessStore = useAccessStore();
 const router = useRouter();
-const { appName, heroImage, loadAuthBrand } = useAuthBrand();
+const { appName, copyright, loadAuthBrand, logo } = useAuthBrand();
 const LoginForm = defineAsyncComponent(
   resolveAdminPage('/_core/authentication/login.vue'),
 );
@@ -138,18 +130,6 @@ const syncMenuRoutesModalOpen = ref(false);
 const syncI18nLabelsModalOpen = ref(false);
 const saveAdminUiBaseSettingModalOpen = ref(false);
 const saveAdminUiBaseSettingLoading = ref(false);
-const loginHeroImageFileInputRef = ref<HTMLInputElement>();
-const loginHeroImageSaving = ref(false);
-const loginHeroImageUploading = ref(false);
-const loginHeroImageUrl = ref('');
-const loginBrandImageField = ref<'heroImage' | 'systemLogo' | 'titleImage'>(
-  'heroImage',
-);
-const loginBrandForm = reactive({
-  systemLogo: '',
-  systemName: '',
-  titleImage: '',
-});
 const eventListenerManagerOpen = ref(false);
 const eventListeners = ref<FrameworkEventListenerInfo[]>([]);
 const preferServerAdminUiBaseSetting = ref(true);
@@ -157,8 +137,6 @@ const adminUiBaseSettingUploadTarget = ref<AdminUiBaseSettingUploadTarget>(
   DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET,
 );
 const SAVE_ADMIN_UI_BASE_SETTING_TIMEOUT_MS = 15_000;
-const LOGIN_IMAGE_UPLOAD_EVENT = 'levin:request-login-image-upload';
-const LOGIN_BRAND_UPDATE_EVENT = 'levin:update-login-brand';
 const adminUiBaseSettingUploadTargetOptions: Array<{
   label: string;
   value: AdminUiBaseSettingUploadTarget;
@@ -185,15 +163,6 @@ const canUploadI18nLabels = computed(() => {
   return (
     userInfo.superAdmin === true &&
     Boolean(getAdminI18nLabelSyncService()?.uploadModuleLabels)
-  );
-});
-
-const canConfigureLoginHeroImage = computed(() => {
-  const userInfo = (userStore.userInfo || {}) as Record<string, any>;
-  return (
-    userInfo.admin === true ||
-    userInfo.isAdmin === true ||
-    userInfo.superAdmin === true
   );
 });
 
@@ -300,160 +269,7 @@ async function handleLogout() {
 }
 
 function clonePreferences() {
-  const setting = JSON.parse(JSON.stringify(preferences)) as Record<
-    string,
-    any
-  >;
-
-  if (heroImage.value) {
-    setting.login = {
-      ...(setting.login || {}),
-      heroImage: heroImage.value,
-    };
-  }
-
-  return setting;
-}
-
-async function loadLoginBrandSettings() {
-  loginHeroImageUrl.value = heroImage.value;
-
-  try {
-    const tenantSiteInfo = await rbacService.getTenantSiteInfo();
-    const loginSetting =
-      tenantSiteInfo?.uiExInfo?.['admin-ui-base-setting']?.setting?.login ||
-      {};
-    loginHeroImageUrl.value = getLoginHeroImage(tenantSiteInfo?.uiExInfo);
-    loginBrandForm.systemLogo = String(loginSetting.systemLogo || '').trim();
-    loginBrandForm.systemName = String(loginSetting.systemName || '').trim();
-    loginBrandForm.titleImage = String(loginSetting.titleImage || '').trim();
-  } catch {
-    // 保留已加载的品牌配置，管理员仍可上传新图片或恢复默认。
-  }
-
-}
-
-function handleLoginImageUpload(event: Event) {
-  if (!canConfigureLoginHeroImage.value) {
-    message.warning('只有管理员可以配置登录页品牌');
-    return;
-  }
-
-  const detail = (event as CustomEvent<any>).detail;
-  const field = detail?.field ?? detail;
-  if (
-    field !== 'heroImage' &&
-    field !== 'systemLogo' &&
-    field !== 'titleImage'
-  ) {
-    return;
-  }
-
-  loginBrandImageField.value = field;
-  if (detail?.file instanceof File) {
-    void handleLoginBrandUploadRequest(detail.file, detail);
-    return;
-  }
-  void loadLoginBrandSettings().then(openLoginHeroImageFilePicker);
-}
-
-async function handleLoginBrandUploadRequest(file: File, options: any = {}) {
-  const validationMessage = await validateLoginHeroImageFile(file);
-  if (validationMessage) {
-    message.warning(validationMessage);
-    options.onError?.(new Error(validationMessage));
-    return;
-  }
-
-  if (file.size >= LOGIN_HERO_IMAGE_MAX_BYTES) {
-    const error = new Error('图片文件超过 600 KB，无法上传');
-    message.warning(error.message);
-    options.onError?.(error);
-    return;
-  }
-
-  await uploadLoginBrandImage(file, options);
-}
-
-function handleLoginBrandUpdate(event: Event) {
-  const systemName = (event as CustomEvent<{ systemName?: unknown }>).detail
-    ?.systemName;
-  if (typeof systemName !== 'string') {
-    return;
-  }
-  void loadLoginBrandSettings().then(() => {
-    loginBrandForm.systemName = systemName;
-    return handleSaveLoginHeroImage();
-  });
-}
-
-function openLoginHeroImageFilePicker() {
-  if (!loginHeroImageUploading.value) {
-    loginHeroImageFileInputRef.value?.click();
-  }
-}
-
-async function handleLoginHeroImageFileChange(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = '';
-
-  if (!file) {
-    return;
-  }
-
-  await handleLoginBrandUploadRequest(file);
-}
-
-async function uploadLoginBrandImage(file: File, options: any = {}) {
-  try {
-    loginHeroImageUploading.value = true;
-    const url = await uploadFileByFileStorageController(file);
-    if (loginBrandImageField.value === 'heroImage') {
-      loginHeroImageUrl.value = url;
-    } else {
-      loginBrandForm[loginBrandImageField.value] = url;
-    }
-    message.success('登录页品牌图片上传成功');
-    options.onSuccess?.(url);
-  } catch (error) {
-    message.error('登录页插画上传失败');
-    options.onError?.(error);
-  } finally {
-    loginHeroImageUploading.value = false;
-  }
-}
-
-async function handleSaveLoginHeroImage() {
-  if (loginHeroImageSaving.value) {
-    return;
-  }
-
-  loginHeroImageSaving.value = true;
-
-  try {
-    const setting = clonePreferences();
-    setting.login = {
-      ...(setting.login || {}),
-      heroImage: loginHeroImageUrl.value,
-      systemLogo: loginBrandForm.systemLogo.trim(),
-      systemName: loginBrandForm.systemName.trim(),
-      titleImage: loginBrandForm.titleImage.trim(),
-    };
-    await rbacService.adjustSiteUiSetting(
-      buildAdminUiBaseSettingPayload(
-        setting,
-        true,
-        DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET,
-      ),
-      { timeout: SAVE_ADMIN_UI_BASE_SETTING_TIMEOUT_MS },
-    );
-    message.success('登录页品牌设置已保存');
-  } catch {
-    message.error('登录页插画保存失败');
-  } finally {
-    loginHeroImageSaving.value = false;
-  }
+  return JSON.parse(JSON.stringify(preferences)) as Record<string, any>;
 }
 
 async function handleSaveAdminUiBaseSetting() {
@@ -784,8 +600,6 @@ function handleViewAllNotifications() {
 }
 
 onMounted(() => {
-  window.addEventListener(LOGIN_IMAGE_UPLOAD_EVENT, handleLoginImageUpload);
-  window.addEventListener(LOGIN_BRAND_UPDATE_EVENT, handleLoginBrandUpdate);
   loadAuthBrand().catch((error) => {
     console.warn('加载租户站点品牌信息失败', error);
   });
@@ -794,10 +608,15 @@ onMounted(() => {
   });
 });
 
-onUnmounted(() => {
-  window.removeEventListener(LOGIN_IMAGE_UPLOAD_EVENT, handleLoginImageUpload);
-  window.removeEventListener(LOGIN_BRAND_UPDATE_EVENT, handleLoginBrandUpdate);
-});
+watch(
+  logo,
+  (siteLogo) => {
+    if (siteLogo) {
+      preferences.logo.source = siteLogo;
+    }
+  },
+  { immediate: true },
+);
 
 watch(
   () => [accessStore.accessToken, userStore.userInfo?.id],
@@ -811,14 +630,26 @@ watch(
 watch(
   () => ({
     enable: preferences.app.watermark,
+    color: preferences.app.watermarkColorCustom
+      ? preferences.app.watermarkColor || 'gray'
+      : 'gray',
     content: preferences.app.watermarkContent,
+    transparency: preferences.app.watermarkTransparency ?? 85,
   }),
-  async ({ enable, content }) => {
+  async ({ color, enable, content, transparency }) => {
     if (enable) {
       await updateWatermark({
+        advancedStyle: {
+          colorStops: [
+            { color, offset: 0 },
+            { color, offset: 1 },
+          ],
+          type: 'linear',
+        },
         content:
           content ||
           `${userStore.userInfo?.username} - ${userStore.userInfo?.realName}`,
+        globalAlpha: Math.min(1, Math.max(0, 1 - Number(transparency) / 100)),
       });
     } else {
       destroyWatermark();
@@ -834,6 +665,11 @@ watch(
   <BasicLayout>
     <template #logo-text>
       {{ appName }}
+    </template>
+    <template v-if="copyright" #footer>
+      <div class="text-muted-foreground text-center text-xs">
+        {{ copyright }}
+      </div>
     </template>
     <template #user-dropdown>
       <Modal
@@ -871,13 +707,6 @@ watch(
           </Checkbox>
         </div>
       </Modal>
-      <input
-        ref="loginHeroImageFileInputRef"
-        accept="image/png,.png"
-        class="hidden"
-        type="file"
-        @change="handleLoginHeroImageFileChange"
-      />
       <Modal
         v-model:open="eventListenerManagerOpen"
         :footer="null"

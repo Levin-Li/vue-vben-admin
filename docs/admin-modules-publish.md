@@ -138,7 +138,18 @@ pnpm run sync:package-versions
 pnpm run check:package-versions
 ```
 
-`pack:packages` 和 `publish:packages` 会在执行前自动同步版本和内部包引用，避免漏改某个子包。内部普通依赖统一使用 `workspace:*`；对外 `peerDependencies` 中的内部包版本统一同步为 `package-versions.json` 中的精确当前版本，例如 `@vben/request: 5.6.7`。这些包是同一套内部发布物，入口应用应按 peer 声明安装配套版本，不使用宽松范围混装不同补丁版本。发布脚本会在发布前校验内部 peer 是否等于本次待发布版本或私服当前 latest，不一致时会中断发布。
+所有标准发布入口（`pack:packages`、`publish:packages`、`pack:admin-modules`、`publish:admin-modules`）都会在执行前自动同步版本和内部包引用，避免漏改某个子包。内部普通依赖统一使用 `workspace:*`；对外 `peerDependencies` 中的内部包版本统一同步为 `package-versions.json` 中的精确当前版本，例如 `@vben/request: 5.6.7`。这些包是同一套内部发布物，入口应用应按 peer 声明安装配套版本，不使用宽松范围混装不同补丁版本。发布脚本会在上传前校验内部 peer 是否等于本次发布版本来源中的精确版本，不一致时会中断发布。
+
+### 内部模块升级的级联发布
+
+当 A 包的版本更新，而 B 包在 `peerDependencies` 中依赖 A 时，必须在一次发布中完成以下动作：
+
+1. 先更新 `package-versions.json` 中 A 的新版本；
+2. 执行 `pnpm run sync:package-versions`，把 B 的 `peerDependencies.A` 更新为 A 的精确新版本；
+3. 因为 B 的已发布元数据变化，递增 B 的自身版本，并把 B 纳入本次发布清单；
+4. 先发布 A，再发布 B。
+
+例如，升级 `@levin/admin-framework` 时，`@levin/oak-base-admin` 的 peer 约束会同步到新版本，且 Oak 包必须使用新自身版本重发。不能只发布框架包，否则私服中已存在的 Oak 包仍会要求旧版本。标准发布器会同步并校验约束；如果约束没有更新，会在上传 tarball 前中断。
 
 ## 入口应用集成
 

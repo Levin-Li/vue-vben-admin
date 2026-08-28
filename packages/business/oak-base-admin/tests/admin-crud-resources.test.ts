@@ -23,7 +23,8 @@ describe('oak base admin crud resources', () => {
     );
     expect(
       rootRoute?.children?.every(
-        ({ name, path }) => String(name) === String(path).replaceAll('/', '_'),
+        ({ name, path }) =>
+          path === '' || String(name) === String(path).replaceAll('/', '_'),
       ),
     ).toBe(true);
   });
@@ -49,6 +50,9 @@ describe('oak base admin crud resources', () => {
 
   it('uses the backend generated local page path for the crud root route', () => {
     const [rootRoute] = createOakBaseAdminCrudRoutes();
+    const homeMapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === '/clob/V1/index',
+    );
 
     expect(rootRoute).toEqual(
       expect.objectContaining({
@@ -56,9 +60,14 @@ describe('oak base admin crud resources', () => {
         path: '/clob/V1/index',
       }),
     );
-    expect(rootRoute?.children?.[0]).toEqual(
+    expect(rootRoute?.children?.filter((route) => route.path)).toHaveLength(
+      oakBaseAdminCrudResources.length,
+    );
+    expect(homeMapping).toEqual(
       expect.objectContaining({
-        path: expect.stringMatching(/^\/clob\/V1\/[A-Z]/),
+        resource: 'AdminHome',
+        sourceFilePath: 'modules/com_levin_oak_base/views/home/index.vue',
+        viewPath: '/system/com_levin_oak_base/home/index.vue',
       }),
     );
   });

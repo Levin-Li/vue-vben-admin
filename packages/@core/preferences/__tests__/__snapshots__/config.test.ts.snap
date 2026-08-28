@@ -38,7 +38,10 @@ exports[`defaultPreferences immutability test > should not modify the config obj
     "name": "Vben Admin",
     "preferencesButtonPosition": "auto",
     "watermark": false,
+    "watermarkColor": "gray",
+    "watermarkColorCustom": false,
     "watermarkContent": "",
+    "watermarkTransparency": 85,
     "zIndex": 200,
   },
   "breadcrumb": {

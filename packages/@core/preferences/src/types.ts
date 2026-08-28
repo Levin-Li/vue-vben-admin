@@ -96,9 +96,21 @@ interface AppPreferences {
    */
   watermark: boolean;
   /**
+   * @zh_CN 水印颜色
+   */
+  watermarkColor: string;
+  /**
+   * @zh_CN 是否自定义水印颜色
+   */
+  watermarkColorCustom: boolean;
+  /**
    * @zh_CN 水印文案
    */
   watermarkContent: string;
+  /**
+   * @zh_CN 水印透明度，0 表示不透明，100 表示完全透明
+   */
+  watermarkTransparency: number;
   /** z-index */
   zIndex: number;
 }

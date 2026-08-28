@@ -27,13 +27,17 @@ type ColorTarget =
   | 'sidebar'
   | 'success'
   | 'tabbarBackground'
-  | 'warning';
+  | 'warning'
+  | 'watermark';
 
 defineOptions({
   name: 'PreferenceColorSettings',
 });
 
-const props = defineProps<{ isDark: boolean }>();
+const props = withDefaults(
+  defineProps<{ hideEntries?: boolean; isDark: boolean }>(),
+  { hideEntries: false },
+);
 
 const themeColorPrimary = defineModel<string>('themeColorPrimary');
 const themeColorDestructive = defineModel<string>('themeColorDestructive');
@@ -83,6 +87,10 @@ const themeSidebarMenuBackgroundColorTransparency = defineModel<number>(
 );
 const tabbarBackgroundColor = defineModel<string>('tabbarBackgroundColor');
 const footerBackgroundColor = defineModel<string>('footerBackgroundColor');
+const appWatermarkColor = defineModel<string>('appWatermarkColor');
+const appWatermarkTransparency = defineModel<number>(
+  'appWatermarkTransparency',
+);
 const footerBackgroundTransparency = defineModel<number>(
   'footerBackgroundTransparency',
 );
@@ -139,6 +147,9 @@ const activeColor = computed(() => {
     case 'warning': {
       return themeColorWarning.value;
     }
+    case 'watermark': {
+      return appWatermarkColor.value;
+    }
     default: {
       return themeColorPrimary.value;
     }
@@ -155,6 +166,7 @@ const isBackgroundTarget = computed(() =>
     'menuBackground',
     'sidebar',
     'tabbarBackground',
+    'watermark',
   ].includes(activeTarget.value),
 );
 
@@ -184,6 +196,9 @@ const activeBackgroundTransparency = computed({
       }
       case 'tabbarBackground': {
         return tabbarBackgroundTransparency.value ?? 0;
+      }
+      case 'watermark': {
+        return appWatermarkTransparency.value ?? 85;
       }
       default: {
         return 0;
@@ -223,6 +238,10 @@ const activeBackgroundTransparency = computed({
       }
       case 'tabbarBackground': {
         tabbarBackgroundTransparency.value = transparency;
+        break;
+      }
+      case 'watermark': {
+        appWatermarkTransparency.value = transparency;
         break;
       }
     }
@@ -300,6 +319,9 @@ function getColorTargetLabel(target: ColorTarget) {
     }
     case 'warning': {
       return $t('preferences.theme.warningColor');
+    }
+    case 'watermark': {
+      return $t('preferences.watermarkColor');
     }
     default: {
       return $t('preferences.theme.themeColor');
@@ -460,6 +482,13 @@ function resetThemeColors() {
     return;
   }
 
+  if (activeTarget.value === 'watermark') {
+    editorColor.value = initialPreferences.app.watermarkColor;
+    appWatermarkTransparency.value =
+      initialPreferences.app.watermarkTransparency;
+    return;
+  }
+
   if (activeTarget.value === 'destructive') {
     editorColor.value = initialTheme.colorDestructive;
     return;
@@ -572,6 +601,11 @@ watch(editorColor, (value) => {
 
       break;
     }
+    case 'watermark': {
+      appWatermarkColor.value = value;
+
+      break;
+    }
     default: {
       themeColorPrimary.value = value;
     }
@@ -583,47 +617,49 @@ defineExpose({ open });
 
 <template>
   <div>
-    <button
-      class="color-settings-entry"
-      type="button"
-      @click="() => open('primary')"
-    >
-      <span class="flex items-center gap-2 text-sm">
-        <Palette class="size-4" />
-        {{ $t('preferences.theme.themeColor') }}
-      </span>
-      <span class="color-settings-summary">
-        <span
-          :style="{ backgroundColor: themeColorPrimary }"
-          class="color-settings-preview"
-        ></span>
-        <span class="min-w-0 truncate text-xs">{{ currentThemeName }}</span>
-      </span>
-    </button>
-
-    <div class="semantic-color-list">
+    <template v-if="!props.hideEntries">
       <button
-        v-for="item in semanticColorItems"
-        :key="item.target"
         class="color-settings-entry"
         type="button"
-        @click="() => open(item.target)"
+        @click="() => open('primary')"
       >
         <span class="flex items-center gap-2 text-sm">
           <Palette class="size-4" />
-          {{ item.label }}
+          {{ $t('preferences.theme.themeColor') }}
         </span>
         <span class="color-settings-summary">
           <span
-            :style="{ backgroundColor: item.color }"
+            :style="{ backgroundColor: themeColorPrimary }"
             class="color-settings-preview"
           ></span>
-          <span class="min-w-0 truncate text-xs">
-            {{ getColorSummaryName(item.color) }}
-          </span>
+          <span class="min-w-0 truncate text-xs">{{ currentThemeName }}</span>
         </span>
       </button>
-    </div>
+
+      <div class="semantic-color-list">
+        <button
+          v-for="item in semanticColorItems"
+          :key="item.target"
+          class="color-settings-entry"
+          type="button"
+          @click="() => open(item.target)"
+        >
+          <span class="flex items-center gap-2 text-sm">
+            <Palette class="size-4" />
+            {{ item.label }}
+          </span>
+          <span class="color-settings-summary">
+            <span
+              :style="{ backgroundColor: item.color }"
+              class="color-settings-preview"
+            ></span>
+            <span class="min-w-0 truncate text-xs">
+              {{ getColorSummaryName(item.color) }}
+            </span>
+          </span>
+        </button>
+      </div>
+    </template>
 
     <Modal
       :title="currentColorSettingsTitle"
@@ -663,6 +699,11 @@ defineExpose({ open });
         </section>
         <BackgroundSettings
           v-if="isBackgroundTarget"
+          :label="
+            activeTarget === 'watermark'
+              ? $t('preferences.watermarkTransparency')
+              : undefined
+          "
           v-model:transparency="activeBackgroundTransparency"
         />
       </div>

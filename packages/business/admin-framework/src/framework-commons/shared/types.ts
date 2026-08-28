@@ -37,6 +37,20 @@ export interface CrudAreaCascaderConfig {
   provinceNameKey?: string;
 }
 
+export interface CrudComplexGroupConfig {
+  /** 页面内分组标识。 */
+  key: string;
+  /** 提交到后端的嵌套属性名。 */
+  submitKey: string;
+  /** 扁平字段到嵌套对象属性的映射。 */
+  fieldMappings: Record<string, string>;
+  title: string;
+}
+
+export type CrudDynamicText =
+  | string
+  | ((formState: Record<string, any>) => string);
+
 export interface CrudFieldConfig {
   '@JsonSchema'?: Record<string, any> | string;
   '@JsonSchemaInline'?: boolean;
@@ -48,6 +62,7 @@ export interface CrudFieldConfig {
   areaCascader?: CrudAreaCascaderConfig;
   cellSingleLine?: boolean;
   cellTooltip?: boolean;
+  complexGroupKey?: string;
   defaultValue?: any;
   disabledOnEdit?: boolean | ((context: { userInfo: unknown }) => boolean);
   export?: boolean;
@@ -55,9 +70,11 @@ export interface CrudFieldConfig {
   form?: boolean;
   formCreate?: boolean;
   formEdit?: boolean;
+  /** 仅在表单中使用的动态字段标题，不影响列表与导出标题。 */
+  formLabel?: CrudDynamicText;
   formVisibleForSuperAdmin?: boolean;
   fullRow?: boolean;
-  help?: string;
+  help?: CrudDynamicText;
   key: string;
   label: string;
   JsonSchema?: Record<string, any> | string;
@@ -75,9 +92,10 @@ export interface CrudFieldConfig {
   layoutOrder?: number;
   loadOptions?: (keyword?: string) => Promise<SelectOption[]>;
   maxLength?: number;
-  multiple?: boolean;
+  multiple?: boolean | ((formState: Record<string, any>) => boolean);
+  maxUploadCount?: number | ((formState: Record<string, any>) => number);
   options?: SelectOption[];
-  placeholder?: string;
+  placeholder?: CrudDynamicText;
   remoteSearch?: boolean;
   required?: boolean;
   search?: boolean;
@@ -90,6 +108,8 @@ export interface CrudFieldConfig {
   tableValue?: (record: Record<string, any>) => any;
   type?: CrudFieldType;
   uploadPath?: string;
+  /** 返回校验错误文本时阻止提交；空值是否允许仍由 required 决定。 */
+  validator?: (value: any, formState: Record<string, any>) => string | undefined;
   valueType?: 'boolean' | 'number' | 'string';
   visibleForPlatformUser?: boolean;
   width?: number;
@@ -217,6 +237,7 @@ export interface CrudPageConfig {
   allowRetrieve?: boolean;
   createPath?: CrudPathConfig;
   createPermission?: string | string[];
+  complexGroups?: CrudComplexGroupConfig[];
   defaultFormValues?: Record<string, any>;
   defaultQuery?: Record<string, any>;
   deletePath?: string;

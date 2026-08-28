@@ -26,12 +26,27 @@ vi.mock('@vben-core/popup-ui', () => ({
   ],
 }));
 
+const BackgroundSettingsStub = defineComponent({
+  emits: ['update:transparency'],
+  name: 'BackgroundSettings',
+  props: {
+    label: String,
+    transparency: Number,
+  },
+  setup(_, { emit }) {
+    return () =>
+      h('button', {
+        onClick: () => emit('update:transparency', 60),
+      });
+  },
+});
+
 describe('ColorSettings', () => {
   it('emits the selected footer color to its parent', async () => {
     const wrapper = mount(ColorSettings, {
       global: {
         stubs: {
-          BackgroundSettings: true,
+          BackgroundSettings: BackgroundSettingsStub,
           BuiltinTheme: true,
           VbenButton: true,
         },
@@ -51,6 +66,42 @@ describe('ColorSettings', () => {
     expect(new TinyColor(String(emitted?.[0]?.[0])).toHexString()).toBe(
       '#0bd092',
     );
+  });
+
+  it('emits watermark color and transparency updates from the shared dialog', async () => {
+    const wrapper = mount(ColorSettings, {
+      global: {
+        stubs: {
+          BackgroundSettings: BackgroundSettingsStub,
+          BuiltinTheme: true,
+          VbenButton: true,
+        },
+      },
+      props: {
+        appWatermarkColor: '#f2f4f7',
+        appWatermarkTransparency: 75,
+        isDark: false,
+      },
+    });
+
+    wrapper.vm.open('watermark');
+    await nextTick();
+    await wrapper.find('input[type="color"]').setValue('#0bd092');
+
+    expect(wrapper.emitted('update:appWatermarkColor')).toHaveLength(1);
+    expect(
+      new TinyColor(
+        String(wrapper.emitted('update:appWatermarkColor')?.[0]?.[0]),
+      ).toHexString(),
+    ).toBe('#0bd092');
+
+    const backgroundSettings = wrapper.findComponent(BackgroundSettingsStub);
+    expect(backgroundSettings.props('label')).toBe(
+      'preferences.watermarkTransparency',
+    );
+    await backgroundSettings.trigger('click');
+
+    expect(wrapper.emitted('update:appWatermarkTransparency')).toEqual([[60]]);
   });
 
   it('forwards footer color updates through the preferences drawer', async () => {

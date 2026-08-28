@@ -26,6 +26,7 @@ import {
   TENANT_GROOVY_EXPRESSION_PREFIX,
   USER_DEFAULT_ORG_ID,
 } from './data-permission-transform';
+import { matchPathPattern } from './path-pattern-match-utils';
 
 const props = defineProps<{
   allowScriptExpressionTypes?: boolean;
@@ -72,7 +73,7 @@ const scopeOptions = [
     value: 'SelfAndDirectChild',
   },
   { expression: '/**', label: '本节点及所有子节点', value: 'All' },
-  { expression: '', label: '自定义表达式', value: 'Custom' },
+  { expression: '', label: '自定义', value: 'Custom' },
 ];
 
 const allowOptions = [
@@ -106,6 +107,8 @@ const tenantOptions = ref<Array<{ label: string; value: string }>>([]);
 const tenantOptionsLoading = ref(false);
 const tenantMatchingMode = ref<TenantMatchingMode>('default');
 const tenantMatchingValue = ref('');
+const pathPatternTestResult = ref<null | boolean>(null);
+const pathPatternTestTarget = ref('');
 
 const formState = reactive<
   OrgScopeDraft & {
@@ -196,6 +199,42 @@ const orgScopeExpressionVariablesTip = computed(() => {
 
   return '';
 });
+
+const orgScopePathExpressionTip = computed(() => {
+  const commonTip =
+    '路径以所选组织为根：/ 表示所选组织本身；* 匹配一层，** 匹配零层或多层。当前服务端对精确层级的自定义规则（如 /*/*）存在已知匹配问题，请避免用于生产授权。';
+
+  if (formState.orgScopeExpressionType === 'IdPath') {
+    return `IdPath：按所选组织到被匹配组织的相对组织 ID 路径逐段匹配。示例：/SALES/SALES_EAST。${commonTip}`;
+  }
+
+  if (formState.orgScopeExpressionType === 'NamePath') {
+    return `NamePath：按所选组织到被匹配组织的相对组织名称路径逐段匹配。示例：/销售部/华东组。${commonTip}`;
+  }
+
+  return '';
+});
+
+const supportsPathPatternTest = computed(() =>
+  ['IdPath', 'NamePath'].includes(formState.orgScopeExpressionType),
+);
+
+function resetPathPatternTest() {
+  pathPatternTestResult.value = null;
+  pathPatternTestTarget.value = '';
+}
+
+function handlePathPatternTest() {
+  const expression = formState.orgScopeExpression.trim();
+  const target = pathPatternTestTarget.value.trim();
+
+  if (!expression || !target) {
+    message.warning('请输入组织范围表达式和匹配目标');
+    return;
+  }
+
+  pathPatternTestResult.value = matchPathPattern(expression, target);
+}
 
 function normalizeOrgOptions(nodes: OrgTreeNode[]): OrgSelectOption[] {
   return nodes.map((node) => {
@@ -422,6 +461,7 @@ function resetForm() {
     templateKey: 'All',
     tenantMatchingExpression: DEFAULT_TENANT_MATCHING_EXPRESSION,
   });
+  resetPathPatternTest();
   applyTenantMatchingExpression(DEFAULT_TENANT_MATCHING_EXPRESSION);
 }
 
@@ -473,6 +513,7 @@ function openEditForm(index: number) {
       draft.tenantMatchingExpression || DEFAULT_TENANT_MATCHING_EXPRESSION,
   });
   applyTenantMatchingExpression(formState.tenantMatchingExpression);
+  resetPathPatternTest();
   formOpen.value = true;
 }
 
@@ -509,12 +550,14 @@ function handleExpressionTypeChange(value: unknown) {
   }
 
   formState.orgScopeExpressionType = nextType;
+  resetPathPatternTest();
 }
 
 function handleScopeChange(value: unknown) {
   const templateKey = String(value || '');
   formState.templateKey = templateKey;
   formState.mode = templateKey === 'Custom' ? 'advanced' : 'template';
+  resetPathPatternTest();
 
   if (templateKey !== 'Custom') {
     formState.orgScopeExpressionType = DEFAULT_ORG_SCOPE_EXPRESSION_TYPE;
@@ -530,6 +573,7 @@ function handleExpressionChange(expression: string) {
   formState.mode = 'advanced';
   formState.templateKey = 'Custom';
   formState.orgScopeExpression = expression;
+  pathPatternTestResult.value = null;
 }
 
 function handleSubmitForm() {
@@ -800,7 +844,9 @@ watch(formOpen, (open) => {
         </div>
 
         <label class="block space-y-1 text-sm">
-          <span class="text-muted-foreground">组织范围表达式</span>
+          <span data-test="scope-template-label" class="text-muted-foreground">
+            组织范围
+          </span>
           <Select
             :options="scopeOptions"
             :value="formState.templateKey"
@@ -826,7 +872,7 @@ watch(formOpen, (open) => {
             <textarea
               data-test="org-expression-editor"
               :value="formState.orgScopeExpression"
-              class="border-border bg-background min-h-24 w-full rounded border px-3 py-2"
+              class="border-border bg-background min-h-20 w-full rounded border px-3 py-2"
               :placeholder="orgScopeExpressionPlaceholder"
               @input="
                 handleExpressionChange(
@@ -834,11 +880,45 @@ watch(formOpen, (open) => {
                 )
               "
             ></textarea>
+            <div
+              v-if="supportsPathPatternTest"
+              class="border-border bg-muted/30 space-y-2 rounded border p-3"
+            >
+              <span class="text-muted-foreground block text-xs">匹配测试</span>
+              <div class="flex gap-2">
+                <input
+                  v-model="pathPatternTestTarget"
+                  data-test="org-path-pattern-test-target"
+                  class="border-border bg-background min-w-0 flex-1 rounded border px-3 py-2"
+                  placeholder="输入匹配目标，例如 /SALES/EAST"
+                />
+                <Button
+                  data-test="org-path-pattern-test"
+                  @click="handlePathPatternTest"
+                >
+                  匹配测试
+                </Button>
+              </div>
+              <span
+                v-if="pathPatternTestResult !== null"
+                data-test="org-path-pattern-test-result"
+                class="text-muted-foreground block text-xs"
+              >
+                匹配结果：{{ pathPatternTestResult ? '匹配' : '不匹配' }}
+              </span>
+            </div>
             <span
               v-if="orgScopeExpressionVariablesTip"
               class="text-muted-foreground block text-xs"
             >
               {{ orgScopeExpressionVariablesTip }}
+            </span>
+            <span
+              v-if="orgScopePathExpressionTip"
+              data-test="org-path-expression-tip"
+              class="text-muted-foreground block text-xs leading-5"
+            >
+              {{ orgScopePathExpressionTip }}
             </span>
           </label>
         </template>

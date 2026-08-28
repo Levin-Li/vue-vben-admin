@@ -13,35 +13,73 @@ import { preferences, usePreferences } from '@vben/preferences';
 import { useAuthBrand } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/auth-brand';
 
 const { authPanelCenter, isDark } = usePreferences();
-const { appName, copyright, heroImage, loadAuthBrand, logo, titleImage } = useAuthBrand();
-const heroImageLoadFailed = ref(false);
-const logoLoadFailed = ref(false);
-const titleImageLoadFailed = ref(false);
+const {
+  appName,
+  copyright,
+  heroImageCandidates,
+  loadAuthBrand,
+  logoCandidates,
+  techSupport,
+  titleImageCandidates,
+} = useAuthBrand();
+const heroImageCandidateIndex = ref(0);
+const logoCandidateIndex = ref(0);
+const titleImageCandidateIndex = ref(0);
 
 const fallbackLogo = computed(() =>
   isDark.value && preferences.logo.sourceDark
     ? preferences.logo.sourceDark
     : preferences.logo.source,
 );
-const displayLogo = computed(() =>
-  logoLoadFailed.value ? fallbackLogo.value : logo.value || fallbackLogo.value,
+const displayLogo = computed(
+  () => logoCandidates.value[logoCandidateIndex.value] || fallbackLogo.value,
 );
 
-const displayHeroImage = computed(
-  () => Boolean(heroImage.value) && !heroImageLoadFailed.value,
+const displayHeroImage = computed(() =>
+  Boolean(heroImageCandidates.value[heroImageCandidateIndex.value]),
+);
+const displayHeroImageUrl = computed(
+  () => heroImageCandidates.value[heroImageCandidateIndex.value] || '',
+);
+const displayTitleImage = computed(
+  () => titleImageCandidates.value[titleImageCandidateIndex.value] || '',
 );
 
-watch(heroImage, () => {
-  heroImageLoadFailed.value = false;
+watch(heroImageCandidates, () => {
+  heroImageCandidateIndex.value = 0;
 });
 
-watch(() => logo?.value, () => {
-  logoLoadFailed.value = false;
+watch(logoCandidates, () => {
+  logoCandidateIndex.value = 0;
 });
 
-watch(() => titleImage?.value, () => {
-  titleImageLoadFailed.value = false;
+watch(titleImageCandidates, () => {
+  titleImageCandidateIndex.value = 0;
 });
+
+function useNextImageCandidate(
+  candidateIndex: typeof heroImageCandidateIndex,
+  candidates: string[],
+) {
+  if (candidateIndex.value < candidates.length - 1) {
+    candidateIndex.value += 1;
+    return;
+  }
+
+  candidateIndex.value = candidates.length;
+}
+
+function handleHeroImageError() {
+  useNextImageCandidate(heroImageCandidateIndex, heroImageCandidates.value);
+}
+
+function handleLogoImageError() {
+  useNextImageCandidate(logoCandidateIndex, logoCandidates.value);
+}
+
+function handleTitleImageError() {
+  useNextImageCandidate(titleImageCandidateIndex, titleImageCandidates.value);
+}
 
 onMounted(() => {
   void loadAuthBrand();
@@ -51,7 +89,7 @@ onMounted(() => {
 <template>
   <div
     :class="[isDark ? 'dark' : '']"
-    class="auth-shell relative flex h-screen flex-col overflow-hidden text-foreground"
+    class="auth-shell text-foreground relative flex h-screen flex-col overflow-hidden"
   >
     <div class="absolute inset-0 overflow-hidden">
       <div class="auth-glow auth-glow-one"></div>
@@ -71,7 +109,7 @@ onMounted(() => {
             :alt="appName"
             :src="displayLogo"
             class="h-8 w-8 object-contain"
-            @error="logoLoadFailed = true"
+            @error="handleLogoImageError"
           />
         </div>
         <div>
@@ -81,7 +119,9 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="auth-toolbar flex items-center gap-1 rounded-full px-3 py-1.5">
+      <div
+        class="auth-toolbar flex items-center gap-1 rounded-full px-3 py-1.5"
+      >
         <AuthenticationColorToggle />
         <AuthenticationLayoutToggle />
         <LanguageToggle v-if="preferences.widget.languageToggle" />
@@ -89,7 +129,9 @@ onMounted(() => {
       </div>
     </header>
 
-    <main class="relative z-10 flex-1 overflow-hidden px-6 pb-16 lg:px-10 lg:pb-20">
+    <main
+      class="relative z-10 flex-1 overflow-hidden px-6 pb-16 lg:px-10 lg:pb-20"
+    >
       <div
         class="mx-auto grid h-full min-h-0 max-w-[1520px] items-center gap-8 xl:grid-cols-[1.12fr_0.88fr]"
         :class="{ 'grid-cols-1': authPanelCenter }"
@@ -99,19 +141,25 @@ onMounted(() => {
           class="hidden h-full min-h-0 overflow-hidden p-10 xl:block"
         >
           <img
-            v-if="titleImage && !titleImageLoadFailed"
+            v-if="displayTitleImage"
             :alt="`${appName} 标题图`"
-            :src="titleImage"
+            :src="displayTitleImage"
             class="mx-auto mb-6 block max-h-24 max-w-full object-contain"
-            @error="titleImageLoadFailed = true"
+            @error="handleTitleImageError"
           />
+          <p
+            v-if="techSupport"
+            class="text-muted-foreground mx-auto mb-4 max-w-xl text-center text-sm"
+          >
+            {{ techSupport }}
+          </p>
           <div class="auth-flow-art h-full">
             <img
               v-if="displayHeroImage"
               :alt="`${appName} 登录页插画`"
-              :src="heroImage"
+              :src="displayHeroImageUrl"
               class="h-full w-full object-contain"
-              @error="heroImageLoadFailed = true"
+              @error="handleHeroImageError"
             />
             <svg
               v-else
@@ -159,22 +207,34 @@ onMounted(() => {
                   <circle class="auth-flow-node-mark" cx="29" cy="24" r="15" />
                   <path
                     class="auth-flow-node-glyph"
-                    :d="[
-                      'M21 17h16v14H21zM25 13h8v4M25 24h8',
-                      'M21 17h16M21 24h16M21 31h16M23 15l12 18',
-                      'M20 24a9 9 0 1 0 18 0 9 9 0 1 0-18 0M29 15v18M21 24h16',
-                      'M21 17h16v14H21zM25 21h8M25 27h8',
-                      'M22 19h14v10H22zM25 16h8v3M25 32h8',
-                      'M21 29h16M23 19h12l2 10H21z',
-                      'M22 17h14v14H22zM25 21h8M25 26h8'
-                    ][index]"
+                    :d="
+                      [
+                        'M21 17h16v14H21zM25 13h8v4M25 24h8',
+                        'M21 17h16M21 24h16M21 31h16M23 15l12 18',
+                        'M20 24a9 9 0 1 0 18 0 9 9 0 1 0-18 0M29 15v18M21 24h16',
+                        'M21 17h16v14H21zM25 21h8M25 27h8',
+                        'M22 19h14v10H22zM25 16h8v3M25 32h8',
+                        'M21 29h16M23 19h12l2 10H21z',
+                        'M22 17h14v14H22zM25 21h8M25 26h8',
+                      ][index]
+                    "
                   />
                 </g>
               </g>
 
               <g class="auth-flow-orbit auth-flow-orbit-left">
-                <circle class="auth-flow-ring-shadow" cx="350" cy="260" r="138" />
-                <circle class="auth-flow-ring-track" cx="350" cy="260" r="122" />
+                <circle
+                  class="auth-flow-ring-shadow"
+                  cx="350"
+                  cy="260"
+                  r="138"
+                />
+                <circle
+                  class="auth-flow-ring-track"
+                  cx="350"
+                  cy="260"
+                  r="122"
+                />
                 <circle class="auth-flow-ring-main" cx="350" cy="260" r="122" />
                 <circle class="auth-flow-ring-dash" cx="350" cy="260" r="154" />
               </g>
@@ -214,13 +274,31 @@ onMounted(() => {
               </g>
 
               <g class="auth-flow-orbit auth-flow-orbit-right">
-                <circle class="auth-flow-ring-shadow" cx="640" cy="260" r="142" />
-                <circle class="auth-flow-ring-track" cx="640" cy="260" r="126" />
-                <circle class="auth-flow-ring-main auth-flow-ring-main-alt" cx="640" cy="260" r="126" />
+                <circle
+                  class="auth-flow-ring-shadow"
+                  cx="640"
+                  cy="260"
+                  r="142"
+                />
+                <circle
+                  class="auth-flow-ring-track"
+                  cx="640"
+                  cy="260"
+                  r="126"
+                />
+                <circle
+                  class="auth-flow-ring-main auth-flow-ring-main-alt"
+                  cx="640"
+                  cy="260"
+                  r="126"
+                />
                 <circle class="auth-flow-ring-dash" cx="640" cy="260" r="166" />
               </g>
 
-              <g class="auth-flow-core auth-flow-core-right" transform="translate(640 260)">
+              <g
+                class="auth-flow-core auth-flow-core-right"
+                transform="translate(640 260)"
+              >
                 <circle r="96" />
                 <g class="auth-flow-stream">
                   <circle cx="-42" cy="-36" r="9" />
@@ -252,13 +330,15 @@ onMounted(() => {
                   <circle r="42" />
                   <path
                     class="auth-flow-capability-icon"
-                    :d="[
-                      'M-18-10h36v24h-36zM10-2h12v10H10M-10-16h20v6',
-                      'M-14-18H6l10 10v26h-30zM6-18v10h10M-6-2h14M-6 8h14',
-                      'M-16-18h28v34h-28zM-8-6h12M-8 4h10M5 11l6 6 12-16',
-                      'M-14-18h28v36l-7-4-7 4-7-4-7 4zM-6-4h12M-6 6h12',
-                      'M-22 4h28v12h-28zM6-4h12l10 10v10H6zM-14 18a5 5 0 1 0 0 0.1M18 18a5 5 0 1 0 0.1'
-                    ][index]"
+                    :d="
+                      [
+                        'M-18-10h36v24h-36zM10-2h12v10H10M-10-16h20v6',
+                        'M-14-18H6l10 10v26h-30zM6-18v10h10M-6-2h14M-6 8h14',
+                        'M-16-18h28v34h-28zM-8-6h12M-8 4h10M5 11l6 6 12-16',
+                        'M-14-18h28v36l-7-4-7 4-7-4-7 4zM-6-4h12M-6 6h12',
+                        'M-22 4h28v12h-28zM6-4h12l10 10v10H6zM-14 18a5 5 0 1 0 0 0.1M18 18a5 5 0 1 0 0.1',
+                      ][index]
+                    "
                   />
                 </g>
               </g>
@@ -283,9 +363,15 @@ onMounted(() => {
           class="mx-auto flex w-full max-w-[620px] items-center justify-center"
           :class="{ 'max-w-[780px]': authPanelCenter }"
         >
-          <div class="auth-panel relative w-full overflow-hidden rounded-[36px] p-3">
-            <div class="auth-panel-glow pointer-events-none absolute inset-x-8 top-0 h-28"></div>
-            <div class="auth-card relative rounded-[30px] px-5 py-6 sm:px-8 sm:py-8">
+          <div
+            class="auth-panel relative w-full overflow-hidden rounded-[36px] p-3"
+          >
+            <div
+              class="auth-panel-glow pointer-events-none absolute inset-x-8 top-0 h-28"
+            ></div>
+            <div
+              class="auth-card relative rounded-[30px] px-5 py-6 sm:px-8 sm:py-8"
+            >
               <RouterView v-slot="{ Component, route }">
                 <Transition appear mode="out-in" name="slide-right">
                   <div :key="route.fullPath" class="w-full">
@@ -380,11 +466,7 @@ onMounted(() => {
 }
 
 .auth-panel-glow {
-  background: linear-gradient(
-    180deg,
-    hsl(var(--primary) / 0.22),
-    transparent
-  );
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.22), transparent);
   filter: blur(28px);
 }
 
@@ -515,7 +597,6 @@ onMounted(() => {
   .auth-copyright {
     font-size: 11px;
   }
-
 }
 
 .auth-grid {

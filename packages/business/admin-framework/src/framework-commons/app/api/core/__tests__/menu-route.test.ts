@@ -433,6 +433,52 @@ describe('menu route conversion', () => {
     expect(route?.children?.[1]?.path).toBe('/clob/V1/Role');
   });
 
+  it('keeps an unmapped group as an expand-only menu', () => {
+    const route = convertMenuNodeForTest(
+      {
+        children: [
+          {
+            name: '角色管理',
+            pageType: 'LocalPage-本地页面',
+            path: '/clob/V1/Role',
+          },
+        ],
+        name: '旧页面分组',
+        pageType: 'AmisPage-Amis页面',
+        path: '/cvf/legacy-group',
+      },
+      testBackendRouteMappings,
+    );
+
+    expect(route?.component).toBe('BasicLayout');
+    expect(route?.meta?.navigateOnClick).toBe(false);
+    expect(route?.meta?.preserveComponentWhenChildren).toBe(false);
+    expect(route?.children).toHaveLength(1);
+    expect(route?.children?.[0]?.path).toBe('/clob/V1/Role');
+  });
+
+  it('keeps an action-based group navigable without a local page mapping', () => {
+    const route = convertMenuNodeForTest({
+      actionType: 'ModalWindow-模态窗口',
+      children: [
+        {
+          name: '角色管理',
+          pageType: 'LocalPage-本地页面',
+          path: '/clob/V1/Role',
+        },
+      ],
+      name: '弹窗分组',
+      pageType: 'LocalPage-本地页面',
+      path: '/cvf/group-dialog',
+    });
+
+    expect(route?.meta?.navigateOnClick).toBe(true);
+    expect(route?.children?.[0]).toMatchObject({
+      component: '/system/shared/menu-modal-page.vue',
+      path: '',
+    });
+  });
+
   it('keeps third-level menu groups from creating another basic layout', () => {
     const route = convertMenuNodeForTest(
       {

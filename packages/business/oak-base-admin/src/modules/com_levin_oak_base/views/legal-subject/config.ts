@@ -1,0 +1,190 @@
+import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
+
+import { legalSubjectService } from '../../api/legal-subject-service';
+import {
+  buildEnumOptionsLoader,
+  confidentialLevelOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
+  tenantOptionsLoader,
+  withModuleCrudConfig,
+} from '../api-module';
+import {
+  getSubjectIdentityHelp,
+  getSubjectIdentityImageHelp,
+  getSubjectIdentityImageLabel,
+  getSubjectIdentityLabel,
+  getSubjectIdentityPlaceholder,
+  validateSubjectIdentity,
+} from './subject-identity';
+
+const subjectTypeOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.enums.LegalSubjectType',
+);
+const identityTypeOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.enums.IdentityType',
+);
+const certificationStatusOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.enums.CertificationStatus',
+);
+
+const personImageField = (
+  key: string,
+  label: string,
+  layoutOrder: number,
+  complexGroupKey: string,
+) => ({
+  complexGroupKey,
+  key,
+  label,
+  layoutGroup: 'extension',
+  layoutOrder,
+  type: 'image' as const,
+});
+
+export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
+  apiBase: '/LegalSubject',
+  apiService: legalSubjectService,
+  defaultFormValues: {
+    enable: true,
+    subjectType: 'Legal',
+  },
+  complexGroups: [
+    {
+      key: 'invoice',
+      title: '开票信息',
+      submitKey: 'invoiceInfo',
+      fieldMappings: {
+        bankAccount: 'bankAccount',
+        bankName: 'bankName',
+        invoiceEmail: 'invoiceEmail',
+        invoiceName: 'name',
+        invoiceTaxNo: 'taxNo',
+        taxRegisteredAddress: 'taxRegisteredAddress',
+        taxRegisteredPhone: 'taxRegisteredPhone',
+      },
+    },
+    {
+      key: 'legal',
+      title: '法人信息',
+      submitKey: 'legalInfo',
+      fieldMappings: {
+        legalEmail: 'email',
+        legalIdBackImageUrl: 'legalIdBackImageUrl',
+        legalIdFrontImageUrl: 'legalIdFrontImageUrl',
+        legalIdNo: 'idCard',
+        legalIdType: 'idType',
+        legalName: 'name',
+        legalPhone: 'mobilePhone',
+      },
+    },
+    {
+      key: 'contact',
+      title: '联系人信息',
+      submitKey: 'contactInfo',
+      fieldMappings: {
+        contactEmail: 'email',
+        contactIdBackImageUrl: 'legalIdBackImageUrl',
+        contactIdFrontImageUrl: 'legalIdFrontImageUrl',
+        contactIdNo: 'idCard',
+        contactIdType: 'idType',
+        contactMobile: 'mobilePhone',
+        contactName: 'name',
+      },
+    },
+    {
+      key: 'shipping',
+      title: '邮寄信息',
+      submitKey: 'shippingInfo',
+      fieldMappings: {
+        shippingAddress: 'address',
+        shippingCityCode: 'cityCode',
+        shippingContactName: 'contactName',
+        shippingContactPhone: 'contactPhone',
+        shippingDistrictCode: 'districtCode',
+        shippingNationCode: 'nationCode',
+        shippingProvinceCode: 'provinceCode',
+        shippingZipCode: 'zipCode',
+      },
+    },
+  ],
+  fields: [
+    {
+      key: 'tenantId', label: '归属租户', layoutGroup: 'ownership', layoutOrder: 10,
+      loadOptions: tenantOptionsLoader, remoteSearch: true, search: true, type: 'select', visibleForPlatformUser: true,
+    },
+    { key: 'id', label: '主体ID', fixed: 'left', form: false, search: true, table: true, width: 180 },
+    {
+      key: 'subjectName', label: '主体名称', layoutGroup: 'basic', layoutGroupTitle: '主体信息', layoutOrder: 10,
+      required: true, search: true, table: true, width: 220,
+    },
+    { key: 'shortName', label: '简称', layoutGroup: 'basic', layoutOrder: 20, search: true, table: true, width: 160 },
+    {
+      key: 'subjectType', label: '主体类型', layoutGroup: 'basic', layoutOrder: 30,
+      loadOptions: subjectTypeOptionsLoader, required: true, search: true, table: true, type: 'select', width: 140,
+    },
+    {
+      key: 'unifiedCreditNo', label: '主体身份标识', formLabel: getSubjectIdentityLabel,
+      help: getSubjectIdentityHelp, layoutGroup: 'basic', layoutOrder: 40,
+      placeholder: getSubjectIdentityPlaceholder, validator: validateSubjectIdentity, width: 200,
+    },
+    {
+      key: 'identityType', label: '主体证件类型', layoutGroup: 'basic', layoutOrder: 50,
+      loadOptions: identityTypeOptionsLoader, type: 'select', width: 140,
+    },
+    { key: 'cityCode', label: '市级行政编码', layoutGroup: 'basic', layoutOrder: 60, width: 140 },
+    { key: 'logo', label: 'Logo', layoutGroup: 'basic', layoutOrder: 70, type: 'image', width: 90 },
+    {
+      key: 'identityImg', label: '主体证件图片', formLabel: getSubjectIdentityImageLabel,
+      help: getSubjectIdentityImageHelp, layoutGroup: 'basic', layoutOrder: 80, type: 'image',
+      multiple: true, maxUploadCount: (formState) => formState.subjectType === 'Person' ? 2 : 1, fullRow: true,
+    },
+    {
+      key: 'businessPremises', label: '营业场所照片', help: '可上传多张营业场所照片。',
+      layoutGroup: 'basic', layoutOrder: 90, type: 'image', multiple: true, fullRow: true,
+    },
+    {
+      key: 'confidentialLevel', label: '机密等级', layoutGroup: 'management', layoutGroupTitle: '管理信息', layoutOrder: 10,
+      loadOptions: confidentialLevelOptionsLoader, search: true, table: true, type: 'select', valueType: 'number', width: 120,
+    },
+    { key: 'expiredTime', label: '有效期至', layoutGroup: 'management', layoutOrder: 20, table: true, type: 'datetime', width: 180 },
+    {
+      key: 'certificationStatus', label: '认证状态', form: false,
+      loadOptions: certificationStatusOptionsLoader, search: true, table: true, type: 'select', width: 140,
+    },
+    { key: 'invoiceName', label: '开票名称', complexGroupKey: 'invoice', layoutGroup: 'extension', layoutOrder: 10, required: true, span: 2 },
+    { key: 'invoiceTaxNo', label: '纳税人识别号', complexGroupKey: 'invoice', layoutGroup: 'extension', layoutOrder: 20, required: true, width: 180 },
+    { key: 'taxRegisteredAddress', label: '税务登记地址', complexGroupKey: 'invoice', layoutGroup: 'extension', layoutOrder: 30, required: true, span: 2 },
+    { key: 'taxRegisteredPhone', label: '税务登记电话', complexGroupKey: 'invoice', layoutGroup: 'extension', layoutOrder: 40, required: true, width: 160 },
+    { key: 'bankName', label: '开户行名称', complexGroupKey: 'invoice', layoutGroup: 'extension', layoutOrder: 50, required: true, width: 220 },
+    { key: 'bankAccount', label: '银行账号', complexGroupKey: 'invoice', layoutGroup: 'extension', layoutOrder: 60, required: true, width: 220 },
+    { key: 'invoiceEmail', label: '发票交付邮箱', complexGroupKey: 'invoice', layoutGroup: 'extension', layoutOrder: 70, width: 220 },
+    { key: 'legalName', label: '法人姓名', complexGroupKey: 'legal', layoutGroup: 'extension', layoutOrder: 110, required: true, width: 140 },
+    { key: 'legalPhone', label: '法人电话', complexGroupKey: 'legal', layoutGroup: 'extension', layoutOrder: 120, required: true, width: 150 },
+    { key: 'legalIdNo', label: '法人身份证号', complexGroupKey: 'legal', layoutGroup: 'extension', layoutOrder: 130, table: false, width: 180 },
+    { key: 'legalIdType', label: '法人证件类型', complexGroupKey: 'legal', layoutGroup: 'extension', layoutOrder: 140, loadOptions: identityTypeOptionsLoader, type: 'select', width: 140 },
+    personImageField('legalIdFrontImageUrl', '法人身份证正面', 150, 'legal'),
+    personImageField('legalIdBackImageUrl', '法人身份证反面', 160, 'legal'),
+    { key: 'legalEmail', label: '法人邮箱', complexGroupKey: 'legal', layoutGroup: 'extension', layoutOrder: 170, width: 220 },
+    { key: 'contactName', label: '联系人姓名', complexGroupKey: 'contact', layoutGroup: 'extension', layoutOrder: 210, required: true, table: true, width: 120 },
+    { key: 'contactMobile', label: '联系人电话', complexGroupKey: 'contact', layoutGroup: 'extension', layoutOrder: 220, required: true, table: true, width: 150 },
+    { key: 'contactIdNo', label: '联系人身份证号', complexGroupKey: 'contact', layoutGroup: 'extension', layoutOrder: 230, table: false, width: 180 },
+    { key: 'contactIdType', label: '联系人证件类型', complexGroupKey: 'contact', layoutGroup: 'extension', layoutOrder: 240, loadOptions: identityTypeOptionsLoader, type: 'select', width: 140 },
+    personImageField('contactIdFrontImageUrl', '联系人身份证正面', 250, 'contact'),
+    personImageField('contactIdBackImageUrl', '联系人身份证反面', 260, 'contact'),
+    { key: 'contactEmail', label: '联系人邮箱', complexGroupKey: 'contact', layoutGroup: 'extension', layoutOrder: 270, width: 220 },
+    { key: 'shippingContactName', label: '收件联系人', complexGroupKey: 'shipping', layoutGroup: 'extension', layoutOrder: 310, required: true, width: 140 },
+    { key: 'shippingContactPhone', label: '收件联系电话', complexGroupKey: 'shipping', layoutGroup: 'extension', layoutOrder: 320, required: true, width: 150 },
+    { key: 'shippingNationCode', label: '国家编码', complexGroupKey: 'shipping', layoutGroup: 'extension', layoutOrder: 330, maxLength: 24, width: 120 },
+    { key: 'shippingProvinceCode', label: '省级行政编码', complexGroupKey: 'shipping', layoutGroup: 'extension', layoutOrder: 340, maxLength: 6, width: 140 },
+    { key: 'shippingCityCode', label: '市级行政编码', complexGroupKey: 'shipping', layoutGroup: 'extension', layoutOrder: 350, maxLength: 6, width: 140 },
+    { key: 'shippingDistrictCode', label: '区县行政编码', complexGroupKey: 'shipping', layoutGroup: 'extension', layoutOrder: 360, maxLength: 6, width: 140 },
+    { key: 'shippingAddress', label: '详细地址', complexGroupKey: 'shipping', layoutGroup: 'extension', layoutOrder: 370, required: true, maxLength: 384, fullRow: true, type: 'textarea' },
+    { key: 'shippingZipCode', label: '邮政编码', complexGroupKey: 'shipping', layoutGroup: 'extension', layoutOrder: 380, maxLength: 32, width: 140 },
+    { key: 'enable', label: '是否启用', layoutGroup: 'management', layoutOrder: 30, search: true, table: true, type: 'switch', valueType: 'boolean', width: 100 },
+    { key: 'editable', label: '是否可编辑', layoutGroup: 'management', layoutOrder: 40, search: true, table: true, type: 'switch', valueType: 'boolean', width: 110 },
+    { key: 'remark', label: '备注', layoutGroup: 'remark', layoutGroupTitle: '备注', layoutOrder: 10, type: 'textarea', fullRow: true },
+    { key: 'createTime', label: '创建时间', form: false, table: true, type: 'datetime', width: 180 },
+  ],
+  modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
+  title: '法律主体',
+});

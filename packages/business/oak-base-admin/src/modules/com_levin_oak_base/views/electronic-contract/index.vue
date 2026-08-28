@@ -7,6 +7,7 @@ import { Alert, Button, Card, Input } from 'ant-design-vue';
 
 import { ElectronicContractDocumentPreview } from '../../components/electronic-contract';
 import { electronicContractService } from '../../api/electronic-contract-service';
+import { electronicContractSimulationService } from '../../api/electronic-contract-simulation-service';
 import CrudPage from '../crud-page.vue';
 import { electronicContractPageCrudConfig } from './config';
 
@@ -30,6 +31,9 @@ const previewPositionsText = ref(
 );
 const previewError = ref('');
 const simulationContractId = ref('contract-001');
+const simulationTenantId = ref('');
+const simulationOrgId = ref('');
+const simulationOwnerId = ref('');
 const simulationStatus = ref<'Archived' | 'Canceled' | 'Draft' | 'Expired' | 'Rejected' | 'Signed' | 'Signing'>('Draft');
 const simulationMessage = ref('选择草稿合同后，可逐步模拟提交签署、查看日志、复制重签和下载已签文件。');
 const simulationMessageType = ref<'info' | 'success' | 'warning'>('info');
@@ -58,8 +62,16 @@ const canArchive = computed(() => ['Canceled', 'Expired', 'Rejected', 'Signed'].
 
 async function loadSimulationContract() {
   try {
-    const response = await electronicContractService.retrieve({ id: simulationContractId.value });
+    const response = await electronicContractService.retrieve({
+      id: simulationContractId.value,
+      orgId: simulationOrgId.value || undefined,
+      ownerId: simulationOwnerId.value || undefined,
+      tenantId: simulationTenantId.value || undefined,
+    });
     const data = response?.data ?? response;
+    simulationTenantId.value = data?.tenantId || simulationTenantId.value;
+    simulationOrgId.value = data?.orgId || simulationOrgId.value;
+    simulationOwnerId.value = data?.ownerId || simulationOwnerId.value;
     simulationStatus.value = data?.status || 'Draft';
     simulationMessage.value = `合同 ${data?.contractNo || simulationContractId.value} 已加载，当前状态：${simulationStatus.value}。`;
     simulationMessageType.value = 'success';
@@ -74,7 +86,16 @@ async function runSimulationAction(
   extraData: Record<string, unknown> = {},
 ) {
   try {
-    const response = await electronicContractService[action]({ id: simulationContractId.value, ...extraData });
+    const request = {
+      id: simulationContractId.value,
+      orgId: simulationOrgId.value || undefined,
+      ownerId: simulationOwnerId.value || undefined,
+      tenantId: simulationTenantId.value || undefined,
+      ...extraData,
+    };
+    const response = action === 'providerCallback'
+      ? await electronicContractSimulationService.complete(request)
+      : await electronicContractService[action](request);
     const data = response?.data ?? response;
     if (data?.status) {
       simulationStatus.value = data.status;
@@ -133,6 +154,7 @@ async function runSimulationAction(
     <Card title="两方签约模拟流程" size="small">
       <div class="electronic-contract-page__inputs">
         <Input v-model:value="simulationContractId" placeholder="输入电子合同 ID" />
+        <Input v-model:value="simulationTenantId" placeholder="归属租户 ID（超管必填）" />
         <Button @click="loadSimulationContract">加载合同状态</Button>
         <Alert :message="`当前合同状态：${simulationStatus}`" type="info" show-icon />
         <div class="electronic-contract-page__actions">

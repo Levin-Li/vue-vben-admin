@@ -6,6 +6,7 @@ import type {
   CrudExportTemplateConfig,
   CrudExportTemplateContext,
   CrudExportTemplateRecord,
+  CrudDynamicText,
   CrudFieldConfig,
   CrudListTableConfig,
   CrudPageConfig,
@@ -180,7 +181,12 @@ import {
   shouldReloadRemoteOptionsOnDropdownOpen,
 } from './crud-select-options';
 import { normalizeLeftFixedTableColumns } from './crud-table-columns';
+import { normalizeCrudChoiceFormValue } from './crud-choice-value';
 import { serializeCrudFieldValue } from './crud-field-value';
+import {
+  buildCrudComplexGroupInitialState,
+  buildCrudComplexGroupPayload,
+} from './crud-complex-groups';
 import {
   buildCrudCollectionTooltipText,
   buildCrudTooltipText,
@@ -339,6 +345,8 @@ const optionRequestVersions = reactive<Record<string, number>>({});
 const quickSwitchLoadingState = reactive<Record<string, boolean>>({});
 const searchState = reactive<GenericRecord>({});
 const formState = reactive<GenericRecord>({});
+const complexGroupEnabled = reactive<Record<string, boolean>>({});
+const complexGroupCollapsed = reactive<Record<string, boolean>>({});
 const submitting = ref(false);
 const crudPageRef = ref<HTMLElement | null>(null);
 const listTableTabsRef = ref<HTMLElement | null>(null);
@@ -637,6 +645,29 @@ const visibleFormFields = computed(() =>
     ),
   ),
 );
+
+function getComplexGroup(key?: string) {
+  return props.config.complexGroups?.find((group) => group.key === key);
+}
+
+function isComplexGroupFieldVisible(field: CrudFieldConfig) {
+  return !field.complexGroupKey || !complexGroupCollapsed[field.complexGroupKey];
+}
+
+function isComplexGroupEnabled(field: CrudFieldConfig) {
+  return !field.complexGroupKey || complexGroupEnabled[field.complexGroupKey];
+}
+
+function isFirstComplexGroupField(field: CrudFieldConfig) {
+  if (!field.complexGroupKey) {
+    return false;
+  }
+  return visibleFormFields.value.find((item) => item.complexGroupKey === field.complexGroupKey) === field;
+}
+
+function toggleComplexGroup(groupKey: string) {
+  complexGroupCollapsed[groupKey] = !complexGroupCollapsed[groupKey];
+}
 
 function shouldShowFormGroupTitle(field: CrudFieldConfig) {
   if (!field.layoutGroupTitle?.trim()) {
@@ -1738,6 +1769,9 @@ function buildEmptyState() {
   };
 
   for (const field of visibleFormFields.value) {
+    if (!isComplexGroupEnabled(field)) {
+      continue;
+    }
     result[field.key] =
       field.key in result
         ? normalizeFormValue(field, result[field.key])
@@ -1783,7 +1817,7 @@ function normalizeFormValue(field: CrudFieldConfig, value: any) {
     return Array.isArray(value) ? value.join('\n') : value;
   }
 
-  return value;
+  return normalizeCrudChoiceFormValue(field, value, getFieldOptions(field));
 }
 
 function serializeFormValue(field: CrudFieldConfig, value: any) {
@@ -1899,6 +1933,29 @@ function buildSearchParams() {
 
 function validateFormFields() {
   for (const field of visibleFormFields.value) {
+    if (!isComplexGroupEnabled(field)) {
+      continue;
+    }
+
+    const maxUploadCount = getUploadMaxCount(field);
+    if (
+      isFileUploadField(field) &&
+      maxUploadCount !== undefined &&
+      getUploadUrls(field).length > maxUploadCount
+    ) {
+      message.warning(`${getFormFieldLabel(field)}最多上传${maxUploadCount}个文件`);
+      return false;
+    }
+
+    const validationMessage = field.validator?.(
+      formState[field.key],
+      formState,
+    );
+    if (validationMessage) {
+      message.warning(validationMessage);
+      return false;
+    }
+
     if (!field.required) {
       continue;
     }
@@ -1909,7 +1966,7 @@ function validateFormFields() {
       value === null || value === undefined || String(value).trim() === '';
 
     if (isEmptyArray || isEmptyScalar) {
-      message.warning(`请填写${field.label}`);
+      message.warning(`请填写${getFormFieldLabel(field)}`);
       return false;
     }
   }
@@ -1929,10 +1986,28 @@ function resetForm(record?: GenericRecord) {
   }
 
   if (!record) {
+    const groupState = buildCrudComplexGroupInitialState(
+      props.config.complexGroups,
+    );
+    Object.assign(complexGroupEnabled, groupState.enabled);
+    Object.assign(complexGroupCollapsed, groupState.collapsed);
+    Object.assign(formState, groupState.flatValues);
     return;
   }
 
+  const groupState = buildCrudComplexGroupInitialState(
+    props.config.complexGroups,
+    record,
+  );
+  Object.assign(complexGroupEnabled, groupState.enabled);
+  Object.assign(complexGroupCollapsed, groupState.collapsed);
+  Object.assign(formState, groupState.flatValues);
+
   for (const field of visibleFormFields.value) {
+    if (field.complexGroupKey) {
+      continue;
+    }
+
     if (field.type === 'area-cascader') {
       formState[field.key] = getAreaCascaderValueFromRecord(field, record);
       continue;
@@ -3181,6 +3256,9 @@ async function handleSubmit() {
     }
 
     for (const field of visibleFormFields.value) {
+      if (field.complexGroupKey) {
+        continue;
+      }
       if (field.type === 'area-cascader') {
         if (shouldOmitEmptyChoiceFormField(field, formState[field.key])) {
           continue;
@@ -3203,6 +3281,15 @@ async function handleSubmit() {
 
       payload[field.key] = value;
     }
+
+    Object.assign(
+      payload,
+      buildCrudComplexGroupPayload(
+        props.config.complexGroups,
+        complexGroupEnabled,
+        formState,
+      ),
+    );
 
     const isCreating = editingRecord.value?.[recordKey.value] === undefined;
     const createPath = resolveCrudPath(
@@ -3793,9 +3880,23 @@ function getFieldOptions(field: CrudFieldConfig): any[] {
   return optionState[field.key] || field.options || [];
 }
 
+function resolveCrudDynamicText(value: CrudDynamicText | undefined) {
+  return typeof value === 'function' ? value(formState) : value;
+}
+
+function getFormFieldLabel(field: CrudFieldConfig) {
+  return resolveCrudDynamicText(field.formLabel) || field.label;
+}
+
+function getFormFieldHelp(field: CrudFieldConfig) {
+  return resolveCrudDynamicText(field.help);
+}
+
 function getPlaceholder(field: CrudFieldConfig) {
-  if (field.placeholder) {
-    return field.placeholder;
+  const placeholder = resolveCrudDynamicText(field.placeholder);
+  const label = getFormFieldLabel(field);
+  if (placeholder) {
+    return placeholder;
   }
 
   if (
@@ -3804,10 +3905,10 @@ function getPlaceholder(field: CrudFieldConfig) {
     field.type === 'role-select' ||
     field.type === 'select'
   ) {
-    return `请选择${field.label}`;
+    return `请选择${label}`;
   }
 
-  return `请输入${field.label}`;
+  return `请输入${label}`;
 }
 
 function getSearchFieldSlotName(field: CrudFieldConfig) {
@@ -3859,7 +3960,16 @@ function isFileUploadField(field: CrudFieldConfig) {
 }
 
 function isMultiUploadField(field: CrudFieldConfig) {
-  return !!field.multiple;
+  return typeof field.multiple === 'function'
+    ? field.multiple(formState)
+    : !!field.multiple;
+}
+
+function getUploadMaxCount(field: CrudFieldConfig) {
+  if (typeof field.maxUploadCount === 'function') {
+    return field.maxUploadCount(formState);
+  }
+  return field.maxUploadCount || (isMultiUploadField(field) ? undefined : 1);
 }
 
 function shouldShowUploadTrigger(field: CrudFieldConfig) {
@@ -6038,15 +6148,34 @@ watch(tableColumnPreferenceStorageKey, () => {
         <div class="grid gap-x-4 gap-y-4" :style="formGridStyle">
           <template v-for="field in visibleFormFields" :key="field.key">
             <div
-              v-if="shouldShowFormGroupTitle(field)"
+              v-if="field.complexGroupKey && isFirstComplexGroupField(field)"
+              class="col-span-full border-border/70 mt-2 flex items-center gap-2 border-t pt-4 text-sm font-semibold"
+            >
+              <Checkbox v-model:checked="complexGroupEnabled[field.complexGroupKey]">
+                本次提交{{ getComplexGroup(field.complexGroupKey)?.title }}
+              </Checkbox>
+              <Tooltip title="未勾选时，本次不变更这部分数据">
+                <span class="text-muted-foreground text-xs">不勾选则不变更</span>
+              </Tooltip>
+              <Button
+                type="link"
+                size="small"
+                @click="toggleComplexGroup(field.complexGroupKey)"
+              >
+                {{ complexGroupCollapsed[field.complexGroupKey] ? '展开' : '收缩' }}
+              </Button>
+            </div>
+            <div
+              v-if="!field.complexGroupKey && shouldShowFormGroupTitle(field)"
               class="col-span-full border-border/70 mt-2 border-t pt-4 text-sm font-semibold"
             >
               {{ field.layoutGroupTitle }}
             </div>
             <Form.Item
-            :label="field.label"
+            v-if="isComplexGroupFieldVisible(field)"
+            :label="getFormFieldLabel(field)"
             :required="field.required"
-            :extra="field.help"
+            :extra="getFormFieldHelp(field)"
             class="mb-0 w-full"
             :class="{
               'vben-crud-form-item-new-row': field.layoutNewRow,
@@ -6117,7 +6246,7 @@ watch(tableColumnPreferenceStorageKey, () => {
                     renderUploadItem(field, originNode, file)
                 "
                 :list-type="isImageUploadField(field) ? 'picture-card' : 'text'"
-                :max-count="isMultiUploadField(field) ? undefined : 1"
+                :max-count="getUploadMaxCount(field)"
                 :multiple="isMultiUploadField(field)"
                 @preview="handleUploadPreview"
                 @remove="(file) => removeCrudUploadFile(field, file)"

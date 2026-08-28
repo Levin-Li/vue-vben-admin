@@ -57,6 +57,29 @@ vi.mock('ant-design-vue', () => ({
 }));
 
 describe('OrgScopeEditor', () => {
+  it('uses concise labels for the scope field and custom option', async () => {
+    const wrapper = mount(OrgScopeEditor, {
+      props: {
+        orgTree: [],
+        value: [],
+      },
+    });
+
+    await wrapper.get('[data-test="scope-add-rule"]').trigger('click');
+    await flushPromises();
+
+    const optionTexts = wrapper
+      .findAll('[data-test="select"]')[0]
+      ?.findAll('option')
+      .map((option) => option.text());
+
+    expect(wrapper.get('[data-test="scope-template-label"]').text()).toBe(
+      '组织范围',
+    );
+    expect(optionTexts).toContain('自定义');
+    expect(optionTexts).not.toContain('自定义表达式');
+  });
+
   it('shows SpringEL variables tip for custom org scope expressions', async () => {
     const wrapper = mount(OrgScopeEditor, {
       props: {
@@ -84,6 +107,9 @@ describe('OrgScopeEditor', () => {
       ),
     ).toBe('请输入 SpringEL 表达式，可使用 _org、_user');
     expect(wrapper.text()).not.toContain('Groovy 可用变量：_org');
+    expect(
+      wrapper.findAll('[data-test="org-path-pattern-test-target"]'),
+    ).toHaveLength(0);
   });
 
   it('hides script expression types when scripts are not allowed', async () => {
@@ -114,6 +140,100 @@ describe('OrgScopeEditor', () => {
     ).toBe('请输入 *?通配表达式');
     expect(wrapper.text()).not.toContain('Groovy');
     expect(wrapper.text()).not.toContain('SpringEL');
+  });
+
+  it('explains the matching fields and wildcards for IdPath and NamePath', async () => {
+    const wrapper = mount(OrgScopeEditor, {
+      props: {
+        orgTree: [],
+        value: [],
+      },
+    });
+
+    await wrapper.get('[data-test="scope-add-rule"]').trigger('click');
+    await flushPromises();
+    const scopeExpressionSelect = wrapper.findAll('[data-test="select"]')[0];
+    if (!scopeExpressionSelect) {
+      throw new Error('未找到组织范围表达式选择器');
+    }
+
+    await scopeExpressionSelect.setValue('Custom');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(
+      'IdPath：按所选组织到被匹配组织的相对组织 ID 路径逐段匹配',
+    );
+    expect(wrapper.text()).toContain('示例：/SALES/SALES_EAST');
+    expect(wrapper.text()).toContain('* 匹配一层，** 匹配零层或多层');
+    expect(wrapper.text()).toContain(
+      '当前服务端对精确层级的自定义规则（如 /*/*）存在已知匹配问题',
+    );
+
+    const expressionTypeSelect = wrapper.findAll('[data-test="select"]')[1];
+    if (!expressionTypeSelect) {
+      throw new Error('未找到组织范围表达式类型选择器');
+    }
+
+    await expressionTypeSelect.setValue('NamePath');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(
+      'NamePath：按所选组织到被匹配组织的相对组织名称路径逐段匹配',
+    );
+    expect(wrapper.text()).toContain('示例：/销售部/华东组');
+  });
+
+  it('tests IdPath and NamePath expressions locally with PathPattern', async () => {
+    const wrapper = mount(OrgScopeEditor, {
+      props: {
+        orgTree: [],
+        value: [],
+      },
+    });
+
+    await wrapper.get('[data-test="scope-add-rule"]').trigger('click');
+    await flushPromises();
+
+    const scopeExpressionSelect = wrapper.findAll('[data-test="select"]')[0];
+    if (!scopeExpressionSelect) {
+      throw new Error('未找到组织范围选择器');
+    }
+
+    await scopeExpressionSelect.setValue('Custom');
+    await flushPromises();
+
+    const expressionEditor = wrapper.get('[data-test="org-expression-editor"]');
+    expect(expressionEditor.classes()).toContain('min-h-20');
+    await expressionEditor.setValue('/*/*');
+    await wrapper
+      .get('[data-test="org-path-pattern-test-target"]')
+      .setValue('/SALES/EAST');
+    await wrapper.get('[data-test="org-path-pattern-test"]').trigger('click');
+
+    expect(wrapper.get('[data-test="org-path-pattern-test-result"]').text()).toBe(
+      '匹配结果：匹配',
+    );
+
+    await wrapper
+      .get('[data-test="org-path-pattern-test-target"]')
+      .setValue('/SALES');
+    await wrapper.get('[data-test="org-path-pattern-test"]').trigger('click');
+
+    expect(wrapper.get('[data-test="org-path-pattern-test-result"]').text()).toBe(
+      '匹配结果：不匹配',
+    );
+
+    const expressionTypeSelect = wrapper.findAll('[data-test="select"]')[1];
+    if (!expressionTypeSelect) {
+      throw new Error('未找到组织范围表达式类型选择器');
+    }
+
+    await expressionTypeSelect.setValue('NamePath');
+    await flushPromises();
+
+    expect(
+      wrapper.findAll('[data-test="org-path-pattern-test-target"]'),
+    ).toHaveLength(1);
   });
 
   it('shows script expression types when scripts are allowed', async () => {

@@ -83,12 +83,28 @@ export namespace RbacApi {
     logo?: null | string;
     name?: null | string;
     shortcutIcon?: null | string;
+    title?: null | string;
+    titleImg?: null | string;
+    mainImg?: null | string;
     sysLogo?: null | string;
     sysName?: null | string;
+    siteInfo?: null | TenantSiteDisplayInfo;
     techSupport?: null | string;
     tenantId?: null | string;
     uiExInfo?: null | Record<string, any>;
     [key: string]: any;
+  }
+
+  export interface TenantSiteDisplayInfo {
+    bannerImg?: null | string;
+    bigImg?: null | string;
+    copyright?: null | string;
+    logo?: null | string;
+    mainImg?: null | string;
+    shortcutIcon?: null | string;
+    techSupport?: null | string;
+    title?: null | string;
+    titleImg?: null | string;
   }
 
   export interface TenantInfo extends TenantSiteInfo {

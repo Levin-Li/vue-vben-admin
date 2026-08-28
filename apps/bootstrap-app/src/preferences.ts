@@ -9,7 +9,7 @@ export const overridesPreferences = defineOverridesPreferences({
   // overrides
   app: {
     accessMode: 'backend',
-    defaultHomePath: '/',
+    defaultHomePath: '/clob/V1/index',
     name: import.meta.env.VITE_APP_TITLE,
   },
 });

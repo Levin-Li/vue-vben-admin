@@ -7,8 +7,6 @@ import {
   type RbacApi,
 } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 
-import { getLoginHeroImage } from './login-hero-image';
-
 type BrandRecord = RbacApi.TenantSiteInfo;
 
 interface BrandState {
@@ -17,28 +15,33 @@ interface BrandState {
   eyebrow: string;
   heroDesc: string;
   heroImage: string;
+  heroImageCandidates: string[];
   titleImage: string;
+  titleImageCandidates: string[];
   heroTitle: string;
   loaded: boolean;
   loading: boolean;
   logo: string;
+  logoCandidates: string[];
   name: string;
   shortcutIcon: string;
   techSupport: string;
 }
 
-const currentYear = new Date().getFullYear();
 const defaultState: BrandState = {
-  copyright: `Copyright © ${currentYear} ${preferences.app.name} · 多租户后台管理平台`,
+  copyright: '',
   domain: '',
   eyebrow: 'Framework Base',
   heroDesc: '工程化、高性能、跨组件库的前端模版',
   heroImage: '',
+  heroImageCandidates: [],
   titleImage: '',
+  titleImageCandidates: [],
   heroTitle: '开箱即用的大型中后台管理系统',
   loaded: false,
   loading: false,
   logo: preferences.logo.source,
+  logoCandidates: [preferences.logo.source].filter(Boolean),
   name: preferences.app.name,
   shortcutIcon: preferences.logo.source,
   techSupport: '',
@@ -67,78 +70,33 @@ function getCurrentDomain() {
   return normalizeText(window.location.hostname).toLowerCase();
 }
 
-function getUiValue(record: BrandRecord | null | undefined, ...keys: string[]) {
-  const uiExInfo = record?.uiExInfo;
-  const stores = [
-    uiExInfo,
-    uiExInfo?.auth,
-    uiExInfo?.brand,
-    uiExInfo?.login,
-    uiExInfo?.site,
-  ].filter(Boolean);
-
-  for (const store of stores) {
-    for (const key of keys) {
-      const value = normalizeText(store?.[key]);
-      if (value) {
-        return value;
-      }
-    }
-  }
-
-  return '';
-}
-
 function getFirstText(...values: unknown[]) {
   return values.map((value) => normalizeText(value)).find(Boolean) || '';
 }
 
-function getNestedRecordValue(
-  record: BrandRecord | null | undefined,
-  nestedKey: string,
-  valueKey: string,
-) {
-  const nested = record?.[nestedKey];
-  return nested && typeof nested === 'object'
-    ? normalizeText((nested as Record<string, any>)[valueKey])
-    : '';
+/**
+ * The server has already applied the TenantSite → Brand → Tenant fallback.
+ * Only null may use the browser's built-in presentation default; an empty
+ * string is an explicit clearing value and must not be replaced here.
+ */
+function resolveSiteInfoText(value: unknown, defaultValue = '') {
+  return value === null || value === undefined
+    ? defaultValue
+    : normalizeText(value);
 }
 
-function getEnabledAdminUiSetting(record: BrandRecord | null | undefined) {
-  const setting = record?.uiExInfo?.['admin-ui-base-setting'];
-  return setting?.preferServerSetting === false ? undefined : setting?.setting;
-}
-
-function getAdminUiSettingValue(
-  record: BrandRecord | null | undefined,
-  section: string,
-  key: string,
-) {
-  const sectionValue = getEnabledAdminUiSetting(record)?.[section];
-  return sectionValue && typeof sectionValue === 'object'
-    ? normalizeText(sectionValue[key])
-    : '';
-}
-
-function getAdminUiSettingCopyright(record: BrandRecord | null | undefined) {
-  const copyright = getEnabledAdminUiSetting(record)?.copyright;
-
-  if (!copyright || copyright.enable !== true) {
-    return '';
+function getSiteInfoImageCandidates(value: unknown, defaultValue?: string) {
+  if (value === null || value === undefined) {
+    return defaultValue ? [defaultValue] : [];
   }
 
-  const date = normalizeText(copyright.date);
-  const companyName = normalizeText(copyright.companyName);
-  const icp = normalizeText(copyright.icp);
-  const content = [date, companyName].filter(Boolean).join(' ');
-
-  return [content ? `Copyright © ${content}` : '', icp]
-    .filter(Boolean)
-    .join(' · ');
+  const normalizedValue = normalizeText(value);
+  return normalizedValue ? [normalizedValue] : [];
 }
 
 function updateFavicon(shortcutIcon: string) {
   if (!shortcutIcon) {
+    document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.remove();
     return;
   }
 
@@ -164,78 +122,40 @@ function mergeBrandState(
   record: BrandRecord | null,
   domain: string,
 ): BrandState {
-  const siteDomain = getFirstText(
-    record?.domain,
-    record?.appAuthDomain,
-    domain,
+  const siteInfo = record?.siteInfo;
+  const siteDomain = getFirstText(record?.domain, record?.appAuthDomain, domain);
+  const name = resolveSiteInfoText(siteInfo?.title, defaultState.name);
+  const logoCandidates = getSiteInfoImageCandidates(siteInfo?.logo, defaultState.logo);
+  const heroImageCandidates = getSiteInfoImageCandidates(siteInfo?.mainImg);
+  const titleImageCandidates = getSiteInfoImageCandidates(siteInfo?.titleImg);
+  const logo = resolveSiteInfoText(siteInfo?.logo, defaultState.logo);
+  const shortcutIcon = resolveSiteInfoText(
+    siteInfo?.shortcutIcon,
+    defaultState.shortcutIcon,
   );
-  const name = getFirstText(
-    getAdminUiSettingValue(record, 'login', 'systemName'),
-    getAdminUiSettingValue(record, 'app', 'name'),
-    record?.name,
-    getUiValue(
-      record,
-      'siteName',
-      'siteTitle',
-      'name',
-      'systemName',
-      'sysName',
-      'appName',
-      'appTitle',
-      'title',
-    ),
-    record?.sysName,
-    getNestedRecordValue(record, 'brand', 'name'),
-    defaultState.name,
-  );
-  const logo = getFirstText(
-    getAdminUiSettingValue(record, 'login', 'systemLogo'),
-    getAdminUiSettingValue(record, 'logo', 'source'),
-    record?.logo,
-    getUiValue(record, 'logo', 'sysLogo', 'siteLogo', 'appLogo'),
-    record?.sysLogo,
-    getNestedRecordValue(record, 'brand', 'logo'),
-    defaultState.logo,
-  );
-  const shortcutIcon = getFirstText(
-    record?.shortcutIcon,
-    getUiValue(record, 'shortcutIcon', 'favicon', 'siteIcon', 'appIcon'),
-    logo,
-  );
-  const techSupport = getFirstText(
-    record?.techSupport,
-    getUiValue(record, 'techSupport', 'support', 'supportText'),
-  );
-  const copyright = getFirstText(
-    getAdminUiSettingCopyright(record),
-    record?.copyright,
-    getUiValue(record, 'copyright', 'copyrightText'),
-    defaultState.copyright,
-  );
+  const techSupport = resolveSiteInfoText(siteInfo?.techSupport);
+  const copyright = resolveSiteInfoText(siteInfo?.copyright);
 
   return {
     copyright,
     domain: siteDomain,
-    eyebrow: getFirstText(
-      siteDomain,
-      getUiValue(record, 'brandName', 'eyebrow'),
-      defaultState.eyebrow,
-    ),
-    heroDesc: getFirstText(
-      getUiValue(record, 'loginDesc', 'heroDesc'),
-      techSupport,
-      defaultState.heroDesc,
-    ),
-    heroImage: getLoginHeroImage(record?.uiExInfo),
-    titleImage: getAdminUiSettingValue(record, 'login', 'titleImage'),
-    heroTitle: getFirstText(
-      getUiValue(record, 'loginTitle', 'heroTitle'),
-      name,
-      defaultState.heroTitle,
-    ),
+    eyebrow: getFirstText(siteDomain, defaultState.eyebrow),
+    heroDesc:
+      siteInfo?.techSupport === null || siteInfo?.techSupport === undefined
+        ? defaultState.heroDesc
+        : techSupport,
+    heroImage: heroImageCandidates[0] || '',
+    heroImageCandidates,
+    titleImage: titleImageCandidates[0] || '',
+    titleImageCandidates,
+    heroTitle:
+      siteInfo?.title === null || siteInfo?.title === undefined
+        ? defaultState.heroTitle
+        : name,
     loaded: true,
     loading: false,
     logo,
+    logoCandidates,
     name,
     shortcutIcon,
     techSupport,
@@ -276,6 +196,15 @@ async function loadAuthBrand() {
   return loadingPromise;
 }
 
+async function refreshAuthBrand() {
+  brandState.value = {
+    ...brandState.value,
+    loaded: false,
+  };
+  await loadAuthBrand();
+}
+
+
 export function useAuthBrand() {
   return {
     appName: computed(() => brandState.value.name),
@@ -283,10 +212,14 @@ export function useAuthBrand() {
     copyright: computed(() => brandState.value.copyright),
     heroDesc: computed(() => brandState.value.heroDesc),
     heroImage: computed(() => brandState.value.heroImage),
+    heroImageCandidates: computed(() => brandState.value.heroImageCandidates),
     titleImage: computed(() => brandState.value.titleImage),
+    titleImageCandidates: computed(() => brandState.value.titleImageCandidates),
     heroTitle: computed(() => brandState.value.heroTitle),
     loadAuthBrand,
     logo: computed(() => brandState.value.logo),
+    logoCandidates: computed(() => brandState.value.logoCandidates),
+    refreshAuthBrand,
     techSupport: computed(() => brandState.value.techSupport),
   };
 }

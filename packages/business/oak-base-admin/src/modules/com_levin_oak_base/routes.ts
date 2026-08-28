@@ -2,6 +2,15 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { toPathRouteName } from '@levin/admin-framework';
 
+export const oakBaseAdminHomeRoute: RouteRecordRaw = {
+  component: () => import('./views/home/index.vue'),
+  meta: {
+    hideInMenu: true,
+    title: '后台管理',
+  },
+  path: '',
+};
+
 export const oakBaseAdminRoutes: RouteRecordRaw[] = [
   {
     component: () => import('./views/setting-for-tenant/index.vue'),

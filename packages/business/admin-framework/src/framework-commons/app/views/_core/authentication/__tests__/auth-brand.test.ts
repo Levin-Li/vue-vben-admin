@@ -24,9 +24,6 @@ vi.mock(
   }),
 );
 
-const currentYear = new Date().getFullYear();
-const defaultCopyright = `Copyright © ${currentYear} Levin Main App · 多租户后台管理平台`;
-
 async function loadBrand(tenantSiteInfo: any) {
   vi.resetModules();
   mocks.getTenantSiteInfo.mockReset();
@@ -48,11 +45,13 @@ describe('auth brand tenant site mapping', () => {
 
   it('uses tenant site values for the login brand and copyright', async () => {
     const brand = await loadBrand({
-      copyright: 'Copyright © 2026 Tenant Portal',
       domain: 'tenant.example.com',
-      logo: '/tenant-logo.svg',
-      name: '租户门户',
-      shortcutIcon: '/tenant-favicon.ico',
+      siteInfo: {
+        copyright: 'Copyright © 2026 Tenant Portal',
+        logo: '/tenant-logo.svg',
+        shortcutIcon: '/tenant-favicon.ico',
+        title: '租户门户',
+      },
     });
 
     expect(brand.brand.value.eyebrow).toBe('tenant.example.com');
@@ -63,13 +62,9 @@ describe('auth brand tenant site mapping', () => {
     expect(brand.copyright.value).toBe('Copyright © 2026 Tenant Portal');
   });
 
-  it('keeps the current defaults when tenant site fields are blank', async () => {
+  it('keeps the current defaults when the merged site info is absent', async () => {
     const brand = await loadBrand({
-      copyright: ' ',
       domain: '',
-      logo: ' ',
-      name: ' ',
-      shortcutIcon: '',
     });
 
     expect(brand.brand.value.eyebrow).toBe('localhost');
@@ -77,87 +72,72 @@ describe('auth brand tenant site mapping', () => {
     expect(brand.appName.value).toBe('Levin Main App');
     expect(brand.logo.value).toBe('/logo.svg');
     expect(brand.brand.value.shortcutIcon).toBe('/logo.svg');
-    expect(brand.copyright.value).toBe(defaultCopyright);
+    expect(brand.copyright.value).toBe('');
   });
 
-  it('does not synthesize copyright from a tenant site name when copyright is empty', async () => {
+  it('does not synthesize copyright from a site title when copyright is empty', async () => {
     const brand = await loadBrand({
-      copyright: '',
       domain: 'tenant.example.com',
-      name: '租户门户',
+      siteInfo: {
+        copyright: '',
+        title: '租户门户',
+      },
     });
 
     expect(brand.appName.value).toBe('租户门户');
-    expect(brand.copyright.value).toBe(defaultCopyright);
+    expect(brand.copyright.value).toBe('');
   });
 
-  it('reads the login illustration from the merged admin UI setting', async () => {
+  it('reads the login illustration from the tenant site main image', async () => {
     const brand = await loadBrand({
-      uiExInfo: {
-        'admin-ui-base-setting': {
-          setting: {
-            login: {
-              heroImage: '/tenant-login-hero.png',
-            },
-          },
-        },
-      },
+      siteInfo: { mainImg: '/tenant-login-hero.png' },
     });
 
     expect(brand.heroImage.value).toBe('/tenant-login-hero.png');
   });
 
-  it('uses the enabled interface-settings copyright for the login footer', async () => {
+  it('uses tenant site copyright for the login footer', async () => {
     const brand = await loadBrand({
-      uiExInfo: {
-        'admin-ui-base-setting': {
-          setting: {
-            copyright: {
-              companyName: 'Levin',
-              date: '2026',
-              enable: true,
-              icp: 'ICP备案号',
-            },
-          },
-        },
-      },
+      siteInfo: { copyright: 'Copyright © 2026 Levin · ICP备案号' },
     });
 
     expect(brand.copyright.value).toBe('Copyright © 2026 Levin · ICP备案号');
   });
 
-  it('uses enabled interface settings for the login name and logo', async () => {
+  it('uses tenant site title and logo for the login name and logo', async () => {
     const brand = await loadBrand({
-      logo: '/tenant-logo.svg',
-      name: '租户门户',
-      uiExInfo: {
-        'admin-ui-base-setting': {
-          preferServerSetting: true,
-          setting: {
-            app: { name: '界面设置名称' },
-            logo: { source: '/interface-settings-logo.svg' },
-          },
-        },
+      siteInfo: {
+        logo: '/tenant-logo.svg',
+        title: '站点标题',
       },
     });
 
-    expect(brand.appName.value).toBe('界面设置名称');
-    expect(brand.logo.value).toBe('/interface-settings-logo.svg');
+    expect(brand.appName.value).toBe('站点标题');
+    expect(brand.logo.value).toBe('/tenant-logo.svg');
   });
 
-  it('reads all login-brand settings from the merged interface setting', async () => {
+  it('uses merged site info before legacy fields and never reads the brand object', async () => {
     const brand = await loadBrand({
-      uiExInfo: {
-        'admin-ui-base-setting': {
-          setting: {
-            login: {
-              heroImage: '/login-hero.png',
-              systemLogo: '/login-logo.png',
-              systemName: '登录站点',
-              titleImage: '/login-title.png',
-            },
-          },
-        },
+      brand: { name: '不应使用的品牌名称' },
+      logo: '/legacy-logo.svg',
+      siteInfo: {
+        logo: '/site-info-logo.svg',
+        title: '站点展示标题',
+      },
+      title: '旧标题',
+    });
+
+    expect(brand.appName.value).toBe('站点展示标题');
+    expect(brand.logo.value).toBe('/site-info-logo.svg');
+  });
+
+  it('reads all login-brand settings from merged site info', async () => {
+    const brand = await loadBrand({
+      siteInfo: {
+        logo: '/login-logo.png',
+        mainImg: '/login-hero.png',
+        title: '登录站点',
+        titleImg: '/login-title.png',
       },
     });
 
@@ -169,8 +149,10 @@ describe('auth brand tenant site mapping', () => {
 
   it('falls back to site branding when interface settings are disabled', async () => {
     const brand = await loadBrand({
-      logo: '/tenant-logo.svg',
-      name: '租户门户',
+      siteInfo: {
+        logo: '/tenant-logo.svg',
+        title: '租户门户',
+      },
       uiExInfo: {
         'admin-ui-base-setting': {
           preferServerSetting: false,
@@ -185,4 +167,28 @@ describe('auth brand tenant site mapping', () => {
     expect(brand.appName.value).toBe('租户门户');
     expect(brand.logo.value).toBe('/tenant-logo.svg');
   });
+
+  it('does not use UI settings over the tenant site branding', async () => {
+    const brand = await loadBrand({
+      siteInfo: { title: '站点名称' },
+      uiExInfo: {
+        'admin-ui-base-setting': {
+          setting: {
+            login: { systemName: 'UI 设置名称' },
+          },
+        },
+      },
+    });
+
+    expect(brand.appName.value).toBe('站点名称');
+  });
+
+  it('uses only the tenant site main image candidate', async () => {
+    const brand = await loadBrand({
+      siteInfo: { mainImg: '/tenant-site-hero.png' },
+    });
+
+    expect(brand.heroImageCandidates.value).toEqual(['/tenant-site-hero.png']);
+  });
+
 });

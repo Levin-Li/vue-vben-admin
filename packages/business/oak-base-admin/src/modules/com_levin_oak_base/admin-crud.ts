@@ -94,6 +94,18 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '电子合同模板',
   },
   {
+    icon: 'lucide:receipt-text',
+    name: 'EInvoice',
+    resource: 'EInvoice',
+    title: '电子发票',
+  },
+  {
+    icon: 'lucide:plug-zap',
+    name: 'EInvoiceProviderConnection',
+    resource: 'EInvoiceProviderConnection',
+    title: '电子发票供应商连接',
+  },
+  {
     icon: 'lucide:shield-check',
     name: 'DomainSslCert',
     resource: 'DomainSslCert',
@@ -422,29 +434,31 @@ export function createOakBaseAdminCrudRoutes(
       },
       name: toPathRouteName(rootPath),
       path: rootPath,
-      children: oakBaseAdminCrudResources.map<RouteRecordRaw>((item) => {
-        const component =
-          localViewMap[item.resource] ||
-          oakBaseAdminResourceViewMap[item.resource] ||
-          fallbackComponent;
+      children: [
+        ...oakBaseAdminCrudResources.map<RouteRecordRaw>((item) => {
+          const component =
+            localViewMap[item.resource] ||
+            oakBaseAdminResourceViewMap[item.resource] ||
+            fallbackComponent;
 
-        if (!component) {
-          throw new Error(`Missing admin page component for ${item.resource}.`);
-        }
+          if (!component) {
+            throw new Error(`Missing admin page component for ${item.resource}.`);
+          }
 
-        const path = `/clob/V1/${item.resource}`;
+          const path = `/clob/V1/${item.resource}`;
 
-        return {
-          component,
-          meta: {
-            crudResource: item.resource,
-            icon: item.icon,
-            title: item.title,
-          },
-          name: toPathRouteName(path),
-          path,
-        };
-      }),
+          return {
+            component,
+            meta: {
+              crudResource: item.resource,
+              icon: item.icon,
+              title: item.title,
+            },
+            name: toPathRouteName(path),
+            path,
+          };
+        }),
+      ],
     },
   ];
 }

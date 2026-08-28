@@ -21,6 +21,7 @@ import {
   verifyTarballRouteAssets,
   verifyTarballStandaloneInstall,
 } from './publish-artifact-gate.mjs';
+import { validateInternalPeerVersions } from './internal-peer-dependency-guard.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const packagesRoot = resolve(frontendRoot, 'packages');
@@ -216,31 +217,6 @@ function run(command, commandArgs, options = {}) {
   return result;
 }
 
-function runCapture(command, commandArgs, options = {}) {
-  const result = spawnSync(command, commandArgs, {
-    cwd: options.cwd || frontendRoot,
-    env: {
-      ...process.env,
-      ...options.env,
-    },
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-
-  if (result.status !== 0) {
-    const error = new Error(
-      `${command} ${commandArgs.join(' ')} 执行失败，退出码 ${
-        result.status || 1
-      }`,
-    );
-    error.exitCode = result.status || 1;
-    error.output = result.stdout || result.stderr || '';
-    throw error;
-  }
-
-  return result.stdout.trim();
-}
-
 function getAllPackages() {
   const packages = findPackageJsonFiles(packagesRoot)
     .map((packageJsonPath) => {
@@ -375,64 +351,6 @@ function validatePackagePublishRules(packageInfo) {
   }
 }
 
-function isInternalPackage(packageName) {
-  return /^@(levin|vben|vben-core)\//.test(packageName);
-}
-
-function getPublishedLatestVersion(packageName, publishEnv) {
-  if (!registry) {
-    return undefined;
-  }
-
-  const viewArgs = ['view', packageName, 'version', '--json'];
-  viewArgs.push('--registry', registry);
-
-  try {
-    const output = runCapture('npm', viewArgs, {
-      env: publishEnv,
-    });
-
-    return JSON.parse(output);
-  } catch {
-    return undefined;
-  }
-}
-
-function validateInternalPeerVersions(packageInfo, selectedPackageVersionByName, publishEnv) {
-  const peerDependencies = packageInfo.packageJson.peerDependencies || {};
-  const mismatches = [];
-
-  for (const [dependencyName, declaredVersion] of Object.entries(peerDependencies)) {
-    if (!isInternalPackage(dependencyName)) {
-      continue;
-    }
-
-    const expectedVersion =
-      selectedPackageVersionByName.get(dependencyName) ||
-      getPublishedLatestVersion(dependencyName, publishEnv);
-
-    if (!expectedVersion) {
-      continue;
-    }
-
-    if (declaredVersion !== expectedVersion) {
-      mismatches.push(
-        `${dependencyName}: ${declaredVersion} -> ${expectedVersion}`,
-      );
-    }
-  }
-
-  if (mismatches.length > 0) {
-    throw new Error(
-      `${packageInfo.name} 的内部 peerDependencies 未精确跟随当前内部发布版本：\n${mismatches
-        .map((item) => `- ${item}`)
-        .join(
-          '\n',
-        )}\n请先更新 package-versions.json 并运行 pnpm run sync:package-versions。`,
-    );
-  }
-}
-
 function packageVersionExists(packageInfo, publishEnv) {
   if (!registry || !skipExisting) {
     return false;
@@ -489,6 +407,7 @@ if (!skipVersionSync) {
 }
 
 const selectedPackages = getAllPackages();
+const versionConfig = readJson(resolve(frontendRoot, 'package-versions.json'));
 
 if (mode === 'list') {
   for (const packageInfo of selectedPackages) {
@@ -531,14 +450,17 @@ try {
     validateInternalPeerVersions(
       packageInfo,
       selectedPackageVersionByName,
-      publishEnv,
+      versionConfig,
     );
   }
 
   const routeAssetsByPackage = new Map();
   for (const packageInfo of selectedPackages) {
     buildPackage(packageInfo);
-    routeAssetsByPackage.set(packageInfo.name, verifyBuiltRouteAssets(packageInfo));
+    routeAssetsByPackage.set(
+      packageInfo.name,
+      verifyBuiltRouteAssets(packageInfo),
+    );
   }
 
   if (mode === 'pack') {
@@ -562,7 +484,10 @@ try {
 
     for (const packageInfo of selectedPackages) {
       const routeAssets = routeAssetsByPackage.get(packageInfo.name);
-      const packageOutputDir = resolve(packageTarballDir, packageInfo.name.replaceAll('/', '__'));
+      const packageOutputDir = resolve(
+        packageTarballDir,
+        packageInfo.name.replaceAll('/', '__'),
+      );
 
       if (packageVersionExists(packageInfo, publishEnv)) {
         const remoteTarball = packPackage(
@@ -572,8 +497,17 @@ try {
           remotePackEnv,
           frontendRoot,
         );
-        verifyTarballRouteAssets(packageInfo, remoteTarball, routeAssets, '私服 tarball');
-        verifyTarballDependencyProtocols(packageInfo, remoteTarball, '私服 tarball');
+        verifyTarballRouteAssets(
+          packageInfo,
+          remoteTarball,
+          routeAssets,
+          '私服 tarball',
+        );
+        verifyTarballDependencyProtocols(
+          packageInfo,
+          remoteTarball,
+          '私服 tarball',
+        );
         console.log(
           `跳过 ${packageInfo.name}@${packageInfo.version}：私服中已存在该版本。`,
         );
@@ -581,7 +515,12 @@ try {
       }
 
       const tarball = packWorkspacePackage(packageInfo, packageOutputDir);
-      verifyTarballRouteAssets(packageInfo, tarball, routeAssets, '本地 tarball');
+      verifyTarballRouteAssets(
+        packageInfo,
+        tarball,
+        routeAssets,
+        '本地 tarball',
+      );
       verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
       verifyTarballStandaloneInstall(packageInfo, tarball, remotePackEnv);
       publishPackage(tarball, publishEnv);
@@ -593,8 +532,17 @@ try {
         remotePackEnv,
         frontendRoot,
       );
-      verifyTarballRouteAssets(packageInfo, remoteTarball, routeAssets, '私服 tarball');
-      verifyTarballDependencyProtocols(packageInfo, remoteTarball, '私服 tarball');
+      verifyTarballRouteAssets(
+        packageInfo,
+        remoteTarball,
+        routeAssets,
+        '私服 tarball',
+      );
+      verifyTarballDependencyProtocols(
+        packageInfo,
+        remoteTarball,
+        '私服 tarball',
+      );
     }
   }
 } catch (error) {

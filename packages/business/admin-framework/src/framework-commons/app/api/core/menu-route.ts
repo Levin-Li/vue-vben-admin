@@ -306,15 +306,15 @@ export function convertMenuNode(
     .map((child) => convertMenuNode(child, lookup, depth + 1))
     .filter(Boolean) as RouteRecordStringComponent[];
 
-  const canRenderGroupPage =
+  const groupPageCandidate =
     children.length > 0 &&
     Boolean(normalizedPath) &&
-    normalizedPath !== '/' &&
-    (normalizePageType(item.pageType) !== 'LocalPage' ||
-      Boolean(findRouteMapping(lookup, normalizedPath)));
-  const groupPageRoute = canRenderGroupPage
-    ? convertLeafRoute(item, normalizedPath, lookup)
-    : undefined;
+    normalizedPath !== '/'
+      ? convertLeafRoute(item, normalizedPath, lookup)
+      : undefined;
+  const groupPageRoute = groupPageCandidate?.meta?.menuRouteMissingPage
+    ? undefined
+    : groupPageCandidate;
   const groupChildren = groupPageRoute
     ? [
         {

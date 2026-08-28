@@ -2,7 +2,19 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  destroyWatermark: vi.fn(),
   loadAuthBrand: vi.fn().mockResolvedValue(undefined),
+  refreshAuthBrand: vi.fn().mockResolvedValue(undefined),
+  preferences: {
+    app: {
+      watermark: false,
+      watermarkColor: 'gray',
+      watermarkColorCustom: false,
+      watermarkTransparency: 85,
+      watermarkContent: '',
+    },
+  },
+  updateWatermark: vi.fn(),
 }));
 
 vi.mock(
@@ -13,7 +25,9 @@ vi.mock(
     return {
       useAuthBrand: () => ({
         appName: ref('租户站点后台'),
+        heroImage: ref(''),
         loadAuthBrand: mocks.loadAuthBrand,
+        refreshAuthBrand: mocks.refreshAuthBrand,
       }),
     };
   },
@@ -30,8 +44,8 @@ vi.mock('@vben/hooks', () => ({
     apiURL: '',
   }),
   useWatermark: () => ({
-    destroyWatermark: vi.fn(),
-    updateWatermark: vi.fn(),
+    destroyWatermark: mocks.destroyWatermark,
+    updateWatermark: mocks.updateWatermark,
   }),
 }));
 
@@ -59,12 +73,7 @@ vi.mock('@vben/layouts', () => ({
 }));
 
 vi.mock('@vben/preferences', () => ({
-  preferences: {
-    app: {
-      watermark: false,
-      watermarkContent: '',
-    },
-  },
+  preferences: mocks.preferences,
 }));
 
 vi.mock('@vben/stores', () => ({
@@ -164,5 +173,52 @@ describe('basic layout tenant site brand', () => {
     expect(wrapper.get('[data-testid="logo-text"]').text()).toBe(
       '租户站点后台',
     );
+  });
+
+  it('uses the custom watermark color when creating a watermark', async () => {
+    Object.assign(mocks.preferences.app, {
+      watermark: true,
+      watermarkColor: 'hsl(340 82% 52%)',
+      watermarkColorCustom: true,
+      watermarkTransparency: 60,
+      watermarkContent: '内部资料',
+    });
+    mocks.updateWatermark.mockClear();
+
+    const wrapper = mount(Basic, {
+      global: {
+        stubs: {
+          Button: true,
+          Checkbox: true,
+          Empty: true,
+          Modal: true,
+          Popconfirm: true,
+          Tag: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(mocks.updateWatermark).toHaveBeenCalledWith({
+      advancedStyle: {
+        colorStops: [
+          { color: 'hsl(340 82% 52%)', offset: 0 },
+          { color: 'hsl(340 82% 52%)', offset: 1 },
+        ],
+        type: 'linear',
+      },
+      content: '内部资料',
+      globalAlpha: 0.4,
+    });
+
+    wrapper.unmount();
+    Object.assign(mocks.preferences.app, {
+      watermark: false,
+      watermarkColor: 'gray',
+      watermarkColorCustom: false,
+      watermarkTransparency: 85,
+      watermarkContent: '',
+    });
   });
 });

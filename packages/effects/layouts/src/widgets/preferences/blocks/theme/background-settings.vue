@@ -3,6 +3,8 @@ import { computed } from 'vue';
 
 import { $t } from '@vben/locales';
 
+const props = defineProps<{ label?: string }>();
+
 defineOptions({
   name: 'PreferenceBackgroundSettings',
 });
@@ -24,7 +26,9 @@ const normalizedTransparency = computed({
   <section class="space-y-3">
     <label class="block space-y-2 text-sm">
       <span class="flex justify-between gap-3">
-        <span>{{ $t('preferences.theme.backgroundTransparency') }}</span>
+        <span>{{
+          props.label ?? $t('preferences.theme.backgroundTransparency')
+        }}</span>
         <span class="text-muted-foreground">{{ normalizedTransparency }}%</span>
       </span>
       <input

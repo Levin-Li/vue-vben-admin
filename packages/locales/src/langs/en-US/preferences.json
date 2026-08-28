@@ -60,6 +60,9 @@
   "language": "Language",
   "dynamicTitle": "Dynamic Title",
   "watermark": "Watermark",
+  "watermarkColor": "Watermark Color",
+  "watermarkColorCustom": "Custom",
+  "watermarkTransparency": "Watermark Transparency",
   "watermarkContent": "Please input Watermark content",
   "checkUpdates": "Periodic update check",
   "position": {

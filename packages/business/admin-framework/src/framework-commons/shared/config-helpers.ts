@@ -78,7 +78,6 @@ export const orgLegalSubjectTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Org$LegalSubjectType',
 );
 export const orgIndustriesOptionsLoader = buildDictOptionsLoader(
-  'com.levin.oak.base.entities.Org.industries',
 );
 export const orgLevelOptionsLoader = buildDictOptionsLoader(
   'com.levin.oak.base.entities.Org.level',

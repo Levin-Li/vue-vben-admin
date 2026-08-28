@@ -19,6 +19,7 @@ import {
 } from '@levin/admin-framework/framework-commons/app/api';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import { shouldRefreshAuthorizedPermissions } from '@levin/admin-framework/framework-commons/rbac-access';
+import { clearPreviousUserAccessState } from './user-access-session';
 
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
@@ -132,6 +133,8 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken: string,
     onSuccess?: () => Promise<void> | void,
   ) {
+    const { resetRoutes } = await import('../router');
+    clearPreviousUserAccessState(accessStore, resetRoutes);
     accessStore.setAccessToken(accessToken);
 
     const [userInfo, accessCodes] = await Promise.all([
@@ -147,7 +150,9 @@ export const useAuthStore = defineStore('auth', () => {
     } else {
       onSuccess
         ? await onSuccess?.()
-        : await router.push(userInfo.homePath || preferences.app.defaultHomePath);
+        : await router.push(
+            userInfo.homePath || preferences.app.defaultHomePath,
+          );
     }
 
     if (userInfo?.realName) {

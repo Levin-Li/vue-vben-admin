@@ -15,7 +15,7 @@ import { Button } from 'ant-design-vue';
 
 import { resolveOverviewTotal } from './overview-utils';
 
-defineOptions({ name: 'Index' });
+defineOptions({ name: 'OakBaseAdminHome' });
 
 type OverviewCardState = 'loading' | 'ready' | 'unavailable';
 type OverviewCardTone = 'coral' | 'gold' | 'mint' | 'rose' | 'sky' | 'violet';
