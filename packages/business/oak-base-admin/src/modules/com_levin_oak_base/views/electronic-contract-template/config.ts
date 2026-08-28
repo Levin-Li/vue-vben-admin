@@ -14,7 +14,7 @@ const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
 
 export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
-    apiBase: '/ElectronicContractTemplate',
+    apiBase: '/EContractTemplate',
     apiService: electronicContractTemplateService,
     fields: [
       {

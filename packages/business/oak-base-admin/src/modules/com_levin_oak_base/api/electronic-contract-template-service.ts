@@ -3,8 +3,8 @@ import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
-  basePath: '/ElectronicContractTemplate',
-  controllerClass: 'com.levin.oak.base.controller.BizElectronicContractTemplateController',
+  basePath: '/EContractTemplate',
+  controllerClass: 'com.levin.oak.base.controller.BizEContractTemplateController',
   description: '电子合同模板管理',
   title: '电子合同模板',
   type: '系统数据-电子合同模板',
@@ -15,7 +15,7 @@ export class ElectronicContractTemplateService extends RequestService {
   }
 
   @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-电子合同模板', action: '查询列表' })
-  @CRUD.ListTable({ refEntityClass: 'com.levin.oak.base.entities.ElectronicContractTemplate' })
+  @CRUD.ListTable({ refEntityClass: 'com.levin.oak.base.entities.EContractTemplate' })
   async list(params?: any, options?: any) {
     return this.get('list', { ...options, params });
   }

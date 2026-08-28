@@ -48,17 +48,17 @@ const partnerRecords: GenericRecord[] = [
     orgId: DEFAULT_ORG_ID,
     shortName: '甲方旗舰店',
     subjectName: '深圳市甲方科技有限公司',
-    category: 'Customer',
+    category: 'Channel',
     type: 'OnlineFlagshipStore',
-    groupName: '重点客户',
+    groupName: '重点渠道',
     subjectType: 'LegalPerson',
     certificationStatus: 'Certified',
     contactName: '张三',
     contactMobile: '13800000001',
     contactEmail: 'zhangsan@example.com',
-    taxpayerId: '91440300MOCK00001',
-    legalRepresentativeName: '李总',
-    legalRepresentativePhone: '13900000001',
+    unifiedSocialCreditCode: '91440300MOCK00001',
+    legalName: '李总',
+    legalPhone: '13900000001',
     businessLicenseFileUrl: SAMPLE_IMAGE_URL,
     storefrontImageUrl: SAMPLE_IMAGE_URL,
     enable: true,
@@ -89,8 +89,8 @@ const templateRecords: GenericRecord[] = [
     mimeType:
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     signerRoleDefinition: [
-      { roleCode: 'PARTY_A', roleName: '甲方' },
-      { roleCode: 'PARTY_B', roleName: '乙方' },
+      { roleCode: 'PartyA', roleName: '甲方' },
+      { roleCode: 'PartyB', roleName: '乙方' },
     ],
     defaultSealPositionRules: [
       {
@@ -148,8 +148,9 @@ const contractRecords: GenericRecord[] = [
     contractPartySnapshot: {
       parties: [
         {
-          roleCode: 'PARTY_A',
+          roleCode: 'PartyA',
           roleName: '甲方',
+          signOrder: 1,
           subject: {
             subjectName: '深圳市甲方科技有限公司',
             subjectType: 'LegalPerson',
@@ -165,8 +166,9 @@ const contractRecords: GenericRecord[] = [
           },
         },
         {
-          roleCode: 'PARTY_B',
+          roleCode: 'PartyB',
           roleName: '乙方',
+          signOrder: 2,
           subject: {
             subjectName: '王五',
             subjectType: 'NaturalPerson',
@@ -192,6 +194,7 @@ const contractRecords: GenericRecord[] = [
     createTime: '2026-08-26T09:20:00Z',
     supportEventsByCurrentStatus: ['编辑', '删除'],
     signingLog: [createActionLog('创建草稿')],
+    callbackEventIds: [],
   },
 ];
 
@@ -206,28 +209,30 @@ const enumInfoMap: Record<string, any> = {
       { label: '机密', value: 3 },
     ],
   },
-  'com.levin.oak.base.entities.ElectronicContract$SignMode': {
-    fullName: 'com.levin.oak.base.entities.ElectronicContract$SignMode',
+  'com.levin.oak.base.entities.EContract$SignMode': {
+    fullName: 'com.levin.oak.base.entities.EContract$SignMode',
     name: 'SignMode',
     options: [
       { label: '顺序签署', value: 'Sequential' },
       { label: '并行签署', value: 'Parallel' },
     ],
   },
-  'com.levin.oak.base.entities.AbstractLegalSubject$SubjectType': {
-    fullName: 'com.levin.oak.base.entities.AbstractLegalSubject$SubjectType',
+  'com.levin.oak.base.entities.LegalSubject$SubjectType': {
+    fullName: 'com.levin.oak.base.entities.LegalSubject$SubjectType',
     name: 'SubjectType',
     options: [
       { label: '法人', value: 'LegalPerson' },
       { label: '自然人', value: 'NaturalPerson' },
     ],
   },
-  'com.levin.oak.base.entities.AbstractLegalSubject$IdentityType': {
-    fullName: 'com.levin.oak.base.entities.AbstractLegalSubject$IdentityType',
+  'com.levin.oak.base.entities.LegalSubject$IdentityType': {
+    fullName: 'com.levin.oak.base.entities.LegalSubject$IdentityType',
     name: 'IdentityType',
     options: [
-      { label: '营业执照', value: 'BusinessLicense' },
-      { label: '居民身份证', value: 'IdCard' },
+      { label: '主体身份标识', value: 'UnifiedSocialCreditCode' },
+      { label: '身份证', value: 'IdCard' },
+      { label: '护照', value: 'Passport' },
+      { label: '其他证件', value: 'Other' },
     ],
   },
   'com.levin.oak.base.entities.Partner$Category': {
@@ -235,7 +240,18 @@ const enumInfoMap: Record<string, any> = {
     name: 'Category',
     options: [
       { label: '客户', value: 'Customer' },
-      { label: '供应商', value: 'Supplier' },
+      { label: '渠道', value: 'Channel' },
+      { label: '供应链', value: 'SupplyChain' },
+    ],
+  },
+  'com.levin.oak.base.entities.Partner$InvestmentRelation': {
+    fullName: 'com.levin.oak.base.entities.Partner$InvestmentRelation',
+    name: 'InvestmentRelation',
+    options: [
+      { label: '未知', value: 'Unknown' },
+      { label: '无关系', value: 'None' },
+      { label: '子公司', value: 'Subsidiary' },
+      { label: '关联公司', value: 'Affiliate' },
     ],
   },
   'com.levin.oak.base.entities.Partner$Type': {
@@ -390,8 +406,9 @@ function defaultPartySnapshot() {
   return {
     parties: [
       {
-        roleCode: 'PARTY_A',
+        roleCode: 'PartyA',
         roleName: '甲方',
+        signOrder: 1,
         subject: {
           subjectName: '深圳市甲方科技有限公司',
           subjectType: 'LegalPerson',
@@ -407,8 +424,9 @@ function defaultPartySnapshot() {
         },
       },
       {
-        roleCode: 'PARTY_B',
+        roleCode: 'PartyB',
         roleName: '乙方',
+        signOrder: 2,
         subject: {
           subjectName: '模拟签署人',
           subjectType: 'NaturalPerson',
@@ -455,9 +473,9 @@ function handlePartnerAction(path: string, method: string, query: GenericRecord,
       contactName: body.contactName || '未命名联系人',
       contactMobile: body.contactMobile || '',
       contactEmail: body.contactEmail || '',
-      taxpayerId: body.taxpayerId || '',
-      legalRepresentativeName: body.legalRepresentativeName || '',
-      legalRepresentativePhone: body.legalRepresentativePhone || '',
+      unifiedSocialCreditCode: body.unifiedSocialCreditCode || '',
+      legalName: body.legalName || '',
+      legalPhone: body.legalPhone || '',
       businessLicenseFileUrl: body.businessLicenseFileUrl || SAMPLE_IMAGE_URL,
       storefrontImageUrl: body.storefrontImageUrl || SAMPLE_IMAGE_URL,
       enable: body.enable !== false,
@@ -522,19 +540,19 @@ function handlePartnerAction(path: string, method: string, query: GenericRecord,
 }
 
 function handleTemplateAction(path: string, method: string, query: GenericRecord, body: GenericRecord) {
-  if (path === '/ElectronicContractTemplate/list' && method === 'GET') {
+  if (path === '/EContractTemplate/list' && method === 'GET') {
     return useResponseSuccess(
       applyListQuery(templateRecords, query, ['title', 'templateNo', 'bizType']),
     );
   }
 
-  if (path === '/ElectronicContractTemplate/retrieve' && method === 'GET') {
+  if (path === '/EContractTemplate/retrieve' && method === 'GET') {
     return useResponseSuccess(
       cloneRecord(requireRecord(templateRecords, String(query.id || ''), '合同模板')),
     );
   }
 
-  if (path === '/ElectronicContractTemplate/create' && method === 'POST') {
+  if (path === '/EContractTemplate/create' && method === 'POST') {
     const nextRecord = {
       id: nextTemplateId(),
       tenantId: body.tenantId || DEFAULT_TENANT_ID,
@@ -568,13 +586,13 @@ function handleTemplateAction(path: string, method: string, query: GenericRecord
     return useResponseSuccess(cloneRecord(nextRecord));
   }
 
-  if (path === '/ElectronicContractTemplate/update' && method === 'PUT') {
+  if (path === '/EContractTemplate/update' && method === 'PUT') {
     const record = requireRecord(templateRecords, String(body.id || ''), '合同模板');
     Object.assign(record, body);
     return useResponseSuccess(cloneRecord(record));
   }
 
-  if (path === '/ElectronicContractTemplate/delete' && method === 'DELETE') {
+  if (path === '/EContractTemplate/delete' && method === 'DELETE') {
     const index = templateRecords.findIndex((item) => String(item.id) === String(query.id || ''));
     if (index >= 0) {
       templateRecords.splice(index, 1);
@@ -585,28 +603,52 @@ function handleTemplateAction(path: string, method: string, query: GenericRecord
 
 function buildSupportEvents(status: string) {
   if (status === 'Draft') {
-    return ['编辑', '删除'];
+    return ['编辑', '提交签署', '删除'];
   }
   if (status === 'Signing') {
-    return ['删除'];
+    return ['模拟供应商回调', '撤销签署', '模拟签署过期'];
   }
-  return ['删除'];
+  if (status === 'Signed') {
+    return ['查看签署日志', '下载已签文件', '复制重签', '归档合同'];
+  }
+  if (['Rejected', 'Canceled', 'Expired'].includes(status)) {
+    return ['查看签署日志', '复制重签', '归档合同'];
+  }
+  if (status === 'Archived') {
+    return ['查看签署日志', '复制重签'];
+  }
+  return [];
+}
+
+function assertFixedTwoPartySnapshot(snapshot: GenericRecord) {
+  const parties = Array.isArray(snapshot?.parties) ? snapshot.parties : [];
+  const isValid =
+    parties.length === 2 &&
+    parties[0]?.roleCode === 'PartyA' &&
+    Number(parties[0]?.signOrder) === 1 &&
+    parties[1]?.roleCode === 'PartyB' &&
+    Number(parties[1]?.signOrder) === 2;
+  if (!isValid) {
+    throw new Error('电子合同仅支持 PartyA（甲方，顺序 1）和 PartyB（乙方，顺序 2）两方签约');
+  }
 }
 
 function handleContractAction(path: string, method: string, query: GenericRecord, body: GenericRecord) {
-  if (path === '/ElectronicContract/list' && method === 'GET') {
+  if (path === '/EContract/list' && method === 'GET') {
     return useResponseSuccess(
       applyListQuery(contractRecords, query, ['title', 'contractNo', 'requestNo', 'bizOrderNo']),
     );
   }
 
-  if (path === '/ElectronicContract/retrieve' && method === 'GET') {
+  if (path === '/EContract/retrieve' && method === 'GET') {
     return useResponseSuccess(
       cloneRecord(requireRecord(contractRecords, String(query.id || ''), '电子合同')),
     );
   }
 
-  if (path === '/ElectronicContract/saveDraft' && method === 'POST') {
+  if (path === '/EContract/saveDraft' && method === 'POST') {
+    const partySnapshot = body.contractPartySnapshot || defaultPartySnapshot();
+    assertFixedTwoPartySnapshot(partySnapshot);
     const nextRecord = {
       id: nextContractId(),
       tenantId: body.tenantId || DEFAULT_TENANT_ID,
@@ -630,7 +672,7 @@ function handleContractAction(path: string, method: string, query: GenericRecord
       sourceFileMimeType:
         body.sourceFileMimeType ||
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      contractPartySnapshot: body.contractPartySnapshot || defaultPartySnapshot(),
+      contractPartySnapshot: partySnapshot,
       sealPositionOverrides: body.sealPositionOverrides || [],
       status: 'Draft',
       providerFlowId: '',
@@ -645,46 +687,86 @@ function handleContractAction(path: string, method: string, query: GenericRecord
     return useResponseSuccess(cloneRecord(nextRecord));
   }
 
-  if (path === '/ElectronicContract/updateDraft' && method === 'PUT') {
+  if (path === '/EContract/updateDraft' && method === 'PUT') {
     const record = requireRecord(contractRecords, String(body.id || ''), '电子合同');
+    if (body.contractPartySnapshot) {
+      assertFixedTwoPartySnapshot(body.contractPartySnapshot);
+    }
     Object.assign(record, body);
     record.signingLog = record.signingLog || [createActionLog('创建草稿')];
     return useResponseSuccess(cloneRecord(record));
   }
 
-  if (path === '/ElectronicContract/submitSigning' && method === 'POST') {
+  if (path === '/EContract/submitSigning' && method === 'POST') {
     const record = requireRecord(contractRecords, String(body.id || ''), '电子合同');
-    record.status = 'Signed';
+    assertFixedTwoPartySnapshot(record.contractPartySnapshot);
+    if (record.status !== 'Draft') {
+      throw new Error('只有草稿合同可以提交签署');
+    }
+    record.status = 'Signing';
     record.providerFlowId = `mock-flow-${record.id}`;
-    record.signedFileUrl = SAMPLE_DOC_URL;
-    record.signedFileName = `${record.title || '电子合同'}-已签署.docx`;
-    record.supportEventsByCurrentStatus = buildSupportEvents('Signed');
+    record.supportEventsByCurrentStatus = buildSupportEvents('Signing');
     record.signingLog = [
       ...(record.signingLog || []),
       createActionLog('提交签署'),
-      createActionLog('模拟签署完成'),
     ];
     return useResponseSuccess(cloneRecord(record));
   }
 
-  if (path === '/ElectronicContract/cancelSigning' && method === 'POST') {
+  if (path === '/EContract/providerCallback' && method === 'POST') {
     const record = requireRecord(contractRecords, String(body.id || ''), '电子合同');
+    const callbackEventId = String(body.eventId || `mock-callback-${record.id}-${body.status || 'Signed'}`);
+    if ((record.callbackEventIds || []).includes(callbackEventId)) {
+      return useResponseSuccess(cloneRecord(record));
+    }
+    if (record.status !== 'Signing') {
+      throw new Error('只有签署中的合同可以接收模拟供应商回调');
+    }
+    const callbackStatus = String(body.status || 'Signed');
+    if (callbackStatus === 'Failed') {
+      throw new Error('模拟供应商技术异常：合同保持 Signing，可稍后重试或撤销');
+    }
+    const rejected = callbackStatus === 'Rejected';
+    const expired = callbackStatus === 'Expired';
+    record.status = rejected ? 'Rejected' : expired ? 'Expired' : 'Signed';
+    record.callbackEventIds = [...(record.callbackEventIds || []), callbackEventId];
+    record.signedFileUrl = rejected || expired ? '' : SAMPLE_DOC_URL;
+    record.signedFileName = rejected || expired ? '' : `${record.title || '电子合同'}-已签署.docx`;
+    record.supportEventsByCurrentStatus = buildSupportEvents(record.status);
+    record.signingLog = [
+      ...(record.signingLog || []),
+      createActionLog(rejected ? '模拟签署拒绝' : expired ? '模拟签署过期' : '模拟签署完成'),
+    ];
+    return useResponseSuccess(cloneRecord(record));
+  }
+
+  if (path === '/EContract/cancelSigning' && method === 'POST') {
+    const record = requireRecord(contractRecords, String(body.id || ''), '电子合同');
+    if (record.status !== 'Signing') {
+      throw new Error('只有签署中的合同可以撤销签署');
+    }
     record.status = 'Canceled';
     record.supportEventsByCurrentStatus = buildSupportEvents('Canceled');
     record.signingLog = [...(record.signingLog || []), createActionLog('撤销签署')];
     return useResponseSuccess(cloneRecord(record));
   }
 
-  if (path === '/ElectronicContract/archive' && method === 'POST') {
+  if (path === '/EContract/archive' && method === 'POST') {
     const record = requireRecord(contractRecords, String(body.id || ''), '电子合同');
+    if (!['Signed', 'Rejected', 'Canceled', 'Expired'].includes(record.status)) {
+      throw new Error('只有已签署、已拒签、已撤销或已过期合同可以归档');
+    }
     record.status = 'Archived';
     record.supportEventsByCurrentStatus = buildSupportEvents('Archived');
     record.signingLog = [...(record.signingLog || []), createActionLog('归档合同')];
     return useResponseSuccess(cloneRecord(record));
   }
 
-  if (path === '/ElectronicContract/copyForResign' && method === 'POST') {
+  if (path === '/EContract/copyForResign' && method === 'POST') {
     const sourceRecord = requireRecord(contractRecords, String(body.id || ''), '电子合同');
+    if (!['Canceled', 'Rejected', 'Signed', 'Expired', 'Archived'].includes(sourceRecord.status)) {
+      throw new Error('只有已签署、已拒签、已撤销、已过期或已归档合同可以复制重签');
+    }
     const nextRecord = {
       ...cloneRecord(sourceRecord),
       id: nextContractId(),
@@ -697,17 +779,26 @@ function handleContractAction(path: string, method: string, query: GenericRecord
       createTime: new Date().toISOString(),
       supportEventsByCurrentStatus: buildSupportEvents('Draft'),
       signingLog: [createActionLog('复制重签草稿')],
+      callbackEventIds: [],
     };
     contractRecords.unshift(nextRecord);
     return useResponseSuccess(cloneRecord(nextRecord));
   }
 
-  if (path === '/ElectronicContract/signingLog' && method === 'GET') {
+  if (path === '/EContract/signingLog' && method === 'GET') {
     const record = requireRecord(contractRecords, String(query.id || ''), '电子合同');
     return useResponseSuccess(cloneRecord(record.signingLog || []));
   }
 
-  if (path === '/ElectronicContract/delete' && method === 'DELETE') {
+  if (path === '/EContract/downloadSignedFile' && method === 'GET') {
+    const record = requireRecord(contractRecords, String(query.id || ''), '电子合同');
+    if (record.status !== 'Signed' || !record.signedFileUrl) {
+      throw new Error('当前合同尚未完成签署，不能下载已签文件');
+    }
+    return useResponseSuccess({ url: record.signedFileUrl });
+  }
+
+  if (path === '/EContract/delete' && method === 'DELETE') {
     const index = contractRecords.findIndex((item) => String(item.id) === String(query.id || ''));
     if (index >= 0) {
       contractRecords.splice(index, 1);
@@ -829,7 +920,7 @@ export default defineEventHandler(async (event) => {
               name: '电子合同模板',
               orderCode: 20,
               pageType: 'LocalPage',
-              path: '/clob/V1/ElectronicContractTemplate',
+              path: '/clob/V1/EContractTemplate',
             },
             {
               actionType: 'Default',
@@ -838,7 +929,7 @@ export default defineEventHandler(async (event) => {
               name: '电子合同',
               orderCode: 30,
               pageType: 'LocalPage',
-              path: '/clob/V1/ElectronicContract',
+              path: '/clob/V1/EContract',
             },
           ],
           enable: true,
@@ -875,13 +966,13 @@ export default defineEventHandler(async (event) => {
         },
         {
           description: '电子合同模板管理接口',
-          name: 'BizElectronicContractTemplateController',
-          url: '/ElectronicContractTemplate/list',
+          name: 'BizEContractTemplateController',
+          url: '/EContractTemplate/list',
         },
         {
           description: '电子合同管理接口',
-          name: 'BizElectronicContractController',
-          url: '/ElectronicContract/list',
+          name: 'BizEContractController',
+          url: '/EContract/list',
         },
       ]);
     }

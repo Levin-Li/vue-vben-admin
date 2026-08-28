@@ -3,8 +3,8 @@ import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
-  basePath: '/ElectronicContract',
-  controllerClass: 'com.levin.oak.base.controller.BizElectronicContractController',
+  basePath: '/EContract',
+  controllerClass: 'com.levin.oak.base.controller.BizEContractController',
   description: '电子合同管理',
   title: '电子合同',
   type: '系统数据-电子合同',
@@ -15,7 +15,7 @@ export class ElectronicContractService extends RequestService {
   }
 
   @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-电子合同', action: '查询列表' })
-  @CRUD.ListTable({ refEntityClass: 'com.levin.oak.base.entities.ElectronicContract' })
+  @CRUD.ListTable({ refEntityClass: 'com.levin.oak.base.entities.EContract' })
   async list(params?: any, options?: any) {
     return this.get('list', { ...options, params });
   }
@@ -50,6 +50,12 @@ export class ElectronicContractService extends RequestService {
     return this.post('submitSigning', { ...options, data });
   }
 
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-电子合同', action: '供应商回调' })
+  @CRUD.Op({ label: '模拟供应商回调' })
+  async providerCallback(data?: any, options?: any) {
+    return this.post('providerCallback', { ...options, data });
+  }
+
   @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-电子合同', action: '撤销签署' })
   @CRUD.Op({ label: '撤销' })
   async cancelSigning(data?: any, options?: any) {
@@ -72,6 +78,12 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op({ label: '签署日志', confirmText: 'None' })
   async signingLog(params?: any, options?: any) {
     return this.get('signingLog', { ...options, params });
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-电子合同', action: '下载已签文件' })
+  @CRUD.Op({ label: '下载已签文件', confirmText: 'None' })
+  async downloadSignedFile(params?: any, options?: any) {
+    return this.get('downloadSignedFile', { ...options, params });
   }
 }
 

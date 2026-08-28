@@ -286,11 +286,9 @@ export const orgStateOptionsLoader = buildModuleEnumOptionsLoader(
 export const orgTypeOptionsLoader = buildModuleEnumOptionsLoader(
   'com.levin.oak.base.entities.Org$Type',
 );
-export const orgLegalSubjectTypeOptionsLoader = buildModuleEnumOptionsLoader(
-  'com.levin.oak.base.entities.Org$LegalSubjectType',
-);
-export const orgIndustriesOptionsLoader = buildModuleDictOptionsLoader(
-  'com.levin.oak.base.entities.Org.industries',
+export const legalSubjectOptionsLoader = buildModuleOptionsLoader(
+  '/LegalSubject/list',
+  'subjectName',
 );
 export const orgLevelOptionsLoader = buildModuleDictOptionsLoader(
   'com.levin.oak.base.entities.Org.level',

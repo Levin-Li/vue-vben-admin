@@ -4,6 +4,15 @@ import { oakBaseAdminCrudResources } from './admin-crud';
 
 const MODULE_VIEW_PREFIX = '/system/com_levin_oak_base';
 const MODULE_SOURCE_PREFIX = 'modules/com_levin_oak_base/views';
+
+/**
+ * 实际页面目录不一定等于实体短类名的 kebab-case。
+ * 电子合同以完整领域名称命名，避免生成 EContract 时产生难读且不存在的 e-contract 路径。
+ */
+const CRUD_PAGE_DIRECTORY_OVERRIDES: Readonly<Record<string, string>> = {
+  EContract: 'electronic-contract',
+  EContractTemplate: 'electronic-contract-template',
+};
 const CRUD_ROUTE_PATH_PREFIX = '/clob/V1';
 
 function toKebabCase(value: string) {
@@ -16,7 +25,7 @@ function toKebabCase(value: string) {
 function createCrudBackendRouteMapping(
   item: (typeof oakBaseAdminCrudResources)[number],
 ): AdminBackendRouteMapping {
-  const pageDirectory = toKebabCase(item.name);
+  const pageDirectory = CRUD_PAGE_DIRECTORY_OVERRIDES[item.resource] || toKebabCase(item.name);
 
   return {
     icon: item.icon,

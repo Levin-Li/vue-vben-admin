@@ -184,4 +184,29 @@ describe('oak base admin crud resources', () => {
       ),
     ).toBe(false);
   });
+
+  it('maps electronic contract resources to their full domain page directories', () => {
+    const contractMapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.resource === 'EContract',
+    );
+    const templateMapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.resource === 'EContractTemplate',
+    );
+
+    expect(contractMapping).toEqual(
+      expect.objectContaining({
+        sourceFilePath:
+          'modules/com_levin_oak_base/views/electronic-contract/index.vue',
+        viewPath: '/system/com_levin_oak_base/electronic-contract/index.vue',
+      }),
+    );
+    expect(templateMapping).toEqual(
+      expect.objectContaining({
+        sourceFilePath:
+          'modules/com_levin_oak_base/views/electronic-contract-template/index.vue',
+        viewPath:
+          '/system/com_levin_oak_base/electronic-contract-template/index.vue',
+      }),
+    );
+  });
 });

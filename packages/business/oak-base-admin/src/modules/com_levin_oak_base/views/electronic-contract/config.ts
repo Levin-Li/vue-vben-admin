@@ -13,10 +13,10 @@ const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
 const signModeOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.ElectronicContract$SignMode',
+  'com.levin.oak.base.entities.EContract$SignMode',
 );
 const templateOptionsLoader = buildModuleOptionsLoader(
-  '/ElectronicContractTemplate/list',
+  '/EContractTemplate/list',
   'title',
   'id',
 );
@@ -29,10 +29,10 @@ const providerOptions = [
 
 export const electronicContractPageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
-    apiBase: '/ElectronicContract',
+    apiBase: '/EContract',
     apiService: electronicContractService,
-    createPath: '/ElectronicContract/saveDraft',
-    updatePath: '/ElectronicContract/updateDraft',
+    createPath: '/EContract/saveDraft',
+    updatePath: '/EContract/updateDraft',
     fields: [
       {
         key: 'tenantId',

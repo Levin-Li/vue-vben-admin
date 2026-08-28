@@ -83,14 +83,14 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   },
   {
     icon: 'lucide:file-signature',
-    name: 'ElectronicContract',
-    resource: 'ElectronicContract',
+    name: 'EContract',
+    resource: 'EContract',
     title: '电子合同',
   },
   {
     icon: 'lucide:file-stack',
-    name: 'ElectronicContractTemplate',
-    resource: 'ElectronicContractTemplate',
+    name: 'EContractTemplate',
+    resource: 'EContractTemplate',
     title: '电子合同模板',
   },
   {
@@ -173,6 +173,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '组织管理',
   },
   {
+    icon: 'lucide:landmark',
+    name: 'LegalSubject',
+    resource: 'LegalSubject',
+    title: '法律主体',
+  },
+  {
     icon: 'lucide:credit-card',
     name: 'PayChannel',
     resource: 'PayChannel',
@@ -183,6 +189,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     name: 'PayOrder',
     resource: 'PayOrder',
     title: '支付订单',
+  },
+  {
+    icon: 'lucide:test-tube-diagonal',
+    name: 'PaymentSimulationWorkbench',
+    resource: 'PaymentSimulationWorkbench',
+    title: '支付模拟工作台',
   },
   {
     icon: 'lucide:handshake',
@@ -335,11 +347,11 @@ export const oakBaseAdminResourceViewMap: Record<
   Demo: () => import('./views/demo/index.vue'),
   Dict: () => import('./views/dict/index.vue'),
   Domain: () => import('./views/domain/index.vue'),
-  ElectronicContract: () => import('./views/electronic-contract/index.vue'),
-  ElectronicInvoice: () => import('./views/electronic-invoice/index.vue'),
-  ElectronicInvoiceProviderConnection: () =>
+  EContract: () => import('./views/electronic-contract/index.vue'),
+  EInvoice: () => import('./views/electronic-invoice/index.vue'),
+  EInvoiceProviderConnection: () =>
     import('./views/electronic-invoice-provider-connection/index.vue'),
-  ElectronicContractTemplate: () =>
+  EContractTemplate: () =>
     import('./views/electronic-contract-template/index.vue'),
   DomainSslCert: () => import('./views/domain-ssl-cert/index.vue'),
   EmailRelayRoute: () => import('./views/email-relay-route/index.vue'),
@@ -351,6 +363,7 @@ export const oakBaseAdminResourceViewMap: Record<
   ImportExportTemplate: () =>
     import('./views/import-export-template/index.vue'),
   JobPost: () => import('./views/job-post/index.vue'),
+  LegalSubject: () => import('./views/legal-subject/index.vue'),
   Menu: () => import('./views/menu/index.vue'),
   TenantCustomMenu: () => import('./views/tenant-custom-menu/index.vue'),
   Nation: () => import('./views/nation/index.vue'),
@@ -361,6 +374,8 @@ export const oakBaseAdminResourceViewMap: Record<
   OrgUser: () => import('./views/org-user/index.vue'),
   PayChannel: () => import('./views/pay-channel/index.vue'),
   PayOrder: () => import('./views/pay-order/index.vue'),
+  PaymentSimulationWorkbench: () =>
+    import('./views/payment-simulation-workbench/index.vue'),
   Partner: () => import('./views/partner/index.vue'),
   RbacPermissionItem: () => import('./views/rbac-permission-item/index.vue'),
   Role: () => import('./views/role/index.vue'),
