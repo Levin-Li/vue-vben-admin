@@ -1,13 +1,15 @@
-import type { MenuRecordRaw } from '@vben/types';
 import type { ComputedRef, Ref } from 'vue';
 
+import type { MenuRecordRaw } from '@vben/types';
+
 import { computed, onBeforeMount, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 
 import { preferences, usePreferences } from '@vben/preferences';
 import { useAccessStore } from '@vben/stores';
 import { findRootMenuByPath } from '@vben/utils';
 
+import { shouldNavigateSelectedMenu } from './group-navigation';
 import { useNavigation } from './use-navigation';
 
 interface MixedMenuState {
@@ -24,15 +26,12 @@ interface MixedMenuState {
 
 function useMixedMenu(): MixedMenuState {
   const { navigation, willOpenedByWindow } = useNavigation();
-  const router = useRouter();
   const accessStore = useAccessStore();
   const route = useRoute();
   const splitSideMenus = ref<MenuRecordRaw[]>([]);
   const rootMenuPath = ref<string>('');
   const mixedRootMenuPath = ref<string>('');
   const mixExtraMenus = ref<MenuRecordRaw[]>([]);
-  /** 记录当前顶级菜单下哪个子菜单最后激活 */
-  const defaultSubMap = new Map<string, string>();
   const { isMixedNav, isHeaderMixedNav } = usePreferences();
 
   const needSplit = computed(
@@ -111,43 +110,13 @@ function useMixedMenu(): MixedMenuState {
       splitSideMenus.value = _splitSideMenus;
     }
 
-    if (_splitSideMenus.length === 0) {
+    if (shouldNavigateSelectedMenu(rootMenu)) {
       navigation(key);
-    } else if (rootMenu && preferences.sidebar.autoActivateChild) {
-      navigation(
-        defaultSubMap.has(rootMenu.path)
-          ? (defaultSubMap.get(rootMenu.path) as string)
-          : rootMenu.path,
-      );
     }
   };
 
-  /**
-   * 侧边菜单展开事件
-   * @param key 路由路径
-   * @param parentsPath 父级路径
-   */
-  const handleMenuOpen = (key: string, parentsPath: string[]) => {
-    const targetRoute = router.resolve(key);
-    const isNavigableGroup = targetRoute.matched.some(
-      (record) =>
-        record.meta.navigateOnClick ||
-        record.meta.preserveComponentWhenChildren,
-    );
-
-    if (isNavigableGroup) {
-      if (preferences.tabbar.enable) {
-        navigation(key);
-      }
-      return;
-    }
-
-    if (parentsPath.length <= 1 && preferences.sidebar.autoActivateChild) {
-      navigation(
-        defaultSubMap.has(key) ? (defaultSubMap.get(key) as string) : key,
-      );
-    }
-  };
+  /** 悬停或展开控件触发的 open 事件只负责展示子菜单。 */
+  const handleMenuOpen = () => undefined;
 
   /**
    * 计算侧边菜单
@@ -173,8 +142,6 @@ function useMixedMenu(): MixedMenuState {
         return;
       }
       calcSideMenus(currentPath);
-      if (rootMenuPath.value)
-        defaultSubMap.set(rootMenuPath.value, currentPath);
     },
     { immediate: true },
   );

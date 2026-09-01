@@ -128,25 +128,29 @@ function updateFooterBackgroundVariable(preferences: Preferences) {
   const root = document.documentElement;
   const footer = preferences.footer;
 
-  root.style.setProperty('--footer-margin-top', `${footer.marginTop}px`);
-  root.style.setProperty('--footer-margin-right', `${footer.marginRight}px`);
-  root.style.setProperty('--footer-margin-bottom', `${footer.marginBottom}px`);
-  root.style.setProperty('--footer-margin-left', `${footer.marginLeft}px`);
-  root.style.setProperty(
+  setOptionalPixelVariable(root, '--footer-margin-top', footer.marginTop);
+  setOptionalPixelVariable(root, '--footer-margin-right', footer.marginRight);
+  setOptionalPixelVariable(root, '--footer-margin-bottom', footer.marginBottom);
+  setOptionalPixelVariable(root, '--footer-margin-left', footer.marginLeft);
+  setOptionalPixelVariable(
+    root,
     '--footer-radius-top-left',
-    `${footer.radiusTopLeft}px`,
+    footer.radiusTopLeft,
   );
-  root.style.setProperty(
+  setOptionalPixelVariable(
+    root,
     '--footer-radius-top-right',
-    `${footer.radiusTopRight}px`,
+    footer.radiusTopRight,
   );
-  root.style.setProperty(
+  setOptionalPixelVariable(
+    root,
     '--footer-radius-bottom-right',
-    `${footer.radiusBottomRight}px`,
+    footer.radiusBottomRight,
   );
-  root.style.setProperty(
+  setOptionalPixelVariable(
+    root,
     '--footer-radius-bottom-left',
-    `${footer.radiusBottomLeft}px`,
+    footer.radiusBottomLeft,
   );
 
   if (!footer.backgroundColorCustom) {
@@ -161,6 +165,19 @@ function updateFooterBackgroundVariable(preferences: Preferences) {
       footer.backgroundTransparency,
     ),
   );
+}
+
+function setOptionalPixelVariable(
+  root: HTMLElement,
+  name: string,
+  value: number | undefined,
+) {
+  if (Number.isFinite(value)) {
+    root.style.setProperty(name, `${value}px`);
+    return;
+  }
+
+  root.style.removeProperty(name);
 }
 
 /**

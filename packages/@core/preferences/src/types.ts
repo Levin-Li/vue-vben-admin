@@ -158,14 +158,22 @@ interface FooterPreferences {
   fixed: boolean;
   /** 底栏高度 */
   height: number;
-  marginTop: number;
-  marginRight: number;
-  marginBottom: number;
-  marginLeft: number;
-  radiusTopLeft: number;
-  radiusTopRight: number;
-  radiusBottomRight: number;
-  radiusBottomLeft: number;
+  marginTop?: number;
+  marginRight?: number;
+  marginBottom?: number;
+  marginLeft?: number;
+  radiusTopLeft?: number;
+  radiusTopRight?: number;
+  radiusBottomRight?: number;
+  radiusBottomLeft?: number;
+  /** 底栏上边框宽度 */
+  borderTopWidth?: number;
+  /** 底栏右边框宽度 */
+  borderRightWidth?: number;
+  /** 底栏下边框宽度 */
+  borderBottomWidth?: number;
+  /** 底栏左边框宽度 */
+  borderLeftWidth?: number;
 }
 
 interface HeaderPreferences {

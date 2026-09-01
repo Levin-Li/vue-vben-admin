@@ -9,6 +9,32 @@ import {
 } from '../src/modules/com_levin_oak_base';
 import { oakBaseAdminBackendRouteMappings } from '../src/modules/com_levin_oak_base/backend-route-mappings';
 
+function flattenCrudRoutes(children: any[] | undefined): any[] {
+  return (children || []).flatMap((route) =>
+    Array.isArray(route?.children) && route.children.length > 0
+      ? flattenCrudRoutes(route.children)
+      : route?.meta?.crudResource
+        ? [route]
+        : [],
+  );
+}
+
+function findMenuByPath(items: any[] | undefined, path: string): any {
+  for (const item of items || []) {
+    if (item?.path === path) {
+      return item;
+    }
+
+    const nested = findMenuByPath(item?.children, path);
+
+    if (nested) {
+      return nested;
+    }
+  }
+
+  return undefined;
+}
+
 describe('oak base admin crud resources', () => {
   it('does not store names in CRUD route mappings and derives route names from paths', () => {
     expect(
@@ -21,8 +47,9 @@ describe('oak base admin crud resources', () => {
     expect(rootRoute?.name).toBe(
       String(rootRoute?.path).replaceAll('/', '_'),
     );
+    const crudRoutes = flattenCrudRoutes(rootRoute?.children);
     expect(
-      rootRoute?.children?.every(
+      crudRoutes.every(
         ({ name, path }) =>
           path === '' || String(name) === String(path).replaceAll('/', '_'),
       ),
@@ -53,6 +80,7 @@ describe('oak base admin crud resources', () => {
     const homeMapping = oakBaseAdminBackendRouteMappings.find(
       (item) => item.path === '/clob/V1/index',
     );
+    const crudRoutes = flattenCrudRoutes(rootRoute?.children);
 
     expect(rootRoute).toEqual(
       expect.objectContaining({
@@ -60,9 +88,7 @@ describe('oak base admin crud resources', () => {
         path: '/clob/V1/index',
       }),
     );
-    expect(rootRoute?.children?.filter((route) => route.path)).toHaveLength(
-      oakBaseAdminCrudResources.length,
-    );
+    expect(crudRoutes).toHaveLength(oakBaseAdminCrudResources.length);
     expect(homeMapping).toEqual(
       expect.objectContaining({
         resource: 'AdminHome',
@@ -74,10 +100,11 @@ describe('oak base admin crud resources', () => {
 
   it('keeps resource-specific menu icons in generated routes and backend mappings', () => {
     const [rootRoute] = createOakBaseAdminCrudRoutes();
-    const clientAppRoute = rootRoute?.children?.find(
+    const crudRoutes = flattenCrudRoutes(rootRoute?.children);
+    const clientAppRoute = crudRoutes.find(
       (item) => item.path === '/clob/V1/ClientApp',
     );
-    const articleRoute = rootRoute?.children?.find(
+    const articleRoute = crudRoutes.find(
       (item) => item.path === '/clob/V1/Article',
     );
     const clientAppMapping = oakBaseAdminBackendRouteMappings.find(
@@ -116,7 +143,7 @@ describe('oak base admin crud resources', () => {
 
   it('registers the online code generation controller as a local CRUD page', () => {
     const [rootRoute] = createOakBaseAdminCrudRoutes();
-    const onlineCodeGenRoute = rootRoute?.children?.find(
+    const onlineCodeGenRoute = flattenCrudRoutes(rootRoute?.children).find(
       (item) => item.path === '/clob/V1/OnlineCodeGen',
     );
     const onlineCodeGenMapping = oakBaseAdminBackendRouteMappings.find(
@@ -148,7 +175,7 @@ describe('oak base admin crud resources', () => {
 
   it('registers import export templates under the CRUD root menu', () => {
     const [rootRoute] = createOakBaseAdminCrudRoutes();
-    const templateRoute = rootRoute?.children?.find(
+    const templateRoute = flattenCrudRoutes(rootRoute?.children).find(
       (item) => item.path === '/clob/V1/ImportExportTemplate',
     );
     const templateMapping = oakBaseAdminBackendRouteMappings.find(
@@ -156,8 +183,9 @@ describe('oak base admin crud resources', () => {
     );
     const payload = buildModuleSyncMenuPayload([oakBaseAdminModule]);
     const rootMenu = payload.menuList.find((item) => item.path === '/clob/V1/index');
-    const templateMenu = rootMenu?.children?.find(
-      (item) => item.path === '/clob/V1/ImportExportTemplate',
+    const templateMenu = findMenuByPath(
+      rootMenu?.children,
+      '/clob/V1/ImportExportTemplate',
     );
 
     expect(templateRoute).toEqual(

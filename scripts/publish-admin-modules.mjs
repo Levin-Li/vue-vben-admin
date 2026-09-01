@@ -14,6 +14,7 @@ import {
   packWorkspacePackage,
   releasePublishLock,
   verifyTarballDependencyProtocols,
+  verifyTarballModuleDevelopmentStandard,
   verifyBuiltRouteAssets,
   verifyTarballRouteAssets,
   verifyTarballStandaloneInstall,
@@ -293,6 +294,7 @@ try {
         '本地 tarball',
       );
       verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
+      verifyTarballModuleDevelopmentStandard(packageInfo, tarball, '本地 tarball');
     }
 
     console.log(`Packed admin modules to ${outputDir}`);
@@ -329,6 +331,7 @@ try {
           '本地 tarball',
         );
         verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
+        verifyTarballModuleDevelopmentStandard(packageInfo, tarball, '本地 tarball');
         verifyTarballStandaloneInstall(packageInfo, tarball, remotePackEnv);
 
         const publishArgs = ['publish', tarball, '--ignore-scripts'];
@@ -361,6 +364,11 @@ try {
           '私服 tarball',
         );
         verifyTarballDependencyProtocols(
+          packageInfo,
+          remoteTarball,
+          '私服 tarball',
+        );
+        verifyTarballModuleDevelopmentStandard(
           packageInfo,
           remoteTarball,
           '私服 tarball',

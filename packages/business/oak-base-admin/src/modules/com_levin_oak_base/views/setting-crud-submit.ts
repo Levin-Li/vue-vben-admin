@@ -4,7 +4,6 @@ import { serializeSettingValueFromEditor } from './setting-for-tenant/setting-fo
 
 export function transformSettingCrudSubmit(
   values: Record<string, any>,
-  editingRecord: null | Record<string, any>,
 ) {
   const payload = { ...values };
 
@@ -12,16 +11,6 @@ export function transformSettingCrudSubmit(
     payload as TenantSettingItem,
     values.valueContent,
   );
-
-  if (editingRecord) {
-    const forceUpdateFields = Array.isArray(payload.forceUpdateFields)
-      ? payload.forceUpdateFields
-      : [];
-
-    payload.forceUpdateFields = Array.from(
-      new Set([...forceUpdateFields, 'valueContent']),
-    );
-  }
 
   return payload;
 }

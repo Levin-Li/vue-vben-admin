@@ -7,4 +7,23 @@ describe('defaultPreferences immutability test', () => {
   it('should not modify the config object', () => {
     expect(defaultPreferences).toMatchSnapshot();
   });
+
+  it('leaves footer shell-style overrides unset', () => {
+    for (const key of [
+      'borderBottomWidth',
+      'borderLeftWidth',
+      'borderRightWidth',
+      'borderTopWidth',
+      'marginBottom',
+      'marginLeft',
+      'marginRight',
+      'marginTop',
+      'radiusBottomLeft',
+      'radiusBottomRight',
+      'radiusTopLeft',
+      'radiusTopRight',
+    ]) {
+      expect(defaultPreferences.footer).not.toHaveProperty(key);
+    }
+  });
 });

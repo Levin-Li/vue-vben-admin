@@ -4,6 +4,16 @@ import { createOakBaseAdminModule } from '../module';
 import { oakBaseAdminBackendRouteMappings } from '../backend-route-mappings';
 import { oakBaseAdminRoutes } from '../routes';
 
+function flattenCrudRoutes(children: any[] | undefined): any[] {
+  return (children || []).flatMap((route) =>
+    Array.isArray(route?.children) && route.children.length > 0
+      ? flattenCrudRoutes(route.children)
+      : route?.meta?.crudResource
+        ? [route]
+        : [],
+  );
+}
+
 describe('oak base admin routes', () => {
   it('registers the tenant setting page in the explicit route table', () => {
     expect(oakBaseAdminRoutes).toEqual(
@@ -52,9 +62,9 @@ describe('oak base admin routes', () => {
 
   it('registers organization-user and plain user routes separately', () => {
     const module = createOakBaseAdminModule();
-    const root = module.routes?.[0];
+    const crudRoutes = flattenCrudRoutes(module.routes?.[0]?.children);
 
-    expect(root?.children).toEqual(
+    expect(crudRoutes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           meta: expect.objectContaining({
@@ -93,9 +103,9 @@ describe('oak base admin routes', () => {
 
   it('registers the traffic control rule CRUD route and backend mapping', () => {
     const module = createOakBaseAdminModule();
-    const root = module.routes?.[0];
+    const crudRoutes = flattenCrudRoutes(module.routes?.[0]?.children);
 
-    expect(root?.children).toEqual(
+    expect(crudRoutes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           meta: expect.objectContaining({
@@ -121,11 +131,44 @@ describe('oak base admin routes', () => {
     );
   });
 
-  it('registers the payment simulation workbench route and backend mapping', () => {
+  it('registers the open area CRUD route and backend mapping', () => {
     const module = createOakBaseAdminModule();
     const root = module.routes?.[0];
+    const basicSettingsGroup = root?.children?.find(
+      (route) => route.meta?.title === '基础&设置',
+    );
 
-    expect(root?.children).toEqual(
+    expect(basicSettingsGroup?.children).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          meta: expect.objectContaining({
+            crudResource: 'OpenArea',
+            title: '开通区域',
+          }),
+          name: '_clob_V1_OpenArea',
+          path: '/clob/V1/OpenArea',
+        }),
+      ]),
+    );
+
+    expect(oakBaseAdminBackendRouteMappings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: '/clob/V1/OpenArea',
+          sourceFilePath:
+            'modules/com_levin_oak_base/views/open-area/index.vue',
+          title: '开通区域',
+          viewPath: '/system/com_levin_oak_base/open-area/index.vue',
+        }),
+      ]),
+    );
+  });
+
+  it('registers the payment simulation workbench route and backend mapping', () => {
+    const module = createOakBaseAdminModule();
+    const crudRoutes = flattenCrudRoutes(module.routes?.[0]?.children);
+
+    expect(crudRoutes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           meta: expect.objectContaining({
@@ -154,9 +197,9 @@ describe('oak base admin routes', () => {
 
   it('registers electronic invoice pages and their backend mappings', () => {
     const module = createOakBaseAdminModule();
-    const root = module.routes?.[0];
+    const crudRoutes = flattenCrudRoutes(module.routes?.[0]?.children);
 
-    expect(root?.children).toEqual(
+    expect(crudRoutes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           meta: expect.objectContaining({

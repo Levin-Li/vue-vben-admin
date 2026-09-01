@@ -2,10 +2,17 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { tenantService } from '../../api/tenant-service';
 import {
+  confidentialLevelOptionsLoader,
   currencyCodeOptionsLoader,
   languageCodeOptionsLoader,
   nationCodeOptionsLoader,
+  tenantLevelOptionsLoader,
+  tenantTypeOptionsLoader,
 } from '../api-module';
+import {
+  siteInfoFormFields,
+  transformSiteInfoSubmit,
+} from '../site-info-form';
 
 export const tenantPageCrudConfig: CrudPageConfig = {
   apiBase: '/Tenant',
@@ -33,6 +40,50 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     },
     { key: 'containsName', label: '租户名称', form: false, search: true },
     { key: 'name', label: '租户名称', required: true, table: true, width: 160 },
+    {
+      key: 'inType',
+      label: '租户类型',
+      form: false,
+      loadOptions: tenantTypeOptionsLoader,
+      multiple: true,
+      search: true,
+      type: 'select',
+    },
+    {
+      key: 'type',
+      label: '租户类型',
+      loadOptions: tenantTypeOptionsLoader,
+      table: true,
+      type: 'select',
+      width: 130,
+    },
+    {
+      key: 'inLevel',
+      label: '租户级别',
+      form: false,
+      loadOptions: tenantLevelOptionsLoader,
+      multiple: true,
+      search: true,
+      type: 'select',
+    },
+    {
+      key: 'level',
+      label: '租户级别',
+      loadOptions: tenantLevelOptionsLoader,
+      table: true,
+      type: 'select',
+      width: 130,
+    },
+    {
+      key: 'confidentialLevel',
+      label: '机密等级',
+      loadOptions: confidentialLevelOptionsLoader,
+      search: true,
+      table: true,
+      type: 'select',
+      valueType: 'number',
+      width: 120,
+    },
     {
       key: 'sysName',
       label: '系统名称',
@@ -87,24 +138,8 @@ export const tenantPageCrudConfig: CrudPageConfig = {
       loadOptions: languageCodeOptionsLoader,
       type: 'select',
     },
-    {
-      key: 'shortcutIcon',
-      label: 'shortcutIcon',
-      layoutNewRow: true,
-      type: 'image',
-    },
-    {
-      key: 'sysLogo',
-      label: '系统Logo',
-      type: 'image',
-    },
-    {
-      key: 'logo',
-      label: '租户Logo',
-      table: true,
-      type: 'image',
-      width: 90,
-    },
+    { key: 'sysLogo', label: '系统Logo', type: 'image' },
+    ...siteInfoFormFields,
     {
       key: 'balance',
       label: '帐号余额',
@@ -141,8 +176,6 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     { key: 'appAuthDomain', label: '应用授权域名' },
     { key: 'appSecret', label: '应用密钥', type: 'textarea' },
     { key: 'encryptKey', label: '租户密钥', fullRow: true, type: 'textarea' },
-    { key: 'techSupport', label: '技术支持', fullRow: true, type: 'textarea' },
-    { key: 'copyright', label: '版权声明', fullRow: true, type: 'textarea' },
     { key: 'uiExInfo', label: '前端展示扩展信息', type: 'json' },
     { key: 'exInfo', label: '扩展信息', type: 'json' },
     { key: 'orderCode', label: '排序代码', layoutNewRow: true, type: 'number' },
@@ -184,4 +217,5 @@ export const tenantPageCrudConfig: CrudPageConfig = {
   ],
   modalWidth: 1120,
   title: '租户管理',
+  transformSubmit: transformSiteInfoSubmit,
 };

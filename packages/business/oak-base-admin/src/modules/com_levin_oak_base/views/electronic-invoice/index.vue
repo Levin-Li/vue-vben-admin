@@ -53,7 +53,7 @@ const pageConfig = computed(() => ({
         'reconcile',
       ),
       visible: (record: InvoiceRecord) =>
-        record.status === 'Processing' || record.status === 'RedRequested',
+        record.status === 'Processing',
     },
   ],
 }));
@@ -90,7 +90,7 @@ async function submitRedIssue() {
 <template>
   <div class="electronic-invoice-page">
     <Alert
-      description="请以商户自身税号为销方提交申请。系统会冻结销方快照，并由已授权的供应商连接开票；处理中或红冲处理中可通过“重新对账”补齐回调缺失。"
+      description="请以商户自身税号为销方提交申请。申请号用于幂等；提交后票面冻结，失败后可修正并用同一申请号重新提交。红冲会创建关联原票的独立红字票。"
       message="商户自用电子发票"
       show-icon
       type="info"

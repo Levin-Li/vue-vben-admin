@@ -305,6 +305,10 @@ const footerRadiusTopLeft = defineModel<number>('footerRadiusTopLeft');
 const footerRadiusTopRight = defineModel<number>('footerRadiusTopRight');
 const footerRadiusBottomRight = defineModel<number>('footerRadiusBottomRight');
 const footerRadiusBottomLeft = defineModel<number>('footerRadiusBottomLeft');
+const footerBorderTopWidth = defineModel<number>('footerBorderTopWidth');
+const footerBorderRightWidth = defineModel<number>('footerBorderRightWidth');
+const footerBorderBottomWidth = defineModel<number>('footerBorderBottomWidth');
+const footerBorderLeftWidth = defineModel<number>('footerBorderLeftWidth');
 const footerBackgroundColor = defineModel<string>('footerBackgroundColor');
 const footerBackgroundColorCustom = defineModel<boolean>(
   'footerBackgroundColorCustom',
@@ -816,6 +820,10 @@ function openColorSettings(
             </Block>
             <Block :title="$t('preferences.footer.title')">
               <Footer
+                v-model:footer-border-top-width="footerBorderTopWidth"
+                v-model:footer-border-right-width="footerBorderRightWidth"
+                v-model:footer-border-bottom-width="footerBorderBottomWidth"
+                v-model:footer-border-left-width="footerBorderLeftWidth"
                 v-model:footer-height="footerHeight"
                 v-model:footer-margin-top="footerMarginTop"
                 v-model:footer-margin-right="footerMarginRight"

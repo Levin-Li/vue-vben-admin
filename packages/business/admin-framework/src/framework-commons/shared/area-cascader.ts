@@ -1,6 +1,7 @@
 import type { SelectOption } from '../api';
-
 import type { CrudAreaCascaderConfig, CrudFieldConfig } from './types';
+
+import { resolveAdministrativeAreaPath } from './administrative-area-data';
 
 export const DEFAULT_AREA_CASCADER_CONFIG: Required<CrudAreaCascaderConfig> = {
   cityCodeKey: 'cityCode',
@@ -10,6 +11,7 @@ export const DEFAULT_AREA_CASCADER_CONFIG: Required<CrudAreaCascaderConfig> = {
   districtNameKey: 'districtName',
   provinceCodeKey: 'provinceCode',
   provinceNameKey: 'provinceName',
+  valueKey: '',
 };
 
 type GenericRecord = Record<string, any>;
@@ -17,7 +19,7 @@ type GenericRecord = Record<string, any>;
 function getAreaCascaderConfig(field: CrudFieldConfig) {
   return {
     ...DEFAULT_AREA_CASCADER_CONFIG,
-    ...(field.areaCascader || {}),
+    ...field.areaCascader,
   };
 }
 
@@ -26,6 +28,18 @@ export function getAreaCascaderValueFromRecord(
   record: GenericRecord = {},
 ) {
   const config = getAreaCascaderConfig(field);
+
+  if (config.valueKey && record[config.valueKey]) {
+    const value = String(record[config.valueKey]).trim();
+    try {
+      const path = resolveAdministrativeAreaPath(value).map(
+        (node) => node.code,
+      );
+      return path.length > 0 ? path : [value];
+    } catch {
+      return [value];
+    }
+  }
 
   return [
     record[config.provinceCodeKey],
@@ -92,9 +106,35 @@ export function applyAreaCascaderValueToRecord(
   field: CrudFieldConfig,
   valuePath: any[] = [],
   options: SelectOption[] = [],
+  writeEmptyValues = false,
 ) {
   const normalizedValuePath = Array.isArray(valuePath) ? valuePath : [];
   const config = getAreaCascaderConfig(field);
+  if (config.valueKey) {
+    const selectedValue = normalizedValuePath.at(-1);
+    if (selectedValue) {
+      target[config.valueKey] = selectedValue;
+    } else if (writeEmptyValues) {
+      target[config.valueKey] = null;
+    }
+    return target;
+  }
+
+  if (normalizedValuePath.length === 0 && writeEmptyValues) {
+    for (const key of new Set([
+      config.provinceCodeKey,
+      config.provinceNameKey,
+      config.cityCodeKey,
+      config.cityNameKey,
+      config.districtCodeKey,
+      config.districtNameKey,
+      config.districtAdminCodeKey,
+    ])) {
+      target[key] = null;
+    }
+    return target;
+  }
+
   const optionPath = findCascaderOptionPath(options, normalizedValuePath);
   const [province, city, district] = optionPath;
   const [provinceValue, cityValue, districtValue] = normalizedValuePath;

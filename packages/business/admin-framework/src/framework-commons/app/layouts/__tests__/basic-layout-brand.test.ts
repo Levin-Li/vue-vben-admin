@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   refreshAuthBrand: vi.fn().mockResolvedValue(undefined),
   preferences: {
     app: {
+      defaultHomePath: '/analytics',
       watermark: false,
       watermarkColor: 'gray',
       watermarkColorCustom: false,
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
     },
   },
   updateWatermark: vi.fn(),
+  push: vi.fn(),
 }));
 
 vi.mock(
@@ -25,8 +27,10 @@ vi.mock(
     return {
       useAuthBrand: () => ({
         appName: ref('租户站点后台'),
+        copyright: ref('租户站点版权'),
         heroImage: ref(''),
         loadAuthBrand: mocks.loadAuthBrand,
+        logo: ref(''),
         refreshAuthBrand: mocks.refreshAuthBrand,
       }),
     };
@@ -51,9 +55,11 @@ vi.mock('@vben/hooks', () => ({
 
 vi.mock('@vben/layouts', () => ({
   BasicLayout: {
+    emits: ['clickLogo'],
     template: `
       <section data-testid="basic-layout">
-        <div data-testid="logo-text"><slot name="logo-text" /></div>
+        <button data-testid="logo-text" @click="$emit('clickLogo')"><slot name="logo-text" /></button>
+        <div data-testid="footer"><slot name="footer" /></div>
         <slot name="user-dropdown" />
         <slot name="notification" />
         <slot name="extra" />
@@ -88,7 +94,7 @@ vi.mock('@vben/stores', () => ({
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: mocks.push,
   }),
 }));
 
@@ -173,6 +179,26 @@ describe('basic layout tenant site brand', () => {
     expect(wrapper.get('[data-testid="logo-text"]').text()).toBe(
       '租户站点后台',
     );
+    expect(wrapper.get('[data-testid="footer"]').text()).toBe('租户站点版权');
+  });
+
+  it('navigates to the current user home path when the layout logo is clicked', async () => {
+    const wrapper = mount(Basic, {
+      global: {
+        stubs: {
+          Button: true,
+          Checkbox: true,
+          Empty: true,
+          Modal: true,
+          Popconfirm: true,
+          Tag: true,
+        },
+      },
+    });
+
+    await wrapper.get('[data-testid="logo-text"]').trigger('click');
+
+    expect(mocks.push).toHaveBeenCalledWith('/analytics');
   });
 
   it('uses the custom watermark color when creating a watermark', async () => {

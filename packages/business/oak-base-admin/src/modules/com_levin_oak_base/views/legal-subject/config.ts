@@ -132,15 +132,15 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       loadOptions: identityTypeOptionsLoader, type: 'select', width: 140,
     },
     { key: 'cityCode', label: '市级行政编码', layoutGroup: 'basic', layoutOrder: 60, width: 140 },
-    { key: 'logo', label: 'Logo', layoutGroup: 'basic', layoutOrder: 70, type: 'image', width: 90 },
+    { key: 'logo', label: 'Logo', layoutGroup: 'basic', layoutNewRow: true, layoutOrder: 70, type: 'image', width: 90 },
     {
       key: 'identityImg', label: '主体证件图片', formLabel: getSubjectIdentityImageLabel,
       help: getSubjectIdentityImageHelp, layoutGroup: 'basic', layoutOrder: 80, type: 'image',
-      multiple: true, maxUploadCount: (formState) => formState.subjectType === 'Person' ? 2 : 1, fullRow: true,
+      multiple: true, maxUploadCount: (formState) => formState.subjectType === 'Person' ? 2 : 1,
     },
     {
       key: 'businessPremises', label: '营业场所照片', help: '可上传多张营业场所照片。',
-      layoutGroup: 'basic', layoutOrder: 90, type: 'image', multiple: true, fullRow: true,
+      layoutGroup: 'basic', layoutOrder: 90, type: 'image', multiple: true,
     },
     {
       key: 'confidentialLevel', label: '机密等级', layoutGroup: 'management', layoutGroupTitle: '管理信息', layoutOrder: 10,

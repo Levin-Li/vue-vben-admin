@@ -37,4 +37,24 @@ describe('electronicInvoicePageCrudConfig', () => {
       electronicInvoicePageCrudConfig.transformSubmit?.(values),
     ).resolves.toEqual(values);
   });
+
+  it('uses the new invoice model instead of removed compatibility fields', () => {
+    const keys = electronicInvoicePageCrudConfig.fields.map((field) => field.key);
+
+    expect(keys).toEqual(
+      expect.arrayContaining(['requestNo', 'buyerInfo', 'itemList']),
+    );
+    expect(keys).not.toEqual(
+      expect.arrayContaining([
+        'bizObjId',
+        'bizOrderNo',
+        'buyerEmail',
+        'buyerMobile',
+        'buyerName',
+        'buyerTaxpayerId',
+        'detailInfo',
+        'invoiceCode',
+      ]),
+    );
+  });
 });

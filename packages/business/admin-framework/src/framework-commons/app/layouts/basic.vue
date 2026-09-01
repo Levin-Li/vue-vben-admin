@@ -1,6 +1,9 @@
 <script lang="ts" setup>
 import type { NotificationItem } from '@vben/layouts';
 
+import type { FrameworkEventListenerInfo } from '../../event-bus';
+import type { AdminUiBaseSettingUploadTarget } from '../tenant-site-admin-ui-base-setting';
+
 import {
   computed,
   defineAsyncComponent,
@@ -23,6 +26,16 @@ import { preferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 
 import {
+  getAdminMenuSyncService,
+  getAdminNoticeService,
+  getAdminRequestClient,
+} from '@levin/admin-framework';
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api';
+import { $t } from '@levin/admin-framework/framework-commons/app/locales';
+import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
+import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
+import { useAuthBrand } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/auth-brand';
+import {
   Button,
   Checkbox,
   Empty,
@@ -34,27 +47,16 @@ import {
 } from 'ant-design-vue';
 
 import {
-  getAdminMenuSyncService,
-  getAdminNoticeService,
-} from '@levin/admin-framework';
-import { rbacService } from '@levin/admin-framework/framework-commons/app/api';
-import { $t } from '@levin/admin-framework/framework-commons/app/locales';
-import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
-import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
-import { useAuthBrand } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/auth-brand';
-
-import {
   getFrameworkEventListeners,
   removeFrameworkEventListener,
   setFrameworkEventListenerEnabled,
-  type FrameworkEventListenerInfo,
 } from '../../event-bus';
 import { getAdminI18nLabelSyncService } from '../../runtime';
+import { getAdministrativeAreaOptions } from '../../shared/administrative-area-data';
 import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-service';
 import {
   buildAdminUiBaseSettingPayload,
   DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET,
-  type AdminUiBaseSettingUploadTarget,
 } from '../tenant-site-admin-ui-base-setting';
 import SyncI18nLabelsModal from './sync-i18n-labels-modal.vue';
 import SyncMenuRoutesModal from './sync-menu-routes-modal.vue';
@@ -130,6 +132,8 @@ const syncMenuRoutesModalOpen = ref(false);
 const syncI18nLabelsModalOpen = ref(false);
 const saveAdminUiBaseSettingModalOpen = ref(false);
 const saveAdminUiBaseSettingLoading = ref(false);
+const syncNationalAdministrativeAreasModalOpen = ref(false);
+const syncNationalAdministrativeAreasLoading = ref(false);
 const eventListenerManagerOpen = ref(false);
 const eventListeners = ref<FrameworkEventListenerInfo[]>([]);
 const preferServerAdminUiBaseSetting = ref(true);
@@ -208,6 +212,15 @@ const builtInUserDropdownExtensionMenus = computed(() =>
             id: 'save-admin-ui-base-setting',
             order: 300,
             text: '上传界面设置',
+          },
+          {
+            handler: () => {
+              syncNationalAdministrativeAreasModalOpen.value = true;
+            },
+            icon: 'lucide:map-pin',
+            id: 'sync-national-administrative-areas',
+            order: 350,
+            text: '上传默认国家行政编码',
           },
           {
             handler: () => {
@@ -296,6 +309,27 @@ async function handleSaveAdminUiBaseSetting() {
     message.error('界面设置上传失败');
   } finally {
     saveAdminUiBaseSettingLoading.value = false;
+  }
+}
+
+async function syncNationalAdministrativeAreas() {
+  if (syncNationalAdministrativeAreasLoading.value) {
+    return;
+  }
+  syncNationalAdministrativeAreasLoading.value = true;
+  try {
+    const result = await getAdminRequestClient().post<any>(
+      '/Area/syncNationalAdministrativeAreas',
+      { areas: getAdministrativeAreaOptions() },
+    );
+    message.success(
+      `国家行政编码全量上传完成：新增 ${result?.createdCount || 0} 条，跳过 ${result?.skippedCount || 0} 条`,
+    );
+    syncNationalAdministrativeAreasModalOpen.value = false;
+  } catch {
+    message.error('国家行政编码上传失败');
+  } finally {
+    syncNationalAdministrativeAreasLoading.value = false;
   }
 }
 
@@ -496,7 +530,7 @@ async function loadNotifications() {
     .map((notice) =>
       toNotificationItem(notice, logMap.get(String(notice.id || ''))),
     )
-    .filter((item): item is NotificationItem => Boolean(item));
+    .filter(Boolean);
   const unreadItems = visibleItems.filter((item) => !item.isRead);
 
   notificationUnreadItems.value = unreadItems;
@@ -599,6 +633,12 @@ function handleViewAllNotifications() {
   router.push('/clob/V1/MyMessages');
 }
 
+function handleClickLogo() {
+  return router.push(
+    userStore.userInfo?.homePath || preferences.app.defaultHomePath,
+  );
+}
+
 onMounted(() => {
   loadAuthBrand().catch((error) => {
     console.warn('加载租户站点品牌信息失败', error);
@@ -662,7 +702,7 @@ watch(
 </script>
 
 <template>
-  <BasicLayout>
+  <BasicLayout @click-logo="handleClickLogo">
     <template #logo-text>
       {{ appName }}
     </template>
@@ -706,6 +746,17 @@ watch(
             优先使用服务端设置参数
           </Checkbox>
         </div>
+      </Modal>
+      <Modal
+        v-model:open="syncNationalAdministrativeAreasModalOpen"
+        :confirm-loading="syncNationalAdministrativeAreasLoading"
+        :mask-closable="false"
+        title="上传默认国家行政编码"
+        @ok="syncNationalAdministrativeAreas"
+      >
+        <p class="text-muted-foreground m-0 text-sm leading-6">
+          将当前有效的全部国家行政编码一次性上传到后端区域镜像。已有编码会跳过，不会修改或删除现有区域数据。
+        </p>
       </Modal>
       <Modal
         v-model:open="eventListenerManagerOpen"

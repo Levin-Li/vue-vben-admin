@@ -16,6 +16,10 @@ import SettingValueContentField from './setting-value-content-field.vue';
 
 const props = defineProps<{
   config: CrudPageConfig;
+  serializeValueContent?: (
+    record: Record<string, any>,
+    value: unknown,
+  ) => unknown;
 }>();
 
 const editValueModalOpen = ref(false);
@@ -89,10 +93,15 @@ async function saveEditValue() {
     const payload: Record<string, any> = {
       id: record.id,
       forceUpdateFields: ['valueContent'],
-      valueContent: serializeSettingValueFromEditor(
-        editValueFormState.value,
-        editValueFormState.value.valueContent,
-      ),
+      valueContent: props.serializeValueContent
+        ? props.serializeValueContent(
+            editValueFormState.value,
+            editValueFormState.value.valueContent,
+          )
+        : serializeSettingValueFromEditor(
+            editValueFormState.value,
+            editValueFormState.value.valueContent,
+          ),
     };
 
     if (record.optimisticLock !== undefined && record.optimisticLock !== null) {

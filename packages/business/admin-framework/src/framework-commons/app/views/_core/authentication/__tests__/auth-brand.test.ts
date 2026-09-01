@@ -116,6 +116,15 @@ describe('auth brand tenant site mapping', () => {
     expect(brand.logo.value).toBe('/tenant-logo.svg');
   });
 
+  it('falls back to the tenant site name when its display title is empty', async () => {
+    const brand = await loadBrand({
+      name: '租户站点名称',
+      siteInfo: { title: '   ' },
+    });
+
+    expect(brand.appName.value).toBe('租户站点名称');
+  });
+
   it('uses merged site info before legacy fields and never reads the brand object', async () => {
     const brand = await loadBrand({
       brand: { name: '不应使用的品牌名称' },

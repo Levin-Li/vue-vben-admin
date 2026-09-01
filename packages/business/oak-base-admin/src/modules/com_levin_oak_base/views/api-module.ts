@@ -3,6 +3,7 @@ import type { DomainDnsRecord, DomainRecord } from '../api/domain-service';
 import type { TenantSiteRecord } from '../api/tenant-site-service';
 import type {
   CrudExportTemplateService,
+  CrudOptionLoader,
   CrudPageConfig,
 } from '@levin/admin-framework/framework-commons/shared/types';
 import type {
@@ -92,14 +93,24 @@ export function buildModuleOptionsLoader(
 
 export const buildOptionsLoader = buildModuleOptionsLoader;
 
-export function buildModuleEnumOptionsLoader(enumName: string) {
-  return () => fetchEnumOptions(enumName, OAK_BASE_API_MODULE);
+export function buildModuleEnumOptionsLoader(
+  enumName: string,
+): CrudOptionLoader {
+  const loader: CrudOptionLoader = () =>
+    fetchEnumOptions(enumName, OAK_BASE_API_MODULE);
+  loader.optionSource = 'enum';
+  return loader;
 }
 
 export const buildEnumOptionsLoader = buildModuleEnumOptionsLoader;
 
-export function buildModuleDictOptionsLoader(dictCode: string) {
-  return () => fetchDictOptions(dictCode, OAK_BASE_API_MODULE);
+export function buildModuleDictOptionsLoader(
+  dictCode: string,
+): CrudOptionLoader {
+  const loader: CrudOptionLoader = () =>
+    fetchDictOptions(dictCode, OAK_BASE_API_MODULE);
+  loader.optionSource = 'dictionary';
+  return loader;
 }
 
 export const buildDictOptionsLoader = buildModuleDictOptionsLoader;
@@ -289,12 +300,21 @@ export const orgTypeOptionsLoader = buildModuleEnumOptionsLoader(
 export const legalSubjectOptionsLoader = buildModuleOptionsLoader(
   '/LegalSubject/list',
   'subjectName',
+  'id',
+  undefined,
+  'containsSubjectName',
 );
 export const orgLevelOptionsLoader = buildModuleDictOptionsLoader(
   'com.levin.oak.base.entities.Org.level',
 );
 export const orgCategoryOptionsLoader = buildModuleDictOptionsLoader(
   'com.levin.oak.base.entities.Org.category',
+);
+export const tenantTypeOptionsLoader = buildModuleDictOptionsLoader(
+  'com.levin.oak.base.entities.Tenant.type',
+);
+export const tenantLevelOptionsLoader = buildModuleDictOptionsLoader(
+  'com.levin.oak.base.entities.Tenant.level',
 );
 export const confidentialLevelOptionsLoader = buildModuleEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',

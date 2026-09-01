@@ -16,6 +16,10 @@ const footerRadiusTopLeft = defineModel<number>('footerRadiusTopLeft');
 const footerRadiusTopRight = defineModel<number>('footerRadiusTopRight');
 const footerRadiusBottomRight = defineModel<number>('footerRadiusBottomRight');
 const footerRadiusBottomLeft = defineModel<number>('footerRadiusBottomLeft');
+const footerBorderTopWidth = defineModel<number>('footerBorderTopWidth');
+const footerBorderRightWidth = defineModel<number>('footerBorderRightWidth');
+const footerBorderBottomWidth = defineModel<number>('footerBorderBottomWidth');
+const footerBorderLeftWidth = defineModel<number>('footerBorderLeftWidth');
 </script>
 
 <template>
@@ -34,6 +38,10 @@ const footerRadiusBottomLeft = defineModel<number>('footerRadiusBottomLeft');
     {{ $t('preferences.tabbar.height') }}
   </NumberFieldItem>
   <ShellStyle
+    v-model:border-top-width="footerBorderTopWidth"
+    v-model:border-right-width="footerBorderRightWidth"
+    v-model:border-bottom-width="footerBorderBottomWidth"
+    v-model:border-left-width="footerBorderLeftWidth"
     v-model:margin-top="footerMarginTop"
     v-model:margin-right="footerMarginRight"
     v-model:margin-bottom="footerMarginBottom"

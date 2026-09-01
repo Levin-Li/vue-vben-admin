@@ -270,6 +270,26 @@ describe('menu route conversion', () => {
     expect(routes[0]?.children?.[0]?.meta?.menuRouteForbidden).toBeUndefined();
   });
 
+  it('does not redirect a pure group to its first leaf page', () => {
+    const route = convertMenuNodeForTest(
+      {
+        children: [
+          {
+            name: '角色管理',
+            pageType: 'LocalPage-本地页面',
+            path: '/clob/V1/Role',
+          },
+        ],
+        id: 'user-permission-group',
+        name: '用户&权限',
+      },
+      testBackendRouteMappings,
+    );
+
+    expect(route?.meta?.navigateOnClick).toBe(false);
+    expect(route?.redirect).toBeUndefined();
+  });
+
   it('uses virtual-group ids to keep Chinese-named custom groups from replacing each other', () => {
     const routes = buildMenuRoutes(
       [

@@ -39,6 +39,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   },
   { icon: 'lucide:map', name: 'Area', resource: 'Area', title: '区域管理' },
   {
+    icon: 'lucide:map-pinned',
+    name: 'OpenArea',
+    resource: 'OpenArea',
+    title: '开通区域',
+  },
+  {
     icon: 'lucide:waypoints',
     name: 'TenantCustomMenu',
     resource: 'TenantCustomMenu',
@@ -264,6 +270,18 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '系统设置',
   },
   {
+    icon: 'lucide:panels-top-left',
+    name: 'UiSetting',
+    resource: 'UiSetting',
+    title: '界面设置',
+  },
+  {
+    icon: 'lucide:building-2',
+    name: 'GlobalOrgSelectorSetting',
+    resource: 'GlobalOrgSelectorSetting',
+    title: '全局组织选择器',
+  },
+  {
     icon: 'lucide:building',
     name: 'SettingForTenant',
     resource: 'SettingForTenant',
@@ -352,6 +370,7 @@ export const oakBaseAdminResourceViewMap: Record<
   Address: () => import('./views/address/index.vue'),
   ClientApp: () => import('./views/client-app/index.vue'),
   Area: () => import('./views/area/index.vue'),
+  OpenArea: () => import('./views/open-area/index.vue'),
   Article: () => import('./views/article/index.vue'),
   ArticleChannel: () => import('./views/article-channel/index.vue'),
   Brand: () => import('./views/brand/index.vue'),
@@ -398,6 +417,9 @@ export const oakBaseAdminResourceViewMap: Record<
     import('./views/service-plugin-setting/index.vue'),
   TenantPluginSetting: () => import('./views/tenant-plugin-setting/index.vue'),
   Setting: () => import('./views/setting/index.vue'),
+  UiSetting: () => import('./views/ui-setting/index.vue'),
+  GlobalOrgSelectorSetting: () =>
+    import('./views/global-org-selector-setting/index.vue'),
   SettingForTenant: () => import('./views/setting-for-tenant/index.vue'),
   MySetting: () => import('./views/my-setting/index.vue'),
   SimpleApi: () => import('./views/simple-api/index.vue'),
@@ -413,6 +435,90 @@ export const oakBaseAdminResourceViewMap: Record<
   UserSetting: () => import('./views/user-setting/index.vue'),
 };
 
+const menuGroups = [
+  [
+    '用户&权限',
+    [
+      'User',
+      'Role',
+      'Org',
+      'OrgUser',
+      'RbacPermissionItem',
+      'Menu',
+      'UserSetting',
+      'SocialUser',
+    ],
+  ],
+  [
+    '租户&域名',
+    [
+      'Tenant',
+      'TenantSite',
+      'TenantPluginSetting',
+      'SettingForTenant',
+      'Domain',
+      'DomainSslCert',
+      'TenantCustomMenu',
+    ],
+  ],
+  ['应用&接入', ['ClientApp', 'TenantApp', 'EmailRelayRoute']],
+  [
+    '支付&交易',
+    [
+      'PayOrder',
+      'PayChannel',
+      'CryptoPayOrder',
+      'CryptoSettlementEvent',
+      'FundAccount',
+      'FundAccountLog',
+      'FundExchangeRule',
+      'EContract',
+      'EContractTemplate',
+      'EInvoice',
+      'EInvoiceProviderConnection',
+      'PaymentSimulationWorkbench',
+    ],
+  ],
+  ['客户&伙伴', ['Customer', 'Partner', 'LegalSubject']],
+  ['内容&资源', ['Article', 'ArticleChannel', 'Brand', 'FileRes', 'Notice']],
+  [
+    '基础&设置',
+    [
+      'Address',
+      'Area',
+      'OpenArea',
+      'Nation',
+      'Dict',
+      'I18nRes',
+      'Setting',
+      'UiSetting',
+      'GlobalOrgSelectorSetting',
+      'ImportExportTemplate',
+      'JobPost',
+      'ServicePlugin',
+      'ServicePluginSetting',
+    ],
+  ],
+  [
+    '开发&工具',
+    ['OnlineCodeGen', 'SimpleForm', 'SimpleApi', 'SimplePage', 'Demo'],
+  ],
+  ['个人&中心', ['MySetting']],
+  [
+    '运维&审计',
+    [
+      'AccessLog',
+      'AiModelCallAudit',
+      'TrafficControlRule',
+      'UrlExAcl',
+      'ScheduledTask',
+      'ScheduledLog',
+      'NoticeProcessLog',
+      'VerifyCodeAudit',
+    ],
+  ],
+] as const;
+
 export function createOakBaseAdminCrudRoutes(
   options: CreateOakBaseAdminCrudRoutesOptions = {},
 ): RouteRecordRaw[] {
@@ -422,7 +528,7 @@ export function createOakBaseAdminCrudRoutes(
     localViewMap = {},
     order = 120,
     rootPath = '/clob/V1/index',
-    title = '后台管理',
+    title = '基础框架',
   } = options;
 
   return [
@@ -435,29 +541,40 @@ export function createOakBaseAdminCrudRoutes(
       name: toPathRouteName(rootPath),
       path: rootPath,
       children: [
-        ...oakBaseAdminCrudResources.map<RouteRecordRaw>((item) => {
-          const component =
-            localViewMap[item.resource] ||
-            oakBaseAdminResourceViewMap[item.resource] ||
-            fallbackComponent;
+        ...menuGroups.map<RouteRecordRaw>(([title, resources]) => ({
+          children: resources.flatMap((resource) => {
+            const item = oakBaseAdminCrudResources.find(
+              (candidate) => candidate.resource === resource,
+            );
+            if (!item) return [];
+            const component =
+              localViewMap[item.resource] ||
+              oakBaseAdminResourceViewMap[item.resource] ||
+              fallbackComponent;
 
-          if (!component) {
-            throw new Error(`Missing admin page component for ${item.resource}.`);
-          }
+            if (!component) {
+              throw new Error(
+                `Missing admin page component for ${item.resource}.`,
+              );
+            }
 
-          const path = `/clob/V1/${item.resource}`;
+            const path = `/clob/V1/${item.resource}`;
 
-          return {
-            component,
-            meta: {
-              crudResource: item.resource,
-              icon: item.icon,
-              title: item.title,
-            },
-            name: toPathRouteName(path),
-            path,
-          };
-        }),
+            return {
+              component,
+              meta: {
+                crudResource: item.resource,
+                icon: item.icon,
+                title: item.title,
+              },
+              name: toPathRouteName(path),
+              path,
+            };
+          }),
+          meta: { icon: 'lucide:folder-tree', title },
+          name: toPathRouteName(`${rootPath}/groups/${title}`),
+          path: `groups/${title}`,
+        })),
       ],
     },
   ];

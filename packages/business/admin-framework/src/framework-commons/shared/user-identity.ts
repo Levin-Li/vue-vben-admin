@@ -23,7 +23,7 @@ function addRoleIdentityValue(values: Set<string>, role: unknown) {
   }
 }
 
-function collectRoleIdentityValues(userInfo: Record<string, unknown>) {
+export function collectUserRoleIdentityValues(userInfo: Record<string, unknown>) {
   const values = new Set<string>();
 
   for (const role of Array.isArray(userInfo.roles) ? userInfo.roles : []) {
@@ -45,7 +45,7 @@ export function isSuperAdminUser(userInfo: unknown) {
   }
 
   const userRecord = userInfo as Record<string, unknown>;
-  const roleValues = collectRoleIdentityValues(userRecord);
+  const roleValues = collectUserRoleIdentityValues(userRecord);
 
   return (
     userRecord.superAdmin === true ||
@@ -63,7 +63,7 @@ export function isTopSuperAdminUser(userInfo: unknown) {
   }
 
   const userRecord = userInfo as Record<string, unknown>;
-  const roleValues = collectRoleIdentityValues(userRecord);
+  const roleValues = collectUserRoleIdentityValues(userRecord);
 
   return (
     userRecord.topSuperAdmin === true ||

@@ -152,6 +152,7 @@ const emit = defineEmits<{
     selected: null | UserOrgSelectorRecord | UserOrgSelectorRecord[],
     value: UserOrgSelectorModelValue,
   ];
+  loaded: [records: UserOrgSelectorRecord[]];
   'update:modelValue': [value: UserOrgSelectorModelValue];
   'update:selectedRecords': [records: UserOrgSelectorRecord[]];
 }>();
@@ -293,6 +294,12 @@ async function loadOrgTree() {
       orgLoadMode: props.orgLoadMode,
       orgTypes: normalizedOrgTypes.value,
     });
+    emit(
+      'loaded',
+      flattenUserOrgTreeNodes(orgTreeData.value).filter(
+        (node) => node.kind === 'org' && node.selectable === true,
+      ),
+    );
     treeExpandedKeys.value = [];
     loadedOrgNodeKeys.value = new Set();
   } catch (error) {

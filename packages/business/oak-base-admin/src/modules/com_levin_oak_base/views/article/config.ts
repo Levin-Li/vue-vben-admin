@@ -31,11 +31,7 @@ type ArticleActionMethod =
   | 'publish';
 
 function buildArticleAction(methodName: ArticleActionMethod) {
-  return async (record: Record<string, any>) =>
-    articleService[methodName]({
-      _operatorAction: record._operatorAction,
-      id: record.id,
-    });
+  return async (record: Record<string, any>) => articleService[methodName]({ _operatorAction: record._operatorAction, id: record.id });
 }
 
 function buildArticleActionPermission(methodName: ArticleActionMethod) {

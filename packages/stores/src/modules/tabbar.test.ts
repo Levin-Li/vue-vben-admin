@@ -297,4 +297,22 @@ describe('useAccessStore', () => {
     expect(store.excludeCachedTabs.has('Dashboard')).toBe(false);
     expect(store.renderRouteView).toBe(true);
   });
+
+  it('invalidates cached background pages while recreating the current page', async () => {
+    const store = useTabbarStore();
+    router.currentRoute.value = {
+      fullPath: '/dashboard',
+      meta: { name: 'Dashboard' },
+      name: 'Dashboard',
+      path: '/dashboard',
+    } as any;
+    store.cachedTabs.add('Dashboard');
+    store.cachedTabs.add('OrderList');
+
+    await store.invalidateCachedRouteViews(router);
+
+    expect(store.excludeCachedTabs.size).toBe(0);
+    expect(store.renderRouteView).toBe(true);
+    expect(store.cachedTabs).toEqual(new Set(['Dashboard', 'OrderList']));
+  });
 });

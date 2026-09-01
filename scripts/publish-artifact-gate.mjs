@@ -52,6 +52,28 @@ export function verifyTarballRouteAssets(packageInfo, tarballPath, requiredPaths
   assertRequiredPaths(packageInfo, requiredPaths, new Set(entries), location);
 }
 
+export function verifyTarballModuleDevelopmentStandard(
+  packageInfo,
+  tarballPath,
+  location,
+) {
+  const standardPath = 'package/docs/MODULE-DEVELOPMENT-STANDARD.md';
+  const readmePath = 'package/README.md';
+  const entries = execFileSync('tar', ['-tzf', tarballPath], { encoding: 'utf8' });
+
+  if (!entries.split(/\r?\n/).includes(standardPath)) {
+    throw new Error(`${packageInfo.name} ${location}缺少模块使用与二次开发规范`);
+  }
+
+  const readme = execFileSync('tar', ['-xOf', tarballPath, readmePath], {
+    encoding: 'utf8',
+  });
+
+  if (!readme.includes('docs/MODULE-DEVELOPMENT-STANDARD.md')) {
+    throw new Error(`${packageInfo.name} ${location}README 未引用模块使用规范`);
+  }
+}
+
 export function verifyTarballDependencyProtocols(packageInfo, tarballPath, location) {
   const manifest = JSON.parse(
     execFileSync('tar', ['-xOf', tarballPath, 'package/package.json'], {

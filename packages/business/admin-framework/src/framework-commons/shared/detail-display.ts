@@ -1,6 +1,7 @@
 import type { CrudFieldConfig } from './types';
 
 import { sortFormLayoutFields } from './crud-form-layout';
+import { formatAdministrativeArea } from './administrative-area-data';
 
 export type DetailDisplayEntryKind = 'array' | 'json' | 'qrcode' | 'scalar';
 
@@ -131,6 +132,20 @@ function formatScalarValue(field: CrudFieldConfig | undefined, value: any) {
 
   if (field?.type === 'switch') {
     return value ? '是' : '否';
+  }
+
+  if (
+    field &&
+    (field.type === 'area-cascader' ||
+      field.key === 'areaCode' ||
+      field.key === 'regionCode' ||
+      /区域编码|行政编码|城市编码|区县编码/.test(field.label))
+  ) {
+    try {
+      return formatAdministrativeArea(value);
+    } catch {
+      return String(value);
+    }
   }
 
   if (field?.type === 'datetime' || field?.type === 'date') {

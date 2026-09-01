@@ -33,11 +33,7 @@ type SimplePageActionMethod =
   | 'publish';
 
 function buildSimplePageAction(methodName: SimplePageActionMethod) {
-  return async (record: Record<string, any>) =>
-    simplePageService[methodName]({
-      _operatorAction: record._operatorAction,
-      id: record.id,
-    });
+  return async (record: Record<string, any>) => simplePageService[methodName]({ _operatorAction: record._operatorAction, id: record.id });
 }
 
 function buildSimplePageActionPermission(methodName: SimplePageActionMethod) {

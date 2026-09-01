@@ -39,11 +39,7 @@ type FlowActionMethod =
   | 'publish';
 
 function buildFlowAction(methodName: FlowActionMethod) {
-  return async (record: Record<string, any>) =>
-    simpleApiService[methodName]({
-      _operatorAction: record._operatorAction,
-      id: record.id,
-    });
+  return async (record: Record<string, any>) => simpleApiService[methodName]({ _operatorAction: record._operatorAction, id: record.id });
 }
 
 function buildFlowActionPermission(methodName: FlowActionMethod) {

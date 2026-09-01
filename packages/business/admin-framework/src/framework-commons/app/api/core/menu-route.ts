@@ -354,7 +354,6 @@ export function convertMenuNode(
       },
       name: toRouteName(routePath),
       path: routePath,
-      ...(groupPageRoute ? {} : { redirect: children[0]?.path }),
     };
   }
 

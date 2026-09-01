@@ -2,6 +2,8 @@ import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
 import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
 
+import type { CrudOptionLoader } from './types';
+
 export const OAK_BASE_API_MODULE = '/com.levin.oak.base/V1/api';
 export const DEFAULT_CRUD_MODAL_WIDTH = 'min(80vw, 1280px)';
 export const DEFAULT_CONTENT_MODAL_MAX_HEIGHT = '90vh';
@@ -46,12 +48,18 @@ export function buildOptionsLoader(
     );
 }
 
-export function buildEnumOptionsLoader(enumName: string) {
-  return () => fetchEnumOptions(enumName, OAK_BASE_API_MODULE);
+export function buildEnumOptionsLoader(enumName: string): CrudOptionLoader {
+  const loader: CrudOptionLoader = () =>
+    fetchEnumOptions(enumName, OAK_BASE_API_MODULE);
+  loader.optionSource = 'enum';
+  return loader;
 }
 
-export function buildDictOptionsLoader(dictCode: string) {
-  return () => fetchDictOptions(dictCode, OAK_BASE_API_MODULE);
+export function buildDictOptionsLoader(dictCode: string): CrudOptionLoader {
+  const loader: CrudOptionLoader = () =>
+    fetchDictOptions(dictCode, OAK_BASE_API_MODULE);
+  loader.optionSource = 'dictionary';
+  return loader;
 }
 
 export const tenantOptionsLoader = buildOptionsLoader('/Tenant/list');
@@ -76,8 +84,6 @@ export const orgTypeOptionsLoader = buildEnumOptionsLoader(
 );
 export const orgLegalSubjectTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Org$LegalSubjectType',
-);
-export const orgIndustriesOptionsLoader = buildDictOptionsLoader(
 );
 export const orgLevelOptionsLoader = buildDictOptionsLoader(
   'com.levin.oak.base.entities.Org.level',

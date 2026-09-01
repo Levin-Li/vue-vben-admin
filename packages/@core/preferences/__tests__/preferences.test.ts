@@ -161,6 +161,23 @@ describe('preferences', () => {
     ).toBe('hsl(210, 65%, 20%)');
   });
 
+  it('uses frontend fallback styles when footer shell overrides are unset', () => {
+    updateCSSVariables(defaultPreferences);
+
+    for (const name of [
+      '--footer-margin-bottom',
+      '--footer-margin-left',
+      '--footer-margin-right',
+      '--footer-margin-top',
+      '--footer-radius-bottom-left',
+      '--footer-radius-bottom-right',
+      '--footer-radius-top-left',
+      '--footer-radius-top-right',
+    ]) {
+      expect(document.documentElement.style.getPropertyValue(name)).toBe('');
+    }
+  });
+
   it('updates semi dark area colors correctly', () => {
     preferenceManager.updatePreferences({
       theme: {

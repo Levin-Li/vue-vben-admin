@@ -401,6 +401,34 @@ export const useTabbarStore = defineStore('core-tabbar', {
     },
 
     /**
+     * 失效所有已缓存的路由实例，并立即重新创建当前页面。
+     *
+     * 适用于租户、组织等全局请求上下文变化。后台标签不会在失效
+     * 时主动发起请求；它们会在下次激活时以新上下文重新挂载。
+     */
+    async invalidateCachedRouteViews(router: Router) {
+      const { name } = router.currentRoute.value;
+      const cachedNames = new Set(this.cachedTabs);
+      if (name) {
+        cachedNames.add(String(name));
+      }
+
+      cachedNames.forEach((cachedName) =>
+        this.excludeCachedTabs.add(cachedName),
+      );
+      this.renderRouteView = false;
+      startProgress();
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      cachedNames.forEach((cachedName) =>
+        this.excludeCachedTabs.delete(cachedName),
+      );
+      this.renderRouteView = true;
+      stopProgress();
+    },
+
+    /**
      * @zh_CN 重置标签页标题
      */
     async resetTabTitle(tab: TabDefinition) {

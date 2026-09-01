@@ -1,33 +1,34 @@
-import { createApp, watchEffect } from 'vue';
+import { createApp, watch, watchEffect } from 'vue';
 
 import { registerAccessDirective } from '@vben/access';
 import { registerLoadingDirective } from '@vben/common-ui/es/loading';
 import { preferences } from '@vben/preferences';
-import { initStores } from '@vben/stores';
+import { initStores, useAccessStore } from '@vben/stores';
 import '@vben/styles';
 import '@vben/styles/antd';
 
-import { useTitle } from '@vueuse/core';
-
 import { setAdminFrameworkRuntime } from '@levin/admin-framework';
-
-import { getAdminApplicationServices } from '@levin/admin-framework/framework-commons/app/options';
 import { requestClient } from '@levin/admin-framework/framework-commons/app/api/request';
 import {
   $t,
   setupI18n,
 } from '@levin/admin-framework/framework-commons/app/locales';
+import { getAdminApplicationServices } from '@levin/admin-framework/framework-commons/app/options';
+import { useTitle } from '@vueuse/core';
 
+import { loadAdministrativeAreaOverride } from '../shared/administrative-area-data';
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
 import { registerRbacPermissionDirective } from './directives/rbac-permission';
 import { router } from './router';
-import './styles/antd-message.css';
 import {
   loadTenantSiteAdminUiBaseSetting,
   registerTenantSiteAdminUiBaseSettingListener,
 } from './tenant-site-admin-ui-base-setting';
+import { registerGlobalOrgSelectorRuntime } from './global-org-selector-runtime';
+
+import './styles/antd-message.css';
 
 async function bootstrap(namespace: string) {
   setAdminFrameworkRuntime({
@@ -63,11 +64,27 @@ async function bootstrap(namespace: string) {
 
   // 配置 pinia-tore
   await initStores(app, { namespace });
+  let hasLoadedAdministrativeAreaOverride = false;
+  watch(
+    () => useAccessStore().accessToken,
+    (accessToken) => {
+      if (!accessToken) {
+        hasLoadedAdministrativeAreaOverride = false;
+        return;
+      }
+      if (!hasLoadedAdministrativeAreaOverride) {
+        hasLoadedAdministrativeAreaOverride = true;
+        void loadAdministrativeAreaOverride();
+      }
+    },
+    { immediate: true },
+  );
 
   // 安装权限指令
   registerAccessDirective(app);
   registerRbacPermissionDirective(app);
   registerTenantSiteAdminUiBaseSettingListener();
+  registerGlobalOrgSelectorRuntime();
   void loadTenantSiteAdminUiBaseSetting();
 
   // 初始化 tippy

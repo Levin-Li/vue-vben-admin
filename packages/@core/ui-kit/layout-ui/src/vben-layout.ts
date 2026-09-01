@@ -76,6 +76,14 @@ interface VbenLayoutProps {
    * @default 32
    */
   footerHeight?: number;
+  /** 底栏上边框宽度 */
+  footerBorderTopWidth?: number;
+  /** 底栏右边框宽度 */
+  footerBorderRightWidth?: number;
+  /** 底栏下边框宽度 */
+  footerBorderBottomWidth?: number;
+  /** 底栏左边框宽度 */
+  footerBorderLeftWidth?: number;
 
   /**
    * header高度

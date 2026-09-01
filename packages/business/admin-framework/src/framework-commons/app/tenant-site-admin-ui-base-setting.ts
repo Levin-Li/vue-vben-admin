@@ -16,6 +16,7 @@ function isRecord(value: unknown): value is Record<string, any> {
 }
 
 let latestPreferServerSetting = false;
+let latestTenantSiteInfo: null | RbacApi.TenantSiteInfo | undefined;
 let stopUserRoleVisibilityWatcher: (() => void) | undefined;
 
 export interface AdminUiBaseSettingPayload {
@@ -88,6 +89,7 @@ function syncPreferencesEntryVisibility() {
 function applyTenantSiteAdminUiBaseSetting(
   data: null | RbacApi.TenantSiteInfo | undefined,
 ) {
+  latestTenantSiteInfo = data;
   const serverSetting = data?.uiExInfo?.[ADMIN_UI_BASE_SETTING_KEY];
   const preferServerSetting = !(
     isRecord(serverSetting) && serverSetting.preferServerSetting === false
@@ -112,6 +114,10 @@ function applyTenantSiteAdminUiBaseSetting(
   }
 
   syncPreferencesEntryVisibility();
+}
+
+export function getCurrentTenantSiteInfo() {
+  return latestTenantSiteInfo;
 }
 
 export function registerTenantSiteAdminUiBaseSettingListener() {

@@ -17,6 +17,7 @@ import { message } from 'ant-design-vue';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
 import { createDynamicVerifyCodeInterceptor } from './dynamic-verify-code';
+import { applyCurrentGlobalUserOrgContextToParams } from '../global-org-context-state';
 import { emitApiRequestEvent } from './request-events';
 import {
   getHttpAuthorizationMessage,
@@ -177,6 +178,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 
       config.headers.Authorization = formatToken(accessStore.accessToken);
       config.headers['Accept-Language'] = preferences.app.locale;
+      config.params = applyCurrentGlobalUserOrgContextToParams(config.params);
       return config;
     },
   });

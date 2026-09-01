@@ -2,7 +2,6 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { orgService } from '../../api/org-service';
 import {
-  areaOptionsLoader,
   confidentialLevelOptionsLoader,
   legalSubjectOptionsLoader,
   orgCategoryOptionsLoader,
@@ -156,15 +155,17 @@ export const orgPageCrudConfig: CrudPageConfig = {
       key: 'category',
       label: '机构类别',
       loadOptions: orgCategoryOptionsLoader,
+      required: true,
       type: 'select',
     },
     {
       key: 'areaCode',
       label: '区域编码',
-      loadOptions: areaOptionsLoader,
-      remoteSearch: true,
+      areaCascader: {
+        valueKey: 'areaCode',
+      },
       search: true,
-      type: 'select',
+      type: 'area-cascader',
     },
     { key: 'shortName', label: '简称', table: true, width: 120 },
     {
@@ -199,6 +200,11 @@ export const orgPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     { key: 'logo', label: 'Logo', table: true, type: 'image', width: 90 },
+    { key: 'contacts', label: '联系人', table: true },
+    { key: 'phones', label: '联系电话', table: true },
+    { key: 'emails', label: '联系邮箱', table: true, width: 160 },
+    { key: 'zipCode', label: '邮政编码' },
+    { key: 'address', label: '联系地址', fullRow: true, type: 'textarea' },
     { key: 'bankName', label: '开户银行名称', complexGroupKey: 'bank-account' },
     { key: 'bankBranchCode', label: '开户银行网点编码', complexGroupKey: 'bank-account' },
     { key: 'bankAccountName', label: '银行账号名称', complexGroupKey: 'bank-account' },

@@ -292,6 +292,18 @@ describe('layout header extension area', () => {
     expect(text.indexOf('user')).toBeLessThan(text.indexOf('right-after'));
   });
 
+  it('scrolls the constrained center extension area instead of shrinking its content', () => {
+    const wrapper = mount(LayoutHeader, {
+      slots: {
+        'header-top-center': '<span>top-center</span>',
+      },
+    });
+
+    expect(
+      wrapper.get('[data-testid="header-top-center-extensions"]').classes(),
+    ).toContain('overflow-x-auto');
+  });
+
   it('renders dynamic center and right header content and disposes them', async () => {
     const wrapper = mount(LayoutHeader, {
       slots: {

@@ -13,6 +13,7 @@ export { default as RbacPermissionMatchUtils } from './framework-commons/rbac-pe
 export * from './framework-commons/request-service';
 export * from './framework-commons/runtime';
 export * from './framework-commons/shared/draggable-floating-panel-service';
+export * from './framework-commons/shared/administrative-area-data';
 export * from './framework-commons/shared/pattern-list-utils';
 export * from './framework-commons/shared/user-dropdown-menu-service';
 export * from './framework-commons/shared/user-org-selector-types';
@@ -33,6 +34,9 @@ export const DraggableFloatingPanel = defineAsyncComponent(
 export const BehaviorCaptcha = defineAsyncComponent(
   () =>
     import('./framework-commons/app/views/_core/authentication/behavior-captcha.vue'),
+);
+export const AdministrativeAreaCascader = defineAsyncComponent(
+  () => import('./framework-commons/shared/administrative-area-cascader.vue'),
 );
 export const DraggableFloatingPanelHost = defineAsyncComponent(
   () => import('./framework-commons/shared/draggable-floating-panel-host.vue'),

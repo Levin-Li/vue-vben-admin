@@ -10,6 +10,7 @@ import { useAccessStore } from '@vben/stores';
 import { findRootMenuByPath } from '@vben/utils';
 
 import { useNavigation } from './use-navigation';
+import { shouldNavigateSelectedMenu } from './group-navigation';
 
 interface ExtraMenuState {
   extraActiveMenu: Ref<string>;
@@ -32,8 +33,6 @@ function useExtraMenu(
 
   const menus = computed(() => useRootMenus?.value ?? accessStore.accessMenus);
 
-  /** 记录当前顶级菜单下哪个子菜单最后激活 */
-  const defaultSubMap = new Map<string, string>();
   const extraRootMenus = ref<MenuRecordRaw[]>([]);
   const route = useRoute();
   const extraMenus = ref<MenuRecordRaw[]>([]);
@@ -57,14 +56,8 @@ function useExtraMenu(
       sidebarExtraVisible.value = hasChildren;
     }
 
-    if (!hasChildren) {
+    if (shouldNavigateSelectedMenu(menu)) {
       await navigation(menu.path);
-    } else if (preferences.sidebar.autoActivateChild) {
-      await navigation(
-        defaultSubMap.has(menu.path)
-          ? (defaultSubMap.get(menu.path) as string)
-          : menu.path,
-      );
     }
   };
 
@@ -116,7 +109,6 @@ function useExtraMenu(
       parentLevel.value,
     );
     extraRootMenus.value = rootMenu?.children ?? [];
-    if (rootMenuPath) defaultSubMap.set(rootMenuPath, currentPath);
     extraActiveMenu.value = rootMenuPath ?? findMenu?.path ?? '';
     extraMenus.value = rootMenu?.children ?? [];
     sidebarExtraVisible.value = extraMenus.value.length > 0;

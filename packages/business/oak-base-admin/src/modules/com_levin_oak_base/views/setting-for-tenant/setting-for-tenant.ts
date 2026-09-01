@@ -26,6 +26,7 @@ export interface TenantSettingItem {
   optimisticLock?: number;
   orderCode?: null | number;
   remark?: null | string;
+  type?: null | string;
   valueContent?: any;
   valueType?: null | string;
 }
@@ -77,7 +78,7 @@ function normalizeMatchText(value: unknown) {
 }
 
 function normalizeValueType(item: TenantSettingItem) {
-  return normalizeMatchText(item.valueType || 'Text');
+  return normalizeMatchText(item.valueType || item.type || 'Text');
 }
 
 function normalizeEditor(item: TenantSettingItem) {

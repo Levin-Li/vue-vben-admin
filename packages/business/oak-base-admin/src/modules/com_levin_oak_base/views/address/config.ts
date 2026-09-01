@@ -82,15 +82,22 @@ export const addressPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'provinceCode',
-      label: '省编码',
+      label: '省市区行政编码',
+      areaCascader: {
+        cityCodeKey: 'cityCode',
+        districtCodeKey: 'districtCode',
+        provinceCodeKey: 'provinceCode',
+      },
       required: true,
       search: true,
       table: true,
+      type: 'area-cascader',
       width: 120,
     },
     {
       key: 'cityCode',
       label: '市编码',
+      form: false,
       required: true,
       search: true,
       table: true,
@@ -99,6 +106,7 @@ export const addressPageCrudConfig: CrudPageConfig = {
     {
       key: 'districtCode',
       label: '区县编码',
+      form: false,
       required: true,
       search: true,
       table: true,

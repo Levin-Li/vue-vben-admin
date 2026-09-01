@@ -5,16 +5,72 @@ function isSelectField(field: CrudFieldConfig) {
   return field.type === 'role-select' || field.type === 'select';
 }
 
-function normalizeChoiceScalarValue(
-  value: unknown,
-  stringOptionValues: Set<string>,
-) {
-  if (typeof value !== 'number') {
-    return value;
+export function normalizeCrudChoiceOptions(
+  field: Pick<CrudFieldConfig, 'valueType'>,
+  options: readonly SelectOption[],
+): SelectOption[] {
+  if (field.valueType !== 'number') {
+    return [...options];
   }
 
-  const stringValue = String(value);
-  return stringOptionValues.has(stringValue) ? stringValue : value;
+  return options.map((option) =>
+    typeof option.ordinal === 'number'
+      ? { ...option, value: option.ordinal }
+      : option,
+  );
+}
+
+export function findMatchingCrudChoiceOption(
+  _field: Pick<CrudFieldConfig, 'type' | 'valueType'>,
+  value: unknown,
+  options: readonly SelectOption[],
+) {
+  const exactMatch = options.find((option) => option.value === value);
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const normalizedValue = String(value);
+
+  return options.find((option) => {
+    const enumCode = option.ordinal ?? option.code;
+    return (
+      String(option.value) === normalizedValue ||
+      (enumCode !== undefined && String(enumCode) === normalizedValue)
+    );
+  });
+}
+
+function isSameCrudChoiceValue(left: unknown, right: unknown): boolean {
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((item, index) => isSameCrudChoiceValue(item, right[index]))
+    );
+  }
+
+  return Object.is(left, right);
+}
+
+/**
+ * Keeps an unmapped edit value intact when the user has not changed it.
+ * This avoids coercing a persisted value solely because the current option
+ * source no longer contains a matching choice.
+ */
+export function shouldPreserveUnmatchedCrudChoiceValue(
+  field: Pick<CrudFieldConfig, 'type'>,
+  originalValue: unknown,
+  currentValue: unknown,
+  options: readonly SelectOption[],
+) {
+  return (
+    originalValue !== null &&
+    originalValue !== undefined &&
+    !findMatchingCrudChoiceOption(field, originalValue, options) &&
+    isSameCrudChoiceValue(originalValue, currentValue)
+  );
 }
 
 /**
@@ -30,19 +86,10 @@ export function normalizeCrudChoiceFormValue(
     return value;
   }
 
-  const stringOptionValues = new Set(
-    options
-      .map((option) => option.value)
-      .filter(
-        (optionValue): optionValue is string => typeof optionValue === 'string',
-      ),
-  );
-
-  if (stringOptionValues.size === 0) {
-    return value;
-  }
-
   return Array.isArray(value)
-    ? value.map((item) => normalizeChoiceScalarValue(item, stringOptionValues))
-    : normalizeChoiceScalarValue(value, stringOptionValues);
+    ? value.map(
+        (item) =>
+          findMatchingCrudChoiceOption(field, item, options)?.value ?? item,
+      )
+    : (findMatchingCrudChoiceOption(field, value, options)?.value ?? value);
 }

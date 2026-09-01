@@ -151,8 +151,7 @@ onMounted(refreshOverview);
     <section class="overview-shell" aria-labelledby="overview-title">
       <header class="overview-header">
         <div>
-          <p class="overview-header__eyebrow">PLATFORM OVERVIEW</p>
-          <h1 id="overview-title">平台数据概览</h1>
+          <h1 id="overview-title">数据概览</h1>
           <p class="overview-header__subtitle">
             聚合查看核心资源规模与支付业务数据
           </p>
@@ -228,14 +227,6 @@ onMounted(refreshOverview);
   justify-content: space-between;
   gap: 24px;
   margin: 4px 0 22px;
-}
-
-.overview-header__eyebrow {
-  margin: 0 0 6px;
-  color: #8791a8;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
 }
 
 .overview-header h1 {

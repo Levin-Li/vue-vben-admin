@@ -10,6 +10,10 @@ import type {
   CrudFieldConfig,
   CrudListTableConfig,
   CrudPageConfig,
+  CrudPageDisplayConfig,
+  CrudPageDisplayFieldConfig,
+  CrudPageDisplayHeaderConfig,
+  CrudPageDisplayQueryCollapsedRows,
   CrudPathConfig,
   CrudRowAction,
 } from './types';
@@ -53,6 +57,7 @@ import {
   Popconfirm,
   Popover,
   QRCode,
+  Radio,
   Select,
   Space,
   Switch,
@@ -79,6 +84,12 @@ import {
   uploadFileByFileStorageController,
 } from '../app/api/file-storage-service';
 import { rbacService } from '../app/api/rbac-service';
+import { getCurrentTenantSiteInfo } from '../app/tenant-site-admin-ui-base-setting';
+import {
+  replaceUiSettingRuntimeCache,
+  resolveUiSettingRuntimeWithScope,
+  type UiSettingRuntimeRecord,
+} from '../app/api/ui-setting-runtime';
 import { useRbacAccess } from '../rbac-access';
 import { requestClient } from '../runtime';
 
@@ -86,6 +97,12 @@ import {
   applyAreaCascaderValueToRecord,
   getAreaCascaderValueFromRecord,
 } from './area-cascader';
+import {
+  formatAdministrativeArea,
+  filterAdministrativeAreaOptions,
+  getAdministrativeAreaCascaderOptions,
+  getCurrentOpenAreaCodes,
+} from './administrative-area-data';
 import CodeEditorField from './code-editor-field.vue';
 import {
   pickCrudActionResultData,
@@ -163,7 +180,6 @@ import {
   MAX_SEARCH_COLUMN_COUNT,
   MIN_SEARCH_COLUMN_WIDTH,
   resolveFormColumnCount,
-  resolveSearchCollapsedCount,
   shouldFormFieldSpanFullRow,
   sortFormLayoutFields,
 } from './crud-form-layout';
@@ -181,7 +197,35 @@ import {
   shouldReloadRemoteOptionsOnDropdownOpen,
 } from './crud-select-options';
 import { normalizeLeftFixedTableColumns } from './crud-table-columns';
-import { normalizeCrudChoiceFormValue } from './crud-choice-value';
+import {
+  findMatchingCrudChoiceOption,
+  normalizeCrudChoiceFormValue,
+  normalizeCrudChoiceOptions,
+  shouldPreserveUnmatchedCrudChoiceValue,
+} from './crud-choice-value';
+import { evaluateJavaScriptExpression } from './javascript-expression';
+import {
+  buildOrganizationScriptContext,
+  buildTenantScriptContext,
+  distributeExtraTableWidth,
+  hasServerListHeaderConfig,
+  hasMultipleEffectiveDisplayGroups,
+  initializeFieldHidden,
+  initializeHeaderVisibility,
+  initializeVisibleRoleCodes,
+  isRoleVisibilitySatisfied,
+  resolveDefaultTableColumnWidth,
+  resolveDisplayGroupOrder,
+  resolveDisplayStates,
+  resolvePageDisplaySettingCode,
+  resolveQueryCollapsedFieldCount,
+  resolveDisplayGroupExpandedFieldCount,
+  shouldAutoQuery,
+  shouldAutoForceUpdateField,
+  shouldStartQueryGroupOnNewLine,
+  shouldShowManualQueryButton,
+  supportsInlineChoiceOptions,
+} from './crud-page-display';
 import { serializeCrudFieldValue } from './crud-field-value';
 import {
   buildCrudComplexGroupInitialState,
@@ -193,8 +237,12 @@ import {
   CRUD_TOOLTIP_MOUSE_ENTER_DELAY,
 } from './crud-tooltip-preview';
 import { evaluateCrudVisibleOn } from './crud-visible-on';
+import { collectUserRoleIdentityValues, isSuperAdminUser } from './user-identity';
 import CronExpressionField from './cron-expression-field.vue';
-import { buildDetailDisplayEntries } from './detail-display';
+import {
+  buildDetailDisplayEntries,
+  type DetailDisplayEntry,
+} from './detail-display';
 import DetailDisplayPanel from './detail-display-panel.vue';
 import {
   DEFAULT_CONTENT_MODAL_BODY_STYLE,
@@ -202,6 +250,7 @@ import {
 } from './config-helpers';
 import JsonEditorField from './json-editor-field.vue';
 import JsonSchemaEditorField from './json-schema-editor-field.vue';
+import PageDisplaySettingsDrawer from './page-display-settings-drawer.vue';
 import {
   getJsonSchemaSourceInput,
   hasCrudFieldJsonSchema,
@@ -221,9 +270,6 @@ type GenericRecord = Record<string, any>;
 type TableColumnFixedMode = 'left' | 'none' | 'right';
 type TableSortOrder = 'ascend' | 'descend';
 type CrudBuiltinAction = 'create' | 'delete' | 'edit' | 'retrieve';
-const TABLE_DEFAULT_COLUMN_WIDTH = 120;
-const TABLE_MAX_AUTO_COLUMN_WIDTH = 180;
-const TABLE_MIN_AUTO_COLUMN_WIDTH = 96;
 interface TableColumnPreference {
   fixedMap?: Record<string, TableColumnFixedMode>;
   hiddenKeys?: string[];
@@ -274,7 +320,6 @@ interface TableSorterState {
   order?: TableSortOrder;
 }
 
-const DEFAULT_SEARCH_COLLAPSED_COUNT = 3;
 const DEFAULT_CRUD_MODAL_WIDTH = 'min(80vw, 1280px)';
 const EXPORT_LIMIT_ERROR_MESSAGE = 'EXPORT_LIMIT_EXCEEDED';
 const EXPORT_MAX_RECORDS = 50_000;
@@ -287,6 +332,7 @@ const EXPORT_TEMPLATE_SCOPE_OPTIONS = [
 ] as const;
 const TABLE_COLUMN_PREFERENCE_VERSION = 2;
 const TABLE_MIN_SCROLL_Y = 160;
+const TABLE_SECTION_HORIZONTAL_PADDING = 32;
 const TABLE_SECTION_VERTICAL_PADDING = 32;
 const TABLE_TOOLBAR_GAP = 12;
 const TABLE_HEADER_HEIGHT = 56;
@@ -341,18 +387,23 @@ const uploadPreviewOpen = ref(false);
 const uploadPreviewUrl = ref('');
 const optionState = reactive<Record<string, any[]>>({});
 const optionLoadingState = reactive<Record<string, boolean>>({});
+const areaCascaderRestrictedOptions = reactive<Record<string, any[]>>({});
 const optionRequestVersions = reactive<Record<string, number>>({});
 const quickSwitchLoadingState = reactive<Record<string, boolean>>({});
 const searchState = reactive<GenericRecord>({});
 const formState = reactive<GenericRecord>({});
 const complexGroupEnabled = reactive<Record<string, boolean>>({});
 const complexGroupCollapsed = reactive<Record<string, boolean>>({});
+const pageDisplayGroupExpandedRows = reactive<
+  Record<string, 0 | CrudPageDisplayQueryCollapsedRows>
+>({});
 const submitting = ref(false);
 const crudPageRef = ref<HTMLElement | null>(null);
 const listTableTabsRef = ref<HTMLElement | null>(null);
 const listSectionRef = ref<HTMLElement | null>(null);
 const listToolbarRef = ref<HTMLElement | null>(null);
 const tableScrollY = ref(360);
+const tableAvailableWidth = ref(0);
 const tableFullscreen = ref(false);
 const activeListTableKey = ref('');
 const listTableTabsCollapsed = ref(true);
@@ -360,6 +411,76 @@ const isDraggingListTableTabs = ref(false);
 const listTableTabsHandleTooltipOpen = ref(false);
 const hiddenTableColumnKeys = ref<string[]>([]);
 const columnSettingsOpen = ref(false);
+const pageDisplaySettingsOpen = ref(false);
+const pageDisplayConfig = ref<CrudPageDisplayConfig>({ version: 1 });
+const autoSearchReady = ref(false);
+const pageDisplaySettingRecord = ref<null | UiSettingRuntimeRecord>(null);
+const pageDisplayScope = ref<{ domain?: string; tenantId?: string }>({
+  domain: typeof window === 'undefined' ? undefined : window.location.hostname,
+  tenantId: (userStore.userInfo as Record<string, any> | undefined)?.tenantId,
+});
+const pageDisplayInitialScope = computed(() => {
+  const userInfo = userStore.userInfo as Record<string, any> | undefined;
+  return {
+    domain: pageDisplayScope.value.domain || (typeof window === 'undefined' ? undefined : window.location.hostname),
+    tenantId: pageDisplayScope.value.tenantId || userInfo?.tenantId,
+  };
+});
+const pageDisplayContextKey = computed(() => {
+  const userInfo = userStore.userInfo as Record<string, any> | undefined;
+  return [userInfo?.tenantId || '', typeof window === 'undefined' ? '' : window.location.hostname, userInfo?.type || '', userInfo?.orgType || userInfo?.orgId || ''].join(':');
+});
+
+async function loadPageDisplaySettings() {
+  try {
+    const resolution = await resolveUiSettingRuntimeWithScope(pageDisplaySettingCode.value, pageDisplayContextKey.value);
+    const setting = resolution.setting;
+    pageDisplaySettingRecord.value = setting;
+    pageDisplayScope.value = { ...pageDisplayScope.value, ...resolution.scope };
+    pageDisplayConfig.value = (setting?.valueContent?.pageDisplay as CrudPageDisplayConfig | undefined) || { version: 1 };
+  } catch (error) {
+    console.warn('加载页面展示设置失败，将使用页面默认配置。', error);
+  }
+}
+
+async function savePageDisplaySettings(payload: { config: CrudPageDisplayConfig; scope: Record<string, any> }) {
+  const current = pageDisplaySettingRecord.value;
+  const data = {
+    code: pageDisplaySettingCode.value,
+    domain: payload.scope.domain || null,
+    name: `${props.config.title}页面展示设置`,
+    orgType: payload.scope.orgType || null,
+    tenantId: payload.scope.tenantId || null,
+    type: 'PageDisplay',
+    userType: payload.scope.userType || null,
+    valueContent: { pageDisplay: payload.config },
+  };
+  if (current?.id) {
+    const latest = await requestClient.get<UiSettingRuntimeRecord>('/UiSetting/view', {
+      params: { id: current.id },
+    });
+    const optimisticLock = latest?.optimisticLock ?? current.optimisticLock ?? 0;
+    await requestClient.put('/UiSetting/update', { ...data, id: current.id, optimisticLock });
+    pageDisplaySettingRecord.value = { ...current, ...data, optimisticLock: optimisticLock + 1 };
+  } else {
+    const id = await requestClient.post<string>('/UiSetting/create', data);
+    pageDisplaySettingRecord.value = { ...data, id };
+  }
+  pageDisplayConfig.value = payload.config;
+  replaceUiSettingRuntimeCache(pageDisplaySettingCode.value, pageDisplayContextKey.value, pageDisplaySettingRecord.value);
+  message.success('当前配置已上传');
+  Modal.confirm({
+    cancelText: '关闭配置',
+    closable: false,
+    content: '当前页面展示配置已成功上传。',
+    maskClosable: false,
+    okText: '继续配置',
+    onCancel: () => {
+      pageDisplaySettingsOpen.value = false;
+    },
+    title: '上传成功',
+  });
+}
 const columnSettingsSnapshot = ref<null | TableColumnSettingsSnapshot>(null);
 const draggedDraftTableColumnKey = ref('');
 const draftHiddenTableColumnKeys = ref<string[]>([]);
@@ -505,8 +626,200 @@ function shouldUseJsonSchemaEditor(field: CrudFieldConfig, value?: any) {
   return field.type === 'json' && hasCrudFieldJsonSchema(field, value);
 }
 
+function getPageDisplayField(
+  view: 'create' | 'detail' | 'edit' | 'query',
+  key: string,
+) : CrudPageDisplayFieldConfig {
+  const configured =
+    pageDisplayConfig.value[view]?.fields.find((item) => item.key === key);
+  if (configured) {
+    configured.hidden = initializeFieldHidden(configured);
+    configured.inputDisplay ||= 'default';
+    configured.visibleRoleCodes = initializeVisibleRoleCodes(configured);
+    return configured;
+  }
+
+  return {
+    hidden: initializeFieldHidden({ key }),
+    inputDisplay: 'default',
+    key,
+    order: props.config.fields.findIndex((item) => item.key === key),
+    visibleRoleCodes: initializeVisibleRoleCodes({ key }),
+  };
+}
+
+function getPageDisplayGroup(
+  view: 'create' | 'detail' | 'edit',
+  key?: string,
+) {
+  if (!key) return undefined;
+  return pageDisplayConfig.value[view]?.groups?.find((item) => item.key === key);
+}
+
+function getTenantScriptContext() {
+  return buildTenantScriptContext(
+    getCurrentTenantSiteInfo() as Record<string, any> | undefined,
+    userStore.userInfo as Record<string, any> | undefined,
+  );
+}
+
+function getPageDisplayHeader(
+  key: string,
+): CrudPageDisplayHeaderConfig | undefined {
+  const configured =
+    pageDisplayConfig.value.list?.headers.find((item) => item.key === key);
+  if (configured) {
+    configured.visible = initializeHeaderVisibility(configured);
+    return configured;
+  }
+
+  const field = props.config.fields.find((item) => item.key === key);
+  if (!field) return undefined;
+
+  return {
+    key,
+    label: field.label,
+    order: props.config.fields
+      .filter((item) => item.table && isFieldVisible(item))
+      .findIndex((item) => item.key === key),
+    valueDisplay: { mode: 'default' },
+    visible: initializeHeaderVisibility({ key }),
+    visibleRoleCodes: initializeVisibleRoleCodes({ key }),
+    width: resolveDefaultTableColumnWidth(field),
+  };
+}
+
+function getPageDisplayInputDisplay(
+  view: 'create' | 'edit' | 'query',
+  key: string,
+) {
+  return getPageDisplayField(view, key)?.inputDisplay || 'default';
+}
+
+function isPageDisplayRoleVisible(
+  view: 'create' | 'detail' | 'edit' | 'query',
+  key: string,
+) {
+  if (view === 'detail') return true;
+  const userInfo = userStore.userInfo as Record<string, unknown> | undefined;
+  return isRoleVisibilitySatisfied(
+    getPageDisplayField(view, key)?.visibleRoleCodes,
+    collectUserRoleIdentityValues(userInfo || {}),
+  );
+}
+
+function shouldUseInlineChoiceOptions(
+  field: CrudFieldConfig,
+  view: 'create' | 'edit' | 'query',
+) {
+  return (
+    getPageDisplayInputDisplay(view, field.key) === 'inline-options' &&
+    supportsInlineChoiceOptions(field)
+  );
+}
+
+function getInlineChoiceOptions(
+  field: CrudFieldConfig,
+  view: 'create' | 'edit' | 'query',
+) {
+  if (isCrudBooleanField(field)) {
+    return [
+      {
+        label: getCrudBooleanDisplayText(field, true) || '是',
+        value: view === 'query' ? 'true' : true,
+      },
+      {
+        label: getCrudBooleanDisplayText(field, false) || '否',
+        value: view === 'query' ? 'false' : false,
+      },
+    ];
+  }
+  return getFieldOptions(field);
+}
+
+function isPageDisplayHeaderVisible(key: string) {
+  const header = getPageDisplayHeader(key);
+  const userInfo = userStore.userInfo as Record<string, unknown> | undefined;
+  if (!isRoleVisibilitySatisfied(
+    header?.visibleRoleCodes,
+    collectUserRoleIdentityValues(userInfo || {}),
+  )) return false;
+  const visible = header?.visible;
+  if (!visible || visible.mode === 'always') return true;
+  if (visible.mode === 'hidden') return false;
+  try {
+    return Boolean(evaluateJavaScriptExpression(visible.expression || 'true', {
+      org: buildOrganizationScriptContext(userStore.userInfo as Record<string, any> | undefined),
+      tenant: getTenantScriptContext(),
+      user: userStore.userInfo || {},
+    }));
+  } catch {
+    return false;
+  }
+}
+
+function applyPageDisplayFields(
+  fields: CrudFieldConfig[],
+  view: 'create' | 'detail' | 'edit' | 'query',
+): CrudFieldConfig[] {
+  const configuredFields = fields.map((field) =>
+    getPageDisplayField(view, field.key),
+  );
+  const values = view === 'query' ? searchState : formState;
+  const expressionResults: Record<string, boolean> = {};
+  for (const item of configuredFields) {
+    if (!item.visibility?.expression?.trim()) {
+      expressionResults[item.key] = true;
+      continue;
+    }
+    try {
+      expressionResults[item.key] = Boolean(evaluateJavaScriptExpression(item.visibility.expression, {
+        form: values,
+        org: buildOrganizationScriptContext(userStore.userInfo as Record<string, any> | undefined),
+        tenant: getTenantScriptContext(),
+        user: userStore.userInfo || {},
+      }));
+    } catch {
+      expressionResults[item.key] = false;
+    }
+  }
+  const displayStates = resolveDisplayStates(configuredFields, expressionResults);
+  return [...fields]
+    .filter((field) => displayStates[field.key] !== 'HIDDEN')
+    .filter((field) => isPageDisplayRoleVisible(view, field.key))
+    .sort((left, right) => {
+      const leftConfigured = getPageDisplayField(view, left.key);
+      const rightConfigured = getPageDisplayField(view, right.key);
+      const groupOrder = resolveDisplayGroupOrder(
+        pageDisplayConfig.value[view]?.groups,
+        leftConfigured?.layoutGroup,
+        pageDisplayConfig.value[view]?.unassignedOrder,
+      ) - resolveDisplayGroupOrder(
+        pageDisplayConfig.value[view]?.groups,
+        rightConfigured?.layoutGroup,
+        pageDisplayConfig.value[view]?.unassignedOrder,
+      );
+      if (groupOrder) return groupOrder;
+      return (leftConfigured?.order ?? Number.MAX_SAFE_INTEGER)
+        - (rightConfigured?.order ?? Number.MAX_SAFE_INTEGER);
+    })
+    .map((field) => {
+      const configured = getPageDisplayField(view, field.key);
+      const group = view === 'query'
+        ? undefined
+        : getPageDisplayGroup(view, configured?.layoutGroup);
+      return {
+        ...field,
+        displayGroup: group,
+        layoutGroup: configured?.layoutGroup || field.layoutGroup,
+        layoutGroupTitle: group?.title || field.layoutGroupTitle,
+        layoutOrder: configured?.order ?? field.layoutOrder,
+      };
+    });
+}
+
 const searchFields = computed(() =>
-  props.config.fields
+  applyPageDisplayFields(props.config.fields
     .map((field, index) => ({ field, index }))
     .filter(({ field }) => field.search && isFieldVisible(field))
     .sort(
@@ -514,7 +827,7 @@ const searchFields = computed(() =>
         (left.field.searchOrder ?? left.index) -
         (right.field.searchOrder ?? right.index),
     )
-    .map(({ field }) => field),
+    .map(({ field }) => field), 'query'),
 );
 
 const RANGE_PREFIX_PAIRS: Array<[string, string]> = [
@@ -635,14 +948,17 @@ const formFields = computed(() =>
 );
 
 const visibleFormFields = computed(() =>
-  sortFormLayoutFields(
-    formFields.value.filter((field) =>
-      shouldShowCrudFormField(
-        field,
-        editingRecord.value ? 'edit' : 'create',
-        userStore.userInfo,
+  applyPageDisplayFields(
+    sortFormLayoutFields(
+      formFields.value.filter((field) =>
+        shouldShowCrudFormField(
+          field,
+          editingRecord.value ? 'edit' : 'create',
+          userStore.userInfo,
+        ),
       ),
     ),
+    editingRecord.value ? 'edit' : 'create',
   ),
 );
 
@@ -669,17 +985,78 @@ function toggleComplexGroup(groupKey: string) {
   complexGroupCollapsed[groupKey] = !complexGroupCollapsed[groupKey];
 }
 
+function isPageDisplayGroupFieldVisible(field: CrudFieldConfig) {
+  const key = field.displayGroup?.key;
+  const activeView = editingRecord.value ? 'edit' : 'create';
+  const activeConfig = pageDisplayConfig.value[activeView];
+  if (!key && !activeConfig) return true;
+  const groupFields = visibleFormFields.value.filter(
+    (item) => (key ? item.displayGroup?.key === key : !item.displayGroup?.key),
+  );
+  const index = groupFields.indexOf(field as (typeof groupFields)[number]);
+  const expandedRows = key
+    ? pageDisplayGroupExpandedRows[key] ?? 'all'
+    : pageDisplayGroupExpandedRows.__unassigned__ ??
+      pageDisplayConfig.value[activeView]?.unassignedExpandedRows ??
+      'all';
+  return index >= 0 && index < resolveDisplayGroupExpandedFieldCount(
+    groupFields.length,
+    formColumnCount.value,
+    expandedRows,
+  );
+}
+
+function togglePageDisplayGroup(groupKey: string) {
+  pageDisplayGroupExpandedRows[groupKey] =
+    pageDisplayGroupExpandedRows[groupKey] === 'all' ? 0 : 'all';
+}
+
+function getPageDisplayGroupToggleLabel(groupKey: string) {
+  return pageDisplayGroupExpandedRows[groupKey] === 'all'
+    ? '收起'
+    : '展开全部';
+}
+
+function shouldHideSinglePageDisplayGroupChrome() {
+  const activeView = editingRecord.value ? 'edit' : 'create';
+  if (!pageDisplayConfig.value[activeView]) return false;
+  return !hasMultipleEffectiveDisplayGroups(visibleFormFields.value);
+}
+
+function shouldShowSinglePageDisplayGroupToggle(field: CrudFieldConfig) {
+  if (field.complexGroupKey || !shouldHideSinglePageDisplayGroupChrome()) {
+    return false;
+  }
+  return visibleFormFields.value.find((item) => !item.complexGroupKey)
+    === (field as (typeof visibleFormFields.value)[number]);
+}
+
+function shouldShowUnassignedPageDisplayGroupTitle(field: CrudFieldConfig) {
+  if (field.complexGroupKey || field.displayGroup?.key) return false;
+  const activeView = editingRecord.value ? 'edit' : 'create';
+  if (!pageDisplayConfig.value[activeView] || shouldHideSinglePageDisplayGroupChrome()) return false;
+  return visibleFormFields.value.find((item) => !item.displayGroup?.key)
+    === (field as (typeof visibleFormFields.value)[number]);
+}
+
 function shouldShowFormGroupTitle(field: CrudFieldConfig) {
-  if (!field.layoutGroupTitle?.trim()) {
+  if (
+    !field.layoutGroupTitle?.trim()
+    || field.complexGroupKey
+    || shouldHideSinglePageDisplayGroupChrome()
+  ) {
     return false;
   }
   return visibleFormFields.value.findIndex(
-    (item) => item.layoutGroup === field.layoutGroup,
-  ) === visibleFormFields.value.indexOf(field);
+    (item) => item.layoutGroup === field.layoutGroup && !item.complexGroupKey,
+  ) === visibleFormFields.value.indexOf(field as (typeof visibleFormFields.value)[number]);
 }
 
 const tableFields = computed(() =>
-  props.config.fields.filter((field) => field.table && isFieldVisible(field)),
+  [...props.config.fields]
+    .filter((field) => field.table && isFieldVisible(field))
+    .filter((field) => isPageDisplayHeaderVisible(field.key))
+    .sort((left, right) => (getPageDisplayHeader(left.key)?.order ?? Number.MAX_SAFE_INTEGER) - (getPageDisplayHeader(right.key)?.order ?? Number.MAX_SAFE_INTEGER)),
 );
 
 const orderedTableFields = computed(() =>
@@ -973,11 +1350,22 @@ const hasTableColumnCustomization = computed(
     Object.keys(tableColumnFixedState).length > 0,
 );
 
+const canCustomizeTableColumnsLocally = computed(
+  () => !hasServerListHeaderConfig(pageDisplayConfig.value),
+);
+
 const hasConfiguredRowActions = computed(() =>
   actionGroups.value.row.some(
     (action) =>
       (!action.permission || hasPermission(action.permission)) &&
       evaluateCrudVisibleOn(action.visibleOn, {}, userStore.userInfo),
+  ),
+);
+const canManagePageDisplaySettings = computed(() => isSuperAdminUser(userStore.userInfo));
+const pageDisplaySettingCode = computed(() =>
+  resolvePageDisplaySettingCode(
+    route.path,
+    props.config.uiSettingCode || props.config.apiBase,
   ),
 );
 
@@ -990,8 +1378,19 @@ const showActionColumn = computed(
 );
 
 const tableColumns = computed<TableColumnsType>(() => {
+  const minimumWidths = orderedVisibleTableFields.value.map((field) => {
+    const configuredWidth = getPageDisplayHeader(field.key)?.width;
+    return configuredWidth === 'auto' || !configuredWidth
+      ? resolveDefaultTableColumnWidth(field)
+      : configuredWidth;
+  });
+  const actionWidth = showActionColumn.value ? 220 : 0;
+  const distributedWidths = distributeExtraTableWidth(
+    minimumWidths,
+    Math.max(tableAvailableWidth.value - actionWidth, 0),
+  );
   const columns: TableColumnsType = orderedVisibleTableFields.value.map(
-    (field) => ({
+    (field, index) => ({
       align: isNumericField(field) ? 'right' : undefined,
       dataIndex: field.key,
       fixed: getEffectiveTableColumnFixed(field),
@@ -1014,11 +1413,11 @@ const tableColumns = computed<TableColumnsType>(() => {
                   class: 'vben-crud-table-header-title',
                   title: field.label,
                 },
-                field.label,
+                getPageDisplayHeader(field.key)?.title || field.label,
               ),
           },
         ),
-      width: resolveTableColumnWidth(field),
+      width: distributedWidths[index] ?? resolveDefaultTableColumnWidth(field),
     }),
   );
 
@@ -1036,10 +1435,6 @@ const tableColumns = computed<TableColumnsType>(() => {
 
 const tableFieldMap = computed(() =>
   Object.fromEntries(tableFields.value.map((field) => [field.key, field])),
-);
-
-const allFieldMap = computed(() =>
-  Object.fromEntries(props.config.fields.map((field) => [field.key, field])),
 );
 
 const actionGroups = computed(() =>
@@ -1165,20 +1560,28 @@ const canEdit = computed(
     ),
 );
 
-const searchCollapsedCount = computed(
-  () => props.config.searchCollapsedCount ?? DEFAULT_SEARCH_COLLAPSED_COUNT,
+const autoSearchEnabled = computed(
+  () => {
+    const value = pageDisplayConfig.value.query?.autoSearch as unknown;
+    return value === true || value === 'true';
+  },
+);
+const queryCollapsedRows = computed(
+  () => pageDisplayConfig.value.query?.unassignedExpandedRows ?? 1,
 );
 
 const effectiveSearchCollapsedCount = computed(() => {
-  return resolveSearchCollapsedCount(
+  return resolveQueryCollapsedFieldCount(
     searchFieldItems.value.length,
     searchColumnCount.value,
-    searchCollapsedCount.value,
+    queryCollapsedRows.value,
   );
 });
 
 const showAdvancedSearchToggle = computed(
-  () => searchFieldItems.value.length > effectiveSearchCollapsedCount.value,
+  () =>
+    queryCollapsedRows.value !== 'all' &&
+    searchFieldItems.value.length > effectiveSearchCollapsedCount.value,
 );
 
 const visibleSearchFieldItems = computed(() => {
@@ -1191,42 +1594,6 @@ const visibleSearchFieldItems = computed(() => {
 
 function isTableFieldSortable(field: CrudFieldConfig) {
   return field.sortable !== false && field.key !== '__tenant';
-}
-
-function resolveTableColumnWidth(field: CrudFieldConfig) {
-  if (field.width) {
-    return field.width;
-  }
-
-  if (field.type === 'datetime') {
-    return 180;
-  }
-
-  if (field.type === 'date' || field.type === 'time') {
-    return 140;
-  }
-
-  if (field.type === 'image') {
-    return 96;
-  }
-
-  if (field.type === 'switch' || field.valueType === 'boolean') {
-    return 110;
-  }
-
-  if (isNumericField(field)) {
-    return 110;
-  }
-
-  const sorterWidth = isTableFieldSortable(field) ? 40 : 24;
-  return Math.min(
-    TABLE_MAX_AUTO_COLUMN_WIDTH,
-    Math.max(
-      TABLE_MIN_AUTO_COLUMN_WIDTH,
-      field.label.length * 14 + sorterWidth,
-      TABLE_DEFAULT_COLUMN_WIDTH,
-    ),
-  );
 }
 
 function getModalAvailableWidth() {
@@ -1247,6 +1614,20 @@ const searchColumnCount = computed(() =>
 const searchGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${searchColumnCount.value}, minmax(0, 1fr))`,
 }));
+
+function getSearchItemStyle(item: SearchFieldItem) {
+  if (item.kind !== 'field') return undefined;
+  const group = getPageDisplayField('query', item.field.key)?.layoutGroup;
+  if (!group) return undefined;
+  const index = visibleSearchFieldItems.value.indexOf(item);
+  const previous = visibleSearchFieldItems.value[index - 1];
+  const previousGroup = previous?.kind === 'field'
+    ? getPageDisplayField('query', previous.field.key)?.layoutGroup
+    : undefined;
+  return shouldStartQueryGroupOnNewLine(group, previousGroup)
+    ? { gridColumnStart: 1 }
+    : undefined;
+}
 
 const formColumnCount = computed(() => {
   return resolveFormColumnCount({
@@ -1392,6 +1773,10 @@ function updateTableScrollY() {
     }
 
     const table = section.querySelector('.vben-crud-table');
+    tableAvailableWidth.value = Math.max(
+      section.clientWidth - TABLE_SECTION_HORIZONTAL_PADDING,
+      0,
+    );
     const toolbarHeight = listToolbarRef.value?.offsetHeight || 0;
     const toolbarGap = toolbarHeight > 0 ? TABLE_TOOLBAR_GAP : 0;
     const tableHeaderHeight =
@@ -1772,9 +2157,11 @@ function buildEmptyState() {
     if (!isComplexGroupEnabled(field)) {
       continue;
     }
-    result[field.key] =
-      field.key in result
-        ? normalizeFormValue(field, result[field.key])
+    const configuredDefault = getPageDisplayField('create', field.key)?.defaultValue;
+    result[field.key] = field.key in result
+      ? normalizeFormValue(field, result[field.key])
+      : configuredDefault && 'value' in configuredDefault
+        ? normalizeFormValue(field, configuredDefault.value)
         : getDefaultValue(field);
   }
 
@@ -1820,10 +2207,14 @@ function normalizeFormValue(field: CrudFieldConfig, value: any) {
   return normalizeCrudChoiceFormValue(field, value, getFieldOptions(field));
 }
 
-function serializeFormValue(field: CrudFieldConfig, value: any) {
+function serializeFormValue(
+  field: CrudFieldConfig,
+  value: any,
+  preserveEmptyValue = false,
+) {
   if (field.type === 'json') {
     if (value === null || value === undefined || value === '') {
-      return undefined;
+      return preserveEmptyValue ? null : undefined;
     }
 
     if (typeof value !== 'string') {
@@ -1832,7 +2223,7 @@ function serializeFormValue(field: CrudFieldConfig, value: any) {
 
     const trimmedValue = value.trim();
     if (!trimmedValue) {
-      return undefined;
+      return preserveEmptyValue ? null : undefined;
     }
 
     try {
@@ -1855,6 +2246,14 @@ function serializeFormValue(field: CrudFieldConfig, value: any) {
       .split(/\r?\n|,/)
       .map((item) => item.trim())
       .filter(Boolean);
+  }
+
+  if (value === null || value === undefined) {
+    return preserveEmptyValue ? null : undefined;
+  }
+
+  if (value === '' && preserveEmptyValue) {
+    return '';
   }
 
   return serializeCrudFieldValue(field, value);
@@ -1985,6 +2384,17 @@ function resetForm(record?: GenericRecord) {
     formState[key] = value;
   }
 
+  for (const key of Object.keys(pageDisplayGroupExpandedRows)) {
+    delete pageDisplayGroupExpandedRows[key];
+  }
+  for (const group of pageDisplayConfig.value[record ? 'edit' : 'create']?.groups || []) {
+    pageDisplayGroupExpandedRows[group.key] =
+      group.defaultExpandedRows ?? (group.defaultExpanded === false ? 1 : 'all');
+  }
+  pageDisplayGroupExpandedRows.__unassigned__ =
+    pageDisplayConfig.value[record ? 'edit' : 'create']?.unassignedExpandedRows ??
+    'all';
+
   if (!record) {
     const groupState = buildCrudComplexGroupInitialState(
       props.config.complexGroups,
@@ -2013,9 +2423,14 @@ function resetForm(record?: GenericRecord) {
       continue;
     }
 
+    const originalValue = getRecordValue(record, field.key);
+    const configuredDefault = getPageDisplayField('edit', field.key)?.defaultValue;
     formState[field.key] = normalizeFormValue(
       field,
-      getRecordValue(record, field.key),
+      (originalValue === null || originalValue === undefined || originalValue === '')
+      && configuredDefault && 'value' in configuredDefault
+        ? configuredDefault.value
+        : originalValue,
     );
   }
 }
@@ -2040,7 +2455,7 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
         optionRequestVersions[field.key],
       )
     ) {
-      optionState[field.key] = options;
+      optionState[field.key] = normalizeCrudChoiceOptions(field, options);
     }
   } catch (error) {
     console.error(error);
@@ -3242,6 +3657,7 @@ async function handleSubmit() {
 
   try {
     const payload: GenericRecord = {};
+    const isCreating = editingRecord.value?.[recordKey.value] === undefined;
 
     if (editingRecord.value?.[recordKey.value] !== undefined) {
       payload[recordKey.value] = editingRecord.value[recordKey.value];
@@ -3260,7 +3676,10 @@ async function handleSubmit() {
         continue;
       }
       if (field.type === 'area-cascader') {
-        if (shouldOmitEmptyChoiceFormField(field, formState[field.key])) {
+        if (
+          isCreating &&
+          shouldOmitEmptyChoiceFormField(field, formState[field.key])
+        ) {
           continue;
         }
 
@@ -3269,13 +3688,25 @@ async function handleSubmit() {
           field,
           formState[field.key],
           getFieldOptions(field),
+          !isCreating,
         );
         continue;
       }
 
-      const value = serializeFormValue(field, formState[field.key]);
+      const originalValue = editingRecord.value
+        ? getRecordValue(editingRecord.value, field.key)
+        : undefined;
+      const value = editingRecord.value &&
+        shouldPreserveUnmatchedCrudChoiceValue(
+          field,
+          originalValue,
+          formState[field.key],
+          getFieldOptions(field),
+        )
+        ? originalValue
+        : serializeFormValue(field, formState[field.key], !isCreating);
 
-      if (shouldOmitEmptyChoiceFormField(field, value)) {
+      if (isCreating && shouldOmitEmptyChoiceFormField(field, value)) {
         continue;
       }
 
@@ -3291,7 +3722,6 @@ async function handleSubmit() {
       ),
     );
 
-    const isCreating = editingRecord.value?.[recordKey.value] === undefined;
     const createPath = resolveCrudPath(
       props.config.createPath,
       `${props.config.apiBase}/create`,
@@ -3305,6 +3735,10 @@ async function handleSubmit() {
       transformedPayload,
       isPlatformUser.value,
     );
+
+    if (!isCreating && shouldAutoForceUpdateField(pageDisplayConfig.value)) {
+      finalPayload.autoForceUpdateField = true;
+    }
 
     if (isCreating) {
       if (props.config.apiService?.create && !props.config.createPath) {
@@ -3341,6 +3775,7 @@ async function handleSubmit() {
 }
 
 function resetSearch() {
+  suppressAutoSearch = true;
   for (const item of searchFieldItems.value) {
     if (item.kind === 'range') {
       searchState[item.key] = undefined;
@@ -3351,9 +3786,22 @@ function resetSearch() {
   }
 
   applyEditableSearchDefault();
+  applyPageDisplayQueryDefaults();
 
   pagination.current = 1;
   loadList();
+  void nextTick(() => {
+    suppressAutoSearch = false;
+  });
+}
+
+function applyPageDisplayQueryDefaults() {
+  for (const field of searchFields.value) {
+    const configuredDefault = getPageDisplayField('query', field.key)?.defaultValue;
+    if (configuredDefault && 'value' in configuredDefault) {
+      searchState[field.key] = configuredDefault.value;
+    }
+  }
 }
 
 function applyEditableSearchDefault() {
@@ -3419,6 +3867,26 @@ function handleListTableChange(key: number | string) {
 function toggleSearchExpanded() {
   searchExpanded.value = !searchExpanded.value;
 }
+
+let suppressAutoSearch = false;
+
+watch(
+  searchState,
+  () => {
+    if (
+      !shouldAutoQuery(
+        autoSearchEnabled.value,
+        autoSearchReady.value,
+        suppressAutoSearch,
+      )
+    ) {
+      return;
+    }
+    pagination.current = 1;
+    void loadList();
+  },
+  { deep: true },
+);
 
 async function refreshTable() {
   await loadList();
@@ -3580,6 +4048,10 @@ function pruneTableColumnPreference() {
 }
 
 function saveTableColumnPreference() {
+  if (!canCustomizeTableColumnsLocally.value) {
+    return;
+  }
+
   if (typeof window === 'undefined') {
     return;
   }
@@ -3614,14 +4086,29 @@ function clearTableColumnPreference() {
   }
 }
 
+function resetTableColumnPreferenceState() {
+  resetReactiveRecord(tableColumnFixedState);
+  resetReactiveRecord(draftTableColumnFixedState);
+  hiddenTableColumnKeys.value = [];
+  tableColumnOrderKeys.value = [];
+  draftHiddenTableColumnKeys.value = [];
+  draftTableColumnOrderKeys.value = [];
+  columnSettingsSnapshot.value = null;
+  draggedDraftTableColumnKey.value = '';
+}
+
 function loadTableColumnPreference() {
+  if (!canCustomizeTableColumnsLocally.value) {
+    resetTableColumnPreferenceState();
+    columnSettingsOpen.value = false;
+    return;
+  }
+
   if (typeof window === 'undefined') {
     return;
   }
 
-  resetReactiveRecord(tableColumnFixedState);
-  hiddenTableColumnKeys.value = [];
-  tableColumnOrderKeys.value = [];
+  resetTableColumnPreferenceState();
 
   const rawValue = window.localStorage.getItem(
     tableColumnPreferenceStorageKey.value,
@@ -3850,6 +4337,10 @@ function toggleDraftTableColumnFixed(
 }
 
 function applyTableColumnSettings() {
+  if (!canCustomizeTableColumnsLocally.value) {
+    return;
+  }
+
   syncDraftTableColumnSettingsToTable();
   saveTableColumnPreference();
   columnSettingsSnapshot.value = null;
@@ -3877,7 +4368,28 @@ function resetTableColumns() {
 }
 
 function getFieldOptions(field: CrudFieldConfig): any[] {
-  return optionState[field.key] || field.options || [];
+  if (field.type === 'area-cascader') {
+    return areaCascaderRestrictedOptions[field.key] || getAdministrativeAreaCascaderOptions();
+  }
+  return normalizeCrudChoiceOptions(
+    field,
+    optionState[field.key] || field.options || [],
+  );
+}
+
+async function handleAreaCascaderDropdownVisibleChange(field: CrudFieldConfig, open: boolean) {
+  if (!open) return;
+  optionLoadingState[field.key] = true;
+  try {
+    areaCascaderRestrictedOptions[field.key] = filterAdministrativeAreaOptions(
+      await getCurrentOpenAreaCodes(),
+    );
+  } catch {
+    message.error('获取开通区域失败，请重试');
+    areaCascaderRestrictedOptions[field.key] = [];
+  } finally {
+    optionLoadingState[field.key] = false;
+  }
 }
 
 function resolveCrudDynamicText(value: CrudDynamicText | undefined) {
@@ -4390,10 +4902,23 @@ function formatCellValue(field: CrudFieldConfig, value: any) {
     return typeof value === 'string' ? value : JSON.stringify(value);
   }
 
-  const options = getFieldOptions(field);
-  const matched = options.find((item) => item.value === value);
+  if (
+    field.type === 'area-cascader' ||
+    field.key === 'areaCode' ||
+    field.key === 'regionCode' ||
+    /区域编码|行政编码|城市编码|区县编码/.test(field.label)
+  ) {
+    try {
+      return formatAdministrativeArea(value);
+    } catch {
+      return String(value);
+    }
+  }
 
-  return matched?.label || String(value);
+  const options = getFieldOptions(field);
+  const matched = findMatchingCrudChoiceOption(field, value, options);
+
+  return matched ? String(matched.label) : String(value);
 }
 
 function getCellDisplayText(field: CrudFieldConfig | undefined, value: any) {
@@ -4436,6 +4961,21 @@ function isMoneyLikeField(field: CrudFieldConfig | undefined) {
 }
 
 function formatNumericValue(field: CrudFieldConfig | undefined, value: any) {
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
+
+  if (field) {
+    const matched = findMatchingCrudChoiceOption(
+      field,
+      value,
+      getFieldOptions(field),
+    );
+    if (matched) {
+      return String(matched.label);
+    }
+  }
+
   const numberValue = Number(value);
 
   if (!Number.isFinite(numberValue)) {
@@ -4566,7 +5106,30 @@ function getTableCellValue(record: GenericRecord, key: unknown) {
     return getRecordValue(record, key);
   }
 
+  const display = getPageDisplayHeader(field.key)?.valueDisplay;
+  if (display?.mode === 'script' && display.expression) {
+    try {
+      return evaluateJavaScriptExpression(display.expression, {
+        org: buildOrganizationScriptContext(
+          userStore.userInfo as Record<string, any> | undefined,
+        ),
+        row: record,
+        tenant: getTenantScriptContext(),
+        user: userStore.userInfo || {},
+      });
+    } catch (error) {
+      console.warn(`列表值展示脚本执行失败：${field.key}`, error);
+      return '';
+    }
+  }
+
   return getTableFieldValue(field, record);
+}
+
+function hasCustomTableCellDisplay(key: unknown) {
+  return getTableField(key)
+    ? getPageDisplayHeader(getTableField(key)!.key)?.valueDisplay?.mode === 'script'
+    : false;
 }
 
 function getTagValues(value: any) {
@@ -4925,19 +5488,22 @@ function openActionResult(
 }
 
 function getDetailDisplayFields() {
-  return props.config.fields.map((field) => ({
+  return applyPageDisplayFields(props.config.fields, 'detail').map((field) => ({
     ...field,
     options: getFieldOptions(field),
   }));
 }
 
-const actionResultEntries = computed(() => {
+const actionResultEntries = computed((): DetailDisplayEntry[] => {
   const data = actionResultData.value;
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     return [];
   }
 
-  return buildDetailDisplayEntries(data, getDetailDisplayFields());
+  return buildDetailDisplayEntries(
+    data,
+    getDetailDisplayFields(),
+  ) as DetailDisplayEntry[];
 });
 
 const actionResultQrValue = computed(() => {
@@ -5065,10 +5631,13 @@ async function runRowAction(
 onMounted(async () => {
   window.addEventListener('resize', handleViewportResize);
   window.addEventListener('paste', handlePasteUpload);
-  loadTableColumnPreference();
   applyEditableSearchDefault();
+  await loadPageDisplaySettings();
+  loadTableColumnPreference();
+  applyPageDisplayQueryDefaults();
   await loadOptions();
   await loadList();
+  autoSearchReady.value = true;
   await nextTick();
   restoreListTableTabsPosition();
 
@@ -5104,6 +5673,11 @@ watch(modalOpen, (open) => {
 
 watch(columnSettingsOpen, (open) => {
   if (open) {
+    if (!canCustomizeTableColumnsLocally.value) {
+      columnSettingsOpen.value = false;
+      return;
+    }
+
     openTableColumnSettings();
   }
 });
@@ -5132,6 +5706,10 @@ watch(
 watch([searchExpanded, searchFieldItems, tableFullscreen], updateTableScrollY);
 
 watch(tableFields, () => {
+  if (!canCustomizeTableColumnsLocally.value) {
+    return;
+  }
+
   const changed = pruneTableColumnPreference();
 
   if (changed) {
@@ -5140,6 +5718,11 @@ watch(tableFields, () => {
 });
 
 watch(tableColumnPreferenceStorageKey, () => {
+  loadTableColumnPreference();
+  updateTableScrollY();
+});
+
+watch(canCustomizeTableColumnsLocally, () => {
   loadTableColumnPreference();
   updateTableScrollY();
 });
@@ -5224,6 +5807,7 @@ watch(tableColumnPreferenceStorageKey, () => {
               :key="item.key"
               :label="item.kind === 'range' ? item.label : item.field.label"
               class="mb-0 min-w-0"
+              :style="getSearchItemStyle(item)"
             >
               <template
                 v-if="item.kind === 'field' && hasSearchFieldSlot(item.field)"
@@ -5255,15 +5839,33 @@ watch(tableColumnPreferenceStorageKey, () => {
                 :placeholder="['开始时间', '结束时间']"
                 value-format="HH:mm:ss"
               />
+              <Checkbox.Group
+                v-else-if="
+                  shouldUseInlineChoiceOptions(item.field, 'query') &&
+                  item.field.multiple
+                "
+                v-model:value="searchState[item.field.key]"
+                :options="getInlineChoiceOptions(item.field, 'query')"
+                class="flex flex-wrap gap-x-3 gap-y-2"
+              />
+              <Radio.Group
+                v-else-if="shouldUseInlineChoiceOptions(item.field, 'query')"
+                v-model:value="searchState[item.field.key]"
+                :options="getInlineChoiceOptions(item.field, 'query')"
+                class="flex flex-wrap gap-2"
+                option-type="button"
+              />
               <Cascader
                 v-else-if="item.field.type === 'area-cascader'"
                 v-model:value="searchState[item.field.key]"
                 :allow-clear="true"
                 :change-on-select="true"
+                :loading="optionLoadingState[item.field.key]"
                 :options="getFieldOptions(item.field)"
                 :placeholder="getPlaceholder(item.field)"
                 class="w-full"
                 show-search
+                @dropdown-visible-change="(open) => handleAreaCascaderDropdownVisibleChange(item.field, open)"
               />
               <TreeSelect
                 v-else-if="item.field.type === 'org-tree-select'"
@@ -5271,10 +5873,10 @@ watch(tableColumnPreferenceStorageKey, () => {
                 :allow-clear="true"
                 class="w-full"
                 :loading="optionLoadingState[item.field.key]"
-                :multiple="item.field.multiple"
+	                :multiple="Boolean(item.field.multiple)"
                 :placeholder="getPlaceholder(item.field)"
                 show-search
-                :tree-checkable="item.field.multiple"
+	                :tree-checkable="Boolean(item.field.multiple)"
                 :tree-data="getFieldOptions(item.field)"
                 tree-default-expand-all
                 tree-node-filter-prop="label"
@@ -5385,7 +5987,7 @@ watch(tableColumnPreferenceStorageKey, () => {
             <div class="vben-crud-search-actions min-w-0">
               <div class="flex flex-wrap items-center justify-end gap-2">
                 <Button
-                  v-if="canQuery"
+                  v-if="shouldShowManualQueryButton(canQuery, autoSearchEnabled)"
                   type="primary"
                   @click="
                     () => {
@@ -5507,6 +6109,19 @@ watch(tableColumnPreferenceStorageKey, () => {
               </Button>
             </Tooltip>
 
+            <Tooltip v-if="canManagePageDisplaySettings" title="页面展示设置">
+              <Button
+                aria-label="页面展示设置"
+                class="vben-crud-table-tool-button"
+                shape="circle"
+                @click="pageDisplaySettingsOpen = true"
+              >
+                <template #icon>
+                  <IconifyIcon class="size-4" icon="lucide:panel-top" />
+                </template>
+              </Button>
+            </Tooltip>
+
             <Tooltip :title="tableFullscreen ? '退出全屏' : '全屏'">
               <Button
                 :aria-label="tableFullscreen ? '退出全屏' : '全屏'"
@@ -5524,6 +6139,7 @@ watch(tableColumnPreferenceStorageKey, () => {
             </Tooltip>
 
             <Popover
+              v-if="canCustomizeTableColumnsLocally"
               v-model:open="columnSettingsOpen"
               placement="bottomRight"
               trigger="click"
@@ -5782,8 +6398,12 @@ watch(tableColumnPreferenceStorageKey, () => {
               </Space>
             </template>
             <template v-else>
+              <pre
+                v-if="hasCustomTableCellDisplay(column.key)"
+                class="m-0 whitespace-pre-wrap break-words text-sm leading-6"
+              >{{ getTableCellValue(record, column.key) }}</pre>
               <Switch
-                v-if="
+                v-else-if="
                   canQuickUpdateBooleanEnableField(
                     getTableField(column.key),
                     record,
@@ -6167,12 +6787,45 @@ watch(tableColumnPreferenceStorageKey, () => {
             </div>
             <div
               v-if="!field.complexGroupKey && shouldShowFormGroupTitle(field)"
-              class="col-span-full border-border/70 mt-2 border-t pt-4 text-sm font-semibold"
+              class="bg-muted/45 col-span-full mt-3 flex items-center justify-between rounded-lg px-4 py-3 text-sm font-semibold"
             >
-              {{ field.layoutGroupTitle }}
+              <span>{{ field.layoutGroupTitle }}</span>
+              <Button
+                v-if="field.displayGroup"
+                type="link"
+                size="small"
+                @click="togglePageDisplayGroup(field.displayGroup.key)"
+              >
+                {{ getPageDisplayGroupToggleLabel(field.displayGroup.key) }}
+              </Button>
+            </div>
+            <div
+              v-else-if="shouldShowUnassignedPageDisplayGroupTitle(field)"
+              class="bg-muted/45 col-span-full mt-3 flex items-center justify-between rounded-lg px-4 py-3 text-sm font-semibold"
+            >
+              <span>默认分组</span>
+              <Button
+                type="link"
+                size="small"
+                @click="togglePageDisplayGroup('__unassigned__')"
+              >
+                {{ getPageDisplayGroupToggleLabel('__unassigned__') }}
+              </Button>
+            </div>
+            <div
+              v-else-if="shouldShowSinglePageDisplayGroupToggle(field)"
+              class="col-span-full flex justify-end py-1"
+            >
+              <Button
+                type="link"
+                size="small"
+                @click="togglePageDisplayGroup(field.displayGroup?.key || '__unassigned__')"
+              >
+                {{ getPageDisplayGroupToggleLabel(field.displayGroup?.key || '__unassigned__') }}
+              </Button>
             </div>
             <Form.Item
-            v-if="isComplexGroupFieldVisible(field)"
+            v-if="isComplexGroupFieldVisible(field) && isPageDisplayGroupFieldVisible(field)"
             :label="getFormFieldLabel(field)"
             :required="field.required"
             :extra="getFormFieldHelp(field)"
@@ -6206,10 +6859,12 @@ watch(tableColumnPreferenceStorageKey, () => {
               :allow-clear="true"
               :change-on-select="true"
               :disabled="isFieldDisabledOnEdit(field)"
+              :loading="optionLoadingState[field.key]"
               :options="getFieldOptions(field)"
               :placeholder="getPlaceholder(field)"
               class="w-full"
               show-search
+              @dropdown-visible-change="(open) => handleAreaCascaderDropdownVisibleChange(field, open)"
             />
             <TreeSelect
               v-else-if="field.type === 'org-tree-select'"
@@ -6218,10 +6873,10 @@ watch(tableColumnPreferenceStorageKey, () => {
               class="w-full"
               :disabled="isFieldDisabledOnEdit(field)"
               :loading="optionLoadingState[field.key]"
-              :multiple="field.multiple"
+	              :multiple="Boolean(field.multiple)"
               :placeholder="getPlaceholder(field)"
               show-search
-              :tree-checkable="field.multiple"
+	              :tree-checkable="Boolean(field.multiple)"
               :tree-data="getFieldOptions(field)"
               tree-default-expand-all
               tree-node-filter-prop="label"
@@ -6344,6 +6999,41 @@ watch(tableColumnPreferenceStorageKey, () => {
               v-model:value="formState[field.key]"
               class="w-full"
               :placeholder="getPlaceholder(field)"
+            />
+            <Checkbox.Group
+              v-else-if="
+                shouldUseInlineChoiceOptions(
+                  field,
+                  editingRecord ? 'edit' : 'create',
+                ) && field.multiple
+              "
+              v-model:value="formState[field.key]"
+              :disabled="isFieldDisabledOnEdit(field)"
+              :options="
+                getInlineChoiceOptions(
+                  field,
+                  editingRecord ? 'edit' : 'create',
+                )
+              "
+              class="flex flex-wrap gap-x-3 gap-y-2"
+            />
+            <Radio.Group
+              v-else-if="
+                shouldUseInlineChoiceOptions(
+                  field,
+                  editingRecord ? 'edit' : 'create',
+                )
+              "
+              v-model:value="formState[field.key]"
+              :disabled="isFieldDisabledOnEdit(field)"
+              :options="
+                getInlineChoiceOptions(
+                  field,
+                  editingRecord ? 'edit' : 'create',
+                )
+              "
+              class="flex flex-wrap gap-2"
+              option-type="button"
             />
             <AutoComplete
               v-else-if="
@@ -6519,6 +7209,15 @@ watch(tableColumnPreferenceStorageKey, () => {
       }"
       :src="uploadPreviewUrl"
       class="hidden"
+    />
+
+    <PageDisplaySettingsDrawer
+      v-model:open="pageDisplaySettingsOpen"
+      :code="pageDisplaySettingCode"
+      :fields="props.config.fields"
+      :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
+      :model-value="pageDisplayConfig"
+      @save="savePageDisplaySettings"
     />
   </Page>
 </template>

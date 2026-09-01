@@ -178,7 +178,8 @@ const leftSlots = computed(() => {
     </div>
     <div
       v-if="showHeaderTopCenter"
-      class="pointer-events-none absolute left-1/2 top-1/2 z-10 flex h-full max-w-[50%] -translate-x-1/2 -translate-y-1/2 items-center justify-center px-2"
+      class="pointer-events-none absolute left-1/2 top-1/2 z-10 flex h-full max-w-[50%] -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-x-auto px-2"
+      data-testid="header-top-center-extensions"
     >
       <div class="pointer-events-auto flex h-full min-w-0 items-center gap-2">
         <slot name="header-top-center"></slot>

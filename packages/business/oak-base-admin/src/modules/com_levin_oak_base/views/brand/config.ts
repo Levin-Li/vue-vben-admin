@@ -100,7 +100,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
     {
       key: 'title',
       label: '标题',
-      layoutGroup: 'media',
+      layoutGroup: 'basic',
       layoutOrder: 30,
     },
     {

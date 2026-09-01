@@ -6,6 +6,10 @@ import {
   tenantSiteDnsDomainOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
+import {
+  siteInfoFormFields,
+  transformSiteInfoSubmit,
+} from '../site-info-form';
 
 export const tenantSitePageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantSite',
@@ -86,19 +90,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       type: 'select',
       width: 220,
     },
-    {
-      key: 'shortcutIcon',
-      label: 'shortcutIcon',
-      layoutNewRow: true,
-      type: 'image',
-    },
-    {
-      key: 'logo',
-      label: 'Logo',
-      table: true,
-      type: 'image',
-      width: 90,
-    },
+    ...siteInfoFormFields,
     {
       key: 'gteExpiredTime',
       label: '站点到期开始',
@@ -120,8 +112,6 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'techSupport', label: '技术支持', fullRow: true, type: 'textarea' },
-    { key: 'copyright', label: '版权声明', fullRow: true, type: 'textarea' },
     { key: 'uiExInfo', label: '前端展示扩展信息', type: 'json' },
     { key: 'exInfo', label: '扩展信息', type: 'json' },
     { key: 'orderCode', label: '排序代码', layoutNewRow: true, type: 'number' },
@@ -163,8 +153,8 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
   ],
   modalWidth: 1000,
   title: '租户站点管理',
-  transformSubmit: async (values) => {
-    const nextValues = { ...values };
+  transformSubmit: async (values, record) => {
+    const nextValues = transformSiteInfoSubmit(values, record);
     nextValues.domain = String(nextValues.domain || '').trim();
 
     if (!nextValues.domain) {

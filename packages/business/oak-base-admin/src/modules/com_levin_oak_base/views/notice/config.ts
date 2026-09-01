@@ -25,11 +25,7 @@ type NoticeActionMethod =
   | 'publish';
 
 function buildNoticeAction(methodName: NoticeActionMethod) {
-  return async (record: Record<string, any>) =>
-    noticeService[methodName]({
-      _operatorAction: record._operatorAction,
-      id: record.id,
-    });
+  return async (record: Record<string, any>) => noticeService[methodName]({ _operatorAction: record._operatorAction, id: record.id });
 }
 
 function buildNoticeActionPermission(methodName: NoticeActionMethod) {

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import CrudPage from '../crud-page.vue';
 import { payChannelPageCrudConfig } from './config';
+import PayChannelDetailInfoField from './pay-channel-detail-info-field.vue';
 import PayWayItemListManager from './pay-way-item-list-manager.vue';
 </script>
 
@@ -11,6 +12,9 @@ import PayWayItemListManager from './pay-way-item-list-manager.vue';
         :items="formState.payWayItemList"
         @update:items="formState.payWayItemList = $event"
       />
+    </template>
+    <template #form-field-detailInfo="{ formState }">
+      <PayChannelDetailInfoField :form-state="formState" />
     </template>
   </CrudPage>
 </template>

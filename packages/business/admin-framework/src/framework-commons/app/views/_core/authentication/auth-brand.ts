@@ -124,7 +124,7 @@ function mergeBrandState(
 ): BrandState {
   const siteInfo = record?.siteInfo;
   const siteDomain = getFirstText(record?.domain, record?.appAuthDomain, domain);
-  const name = resolveSiteInfoText(siteInfo?.title, defaultState.name);
+  const name = getFirstText(siteInfo?.title, record?.name, defaultState.name);
   const logoCandidates = getSiteInfoImageCandidates(siteInfo?.logo, defaultState.logo);
   const heroImageCandidates = getSiteInfoImageCandidates(siteInfo?.mainImg);
   const titleImageCandidates = getSiteInfoImageCandidates(siteInfo?.titleImg);

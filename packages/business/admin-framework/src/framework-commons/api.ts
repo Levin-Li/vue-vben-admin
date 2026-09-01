@@ -65,6 +65,7 @@ function normalizeOptions(
 ): SelectOption[] {
   if (Array.isArray(data)) {
     return data.filter(Boolean).map((item) => ({
+      ...item,
       label: getOptionLabel(item, labelKey, valueKey),
       value: item[valueKey] ?? item.id ?? item.code ?? String(item),
     }));

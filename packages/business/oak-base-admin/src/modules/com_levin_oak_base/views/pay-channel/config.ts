@@ -163,6 +163,7 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'detailInfo',
       label: '通道详情',
+      help: '先选择支付提供商，再按其配置模型填写具体参数。密钥和证书仅填写运行时引用名。',
       type: 'json',
     },
     {

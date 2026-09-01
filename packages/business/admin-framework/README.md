@@ -36,3 +36,9 @@ configureAdminApplication({
 ```
 
 完整第三方使用手册见 `src/framework-commons/docs/第三方用户手册.md`。发布包会携带 `src`，构建后的 `dist/framework-commons/docs/第三方用户手册.md` 也会包含同一份手册，第三方项目可在安装后的 `node_modules/@levin/admin-framework` 下查看。
+
+组件专用文档位于包根 `docs/components/`，例如 [UserOrgSelector 用户与组织选择器](docs/components/user-org-selector.md)。该目录随 npm tarball 发布，适合第三方项目直接阅读，无需依赖 `src` 或 `dist` 的构建布局。
+
+## 子项目开发规范
+
+使用本包进行二次开发、配置、扩展或升级的子项目，必须遵循包内的[模块使用与二次开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。该规范不要求子项目采用本包发布方的代码包名、源码目录或业务实现。
