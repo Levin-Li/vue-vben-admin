@@ -100,10 +100,15 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     {
+      key: 'containsName',
+      label: '规则名称',
+      form: false,
+      search: true,
+    },
+    {
       key: 'name',
       label: '规则名称',
       required: true,
-      search: true,
       table: true,
       width: 180,
     },

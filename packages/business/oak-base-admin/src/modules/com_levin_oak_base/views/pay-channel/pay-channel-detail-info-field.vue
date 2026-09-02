@@ -10,31 +10,34 @@ import {
   createPayChannelDetailInfo,
   getPayChannelPluginImplType,
   getPayChannelProviders,
-  type PayChannelPluginProvider,
+  normalizePayChannelDetailInfo,
+  reconcilePayChannelProviderSelection,
   type PayChannelServicePlugin,
 } from './pay-channel-provider';
 
 const props = defineProps<{
   formState: Record<string, any>;
+  mode?: 'detail' | 'provider';
 }>();
 
 const loading = ref(false);
 const loadError = ref('');
 const plugins = ref<PayChannelServicePlugin[]>([]);
+let pluginListPromise: null | Promise<PayChannelServicePlugin[]> = null;
+const fieldMode = computed(() => props.mode || 'detail');
 
 const providers = computed(() =>
   getPayChannelProviders(props.formState.currencyType, plugins.value),
 );
-const detailInfo = computed<Record<string, any>>(() => {
-  const value = props.formState.detailInfo;
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value;
-  }
-  return {};
-});
+const detailInfo = computed<Record<string, any>>(() =>
+  normalizePayChannelDetailInfo(props.formState.detailInfo),
+);
+const selectedProviderCode = computed(() =>
+  String(props.formState.providerCode || detailInfo.value.providerCode || '').trim(),
+);
 const selectedProvider = computed(() =>
   providers.value.find(
-    (item) => item.code === detailInfo.value.providerCode,
+    (item) => item.code === selectedProviderCode.value,
   ),
 );
 const providerOptions = computed(() =>
@@ -58,67 +61,73 @@ function updateDetailInfo(value: Record<string, any>) {
   props.formState.detailInfo = value;
 }
 
-function selectProvider(code?: string) {
+function selectProvider(value: unknown) {
+  const code =
+    typeof value === 'string'
+      ? value
+      : typeof value === 'number'
+        ? String(value)
+        : undefined;
   const provider = providers.value.find((item) => item.code === code);
   if (!provider) {
+    props.formState.providerCode = undefined;
     props.formState.detailInfo = {};
     return;
   }
 
   if (
-    detailInfo.value.providerCode === provider.code &&
+    selectedProviderCode.value === provider.code &&
     detailInfo.value['@JsonSchema'] === provider.configEditor
   ) {
+    props.formState.providerCode = provider.code;
     return;
   }
 
+  props.formState.providerCode = provider.code;
   props.formState.detailInfo = createPayChannelDetailInfo(provider);
 }
 
 function reconcileDetailInfo() {
-  if (!pluginConfigured.value) {
-    return;
-  }
-
-  const providerCode = detailInfo.value.providerCode;
-  const currentProvider = providers.value.find(
-    (item) => item.code === providerCode,
+  const nextState = reconcilePayChannelProviderSelection(
+    {
+      detailInfo: props.formState.detailInfo,
+      providerCode: props.formState.providerCode,
+    },
+    providers.value,
+    pluginConfigured.value,
   );
-  if (currentProvider) {
-    if (detailInfo.value['@JsonSchema'] !== currentProvider.configEditor) {
-      props.formState.detailInfo = {
-        ...detailInfo.value,
-        '@JsonSchema': currentProvider.configEditor,
-      };
-    }
-    return;
+  const nextProviderCode = String(nextState.providerCode || '').trim();
+
+  if (selectedProviderCode.value !== nextProviderCode) {
+    props.formState.providerCode = nextState.providerCode;
+  }
+  if (props.formState.detailInfo !== nextState.detailInfo) {
+    props.formState.detailInfo = nextState.detailInfo;
+  }
+}
+
+async function fetchPlugins() {
+  if (!pluginListPromise) {
+    pluginListPromise = servicePluginService
+      .list({
+        pageIndex: 1,
+        pageSize: 500,
+      })
+      .then((result) => getListItems<PayChannelServicePlugin>(result))
+      .catch((error) => {
+        pluginListPromise = null;
+        throw error;
+      });
   }
 
-  const legacyProvider = providers.value.find(
-    (item) => item.configEditor === detailInfo.value['@JsonSchema'],
-  );
-  if (legacyProvider) {
-    props.formState.detailInfo = {
-      ...detailInfo.value,
-      providerCode: legacyProvider.code,
-    };
-    return;
-  }
-
-  if (providerCode || detailInfo.value['@JsonSchema']) {
-    props.formState.detailInfo = {};
-  }
+  return pluginListPromise;
 }
 
 async function loadPlugins() {
   loading.value = true;
   loadError.value = '';
   try {
-    const result = await servicePluginService.list({
-      pageIndex: 1,
-      pageSize: 500,
-    });
-    plugins.value = getListItems<PayChannelServicePlugin>(result);
+    plugins.value = await fetchPlugins();
     reconcileDetailInfo();
   } catch (error) {
     console.error(error);
@@ -132,6 +141,10 @@ watch(
   () => props.formState.currencyType,
   () => reconcileDetailInfo(),
 );
+watch(
+  () => props.formState.providerCode,
+  () => reconcileDetailInfo(),
+);
 
 onMounted(() => {
   void loadPlugins();
@@ -141,12 +154,15 @@ onMounted(() => {
 <template>
   <div class="space-y-3">
     <Select
+      v-if="fieldMode === 'provider'"
       :disabled="!pluginConfigured || loading"
       :loading="loading"
       :options="providerOptions"
       :placeholder="pluginConfigured ? '请选择支付提供商' : '请先选择货币类型'"
-      :value="detailInfo.providerCode"
+      :value="selectedProviderCode || undefined"
+      allow-clear
       class="w-full"
+      show-search
       @update:value="selectProvider"
     />
     <Alert v-if="loadError" :message="loadError" show-icon type="error" />
@@ -157,13 +173,13 @@ onMounted(() => {
       type="warning"
     />
     <Alert
-      v-else-if="!selectedProvider"
+      v-else-if="fieldMode !== 'provider' && !selectedProvider"
       message="选择支付提供商后显示对应的配置参数"
       show-icon
       type="info"
     />
     <JsonSchemaEditorField
-      v-else
+      v-else-if="fieldMode !== 'provider' && selectedProvider"
       :model-value="detailInfo"
       :schema-source="selectedProvider.configEditor"
       title="通道详情"

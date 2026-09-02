@@ -68,14 +68,20 @@ export const domainPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     {
+      key: 'containsName',
+      label: '根域名',
+      form: false,
+      search: true,
+    },
+    {
       key: 'name',
       label: '根域名',
       disabledOnEdit: true,
       required: true,
-      search: true,
       table: true,
       width: 220,
     },
+    // 精确匹配例外：该字段由有限供应商选项选择，查询值必须等于选项编码对应的完整名称。
     {
       key: 'providerName',
       label: '域名供应商',

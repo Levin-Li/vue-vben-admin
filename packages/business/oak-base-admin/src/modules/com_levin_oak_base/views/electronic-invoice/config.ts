@@ -58,10 +58,15 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
         width: 180,
       },
       {
+        key: 'containsRequestNo',
+        label: '申请号',
+        form: false,
+        search: true,
+      },
+      {
         key: 'requestNo',
         label: '申请号',
         required: true,
-        search: true,
         table: true,
         width: 180,
       },

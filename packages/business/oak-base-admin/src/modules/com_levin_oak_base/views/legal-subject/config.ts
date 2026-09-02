@@ -113,9 +113,10 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       loadOptions: tenantOptionsLoader, remoteSearch: true, search: true, type: 'select', visibleForPlatformUser: true,
     },
     { key: 'id', label: '主体ID', fixed: 'left', form: false, search: true, table: true, width: 180 },
+    { key: 'containsSubjectName', label: '主体名称', form: false, search: true },
     {
       key: 'subjectName', label: '主体名称', layoutGroup: 'basic', layoutGroupTitle: '主体信息', layoutOrder: 10,
-      required: true, search: true, table: true, width: 220,
+      required: true, table: true, width: 220,
     },
     { key: 'shortName', label: '简称', layoutGroup: 'basic', layoutOrder: 20, search: true, table: true, width: 160 },
     {

@@ -325,6 +325,8 @@ export const currencyCodeOptionsLoader =
   buildModuleDictOptionsLoader('CurrencyCode');
 export const languageCodeOptionsLoader =
   buildModuleDictOptionsLoader('LanguageCode');
+export const payChannelCategoryOptionsLoader =
+  buildModuleDictOptionsLoader('PayChannel.category');
 export const payChannelTypeOptionsLoader =
   buildModuleDictOptionsLoader('PayChannel.type');
 export const payChannelAgentCodeOptionsLoader = buildModuleDictOptionsLoader(

@@ -2,6 +2,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { uiSettingService } from '../../api/ui-setting-service';
 import {
+  buildDictOptionsLoader,
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
@@ -12,13 +13,16 @@ export const GLOBAL_ORG_SELECTOR_SETTING_EDITOR =
   'class:com.levin.oak.base.biz.bo.component.UserOrgSelectorConfig';
 export const GLOBAL_ORG_SELECTOR_SETTING_TYPE = 'Json';
 
-const orgTypeOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.Partner$SubCategory',
+const orgCategoryOptionsLoader = buildDictOptionsLoader(
+  'com.levin.oak.base.entities.Org.category',
 );
+const orgTypeOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.Org$Type',
+);
+const userCategoryOptionsLoader = buildEnumOptionsLoader('com.levin.oak.base.entities.User$Category');
+const userTypeOptionsLoader = buildDictOptionsLoader('com.levin.oak.base.entities.User.type');
 
-function transformGlobalOrgSelectorSettingSubmit(
-  values: Record<string, any>,
-) {
+function transformGlobalOrgSelectorSettingSubmit(values: Record<string, any>) {
   return {
     ...values,
     code: GLOBAL_ORG_SELECTOR_SETTING_CODE,
@@ -88,6 +92,15 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     {
+      key: 'orgCategory',
+      label: '组织类别',
+      loadOptions: orgCategoryOptionsLoader,
+      search: true,
+      table: true,
+      type: 'select',
+      width: 140,
+    },
+    {
       key: 'orgType',
       label: '组织类型',
       loadOptions: orgTypeOptionsLoader,
@@ -96,11 +109,14 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
       type: 'select',
       width: 140,
     },
+    { key: 'userCategory', label: '用户类别', loadOptions: userCategoryOptionsLoader, search: true, table: true, type: 'select', width: 140 },
     {
       key: 'userType',
       label: '用户类型',
+      loadOptions: userTypeOptionsLoader,
       search: true,
       table: true,
+      type: 'select',
       width: 140,
     },
     {

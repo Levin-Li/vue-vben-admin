@@ -6,7 +6,7 @@ import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   payChannelAgentCodeOptionsLoader,
-  payChannelTypeOptionsLoader,
+  payChannelCategoryOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -95,18 +95,19 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
       width: 120,
     },
     {
-      key: 'inType',
-      label: '通道类型',
+      key: 'inCategory',
+      label: '类别',
       form: false,
-      loadOptions: payChannelTypeOptionsLoader,
+      loadOptions: payChannelCategoryOptionsLoader,
       multiple: true,
       search: true,
       type: 'select',
     },
     {
-      key: 'type',
-      label: '通道类型',
-      loadOptions: payChannelTypeOptionsLoader,
+      key: 'category',
+      label: '类别',
+      loadOptions: payChannelCategoryOptionsLoader,
+      required: true,
       table: true,
       type: 'select',
       width: 140,
@@ -155,6 +156,13 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     { key: 'rate', label: '通道费率', table: true, type: 'number', width: 120 },
     { key: 'merchantId', label: '商户编码', table: true, width: 160 },
     { key: 'merchantName', label: '商户名称', table: true, width: 160 },
+    {
+      key: 'providerCode',
+      label: '支付提供商',
+      required: true,
+      table: true,
+      width: 180,
+    },
     {
       key: 'payWayItemList',
       label: '支持支付方式',

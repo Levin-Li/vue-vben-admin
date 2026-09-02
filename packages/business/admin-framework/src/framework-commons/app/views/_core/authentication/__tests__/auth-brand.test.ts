@@ -104,6 +104,7 @@ describe('auth brand tenant site mapping', () => {
     expect(brand.copyright.value).toBe('Copyright © 2026 Levin · ICP备案号');
   });
 
+
   it('uses tenant site title and logo for the login name and logo', async () => {
     const brand = await loadBrand({
       siteInfo: {

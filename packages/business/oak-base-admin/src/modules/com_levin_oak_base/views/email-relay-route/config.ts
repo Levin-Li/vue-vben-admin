@@ -21,8 +21,11 @@ export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
     { key: '__tenant', label: '所属租户', fixed: 'left', form: false, table: true, type: 'tenant', visibleForPlatformUser: true, width: 160 },
     { key: 'id', label: '路由ID', fixed: 'left', form: false, table: true, width: 160 },
     { key: 'name', label: '路由名称', required: true, search: true, table: true, width: 180 },
-    { key: 'mailDomain', label: '邮件域名', required: true, search: true, table: true, width: 240 },
-    { key: 'localPart', label: '邮箱别名', required: true, search: true, table: true, width: 150 },
+    { key: 'containsMailDomain', label: '邮件域名', form: false, search: true },
+    { key: 'mailDomain', label: '邮件域名', required: true, table: true, width: 240 },
+    { key: 'containsLocalPart', label: '邮箱别名', form: false, search: true },
+    { key: 'localPart', label: '邮箱别名', required: true, table: true, width: 150 },
+    // 精确匹配例外：提供商为固定枚举选项，查询时按选中的完整编码过滤。
     {
       key: 'providerCode', label: '提供商', required: true, search: true, table: true, type: 'select', width: 210,
       options: [{ label: 'Forward Email', value: 'forward-email' }],

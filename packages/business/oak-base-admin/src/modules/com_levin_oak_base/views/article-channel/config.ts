@@ -84,10 +84,15 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     {
+      key: 'containsName',
+      label: '名称',
+      form: false,
+      search: true,
+    },
+    {
       key: 'name',
       label: '名称',
       required: true,
-      search: true,
       table: true,
       width: 180,
     },

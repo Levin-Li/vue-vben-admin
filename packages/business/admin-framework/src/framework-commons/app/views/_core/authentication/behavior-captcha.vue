@@ -7,10 +7,8 @@ import { Spin } from 'ant-design-vue';
 
 import {
   encodeBehaviorCaptchaResult,
-  getBehaviorCaptchaInstruction,
   isObstacleAvoidancePayload,
   type BehaviorCaptchaChallenge,
-  type BehaviorCaptchaObstacle,
   type BehaviorCaptchaPathPayload,
   type BehaviorCaptchaPoint,
 } from './behavior-captcha';
@@ -78,9 +76,7 @@ const config = computed(() => {
     showTheme: true,
     thumbHeight: 40,
     thumbWidth: 150,
-    title:
-      props.challenge?.prompt
-      || getBehaviorCaptchaInstruction(props.challenge?.mode),
+    title: '',
     verticalPadding: 10,
     width: Number(payload.width) || 427,
   };
@@ -160,23 +156,6 @@ const startMarkerStyle = computed(() => {
   return payload ? markerStyle(payload.start, payload.ballRadius + 6) : {};
 });
 
-const targetMarkerStyle = computed(() => {
-  const payload = pathPayload.value;
-  return payload ? markerStyle(payload.end, payload.targetRadius + 8) : {};
-});
-
-function obstacleStyle(obstacle: BehaviorCaptchaObstacle) {
-  return {
-    fontFamily: obstacle.fontFamily,
-    fontSize: `${obstacle.fontSize}px`,
-    height: `${obstacle.height}px`,
-    left: `${obstacle.x}px`,
-    lineHeight: `${obstacle.height}px`,
-    top: `${obstacle.y}px`,
-    transform: `rotate(${obstacle.rotate}deg)`,
-    width: `${obstacle.width}px`,
-  } as Record<string, string | undefined>;
-}
 
 function begin() {
   startedAt.value ||= Date.now();
@@ -361,10 +340,6 @@ function onPathPointerMove(event: PointerEvent) {
   appendPathOperation('move', point);
 }
 
-function isNearTarget(point: BehaviorCaptchaPoint, payload: BehaviorCaptchaPathPayload) {
-  return Math.hypot(point.x - payload.end.x, point.y - payload.end.y) <= payload.targetRadius;
-}
-
 function submitPathTrack() {
   const payload = pathPayload.value;
   if (!payload) {
@@ -375,7 +350,6 @@ function submitPathTrack() {
     return false;
   }
   return submitAnswer({
-    end: payload.end,
     path: points,
     start: payload.start,
   });
@@ -391,7 +365,7 @@ function finishPathDrag(event: PointerEvent, type: 'cancel' | 'up') {
   clearPathListeners();
   activePointerId.value = null;
   dragging.value = false;
-  if (type === 'up' && isNearTarget(point, payload)) {
+  if (type === 'up') {
     submitPathTrack();
     return;
   }
@@ -452,9 +426,6 @@ onBeforeUnmount(() => {
             <p class="text-sm font-medium text-foreground">
               {{ challenge.title || '障碍躲避' }}
             </p>
-            <p class="text-xs leading-5 text-muted-foreground">
-              {{ challenge.prompt || getBehaviorCaptchaInstruction(challenge.mode) }}
-            </p>
           </div>
           <button
             class="behavior-captcha-path-refresh inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
@@ -498,29 +469,12 @@ onBeforeUnmount(() => {
               <span>起</span>
             </div>
 
-            <div
-              class="behavior-captcha-marker behavior-captcha-target-marker"
-              data-test="behavior-captcha-path-target"
-              :style="targetMarkerStyle"
-            >
-              <span>终</span>
-            </div>
-
-            <span
-              v-for="(obstacle, index) in pathPayload.obstacles"
-              :key="`${index}-${obstacle.glyph}-${obstacle.x}-${obstacle.y}`"
-              class="behavior-captcha-obstacle"
-              data-test="behavior-captcha-path-obstacle"
-              :style="obstacleStyle(obstacle)"
-            >
-              {{ obstacle.glyph }}
-            </span>
 
             <button
               class="behavior-captcha-ball"
               data-test="behavior-captcha-path-ball"
               type="button"
-              :aria-label="challenge.prompt || '拖动白球绕开障碍'"
+              aria-label="行为验证拖动球"
               :disabled="loading || submitted"
               :style="ballStyle"
               @pointerdown="startPathDrag"
@@ -528,11 +482,11 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="rounded-xl bg-muted/70 px-4 py-3 text-center text-sm text-muted-foreground">
-          按住白球拖动，轨迹不可碰撞障碍，松开时需落在终点标记内。
+          按住白球拖动，轨迹不可碰撞障碍，到达 [{{ pathPayload.targetIcon }}] 终点松开。
         </div>
       </div>
       <GoCaptchaClick
-        v-if="challenge && !isSlide && !isPath && data.image && data.thumb"
+        v-if="challenge && !isSlide && !isPath && data.image && (data.thumb || challenge.mode === 'IDIOM_CLICK')"
         :config="config"
         :data="data"
         :events="events"
@@ -573,7 +527,7 @@ onBeforeUnmount(() => {
 }
 
 :deep(.behavior-captcha-card[data-test='captcha-mode-CLICK'] .go-captcha .gc-header img),
-:deep(.behavior-captcha-card[data-test='captcha-mode-IDIOM_CLICK'] .go-captcha .gc-header img) {
+:deep(.behavior-captcha-card[data-test='captcha-mode-CLICK'] .go-captcha .gc-header img) {
   flex: 0 0 auto;
   max-height: 56px;
 }
@@ -668,24 +622,6 @@ onBeforeUnmount(() => {
 
 .behavior-captcha-start-marker span {
   color: hsl(var(--primary));
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.behavior-captcha-target-marker {
-  background:
-    radial-gradient(circle, hsl(var(--background)) 30%, transparent 31%),
-    hsl(var(--success) / 0.24);
-  border: 2px dashed hsl(var(--success));
-  box-shadow: 0 0 0 6px hsl(var(--background) / 0.16);
-  color: hsl(var(--success));
-}
-
-.behavior-captcha-target-marker::after {
-  content: '目标';
-}
-
-.behavior-captcha-target-marker span {
   font-size: 14px;
   font-weight: 700;
 }

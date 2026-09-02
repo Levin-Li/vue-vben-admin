@@ -83,7 +83,8 @@ export const electronicContractPageCrudConfig: CrudPageConfig =
         visibleForPlatformUser: true,
       },
       { key: 'id', label: '合同ID', form: false, search: true, table: true, width: 180 },
-      { key: 'contractNo', label: '合同号', required: true, search: true, table: true, width: 180 },
+      { key: 'containsContractNo', label: '合同号', form: false, search: true },
+      { key: 'contractNo', label: '合同号', required: true, table: true, width: 180 },
       { key: 'requestNo', label: '合同申请号', form: false, table: true, width: 180 },
       { key: 'title', label: '合同标题', required: true, search: true, table: true, width: 220 },
       {

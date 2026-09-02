@@ -2,13 +2,23 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { uiSettingService } from '../../api/ui-setting-service';
 import {
+  buildDictOptionsLoader,
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
 } from '../api-module';
 
+const orgCategoryOptionsLoader = buildDictOptionsLoader(
+  'com.levin.oak.base.entities.Org.category',
+);
 const orgTypeOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.Partner$SubCategory',
+  'com.levin.oak.base.entities.Org$Type',
+);
+const userCategoryOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.User$Category',
+);
+const userTypeOptionsLoader = buildDictOptionsLoader(
+  'com.levin.oak.base.entities.User.type',
 );
 
 function transformUiSettingSubmit(
@@ -70,6 +80,14 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
     { key: 'code', label: '设置项编码', form: false, search: true },
     { key: 'domain', label: '域名', form: false, search: true },
     {
+      key: 'orgCategory',
+      label: '组织类别',
+      form: false,
+      loadOptions: orgCategoryOptionsLoader,
+      search: true,
+      type: 'select',
+    },
+    {
       key: 'orgType',
       label: '组织类型',
       form: false,
@@ -77,7 +95,8 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'select',
     },
-    { key: 'userType', label: '用户类型', form: false, search: true },
+    { key: 'userCategory', label: '用户类别', form: false, loadOptions: userCategoryOptionsLoader, search: true, type: 'select' },
+    { key: 'userType', label: '用户类型', form: false, loadOptions: userTypeOptionsLoader, search: true, type: 'select' },
     { key: 'name', label: '名称', required: true, table: true, width: 180 },
     {
       key: 'code',
@@ -89,6 +108,14 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
     { key: 'type', label: '设置项类型', table: true, width: 140 },
     { key: 'domain', label: '域名', table: true, width: 180 },
     {
+      key: 'orgCategory',
+      label: '组织类别',
+      loadOptions: orgCategoryOptionsLoader,
+      table: true,
+      type: 'select',
+      width: 140,
+    },
+    {
       key: 'orgType',
       label: '组织类型',
       loadOptions: orgTypeOptionsLoader,
@@ -96,7 +123,8 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       type: 'select',
       width: 140,
     },
-    { key: 'userType', label: '用户类型', table: true, width: 140 },
+    { key: 'userCategory', label: '用户类别', loadOptions: userCategoryOptionsLoader, table: true, type: 'select', width: 140 },
+    { key: 'userType', label: '用户类型', loadOptions: userTypeOptionsLoader, table: true, type: 'select', width: 140 },
     {
       key: 'editor',
       label: '值编辑器',

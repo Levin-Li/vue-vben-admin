@@ -15,25 +15,7 @@ const MODE_ALIASES: Record<string, BehaviorCaptchaMode> = {
   SLIDE: 'SLIDE',
 };
 
-const MODE_INSTRUCTIONS: Record<BehaviorCaptchaMode, string> = {
-  CLICK: '请按缩略图中的顺序完成点选。',
-  IDIOM_CLICK: '请按成语顺序点击四个字。',
-  OBSTACLE_AVOIDANCE: '拖动白球绕开障碍，沿轨迹抵达终点。',
-  SLIDE: '请拖动滑块，使图块对齐缺口。',
-};
-
 export interface BehaviorCaptchaPoint {
-  x: number;
-  y: number;
-}
-
-export interface BehaviorCaptchaObstacle {
-  fontFamily?: string;
-  fontSize: number;
-  glyph: string;
-  height: number;
-  rotate: number;
-  width: number;
   x: number;
   y: number;
 }
@@ -57,12 +39,10 @@ export interface BehaviorCaptchaClickPayload extends BehaviorCaptchaBasePayload 
 export interface BehaviorCaptchaPathPayload extends BehaviorCaptchaBasePayload {
   backgroundId?: string;
   ballRadius: number;
-  end: BehaviorCaptchaPoint;
   image: string;
   kind: 'path';
-  obstacles: BehaviorCaptchaObstacle[];
   start: BehaviorCaptchaPoint;
-  targetRadius: number;
+  targetIcon: string;
 }
 
 export interface BehaviorCaptchaChallenge {
@@ -129,32 +109,6 @@ function normalizePoint(value: unknown, fallbackX = 0, fallbackY = 0): BehaviorC
   };
 }
 
-function normalizeObstacle(value: unknown) {
-  const source = asRecord(value);
-  const glyph = String(
-    source.glyph ?? source.text ?? source.label ?? source.icon ?? source.value ?? source.char ?? '',
-  ).trim();
-  if (!glyph) {
-    return null;
-  }
-  const width = Math.max(12, toNumber(source.width, 0));
-  const height = Math.max(12, toNumber(source.height, 0));
-  return {
-    fontFamily: String(source.fontFamily || source.font || '').trim() || undefined,
-    fontSize: Math.max(18, toNumber(source.fontSize ?? source.size ?? source.fontPx, Math.max(width, height))),
-    glyph,
-    height,
-    rotate: toNumber(source.rotate ?? source.rotation ?? source.angle, 0),
-    width,
-    x: toNumber(source.x ?? source.left, 0),
-    y: toNumber(source.y ?? source.top, 0),
-  } satisfies BehaviorCaptchaObstacle;
-}
-
-export function getBehaviorCaptchaInstruction(mode?: BehaviorCaptchaMode | null) {
-  return mode ? MODE_INSTRUCTIONS[mode] : '请完成当前行为验证。';
-}
-
 export function isSupportedBehaviorCaptchaMode(value: unknown) {
   return Boolean(canonicalMode(value));
 }
@@ -165,9 +119,7 @@ export function isObstacleAvoidancePayload(
   const source = asRecord(payload);
   return (
     source.kind === 'path'
-    && Array.isArray(source.obstacles)
     && typeof source.start === 'object'
-    && typeof source.end === 'object'
   );
 }
 
@@ -186,51 +138,26 @@ function normalizeChallengePayload(
 
   if (mode === 'OBSTACLE_AVOIDANCE') {
     const start = normalizePoint(puzzle.start ?? puzzle.origin, 28, height - 32);
-    const end = normalizePoint(
-      puzzle.end ?? puzzle.goal ?? puzzle.target,
-      Math.max(width - 36, 36),
-      32,
-    );
-    const obstacles = asArray(puzzle.obstacles).reduce<BehaviorCaptchaObstacle[]>(
-      (result, item) => {
-        const obstacle = normalizeObstacle(item);
-        if (obstacle) {
-          result.push(obstacle);
-        }
-        return result;
-      },
-      [],
-    );
-
-    if (!obstacles.length) {
+    const image = imageData(puzzle.image || puzzle.masterImage || puzzle.backgroundImage || puzzle.sceneImage);
+    if (!image) {
       return null;
     }
 
     return {
       backgroundId: String(puzzle.backgroundId || puzzle.sceneId || '').trim() || undefined,
-      ballRadius: Math.max(10, toNumber(puzzle.ballRadius ?? puzzle.radius, 14)),
-      end,
+      ballRadius: Math.max(6, toNumber(puzzle.ballRadius ?? puzzle.radius, 8)),
       height,
-      image: imageData(
-        puzzle.image
-          || puzzle.masterImage
-          || puzzle.backgroundImage
-          || puzzle.sceneImage,
-      ),
+      image,
       kind: 'path',
-      obstacles,
       start,
-      targetRadius: Math.max(
-        12,
-        toNumber(puzzle.targetRadius ?? puzzle.endRadius ?? puzzle.tolerance, 18),
-      ),
+      targetIcon: String(puzzle.endIcon || '★'),
       width,
     };
   }
 
   const image = imageData(puzzle.image || puzzle.masterImage);
   const thumb = imageData(puzzle.thumb || puzzle.thumbImage);
-  if (!image || !thumb) {
+  if (!image || (mode !== 'IDIOM_CLICK' && !thumb)) {
     return null;
   }
 
@@ -238,7 +165,7 @@ function normalizeChallengePayload(
     height,
     image,
     requiredClicks: Math.max(1, toNumber(puzzle.requiredClicks, 4)),
-    thumb,
+    thumb: mode === 'IDIOM_CLICK' ? '' : thumb,
     thumbHeight: Math.max(24, toNumber(puzzle.thumbHeight, 72)),
     thumbWidth: Math.max(24, toNumber(puzzle.thumbWidth, 72)),
     thumbX: toNumber(puzzle.thumbX, 0),
@@ -270,9 +197,7 @@ export function normalizeBehaviorCaptchaChallenge(input: unknown) {
     challengeId,
     mode,
     payload,
-    prompt:
-      String(source.prompt || source.instruction || source.friendlyMessage || '').trim()
-      || getBehaviorCaptchaInstruction(mode),
+    prompt: String(source.prompt || source.instruction || source.friendlyMessage || '').trim(),
     title: String(source.title || source.label || '').trim() || undefined,
   } satisfies BehaviorCaptchaChallenge;
 }

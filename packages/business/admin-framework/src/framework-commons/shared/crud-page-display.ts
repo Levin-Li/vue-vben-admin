@@ -61,6 +61,21 @@ export function resolvePageDisplaySettingCode(
   return routePath?.trim() || fallbackCode?.trim() || 'crud-page';
 }
 
+export function resolvePageDisplayContextKey(
+  userInfo: Record<string, any> | undefined,
+  hostname: string | undefined,
+) {
+  const source = userInfo || {};
+  return [
+    source.tenantId || '',
+    hostname || '',
+    source.type || source.userType || '',
+    source.category || source.userCategory || '',
+    source.orgCategory || source.orgId || '',
+    source.orgType || source.org?.type || '',
+  ].join(':');
+}
+
 export function resolveQueryCollapsedFieldCount(
   fieldCount: number,
   columnCount: number,

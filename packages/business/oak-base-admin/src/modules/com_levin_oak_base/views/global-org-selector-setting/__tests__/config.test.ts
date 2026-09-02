@@ -6,6 +6,7 @@ vi.mock('../../../api/ui-setting-service', () => ({
 
 vi.mock('../../api-module', () => ({
   DEFAULT_CRUD_MODAL_WIDTH: 960,
+  buildDictOptionsLoader: () => async () => [],
   buildEnumOptionsLoader: () => async () => [],
   tenantOptionsLoader: async () => [],
 }));
@@ -24,11 +25,10 @@ describe('global org selector setting config', () => {
       code: GLOBAL_ORG_SELECTOR_SETTING_CODE,
     });
 
-    const payload =
-      globalOrgSelectorSettingPageCrudConfig.transformSubmit?.(
-        { name: '租户经销商组织选择器', valueContent: { orgTypes: ['Dealer'] } },
-        null,
-      );
+    const payload = globalOrgSelectorSettingPageCrudConfig.transformSubmit?.(
+      { name: '租户经销商组织选择器', valueContent: { orgTypes: ['Dealer'] } },
+      null,
+    );
 
     expect(payload).toMatchObject({
       code: GLOBAL_ORG_SELECTOR_SETTING_CODE,
@@ -42,7 +42,7 @@ describe('global org selector setting config', () => {
   it('keeps UiSetting context dimensions editable while hiding technical fields', () => {
     const fields = globalOrgSelectorSettingPageCrudConfig.fields;
 
-    ['tenantId', 'domain', 'orgType', 'userType'].forEach((key) => {
+    ['tenantId', 'domain', 'orgCategory', 'orgType', 'userCategory', 'userType'].forEach((key) => {
       expect(fields.find((field) => field.key === key)?.form).not.toBe(false);
     });
 

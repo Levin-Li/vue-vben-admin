@@ -112,7 +112,8 @@ export const addressPageCrudConfig: CrudPageConfig = {
       table: true,
       width: 120,
     },
-    { key: 'postalCode', label: '邮编', search: true, table: true, width: 120 },
+    { key: 'containsPostalCode', label: '邮编', form: false, search: true },
+    { key: 'postalCode', label: '邮编', table: true, width: 120 },
     {
       key: 'gteCreateTime',
       label: '创建时间开始',

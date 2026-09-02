@@ -12,10 +12,12 @@ import {
 const userTypeOptionsLoader = buildDictOptionsLoader(
   'com.levin.oak.base.entities.User.type',
 );
-
 const orgTypeOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.Partner$SubCategory',
+  'com.levin.oak.base.entities.Org$Type',
 );
+
+const orgCategoryOptionsLoader = buildDictOptionsLoader('com.levin.oak.base.entities.Org.category');
+const userCategoryOptionsLoader = buildEnumOptionsLoader('com.levin.oak.base.entities.User$Category');
 
 export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantCustomMenu',
@@ -82,15 +84,26 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
       width: 150,
     },
     {
+      key: 'orgCategory',
+      label: '组织类别',
+      help: '留空表示匹配任意组织类别',
+      loadOptions: orgCategoryOptionsLoader,
+      search: true,
+      table: true,
+      type: 'select',
+      width: 150,
+    },
+    {
       key: 'orgType',
       label: '组织类型',
-      help: '留空表示匹配任意合作伙伴类型',
+      help: '留空表示匹配任意组织类型',
       loadOptions: orgTypeOptionsLoader,
       search: true,
       table: true,
       type: 'select',
       width: 150,
     },
+    { key: 'userCategory', label: '用户类别', help: '留空表示匹配任意用户类别', loadOptions: userCategoryOptionsLoader, search: true, table: true, type: 'select', width: 150 },
     { key: 'itemList', form: false, label: '菜单列表', type: 'json' },
     {
       key: 'orderCode',

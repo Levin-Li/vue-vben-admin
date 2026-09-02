@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import { Button, message, Modal, Select } from 'ant-design-vue';
+import { Alert, Button, message, Modal, Select } from 'ant-design-vue';
 
 import { servicePluginService } from '../../api/service-plugin-service';
 import { servicePluginSettingService } from '../../api/service-plugin-setting-service';
@@ -17,8 +17,11 @@ interface ServicePluginProvider {
 }
 
 interface ServicePluginRecord {
+  enable?: boolean;
+  groupName?: string;
   id: string;
   name?: string;
+  pluginTypeName?: string;
   providerList?: ServicePluginProvider[];
 }
 
@@ -43,11 +46,37 @@ const providerConfigFormState = reactive<Record<string, any>>({
 });
 const reloadSettings = ref<undefined | (() => Promise<void> | void)>();
 
+function normalizeText(value: unknown) {
+  return String(value ?? '').trim();
+}
+
+function isOauthPlugin(plugin?: ServicePluginRecord) {
+  const pluginTypeName = normalizeText(plugin?.pluginTypeName);
+  const groupName = normalizeText(plugin?.groupName);
+  const name = normalizeText(plugin?.name);
+
+  return (
+    pluginTypeName === '第三方登录' ||
+    groupName.includes('OAuth') ||
+    /oauth/i.test(name)
+  );
+}
+
+function getPluginOptionLabel(plugin: ServicePluginRecord) {
+  const name = normalizeText(plugin.name) || plugin.id;
+  const pluginTypeName = normalizeText(plugin.pluginTypeName);
+
+  return pluginTypeName ? `${name}（${pluginTypeName}）` : name;
+}
+
 const pluginOptions = computed(() =>
   plugins.value.map((plugin) => ({
-    label: plugin.name || plugin.id,
+    label: getPluginOptionLabel(plugin),
     value: plugin.id,
   })),
+);
+const hasOauthPlugin = computed(() =>
+  plugins.value.some((plugin) => plugin.enable !== false && isOauthPlugin(plugin)),
 );
 
 function getListItems<T>(result: any): T[] {
@@ -113,12 +142,23 @@ const editingProvider = computed(() => {
     (provider) => provider.code === record.servicePluginProviderCode,
   );
 });
+const editingOauthProvider = computed(() => {
+  const record = editingSetting.value;
+  return record ? isOauthPlugin(getPlugin(record)) : false;
+});
 
 const providerConfigTitle = computed(() => {
   const record = editingSetting.value;
   return record
     ? `配置编辑 - ${getPluginName(record)} / ${getProviderName(record)}`
     : '配置编辑';
+});
+const providerConfigHelpText = computed(() => {
+  const providerCode = normalizeText(editingSetting.value?.servicePluginProviderCode);
+
+  return providerCode
+    ? `当前保存会写入同一条服务插件设置的 value.${providerCode}，不会覆盖其它供应商配置。`
+    : '当前保存只会更新所选供应商配置。';
 });
 
 function cloneJsonValue(value: any): Record<string, any> {
@@ -219,92 +259,103 @@ onMounted(() => {
 </script>
 
 <template>
-  <CrudPage :config="servicePluginSettingPageCrudConfig">
-    <template #search-field-servicePluginId="{ searchState }">
-      <Select
-        :loading="pluginsLoading"
-        :options="pluginOptions"
-        :value="searchState.servicePluginId"
-        allow-clear
-        class="w-full"
-        placeholder="请选择服务插件"
-        show-search
-        @update:value="
-          handlePluginChange(
-            searchState,
-            typeof $event === 'string' ? $event : undefined,
-          )
-        "
-      />
-    </template>
+  <div class="service-plugin-setting-page">
+    <Alert
+      v-if="hasOauthPlugin"
+      class="mb-4"
+      description="同一条 OAuth 服务插件设置可以同时保存多个供应商配置。列表中的“供应商”列只决定当前快捷编辑的配置键；迁移期请在这里维护凭据，历史 oauth_platform_* 旧系统设置已在“系统设置”页面隐藏。"
+      message="OAuth 多供应商配置说明"
+      show-icon
+      type="info"
+    />
 
-    <template #form-field-servicePluginId="{ editingRecord, formState }">
-      <Select
-        :disabled="Boolean(editingRecord?.id)"
-        :loading="pluginsLoading"
-        :options="pluginOptions"
-        :value="formState.servicePluginId"
-        allow-clear
-        class="w-full"
-        placeholder="请选择服务插件"
-        show-search
-        @update:value="
-          handlePluginChange(
-            formState,
-            typeof $event === 'string' ? $event : undefined,
-          )
-        "
-      />
-    </template>
+    <CrudPage :config="servicePluginSettingPageCrudConfig">
+      <template #search-field-servicePluginId="{ searchState }">
+        <Select
+          :loading="pluginsLoading"
+          :options="pluginOptions"
+          :value="searchState.servicePluginId"
+          allow-clear
+          class="w-full"
+          placeholder="请选择服务插件"
+          show-search
+          @update:value="
+            handlePluginChange(
+              searchState,
+              typeof $event === 'string' ? $event : undefined,
+            )
+          "
+        />
+      </template>
 
-    <template #search-field-servicePluginProviderCode="{ searchState }">
-      <Select
-        :disabled="!searchState.servicePluginId"
-        :options="getProviderOptions(searchState)"
-        :value="searchState.servicePluginProviderCode"
-        allow-clear
-        class="w-full"
-        placeholder="请先选择服务插件"
-        show-search
-        @update:value="searchState.servicePluginProviderCode = $event"
-      />
-    </template>
+      <template #form-field-servicePluginId="{ editingRecord, formState }">
+        <Select
+          :disabled="Boolean(editingRecord?.id)"
+          :loading="pluginsLoading"
+          :options="pluginOptions"
+          :value="formState.servicePluginId"
+          allow-clear
+          class="w-full"
+          placeholder="请选择服务插件"
+          show-search
+          @update:value="
+            handlePluginChange(
+              formState,
+              typeof $event === 'string' ? $event : undefined,
+            )
+          "
+        />
+      </template>
 
-    <template #form-field-servicePluginProviderCode="{ formState }">
-      <Select
-        :disabled="!formState.servicePluginId"
-        :options="getProviderOptions(formState)"
-        :value="formState.servicePluginProviderCode"
-        allow-clear
-        class="w-full"
-        placeholder="请先选择服务插件"
-        show-search
-        @update:value="formState.servicePluginProviderCode = $event"
-      />
-    </template>
+      <template #search-field-servicePluginProviderCode="{ searchState }">
+        <Select
+          :disabled="!searchState.servicePluginId"
+          :options="getProviderOptions(searchState)"
+          :value="searchState.servicePluginProviderCode"
+          allow-clear
+          class="w-full"
+          placeholder="请先选择服务插件"
+          show-search
+          @update:value="searchState.servicePluginProviderCode = $event"
+        />
+      </template>
 
-    <template #table-cell-servicePluginId="{ record }">
-      {{ getPluginName(record) }}
-    </template>
+      <template #form-field-servicePluginProviderCode="{ formState }">
+        <Select
+          :disabled="!formState.servicePluginId"
+          :options="getProviderOptions(formState)"
+          :value="formState.servicePluginProviderCode"
+          allow-clear
+          class="w-full"
+          placeholder="请先选择服务插件"
+          show-search
+          @update:value="formState.servicePluginProviderCode = $event"
+        />
+      </template>
 
-    <template #table-cell-servicePluginProviderCode="{ record }">
-      {{ getProviderName(record) }}
-    </template>
+      <template #table-cell-servicePluginId="{ record }">
+        {{ getPluginName(record) }}
+      </template>
 
-    <template #row-actions="{ record, reload }">
-      <Button
-        :disabled="
-          !record.servicePluginProviderCode ||
-          !isSelectedProviderEnabled(record)
-        "
-        size="small"
-        type="link"
-        @click="openProviderConfig(record, reload)"
-      >
-        配置编辑
-      </Button>
-    </template>
-  </CrudPage>
+      <template #table-cell-servicePluginProviderCode="{ record }">
+        {{ getProviderName(record) }}
+      </template>
+
+      <template #row-actions="{ record, reload }">
+        <Button
+          :disabled="
+            !record.servicePluginProviderCode ||
+            !isSelectedProviderEnabled(record)
+          "
+          size="small"
+          type="link"
+          @click="openProviderConfig(record, reload)"
+        >
+          编辑当前供应商配置
+        </Button>
+      </template>
+    </CrudPage>
+  </div>
 
   <Modal
     v-model:open="providerConfigOpen"
@@ -316,6 +367,14 @@ onMounted(() => {
     width="min(80vw, 1120px)"
     @ok="saveProviderConfig"
   >
+    <Alert
+      v-if="editingOauthProvider"
+      class="mb-4"
+      :description="providerConfigHelpText"
+      message="OAuth 当前供应商配置说明"
+      show-icon
+      type="info"
+    />
     <SettingValueContentField
       :key="`${editingSetting?.id}:${editingSetting?.servicePluginProviderCode}`"
       inline

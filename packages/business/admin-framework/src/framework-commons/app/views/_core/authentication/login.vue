@@ -34,7 +34,6 @@ import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store
 import { useAuthBrand } from './auth-brand';
 import BehaviorCaptcha from './behavior-captcha.vue';
 import {
-  getBehaviorCaptchaInstruction,
   isSupportedBehaviorCaptchaMode,
   normalizeBehaviorCaptchaChallenge,
   type BehaviorCaptchaChallenge,
@@ -173,10 +172,6 @@ const isPasswordHmiMode = computed(
 const isPasswordInteractiveVerifyMode = computed(
   () => isPasswordCaptchaMode.value || isPasswordHmiMode.value,
 );
-const passwordBehaviorInstruction = computed(() =>
-  getBehaviorCaptchaInstruction(hmiCaptchaChallenge.value?.mode),
-);
-
 const resolvedVerifyCodeType = computed(() =>
   isContactTab.value
     ? resolveContactVerifyCodeType(normalizeAccount())
@@ -1535,7 +1530,7 @@ onBeforeUnmount(() => {
             isPasswordMfaMode
               ? '请使用 Microsoft Authenticator 或其他兼容 TOTP 的认证器，输入当前显示的 6 位 MFA 验证码。'
               : isPasswordHmiMode
-                ? `${passwordBehaviorInstruction} 验证通过后将自动登录。`
+                ? '验证通过后将自动登录。'
                 : '请输入图片中的验证码以完成登录。'
           "
           show-icon

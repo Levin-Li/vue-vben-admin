@@ -131,9 +131,14 @@ export const articlePageCrudConfig: CrudPageConfig = {
       width: 140,
     },
     {
+      key: 'containsSource',
+      label: '转载来源',
+      form: false,
+      search: true,
+    },
+    {
       key: 'source',
       label: '转载来源',
-      search: true,
       table: true,
       width: 160,
     },

@@ -7,6 +7,9 @@ import PayWayItemListManager from './pay-way-item-list-manager.vue';
 
 <template>
   <CrudPage :config="payChannelPageCrudConfig">
+    <template #form-field-providerCode="{ formState }">
+      <PayChannelDetailInfoField :form-state="formState" mode="provider" />
+    </template>
     <template #form-field-payWayItemList="{ formState }">
       <PayWayItemListManager
         :items="formState.payWayItemList"
@@ -14,7 +17,7 @@ import PayWayItemListManager from './pay-way-item-list-manager.vue';
       />
     </template>
     <template #form-field-detailInfo="{ formState }">
-      <PayChannelDetailInfoField :form-state="formState" />
+      <PayChannelDetailInfoField :form-state="formState" mode="detail" />
     </template>
   </CrudPage>
 </template>

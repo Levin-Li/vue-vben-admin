@@ -21,6 +21,34 @@ describe('uiSettingPageCrudConfig', () => {
     expect(uiSettingPageCrudConfig.apiService).toBeDefined();
   });
 
+  it('uses distinct organization-category and organization-type options for the matching scope', () => {
+    expect(
+      uiSettingPageCrudConfig.fields.find(
+        (field) => field.key === 'orgCategory',
+      ),
+    ).toMatchObject({
+      label: '组织类别',
+      type: 'select',
+    });
+    expect(
+      uiSettingPageCrudConfig.fields.find((field) => field.key === 'orgType'),
+    ).toMatchObject({
+      label: '组织类型',
+      type: 'select',
+    });
+  });
+
+  it('exposes all four matching-scope audience fields in search and table configs', () => {
+    for (const key of ['orgCategory', 'orgType', 'userCategory', 'userType']) {
+      expect(
+        uiSettingPageCrudConfig.fields.find((field) => field.key === key),
+      ).toMatchObject({
+        search: true,
+        type: 'select',
+      });
+    }
+  });
+
   it('keeps new UI settings editable when the hidden editable field is omitted', () => {
     expect(uiSettingPageCrudConfig.transformSubmit?.(
       { code: '全局组织选择器' },

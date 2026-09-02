@@ -48,6 +48,7 @@ describe('site info form fields', () => {
     });
   });
 
+
   it('enables generated request force-update mode only for an edit', () => {
     expect(
       transformSiteInfoSubmit(

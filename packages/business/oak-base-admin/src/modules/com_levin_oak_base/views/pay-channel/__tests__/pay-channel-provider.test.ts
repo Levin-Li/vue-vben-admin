@@ -4,6 +4,7 @@ import {
   createPayChannelDetailInfo,
   getPayChannelPluginImplType,
   getPayChannelProviders,
+  reconcilePayChannelProviderSelection,
 } from '../pay-channel-provider';
 
 const plugins = [
@@ -45,7 +46,66 @@ describe('支付通道供应商目录', () => {
       }),
     ).toEqual({
       '@JsonSchema': 'class:com.example.Alipay',
-      providerCode: 'Alipay',
+    });
+  });
+
+  it('会把旧详情里的供应商信息回填到显式 providerCode 字段', () => {
+    expect(
+      reconcilePayChannelProviderSelection(
+        {
+          detailInfo: {
+            '@JsonSchema': 'class:com.example.NowPayments',
+            callbackSecretRef: 'PAY_CALLBACK_SECRET',
+          },
+        },
+        getPayChannelProviders('BLOCK_CHAIN_TOKEN_COIN', plugins),
+        true,
+      ),
+    ).toEqual({
+      detailInfo: {
+        '@JsonSchema': 'class:com.example.NowPayments',
+        callbackSecretRef: 'PAY_CALLBACK_SECRET',
+      },
+      providerCode: 'NowPayments',
+    });
+  });
+
+  it('切换到不兼容的供应商或货币类型时会清空旧配置', () => {
+    expect(
+      reconcilePayChannelProviderSelection(
+        {
+          detailInfo: {
+            '@JsonSchema': 'class:com.example.Alipay',
+            appId: 'legacy-app-id',
+            providerCode: 'Alipay',
+          },
+          providerCode: 'NowPayments',
+        },
+        getPayChannelProviders('BLOCK_CHAIN_TOKEN_COIN', plugins),
+        true,
+      ),
+    ).toEqual({
+      detailInfo: {
+        '@JsonSchema': 'class:com.example.NowPayments',
+      },
+      providerCode: 'NowPayments',
+    });
+
+    expect(
+      reconcilePayChannelProviderSelection(
+        {
+          detailInfo: {
+            '@JsonSchema': 'class:com.example.Alipay',
+            providerCode: 'Alipay',
+          },
+          providerCode: 'Alipay',
+        },
+        [],
+        false,
+      ),
+    ).toEqual({
+      detailInfo: {},
+      providerCode: undefined,
     });
   });
 });

@@ -110,6 +110,7 @@ import {
   shouldReloadDataListAfterAction,
 } from './crud-action-model';
 import { buildCrudConfirmConfig } from './crud-confirm';
+import { resolvePageDisplayContextKey } from './crud-page-display';
 import CrudExportPanel from './crud-export-panel.vue';
 import CrudImportPanel from './crud-import-panel.vue';
 import {
@@ -237,7 +238,10 @@ import {
   CRUD_TOOLTIP_MOUSE_ENTER_DELAY,
 } from './crud-tooltip-preview';
 import { evaluateCrudVisibleOn } from './crud-visible-on';
-import { collectUserRoleIdentityValues, isSuperAdminUser } from './user-identity';
+import {
+  collectUserRoleIdentityValues,
+  isSuperAdminUser,
+} from './user-identity';
 import CronExpressionField from './cron-expression-field.vue';
 import {
   buildDetailDisplayEntries,
@@ -415,59 +419,101 @@ const pageDisplaySettingsOpen = ref(false);
 const pageDisplayConfig = ref<CrudPageDisplayConfig>({ version: 1 });
 const autoSearchReady = ref(false);
 const pageDisplaySettingRecord = ref<null | UiSettingRuntimeRecord>(null);
-const pageDisplayScope = ref<{ domain?: string; tenantId?: string }>({
+const pageDisplayScope = ref<{
+  domain?: string;
+  orgCategory?: string;
+  orgType?: string;
+  tenantId?: string;
+  userCategory?: string;
+  userType?: string;
+}>({
   domain: typeof window === 'undefined' ? undefined : window.location.hostname,
   tenantId: (userStore.userInfo as Record<string, any> | undefined)?.tenantId,
 });
 const pageDisplayInitialScope = computed(() => {
   const userInfo = userStore.userInfo as Record<string, any> | undefined;
   return {
-    domain: pageDisplayScope.value.domain || (typeof window === 'undefined' ? undefined : window.location.hostname),
+    domain:
+      pageDisplayScope.value.domain ||
+      (typeof window === 'undefined' ? undefined : window.location.hostname),
+    orgCategory: pageDisplayScope.value.orgCategory || userInfo?.orgCategory,
+    orgType: pageDisplayScope.value.orgType || userInfo?.orgType,
     tenantId: pageDisplayScope.value.tenantId || userInfo?.tenantId,
+    userCategory: pageDisplayScope.value.userCategory || userInfo?.category || userInfo?.userCategory,
+    userType: pageDisplayScope.value.userType || userInfo?.type || userInfo?.userType,
   };
 });
 const pageDisplayContextKey = computed(() => {
   const userInfo = userStore.userInfo as Record<string, any> | undefined;
-  return [userInfo?.tenantId || '', typeof window === 'undefined' ? '' : window.location.hostname, userInfo?.type || '', userInfo?.orgType || userInfo?.orgId || ''].join(':');
+  return resolvePageDisplayContextKey(
+    userInfo,
+    typeof window === 'undefined' ? '' : window.location.hostname,
+  );
 });
 
 async function loadPageDisplaySettings() {
   try {
-    const resolution = await resolveUiSettingRuntimeWithScope(pageDisplaySettingCode.value, pageDisplayContextKey.value);
+    const resolution = await resolveUiSettingRuntimeWithScope(
+      pageDisplaySettingCode.value,
+      pageDisplayContextKey.value,
+    );
     const setting = resolution.setting;
     pageDisplaySettingRecord.value = setting;
     pageDisplayScope.value = { ...pageDisplayScope.value, ...resolution.scope };
-    pageDisplayConfig.value = (setting?.valueContent?.pageDisplay as CrudPageDisplayConfig | undefined) || { version: 1 };
+    pageDisplayConfig.value = (setting?.valueContent?.pageDisplay as
+      | CrudPageDisplayConfig
+      | undefined) || { version: 1 };
   } catch (error) {
     console.warn('加载页面展示设置失败，将使用页面默认配置。', error);
   }
 }
 
-async function savePageDisplaySettings(payload: { config: CrudPageDisplayConfig; scope: Record<string, any> }) {
+async function savePageDisplaySettings(payload: {
+  config: CrudPageDisplayConfig;
+  scope: Record<string, any>;
+}) {
   const current = pageDisplaySettingRecord.value;
   const data = {
     code: pageDisplaySettingCode.value,
     domain: payload.scope.domain || null,
     name: `${props.config.title}页面展示设置`,
+    orgCategory: payload.scope.orgCategory || null,
     orgType: payload.scope.orgType || null,
+    userCategory: payload.scope.userCategory || null,
     tenantId: payload.scope.tenantId || null,
     type: 'PageDisplay',
     userType: payload.scope.userType || null,
     valueContent: { pageDisplay: payload.config },
   };
   if (current?.id) {
-    const latest = await requestClient.get<UiSettingRuntimeRecord>('/UiSetting/view', {
-      params: { id: current.id },
+    const latest = await requestClient.get<UiSettingRuntimeRecord>(
+      '/UiSetting/view',
+      {
+        params: { id: current.id },
+      },
+    );
+    const optimisticLock =
+      latest?.optimisticLock ?? current.optimisticLock ?? 0;
+    await requestClient.put('/UiSetting/update', {
+      ...data,
+      id: current.id,
+      optimisticLock,
     });
-    const optimisticLock = latest?.optimisticLock ?? current.optimisticLock ?? 0;
-    await requestClient.put('/UiSetting/update', { ...data, id: current.id, optimisticLock });
-    pageDisplaySettingRecord.value = { ...current, ...data, optimisticLock: optimisticLock + 1 };
+    pageDisplaySettingRecord.value = {
+      ...current,
+      ...data,
+      optimisticLock: optimisticLock + 1,
+    };
   } else {
     const id = await requestClient.post<string>('/UiSetting/create', data);
     pageDisplaySettingRecord.value = { ...data, id };
   }
   pageDisplayConfig.value = payload.config;
-  replaceUiSettingRuntimeCache(pageDisplaySettingCode.value, pageDisplayContextKey.value, pageDisplaySettingRecord.value);
+  replaceUiSettingRuntimeCache(
+    pageDisplaySettingCode.value,
+    pageDisplayContextKey.value,
+    pageDisplaySettingRecord.value,
+  );
   message.success('当前配置已上传');
   Modal.confirm({
     cancelText: '关闭配置',
@@ -629,9 +675,10 @@ function shouldUseJsonSchemaEditor(field: CrudFieldConfig, value?: any) {
 function getPageDisplayField(
   view: 'create' | 'detail' | 'edit' | 'query',
   key: string,
-) : CrudPageDisplayFieldConfig {
-  const configured =
-    pageDisplayConfig.value[view]?.fields.find((item) => item.key === key);
+): CrudPageDisplayFieldConfig {
+  const configured = pageDisplayConfig.value[view]?.fields.find(
+    (item) => item.key === key,
+  );
   if (configured) {
     configured.hidden = initializeFieldHidden(configured);
     configured.inputDisplay ||= 'default';
@@ -648,12 +695,11 @@ function getPageDisplayField(
   };
 }
 
-function getPageDisplayGroup(
-  view: 'create' | 'detail' | 'edit',
-  key?: string,
-) {
+function getPageDisplayGroup(view: 'create' | 'detail' | 'edit', key?: string) {
   if (!key) return undefined;
-  return pageDisplayConfig.value[view]?.groups?.find((item) => item.key === key);
+  return pageDisplayConfig.value[view]?.groups?.find(
+    (item) => item.key === key,
+  );
 }
 
 function getTenantScriptContext() {
@@ -666,8 +712,9 @@ function getTenantScriptContext() {
 function getPageDisplayHeader(
   key: string,
 ): CrudPageDisplayHeaderConfig | undefined {
-  const configured =
-    pageDisplayConfig.value.list?.headers.find((item) => item.key === key);
+  const configured = pageDisplayConfig.value.list?.headers.find(
+    (item) => item.key === key,
+  );
   if (configured) {
     configured.visible = initializeHeaderVisibility(configured);
     return configured;
@@ -740,19 +787,26 @@ function getInlineChoiceOptions(
 function isPageDisplayHeaderVisible(key: string) {
   const header = getPageDisplayHeader(key);
   const userInfo = userStore.userInfo as Record<string, unknown> | undefined;
-  if (!isRoleVisibilitySatisfied(
-    header?.visibleRoleCodes,
-    collectUserRoleIdentityValues(userInfo || {}),
-  )) return false;
+  if (
+    !isRoleVisibilitySatisfied(
+      header?.visibleRoleCodes,
+      collectUserRoleIdentityValues(userInfo || {}),
+    )
+  )
+    return false;
   const visible = header?.visible;
   if (!visible || visible.mode === 'always') return true;
   if (visible.mode === 'hidden') return false;
   try {
-    return Boolean(evaluateJavaScriptExpression(visible.expression || 'true', {
-      org: buildOrganizationScriptContext(userStore.userInfo as Record<string, any> | undefined),
-      tenant: getTenantScriptContext(),
-      user: userStore.userInfo || {},
-    }));
+    return Boolean(
+      evaluateJavaScriptExpression(visible.expression || 'true', {
+        org: buildOrganizationScriptContext(
+          userStore.userInfo as Record<string, any> | undefined,
+        ),
+        tenant: getTenantScriptContext(),
+        user: userStore.userInfo || {},
+      }),
+    );
   } catch {
     return false;
   }
@@ -773,41 +827,53 @@ function applyPageDisplayFields(
       continue;
     }
     try {
-      expressionResults[item.key] = Boolean(evaluateJavaScriptExpression(item.visibility.expression, {
-        form: values,
-        org: buildOrganizationScriptContext(userStore.userInfo as Record<string, any> | undefined),
-        tenant: getTenantScriptContext(),
-        user: userStore.userInfo || {},
-      }));
+      expressionResults[item.key] = Boolean(
+        evaluateJavaScriptExpression(item.visibility.expression, {
+          form: values,
+          org: buildOrganizationScriptContext(
+            userStore.userInfo as Record<string, any> | undefined,
+          ),
+          tenant: getTenantScriptContext(),
+          user: userStore.userInfo || {},
+        }),
+      );
     } catch {
       expressionResults[item.key] = false;
     }
   }
-  const displayStates = resolveDisplayStates(configuredFields, expressionResults);
+  const displayStates = resolveDisplayStates(
+    configuredFields,
+    expressionResults,
+  );
   return [...fields]
     .filter((field) => displayStates[field.key] !== 'HIDDEN')
     .filter((field) => isPageDisplayRoleVisible(view, field.key))
     .sort((left, right) => {
       const leftConfigured = getPageDisplayField(view, left.key);
       const rightConfigured = getPageDisplayField(view, right.key);
-      const groupOrder = resolveDisplayGroupOrder(
-        pageDisplayConfig.value[view]?.groups,
-        leftConfigured?.layoutGroup,
-        pageDisplayConfig.value[view]?.unassignedOrder,
-      ) - resolveDisplayGroupOrder(
-        pageDisplayConfig.value[view]?.groups,
-        rightConfigured?.layoutGroup,
-        pageDisplayConfig.value[view]?.unassignedOrder,
-      );
+      const groupOrder =
+        resolveDisplayGroupOrder(
+          pageDisplayConfig.value[view]?.groups,
+          leftConfigured?.layoutGroup,
+          pageDisplayConfig.value[view]?.unassignedOrder,
+        ) -
+        resolveDisplayGroupOrder(
+          pageDisplayConfig.value[view]?.groups,
+          rightConfigured?.layoutGroup,
+          pageDisplayConfig.value[view]?.unassignedOrder,
+        );
       if (groupOrder) return groupOrder;
-      return (leftConfigured?.order ?? Number.MAX_SAFE_INTEGER)
-        - (rightConfigured?.order ?? Number.MAX_SAFE_INTEGER);
+      return (
+        (leftConfigured?.order ?? Number.MAX_SAFE_INTEGER) -
+        (rightConfigured?.order ?? Number.MAX_SAFE_INTEGER)
+      );
     })
     .map((field) => {
       const configured = getPageDisplayField(view, field.key);
-      const group = view === 'query'
-        ? undefined
-        : getPageDisplayGroup(view, configured?.layoutGroup);
+      const group =
+        view === 'query'
+          ? undefined
+          : getPageDisplayGroup(view, configured?.layoutGroup);
       return {
         ...field,
         displayGroup: group,
@@ -819,15 +885,18 @@ function applyPageDisplayFields(
 }
 
 const searchFields = computed(() =>
-  applyPageDisplayFields(props.config.fields
-    .map((field, index) => ({ field, index }))
-    .filter(({ field }) => field.search && isFieldVisible(field))
-    .sort(
-      (left, right) =>
-        (left.field.searchOrder ?? left.index) -
-        (right.field.searchOrder ?? right.index),
-    )
-    .map(({ field }) => field), 'query'),
+  applyPageDisplayFields(
+    props.config.fields
+      .map((field, index) => ({ field, index }))
+      .filter(({ field }) => field.search && isFieldVisible(field))
+      .sort(
+        (left, right) =>
+          (left.field.searchOrder ?? left.index) -
+          (right.field.searchOrder ?? right.index),
+      )
+      .map(({ field }) => field),
+    'query',
+  ),
 );
 
 const RANGE_PREFIX_PAIRS: Array<[string, string]> = [
@@ -967,7 +1036,9 @@ function getComplexGroup(key?: string) {
 }
 
 function isComplexGroupFieldVisible(field: CrudFieldConfig) {
-  return !field.complexGroupKey || !complexGroupCollapsed[field.complexGroupKey];
+  return (
+    !field.complexGroupKey || !complexGroupCollapsed[field.complexGroupKey]
+  );
 }
 
 function isComplexGroupEnabled(field: CrudFieldConfig) {
@@ -978,7 +1049,11 @@ function isFirstComplexGroupField(field: CrudFieldConfig) {
   if (!field.complexGroupKey) {
     return false;
   }
-  return visibleFormFields.value.find((item) => item.complexGroupKey === field.complexGroupKey) === field;
+  return (
+    visibleFormFields.value.find(
+      (item) => item.complexGroupKey === field.complexGroupKey,
+    ) === field
+  );
 }
 
 function toggleComplexGroup(groupKey: string) {
@@ -990,19 +1065,23 @@ function isPageDisplayGroupFieldVisible(field: CrudFieldConfig) {
   const activeView = editingRecord.value ? 'edit' : 'create';
   const activeConfig = pageDisplayConfig.value[activeView];
   if (!key && !activeConfig) return true;
-  const groupFields = visibleFormFields.value.filter(
-    (item) => (key ? item.displayGroup?.key === key : !item.displayGroup?.key),
+  const groupFields = visibleFormFields.value.filter((item) =>
+    key ? item.displayGroup?.key === key : !item.displayGroup?.key,
   );
   const index = groupFields.indexOf(field as (typeof groupFields)[number]);
   const expandedRows = key
-    ? pageDisplayGroupExpandedRows[key] ?? 'all'
-    : pageDisplayGroupExpandedRows.__unassigned__ ??
+    ? (pageDisplayGroupExpandedRows[key] ?? 'all')
+    : (pageDisplayGroupExpandedRows.__unassigned__ ??
       pageDisplayConfig.value[activeView]?.unassignedExpandedRows ??
-      'all';
-  return index >= 0 && index < resolveDisplayGroupExpandedFieldCount(
-    groupFields.length,
-    formColumnCount.value,
-    expandedRows,
+      'all');
+  return (
+    index >= 0 &&
+    index <
+      resolveDisplayGroupExpandedFieldCount(
+        groupFields.length,
+        formColumnCount.value,
+        expandedRows,
+      )
   );
 }
 
@@ -1012,9 +1091,7 @@ function togglePageDisplayGroup(groupKey: string) {
 }
 
 function getPageDisplayGroupToggleLabel(groupKey: string) {
-  return pageDisplayGroupExpandedRows[groupKey] === 'all'
-    ? '收起'
-    : '展开全部';
+  return pageDisplayGroupExpandedRows[groupKey] === 'all' ? '收起' : '展开全部';
 }
 
 function shouldHideSinglePageDisplayGroupChrome() {
@@ -1027,36 +1104,53 @@ function shouldShowSinglePageDisplayGroupToggle(field: CrudFieldConfig) {
   if (field.complexGroupKey || !shouldHideSinglePageDisplayGroupChrome()) {
     return false;
   }
-  return visibleFormFields.value.find((item) => !item.complexGroupKey)
-    === (field as (typeof visibleFormFields.value)[number]);
+  return (
+    visibleFormFields.value.find((item) => !item.complexGroupKey) ===
+    (field as (typeof visibleFormFields.value)[number])
+  );
 }
 
 function shouldShowUnassignedPageDisplayGroupTitle(field: CrudFieldConfig) {
   if (field.complexGroupKey || field.displayGroup?.key) return false;
   const activeView = editingRecord.value ? 'edit' : 'create';
-  if (!pageDisplayConfig.value[activeView] || shouldHideSinglePageDisplayGroupChrome()) return false;
-  return visibleFormFields.value.find((item) => !item.displayGroup?.key)
-    === (field as (typeof visibleFormFields.value)[number]);
+  if (
+    !pageDisplayConfig.value[activeView] ||
+    shouldHideSinglePageDisplayGroupChrome()
+  )
+    return false;
+  return (
+    visibleFormFields.value.find((item) => !item.displayGroup?.key) ===
+    (field as (typeof visibleFormFields.value)[number])
+  );
 }
 
 function shouldShowFormGroupTitle(field: CrudFieldConfig) {
   if (
-    !field.layoutGroupTitle?.trim()
-    || field.complexGroupKey
-    || shouldHideSinglePageDisplayGroupChrome()
+    !field.layoutGroupTitle?.trim() ||
+    field.complexGroupKey ||
+    shouldHideSinglePageDisplayGroupChrome()
   ) {
     return false;
   }
-  return visibleFormFields.value.findIndex(
-    (item) => item.layoutGroup === field.layoutGroup && !item.complexGroupKey,
-  ) === visibleFormFields.value.indexOf(field as (typeof visibleFormFields.value)[number]);
+  return (
+    visibleFormFields.value.findIndex(
+      (item) => item.layoutGroup === field.layoutGroup && !item.complexGroupKey,
+    ) ===
+    visibleFormFields.value.indexOf(
+      field as (typeof visibleFormFields.value)[number],
+    )
+  );
 }
 
 const tableFields = computed(() =>
   [...props.config.fields]
     .filter((field) => field.table && isFieldVisible(field))
     .filter((field) => isPageDisplayHeaderVisible(field.key))
-    .sort((left, right) => (getPageDisplayHeader(left.key)?.order ?? Number.MAX_SAFE_INTEGER) - (getPageDisplayHeader(right.key)?.order ?? Number.MAX_SAFE_INTEGER)),
+    .sort(
+      (left, right) =>
+        (getPageDisplayHeader(left.key)?.order ?? Number.MAX_SAFE_INTEGER) -
+        (getPageDisplayHeader(right.key)?.order ?? Number.MAX_SAFE_INTEGER),
+    ),
 );
 
 const orderedTableFields = computed(() =>
@@ -1361,7 +1455,9 @@ const hasConfiguredRowActions = computed(() =>
       evaluateCrudVisibleOn(action.visibleOn, {}, userStore.userInfo),
   ),
 );
-const canManagePageDisplaySettings = computed(() => isSuperAdminUser(userStore.userInfo));
+const canManagePageDisplaySettings = computed(() =>
+  isSuperAdminUser(userStore.userInfo),
+);
 const pageDisplaySettingCode = computed(() =>
   resolvePageDisplaySettingCode(
     route.path,
@@ -1560,12 +1656,10 @@ const canEdit = computed(
     ),
 );
 
-const autoSearchEnabled = computed(
-  () => {
-    const value = pageDisplayConfig.value.query?.autoSearch as unknown;
-    return value === true || value === 'true';
-  },
-);
+const autoSearchEnabled = computed(() => {
+  const value = pageDisplayConfig.value.query?.autoSearch as unknown;
+  return value === true || value === 'true';
+});
 const queryCollapsedRows = computed(
   () => pageDisplayConfig.value.query?.unassignedExpandedRows ?? 1,
 );
@@ -1621,9 +1715,10 @@ function getSearchItemStyle(item: SearchFieldItem) {
   if (!group) return undefined;
   const index = visibleSearchFieldItems.value.indexOf(item);
   const previous = visibleSearchFieldItems.value[index - 1];
-  const previousGroup = previous?.kind === 'field'
-    ? getPageDisplayField('query', previous.field.key)?.layoutGroup
-    : undefined;
+  const previousGroup =
+    previous?.kind === 'field'
+      ? getPageDisplayField('query', previous.field.key)?.layoutGroup
+      : undefined;
   return shouldStartQueryGroupOnNewLine(group, previousGroup)
     ? { gridColumnStart: 1 }
     : undefined;
@@ -2157,12 +2252,16 @@ function buildEmptyState() {
     if (!isComplexGroupEnabled(field)) {
       continue;
     }
-    const configuredDefault = getPageDisplayField('create', field.key)?.defaultValue;
-    result[field.key] = field.key in result
-      ? normalizeFormValue(field, result[field.key])
-      : configuredDefault && 'value' in configuredDefault
-        ? normalizeFormValue(field, configuredDefault.value)
-        : getDefaultValue(field);
+    const configuredDefault = getPageDisplayField(
+      'create',
+      field.key,
+    )?.defaultValue;
+    result[field.key] =
+      field.key in result
+        ? normalizeFormValue(field, result[field.key])
+        : configuredDefault && 'value' in configuredDefault
+          ? normalizeFormValue(field, configuredDefault.value)
+          : getDefaultValue(field);
   }
 
   return result;
@@ -2342,7 +2441,9 @@ function validateFormFields() {
       maxUploadCount !== undefined &&
       getUploadUrls(field).length > maxUploadCount
     ) {
-      message.warning(`${getFormFieldLabel(field)}最多上传${maxUploadCount}个文件`);
+      message.warning(
+        `${getFormFieldLabel(field)}最多上传${maxUploadCount}个文件`,
+      );
       return false;
     }
 
@@ -2387,13 +2488,15 @@ function resetForm(record?: GenericRecord) {
   for (const key of Object.keys(pageDisplayGroupExpandedRows)) {
     delete pageDisplayGroupExpandedRows[key];
   }
-  for (const group of pageDisplayConfig.value[record ? 'edit' : 'create']?.groups || []) {
+  for (const group of pageDisplayConfig.value[record ? 'edit' : 'create']
+    ?.groups || []) {
     pageDisplayGroupExpandedRows[group.key] =
-      group.defaultExpandedRows ?? (group.defaultExpanded === false ? 1 : 'all');
+      group.defaultExpandedRows ??
+      (group.defaultExpanded === false ? 1 : 'all');
   }
   pageDisplayGroupExpandedRows.__unassigned__ =
-    pageDisplayConfig.value[record ? 'edit' : 'create']?.unassignedExpandedRows ??
-    'all';
+    pageDisplayConfig.value[record ? 'edit' : 'create']
+      ?.unassignedExpandedRows ?? 'all';
 
   if (!record) {
     const groupState = buildCrudComplexGroupInitialState(
@@ -2424,11 +2527,17 @@ function resetForm(record?: GenericRecord) {
     }
 
     const originalValue = getRecordValue(record, field.key);
-    const configuredDefault = getPageDisplayField('edit', field.key)?.defaultValue;
+    const configuredDefault = getPageDisplayField(
+      'edit',
+      field.key,
+    )?.defaultValue;
     formState[field.key] = normalizeFormValue(
       field,
-      (originalValue === null || originalValue === undefined || originalValue === '')
-      && configuredDefault && 'value' in configuredDefault
+      (originalValue === null ||
+        originalValue === undefined ||
+        originalValue === '') &&
+        configuredDefault &&
+        'value' in configuredDefault
         ? configuredDefault.value
         : originalValue,
     );
@@ -3604,10 +3713,7 @@ function handleEdit(record: GenericRecord) {
 }
 
 async function handleRetrieve(record: GenericRecord) {
-  const params = buildCrudRetrieveParams(
-    record,
-    recordKey.value,
-  );
+  const params = buildCrudRetrieveParams(record, recordKey.value);
 
   const response =
     props.config.apiService?.retrieve && !props.config.detailPath
@@ -3696,15 +3802,16 @@ async function handleSubmit() {
       const originalValue = editingRecord.value
         ? getRecordValue(editingRecord.value, field.key)
         : undefined;
-      const value = editingRecord.value &&
+      const value =
+        editingRecord.value &&
         shouldPreserveUnmatchedCrudChoiceValue(
           field,
           originalValue,
           formState[field.key],
           getFieldOptions(field),
         )
-        ? originalValue
-        : serializeFormValue(field, formState[field.key], !isCreating);
+          ? originalValue
+          : serializeFormValue(field, formState[field.key], !isCreating);
 
       if (isCreating && shouldOmitEmptyChoiceFormField(field, value)) {
         continue;
@@ -3797,7 +3904,10 @@ function resetSearch() {
 
 function applyPageDisplayQueryDefaults() {
   for (const field of searchFields.value) {
-    const configuredDefault = getPageDisplayField('query', field.key)?.defaultValue;
+    const configuredDefault = getPageDisplayField(
+      'query',
+      field.key,
+    )?.defaultValue;
     if (configuredDefault && 'value' in configuredDefault) {
       searchState[field.key] = configuredDefault.value;
     }
@@ -4369,7 +4479,10 @@ function resetTableColumns() {
 
 function getFieldOptions(field: CrudFieldConfig): any[] {
   if (field.type === 'area-cascader') {
-    return areaCascaderRestrictedOptions[field.key] || getAdministrativeAreaCascaderOptions();
+    return (
+      areaCascaderRestrictedOptions[field.key] ||
+      getAdministrativeAreaCascaderOptions()
+    );
   }
   return normalizeCrudChoiceOptions(
     field,
@@ -4377,7 +4490,10 @@ function getFieldOptions(field: CrudFieldConfig): any[] {
   );
 }
 
-async function handleAreaCascaderDropdownVisibleChange(field: CrudFieldConfig, open: boolean) {
+async function handleAreaCascaderDropdownVisibleChange(
+  field: CrudFieldConfig,
+  open: boolean,
+) {
   if (!open) return;
   optionLoadingState[field.key] = true;
   try {
@@ -5128,7 +5244,8 @@ function getTableCellValue(record: GenericRecord, key: unknown) {
 
 function hasCustomTableCellDisplay(key: unknown) {
   return getTableField(key)
-    ? getPageDisplayHeader(getTableField(key)!.key)?.valueDisplay?.mode === 'script'
+    ? getPageDisplayHeader(getTableField(key)!.key)?.valueDisplay?.mode ===
+        'script'
     : false;
 }
 
@@ -5865,7 +5982,10 @@ watch(canCustomizeTableColumnsLocally, () => {
                 :placeholder="getPlaceholder(item.field)"
                 class="w-full"
                 show-search
-                @dropdown-visible-change="(open) => handleAreaCascaderDropdownVisibleChange(item.field, open)"
+                @dropdown-visible-change="
+                  (open) =>
+                    handleAreaCascaderDropdownVisibleChange(item.field, open)
+                "
               />
               <TreeSelect
                 v-else-if="item.field.type === 'org-tree-select'"
@@ -5873,10 +5993,10 @@ watch(canCustomizeTableColumnsLocally, () => {
                 :allow-clear="true"
                 class="w-full"
                 :loading="optionLoadingState[item.field.key]"
-	                :multiple="Boolean(item.field.multiple)"
+                :multiple="Boolean(item.field.multiple)"
                 :placeholder="getPlaceholder(item.field)"
                 show-search
-	                :tree-checkable="Boolean(item.field.multiple)"
+                :tree-checkable="Boolean(item.field.multiple)"
                 :tree-data="getFieldOptions(item.field)"
                 tree-default-expand-all
                 tree-node-filter-prop="label"
@@ -5987,7 +6107,9 @@ watch(canCustomizeTableColumnsLocally, () => {
             <div class="vben-crud-search-actions min-w-0">
               <div class="flex flex-wrap items-center justify-end gap-2">
                 <Button
-                  v-if="shouldShowManualQueryButton(canQuery, autoSearchEnabled)"
+                  v-if="
+                    shouldShowManualQueryButton(canQuery, autoSearchEnabled)
+                  "
                   type="primary"
                   @click="
                     () => {
@@ -6401,7 +6523,8 @@ watch(canCustomizeTableColumnsLocally, () => {
               <pre
                 v-if="hasCustomTableCellDisplay(column.key)"
                 class="m-0 whitespace-pre-wrap break-words text-sm leading-6"
-              >{{ getTableCellValue(record, column.key) }}</pre>
+                >{{ getTableCellValue(record, column.key) }}</pre
+              >
               <Switch
                 v-else-if="
                   canQuickUpdateBooleanEnableField(
@@ -6769,20 +6892,26 @@ watch(canCustomizeTableColumnsLocally, () => {
           <template v-for="field in visibleFormFields" :key="field.key">
             <div
               v-if="field.complexGroupKey && isFirstComplexGroupField(field)"
-              class="col-span-full border-border/70 mt-2 flex items-center gap-2 border-t pt-4 text-sm font-semibold"
+              class="border-border/70 col-span-full mt-2 flex items-center gap-2 border-t pt-4 text-sm font-semibold"
             >
-              <Checkbox v-model:checked="complexGroupEnabled[field.complexGroupKey]">
+              <Checkbox
+                v-model:checked="complexGroupEnabled[field.complexGroupKey]"
+              >
                 本次提交{{ getComplexGroup(field.complexGroupKey)?.title }}
               </Checkbox>
               <Tooltip title="未勾选时，本次不变更这部分数据">
-                <span class="text-muted-foreground text-xs">不勾选则不变更</span>
+                <span class="text-muted-foreground text-xs"
+                  >不勾选则不变更</span
+                >
               </Tooltip>
               <Button
                 type="link"
                 size="small"
                 @click="toggleComplexGroup(field.complexGroupKey)"
               >
-                {{ complexGroupCollapsed[field.complexGroupKey] ? '展开' : '收缩' }}
+                {{
+                  complexGroupCollapsed[field.complexGroupKey] ? '展开' : '收缩'
+                }}
               </Button>
             </div>
             <div
@@ -6819,301 +6948,323 @@ watch(canCustomizeTableColumnsLocally, () => {
               <Button
                 type="link"
                 size="small"
-                @click="togglePageDisplayGroup(field.displayGroup?.key || '__unassigned__')"
+                @click="
+                  togglePageDisplayGroup(
+                    field.displayGroup?.key || '__unassigned__',
+                  )
+                "
               >
-                {{ getPageDisplayGroupToggleLabel(field.displayGroup?.key || '__unassigned__') }}
+                {{
+                  getPageDisplayGroupToggleLabel(
+                    field.displayGroup?.key || '__unassigned__',
+                  )
+                }}
               </Button>
             </div>
             <Form.Item
-            v-if="isComplexGroupFieldVisible(field) && isPageDisplayGroupFieldVisible(field)"
-            :label="getFormFieldLabel(field)"
-            :required="field.required"
-            :extra="getFormFieldHelp(field)"
-            class="mb-0 w-full"
-            :class="{
-              'vben-crud-form-item-new-row': field.layoutNewRow,
-              'col-span-full': shouldFormItemSpanFullRow(field),
-              'md:col-span-2': shouldFormItemSpanTwoColumns(field),
-            }"
-            :style="getFormItemStyle(field)"
-          >
-            <template v-if="hasFormFieldSlot(field)">
-              <slot
-                :name="resolveFormFieldSlotName(field)"
-                :editing-record="editingRecord"
-                :field="field"
-                :form-state="formState"
-              ></slot>
-            </template>
-            <Input.Password
-              v-else-if="field.type === 'password'"
-              v-model:value="formState[field.key]"
-              class="w-full"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :maxlength="field.maxLength"
-              :placeholder="getPlaceholder(field)"
-            />
-            <Cascader
-              v-else-if="field.type === 'area-cascader'"
-              v-model:value="formState[field.key]"
-              :allow-clear="true"
-              :change-on-select="true"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :loading="optionLoadingState[field.key]"
-              :options="getFieldOptions(field)"
-              :placeholder="getPlaceholder(field)"
-              class="w-full"
-              show-search
-              @dropdown-visible-change="(open) => handleAreaCascaderDropdownVisibleChange(field, open)"
-            />
-            <TreeSelect
-              v-else-if="field.type === 'org-tree-select'"
-              v-model:value="formState[field.key]"
-              :allow-clear="true"
-              class="w-full"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :loading="optionLoadingState[field.key]"
-	              :multiple="Boolean(field.multiple)"
-              :placeholder="getPlaceholder(field)"
-              show-search
-	              :tree-checkable="Boolean(field.multiple)"
-              :tree-data="getFieldOptions(field)"
-              tree-default-expand-all
-              tree-node-filter-prop="label"
-              @blur="() => restoreRemoteFieldOptions(field)"
-              @dropdown-visible-change="
-                (open) => handleSelectDropdownVisibleChange(field, open)
+              v-if="
+                isComplexGroupFieldVisible(field) &&
+                isPageDisplayGroupFieldVisible(field)
               "
-            />
-            <div
-              v-else-if="isFileUploadField(field)"
-              @mouseleave="handleUploadMouseLeave(field)"
-              @mousemove="
-                handleUploadAreaMouseMove(field, $event as MouseEvent)
-              "
+              :label="getFormFieldLabel(field)"
+              :required="field.required"
+              :extra="getFormFieldHelp(field)"
+              class="mb-0 w-full"
+              :class="{
+                'vben-crud-form-item-new-row': field.layoutNewRow,
+                'col-span-full': shouldFormItemSpanFullRow(field),
+                'md:col-span-2': shouldFormItemSpanTwoColumns(field),
+              }"
+              :style="getFormItemStyle(field)"
             >
-              <Upload
-                :accept="isImageUploadField(field) ? 'image/*' : undefined"
-                :custom-request="(options) => uploadCrudFile(field, options)"
-                :file-list="getUploadFileList(field)"
-                :item-render="
-                  ({ originNode, file }) =>
-                    renderUploadItem(field, originNode, file)
+              <template v-if="hasFormFieldSlot(field)">
+                <slot
+                  :name="resolveFormFieldSlotName(field)"
+                  :editing-record="editingRecord"
+                  :field="field"
+                  :form-state="formState"
+                ></slot>
+              </template>
+              <Input.Password
+                v-else-if="field.type === 'password'"
+                v-model:value="formState[field.key]"
+                class="w-full"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :maxlength="field.maxLength"
+                :placeholder="getPlaceholder(field)"
+              />
+              <Cascader
+                v-else-if="field.type === 'area-cascader'"
+                v-model:value="formState[field.key]"
+                :allow-clear="true"
+                :change-on-select="true"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :loading="optionLoadingState[field.key]"
+                :options="getFieldOptions(field)"
+                :placeholder="getPlaceholder(field)"
+                class="w-full"
+                show-search
+                @dropdown-visible-change="
+                  (open) => handleAreaCascaderDropdownVisibleChange(field, open)
                 "
-                :list-type="isImageUploadField(field) ? 'picture-card' : 'text'"
-                :max-count="getUploadMaxCount(field)"
-                :multiple="isMultiUploadField(field)"
-                @preview="handleUploadPreview"
-                @remove="(file) => removeCrudUploadFile(field, file)"
+              />
+              <TreeSelect
+                v-else-if="field.type === 'org-tree-select'"
+                v-model:value="formState[field.key]"
+                :allow-clear="true"
+                class="w-full"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :loading="optionLoadingState[field.key]"
+                :multiple="Boolean(field.multiple)"
+                :placeholder="getPlaceholder(field)"
+                show-search
+                :tree-checkable="Boolean(field.multiple)"
+                :tree-data="getFieldOptions(field)"
+                tree-default-expand-all
+                tree-node-filter-prop="label"
+                @blur="() => restoreRemoteFieldOptions(field)"
+                @dropdown-visible-change="
+                  (open) => handleSelectDropdownVisibleChange(field, open)
+                "
+              />
+              <div
+                v-else-if="isFileUploadField(field)"
+                @mouseleave="handleUploadMouseLeave(field)"
+                @mousemove="
+                  handleUploadAreaMouseMove(field, $event as MouseEvent)
+                "
               >
-                <Button
-                  v-if="
-                    !isImageUploadField(field) && shouldShowUploadTrigger(field)
+                <Upload
+                  :accept="isImageUploadField(field) ? 'image/*' : undefined"
+                  :custom-request="(options) => uploadCrudFile(field, options)"
+                  :file-list="getUploadFileList(field)"
+                  :item-render="
+                    ({ originNode, file }) =>
+                      renderUploadItem(field, originNode, file)
                   "
+                  :list-type="
+                    isImageUploadField(field) ? 'picture-card' : 'text'
+                  "
+                  :max-count="getUploadMaxCount(field)"
+                  :multiple="isMultiUploadField(field)"
+                  @preview="handleUploadPreview"
+                  @remove="(file) => removeCrudUploadFile(field, file)"
                 >
-                  上传{{ field.label }}
-                </Button>
-                <div
-                  v-else-if="shouldShowUploadTrigger(field)"
-                  class="flex h-full w-full items-center justify-center"
-                >
-                  <Plus class="size-5" />
-                </div>
-              </Upload>
-            </div>
-            <JsonEditorField
-              v-else-if="
-                field.type === 'json' &&
-                !shouldUseJsonSchemaEditor(field, formState[field.key])
-              "
-              v-model="formState[field.key]"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :modal-style="modalStyle"
-              :modal-width="modalWidth"
-              :title="field.label"
-            />
-            <JsonSchemaEditorField
-              v-else-if="shouldUseJsonSchemaEditor(field, formState[field.key])"
-              v-model="formState[field.key]"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :inline="isCrudFieldJsonSchemaInline(field)"
-              :modal-style="modalStyle"
-              :modal-width="modalWidth"
-              :schema-source="
-                getJsonSchemaSourceInput(field, formState[field.key])
-              "
-              :title="field.label"
-            />
-            <CronExpressionField
-              v-else-if="field.type === 'cron'"
-              v-model="formState[field.key]"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :modal-style="modalStyle"
-              :modal-width="modalWidth"
-              :placeholder="getPlaceholder(field)"
-              :title="field.label"
-            />
-            <CodeEditorField
-              v-else-if="
-                field.type === 'code' ||
-                field.type === 'css' ||
-                field.type === 'html'
-              "
-              v-model="formState[field.key]"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :language="getCodeEditorLanguage(field)"
-              :modal-style="modalStyle"
-              :modal-width="modalWidth"
-              :title="field.label"
-            />
-            <Input.TextArea
-              v-else-if="
-                field.type === 'textarea' || field.type === 'string-array'
-              "
-              v-model:value="formState[field.key]"
-              :auto-size="{ minRows: 3, maxRows: 8 }"
-              class="w-full"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :maxlength="field.maxLength"
-              :placeholder="getPlaceholder(field)"
-            />
-            <DatePicker
-              v-else-if="field.type === 'datetime' || field.type === 'date'"
-              v-model:value="formState[field.key]"
-              class="w-full"
-              :placeholder="getPlaceholder(field)"
-              :show-time="field.type === 'datetime'"
-              :value-format="
-                field.type === 'datetime' ? 'YYYY-MM-DDTHH:mm:ss' : 'YYYY-MM-DD'
-              "
-            />
-            <TimePicker
-              v-else-if="field.type === 'time'"
-              v-model:value="formState[field.key]"
-              class="w-full"
-              :placeholder="getPlaceholder(field)"
-              value-format="HH:mm:ss"
-            />
-            <InputNumber
-              v-else-if="field.type === 'number'"
-              v-model:value="formState[field.key]"
-              class="w-full"
-              :placeholder="getPlaceholder(field)"
-            />
-            <Checkbox.Group
-              v-else-if="
-                shouldUseInlineChoiceOptions(
-                  field,
-                  editingRecord ? 'edit' : 'create',
-                ) && field.multiple
-              "
-              v-model:value="formState[field.key]"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :options="
-                getInlineChoiceOptions(
-                  field,
-                  editingRecord ? 'edit' : 'create',
-                )
-              "
-              class="flex flex-wrap gap-x-3 gap-y-2"
-            />
-            <Radio.Group
-              v-else-if="
-                shouldUseInlineChoiceOptions(
-                  field,
-                  editingRecord ? 'edit' : 'create',
-                )
-              "
-              v-model:value="formState[field.key]"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :options="
-                getInlineChoiceOptions(
-                  field,
-                  editingRecord ? 'edit' : 'create',
-                )
-              "
-              class="flex flex-wrap gap-2"
-              option-type="button"
-            />
-            <AutoComplete
-              v-else-if="
-                (field.type === 'select' || field.type === 'role-select') &&
-                field.allowInput &&
-                !field.multiple
-              "
-              v-model:value="formState[field.key]"
-              :allow-clear="true"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :options="getFieldOptions(field)"
-              :placeholder="getPlaceholder(field)"
-              :filter-option="
-                isRemoteSearchField(field) ? false : filterSelectOptionByLabel
-              "
-              :loading="optionLoadingState[field.key]"
-              class="w-full"
-              @blur="() => restoreRemoteFieldOptions(field)"
-              @dropdown-visible-change="
-                (open) => handleSelectDropdownVisibleChange(field, open)
-              "
-              @search="handleSelectSearch(field, $event)"
-            />
-            <Select
-              v-else-if="
-                field.type === 'select' || field.type === 'role-select'
-              "
-              v-model:value="formState[field.key]"
-              :allow-clear="true"
-              :disabled="isFieldDisabledOnEdit(field)"
-              :mode="field.multiple ? 'multiple' : undefined"
-              :options="getFieldOptions(field)"
-              :placeholder="getPlaceholder(field)"
-              :filter-option="
-                isRemoteSearchField(field) ? false : filterSelectOptionByLabel
-              "
-              :loading="optionLoadingState[field.key]"
-              class="w-full"
-              show-search
-              @blur="() => restoreRemoteFieldOptions(field)"
-              @change="(value) => handleSelectChange(field, value)"
-              @dropdown-visible-change="
-                (open) => handleSelectDropdownVisibleChange(field, open)
-              "
-              @search="handleSelectSearch(field, $event)"
-            />
-            <Select
-              v-else-if="field.type === 'tags'"
-              v-model:value="formState[field.key]"
-              :options="getFieldOptions(field)"
-              :placeholder="getPlaceholder(field)"
-              :filter-option="
-                isRemoteSearchField(field) ? false : filterSelectOptionByLabel
-              "
-              :loading="optionLoadingState[field.key]"
-              class="w-full"
-              mode="tags"
-              show-search
-              @blur="() => restoreRemoteFieldOptions(field)"
-              @dropdown-visible-change="
-                (open) => handleSelectDropdownVisibleChange(field, open)
-              "
-              @search="handleSelectSearch(field, $event)"
-            />
-            <Switch
-              v-else-if="field.type === 'switch'"
-              v-model:checked="formState[field.key]"
-              :checked-children="getCrudBooleanDisplayText(field, true) || '是'"
-              :un-checked-children="
-                getCrudBooleanDisplayText(field, false) || '否'
-              "
-            />
-            <Input
-              v-else
-              v-model:value="formState[field.key]"
-              :disabled="isFieldDisabledOnEdit(field)"
-              class="w-full"
-              :maxlength="field.maxLength"
-              :placeholder="getPlaceholder(field)"
-            />
+                  <Button
+                    v-if="
+                      !isImageUploadField(field) &&
+                      shouldShowUploadTrigger(field)
+                    "
+                  >
+                    上传{{ field.label }}
+                  </Button>
+                  <div
+                    v-else-if="shouldShowUploadTrigger(field)"
+                    class="flex h-full w-full items-center justify-center"
+                  >
+                    <Plus class="size-5" />
+                  </div>
+                </Upload>
+              </div>
+              <JsonEditorField
+                v-else-if="
+                  field.type === 'json' &&
+                  !shouldUseJsonSchemaEditor(field, formState[field.key])
+                "
+                v-model="formState[field.key]"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :modal-style="modalStyle"
+                :modal-width="modalWidth"
+                :title="field.label"
+              />
+              <JsonSchemaEditorField
+                v-else-if="
+                  shouldUseJsonSchemaEditor(field, formState[field.key])
+                "
+                v-model="formState[field.key]"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :inline="isCrudFieldJsonSchemaInline(field)"
+                :modal-style="modalStyle"
+                :modal-width="modalWidth"
+                :schema-source="
+                  getJsonSchemaSourceInput(field, formState[field.key])
+                "
+                :title="field.label"
+              />
+              <CronExpressionField
+                v-else-if="field.type === 'cron'"
+                v-model="formState[field.key]"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :modal-style="modalStyle"
+                :modal-width="modalWidth"
+                :placeholder="getPlaceholder(field)"
+                :title="field.label"
+              />
+              <CodeEditorField
+                v-else-if="
+                  field.type === 'code' ||
+                  field.type === 'css' ||
+                  field.type === 'html'
+                "
+                v-model="formState[field.key]"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :language="getCodeEditorLanguage(field)"
+                :modal-style="modalStyle"
+                :modal-width="modalWidth"
+                :title="field.label"
+              />
+              <Input.TextArea
+                v-else-if="
+                  field.type === 'textarea' || field.type === 'string-array'
+                "
+                v-model:value="formState[field.key]"
+                :auto-size="{ minRows: 3, maxRows: 8 }"
+                class="w-full"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :maxlength="field.maxLength"
+                :placeholder="getPlaceholder(field)"
+              />
+              <DatePicker
+                v-else-if="field.type === 'datetime' || field.type === 'date'"
+                v-model:value="formState[field.key]"
+                class="w-full"
+                :placeholder="getPlaceholder(field)"
+                :show-time="field.type === 'datetime'"
+                :value-format="
+                  field.type === 'datetime'
+                    ? 'YYYY-MM-DDTHH:mm:ss'
+                    : 'YYYY-MM-DD'
+                "
+              />
+              <TimePicker
+                v-else-if="field.type === 'time'"
+                v-model:value="formState[field.key]"
+                class="w-full"
+                :placeholder="getPlaceholder(field)"
+                value-format="HH:mm:ss"
+              />
+              <InputNumber
+                v-else-if="field.type === 'number'"
+                v-model:value="formState[field.key]"
+                class="w-full"
+                :placeholder="getPlaceholder(field)"
+              />
+              <Checkbox.Group
+                v-else-if="
+                  shouldUseInlineChoiceOptions(
+                    field,
+                    editingRecord ? 'edit' : 'create',
+                  ) && field.multiple
+                "
+                v-model:value="formState[field.key]"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :options="
+                  getInlineChoiceOptions(
+                    field,
+                    editingRecord ? 'edit' : 'create',
+                  )
+                "
+                class="flex flex-wrap gap-x-3 gap-y-2"
+              />
+              <Radio.Group
+                v-else-if="
+                  shouldUseInlineChoiceOptions(
+                    field,
+                    editingRecord ? 'edit' : 'create',
+                  )
+                "
+                v-model:value="formState[field.key]"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :options="
+                  getInlineChoiceOptions(
+                    field,
+                    editingRecord ? 'edit' : 'create',
+                  )
+                "
+                class="flex flex-wrap gap-2"
+                option-type="button"
+              />
+              <AutoComplete
+                v-else-if="
+                  (field.type === 'select' || field.type === 'role-select') &&
+                  field.allowInput &&
+                  !field.multiple
+                "
+                v-model:value="formState[field.key]"
+                :allow-clear="true"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :options="getFieldOptions(field)"
+                :placeholder="getPlaceholder(field)"
+                :filter-option="
+                  isRemoteSearchField(field) ? false : filterSelectOptionByLabel
+                "
+                :loading="optionLoadingState[field.key]"
+                class="w-full"
+                @blur="() => restoreRemoteFieldOptions(field)"
+                @dropdown-visible-change="
+                  (open) => handleSelectDropdownVisibleChange(field, open)
+                "
+                @search="handleSelectSearch(field, $event)"
+              />
+              <Select
+                v-else-if="
+                  field.type === 'select' || field.type === 'role-select'
+                "
+                v-model:value="formState[field.key]"
+                :allow-clear="true"
+                :disabled="isFieldDisabledOnEdit(field)"
+                :mode="field.multiple ? 'multiple' : undefined"
+                :options="getFieldOptions(field)"
+                :placeholder="getPlaceholder(field)"
+                :filter-option="
+                  isRemoteSearchField(field) ? false : filterSelectOptionByLabel
+                "
+                :loading="optionLoadingState[field.key]"
+                class="w-full"
+                show-search
+                @blur="() => restoreRemoteFieldOptions(field)"
+                @change="(value) => handleSelectChange(field, value)"
+                @dropdown-visible-change="
+                  (open) => handleSelectDropdownVisibleChange(field, open)
+                "
+                @search="handleSelectSearch(field, $event)"
+              />
+              <Select
+                v-else-if="field.type === 'tags'"
+                v-model:value="formState[field.key]"
+                :options="getFieldOptions(field)"
+                :placeholder="getPlaceholder(field)"
+                :filter-option="
+                  isRemoteSearchField(field) ? false : filterSelectOptionByLabel
+                "
+                :loading="optionLoadingState[field.key]"
+                class="w-full"
+                mode="tags"
+                show-search
+                @blur="() => restoreRemoteFieldOptions(field)"
+                @dropdown-visible-change="
+                  (open) => handleSelectDropdownVisibleChange(field, open)
+                "
+                @search="handleSelectSearch(field, $event)"
+              />
+              <Switch
+                v-else-if="field.type === 'switch'"
+                v-model:checked="formState[field.key]"
+                :checked-children="
+                  getCrudBooleanDisplayText(field, true) || '是'
+                "
+                :un-checked-children="
+                  getCrudBooleanDisplayText(field, false) || '否'
+                "
+              />
+              <Input
+                v-else
+                v-model:value="formState[field.key]"
+                :disabled="isFieldDisabledOnEdit(field)"
+                class="w-full"
+                :maxlength="field.maxLength"
+                :placeholder="getPlaceholder(field)"
+              />
             </Form.Item>
           </template>
         </div>

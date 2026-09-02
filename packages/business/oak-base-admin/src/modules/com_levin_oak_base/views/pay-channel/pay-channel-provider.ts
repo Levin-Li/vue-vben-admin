@@ -11,6 +11,11 @@ export interface PayChannelServicePlugin {
   providerList?: PayChannelPluginProvider[];
 }
 
+export interface PayChannelSelectionState {
+  detailInfo?: unknown;
+  providerCode?: unknown;
+}
+
 export const PAY_CHANNEL_PLUGIN_IMPL_TYPES: Record<string, string> = {
   BLOCK_CHAIN_TOKEN_COIN:
     'com.levin.oak.base.biz.pay.usdt.UsdtPayServicePlugin',
@@ -44,6 +49,83 @@ export function createPayChannelDetailInfo(
 ) {
   return {
     '@JsonSchema': String(provider.configEditor || '').trim(),
-    providerCode: provider.code,
+  };
+}
+
+function normalizeText(value: unknown) {
+  return String(value || '').trim();
+}
+
+export function normalizePayChannelDetailInfo(detailInfo: unknown) {
+  if (detailInfo && typeof detailInfo === 'object' && !Array.isArray(detailInfo)) {
+    return detailInfo as Record<string, any>;
+  }
+  return {};
+}
+
+export function reconcilePayChannelProviderSelection(
+  selection: PayChannelSelectionState,
+  providers: PayChannelPluginProvider[],
+  pluginConfigured: boolean,
+) {
+  const detailInfo = normalizePayChannelDetailInfo(selection.detailInfo);
+
+  if (!pluginConfigured) {
+    return {
+      detailInfo: {},
+      providerCode: undefined,
+    };
+  }
+
+  const providerCode =
+    normalizeText(selection.providerCode) ||
+    normalizeText(detailInfo.providerCode);
+  const schemaSource = normalizeText(detailInfo['@JsonSchema']);
+  const currentProvider = providers.find((item) => item.code === providerCode);
+
+  if (currentProvider) {
+    const controlledDetailInfo = createPayChannelDetailInfo(currentProvider);
+    if (
+      schemaSource &&
+      schemaSource !== controlledDetailInfo['@JsonSchema']
+    ) {
+      return {
+        detailInfo: controlledDetailInfo,
+        providerCode: currentProvider.code,
+      };
+    }
+
+    return {
+      detailInfo: {
+        ...detailInfo,
+        ...controlledDetailInfo,
+      },
+      providerCode: currentProvider.code,
+    };
+  }
+
+  const legacyProvider = providers.find(
+    (item) => normalizeText(item.configEditor) === schemaSource,
+  );
+  if (legacyProvider) {
+    return {
+      detailInfo: {
+        ...detailInfo,
+        ...createPayChannelDetailInfo(legacyProvider),
+      },
+      providerCode: legacyProvider.code,
+    };
+  }
+
+  if (providerCode || schemaSource) {
+    return {
+      detailInfo: {},
+      providerCode: undefined,
+    };
+  }
+
+  return {
+    detailInfo,
+    providerCode: undefined,
   };
 }

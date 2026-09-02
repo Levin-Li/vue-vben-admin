@@ -222,6 +222,7 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
         width: 220,
         help: '请选择已经维护完整开票资料的合作伙伴；正式联调时该合作伙伴即作为销方主体快照来源。',
       },
+      // 精确匹配例外：供应商由固定选项选择，查询时按选中的完整编码过滤。
       {
         key: 'providerCode',
         label: '供应商',

@@ -22,6 +22,7 @@ import {
   sortDisplayGroups,
   resolveDisplayStates,
   reconcileCrudPageDisplayHeaders,
+  resolvePageDisplayContextKey,
   resolvePageDisplaySettingCode,
   resolveQueryCollapsedFieldCount,
   shouldAutoQuery,
@@ -135,6 +136,23 @@ describe('crud page display rules', () => {
     expect(resolvePageDisplaySettingCode(undefined, '/Address')).toBe(
       '/Address',
     );
+  });
+
+  it('includes user, org category, and org type in the page display context key', () => {
+    expect(resolvePageDisplayContextKey({
+      tenantId: 'tenant-1',
+      type: 'Employee',
+      category: 'Staff',
+      orgCategory: 'Dealer',
+      orgType: 'Company',
+    }, 'portal.example.com')).toBe('tenant-1:portal.example.com:Employee:Staff:Dealer:Company');
+    expect(resolvePageDisplayContextKey({
+      tenantId: 'tenant-1',
+      userType: 'Employee',
+      userCategory: 'Staff',
+      orgId: 'org-1',
+      org: { type: 'Department' },
+    }, 'portal.example.com')).toBe('tenant-1:portal.example.com:Employee:Staff:org-1:Department');
   });
 
   it('limits collapsed query fields by configured row count while reserving an action slot', () => {

@@ -42,28 +42,12 @@ function challenge(
   };
 }
 
-function obstacle(index: number) {
-  const glyphs = ['中', 'A', '★', 'B', '山', 'Q', '✦', 'R'];
-  return {
-    fontSize: 26 + index,
-    glyph: glyphs[index] || `X${index}`,
-    height: 32 + index,
-    rotate: index % 2 === 0 ? 0 : 8,
-    width: 28 + index,
-    x: 56 + index * 28,
-    y: index % 2 === 0 ? 24 + index * 8 : 82 + index * 6,
-  };
-}
-
-function pathChallenge(obstacleCount = 5) {
+function pathChallenge() {
   return challenge('OBSTACLE_AVOIDANCE', {
     ballRadius: 14,
-    end: { x: 296, y: 32 },
     image: masterImage,
     kind: 'path',
-    obstacles: Array.from({ length: obstacleCount }, (_, index) => obstacle(index)),
     start: { x: 24, y: 150 },
-    targetRadius: 20,
     width: 320,
     height: 180,
   });
@@ -174,20 +158,18 @@ describe('BehaviorCaptcha', () => {
     wrapper.unmount();
   });
 
-  it('renders a 5-obstacle obstacle-avoidance scene with separate start and target markers', () => {
-    const wrapper = mount(BehaviorCaptcha, {
-      props: { challenge: pathChallenge(5) },
-    });
+  it('renders only the public start marker for an obstacle-avoidance image', () => {
+    const wrapper = mount(BehaviorCaptcha, { props: { challenge: pathChallenge() } });
 
-    expect(wrapper.findAll('[data-test="behavior-captcha-path-obstacle"]')).toHaveLength(5);
+    expect(wrapper.findAll('[data-test="behavior-captcha-path-obstacle"]')).toHaveLength(0);
     expect(wrapper.get('[data-test="behavior-captcha-path-start"]').text()).toContain('起');
-    expect(wrapper.get('[data-test="behavior-captcha-path-target"]').text()).toContain('终');
+    expect(wrapper.find('[data-test="behavior-captcha-path-target"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
-  it('tracks the drag path and submits obstacle-avoidance coordinates only when released inside the target', async () => {
+  it('tracks the drag path and submits only the user trajectory for server-side obstacle validation', async () => {
     const wrapper = mount(BehaviorCaptcha, {
-      props: { challenge: pathChallenge(6) },
+      props: { challenge: pathChallenge() },
       attachTo: document.body,
     });
     setStageRect(wrapper);
@@ -213,7 +195,6 @@ describe('BehaviorCaptcha', () => {
     const [verifyCode] = wrapper.emitted('complete')?.at(-1) || [];
     expect(JSON.parse(String(verifyCode))).toMatchObject({
       answer: {
-        end: { x: 296, y: 32 },
         path: expect.arrayContaining([{ x: 24, y: 150 }, { x: 296, y: 32 }]),
         start: { x: 24, y: 150 },
       },
@@ -228,9 +209,9 @@ describe('BehaviorCaptcha', () => {
     wrapper.unmount();
   });
 
-  it('clears the local path instead of submitting when the white ball is released away from the target', async () => {
+  it('submits an off-target path for server-side validation without exposing the target coordinate', async () => {
     const wrapper = mount(BehaviorCaptcha, {
-      props: { challenge: pathChallenge(5) },
+      props: { challenge: pathChallenge() },
       attachTo: document.body,
     });
     setStageRect(wrapper);
@@ -244,12 +225,11 @@ describe('BehaviorCaptcha', () => {
     dispatchPointer('pointerup', 140, 120);
     await nextTick();
 
-    expect(wrapper.emitted('complete')).toBeUndefined();
-    expect(wrapper.find('[data-test="behavior-captcha-path-track"]').exists()).toBe(false);
+    expect(wrapper.emitted('complete')).toHaveLength(1);
     wrapper.unmount();
   });
 
-  it('keeps enough header space for the enlarged click-order thumbnail', () => {
+  it('keeps the enlarged thumbnail only for ordinary click captcha', () => {
     expect(componentSource).toMatch(
       /captcha-mode-CLICK'\] \.go-captcha \.gc-header\)[\s\S]*?height:\s*56px;/,
     );
@@ -259,8 +239,8 @@ describe('BehaviorCaptcha', () => {
     expect(componentSource).toMatch(
       /captcha-mode-CLICK'\] \.go-captcha \.gc-header img\)[\s\S]*?max-height:\s*56px;/,
     );
-    expect(componentSource).toMatch(
-      /captcha-mode-IDIOM_CLICK'\] \.go-captcha \.gc-header img\)[\s\S]*?max-height:\s*56px;/,
+    expect(componentSource).not.toMatch(
+      /captcha-mode-IDIOM_CLICK'\] \.go-captcha \.gc-header img/,
     );
   });
 
@@ -332,11 +312,14 @@ describe('BehaviorCaptcha', () => {
       }),
     ).toMatchObject({
       mode: expectedMode,
-      payload: { image: masterImage, thumb: thumbImage },
+      payload: {
+        image: masterImage,
+        thumb: mode === 'idiomClick' ? '' : thumbImage,
+      },
     });
   });
 
-  it('normalizes the obstacleAvoidance server contract and preserves 5-8 glyph obstacles', () => {
+  it('normalizes the obstacleAvoidance server contract without retaining private geometry', () => {
     const normalized = normalizeBehaviorCaptchaChallenge({
       challengeId: 'server-obstacle',
       instruction: '拖动白球绕开障碍',
@@ -344,19 +327,8 @@ describe('BehaviorCaptcha', () => {
       puzzle: {
         backgroundId: 'bg-01-park',
         ballRadius: 15,
-        end: { x: 296, y: 32 },
         image: masterImage,
-        obstacles: Array.from({ length: 8 }, (_, index) => ({
-          fontSize: 24 + index,
-          glyph: obstacle(index).glyph,
-          height: 30 + index,
-          rotate: index * 3,
-          width: 26 + index,
-          x: 44 + index * 24,
-          y: 20 + (index % 3) * 34,
-        })),
         start: { x: 24, y: 150 },
-        targetRadius: 18,
         viewport: { height: 180, width: 320 },
       },
     });
@@ -366,29 +338,27 @@ describe('BehaviorCaptcha', () => {
       payload: {
         backgroundId: 'bg-01-park',
         ballRadius: 15,
-        end: { x: 296, y: 32 },
         kind: 'path',
         start: { x: 24, y: 150 },
-        targetRadius: 18,
       },
     });
     expect(isObstacleAvoidancePayload(normalized?.payload)).toBe(true);
     if (!isObstacleAvoidancePayload(normalized?.payload)) {
       throw new Error('expected obstacle avoidance payload');
     }
-    expect(normalized.payload.obstacles).toHaveLength(8);
+    expect(normalized.payload).not.toHaveProperty('obstacles');
   });
 
-  it('normalizes idiom click and keeps the server-required four ordered clicks', () => {
+  it('normalizes idiom click with an empty answer thumbnail and semantic instruction', () => {
     expect(
       normalizeBehaviorCaptchaChallenge({
         challengeId: 'server-idiom',
-        instruction: '请按成语顺序点击四个字',
+        instruction: '请按语义顺序点击文字',
         mode: 'idiomClick',
         puzzle: {
           image: masterImage,
           requiredClicks: 4,
-          thumb: thumbImage,
+          thumb: '',
           viewport: { height: 180, width: 320 },
         },
       }),
@@ -397,10 +367,28 @@ describe('BehaviorCaptcha', () => {
       payload: {
         image: masterImage,
         requiredClicks: 4,
-        thumb: thumbImage,
+        thumb: '',
       },
-      prompt: '请按成语顺序点击四个字',
+      prompt: '请按语义顺序点击文字',
     });
+  });
+
+  it('renders an idiom challenge with no answer thumbnail while retaining its operation instruction', () => {
+    const wrapper = mount(BehaviorCaptcha, {
+      props: {
+        challenge: {
+          ...challenge('IDIOM_CLICK', { requiredClicks: 4, thumb: '' }),
+          prompt: '请按语义顺序点击文字',
+        },
+      },
+    });
+
+    expect(wrapper.findComponent(GoCaptchaClick).exists()).toBe(true);
+    expect(wrapper.getComponent(GoCaptchaClick).props('config')).toMatchObject({
+      title: '',
+    });
+    expect(wrapper.find('.gc-header img').exists()).toBe(false);
+    wrapper.unmount();
   });
 
   it('submits the GoCaptcha Slide final coordinate instead of click points', () => {
@@ -422,7 +410,7 @@ describe('BehaviorCaptcha', () => {
     wrapper.unmount();
   });
 
-  it('does not accept a server challenge that lacks either image', () => {
+  it('does not accept an ordinary click challenge that lacks its required thumbnail', () => {
     expect(
       normalizeBehaviorCaptchaChallenge({
         challengeId: 'missing-thumb',

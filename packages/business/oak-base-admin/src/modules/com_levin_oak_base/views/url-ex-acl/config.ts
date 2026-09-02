@@ -73,10 +73,15 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     {
+      key: 'containsName',
+      label: '名称',
+      form: false,
+      search: true,
+    },
+    {
       key: 'name',
       label: '名称',
       required: true,
-      search: true,
       table: true,
       width: 180,
     },
@@ -96,9 +101,14 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
       width: 120,
     },
     {
+      key: 'containsInterceptor',
+      label: '拦截器Bean名称',
+      form: false,
+      search: true,
+    },
+    {
       key: 'interceptor',
       label: '拦截器Bean名称',
-      search: true,
       table: true,
       width: 220,
     },

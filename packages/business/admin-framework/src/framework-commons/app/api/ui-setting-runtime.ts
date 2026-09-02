@@ -5,6 +5,7 @@ export interface UiSettingRuntimeRecord {
   createTime?: string;
   id?: string;
   lastUpdateTime?: string;
+  orgCategory?: string;
   orgType?: string;
   optimisticLock?: number;
   tenantId?: string;
@@ -50,7 +51,11 @@ export function replaceUiSettingRuntimeCache(
 }
 
 function getHeader(headers: Record<string, any> | undefined, name: string) {
-  return headers?.[name] || headers?.[name.toLowerCase()] || headers?.[name.toUpperCase()];
+  return (
+    headers?.[name] ||
+    headers?.[name.toLowerCase()] ||
+    headers?.[name.toUpperCase()]
+  );
 }
 
 export async function resolveUiSettingRuntimeWithScope(
@@ -70,12 +75,14 @@ export async function resolveUiSettingRuntimeWithScope(
 
   const payload = response.data;
   // ApiResp 的 data 为 null 时不能回退为整个响应壳，否则调用方会误认为已命中设置。
-  const setting = payload && typeof payload === 'object' && 'data' in payload
-    ? payload.data ?? null
-    : payload ?? null;
+  const setting =
+    payload && typeof payload === 'object' && 'data' in payload
+      ? (payload.data ?? null)
+      : (payload ?? null);
   const scope = {
     domain: getHeader(response.headers, 'x-ui-setting-domain') || undefined,
-    tenantId: getHeader(response.headers, 'x-ui-setting-tenant-id') || undefined,
+    tenantId:
+      getHeader(response.headers, 'x-ui-setting-tenant-id') || undefined,
   };
   uiSettingCache.set(cacheKey, {
     etag: getHeader(response.headers, 'etag'),

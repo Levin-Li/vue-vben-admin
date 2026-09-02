@@ -126,9 +126,10 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       key: 'shortName', label: '合作伙伴简称', layoutGroup: 'basic', layoutGroupTitle: '主体信息', layoutOrder: 10,
       search: true, table: true, width: 180,
     },
+    { key: 'containsSubjectName', label: '主体名称', form: false, search: true },
     {
       key: 'subjectName', label: '主体名称', layoutGroup: 'basic', layoutOrder: 20,
-      required: true, search: true, table: true, width: 220,
+      required: true, table: true, width: 220,
     },
     {
       key: 'category', label: '类别', layoutGroup: 'ownership', layoutGroupTitle: '归属与分类', layoutOrder: 20,
@@ -138,7 +139,8 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       key: 'subCategory', label: '子类别', layoutGroup: 'ownership', layoutOrder: 30,
       loadOptions: partnerTypeOptionsLoader, required: true, search: true, table: true, type: 'select', width: 160,
     },
-    { key: 'groupName', label: '分组', layoutGroup: 'ownership', layoutOrder: 40, search: true, table: true, width: 150 },
+    { key: 'containsGroupName', label: '分组', form: false, search: true },
+    { key: 'groupName', label: '分组', layoutGroup: 'ownership', layoutOrder: 40, table: true, width: 150 },
     {
       key: 'industries', label: '所属行业', layoutGroup: 'ownership', layoutOrder: 50,
       help: '可输入多个行业，按回车确认。', search: true, table: true, type: 'tags', width: 150,

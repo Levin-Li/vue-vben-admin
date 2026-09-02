@@ -13,10 +13,134 @@ import { transformSettingCrudSubmit } from '../setting-crud-submit';
 const settingValueTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Setting$ValueType',
 );
+export const LEGACY_OAUTH_SETTING_CODE_PREFIX = 'oauth_platform_';
+
+type SettingListResult =
+  | Record<string, any>
+  | {
+      data?: Record<string, any>[];
+      items?: Record<string, any>[];
+      list?: Record<string, any>[];
+      records?: Record<string, any>[];
+      total?: number;
+      totals?: number;
+    }
+  | Record<string, any>[];
+
+function isLegacyOauthSettingCode(code: unknown) {
+  return (
+    typeof code === 'string' &&
+    code.startsWith(LEGACY_OAUTH_SETTING_CODE_PREFIX)
+  );
+}
+
+function extractSettingListItems(result: SettingListResult) {
+  if (Array.isArray(result)) {
+    return result;
+  }
+
+  return result?.items || result?.records || result?.list || result?.data || [];
+}
+
+export function filterLegacyOauthSettingItems<T extends { code?: unknown }>(
+  items: T[],
+) {
+  return items.filter((item) => !isLegacyOauthSettingCode(item?.code));
+}
+
+function replaceSettingListItems(
+  result: SettingListResult,
+  items: Record<string, any>[],
+  totals: number,
+) {
+  if (Array.isArray(result)) {
+    return items;
+  }
+
+  const nextResult = { ...result };
+
+  if (Array.isArray(nextResult.items)) {
+    nextResult.items = items;
+  }
+  if (Array.isArray(nextResult.records)) {
+    nextResult.records = items;
+  }
+  if (Array.isArray(nextResult.list)) {
+    nextResult.list = items;
+  }
+  if (Array.isArray(nextResult.data)) {
+    nextResult.data = items;
+  }
+  if (typeof nextResult.total === 'number') {
+    nextResult.total = totals;
+  }
+  if (typeof nextResult.totals === 'number') {
+    nextResult.totals = totals;
+  }
+
+  return nextResult;
+}
+
+async function listVisibleSettings(params?: any, options?: any) {
+  const requestedPageIndex = Math.max(1, Number(params?.pageIndex || 1) || 1);
+  const requestedPageSize = Math.max(1, Number(params?.pageSize || 10) || 10);
+  const backendPageSize = Math.max(requestedPageSize, 100);
+  const visibleItems: Record<string, any>[] = [];
+  let visibleTotal = 0;
+  let pageIndex = 1;
+  let lastResult: SettingListResult | undefined;
+
+  while (true) {
+    const result = (await settingService.list(
+      {
+        ...params,
+        pageIndex,
+        pageSize: backendPageSize,
+      },
+      options,
+    )) as SettingListResult;
+    const pageItems = extractSettingListItems(result);
+    const filteredItems = filterLegacyOauthSettingItems(pageItems);
+    const rawTotal = Number(
+      Array.isArray(result) ? 0 : (result.totals ?? result.total ?? 0),
+    );
+
+    visibleTotal += filteredItems.length;
+    visibleItems.push(...filteredItems);
+    lastResult = result;
+
+    const reachedKnownTotal =
+      rawTotal > 0 && pageIndex * backendPageSize >= rawTotal;
+    const reachedPageEnd = pageItems.length < backendPageSize;
+
+    if (reachedKnownTotal || reachedPageEnd) {
+      break;
+    }
+
+    pageIndex += 1;
+  }
+
+  const start = (requestedPageIndex - 1) * requestedPageSize;
+  const end = start + requestedPageSize;
+
+  return replaceSettingListItems(
+    lastResult || { items: [], totals: 0 },
+    visibleItems.slice(start, end),
+    visibleTotal,
+  );
+}
+
+const settingPageCrudService = {
+  create: settingService.create.bind(settingService),
+  delete: settingService.delete.bind(settingService),
+  list: listVisibleSettings,
+  retrieve: settingService.retrieve.bind(settingService),
+  update: settingService.update.bind(settingService),
+};
 
 export const settingPageCrudConfig: CrudPageConfig = {
   apiBase: '/Setting',
-  apiService: settingService,
+  apiService: settingPageCrudService,
   defaultFormValues: {
     editable: true,
     enable: true,

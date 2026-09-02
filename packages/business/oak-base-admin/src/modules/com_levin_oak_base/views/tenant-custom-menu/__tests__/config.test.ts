@@ -4,7 +4,7 @@ import { tenantCustomMenuPageCrudConfig } from '../config';
 
 describe('tenant custom menu audience fields', () => {
   it('uses clearable single-select fields so empty values represent wildcards', () => {
-    for (const key of ['userType', 'orgType']) {
+    for (const key of ['userType', 'userCategory', 'orgCategory', 'orgType']) {
       const field = tenantCustomMenuPageCrudConfig.fields.find(
         (item) => item.key === key,
       );

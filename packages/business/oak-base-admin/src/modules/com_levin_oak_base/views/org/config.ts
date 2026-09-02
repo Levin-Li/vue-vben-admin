@@ -158,6 +158,7 @@ export const orgPageCrudConfig: CrudPageConfig = {
       required: true,
       type: 'select',
     },
+    // 精确匹配例外：行政区划级联组件提交选中节点编码，必须保持与目标区域编码完全一致。
     {
       key: 'areaCode',
       label: '区域编码',
