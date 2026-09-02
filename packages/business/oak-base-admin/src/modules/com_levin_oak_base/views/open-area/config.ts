@@ -1,7 +1,21 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { formatAdministrativeArea } from '@levin/admin-framework/framework-commons/shared/administrative-area-data';
+
 import { openAreaService } from '../../api/open-area-service';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
+
+export function getOpenAreaDisplayNames(record: Record<string, any>) {
+  const areaCodeList = Array.isArray(record.areaCodeList)
+    ? record.areaCodeList
+    : [];
+
+  if (areaCodeList.length === 0) {
+    return ['未限制（全国）'];
+  }
+
+  return areaCodeList.map((code) => formatAdministrativeArea(code));
+}
 
 export const openAreaPageCrudConfig: CrudPageConfig = {
   apiBase: '/OpenArea',
@@ -62,9 +76,14 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'areaCodeList',
-      label: '开通区域代码列表',
-      help: '填写 JSON 数组，例如 ["330000", "330100"]；空数组表示不限制可选区域。',
-      type: 'json',
+      cellTooltip: true,
+      form: false,
+      label: '已开通区域',
+      table: true,
+      tableMaxWidth: 360,
+      tableValue: getOpenAreaDisplayNames,
+      type: 'tags',
+      width: 280,
     },
     {
       key: 'expiredTime',

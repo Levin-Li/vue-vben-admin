@@ -518,7 +518,6 @@ const menuGroups = [
       'ScheduledTask',
       'ScheduledLog',
       'NoticeProcessLog',
-      'VerifyCodeAudit',
     ],
   ],
 ] as const;

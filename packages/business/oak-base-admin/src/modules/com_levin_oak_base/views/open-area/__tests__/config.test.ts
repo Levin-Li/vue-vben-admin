@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { oakBaseAdminBackendRouteMappings } from '../../../backend-route-mappings';
 import { oakBaseAdminPageMap } from '../../../page-map';
-import { openAreaPageCrudConfig } from '../config';
+import { getOpenAreaDisplayNames, openAreaPageCrudConfig } from '../config';
 
 vi.mock('../../../api/open-area-service', () => ({
   openAreaService: {},
@@ -32,14 +32,27 @@ describe('openAreaPageCrudConfig', () => {
     });
   });
 
-  it('keeps the area-code list as a JSON array field', () => {
+  it('renders the open-area list as Chinese labels with a tooltip', () => {
     expect(
       openAreaPageCrudConfig.fields.find(
         (field) => field.key === 'areaCodeList',
       ),
     ).toMatchObject({
-      type: 'json',
+      cellTooltip: true,
+      form: false,
+      label: '已开通区域',
+      table: true,
+      type: 'tags',
     });
+  });
+
+  it('maps area codes to readable names and marks empty lists as unrestricted', () => {
+    expect(getOpenAreaDisplayNames({ areaCodeList: ['330100'] })).toEqual([
+      '浙江省 / 杭州市',
+    ]);
+    expect(getOpenAreaDisplayNames({ areaCodeList: [] })).toEqual([
+      '未限制（全国）',
+    ]);
   });
 
   it('registers the OpenArea frontend route mapping', () => {

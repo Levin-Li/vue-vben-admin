@@ -7,6 +7,13 @@ export interface CrudListQuery {
   pageSize?: number;
 }
 
+export interface CrudListRequestOptions {
+  /**
+   * 当前请求只用于加载选择器候选项，不应被已选全局组织上下文覆盖查询条件。
+   */
+  skipGlobalUserOrgContext?: boolean;
+}
+
 export interface CrudListResult<T> {
   items: T[];
   pageIndex: number;
@@ -139,6 +146,7 @@ export async function fetchCrudList<T>(
   listPath: string,
   params: CrudListQuery = {},
   moduleBase?: string,
+  requestOptions: CrudListRequestOptions = {},
 ) {
   const requestParams = {
     requireResultList: true,
@@ -150,6 +158,8 @@ export async function fetchCrudList<T>(
     {
       params: requestParams,
       baseURL: '',
+      __skipGlobalUserOrgContext:
+        requestOptions.skipGlobalUserOrgContext === true,
     },
   );
 

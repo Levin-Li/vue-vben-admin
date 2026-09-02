@@ -13,6 +13,7 @@ function serializeUiSettingValueContent(
 <template>
   <SettingCrudPage
     :config="uiSettingPageCrudConfig"
+    force-json-value-editor
     :serialize-value-content="serializeUiSettingValueContent"
   />
 </template>

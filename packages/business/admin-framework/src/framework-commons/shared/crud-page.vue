@@ -33,13 +33,7 @@ import {
 import { useRoute } from 'vue-router';
 
 import { Page, VCropper } from '@vben/common-ui';
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronDown,
-  IconifyIcon,
-  Plus,
-} from '@vben/icons';
+import { ChevronDown, IconifyIcon, Plus } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
 import {
@@ -199,6 +193,11 @@ import {
 } from './crud-select-options';
 import { normalizeLeftFixedTableColumns } from './crud-table-columns';
 import {
+  buildTableColumnPreference,
+  getTableColumnPreferenceStorageKey,
+  readTableColumnPreference,
+} from './crud-table-column-preference';
+import {
   findMatchingCrudChoiceOption,
   normalizeCrudChoiceFormValue,
   normalizeCrudChoiceOptions,
@@ -209,7 +208,6 @@ import {
   buildOrganizationScriptContext,
   buildTenantScriptContext,
   distributeExtraTableWidth,
-  hasServerListHeaderConfig,
   hasMultipleEffectiveDisplayGroups,
   initializeFieldHidden,
   initializeHeaderVisibility,
@@ -271,19 +269,10 @@ const props = defineProps<{
 const slots = useSlots();
 
 type GenericRecord = Record<string, any>;
-type TableColumnFixedMode = 'left' | 'none' | 'right';
 type TableSortOrder = 'ascend' | 'descend';
 type CrudBuiltinAction = 'create' | 'delete' | 'edit' | 'retrieve';
-interface TableColumnPreference {
-  fixedMap?: Record<string, TableColumnFixedMode>;
-  hiddenKeys?: string[];
-  orderedKeys?: string[];
-  version?: number;
-}
 interface TableColumnSettingsSnapshot {
-  fixedMap: Record<string, TableColumnFixedMode>;
   hiddenKeys: string[];
-  orderedKeys: string[];
 }
 function getCrudErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
@@ -334,7 +323,6 @@ const EXPORT_TEMPLATE_SCOPE_OPTIONS = [
   { label: '租户共享', value: 'tenant' },
   { label: '组织共享', value: 'org' },
 ] as const;
-const TABLE_COLUMN_PREFERENCE_VERSION = 2;
 const TABLE_MIN_SCROLL_Y = 160;
 const TABLE_SECTION_HORIZONTAL_PADDING = 32;
 const TABLE_SECTION_VERTICAL_PADDING = 32;
@@ -417,6 +405,15 @@ const hiddenTableColumnKeys = ref<string[]>([]);
 const columnSettingsOpen = ref(false);
 const pageDisplaySettingsOpen = ref(false);
 const pageDisplayConfig = ref<CrudPageDisplayConfig>({ version: 1 });
+const pageDisplayHeaderMap = computed(
+  () =>
+    new Map(
+      (pageDisplayConfig.value.list?.headers || []).map((header) => [
+        header.key,
+        header,
+      ]),
+    ),
+);
 const autoSearchReady = ref(false);
 const pageDisplaySettingRecord = ref<null | UiSettingRuntimeRecord>(null);
 const pageDisplayScope = ref<{
@@ -433,14 +430,12 @@ const pageDisplayScope = ref<{
 const pageDisplayInitialScope = computed(() => {
   const userInfo = userStore.userInfo as Record<string, any> | undefined;
   return {
-    domain:
-      pageDisplayScope.value.domain ||
-      (typeof window === 'undefined' ? undefined : window.location.hostname),
+    domain: (pageDisplaySettingRecord.value as any)?.domain || undefined,
     orgCategory: pageDisplayScope.value.orgCategory || userInfo?.orgCategory,
     orgType: pageDisplayScope.value.orgType || userInfo?.orgType,
     tenantId: pageDisplayScope.value.tenantId || userInfo?.tenantId,
     userCategory: pageDisplayScope.value.userCategory || userInfo?.category || userInfo?.userCategory,
-    userType: pageDisplayScope.value.userType || userInfo?.type || userInfo?.userType,
+    userType: pageDisplaySettingRecord.value?.userType || undefined,
   };
 });
 const pageDisplayContextKey = computed(() => {
@@ -528,16 +523,8 @@ async function savePageDisplaySettings(payload: {
   });
 }
 const columnSettingsSnapshot = ref<null | TableColumnSettingsSnapshot>(null);
-const draggedDraftTableColumnKey = ref('');
 const draftHiddenTableColumnKeys = ref<string[]>([]);
-const tableColumnOrderKeys = ref<string[]>([]);
-const draftTableColumnOrderKeys = ref<string[]>([]);
-const tableColumnFixedState = reactive<Record<string, TableColumnFixedMode>>(
-  {},
-);
-const draftTableColumnFixedState = reactive<
-  Record<string, TableColumnFixedMode>
->({});
+const hasStoredTableColumnPreference = ref(false);
 const hoveredImageUploadTarget = ref<null | {
   field: CrudFieldConfig;
   mode: 'append' | 'replace';
@@ -712,9 +699,7 @@ function getTenantScriptContext() {
 function getPageDisplayHeader(
   key: string,
 ): CrudPageDisplayHeaderConfig | undefined {
-  const configured = pageDisplayConfig.value.list?.headers.find(
-    (item) => item.key === key,
-  );
+  const configured = pageDisplayHeaderMap.value.get(key);
   if (configured) {
     configured.visible = initializeHeaderVisibility(configured);
     return configured;
@@ -1142,6 +1127,19 @@ function shouldShowFormGroupTitle(field: CrudFieldConfig) {
   );
 }
 
+function getFormGroupTitleClass(field: CrudFieldConfig) {
+  switch (field.displayGroup?.displayStyle) {
+    case 'card':
+      return 'bg-muted/45 rounded-lg border border-border px-4 py-3';
+    case 'border':
+      return 'rounded-lg border border-primary px-4 py-3';
+    case 'newline':
+      return 'border-0 bg-transparent px-0 py-2';
+    default:
+      return 'bg-muted/45 rounded-lg px-4 py-3';
+  }
+}
+
 const tableFields = computed(() =>
   [...props.config.fields]
     .filter((field) => field.table && isFieldVisible(field))
@@ -1153,9 +1151,7 @@ const tableFields = computed(() =>
     ),
 );
 
-const orderedTableFields = computed(() =>
-  getOrderedTableFields(tableColumnOrderKeys.value),
-);
+const orderedTableFields = computed(() => tableFields.value);
 
 const visibleTableFields = computed(() =>
   orderedTableFields.value.filter(
@@ -1166,13 +1162,9 @@ const visibleTableFields = computed(() =>
 const effectiveTableColumnFixedMap = computed(() =>
   normalizeLeftFixedTableColumns(
     visibleTableFields.value,
-    getTableColumnFixed,
+    getDefaultTableColumnFixed,
     getTableFieldKey,
   ),
-);
-
-const draftOrderedTableFields = computed(() =>
-  getOrderedTableFields(draftTableColumnOrderKeys.value),
 );
 
 const orderedVisibleTableFields = computed(() => {
@@ -1415,10 +1407,11 @@ const tableColumnPreferenceStorageKey = computed(() => {
   const routeKey =
     route.path ||
     `${props.config.apiModuleBase || ''}${props.config.apiBase || ''}`;
-  const tableName = String(activeListTableName.value || '').trim();
-  const pageKey = tableName ? `${routeKey}:${tableName}` : routeKey;
 
-  return `vben:crud-table-columns:${pageKey}`;
+  return getTableColumnPreferenceStorageKey(
+    routeKey,
+    activeListTableName.value,
+  );
 });
 
 const allDraftTableColumnsVisible = computed(
@@ -1437,15 +1430,8 @@ const draftTableColumnsIndeterminate = computed(
     ),
 );
 
-const hasTableColumnCustomization = computed(
-  () =>
-    hiddenTableColumnKeys.value.length > 0 ||
-    tableColumnOrderKeys.value.length > 0 ||
-    Object.keys(tableColumnFixedState).length > 0,
-);
-
 const canCustomizeTableColumnsLocally = computed(
-  () => !hasServerListHeaderConfig(pageDisplayConfig.value),
+  () => tableFields.value.length > 0,
 );
 
 const hasConfiguredRowActions = computed(() =>
@@ -1474,11 +1460,22 @@ const showActionColumn = computed(
 );
 
 const tableColumns = computed<TableColumnsType>(() => {
+  const defaultMaxColumnWidth = Number(
+    pageDisplayConfig.value.list?.defaultMaxColumnWidth,
+  );
+  const defaultMinColumnWidth = Number(
+    pageDisplayConfig.value.list?.defaultMinColumnWidth,
+  );
   const minimumWidths = orderedVisibleTableFields.value.map((field) => {
-    const configuredWidth = getPageDisplayHeader(field.key)?.width;
+    const header = getPageDisplayHeader(field.key);
+    const configuredWidth = header?.width;
+    const configuredMinWidth = header?.minWidth;
     return configuredWidth === 'auto' || !configuredWidth
-      ? resolveDefaultTableColumnWidth(field)
-      : configuredWidth;
+      ? configuredMinWidth ||
+          (Number.isFinite(defaultMinColumnWidth) && defaultMinColumnWidth > 0
+            ? defaultMinColumnWidth
+            : resolveDefaultTableColumnWidth(field))
+      : Math.max(configuredWidth, configuredMinWidth || 0);
   });
   const actionWidth = showActionColumn.value ? 220 : 0;
   const distributedWidths = distributeExtraTableWidth(
@@ -1513,7 +1510,14 @@ const tableColumns = computed<TableColumnsType>(() => {
               ),
           },
         ),
-      width: distributedWidths[index] ?? resolveDefaultTableColumnWidth(field),
+      width: Math.min(
+        distributedWidths[index] ?? resolveDefaultTableColumnWidth(field),
+        field.tableMaxWidth ||
+          getPageDisplayHeader(field.key)?.maxWidth ||
+          (Number.isFinite(defaultMaxColumnWidth) && defaultMaxColumnWidth > 0
+            ? defaultMaxColumnWidth
+            : Number.POSITIVE_INFINITY),
+      ),
     }),
   );
 
@@ -1824,12 +1828,20 @@ const modalMaxWidth = computed(() => {
   return `min(80vw, ${resolvedModalMaxWidthPx.value}px)`;
 });
 
+const activeFormModalConfig = computed(
+  () => pageDisplayConfig.value[editingRecord.value ? 'edit' : 'create'],
+);
+
 const modalStyle = computed(() => ({
-  maxHeight: DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
-  maxWidth: modalMaxWidth.value,
+  maxHeight:
+    activeFormModalConfig.value?.modalMaxHeight ||
+    DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+  maxWidth: activeFormModalConfig.value?.modalMaxWidth || modalMaxWidth.value,
 }));
 
-const modalWidth = computed(() => modalMaxWidth.value);
+const modalWidth = computed(
+  () => activeFormModalConfig.value?.modalMaxWidth || modalMaxWidth.value,
+);
 const modalBodyStyle = DEFAULT_CONTENT_MODAL_BODY_STYLE;
 
 function handleViewportResize() {
@@ -4007,12 +4019,6 @@ function toggleTableFullscreen() {
   updateTableScrollY();
 }
 
-function normalizeTableColumnFixedMode(value: unknown) {
-  return value === 'left' || value === 'right' || value === 'none'
-    ? value
-    : undefined;
-}
-
 function getDefaultTableColumnFixed(field: CrudFieldConfig) {
   if (field.fixed === true) {
     return 'left';
@@ -4021,16 +4027,6 @@ function getDefaultTableColumnFixed(field: CrudFieldConfig) {
   return field.fixed === 'left' || field.fixed === 'right'
     ? field.fixed
     : undefined;
-}
-
-function getTableColumnFixed(field: CrudFieldConfig) {
-  const mode = tableColumnFixedState[String(field.key)];
-
-  if (mode === 'none') {
-    return undefined;
-  }
-
-  return mode || getDefaultTableColumnFixed(field);
 }
 
 function getEffectiveTableColumnFixed(field: CrudFieldConfig) {
@@ -4058,103 +4054,20 @@ function getTableFieldKey(field: CrudFieldConfig) {
   return String(field.key);
 }
 
-function getAvailableTableFieldKeys() {
-  return new Set(tableFields.value.map((field) => String(field.key)));
-}
-
-function getDefaultTableColumnOrder() {
-  return tableFields.value.map(getTableFieldKey);
-}
-
-function normalizeTableColumnOrder(keys: string[] = []) {
-  const availableKeys = getAvailableTableFieldKeys();
-  const seenKeys = new Set<string>();
-  const orderedKeys: string[] = [];
-
-  for (const key of keys.map(String)) {
-    if (availableKeys.has(key) && !seenKeys.has(key)) {
-      seenKeys.add(key);
-      orderedKeys.push(key);
-    }
-  }
-
-  for (const key of getDefaultTableColumnOrder()) {
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      orderedKeys.push(key);
-    }
-  }
-
-  return orderedKeys;
-}
-
-function getOrderedTableFields(keys: string[] = []) {
-  const fieldMap = new Map(
-    tableFields.value.map((field) => [getTableFieldKey(field), field]),
-  );
-
-  return normalizeTableColumnOrder(keys)
-    .map((key) => fieldMap.get(key))
-    .filter(Boolean) as CrudFieldConfig[];
-}
-
-function isTableColumnOrderCustomized(keys = tableColumnOrderKeys.value) {
-  const normalizedKeys = normalizeTableColumnOrder(keys);
-  const defaultKeys = getDefaultTableColumnOrder();
-
-  return normalizedKeys.some((key, index) => key !== defaultKeys[index]);
-}
-
 function pruneTableColumnPreference() {
-  const availableKeys = getAvailableTableFieldKeys();
-  let changed = false;
+  const availableKeys = new Set(
+    tableFields.value.map((field) => getTableFieldKey(field)),
+  );
   const nextHiddenKeys = hiddenTableColumnKeys.value.filter((key) =>
     availableKeys.has(key),
   );
 
   if (nextHiddenKeys.length !== hiddenTableColumnKeys.value.length) {
     hiddenTableColumnKeys.value = nextHiddenKeys;
-    changed = true;
+    return true;
   }
 
-  const nextOrderKeys = normalizeTableColumnOrder(tableColumnOrderKeys.value);
-  const normalizedOrderKeys = isTableColumnOrderCustomized(nextOrderKeys)
-    ? nextOrderKeys
-    : [];
-
-  if (
-    normalizedOrderKeys.length !== tableColumnOrderKeys.value.length ||
-    normalizedOrderKeys.some(
-      (key, index) => key !== tableColumnOrderKeys.value[index],
-    )
-  ) {
-    tableColumnOrderKeys.value = normalizedOrderKeys;
-    changed = true;
-  }
-
-  for (const key of Object.keys(tableColumnFixedState)) {
-    const field = tableFields.value.find(
-      (fieldItem) => String(fieldItem.key) === key,
-    );
-    const mode = tableColumnFixedState[key];
-
-    if (!availableKeys.has(key)) {
-      delete tableColumnFixedState[key];
-      changed = true;
-      continue;
-    }
-
-    if (
-      !mode ||
-      (mode === 'none' && !getDefaultTableColumnFixed(field!)) ||
-      mode === getDefaultTableColumnFixed(field!)
-    ) {
-      delete tableColumnFixedState[key];
-      changed = true;
-    }
-  }
-
-  return changed;
+  return false;
 }
 
 function saveTableColumnPreference() {
@@ -4168,43 +4081,30 @@ function saveTableColumnPreference() {
 
   pruneTableColumnPreference();
 
-  if (
-    hiddenTableColumnKeys.value.length === 0 &&
-    tableColumnOrderKeys.value.length === 0 &&
-    Object.keys(tableColumnFixedState).length === 0
-  ) {
+  if (hiddenTableColumnKeys.value.length === 0) {
     clearTableColumnPreference();
     return;
   }
 
-  const preference: TableColumnPreference = {
-    fixedMap: { ...tableColumnFixedState },
-    hiddenKeys: [...hiddenTableColumnKeys.value],
-    orderedKeys: [...tableColumnOrderKeys.value],
-    version: TABLE_COLUMN_PREFERENCE_VERSION,
-  };
-
   window.localStorage.setItem(
     tableColumnPreferenceStorageKey.value,
-    JSON.stringify(preference),
+    JSON.stringify(buildTableColumnPreference(hiddenTableColumnKeys.value)),
   );
+  hasStoredTableColumnPreference.value = true;
 }
 
 function clearTableColumnPreference() {
   if (typeof window !== 'undefined') {
     window.localStorage.removeItem(tableColumnPreferenceStorageKey.value);
   }
+  hasStoredTableColumnPreference.value = false;
 }
 
 function resetTableColumnPreferenceState() {
-  resetReactiveRecord(tableColumnFixedState);
-  resetReactiveRecord(draftTableColumnFixedState);
   hiddenTableColumnKeys.value = [];
-  tableColumnOrderKeys.value = [];
   draftHiddenTableColumnKeys.value = [];
-  draftTableColumnOrderKeys.value = [];
+  hasStoredTableColumnPreference.value = false;
   columnSettingsSnapshot.value = null;
-  draggedDraftTableColumnKey.value = '';
 }
 
 function loadTableColumnPreference() {
@@ -4225,55 +4125,38 @@ function loadTableColumnPreference() {
   );
 
   if (!rawValue) {
+    hasStoredTableColumnPreference.value = false;
     return;
   }
 
-  try {
-    const preference = JSON.parse(rawValue) as TableColumnPreference;
-    const availableKeys = getAvailableTableFieldKeys();
-    hiddenTableColumnKeys.value = (preference.hiddenKeys || [])
-      .map(String)
-      .filter((key) => availableKeys.has(key));
-    const orderedKeys = normalizeTableColumnOrder(preference.orderedKeys || []);
-    tableColumnOrderKeys.value = isTableColumnOrderCustomized(orderedKeys)
-      ? orderedKeys
-      : [];
+  const preference = readTableColumnPreference(
+    rawValue,
+    tableFields.value.map((field) => getTableFieldKey(field)),
+  );
 
-    for (const [key, value] of Object.entries(preference.fixedMap || {})) {
-      const columnKey = String(key);
-      const mode = normalizeTableColumnFixedMode(value);
-      if (mode && availableKeys.has(columnKey)) {
-        tableColumnFixedState[columnKey] = mode;
-      }
-    }
-  } catch (error) {
-    console.warn('读取表格列设置失败，已恢复默认列设置。', error);
+  hiddenTableColumnKeys.value = preference.hiddenKeys;
+  hasStoredTableColumnPreference.value = preference.hasStoredPreference;
+
+  if (preference.invalid) {
+    console.warn('读取表格列设置失败，已恢复默认列设置。');
     clearTableColumnPreference();
   }
 }
 
 function getTableColumnSettingsSnapshot(): TableColumnSettingsSnapshot {
   return {
-    fixedMap: { ...tableColumnFixedState },
     hiddenKeys: [...hiddenTableColumnKeys.value],
-    orderedKeys: [...tableColumnOrderKeys.value],
   };
 }
 
 function restoreTableColumnSettings(snapshot: TableColumnSettingsSnapshot) {
   hiddenTableColumnKeys.value = [...snapshot.hiddenKeys];
-  tableColumnOrderKeys.value = [...snapshot.orderedKeys];
-  copyReactiveRecord(tableColumnFixedState, snapshot.fixedMap);
   openTableColumnSettings(false);
   updateTableScrollY();
 }
 
 function syncDraftTableColumnSettingsToTable() {
   hiddenTableColumnKeys.value = [...draftHiddenTableColumnKeys.value];
-  tableColumnOrderKeys.value = normalizeTableColumnOrder(
-    draftTableColumnOrderKeys.value,
-  );
-  copyReactiveRecord(tableColumnFixedState, draftTableColumnFixedState);
   updateTableScrollY();
 }
 
@@ -4283,10 +4166,6 @@ function openTableColumnSettings(captureSnapshot = true) {
   }
 
   draftHiddenTableColumnKeys.value = [...hiddenTableColumnKeys.value];
-  draftTableColumnOrderKeys.value = normalizeTableColumnOrder(
-    tableColumnOrderKeys.value,
-  );
-  copyReactiveRecord(draftTableColumnFixedState, tableColumnFixedState);
 }
 
 function isDraftTableColumnVisible(key: string) {
@@ -4333,119 +4212,6 @@ function setAllDraftTableColumnsVisible(visible: boolean) {
   syncDraftTableColumnSettingsToTable();
 }
 
-function getDraftTableColumnIndex(field: CrudFieldConfig) {
-  return normalizeTableColumnOrder(draftTableColumnOrderKeys.value).indexOf(
-    getTableFieldKey(field),
-  );
-}
-
-function moveDraftTableColumn(field: CrudFieldConfig, offset: -1 | 1) {
-  const columnKey = getTableFieldKey(field);
-  const orderedKeys = normalizeTableColumnOrder(
-    draftTableColumnOrderKeys.value,
-  );
-  const currentIndex = orderedKeys.indexOf(columnKey);
-  const nextIndex = currentIndex + offset;
-
-  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= orderedKeys.length) {
-    return;
-  }
-
-  const [movedKey] = orderedKeys.splice(currentIndex, 1);
-  orderedKeys.splice(nextIndex, 0, movedKey!);
-  draftTableColumnOrderKeys.value = orderedKeys;
-  syncDraftTableColumnSettingsToTable();
-}
-
-function handleDraftTableColumnDragStart(
-  event: DragEvent,
-  field: CrudFieldConfig,
-) {
-  const columnKey = getTableFieldKey(field);
-  draggedDraftTableColumnKey.value = columnKey;
-  event.dataTransfer?.setData('text/plain', columnKey);
-
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move';
-  }
-}
-
-function handleDraftTableColumnDragOver(event: DragEvent) {
-  event.preventDefault();
-
-  if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = 'move';
-  }
-}
-
-function handleDraftTableColumnDrop(
-  event: DragEvent,
-  targetField: CrudFieldConfig,
-) {
-  event.preventDefault();
-
-  const sourceKey =
-    draggedDraftTableColumnKey.value ||
-    event.dataTransfer?.getData('text/plain') ||
-    '';
-  const targetKey = getTableFieldKey(targetField);
-
-  if (!sourceKey || sourceKey === targetKey) {
-    draggedDraftTableColumnKey.value = '';
-    return;
-  }
-
-  const orderedKeys = normalizeTableColumnOrder(
-    draftTableColumnOrderKeys.value,
-  );
-  const sourceIndex = orderedKeys.indexOf(sourceKey);
-  const targetIndex = orderedKeys.indexOf(targetKey);
-
-  if (sourceIndex < 0 || targetIndex < 0) {
-    draggedDraftTableColumnKey.value = '';
-    return;
-  }
-
-  const [movedKey] = orderedKeys.splice(sourceIndex, 1);
-  orderedKeys.splice(
-    sourceIndex < targetIndex ? targetIndex - 1 : targetIndex,
-    0,
-    movedKey!,
-  );
-  draftTableColumnOrderKeys.value = orderedKeys;
-  draggedDraftTableColumnKey.value = '';
-  syncDraftTableColumnSettingsToTable();
-}
-
-function handleDraftTableColumnDragEnd() {
-  draggedDraftTableColumnKey.value = '';
-}
-
-function getDraftTableColumnFixedMode(
-  field: CrudFieldConfig,
-): TableColumnFixedMode {
-  const mode = draftTableColumnFixedState[String(field.key)];
-
-  if (mode === 'none') {
-    return 'none';
-  }
-
-  return mode || getDefaultTableColumnFixed(field) || 'none';
-}
-
-function setDraftTableColumnFixed(key: string, mode: TableColumnFixedMode) {
-  draftTableColumnFixedState[String(key)] = mode;
-  syncDraftTableColumnSettingsToTable();
-}
-
-function toggleDraftTableColumnFixed(
-  field: CrudFieldConfig,
-  mode: Exclude<TableColumnFixedMode, 'none'>,
-) {
-  const currentMode = getDraftTableColumnFixedMode(field);
-  setDraftTableColumnFixed(field.key, currentMode === mode ? 'none' : mode);
-}
-
 function applyTableColumnSettings() {
   if (!canCustomizeTableColumnsLocally.value) {
     return;
@@ -4471,9 +4237,9 @@ function cancelTableColumnSettings() {
 
 function resetTableColumns() {
   draftHiddenTableColumnKeys.value = [];
-  draftTableColumnOrderKeys.value = normalizeTableColumnOrder();
-  resetReactiveRecord(draftTableColumnFixedState);
   syncDraftTableColumnSettingsToTable();
+  clearTableColumnPreference();
+  columnSettingsSnapshot.value = getTableColumnSettingsSnapshot();
   updateTableScrollY();
 }
 
@@ -5304,6 +5070,9 @@ function shouldTruncateCellText(
   }
 
   const text = getCellDisplayText(field, value);
+  const overflowStrategy =
+    getPageDisplayHeader(field.key)?.overflowStrategy ||
+    pageDisplayConfig.value.list?.defaultOverflowStrategy;
   return (
     field.cellSingleLine ||
     [
@@ -5315,7 +5084,7 @@ function shouldTruncateCellText(
       'tags',
       'textarea',
     ].includes(field.type || '') ||
-    text.length > 28
+    (overflowStrategy !== 'wrap' && text.length > 28)
   );
 }
 
@@ -5659,6 +5428,8 @@ const actionResultMediaUrl = computed(() => {
 
   return '';
 });
+
+const detailModalConfig = computed(() => pageDisplayConfig.value.detail);
 
 async function runRowAction(
   action: CrudRowAction,
@@ -6280,45 +6051,13 @@ watch(canCustomizeTableColumnsLocally, () => {
                     >
                       全部
                     </Checkbox>
-                    <div
-                      class="text-muted-foreground mt-2 flex items-center gap-1 text-xs"
-                    >
-                      <IconifyIcon
-                        class="size-3.5"
-                        icon="lucide:grip-vertical"
-                      />
-                      拖动排序，或使用上下箭头调整列顺序
-                    </div>
                   </div>
                   <div class="flex max-h-96 flex-col overflow-auto">
                     <div
-                      v-for="field in draftOrderedTableFields"
+                      v-for="field in tableFields"
                       :key="field.key"
                       class="vben-crud-column-setting-row"
-                      :class="{
-                        'is-dragging':
-                          draggedDraftTableColumnKey ===
-                          getTableFieldKey(field),
-                      }"
-                      draggable="true"
-                      @dragend="handleDraftTableColumnDragEnd"
-                      @dragover="handleDraftTableColumnDragOver"
-                      @dragstart="
-                        (event) => handleDraftTableColumnDragStart(event, field)
-                      "
-                      @drop="
-                        (event) => handleDraftTableColumnDrop(event, field)
-                      "
                     >
-                      <span
-                        class="vben-crud-column-drag-handle"
-                        title="拖动排序"
-                      >
-                        <IconifyIcon
-                          class="size-4"
-                          icon="lucide:grip-vertical"
-                        />
-                      </span>
                       <Checkbox
                         :checked="isDraftTableColumnVisible(field.key)"
                         @change="
@@ -6331,55 +6070,6 @@ watch(canCustomizeTableColumnsLocally, () => {
                       >
                         {{ field.label }}
                       </Checkbox>
-                      <Space :size="2">
-                        <button
-                          type="button"
-                          class="vben-crud-column-pin"
-                          :disabled="getDraftTableColumnIndex(field) <= 0"
-                          title="上移"
-                          @click="moveDraftTableColumn(field, -1)"
-                        >
-                          <ArrowUp class="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          class="vben-crud-column-pin"
-                          :disabled="
-                            getDraftTableColumnIndex(field) >=
-                            draftOrderedTableFields.length - 1
-                          "
-                          title="下移"
-                          @click="moveDraftTableColumn(field, 1)"
-                        >
-                          <ArrowDown class="size-4" />
-                        </button>
-                      </Space>
-                      <Space :size="4">
-                        <button
-                          type="button"
-                          class="vben-crud-column-pin"
-                          :class="{
-                            'is-active':
-                              getDraftTableColumnFixedMode(field) === 'left',
-                          }"
-                          title="固定到左侧"
-                          @click="toggleDraftTableColumnFixed(field, 'left')"
-                        >
-                          <i class="vxe-icon-fixed-left"></i>
-                        </button>
-                        <button
-                          type="button"
-                          class="vben-crud-column-pin"
-                          :class="{
-                            'is-active':
-                              getDraftTableColumnFixedMode(field) === 'right',
-                          }"
-                          title="固定到右侧"
-                          @click="toggleDraftTableColumnFixed(field, 'right')"
-                        >
-                          <i class="vxe-icon-fixed-right"></i>
-                        </button>
-                      </Space>
                     </div>
                   </div>
                   <div
@@ -6388,10 +6078,10 @@ watch(canCustomizeTableColumnsLocally, () => {
                     <Button
                       type="link"
                       class="p-0"
-                      :disabled="!hasTableColumnCustomization"
+                      :disabled="!hasStoredTableColumnPreference"
                       @click="resetTableColumns"
                     >
-                      恢复默认
+                      清空设置
                     </Button>
                     <Space>
                       <Button size="small" @click="cancelTableColumnSettings">
@@ -6916,7 +6606,8 @@ watch(canCustomizeTableColumnsLocally, () => {
             </div>
             <div
               v-if="!field.complexGroupKey && shouldShowFormGroupTitle(field)"
-              class="bg-muted/45 col-span-full mt-3 flex items-center justify-between rounded-lg px-4 py-3 text-sm font-semibold"
+              class="col-span-full mt-3 flex items-center justify-between text-sm font-semibold"
+              :class="getFormGroupTitleClass(field)"
             >
               <span>{{ field.layoutGroupTitle }}</span>
               <Button
@@ -7276,7 +6967,21 @@ watch(canCustomizeTableColumnsLocally, () => {
       :body-style="modalBodyStyle"
       :footer="null"
       :title="actionResultTitle"
-      :width="actionResultMode === 'showForm' ? '80vw' : '720px'"
+      :style="
+        actionResultMode === 'showForm'
+          ? {
+              maxHeight:
+                detailModalConfig?.modalMaxHeight ||
+                DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+              maxWidth: detailModalConfig?.modalMaxWidth || '80vw',
+            }
+          : undefined
+      "
+      :width="
+        actionResultMode === 'showForm'
+          ? detailModalConfig?.modalMaxWidth || '80vw'
+          : '720px'
+      "
     >
       <div
         v-if="actionResultMode === 'showQrCode'"
@@ -7555,17 +7260,11 @@ watch(canCustomizeTableColumnsLocally, () => {
   min-width: 0;
   padding: 4px 0;
   border-radius: var(--radius);
-  transition:
-    background-color 0.15s ease,
-    opacity 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
 .vben-crud-column-setting-row:hover {
   background: hsl(var(--muted) / 60%);
-}
-
-.vben-crud-column-setting-row.is-dragging {
-  opacity: 0.45;
 }
 
 .vben-crud-column-setting-row :deep(.ant-checkbox-wrapper) {
@@ -7577,43 +7276,6 @@ watch(canCustomizeTableColumnsLocally, () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.vben-crud-column-drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 16px;
-  color: hsl(var(--muted-foreground));
-  cursor: grab;
-}
-
-.vben-crud-column-drag-handle:active {
-  cursor: grabbing;
-}
-
-.vben-crud-column-pin {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  color: hsl(var(--foreground));
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.vben-crud-column-pin:hover,
-.vben-crud-column-pin.is-active {
-  color: hsl(var(--primary));
-}
-
-.vben-crud-column-pin:disabled {
-  color: hsl(var(--muted-foreground) / 45%);
-  cursor: not-allowed;
 }
 
 .vben-crud-row-action-content {
@@ -7698,10 +7360,6 @@ watch(canCustomizeTableColumnsLocally, () => {
   min-width: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
-}
-
-.vben-crud-column-pin:disabled:hover {
-  color: hsl(var(--muted-foreground) / 45%);
 }
 
 :global(.vben-crud-export-save-template-form) {

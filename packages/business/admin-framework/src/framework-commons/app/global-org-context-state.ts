@@ -58,7 +58,14 @@ export function getCurrentGlobalOwnerId() {
 
 export function applyCurrentGlobalUserOrgContextToParams(
   params: Record<string, any> | undefined,
+  options: {
+    skip?: boolean;
+  } = {},
 ) {
+  if (options.skip) {
+    return params;
+  }
+
   const orgId = getCurrentGlobalOrgId();
   const ownerId = getCurrentGlobalOwnerId();
 

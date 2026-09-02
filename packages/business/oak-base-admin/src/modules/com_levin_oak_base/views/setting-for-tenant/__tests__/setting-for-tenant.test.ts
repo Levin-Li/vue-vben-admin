@@ -20,4 +20,8 @@ describe('service plugin provider configuration editor', () => {
     });
     expect(resolveSettingEditorKind(setting)).toBe('json-schema');
   });
+
+  it('uses the normal JSON editor when a Json setting has no editor declaration', () => {
+    expect(resolveSettingEditorKind({ editor: '', type: 'Json' })).toBe('json');
+  });
 });

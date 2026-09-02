@@ -178,7 +178,9 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 
       config.headers.Authorization = formatToken(accessStore.accessToken);
       config.headers['Accept-Language'] = preferences.app.locale;
-      config.params = applyCurrentGlobalUserOrgContextToParams(config.params);
+      config.params = applyCurrentGlobalUserOrgContextToParams(config.params, {
+        skip: config.__skipGlobalUserOrgContext === true,
+      });
       return config;
     },
   });

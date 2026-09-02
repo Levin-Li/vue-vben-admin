@@ -1,6 +1,8 @@
 import { ResAuthorize, Service } from '../../api-authorize';
 import { RequestService } from '../../request-service';
 
+export const JSON_SCHEMA_API_MODULE = '/com.levin.oak.base/V1/api';
+
 @Service({
   basePath: '/jsonSchema',
   controllerClass:
@@ -10,6 +12,10 @@ import { RequestService } from '../../request-service';
   type: '系统数据-JsonSchema',
 })
 export class JsonSchemaService extends RequestService {
+  constructor() {
+    super(JSON_SCHEMA_API_MODULE);
+  }
+
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-JsonSchema',

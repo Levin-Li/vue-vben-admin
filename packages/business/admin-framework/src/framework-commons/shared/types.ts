@@ -114,6 +114,7 @@ export interface CrudFieldConfig {
   sortable?: boolean;
   span?: number;
   table?: boolean;
+  tableMaxWidth?: number;
   tableValue?: (record: Record<string, any>) => any;
   type?: CrudFieldType;
   uploadPath?: string;
@@ -157,6 +158,7 @@ export interface CrudPageDisplayFieldConfig {
 
 /** 表单/详情中的轻量展示区块；用于视觉分隔，不产生额外的数据容器。 */
 export interface CrudPageDisplayGroupConfig {
+  displayStyle?: 'border' | 'card' | 'default' | 'newline';
   /** 保存配置使用的稳定分组标识。 */
   key: string;
   /** 区块标题；为空时使用分组标识。 */
@@ -179,7 +181,10 @@ export interface CrudPageDisplayGroupedViewConfig {
 }
 
 export interface CrudPageDisplayFormViewConfig
-  extends CrudPageDisplayGroupedViewConfig {}
+  extends CrudPageDisplayGroupedViewConfig {
+  modalMaxHeight?: string;
+  modalMaxWidth?: string;
+}
 
 export interface CrudPageDisplayEditViewConfig
   extends CrudPageDisplayFormViewConfig {
@@ -195,6 +200,9 @@ export interface CrudPageDisplayQueryViewConfig
 }
 
 export interface CrudPageDisplayHeaderConfig extends CrudPageDisplayFieldConfig {
+  maxWidth?: number;
+  minWidth?: number;
+  overflowStrategy?: 'ellipsis' | 'wrap';
   title?: string;
   valueDisplay?: { expression?: string; mode: 'default' | 'script' };
   visible?: { expression?: string; mode: 'always' | 'hidden' | 'script' };
@@ -218,7 +226,12 @@ export interface CrudPageDisplayConfig {
   create?: CrudPageDisplayFormViewConfig;
   detail?: CrudPageDisplayFormViewConfig;
   edit?: CrudPageDisplayEditViewConfig;
-  list?: { headers: CrudPageDisplayHeaderConfig[] };
+  list?: {
+    defaultMaxColumnWidth?: number;
+    defaultMinColumnWidth?: number;
+    defaultOverflowStrategy?: 'ellipsis' | 'wrap';
+    headers: CrudPageDisplayHeaderConfig[];
+  };
   query?: CrudPageDisplayQueryViewConfig;
   version: 1;
 }

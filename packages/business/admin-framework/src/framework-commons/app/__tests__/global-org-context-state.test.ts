@@ -38,6 +38,20 @@ describe('global organization context state', () => {
     });
   });
 
+  it('keeps selector candidate request parameters when context injection is skipped', () => {
+    setCurrentGlobalOrgId('org-b');
+
+    expect(
+      applyCurrentGlobalUserOrgContextToParams(
+        { orgId: 'candidate-org', pageIndex: 1 },
+        { skip: true },
+      ),
+    ).toEqual({
+      orgId: 'candidate-org',
+      pageIndex: 1,
+    });
+  });
+
   it('uses the selected user organization and ID as orgId and ownerId', () => {
     setCurrentGlobalUserOrgRecord({
       id: 'user-b',

@@ -75,10 +75,6 @@ const pluginOptions = computed(() =>
     value: plugin.id,
   })),
 );
-const hasOauthPlugin = computed(() =>
-  plugins.value.some((plugin) => plugin.enable !== false && isOauthPlugin(plugin)),
-);
-
 function getListItems<T>(result: any): T[] {
   if (Array.isArray(result)) {
     return result;
@@ -260,15 +256,6 @@ onMounted(() => {
 
 <template>
   <div class="service-plugin-setting-page">
-    <Alert
-      v-if="hasOauthPlugin"
-      class="mb-4"
-      description="同一条 OAuth 服务插件设置可以同时保存多个供应商配置。列表中的“供应商”列只决定当前快捷编辑的配置键；迁移期请在这里维护凭据，历史 oauth_platform_* 旧系统设置已在“系统设置”页面隐藏。"
-      message="OAuth 多供应商配置说明"
-      show-icon
-      type="info"
-    />
-
     <CrudPage :config="servicePluginSettingPageCrudConfig">
       <template #search-field-servicePluginId="{ searchState }">
         <Select
@@ -351,7 +338,7 @@ onMounted(() => {
           type="link"
           @click="openProviderConfig(record, reload)"
         >
-          编辑当前供应商配置
+          编辑供应商配置
         </Button>
       </template>
     </CrudPage>

@@ -392,6 +392,10 @@ async function loadUsersForOrg(org: UserOrgSelectorRecord) {
       pageSize: props.userPageSize,
     },
     props.userApiModuleBase,
+    {
+      // 候选用户必须按当前展开组织查询，不能被全局选择状态反向覆盖。
+      skipGlobalUserOrgContext: true,
+    },
   );
 
   return result.items || [];
@@ -426,7 +430,10 @@ async function loadOrgChildren(org: UserOrgTreeSelectNode) {
   });
 }
 
-function extractLazyOrgChildren(data: Record<string, any>[], parentOrgId: string) {
+function extractLazyOrgChildren(
+  data: Record<string, any>[],
+  parentOrgId: string,
+) {
   if (data.length === 1 && String(data[0]?.id ?? '') === parentOrgId) {
     const children =
       data[0]?.children ||

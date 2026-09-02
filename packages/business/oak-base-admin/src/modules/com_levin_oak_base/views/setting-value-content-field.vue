@@ -6,6 +6,7 @@ import type {
 
 import { computed, ref, watch } from 'vue';
 
+import { JsonViewer } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
 
 import { requestClient } from '@levin/admin-framework';
@@ -28,6 +29,7 @@ import {
 
 const props = defineProps<{
   disabled?: boolean;
+  forceJsonWhenEditorMissing?: boolean;
   formState: Record<string, any>;
   inline?: boolean;
 }>();
@@ -37,7 +39,16 @@ const schemaErrorMessage = ref('');
 const schemaLoading = ref(false);
 
 const setting = computed(() => props.formState as TenantSettingItem);
-const editorKind = computed(() => resolveSettingEditorKind(setting.value));
+const editorKind = computed(() => {
+  if (
+    props.forceJsonWhenEditorMissing &&
+    !String(setting.value.editor || '').trim()
+  ) {
+    return 'json';
+  }
+
+  return resolveSettingEditorKind(setting.value);
+});
 const settingTitle = computed(() => getSettingDisplayName(setting.value));
 const placeholder = computed(
   () => setting.value.inputPlaceholder || `请输入${settingTitle.value}`,
@@ -174,6 +185,15 @@ watch(
       @update:model-value="setValue"
     />
   </Spin>
+
+  <JsonViewer
+    v-else-if="disabled && editorKind === 'json'"
+    boxed
+    copyable
+    expanded
+    :expand-depth="3"
+    :value="formState.valueContent"
+  />
 
   <JsonEditorField
     v-else-if="editorKind === 'json'"

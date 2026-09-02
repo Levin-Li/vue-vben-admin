@@ -263,6 +263,24 @@ describe('oak base admin routes', () => {
     );
   });
 
+  it('does not register the removed verify code audit route', () => {
+    const module = createOakBaseAdminModule();
+    const crudRoutes = flattenCrudRoutes(module.routes?.[0]?.children);
+
+    expect(crudRoutes).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          meta: expect.objectContaining({ crudResource: 'VerifyCodeAudit' }),
+        }),
+      ]),
+    );
+    expect(oakBaseAdminBackendRouteMappings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: '/clob/V1/VerifyCodeAudit' }),
+      ]),
+    );
+  });
+
   it('registers electronic invoice pages and their backend mappings', () => {
     const module = createOakBaseAdminModule();
     const crudRoutes = flattenCrudRoutes(module.routes?.[0]?.children);

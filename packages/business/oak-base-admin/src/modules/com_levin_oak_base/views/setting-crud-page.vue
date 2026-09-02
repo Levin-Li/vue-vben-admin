@@ -16,6 +16,7 @@ import SettingValueContentField from './setting-value-content-field.vue';
 
 const props = defineProps<{
   config: CrudPageConfig;
+  forceJsonValueEditor?: boolean;
   serializeValueContent?: (
     record: Record<string, any>,
     value: unknown,
@@ -124,7 +125,10 @@ async function saveEditValue() {
 <template>
   <CrudPage :config="config">
     <template #form-field-valueContent="{ formState }">
-      <SettingValueContentField :form-state="formState" />
+      <SettingValueContentField
+        :force-json-when-editor-missing="forceJsonValueEditor"
+        :form-state="formState"
+      />
     </template>
 
     <template #row-actions="{ record, reload }">
@@ -157,6 +161,7 @@ async function saveEditValue() {
       <div class="text-sm font-medium">值</div>
       <SettingValueContentField
         :disabled="editValueReadonly"
+        :force-json-when-editor-missing="forceJsonValueEditor"
         :form-state="editValueFormState"
         inline
       />

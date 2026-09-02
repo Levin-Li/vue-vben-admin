@@ -1,5 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { fetchCrudList } = vi.hoisted(() => ({
+  fetchCrudList: vi.fn(),
+}));
 
 vi.mock('ant-design-vue', () => ({
   message: {
@@ -26,7 +30,7 @@ vi.mock('ant-design-vue', () => ({
 }));
 
 vi.mock('../../api', () => ({
-  fetchCrudList: vi.fn(async () => ({ items: [] })),
+  fetchCrudList,
 }));
 
 vi.mock('../../app/api/rbac-service', () => ({
@@ -68,6 +72,11 @@ function mountSelector(props: Record<string, unknown>) {
 }
 
 describe('UserOrgSelector', () => {
+  beforeEach(() => {
+    fetchCrudList.mockReset();
+    fetchCrudList.mockResolvedValue({ items: [] });
+  });
+
   it('keeps unloaded lazy org nodes expandable and marks empty nodes as leaf after load attempt', async () => {
     const orgLoadApi = vi.fn(async ({ parentOrgId }) => {
       if (!parentOrgId) {
@@ -91,7 +100,9 @@ describe('UserOrgSelector', () => {
 
     await flushPromises();
 
-    let treeData = wrapper.findComponent(treeSelectStub).props('treeData') as any[];
+    let treeData = wrapper
+      .findComponent(treeSelectStub)
+      .props('treeData') as any[];
     expect(treeData[0]).toMatchObject({
       id: 'root',
       isLeaf: false,
@@ -150,7 +161,9 @@ describe('UserOrgSelector', () => {
     });
     await flushPromises();
 
-    const treeData = wrapper.findComponent(treeSelectStub).props('treeData') as any[];
+    const treeData = wrapper
+      .findComponent(treeSelectStub)
+      .props('treeData') as any[];
     expect(orgLoadApi).toHaveBeenCalledTimes(2);
     expect(orgLoadApi.mock.calls[1]?.[0]).toMatchObject({
       depth: 2,
@@ -166,5 +179,34 @@ describe('UserOrgSelector', () => {
       isLeaf: false,
       loadAttempted: false,
     });
+  });
+
+  it('loads users for the expanded organization without inheriting global context', async () => {
+    fetchCrudList.mockResolvedValue({
+      items: [{ id: 'user-1', name: 'User 1' }],
+    });
+    const wrapper = mountSelector({
+      mode: 'both',
+      orgLoadApi: vi.fn(async () => [{ id: 'org-1', name: 'Org 1' }]),
+    });
+
+    await flushPromises();
+    await wrapper.findComponent(treeSelectStub).props('loadData')({
+      key: encodeUserOrgSelectorKey('org', 'org-1'),
+    });
+    await flushPromises();
+
+    expect(fetchCrudList).toHaveBeenCalledWith(
+      '/User/list',
+      expect.objectContaining({ enable: true, orgId: 'org-1' }),
+      '',
+      { skipGlobalUserOrgContext: true },
+    );
+    const treeData = wrapper
+      .findComponent(treeSelectStub)
+      .props('treeData') as any[];
+    expect(treeData[0]?.children).toEqual([
+      expect.objectContaining({ id: 'user-1', kind: 'user' }),
+    ]);
   });
 });

@@ -6,6 +6,7 @@ import {
   Input,
   InputNumber,
   message,
+  Radio,
   Select,
   Switch,
   Tabs,
@@ -83,6 +84,20 @@ const orgCategoryScopeOptions = ref<Array<{ label: string; value: string }>>(
   [],
 );
 const orgTypeScopeOptions = ref<Array<{ label: string; value: string }>>([]);
+let cachedScopeOptions:
+  | {
+      orgCategories: Array<{ label: string; value: string }>;
+      orgTypes: Array<{ label: string; value: string }>;
+      sites: Array<{ label: string; value: string }>;
+      tenantId?: string;
+      tenants: Array<{ label: string; value: string }>;
+      userCategories: Array<{ label: string; value: string }>;
+      userTypes: Array<{ label: string; value: string }>;
+    }
+  | undefined;
+let cachedRoleVisibilityOptions:
+  | Array<{ label: string; value: string }>
+  | undefined;
 const roleVisibilityOptions = ref<Array<{ label: string; value: string }>>([]);
 const roleVisibilityLoading = ref(false);
 const groupRenderVersion = ref(0);
@@ -139,6 +154,16 @@ function retainScopeValue(
 }
 
 async function loadScopeOptions() {
+  const cachedOptions = cachedScopeOptions;
+  if (cachedOptions && cachedOptions.tenantId === scope.value.tenantId) {
+    tenantScopeOptions.value = cachedOptions.tenants;
+    siteScopeOptions.value = cachedOptions.sites;
+    userTypeScopeOptions.value = cachedOptions.userTypes;
+    userCategoryScopeOptions.value = cachedOptions.userCategories;
+    orgCategoryScopeOptions.value = cachedOptions.orgCategories;
+    orgTypeScopeOptions.value = cachedOptions.orgTypes;
+    return;
+  }
   try {
     const [tenants, sites, userTypes, userCategories, orgCategories, orgTypes] = await Promise.all([
       fetchOptions(
@@ -177,6 +202,15 @@ async function loadScopeOptions() {
     userCategoryScopeOptions.value = normalizeOptions(userCategories || []);
     orgCategoryScopeOptions.value = normalizeOptions(orgCategories || []);
     orgTypeScopeOptions.value = normalizeOptions(orgTypes || []);
+    cachedScopeOptions = {
+      orgCategories: orgCategoryScopeOptions.value,
+      orgTypes: orgTypeScopeOptions.value,
+      sites: siteScopeOptions.value,
+      tenantId: scope.value.tenantId,
+      tenants: tenantScopeOptions.value,
+      userCategories: userCategoryScopeOptions.value,
+      userTypes: userTypeScopeOptions.value,
+    };
     retainScopeValue(tenantScopeOptions.value, scope.value.tenantId);
     retainScopeValue(siteScopeOptions.value, scope.value.domain);
     retainScopeValue(userTypeScopeOptions.value, scope.value.userType);
@@ -189,10 +223,15 @@ async function loadScopeOptions() {
 }
 
 async function loadRoleVisibilityOptions() {
+  if (cachedRoleVisibilityOptions) {
+    roleVisibilityOptions.value = cachedRoleVisibilityOptions;
+    return;
+  }
   if (roleVisibilityLoading.value) return;
   roleVisibilityLoading.value = true;
   try {
     roleVisibilityOptions.value = normalizeOptions(await roleOptionsLoader());
+    cachedRoleVisibilityOptions = roleVisibilityOptions.value;
   } catch (error) {
     console.warn('加载字段可见角色选项失败。', error);
   } finally {
@@ -206,7 +245,7 @@ function isGroupableView(view: View): view is GroupView {
 
 const fieldConfigGridClass = computed(() =>
   activeKey.value === 'list'
-    ? 'grid-cols-[66px_160px_190px_150px_220px_220px_600px]'
+    ? 'grid-cols-[66px_160px_190px_124px_124px_124px_120px_220px_220px_600px]'
     : 'grid-cols-[66px_160px_190px_150px_220px_150px_170px_424px]',
 );
 const fieldConfigMinWidthClass = computed(() =>
@@ -271,12 +310,18 @@ function editHolder() {
   return draft.value.edit!;
 }
 
+function formHolder(view: FormView) {
+  ensureFields(view);
+  return draft.value[view]!;
+}
+
 function ensureGroups(view: GroupView) {
   const holder = groupedViewHolder(view);
   holder.unassignedExpandedRows ??= view === 'query' ? 1 : 'all';
   const groups = (holder.groups ||= []);
   for (const [index, group] of groups.entries()) {
     group.defaultExpandedRows ??= group.defaultExpanded === false ? 1 : 'all';
+    group.displayStyle ??= 'default';
     group.order ??= index;
   }
   holder.unassignedOrder ??=
@@ -286,6 +331,9 @@ function ensureGroups(view: GroupView) {
 
 function ensureHeaders() {
   const holder = (draft.value.list ||= { headers: [] });
+  holder.defaultMinColumnWidth ??= 60;
+  holder.defaultMaxColumnWidth ??= 360;
+  holder.defaultOverflowStrategy ??= 'ellipsis';
   const nextHeaders = reconcileCrudPageDisplayHeaders(
     holder.headers,
     props.fields,
@@ -822,11 +870,14 @@ watch(
     scope.value = { ...(props.initialScope || {}) };
     void loadScopeOptions();
     void loadRoleVisibilityOptions();
-    ensureFields('query');
-    ensureFields('create');
-    ensureFields('edit');
-    ensureFields('detail');
-    ensureHeaders();
+    if (activeKey.value === 'list') {
+      ensureHeaders();
+    } else {
+      ensureFields(activeKey.value);
+      if (isGroupableView(activeKey.value)) {
+        ensureGroups(activeKey.value);
+      }
+    }
     previewExpanded.value = false;
     void refreshPreviewOverflow();
   },
@@ -931,6 +982,75 @@ onMounted(() => {
     </section>
 
     <section
+      v-if="activeKey === 'list'"
+      class="border-border mb-4 rounded border p-3"
+    >
+      <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
+        <Tooltip title="列表列未单独配置最小列宽时使用。">
+          <Form.Item label="默认最小列宽" class="mb-0">
+            <InputNumber
+              v-model:value="draft.list!.defaultMinColumnWidth"
+              :min="40"
+              :precision="0"
+              addon-after="px"
+              class="w-40"
+              placeholder="60"
+            />
+          </Form.Item>
+        </Tooltip>
+        <Tooltip title="列表列未单独配置最大宽度时使用；留空表示不限制。">
+          <Form.Item label="默认最大列宽" class="mb-0">
+            <InputNumber
+              v-model:value="draft.list!.defaultMaxColumnWidth"
+              :min="40"
+              :precision="0"
+              addon-after="px"
+              class="w-40"
+              placeholder="不限制"
+            />
+          </Form.Item>
+        </Tooltip>
+        <Tooltip title="列表列超出默认最大列宽时的展示方式；字段代码显式策略优先。">
+          <Form.Item label="默认超宽展示" class="mb-0">
+            <Radio.Group
+              v-model:value="draft.list!.defaultOverflowStrategy"
+              button-style="solid"
+              option-type="button"
+              :options="[
+                { label: '截断', value: 'ellipsis' },
+                { label: '换行', value: 'wrap' },
+              ]"
+            />
+          </Form.Item>
+        </Tooltip>
+      </Form>
+    </section>
+
+    <section
+      v-if="['create', 'edit', 'detail'].includes(activeKey)"
+      class="border-border mb-4 rounded border p-3"
+    >
+      <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
+        <Tooltip title="留空沿用当前页面配置；支持 960px、80vw 等 CSS 长度。">
+          <Form.Item label="弹窗最大宽度" class="mb-0">
+            <Input
+              v-model:value="formHolder(activeKey as FormView).modalMaxWidth"
+              placeholder="例如 80vw 或 960px"
+            />
+          </Form.Item>
+        </Tooltip>
+        <Tooltip title="留空沿用当前页面配置；支持 70vh、720px 等 CSS 长度。">
+          <Form.Item label="弹窗最大高度" class="mb-0">
+            <Input
+              v-model:value="formHolder(activeKey as FormView).modalMaxHeight"
+              placeholder="例如 70vh 或 720px"
+            />
+          </Form.Item>
+        </Tooltip>
+      </Form>
+    </section>
+
+    <section
       v-if="activeKey === 'edit'"
       class="border-border mb-4 rounded border p-3"
     >
@@ -1010,16 +1130,24 @@ onMounted(() => {
             <Tooltip title="当前配置所对应的数据字段。"
               ><span>字段</span></Tooltip
             >
-            <Tooltip title="列表中显示给用户看的列标题；留空时沿用字段名称。"
-              ><span>显示名称</span></Tooltip
+            <Tooltip title="列表中显示给用户看的列标题别名；留空时沿用字段名称。"
+              ><span>显示别名</span></Tooltip
             >
-            <Tooltip
-              title="列表列允许收缩前的最小像素宽度；容器宽度充裕时，额外空间会按各列最小列宽的比例自动扩展。"
+            <Tooltip title="列表列当前的基础宽度；留空时使用当前页面已有配置。"
+              ><span>列宽</span></Tooltip
+            >
+            <Tooltip title="列表列允许收缩前的最小像素宽度；留空时不额外限制。"
               ><span>最小列宽</span></Tooltip
+            >
+            <Tooltip title="该列允许扩展的最大像素宽度；留空时使用列表默认最大列宽。"
+              ><span>最大列宽</span></Tooltip
             >
             <Tooltip
               title="控制整列是否显示，或使用脚本按当前上下文决定是否显示。"
-              ><span>展示规则</span></Tooltip
+              ><span>是否展示</span></Tooltip
+            >
+            <Tooltip title="留空继承列表默认超宽展示；可单独设为截断或换行。"
+              ><span>超宽展示样式</span></Tooltip
             >
             <Tooltip title="只有当前用户拥有任一选中角色时，才会看到该列表列。"
               ><span>可见角色</span></Tooltip
@@ -1124,6 +1252,17 @@ onMounted(() => {
                       { label: '8 行', value: 8 },
                       { label: '9 行', value: 9 },
                       { label: '10 行', value: 10 },
+                    ]"
+                  />
+                  <span class="text-sm">分组展示样式</span>
+                  <Select
+                    v-model:value="rowGroup.group.displayStyle"
+                    class="w-[120px]"
+                    :options="[
+                      { label: '默认', value: 'default' },
+                      { label: '卡片', value: 'card' },
+                      { label: '边框', value: 'border' },
+                      { label: '换行', value: 'newline' },
                     ]"
                   />
                 </div>
@@ -1244,17 +1383,49 @@ onMounted(() => {
                   :min="40"
                   :precision="0"
                   addon-after="px"
-                  placeholder="最小列宽"
+                  placeholder="列宽"
                   class="w-full"
                 />
-                <Select
-                  v-model:value="
-                    (row as CrudPageDisplayHeaderConfig).visible!.mode
+                <InputNumber
+                  v-model:value="(row as CrudPageDisplayHeaderConfig).minWidth"
+                  :min="40"
+                  :precision="0"
+                  addon-after="px"
+                  placeholder="不限制"
+                  class="w-full"
+                />
+                <InputNumber
+                  v-model:value="(row as CrudPageDisplayHeaderConfig).maxWidth"
+                  :min="40"
+                  :precision="0"
+                  addon-after="px"
+                  placeholder="默认"
+                  class="w-full"
+                />
+                <Switch
+                  :checked="
+                    (row as CrudPageDisplayHeaderConfig).visible!.mode !==
+                    'hidden'
                   "
+                  checked-children="展示"
+                  un-checked-children="不展示"
+                  class="w-[57px] min-w-[57px]"
+                  @change="
+                    (value) =>
+                      ((row as CrudPageDisplayHeaderConfig).visible!.mode =
+                        value ? 'always' : 'hidden')
+                  "
+                />
+                <Radio.Group
+                  v-model:value="
+                    (row as CrudPageDisplayHeaderConfig).overflowStrategy
+                  "
+                  button-style="solid"
+                  option-type="button"
                   :options="[
-                    { label: '展示', value: 'always' },
-                    { label: '不展示', value: 'hidden' },
-                    { label: '脚本', value: 'script' },
+                    { label: '默认', value: undefined },
+                    { label: '截断', value: 'ellipsis' },
+                    { label: '换行', value: 'wrap' },
                   ]"
                 />
                 <Select
@@ -1272,18 +1443,13 @@ onMounted(() => {
                   "
                 />
                 <div class="flex gap-2">
-                  <Tooltip
-                    v-if="
-                      (row as CrudPageDisplayHeaderConfig).visible?.mode ===
-                      'script'
-                    "
-                    title="编写脚本决定当前列标题是否展示。"
+                  <Tooltip title="编写脚本决定当前列是否展示。"
                     ><Button
                       size="small"
                       @click="
                         editHeaderScript(row as CrudPageDisplayHeaderConfig)
                       "
-                      >表头脚本</Button
+                      >显示脚本</Button
                     ></Tooltip
                   ><Tooltip title="编写脚本转换当前字段在每一行中的展示内容。"
                     ><Button
