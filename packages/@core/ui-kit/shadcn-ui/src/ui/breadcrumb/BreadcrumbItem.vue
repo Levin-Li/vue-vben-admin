@@ -9,7 +9,10 @@ const props = defineProps<{
 <template>
   <li
     :class="
-      cn('inline-flex items-center gap-1.5 hover:text-foreground', props.class)
+      cn(
+        'inline-flex min-w-0 items-center gap-1.5 hover:text-foreground',
+        props.class,
+      )
     "
   >
     <slot></slot>

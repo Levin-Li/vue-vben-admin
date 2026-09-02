@@ -628,7 +628,8 @@ describe('login auto-login prompt', () => {
         challengeId: 'hmi-captcha-id',
         mode: 'CLICK',
         publicData: {
-          image: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
+          image:
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
           thumb: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
           viewport: { height: 180, width: 320 },
         },
@@ -683,6 +684,43 @@ describe('login auto-login prompt', () => {
       }),
     );
 
+    wrapper.unmount();
+  });
+
+  it('expands the HMI verification dialog with the captcha image up to 700px', async () => {
+    startPasswordLoginApi.mockResolvedValue({
+      challengeId: 'wide-hmi-challenge',
+      verifyCodeType: 'Hmi',
+    });
+    getVerifyCodeApi.mockResolvedValue({
+      interactionData: {
+        challengeId: 'wide-hmi-captcha-id',
+        mode: 'OBSTACLE_AVOIDANCE',
+        publicData: {
+          image:
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
+          kind: 'path',
+          start: { x: 24, y: 150 },
+          viewport: { height: 360, width: 800 },
+        },
+      },
+    });
+
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .setValue('wide-hmi-user');
+    await wrapper
+      .find('input[placeholder="请输入登录密码"]')
+      .setValue('123456');
+    await wrapper.find('button[type="primary"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[role="dialog"]').attributes('data-width')).toBe(
+      '700',
+    );
     wrapper.unmount();
   });
 

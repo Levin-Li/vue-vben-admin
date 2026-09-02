@@ -86,7 +86,7 @@ async function loadRuntimeSetting(userId: string) {
 export function registerGlobalOrgSelectorRuntime() {
   headerDisposer?.();
   headerDisposer = addLayoutHeaderExtensionAreaItem('center', {
-    class: 'w-[min(34vw,360px)] min-w-[260px] shrink-0',
+    class: 'w-[min(34vw,360px)] min-w-[220px] shrink-0',
     component: GlobalOrgSelector,
     id: 'global-org-selector',
     order: 20,

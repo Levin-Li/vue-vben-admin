@@ -96,6 +96,7 @@ function dispatchPointer(type: string, clientX: number, clientY: number) {
 describe('BehaviorCaptcha', () => {
   it.each<BehaviorCaptchaMode>(['CLICK', 'IDIOM_CLICK'])
     ('uses GoCaptcha Vue Click and submits %s coordinates', (mode) => {
+      const submittedMode = mode === 'CLICK' ? 'click' : 'idiomClick';
       const wrapper = mount(BehaviorCaptcha, {
         props: { challenge: challenge(mode) },
       });
@@ -116,7 +117,7 @@ describe('BehaviorCaptcha', () => {
       expect(JSON.parse(String(verifyCode))).toMatchObject({
         answer: { points: [{ x: 80, y: 60 }, { x: 220, y: 120 }] },
         challengeId: `challenge-${mode}`,
-        mode,
+        mode: submittedMode,
         track: { points: expect.any(Array) },
       });
       wrapper.unmount();
@@ -153,7 +154,7 @@ describe('BehaviorCaptcha', () => {
           { x: 332, y: 164 },
         ],
       },
-      mode: 'IDIOM_CLICK',
+      mode: 'idiomClick',
     });
     wrapper.unmount();
   });
@@ -198,7 +199,7 @@ describe('BehaviorCaptcha', () => {
         path: expect.arrayContaining([{ x: 24, y: 150 }, { x: 296, y: 32 }]),
         start: { x: 24, y: 150 },
       },
-      mode: 'OBSTACLE_AVOIDANCE',
+      mode: 'obstacleAvoidance',
       track: {
         points: expect.arrayContaining([
           expect.objectContaining({ type: 'down', x: 24, y: 150 }),
@@ -404,7 +405,7 @@ describe('BehaviorCaptcha', () => {
     const [verifyCode] = wrapper.emitted('complete')?.at(-1) || [];
     expect(JSON.parse(String(verifyCode))).toMatchObject({
       answer: { x: 180, y: 90 },
-      mode: 'SLIDE',
+      mode: 'slide',
       track: { points: expect.any(Array) },
     });
     wrapper.unmount();

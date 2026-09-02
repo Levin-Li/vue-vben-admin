@@ -93,6 +93,15 @@ function canonicalMode(value: unknown) {
   ];
 }
 
+function serverMode(mode: BehaviorCaptchaMode) {
+  return {
+    CLICK: 'click',
+    IDIOM_CLICK: 'idiomClick',
+    OBSTACLE_AVOIDANCE: 'obstacleAvoidance',
+    SLIDE: 'slide',
+  }[mode];
+}
+
 function imageData(value: unknown) {
   const image = String(value || '').trim();
   if (!image) {
@@ -227,7 +236,7 @@ export function encodeBehaviorCaptchaResult(
     answer,
     challengeId: challenge.challengeId,
     data: challenge.challengeId,
-    mode: challenge.mode,
+    mode: serverMode(challenge.mode),
     operations,
     startTime: options.startTime,
     stopTime,

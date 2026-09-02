@@ -18,7 +18,9 @@ function handleClick(index: number, path?: string) {
 }
 </script>
 <template>
-  <ul class="flex">
+  <ul
+    class="flex min-w-0 max-w-full flex-nowrap overflow-hidden whitespace-nowrap"
+  >
     <TransitionGroup name="breadcrumb-transition">
       <template
         v-for="(item, index) in breadcrumbs"
@@ -29,18 +31,24 @@ function handleClick(index: number, path?: string) {
             href="javascript:void 0"
             @click.stop="handleClick(index, item.path)"
           >
-            <span class="flex-center z-10 h-full">
+            <span
+              class="flex-center z-10 h-full min-w-0 overflow-hidden whitespace-nowrap"
+            >
               <VbenIcon
                 v-if="showIcon"
                 :icon="item.icon"
                 class="mr-1 size-4 flex-shrink-0"
               />
               <span
-                :class="{
-                  'font-normal text-foreground':
-                    index === breadcrumbs.length - 1,
-                }"
-                >{{ item.title }}
+                :class="[
+                  'min-w-0 overflow-hidden whitespace-nowrap',
+                  {
+                    'font-normal text-foreground':
+                      index === breadcrumbs.length - 1,
+                  },
+                ]"
+              >
+                {{ item.title }}
               </span>
             </span>
           </a>

@@ -27,7 +27,8 @@ function toKebabCase(value: string) {
 function createCrudBackendRouteMapping(
   item: (typeof oakBaseAdminCrudResources)[number],
 ): AdminBackendRouteMapping {
-  const pageDirectory = CRUD_PAGE_DIRECTORY_OVERRIDES[item.resource] || toKebabCase(item.name);
+  const pageDirectory =
+    CRUD_PAGE_DIRECTORY_OVERRIDES[item.resource] || toKebabCase(item.name);
 
   return {
     icon: item.icon,
@@ -48,13 +49,7 @@ export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
     title: '后台管理',
     viewPath: `${MODULE_VIEW_PREFIX}/home/index.vue`,
   },
-  ...oakBaseAdminCrudResources.map(createCrudBackendRouteMapping),
-  {
-    icon: 'lucide:bell',
-    path: '/clob/V1/MyMessages',
-    resource: 'MyMessages',
-    sourceFilePath: `${MODULE_SOURCE_PREFIX}/my-messages/index.vue`,
-    title: '我的消息',
-    viewPath: `${MODULE_VIEW_PREFIX}/my-messages/index.vue`,
-  },
+  ...oakBaseAdminCrudResources.map((item) =>
+    createCrudBackendRouteMapping(item),
+  ),
 ];

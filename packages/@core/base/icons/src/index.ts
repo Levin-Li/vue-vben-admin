@@ -1,3 +1,8 @@
+import lucideCollection from '@iconify-json/lucide/icons.json';
+import { addCollection } from '@iconify/vue';
+
+addCollection(lucideCollection);
+
 export * from './create-icon';
 
 export * from './lucide';

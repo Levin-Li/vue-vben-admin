@@ -1,5 +1,7 @@
 import type { Recordable } from '@vben/types';
 
+import { listIcons } from '@vben/icons';
+
 /**
  * 一个缓存对象，在不刷新页面时，无需重复请求远程接口
  */
@@ -30,6 +32,13 @@ export async function fetchIconsData(prefix: string): Promise<string[]> {
   if (Reflect.has(PENDING_REQUESTS, prefix) && PENDING_REQUESTS[prefix]) {
     return PENDING_REQUESTS[prefix];
   }
+
+  const localIcons = listIcons('', prefix);
+  if (localIcons.length > 0) {
+    ICONS_MAP[prefix] = localIcons;
+    return localIcons;
+  }
+
   PENDING_REQUESTS[prefix] = (async () => {
     try {
       const controller = new AbortController();

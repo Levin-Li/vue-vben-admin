@@ -8,7 +8,12 @@ const props = defineProps<{
 
 <template>
   <span
-    :class="cn('font-normal text-foreground', props.class)"
+    :class="
+      cn(
+        'block min-w-0 overflow-hidden whitespace-nowrap font-normal text-foreground',
+        props.class,
+      )
+    "
     aria-current="page"
     aria-disabled="true"
     role="link"

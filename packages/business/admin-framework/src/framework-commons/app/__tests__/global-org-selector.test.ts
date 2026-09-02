@@ -37,11 +37,11 @@ vi.mock('../global-org-selector-runtime', () => ({
 }));
 
 describe('global org selector', () => {
-  it('keeps a 260px minimum width', () => {
+  it('keeps a 220px minimum width', () => {
     const wrapper = mount(GlobalOrgSelector);
 
     expect(
       wrapper.get('[data-testid="global-user-org-selector"]').classes(),
-    ).toContain('min-w-[260px]');
+    ).toContain('min-w-[220px]');
   });
 });

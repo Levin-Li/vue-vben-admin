@@ -10,7 +10,7 @@ const props = defineProps<{
 
 <template>
   <li
-    :class="cn('[&>svg]:size-3.5', props.class)"
+    :class="cn('shrink-0 [&>svg]:size-3.5', props.class)"
     aria-hidden="true"
     role="presentation"
   >

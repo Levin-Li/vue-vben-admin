@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { createOakBaseAdminModule } from '../module';
 import { oakBaseAdminBackendRouteMappings } from '../backend-route-mappings';
+import { createOakBaseAdminModule } from '../module';
 import { oakBaseAdminRoutes } from '../routes';
 
 function flattenCrudRoutes(children: any[] | undefined): any[] {
-  return (children || []).flatMap((route) =>
-    Array.isArray(route?.children) && route.children.length > 0
-      ? flattenCrudRoutes(route.children)
-      : route?.meta?.crudResource
-        ? [route]
-        : [],
-  );
+  return (children || []).flatMap((route) => {
+    if (Array.isArray(route?.children) && route.children.length > 0) {
+      return flattenCrudRoutes(route.children);
+    }
+
+    return route?.meta?.crudResource ? [route] : [];
+  });
 }
 
 describe('oak base admin routes', () => {
@@ -190,6 +190,74 @@ describe('oak base admin routes', () => {
           title: '支付模拟工作台',
           viewPath:
             '/system/com_levin_oak_base/payment-simulation-workbench/index.vue',
+        }),
+      ]),
+    );
+  });
+
+  it('groups development support pages under development tools', () => {
+    const module = createOakBaseAdminModule();
+    const root = module.routes?.[0];
+    const developmentToolsGroup = root?.children?.find(
+      (route) => route.meta?.title === '开发&工具',
+    );
+    const basicSettingsGroup = root?.children?.find(
+      (route) => route.meta?.title === '基础&设置',
+    );
+    const paymentGroup = root?.children?.find(
+      (route) => route.meta?.title === '支付&交易',
+    );
+    const movedResources = [
+      'PaymentSimulationWorkbench',
+      'UiSetting',
+      'GlobalOrgSelectorSetting',
+      'ImportExportTemplate',
+      'ServicePlugin',
+      'ServicePluginSetting',
+      'Area',
+      'Nation',
+      'I18nRes',
+    ];
+    const resourceNames = (routes: any[] | undefined) =>
+      routes?.map((route) => route.meta?.crudResource) || [];
+
+    expect(resourceNames(developmentToolsGroup?.children)).toEqual(
+      expect.arrayContaining(movedResources),
+    );
+    expect(resourceNames(basicSettingsGroup?.children)).not.toEqual(
+      expect.arrayContaining(movedResources.slice(1)),
+    );
+    expect(resourceNames(paymentGroup?.children)).not.toContain(
+      'PaymentSimulationWorkbench',
+    );
+  });
+
+  it('groups my messages with the personal center routes', () => {
+    const module = createOakBaseAdminModule();
+    const root = module.routes?.[0];
+    const personalCenterGroup = root?.children?.find(
+      (route) => route.meta?.title === '个人&中心',
+    );
+
+    expect(personalCenterGroup?.children).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          meta: expect.objectContaining({
+            crudResource: 'MyMessages',
+            title: '我的消息',
+          }),
+          path: '/clob/V1/MyMessages',
+        }),
+      ]),
+    );
+    expect(oakBaseAdminBackendRouteMappings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: '/clob/V1/MyMessages',
+          sourceFilePath:
+            'modules/com_levin_oak_base/views/my-messages/index.vue',
+          title: '我的消息',
+          viewPath: '/system/com_levin_oak_base/my-messages/index.vue',
         }),
       ]),
     );

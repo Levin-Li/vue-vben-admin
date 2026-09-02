@@ -44,10 +44,14 @@ function handleClick(path?: string) {
           <BreadcrumbItem>
             <div v-if="item.items?.length ?? 0 > 0">
               <DropdownMenu>
-                <DropdownMenuTrigger class="flex items-center gap-1">
+                <DropdownMenuTrigger
+                  class="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap"
+                >
                   <VbenIcon v-if="showIcon" :icon="item.icon" class="size-5" />
-                  {{ item.title }}
-                  <ChevronDown class="size-4" />
+                  <span class="min-w-0 overflow-hidden whitespace-nowrap">
+                    {{ item.title }}
+                  </span>
+                  <ChevronDown class="size-4 shrink-0" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   <template
@@ -66,25 +70,33 @@ function handleClick(path?: string) {
               href="javascript:void 0"
               @click.stop="handleClick(item.path)"
             >
-              <div class="flex-center">
+              <div
+                class="flex-center min-w-0 overflow-hidden whitespace-nowrap"
+              >
                 <VbenIcon
                   v-if="showIcon"
                   :class="{ 'size-5': item.isHome }"
                   :icon="item.icon"
                   class="mr-1 size-4"
                 />
-                {{ item.title }}
+                <span class="min-w-0 overflow-hidden whitespace-nowrap">
+                  {{ item.title }}
+                </span>
               </div>
             </BreadcrumbLink>
             <BreadcrumbPage v-else>
-              <div class="flex-center">
+              <div
+                class="flex-center min-w-0 overflow-hidden whitespace-nowrap"
+              >
                 <VbenIcon
                   v-if="showIcon"
                   :class="{ 'size-5': item.isHome }"
                   :icon="item.icon"
                   class="mr-1 size-4"
                 />
-                {{ item.title }}
+                <span class="min-w-0 overflow-hidden whitespace-nowrap">
+                  {{ item.title }}
+                </span>
               </div>
             </BreadcrumbPage>
             <BreadcrumbSeparator

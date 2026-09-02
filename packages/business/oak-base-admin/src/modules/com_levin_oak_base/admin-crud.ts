@@ -288,6 +288,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '租户系统设置',
   },
   {
+    icon: 'lucide:bell',
+    name: 'MyMessages',
+    resource: 'MyMessages',
+    title: '我的消息',
+  },
+  {
     icon: 'lucide:user-cog',
     name: 'MySetting',
     resource: 'MySetting',
@@ -422,6 +428,7 @@ export const oakBaseAdminResourceViewMap: Record<
     import('./views/global-org-selector-setting/index.vue'),
   SettingForTenant: () => import('./views/setting-for-tenant/index.vue'),
   MySetting: () => import('./views/my-setting/index.vue'),
+  MyMessages: () => import('./views/my-messages/index.vue'),
   SimpleApi: () => import('./views/simple-api/index.vue'),
   SimpleForm: () => import('./views/simple-form/index.vue'),
   SimplePage: () => import('./views/simple-page/index.vue'),
@@ -476,34 +483,31 @@ const menuGroups = [
       'EContractTemplate',
       'EInvoice',
       'EInvoiceProviderConnection',
-      'PaymentSimulationWorkbench',
     ],
   ],
   ['客户&伙伴', ['Customer', 'Partner', 'LegalSubject']],
   ['内容&资源', ['Article', 'ArticleChannel', 'Brand', 'FileRes', 'Notice']],
+  ['基础&设置', ['Address', 'OpenArea', 'Dict', 'Setting', 'JobPost']],
   [
-    '基础&设置',
+    '开发&工具',
     [
-      'Address',
-      'Area',
-      'OpenArea',
-      'Nation',
-      'Dict',
-      'I18nRes',
-      'Setting',
+      'OnlineCodeGen',
+      'SimpleForm',
+      'SimpleApi',
+      'SimplePage',
+      'Demo',
+      'PaymentSimulationWorkbench',
       'UiSetting',
       'GlobalOrgSelectorSetting',
       'ImportExportTemplate',
-      'JobPost',
       'ServicePlugin',
       'ServicePluginSetting',
+      'Area',
+      'Nation',
+      'I18nRes',
     ],
   ],
-  [
-    '开发&工具',
-    ['OnlineCodeGen', 'SimpleForm', 'SimpleApi', 'SimplePage', 'Demo'],
-  ],
-  ['个人&中心', ['MySetting']],
+  ['个人&中心', ['MySetting', 'MyMessages']],
   [
     '运维&审计',
     [
@@ -540,42 +544,40 @@ export function createOakBaseAdminCrudRoutes(
       },
       name: toPathRouteName(rootPath),
       path: rootPath,
-      children: [
-        ...menuGroups.map<RouteRecordRaw>(([title, resources]) => ({
-          children: resources.flatMap((resource) => {
-            const item = oakBaseAdminCrudResources.find(
-              (candidate) => candidate.resource === resource,
+      children: menuGroups.map<RouteRecordRaw>(([title, resources]) => ({
+        children: resources.flatMap((resource) => {
+          const item = oakBaseAdminCrudResources.find(
+            (candidate) => candidate.resource === resource,
+          );
+          if (!item) return [];
+          const component =
+            localViewMap[item.resource] ||
+            oakBaseAdminResourceViewMap[item.resource] ||
+            fallbackComponent;
+
+          if (!component) {
+            throw new Error(
+              `Missing admin page component for ${item.resource}.`,
             );
-            if (!item) return [];
-            const component =
-              localViewMap[item.resource] ||
-              oakBaseAdminResourceViewMap[item.resource] ||
-              fallbackComponent;
+          }
 
-            if (!component) {
-              throw new Error(
-                `Missing admin page component for ${item.resource}.`,
-              );
-            }
+          const path = `/clob/V1/${item.resource}`;
 
-            const path = `/clob/V1/${item.resource}`;
-
-            return {
-              component,
-              meta: {
-                crudResource: item.resource,
-                icon: item.icon,
-                title: item.title,
-              },
-              name: toPathRouteName(path),
-              path,
-            };
-          }),
-          meta: { icon: 'lucide:folder-tree', title },
-          name: toPathRouteName(`${rootPath}/groups/${title}`),
-          path: `groups/${title}`,
-        })),
-      ],
+          return {
+            component,
+            meta: {
+              crudResource: item.resource,
+              icon: item.icon,
+              title: item.title,
+            },
+            name: toPathRouteName(path),
+            path,
+          };
+        }),
+        meta: { icon: 'lucide:folder-tree', title },
+        name: toPathRouteName(`${rootPath}/groups/${title}`),
+        path: `groups/${title}`,
+      })),
     },
   ];
 }

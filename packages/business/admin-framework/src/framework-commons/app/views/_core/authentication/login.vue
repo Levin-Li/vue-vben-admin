@@ -106,8 +106,9 @@ const passwordVerifyDialogWidth = computed(() => {
   if (!isPasswordHmiMode.value || !hmiCaptchaChallenge.value) {
     return undefined;
   }
-  const challengeWidth = Number(hmiCaptchaChallenge.value.payload?.width) || 427;
-  return challengeWidth + 48;
+  const challengeWidth =
+    Number(hmiCaptchaChallenge.value.payload?.width) || 427;
+  return Math.min(challengeWidth + 48, 700);
 });
 const countdown = ref(0);
 const verifyAssetLoading = ref(false);

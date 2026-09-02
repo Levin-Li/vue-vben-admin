@@ -57,7 +57,7 @@ function handleSelectedRecords(records: UserOrgSelectorRecord[]) {
     v-if="visible"
     v-bind="selectorConfig"
     :model-value="currentGlobalUserOrgRecord"
-    class="w-full min-w-[260px]"
+    class="w-full min-w-[220px]"
     @loaded="handleLoaded"
     @update:selected-records="handleSelectedRecords"
   />
