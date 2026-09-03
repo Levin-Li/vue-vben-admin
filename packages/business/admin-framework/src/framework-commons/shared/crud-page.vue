@@ -5311,6 +5311,7 @@ async function updateBooleanEnableField(
 
   try {
     const payload = {
+      autoForceUpdateField: false,
       [recordKey.value]: getRecordValue(record, recordKey.value),
       optimisticLock: record.optimisticLock,
       [fieldKey]: checked,

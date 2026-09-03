@@ -53,6 +53,7 @@ async function saveAreaCodeList(areaCodeList: string[]) {
   try {
     await openAreaService.update({
       areaCodeList,
+      autoForceUpdateField: false,
       forceUpdateFields: ['areaCodeList'],
       id: record.id,
       optimisticLock: record.optimisticLock,

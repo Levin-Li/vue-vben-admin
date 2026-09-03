@@ -373,6 +373,7 @@ async function saveBasicSetting() {
   try {
     if (item?.id) {
       await servicePluginSettingService.update({
+        autoForceUpdateField: false,
         domain: normalizeText(basicFormState.domain) || undefined,
         enable: basicFormState.enable !== false,
         forceUpdateFields: ['domain', 'enable', 'orderCode', 'remark'],
@@ -411,6 +412,7 @@ async function updateEnable(item: TenantPluginSettingItem, enable: boolean) {
   enableUpdatingIds[item.id] = true;
   try {
     await servicePluginSettingService.update({
+      autoForceUpdateField: false,
       enable,
       forceUpdateFields: ['enable'],
       id: item.id,
@@ -490,6 +492,7 @@ async function saveEditValue() {
   editValueSubmitting.value = true;
   try {
     await servicePluginSettingService.update({
+      autoForceUpdateField: false,
       forceUpdateFields: ['value'],
       id: item.id,
       optimisticLock: item.optimisticLock,

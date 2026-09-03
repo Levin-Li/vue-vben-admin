@@ -409,6 +409,7 @@ async function moveMenu(row: MenuRecord, direction: MenuMoveDirection) {
   try {
     for (const item of updates) {
       await menuService.update({
+        autoForceUpdateField: false,
         forceUpdateFields: ['orderCode'],
         id: item.id,
         optimisticLock: item.optimisticLock,
@@ -587,6 +588,7 @@ async function submitOpButtonList() {
 
   try {
     await menuService.update({
+      autoForceUpdateField: false,
       forceUpdateFields: ['opButtonList'],
       id: record.id,
       opButtonList: cleanOpButtonList(opButtonRows.value),
@@ -613,6 +615,7 @@ async function submitRequireAuthorizations() {
 
   try {
     await menuService.update({
+      autoForceUpdateField: false,
       forceUpdateFields: ['requireAuthorizations'],
       id: record.id,
       optimisticLock: record.optimisticLock,
@@ -649,6 +652,7 @@ async function updateMenuPublicAccess(row: MenuRecord, checked: boolean) {
 
   try {
     await menuService.update({
+      autoForceUpdateField: false,
       forceUpdateFields: ['publicAccess'],
       id,
       optimisticLock: row.optimisticLock,
@@ -684,6 +688,7 @@ async function updateMenuEnable(row: MenuRecord, checked: boolean) {
 
   try {
     await menuService.update({
+      autoForceUpdateField: false,
       enable: checked,
       forceUpdateFields: ['enable'],
       id,

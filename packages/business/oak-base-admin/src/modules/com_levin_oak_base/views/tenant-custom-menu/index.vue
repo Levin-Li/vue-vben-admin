@@ -1038,6 +1038,7 @@ async function saveLayout() {
   saving.value = true;
   try {
     await tenantCustomMenuService.update({
+      autoForceUpdateField: false,
       forceUpdateFields: ['itemList'],
       id: layout.id,
       itemList: toPersistedLayoutItems(layoutItems.value),

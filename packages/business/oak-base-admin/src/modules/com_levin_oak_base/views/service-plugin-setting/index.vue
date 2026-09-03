@@ -203,6 +203,7 @@ async function saveProviderConfig() {
 
   try {
     await servicePluginSettingService.update({
+      autoForceUpdateField: false,
       forceUpdateFields: ['value'],
       id: record.id,
       optimisticLock: record.optimisticLock,

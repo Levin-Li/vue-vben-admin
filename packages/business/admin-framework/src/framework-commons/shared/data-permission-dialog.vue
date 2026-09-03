@@ -157,6 +157,7 @@ async function handleSave() {
     }
 
     const payload: Record<string, any> = {
+      autoForceUpdateField: false,
       forceUpdateFields: ['orgScopeList'],
       id: detail.value.id,
       optimisticLock: detail.value.optimisticLock,

@@ -491,6 +491,7 @@ export function buildTenantSettingUpdatePayload(
   editorValue: unknown,
 ) {
   const payload: Record<string, any> = {
+    autoForceUpdateField: false,
     forceUpdateFields: ['valueContent'],
     id: item.id,
     valueContent: serializeSettingValueFromEditor(item, editorValue),

@@ -159,6 +159,7 @@ function buildPayload() {
   if (isEdit.value) {
     payload.id = formState.id;
     payload.optimisticLock = formState.optimisticLock;
+    payload.autoForceUpdateField = false;
     payload.forceUpdateFields = [
       'actionType',
       'alwaysShow',

@@ -92,6 +92,7 @@ async function saveEditValue() {
 
   try {
     const payload: Record<string, any> = {
+      autoForceUpdateField: false,
       id: record.id,
       forceUpdateFields: ['valueContent'],
       valueContent: props.serializeValueContent

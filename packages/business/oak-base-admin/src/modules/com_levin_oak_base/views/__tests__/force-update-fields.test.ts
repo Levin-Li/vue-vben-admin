@@ -18,6 +18,20 @@ const crudPageSource = readFileSync(
   'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
   'utf8',
 );
+const explicitForceUpdateSources = [
+  'packages/business/admin-framework/src/framework-commons/shared/data-permission-dialog.vue',
+  'packages/business/admin-framework/src/framework-commons/shared/resource-permission-dialog.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/menu/index.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/menu/menu-form-drawer.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/open-area/index.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/service-plugin-setting/index.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/service-plugin/index.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/setting-crud-page.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/setting-for-tenant/setting-for-tenant.ts',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/simple-content-resource-page.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/tenant-custom-menu/index.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/tenant-plugin-setting/index.vue',
+].map((path) => readFileSync(path, 'utf8'));
 
 describe('自定义更新字段语义', () => {
   it('为完整表单更新启用自动强制更新', () => {
@@ -31,17 +45,30 @@ describe('自定义更新字段语义', () => {
 
   it('明确强制更新可清空的开通区域列表', () => {
     expect(openAreaSource).toContain(
-      "areaCodeList,\n      forceUpdateFields: ['areaCodeList'],",
+      "areaCodeList,\n      autoForceUpdateField: false,\n      forceUpdateFields: ['areaCodeList'],",
     );
   });
 
-  it('保持表格内布尔开关快捷更新不变', () => {
+  it('为所有指定字段更新显式关闭自动强制更新', () => {
+    for (const source of explicitForceUpdateSources) {
+      let forceIndex = source.indexOf('forceUpdateFields');
+
+      while (forceIndex >= 0) {
+        expect(
+          source.slice(Math.max(0, forceIndex - 1500), forceIndex + 80),
+        ).toMatch(/autoForceUpdateField\s*(?:=|:)\s*false/);
+        forceIndex = source.indexOf('forceUpdateFields', forceIndex + 1);
+      }
+    }
+  });
+
+  it('为表格内布尔开关快捷更新显式关闭自动强制更新', () => {
     const quickSwitchSource = crudPageSource.slice(
       crudPageSource.indexOf('async function updateBooleanEnableField'),
       crudPageSource.indexOf('function canShowBuiltinDetail'),
     );
 
-    expect(quickSwitchSource).not.toContain('autoForceUpdateField');
+    expect(quickSwitchSource).toContain('autoForceUpdateField: false');
     expect(quickSwitchSource).not.toContain('forceUpdateFields');
   });
 });

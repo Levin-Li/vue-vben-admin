@@ -104,6 +104,7 @@ async function saveBaseConfig() {
   try {
     const baseConfig = cloneJsonValue(baseConfigFormState.value.valueContent);
     await servicePluginService.update({
+      autoForceUpdateField: false,
       forceUpdateFields: ['baseConfig'],
       baseConfig,
       id: plugin.id,
@@ -139,6 +140,7 @@ async function saveProviders() {
   providerListSaving.value = true;
   try {
     await servicePluginService.update({
+      autoForceUpdateField: false,
       forceUpdateFields: ['providerList'],
       id: plugin.id,
       optimisticLock: plugin.optimisticLock,

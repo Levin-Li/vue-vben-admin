@@ -135,6 +135,7 @@ async function handleSave() {
 
   try {
     const payload: Record<string, any> = {
+      autoForceUpdateField: false,
       forceUpdateFields: [props.permissionField],
       id: detail.value.id,
       [props.permissionField]: permissions,

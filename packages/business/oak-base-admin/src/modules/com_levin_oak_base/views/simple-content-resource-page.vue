@@ -979,8 +979,9 @@ async function submitContent() {
   contentSubmitting.value = true;
 
   try {
-    const payload: Record<string, any> = {
-      forceUpdateFields: ['content'],
+  const payload: Record<string, any> = {
+    autoForceUpdateField: false,
+    forceUpdateFields: ['content'],
       id: record.id,
       optimisticLock: record.optimisticLock,
       content: serializeSimpleContentValue(
@@ -1141,6 +1142,7 @@ async function saveScriptContentForTest(
   }
 
   await props.service.update({
+    autoForceUpdateField: false,
     forceUpdateFields: ['content', 'methods', 'path', 'setting'],
     id: record.id,
     optimisticLock: record.optimisticLock,
@@ -1362,6 +1364,7 @@ async function submitRequireAuthorizations() {
 
   try {
     await props.service.update({
+      autoForceUpdateField: false,
       forceUpdateFields: ['requireAuthorizations'],
       id: record.id,
       optimisticLock: record.optimisticLock,
