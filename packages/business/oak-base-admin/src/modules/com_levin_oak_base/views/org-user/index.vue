@@ -545,6 +545,7 @@ async function submitOrgForm() {
     }
 
     if (orgModalMode.value === 'edit') {
+      payload.autoForceUpdateField = true;
       await orgService.update(payload);
       message.success('组织已更新');
     } else {

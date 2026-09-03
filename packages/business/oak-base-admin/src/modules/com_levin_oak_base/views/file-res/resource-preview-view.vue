@@ -350,6 +350,9 @@ function buildEditorPayload() {
   if (editorForm.optimisticLock !== undefined) {
     payload.optimisticLock = editorForm.optimisticLock;
   }
+  if (editorMode.value !== 'create') {
+    payload.autoForceUpdateField = true;
+  }
   if (editorMode.value === 'create') {
     payload.editable = true;
     payload.enable = true;
