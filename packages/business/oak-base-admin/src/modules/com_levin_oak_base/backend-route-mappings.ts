@@ -32,11 +32,12 @@ function createCrudBackendRouteMapping(
 
   return {
     icon: item.icon,
-    path: `${CRUD_ROUTE_PATH_PREFIX}/${item.resource}`,
-    resource: item.resource,
-    sourceFilePath: `${MODULE_SOURCE_PREFIX}/${pageDirectory}/index.vue`,
+    path: `${CRUD_ROUTE_PATH_PREFIX}/${item.routePath || item.resource}`,
+    resource: item.permissionResource || item.resource,
+    sourceFilePath:
+      item.sourceFilePath || `${MODULE_SOURCE_PREFIX}/${pageDirectory}/index.vue`,
     title: item.title,
-    viewPath: `${MODULE_VIEW_PREFIX}/${pageDirectory}/index.vue`,
+    viewPath: item.viewPath || `${MODULE_VIEW_PREFIX}/${pageDirectory}/index.vue`,
   };
 }
 

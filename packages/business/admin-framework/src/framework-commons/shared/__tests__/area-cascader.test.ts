@@ -103,4 +103,53 @@ describe('行政区划级联字段映射', () => {
       provinceName: null,
     });
   });
+
+  it('默认把省、市编码补齐为六码，并允许页面显式保留短码', () => {
+    const singleFieldPayload: Record<string, any> = {};
+    applyAreaCascaderValueToRecord(
+      singleFieldPayload,
+      {
+        areaCascader: { valueKey: 'areaCode' },
+        key: 'areaCode',
+        label: '区域编码',
+        type: 'area-cascader',
+      },
+      ['33'],
+    );
+    expect(singleFieldPayload).toEqual({ areaCode: '330000' });
+
+    const splitFieldPayload: Record<string, any> = {};
+    applyAreaCascaderValueToRecord(
+      splitFieldPayload,
+      {
+        areaCascader: {},
+        key: 'provinceCode',
+        label: '省市区行政编码',
+        type: 'area-cascader',
+      },
+      ['33', '3301', '330106'],
+      [],
+    );
+    expect(splitFieldPayload).toMatchObject({
+      cityCode: '330100',
+      districtCode: '330106',
+      provinceCode: '330000',
+    });
+
+    const originalCodePayload: Record<string, any> = {};
+    applyAreaCascaderValueToRecord(
+      originalCodePayload,
+      {
+        areaCascader: {
+          normalizeToSixDigits: false,
+          valueKey: 'areaCode',
+        },
+        key: 'areaCode',
+        label: '区域编码',
+        type: 'area-cascader',
+      },
+      ['33'],
+    );
+    expect(originalCodePayload).toEqual({ areaCode: '33' });
+  });
 });

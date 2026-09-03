@@ -12,7 +12,7 @@ import {
   Tabs,
   Tooltip,
 } from 'ant-design-vue';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, defineComponent, h, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 
 import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
 import ScriptWorkbenchDialog, {
@@ -60,6 +60,7 @@ const props = defineProps<{
   fields: CrudFieldConfig[];
   modelValue?: CrudPageDisplayConfig;
   open: boolean;
+  saving?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -68,6 +69,21 @@ const emit = defineEmits<{
 }>();
 
 const activeKey = ref<View>('query');
+const INITIAL_FIELD_RENDER_LIMIT = 12;
+const FIELD_RENDER_STEP = 12;
+const fieldRenderLimits = reactive<Record<View, number>>({
+  create: INITIAL_FIELD_RENDER_LIMIT,
+  detail: INITIAL_FIELD_RENDER_LIMIT,
+  edit: INITIAL_FIELD_RENDER_LIMIT,
+  list: INITIAL_FIELD_RENDER_LIMIT,
+  query: INITIAL_FIELD_RENDER_LIMIT,
+});
+
+function resetFieldRenderLimits() {
+  for (const view of Object.keys(fieldRenderLimits) as View[]) {
+    fieldRenderLimits[view] = INITIAL_FIELD_RENDER_LIMIT;
+  }
+}
 const draft = ref<CrudPageDisplayConfig>({ version: 1 });
 const scope = ref<Scope>({});
 const scriptOpen = ref(false);
@@ -106,6 +122,24 @@ const previewExpanded = ref(false);
 const previewOverflowing = ref(false);
 let previewResizeObserver: null | ResizeObserver = null;
 let observedPreviewElement: HTMLElement | null = null;
+
+const PageDisplaySettingsTabContent = defineComponent({
+  name: 'PageDisplaySettingsTabContent',
+  props: {
+    view: {
+      required: true,
+      type: String,
+    },
+  },
+  setup(props, { slots }) {
+    return () =>
+      h(
+        'div',
+        { style: { display: 'contents' } },
+        slots.default?.({ view: props.view as View }),
+      );
+  },
+});
 
 function updatePreviewOverflow() {
   if (previewExpanded.value) return;
@@ -243,14 +277,15 @@ function isGroupableView(view: View): view is GroupView {
   return view !== 'list';
 }
 
-const fieldConfigGridClass = computed(() =>
-  activeKey.value === 'list'
+function getFieldConfigGridClass(view: View) {
+  return view === 'list'
     ? 'grid-cols-[66px_160px_190px_124px_124px_124px_120px_220px_220px_600px]'
-    : 'grid-cols-[66px_160px_190px_150px_220px_150px_170px_424px]',
-);
-const fieldConfigMinWidthClass = computed(() =>
-  activeKey.value === 'list' ? 'min-w-[1704px]' : 'min-w-[1640px]',
-);
+    : 'grid-cols-[66px_160px_190px_190px_150px_220px_150px_170px_424px]';
+}
+
+function getFieldConfigMinWidthClass(view: View) {
+  return view === 'list' ? 'min-w-[1704px]' : 'min-w-[1830px]';
+}
 
 function ensureFields(view: Exclude<View, 'list'>) {
   const holder = (draft.value[view] ||= { fields: [] });
@@ -317,7 +352,6 @@ function formHolder(view: FormView) {
 
 function ensureGroups(view: GroupView) {
   const holder = groupedViewHolder(view);
-  holder.unassignedExpandedRows ??= view === 'query' ? 1 : 'all';
   const groups = (holder.groups ||= []);
   for (const [index, group] of groups.entries()) {
     group.defaultExpandedRows ??= group.defaultExpanded === false ? 1 : 'all';
@@ -347,9 +381,11 @@ function ensureHeaders() {
   return holder.headers;
 }
 
-const rows = computed(() =>
-  activeKey.value === 'list' ? ensureHeaders() : ensureFields(activeKey.value),
-);
+function getRowsForView(view: View) {
+  return view === 'list' ? ensureHeaders() : ensureFields(view);
+}
+
+const rows = computed(() => getRowsForView(activeKey.value));
 const previewSignature = computed(() =>
   rows.value
     .map((row) => {
@@ -382,6 +418,10 @@ const fieldOptions = computed(() =>
   })),
 );
 
+function getSourceFieldTitle(key: string) {
+  return props.fields.find((field) => field.key === key)?.label || key;
+}
+
 function getRowGroupKey(row: CrudPageDisplayFieldConfig) {
   if (!isGroupableView(activeKey.value) || !row.layoutGroup) return undefined;
   return orderedActiveGroups.value.some(
@@ -391,10 +431,11 @@ function getRowGroupKey(row: CrudPageDisplayFieldConfig) {
     : undefined;
 }
 
-const rowGroups = computed(() => {
+function getRowGroupsForView(view: View) {
   groupRenderVersion.value;
-  if (!isGroupableView(activeKey.value)) {
-    return [{ group: undefined, key: '__all__', order: 0, rows: rows.value }];
+  const rowsForView = getRowsForView(view);
+  if (!isGroupableView(view)) {
+    return [{ group: undefined, key: '__all__', order: 0, rows: rowsForView }];
   }
 
   const sortRows = (items: CrudPageDisplayFieldConfig[]) =>
@@ -403,19 +444,19 @@ const rowGroups = computed(() => {
         (left.order ?? Number.MAX_SAFE_INTEGER) -
         (right.order ?? Number.MAX_SAFE_INTEGER),
     );
-  const groups = orderedActiveGroups.value.map((group) => ({
+  const groups = sortDisplayGroups(ensureGroups(view)).map((group) => ({
     group,
     key: group.key,
     order: group.order ?? Number.MAX_SAFE_INTEGER,
     rows: sortRows(
-      (rows.value as CrudPageDisplayFieldConfig[]).filter(
-        (row) => getRowGroupKey(row) === group.key,
+      (rowsForView as CrudPageDisplayFieldConfig[]).filter(
+        (row) => row.layoutGroup === group.key,
       ),
     ),
   }));
   const unassignedRows = sortRows(
-    (rows.value as CrudPageDisplayFieldConfig[]).filter(
-      (row) => !getRowGroupKey(row),
+    (rowsForView as CrudPageDisplayFieldConfig[]).filter(
+      (row) => !row.layoutGroup || !groups.some((group) => group.key === row.layoutGroup),
     ),
   );
 
@@ -425,12 +466,31 @@ const rowGroups = computed(() => {
       group: undefined,
       key: '__unassigned__',
       order:
-        groupedViewHolder(activeKey.value).unassignedOrder ??
+        groupedViewHolder(view).unassignedOrder ??
         Number.MAX_SAFE_INTEGER,
       rows: unassignedRows,
     },
   ].toSorted((left, right) => left.order - right.order);
-});
+}
+
+function getRenderedRows<T>(rows: T[], view: View) {
+  return rows.slice(0, fieldRenderLimits[view]);
+}
+
+function loadMoreFieldRows(event: Event, view: View) {
+  const target = event.currentTarget as HTMLElement;
+  const isNearBottom =
+    target.scrollTop + target.clientHeight >= target.scrollHeight - 160;
+  if (!isNearBottom) return;
+  const totalRows = getRowsForView(view).length;
+  if (fieldRenderLimits[view] >= totalRows) return;
+  fieldRenderLimits[view] = Math.min(
+    fieldRenderLimits[view] + FIELD_RENDER_STEP,
+    totalRows,
+  );
+}
+
+const rowGroups = computed(() => getRowGroupsForView(activeKey.value));
 
 function getRowGroupRows(
   row: CrudPageDisplayFieldConfig | CrudPageDisplayHeaderConfig,
@@ -866,6 +926,7 @@ watch(
   () => props.open,
   (open) => {
     if (!open) return;
+    resetFieldRenderLimits();
     draft.value = clone(props.modelValue);
     scope.value = { ...(props.initialScope || {}) };
     void loadScopeOptions();
@@ -950,7 +1011,12 @@ onMounted(() => {
         allow-clear
         show-search
       />
-      <Button type="primary" class="col-start-4 w-full" @click="save"
+      <Button
+        type="primary"
+        class="col-start-4 w-full"
+        :disabled="saving"
+        :loading="saving"
+        @click="save"
         >上传当前配置</Button
       >
     </div>
@@ -962,8 +1028,11 @@ onMounted(() => {
       <Tabs.TabPane key="list" tab="展示列表" />
     </Tabs>
 
+    <KeepAlive>
+      <PageDisplaySettingsTabContent :key="activeKey" :view="activeKey">
+        <template #default="{ view }">
     <section
-      v-if="activeKey === 'query'"
+      v-if="view === 'query'"
       class="border-border mb-4 rounded border p-3"
     >
       <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
@@ -982,7 +1051,7 @@ onMounted(() => {
     </section>
 
     <section
-      v-if="activeKey === 'list'"
+      v-if="view === 'list'"
       class="border-border mb-4 rounded border p-3"
     >
       <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
@@ -1027,14 +1096,14 @@ onMounted(() => {
     </section>
 
     <section
-      v-if="['create', 'edit', 'detail'].includes(activeKey)"
+      v-if="['create', 'edit', 'detail'].includes(view)"
       class="border-border mb-4 rounded border p-3"
     >
       <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
         <Tooltip title="留空沿用当前页面配置；支持 960px、80vw 等 CSS 长度。">
           <Form.Item label="弹窗最大宽度" class="mb-0">
             <Input
-              v-model:value="formHolder(activeKey as FormView).modalMaxWidth"
+              v-model:value="formHolder(view as FormView).modalMaxWidth"
               placeholder="例如 80vw 或 960px"
             />
           </Form.Item>
@@ -1042,7 +1111,7 @@ onMounted(() => {
         <Tooltip title="留空沿用当前页面配置；支持 70vh、720px 等 CSS 长度。">
           <Form.Item label="弹窗最大高度" class="mb-0">
             <Input
-              v-model:value="formHolder(activeKey as FormView).modalMaxHeight"
+              v-model:value="formHolder(view as FormView).modalMaxHeight"
               placeholder="例如 70vh 或 720px"
             />
           </Form.Item>
@@ -1051,7 +1120,7 @@ onMounted(() => {
     </section>
 
     <section
-      v-if="activeKey === 'edit'"
+      v-if="view === 'edit'"
       class="border-border mb-4 rounded border p-3"
     >
       <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
@@ -1069,19 +1138,22 @@ onMounted(() => {
       </Form>
     </section>
 
-    <section class="bg-muted/25 mb-4 rounded-lg p-3" aria-label="实时预览">
+    <section
+      class="bg-muted/25 mb-4 rounded-lg p-3"
+      aria-label="实时预览"
+    >
       <div class="text-muted-foreground mb-2 text-xs font-medium">实时预览</div>
       <div
         ref="previewContentRef"
         class="flex flex-wrap items-center gap-2"
         :class="previewExpanded ? '' : 'max-h-[72px] overflow-hidden'"
       >
-        <template v-for="row in rows" :key="`preview-${row.key}`">
+        <template v-for="row in getRowsForView(view)" :key="`preview-${row.key}`">
           <span
             class="rounded border px-2 py-1 text-sm"
             :class="
               row.hidden ||
-              (activeKey === 'list' &&
+              (view === 'list' &&
                 (row as CrudPageDisplayHeaderConfig).visible?.mode === 'hidden')
                 ? 'text-muted-foreground border-dashed line-through'
                 : 'bg-background border-border'
@@ -1102,9 +1174,12 @@ onMounted(() => {
       </Button>
     </section>
 
-    <div class="min-h-0 flex-1 overflow-auto pr-1">
+    <div
+      class="min-h-0 flex-1 overflow-auto pr-1"
+      @scroll.passive="(event) => loadMoreFieldRows(event, view)"
+    >
       <div
-        v-if="isGroupableView(activeKey)"
+        v-if="isGroupableView(view)"
         class="mb-3 flex items-center gap-3"
       >
         <Button type="primary" class="px-4" @click="addGroup"
@@ -1117,21 +1192,21 @@ onMounted(() => {
 
       <div
         class="border-border rounded border"
-        :class="fieldConfigMinWidthClass"
+        :class="getFieldConfigMinWidthClass(view)"
       >
         <div
           class="border-border bg-background sticky top-0 z-20 grid gap-3 border-b px-3 py-2 text-sm font-medium shadow-sm"
-          :class="fieldConfigGridClass"
+          :class="getFieldConfigGridClass(view)"
         >
-          <template v-if="activeKey === 'list'">
+          <template v-if="view === 'list'">
             <Tooltip title="调整字段在当前展示列表中的前后顺序。"
               ><span>调整</span></Tooltip
             >
             <Tooltip title="当前配置所对应的数据字段。"
               ><span>字段</span></Tooltip
             >
-            <Tooltip title="列表中显示给用户看的列标题别名；留空时沿用字段名称。"
-              ><span>显示别名</span></Tooltip
+            <Tooltip title="当前列表列的标题别名；留空时沿用字段名称。"
+              ><span>标题别名</span></Tooltip
             >
             <Tooltip title="列表列当前的基础宽度；留空时使用当前页面已有配置。"
               ><span>列宽</span></Tooltip
@@ -1164,6 +1239,9 @@ onMounted(() => {
             <Tooltip title="当前配置所对应的数据字段。"
               ><span>字段</span></Tooltip
             >
+            <Tooltip title="当前表单字段的标题别名；留空时沿用字段名称。"
+              ><span>标题别名</span></Tooltip
+            >
             <Tooltip
               title="选择字段所属的展示分组；选择后字段会移动到该分组末尾。"
               ><span>所属分组</span></Tooltip
@@ -1188,13 +1266,13 @@ onMounted(() => {
           </template>
         </div>
         <template
-          v-for="(rowGroup, groupIndex) in rowGroups"
+          v-for="(rowGroup, groupIndex) in getRowGroupsForView(view)"
           :key="rowGroup.key"
         >
           <div
             class="w-full"
             :class="
-              isGroupableView(activeKey)
+              isGroupableView(view)
                 ? [
                     'border-primary bg-primary/5 overflow-hidden rounded border',
                     groupIndex === 0 ? '' : 'mt-5',
@@ -1203,7 +1281,7 @@ onMounted(() => {
             "
           >
             <div
-              v-if="isGroupableView(activeKey)"
+              v-if="isGroupableView(view)"
               class="border-primary bg-primary/10 flex w-full items-center gap-2 border-b px-3 py-2"
             >
               <template v-if="rowGroup.group">
@@ -1296,46 +1374,20 @@ onMounted(() => {
                   >{{ groupIndex + 1 }}.</span
                 >
                 <span class="font-medium">默认分组</span>
-                <div class="flex items-center gap-2">
-                  <Tooltip
-                    title="控制默认分组初始展示的字段行数；选择展开所有字段则不折叠。"
-                  >
-                    <span class="text-sm">组自动折叠行数</span>
-                  </Tooltip>
-                  <Select
-                    v-model:value="
-                      groupedViewHolder(activeKey).unassignedExpandedRows
-                    "
-                    class="w-[160px]"
-                    :options="[
-                      { label: '展开所有字段', value: 'all' },
-                      { label: '1 行', value: 1 },
-                      { label: '2 行', value: 2 },
-                      { label: '3 行', value: 3 },
-                      { label: '4 行', value: 4 },
-                      { label: '5 行', value: 5 },
-                      { label: '6 行', value: 6 },
-                      { label: '7 行', value: 7 },
-                      { label: '8 行', value: 8 },
-                      { label: '9 行', value: 9 },
-                      { label: '10 行', value: 10 },
-                    ]"
-                  />
-                </div>
               </template>
             </div>
             <div
-              v-if="isGroupableView(activeKey) && !rowGroup.rows.length"
+              v-if="isGroupableView(view) && !rowGroup.rows.length"
               class="border-border text-muted-foreground w-full border-b px-4 py-3 text-sm"
             >
               暂无字段，可通过字段行的分组选择器归入此分组。
             </div>
             <div
-              v-for="row in rowGroup.rows"
+              v-for="row in getRenderedRows(rowGroup.rows, view)"
               :key="row.key"
               draggable="true"
-              class="border-border grid w-full items-center gap-3 border-b p-3 last:border-b-0"
-              :class="fieldConfigGridClass"
+              class="page-display-settings-field-row border-border grid w-full items-center gap-3 border-b p-3 last:border-b-0"
+              :class="getFieldConfigGridClass(view)"
               @dragstart="startDrag(row)"
               @dragover.prevent
               @drop="dropAt(row)"
@@ -1357,14 +1409,21 @@ onMounted(() => {
                   ></Tooltip
                 >
               </div>
-              <div>{{ row.label || row.key }}</div>
+              <Tooltip title="按住可拖拽排序">
+                <div>{{ getSourceFieldTitle(row.key) }}</div>
+              </Tooltip>
               <Input
-                v-if="activeKey === 'list'"
+                v-if="view === 'list'"
                 v-model:value="(row as CrudPageDisplayHeaderConfig).title"
-                :placeholder="row.label || row.key"
+                :placeholder="getSourceFieldTitle(row.key)"
+              />
+              <Input
+                v-else
+                v-model:value="row.label"
+                :placeholder="getSourceFieldTitle(row.key)"
               />
               <Select
-                v-else-if="isGroupableView(activeKey)"
+                v-if="view !== 'list' && isGroupableView(view)"
                 :value="row.layoutGroup"
                 :options="groupOptions"
                 placeholder="选择分组"
@@ -1373,11 +1432,11 @@ onMounted(() => {
                 @update:value="(value) => assignRowToGroup(row, value)"
               />
               <Input
-                v-else
+                v-else-if="view !== 'list'"
                 v-model:value="row.layoutGroup"
                 placeholder="分组 / 换行标识"
               />
-              <template v-if="activeKey === 'list'">
+              <template v-if="view === 'list'">
                 <InputNumber
                   v-model:value="(row as CrudPageDisplayHeaderConfig).width"
                   :min="40"
@@ -1522,7 +1581,10 @@ onMounted(() => {
           </div>
         </template>
       </div>
-    </div>
+      </div>
+        </template>
+      </PageDisplaySettingsTabContent>
+    </KeepAlive>
     <ScriptWorkbenchDialog
       v-model:open="scriptOpen"
       :model-value="scriptText"
@@ -1532,3 +1594,10 @@ onMounted(() => {
     />
   </Drawer>
 </template>
+
+<style scoped>
+.page-display-settings-field-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+}
+</style>

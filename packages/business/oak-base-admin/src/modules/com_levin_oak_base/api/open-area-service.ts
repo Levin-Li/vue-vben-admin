@@ -28,6 +28,16 @@ export class OpenAreaService extends RequestService {
   }
 
   @ResAuthorize({
+    onlyRequireAuthenticated: true,
+  })
+  async current(params?: any, options?: any) {
+    return this.get('current', {
+      ...options,
+      params,
+    });
+  }
+
+  @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-开通区域',
     action: '新增',

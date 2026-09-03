@@ -20,6 +20,12 @@ export interface AdministrativeAreaDocument {
   version?: string;
 }
 
+export interface OpenAreaContext {
+  bizCategory?: string;
+  bizType?: string;
+  domain?: string;
+}
+
 interface AdministrativeAreaIndex {
   areas: AdministrativeAreaNode[];
   byCode: Map<string, AdministrativeAreaNode>;
@@ -94,21 +100,98 @@ export function getAdministrativeAreaCascaderOptions() {
   const mapNode = (node: AdministrativeAreaNode): Record<string, any> => ({
     children: node.children?.map((child) => mapNode(child)),
     label: node.name,
+    level: node.level,
     value: node.code,
   });
   return areaIndex.value.areas.map((node) => mapNode(node));
 }
 
-export async function getCurrentOpenAreaCodes() {
+/**
+ * 将页面静态声明的可选层级落实为级联节点的叶子节点。
+ * 直辖市在行政区划树中只有省级节点和区县子节点，选择市级编码时该节点视为城市。
+ */
+export function restrictAdministrativeAreaOptionsByLevels(
+  options: Record<string, any>[],
+  selectableLevels: AdministrativeAreaLevel[] | undefined,
+) {
+  const levels = new Set(selectableLevels || []);
+  if (levels.size === 0 || levels.size === 3) {
+    return options;
+  }
+
+  const mapOption = (option: Record<string, any>): Record<string, any> => {
+    const children = Array.isArray(option.children)
+      ? option.children.map(mapOption)
+      : [];
+    const isDirectMunicipalityCity =
+      levels.size === 1 &&
+      levels.has('city') &&
+      option.level === 'province' &&
+      children.every((child) => child.level !== 'city');
+    const isSelectable = levels.has(option.level) || isDirectMunicipalityCity;
+
+    return {
+      ...option,
+      children: isSelectable
+        ? undefined
+        : children.length > 0
+          ? children
+          : undefined,
+      isLeaf: isSelectable,
+    };
+  };
+
+  return options.map(mapOption);
+}
+
+/**
+ * 页面未声明层级时，沿用编码优先策略：已有值按其编码格式回显和选择；空值默认选择到区县。
+ */
+export function resolveAdministrativeAreaSelectableLevels(
+  selectableLevels: AdministrativeAreaLevel[] | undefined,
+  value: unknown,
+): AdministrativeAreaLevel[] {
+  const configuredLevels = [...new Set(selectableLevels || [])];
+  if (configuredLevels.length > 0) {
+    return configuredLevels;
+  }
+
+  const code = Array.isArray(value) ? value.at(-1) : value;
+  try {
+    const level = resolveAdministrativeAreaCodeLevel(code);
+    if (level) {
+      return [level];
+    }
+  } catch {
+    // 无效或空编码按默认区县策略处理，提交前仍由原有校验负责提示。
+  }
+
+  return ['district'];
+}
+
+function normalizeOpenAreaContext(context: OpenAreaContext = {}) {
+  return Object.fromEntries(
+    Object.entries(context).filter(([, value]) => String(value ?? '').trim()),
+  ) as OpenAreaContext;
+}
+
+export function hasOpenAreaContext(context: OpenAreaContext = {}) {
+  return Object.keys(normalizeOpenAreaContext(context)).length > 0;
+}
+
+export async function getCurrentOpenAreaCodes(context: OpenAreaContext = {}) {
   const record = await requestClient.get<any>('/OpenArea/current', {
     __silentError: true,
+    params: normalizeOpenAreaContext(context),
   });
   return Array.isArray(record?.areaCodeList)
     ? record.areaCodeList.map((code: string) => normalizeAreaCode(code))
     : [];
 }
 
-export function filterAdministrativeAreaOptions(allowedCodes: string[]) {
+export function filterAdministrativeAreaOptions(
+  allowedCodes: string[],
+): Record<string, any>[] {
   if (allowedCodes.length === 0) {
     return getAdministrativeAreaCascaderOptions();
   }
@@ -132,10 +215,13 @@ export function filterAdministrativeAreaOptions(allowedCodes: string[]) {
     return {
       children: children.length > 0 ? children : undefined,
       label: node.name,
+      level: node.level,
       value: node.code,
     };
   };
-  return areaIndex.value.areas.map((node) => filterNode(node)).filter(Boolean);
+  return areaIndex.value.areas
+    .map((node) => filterNode(node))
+    .filter((node): node is Record<string, any> => Boolean(node));
 }
 
 export function resolveAdministrativeAreaPath(value: unknown) {
@@ -154,6 +240,28 @@ export function formatAdministrativeArea(value: unknown) {
 
 export function normalizeAdministrativeAreaCode(value: unknown) {
   return normalizeAreaCode(value);
+}
+
+/**
+ * 按国家行政区划编码格式识别层级；不能只以六码长度判断区县，必须优先识别省、市尾码。
+ */
+export function resolveAdministrativeAreaCodeLevel(
+  value: unknown,
+): AdministrativeAreaLevel | undefined {
+  const code = String(value ?? '').trim();
+  if (!code) {
+    return undefined;
+  }
+  if (!AREA_CODE_PATTERN.test(code)) {
+    throw new TypeError('行政编码必须为2至6位数字');
+  }
+  if (code.length === 2 || code.endsWith('0000')) {
+    return 'province';
+  }
+  if (code.length === 4 || code.endsWith('00')) {
+    return 'city';
+  }
+  return 'district';
 }
 
 export async function loadAdministrativeAreaOverride() {

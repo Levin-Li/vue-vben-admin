@@ -65,4 +65,40 @@ describe('partner page config', () => {
     expect(imageField?.maxUploadCount?.({ subjectType: 'Person' })).toBe(2);
     expect(imageField?.maxUploadCount?.({ subjectType: 'Legal' })).toBe(1);
   });
+
+  it('按后端字段注解语义限制城市及收货地址行政编码层级', () => {
+    const fields = partnerPageCrudConfig.fields;
+
+    expect(fields.find((field) => field.key === 'cityCode')).toMatchObject({
+      areaCascader: { selectableLevels: ['city'], valueKey: 'cityCode' },
+      type: 'area-cascader',
+    });
+    expect(
+      fields.find((field) => field.key === 'shippingProvinceCode'),
+    ).toMatchObject({
+      areaCascader: {
+        selectableLevels: ['province'],
+        valueKey: 'shippingProvinceCode',
+      },
+      type: 'area-cascader',
+    });
+    expect(
+      fields.find((field) => field.key === 'shippingCityCode'),
+    ).toMatchObject({
+      areaCascader: {
+        selectableLevels: ['city'],
+        valueKey: 'shippingCityCode',
+      },
+      type: 'area-cascader',
+    });
+    expect(
+      fields.find((field) => field.key === 'shippingDistrictCode'),
+    ).toMatchObject({
+      areaCascader: {
+        selectableLevels: ['district'],
+        valueKey: 'shippingDistrictCode',
+      },
+      type: 'area-cascader',
+    });
+  });
 });

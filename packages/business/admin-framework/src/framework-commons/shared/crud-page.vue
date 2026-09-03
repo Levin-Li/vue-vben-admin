@@ -82,6 +82,7 @@ import { getCurrentTenantSiteInfo } from '../app/tenant-site-admin-ui-base-setti
 import {
   replaceUiSettingRuntimeCache,
   resolveUiSettingRuntimeWithScope,
+  UI_SETTING_RETRIEVE_PATH,
   type UiSettingRuntimeRecord,
 } from '../app/api/ui-setting-runtime';
 import { useRbacAccess } from '../rbac-access';
@@ -96,6 +97,9 @@ import {
   filterAdministrativeAreaOptions,
   getAdministrativeAreaCascaderOptions,
   getCurrentOpenAreaCodes,
+  hasOpenAreaContext,
+  restrictAdministrativeAreaOptionsByLevels,
+  resolveAdministrativeAreaSelectableLevels,
 } from './administrative-area-data';
 import CodeEditorField from './code-editor-field.vue';
 import {
@@ -207,15 +211,15 @@ import { evaluateJavaScriptExpression } from './javascript-expression';
 import {
   buildOrganizationScriptContext,
   buildTenantScriptContext,
+  canUseLocalTableColumnSettings,
   distributeExtraTableWidth,
-  hasMultipleEffectiveDisplayGroups,
-  initializeFieldHidden,
-  initializeHeaderVisibility,
-  initializeVisibleRoleCodes,
   isRoleVisibilitySatisfied,
   resolveDefaultTableColumnWidth,
   resolveDisplayGroupOrder,
   resolveDisplayStates,
+  resolvePageDisplayViewTitle,
+  resolveRuntimeDisplayField,
+  resolveRuntimeDisplayHeader,
   resolvePageDisplaySettingCode,
   resolveQueryCollapsedFieldCount,
   resolveDisplayGroupExpandedFieldCount,
@@ -404,6 +408,7 @@ const listTableTabsHandleTooltipOpen = ref(false);
 const hiddenTableColumnKeys = ref<string[]>([]);
 const columnSettingsOpen = ref(false);
 const pageDisplaySettingsOpen = ref(false);
+const pageDisplaySettingSaving = ref(false);
 const pageDisplayConfig = ref<CrudPageDisplayConfig>({ version: 1 });
 const pageDisplayHeaderMap = computed(
   () =>
@@ -428,14 +433,14 @@ const pageDisplayScope = ref<{
   tenantId: (userStore.userInfo as Record<string, any> | undefined)?.tenantId,
 });
 const pageDisplayInitialScope = computed(() => {
-  const userInfo = userStore.userInfo as Record<string, any> | undefined;
+  const setting = pageDisplaySettingRecord.value;
   return {
-    domain: (pageDisplaySettingRecord.value as any)?.domain || undefined,
-    orgCategory: pageDisplayScope.value.orgCategory || userInfo?.orgCategory,
-    orgType: pageDisplayScope.value.orgType || userInfo?.orgType,
-    tenantId: pageDisplayScope.value.tenantId || userInfo?.tenantId,
-    userCategory: pageDisplayScope.value.userCategory || userInfo?.category || userInfo?.userCategory,
-    userType: pageDisplaySettingRecord.value?.userType || undefined,
+    domain: setting?.domain || undefined,
+    orgCategory: setting?.orgCategory || undefined,
+    orgType: setting?.orgType || undefined,
+    tenantId: setting?.tenantId || undefined,
+    userCategory: setting?.userCategory || undefined,
+    userType: setting?.userType || undefined,
   };
 });
 const pageDisplayContextKey = computed(() => {
@@ -467,60 +472,59 @@ async function savePageDisplaySettings(payload: {
   config: CrudPageDisplayConfig;
   scope: Record<string, any>;
 }) {
-  const current = pageDisplaySettingRecord.value;
-  const data = {
-    code: pageDisplaySettingCode.value,
-    domain: payload.scope.domain || null,
-    name: `${props.config.title}页面展示设置`,
-    orgCategory: payload.scope.orgCategory || null,
-    orgType: payload.scope.orgType || null,
-    userCategory: payload.scope.userCategory || null,
-    tenantId: payload.scope.tenantId || null,
-    type: 'PageDisplay',
-    userType: payload.scope.userType || null,
-    valueContent: { pageDisplay: payload.config },
-  };
-  if (current?.id) {
-    const latest = await requestClient.get<UiSettingRuntimeRecord>(
-      '/UiSetting/view',
-      {
-        params: { id: current.id },
-      },
-    );
-    const optimisticLock =
-      latest?.optimisticLock ?? current.optimisticLock ?? 0;
-    await requestClient.put('/UiSetting/update', {
-      ...data,
-      id: current.id,
-      optimisticLock,
-    });
-    pageDisplaySettingRecord.value = {
-      ...current,
-      ...data,
-      optimisticLock: optimisticLock + 1,
+  if (pageDisplaySettingSaving.value) return;
+
+  pageDisplaySettingSaving.value = true;
+  try {
+    const current = pageDisplaySettingRecord.value;
+    const data = {
+      code: pageDisplaySettingCode.value,
+      domain: payload.scope.domain || null,
+      name: `${props.config.title}页面展示设置`,
+      orgCategory: payload.scope.orgCategory || null,
+      orgType: payload.scope.orgType || null,
+      userCategory: payload.scope.userCategory || null,
+      tenantId: payload.scope.tenantId || null,
+      type: 'PageDisplay',
+      userType: payload.scope.userType || null,
+      valueContent: { pageDisplay: payload.config },
     };
-  } else {
-    const id = await requestClient.post<string>('/UiSetting/create', data);
-    pageDisplaySettingRecord.value = { ...data, id };
+    if (current?.id) {
+      const latest = await requestClient.get<UiSettingRuntimeRecord>(
+        UI_SETTING_RETRIEVE_PATH,
+        {
+          params: { id: current.id },
+        },
+      );
+      const optimisticLock =
+        latest?.optimisticLock ?? current.optimisticLock ?? 0;
+      await requestClient.put('/UiSetting/update', {
+        ...data,
+        id: current.id,
+        optimisticLock,
+      });
+      pageDisplaySettingRecord.value = {
+        ...current,
+        ...data,
+        optimisticLock: optimisticLock + 1,
+      };
+    } else {
+      const id = await requestClient.post<string>('/UiSetting/create', data);
+      pageDisplaySettingRecord.value = { ...data, id };
+    }
+    pageDisplayConfig.value = payload.config;
+    replaceUiSettingRuntimeCache(
+      pageDisplaySettingCode.value,
+      pageDisplayContextKey.value,
+      pageDisplaySettingRecord.value,
+    );
+    message.success('当前配置已上传');
+  } catch (error) {
+    console.error('上传当前页面展示配置失败。', error);
+    message.error('上传当前配置失败，请稍后重试');
+  } finally {
+    pageDisplaySettingSaving.value = false;
   }
-  pageDisplayConfig.value = payload.config;
-  replaceUiSettingRuntimeCache(
-    pageDisplaySettingCode.value,
-    pageDisplayContextKey.value,
-    pageDisplaySettingRecord.value,
-  );
-  message.success('当前配置已上传');
-  Modal.confirm({
-    cancelText: '关闭配置',
-    closable: false,
-    content: '当前页面展示配置已成功上传。',
-    maskClosable: false,
-    okText: '继续配置',
-    onCancel: () => {
-      pageDisplaySettingsOpen.value = false;
-    },
-    title: '上传成功',
-  });
 }
 const columnSettingsSnapshot = ref<null | TableColumnSettingsSnapshot>(null);
 const draftHiddenTableColumnKeys = ref<string[]>([]);
@@ -667,19 +671,14 @@ function getPageDisplayField(
     (item) => item.key === key,
   );
   if (configured) {
-    configured.hidden = initializeFieldHidden(configured);
-    configured.inputDisplay ||= 'default';
-    configured.visibleRoleCodes = initializeVisibleRoleCodes(configured);
-    return configured;
+    return resolveRuntimeDisplayField(configured);
   }
 
-  return {
-    hidden: initializeFieldHidden({ key }),
+  return resolveRuntimeDisplayField({
     inputDisplay: 'default',
     key,
     order: props.config.fields.findIndex((item) => item.key === key),
-    visibleRoleCodes: initializeVisibleRoleCodes({ key }),
-  };
+  });
 }
 
 function getPageDisplayGroup(view: 'create' | 'detail' | 'edit', key?: string) {
@@ -701,24 +700,21 @@ function getPageDisplayHeader(
 ): CrudPageDisplayHeaderConfig | undefined {
   const configured = pageDisplayHeaderMap.value.get(key);
   if (configured) {
-    configured.visible = initializeHeaderVisibility(configured);
-    return configured;
+    return resolveRuntimeDisplayHeader(configured);
   }
 
   const field = props.config.fields.find((item) => item.key === key);
   if (!field) return undefined;
 
-  return {
+  return resolveRuntimeDisplayHeader({
     key,
     label: field.label,
     order: props.config.fields
       .filter((item) => item.table && isFieldVisible(item))
       .findIndex((item) => item.key === key),
     valueDisplay: { mode: 'default' },
-    visible: initializeHeaderVisibility({ key }),
-    visibleRoleCodes: initializeVisibleRoleCodes({ key }),
     width: resolveDefaultTableColumnWidth(field),
-  };
+  });
 }
 
 function getPageDisplayInputDisplay(
@@ -861,9 +857,10 @@ function applyPageDisplayFields(
           : getPageDisplayGroup(view, configured?.layoutGroup);
       return {
         ...field,
+        label: resolvePageDisplayViewTitle(configured, field.label),
         displayGroup: group,
         layoutGroup: configured?.layoutGroup || field.layoutGroup,
-        layoutGroupTitle: group?.title || field.layoutGroupTitle,
+        layoutGroupTitle: group ? group.title : field.layoutGroupTitle,
         layoutOrder: configured?.order ?? field.layoutOrder,
       };
     });
@@ -1049,16 +1046,12 @@ function isPageDisplayGroupFieldVisible(field: CrudFieldConfig) {
   const key = field.displayGroup?.key;
   const activeView = editingRecord.value ? 'edit' : 'create';
   const activeConfig = pageDisplayConfig.value[activeView];
-  if (!key && !activeConfig) return true;
+  if (!key || !activeConfig) return true;
   const groupFields = visibleFormFields.value.filter((item) =>
-    key ? item.displayGroup?.key === key : !item.displayGroup?.key,
+    item.displayGroup?.key === key,
   );
   const index = groupFields.indexOf(field as (typeof groupFields)[number]);
-  const expandedRows = key
-    ? (pageDisplayGroupExpandedRows[key] ?? 'all')
-    : (pageDisplayGroupExpandedRows.__unassigned__ ??
-      pageDisplayConfig.value[activeView]?.unassignedExpandedRows ??
-      'all');
+  const expandedRows = pageDisplayGroupExpandedRows[key] ?? 'all';
   return (
     index >= 0 &&
     index <
@@ -1079,41 +1072,11 @@ function getPageDisplayGroupToggleLabel(groupKey: string) {
   return pageDisplayGroupExpandedRows[groupKey] === 'all' ? '收起' : '展开全部';
 }
 
-function shouldHideSinglePageDisplayGroupChrome() {
-  const activeView = editingRecord.value ? 'edit' : 'create';
-  if (!pageDisplayConfig.value[activeView]) return false;
-  return !hasMultipleEffectiveDisplayGroups(visibleFormFields.value);
-}
-
-function shouldShowSinglePageDisplayGroupToggle(field: CrudFieldConfig) {
-  if (field.complexGroupKey || !shouldHideSinglePageDisplayGroupChrome()) {
-    return false;
-  }
-  return (
-    visibleFormFields.value.find((item) => !item.complexGroupKey) ===
-    (field as (typeof visibleFormFields.value)[number])
-  );
-}
-
-function shouldShowUnassignedPageDisplayGroupTitle(field: CrudFieldConfig) {
-  if (field.complexGroupKey || field.displayGroup?.key) return false;
-  const activeView = editingRecord.value ? 'edit' : 'create';
-  if (
-    !pageDisplayConfig.value[activeView] ||
-    shouldHideSinglePageDisplayGroupChrome()
-  )
-    return false;
-  return (
-    visibleFormFields.value.find((item) => !item.displayGroup?.key) ===
-    (field as (typeof visibleFormFields.value)[number])
-  );
-}
-
 function shouldShowFormGroupTitle(field: CrudFieldConfig) {
   if (
-    !field.layoutGroupTitle?.trim() ||
+    !field.displayGroup?.key ||
     field.complexGroupKey ||
-    shouldHideSinglePageDisplayGroupChrome()
+    !field.layoutGroup
   ) {
     return false;
   }
@@ -1431,7 +1394,13 @@ const draftTableColumnsIndeterminate = computed(
 );
 
 const canCustomizeTableColumnsLocally = computed(
-  () => tableFields.value.length > 0,
+  () =>
+    !pageDisplaySettingRecord.value &&
+    canUseLocalTableColumnSettings(
+      pageDisplayConfig.value,
+      tableFields.value.length,
+      Boolean(pageDisplaySettingRecord.value),
+    ),
 );
 
 const hasConfiguredRowActions = computed(() =>
@@ -1665,7 +1634,7 @@ const autoSearchEnabled = computed(() => {
   return value === true || value === 'true';
 });
 const queryCollapsedRows = computed(
-  () => pageDisplayConfig.value.query?.unassignedExpandedRows ?? 1,
+  () => 'all' as const,
 );
 
 const effectiveSearchCollapsedCount = computed(() => {
@@ -2506,10 +2475,6 @@ function resetForm(record?: GenericRecord) {
       group.defaultExpandedRows ??
       (group.defaultExpanded === false ? 1 : 'all');
   }
-  pageDisplayGroupExpandedRows.__unassigned__ =
-    pageDisplayConfig.value[record ? 'edit' : 'create']
-      ?.unassignedExpandedRows ?? 'all';
-
   if (!record) {
     const groupState = buildCrudComplexGroupInitialState(
       props.config.complexGroups,
@@ -2527,6 +2492,16 @@ function resetForm(record?: GenericRecord) {
   Object.assign(complexGroupEnabled, groupState.enabled);
   Object.assign(complexGroupCollapsed, groupState.collapsed);
   Object.assign(formState, groupState.flatValues);
+
+  for (const field of visibleFormFields.value) {
+    if (!field.complexGroupKey || field.type !== 'area-cascader') {
+      continue;
+    }
+    const valueKey = field.areaCascader?.valueKey || field.key;
+    formState[field.key] = getAreaCascaderValueFromRecord(field, {
+      [valueKey]: formState[field.key],
+    });
+  }
 
   for (const field of visibleFormFields.value) {
     if (field.complexGroupKey) {
@@ -3832,14 +3807,38 @@ async function handleSubmit() {
       payload[field.key] = value;
     }
 
-    Object.assign(
-      payload,
-      buildCrudComplexGroupPayload(
-        props.config.complexGroups,
-        complexGroupEnabled,
-        formState,
-      ),
+    const complexGroupPayload = buildCrudComplexGroupPayload(
+      props.config.complexGroups,
+      complexGroupEnabled,
+      formState,
     );
+    for (const field of visibleFormFields.value) {
+      if (!field.complexGroupKey || field.type !== 'area-cascader') {
+        continue;
+      }
+      const group = props.config.complexGroups?.find(
+        (item) => item.key === field.complexGroupKey,
+      );
+      const nestedKey = group?.fieldMappings[field.key];
+      const target = group ? complexGroupPayload[group.submitKey] : undefined;
+      if (!nestedKey || !target) {
+        continue;
+      }
+      applyAreaCascaderValueToRecord(
+        target,
+        {
+          ...field,
+          areaCascader: {
+            ...field.areaCascader,
+            valueKey: nestedKey,
+          },
+        },
+        formState[field.key],
+        getFieldOptions(field, formState),
+        !isCreating,
+      );
+    }
+    Object.assign(payload, complexGroupPayload);
 
     const createPath = resolveCrudPath(
       props.config.createPath,
@@ -4243,11 +4242,26 @@ function resetTableColumns() {
   updateTableScrollY();
 }
 
-function getFieldOptions(field: CrudFieldConfig): any[] {
+function getAreaCascaderSelectableLevels(
+  field: CrudFieldConfig,
+  state: GenericRecord,
+) {
+  const valueKey = field.areaCascader?.valueKey || field.key;
+  return resolveAdministrativeAreaSelectableLevels(
+    field.areaCascader?.selectableLevels,
+    state[valueKey] ?? state[field.key],
+  );
+}
+
+function getFieldOptions(
+  field: CrudFieldConfig,
+  state: GenericRecord = formState,
+): any[] {
   if (field.type === 'area-cascader') {
-    return (
+    return restrictAdministrativeAreaOptionsByLevels(
       areaCascaderRestrictedOptions[field.key] ||
-      getAdministrativeAreaCascaderOptions()
+        getAdministrativeAreaCascaderOptions(),
+      getAreaCascaderSelectableLevels(field, state),
     );
   }
   return normalizeCrudChoiceOptions(
@@ -4256,15 +4270,29 @@ function getFieldOptions(field: CrudFieldConfig): any[] {
   );
 }
 
+function isAreaCascaderLevelRestricted(
+  field: CrudFieldConfig,
+  state: GenericRecord,
+) {
+  return getAreaCascaderSelectableLevels(field, state).length < 3;
+}
+
 async function handleAreaCascaderDropdownVisibleChange(
   field: CrudFieldConfig,
   open: boolean,
+  state: GenericRecord,
 ) {
   if (!open) return;
+  const context = resolveAreaCascaderOpenAreaContext(field, state);
+  if (!hasOpenAreaContext(context)) {
+    areaCascaderRestrictedOptions[field.key] =
+      getAdministrativeAreaCascaderOptions();
+    return;
+  }
   optionLoadingState[field.key] = true;
   try {
     areaCascaderRestrictedOptions[field.key] = filterAdministrativeAreaOptions(
-      await getCurrentOpenAreaCodes(),
+      await getCurrentOpenAreaCodes(context),
     );
   } catch {
     message.error('获取开通区域失败，请重试');
@@ -4274,8 +4302,27 @@ async function handleAreaCascaderDropdownVisibleChange(
   }
 }
 
+function resolveAreaCascaderOpenAreaContext(
+  field: CrudFieldConfig,
+  state: GenericRecord,
+) {
+  const context = field.areaCascader?.openAreaContext;
+  return {
+    bizCategory: resolveCrudDynamicTextWithState(context?.bizCategory, state),
+    bizType: resolveCrudDynamicTextWithState(context?.bizType, state),
+    domain: resolveCrudDynamicTextWithState(context?.domain, state),
+  };
+}
+
+function resolveCrudDynamicTextWithState(
+  value: CrudDynamicText | undefined,
+  state: GenericRecord,
+) {
+  return typeof value === 'function' ? value(state) : value;
+}
+
 function resolveCrudDynamicText(value: CrudDynamicText | undefined) {
-  return typeof value === 'function' ? value(formState) : value;
+  return resolveCrudDynamicTextWithState(value, formState);
 }
 
 function getFormFieldLabel(field: CrudFieldConfig) {
@@ -5748,15 +5795,21 @@ watch(canCustomizeTableColumnsLocally, () => {
                 v-else-if="item.field.type === 'area-cascader'"
                 v-model:value="searchState[item.field.key]"
                 :allow-clear="true"
-                :change-on-select="true"
+                :change-on-select="
+                  !isAreaCascaderLevelRestricted(item.field, searchState)
+                "
                 :loading="optionLoadingState[item.field.key]"
-                :options="getFieldOptions(item.field)"
+                :options="getFieldOptions(item.field, searchState)"
                 :placeholder="getPlaceholder(item.field)"
                 class="w-full"
                 show-search
                 @dropdown-visible-change="
                   (open) =>
-                    handleAreaCascaderDropdownVisibleChange(item.field, open)
+                    handleAreaCascaderDropdownVisibleChange(
+                      item.field,
+                      open,
+                      searchState,
+                    )
                 "
               />
               <TreeSelect
@@ -6620,39 +6673,6 @@ watch(canCustomizeTableColumnsLocally, () => {
                 {{ getPageDisplayGroupToggleLabel(field.displayGroup.key) }}
               </Button>
             </div>
-            <div
-              v-else-if="shouldShowUnassignedPageDisplayGroupTitle(field)"
-              class="bg-muted/45 col-span-full mt-3 flex items-center justify-between rounded-lg px-4 py-3 text-sm font-semibold"
-            >
-              <span>默认分组</span>
-              <Button
-                type="link"
-                size="small"
-                @click="togglePageDisplayGroup('__unassigned__')"
-              >
-                {{ getPageDisplayGroupToggleLabel('__unassigned__') }}
-              </Button>
-            </div>
-            <div
-              v-else-if="shouldShowSinglePageDisplayGroupToggle(field)"
-              class="col-span-full flex justify-end py-1"
-            >
-              <Button
-                type="link"
-                size="small"
-                @click="
-                  togglePageDisplayGroup(
-                    field.displayGroup?.key || '__unassigned__',
-                  )
-                "
-              >
-                {{
-                  getPageDisplayGroupToggleLabel(
-                    field.displayGroup?.key || '__unassigned__',
-                  )
-                }}
-              </Button>
-            </div>
             <Form.Item
               v-if="
                 isComplexGroupFieldVisible(field) &&
@@ -6689,15 +6709,22 @@ watch(canCustomizeTableColumnsLocally, () => {
                 v-else-if="field.type === 'area-cascader'"
                 v-model:value="formState[field.key]"
                 :allow-clear="true"
-                :change-on-select="true"
+                :change-on-select="
+                  !isAreaCascaderLevelRestricted(field, formState)
+                "
                 :disabled="isFieldDisabledOnEdit(field)"
                 :loading="optionLoadingState[field.key]"
-                :options="getFieldOptions(field)"
+                :options="getFieldOptions(field, formState)"
                 :placeholder="getPlaceholder(field)"
                 class="w-full"
                 show-search
                 @dropdown-visible-change="
-                  (open) => handleAreaCascaderDropdownVisibleChange(field, open)
+                  (open) =>
+                    handleAreaCascaderDropdownVisibleChange(
+                      field,
+                      open,
+                      formState,
+                    )
                 "
               />
               <TreeSelect
@@ -7074,6 +7101,7 @@ watch(canCustomizeTableColumnsLocally, () => {
       :fields="props.config.fields"
       :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
       :model-value="pageDisplayConfig"
+      :saving="pageDisplaySettingSaving"
       @save="savePageDisplaySettings"
     />
   </Page>

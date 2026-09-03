@@ -54,6 +54,25 @@ export function hasServerListHeaderConfig(
   return Boolean(config?.list?.headers?.length);
 }
 
+export function resolvePageDisplayViewTitle(
+  field: Pick<CrudPageDisplayFieldConfig, 'label'> | undefined,
+  fallbackTitle: string,
+) {
+  return field?.label?.trim() || fallbackTitle;
+}
+
+export function canUseLocalTableColumnSettings(
+  config: CrudPageDisplayConfig | undefined,
+  tableFieldCount: number,
+  hasServerPageDisplaySetting = false,
+) {
+  return (
+    !hasServerPageDisplaySetting &&
+    tableFieldCount > 0 &&
+    !hasServerListHeaderConfig(config)
+  );
+}
+
 export function resolvePageDisplaySettingCode(
   routePath: string | undefined,
   fallbackCode: string | undefined,
@@ -175,17 +194,6 @@ export function buildOrganizationScriptContext(userInfo: Record<string, any> | u
   };
 }
 
-export function hasMultipleEffectiveDisplayGroups(
-  fields: Array<Pick<CrudFieldConfig, 'complexGroupKey' | 'displayGroup'>>,
-) {
-  const groupKeys = new Set(
-    fields
-      .filter((field) => !field.complexGroupKey)
-      .map((field) => field.displayGroup?.key || '__unassigned__'),
-  );
-  return groupKeys.size > 1;
-}
-
 export function shouldStartQueryGroupOnNewLine(
   groupKey: string | undefined,
   previousGroupKey: string | undefined,
@@ -247,6 +255,27 @@ export function initializeHeaderVisibility(
     : defaultMode;
 
   return visible;
+}
+
+export function resolveRuntimeDisplayField(
+  field: CrudPageDisplayFieldConfig,
+): CrudPageDisplayFieldConfig {
+  return {
+    ...field,
+    hidden: initializeFieldHidden(field),
+    inputDisplay: field.inputDisplay || 'default',
+    visibleRoleCodes: initializeVisibleRoleCodes(field),
+  };
+}
+
+export function resolveRuntimeDisplayHeader(
+  header: CrudPageDisplayHeaderConfig,
+): CrudPageDisplayHeaderConfig {
+  return {
+    ...header,
+    visible: initializeHeaderVisibility(header),
+    visibleRoleCodes: initializeVisibleRoleCodes(header),
+  };
 }
 
 function hasSameStringValues(

@@ -1,4 +1,5 @@
 import type { SelectOption } from '../api';
+import type { AdministrativeAreaLevel } from './administrative-area-data';
 
 import type { CrudExportConverter } from './crud-value-converter';
 
@@ -35,6 +36,16 @@ export interface CrudAreaCascaderConfig {
   districtNameKey?: string;
   provinceCodeKey?: string;
   provinceNameKey?: string;
+  /** 传入后启用开通区域过滤；未传时始终使用前端本地区域数据。 */
+  openAreaContext?: {
+    bizCategory?: CrudDynamicText;
+    bizType?: CrudDynamicText;
+    domain?: CrudDynamicText;
+  };
+  /** 提交时将 2 位或 4 位行政编码补齐为 6 位。 */
+  normalizeToSixDigits?: boolean;
+  /** 页面静态声明最终可选择的行政区划层级；未声明时保持全层级选择。 */
+  selectableLevels?: AdministrativeAreaLevel[];
   /** 单字段行政编码的提交和回显字段。 */
   valueKey?: string;
 }

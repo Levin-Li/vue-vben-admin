@@ -1,7 +1,10 @@
 import type { SelectOption } from '../api';
 import type { CrudAreaCascaderConfig, CrudFieldConfig } from './types';
 
-import { resolveAdministrativeAreaPath } from './administrative-area-data';
+import {
+  normalizeAdministrativeAreaCode,
+  resolveAdministrativeAreaPath,
+} from './administrative-area-data';
 
 export const DEFAULT_AREA_CASCADER_CONFIG: Required<CrudAreaCascaderConfig> = {
   cityCodeKey: 'cityCode',
@@ -9,8 +12,11 @@ export const DEFAULT_AREA_CASCADER_CONFIG: Required<CrudAreaCascaderConfig> = {
   districtAdminCodeKey: 'districtAdminCode',
   districtCodeKey: 'districtCode',
   districtNameKey: 'districtName',
+  normalizeToSixDigits: true,
   provinceCodeKey: 'provinceCode',
   provinceNameKey: 'provinceName',
+  openAreaContext: {},
+  selectableLevels: [],
   valueKey: '',
 };
 
@@ -101,6 +107,13 @@ function assignIfPresent(target: GenericRecord, key: string, value: any) {
   target[key] = value;
 }
 
+function normalizeCodeIfNeeded(value: any, normalizeToSixDigits: boolean) {
+  if (value === undefined || value === null || value === '') {
+    return value;
+  }
+  return normalizeToSixDigits ? normalizeAdministrativeAreaCode(value) : value;
+}
+
 export function applyAreaCascaderValueToRecord(
   target: GenericRecord,
   field: CrudFieldConfig,
@@ -113,7 +126,10 @@ export function applyAreaCascaderValueToRecord(
   if (config.valueKey) {
     const selectedValue = normalizedValuePath.at(-1);
     if (selectedValue) {
-      target[config.valueKey] = selectedValue;
+      target[config.valueKey] = normalizeCodeIfNeeded(
+        selectedValue,
+        config.normalizeToSixDigits,
+      );
     } else if (writeEmptyValues) {
       target[config.valueKey] = null;
     }
@@ -139,29 +155,56 @@ export function applyAreaCascaderValueToRecord(
   const [province, city, district] = optionPath;
   const [provinceValue, cityValue, districtValue] = normalizedValuePath;
 
-  assignIfPresent(target, config.provinceCodeKey, readOptionCode(province));
+  assignIfPresent(
+    target,
+    config.provinceCodeKey,
+    normalizeCodeIfNeeded(readOptionCode(province), config.normalizeToSixDigits),
+  );
   assignIfPresent(target, config.provinceNameKey, readOptionName(province));
-  assignIfPresent(target, config.cityCodeKey, readOptionCode(city));
+  assignIfPresent(
+    target,
+    config.cityCodeKey,
+    normalizeCodeIfNeeded(readOptionCode(city), config.normalizeToSixDigits),
+  );
   assignIfPresent(target, config.cityNameKey, readOptionName(city));
-  assignIfPresent(target, config.districtCodeKey, readOptionCode(district));
+  assignIfPresent(
+    target,
+    config.districtCodeKey,
+    normalizeCodeIfNeeded(readOptionCode(district), config.normalizeToSixDigits),
+  );
   assignIfPresent(target, config.districtNameKey, readOptionName(district));
   assignIfPresent(
     target,
     config.districtAdminCodeKey,
-    readDistrictAdminCode(district),
+    normalizeCodeIfNeeded(
+      readDistrictAdminCode(district),
+      config.normalizeToSixDigits,
+    ),
   );
 
   if (!province && provinceValue) {
-    target[config.provinceCodeKey] = provinceValue;
+    target[config.provinceCodeKey] = normalizeCodeIfNeeded(
+      provinceValue,
+      config.normalizeToSixDigits,
+    );
   }
 
   if (!city && cityValue) {
-    target[config.cityCodeKey] = cityValue;
+    target[config.cityCodeKey] = normalizeCodeIfNeeded(
+      cityValue,
+      config.normalizeToSixDigits,
+    );
   }
 
   if (!district && districtValue) {
-    target[config.districtCodeKey] = districtValue;
-    target[config.districtAdminCodeKey] = districtValue;
+    target[config.districtCodeKey] = normalizeCodeIfNeeded(
+      districtValue,
+      config.normalizeToSixDigits,
+    );
+    target[config.districtAdminCodeKey] = normalizeCodeIfNeeded(
+      districtValue,
+      config.normalizeToSixDigits,
+    );
   }
 
   return target;

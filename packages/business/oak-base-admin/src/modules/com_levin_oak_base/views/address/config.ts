@@ -87,6 +87,7 @@ export const addressPageCrudConfig: CrudPageConfig = {
         cityCodeKey: 'cityCode',
         districtCodeKey: 'districtCode',
         provinceCodeKey: 'provinceCode',
+        selectableLevels: ['district'],
       },
       required: true,
       search: true,

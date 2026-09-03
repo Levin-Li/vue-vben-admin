@@ -77,6 +77,7 @@ const ORG_TYPE_ICON_MAP: Record<string, string> = {
   OnlineFlagshipStore: 'lucide:badge-check',
   OnlineStore: 'lucide:monitor-smartphone',
   Store: 'lucide:store',
+  Team: 'lucide:users',
   TempOrg: 'lucide:clock-3',
   Vendor: 'lucide:truck',
 };
@@ -99,6 +100,7 @@ const ORG_TYPE_LABEL_MAP: Record<string, string> = {
   OnlineFlagshipStore: '线上旗舰店',
   OnlineStore: '线上门店',
   Store: '门店',
+  Team: '团队',
   TempOrg: '临时组织',
   Vendor: '供应商',
 };

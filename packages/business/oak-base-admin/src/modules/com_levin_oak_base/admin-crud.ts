@@ -5,8 +5,16 @@ import { toPathRouteName } from '@levin/admin-framework';
 export interface OakBaseAdminCrudResource {
   icon: string;
   name: string;
+  /** 前端路由守卫及上传菜单使用的已有授权资源；缺省时使用 resource。 */
+  permissionResource?: string;
   resource: string;
+  /** 路由路径末段；缺省时使用 resource。 */
+  routePath?: string;
+  /** 上传页面路由时使用的源码位置；缺省时由资源名推导。 */
+  sourceFilePath?: string;
   title: string;
+  /** 上传页面路由时使用的页面注册位置；缺省时由资源名推导。 */
+  viewPath?: string;
 }
 
 export interface CreateOakBaseAdminCrudRoutesOptions {
@@ -74,6 +82,17 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     name: 'Demo',
     resource: 'Demo',
     title: '示例管理',
+  },
+  {
+    icon: 'lucide:map-pinned',
+    name: 'AdministrativeAreaDemo',
+    permissionResource: 'Demo',
+    resource: 'AdministrativeAreaDemo',
+    routePath: 'dev/TestDemo',
+    sourceFilePath:
+      'modules/com_levin_oak_base/views/dev/TestDemo.vue',
+    title: '区域选择器测试',
+    viewPath: '/system/com_levin_oak_base/dev/TestDemo.vue',
   },
   {
     icon: 'lucide:book-open',
@@ -381,6 +400,8 @@ export const oakBaseAdminResourceViewMap: Record<
   ArticleChannel: () => import('./views/article-channel/index.vue'),
   Brand: () => import('./views/brand/index.vue'),
   Customer: () => import('./views/customer/index.vue'),
+  AdministrativeAreaDemo: () =>
+    import('./views/dev/TestDemo.vue'),
   Demo: () => import('./views/demo/index.vue'),
   Dict: () => import('./views/dict/index.vue'),
   Domain: () => import('./views/domain/index.vue'),
@@ -496,6 +517,7 @@ const menuGroups = [
       'SimpleApi',
       'SimplePage',
       'Demo',
+      'AdministrativeAreaDemo',
       'PaymentSimulationWorkbench',
       'UiSetting',
       'GlobalOrgSelectorSetting',
@@ -560,12 +582,12 @@ export function createOakBaseAdminCrudRoutes(
             );
           }
 
-          const path = `/clob/V1/${item.resource}`;
+          const path = `/clob/V1/${item.routePath || item.resource}`;
 
           return {
             component,
             meta: {
-              crudResource: item.resource,
+              crudResource: item.permissionResource || item.resource,
               icon: item.icon,
               title: item.title,
             },

@@ -164,6 +164,39 @@ describe('oak base admin routes', () => {
     );
   });
 
+  it('registers the administrative area test page under development tools', () => {
+    const module = createOakBaseAdminModule();
+    const root = module.routes?.[0];
+    const developmentToolsGroup = root?.children?.find(
+      (route) => route.meta?.title === '开发&工具',
+    );
+
+    expect(developmentToolsGroup?.children).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          meta: expect.objectContaining({
+            crudResource: 'Demo',
+            title: '区域选择器测试',
+          }),
+          name: '_clob_V1_dev_TestDemo',
+          path: '/clob/V1/dev/TestDemo',
+        }),
+      ]),
+    );
+    expect(oakBaseAdminBackendRouteMappings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: '/clob/V1/dev/TestDemo',
+          sourceFilePath:
+            'modules/com_levin_oak_base/views/dev/TestDemo.vue',
+          title: '区域选择器测试',
+          viewPath:
+            '/system/com_levin_oak_base/dev/TestDemo.vue',
+        }),
+      ]),
+    );
+  });
+
   it('registers the payment simulation workbench route and backend mapping', () => {
     const module = createOakBaseAdminModule();
     const crudRoutes = flattenCrudRoutes(module.routes?.[0]?.children);

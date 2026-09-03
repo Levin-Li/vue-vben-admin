@@ -45,7 +45,17 @@ export const demoPageCrudConfig: CrudPageConfig = {
     { key: 'url', label: '普通链接', search: true, table: true, width: 200 },
     { key: 'qrCode', label: '二维码' },
     { key: 'location', label: '地理位置', table: true, width: 180 },
-    { key: 'areaCode', label: '省市区行政编码', table: true, width: 180 },
+    {
+      key: 'areaCode',
+      label: '省市区行政编码',
+      areaCascader: {
+        selectableLevels: ['district'],
+        valueKey: 'areaCode',
+      },
+      table: true,
+      type: 'area-cascader',
+      width: 180,
+    },
     { key: 'timeRange', label: '时间范围' },
     { key: 'treeOrg', label: '树形组织' },
     {

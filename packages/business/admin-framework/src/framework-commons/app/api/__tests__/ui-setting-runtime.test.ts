@@ -5,6 +5,12 @@ const get = vi.fn();
 vi.mock('../request', () => ({ requestClient: { get } }));
 
 describe('UiSetting runtime cache', () => {
+  it('uses the generated UiSetting detail route when a saved setting is refreshed', async () => {
+    const { UI_SETTING_RETRIEVE_PATH } = await import('../ui-setting-runtime');
+
+    expect(UI_SETTING_RETRIEVE_PATH).toBe('/UiSetting/retrieve');
+  });
+
   beforeEach(async () => {
     get.mockReset();
     const module = await import('../ui-setting-runtime');

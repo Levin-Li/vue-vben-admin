@@ -3,7 +3,11 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { formatAdministrativeArea } from '@levin/admin-framework/framework-commons/shared/administrative-area-data';
 
 import { openAreaService } from '../../api/open-area-service';
-import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
+import {
+  buildModuleDictOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
+  tenantOptionsLoader,
+} from '../api-module';
 
 export function getOpenAreaDisplayNames(record: Record<string, any>) {
   const areaCodeList = Array.isArray(record.areaCodeList)
@@ -30,7 +34,7 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     pageSize: 10,
   },
   description:
-    '按租户、组织和域名维护可选行政区划范围。开通区域代码列表为空时，当前范围不限制可选区域。',
+    '按租户、组织、域名、业务类别和业务类型维护可选行政区划范围。开通区域代码列表为空时，当前范围不限制可选区域。',
   fields: [
     {
       key: 'tenantId',
@@ -73,6 +77,30 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       width: 220,
+    },
+    {
+      key: 'bizCategory',
+      label: '业务类别',
+      help: '为空时匹配任意业务类别。',
+      loadOptions: buildModuleDictOptionsLoader(
+        'com.levin.oak.base.entities.OpenArea.bizCategory',
+      ),
+      search: true,
+      table: true,
+      type: 'select',
+      width: 160,
+    },
+    {
+      key: 'bizType',
+      label: '业务类型',
+      help: '为空时匹配任意业务类型。',
+      loadOptions: buildModuleDictOptionsLoader(
+        'com.levin.oak.base.entities.OpenArea.bizType',
+      ),
+      search: true,
+      table: true,
+      type: 'select',
+      width: 160,
     },
     {
       key: 'areaCodeList',

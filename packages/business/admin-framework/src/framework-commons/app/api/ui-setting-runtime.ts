@@ -1,8 +1,11 @@
 import { requestClient } from './request';
 
+export const UI_SETTING_RETRIEVE_PATH = '/UiSetting/retrieve';
+
 export interface UiSettingRuntimeRecord {
   code: string;
   createTime?: string;
+  domain?: string;
   id?: string;
   lastUpdateTime?: string;
   orgCategory?: string;
@@ -10,6 +13,7 @@ export interface UiSettingRuntimeRecord {
   optimisticLock?: number;
   tenantId?: string;
   type?: string;
+  userCategory?: string;
   userType?: string;
   valueContent?: Record<string, any>;
 }

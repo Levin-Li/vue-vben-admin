@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   buildTenantScriptContext,
   buildOrganizationScriptContext,
+  canUseLocalTableColumnSettings,
   findDisplayRuleCycle,
   distributeExtraTableWidth,
   getDefaultVisibleRoleCodes,
   hasDisplayRuleCycle,
-  hasMultipleEffectiveDisplayGroups,
   hasServerListHeaderConfig,
   isRoleVisibilitySatisfied,
   initializeVisibleRoleCodes,
@@ -19,10 +19,13 @@ import {
   resolveDisplayGroupExpandedFieldCount,
   resolveDisplayGroupOrder,
   resolveDefaultTableColumnWidth,
+  resolveRuntimeDisplayField,
+  resolveRuntimeDisplayHeader,
   sortDisplayGroups,
   resolveDisplayStates,
   reconcileCrudPageDisplayHeaders,
   resolvePageDisplayContextKey,
+  resolvePageDisplayViewTitle,
   resolvePageDisplaySettingCode,
   resolveQueryCollapsedFieldCount,
   shouldAutoQuery,
@@ -88,6 +91,23 @@ describe('crud page display rules', () => {
         version: 1,
       }),
     ).toBe(true);
+    expect(canUseLocalTableColumnSettings(undefined, 3)).toBe(true);
+    expect(
+      canUseLocalTableColumnSettings({ version: 1 }, 3),
+    ).toBe(true);
+    expect(
+      canUseLocalTableColumnSettings(
+        { list: { headers: [{ key: 'name' }] }, version: 1 },
+        3,
+      ),
+    ).toBe(false);
+    expect(
+      canUseLocalTableColumnSettings(
+        { list: { headers: [] }, version: 1 },
+        3,
+        true,
+      ),
+    ).toBe(false);
   });
 
   it('uses the same default widths for list rendering and editable list settings', () => {
@@ -251,6 +271,41 @@ describe('crud page display rules', () => {
     ).toEqual({ expression: 'user.superAdmin', mode: 'script' });
   });
 
+  it('creates runtime display defaults without mutating the saved configuration', () => {
+    const savedField = { key: 'tenantId' };
+    const runtimeField = resolveRuntimeDisplayField(savedField);
+    const savedHeader = { key: 'lastUpdateTime' };
+    const runtimeHeader = resolveRuntimeDisplayHeader(savedHeader);
+
+    expect(runtimeField).toEqual({
+      hidden: false,
+      inputDisplay: 'default',
+      key: 'tenantId',
+      visibleRoleCodes: ['R_SA'],
+    });
+    expect(runtimeField).not.toBe(savedField);
+    expect(savedField).toEqual({ key: 'tenantId' });
+    expect(runtimeHeader).toEqual({
+      key: 'lastUpdateTime',
+      visible: { mode: 'hidden' },
+      visibleRoleCodes: [],
+    });
+    expect(runtimeHeader).not.toBe(savedHeader);
+    expect(savedHeader).toEqual({ key: 'lastUpdateTime' });
+  });
+
+  it('uses independently configured aliases for each display view', () => {
+    expect(resolvePageDisplayViewTitle({ label: '查询名称' }, '名称')).toBe(
+      '查询名称',
+    );
+    expect(resolvePageDisplayViewTitle({ label: '新增名称' }, '名称')).toBe(
+      '新增名称',
+    );
+    expect(
+      resolvePageDisplayViewTitle({ label: '   ' }, '名称'),
+    ).toBe('名称');
+  });
+
   it('builds a safe tenant script context without exposing secret tenant keys', () => {
     expect(
       buildTenantScriptContext(
@@ -332,21 +387,6 @@ describe('crud page display rules', () => {
     expect(resolveDisplayGroupOrder(groups, undefined)).toBe(2);
     expect(resolveDisplayGroupOrder(groups, 'removed')).toBe(2);
     expect(resolveDisplayGroupOrder(groups, undefined, 0)).toBe(0);
-  });
-
-  it('hides visual group chrome only when there is one effective group', () => {
-    expect(hasMultipleEffectiveDisplayGroups([
-      { displayGroup: { key: 'basic' } },
-      { displayGroup: { key: 'basic' } },
-    ])).toBe(false);
-    expect(hasMultipleEffectiveDisplayGroups([
-      { displayGroup: { key: 'basic' } },
-      { displayGroup: { key: 'advanced' } },
-    ])).toBe(true);
-    expect(hasMultipleEffectiveDisplayGroups([
-      { displayGroup: { key: 'basic' } },
-      {},
-    ])).toBe(true);
   });
 
   it('starts each named query group from a new grid row without drawing chrome', () => {
