@@ -221,6 +221,7 @@ import {
   resolveRuntimeDisplayField,
   resolveRuntimeDisplayHeader,
   resolvePageDisplaySettingCode,
+  resolveQueryCollapsedRows,
   resolveQueryCollapsedFieldCount,
   resolveDisplayGroupExpandedFieldCount,
   shouldAutoQuery,
@@ -1634,7 +1635,7 @@ const autoSearchEnabled = computed(() => {
   return value === true || value === 'true';
 });
 const queryCollapsedRows = computed(
-  () => 'all' as const,
+  () => resolveQueryCollapsedRows(pageDisplayConfig.value),
 );
 
 const effectiveSearchCollapsedCount = computed(() => {

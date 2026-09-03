@@ -95,6 +95,13 @@ export function resolvePageDisplayContextKey(
   ].join(':');
 }
 
+/** 恢复页面展示配置中的查询区默认折叠语义。 */
+export function resolveQueryCollapsedRows(
+  config: CrudPageDisplayConfig | undefined,
+) {
+  return config?.query?.unassignedExpandedRows ?? 1;
+}
+
 export function resolveQueryCollapsedFieldCount(
   fieldCount: number,
   columnCount: number,

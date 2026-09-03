@@ -27,6 +27,7 @@ import {
   resolvePageDisplayContextKey,
   resolvePageDisplayViewTitle,
   resolvePageDisplaySettingCode,
+  resolveQueryCollapsedRows,
   resolveQueryCollapsedFieldCount,
   shouldAutoQuery,
   shouldAutoForceUpdateField,
@@ -181,6 +182,18 @@ describe('crud page display rules', () => {
     expect(resolveQueryCollapsedFieldCount(48, 4, 10)).toBe(39);
     expect(resolveQueryCollapsedFieldCount(12, 4, 'all')).toBe(12);
     expect(resolveQueryCollapsedFieldCount(12, 1, 1)).toBe(1);
+  });
+
+  it('restores the configured query collapse rows and defaults to one row', () => {
+    expect(resolveQueryCollapsedRows({ version: 1 })).toBe(1);
+    expect(resolveQueryCollapsedRows({
+      query: { fields: [], unassignedExpandedRows: 2 },
+      version: 1,
+    })).toBe(2);
+    expect(resolveQueryCollapsedRows({
+      query: { fields: [], unassignedExpandedRows: 'all' },
+      version: 1,
+    })).toBe('all');
   });
 
   it('runs changed query fields automatically only after initial data loading', () => {
