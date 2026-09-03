@@ -1,7 +1,14 @@
 <script lang="ts" setup>
 import type { PropType, VNodeChild } from 'vue';
 
-import { computed, defineComponent, useSlots } from 'vue';
+import {
+  computed,
+  defineComponent,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  useSlots,
+} from 'vue';
 
 import { useRefresh } from '@vben/hooks';
 import { RotateCw } from '@vben/icons';
@@ -47,6 +54,9 @@ const slots = useSlots();
 const { refresh } = useRefresh();
 const headerTopCenterItems = getLayoutHeaderExtensionAreaItems('center');
 const headerTopRightItems = getLayoutHeaderExtensionAreaItems('right');
+const rightControlsRef = ref<HTMLElement>();
+const rightControlsWidth = ref(0);
+let rightControlsResizeObserver: ResizeObserver | undefined;
 const showHeaderTopCenter = computed(() => {
   return Boolean(
     slots['header-top-center'] || headerTopCenterItems.value.length > 0,
@@ -56,6 +66,30 @@ const showHeaderTopRight = computed(() => {
   return Boolean(
     slots['header-top-right'] || headerTopRightItems.value.length > 0,
   );
+});
+const centerExtensionStyle = computed(() =>
+  rightControlsWidth.value > 0
+    ? { right: `${rightControlsWidth.value + 8}px` }
+    : undefined,
+);
+
+function syncRightControlsWidth() {
+  rightControlsWidth.value = rightControlsRef.value?.offsetWidth || 0;
+}
+
+onMounted(() => {
+  syncRightControlsWidth();
+
+  if (typeof ResizeObserver === 'undefined' || !rightControlsRef.value) {
+    return;
+  }
+
+  rightControlsResizeObserver = new ResizeObserver(syncRightControlsWidth);
+  rightControlsResizeObserver.observe(rightControlsRef.value);
+});
+
+onBeforeUnmount(() => {
+  rightControlsResizeObserver?.disconnect();
 });
 
 const HeaderExtensionAreaRender = defineComponent({
@@ -178,7 +212,8 @@ const leftSlots = computed(() => {
     </div>
     <div
       v-if="showHeaderTopCenter"
-      class="pointer-events-none absolute left-1/2 top-1/2 z-10 flex h-full max-w-[50%] -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-x-auto px-2"
+      :style="centerExtensionStyle"
+      class="pointer-events-none absolute top-1/2 z-10 flex h-full -translate-y-1/2 items-center justify-end overflow-x-auto px-2"
       data-testid="header-top-center-extensions"
     >
       <div class="pointer-events-auto flex h-full min-w-0 items-center gap-2">
@@ -198,7 +233,11 @@ const leftSlots = computed(() => {
         </template>
       </div>
     </div>
-    <div class="flex h-full min-w-0 flex-shrink-0 items-center">
+    <div
+      ref="rightControlsRef"
+      class="relative z-20 flex h-full min-w-max shrink-0 items-center"
+      data-testid="header-right-fixed-controls"
+    >
       <div
         v-if="showHeaderTopRight"
         class="mr-1 flex h-full min-w-0 items-center gap-2"
@@ -224,7 +263,7 @@ const leftSlots = computed(() => {
             <GlobalSearch
               :enable-shortcut-key="globalSearchShortcutKey"
               :menus="accessStore.accessMenus"
-              class="mr-1 sm:mr-4"
+              class="mr-1 hidden 2xl:mr-4 2xl:block"
             />
           </template>
 

@@ -5,9 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   heroImageCandidates: undefined as any,
   loadAuthBrand: vi.fn().mockResolvedValue(undefined),
+  techSupport: undefined as any,
 }));
 
 mocks.heroImageCandidates = ref<string[]>([]);
+mocks.techSupport = ref('租户技术支持');
 
 vi.mock('@vben/layouts', () => ({
   AuthenticationColorToggle: { template: '<div />' },
@@ -38,6 +40,7 @@ vi.mock(
       heroImageCandidates: mocks.heroImageCandidates,
       loadAuthBrand: mocks.loadAuthBrand,
       logoCandidates: ref(['/logo.svg']),
+      techSupport: mocks.techSupport,
       titleImageCandidates: ref([]),
     }),
   }),
@@ -46,6 +49,20 @@ vi.mock(
 import AuthLayout from '../auth.vue';
 
 describe('authentication layout login hero image', () => {
+  it('shows copyright before technical support and allows the footer to wrap', () => {
+    const wrapper = mount(AuthLayout, {
+      global: {
+        stubs: {
+          RouterView: true,
+        },
+      },
+    });
+
+    const footer = wrapper.get('.auth-copyright');
+    expect(footer.text()).toBe('Copyright·租户技术支持');
+    expect(footer.classes()).toContain('flex-wrap');
+  });
+
   it('uses the built-in illustration when the configured image is missing or fails', async () => {
     const wrapper = mount(AuthLayout, {
       global: {

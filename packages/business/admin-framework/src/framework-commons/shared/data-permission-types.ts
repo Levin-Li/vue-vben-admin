@@ -1,16 +1,8 @@
 export interface OrgScopeItem {
-  /**
-   * 旧字段兼容：后端 OrgScope 已改为 orgScopeExpressionType。
-   */
-  expressionType?: string;
   isAllow: boolean;
   orgId: string;
   orgScopeExpression: string;
   orgScopeExpressionType?: string;
-  /**
-   * 旧字段兼容：后端 OrgScope 已改为 tenantMatchingExpression。
-   */
-  tenantExpression?: string;
   tenantMatchingExpression?: string;
 }
 

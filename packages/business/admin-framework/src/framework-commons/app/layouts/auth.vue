@@ -390,8 +390,13 @@ onMounted(() => {
     <footer
       class="auth-page-footer fixed inset-x-0 bottom-6 z-10 flex justify-center px-6"
     >
-      <div class="auth-copyright text-center text-xs">
-        {{ copyright }}
+      <div
+        v-if="copyright || techSupport"
+        class="auth-copyright flex flex-wrap items-center justify-center gap-x-2 text-center text-xs"
+      >
+        <span v-if="copyright">{{ copyright }}</span>
+        <span v-if="copyright && techSupport" aria-hidden="true">·</span>
+        <span v-if="techSupport">{{ techSupport }}</span>
       </div>
     </footer>
   </div>

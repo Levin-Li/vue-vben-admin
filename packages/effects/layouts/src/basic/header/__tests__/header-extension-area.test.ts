@@ -158,6 +158,33 @@ describe('layout header extension area', () => {
     ).toBe(true);
   });
 
+  it('keeps the right-side controls above center extensions without shrinking', () => {
+    const wrapper = mount(LayoutHeader, {
+      slots: {
+        'header-top-center': '<div>中间扩展</div>',
+      },
+    });
+    const fixedControls = wrapper.get(
+      '[data-testid="header-right-fixed-controls"]',
+    );
+
+    expect(fixedControls.classes()).toEqual(
+      expect.arrayContaining(['min-w-max', 'relative', 'shrink-0', 'z-20']),
+    );
+    expect(
+      wrapper.find('[data-testid="header-top-center-extensions"]').classes(),
+    ).toContain('justify-end');
+  });
+
+  it('hides global search before fixed right-side controls when header space is limited', () => {
+    layoutPreferences.widget.globalSearch = true;
+
+    const wrapper = mount(LayoutHeader);
+    expect(wrapper.findComponent({ name: 'GlobalSearch' }).classes()).toEqual(
+      expect.arrayContaining(['2xl:block', 'hidden']),
+    );
+  });
+
   it('keeps the header wrapper open for the expanded quick-action overlay', () => {
     const source = readFileSync(
       'packages/@core/ui-kit/layout-ui/src/vben-layout.vue',

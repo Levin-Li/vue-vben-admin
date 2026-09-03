@@ -20,11 +20,6 @@ export const DEFAULT_ORG_SCOPE_EXPRESSION_TYPE = 'IdPath';
 export const ALL_ROOT_ORG_ID = '/*';
 export const USER_DEFAULT_ORG_ID = '_USER_ORG_';
 
-const LEGACY_EXPRESSION_TYPE_MAP: Record<string, string> = {
-  IdAntPath: 'IdPath',
-  NameAntPath: 'NamePath',
-};
-
 const SCOPE_EXPRESSIONS: Record<string, string> = {
   All: '/**',
   OnlyDirectChild: '/*/',
@@ -33,27 +28,11 @@ const SCOPE_EXPRESSIONS: Record<string, string> = {
 };
 
 export function normalizeOrgScopeExpressionType(value?: string) {
-  const nextValue = String(value || '').trim();
-  return (
-    LEGACY_EXPRESSION_TYPE_MAP[nextValue] ||
-    nextValue ||
-    DEFAULT_ORG_SCOPE_EXPRESSION_TYPE
-  );
+  return String(value || '').trim() || DEFAULT_ORG_SCOPE_EXPRESSION_TYPE;
 }
 
 export function normalizeOrgScopeId(value?: string) {
-  const nextValue = String(value || '').trim();
-
-  if (
-    nextValue === '*' ||
-    nextValue === '_ALL_ORG_' ||
-    nextValue === '_ALL_ROOT_ORG_' ||
-    nextValue === ALL_ROOT_ORG_ID
-  ) {
-    return ALL_ROOT_ORG_ID;
-  }
-
-  return nextValue;
+  return String(value || '').trim();
 }
 
 export function getTenantMatchingExpressionLabel(value?: string) {
@@ -87,26 +66,6 @@ export function getScopeKeyByExpression(expression?: string) {
 }
 
 export function normalizeScopeKey(templateKey?: string) {
-  if (templateKey === 'current-only') {
-    return 'OnlySelf';
-  }
-
-  if (templateKey === 'direct-children') {
-    return 'OnlyDirectChild';
-  }
-
-  if (templateKey === 'self-and-direct-children') {
-    return 'SelfAndDirectChild';
-  }
-
-  if (templateKey === 'current-and-children') {
-    return 'All';
-  }
-
-  if (templateKey === 'custom') {
-    return 'Custom';
-  }
-
   return templateKey || 'Custom';
 }
 
@@ -157,7 +116,7 @@ export function collectPermissionValues(checkedPermissions: string[]) {
 export function buildOrgScopeDraftsFromValue(value: OrgScopeItem[]) {
   return value.map((item) => {
     const orgScopeExpressionType = normalizeOrgScopeExpressionType(
-      item.orgScopeExpressionType || item.expressionType,
+      item.orgScopeExpressionType,
     );
     const templateKey = getScopeKeyByExpression(item.orgScopeExpression);
 
@@ -166,9 +125,7 @@ export function buildOrgScopeDraftsFromValue(value: OrgScopeItem[]) {
       orgId: normalizeOrgScopeId(item.orgId),
       orgScopeExpressionType,
       tenantMatchingExpression:
-        item.tenantMatchingExpression ||
-        item.tenantExpression ||
-        DEFAULT_TENANT_MATCHING_EXPRESSION,
+        item.tenantMatchingExpression || DEFAULT_TENANT_MATCHING_EXPRESSION,
       mode:
         templateKey === 'Custom'
           ? ('advanced' as const)

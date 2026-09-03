@@ -76,7 +76,6 @@ type ReloadLayoutList = () => Promise<void> | void;
 
 const MY_MENU_ROOT_KEY = 'root:my-menu';
 const MY_MENU_ROOT_LABEL = '菜单列表';
-const LEGACY_MY_MENU_ROOT_LABEL = '我的菜单';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -290,7 +289,7 @@ function normalizeLayoutItems(
     parentKey === 'root' &&
     items.length === 1 &&
     !items[0].path &&
-    [MY_MENU_ROOT_LABEL, LEGACY_MY_MENU_ROOT_LABEL].includes(items[0].label)
+    items[0].label === MY_MENU_ROOT_LABEL
       ? items[0].children || []
       : items;
 

@@ -89,7 +89,6 @@ const verifyTabs: VerifyCodeTabOption[] = [
 const defaultVerifyTab: VerifyCodeTabOption = verifyTabs[0]!;
 
 const authStore = useAuthStore();
-const { techSupport } = useAuthBrand();
 const rememberedAccount = localStorage.getItem(REMEMBER_ME_KEY) || '';
 const isLoopbackBrowserHost = ['127.0.0.1', 'localhost'].includes(
   location.hostname,
@@ -710,9 +709,7 @@ async function requestVerifyCode(options: RequestVerifyCodeOptions = {}) {
         typeof interactionData === 'string'
           ? JSON.parse(interactionData)
           : interactionData;
-      const interaction = normalizeBehaviorCaptchaChallenge(
-        interactionSource,
-      );
+      const interaction = normalizeBehaviorCaptchaChallenge(interactionSource);
 
       if (!interaction) {
         const mode = String(
@@ -851,9 +848,10 @@ async function completePasswordLogin(verifyCodeValue?: unknown) {
   clearAutoLoginCountdown();
 
   // Ant Design Modal 的 ok 回调会传入 MouseEvent；不能让它覆盖输入框验证码。
-  const verifyCode = typeof verifyCodeValue === 'string'
-    ? verifyCodeValue.trim()
-    : formState.verifyCode.trim();
+  const verifyCode =
+    typeof verifyCodeValue === 'string'
+      ? verifyCodeValue.trim()
+      : formState.verifyCode.trim();
   if (!verifyCode) {
     message.warning(
       isPasswordMfaMode.value
@@ -1379,12 +1377,9 @@ onBeforeUnmount(() => {
       <div class="flex items-center justify-between pt-1">
         <Checkbox v-model:checked="rememberMe">记住账号</Checkbox>
         <span class="text-muted-foreground text-xs">
-          <template v-if="techSupport"> 技术支持：{{ techSupport }} </template>
+          <template v-if="isCaptchaTab"> 登录后将进行安全验证 </template>
           <template v-else>
-            <template v-if="isCaptchaTab"> 登录后将进行安全验证 </template>
-            <template v-else>
-              当前使用 {{ verifyCodeUsageText }} 验证码
-            </template>
+            当前使用 {{ verifyCodeUsageText }} 验证码
           </template>
         </span>
       </div>

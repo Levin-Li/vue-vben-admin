@@ -260,9 +260,10 @@ function onSlideConfirm(point: { x: number; y: number }, reset: () => void) {
 }
 
 function clampPathPoint(point: BehaviorCaptchaPoint, payload: BehaviorCaptchaPathPayload) {
+  const padding = payload.ballRadius;
   return {
-    x: Math.max(0, Math.min(payload.width, Math.round(point.x))),
-    y: Math.max(0, Math.min(payload.height, Math.round(point.y))),
+    x: Math.max(padding, Math.min(payload.width - padding, Math.round(point.x))),
+    y: Math.max(padding, Math.min(payload.height - padding, Math.round(point.y))),
   };
 }
 

@@ -98,10 +98,6 @@ const props = defineProps({
     default: false,
     type: Boolean,
   },
-  orgRootIds: {
-    default: () => [],
-    type: Array as PropType<string[]>,
-  },
   rootOrgIdList: {
     default: () => [],
     type: Array as PropType<string[]>,
@@ -170,9 +166,7 @@ const normalizedOrgTypes = computed(() =>
 const normalizedUserTypes = computed(() =>
   normalizeSelectorTypes(props.userTypes),
 );
-const normalizedRootOrgIds = computed(() =>
-  props.rootOrgIdList.length > 0 ? props.rootOrgIdList : props.orgRootIds,
-);
+const normalizedRootOrgIds = computed(() => props.rootOrgIdList);
 const allowSelectOrgByMode = computed(
   () => props.allowSelectOrg && (props.mode === 'both' || props.mode === 'org'),
 );
@@ -257,7 +251,6 @@ watch(
     props.onlyShowTypeMatchNode,
     props.orgLoadMode,
     props.orgTypes,
-    props.orgRootIds,
     props.rootOrgIdList,
   ],
   () => {
@@ -467,7 +460,6 @@ function buildOrgLoadContext(
     onlyNotLeafNode: props.onlyNotLeafNode,
     onlyShowTypeMatchNode: props.onlyShowTypeMatchNode,
     orgLoadMode: props.orgLoadMode,
-    orgRootIds: rootOrgIdList,
     orgTypes: normalizedOrgTypes.value,
     parentOrg: extra.parentOrg,
     parentOrgId: extra.parentOrgId,

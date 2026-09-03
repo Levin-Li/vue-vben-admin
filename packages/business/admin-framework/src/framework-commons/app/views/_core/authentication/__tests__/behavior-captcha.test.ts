@@ -230,6 +230,28 @@ describe('BehaviorCaptcha', () => {
     wrapper.unmount();
   });
 
+  it('keeps obstacle-avoidance drag coordinates inside the visible image bounds', async () => {
+    const wrapper = mount(BehaviorCaptcha, {
+      props: { challenge: pathChallenge() },
+      attachTo: document.body,
+    });
+    setStageRect(wrapper);
+
+    await wrapper.get('[data-test="behavior-captcha-path-ball"]').trigger('pointerdown', {
+      button: 0,
+      clientX: 24,
+      clientY: 150,
+      pointerId: 7,
+    });
+    dispatchPointer('pointermove', -20, 220);
+    await nextTick();
+
+    expect(wrapper.get('[data-test="behavior-captcha-path-track"]').attributes('points')).toContain(
+      '14,166',
+    );
+    wrapper.unmount();
+  });
+
   it('keeps the enlarged thumbnail only for ordinary click captcha', () => {
     expect(componentSource).toMatch(
       /captcha-mode-CLICK'\] \.go-captcha \.gc-header\)[\s\S]*?height:\s*56px;/,

@@ -43,7 +43,6 @@ export interface UserOrgSelectorLoadOrgTreeContext {
   onlyNotLeafNode: boolean;
   onlyShowTypeMatchNode: boolean;
   orgLoadMode: UserOrgSelectorOrgLoadMode;
-  orgRootIds: string[];
   parentOrg?: UserOrgSelectorRecord;
   parentOrgId?: string;
   rootOrgIdList: string[];

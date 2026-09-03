@@ -60,7 +60,7 @@ export function registerDemoInfrastructureExtensions() {
     order: 10,
     render: () =>
       renderHeaderMarker(
-        '中间顶部组件',
+        '顶部中间组件',
         'Demo 入口应用通过 addLayoutHeaderExtensionAreaItem 注册',
       ),
   });

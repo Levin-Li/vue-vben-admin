@@ -9,11 +9,11 @@ describe('data-permission-transform', () => {
   it('normalizes org scope values into editable drafts', () => {
     const drafts = buildOrgScopeDraftsFromValue([
       {
-        expressionType: 'IdAntPath',
         isAllow: true,
-        orgId: '*',
+        orgId: '/*',
         orgScopeExpression: '/**',
-        tenantExpression: '*',
+        orgScopeExpressionType: 'IdPath',
+        tenantMatchingExpression: '*',
       },
     ]);
 

@@ -34,7 +34,6 @@ describe('user-org-selector-utils', () => {
         onlyNotLeafNode: false,
         onlyShowTypeMatchNode: false,
         orgLoadMode: 'all',
-        orgRootIds: [],
         orgTypes: ['Dept'],
         rootOrgIdList: [],
       }),

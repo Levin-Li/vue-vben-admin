@@ -162,20 +162,9 @@ const orgParentTreeData = computed(() =>
   disableOrgTreeNode(orgTreeData.value, orgFormState.id),
 );
 
-const orgTypeSelectOptions = computed(() => {
-  const options = orgTypeOptions.value.filter(
-    (option) => option.value !== 'Store',
-  );
-  const legacyStoreOption = orgTypeOptions.value.find(
-    (option) => option.value === 'Store',
-  );
-
-  if (orgFormState.type === 'Store' && legacyStoreOption) {
-    return [...options, legacyStoreOption];
-  }
-
-  return options;
-});
+const orgTypeSelectOptions = computed(() =>
+  orgTypeOptions.value.filter((option) => option.value !== 'Store'),
+);
 
 const orgTypeLegendItems = computed(() => {
   const source =

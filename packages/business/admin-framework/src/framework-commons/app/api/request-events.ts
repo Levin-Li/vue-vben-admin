@@ -14,10 +14,6 @@ export interface ApiRequestEventPayload<Data = any> {
   response?: any;
 }
 
-type ApiRequestEventListener<Data = any> = (
-  payload: ApiRequestEventPayload<Data>,
-) => void;
-
 export function getApiRequestEventUrl(payload: ApiRequestEventPayload) {
   return String(payload.config?.url ?? payload.response?.config?.url ?? '');
 }
@@ -47,42 +43,6 @@ export function onApiRequestTopic<Data = any>(
     listener,
     remark,
   );
-}
-
-export function onApiRequestSuccess<Data = any>(
-  listener: ApiRequestEventListener<Data>,
-) {
-  return onApiRequestTopic<Data>(
-    '*',
-    (event) => {
-      if (!event.data.error) {
-        listener(event.data);
-      }
-    },
-    '兼容旧 API 请求成功监听器',
-  );
-}
-
-export function onApiRequestFailure(listener: ApiRequestEventListener) {
-  return onApiRequestTopic(
-    '*',
-    (event) => {
-      if (event.data.error) {
-        listener(event.data);
-      }
-    },
-    '兼容旧 API 请求失败监听器',
-  );
-}
-
-export function emitApiRequestSuccess<Data = any>(
-  payload: ApiRequestEventPayload<Data>,
-) {
-  return emitApiRequestEvent(payload);
-}
-
-export function emitApiRequestFailure(payload: ApiRequestEventPayload) {
-  return emitApiRequestEvent(payload);
 }
 
 export function isApiRequestEventUrl(

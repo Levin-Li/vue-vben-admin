@@ -49,7 +49,7 @@ describe('支付通道供应商目录', () => {
     });
   });
 
-  it('会把旧详情里的供应商信息回填到显式 providerCode 字段', () => {
+  it('不会从旧详情 Schema 推断显式 providerCode 字段', () => {
     expect(
       reconcilePayChannelProviderSelection(
         {
@@ -62,11 +62,8 @@ describe('支付通道供应商目录', () => {
         true,
       ),
     ).toEqual({
-      detailInfo: {
-        '@JsonSchema': 'class:com.example.NowPayments',
-        callbackSecretRef: 'PAY_CALLBACK_SECRET',
-      },
-      providerCode: 'NowPayments',
+      detailInfo: {},
+      providerCode: undefined,
     });
   });
 

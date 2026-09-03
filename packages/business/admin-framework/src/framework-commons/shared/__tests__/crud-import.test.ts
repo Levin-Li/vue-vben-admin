@@ -121,29 +121,11 @@ describe('crud import utilities', () => {
     ]);
   });
 
-  it('normalizes legacy field-based import template mappings', () => {
-    expect(
-      normalizeImportTemplateConfig({
-        fields: [
-          {
-            converter: 'number',
-            defaultValue: '0',
-            required: true,
-            source: '金额',
-            target: 'amount',
-          },
-        ],
-      } as any),
-    ).toMatchObject({
-      mappings: [
-        {
-          converter: 'number',
-          defaultValue: '0',
-          fieldKey: 'amount',
-          header: '金额',
-          required: true,
-        },
-      ],
+  it('does not convert legacy field-based import template mappings', () => {
+    expect(normalizeImportTemplateConfig({
+      fields: [{ converter: 'number', defaultValue: '0', required: true, source: '金额', target: 'amount' }],
+    } as any)).toMatchObject({
+      fields: [{ converter: 'number', defaultValue: '0', required: true, source: '金额', target: 'amount' }],
     });
   });
 

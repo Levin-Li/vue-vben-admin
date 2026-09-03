@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { computed, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -48,12 +48,6 @@ vi.mock('@levin/admin-framework/framework-commons/app/store', () => ({
     authLoginWithAccessToken,
     authLoginWithPasswordChallenge,
     loginLoading: false,
-  }),
-}));
-
-vi.mock('../auth-brand', () => ({
-  useAuthBrand: () => ({
-    techSupport: computed(() => ''),
   }),
 }));
 
@@ -630,7 +624,8 @@ describe('login auto-login prompt', () => {
         publicData: {
           image:
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
-          thumb: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
+          thumb:
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
           viewport: { height: 180, width: 320 },
         },
       },
@@ -734,8 +729,10 @@ describe('login auto-login prompt', () => {
         challengeId: 'unsupported-hmi-captcha',
         mode: 'ROTATE',
         publicData: {
-          image: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
-          thumb: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
+          image:
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
+          thumb:
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL9LwAAAABJRU5ErkJggg==',
         },
       },
     });

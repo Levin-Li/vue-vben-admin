@@ -503,7 +503,7 @@ function openEditForm(index: number) {
     ...draft,
     orgId: normalizeOrgScopeId(draft.orgId),
     orgScopeExpressionType: normalizeOrgScopeExpressionType(
-      draft.orgScopeExpressionType || draft.expressionType,
+      draft.orgScopeExpressionType,
     ),
     mode: templateKey === 'Custom' ? 'advanced' : 'template',
     orgName: draft.orgName || getOrgName(draft.orgId),

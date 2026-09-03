@@ -5,7 +5,6 @@ vi.mock('../../../api/electronic-contract-service', () => ({
 }));
 
 vi.mock('../../api-module', () => ({
-  buildDictOptionsLoader: () => async () => [],
   buildEnumOptionsLoader: () => async () => [],
   buildModuleOptionsLoader: () => async () => [],
   DEFAULT_CRUD_MODAL_WIDTH: 960,
@@ -16,12 +15,36 @@ vi.mock('../../api-module', () => ({
 import { electronicContractPageCrudConfig } from '../config';
 
 describe('electronic contract page config', () => {
-  it('uses system dictionaries for business type and contract classification', () => {
-    expect(electronicContractPageCrudConfig.fields).toEqual(
+  it('uses only fields that exist in the current electronic contract model', () => {
+    const fieldKeys = electronicContractPageCrudConfig.fields.map(
+      (field) => field.key,
+    );
+
+    expect(fieldKeys).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: 'bizType', type: 'select' }),
-        expect.objectContaining({ key: 'contractCategory', type: 'select' }),
-        expect.objectContaining({ key: 'contractType', type: 'select' }),
+        'bizOrderId',
+        'category',
+        'eSigningTechServiceProviderCode',
+        'fileName',
+        'fileUrl',
+        'mimeType',
+        'name',
+        'sealPositionRules',
+        'signingSubjectList',
+      ]),
+    );
+    expect(fieldKeys).not.toEqual(
+      expect.arrayContaining([
+        'bizOrderNo',
+        'bizObjId',
+        'contractCategory',
+        'contractPartySnapshot',
+        'contractType',
+        'providerCode',
+        'sealPositionOverrides',
+        'signMode',
+        'sourceFileName',
+        'sourceFileUrl',
       ]),
     );
   });
@@ -49,7 +72,7 @@ describe('electronic contract page config', () => {
             }),
           }),
           jsonSchemaMode: 'popup',
-          key: 'sealPositionOverrides',
+          key: 'sealPositionRules',
         }),
       ]),
     );

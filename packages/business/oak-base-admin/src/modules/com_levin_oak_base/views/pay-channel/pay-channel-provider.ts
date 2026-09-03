@@ -104,19 +104,6 @@ export function reconcilePayChannelProviderSelection(
     };
   }
 
-  const legacyProvider = providers.find(
-    (item) => normalizeText(item.configEditor) === schemaSource,
-  );
-  if (legacyProvider) {
-    return {
-      detailInfo: {
-        ...detailInfo,
-        ...createPayChannelDetailInfo(legacyProvider),
-      },
-      providerCode: legacyProvider.code,
-    };
-  }
-
   if (providerCode || schemaSource) {
     return {
       detailInfo: {},

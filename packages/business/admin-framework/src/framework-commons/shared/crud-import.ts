@@ -555,26 +555,5 @@ export function normalizeImportTemplateConfig(
     return {};
   }
 
-  if (Array.isArray(config.mappings)) {
-    return config;
-  }
-
-  const legacyFields = (config as any).fields;
-
-  if (!Array.isArray(legacyFields)) {
-    return config;
-  }
-
-  return {
-    ...config,
-    mappings: legacyFields
-      .filter((field) => field?.target)
-      .map((field) => ({
-        converter: field.converter,
-        defaultValue: field.defaultValue,
-        fieldKey: String(field.target),
-        header: field.source ? String(field.source) : undefined,
-        required: field.required === true,
-      })),
-  };
+  return config;
 }
