@@ -176,7 +176,7 @@ describe('oak base admin routes', () => {
         expect.objectContaining({
           meta: expect.objectContaining({
             crudResource: 'Demo',
-            title: '区域选择器测试',
+            title: '常用组件测试',
           }),
           name: '_clob_V1_dev_TestDemo',
           path: '/clob/V1/dev/TestDemo',
@@ -189,7 +189,7 @@ describe('oak base admin routes', () => {
           path: '/clob/V1/dev/TestDemo',
           sourceFilePath:
             'modules/com_levin_oak_base/views/dev/TestDemo.vue',
-          title: '区域选择器测试',
+          title: '常用组件测试',
           viewPath:
             '/system/com_levin_oak_base/dev/TestDemo.vue',
         }),

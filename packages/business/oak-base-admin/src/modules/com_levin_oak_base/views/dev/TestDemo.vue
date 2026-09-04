@@ -3,5 +3,7 @@ import AdministrativeAreaTestPanel from '../demo/administrative-area-test-panel.
 </script>
 
 <template>
-  <AdministrativeAreaTestPanel />
+  <div class="h-full overflow-y-auto">
+    <AdministrativeAreaTestPanel />
+  </div>
 </template>

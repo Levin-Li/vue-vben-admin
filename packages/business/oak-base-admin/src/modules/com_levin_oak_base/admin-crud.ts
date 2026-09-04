@@ -91,7 +91,7 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     routePath: 'dev/TestDemo',
     sourceFilePath:
       'modules/com_levin_oak_base/views/dev/TestDemo.vue',
-    title: '区域选择器测试',
+    title: '常用组件测试',
     viewPath: '/system/com_levin_oak_base/dev/TestDemo.vue',
   },
   {

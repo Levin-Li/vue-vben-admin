@@ -33,6 +33,7 @@ import {
   shouldAutoForceUpdateField,
   shouldStartQueryGroupOnNewLine,
   shouldShowManualQueryButton,
+  shouldUseSingleTextQueryAutoSearch,
   supportsInlineChoiceOptions,
 } from '../crud-page-display';
 
@@ -207,6 +208,48 @@ describe('crud page display rules', () => {
     expect(shouldShowManualQueryButton(true, false)).toBe(true);
     expect(shouldShowManualQueryButton(true, true)).toBe(false);
     expect(shouldShowManualQueryButton(false, false)).toBe(false);
+  });
+
+  it('enables debounced automatic search only for one ordinary text query field', () => {
+    expect(
+      shouldUseSingleTextQueryAutoSearch(
+        [{ key: 'name', label: '名称', search: true }],
+        false,
+      ),
+    ).toBe(true);
+    expect(
+      shouldUseSingleTextQueryAutoSearch(
+        [{ key: 'name', label: '名称', search: true, type: 'text' }],
+        false,
+      ),
+    ).toBe(true);
+    expect(
+      shouldUseSingleTextQueryAutoSearch(
+        [
+          { key: 'name', label: '名称', search: true },
+          { key: 'code', label: '编码', search: true },
+        ],
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      shouldUseSingleTextQueryAutoSearch(
+        [{ key: 'enabled', label: '是否启用', search: true, type: 'switch' }],
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      shouldUseSingleTextQueryAutoSearch(
+        [{ key: 'createdAt', label: '创建时间', search: true, type: 'datetime' }],
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      shouldUseSingleTextQueryAutoSearch(
+        [{ key: 'name', label: '名称', search: true }],
+        true,
+      ),
+    ).toBe(false);
   });
 
   it('enables automatic forced updates unless an edit display configuration disables them', () => {

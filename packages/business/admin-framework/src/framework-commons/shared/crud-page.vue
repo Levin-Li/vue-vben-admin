@@ -226,6 +226,7 @@ import {
   resolveDisplayGroupExpandedFieldCount,
   shouldAutoQuery,
   shouldAutoForceUpdateField,
+  shouldUseSingleTextQueryAutoSearch,
   shouldStartQueryGroupOnNewLine,
   shouldShowManualQueryButton,
   supportsInlineChoiceOptions,
@@ -1634,6 +1635,12 @@ const autoSearchEnabled = computed(() => {
   const value = pageDisplayConfig.value.query?.autoSearch as unknown;
   return value === true || value === 'true';
 });
+const singleTextQueryAutoSearchEnabled = computed(() =>
+  shouldUseSingleTextQueryAutoSearch(
+    searchFields.value,
+    autoSearchEnabled.value,
+  ),
+);
 const queryCollapsedRows = computed(
   () => resolveQueryCollapsedRows(pageDisplayConfig.value),
 );
@@ -3991,24 +3998,79 @@ function toggleSearchExpanded() {
 }
 
 let suppressAutoSearch = false;
+const SINGLE_TEXT_QUERY_AUTOSEARCH_DELAY = 1000;
+let singleTextQueryAutoSearchTimer: ReturnType<typeof setTimeout> | undefined;
 
-watch(
-  searchState,
-  () => {
+function clearSingleTextQueryAutoSearchTimer() {
+  if (singleTextQueryAutoSearchTimer !== undefined) {
+    clearTimeout(singleTextQueryAutoSearchTimer);
+    singleTextQueryAutoSearchTimer = undefined;
+  }
+}
+
+function loadSearchFromFirstPage() {
+  pagination.current = 1;
+  void loadList();
+}
+
+function scheduleSingleTextQueryAutoSearch() {
+  clearSingleTextQueryAutoSearchTimer();
+  singleTextQueryAutoSearchTimer = setTimeout(() => {
+    singleTextQueryAutoSearchTimer = undefined;
     if (
       !shouldAutoQuery(
-        autoSearchEnabled.value,
+        singleTextQueryAutoSearchEnabled.value,
         autoSearchReady.value,
         suppressAutoSearch,
       )
     ) {
       return;
     }
-    pagination.current = 1;
-    void loadList();
+    loadSearchFromFirstPage();
+  }, SINGLE_TEXT_QUERY_AUTOSEARCH_DELAY);
+}
+
+function handleSingleTextQuerySearchEnter() {
+  clearSingleTextQueryAutoSearchTimer();
+  loadSearchFromFirstPage();
+}
+
+watch(
+  searchState,
+  () => {
+    if (
+      shouldAutoQuery(
+        autoSearchEnabled.value,
+        autoSearchReady.value,
+        suppressAutoSearch,
+      )
+    ) {
+      clearSingleTextQueryAutoSearchTimer();
+      loadSearchFromFirstPage();
+      return;
+    }
+
+    if (
+      shouldAutoQuery(
+        singleTextQueryAutoSearchEnabled.value,
+        autoSearchReady.value,
+        suppressAutoSearch,
+      )
+    ) {
+      scheduleSingleTextQueryAutoSearch();
+      return;
+    }
+
+    clearSingleTextQueryAutoSearchTimer();
   },
   { deep: true },
 );
+
+watch(singleTextQueryAutoSearchEnabled, (enabled) => {
+  if (!enabled) {
+    clearSingleTextQueryAutoSearchTimer();
+  }
+});
 
 async function refreshTable() {
   await loadList();
@@ -5593,6 +5655,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  clearSingleTextQueryAutoSearchTimer();
   window.removeEventListener('resize', handleViewportResize);
   window.removeEventListener('paste', handlePasteUpload);
   stopListTableTabsDrag();
@@ -5928,13 +5991,20 @@ watch(canCustomizeTableColumnsLocally, () => {
                 :maxlength="item.field.maxLength"
                 :placeholder="getPlaceholder(item.field)"
                 class="w-full"
+                @press-enter="
+                  singleTextQueryAutoSearchEnabled &&
+                  handleSingleTextQuerySearchEnter()
+                "
               />
             </Form.Item>
             <div class="vben-crud-search-actions min-w-0">
               <div class="flex flex-wrap items-center justify-end gap-2">
                 <Button
                   v-if="
-                    shouldShowManualQueryButton(canQuery, autoSearchEnabled)
+                    shouldShowManualQueryButton(
+                      canQuery,
+                      autoSearchEnabled || singleTextQueryAutoSearchEnabled,
+                    )
                   "
                   type="primary"
                   @click="
@@ -5946,7 +6016,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                 >
                   查询
                 </Button>
-                <Button @click="resetSearch">重置</Button>
+                <Button
+                  v-if="!singleTextQueryAutoSearchEnabled"
+                  @click="resetSearch"
+                >
+                  重置
+                </Button>
                 <Button
                   v-if="showAdvancedSearchToggle"
                   type="link"

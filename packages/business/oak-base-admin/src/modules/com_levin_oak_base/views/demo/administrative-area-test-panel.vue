@@ -1,16 +1,11 @@
 <script lang="ts" setup>
-import type {
-  AdministrativeAreaLevel,
-  BehaviorCaptchaMode,
-} from '@levin/admin-framework';
+import type { AdministrativeAreaLevel } from '@levin/admin-framework';
 
 import { computed, ref } from 'vue';
 
 import {
   AdministrativeAreaCascader,
-  BehaviorCaptcha,
   normalizeAdministrativeAreaCode,
-  normalizeBehaviorCaptchaChallenge,
   resolveAdministrativeAreaCodeLevel,
   resolveAdministrativeAreaSelectableLevels,
   UserOrgSelector,
@@ -24,14 +19,8 @@ const selectionMode = ref<SelectionMode>('auto');
 const selectedCode = ref('');
 const normalizeToSixDigits = ref(true);
 const savedCode = ref('');
-const captchaMode = ref<BehaviorCaptchaMode>('CLICK');
-const captchaResult = ref('未完成');
 const fileList = ref<any[]>([]);
 const orgSelection = ref<string[]>([]);
-
-const CAPTCHA_IMAGE = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="180"><rect width="100%" height="100%" fill="#e0f2fe"/><path d="M0 130 Q90 40 180 120 T360 75" fill="none" stroke="#38bdf8" stroke-width="10"/><text x="180" y="45" text-anchor="middle" font-size="20" fill="#0f172a">组件测试验证码</text></svg>',
-)}`;
 
 const selectableLevels = computed(() =>
   selectionMode.value === 'auto' ? undefined : [selectionMode.value],
@@ -62,40 +51,6 @@ const normalizedPreview = computed(() => {
   }
 });
 
-const captchaChallenge = computed(() => {
-  const mode = captchaMode.value;
-  return normalizeBehaviorCaptchaChallenge({
-    challengeId: `component-demo-${mode}`,
-    mode,
-    prompt:
-      mode === 'OBSTACLE_AVOIDANCE'
-        ? '拖动起点到终点，并避开障碍物。'
-        : '这是仅用于组件交互测试的模拟挑战。',
-    payload:
-      mode === 'OBSTACLE_AVOIDANCE'
-        ? {
-            ballRadius: 10,
-            height: 180,
-            image: CAPTCHA_IMAGE,
-            kind: 'path',
-            start: { x: 30, y: 145 },
-            targetIcon: '★',
-            width: 360,
-          }
-        : {
-            height: 180,
-            image: CAPTCHA_IMAGE,
-            requiredClicks: mode === 'IDIOM_CLICK' ? 1 : 2,
-            thumb: CAPTCHA_IMAGE,
-            thumbHeight: 48,
-            thumbWidth: 48,
-            thumbX: 120,
-            thumbY: 80,
-            width: 360,
-          },
-  });
-});
-
 function useSample(code: string, mode: SelectionMode = 'auto') {
   selectedCode.value = code;
   selectionMode.value = mode;
@@ -112,10 +67,6 @@ function savePreview() {
   } catch {
     savedCode.value = '无效编码，不能保存';
   }
-}
-
-function onCaptchaComplete(result: { mode?: string }) {
-  captchaResult.value = `${result.mode || captchaMode.value} 已完成（仅展示结果）`;
 }
 
 async function uploadTestFile(option: any) {
@@ -251,23 +202,5 @@ function removeTestFile(file: { uid?: string }) {
       </div>
     </Card>
 
-    <Card class="xl:col-span-2" title="行为验证码组件测试" size="small">
-      <p class="text-muted-foreground mb-3">
-        四种行为验证码均使用本地模拟挑战，完成结果只在当前页面显示，不请求验证接口。
-      </p>
-      <Radio.Group v-model:value="captchaMode" class="mb-4" button-style="solid">
-        <Radio.Button value="CLICK">点选</Radio.Button>
-        <Radio.Button value="IDIOM_CLICK">成语点选</Radio.Button>
-        <Radio.Button value="SLIDE">滑块</Radio.Button>
-        <Radio.Button value="OBSTACLE_AVOIDANCE">躲避障碍</Radio.Button>
-      </Radio.Group>
-      <BehaviorCaptcha
-        :challenge="captchaChallenge"
-        @complete="onCaptchaComplete"
-      />
-      <div class="mt-3">
-        <Tag color="green">{{ captchaResult }}</Tag>
-      </div>
-    </Card>
   </div>
 </template>

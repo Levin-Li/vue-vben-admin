@@ -123,6 +123,24 @@ export function shouldAutoQuery(
   return autoSearchEnabled && ready && !suppressed;
 }
 
+/** 单个普通文本查询字段适合使用防抖自动查询。 */
+export function shouldUseSingleTextQueryAutoSearch(
+  fields: CrudFieldConfig[],
+  autoSearchEnabled: boolean,
+) {
+  if (autoSearchEnabled || fields.length !== 1) {
+    return false;
+  }
+
+  const [field] = fields;
+  return (
+    !field.multiple &&
+    (field.type === undefined || field.type === 'text') &&
+    field.valueType !== 'boolean' &&
+    field.valueType !== 'number'
+  );
+}
+
 export function shouldShowManualQueryButton(
   canQuery: boolean,
   autoSearchEnabled: boolean,
