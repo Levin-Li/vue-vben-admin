@@ -57,7 +57,8 @@ const treeSelectStub = {
     'treeExpandedKeys',
     'value',
   ],
-  template: '<div data-test="tree-select"></div>',
+  template:
+    '<div data-test="tree-select"><slot name="title" v-bind="treeData[0] || {}" /></div>',
 };
 
 function mountSelector(props: Record<string, unknown>) {
@@ -208,5 +209,27 @@ describe('UserOrgSelector', () => {
     expect(treeData[0]?.children).toEqual([
       expect.objectContaining({ id: 'user-1', kind: 'user' }),
     ]);
+  });
+
+  it('softens only disabled organization node titles', async () => {
+    const orgLoadApi = vi.fn(async () => [{ id: 'org-1', name: 'Org 1' }]);
+    const disabledWrapper = mountSelector({
+      allowSelectUser: false,
+      mode: 'user',
+      orgLoadApi,
+    });
+    const selectableWrapper = mountSelector({
+      mode: 'org',
+      orgLoadApi,
+    });
+
+    await flushPromises();
+
+    expect(
+      disabledWrapper.get('.user-org-selector__disabled-org-title').text(),
+    ).toBe('Org 1');
+    expect(
+      selectableWrapper.find('.user-org-selector__disabled-org-title').exists(),
+    ).toBe(false);
   });
 });

@@ -690,5 +690,22 @@ function mergeChildrenByKey(
     tree-node-filter-prop="title"
     v-model:tree-expanded-keys="treeExpandedKeys"
     @change="handleChange"
-  />
+  >
+    <template #title="node">
+      <span
+        :class="{
+          'user-org-selector__disabled-org-title':
+            node.kind === 'org' && node.disabled,
+        }"
+      >
+        {{ node.title }}
+      </span>
+    </template>
+  </TreeSelect>
 </template>
+
+<style>
+.user-org-selector__disabled-org-title {
+  color: hsl(var(--foreground) / 0.6667);
+}
+</style>
