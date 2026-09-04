@@ -80,7 +80,7 @@ const verifyTabs: VerifyCodeTabOption[] = [
     title: '密码登录',
   },
   {
-    description: '输入手机号或邮箱后获取验证码，无需输入密码。',
+    description: '输入手机号或邮箱后获取验证码。',
     key: 'Contact',
     title: '验证码登录',
   },
@@ -192,9 +192,9 @@ const actionButtonText = computed(() => {
   return isPasswordCaptchaMode.value ? '刷新验证码' : '获取验证码';
 });
 
-const verifyCodeUsageText = computed(() => {
-  return resolvedVerifyCodeType.value === 'Email' ? '邮箱' : '短信';
-});
+const isContactVerifyCodeRequestDisabled = computed(
+  () => verifyAssetLoading.value || countdown.value > 0 || !normalizeAccount(),
+);
 
 const hasOAuthPlatforms = computed(() => oauthPlatforms.value.length > 0);
 const oauthWaitProgress = computed(() =>
@@ -1363,7 +1363,7 @@ onBeforeUnmount(() => {
 
           <Button
             v-if="isContactTab"
-            :disabled="verifyAssetLoading || countdown > 0"
+            :disabled="isContactVerifyCodeRequestDisabled"
             :loading="verifyAssetLoading"
             class="min-w-[116px]"
             size="large"
@@ -1376,11 +1376,8 @@ onBeforeUnmount(() => {
 
       <div class="flex items-center justify-between pt-1">
         <Checkbox v-model:checked="rememberMe">记住账号</Checkbox>
-        <span class="text-muted-foreground text-xs">
-          <template v-if="isCaptchaTab"> 登录后将进行安全验证 </template>
-          <template v-else>
-            当前使用 {{ verifyCodeUsageText }} 验证码
-          </template>
+        <span v-if="isCaptchaTab" class="text-muted-foreground text-xs">
+          登录后将进行安全验证
         </span>
       </div>
 
