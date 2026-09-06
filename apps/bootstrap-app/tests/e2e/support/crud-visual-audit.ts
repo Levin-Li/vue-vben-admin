@@ -163,7 +163,15 @@ export async function assertPageDisplaySettingsControls(
   await expect(activeContent.getByText('禁提', { exact: true }).first()).toBeVisible();
   await expect(activeContent.getByText('不提', { exact: true }).first()).toBeVisible();
 
-  await expect(createTab).toHaveAttribute('aria-selected', 'true');
+  const detailTab = drawer.getByRole('tab', {
+    name: '详情表单',
+    exact: true,
+  });
+  await detailTab.click();
+  await expect(detailTab).toHaveAttribute('aria-selected', 'true');
+  await expect(activeContent.getByText('暂无字段', { exact: true })).toHaveCount(0);
+
+  await expect(detailTab).toHaveAttribute('aria-selected', 'true');
 }
 
 export async function openCreateForm(page: Page): Promise<Locator> {

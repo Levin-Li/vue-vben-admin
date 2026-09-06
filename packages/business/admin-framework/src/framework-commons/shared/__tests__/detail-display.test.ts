@@ -251,7 +251,10 @@ describe('detail display rules', () => {
         (field) => field.key,
       ),
     ).toEqual(['id', 'name']);
-    expect(resolveDetailFields(undefined, metadata)).toEqual([]);
+    expect(resolveDetailFields(undefined, metadata).map((field) => field.key)).toEqual([
+      'name',
+      'id',
+    ]);
     expect(resolveDetailFields(undefined, metadata, [metadata[1]])).toEqual([
       metadata[1],
     ]);

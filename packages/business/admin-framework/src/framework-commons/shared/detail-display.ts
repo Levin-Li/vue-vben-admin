@@ -12,10 +12,15 @@ export function resolveDetailFields(
   const definitions = new Map(
     [...metadata, ...(declared || [])].map((field) => [field.key, field]),
   );
+  const fallbackFields = (declared?.length ? declared : metadata).filter(
+    (field) =>
+      field.detail !== false &&
+      !(field.search && field.form === false && field.table !== true),
+  );
   const keys =
     record && typeof record === 'object' && !Array.isArray(record)
       ? Object.keys(record)
-      : (declared || []).map((field) => field.key);
+      : fallbackFields.map((field) => field.key);
   return keys
     .map((key) => definitions.get(key) || { key, label: key })
     .filter((field) => field.detail !== false);
