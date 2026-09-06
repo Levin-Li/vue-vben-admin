@@ -25,6 +25,7 @@ export const pageMeta = {
 
 export const fileResPageCrudConfig: CrudPageConfig = {
   apiBase: '/FileRes',
+  domainObject: true,
   apiService: fileResService,
   defaultFormValues: {
     editable: true,

@@ -63,6 +63,13 @@ const jsonSchemaSourceSignature = computed(() => {
   return source ? JSON.stringify(source) : '';
 });
 const jsonSchema = computed(() => schema.value || inlineJsonSchema.value);
+const shouldUseJsonViewerFallback = computed(
+  () =>
+    props.disabled &&
+    editorKind.value === 'json-schema' &&
+    !schemaLoading.value &&
+    (!jsonSchema.value || Boolean(schemaErrorMessage.value)),
+);
 const textAreaAutoSize = computed(() =>
   props.inline ? { maxRows: 18, minRows: 8 } : { maxRows: 8, minRows: 3 },
 );
@@ -172,6 +179,15 @@ watch(
     class="w-full"
     show-search
     @update:value="setValue"
+  />
+
+  <JsonViewer
+    v-else-if="shouldUseJsonViewerFallback"
+    boxed
+    copyable
+    expanded
+    :expand-depth="3"
+    :value="formState.valueContent"
   />
 
   <Spin v-else-if="editorKind === 'json-schema'" :spinning="schemaLoading">

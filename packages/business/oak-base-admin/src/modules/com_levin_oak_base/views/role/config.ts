@@ -60,6 +60,7 @@ export const pageMeta = {
 
 const rolePageCrudConfig: CrudPageConfig = {
   apiBase: '/Role',
+  domainObject: true,
   apiService: roleService,
   allowRetrieve: true,
   defaultFormValues: {

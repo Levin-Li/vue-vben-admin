@@ -19,6 +19,7 @@ export const pageMeta = {
 
 export const areaPageCrudConfig: CrudPageConfig = {
   apiBase: '/Area',
+  domainObject: true,
   apiService: areaService,
   defaultFormValues: {
     editable: true,

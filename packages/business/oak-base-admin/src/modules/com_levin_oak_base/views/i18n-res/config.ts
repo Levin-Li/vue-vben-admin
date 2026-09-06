@@ -27,6 +27,7 @@ export const pageMeta = {
 
 export const i18nResPageCrudConfig: CrudPageConfig = {
   apiBase: '/I18nRes',
+  domainObject: true,
   apiService: i18nResService,
   defaultFormValues: {
     editable: true,

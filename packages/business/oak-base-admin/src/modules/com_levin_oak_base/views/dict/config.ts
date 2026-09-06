@@ -19,6 +19,7 @@ export const pageMeta = {
 
 export const dictPageCrudConfig: CrudPageConfig = {
   apiBase: '/Dict',
+  domainObject: true,
   apiService: dictService,
   defaultFormValues: {
     editable: true,

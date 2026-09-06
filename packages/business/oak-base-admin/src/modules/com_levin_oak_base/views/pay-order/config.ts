@@ -29,6 +29,7 @@ export const pageMeta = {
 
 export const payOrderPageCrudConfig: CrudPageConfig = {
   apiBase: '/PayOrder',
+  domainObject: true,
   apiService: payOrderService,
   defaultFormValues: {
     amount: 0,

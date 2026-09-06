@@ -23,6 +23,7 @@ export const pageMeta = {
 
 export const userSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/UserSetting',
+  domainObject: true,
   apiService: userSettingService,
   defaultFormValues: {
     editable: true,

@@ -22,6 +22,7 @@ export const pageMeta = {
 export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
     apiBase: '/EContractTemplate',
+    domainObject: true,
     apiService: electronicContractTemplateService,
     defaultFormValues: {
       status: 'Draft',

@@ -50,6 +50,7 @@ export const pageMeta = {
 
 export const articlePageCrudConfig: CrudPageConfig = {
   apiBase: '/Article',
+  domainObject: true,
   apiService: articleService,
   defaultFormValues: {
     collectCount: 0,

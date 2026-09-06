@@ -14,6 +14,43 @@ export const CRUD_OPERATION_COLUMN_KEY = '__actions';
 export const CRUD_OPERATION_COLUMN_LABEL = '操作';
 export const DEFAULT_CRUD_OPERATION_COLUMN_WIDTH = 220;
 
+/** 仅为显式声明 DomainObject 的页面补入标准领域字段，避免向其它接口伪造参数。 */
+export function resolveDomainObjectCrudFields(
+  fields: CrudFieldConfig[],
+  domainObject: boolean | undefined,
+  domainIdField: CrudFieldConfig,
+) {
+  if (!domainObject || fields.some((field) => field.key === 'domainId')) {
+    return fields;
+  }
+  return [...fields, domainIdField];
+}
+
+/** 将符合开发期分组门槛的静态布局组转换为详情可渲染的展示分组。 */
+export function resolveStaticDisplayGroup(
+  fields: CrudFieldConfig[],
+  groupKey: string | undefined,
+): CrudPageDisplayGroupConfig | undefined {
+  if (!groupKey || fields.length < 7) return undefined;
+
+  const groupFields = fields.filter(
+    (field) =>
+      field.layoutGroup === groupKey && Boolean(field.layoutGroupTitle?.trim()),
+  );
+  if (groupFields.length < 3) return undefined;
+
+  return {
+    defaultExpanded: true,
+    displayStyle: 'divider',
+    key: groupKey,
+    order: Math.min(
+      ...groupFields.map((field) => field.layoutOrder ?? Number.MAX_SAFE_INTEGER),
+    ),
+    title: groupFields.find((field) => field.layoutGroupTitle?.trim())
+      ?.layoutGroupTitle,
+  };
+}
+
 export function findDisplayRuleCycle(items: CrudPageDisplayFieldConfig[]) {
   const itemKeys = new Set(items.map((item) => item.key));
   const edges = new Map<string, string[]>();
@@ -307,12 +344,18 @@ export function initializeVisibleRoleCodes(
 
 export function getDefaultFieldHidden(
   field: string | { key: string; showIdOnCreate?: boolean },
+  options: { hideDomainId?: boolean } = { hideDomainId: false },
 ) {
   const key = typeof field === 'string' ? field : field.key;
   if (key === 'id' && typeof field !== 'string' && field.showIdOnCreate) {
     return false;
   }
-  return ['editable', 'id', 'lastUpdateTime', 'orderCode'].includes(key);
+  // DomainObject 的 domainId 是数据范围定位字段；新增、编辑、详情与列表默认隐藏，
+  // 页面展示设置显式保存展示状态后仍可覆盖这个默认值。查询条件不应用此默认值。
+  return (
+    ['editable', 'id', 'lastUpdateTime', 'orderCode'].includes(key) ||
+    (options.hideDomainId === true && key === 'domainId')
+  );
 }
 
 export function initializeFieldHidden(
@@ -325,8 +368,11 @@ export function initializeFieldHidden(
 
 export function initializeHeaderVisibility(
   header: Pick<CrudPageDisplayHeaderConfig, 'key' | 'visible'>,
+  options: { hideDomainId?: boolean } = { hideDomainId: false },
 ) {
-  const defaultMode = getDefaultFieldHidden(header.key) ? 'hidden' : 'always';
+  const defaultMode = getDefaultFieldHidden(header.key, options)
+    ? 'hidden'
+    : 'always';
   if (!Object.hasOwn(header, 'visible')) {
     return { mode: defaultMode as 'always' | 'hidden' | 'script' };
   }
@@ -380,7 +426,7 @@ export function reconcileCrudPageDisplayHeaders(
       'key' | 'label' | 'sortable' | 'table' | 'type' | 'valueType' | 'width'
     >
   >,
-  options: { includeOperationColumn?: boolean } = {},
+  options: { hideDomainId?: boolean; includeOperationColumn?: boolean } = {},
 ) {
   const existing = new Map(headers.map((header) => [header.key, header]));
   const listFields = fields
@@ -396,7 +442,7 @@ export function reconcileCrudPageDisplayHeaders(
         : [],
     );
 
-  return listFields.map((field, index) => {
+  const reconciled = listFields.map((field, index) => {
     const current = existing.get(field.key);
     const isOperationColumn = field.key === CRUD_OPERATION_COLUMN_KEY;
     const defaults: CrudPageDisplayHeaderConfig = current || {
@@ -404,7 +450,10 @@ export function reconcileCrudPageDisplayHeaders(
       label: field.label,
       order: index,
       valueDisplay: { mode: 'default' },
-      visible: initializeHeaderVisibility({ key: field.key }),
+      visible: initializeHeaderVisibility(
+        { key: field.key },
+        { hideDomainId: options.hideDomainId === true },
+      ),
       visibleRoleCodes: getDefaultVisibleRoleCodes(field.key),
       width: resolveDefaultTableColumnWidth(field),
     };
@@ -438,6 +487,14 @@ export function reconcileCrudPageDisplayHeaders(
       width,
     };
   });
+  return [
+    ...reconciled,
+    ...headers.filter((header) => header.virtual === true),
+  ].toSorted(
+    (left, right) =>
+      (left.order ?? Number.MAX_SAFE_INTEGER) -
+      (right.order ?? Number.MAX_SAFE_INTEGER),
+  );
 }
 
 function getNestedRecord(

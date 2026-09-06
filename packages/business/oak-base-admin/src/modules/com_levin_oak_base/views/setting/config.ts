@@ -146,6 +146,7 @@ export const pageMeta = {
 
 export const settingPageCrudConfig: CrudPageConfig = {
   apiBase: '/Setting',
+  domainObject: true,
   apiService: settingPageCrudService,
   defaultFormValues: {
     editable: true,

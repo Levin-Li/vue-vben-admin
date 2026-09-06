@@ -16,6 +16,7 @@ export const pageMeta = {
 
 export const tenantSitePageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantSite',
+  domainObject: true,
   apiService: tenantSiteService,
   defaultFormValues: {
     editable: true,

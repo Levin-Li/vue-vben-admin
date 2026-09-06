@@ -8,7 +8,7 @@ import {
   tenantOptionsLoader,
 } from '../api-module';
 
-export const GLOBAL_ORG_SELECTOR_SETTING_CODE = '全局组织选择器';
+export const GLOBAL_ORG_SELECTOR_SETTING_CODE = '全局组织与用户选择器';
 export const GLOBAL_ORG_SELECTOR_SETTING_EDITOR =
   'class:com.levin.oak.base.biz.bo.component.UserOrgSelectorConfig';
 export const GLOBAL_ORG_SELECTOR_SETTING_TYPE = 'Json';
@@ -37,12 +37,13 @@ function transformGlobalOrgSelectorSettingSubmit(values: Record<string, any>) {
 
 export const pageMeta = {
   name: 'GlobalOrgSelectorSetting',
-  title: '全局组织选择器配置',
-  description: '维护全局组织选择器配置。',
+  title: '全局组织与用户选择器配置',
+  description: '维护全局组织与用户选择器配置。',
 } as const;
 
 export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/UiSetting',
+  domainObject: true,
   apiService: uiSettingService,
   defaultFormValues: {
     code: GLOBAL_ORG_SELECTOR_SETTING_CODE,
@@ -215,6 +216,6 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
   ],
   formMaxColumns: 3,
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  title: '全局组织选择器配置',
+  title: '全局组织与用户选择器配置',
   transformSubmit: transformGlobalOrgSelectorSettingSubmit,
 };

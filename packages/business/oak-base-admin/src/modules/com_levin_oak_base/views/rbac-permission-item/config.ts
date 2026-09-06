@@ -25,6 +25,7 @@ export const pageMeta = {
 
 export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
   apiBase: '/RbacPermissionItem',
+  domainObject: true,
   apiService: rbacPermissionItemService,
   allowRetrieve: true,
   defaultFormValues: {

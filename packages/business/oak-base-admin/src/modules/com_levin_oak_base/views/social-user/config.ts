@@ -20,6 +20,7 @@ export const pageMeta = {
 
 export const socialUserPageCrudConfig: CrudPageConfig = {
   apiBase: '/SocialUser',
+  domainObject: true,
   apiService: socialUserService,
   defaultFormValues: {
     editable: true,

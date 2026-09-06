@@ -31,6 +31,7 @@ export const pageMeta = {
 
 export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantCustomMenu',
+  domainObject: true,
   apiService: tenantCustomMenuService,
   defaultFormValues: {
     editable: true,

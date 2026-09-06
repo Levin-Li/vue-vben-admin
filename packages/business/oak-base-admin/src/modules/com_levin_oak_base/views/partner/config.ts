@@ -58,6 +58,7 @@ export const pageMeta = {
 
 export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
   apiBase: '/Partner',
+  domainObject: true,
   apiService: partnerService,
   createPath: '/Partner/savePartner',
   updatePath: '/Partner/updatePartner',

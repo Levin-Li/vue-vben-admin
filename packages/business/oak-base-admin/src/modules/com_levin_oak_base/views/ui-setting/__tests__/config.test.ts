@@ -51,10 +51,10 @@ describe('uiSettingPageCrudConfig', () => {
 
   it('keeps new UI settings editable when the hidden editable field is omitted', () => {
     expect(uiSettingPageCrudConfig.transformSubmit?.(
-      { code: '全局组织选择器' },
+      { code: '全局组织与用户选择器' },
       null,
     )).toMatchObject({
-      code: '全局组织选择器',
+      code: '全局组织与用户选择器',
       editable: true,
     });
   });

@@ -19,6 +19,7 @@ export const pageMeta = {
 
 export const jobPostPageCrudConfig: CrudPageConfig = {
   apiBase: '/JobPost',
+  domainObject: true,
   apiService: jobPostService,
   defaultFormValues: {
     editable: true,

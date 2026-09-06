@@ -48,6 +48,7 @@ export const pageMeta = {
 
 export const scheduledTaskPageCrudConfig: CrudPageConfig = {
   apiBase: '/ScheduledTask',
+  domainObject: true,
   apiService: scheduledTaskService,
   defaultFormValues: {
     cron: '0 0/5 * * * *',

@@ -232,6 +232,8 @@ import {
   isRoleVisibilitySatisfied,
   resolveDefaultTableColumnWidth,
   resolveDisplayGroupOrder,
+  resolveDomainObjectCrudFields,
+  resolveStaticDisplayGroup,
   resolveDisplayStates,
   resolveDisplaySubmitKeys,
   resolvePageDisplayViewTitle,
@@ -273,6 +275,7 @@ import {
 } from './detail-display';
 import DetailDisplayPanel from './detail-display-panel.vue';
 import {
+  buildDictOptionsLoader,
   DEFAULT_CONTENT_MODAL_BODY_STYLE,
   DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
 } from './config-helpers';
@@ -361,9 +364,38 @@ const LIST_TABLE_TABS_INITIAL_LEFT = 20;
 const LIST_TABLE_TABS_INITIAL_TOP = 20;
 const LIST_TABLE_TABS_DRAG_THRESHOLD = 4;
 const LIST_TABLE_TABS_EDGE_PADDING = 8;
+const domainIdOptionsLoader = buildDictOptionsLoader(
+  'platform.framework_domainId',
+);
+const domainIdCrudField: CrudFieldConfig = {
+  export: false,
+  key: 'domainId',
+  label: '领域标识',
+  loadOptions: domainIdOptionsLoader,
+  search: true,
+  table: true,
+  type: 'select',
+  width: 180,
+};
+
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
 const route = useRoute();
+
+const effectiveFields = computed(() =>
+  resolveDomainObjectCrudFields(
+    props.config.fields,
+    props.config.domainObject,
+    domainIdCrudField,
+  ),
+);
+const effectiveDetailFields = computed(() =>
+  resolveDomainObjectCrudFields(
+    props.config.detailFields || props.config.fields,
+    props.config.domainObject,
+    domainIdCrudField,
+  ),
+);
 
 type ExportTemplateSaveScope =
   (typeof EXPORT_TEMPLATE_SCOPE_OPTIONS)[number]['value'] &
@@ -379,7 +411,7 @@ const selectedRows = ref<GenericRecord[]>([]);
 const actionResultOpen = ref(false);
 const actionResultTitle = ref('');
 const actionResultData = ref<any>(null);
-const latestDetailRecord = ref<{source: string; record: GenericRecord}>();
+const latestDetailRecord = ref<{ source: string; record: GenericRecord }>();
 const actionResultMode = ref<NormalizedCrudAction>('showSchema');
 const exportModalOpen = ref(false);
 const exporting = ref(false);
@@ -758,11 +790,14 @@ function getPageDisplayField(
 
   return resolveRuntimeDisplayField({
     hidden: getDefaultFieldHidden(
-      props.config.fields.find((item) => item.key === key) || { key },
+      effectiveFields.value.find((item) => item.key === key) || { key },
+      {
+        hideDomainId: props.config.domainObject === true,
+      },
     ),
     inputDisplay: 'default',
     key,
-    order: props.config.fields.findIndex((item) => item.key === key),
+    order: effectiveFields.value.findIndex((item) => item.key === key),
   });
 }
 
@@ -833,16 +868,23 @@ function getPageDisplayHeader(
     });
   }
 
-  const field = props.config.fields.find((item) => item.key === key);
+  const field = effectiveFields.value.find((item) => item.key === key);
   if (!field) return undefined;
 
   return resolveRuntimeDisplayHeader({
     key,
     label: field.label,
-    order: props.config.fields
+    order: effectiveFields.value
       .filter((item) => item.table && isFieldVisible(item))
       .findIndex((item) => item.key === key),
     valueDisplay: { mode: 'default' },
+    visible: {
+      mode: getDefaultFieldHidden(field, {
+        hideDomainId: props.config.domainObject === true,
+      })
+        ? 'hidden'
+        : 'always',
+    },
     width: resolveDefaultTableColumnWidth(field),
   });
 }
@@ -966,23 +1008,41 @@ function applyPageDisplayFields(
       .map((group) => group.key),
   );
   const excludedKeys = new Set([
-    ...props.config.fields.filter((field) => !candidateKeys.has(field.key)).map((field) => field.key),
-    ...fields.filter((field) => !isPageDisplayRoleVisible(view, field.key)).map((field) => field.key),
+    ...effectiveFields.value
+      .filter((field) => !candidateKeys.has(field.key))
+      .map((field) => field.key),
+    ...fields
+      .filter((field) => !isPageDisplayRoleVisible(view, field.key))
+      .map((field) => field.key),
     ...fields
       .filter((field) =>
-        unavailableGroupKeys.has(getPageDisplayField(view, field.key).layoutGroup || ''),
+        unavailableGroupKeys.has(
+          getPageDisplayField(view, field.key).layoutGroup || '',
+        ),
       )
       .map((field) => field.key),
   ]);
-  const displayStates = resolveDisplayStates(configuredFields, expressionResults, excludedKeys);
-  const submitKeys = resolveDisplaySubmitKeys(configuredFields, expressionResults, excludedKeys);
+  const displayStates = resolveDisplayStates(
+    configuredFields,
+    expressionResults,
+    excludedKeys,
+  );
+  const submitKeys = resolveDisplaySubmitKeys(
+    configuredFields,
+    expressionResults,
+    excludedKeys,
+  );
   const hasStoredFieldOrder =
     (pageDisplayConfig.value[view]?.fields?.length || 0) > 0;
   const staticFieldOrder = new Map(
     sortFormLayoutFields([...fields]).map((field, index) => [field.key, index]),
   );
   return [...fields]
-    .filter((field) => includeHiddenSubmit ? submitKeys.has(field.key) : displayStates[field.key] !== 'HIDDEN')
+    .filter((field) =>
+      includeHiddenSubmit
+        ? submitKeys.has(field.key)
+        : displayStates[field.key] !== 'HIDDEN',
+    )
     .filter((field) => isPageDisplayRoleVisible(view, field.key))
     .sort((left, right) => {
       if (!hasStoredFieldOrder) {
@@ -1012,13 +1072,22 @@ function applyPageDisplayFields(
     })
     .map((field) => {
       const configured = getPageDisplayField(view, field.key);
-      const group = getPageDisplayGroup(view, configured?.layoutGroup);
+      const groupKey =
+        configured?.layoutGroupExcluded === true
+          ? undefined
+          : configured?.layoutGroup || field.layoutGroup;
+      const group =
+        getPageDisplayGroup(view, groupKey) ||
+        resolveStaticDisplayGroup(fields, groupKey);
       return {
         ...field,
         label: resolvePageDisplayViewTitle(configured, field.label),
         displayGroup: group,
-        layoutGroup: configured?.layoutGroup || field.layoutGroup,
-        layoutGroupTitle: group?.title || resolveStaticLayoutGroupTitle(field),
+        layoutGroup: groupKey,
+        layoutGroupTitle:
+          configured?.layoutGroupExcluded === true
+            ? undefined
+            : group?.title || resolveStaticLayoutGroupTitle(field),
         layoutOrder: configured?.order ?? field.layoutOrder,
       };
     });
@@ -1026,7 +1095,7 @@ function applyPageDisplayFields(
 
 const submittableSearchFields = computed(() =>
   applyPageDisplayFields(
-    props.config.fields
+    effectiveFields.value
       .map((field, index) => ({ field, index }))
       .filter(({ field }) => field.search && isFieldVisible(field))
       .sort(
@@ -1041,7 +1110,9 @@ const submittableSearchFields = computed(() =>
 );
 
 const searchFields = computed(() =>
-  submittableSearchFields.value.filter((field) => !getPageDisplayField('query', field.key).hidden),
+  submittableSearchFields.value.filter(
+    (field) => !getPageDisplayField('query', field.key).hidden,
+  ),
 );
 
 const RANGE_PREFIX_PAIRS: Array<[string, string]> = [
@@ -1156,7 +1227,7 @@ const searchFieldItems = computed<SearchFieldItem[]>(() => {
 });
 
 const formFields = computed(() =>
-  props.config.fields.filter(
+  effectiveFields.value.filter(
     (field) => field.form !== false && isFieldVisible(field),
   ),
 );
@@ -1204,7 +1275,9 @@ const quickFillRequested = ref(false);
 const quickFillMore = ref(false);
 const quickFillPlan = computed(() =>
   resolveCrudQuickFill(
-    visibleFormFields.value.filter((field) => !unsubmittedGroupKeys.value.has(field.key)),
+    visibleFormFields.value.filter(
+      (field) => !unsubmittedGroupKeys.value.has(field.key),
+    ),
     new Set(
       visibleFormFields.value
         .filter((field) => !isFormFieldInteractionDisabled(field))
@@ -1312,11 +1385,7 @@ function getPageDisplayGroupToggleLabel(groupKey: string) {
 }
 
 function shouldShowFormGroupTitle(field: CrudFieldConfig) {
-  if (
-    field.complexGroupKey ||
-    !field.layoutGroup ||
-    !field.layoutGroupTitle
-  ) {
+  if (field.complexGroupKey || !field.layoutGroup || !field.layoutGroupTitle) {
     return false;
   }
   if (!field.displayGroup) {
@@ -1324,8 +1393,7 @@ function shouldShowFormGroupTitle(field: CrudFieldConfig) {
       (item) => !item.complexGroupKey,
     );
     const staticGroupFields = staticFields.filter(
-      (item) =>
-        !item.complexGroupKey && item.layoutGroup === field.layoutGroup,
+      (item) => !item.complexGroupKey && item.layoutGroup === field.layoutGroup,
     );
     if (staticFields.length < 7 || staticGroupFields.length < 3) return false;
   }
@@ -1343,10 +1411,27 @@ function getFormGroupTitleClass(field: CrudFieldConfig) {
   return getCrudGroupTitleClass(field.displayGroup?.displayStyle);
 }
 
+const virtualTableFields = computed<CrudFieldConfig[]>(() =>
+  (pageDisplayConfig.value.list?.headers || [])
+    .filter((header) => header.virtual === true)
+    .filter((header) => isPageDisplayHeaderVisible(header.key))
+    .map((header) => ({
+      export: false,
+      key: header.key,
+      label: header.title || header.label || '虚拟字段',
+      sortable: false,
+      table: true,
+      type: 'text',
+      valueType: 'string',
+      width: header.width || 180,
+    })),
+);
+
 const tableFields = computed(() =>
-  [...props.config.fields]
+  [...effectiveFields.value]
     .filter((field) => field.table && isFieldVisible(field))
     .filter((field) => isPageDisplayHeaderVisible(field.key))
+    .concat(virtualTableFields.value)
     .sort(
       (left, right) =>
         (getPageDisplayHeader(left.key)?.order ?? Number.MAX_SAFE_INTEGER) -
@@ -1418,7 +1503,7 @@ const exportableFields = computed(() => {
     }
   }
 
-  const remainingFields = props.config.fields.filter(
+  const remainingFields = effectiveFields.value.filter(
     (field) => isExportableField(field) && !orderedKeys.has(String(field.key)),
   );
 
@@ -1541,7 +1626,7 @@ const selectedImportTemplateCanDelete = computed(() =>
 );
 
 const importableFields = computed(() =>
-  props.config.fields.filter(
+  effectiveFields.value.filter(
     (field) =>
       field.key &&
       field.form !== false &&
@@ -1643,13 +1728,6 @@ const canCustomizeTableColumnsLocally = computed(
     ),
 );
 
-const hasConfiguredRowActions = computed(() =>
-  actionGroups.value.row.some(
-    (action) =>
-      (!action.permission || hasPermission(action.permission)) &&
-      evaluateCrudVisibleOn(action.visibleOn, {}, userStore.userInfo),
-  ),
-);
 const hasRowActionSlot = computed(() => Boolean(slots['row-actions']));
 const canManagePageDisplaySettings = computed(() =>
   isSuperAdminUser(userStore.userInfo),
@@ -1663,11 +1741,13 @@ const pageDisplaySettingCode = computed(() =>
 
 const hasAvailableOperationColumn = computed(() =>
   shouldShowCrudOperationColumn({
-    hasBuiltinDelete: canDelete.value,
-    hasBuiltinDetail: canRetrieve.value,
-    hasBuiltinEdit: canEdit.value,
+    hasBuiltinDelete: dataSource.value.some(canShowBuiltinDelete),
+    hasBuiltinDetail: dataSource.value.some(canShowBuiltinDetail),
+    hasBuiltinEdit: dataSource.value.some(canShowBuiltinEdit),
     hasRowActionSlot: hasRowActionSlot.value,
-    hasRowActions: hasConfiguredRowActions.value,
+    hasRowActions: dataSource.value.some(
+      (record) => getRowActions(record).length > 0,
+    ),
   }),
 );
 const showActionColumn = computed(
@@ -2521,9 +2601,13 @@ function normalizeFormValue(field: CrudFieldConfig, value: any) {
   }
 
   if (field.type === 'area-cascader') {
-    if (Array.isArray(value)) return value.map((item) => String(item)).filter(Boolean);
+    if (Array.isArray(value))
+      return value.map((item) => String(item)).filter(Boolean);
     return getAreaCascaderValueFromRecord(
-      { ...field, areaCascader: { ...field.areaCascader, valueKey: field.key } },
+      {
+        ...field,
+        areaCascader: { ...field.areaCascader, valueKey: field.key },
+      },
       { [field.key]: value },
     );
   }
@@ -2684,7 +2768,7 @@ function buildSearchParams() {
   );
   return omitExcludedCrudFields(
     params,
-    props.config.fields.filter(
+    effectiveFields.value.filter(
       (field) => field.search && !eligible.has(field.key),
     ),
   );
@@ -2693,7 +2777,11 @@ function buildSearchParams() {
 const formFieldsContainer = ref<HTMLElement>();
 
 async function revealInvalidFormField(field: CrudFieldConfig) {
-  if (!visibleFormFields.value.some((item) => item.key === field.key) || isFormFieldInteractionDisabled(field)) return;
+  if (
+    !visibleFormFields.value.some((item) => item.key === field.key) ||
+    isFormFieldInteractionDisabled(field)
+  )
+    return;
   if (quickFillActive.value) {
     quickFillMore.value = true;
   } else {
@@ -2943,7 +3031,7 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
 
 async function loadOptions() {
   await Promise.all(
-    props.config.fields
+    effectiveFields.value
       .filter((field) =>
         shouldLoadFieldOptions(
           Boolean(field.loadOptions || getDefaultOptionsLoader(field)),
@@ -4088,7 +4176,10 @@ async function handleRetrieve(record: GenericRecord) {
         );
 
   if (response && typeof response === 'object' && !Array.isArray(response)) {
-    latestDetailRecord.value = {source:pageDisplaySettingCode.value,record:response};
+    latestDetailRecord.value = {
+      source: pageDisplaySettingCode.value,
+      record: response,
+    };
   }
   openActionResult(
     `${getBusinessTitle(props.config.title)}详情`,
@@ -4123,7 +4214,9 @@ async function handleSubmit() {
 
   const allowedFields = [...submittableFormFields.value];
   const allowedKeys = new Set(allowedFields.map((field) => field.key));
-  const excludedFields = props.config.fields.filter((field) => !allowedKeys.has(field.key));
+  const excludedFields = effectiveFields.value.filter(
+    (field) => !allowedKeys.has(field.key),
+  );
   submitting.value = true;
 
   try {
@@ -4183,7 +4276,11 @@ async function handleSubmit() {
           getFieldOptions(field),
         )
           ? originalValue
-          : serializeSubmittableFormValue(field, formState[field.key], !isCreating);
+          : serializeSubmittableFormValue(
+              field,
+              formState[field.key],
+              !isCreating,
+            );
 
       if (isCreating && shouldOmitEmptyChoiceFormField(field, value)) {
         continue;
@@ -4195,12 +4292,22 @@ async function handleSubmit() {
     const complexValues = { ...formState };
     for (const field of allowedFields) {
       if (field.complexGroupKey && field.type !== 'area-cascader')
-        complexValues[field.key] = serializeSubmittableFormValue(field, formState[field.key], !isCreating);
+        complexValues[field.key] = serializeSubmittableFormValue(
+          field,
+          formState[field.key],
+          !isCreating,
+        );
     }
-    const allowedComplexGroups = (props.config.complexGroups || []).map((group) => ({
-      ...group,
-      fieldMappings: Object.fromEntries(Object.entries(group.fieldMappings).filter(([key]) => allowedKeys.has(key))),
-    })).filter((group) => Object.keys(group.fieldMappings).length > 0);
+    const allowedComplexGroups = (props.config.complexGroups || [])
+      .map((group) => ({
+        ...group,
+        fieldMappings: Object.fromEntries(
+          Object.entries(group.fieldMappings).filter(([key]) =>
+            allowedKeys.has(key),
+          ),
+        ),
+      }))
+      .filter((group) => Object.keys(group.fieldMappings).length > 0);
     const complexGroupPayload = buildCrudComplexGroupPayload(
       allowedComplexGroups,
       complexGroupEnabled,
@@ -4296,7 +4403,8 @@ async function handleSubmit() {
 
 function resetSearch() {
   suppressAutoSearch = true;
-  for (const field of submittableSearchFields.value) searchState[field.key] = undefined;
+  for (const field of submittableSearchFields.value)
+    searchState[field.key] = undefined;
   for (const item of searchFieldItems.value) {
     if (item.kind === 'range') {
       searchState[item.key] = undefined;
@@ -4317,7 +4425,7 @@ function resetSearch() {
 }
 
 function applyPageDisplayQueryDefaults() {
-  for (const field of props.config.fields.filter(
+  for (const field of effectiveFields.value.filter(
     (item) => item.search && isFieldVisible(item),
   )) {
     const configuredDefault = getPageDisplayField(
@@ -4334,7 +4442,8 @@ function applyPageDisplayQueryDefaults() {
   for (const item of searchFieldItems.value) {
     if (item.kind !== 'range') continue;
     const values = [searchState[item.startKey], searchState[item.endKey]];
-    if (values.some((value) => value !== undefined)) searchState[item.key] = values;
+    if (values.some((value) => value !== undefined))
+      searchState[item.key] = values;
   }
 }
 
@@ -4910,7 +5019,10 @@ function getUploadFileList(field: CrudFieldConfig): UploadFile[] {
 }
 
 function setUploadUrls(field: CrudFieldConfig, urls: string[]) {
-  updateFormFieldInput(field, isMultiUploadField(field) ? urls : (urls[0] ?? ''));
+  updateFormFieldInput(
+    field,
+    isMultiUploadField(field) ? urls : (urls[0] ?? ''),
+  );
 }
 
 function replaceUploadUrl(
@@ -5069,7 +5181,12 @@ function handlePasteUpload(event: ClipboardEvent) {
   const target = hoveredImageUploadTarget.value;
   const field = target?.field;
 
-  if (!field || !modalOpen.value || !isImageUploadField(field) || isFormFieldInteractionDisabled(field)) {
+  if (
+    !field ||
+    !modalOpen.value ||
+    !isImageUploadField(field) ||
+    isFormFieldInteractionDisabled(field)
+  ) {
     return;
   }
 
@@ -5812,7 +5929,7 @@ function canShowBuiltinEdit(record: GenericRecord) {
 
 function canMutateCrudRecord(record: GenericRecord) {
   return canMutateEditableCrudRecord(
-    props.config.fields,
+    effectiveFields.value,
     record,
     userStore.userInfo,
   );
@@ -5901,16 +6018,25 @@ function openActionResult(
   actionResultOpen.value = true;
 }
 
-const detailSettingsFields = computed(() => resolveDetailFields(
-  latestDetailRecord.value?.source === pageDisplaySettingCode.value
-    ? latestDetailRecord.value.record
-    : dataSource.value[0],
-  props.config.fields,
-  props.config.detailFields,
-));
+const detailSettingsFields = computed(() =>
+  resolveDetailFields(
+    latestDetailRecord.value?.source === pageDisplaySettingCode.value
+      ? latestDetailRecord.value.record
+      : dataSource.value[0],
+    effectiveFields.value,
+    effectiveDetailFields.value,
+  ),
+);
 
 function getDetailDisplayFields() {
-  return applyPageDisplayFields(resolveDetailFields(actionResultData.value, props.config.fields, props.config.detailFields), 'detail').map(field => ({...field, options:getFieldOptions(field)}));
+  return applyPageDisplayFields(
+    resolveDetailFields(
+      actionResultData.value,
+      effectiveFields.value,
+      effectiveDetailFields.value,
+    ),
+    'detail',
+  ).map((field) => ({ ...field, options: getFieldOptions(field) }));
 }
 
 const actionResultEntries = computed((): DetailDisplayEntry[] => {
@@ -5922,7 +6048,14 @@ const actionResultEntries = computed((): DetailDisplayEntry[] => {
   return buildDetailDisplayEntries(
     data,
     getDetailDisplayFields(),
-    [...props.config.fields, ...resolveDetailFields(actionResultData.value, props.config.fields, props.config.detailFields)],
+    [
+      ...effectiveFields.value,
+      ...resolveDetailFields(
+        actionResultData.value,
+        effectiveFields.value,
+        effectiveDetailFields.value,
+      ),
+    ],
     pageDisplayConfig.value.detail?.showEmptyValues !== false,
   ) as DetailDisplayEntry[];
 });
@@ -6240,7 +6373,11 @@ watch(canCustomizeTableColumnsLocally, () => {
                 <slot
                   :name="resolveSearchFieldSlotName(item.field)"
                   :field="item.field"
-                  :search-state="isSearchFieldInteractionDisabled(item.field) ? readonly(searchState) : searchState"
+                  :search-state="
+                    isSearchFieldInteractionDisabled(item.field)
+                      ? readonly(searchState)
+                      : searchState
+                  "
                   :disabled="isSearchFieldInteractionDisabled(item.field)"
                 ></slot>
               </div>
@@ -6274,7 +6411,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                   shouldUseInlineChoiceOptions(item.field, 'query') &&
                   item.field.multiple
                 "
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 :options="getInlineChoiceOptions(item.field, 'query')"
@@ -6282,7 +6424,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <Radio.Group
                 v-else-if="shouldUseInlineChoiceOptions(item.field, 'query')"
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 :options="getInlineChoiceOptions(item.field, 'query')"
@@ -6291,7 +6438,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <Cascader
                 v-else-if="item.field.type === 'area-cascader'"
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 :allow-clear="true"
@@ -6314,7 +6466,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <TreeSelect
                 v-else-if="item.field.type === 'org-tree-select'"
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 :allow-clear="true"
@@ -6339,7 +6496,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                   item.field.allowInput &&
                   !item.field.multiple
                 "
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 :allow-clear="true"
@@ -6363,7 +6525,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                   item.field.type === 'select' ||
                   item.field.type === 'role-select'
                 "
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 :allow-clear="true"
@@ -6387,7 +6554,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <Select
                 v-else-if="item.field.type === 'switch'"
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 :allow-clear="true"
@@ -6402,7 +6574,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                 v-else-if="
                   item.field.type === 'datetime' || item.field.type === 'date'
                 "
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 :allow-clear="true"
@@ -6417,7 +6594,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <TimePicker
                 v-else-if="item.field.type === 'time'"
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 :allow-clear="true"
@@ -6427,7 +6609,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <InputNumber
                 v-else-if="item.field.type === 'number'"
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 :allow-clear="true"
@@ -6436,7 +6623,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <Input
                 v-else
-                :value="getInteractionModelValue(searchState[item.field.key], isSearchFieldInteractionDisabled(item.field))"
+                :value="
+                  getInteractionModelValue(
+                    searchState[item.field.key],
+                    isSearchFieldInteractionDisabled(item.field),
+                  )
+                "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
                 @update:value="updateSearchFieldInput(item.field, $event)"
                 allow-clear
@@ -7315,18 +7507,30 @@ watch(canCustomizeTableColumnsLocally, () => {
                 )
               "
             >
-              <div v-if="hasFormFieldSlot(field)" :inert="isFormFieldInteractionDisabled(field)">
+              <div
+                v-if="hasFormFieldSlot(field)"
+                :inert="isFormFieldInteractionDisabled(field)"
+              >
                 <slot
                   :name="resolveFormFieldSlotName(field)"
                   :editing-record="editingRecord"
                   :field="field"
-                  :form-state="isFormFieldInteractionDisabled(field) ? readonly(formState) : formState"
+                  :form-state="
+                    isFormFieldInteractionDisabled(field)
+                      ? readonly(formState)
+                      : formState
+                  "
                   :disabled="isFormFieldInteractionDisabled(field)"
                 ></slot>
               </div>
               <Input.Password
                 v-else-if="field.type === 'password'"
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 class="w-full"
                 :disabled="isFormFieldInteractionDisabled(field)"
@@ -7335,7 +7539,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <Cascader
                 v-else-if="field.type === 'area-cascader'"
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 :allow-clear="true"
                 :change-on-select="
@@ -7358,7 +7567,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <TreeSelect
                 v-else-if="field.type === 'org-tree-select'"
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 :allow-clear="true"
                 class="w-full"
@@ -7384,7 +7598,7 @@ watch(canCustomizeTableColumnsLocally, () => {
                 "
               >
                 <Upload
-                :disabled="isFormFieldInteractionDisabled(field)"
+                  :disabled="isFormFieldInteractionDisabled(field)"
                   :accept="isImageUploadField(field) ? 'image/*' : undefined"
                   :custom-request="(options) => uploadCrudFile(field, options)"
                   :file-list="getUploadFileList(field)"
@@ -7421,7 +7635,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                   field.type === 'json' &&
                   !shouldUseJsonSchemaEditor(field, formState[field.key])
                 "
-                :model-value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :model-value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:model-value="updateFormFieldInput(field, $event)"
                 :disabled="isFormFieldInteractionDisabled(field)"
                 :modal-style="modalStyle"
@@ -7432,7 +7651,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                 v-else-if="
                   shouldUseJsonSchemaEditor(field, formState[field.key])
                 "
-                :model-value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :model-value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:model-value="updateFormFieldInput(field, $event)"
                 :disabled="isFormFieldInteractionDisabled(field)"
                 :inline="isCrudFieldJsonSchemaInline(field)"
@@ -7445,7 +7669,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <CronExpressionField
                 v-else-if="field.type === 'cron'"
-                :model-value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :model-value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:model-value="updateFormFieldInput(field, $event)"
                 :disabled="isFormFieldInteractionDisabled(field)"
                 :modal-style="modalStyle"
@@ -7459,7 +7688,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                   field.type === 'css' ||
                   field.type === 'html'
                 "
-                :model-value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :model-value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:model-value="updateFormFieldInput(field, $event)"
                 :disabled="isFormFieldInteractionDisabled(field)"
                 :language="getCodeEditorLanguage(field)"
@@ -7471,7 +7705,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                 v-else-if="
                   field.type === 'textarea' || field.type === 'string-array'
                 "
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 :auto-size="{ minRows: 3, maxRows: 8 }"
                 class="w-full"
@@ -7482,7 +7721,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               <DatePicker
                 :disabled="isFormFieldInteractionDisabled(field)"
                 v-else-if="field.type === 'datetime' || field.type === 'date'"
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 class="w-full"
                 :placeholder="getPlaceholder(field)"
@@ -7496,7 +7740,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               <TimePicker
                 :disabled="isFormFieldInteractionDisabled(field)"
                 v-else-if="field.type === 'time'"
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 class="w-full"
                 :placeholder="getPlaceholder(field)"
@@ -7505,7 +7754,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               <InputNumber
                 :disabled="isFormFieldInteractionDisabled(field)"
                 v-else-if="field.type === 'number'"
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 class="w-full"
                 :placeholder="getPlaceholder(field)"
@@ -7517,7 +7771,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                     editingRecord ? 'edit' : 'create',
                   ) && field.multiple
                 "
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 :disabled="isFormFieldInteractionDisabled(field)"
                 :options="
@@ -7535,7 +7794,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                     editingRecord ? 'edit' : 'create',
                   )
                 "
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 :disabled="isFormFieldInteractionDisabled(field)"
                 :options="
@@ -7553,7 +7817,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                   field.allowInput &&
                   !field.multiple
                 "
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 :allow-clear="true"
                 :disabled="isFormFieldInteractionDisabled(field)"
@@ -7574,7 +7843,12 @@ watch(canCustomizeTableColumnsLocally, () => {
                 v-else-if="
                   field.type === 'select' || field.type === 'role-select'
                 "
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 :allow-clear="true"
                 :disabled="isFormFieldInteractionDisabled(field)"
@@ -7597,7 +7871,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               <Select
                 :disabled="isFormFieldInteractionDisabled(field)"
                 v-else-if="field.type === 'tags'"
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 :options="getFieldOptions(field)"
                 :placeholder="getPlaceholder(field)"
@@ -7628,7 +7907,12 @@ watch(canCustomizeTableColumnsLocally, () => {
               />
               <Input
                 v-else
-                :value="getInteractionModelValue(formState[field.key], isFormFieldInteractionDisabled(field))"
+                :value="
+                  getInteractionModelValue(
+                    formState[field.key],
+                    isFormFieldInteractionDisabled(field),
+                  )
+                "
                 @update:value="updateFormFieldInput(field, $event)"
                 :disabled="isFormFieldInteractionDisabled(field)"
                 class="w-full"
@@ -7751,7 +8035,8 @@ watch(canCustomizeTableColumnsLocally, () => {
     <PageDisplaySettingsDrawer
       v-model:open="pageDisplaySettingsOpen"
       :code="pageDisplaySettingCode"
-      :fields="props.config.fields"
+      :domain-object="props.config.domainObject"
+      :fields="effectiveFields"
       :detail-fields="detailSettingsFields"
       :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
       :model-value="pageDisplayConfig"

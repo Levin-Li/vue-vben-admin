@@ -50,6 +50,7 @@ export const pageMeta = {
 
 export const simpleFormPageCrudConfig: CrudPageConfig = {
   apiBase: '/SimpleForm',
+  domainObject: true,
   apiService: simpleFormService,
   defaultFormValues: {
     editable: true,

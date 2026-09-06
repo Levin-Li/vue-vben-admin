@@ -23,6 +23,7 @@ export const pageMeta = {
 
 export const payChannelPageCrudConfig: CrudPageConfig = {
   apiBase: '/PayChannel',
+  domainObject: true,
   apiService: payChannelService,
   defaultFormValues: {
     editable: true,

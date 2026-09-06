@@ -12,11 +12,13 @@ import {
   isSettingEditable,
   serializeSettingValueFromEditor,
 } from './setting-for-tenant/setting-for-tenant';
+import SettingHistoryDialog from './setting-history-dialog.vue';
 import SettingValueContentField from './setting-value-content-field.vue';
 
 const props = defineProps<{
   config: CrudPageConfig;
   forceJsonValueEditor?: boolean;
+  historyBizType?: string;
   serializeValueContent?: (
     record: Record<string, any>,
     value: unknown,
@@ -29,6 +31,9 @@ const editValueFormState = ref<Record<string, any>>({});
 const editValueMode = ref<'edit' | 'view'>('edit');
 const savingValue = ref(false);
 const reloadList = ref<(() => Promise<void> | void) | null>(null);
+const historyModalOpen = ref(false);
+const historyTarget = ref<null | Record<string, any>>(null);
+const historyReload = ref<(() => Promise<void> | void) | null>(null);
 
 const editValueReadonly = computed(() => editValueMode.value === 'view');
 const canSaveEditValue = computed(() => editValueMode.value === 'edit');
@@ -44,7 +49,7 @@ const editValueTitle = computed(() => {
 
 const editValueModalBodyStyle = {
   maxHeight: 'calc(100vh - 160px)',
-  overflowY: 'auto',
+  overflowY: 'auto' as const,
 };
 
 function openPreviewValue(record: Record<string, any>) {
@@ -64,6 +69,20 @@ function openEditValue(
   editValueFormState.value = { ...record };
   reloadList.value = reload || null;
   editValueModalOpen.value = true;
+}
+
+function openHistory(
+  record: Record<string, any>,
+  reload?: () => Promise<void> | void,
+) {
+  if (!props.historyBizType) return;
+  historyTarget.value = record;
+  historyReload.value = reload || null;
+  historyModalOpen.value = true;
+}
+
+async function handleHistoryRestored() {
+  await historyReload.value?.();
 }
 
 async function updateSettingValue(payload: Record<string, any>) {
@@ -137,6 +156,14 @@ async function saveEditValue() {
         查看值
       </Button>
       <Button
+        v-if="historyBizType"
+        size="small"
+        type="link"
+        @click="openHistory(record, reload)"
+      >
+        恢复数据
+      </Button>
+      <Button
         v-if="isSettingEditable(record)"
         size="small"
         type="link"
@@ -146,6 +173,16 @@ async function saveEditValue() {
       </Button>
     </template>
   </CrudPage>
+
+  <SettingHistoryDialog
+    v-if="historyTarget && historyBizType"
+    v-model:open="historyModalOpen"
+    :biz-data-id="historyTarget.id"
+    :biz-type="historyBizType"
+    :tenant-id="historyTarget.tenantId"
+    :title="`恢复数据 · ${historyTarget.name || historyTarget.code || historyTarget.id}`"
+    @restored="handleHistoryRestored"
+  />
 
   <Modal
     v-model:open="editValueModalOpen"

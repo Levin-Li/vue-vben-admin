@@ -44,6 +44,7 @@ export const pageMeta = {
 
 export const noticePageCrudConfig: CrudPageConfig = {
   apiBase: '/Notice',
+  domainObject: true,
   apiService: noticeService,
   defaultFormValues: {
     editable: true,

@@ -11,6 +11,7 @@ export const pageMeta = {
 
 export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/ServicePluginSetting',
+  domainObject: true,
   apiService: servicePluginSettingService,
   defaultFormValues: {
     enable: true,

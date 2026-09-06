@@ -14,6 +14,7 @@ export const pageMeta = {
 
 export const servicePluginPageCrudConfig: CrudPageConfig = {
   apiBase: '/ServicePlugin',
+  domainObject: true,
   apiService: servicePluginService,
   defaultQuery: {
     pageIndex: 1,

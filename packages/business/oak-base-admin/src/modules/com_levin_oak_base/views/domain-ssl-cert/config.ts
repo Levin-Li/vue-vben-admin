@@ -21,6 +21,7 @@ export const pageMeta = {
 
 export const domainSslCertPageCrudConfig: CrudPageConfig = {
   apiBase: '/DomainSslCert',
+  domainObject: true,
   apiService: domainSslCertService,
   defaultFormValues: {
     editable: true,

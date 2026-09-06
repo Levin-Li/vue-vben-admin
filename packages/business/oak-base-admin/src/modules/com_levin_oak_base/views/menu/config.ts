@@ -26,6 +26,7 @@ export const pageMeta = {
 
 export const menuPageCrudConfig: CrudPageConfig = {
   apiBase: '/Menu',
+  domainObject: true,
   apiService: menuService,
   allowRetrieve: true,
   defaultFormValues: {

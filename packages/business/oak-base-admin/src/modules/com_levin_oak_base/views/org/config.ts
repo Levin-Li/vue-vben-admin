@@ -19,6 +19,7 @@ export const pageMeta = {
 
 export const orgPageCrudConfig: CrudPageConfig = {
   apiBase: '/Org',
+  domainObject: true,
   apiService: orgService,
   allowRetrieve: true,
   defaultFormValues: {

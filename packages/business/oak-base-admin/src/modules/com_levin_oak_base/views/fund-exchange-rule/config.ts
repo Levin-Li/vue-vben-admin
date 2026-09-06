@@ -21,6 +21,7 @@ export const pageMeta = {
 
 export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
   apiBase: '/FundExchangeRule',
+  domainObject: true,
   apiService: fundExchangeRuleService,
   defaultFormValues: {
     editable: true,

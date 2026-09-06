@@ -113,6 +113,7 @@ export const pageMeta = {
 
 export const userPageCrudConfig: CrudPageConfig = {
   apiBase: '/User',
+  domainObject: true,
   apiService: userService,
   allowRetrieve: true,
   defaultFormValues: {

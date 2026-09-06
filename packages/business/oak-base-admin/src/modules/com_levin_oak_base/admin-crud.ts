@@ -298,7 +298,7 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     icon: 'lucide:building-2',
     name: 'GlobalOrgSelectorSetting',
     resource: 'GlobalOrgSelectorSetting',
-    title: '全局组织选择器',
+    title: '全局组织与用户选择器',
   },
   {
     icon: 'lucide:building',

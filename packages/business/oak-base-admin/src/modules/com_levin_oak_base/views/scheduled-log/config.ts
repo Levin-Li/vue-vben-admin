@@ -11,6 +11,7 @@ export const pageMeta = {
 
 export const scheduledLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/ScheduledLog',
+  domainObject: true,
   apiService: scheduledLogService,
   allowCreate: false,
   allowDelete: false,

@@ -6,6 +6,7 @@ import {
   canUseLocalTableColumnSettings,
   findDisplayRuleCycle,
   distributeExtraTableWidth,
+  getDefaultFieldHidden,
   getDefaultVisibleRoleCodes,
   hasDisplayRuleCycle,
   hasServerListHeaderConfig,
@@ -19,9 +20,11 @@ import {
   releaseDisplayGroupFields,
   resolveDisplayGroupExpandedFieldCount,
   resolveDisplayGroupOrder,
+  resolveDomainObjectCrudFields,
   resolveDefaultTableColumnWidth,
   resolveRuntimeDisplayField,
   resolveRuntimeDisplayHeader,
+  resolveStaticDisplayGroup,
   sortDisplayGroups,
   resolveDisplayStates,
   resolveDisplaySubmitKeys,
@@ -42,6 +45,46 @@ import {
 } from '../crud-page-display';
 
 describe('crud page display rules', () => {
+  it('converts eligible static layout groups into detail display groups', () => {
+    const fields = [
+      { key: 'name', label: '名称', layoutGroup: 'basic', layoutGroupTitle: '基本信息' },
+      { key: 'code', label: '编码', layoutGroup: 'basic', layoutGroupTitle: '基本信息' },
+      { key: 'type', label: '类型', layoutGroup: 'basic', layoutGroupTitle: '基本信息' },
+      { key: 'category', label: '类别', layoutGroup: 'basic', layoutGroupTitle: '基本信息' },
+      { key: 'groupName', label: '分组', layoutGroup: 'basic', layoutGroupTitle: '基本信息' },
+      { key: 'orderCode', label: '排序', layoutGroup: 'business', layoutGroupTitle: '状态与排序' },
+      { key: 'enable', label: '启用', layoutGroup: 'business', layoutGroupTitle: '状态与排序' },
+    ];
+
+    expect(resolveStaticDisplayGroup(fields, 'basic')).toMatchObject({
+      displayStyle: 'divider',
+      key: 'basic',
+      title: '基本信息',
+    });
+    expect(resolveStaticDisplayGroup(fields.slice(0, 6), 'basic')).toBeUndefined();
+    expect(resolveStaticDisplayGroup(fields, 'business')).toBeUndefined();
+  });
+
+  it('adds the standard domain field only for explicitly declared DomainObject pages', () => {
+    const domainField = { key: 'domainId', label: '领域标识' };
+    const original = [{ key: 'name', label: '名称' }];
+
+    expect(resolveDomainObjectCrudFields(original, false, domainField)).toBe(
+      original,
+    );
+    expect(resolveDomainObjectCrudFields(original, true, domainField)).toEqual([
+      ...original,
+      domainField,
+    ]);
+    expect(
+      resolveDomainObjectCrudFields(
+        [...original, domainField],
+        true,
+        domainField,
+      ),
+    ).toHaveLength(2);
+  });
+
   it('treats absent dependencies and exclusions as satisfied', () => {
     expect(
       resolveDisplayStates([
@@ -154,6 +197,16 @@ describe('crud page display rules', () => {
     expect(repeated[1]).toBe(initial[1]);
   });
 
+  it('initializes a domain ownership column as hidden until the page setting explicitly shows it', () => {
+    const [header] = reconcileCrudPageDisplayHeaders(
+      [],
+      [{ key: 'domainId', label: '归属域', table: true }],
+      { hideDomainId: true },
+    );
+
+    expect(header.visible).toEqual({ mode: 'hidden' });
+  });
+
   it('appends the operation column after data fields when the list has row actions', () => {
     const headers = reconcileCrudPageDisplayHeaders(
       [],
@@ -197,6 +250,28 @@ describe('crud page display rules', () => {
       visible: { mode: 'hidden' },
       width: 260,
     });
+  });
+
+  it('keeps generated virtual headers while reconciling real list fields', () => {
+    const headers = reconcileCrudPageDisplayHeaders(
+      [
+        {
+          key: '__virtual_summary',
+          label: '摘要',
+          order: 0,
+          valueDisplay: { expression: 'row.name', mode: 'script' },
+          virtual: true,
+          visible: { mode: 'always' },
+          width: 180,
+        },
+      ],
+      [{ key: 'name', label: '名称', table: true }],
+    );
+
+    expect(headers.map((header) => header.key)).toEqual([
+      'name',
+      '__virtual_summary',
+    ]);
   });
 
   it('restores the operation column default width when its saved width is automatic', () => {
@@ -435,15 +510,33 @@ describe('crud page display rules', () => {
   });
 
   it('hides system identity and metadata fields by default without overriding an explicit display choice', () => {
+    const domainField = {
+      hidden: getDefaultFieldHidden('domainId', { hideDomainId: true }),
+      key: 'domainId',
+    };
+    expect(initializeFieldHidden(domainField)).toBe(true);
+    expect([...resolveDisplaySubmitKeys([domainField])]).toEqual([]);
+    expect(getDefaultFieldHidden('domainId', { hideDomainId: false })).toBe(
+      false,
+    );
     expect(initializeFieldHidden({ key: 'id' })).toBe(true);
     expect(initializeFieldHidden({ key: 'editable' })).toBe(true);
     expect(initializeFieldHidden({ key: 'orderCode' })).toBe(true);
     expect(initializeFieldHidden({ key: 'lastUpdateTime' })).toBe(true);
     expect(initializeFieldHidden({ hidden: false, key: 'id' })).toBe(false);
+    expect(initializeFieldHidden({ hidden: false, key: 'domainId' })).toBe(
+      false,
+    );
     expect(initializeFieldHidden({ key: 'tenantId' })).toBe(false);
   });
 
   it('applies the same hidden-by-default rule to list headers unless a value was saved', () => {
+    expect(
+      initializeHeaderVisibility(
+        { key: 'domainId' },
+        { hideDomainId: true },
+      ),
+    ).toEqual({ mode: 'hidden' });
     expect(initializeHeaderVisibility({ key: 'lastUpdateTime' })).toEqual({
       mode: 'hidden',
     });
@@ -601,7 +694,6 @@ describe('crud page display rules', () => {
   });
 });
 
-
 describe('字段展示提交四状态', () => {
   it('原隐藏布尔保持不提交，显式隐藏提交不进入展示集合', () => {
     const fields = [
@@ -609,43 +701,86 @@ describe('字段展示提交四状态', () => {
       { key: 'omitted', hidden: true },
       { key: 'defaulted', hidden: true, submitWhenHidden: true },
     ];
-    expect(resolveDisplayStates(fields)).toEqual({ shown: 'VISIBLE', omitted: 'HIDDEN', defaulted: 'HIDDEN' });
-    expect([...resolveDisplaySubmitKeys(fields)]).toEqual(['shown', 'defaulted']);
+    expect(resolveDisplayStates(fields)).toEqual({
+      shown: 'VISIBLE',
+      omitted: 'HIDDEN',
+      defaulted: 'HIDDEN',
+    });
+    expect([...resolveDisplaySubmitKeys(fields)]).toEqual([
+      'shown',
+      'defaulted',
+    ]);
   });
   it('隐藏提交不能绕过显示脚本、依赖和互斥条件', () => {
     const fields = [
       { key: 'shown' },
       { key: 'hidden', hidden: true },
       { key: 'expression', hidden: true, submitWhenHidden: true },
-      { key: 'dependent', hidden: true, submitWhenHidden: true, visibility: { dependsOn: { fieldKeys: ['hidden'] } } },
-      { key: 'exclusive', hidden: true, submitWhenHidden: true, visibility: { exclusiveWith: { fieldKeys: ['shown'] } } },
+      {
+        key: 'dependent',
+        hidden: true,
+        submitWhenHidden: true,
+        visibility: { dependsOn: { fieldKeys: ['hidden'] } },
+      },
+      {
+        key: 'exclusive',
+        hidden: true,
+        submitWhenHidden: true,
+        visibility: { exclusiveWith: { fieldKeys: ['shown'] } },
+      },
     ];
-    expect([...resolveDisplaySubmitKeys(fields, { expression: false })]).toEqual(['shown']);
+    expect([
+      ...resolveDisplaySubmitKeys(fields, { expression: false }),
+    ]).toEqual(['shown']);
   });
   it('横向四选项可以切换并通过配置保存回显', () => {
     const field = { key: 'priority' };
-    for (const mode of ['display-submit', 'hidden-submit', 'disabled-submit', 'hidden-omit'] as const) {
+    for (const mode of [
+      'display-submit',
+      'hidden-submit',
+      'disabled-submit',
+      'hidden-omit',
+    ] as const) {
       setDisplaySubmitMode(field, mode);
-      expect(getDisplaySubmitMode(JSON.parse(JSON.stringify(field)))).toBe(mode);
+      expect(getDisplaySubmitMode(JSON.parse(JSON.stringify(field)))).toBe(
+        mode,
+      );
     }
   });
 });
-
 
 describe('显示依赖尊重权限及场景排除', () => {
   it('隐藏提交的依赖字段被角色排除时不提交', () => {
     const fields = [
       { key: 'private' },
-      { key: 'defaulted', hidden: true, submitWhenHidden: true, visibility: { dependsOn: { fieldKeys: ['private'] } } },
+      {
+        key: 'defaulted',
+        hidden: true,
+        submitWhenHidden: true,
+        visibility: { dependsOn: { fieldKeys: ['private'] } },
+      },
     ];
-    expect([...resolveDisplaySubmitKeys(fields, {}, new Set(['private']))]).toEqual([]);
+    expect([
+      ...resolveDisplaySubmitKeys(fields, {}, new Set(['private'])),
+    ]).toEqual([]);
   });
   it('已知字段被场景移除不按未知依赖放行，排除字段也不能自行隐藏提交', () => {
     const fields = [
-      { key: 'defaulted', hidden: true, submitWhenHidden: true, visibility: { dependsOn: { fieldKeys: ['createOnly'] } } },
+      {
+        key: 'defaulted',
+        hidden: true,
+        submitWhenHidden: true,
+        visibility: { dependsOn: { fieldKeys: ['createOnly'] } },
+      },
       { key: 'denied', hidden: true, submitWhenHidden: true },
     ];
-    expect([...resolveDisplaySubmitKeys(fields, {}, new Set(['createOnly', 'denied']))]).toEqual([]);
+    expect([
+      ...resolveDisplaySubmitKeys(
+        fields,
+        {},
+        new Set(['createOnly', 'denied']),
+      ),
+    ]).toEqual([]);
   });
 });
 
@@ -666,10 +801,11 @@ describe('分组可见条件', () => {
   });
 });
 
-
 it('UI 禁提保持可见和提交资格，并不能覆盖权限排除', () => {
   const fields = [{ key: 'priority', disabled: true }];
   expect(resolveDisplayStates(fields).priority).toBe('VISIBLE');
   expect([...resolveDisplaySubmitKeys(fields)]).toEqual(['priority']);
-  expect([...resolveDisplaySubmitKeys(fields, {}, new Set(['priority']))]).toEqual([]);
+  expect([
+    ...resolveDisplaySubmitKeys(fields, {}, new Set(['priority'])),
+  ]).toEqual([]);
 });

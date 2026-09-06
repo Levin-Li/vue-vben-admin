@@ -20,6 +20,7 @@ export const pageMeta = {
 
 export const addressPageCrudConfig: CrudPageConfig = {
   apiBase: '/Address',
+  domainObject: true,
   apiService: addressService,
   defaultFormValues: {
     category: 'ReceiveAndSend',

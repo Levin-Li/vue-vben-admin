@@ -13,6 +13,7 @@ function serializeUiSettingValueContent(
 <template>
   <SettingCrudPage
     :config="uiSettingPageCrudConfig"
+    :history-biz-type="'com.levin.oak.base.entities.UiSetting'"
     force-json-value-editor
     :serialize-value-content="serializeUiSettingValueContent"
   />

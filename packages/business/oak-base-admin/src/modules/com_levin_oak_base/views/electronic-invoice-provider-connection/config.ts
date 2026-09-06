@@ -166,6 +166,7 @@ export const pageMeta = {
 export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
     apiBase: '/EInvoiceProviderConnection',
+    domainObject: true,
     apiService: electronicInvoiceProviderConnectionService,
     createPath: '/EInvoiceProviderConnection/activate',
     title: '电子发票供应商连接',

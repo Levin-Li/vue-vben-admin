@@ -59,6 +59,7 @@ export const pageMeta = {
 
 export const trafficControlRulePageCrudConfig: CrudPageConfig = {
   apiBase: '/TrafficControlRule',
+  domainObject: true,
   apiService: trafficControlRuleService,
   defaultFormValues: {
     algorithm: 'FixedWindow',

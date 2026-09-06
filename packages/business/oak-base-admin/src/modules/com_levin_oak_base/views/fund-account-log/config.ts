@@ -30,6 +30,7 @@ export const pageMeta = {
 
 export const fundAccountLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/FundAccountLog',
+  domainObject: true,
   apiService: fundAccountLogService,
   allowCreate: false,
   allowDelete: false,

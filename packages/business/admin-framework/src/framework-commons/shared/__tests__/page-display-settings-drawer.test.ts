@@ -27,7 +27,7 @@ function mountDrawer(saving: boolean, showOperationColumn = false) {
     props: {
       code: '/clob/V1/Area',
       fields: [{ key: 'name', label: '名称', search: true }],
-      detailFields: [{key:'name',label:'名称'}],
+      detailFields: [{ key: 'name', label: '名称' }],
       modelValue: { version: 1 },
       open: true,
       saving,
@@ -55,7 +55,49 @@ function getTab(title: string) {
 }
 
 describe('页面展示设置抽屉', () => {
-  it.each([['查询表单', 'query'], ['新增表单', 'create'], ['编辑表单', 'edit']])('在%s用紧凑连续分段按钮保存隐藏提交', async (title, view) => {
+  it('initializes domainId as hidden and omitted in every view until the page setting overrides it', async () => {
+    const wrapper = mount(PageDisplaySettingsDrawer, {
+      attachTo: document.body,
+      props: {
+        code: '/clob/V1/DomainOwned',
+        detailFields: [{ key: 'domainId', label: '归属域' }],
+        domainObject: true,
+        fields: [
+          { key: 'domainId', label: '归属域', search: true, table: true },
+        ],
+        modelValue: { version: 1 },
+        open: true,
+        saving: false,
+      },
+    });
+    await flushPromises();
+
+    getUploadButton().click();
+    await nextTick();
+    const payload = wrapper.emitted('save')![0]![0] as {
+      config: Record<string, any>;
+    };
+
+    expect(payload.config.query.fields[0]).toMatchObject({ hidden: true });
+    expect(payload.config.create.fields[0]).toMatchObject({ hidden: true });
+    expect(payload.config.edit.fields[0]).toMatchObject({ hidden: true });
+    expect(payload.config.query.fields[0].submitWhenHidden).not.toBe(true);
+    expect(payload.config.create.fields[0].submitWhenHidden).not.toBe(true);
+    expect(payload.config.edit.fields[0].submitWhenHidden).not.toBe(true);
+    expect(payload.config.detail.fields[0]).toMatchObject({ hidden: true });
+    expect(payload.config.list.headers[0]).toMatchObject({
+      key: 'domainId',
+      visible: { mode: 'hidden' },
+    });
+    wrapper.unmount();
+    document.body.innerHTML = '';
+  });
+
+  it.each([
+    ['查询表单', 'query'],
+    ['新增表单', 'create'],
+    ['编辑表单', 'edit'],
+  ])('在%s用紧凑连续分段按钮保存隐藏提交', async (title, view) => {
     const wrapper = mountDrawer(false);
     await flushPromises();
     const tab = getTab(title);
@@ -69,15 +111,34 @@ describe('页面展示设置抽屉', () => {
     expect(group.querySelectorAll('.ant-radio-button-wrapper')).toHaveLength(4);
     expect(group.querySelectorAll('.ant-radio-inner')).toHaveLength(0);
     expect(group.textContent?.replaceAll(/\s/g, '')).toBe('展提隐提禁提不提');
-    const tooltipTitles = wrapper.findAllComponents(Tooltip).map((item) => item.props('title'));
-    expect(tooltipTitles).toEqual(expect.arrayContaining(['展示控件并参与提交', '不展示控件仍参与提交', '展示控件但不可修改仍参与提交', '不展示控件也不参与校验和提交']));
-    const choice = group.querySelector('input[value="hidden-submit"]') as HTMLInputElement;
+    const tooltipTitles = wrapper
+      .findAllComponents(Tooltip)
+      .map((item) => item.props('title'));
+    expect(tooltipTitles).toEqual(
+      expect.arrayContaining([
+        '展示控件并参与提交',
+        '不展示控件仍参与提交',
+        '展示控件但不可修改仍参与提交',
+        '不展示控件也不参与校验和提交',
+      ]),
+    );
+    const choice = group.querySelector(
+      'input[value="hidden-submit"]',
+    ) as HTMLInputElement;
     choice.click();
     await nextTick();
     getUploadButton().click();
     await nextTick();
-    const payload = wrapper.emitted('save')![0]![0] as { config: Record<string, { fields: Array<{ hidden: boolean; submitWhenHidden: boolean }> }> };
-    expect(payload.config[view!]!.fields[0]).toMatchObject({ hidden: true, submitWhenHidden: true });
+    const payload = wrapper.emitted('save')![0]![0] as {
+      config: Record<
+        string,
+        { fields: Array<{ hidden: boolean; submitWhenHidden: boolean }> }
+      >;
+    };
+    expect(payload.config[view!]!.fields[0]).toMatchObject({
+      hidden: true,
+      submitWhenHidden: true,
+    });
     wrapper.unmount();
     document.body.innerHTML = '';
   });
@@ -85,17 +146,27 @@ describe('页面展示设置抽屉', () => {
   it('禁提按钮保存独立交互状态且切回展提后解除禁用', async () => {
     const wrapper = mountDrawer(false);
     await flushPromises();
-    const group = document.body.querySelector('[aria-label="名称展示与提交"]') as HTMLElement;
-    (group.querySelector('input[value="disabled-submit"]') as HTMLInputElement).click();
+    const group = document.body.querySelector(
+      '[aria-label="名称展示与提交"]',
+    ) as HTMLElement;
+    (
+      group.querySelector('input[value="disabled-submit"]') as HTMLInputElement
+    ).click();
     await nextTick();
     getUploadButton().click();
     await nextTick();
-    expect((wrapper.emitted('save')?.at(-1)?.[0] as any).config.query.fields[0]).toMatchObject({ hidden: false, disabled: true, submitWhenHidden: false });
-    (group.querySelector('input[value="display-submit"]') as HTMLInputElement).click();
+    expect(
+      (wrapper.emitted('save')?.at(-1)?.[0] as any).config.query.fields[0],
+    ).toMatchObject({ hidden: false, disabled: true, submitWhenHidden: false });
+    (
+      group.querySelector('input[value="display-submit"]') as HTMLInputElement
+    ).click();
     await nextTick();
     getUploadButton().click();
     await nextTick();
-    expect((wrapper.emitted('save')?.at(-1)?.[0] as any).config.query.fields[0]).toMatchObject({ hidden: false, disabled: false });
+    expect(
+      (wrapper.emitted('save')?.at(-1)?.[0] as any).config.query.fields[0],
+    ).toMatchObject({ hidden: false, disabled: false });
     wrapper.unmount();
     document.body.innerHTML = '';
   });
@@ -287,99 +358,165 @@ describe('页面展示设置抽屉', () => {
     document.body.innerHTML = '';
   });
   it('详情空值展示默认开启，关闭后保存并重开回显', async () => {
-    const wrapper=mountDrawer(false);
+    const wrapper = mountDrawer(false);
     await flushPromises();
     getTab('详情表单').click();
     await flushPromises();
-    const getToggle=()=>wrapper.findAllComponents(Switch).find(component=>component.attributes('aria-label')==='展示空值');
+    const getToggle = () =>
+      wrapper
+        .findAllComponents(Switch)
+        .find((component) => component.attributes('aria-label') === '展示空值');
     expect(getToggle()?.props('checked')).toBe(true);
-    getToggle()?.vm.$emit('update:checked',false);
+    getToggle()?.vm.$emit('update:checked', false);
     await nextTick();
     getUploadButton().click();
     await nextTick();
-    const saved=(wrapper.emitted('save')?.at(-1)?.[0] as {config: Record<string, any>}).config;
+    const saved = (
+      wrapper.emitted('save')?.at(-1)?.[0] as { config: Record<string, any> }
+    ).config;
     expect(saved.detail.showEmptyValues).toBe(false);
-    await wrapper.setProps({open:false});
-    await wrapper.setProps({open:true,modelValue:saved});
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({ open: true, modelValue: saved });
     await flushPromises();
     expect(getToggle()?.props('checked')).toBe(false);
     wrapper.unmount();
-    document.body.innerHTML='';
+    document.body.innerHTML = '';
   });
 
   it('详情设置排除查询专用字段和显式虚拟列，不按标签误删真实字段', async () => {
-    const wrapper=mountDrawer(false);
-    await wrapper.setProps({open:false});
-    await wrapper.setProps({open:true,fields:[
-      {key:'tenantId',label:'归属租户',search:true},
-      {key:'__tenant',label:'归属租户',form:false,table:true,detail:false},
-      {key:'containsName',label:'角色名称',form:false,search:true},
-      {key:'name',label:'角色名称',table:true},
-      {key:'containsCode',label:'角色编码',form:false,search:true},
-      {key:'code',label:'角色编码',table:true},
-      {key:'inType',label:'角色类型',form:false,search:true},
-      {key:'type',label:'角色类型',table:true},
-      {key:'id',label:'角色ID',form:false,search:true,table:true},
-      {key:'createdAt',label:'创建时间',form:false,table:true},
-    ]});
-    await wrapper.setProps({detailFields:[
-      {key:'tenantId',label:'归属租户'},{key:'name',label:'角色名称'},{key:'code',label:'角色编码'},
-      {key:'type',label:'角色类型'},{key:'id',label:'角色ID'},{key:'createdAt',label:'创建时间'},
-    ]});
+    const wrapper = mountDrawer(false);
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({
+      open: true,
+      fields: [
+        { key: 'tenantId', label: '归属租户', search: true },
+        {
+          key: '__tenant',
+          label: '归属租户',
+          form: false,
+          table: true,
+          detail: false,
+        },
+        { key: 'containsName', label: '角色名称', form: false, search: true },
+        { key: 'name', label: '角色名称', table: true },
+        { key: 'containsCode', label: '角色编码', form: false, search: true },
+        { key: 'code', label: '角色编码', table: true },
+        { key: 'inType', label: '角色类型', form: false, search: true },
+        { key: 'type', label: '角色类型', table: true },
+        { key: 'id', label: '角色ID', form: false, search: true, table: true },
+        { key: 'createdAt', label: '创建时间', form: false, table: true },
+      ],
+    });
+    await wrapper.setProps({
+      detailFields: [
+        { key: 'tenantId', label: '归属租户' },
+        { key: 'name', label: '角色名称' },
+        { key: 'code', label: '角色编码' },
+        { key: 'type', label: '角色类型' },
+        { key: 'id', label: '角色ID' },
+        { key: 'createdAt', label: '创建时间' },
+      ],
+    });
     await flushPromises();
-    getTab('详情表单').click();await flushPromises();
-    getUploadButton().click();await nextTick();
-    const saved=(wrapper.emitted('save')?.at(-1)?.[0] as {config: Record<string, any>}).config;
-    expect(saved.detail.fields.map((field:{key:string})=>field.key)).toEqual(['tenantId','name','code','type','id','createdAt']);
-    getTab('查询表单').click();await flushPromises();getUploadButton().click();await nextTick();
-    const query=(wrapper.emitted('save')?.at(-1)?.[0] as {config: Record<string, any>}).config.query;
-    expect(query.fields.map((field:{key:string})=>field.key)).toContain('containsName');
-    wrapper.unmount();document.body.innerHTML='';
+    getTab('详情表单').click();
+    await flushPromises();
+    getUploadButton().click();
+    await nextTick();
+    const saved = (
+      wrapper.emitted('save')?.at(-1)?.[0] as { config: Record<string, any> }
+    ).config;
+    expect(
+      saved.detail.fields.map((field: { key: string }) => field.key),
+    ).toEqual(['tenantId', 'name', 'code', 'type', 'id', 'createdAt']);
+    getTab('查询表单').click();
+    await flushPromises();
+    getUploadButton().click();
+    await nextTick();
+    const query = (
+      wrapper.emitted('save')?.at(-1)?.[0] as { config: Record<string, any> }
+    ).config.query;
+    expect(query.fields.map((field: { key: string }) => field.key)).toContain(
+      'containsName',
+    );
+    wrapper.unmount();
+    document.body.innerHTML = '';
   });
 
-  it.each([['create','新增表单'],['edit','编辑表单']] as const)('%s 可配置是否显示提交勾选并保存回显', async (view,title)=>{
-    const wrapper=mountDrawer(false);await wrapper.setProps({open:false});
-    await wrapper.setProps({open:true,modelValue:{version:1,[view]:{fields:[{key:'name',layoutGroup:'basic'}],groups:[{key:'basic',title:'基本信息'}]}}});await flushPromises();
-    getTab(title).click();await flushPromises();
-    const toggle=()=>wrapper.findAllComponents(Switch).find(component=>component.attributes('aria-label')==='显示提交勾选');
+  it.each([
+    ['create', '新增表单'],
+    ['edit', '编辑表单'],
+  ] as const)('%s 可配置是否显示提交勾选并保存回显', async (view, title) => {
+    const wrapper = mountDrawer(false);
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({
+      open: true,
+      modelValue: {
+        version: 1,
+        [view]: {
+          fields: [{ key: 'name', layoutGroup: 'basic' }],
+          groups: [{ key: 'basic', title: '基本信息' }],
+        },
+      },
+    });
+    await flushPromises();
+    getTab(title).click();
+    await flushPromises();
+    const toggle = () =>
+      wrapper
+        .findAllComponents(Switch)
+        .find(
+          (component) => component.attributes('aria-label') === '显示提交勾选',
+        );
     expect(toggle()?.props('checked')).toBe(false);
-    toggle()?.vm.$emit('update:checked',true);await nextTick();getUploadButton().click();await nextTick();
-    const saved=(wrapper.emitted('save')?.at(-1)?.[0] as {config:Record<string,any>}).config;
+    toggle()?.vm.$emit('update:checked', true);
+    await nextTick();
+    getUploadButton().click();
+    await nextTick();
+    const saved = (
+      wrapper.emitted('save')?.at(-1)?.[0] as { config: Record<string, any> }
+    ).config;
     expect(saved[view].groups[0].showSubmitCheckbox).toBe(true);
-    await wrapper.setProps({open:false});await wrapper.setProps({open:true,modelValue:saved});await flushPromises();expect(toggle()?.props('checked')).toBe(true);
-    getTab('详情表单').click();await flushPromises();
-    wrapper.unmount();document.body.innerHTML='';
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({ open: true, modelValue: saved });
+    await flushPromises();
+    expect(toggle()?.props('checked')).toBe(true);
+    getTab('详情表单').click();
+    await flushPromises();
+    wrapper.unmount();
+    document.body.innerHTML = '';
   });
 
-  it.each([['create', '新增表单'], ['edit', '编辑表单']] as const)(
-    '%s 的快捷填写默认关闭，开启后保存回显',
-    async (view, title) => {
-      const wrapper = mountDrawer(false);
-      await flushPromises();
-      getTab(title).click();
-      await flushPromises();
-      const quickFill = () =>
-        wrapper
-          .findAllComponents(Switch)
-          .find((component) => component.attributes('aria-label') === '快捷填写');
-      expect(quickFill()).toBeDefined();
-      expect(quickFill()?.props('checked')).toBeFalsy();
-      quickFill()?.vm.$emit('update:checked', true);
-      await nextTick();
-      getUploadButton().click();
-      await nextTick();
-      const saved = (wrapper.emitted('save')?.at(-1)?.[0] as {
+  it.each([
+    ['create', '新增表单'],
+    ['edit', '编辑表单'],
+  ] as const)('%s 的快捷填写默认关闭，开启后保存回显', async (view, title) => {
+    const wrapper = mountDrawer(false);
+    await flushPromises();
+    getTab(title).click();
+    await flushPromises();
+    const quickFill = () =>
+      wrapper
+        .findAllComponents(Switch)
+        .find((component) => component.attributes('aria-label') === '快捷填写');
+    expect(quickFill()).toBeDefined();
+    expect(quickFill()?.props('checked')).toBeFalsy();
+    quickFill()?.vm.$emit('update:checked', true);
+    await nextTick();
+    getUploadButton().click();
+    await nextTick();
+    const saved = (
+      wrapper.emitted('save')?.at(-1)?.[0] as {
         config: Record<string, any>;
-      }).config;
-      expect(saved[view].quickFill).toBe(true);
-      await wrapper.setProps({ open: false });
-      await wrapper.setProps({ open: true, modelValue: saved });
-      await flushPromises();
-      expect(quickFill()?.props('checked')).toBe(true);
-      wrapper.unmount();
-      document.body.innerHTML = '';
-    },
-  );
+      }
+    ).config;
+    expect(saved[view].quickFill).toBe(true);
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({ open: true, modelValue: saved });
+    await flushPromises();
+    expect(quickFill()?.props('checked')).toBe(true);
+    wrapper.unmount();
+    document.body.innerHTML = '';
+  });
 
   it('标题别名默认留空，未填写时沿用开发配置中的字段名称', async () => {
     const wrapper = mountDrawer(false);
@@ -402,8 +539,9 @@ describe('页面展示设置抽屉', () => {
     document.body.innerHTML = '';
   });
 
-  it('展示开发默认分组但不把它写入运行时草稿', async () => {
+  it('将开发默认分组作为可编辑草稿展示，并可恢复默认分组', async () => {
     const wrapper = mountDrawer(false);
+    await wrapper.setProps({ open: false });
     await wrapper.setProps({
       fields: [
         {
@@ -421,22 +559,132 @@ describe('页面展示设置抽屉', () => {
         { key: 'extra', label: '扩展信息', layoutGroup: 'other' },
       ],
     });
+    await wrapper.setProps({ open: true });
+    await flushPromises();
+    getTab('新增表单').click();
     await flushPromises();
 
+    expect(document.body.textContent).toContain('基本信息');
     const groupSelect = wrapper
       .findAllComponents(Select)
-      .find(
-        (component) => component.props('placeholder') === '基本信息（开发默认）',
+      .find((component) =>
+        component
+          .props('options')
+          ?.some((option: { value: string }) => option.value === 'basic'),
       );
-    expect(groupSelect).toBeDefined();
+    expect(groupSelect?.props('value')).toBe('basic');
+    const restoreButton = Array.from(
+      document.body.querySelectorAll('button'),
+    ).find((button) =>
+      button.textContent?.includes('恢复开发默认分组'),
+    ) as HTMLButtonElement;
+    restoreButton.click();
+    await nextTick();
+    expect(groupSelect?.props('value')).toBe('basic');
 
     getUploadButton().click();
     await nextTick();
+    const saved = (wrapper.emitted('save')?.at(-1)?.[0] as any).config.create;
+    expect(saved.groups.map((group: { key: string }) => group.key)).toEqual([
+      'basic',
+      'other',
+    ]);
     expect(
-      (wrapper.emitted('save')?.at(-1)?.[0] as any).config.query.fields[0],
-    ).not.toHaveProperty('layoutGroup');
+      saved.fields.find((field: { key: string }) => field.key === 'name'),
+    ).toMatchObject({ layoutGroup: 'basic' });
     wrapper.unmount();
     document.body.innerHTML = '';
   });
 
+  it('展示列表可添加虚拟字段，并要求填写值展示脚本', async () => {
+    const wrapper = mountDrawer(false);
+    await flushPromises();
+    getTab('展示列表').click();
+    await flushPromises();
+    const addVirtual = Array.from(
+      document.body.querySelectorAll('button'),
+    ).find((button) =>
+      button.textContent?.includes('添加虚拟字段'),
+    ) as HTMLButtonElement;
+    addVirtual.click();
+    await nextTick();
+    expect(document.body.textContent).toContain('虚拟字段');
+    const generatedCode = document.body.querySelector(
+      'input[placeholder="虚拟字段编码"]',
+    ) as HTMLInputElement;
+    expect(generatedCode.readOnly).toBe(true);
+    getUploadButton().click();
+    await nextTick();
+    expect(wrapper.emitted('save')).toBeUndefined();
+    wrapper.unmount();
+    document.body.innerHTML = '';
+  });
+
+  it('阻止上传重复的最终列表标题', async () => {
+    const wrapper = mountDrawer(false);
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({
+      modelValue: {
+        list: {
+          headers: [
+            {
+              key: 'name',
+              label: '名称',
+              title: '重复标题',
+              visible: { mode: 'always' },
+            },
+            {
+              key: 'code',
+              label: '编码',
+              title: '重复标题',
+              visible: { mode: 'always' },
+            },
+          ],
+        },
+        version: 1,
+      },
+      fields: [
+        { key: 'name', label: '名称', search: true, table: true },
+        { key: 'code', label: '编码', table: true },
+      ],
+    });
+    await wrapper.setProps({ open: true });
+    await flushPromises();
+    getTab('展示列表').click();
+    await flushPromises();
+    getUploadButton().click();
+    await nextTick();
+    expect(wrapper.emitted('save')).toBeUndefined();
+    wrapper.unmount();
+    document.body.innerHTML = '';
+  });
+
+  it('阻止上传重复的最终表单标题', async () => {
+    const wrapper = mountDrawer(false);
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({
+      fields: [
+        { key: 'name', label: '名称', search: true },
+        { key: 'code', label: '编码' },
+      ],
+      modelValue: {
+        create: {
+          fields: [
+            { key: 'name', label: '重复标题' },
+            { key: 'code', label: '重复标题' },
+          ],
+        },
+        version: 1,
+      },
+    });
+    await wrapper.setProps({ open: true });
+    await flushPromises();
+    getTab('新增表单').click();
+    await flushPromises();
+    getUploadButton().click();
+    await nextTick();
+    expect(wrapper.emitted('save')).toBeUndefined();
+    wrapper.unmount();
+    document.body.innerHTML = '';
+  });
 });

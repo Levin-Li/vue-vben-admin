@@ -41,6 +41,7 @@ export const pageMeta = {
 
 export const urlExAclPageCrudConfig: CrudPageConfig = {
   apiBase: '/UrlExAcl',
+  domainObject: true,
   apiService: urlExAclService,
   defaultFormValues: {
     editable: true,

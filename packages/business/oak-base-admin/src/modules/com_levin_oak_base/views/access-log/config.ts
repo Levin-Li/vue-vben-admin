@@ -25,6 +25,7 @@ export const pageMeta = {
 
 export const accessLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/AccessLog',
+  domainObject: true,
   apiService: accessLogService,
   allowCreate: false,
   allowDelete: false,

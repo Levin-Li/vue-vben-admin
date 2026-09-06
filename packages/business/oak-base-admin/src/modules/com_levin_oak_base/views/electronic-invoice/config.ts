@@ -22,6 +22,7 @@ export const pageMeta = {
 export const electronicInvoicePageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
     apiBase: '/EInvoice',
+    domainObject: true,
     apiService: electronicInvoiceService,
     createPath: '/EInvoice/issue',
     title: '电子发票',

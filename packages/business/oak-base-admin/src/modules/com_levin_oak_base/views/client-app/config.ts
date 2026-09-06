@@ -73,6 +73,7 @@ export const pageMeta = {
 
 export const clientAppPageCrudConfig: CrudPageConfig = {
   apiBase: '/ClientApp',
+  domainObject: true,
   apiService: clientAppService,
   defaultFormValues: {
     editable: true,

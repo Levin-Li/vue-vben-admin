@@ -12,6 +12,7 @@ export const pageMeta = {
 
 export const demoPageCrudConfig: CrudPageConfig = {
   apiBase: '/Demo',
+  domainObject: true,
   apiService: demoService,
   defaultQuery: {
     pageIndex: 1,

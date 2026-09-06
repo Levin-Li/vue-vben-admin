@@ -45,6 +45,7 @@ export const pageMeta = {
 
 export const articleChannelPageCrudConfig: CrudPageConfig = {
   apiBase: '/ArticleChannel',
+  domainObject: true,
   apiService: articleChannelService,
   defaultFormValues: {
     collectCount: 0,

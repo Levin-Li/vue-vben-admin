@@ -27,6 +27,7 @@ export const pageMeta = {
 
 export const fundAccountPageCrudConfig: CrudPageConfig = {
   apiBase: '/FundAccount',
+  domainObject: true,
   apiService: fundAccountService,
   defaultFormValues: {
     editable: true,

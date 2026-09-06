@@ -50,6 +50,7 @@ export const pageMeta = {
 
 export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
   apiBase: '/LegalSubject',
+  domainObject: true,
   apiService: legalSubjectService,
   defaultFormValues: {
     enable: true,

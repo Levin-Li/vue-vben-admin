@@ -11,7 +11,7 @@ import {
 import GlobalOrgSelector from './global-org-selector.vue';
 import { router } from './router';
 
-export const GLOBAL_ORG_SELECTOR_UI_SETTING_CODE = '全局组织选择器';
+export const GLOBAL_ORG_SELECTOR_UI_SETTING_CODE = '全局组织与用户选择器';
 
 const runtimeState = reactive({
   enabled: false,
@@ -73,7 +73,7 @@ async function loadRuntimeSetting(userId: string) {
       return;
     }
 
-    console.warn('加载全局组织选择器配置失败', error);
+    console.warn('加载全局组织与用户选择器配置失败', error);
     runtimeState.enabled = false;
     runtimeState.valueContent = undefined;
   } finally {

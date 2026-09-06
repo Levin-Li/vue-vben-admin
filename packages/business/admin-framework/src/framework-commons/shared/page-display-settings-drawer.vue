@@ -6,6 +6,7 @@ import {
   Input,
   InputNumber,
   message,
+  Modal,
   Radio,
   Select,
   Switch,
@@ -58,6 +59,9 @@ import type {
 type FormView = 'create' | 'detail' | 'edit';
 type View = FormView | 'list' | 'query';
 type GroupView = Exclude<View, 'list'>;
+type DrawerDisplayGroup = CrudPageDisplayGroupConfig & {
+  developmentDefault?: boolean;
+};
 type Scope = {
   domain?: string;
   orgCategory?: string;
@@ -69,6 +73,7 @@ type Scope = {
 
 const props = defineProps<{
   code: string;
+  domainObject?: boolean;
   initialScope?: Scope;
   fields: CrudFieldConfig[];
   detailFields?: CrudFieldConfig[];
@@ -101,6 +106,7 @@ function resetFieldRenderLimits() {
 }
 const draft = ref<CrudPageDisplayConfig>({ version: 1 });
 const scope = ref<Scope>({});
+const initialSnapshot = ref('');
 const scriptOpen = ref(false);
 const scriptText = ref('');
 const scriptTitle = ref('脚本工作台');
@@ -139,6 +145,59 @@ const previewExpanded = ref(false);
 const previewOverflowing = ref(false);
 let previewResizeObserver: null | ResizeObserver = null;
 let observedPreviewElement: HTMLElement | null = null;
+
+function currentSnapshot() {
+  return JSON.stringify({ config: draft.value, scope: scope.value });
+}
+
+const hasUnuploadedChanges = computed(
+  () =>
+    props.open &&
+    initialSnapshot.value !== '' &&
+    initialSnapshot.value !== currentSnapshot(),
+);
+
+const scopeMatchTooltip = computed(() => {
+  const labels: Array<[keyof Scope, string]> = [
+    ['tenantId', '租户'],
+    ['domain', '站点'],
+    ['userType', '用户类型'],
+    ['userCategory', '用户类别'],
+    ['orgCategory', '组织类别'],
+    ['orgType', '组织类型'],
+  ];
+  const detail = labels.map(([key, label]) =>
+    scope.value[key] ? `${label}：精确匹配` : `${label}：匹配任意`,
+  );
+  return `当前配置按以下范围匹配：${detail.join('；')}。`;
+});
+
+function requestClose() {
+  if (!hasUnuploadedChanges.value) {
+    emit('update:open', false);
+    return;
+  }
+  Modal.confirm({
+    cancelText: '继续编辑',
+    content: '关闭将放弃本次未上传的修改。',
+    okText: '放弃修改并关闭',
+    okType: 'danger',
+    title: '确认关闭页面展示设置？',
+    onOk: () => emit('update:open', false),
+  });
+}
+
+function normalizeScope(source: Scope | undefined): Scope {
+  const value = source || {};
+  return {
+    domain: value.domain,
+    orgCategory: value.orgCategory,
+    orgType: value.orgType,
+    tenantId: value.tenantId,
+    userCategory: value.userCategory,
+    userType: value.userType,
+  };
+}
 
 const PageDisplaySettingsTabContent = defineComponent({
   name: 'PageDisplaySettingsTabContent',
@@ -313,7 +372,24 @@ function getFieldConfigGridClass(view: View) {
 }
 
 function getFieldConfigMinWidthClass(view: View) {
-  return view === 'list' ? 'min-w-[1704px]' : view === 'detail' ? 'min-w-[1830px]' : 'min-w-[1600px]';
+  return view === 'list'
+    ? 'min-w-[1704px]'
+    : view === 'detail'
+      ? 'min-w-[1830px]'
+      : 'min-w-[1600px]';
+}
+
+function getAllowedFields(view: Exclude<View, 'list'>) {
+  return (view === 'detail' ? props.detailFields || [] : props.fields).filter(
+    (field) => {
+      if (view === 'query') return field.search;
+      if (view === 'create')
+        return field.form !== false && field.formCreate !== false;
+      if (view === 'edit')
+        return field.form !== false && field.formEdit !== false;
+      return true;
+    },
+  );
 }
 
 function ensureFields(view: Exclude<View, 'list'>) {
@@ -324,20 +400,15 @@ function ensureFields(view: Exclude<View, 'list'>) {
   if (view === 'edit') {
     holder.autoForceUpdateField ??= true;
   }
-  const allowed = (view === 'detail' ? props.detailFields || [] : props.fields).filter((field) => {
-    if (view === 'query') return field.search;
-    if (view === 'create')
-      return field.form !== false && field.formCreate !== false;
-    if (view === 'edit')
-      return field.form !== false && field.formEdit !== false;
-    return true;
-  });
+  const allowed = getAllowedFields(view);
   const existing = new Map(holder.fields.map((item) => [item.key, item]));
   const nextFields: CrudPageDisplayFieldConfig[] = allowed.map(
     (field, index) =>
       existing.get(field.key) || {
         inputDisplay: 'default',
-        hidden: getDefaultFieldHidden(field),
+        hidden: getDefaultFieldHidden(field, {
+          hideDomainId: props.domainObject === true,
+        }),
         key: field.key,
         order: index,
         defaultValue: {},
@@ -388,6 +459,13 @@ function formHolder(view: FormView) {
 function ensureGroups(view: GroupView) {
   const holder = groupedViewHolder(view);
   const groups = (holder.groups ||= []);
+  const defaults = getDevelopmentDefaultGroups(view);
+  for (const defaultGroup of defaults) {
+    if (!groups.some((group) => group.key === defaultGroup.key)) {
+      const { developmentDefault, ...group } = defaultGroup;
+      groups.push(group);
+    }
+  }
   for (const [index, group] of groups.entries()) {
     group.defaultExpandedRows ??= group.defaultExpanded === false ? 1 : 'all';
     group.displayStyle = normalizeCrudGroupDisplayStyle(group.displayStyle);
@@ -407,7 +485,10 @@ function ensureHeaders() {
   const nextHeaders = reconcileCrudPageDisplayHeaders(
     holder.headers,
     props.fields,
-    { includeOperationColumn: props.showOperationColumn === true },
+    {
+      hideDomainId: props.domainObject === true,
+      includeOperationColumn: props.showOperationColumn === true,
+    },
   );
   if (
     nextHeaders.length !== holder.headers.length ||
@@ -416,6 +497,22 @@ function ensureHeaders() {
     holder.headers = nextHeaders;
   }
   return holder.headers;
+}
+
+function addVirtualHeader() {
+  const holder = (draft.value.list ||= { headers: [] });
+  const headers = ensureHeaders();
+  const key = `virtual_${crypto.randomUUID().replaceAll('-', '')}`;
+  headers.push({
+    key,
+    label: `虚拟字段 ${headers.filter((header) => header.virtual === true).length + 1}`,
+    order: Math.max(-1, ...headers.map((header) => header.order ?? -1)) + 1,
+    valueDisplay: { expression: '', mode: 'script' },
+    virtual: true,
+    visible: { mode: 'always' },
+    width: 180,
+  });
+  holder.headers = headers;
 }
 
 function getRowsForView(view: View) {
@@ -434,13 +531,51 @@ const previewSignature = computed(() =>
     })
     .join('|'),
 );
+function getDevelopmentDefaultGroups(view: GroupView): DrawerDisplayGroup[] {
+  const fields = getAllowedFields(view);
+  if (fields.length < 7) return [];
+  const entries = new Map<string, CrudFieldConfig[]>();
+  for (const field of fields) {
+    if (!field.layoutGroup) continue;
+    entries.set(field.layoutGroup, [
+      ...(entries.get(field.layoutGroup) || []),
+      field,
+    ]);
+  }
+  return [...entries.entries()]
+    .filter(([, groupFields]) => groupFields.length >= 3)
+    .map(([key, groupFields], index) => ({
+      developmentDefault: true,
+      key,
+      order: Math.min(
+        ...groupFields.map(
+          (field) => field.layoutOrder ?? Number.MAX_SAFE_INTEGER,
+        ),
+        index,
+      ),
+      title:
+        groupFields.find((field) => field.layoutGroupTitle)?.layoutGroupTitle ||
+        key,
+    }));
+}
+
+function resolveGroups(view: GroupView): DrawerDisplayGroup[] {
+  const configured = ensureGroups(view);
+  const defaults = getDevelopmentDefaultGroups(view);
+  const groups = new Map<string, DrawerDisplayGroup>(
+    defaults.map((group) => [group.key, group]),
+  );
+  for (const group of configured) {
+    groups.set(group.key, group);
+  }
+  return sortDisplayGroups([...groups.values()]);
+}
+
 const activeGroups = computed(() => {
   groupRenderVersion.value;
-  return isGroupableView(activeKey.value) ? ensureGroups(activeKey.value) : [];
+  return isGroupableView(activeKey.value) ? resolveGroups(activeKey.value) : [];
 });
-const orderedActiveGroups = computed(() =>
-  sortDisplayGroups(activeGroups.value),
-);
+const orderedActiveGroups = computed(() => activeGroups.value);
 const groupOptions = computed(() => [
   { label: '不分组', value: undefined },
   ...orderedActiveGroups.value.map((group) => ({
@@ -457,7 +592,15 @@ const fieldOptions = computed(() =>
 
 function getSourceFieldTitle(key: string) {
   if (key === '__actions') return '操作';
-  return props.fields.find((field) => field.key === key)?.label || key;
+  const virtual = draft.value.list?.headers?.find(
+    (header) => header.key === key && header.virtual === true,
+  );
+  return (
+    virtual?.title ||
+    virtual?.label ||
+    props.fields.find((field) => field.key === key)?.label ||
+    key
+  );
 }
 
 function getSourceLayoutGroupTitle(key: string) {
@@ -474,12 +617,22 @@ function isOperationHeader(row: CrudPageDisplayHeaderConfig) {
   return row.key === '__actions';
 }
 
-function getRowGroupKey(row: CrudPageDisplayFieldConfig) {
-  if (!isGroupableView(activeKey.value) || !row.layoutGroup) return undefined;
-  return orderedActiveGroups.value.some(
-    (group) => group.key === row.layoutGroup,
-  )
-    ? row.layoutGroup
+function getRowGroupKey(
+  row: CrudPageDisplayFieldConfig,
+  view = activeKey.value,
+) {
+  if (!isGroupableView(view)) return undefined;
+  const configuredKey = row.layoutGroup;
+  if (row.layoutGroupExcluded === true) return undefined;
+  if (configuredKey) {
+    return resolveGroups(view).some((group) => group.key === configuredKey)
+      ? configuredKey
+      : undefined;
+  }
+  const source = getAllowedFields(view).find((field) => field.key === row.key);
+  return source?.layoutGroup &&
+    resolveGroups(view).some((group) => group.key === source.layoutGroup)
+    ? source.layoutGroup
     : undefined;
 }
 
@@ -496,21 +649,21 @@ function getRowGroupsForView(view: View) {
         (left.order ?? Number.MAX_SAFE_INTEGER) -
         (right.order ?? Number.MAX_SAFE_INTEGER),
     );
-  const groups = sortDisplayGroups(ensureGroups(view)).map((group) => ({
+  const groups = resolveGroups(view).map((group) => ({
     group,
     key: group.key,
     order: group.order ?? Number.MAX_SAFE_INTEGER,
     rows: sortRows(
       (rowsForView as CrudPageDisplayFieldConfig[]).filter(
-        (row) => row.layoutGroup === group.key,
+        (row) => getRowGroupKey(row, view) === group.key,
       ),
     ),
   }));
   const unassignedRows = sortRows(
     (rowsForView as CrudPageDisplayFieldConfig[]).filter(
       (row) =>
-        !row.layoutGroup ||
-        !groups.some((group) => group.key === row.layoutGroup),
+        !getRowGroupKey(row, view) ||
+        !groups.some((group) => group.key === getRowGroupKey(row, view)),
     ),
   );
 
@@ -558,6 +711,7 @@ function assignRowToGroup(row: CrudPageDisplayFieldConfig, value: unknown) {
     orderedActiveGroups.value.some((group) => group.key === value)
       ? value
       : undefined;
+  row.layoutGroupExcluded = groupKey === undefined;
   moveDisplayFieldToGroupEnd(
     ensureFields(activeKey.value) as CrudPageDisplayFieldConfig[],
     row,
@@ -612,6 +766,40 @@ function dropAt(
   reordered.forEach((row, index) => {
     row.order = index;
   });
+}
+
+function restoreDevelopmentDefaultGroups(view: GroupView) {
+  const defaults = getDevelopmentDefaultGroups(view);
+  if (!defaults.length) {
+    message.warning(`${viewTitle(view)}没有满足条件的开发默认分组。`);
+    return;
+  }
+  const holder = groupedViewHolder(view);
+  const defaultKeys = new Set(defaults.map((group) => group.key));
+  const fields = ensureFields(view);
+  const sourceByKey = new Map(
+    getAllowedFields(view).map((field) => [field.key, field]),
+  );
+  for (const [index, field] of fields.entries()) {
+    const source = sourceByKey.get(field.key);
+    field.layoutGroup =
+      source?.layoutGroup && defaultKeys.has(source.layoutGroup)
+        ? source.layoutGroup
+        : undefined;
+    field.layoutGroupExcluded = false;
+    field.order = source?.layoutOrder ?? index;
+  }
+  draft.value = {
+    ...draft.value,
+    [view]: {
+      ...holder,
+      groups: defaults.map(({ developmentDefault, ...group }) => group),
+      unassignedOrder:
+        Math.max(...defaults.map((group) => group.order ?? -1)) + 1,
+    },
+  };
+  groupRenderVersion.value += 1;
+  message.success(`${viewTitle(view)}已恢复开发默认分组，请上传后生效。`);
 }
 
 function addGroup() {
@@ -962,25 +1150,176 @@ function getInputDisplayOptions(row: CrudPageDisplayFieldConfig) {
   return options;
 }
 
+const cssLengthPattern = /^\d+(?:\.\d+)?(?:px|%|vh|vw|vmin|vmax)$/i;
+
+function viewTitle(view: Exclude<View, 'list'>) {
+  return view === 'query'
+    ? '查询表单'
+    : view === 'create'
+      ? '新增表单'
+      : view === 'edit'
+        ? '编辑表单'
+        : '详情表单';
+}
+
+function validateExpression(expression: string | undefined, label: string) {
+  const source = expression?.trim();
+  if (!source) return undefined;
+  try {
+    new Function(`return (${source});`);
+  } catch {
+    return `${label}语法无效，请在脚本工作台修正后上传。`;
+  }
+  return undefined;
+}
+
+function validateView(view: Exclude<View, 'list'>) {
+  const fields = ensureFields(view);
+  const groups = ensureGroups(view);
+  if (view === 'detail' && fields.length === 0) {
+    return '详情表单没有可配置字段，不能上传空详情配置。';
+  }
+  const form = view === 'query' ? undefined : formHolder(view);
+  for (const [label, value] of [
+    ['弹窗最大宽度', form?.modalMaxWidth],
+    ['弹窗最大高度', form?.modalMaxHeight],
+  ] as const) {
+    if (value?.trim() && !cssLengthPattern.test(value.trim())) {
+      return `${viewTitle(view)}${label}格式无效，只支持如 960px、80vw、70vh 或 100%。`;
+    }
+  }
+  const groupKeys = new Set<string>();
+  for (const group of groups) {
+    const key = group.key?.trim();
+    if (!key) return `${viewTitle(view)}存在空分组标识。`;
+    if (groupKeys.has(key)) return `${viewTitle(view)}的分组标识“${key}”重复。`;
+    groupKeys.add(key);
+    const expressionError = validateExpression(
+      group.visibility?.expression,
+      `分组“${group.title || key}”展示脚本`,
+    );
+    if (expressionError) return expressionError;
+  }
+  const fieldKeys = new Set(fields.map((field) => field.key));
+  const titles = new Set<string>();
+  const sourceByKey = new Map(
+    getAllowedFields(view).map((field) => [field.key, field]),
+  );
+  for (const field of fields) {
+    const title =
+      field.label?.trim() ||
+      sourceByKey.get(field.key)?.label?.trim() ||
+      field.key;
+    if (titles.has(title)) {
+      return `${viewTitle(view)}存在重复标题“${title}”，请调整标题别名。`;
+    }
+    titles.add(title);
+    if (field.layoutGroup && !groupKeys.has(field.layoutGroup)) {
+      return `${viewTitle(view)}字段“${field.label || field.key}”引用了不存在的分组“${field.layoutGroup}”。`;
+    }
+    const references = [
+      ...(field.visibility?.dependsOn?.fieldKeys || []),
+      ...(field.visibility?.exclusiveWith?.fieldKeys || []),
+    ];
+    for (const key of references) {
+      if (key === field.key)
+        return `${viewTitle(view)}字段“${field.label || field.key}”不能引用自身。`;
+      if (!fieldKeys.has(key))
+        return `${viewTitle(view)}字段“${field.label || field.key}”引用了不存在的字段“${key}”。`;
+    }
+    const expressionError = validateExpression(
+      field.visibility?.expression,
+      `字段“${field.label || field.key}”展示脚本`,
+    );
+    if (expressionError) return expressionError;
+  }
+  const cycle = findDisplayRuleCycle(fields);
+  if (cycle)
+    return `${viewTitle(view)}存在展示规则循环：${cycle.join(' → ')}，请调整依赖或互斥项后上传。`;
+  return undefined;
+}
+
+function validateDisplayConfig(): { message: string; view: View } | undefined {
+  ensureHeaders();
+  for (const view of ['query', 'create', 'edit', 'detail'] as const) {
+    const error = validateView(view);
+    if (error) return { message: error, view };
+  }
+  const titles = new Set<string>();
+  for (const header of draft.value.list?.headers || []) {
+    const title = header.title?.trim() || header.label?.trim() || header.key;
+    if (header.visible?.mode !== 'hidden' && titles.has(title)) {
+      return {
+        message: `展示列表存在重复标题“${title}”，请调整标题别名。`,
+        view: 'list',
+      };
+    }
+    if (header.visible?.mode !== 'hidden') titles.add(title);
+    if (
+      header.virtual === true &&
+      !/^[A-Za-z][A-Za-z0-9_.-]{0,127}$/.test(header.key)
+    ) {
+      return { message: `虚拟字段“${title}”的字段编码无效。`, view: 'list' };
+    }
+    if (
+      header.virtual === true &&
+      props.fields.some((field) => field.key === header.key)
+    ) {
+      return {
+        message: `虚拟字段“${title}”的字段编码与真实字段冲突。`,
+        view: 'list',
+      };
+    }
+    if (
+      header.virtual === true &&
+      (draft.value.list?.headers || []).some(
+        (item) => item !== header && item.key === header.key,
+      )
+    ) {
+      return { message: `虚拟字段“${title}”的字段编码重复。`, view: 'list' };
+    }
+    if (header.virtual === true && !header.valueDisplay?.expression?.trim()) {
+      return {
+        message: `虚拟字段“${title}”必须填写值展示脚本。`,
+        view: 'list',
+      };
+    }
+    const visibleError = validateExpression(
+      header.visible?.expression,
+      `列表列“${title}”显示脚本`,
+    );
+    if (visibleError) return { message: visibleError, view: 'list' };
+    const valueError = validateExpression(
+      header.valueDisplay?.expression,
+      `列表列“${header.title || header.label || header.key}”值展示脚本`,
+    );
+    if (valueError) return { message: valueError, view: 'list' };
+  }
+  return undefined;
+}
+
+const uploadTooltip = computed(() => {
+  const counts = { disabled: 0, hidden: 0, omitted: 0 };
+  for (const view of ['query', 'create', 'edit', 'detail'] as const) {
+    for (const field of draft.value[view]?.fields || []) {
+      const mode = getDisplaySubmitMode(field);
+      if (mode === 'disabled-submit') counts.disabled += 1;
+      if (mode === 'hidden-submit') counts.hidden += 1;
+      if (mode === 'hidden-omit') counts.omitted += 1;
+    }
+  }
+  const scopeText = [
+    scope.value.tenantId ? '指定租户' : '当前租户',
+    scope.value.domain ? '指定站点' : '任意站点',
+  ].join('、');
+  return `上传到${scopeText}。字段状态：隐提 ${counts.hidden}、禁提 ${counts.disabled}、不提 ${counts.omitted}；上传前会校验尺寸、分组、引用和脚本。`;
+});
+
 function save() {
-  const viewEntries = (['query', 'create', 'edit', 'detail'] as const)
-    .map((view) => [view, draft.value[view]] as const)
-    .filter(
-      (
-        entry,
-      ): entry is readonly [
-        Exclude<View, 'list'>,
-        { fields: CrudPageDisplayFieldConfig[] },
-      ] => Boolean(entry[1]),
-    );
-  const invalidView = viewEntries
-    .map(([view, value]) => [view, findDisplayRuleCycle(value.fields)] as const)
-    .find((entry) => Boolean(entry[1]));
-  if (invalidView) {
-    const [view, cycle] = invalidView;
-    message.error(
-      `${view === 'query' ? '查询表单' : view === 'create' ? '新增表单' : view === 'edit' ? '编辑表单' : '详情表单'}存在展示规则循环：${cycle!.join(' → ')}，请调整依赖或互斥项后保存。`,
-    );
+  const validationError = validateDisplayConfig();
+  if (validationError) {
+    activeKey.value = validationError.view;
+    message.error(validationError.message);
     return;
   }
   emit('save', { config: clone(draft.value), scope: { ...scope.value } });
@@ -992,20 +1331,33 @@ watch(
     if (!open) return;
     resetFieldRenderLimits();
     draft.value = clone(props.modelValue);
-    scope.value = { ...(props.initialScope || {}) };
+    scope.value = normalizeScope(props.initialScope);
     void loadScopeOptions();
     void loadRoleVisibilityOptions();
-    if (activeKey.value === 'list') {
-      ensureHeaders();
-    } else {
-      ensureFields(activeKey.value);
-      if (isGroupableView(activeKey.value)) {
-        ensureGroups(activeKey.value);
-      }
+    ensureHeaders();
+    for (const view of ['query', 'create', 'edit', 'detail'] as const) {
+      ensureFields(view);
+      ensureGroups(view);
     }
+    initialSnapshot.value = currentSnapshot();
     previewExpanded.value = false;
     void refreshPreviewOverflow();
   },
+);
+
+watch(
+  () => props.modelValue,
+  (modelValue) => {
+    if (!props.open) return;
+    const savedSnapshot = JSON.stringify({
+      config: modelValue || { version: 1 },
+      scope: normalizeScope(props.initialScope),
+    });
+    if (savedSnapshot === currentSnapshot()) {
+      initialSnapshot.value = savedSnapshot;
+    }
+  },
+  { deep: true },
 );
 
 watch([activeKey, previewSignature], () => {
@@ -1034,10 +1386,12 @@ onMounted(() => {
       overflow: 'hidden',
     }"
     :mask-closable="false"
-    @close="emit('update:open', false)"
+    @close="requestClose"
   >
     <div class="border-border mb-4 grid grid-cols-4 gap-3 rounded border p-3">
-      <Input :value="code" disabled addon-before="设置项编码" />
+      <Tooltip :title="scopeMatchTooltip">
+        <Input :value="code" disabled addon-before="设置项编码" />
+      </Tooltip>
       <Select
         v-model:value="scope.tenantId"
         :options="tenantScopeOptions"
@@ -1081,14 +1435,16 @@ onMounted(() => {
         allow-clear
         show-search
       />
-      <Button
-        type="primary"
-        class="col-start-4 w-full"
-        :disabled="saving"
-        :loading="saving"
-        @click="save"
-        >上传当前配置</Button
-      >
+      <Tooltip :title="uploadTooltip">
+        <Button
+          type="primary"
+          class="col-start-4 w-full"
+          :disabled="saving"
+          :loading="saving"
+          @click="save"
+          >上传当前配置</Button
+        >
+      </Tooltip>
     </div>
     <Tabs v-model:active-key="activeKey">
       <Tabs.TabPane key="query" tab="查询表单" />
@@ -1125,6 +1481,11 @@ onMounted(() => {
             class="border-border mb-4 rounded border p-3"
           >
             <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
+              <Tooltip
+                title="新增前端虚拟列。其值由当前行的值展示脚本计算，不对应后端实体字段。"
+              >
+                <Button @click="addVirtualHeader">+ 添加虚拟字段</Button>
+              </Tooltip>
               <Tooltip title="列表列未单独配置最小列宽时使用。">
                 <Form.Item label="默认最小列宽" class="mb-0">
                   <InputNumber
@@ -1289,6 +1650,15 @@ onMounted(() => {
               <Button type="primary" class="px-4" @click="addGroup"
                 >+ 添加分组</Button
               >
+              <Tooltip
+                title="移除当前表单的运行时分组覆盖，并按开发阶段的有效分组重新组织草稿；上传后才保存。"
+              >
+                <Button
+                  @click="restoreDevelopmentDefaultGroups(view as GroupView)"
+                >
+                  恢复开发默认分组
+                </Button>
+              </Tooltip>
               <span class="text-muted-foreground text-sm"
                 >字段未归入任何分组时显示在默认分组。</span
               >
@@ -1363,8 +1733,15 @@ onMounted(() => {
                     title="只有当前用户拥有任一选中角色时，才会看到该字段。"
                     ><span>可见角色</span></Tooltip
                   >
-                  <Tooltip :title="view === 'detail' ? '控制详情字段是否展示。' : '控制字段是否展示及参与提交；权限、条件和分组提交选择仍然有效。'"
-                    ><span>{{ view === 'detail' ? '是否展示' : '展示与提交' }}</span></Tooltip
+                  <Tooltip
+                    :title="
+                      view === 'detail'
+                        ? '控制详情字段是否展示。'
+                        : '控制字段是否展示及参与提交；权限、条件和分组提交选择仍然有效。'
+                    "
+                    ><span>{{
+                      view === 'detail' ? '是否展示' : '展示与提交'
+                    }}</span></Tooltip
                   >
                   <Tooltip title="初始化表单时为字段预填的值。"
                     ><span>默认值</span></Tooltip
@@ -1464,18 +1841,25 @@ onMounted(() => {
                             (open) => open && loadRoleVisibilityOptions()
                           "
                         />
-                        <Tooltip title="编写脚本决定整个分组是否展示；不展示时组内字段不提交。">
+                        <Tooltip
+                          title="编写脚本决定整个分组是否展示；不展示时组内字段不提交。"
+                        >
                           <Button
                             size="small"
                             @click="editGroupVisibilityScript(rowGroup.group)"
-                          >展示脚本</Button>
+                            >展示脚本</Button
+                          >
                         </Tooltip>
                         <template v-if="view === 'create' || view === 'edit'">
                           <span class="text-sm">显示提交勾选</span>
                           <Switch
-                            :checked="rowGroup.group.showSubmitCheckbox === true"
+                            :checked="
+                              rowGroup.group.showSubmitCheckbox === true
+                            "
                             aria-label="显示提交勾选"
-                            @update:checked="rowGroup.group.showSubmitCheckbox = $event"
+                            @update:checked="
+                              rowGroup.group.showSubmitCheckbox = $event
+                            "
                           />
                         </template>
                       </div>
@@ -1544,8 +1928,26 @@ onMounted(() => {
                         ></Tooltip
                       >
                     </div>
-                    <Tooltip title="按住可拖拽排序">
-                      <div>{{ getSourceFieldTitle(row.key) }}</div>
+                    <Tooltip
+                      :title="
+                        view === 'list' &&
+                        (row as CrudPageDisplayHeaderConfig).virtual
+                          ? '虚拟字段编码由系统生成，创建后保持不变。'
+                          : '按住可拖拽排序'
+                      "
+                    >
+                      <Input
+                        v-if="
+                          view === 'list' &&
+                          (row as CrudPageDisplayHeaderConfig).virtual
+                        "
+                        :value="(row as CrudPageDisplayHeaderConfig).key"
+                        placeholder="虚拟字段编码"
+                        readonly
+                      />
+                      <div v-else>
+                        {{ getSourceFieldTitle(row.key) }}
+                      </div>
                     </Tooltip>
                     <Input
                       v-if="view === 'list'"
@@ -1559,13 +1961,9 @@ onMounted(() => {
                     />
                     <Select
                       v-if="view !== 'list' && isGroupableView(view)"
-                      :value="row.layoutGroup"
+                      :value="getRowGroupKey(row, view)"
                       :options="groupOptions"
-                      :placeholder="
-                        getSourceLayoutGroupTitle(row.key)
-                          ? `${getSourceLayoutGroupTitle(row.key)}（开发默认）`
-                          : '选择分组'
-                      "
+                      placeholder="选择分组"
                       allow-clear
                       class="w-[95px]"
                       @update:value="(value) => assignRowToGroup(row, value)"
@@ -1699,19 +2097,29 @@ onMounted(() => {
                         :aria-label="`${row.label || getSourceFieldTitle(row.key)}展示与提交`"
                         button-style="solid"
                         class="flex whitespace-nowrap"
-                        @update:value="(value) => setDisplaySubmitMode(row, value)"
+                        @update:value="
+                          (value) => setDisplaySubmitMode(row, value)
+                        "
                       >
                         <Radio.Button value="display-submit">
-                          <Tooltip title="展示控件并参与提交"><span>展提</span></Tooltip>
+                          <Tooltip title="展示控件并参与提交"
+                            ><span>展提</span></Tooltip
+                          >
                         </Radio.Button>
                         <Radio.Button value="hidden-submit">
-                          <Tooltip title="不展示控件仍参与提交"><span>隐提</span></Tooltip>
+                          <Tooltip title="不展示控件仍参与提交"
+                            ><span>隐提</span></Tooltip
+                          >
                         </Radio.Button>
                         <Radio.Button value="disabled-submit">
-                          <Tooltip title="展示控件但不可修改仍参与提交"><span>禁提</span></Tooltip>
+                          <Tooltip title="展示控件但不可修改仍参与提交"
+                            ><span>禁提</span></Tooltip
+                          >
                         </Radio.Button>
                         <Radio.Button value="hidden-omit">
-                          <Tooltip title="不展示控件也不参与校验和提交"><span>不提</span></Tooltip>
+                          <Tooltip title="不展示控件也不参与校验和提交"
+                            ><span>不提</span></Tooltip
+                          >
                         </Radio.Button>
                       </Radio.Group>
                       <Switch

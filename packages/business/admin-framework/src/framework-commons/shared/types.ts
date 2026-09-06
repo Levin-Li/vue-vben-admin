@@ -174,6 +174,8 @@ export interface CrudPageDisplayFieldConfig {
   key: string;
   label?: string;
   layoutGroup?: string;
+  /** 显式取消开发阶段默认分组。 */
+  layoutGroupExcluded?: boolean;
   order?: number;
   visibleRoleCodes?: string[];
   visibility?: CrudDisplayRule;
@@ -237,6 +239,8 @@ export interface CrudPageDisplayQueryViewConfig
 }
 
 export interface CrudPageDisplayHeaderConfig extends CrudPageDisplayFieldConfig {
+  /** 前端展示专用列，不映射后端实体字段。 */
+  virtual?: boolean;
   maxWidth?: number;
   minWidth?: number;
   overflowStrategy?: 'ellipsis' | 'wrap';
@@ -405,6 +409,8 @@ export interface CrudPageConfig {
   detailPermission?: string | string[];
   detailVisibleOn?: string;
   description?: string;
+  /** 实体实现 DomainObject；公共 CRUD 据此补入可由页面展示设置管理的领域标识字段。 */
+  domainObject?: boolean;
   editPermission?: string | string[];
   editVisibleOn?: string;
   exportTemplateService?: CrudExportTemplateService;

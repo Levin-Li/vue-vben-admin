@@ -11,6 +11,7 @@ export const pageMeta = {
 
 export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
   apiBase: '/EmailRelayRoute',
+  domainObject: true,
   apiService: emailRelayRouteService,
   defaultFormValues: {
     editable: true,

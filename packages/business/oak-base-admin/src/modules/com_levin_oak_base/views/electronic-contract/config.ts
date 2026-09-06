@@ -105,6 +105,7 @@ export const pageMeta = {
 export const electronicContractPageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
     apiBase: '/EContract',
+    domainObject: true,
     apiService: electronicContractService,
     createPath: '/EContract/saveDraft',
     updatePath: '/EContract/updateDraft',

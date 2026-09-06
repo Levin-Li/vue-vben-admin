@@ -20,6 +20,7 @@ export const pageMeta = {
 
 export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/NoticeProcessLog',
+  domainObject: true,
   apiService: noticeProcessLogService,
   defaultQuery: {
     pageIndex: 1,

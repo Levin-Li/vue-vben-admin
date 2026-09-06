@@ -26,6 +26,7 @@ export const pageMeta = {
 
 export const importExportTemplatePageCrudConfig: CrudPageConfig = {
   apiBase: '/ImportExportTemplate',
+  domainObject: true,
   apiService: importExportTemplateService,
   defaultFormValues: {
     editable: true,

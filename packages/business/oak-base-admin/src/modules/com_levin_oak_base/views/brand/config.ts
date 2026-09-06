@@ -11,6 +11,7 @@ export const pageMeta = {
 
 export const brandPageCrudConfig: CrudPageConfig = {
   apiBase: '/Brand',
+  domainObject: true,
   apiService: brandService,
   defaultFormValues: {
     editable: true,
