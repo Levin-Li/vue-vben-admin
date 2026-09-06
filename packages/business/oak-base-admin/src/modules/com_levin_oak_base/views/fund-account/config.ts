@@ -19,6 +19,12 @@ const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
 );
 const currencyCodeOptionsLoader = buildDictOptionsLoader('CurrencyCode');
 
+export const pageMeta = {
+  name: 'FundAccount',
+  title: '资金账户管理',
+  description: '维护资金账户。',
+} as const;
+
 export const fundAccountPageCrudConfig: CrudPageConfig = {
   apiBase: '/FundAccount',
   apiService: fundAccountService,
@@ -36,6 +42,9 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -44,6 +53,7 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -64,6 +74,9 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '账户名称',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '账户信息',
+      layoutOrder: 10,
       required: true,
       search: true,
       table: true,
@@ -81,6 +94,8 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'status',
       label: '账户状态',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       loadOptions: fundAccountStatusOptionsLoader,
       table: true,
       type: 'select',
@@ -98,7 +113,12 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'currencyType',
       label: '货币类型',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
+      disabledOnEdit: true,
       loadOptions: currencyTypeOptionsLoader,
+      omitOnEdit: true,
+      required: true,
       table: true,
       type: 'select',
       width: 120,
@@ -106,7 +126,12 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'currencyCode',
       label: '货币代码',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
+      disabledOnEdit: true,
       loadOptions: currencyCodeOptionsLoader,
+      omitOnEdit: true,
+      required: true,
       search: true,
       table: true,
       type: 'select',
@@ -115,6 +140,9 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'balance',
       label: '可用余额',
+      layoutGroup: 'business',
+      layoutGroupTitle: '资金信息',
+      layoutOrder: 10,
       table: true,
       type: 'number',
       width: 120,
@@ -122,6 +150,8 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'freezeBalance',
       label: '冻结余额',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       table: true,
       type: 'number',
       width: 120,
@@ -129,6 +159,8 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'creditLimit',
       label: '授信额度',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       table: true,
       type: 'number',
       width: 120,
@@ -136,6 +168,8 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'creditBalance',
       label: '授信余额',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       table: true,
       type: 'number',
       width: 120,
@@ -143,6 +177,8 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'confidentialLevel',
       label: '机密等级',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       loadOptions: confidentialLevelOptionsLoader,
       type: 'select',
       valueType: 'number',
@@ -150,6 +186,8 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 60,
       search: true,
       table: true,
       type: 'switch',
@@ -159,14 +197,16 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 70,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'business', layoutOrder: 80, type: 'number' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutGroupTitle: '备注信息', layoutOrder: 10, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',

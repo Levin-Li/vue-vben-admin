@@ -18,6 +18,12 @@ const menuActionTypeOptions = [
   { label: '服务端动作', value: 'ServerSideAction' },
 ];
 
+export const pageMeta = {
+  name: 'Menu',
+  title: '菜单管理',
+  description: '维护菜单、页面元数据和页面操作。',
+} as const;
+
 export const menuPageCrudConfig: CrudPageConfig = {
   apiBase: '/Menu',
   apiService: menuService,
@@ -48,6 +54,7 @@ export const menuPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -126,7 +133,7 @@ export const menuPageCrudConfig: CrudPageConfig = {
     { key: 'icon', label: '图标', table: true, type: 'image', width: 90 },
     {
       key: 'requireAuthorizations',
-      label: '所需权限',
+      label: '额外所需权限',
       span: 2,
       placeholder: '一行一个权限或角色',
       table: true,

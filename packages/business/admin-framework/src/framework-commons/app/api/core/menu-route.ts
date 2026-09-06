@@ -1,4 +1,5 @@
 import type { AdminBackendRouteMapping } from '@levin/admin-framework';
+
 import type { RouteRecordStringComponent } from '@vben/types';
 
 import { toPathRouteName } from '../../../page-registry';
@@ -10,11 +11,13 @@ export interface BackendMenuInfo {
   enable?: boolean;
   icon?: null | string;
   id?: string;
+  label?: null | string;
   name?: string;
   opButtonList?: any[] | null;
   orderCode?: number;
   pageType?: null | string;
   path?: null | string;
+  remark?: null | string;
   requireAuthorizations?: null | string[];
 }
 
@@ -146,9 +149,12 @@ function toMeta(
     disabled: item.enable === false,
     icon: resolveBackendMenuIcon(item, normalizedPath, DEFAULT_LEAF_MENU_ICON),
     menuActionType: normalizeActionType(item.actionType),
+    pageDescription: item.remark || '',
+    pageName: item.name || '',
+    pageOperations: item.opButtonList || [],
     menuPageType: normalizePageType(item.pageType),
     order: item.orderCode,
-    title: item.name || normalizedPath || '未命名页面',
+    title: item.label || item.name || normalizedPath || '未命名页面',
     ...extra,
   };
 }
@@ -194,7 +200,7 @@ function convertLeafRoute(
     return {
       component: '/_core/home/index.vue',
       meta: toMeta(item, '/index', {
-        title: item.name || '首页',
+        title: item.label || item.name || '首页',
       }),
       name: toRouteName('/index'),
       path: '/index',
@@ -259,7 +265,15 @@ function convertLeafRoute(
         menuActionType: actionType,
         menuPageType: pageType,
         order: item.orderCode,
-        title: item.name || mapping.title || normalizedPath || '未命名页面',
+        pageDescription: item.remark || mapping.description,
+        pageName: item.name || mapping.name,
+        pageOperations: item.opButtonList || mapping.operations || [],
+        title:
+          item.label ||
+          item.name ||
+          mapping.title ||
+          normalizedPath ||
+          '未命名页面',
       },
       name: toRouteName(routePath),
       path: routePath,
@@ -307,9 +321,7 @@ export function convertMenuNode(
     .filter(Boolean) as RouteRecordStringComponent[];
 
   const groupPageCandidate =
-    children.length > 0 &&
-    Boolean(normalizedPath) &&
-    normalizedPath !== '/'
+    children.length > 0 && Boolean(normalizedPath) && normalizedPath !== '/'
       ? convertLeafRoute(item, normalizedPath, lookup)
       : undefined;
   const groupPageRoute = groupPageCandidate?.meta?.menuRouteMissingPage
@@ -350,7 +362,7 @@ export function convertMenuNode(
         navigateOnClick: Boolean(groupPageRoute),
         order: item.orderCode,
         preserveComponentWhenChildren: Boolean(groupPageRoute),
-        title: item.name || normalizedPath || '未命名分组',
+        title: item.label || item.name || normalizedPath || '未命名分组',
       },
       name: toRouteName(routePath),
       path: routePath,

@@ -348,6 +348,34 @@ describe('login auto-login prompt', () => {
     wrapper.unmount();
   });
 
+  it('requires an account before requesting a contact verify code', async () => {
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+
+    await flushPromises();
+    (wrapper.vm as any).activeVerifyType = 'Contact';
+    await flushPromises();
+
+    const getVerifyCodeButton = () =>
+      wrapper
+        .findAll('button')
+        .find((button) => button.text() === '获取验证码');
+
+    expect(wrapper.text()).toContain('输入手机号或邮箱后获取验证码。');
+    expect(wrapper.text()).not.toContain('无需输入密码');
+    expect(wrapper.text()).not.toContain('当前使用');
+    expect(getVerifyCodeButton()?.attributes('disabled')).toBeDefined();
+
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .setValue('contact@example.com');
+    await flushPromises();
+
+    expect(getVerifyCodeButton()?.attributes('disabled')).toBeUndefined();
+
+    wrapper.unmount();
+  });
+
   it('prefills local development credentials on 127.0.0.1', async () => {
     vi.stubGlobal('location', { hostname: '127.0.0.1' });
 

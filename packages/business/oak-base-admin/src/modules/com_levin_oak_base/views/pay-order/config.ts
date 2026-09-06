@@ -21,6 +21,12 @@ const tradeStatusOptionsLoader = buildEnumOptionsLoader(
 );
 const currencyCodeOptionsLoader = buildDictOptionsLoader('CurrencyCode');
 
+export const pageMeta = {
+  name: 'PayOrder',
+  title: '支付订单管理',
+  description: '维护支付订单。',
+} as const;
+
 export const payOrderPageCrudConfig: CrudPageConfig = {
   apiBase: '/PayOrder',
   apiService: payOrderService,
@@ -44,6 +50,7 @@ export const payOrderPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,

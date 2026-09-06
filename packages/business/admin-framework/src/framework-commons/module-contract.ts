@@ -33,12 +33,23 @@ export interface AdminModuleContext<
 }
 
 export interface AdminBackendRouteMapping {
+  description: string;
   icon: string;
+  name: string;
+  operations?: AdminPageOperation[];
   path: string;
   resource: string;
   sourceFilePath: string;
   title: string;
   viewPath: string;
+}
+
+export interface AdminPageOperation {
+  apiMethods: string[];
+  description: string;
+  label: string;
+  opName: string;
+  requireAuthorizations: string[];
 }
 
 export interface AdminFrontendModule<

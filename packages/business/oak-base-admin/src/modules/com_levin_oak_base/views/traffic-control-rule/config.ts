@@ -51,6 +51,12 @@ function transformRuleSubmit(values: Record<string, any>) {
   };
 }
 
+export const pageMeta = {
+  name: 'TrafficControlRule',
+  title: '流量控制规则管理',
+  description: '维护流量控制规则。',
+} as const;
+
 export const trafficControlRulePageCrudConfig: CrudPageConfig = {
   apiBase: '/TrafficControlRule',
   apiService: trafficControlRuleService,
@@ -71,6 +77,7 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
   fields: [
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,

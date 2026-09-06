@@ -22,6 +22,12 @@ const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
 
+export const pageMeta = {
+  name: 'FundAccountLog',
+  title: '资金账户日志管理',
+  description: '查询资金账户日志。',
+} as const;
+
 export const fundAccountLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/FundAccountLog',
   apiService: fundAccountLogService,
@@ -45,6 +51,7 @@ export const fundAccountLogPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,

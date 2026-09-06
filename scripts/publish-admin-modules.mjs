@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -7,19 +9,20 @@ import {
 } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+
+import { validateInternalPeerVersions } from './internal-peer-dependency-guard.mjs';
 import {
   acquirePublishLock,
   packPackage,
   packWorkspacePackage,
   releasePublishLock,
+  verifyBuiltRouteAssets,
+  verifyPageMetadata,
   verifyTarballDependencyProtocols,
   verifyTarballModuleDevelopmentStandard,
-  verifyBuiltRouteAssets,
   verifyTarballRouteAssets,
   verifyTarballStandaloneInstall,
 } from './publish-artifact-gate.mjs';
-import { validateInternalPeerVersions } from './internal-peer-dependency-guard.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDir = resolve(frontendRoot, 'npm-packages');
@@ -109,12 +112,14 @@ function readMavenServerAuth(serverId) {
     throw new Error(`Maven settings file not found: ${settingsPath}`);
   }
 
-  const settingsXml = readFileSync(settingsPath, 'utf8').replace(
+  const settingsXml = readFileSync(settingsPath, 'utf8').replaceAll(
     /<!--[\s\S]*?-->/g,
     '',
   );
   const server = settingsXml.match(
-    new RegExp(`<server>[\\s\\S]*?<id>${serverId}</id>[\\s\\S]*?</server>`),
+    new RegExp(
+      String.raw`<server>[\s\S]*?<id>${serverId}</id>[\s\S]*?</server>`,
+    ),
   )?.[0];
 
   if (!server) {
@@ -154,12 +159,13 @@ function createPublishNpmrc() {
       : `${registryUrl.pathname}/`;
     const { auth } = readMavenServerAuth(mavenServerId);
 
-    lines.push(`//${registryUrl.host}${path}:_auth=${auth}`);
-    lines.push('auth-type=legacy');
+    lines.push(
+      `//${registryUrl.host}${path}:_auth=${auth}`,
+      'auth-type=legacy',
+    );
   }
 
-  lines.push('always-auth=true');
-  lines.push('');
+  lines.push('always-auth=true', '');
 
   writeFileSync(publishUserConfig, lines.join('\n'), { mode: 0o600 });
 
@@ -275,6 +281,7 @@ if (mode === 'publish') {
 try {
   const routeAssetsByPackage = new Map();
   for (const packageInfo of selectedPackages) {
+    verifyPageMetadata(packageInfo);
     run('pnpm', ['--filter', packageInfo.name, 'build']);
     routeAssetsByPackage.set(
       packageInfo.name,
@@ -294,7 +301,11 @@ try {
         '本地 tarball',
       );
       verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
-      verifyTarballModuleDevelopmentStandard(packageInfo, tarball, '本地 tarball');
+      verifyTarballModuleDevelopmentStandard(
+        packageInfo,
+        tarball,
+        '本地 tarball',
+      );
     }
 
     console.log(`Packed admin modules to ${outputDir}`);
@@ -331,7 +342,11 @@ try {
           '本地 tarball',
         );
         verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
-        verifyTarballModuleDevelopmentStandard(packageInfo, tarball, '本地 tarball');
+        verifyTarballModuleDevelopmentStandard(
+          packageInfo,
+          tarball,
+          '本地 tarball',
+        );
         verifyTarballStandaloneInstall(packageInfo, tarball, remotePackEnv);
 
         const publishArgs = ['publish', tarball, '--ignore-scripts'];

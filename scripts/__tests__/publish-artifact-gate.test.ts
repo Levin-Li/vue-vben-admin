@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import {
-  mkdtempSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   packWorkspacePackage,
+  verifyPageMetadata,
   verifyTarballDependencyProtocols,
   verifyTarballStandaloneInstall,
 } from '../publish-artifact-gate.mjs';
@@ -52,6 +53,36 @@ const packageInfo = {
 };
 
 describe('publish artifact gate', () => {
+  it('rejects pages without complete page metadata', () => {
+    const directory = createTemporaryDirectory();
+    const pageDirectory = join(directory, 'src/modules/example/views/demo');
+    mkdirSync(pageDirectory, { recursive: true });
+    writeFileSync(join(pageDirectory, 'index.vue'), '<template />\n');
+    writeFileSync(
+      join(pageDirectory, 'config.ts'),
+      "export const pageMeta = { name: 'Demo', title: '示例页面' } as const;\n",
+    );
+
+    expect(() =>
+      verifyPageMetadata({ dir: directory, name: '@scope/example' }),
+    ).toThrow('缺少 pageMeta.description');
+  });
+
+  it('accepts complete page metadata', () => {
+    const directory = createTemporaryDirectory();
+    const pageDirectory = join(directory, 'src/modules/example/views/demo');
+    mkdirSync(pageDirectory, { recursive: true });
+    writeFileSync(join(pageDirectory, 'index.vue'), '<template />\n');
+    writeFileSync(
+      join(pageDirectory, 'config.ts'),
+      "export const pageMeta = { name: 'Demo', title: '示例页面', description: '展示示例功能。' } as const;\n",
+    );
+
+    expect(() =>
+      verifyPageMetadata({ dir: directory, name: '@scope/example' }),
+    ).not.toThrow();
+  });
+
   it('rejects workspace and catalog protocols in a tarball manifest', () => {
     const tarballPath = createTarball({
       dependencies: {
@@ -63,7 +94,11 @@ describe('publish artifact gate', () => {
     });
 
     expect(() =>
-      verifyTarballDependencyProtocols(packageInfo, tarballPath, '本地 tarball'),
+      verifyTarballDependencyProtocols(
+        packageInfo,
+        tarballPath,
+        '本地 tarball',
+      ),
     ).toThrow('dependencies.@scope/workspace=workspace:*');
   });
 
@@ -77,7 +112,11 @@ describe('publish artifact gate', () => {
     });
 
     expect(() =>
-      verifyTarballDependencyProtocols(packageInfo, tarballPath, '本地 tarball'),
+      verifyTarballDependencyProtocols(
+        packageInfo,
+        tarballPath,
+        '本地 tarball',
+      ),
     ).not.toThrow();
   });
 

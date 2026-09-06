@@ -11,6 +11,12 @@ const jobPostTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.JobPost$Type',
 );
 
+export const pageMeta = {
+  name: 'JobPost',
+  title: '工作岗位管理',
+  description: '维护工作岗位信息。',
+} as const;
+
 export const jobPostPageCrudConfig: CrudPageConfig = {
   apiBase: '/JobPost',
   apiService: jobPostService,
@@ -27,6 +33,8 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -35,6 +43,7 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -54,8 +63,8 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     },
     { key: 'containsCode', label: '编码', form: false, search: true },
     { key: 'containsName', label: '名称', form: false, search: true },
-    { key: 'code', label: '编码', required: true, table: true, width: 140 },
-    { key: 'name', label: '名称', required: true, table: true, width: 160 },
+    { key: 'code', label: '编码', layoutGroup: 'basic', layoutOrder: 10, required: true, table: true, width: 140 },
+    { key: 'name', label: '名称', layoutGroup: 'basic', layoutOrder: 20, required: true, table: true, width: 160 },
     {
       key: 'inType',
       label: '类型',
@@ -68,6 +77,8 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     {
       key: 'type',
       label: '类型',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       loadOptions: jobPostTypeOptionsLoader,
       required: true,
       table: true,
@@ -75,7 +86,7 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
       width: 120,
     },
     { key: 'containsPinyinName', label: '拼音名', form: false, search: true },
-    { key: 'pinyinName', label: '拼音名', table: true, width: 160 },
+    { key: 'pinyinName', label: '拼音名', layoutGroup: 'basic', layoutOrder: 40, table: true, width: 160 },
     {
       key: 'gteCreateTime',
       label: '创建时间开始',
@@ -93,6 +104,8 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 10,
       search: true,
       table: true,
       type: 'switch',
@@ -102,14 +115,16 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'business', layoutOrder: 30, type: 'number' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutOrder: 10, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',

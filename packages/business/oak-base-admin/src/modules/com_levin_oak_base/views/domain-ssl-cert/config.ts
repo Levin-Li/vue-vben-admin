@@ -13,8 +13,13 @@ const applyStatusOptions = [
 
 const sslApplyApiOptions = [{ label: '手动配置', value: 'manual://ssl-cert' }];
 
+export const pageMeta = {
+  name: 'DomainSslCert',
+  title: 'SSL证书管理',
+  description: '维护域名 SSL 证书。',
+} as const;
+
 export const domainSslCertPageCrudConfig: CrudPageConfig = {
-  allowEdit: false,
   apiBase: '/DomainSslCert',
   apiService: domainSslCertService,
   defaultFormValues: {
@@ -33,6 +38,8 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
       key: 'tenantId',
       label: '所属租户',
       fullRow: true,
+      layoutGroup: 'ownership',
+      layoutOrder: 10,
       layoutNewRow: true,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -42,6 +49,7 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '所属租户',
       fixed: 'left',
       form: false,
@@ -68,6 +76,8 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
       key: 'domain',
       label: '证书域名',
       fullRow: true,
+      layoutGroup: 'basic',
+      layoutOrder: 10,
       layoutNewRow: true,
       required: true,
       table: true,
@@ -82,6 +92,8 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'rootDomain',
       label: '根域名',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       formCreate: false,
       table: true,
       width: 200,
@@ -89,6 +101,8 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'sslApplyApi',
       label: 'SSL申请API',
+      layoutGroup: 'business',
+      layoutOrder: 10,
       formCreate: false,
       options: sslApplyApiOptions,
       table: true,
@@ -97,6 +111,8 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'sslApplyStatus',
       label: '申请状态',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       formCreate: false,
       options: applyStatusOptions,
       search: true,
@@ -107,6 +123,8 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'sslCertExpiredTime',
       label: '证书到期时间',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       formCreate: false,
       table: true,
       type: 'datetime',
@@ -128,12 +146,16 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
       key: 'exInfo',
       formCreate: false,
       label: '扩展信息',
+      layoutGroup: 'extension',
+      layoutOrder: 10,
       type: 'json',
     },
-    { key: 'orderCode', formCreate: false, label: '排序代码', type: 'number' },
+    { key: 'orderCode', formCreate: false, label: '排序代码', layoutGroup: 'business', layoutOrder: 40, type: 'number' },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       formCreate: false,
       search: true,
       table: true,
@@ -144,6 +166,8 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 60,
       formCreate: false,
       search: true,
       table: true,
@@ -171,6 +195,8 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
+      layoutGroup: 'remark',
+      layoutOrder: 10,
       layoutNewRow: true,
       type: 'textarea',
     },

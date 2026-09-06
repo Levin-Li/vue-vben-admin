@@ -60,6 +60,16 @@ describe('role page config', () => {
     expect(config.value.modalWidth).toBe('min(80vw, 1280px)');
   });
 
+  it('keeps role code visible but immutable in edit forms', () => {
+    const { config } = useRolePageConfig();
+    const field = config.value.fields.find((item) => item.key === 'code');
+
+    expect(field).toMatchObject({
+      disabledOnEdit: true,
+      omitOnEdit: true,
+    });
+  });
+
   it('limits role assignment precondition form field to super admins', () => {
     const { config } = useRolePageConfig();
     const field = config.value.fields.find(

@@ -1,4 +1,7 @@
-import { Click as GoCaptchaClick, Slide as GoCaptchaSlide } from 'go-captcha-vue';
+import {
+  Click as GoCaptchaClick,
+  Slide as GoCaptchaSlide,
+} from 'go-captcha-vue';
 import { mount } from '@vue/test-utils';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
@@ -7,6 +10,8 @@ import { nextTick } from 'vue';
 import {
   isObstacleAvoidancePayload,
   normalizeBehaviorCaptchaChallenge,
+  resolveBehaviorCaptchaViewport,
+  restoreBehaviorCaptchaPoint,
   type BehaviorCaptchaChallenge,
   type BehaviorCaptchaMode,
 } from '../behavior-captcha';
@@ -65,7 +70,8 @@ function clickEvents(wrapper: ReturnType<typeof mount>) {
 }
 
 function setStageRect(wrapper: ReturnType<typeof mount>) {
-  const element = wrapper.get('[data-test="behavior-captcha-path-stage"]').element as HTMLElement;
+  const element = wrapper.get('[data-test="behavior-captcha-path-stage"]')
+    .element as HTMLElement;
   Object.defineProperty(element, 'getBoundingClientRect', {
     configurable: true,
     value: () => ({
@@ -93,9 +99,102 @@ function dispatchPointer(type: string, clientX: number, clientY: number) {
   );
 }
 
+function mockCaptchaContainerWidth(width: number) {
+  return vi
+    .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockReturnValue({
+      bottom: 0,
+      height: 0,
+      left: 0,
+      right: width,
+      top: 0,
+      width,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+}
+
 describe('BehaviorCaptcha', () => {
-  it.each<BehaviorCaptchaMode>(['CLICK', 'IDIOM_CLICK'])
-    ('uses GoCaptcha Vue Click and submits %s coordinates', (mode) => {
+  it('fits the server puzzle in a narrow container and restores its original coordinates', () => {
+    const sourceViewport = resolveBehaviorCaptchaViewport({
+      height: 360,
+      width: 640,
+    });
+    const renderedViewport = resolveBehaviorCaptchaViewport(
+      { height: 360, width: 640 },
+      320,
+    );
+
+    expect(renderedViewport).toMatchObject({
+      height: 180,
+      scale: 0.5,
+      width: 320,
+    });
+    expect(
+      restoreBehaviorCaptchaPoint(
+        { x: 160, y: 90 },
+        sourceViewport,
+        renderedViewport,
+      ),
+    ).toEqual({ x: 320, y: 180 });
+  });
+
+  it('submits original coordinates after a narrow-screen slide touch operation', async () => {
+    const getBoundingClientRect = mockCaptchaContainerWidth(320);
+    const wrapper = mount(BehaviorCaptcha, {
+      props: { challenge: challenge('SLIDE') },
+    });
+    await nextTick();
+
+    const slide = wrapper.getComponent(GoCaptchaSlide);
+    expect(slide.props('config')).toMatchObject({
+      height: 178.875,
+      width: 318,
+    });
+    const events = slide.props('events') as {
+      confirm: (point: { x: number; y: number }, reset: () => void) => boolean;
+      move: (x: number, y: number) => void;
+    };
+    events.move(159, 89.4375);
+    expect(events.confirm({ x: 159, y: 89.4375 }, vi.fn())).toBe(true);
+
+    const [verifyCode] = wrapper.emitted('complete')?.at(-1) || [];
+    expect(JSON.parse(String(verifyCode))).toMatchObject({
+      answer: { x: 320, y: 180 },
+      track: {
+        points: expect.arrayContaining([
+          expect.objectContaining({ x: 320, y: 180 }),
+        ]),
+      },
+    });
+
+    wrapper.unmount();
+    getBoundingClientRect.mockRestore();
+  });
+
+  it('submits original coordinates after a narrow-screen click operation', async () => {
+    const getBoundingClientRect = mockCaptchaContainerWidth(320);
+    const wrapper = mount(BehaviorCaptcha, {
+      props: {
+        challenge: challenge('CLICK', { requiredClicks: 1 }),
+      },
+    });
+    await nextTick();
+
+    clickEvents(wrapper).click(159, 89.4375);
+    const [verifyCode] = wrapper.emitted('complete')?.at(-1) || [];
+    expect(JSON.parse(String(verifyCode))).toMatchObject({
+      answer: { points: [{ x: 320, y: 180 }] },
+    });
+
+    wrapper.unmount();
+    getBoundingClientRect.mockRestore();
+  });
+
+  it.each<BehaviorCaptchaMode>(['CLICK', 'IDIOM_CLICK'])(
+    'uses GoCaptcha Vue Click and submits %s coordinates',
+    (mode) => {
       const submittedMode = mode === 'CLICK' ? 'click' : 'idiomClick';
       const wrapper = mount(BehaviorCaptcha, {
         props: { challenge: challenge(mode) },
@@ -115,13 +214,19 @@ describe('BehaviorCaptcha', () => {
 
       const [verifyCode] = wrapper.emitted('complete')?.at(-1) || [];
       expect(JSON.parse(String(verifyCode))).toMatchObject({
-        answer: { points: [{ x: 80, y: 60 }, { x: 220, y: 120 }] },
+        answer: {
+          points: [
+            { x: 80, y: 60 },
+            { x: 220, y: 120 },
+          ],
+        },
         challengeId: `challenge-${mode}`,
         mode: submittedMode,
         track: { points: expect.any(Array) },
       });
       wrapper.unmount();
-    });
+    },
+  );
 
   it('delegates refresh to GoCaptcha Vue', () => {
     const wrapper = mount(BehaviorCaptcha, {
@@ -160,11 +265,19 @@ describe('BehaviorCaptcha', () => {
   });
 
   it('renders only the public start marker for an obstacle-avoidance image', () => {
-    const wrapper = mount(BehaviorCaptcha, { props: { challenge: pathChallenge() } });
+    const wrapper = mount(BehaviorCaptcha, {
+      props: { challenge: pathChallenge() },
+    });
 
-    expect(wrapper.findAll('[data-test="behavior-captcha-path-obstacle"]')).toHaveLength(0);
-    expect(wrapper.get('[data-test="behavior-captcha-path-start"]').text()).toContain('起');
-    expect(wrapper.find('[data-test="behavior-captcha-path-target"]').exists()).toBe(false);
+    expect(
+      wrapper.findAll('[data-test="behavior-captcha-path-obstacle"]'),
+    ).toHaveLength(0);
+    expect(
+      wrapper.get('[data-test="behavior-captcha-path-start"]').text(),
+    ).toContain('起');
+    expect(
+      wrapper.find('[data-test="behavior-captcha-path-target"]').exists(),
+    ).toBe(false);
     wrapper.unmount();
   });
 
@@ -175,12 +288,14 @@ describe('BehaviorCaptcha', () => {
     });
     setStageRect(wrapper);
 
-    await wrapper.get('[data-test="behavior-captcha-path-ball"]').trigger('pointerdown', {
-      button: 0,
-      clientX: 24,
-      clientY: 150,
-      pointerId: 7,
-    });
+    await wrapper
+      .get('[data-test="behavior-captcha-path-ball"]')
+      .trigger('pointerdown', {
+        button: 0,
+        clientX: 24,
+        clientY: 150,
+        pointerId: 7,
+      });
     dispatchPointer('pointermove', 74, 150);
     dispatchPointer('pointermove', 156, 162);
     dispatchPointer('pointermove', 248, 122);
@@ -196,7 +311,10 @@ describe('BehaviorCaptcha', () => {
     const [verifyCode] = wrapper.emitted('complete')?.at(-1) || [];
     expect(JSON.parse(String(verifyCode))).toMatchObject({
       answer: {
-        path: expect.arrayContaining([{ x: 24, y: 150 }, { x: 296, y: 32 }]),
+        path: expect.arrayContaining([
+          { x: 24, y: 150 },
+          { x: 296, y: 32 },
+        ]),
         start: { x: 24, y: 150 },
       },
       mode: 'obstacleAvoidance',
@@ -217,11 +335,13 @@ describe('BehaviorCaptcha', () => {
     });
     setStageRect(wrapper);
 
-    await wrapper.get('[data-test="behavior-captcha-path-ball"]').trigger('pointerdown', {
-      button: 0,
-      clientX: 24,
-      clientY: 150,
-    });
+    await wrapper
+      .get('[data-test="behavior-captcha-path-ball"]')
+      .trigger('pointerdown', {
+        button: 0,
+        clientX: 24,
+        clientY: 150,
+      });
     dispatchPointer('pointermove', 92, 138);
     dispatchPointer('pointerup', 140, 120);
     await nextTick();
@@ -237,33 +357,37 @@ describe('BehaviorCaptcha', () => {
     });
     setStageRect(wrapper);
 
-    await wrapper.get('[data-test="behavior-captcha-path-ball"]').trigger('pointerdown', {
-      button: 0,
-      clientX: 24,
-      clientY: 150,
-      pointerId: 7,
-    });
+    await wrapper
+      .get('[data-test="behavior-captcha-path-ball"]')
+      .trigger('pointerdown', {
+        button: 0,
+        clientX: 24,
+        clientY: 150,
+        pointerId: 7,
+      });
     dispatchPointer('pointermove', -20, 220);
     await nextTick();
 
-    expect(wrapper.get('[data-test="behavior-captcha-path-track"]').attributes('points')).toContain(
-      '14,166',
-    );
+    expect(
+      wrapper
+        .get('[data-test="behavior-captcha-path-track"]')
+        .attributes('points'),
+    ).toContain('14,166');
     wrapper.unmount();
   });
 
   it('keeps the enlarged thumbnail only for ordinary click captcha', () => {
     expect(componentSource).toMatch(
-      /captcha-mode-CLICK'\] \.go-captcha \.gc-header\)[\s\S]*?height:\s*56px;/,
+      /captcha-mode-CLICK'\][\s\S]*?height:\s*56px;/,
     );
     expect(componentSource).toMatch(
-      /captcha-mode-IDIOM_CLICK'\] \.go-captcha \.gc-header\)[\s\S]*?height:\s*56px;/,
+      /captcha-mode-IDIOM_CLICK'\][\s\S]*?height:\s*56px;/,
     );
     expect(componentSource).toMatch(
-      /captcha-mode-CLICK'\] \.go-captcha \.gc-header img\)[\s\S]*?max-height:\s*56px;/,
+      /captcha-mode-CLICK'\][^{]*?\.gc-header\s+img\s*\)[^{]*\{[\s\S]*?max-height:\s*56px;/,
     );
     expect(componentSource).not.toMatch(
-      /captcha-mode-IDIOM_CLICK'\] \.go-captcha \.gc-header img/,
+      /captcha-mode-IDIOM_CLICK'\][^{]*?\.gc-header\s+img/,
     );
   });
 
@@ -287,9 +411,9 @@ describe('BehaviorCaptcha', () => {
       props: { challenge: null, loading: true },
     });
 
-    expect(wrapper.find('[data-test="behavior-captcha-loading"]').exists()).toBe(
-      true,
-    );
+    expect(
+      wrapper.find('[data-test="behavior-captcha-loading"]').exists(),
+    ).toBe(true);
     expect(wrapper.text()).not.toContain('当前行为验证码类型暂不支持');
     wrapper.unmount();
   });
@@ -299,23 +423,22 @@ describe('BehaviorCaptcha', () => {
       props: { challenge: challenge('CLICK'), loading: true },
     });
 
-    expect(wrapper.get('[data-test="behavior-captcha-loading"]').classes()).toEqual(
-      expect.arrayContaining(['absolute', 'inset-0']),
-    );
+    expect(
+      wrapper.get('[data-test="behavior-captcha-loading"]').classes(),
+    ).toEqual(expect.arrayContaining(['absolute', 'inset-0']));
     expect(wrapper.findComponent(GoCaptchaClick).exists()).toBe(true);
     wrapper.unmount();
   });
 
-  it.each(['SMS_CONFIRM', 'SMS_UP'])
-    ('rejects disabled HMI mode %s', (mode) => {
-      expect(
-        normalizeBehaviorCaptchaChallenge({
-          challengeId: 'disabled-mode',
-          mode,
-          puzzle: { image: masterImage, thumb: thumbImage },
-        }),
-      ).toBeNull();
-    });
+  it.each(['SMS_CONFIRM', 'SMS_UP'])('rejects disabled HMI mode %s', (mode) => {
+    expect(
+      normalizeBehaviorCaptchaChallenge({
+        challengeId: 'disabled-mode',
+        mode,
+        puzzle: { image: masterImage, thumb: thumbImage },
+      }),
+    ).toBeNull();
+  });
 
   it.each([
     ['click', 'CLICK'],

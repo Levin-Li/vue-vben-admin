@@ -8,6 +8,7 @@ import { servicePluginSettingService } from '../../api/service-plugin-setting-se
 import CrudPage from '../crud-page.vue';
 import SettingValueContentField from '../setting-value-content-field.vue';
 import { servicePluginSettingPageCrudConfig } from './config';
+import { filterServicePluginOption } from './plugin-option-search';
 
 interface ServicePluginProvider {
   code?: string;
@@ -260,6 +261,7 @@ onMounted(() => {
     <CrudPage :config="servicePluginSettingPageCrudConfig">
       <template #search-field-servicePluginId="{ searchState }">
         <Select
+          :filter-option="filterServicePluginOption"
           :loading="pluginsLoading"
           :options="pluginOptions"
           :value="searchState.servicePluginId"
@@ -279,6 +281,7 @@ onMounted(() => {
       <template #form-field-servicePluginId="{ editingRecord, formState }">
         <Select
           :disabled="Boolean(editingRecord?.id)"
+          :filter-option="filterServicePluginOption"
           :loading="pluginsLoading"
           :options="pluginOptions"
           :value="formState.servicePluginId"

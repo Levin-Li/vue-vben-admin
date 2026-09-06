@@ -11,6 +11,7 @@ vi.mock('../../api-module', () => ({
   DEFAULT_CRUD_MODAL_WIDTH: 960,
   FILE_STORAGE_SINGLE_UPLOAD_PATH: '/FileStorage/uploadSingleFile',
   tenantOptionsLoader: async () => [],
+  userOptionsLoader: async () => [],
   withModuleCrudConfig: (config: any) => config,
 }));
 

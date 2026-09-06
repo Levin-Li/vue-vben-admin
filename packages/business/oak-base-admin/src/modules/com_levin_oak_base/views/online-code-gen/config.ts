@@ -11,6 +11,12 @@ function buildGenAmisPageCodeAction(record: Record<string, any>) {
   });
 }
 
+export const pageMeta = {
+  name: 'OnlineCodeGen',
+  title: '在线代码生成',
+  description: '执行在线代码生成。',
+} as const;
+
 export const onlineCodeGenPageCrudConfig: CrudPageConfig = {
   allowCreate: false,
   allowDelete: false,

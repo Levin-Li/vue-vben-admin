@@ -1,9 +1,9 @@
 export interface MenuOpButton {
-  apiUrl?: string;
   disabled?: boolean;
   label?: string;
+  opName?: string;
   remark?: string;
-  requireAuthorization?: string;
+  requireAuthorizations?: string[];
 }
 
 export interface MenuRecord {

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import type { PermissionTreeNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import type { VxeTableGridOptions } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
+import type { PermissionTreeNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 
 import type { MenuOpButton, MenuRecord, SelectOption } from './types';
 
@@ -10,37 +10,35 @@ import { useRoute } from 'vue-router';
 import { Page } from '@vben/common-ui';
 import { IconifyIcon, Plus } from '@vben/icons';
 
-import {
-  Button,
-  Modal,
-  Space,
-  Spin,
-  Switch,
-  Tag,
-  Tooltip,
-  message,
-} from 'ant-design-vue';
-
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { PermissionTreeNodeType } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
-import { menuService } from '../../api/menu-service';
 import { moduleFetchEnumOptions } from '@levin/oak-base-admin/modules/com_levin_oak_base/views/api-module';
+import {
+  Button,
+  message,
+  Modal,
+  Space,
+  Spin,
+  Switch,
+  Tag,
+  Tooltip,
+} from 'ant-design-vue';
 
+import { menuService } from '../../api/menu-service';
+import {
+  getOpButtonCount,
+  getRequireAuthorizationCount,
+} from './action-counts';
 import {
   fallbackActionTypeOptions,
   fallbackPageTypeOptions,
   useColumns,
 } from './data';
-import {
-  getOpButtonCount,
-  getRequireAuthorizationCount,
-} from './action-counts';
 import MenuFormDrawer from './menu-form-drawer.vue';
-import OpButtonEditor from './op-button-editor.vue';
 import {
   buildMenuTree,
   collectMenuSubtreeIds,
@@ -50,6 +48,7 @@ import {
   sortMenuRows,
   toMenuFormRecord,
 } from './menu-tree-utils';
+import OpButtonEditor from './op-button-editor.vue';
 
 type MenuMoveDirection = 'down' | 'up';
 
@@ -77,6 +76,8 @@ const { hasPermission } = useRbacAccess();
 const MENU_ORDER_MAX = 2_147_483_647;
 const MENU_ORDER_MIN = -2_147_483_648;
 const MENU_ORDER_STEP = 100;
+const MENU_VISIBILITY_PERMISSION_HINT =
+  '菜单可见需要菜单展示权限 + 所有的额外所需权限';
 
 const batchDeleteMenuPermission = buildApiMethodPermissions(
   menuService,
@@ -96,8 +97,8 @@ const opButtonModalTitle = computed(() =>
 );
 const permissionModalTitle = computed(() =>
   permissionRecord.value?.name
-    ? `所需权限 - ${permissionRecord.value.name}`
-    : '所需权限',
+    ? `额外所需权限 - ${permissionRecord.value.name}`
+    : '额外所需权限',
 );
 
 const [Grid, gridApi] = useVbenVxeGrid({
@@ -200,7 +201,9 @@ async function loadMenuTree() {
   const items = normalizeAuthorizedMenuList(data);
 
   if (
-    items.some((item) => Array.isArray(item.children) && item.children.length)
+    items.some(
+      (item) => Array.isArray(item.children) && item.children.length > 0,
+    )
   ) {
     return normalizeMenuTree(items);
   }
@@ -259,7 +262,7 @@ function getMoveTargetIndex(row: MenuRecord, direction: MenuMoveDirection) {
   const siblings = getOrderedMenuSiblings(row);
   const currentIndex = siblings.findIndex((item) => item.id === row.id);
 
-  if (currentIndex < 0) {
+  if (currentIndex === -1) {
     return { currentIndex, siblings, targetIndex: -1 };
   }
 
@@ -325,8 +328,7 @@ function buildSingleMenuOrderUpdate(
     return undefined;
   }
 
-  const previousBoundIndex =
-    direction === 'up' ? targetIndex - 1 : targetIndex;
+  const previousBoundIndex = direction === 'up' ? targetIndex - 1 : targetIndex;
   const nextBoundIndex = direction === 'up' ? targetIndex : targetIndex + 1;
   const nextOrderCode = getMenuOrderBetween(
     previousBoundIndex >= 0
@@ -349,10 +351,7 @@ function buildSingleMenuOrderUpdate(
   };
 }
 
-function buildMenuOrderUpdates(
-  row: MenuRecord,
-  direction: MenuMoveDirection,
-) {
+function buildMenuOrderUpdates(row: MenuRecord, direction: MenuMoveDirection) {
   const singleUpdate = buildSingleMenuOrderUpdate(row, direction);
   if (singleUpdate) {
     return [singleUpdate];
@@ -399,7 +398,9 @@ async function moveMenu(row: MenuRecord, direction: MenuMoveDirection) {
   const updates = buildMenuOrderUpdates(row, direction);
 
   if (updates.length === 0) {
-    message.info(direction === 'up' ? '已经是第一个菜单' : '已经是最后一个菜单');
+    message.info(
+      direction === 'up' ? '已经是第一个菜单' : '已经是最后一个菜单',
+    );
     return;
   }
 
@@ -477,10 +478,9 @@ async function ensurePermissionTreeLoaded() {
 
   permissionLoading.value = true;
   try {
-    permissionTree.value =
-      ((await rbacService.fetchAuthorizedPermissionTree({
-        excludeRootNodeTypes: [PermissionTreeNodeType.Menu],
-      })) || []) as PermissionTreeNode[];
+    permissionTree.value = ((await rbacService.fetchAuthorizedPermissionTree({
+      excludeRootNodeTypes: [PermissionTreeNodeType.Menu],
+    })) || []) as PermissionTreeNode[];
   } catch (error) {
     console.error(error);
     message.error('加载资源权限列表失败');
@@ -496,7 +496,7 @@ async function openPermissionEditor(row: MenuRecord) {
   }
 
   if (row.publicAccess) {
-    message.info('公开访问菜单不需要配置所需权限');
+    message.info('公开访问菜单不需要配置额外所需权限');
     return;
   }
 
@@ -521,53 +521,34 @@ function closeOpButtonEditor() {
 function cleanOpButtonList(value: MenuOpButton[]) {
   return (value || [])
     .map((item) => ({
-      apiUrl: item.apiUrl?.trim() || undefined,
+      opName: item.opName?.trim() || undefined,
       disabled: Boolean(item.disabled),
       label: item.label?.trim() || undefined,
       remark: item.remark?.trim() || undefined,
-      requireAuthorization: item.requireAuthorization?.trim() || undefined,
+      requireAuthorizations: [
+        ...new Set(
+          (item.requireAuthorizations || [])
+            .map((permission) => permission.trim())
+            .filter(Boolean),
+        ),
+      ],
     }))
     .filter(
       (item) =>
         item.label ||
-        item.apiUrl ||
-        item.requireAuthorization ||
+        item.opName ||
+        item.requireAuthorizations.length > 0 ||
         item.remark ||
         item.disabled,
     );
 }
 
 function findInvalidOpButtonIndex(value: MenuOpButton[]) {
-  return (value || []).findIndex(
-    (item) => !String(item.requireAuthorization || '').trim(),
-  );
-}
-
-function getPermissionActionName(permissionExpr?: null | string) {
-  if (!permissionExpr) {
-    return '';
-  }
-
-  const parts = String(permissionExpr).split(':');
-
-  for (let index = parts.length - 1; index >= 0; index -= 1) {
-    const value = parts[index]?.trim();
-    if (value) {
-      return value;
-    }
-  }
-
-  return String(permissionExpr).trim();
+  return (value || []).findIndex((item) => !String(item.opName || '').trim());
 }
 
 function getOpButtonLabel(button: MenuOpButton) {
-  return (
-    button.label?.trim() ||
-    button.name?.trim() ||
-    getPermissionActionName(button.requireAuthorization) ||
-    button.apiUrl?.trim() ||
-    '未命名操作'
-  );
+  return button.label?.trim() || button.opName?.trim() || '未命名操作';
 }
 
 async function submitOpButtonList() {
@@ -578,9 +559,16 @@ async function submitOpButtonList() {
     return;
   }
 
+  const names = opButtonRows.value
+    .map((item) => item.opName?.trim())
+    .filter(Boolean);
+  if (new Set(names).size !== names.length) {
+    message.warning('同一页面的操作名称不能重复');
+    return;
+  }
   const invalidIndex = findInvalidOpButtonIndex(opButtonRows.value);
   if (invalidIndex >= 0) {
-    message.warning(`第 ${invalidIndex + 1} 行页面操作的需要权限不能为空`);
+    message.warning(`第 ${invalidIndex + 1} 行页面操作的操作名称不能为空`);
     return;
   }
 
@@ -626,7 +614,7 @@ async function submitRequireAuthorizations() {
       ],
     });
     await clearMenuCacheSilently();
-    message.success('所需权限已更新');
+    message.success('额外所需权限已更新');
     closePermissionEditor();
     refresh();
   } finally {
@@ -836,6 +824,14 @@ function renderIcon(row: MenuRecord) {
     <div class="vben-menu-page h-full min-w-0">
       <div class="vben-menu-section flex h-full min-h-0 flex-col">
         <Grid>
+          <template #toolbar-actions>
+            <div
+              aria-label="菜单可见性规则"
+              class="text-muted-foreground rounded border border-dashed px-3 py-1.5 text-sm"
+            >
+              {{ MENU_VISIBILITY_PERMISSION_HINT }}
+            </div>
+          </template>
           <template #toolbar-tools>
             <Space>
               <Button
@@ -845,7 +841,7 @@ function renderIcon(row: MenuRecord) {
               >
                 <IconifyIcon class="size-4" icon="lucide:trash-2" />
                 批量删除
-                <span v-if="selectedMenuRows.length">
+                <span v-if="selectedMenuRows.length > 0">
                   ({{ selectedMenuRows.length }})
                 </span>
               </Button>
@@ -916,10 +912,7 @@ function renderIcon(row: MenuRecord) {
               v-if="row.opButtonList?.length"
               class="flex max-w-[360px] flex-wrap gap-1"
             >
-              <Tag
-                v-for="button in row.opButtonList"
-                :key="`${button.label}-${button.apiUrl}-${button.requireAuthorization}`"
-              >
+              <Tag v-for="button in row.opButtonList" :key="button.opName">
                 {{ getOpButtonLabel(button) }}
               </Tag>
             </div>
@@ -973,22 +966,26 @@ function renderIcon(row: MenuRecord) {
               >
                 新增下级
               </Button>
-              <Button
+              <Tooltip
                 v-if="canUpdateMenu && !row.publicAccess"
-                class="menu-action-count-button"
-                :data-count="getRequireAuthorizationCount(row)"
-                size="small"
-                type="link"
-                @click="openPermissionEditor(row)"
+                :title="MENU_VISIBILITY_PERMISSION_HINT"
               >
-                所需权限
-                <span
-                  v-if="getRequireAuthorizationCount(row) > 0"
-                  class="menu-action-count-badge"
+                <Button
+                  class="menu-action-count-button"
+                  :data-count="getRequireAuthorizationCount(row)"
+                  size="small"
+                  type="link"
+                  @click="openPermissionEditor(row)"
                 >
-                  {{ getRequireAuthorizationCount(row) }}
-                </span>
-              </Button>
+                  额外所需权限
+                  <span
+                    v-if="getRequireAuthorizationCount(row) > 0"
+                    class="menu-action-count-badge"
+                  >
+                    {{ getRequireAuthorizationCount(row) }}
+                  </span>
+                </Button>
+              </Tooltip>
               <Button
                 v-if="canUpdateMenu"
                 class="menu-action-count-button"

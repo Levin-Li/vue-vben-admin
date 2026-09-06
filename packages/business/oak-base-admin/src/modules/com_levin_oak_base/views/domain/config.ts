@@ -25,8 +25,13 @@ const lifecycleStatusOptions = [
   { label: '未知', value: 'Unknown' },
 ];
 
+export const pageMeta = {
+  name: 'Domain',
+  title: '根域名管理',
+  description: '维护根域名和关联配置。',
+} as const;
+
 export const domainPageCrudConfig: CrudPageConfig = {
-  allowCreate: false,
   apiBase: '/Domain',
   apiService: domainService,
   defaultFormValues: {
@@ -43,6 +48,9 @@ export const domainPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '所属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -51,6 +59,7 @@ export const domainPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '所属租户',
       fixed: 'left',
       form: false,
@@ -76,6 +85,9 @@ export const domainPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '根域名',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '域名信息',
+      layoutOrder: 10,
       disabledOnEdit: true,
       required: true,
       table: true,
@@ -85,6 +97,8 @@ export const domainPageCrudConfig: CrudPageConfig = {
     {
       key: 'providerName',
       label: '域名供应商',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       disabledOnEdit: true,
       loadOptions: tenantSiteVendorOptionsLoader,
       search: true,
@@ -115,6 +129,9 @@ export const domainPageCrudConfig: CrudPageConfig = {
     {
       key: 'domainExpiredTime',
       label: '域名到期时间',
+      layoutGroup: 'business',
+      layoutGroupTitle: '生命周期设置',
+      layoutOrder: 10,
       table: true,
       type: 'datetime',
       width: 180,
@@ -122,6 +139,8 @@ export const domainPageCrudConfig: CrudPageConfig = {
     {
       key: 'neverExpires',
       label: '永不过期',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       table: true,
       type: 'switch',
       valueType: 'boolean',
@@ -130,6 +149,8 @@ export const domainPageCrudConfig: CrudPageConfig = {
     {
       key: 'autoRenew',
       label: '自动续期',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       table: true,
       type: 'switch',
       valueType: 'boolean',
@@ -157,16 +178,20 @@ export const domainPageCrudConfig: CrudPageConfig = {
       label: 'DNS记录快照',
       type: 'json',
     },
-    { key: 'nameservers', label: 'NS服务器', type: 'json' },
+    { key: 'nameservers', label: 'NS服务器', layoutGroup: 'extension', layoutGroupTitle: '解析与扩展信息', layoutOrder: 10, type: 'json' },
     {
       key: 'exInfo',
       label: '扩展信息',
+      layoutGroup: 'extension',
+      layoutOrder: 20,
       type: 'json',
     },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'business', layoutOrder: 40, type: 'number' },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       search: true,
       table: true,
       type: 'switch',
@@ -176,6 +201,8 @@ export const domainPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 60,
       search: true,
       table: true,
       type: 'switch',
@@ -202,14 +229,23 @@ export const domainPageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
+      layoutGroup: 'remark',
+      layoutGroupTitle: '备注信息',
+      layoutOrder: 10,
       layoutNewRow: true,
       type: 'textarea',
     },
   ],
   modalWidth: 1200,
   title: '根域名管理',
-  transformSubmit: async (values) => {
+  transformSubmit: async (values, editingRecord) => {
     const nextValues = { ...values };
+
+    if (editingRecord) {
+      delete nextValues.name;
+      return nextValues;
+    }
+
     nextValues.name = String(nextValues.name || '')
       .trim()
       .toLowerCase();

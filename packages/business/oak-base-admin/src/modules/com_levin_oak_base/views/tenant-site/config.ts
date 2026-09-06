@@ -6,10 +6,13 @@ import {
   tenantSiteDnsDomainOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
-import {
-  siteInfoFormFields,
-  transformSiteInfoSubmit,
-} from '../site-info-form';
+import { siteInfoFormFields, transformSiteInfoSubmit } from '../site-info-form';
+
+export const pageMeta = {
+  name: 'TenantSite',
+  title: '租户站点管理',
+  description: '维护租户站点配置。',
+} as const;
 
 export const tenantSitePageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantSite',
@@ -29,6 +32,8 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '所属租户',
+      layoutGroup: 'ownership',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       required: true,
@@ -38,6 +43,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '所属租户',
       fixed: 'left',
       form: false,
@@ -45,6 +51,13 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       type: 'tenant',
       visibleForPlatformUser: true,
       width: 180,
+    },
+    {
+      key: 'orgId',
+      label: '所属组织',
+      layoutGroup: 'ownership',
+      layoutOrder: 15,
+      type: 'org-tree-select',
     },
     {
       key: 'id',
@@ -57,6 +70,8 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'brandId',
       label: '品牌',
+      layoutGroup: 'basic',
+      layoutOrder: 10,
       loadOptions: brandOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -65,6 +80,8 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '站点名称',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       required: true,
       search: true,
       table: true,
@@ -73,6 +90,8 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'type',
       label: '站点类型',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       search: true,
       table: true,
       width: 140,
@@ -84,6 +103,8 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       loadOptions: tenantSiteDnsDomainOptionsLoader,
       placeholder: '可手动输入或选择完整域名',
       required: true,
+      layoutGroup: 'basic',
+      layoutOrder: 40,
       search: true,
       searchOrder: -100,
       table: true,
@@ -108,16 +129,20 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '站点到期时间',
+      layoutGroup: 'status',
+      layoutOrder: 10,
       table: true,
       type: 'datetime',
       width: 180,
     },
-    { key: 'uiExInfo', label: '前端展示扩展信息', type: 'json' },
-    { key: 'exInfo', label: '扩展信息', type: 'json' },
-    { key: 'orderCode', label: '排序代码', layoutNewRow: true, type: 'number' },
+    { key: 'uiExInfo', label: '前端展示扩展信息', layoutGroup: 'extension', layoutOrder: 10, type: 'json' },
+    { key: 'exInfo', label: '扩展信息', layoutGroup: 'extension', layoutOrder: 20, type: 'json' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'status', layoutNewRow: true, layoutOrder: 20, type: 'number' },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'status',
+      layoutOrder: 30,
       search: true,
       table: true,
       type: 'switch',
@@ -127,6 +152,8 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'status',
+      layoutOrder: 40,
       search: true,
       table: true,
       type: 'switch',
@@ -149,8 +176,9 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutOrder: 10, type: 'textarea' },
   ],
+  formMaxColumns: 3,
   modalWidth: 1000,
   title: '租户站点管理',
   transformSubmit: async (values, record) => {

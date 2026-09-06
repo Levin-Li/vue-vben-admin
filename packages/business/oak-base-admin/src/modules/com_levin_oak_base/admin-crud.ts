@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router';
 import { toPathRouteName } from '@levin/admin-framework';
 
 export interface OakBaseAdminCrudResource {
+  description?: string;
   icon: string;
   name: string;
   /** 前端路由守卫及上传菜单使用的已有授权资源；缺省时使用 resource。 */
@@ -89,8 +90,7 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     permissionResource: 'Demo',
     resource: 'AdministrativeAreaDemo',
     routePath: 'dev/TestDemo',
-    sourceFilePath:
-      'modules/com_levin_oak_base/views/dev/TestDemo.vue',
+    sourceFilePath: 'modules/com_levin_oak_base/views/dev/TestDemo.vue',
     title: '常用组件测试',
     viewPath: '/system/com_levin_oak_base/dev/TestDemo.vue',
   },
@@ -364,7 +364,7 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     icon: 'lucide:gauge',
     name: 'TrafficControlRule',
     resource: 'TrafficControlRule',
-    title: '流量控制',
+    title: '流量控制规则管理',
   },
   {
     icon: 'lucide:lock-keyhole',
@@ -400,8 +400,7 @@ export const oakBaseAdminResourceViewMap: Record<
   ArticleChannel: () => import('./views/article-channel/index.vue'),
   Brand: () => import('./views/brand/index.vue'),
   Customer: () => import('./views/customer/index.vue'),
-  AdministrativeAreaDemo: () =>
-    import('./views/dev/TestDemo.vue'),
+  AdministrativeAreaDemo: () => import('./views/dev/TestDemo.vue'),
   Demo: () => import('./views/demo/index.vue'),
   Dict: () => import('./views/dict/index.vue'),
   Domain: () => import('./views/domain/index.vue'),

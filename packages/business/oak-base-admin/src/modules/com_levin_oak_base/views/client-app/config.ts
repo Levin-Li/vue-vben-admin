@@ -65,6 +65,12 @@ function transformClientAppSubmit(
   return payload;
 }
 
+export const pageMeta = {
+  name: 'ClientApp',
+  title: '客户端应用管理',
+  description: '维护客户端应用配置。',
+} as const;
+
 export const clientAppPageCrudConfig: CrudPageConfig = {
   apiBase: '/ClientApp',
   apiService: clientAppService,
@@ -92,6 +98,7 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -99,6 +106,11 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       type: 'tenant',
       visibleForPlatformUser: true,
       width: 180,
+    },
+    {
+      key: 'orgId',
+      label: '所属组织',
+      type: 'org-tree-select',
     },
     {
       key: 'id',

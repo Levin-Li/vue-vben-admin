@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDetailDisplayEntries,
   formatDetailDisplayValue,
+  resolveDetailFields,
   isDetailJsonValue,
 } from '../detail-display';
 
@@ -180,5 +181,87 @@ describe('detail display rules', () => {
     expect(entry && formatDetailDisplayValue(entry)).toBe(
       '2026-05-20 15:00:00',
     );
+  });
+  it('已隐藏的配置字段不回退显示，无配置结果字段保持原语义', () => {
+    const known = [
+      { key: 'name', label: '名称' },
+      { key: 'secret', label: '隐藏信息' },
+    ];
+    const entries = buildDetailDisplayEntries(
+      { name: '示例', secret: '不可显示', result: '操作结果' },
+      known.slice(0, 1),
+      known,
+    );
+    expect(entries.map((entry) => entry.key)).toEqual(['name', 'result']);
+    expect(
+      buildDetailDisplayEntries({ secret: '不可显示' }, [], known),
+    ).toEqual([]);
+  });
+  it('默认展示空值，关闭后过滤空标量、数组和显式空 JSON', () => {
+    const configured = [
+      { key: 'json', label: 'JSON', type: 'json' as const },
+      { key: 'jsonText', label: 'JSON文本', type: 'json' as const },
+      { key: 'jsonList', label: 'JSON数组', type: 'json' as const },
+    ];
+    const data = {
+      nil: null,
+      missing: undefined,
+      empty: '',
+      blank: '  ',
+      array: [],
+      json: {},
+      jsonText: ' {} ',
+      jsonList: '[]',
+      zero: 0,
+      no: false,
+      text: '{}',
+      unknownObject: {},
+    };
+    const all = buildDetailDisplayEntries(data, configured);
+    expect(all.map((entry) => entry.key)).toEqual(
+      expect.arrayContaining([
+        'nil',
+        'missing',
+        'empty',
+        'blank',
+        'array',
+        'json',
+        'jsonText',
+        'jsonList',
+        'zero',
+        'no',
+        'text',
+      ]),
+    );
+    expect(all.some((entry) => entry.key === 'unknownObject')).toBe(false);
+    expect(
+      buildDetailDisplayEntries(data, configured, configured, false).map(
+        (entry) => entry.key,
+      ),
+    ).toEqual(['zero', 'no', 'text']);
+  });
+  it('详情仅来自响应或声明契约，查询配置只补充同名元数据', () => {
+    const metadata = [
+      { key: 'containsName', label: '名称', form: false, search: true },
+      { key: 'name', label: '名称' },
+      { key: 'id', label: 'ID', form: false },
+    ];
+    expect(
+      resolveDetailFields({ id: 1, name: '示例' }, metadata).map(
+        (field) => field.key,
+      ),
+    ).toEqual(['id', 'name']);
+    expect(resolveDetailFields(undefined, metadata)).toEqual([]);
+    expect(resolveDetailFields(undefined, metadata, [metadata[1]])).toEqual([
+      metadata[1],
+    ]);
+    expect(resolveDetailFields({ returnedOnly: true }, metadata)).toEqual([
+      { key: 'returnedOnly', label: 'returnedOnly' },
+    ]);
+    expect(
+      resolveDetailFields({ containsName: '接口确实返回该字段' }, metadata).map(
+        (field) => field.key,
+      ),
+    ).toEqual(['containsName']);
   });
 });

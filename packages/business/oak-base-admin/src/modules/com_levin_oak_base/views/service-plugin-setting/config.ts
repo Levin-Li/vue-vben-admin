@@ -1,10 +1,13 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { servicePluginSettingService } from '../../api/service-plugin-setting-service';
-import {
-  DEFAULT_CRUD_MODAL_WIDTH,
-  tenantOptionsLoader,
-} from '../api-module';
+import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
+
+export const pageMeta = {
+  name: 'ServicePluginSetting',
+  title: '服务插件设置管理',
+  description: '维护服务插件设置。',
+} as const;
 
 export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/ServicePluginSetting',
@@ -23,6 +26,8 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       type: 'select',
@@ -30,6 +35,7 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -50,6 +56,8 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'servicePluginId',
       label: '服务插件',
+      layoutGroup: 'basic',
+      layoutOrder: 10,
       required: true,
       search: true,
       table: true,
@@ -59,13 +67,15 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'servicePluginProviderCode',
       label: '供应商',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       required: true,
       search: true,
       table: true,
       type: 'select',
       width: 160,
     },
-    { key: 'domain', label: '域名', search: true, table: true, width: 160 },
+    { key: 'domain', label: '域名', layoutGroup: 'basic', layoutOrder: 30, search: true, table: true, width: 160 },
     {
       key: 'value',
       label: '供应商配置',
@@ -76,11 +86,15 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'orderCode',
       label: '排序代码',
+      layoutGroup: 'business',
+      layoutOrder: 10,
       type: 'number',
     },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -103,7 +117,7 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 150,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutOrder: 10, type: 'textarea' },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '服务插件设置管理',

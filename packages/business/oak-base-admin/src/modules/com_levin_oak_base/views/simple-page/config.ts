@@ -33,12 +33,22 @@ type SimplePageActionMethod =
   | 'publish';
 
 function buildSimplePageAction(methodName: SimplePageActionMethod) {
-  return async (record: Record<string, any>) => simplePageService[methodName]({ _operatorAction: record._operatorAction, id: record.id });
+  return async (record: Record<string, any>) =>
+    simplePageService[methodName]({
+      _operatorAction: record._operatorAction,
+      id: record.id,
+    });
 }
 
 function buildSimplePageActionPermission(methodName: SimplePageActionMethod) {
   return buildApiMethodPermissions(simplePageService, methodName);
 }
+
+export const pageMeta = {
+  name: 'SimplePage',
+  title: '简单页面管理',
+  description: '维护简单页面配置。',
+} as const;
 
 export const simplePagePageCrudConfig: CrudPageConfig = {
   apiBase: '/SimplePage',
@@ -66,6 +76,7 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,

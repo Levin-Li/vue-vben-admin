@@ -8,6 +8,10 @@ import type {
 
 import { computed, ref, watch } from 'vue';
 
+import { getAdminMenuSyncService } from '@levin/admin-framework';
+import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
+import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
+import { buildModuleSyncMenuPayload } from '@levin/admin-framework/framework-commons/app/utils/sync-menu-routes';
 import {
   Button,
   Checkbox,
@@ -15,12 +19,9 @@ import {
   message,
   Modal,
   Popconfirm,
+  Tooltip,
 } from 'ant-design-vue';
 
-import { getAdminMenuSyncService } from '@levin/admin-framework';
-import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
-import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
-import { buildModuleSyncMenuPayload } from '@levin/admin-framework/framework-commons/app/utils/sync-menu-routes';
 import {
   countSyncMenuItems,
   flattenSyncMenuItems,
@@ -28,8 +29,8 @@ import {
   removeSyncMenuItemByKey,
   syncAncestorKeysFromLeaves,
   toEditableSyncMenuItems,
-  toSelectedSyncMenuItems,
   toggleSyncMenuTreeKeys,
+  toSelectedSyncMenuItems,
 } from './sync-menu-routes-state';
 
 const props = withDefaults(
@@ -95,6 +96,12 @@ const gridOptions: VxeGridProps<EditableSyncMenuItem> = {
       minWidth: 180,
       slots: { default: 'moduleId' },
       title: '模块ID',
+    },
+    {
+      field: 'opButtonList',
+      minWidth: 132,
+      slots: { default: 'pageOperations' },
+      title: '页面操作权限',
     },
     {
       field: 'remark',
@@ -211,10 +218,7 @@ function handleToggleRow(record: EditableSyncMenuItem, checked: boolean) {
   );
 }
 
-function handleToggleOptionAll(
-  field: SyncMenuBooleanField,
-  checked: boolean,
-) {
+function handleToggleOptionAll(field: SyncMenuBooleanField, checked: boolean) {
   optionKeys.value = {
     ...optionKeys.value,
     [field]: checked
@@ -412,6 +416,48 @@ watch(menuList, (data) => {
       <template #moduleId="{ row }">
         <span class="font-mono text-xs">{{ row.moduleId }}</span>
       </template>
+      <template #pageOperations="{ row }">
+        <Tooltip
+          v-if="row.opButtonList?.length"
+          overlay-class-name="sync-menu-operation-tooltip"
+          placement="right"
+        >
+          <template #title>
+            <div class="sync-menu-operation-tooltip-content">
+              <div
+                v-for="operation in row.opButtonList"
+                :key="operation.opName"
+                class="sync-menu-operation-tooltip-item"
+              >
+                <div class="sync-menu-operation-tooltip-label">
+                  {{ operation.label || operation.opName }}
+                </div>
+                <div class="sync-menu-operation-tooltip-name">
+                  {{ operation.opName }}
+                </div>
+                <div
+                  v-if="operation.requireAuthorizations?.length"
+                  class="sync-menu-operation-tooltip-permissions"
+                >
+                  <span
+                    v-for="permission in operation.requireAuthorizations"
+                    :key="permission"
+                  >
+                    {{ permission }}
+                  </span>
+                </div>
+                <div v-else class="sync-menu-operation-tooltip-empty">
+                  无额外资源权限
+                </div>
+              </div>
+            </div>
+          </template>
+          <Button size="small" type="link">
+            {{ row.opButtonList.length }} 项操作
+          </Button>
+        </Tooltip>
+        <span v-else class="text-muted-foreground">—</span>
+      </template>
       <template #remark="{ row }">
         <Input v-model:value="row.remark" placeholder="请输入备注" />
       </template>
@@ -447,5 +493,49 @@ watch(menuList, (data) => {
   display: inline-flex;
   gap: 4px;
   white-space: nowrap;
+}
+
+:global(.sync-menu-operation-tooltip) {
+  max-width: min(560px, 70vw);
+}
+
+.sync-menu-operation-tooltip-content {
+  display: grid;
+  gap: 8px;
+  padding: 2px;
+}
+
+.sync-menu-operation-tooltip-item {
+  border-bottom: 1px solid rgb(255 255 255 / 20%);
+  display: grid;
+  gap: 2px;
+  padding-bottom: 8px;
+}
+
+.sync-menu-operation-tooltip-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sync-menu-operation-tooltip-label {
+  font-weight: 600;
+}
+
+.sync-menu-operation-tooltip-name,
+.sync-menu-operation-tooltip-permissions {
+  color: rgb(255 255 255 / 72%);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.sync-menu-operation-tooltip-permissions {
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+
+.sync-menu-operation-tooltip-empty {
+  color: rgb(255 255 255 / 60%);
+  font-size: 12px;
 }
 </style>

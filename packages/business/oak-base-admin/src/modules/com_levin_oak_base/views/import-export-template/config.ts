@@ -18,6 +18,12 @@ const fileTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.ImportExportTemplate$FileType',
 );
 
+export const pageMeta = {
+  name: 'ImportExportTemplate',
+  title: '导入导出模板管理',
+  description: '维护导入导出模板。',
+} as const;
+
 export const importExportTemplatePageCrudConfig: CrudPageConfig = {
   apiBase: '/ImportExportTemplate',
   apiService: importExportTemplateService,
@@ -38,6 +44,9 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -46,6 +55,7 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -111,6 +121,9 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '模板名称',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '模板信息',
+      layoutOrder: 10,
       required: true,
       table: true,
       width: 180,
@@ -118,6 +131,8 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'code',
       label: '模板编码',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       disabledOnEdit: true,
       required: true,
       table: true,
@@ -126,6 +141,8 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'type',
       label: '模板类型',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       loadOptions: templateTypeOptionsLoader,
       required: true,
       table: true,
@@ -135,6 +152,8 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'targetType',
       label: '目标业务类型',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
       required: true,
       table: true,
       width: 220,
@@ -142,6 +161,8 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'fileType',
       label: '文件类型',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
       loadOptions: fileTypeOptionsLoader,
       required: true,
       table: true,
@@ -151,34 +172,46 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'category',
       label: '分类',
+      layoutGroup: 'basic',
+      layoutOrder: 60,
       loadOptions: importExportTemplateCategoryOptionsLoader,
       table: true,
       type: 'select',
       width: 140,
     },
-    { key: 'groupName', label: '分组名称', table: true, width: 140 },
+    { key: 'groupName', label: '分组名称', layoutGroup: 'basic', layoutOrder: 70, table: true, width: 140 },
     {
       key: 'templateFileResId',
       label: '模板文件资源ID',
+      layoutGroup: 'media',
+      layoutGroupTitle: '模板文件',
+      layoutOrder: 10,
       table: true,
       width: 180,
     },
     {
       key: 'templateFileUrl',
       label: '模板文件地址',
+      layoutGroup: 'media',
+      layoutOrder: 20,
       span: 2,
       table: true,
       width: 260,
     },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'business', layoutGroupTitle: '状态设置', layoutOrder: 10, type: 'number' },
     {
       key: 'config',
       label: '配置',
+      layoutGroup: 'extension',
+      layoutGroupTitle: '模板配置',
+      layoutOrder: 10,
       type: 'json',
     },
     {
       key: 'tenantShared',
       label: '租户共享',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       table: true,
       type: 'switch',
       valueType: 'boolean',
@@ -187,6 +220,8 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'orgShared',
       label: '组织共享',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       table: true,
       type: 'switch',
       valueType: 'boolean',
@@ -195,6 +230,8 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       search: true,
       table: true,
       type: 'switch',
@@ -204,6 +241,8 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       search: true,
       table: true,
       type: 'switch',
@@ -226,7 +265,7 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'remark', label: '备注', fullRow: true, type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutGroupTitle: '备注信息', layoutOrder: 10, type: 'textarea' },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '导入导出模板管理',

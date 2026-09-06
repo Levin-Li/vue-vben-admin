@@ -17,6 +17,12 @@ const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
 
+export const pageMeta = {
+  name: 'RbacPermissionItem',
+  title: '权限项定义',
+  description: '维护权限项定义。',
+} as const;
+
 export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
   apiBase: '/RbacPermissionItem',
   apiService: rbacPermissionItemService,
@@ -44,7 +50,7 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
       table: true,
       width: 180,
     },
-    { key: 'icon', label: '图标', type: 'image' },
+    { key: 'icon', label: '图标', layoutGroup: 'media', layoutGroupTitle: '图标资源', layoutOrder: 10, type: 'image' },
     {
       key: 'inCategory',
       label: '类别',
@@ -57,6 +63,9 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
     {
       key: 'category',
       label: '类别',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '权限资源',
+      layoutOrder: 10,
       loadOptions: permissionCategoryOptionsLoader,
       table: true,
       type: 'select',
@@ -65,6 +74,8 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
     {
       key: 'domain',
       label: '资源域',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       required: true,
       search: true,
       table: true,
@@ -73,15 +84,19 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
     {
       key: 'type',
       label: '资源类型',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       required: true,
       search: true,
       table: true,
       width: 160,
     },
-    { key: 'res', label: '资源', search: true, table: true, width: 160 },
+    { key: 'res', label: '资源', layoutGroup: 'basic', layoutOrder: 40, search: true, table: true, width: 160 },
     {
       key: 'action',
       label: '操作',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
       required: true,
       search: true,
       table: true,
@@ -91,6 +106,8 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
       key: 'actionTypes',
       label: '操作类型',
       fullRow: true,
+      layoutGroup: 'basic',
+      layoutOrder: 60,
       loadOptions: permissionActionTypeOptionsLoader,
       multiple: true,
       type: 'select',
@@ -98,6 +115,9 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
     {
       key: 'ignored',
       label: '是否忽略',
+      layoutGroup: 'business',
+      layoutGroupTitle: '访问策略',
+      layoutOrder: 10,
       search: true,
       table: true,
       type: 'switch',
@@ -107,6 +127,8 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
     {
       key: 'onlyRequireAuthenticated',
       label: '仅要求认证',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -116,6 +138,8 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
     {
       key: 'isAndMode',
       label: '匹配模式',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       search: true,
       table: true,
       type: 'switch',
@@ -126,11 +150,15 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
       key: 'verifyExpression',
       label: '验证表达式',
       fullRow: true,
+      layoutGroup: 'business',
+      layoutOrder: 40,
       type: 'textarea',
     },
     {
       key: 'confidentialLevel',
       label: '数据保密级别',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       loadOptions: confidentialLevelOptionsLoader,
       type: 'select',
       valueType: 'number',
@@ -139,6 +167,9 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
       key: 'anyRoles',
       label: '任意角色',
       fullRow: true,
+      layoutGroup: 'extension',
+      layoutGroupTitle: '授权范围',
+      layoutOrder: 10,
       loadOptions: roleOptionsLoader,
       multiple: true,
       remoteSearch: true,
@@ -147,12 +178,16 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
     {
       key: 'anyUserTypes',
       label: '任意用户类型',
+      layoutGroup: 'extension',
+      layoutOrder: 20,
       span: 2,
       type: 'tags',
     },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 60,
       search: true,
       table: true,
       type: 'switch',
@@ -162,13 +197,15 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 70,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutGroupTitle: '备注信息', layoutOrder: 10, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',

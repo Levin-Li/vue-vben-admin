@@ -19,6 +19,12 @@ const terminalTypeOptions = [
   { label: '开放API', value: 'OpenApi' },
 ];
 
+export const pageMeta = {
+  name: 'I18nRes',
+  title: '国际化资源管理',
+  description: '维护国际化资源。',
+} as const;
+
 export const i18nResPageCrudConfig: CrudPageConfig = {
   apiBase: '/I18nRes',
   apiService: i18nResService,
@@ -36,6 +42,9 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -44,6 +53,7 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -70,6 +80,9 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'appCode',
       label: '应用编码',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '资源范围',
+      layoutOrder: 10,
       search: true,
       table: true,
       width: 140,
@@ -77,6 +90,8 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'appVersion',
       label: '应用版本号',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       search: true,
       table: true,
       width: 140,
@@ -84,6 +99,8 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'moduleId',
       label: '模块ID',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       required: true,
       search: true,
       table: true,
@@ -92,6 +109,8 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'terminalType',
       label: '终端类型',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
       options: terminalTypeOptions,
       search: true,
       table: true,
@@ -101,6 +120,8 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'siteId',
       label: '站点ID',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
       search: true,
       table: true,
       width: 140,
@@ -108,6 +129,8 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'domain',
       label: '域名',
+      layoutGroup: 'basic',
+      layoutOrder: 60,
       search: true,
       table: true,
       width: 140,
@@ -115,7 +138,10 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'languageCode',
       label: '语言编码',
+      layoutGroup: 'basic',
+      layoutOrder: 70,
       loadOptions: languageCodeOptionsLoader,
+      required: true,
       search: true,
       table: true,
       type: 'select',
@@ -124,7 +150,10 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'nationCode',
       label: '国家编码',
+      layoutGroup: 'basic',
+      layoutOrder: 80,
       loadOptions: nationCodeOptionsLoader,
+      required: true,
       search: true,
       table: true,
       type: 'select',
@@ -133,6 +162,9 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'resKey',
       label: '资源键',
+      layoutGroup: 'content',
+      layoutGroupTitle: '资源内容',
+      layoutOrder: 10,
       required: true,
       search: true,
       table: true,
@@ -144,6 +176,8 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
       formCreate: true,
       formEdit: true,
       fullRow: true,
+      layoutGroup: 'content',
+      layoutOrder: 20,
       required: true,
       table: true,
       type: 'textarea',
@@ -153,6 +187,8 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
       key: 'resValue',
       label: '资源值',
       fullRow: true,
+      layoutGroup: 'content',
+      layoutOrder: 30,
       table: true,
       type: 'textarea',
       width: 180,
@@ -160,6 +196,9 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'category',
       label: '分类',
+      layoutGroup: 'business',
+      layoutGroupTitle: '状态设置',
+      layoutOrder: 10,
       search: true,
       table: true,
       width: 140,
@@ -167,6 +206,8 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantShared',
       label: '租户共享',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       table: true,
       type: 'switch',
       valueType: 'boolean',
@@ -175,6 +216,8 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       search: true,
       table: true,
       type: 'switch',
@@ -184,6 +227,8 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       search: true,
       table: true,
       type: 'switch',
@@ -194,6 +239,9 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
+      layoutGroup: 'remark',
+      layoutGroupTitle: '备注信息',
+      layoutOrder: 10,
       type: 'textarea',
     },
     {

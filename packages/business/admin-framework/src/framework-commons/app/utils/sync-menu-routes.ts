@@ -1,12 +1,15 @@
 import type {
   AdminBackendRouteMapping,
   AdminFrontendModule,
+  AdminPageOperation,
 } from '@levin/admin-framework';
+
 import type { RouteRecordRaw } from 'vue-router';
 
 import { toPathRouteName } from '../../page-registry';
 
 export const DEFAULT_SYNC_MENU_MODULE_ID = 'com.levin.oak.base';
+const MENU_REMARK_MAX_LENGTH = 512;
 
 export interface SyncMenuItem {
   children?: SyncMenuItem[];
@@ -14,12 +17,22 @@ export interface SyncMenuItem {
   icon?: string;
   label: string;
   moduleId?: string;
+  name?: string;
+  opButtonList?: SyncMenuOperation[];
   overrideExisting?: boolean;
+  pageName?: string;
   params?: string;
   path: string;
   remark?: string;
   sourceFilePath?: string;
   viewPath?: string;
+}
+
+export interface SyncMenuOperation {
+  label: string;
+  opName: string;
+  remark: string;
+  requireAuthorizations: string[];
 }
 
 export interface SyncMenuPayload {
@@ -61,9 +74,15 @@ function createRouteMappingLookup(
   routeMappings: AdminBackendRouteMapping[] = [],
 ) {
   routeMappings.forEach((mapping) => {
-    if (!hasText(mapping.sourceFilePath) || !hasText(mapping.viewPath)) {
+    if (
+      !hasText(mapping.description) ||
+      !hasText(mapping.name) ||
+      !hasText(mapping.sourceFilePath) ||
+      !hasText(mapping.title) ||
+      !hasText(mapping.viewPath)
+    ) {
       throw new Error(
-        `页面映射不完整：${mapping.path}。必须同时提供 viewPath 和 sourceFilePath。`,
+        `页面映射不完整：${mapping.path}。必须同时提供 name、title、description、viewPath 和 sourceFilePath。`,
       );
     }
   });
@@ -77,6 +96,10 @@ function normalizeSyncMenuModuleId(moduleId?: string) {
 
 function normalizeSyncMenuPath(path: string) {
   return String(path || '').trim();
+}
+
+function truncateMenuRemark(value: string) {
+  return value.slice(0, MENU_REMARK_MAX_LENGTH);
 }
 
 function getSyncMenuKey(moduleId: string | undefined, path: string) {
@@ -93,9 +116,25 @@ function applyRouteMapping(
 
   return {
     ...item,
+    ...(mapping.operations
+      ? { opButtonList: toSyncMenuOperations(mapping.operations) }
+      : {}),
+    name: mapping.name,
+    remark: truncateMenuRemark(mapping.description),
     sourceFilePath: mapping.sourceFilePath,
     viewPath: mapping.viewPath,
   };
+}
+
+function toSyncMenuOperations(
+  operations: AdminPageOperation[],
+): SyncMenuOperation[] {
+  return operations.map((operation) => ({
+    label: operation.label,
+    opName: operation.opName,
+    remark: operation.description,
+    requireAuthorizations: operation.requireAuthorizations,
+  }));
 }
 
 function toSyncMenuItems(
@@ -127,7 +166,7 @@ function toSyncMenuItems(
     const mapping = routeMappingLookup.get(path);
     if (requirePageMapping && children.length === 0 && !mapping) {
       throw new Error(
-        `页面路由缺少完整映射：${path}。请在 backendRouteMappings 中提供 viewPath 和 sourceFilePath。`,
+        `页面路由缺少完整映射：${path}。请在 backendRouteMappings 中提供 name、title、description、viewPath 和 sourceFilePath。`,
       );
     }
 
@@ -138,8 +177,11 @@ function toSyncMenuItems(
           icon: getRouteIcon(route),
           label,
           moduleId,
+          name: mapping?.name || label,
           path,
-          remark: toPathRouteName(path),
+          remark: mapping?.description
+            ? truncateMenuRemark(mapping.description)
+            : toPathRouteName(path),
         },
         mapping,
       ),
@@ -147,10 +189,7 @@ function toSyncMenuItems(
   });
 }
 
-function collectSyncMenuKeys(
-  items: SyncMenuItem[],
-  keys = new Set<string>(),
-) {
+function collectSyncMenuKeys(items: SyncMenuItem[], keys = new Set<string>()) {
   items.forEach((item) => {
     keys.add(getSyncMenuKey(item.moduleId, item.path));
     collectSyncMenuKeys(item.children || [], keys);
@@ -189,8 +228,12 @@ function toSyncMenuItemFromMapping(
     icon: mapping.icon,
     label: mapping.title,
     moduleId,
+    ...(mapping.operations
+      ? { opButtonList: toSyncMenuOperations(mapping.operations) }
+      : {}),
     path: mapping.path,
-    remark: toPathRouteName(mapping.path),
+    name: mapping.name,
+    remark: truncateMenuRemark(mapping.description),
     sourceFilePath: mapping.sourceFilePath,
     viewPath: mapping.viewPath,
   };

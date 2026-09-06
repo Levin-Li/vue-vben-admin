@@ -7,6 +7,7 @@ import {
   FILE_STORAGE_MULTI_UPLOAD_PATH,
   FILE_STORAGE_SINGLE_UPLOAD_PATH,
   tenantOptionsLoader,
+  userOptionsLoader,
 } from '../api-module';
 
 const fileResTypeOptionsLoader = buildEnumOptionsLoader(
@@ -15,6 +16,12 @@ const fileResTypeOptionsLoader = buildEnumOptionsLoader(
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
+
+export const pageMeta = {
+  name: 'FileRes',
+  title: '文件资源库',
+  description: '维护文件资源库。',
+} as const;
 
 export const fileResPageCrudConfig: CrudPageConfig = {
   apiBase: '/FileRes',
@@ -34,6 +41,9 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -42,6 +52,7 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -49,6 +60,22 @@ export const fileResPageCrudConfig: CrudPageConfig = {
       type: 'tenant',
       visibleForPlatformUser: true,
       width: 180,
+    },
+    {
+      key: 'orgId',
+      label: '所属组织',
+      layoutGroup: 'ownership',
+      layoutOrder: 20,
+      type: 'org-tree-select',
+    },
+    {
+      key: 'ownerId',
+      label: '所属用户',
+      layoutGroup: 'ownership',
+      layoutOrder: 30,
+      loadOptions: userOptionsLoader,
+      remoteSearch: true,
+      type: 'select',
     },
     {
       key: 'id',
@@ -62,23 +89,49 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '文件名称',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '文件信息',
+      layoutOrder: 10,
       required: true,
       search: true,
       table: true,
       width: 220,
     },
     {
+      key: 'bizType',
+      label: '业务类型',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
+      required: true,
+      table: true,
+      width: 160,
+    },
+    {
       key: 'type',
       label: '文件类型',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       loadOptions: fileResTypeOptionsLoader,
+      required: true,
       search: true,
       table: true,
       type: 'select',
       width: 140,
     },
     {
+      key: 'confidentialLevel',
+      label: '机密等级',
+      layoutGroup: 'basic',
+      layoutOrder: 35,
+      loadOptions: confidentialLevelOptionsLoader,
+      type: 'select',
+      valueType: 'number',
+    },
+    {
       key: 'category',
       label: '类别',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
       search: true,
       table: true,
       width: 140,
@@ -86,18 +139,24 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'mimeType',
       label: 'Mime类型',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
       table: true,
       width: 160,
     },
     {
       key: 'bizObjId',
       label: '业务对象ID',
+      layoutGroup: 'basic',
+      layoutOrder: 60,
       table: true,
       width: 180,
     },
     {
       key: 'paths',
       label: '文件路径',
+      layoutGroup: 'basic',
+      layoutOrder: 70,
       multiple: true,
       type: 'file',
       uploadPath: FILE_STORAGE_MULTI_UPLOAD_PATH,
@@ -105,18 +164,16 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'tagList',
       label: '标签列表',
+      layoutGroup: 'basic',
+      layoutOrder: 90,
       type: 'tags',
-    },
-    {
-      key: 'confidentialLevel',
-      label: '机密等级',
-      loadOptions: confidentialLevelOptionsLoader,
-      type: 'select',
-      valueType: 'number',
     },
     {
       key: 'publishable',
       label: '公网发布',
+      layoutGroup: 'business',
+      layoutGroupTitle: '共享与状态',
+      layoutOrder: 10,
       search: true,
       table: true,
       type: 'switch',
@@ -126,6 +183,8 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'deleted',
       label: '已删除',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -135,6 +194,8 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantShared',
       label: '租户共享',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       table: true,
       type: 'switch',
       valueType: 'boolean',
@@ -143,6 +204,8 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgShared',
       label: '组织共享',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       table: true,
       type: 'switch',
       valueType: 'boolean',
@@ -151,6 +214,8 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       search: true,
       table: true,
       type: 'switch',
@@ -160,6 +225,8 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 60,
       search: true,
       table: true,
       type: 'switch',
@@ -169,12 +236,15 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'exInfo',
       label: '扩展信息',
+      layoutGroup: 'extension',
+      layoutOrder: 10,
       type: 'json',
     },
     {
       key: 'coverUrl',
       label: '封面图',
-      layoutNewRow: true,
+      layoutGroup: 'basic',
+      layoutOrder: 80,
       table: true,
       type: 'image',
       uploadPath: FILE_STORAGE_SINGLE_UPLOAD_PATH,
@@ -183,7 +253,9 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'remark',
       label: '备注',
-      span: 2,
+      fullRow: true,
+      layoutGroup: 'remark',
+      layoutOrder: 10,
       type: 'textarea',
     },
     {

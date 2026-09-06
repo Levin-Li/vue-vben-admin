@@ -9,6 +9,7 @@ import {
   getDefaultVisibleRoleCodes,
   hasDisplayRuleCycle,
   hasServerListHeaderConfig,
+  isDisplayGroupVisible,
   isRoleVisibilitySatisfied,
   initializeVisibleRoleCodes,
   initializeFieldHidden,
@@ -23,6 +24,9 @@ import {
   resolveRuntimeDisplayHeader,
   sortDisplayGroups,
   resolveDisplayStates,
+  resolveDisplaySubmitKeys,
+  getDisplaySubmitMode,
+  setDisplaySubmitMode,
   reconcileCrudPageDisplayHeaders,
   resolvePageDisplayContextKey,
   resolvePageDisplayViewTitle,
@@ -94,9 +98,7 @@ describe('crud page display rules', () => {
       }),
     ).toBe(true);
     expect(canUseLocalTableColumnSettings(undefined, 3)).toBe(true);
-    expect(
-      canUseLocalTableColumnSettings({ version: 1 }, 3),
-    ).toBe(true);
+    expect(canUseLocalTableColumnSettings({ version: 1 }, 3)).toBe(true);
     expect(
       canUseLocalTableColumnSettings(
         { list: { headers: [{ key: 'name' }] }, version: 1 },
@@ -113,10 +115,30 @@ describe('crud page display rules', () => {
   });
 
   it('uses the same default widths for list rendering and editable list settings', () => {
-    expect(resolveDefaultTableColumnWidth({ key: 'name', label: '名称' })).toBe(120);
-    expect(resolveDefaultTableColumnWidth({ key: 'createdAt', label: '创建时间', type: 'datetime' })).toBe(180);
-    expect(resolveDefaultTableColumnWidth({ key: 'amount', label: '金额', valueType: 'number' })).toBe(110);
-    expect(resolveDefaultTableColumnWidth({ key: 'code', label: '编码', width: 260 })).toBe(260);
+    expect(resolveDefaultTableColumnWidth({ key: 'name', label: '名称' })).toBe(
+      120,
+    );
+    expect(
+      resolveDefaultTableColumnWidth({
+        key: 'createdAt',
+        label: '创建时间',
+        type: 'datetime',
+      }),
+    ).toBe(180);
+    expect(
+      resolveDefaultTableColumnWidth({
+        key: 'amount',
+        label: '金额',
+        valueType: 'number',
+      }),
+    ).toBe(110);
+    expect(
+      resolveDefaultTableColumnWidth({
+        key: 'code',
+        label: '编码',
+        width: 260,
+      }),
+    ).toBe(260);
   });
 
   it('reuses unchanged list-header records during repeated initialization', () => {
@@ -132,49 +154,134 @@ describe('crud page display rules', () => {
     expect(repeated[1]).toBe(initial[1]);
   });
 
+  it('appends the operation column after data fields when the list has row actions', () => {
+    const headers = reconcileCrudPageDisplayHeaders(
+      [],
+      [
+        { key: 'name', label: '名称', table: true },
+        { key: 'remark', label: '备注', table: true },
+      ],
+      { includeOperationColumn: true },
+    );
+
+    expect(headers.map((header) => header.key)).toEqual([
+      'name',
+      'remark',
+      '__actions',
+    ]);
+    expect(headers.at(-1)).toMatchObject({
+      label: '操作',
+      order: 2,
+      width: 220,
+    });
+  });
+
+  it('keeps a hidden operation column configuration so it can be re-enabled', () => {
+    const headers = reconcileCrudPageDisplayHeaders(
+      [
+        {
+          key: '__actions',
+          title: '处理',
+          visible: { mode: 'hidden' },
+          width: 260,
+        },
+      ],
+      [{ key: 'name', label: '名称', table: true }],
+      { includeOperationColumn: true },
+    );
+
+    expect(headers.at(-1)).toMatchObject({
+      key: '__actions',
+      order: 1,
+      title: '处理',
+      visible: { mode: 'hidden' },
+      width: 260,
+    });
+  });
+
+  it('restores the operation column default width when its saved width is automatic', () => {
+    const headers = reconcileCrudPageDisplayHeaders(
+      [{ key: '__actions', width: 'auto' }],
+      [{ key: 'name', label: '名称', table: true }],
+      { includeOperationColumn: true },
+    );
+
+    expect(headers.at(-1)).toMatchObject({
+      key: '__actions',
+      width: 220,
+    });
+  });
+
   it('distributes only extra list width according to minimum-width proportions', () => {
-    expect(distributeExtraTableWidth([100, 200, 300], 600)).toEqual([100, 200, 300]);
-    expect(distributeExtraTableWidth([100, 200, 300], 1000)).toEqual([167, 333, 500]);
-    expect(distributeExtraTableWidth([100, 200, 300], 900)).toEqual([150, 300, 450]);
-    expect(distributeExtraTableWidth([100, 200, 300], 480)).toEqual([100, 200, 300]);
+    expect(distributeExtraTableWidth([100, 200, 300], 600)).toEqual([
+      100, 200, 300,
+    ]);
+    expect(distributeExtraTableWidth([100, 200, 300], 1000)).toEqual([
+      167, 333, 500,
+    ]);
+    expect(distributeExtraTableWidth([100, 200, 300], 900)).toEqual([
+      150, 300, 450,
+    ]);
+    expect(distributeExtraTableWidth([100, 200, 300], 480)).toEqual([
+      100, 200, 300,
+    ]);
   });
 
   it('normalizes common organization attributes for expression contexts', () => {
-    expect(buildOrganizationScriptContext({
-      orgCode: 'HQ',
-      orgId: 'org-1',
-      orgName: '总部',
-      orgType: 'company',
-    })).toMatchObject({ code: 'HQ', id: 'org-1', name: '总部', type: 'company' });
-    expect(buildOrganizationScriptContext({
-      org: { id: 'dept-1', level: 2, parentId: 'root', path: '/root/dept' },
-    })).toMatchObject({ id: 'dept-1', level: 2, parentId: 'root', path: '/root/dept' });
+    expect(
+      buildOrganizationScriptContext({
+        orgCode: 'HQ',
+        orgId: 'org-1',
+        orgName: '总部',
+        orgType: 'company',
+      }),
+    ).toMatchObject({ code: 'HQ', id: 'org-1', name: '总部', type: 'company' });
+    expect(
+      buildOrganizationScriptContext({
+        org: { id: 'dept-1', level: 2, parentId: 'root', path: '/root/dept' },
+      }),
+    ).toMatchObject({
+      id: 'dept-1',
+      level: 2,
+      parentId: 'root',
+      path: '/root/dept',
+    });
   });
 
   it('uses the complete route path as the page display setting code', () => {
-    expect(
-      resolvePageDisplaySettingCode('/clob/V1/Address', '/Address'),
-    ).toBe('/clob/V1/Address');
+    expect(resolvePageDisplaySettingCode('/clob/V1/Address', '/Address')).toBe(
+      '/clob/V1/Address',
+    );
     expect(resolvePageDisplaySettingCode(undefined, '/Address')).toBe(
       '/Address',
     );
   });
 
   it('includes user, org category, and org type in the page display context key', () => {
-    expect(resolvePageDisplayContextKey({
-      tenantId: 'tenant-1',
-      type: 'Employee',
-      category: 'Staff',
-      orgCategory: 'Dealer',
-      orgType: 'Company',
-    }, 'portal.example.com')).toBe('tenant-1:portal.example.com:Employee:Staff:Dealer:Company');
-    expect(resolvePageDisplayContextKey({
-      tenantId: 'tenant-1',
-      userType: 'Employee',
-      userCategory: 'Staff',
-      orgId: 'org-1',
-      org: { type: 'Department' },
-    }, 'portal.example.com')).toBe('tenant-1:portal.example.com:Employee:Staff:org-1:Department');
+    expect(
+      resolvePageDisplayContextKey(
+        {
+          tenantId: 'tenant-1',
+          type: 'Employee',
+          category: 'Staff',
+          orgCategory: 'Dealer',
+          orgType: 'Company',
+        },
+        'portal.example.com',
+      ),
+    ).toBe('tenant-1:portal.example.com:Employee:Staff:Dealer:Company');
+    expect(
+      resolvePageDisplayContextKey(
+        {
+          tenantId: 'tenant-1',
+          userType: 'Employee',
+          userCategory: 'Staff',
+          orgId: 'org-1',
+          org: { type: 'Department' },
+        },
+        'portal.example.com',
+      ),
+    ).toBe('tenant-1:portal.example.com:Employee:Staff:org-1:Department');
   });
 
   it('limits collapsed query fields by configured row count while reserving an action slot', () => {
@@ -187,14 +294,18 @@ describe('crud page display rules', () => {
 
   it('restores the configured query collapse rows and defaults to one row', () => {
     expect(resolveQueryCollapsedRows({ version: 1 })).toBe(1);
-    expect(resolveQueryCollapsedRows({
-      query: { fields: [], unassignedExpandedRows: 2 },
-      version: 1,
-    })).toBe(2);
-    expect(resolveQueryCollapsedRows({
-      query: { fields: [], unassignedExpandedRows: 'all' },
-      version: 1,
-    })).toBe('all');
+    expect(
+      resolveQueryCollapsedRows({
+        query: { fields: [], unassignedExpandedRows: 2 },
+        version: 1,
+      }),
+    ).toBe(2);
+    expect(
+      resolveQueryCollapsedRows({
+        query: { fields: [], unassignedExpandedRows: 'all' },
+        version: 1,
+      }),
+    ).toBe('all');
   });
 
   it('runs changed query fields automatically only after initial data loading', () => {
@@ -240,7 +351,14 @@ describe('crud page display rules', () => {
     ).toBe(false);
     expect(
       shouldUseSingleTextQueryAutoSearch(
-        [{ key: 'createdAt', label: '创建时间', search: true, type: 'datetime' }],
+        [
+          {
+            key: 'createdAt',
+            label: '创建时间',
+            search: true,
+            type: 'datetime',
+          },
+        ],
         false,
       ),
     ).toBe(false);
@@ -264,22 +382,38 @@ describe('crud page display rules', () => {
   });
 
   it('allows inline options only for boolean, dictionary, enum, and fixed-option fields', () => {
-    expect(supportsInlineChoiceOptions({ key: 'kind', type: 'select' })).toBe(false);
-    expect(supportsInlineChoiceOptions({ key: 'enabled', type: 'switch' })).toBe(true);
-    expect(supportsInlineChoiceOptions({ key: 'active', valueType: 'boolean' })).toBe(true);
-    expect(supportsInlineChoiceOptions({ key: 'state', options: [] })).toBe(true);
-    expect(supportsInlineChoiceOptions({
-      key: 'category',
-      loadOptions: Object.assign(async () => [], { optionSource: 'enum' as const }),
-    })).toBe(true);
-    expect(supportsInlineChoiceOptions({ key: 'name', type: 'text' })).toBe(false);
+    expect(supportsInlineChoiceOptions({ key: 'kind', type: 'select' })).toBe(
+      false,
+    );
+    expect(
+      supportsInlineChoiceOptions({ key: 'enabled', type: 'switch' }),
+    ).toBe(true);
+    expect(
+      supportsInlineChoiceOptions({ key: 'active', valueType: 'boolean' }),
+    ).toBe(true);
+    expect(supportsInlineChoiceOptions({ key: 'state', options: [] })).toBe(
+      true,
+    );
+    expect(
+      supportsInlineChoiceOptions({
+        key: 'category',
+        loadOptions: Object.assign(async () => [], {
+          optionSource: 'enum' as const,
+        }),
+      }),
+    ).toBe(true);
+    expect(supportsInlineChoiceOptions({ key: 'name', type: 'text' })).toBe(
+      false,
+    );
   });
 
   it('restricts fields only when the current user has none of the configured roles', () => {
     expect(isRoleVisibilitySatisfied(undefined, ['R_USER'])).toBe(true);
     expect(isRoleVisibilitySatisfied([], ['R_USER'])).toBe(true);
     expect(isRoleVisibilitySatisfied(['R_ADMIN'], ['R_USER'])).toBe(false);
-    expect(isRoleVisibilitySatisfied(['R_ADMIN', 'R_USER'], ['R_USER'])).toBe(true);
+    expect(isRoleVisibilitySatisfied(['R_ADMIN', 'R_USER'], ['R_USER'])).toBe(
+      true,
+    );
   });
 
   it('preselects role visibility only for tenant and organization ownership fields', () => {
@@ -357,9 +491,7 @@ describe('crud page display rules', () => {
     expect(resolvePageDisplayViewTitle({ label: '新增名称' }, '名称')).toBe(
       '新增名称',
     );
-    expect(
-      resolvePageDisplayViewTitle({ label: '   ' }, '名称'),
-    ).toBe('名称');
+    expect(resolvePageDisplayViewTitle({ label: '   ' }, '名称')).toBe('名称');
   });
 
   it('builds a safe tenant script context without exposing secret tenant keys', () => {
@@ -421,10 +553,9 @@ describe('crud page display rules', () => {
     ];
 
     expect(moveDisplayGroup([primary, secondary], secondary, -1)).toBe(true);
-    expect(sortDisplayGroups([primary, secondary]).map((group) => group.key)).toEqual([
-      'secondary',
-      'primary',
-    ]);
+    expect(
+      sortDisplayGroups([primary, secondary]).map((group) => group.key),
+    ).toEqual(['secondary', 'primary']);
 
     releaseDisplayGroupFields(fields, 'primary');
     expect(fields).toEqual([
@@ -468,4 +599,77 @@ describe('crud page display rules', () => {
     expect(resolveDisplayGroupExpandedFieldCount(12, 4, 0)).toBe(0);
     expect(resolveDisplayGroupExpandedFieldCount(12, 4, 'all')).toBe(12);
   });
+});
+
+
+describe('字段展示提交四状态', () => {
+  it('原隐藏布尔保持不提交，显式隐藏提交不进入展示集合', () => {
+    const fields = [
+      { key: 'shown' },
+      { key: 'omitted', hidden: true },
+      { key: 'defaulted', hidden: true, submitWhenHidden: true },
+    ];
+    expect(resolveDisplayStates(fields)).toEqual({ shown: 'VISIBLE', omitted: 'HIDDEN', defaulted: 'HIDDEN' });
+    expect([...resolveDisplaySubmitKeys(fields)]).toEqual(['shown', 'defaulted']);
+  });
+  it('隐藏提交不能绕过显示脚本、依赖和互斥条件', () => {
+    const fields = [
+      { key: 'shown' },
+      { key: 'hidden', hidden: true },
+      { key: 'expression', hidden: true, submitWhenHidden: true },
+      { key: 'dependent', hidden: true, submitWhenHidden: true, visibility: { dependsOn: { fieldKeys: ['hidden'] } } },
+      { key: 'exclusive', hidden: true, submitWhenHidden: true, visibility: { exclusiveWith: { fieldKeys: ['shown'] } } },
+    ];
+    expect([...resolveDisplaySubmitKeys(fields, { expression: false })]).toEqual(['shown']);
+  });
+  it('横向四选项可以切换并通过配置保存回显', () => {
+    const field = { key: 'priority' };
+    for (const mode of ['display-submit', 'hidden-submit', 'disabled-submit', 'hidden-omit'] as const) {
+      setDisplaySubmitMode(field, mode);
+      expect(getDisplaySubmitMode(JSON.parse(JSON.stringify(field)))).toBe(mode);
+    }
+  });
+});
+
+
+describe('显示依赖尊重权限及场景排除', () => {
+  it('隐藏提交的依赖字段被角色排除时不提交', () => {
+    const fields = [
+      { key: 'private' },
+      { key: 'defaulted', hidden: true, submitWhenHidden: true, visibility: { dependsOn: { fieldKeys: ['private'] } } },
+    ];
+    expect([...resolveDisplaySubmitKeys(fields, {}, new Set(['private']))]).toEqual([]);
+  });
+  it('已知字段被场景移除不按未知依赖放行，排除字段也不能自行隐藏提交', () => {
+    const fields = [
+      { key: 'defaulted', hidden: true, submitWhenHidden: true, visibility: { dependsOn: { fieldKeys: ['createOnly'] } } },
+      { key: 'denied', hidden: true, submitWhenHidden: true },
+    ];
+    expect([...resolveDisplaySubmitKeys(fields, {}, new Set(['createOnly', 'denied']))]).toEqual([]);
+  });
+});
+
+describe('分组可见条件', () => {
+  it('要求角色和展示脚本同时满足', () => {
+    const group = { key: 'advanced', visibleRoleCodes: ['R_ADMIN'] };
+
+    expect(isDisplayGroupVisible(group, true, ['R_ADMIN'])).toBe(true);
+    expect(isDisplayGroupVisible(group, false, ['R_ADMIN'])).toBe(false);
+    expect(isDisplayGroupVisible(group, true, ['R_USER'])).toBe(false);
+  });
+
+  it('未设置可见角色时只依赖展示脚本结果', () => {
+    expect(isDisplayGroupVisible({ key: 'basic' }, true, [])).toBe(true);
+    expect(isDisplayGroupVisible({ key: 'basic' }, false, ['R_SA'])).toBe(
+      false,
+    );
+  });
+});
+
+
+it('UI 禁提保持可见和提交资格，并不能覆盖权限排除', () => {
+  const fields = [{ key: 'priority', disabled: true }];
+  expect(resolveDisplayStates(fields).priority).toBe('VISIBLE');
+  expect([...resolveDisplaySubmitKeys(fields)]).toEqual(['priority']);
+  expect([...resolveDisplaySubmitKeys(fields, {}, new Set(['priority']))]).toEqual([]);
 });

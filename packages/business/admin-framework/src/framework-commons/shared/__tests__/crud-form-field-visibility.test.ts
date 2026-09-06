@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldShowCrudFormField } from '../crud-form-field-visibility';
+import {
+  shouldShowCrudFormField,
+  shouldSubmitCrudFormField,
+} from '../crud-form-field-visibility';
 import { isSuperAdminUser } from '../user-identity';
 
 const editableField = {
@@ -86,5 +89,12 @@ describe('crud form field visibility', () => {
         { superAdmin: true },
       ),
     ).toBe(false);
+  });
+
+  it('keeps an edit-only omitted field in create payloads and excludes it from edit payloads', () => {
+    const field = { omitOnEdit: true };
+
+    expect(shouldSubmitCrudFormField(field, 'create')).toBe(true);
+    expect(shouldSubmitCrudFormField(field, 'edit')).toBe(false);
   });
 });

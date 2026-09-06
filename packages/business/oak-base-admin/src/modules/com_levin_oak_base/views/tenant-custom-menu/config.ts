@@ -16,8 +16,18 @@ const orgTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Org$Type',
 );
 
-const orgCategoryOptionsLoader = buildDictOptionsLoader('com.levin.oak.base.entities.Org.category');
-const userCategoryOptionsLoader = buildEnumOptionsLoader('com.levin.oak.base.entities.User$Category');
+const orgCategoryOptionsLoader = buildDictOptionsLoader(
+  'com.levin.oak.base.entities.Org.category',
+);
+const userCategoryOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.User$Category',
+);
+
+export const pageMeta = {
+  name: 'TenantCustomMenu',
+  title: '租户自定义菜单',
+  description: '维护租户自定义菜单。',
+} as const;
 
 export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantCustomMenu',
@@ -41,6 +51,7 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -103,7 +114,16 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
       type: 'select',
       width: 150,
     },
-    { key: 'userCategory', label: '用户类别', help: '留空表示匹配任意用户类别', loadOptions: userCategoryOptionsLoader, search: true, table: true, type: 'select', width: 150 },
+    {
+      key: 'userCategory',
+      label: '用户类别',
+      help: '留空表示匹配任意用户类别',
+      loadOptions: userCategoryOptionsLoader,
+      search: true,
+      table: true,
+      type: 'select',
+      width: 150,
+    },
     { key: 'itemList', form: false, label: '菜单列表', type: 'json' },
     {
       key: 'orderCode',

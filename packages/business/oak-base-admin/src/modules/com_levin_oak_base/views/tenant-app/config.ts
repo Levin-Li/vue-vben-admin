@@ -3,6 +3,12 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { tenantAppService } from '../../api/tenant-app-service';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
+export const pageMeta = {
+  name: 'TenantApp',
+  title: '租户应用管理',
+  description: '维护租户应用配置。',
+} as const;
+
 export const tenantAppPageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantApp',
   apiService: tenantAppService,
@@ -20,6 +26,8 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -28,6 +36,7 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -46,16 +55,18 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     { key: 'containsName', label: '名称', form: false, search: true },
-    { key: 'name', label: '名称', required: true, table: true, width: 180 },
+    { key: 'name', label: '名称', layoutGroup: 'basic', layoutGroupTitle: '应用信息', layoutOrder: 10, required: true, table: true, width: 180 },
     {
       key: 'code',
       label: '应用编码',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       required: true,
       search: true,
       table: true,
       width: 160,
     },
-    { key: 'pinyinName', label: '拼音名', table: true, width: 160 },
+    { key: 'pinyinName', label: '拼音名', layoutGroup: 'basic', layoutOrder: 30, table: true, width: 160 },
     {
       key: 'gteExpiredTime',
       label: '到期时间开始',
@@ -70,19 +81,23 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'datetime',
     },
-    { key: 'logo', label: '应用Logo', table: true, type: 'image', width: 120 },
-    { key: 'entryUrl', label: '应用入口', table: true, width: 220 },
-    { key: 'infoUrl', label: '应用说明页', table: true, width: 220 },
+    { key: 'logo', label: '应用Logo', layoutGroup: 'basic', layoutOrder: 40, table: true, type: 'image', width: 120 },
+    { key: 'entryUrl', label: '应用入口', layoutGroup: 'basic', layoutOrder: 50, table: true, width: 220 },
+    { key: 'infoUrl', label: '应用说明页', layoutGroup: 'basic', layoutOrder: 60, table: true, width: 220 },
     {
       key: 'modules',
       label: '模块列表',
+      layoutGroup: 'basic',
+      layoutOrder: 70,
       span: 2,
       type: 'tags',
     },
-    { key: 'appSecret', label: '应用密钥', type: 'password' },
+    { key: 'appSecret', label: '应用密钥', layoutGroup: 'application', layoutOrder: 10, type: 'password' },
     {
       key: 'salePrice',
       label: '销售价格',
+      layoutGroup: 'commercial',
+      layoutOrder: 10,
       table: true,
       type: 'number',
       width: 120,
@@ -90,6 +105,8 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'purchasePrice',
       label: '采购价格',
+      layoutGroup: 'commercial',
+      layoutOrder: 20,
       table: true,
       type: 'number',
       width: 120,
@@ -97,6 +114,8 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'orderNo',
       label: '订单编号',
+      layoutGroup: 'commercial',
+      layoutOrder: 30,
       search: true,
       table: true,
       width: 160,
@@ -104,14 +123,18 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '到期时间',
+      layoutGroup: 'commercial',
+      layoutOrder: 40,
       table: true,
       type: 'datetime',
       width: 180,
     },
-    { key: 'exInfo', label: '扩展信息', type: 'json' },
+    { key: 'exInfo', label: '扩展信息', layoutGroup: 'extension', layoutOrder: 10, type: 'json' },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'status',
+      layoutOrder: 10,
       search: true,
       table: true,
       type: 'switch',
@@ -121,13 +144,15 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'status',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutOrder: 10, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',
@@ -145,6 +170,7 @@ export const tenantAppPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
   ],
+  formMaxColumns: 3,
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '租户应用管理',
 };

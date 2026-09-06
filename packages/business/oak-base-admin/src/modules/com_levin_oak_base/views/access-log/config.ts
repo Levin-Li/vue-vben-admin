@@ -17,6 +17,12 @@ function formatAccessLogSourceInfo(record: Record<string, any>) {
   return [remoteAddr, accessRegion].filter(Boolean).join('\n');
 }
 
+export const pageMeta = {
+  name: 'AccessLog',
+  title: '访问日志管理',
+  description: '查询系统访问日志。',
+} as const;
+
 export const accessLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/AccessLog',
   apiService: accessLogService,
@@ -47,6 +53,7 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
     { key: 'containsTitle', label: '标题', form: false, search: true },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,

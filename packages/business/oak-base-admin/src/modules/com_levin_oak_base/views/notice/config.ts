@@ -25,12 +25,22 @@ type NoticeActionMethod =
   | 'publish';
 
 function buildNoticeAction(methodName: NoticeActionMethod) {
-  return async (record: Record<string, any>) => noticeService[methodName]({ _operatorAction: record._operatorAction, id: record.id });
+  return async (record: Record<string, any>) =>
+    noticeService[methodName]({
+      _operatorAction: record._operatorAction,
+      id: record.id,
+    });
 }
 
 function buildNoticeActionPermission(methodName: NoticeActionMethod) {
   return buildApiMethodPermissions(noticeService, methodName);
 }
+
+export const pageMeta = {
+  name: 'Notice',
+  title: '通知公告管理',
+  description: '维护通知公告。',
+} as const;
 
 export const noticePageCrudConfig: CrudPageConfig = {
   apiBase: '/Notice',
@@ -51,6 +61,9 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -59,6 +72,7 @@ export const noticePageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -85,6 +99,9 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '名称',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '通知信息',
+      layoutOrder: 10,
       required: true,
       table: true,
       width: 180,
@@ -102,6 +119,8 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'category',
       label: '通知类别',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       search: true,
       table: true,
       width: 140,
@@ -109,6 +128,8 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'contentType',
       label: '内容类型',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       loadOptions: noticeContentTypeOptionsLoader,
       search: true,
       table: true,
@@ -118,6 +139,9 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '过期时间',
+      layoutGroup: 'business',
+      layoutGroupTitle: '发布设置',
+      layoutOrder: 10,
       table: true,
       type: 'datetime',
       width: 180,
@@ -125,6 +149,8 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -134,6 +160,8 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       search: true,
       table: true,
       type: 'switch',
@@ -144,16 +172,24 @@ export const noticePageCrudConfig: CrudPageConfig = {
       key: 'content',
       label: '通知内容',
       fullRow: true,
+      layoutGroup: 'content',
+      layoutGroupTitle: '通知内容',
+      layoutOrder: 10,
       type: 'textarea',
     },
     {
       key: 'matchCategoryList',
       label: '匹配用户类别',
+      layoutGroup: 'extension',
+      layoutGroupTitle: '投放范围',
+      layoutOrder: 10,
       type: 'tags',
     },
     {
       key: 'matchJobPostCodeList',
       label: '匹配岗位编码',
+      layoutGroup: 'extension',
+      layoutOrder: 20,
       loadOptions: jobPostOptionsLoader,
       multiple: true,
       remoteSearch: true,
@@ -162,6 +198,8 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'matchRoleCodeList',
       label: '匹配角色列表',
+      layoutGroup: 'extension',
+      layoutOrder: 30,
       loadOptions: roleOptionsLoader,
       multiple: true,
       remoteSearch: true,
@@ -171,6 +209,9 @@ export const noticePageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
+      layoutGroup: 'remark',
+      layoutGroupTitle: '备注信息',
+      layoutOrder: 10,
       type: 'textarea',
     },
     {

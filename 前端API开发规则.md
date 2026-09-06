@@ -297,7 +297,7 @@
 
 20. `POST` / `PUT` 方法不能默认只暴露 `data`。如果 Spring 控制器方法除 `@RequestBody` 外，还存在非 body 参数，例如 `@RequestParam`、`@PathVariable`、普通表单参数或分页参数，前端 API 方法必须同时支持传入 `params` 或明确的路径参数。如果控制器方法存在明确的 `@RequestHeader` 参数，前端 API 方法也必须支持传入 `headers`。这些参数能力应通过底层请求配置透传，不能在 API 方法中丢失。
 
-21. 后端默认更新策略会忽略空值，空字符串、空集合、空数组都属于空值。当前端业务允许用户主动清空某个字段时，更新请求必须同时提交该字段名到 `forceUpdateFields`，例如清空资源权限时提交 `forceUpdateFields: ['permissionList']`，清空组织数据权限时提交 `forceUpdateFields: ['orgScopeList']`。该参数只应包含本次确实允许强制覆盖的字段，不应为了省事扩大到无关字段。
+21. 前端先按《前端表单运行时规则》确定允许提交和校验的字段范围，再执行本条空值协议；不得借强制更新恢复已排除或取消提交字段。后端默认更新策略会忽略空值，空字符串、空集合、空数组都属于空值。当前端业务允许用户主动清空某个字段时，更新请求必须同时提交该字段名到 `forceUpdateFields`，例如清空资源权限时提交 `forceUpdateFields: ['permissionList']`，清空组织数据权限时提交 `forceUpdateFields: ['orgScopeList']`。该参数只应包含本次确实允许强制覆盖的字段，不应为了省事扩大到无关字段。
 
 ## 五、公共 API 边界
 

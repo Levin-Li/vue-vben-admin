@@ -26,12 +26,22 @@ type FlowActionMethod =
   | 'publish';
 
 function buildFlowAction(methodName: FlowActionMethod) {
-  return async (record: Record<string, any>) => articleChannelService[methodName]({ _operatorAction: record._operatorAction, id: record.id });
+  return async (record: Record<string, any>) =>
+    articleChannelService[methodName]({
+      _operatorAction: record._operatorAction,
+      id: record.id,
+    });
 }
 
 function buildFlowActionPermission(methodName: FlowActionMethod) {
   return buildApiMethodPermissions(articleChannelService, methodName);
 }
+
+export const pageMeta = {
+  name: 'ArticleChannel',
+  title: '文章栏目管理',
+  description: '维护文章栏目和分类。',
+} as const;
 
 export const articleChannelPageCrudConfig: CrudPageConfig = {
   apiBase: '/ArticleChannel',
@@ -58,6 +68,9 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -66,6 +79,7 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -92,6 +106,9 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '名称',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '栏目信息',
+      layoutOrder: 10,
       required: true,
       table: true,
       width: 180,
@@ -99,12 +116,16 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'pinyinName',
       label: '拼音名',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       table: true,
       width: 160,
     },
     {
       key: 'parentId',
       label: '父栏目',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       loadOptions: articleChannelOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -124,7 +145,11 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'status',
       label: '发布状态',
+      layoutGroup: 'business',
+      layoutGroupTitle: '发布与统计',
+      layoutOrder: 10,
       loadOptions: articleStatusOptionsLoader,
+      required: true,
       table: true,
       type: 'select',
       width: 120,
@@ -132,6 +157,8 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '到期时间',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       table: true,
       type: 'datetime',
       width: 180,
@@ -139,6 +166,9 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'icon',
       label: '图标',
+      layoutGroup: 'media',
+      layoutGroupTitle: '媒体资源',
+      layoutOrder: 10,
       layoutNewRow: true,
       table: true,
       type: 'image',
@@ -148,12 +178,16 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'coverLayout',
       label: '封面布局',
+      layoutGroup: 'media',
+      layoutOrder: 20,
       loadOptions: articleCoverLayoutOptionsLoader,
       type: 'select',
     },
     {
       key: 'coverImgUrls',
       label: '封面图片',
+      layoutGroup: 'media',
+      layoutOrder: 30,
       multiple: true,
       type: 'image',
       uploadPath: FILE_STORAGE_MULTI_UPLOAD_PATH,
@@ -161,6 +195,8 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'imgUrls',
       label: '图片',
+      layoutGroup: 'media',
+      layoutOrder: 40,
       multiple: true,
       type: 'image',
       uploadPath: FILE_STORAGE_MULTI_UPLOAD_PATH,
@@ -168,6 +204,8 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'avUrls',
       label: '音视频地址',
+      layoutGroup: 'media',
+      layoutOrder: 50,
       layoutNewRow: true,
       span: 2,
       type: 'tags',
@@ -175,6 +213,9 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'keywords',
       label: '关键字',
+      layoutGroup: 'content',
+      layoutGroupTitle: '内容信息',
+      layoutOrder: 10,
       span: 2,
       type: 'tags',
     },
@@ -182,11 +223,15 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
       key: 'summary',
       label: '摘要',
       fullRow: true,
+      layoutGroup: 'content',
+      layoutOrder: 20,
       type: 'textarea',
     },
     {
       key: 'readCount',
       label: '阅读数',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       table: true,
       type: 'number',
       width: 100,
@@ -194,6 +239,8 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'likeCount',
       label: '点赞数',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       table: true,
       type: 'number',
       width: 100,
@@ -201,6 +248,8 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'forwardCount',
       label: '转发数',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       table: true,
       type: 'number',
       width: 100,
@@ -208,6 +257,8 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'collectCount',
       label: '收藏数',
+      layoutGroup: 'business',
+      layoutOrder: 60,
       table: true,
       type: 'number',
       width: 100,
@@ -215,6 +266,8 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'shareCount',
       label: '分享数',
+      layoutGroup: 'business',
+      layoutOrder: 70,
       table: true,
       type: 'number',
       width: 100,
@@ -222,6 +275,8 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'commentCount',
       label: '评论数',
+      layoutGroup: 'business',
+      layoutOrder: 80,
       table: true,
       type: 'number',
       width: 100,
@@ -230,6 +285,9 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
+      layoutGroup: 'remark',
+      layoutGroupTitle: '备注信息',
+      layoutOrder: 10,
       type: 'textarea',
     },
     {

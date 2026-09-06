@@ -15,6 +15,12 @@ const currencyTypeOptionsLoader = buildEnumOptionsLoader(
 );
 const currencyCodeOptionsLoader = buildDictOptionsLoader('CurrencyCode');
 
+export const pageMeta = {
+  name: 'PayChannel',
+  title: '支付渠道管理',
+  description: '维护支付渠道配置。',
+} as const;
+
 export const payChannelPageCrudConfig: CrudPageConfig = {
   apiBase: '/PayChannel',
   apiService: payChannelService,
@@ -33,6 +39,9 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -41,6 +50,7 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -61,6 +71,9 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '通道名称',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '通道信息',
+      layoutOrder: 10,
       required: true,
       search: true,
       table: true,
@@ -83,6 +96,8 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '有效期',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       table: true,
       type: 'datetime',
       width: 180,
@@ -90,6 +105,9 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'logo',
       label: '支付通道图标',
+      layoutGroup: 'media',
+      layoutGroupTitle: '媒体资源',
+      layoutOrder: 10,
       table: true,
       type: 'image',
       width: 120,
@@ -106,6 +124,8 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'category',
       label: '类别',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       loadOptions: payChannelCategoryOptionsLoader,
       required: true,
       table: true,
@@ -124,6 +144,8 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'currencyType',
       label: '货币类型',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
       loadOptions: currencyTypeOptionsLoader,
       table: true,
       type: 'select',
@@ -132,6 +154,8 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'currencyCodeList',
       label: '支持货币代码',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
       loadOptions: currencyCodeOptionsLoader,
       multiple: true,
       type: 'select',
@@ -148,17 +172,21 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'agentCode',
       label: '通道代理商',
+      layoutGroup: 'basic',
+      layoutOrder: 60,
       loadOptions: payChannelAgentCodeOptionsLoader,
       table: true,
       type: 'select',
       width: 140,
     },
-    { key: 'rate', label: '通道费率', table: true, type: 'number', width: 120 },
-    { key: 'merchantId', label: '商户编码', table: true, width: 160 },
-    { key: 'merchantName', label: '商户名称', table: true, width: 160 },
+    { key: 'rate', label: '通道费率', layoutGroup: 'business', layoutGroupTitle: '商户与费率', layoutOrder: 10, table: true, type: 'number', width: 120 },
+    { key: 'merchantId', label: '商户编码', layoutGroup: 'business', layoutOrder: 20, table: true, width: 160 },
+    { key: 'merchantName', label: '商户名称', layoutGroup: 'business', layoutOrder: 30, table: true, width: 160 },
     {
       key: 'providerCode',
       label: '支付提供商',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       required: true,
       table: true,
       width: 180,
@@ -167,16 +195,24 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
       key: 'payWayItemList',
       label: '支持支付方式',
       fullRow: true,
+      layoutGroup: 'content',
+      layoutGroupTitle: '支付方式',
+      layoutOrder: 10,
     },
     {
       key: 'detailInfo',
       label: '通道详情',
+      layoutGroup: 'extension',
+      layoutGroupTitle: '通道配置',
+      layoutOrder: 10,
       help: '先选择支付提供商，再按其配置模型填写具体参数。密钥和证书仅填写运行时引用名。',
       type: 'json',
     },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       search: true,
       table: true,
       type: 'switch',
@@ -186,13 +222,15 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 60,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutGroupTitle: '备注信息', layoutOrder: 10, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',

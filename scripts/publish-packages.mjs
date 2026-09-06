@@ -11,17 +11,19 @@ import {
 } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { validateInternalPeerVersions } from './internal-peer-dependency-guard.mjs';
 import {
   acquirePublishLock,
   packPackage,
   packWorkspacePackage,
   releasePublishLock,
-  verifyTarballDependencyProtocols,
   verifyBuiltRouteAssets,
+  verifyPageMetadata,
+  verifyTarballDependencyProtocols,
   verifyTarballRouteAssets,
   verifyTarballStandaloneInstall,
 } from './publish-artifact-gate.mjs';
-import { validateInternalPeerVersions } from './internal-peer-dependency-guard.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const packagesRoot = resolve(frontendRoot, 'packages');
@@ -447,6 +449,7 @@ try {
 
   for (const packageInfo of selectedPackages) {
     validatePackagePublishRules(packageInfo);
+    verifyPageMetadata(packageInfo);
     validateInternalPeerVersions(
       packageInfo,
       selectedPackageVersionByName,

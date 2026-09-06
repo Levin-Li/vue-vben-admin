@@ -31,12 +31,22 @@ type ArticleActionMethod =
   | 'publish';
 
 function buildArticleAction(methodName: ArticleActionMethod) {
-  return async (record: Record<string, any>) => articleService[methodName]({ _operatorAction: record._operatorAction, id: record.id });
+  return async (record: Record<string, any>) =>
+    articleService[methodName]({
+      _operatorAction: record._operatorAction,
+      id: record.id,
+    });
 }
 
 function buildArticleActionPermission(methodName: ArticleActionMethod) {
   return buildApiMethodPermissions(articleService, methodName);
 }
+
+export const pageMeta = {
+  name: 'Article',
+  title: '文章管理',
+  description: '维护业务文章内容。',
+} as const;
 
 export const articlePageCrudConfig: CrudPageConfig = {
   apiBase: '/Article',
@@ -63,6 +73,9 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -71,6 +84,7 @@ export const articlePageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -78,6 +92,13 @@ export const articlePageCrudConfig: CrudPageConfig = {
       type: 'tenant',
       visibleForPlatformUser: true,
       width: 180,
+    },
+    {
+      key: 'orgId',
+      label: '所属组织',
+      layoutGroup: 'ownership',
+      layoutOrder: 20,
+      type: 'org-tree-select',
     },
     {
       key: 'id',
@@ -97,6 +118,9 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'title',
       label: '标题',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '文章信息',
+      layoutOrder: 10,
       required: true,
       table: true,
       width: 220,
@@ -110,12 +134,16 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'author',
       label: '作者',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       table: true,
       width: 140,
     },
     {
       key: 'channelId',
       label: '栏目',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       loadOptions: articleChannelOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -126,6 +154,9 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'category',
       label: '资讯类别',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
+      required: true,
       search: true,
       table: true,
       width: 140,
@@ -139,13 +170,18 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'source',
       label: '转载来源',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
       table: true,
       width: 160,
     },
     {
       key: 'contentType',
       label: '内容类型',
+      layoutGroup: 'basic',
+      layoutOrder: 60,
       loadOptions: articleContentTypeOptionsLoader,
+      required: true,
       table: true,
       type: 'select',
       width: 140,
@@ -162,6 +198,9 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'status',
       label: '发布状态',
+      layoutGroup: 'business',
+      layoutGroupTitle: '发布与统计',
+      layoutOrder: 10,
       loadOptions: articleStatusOptionsLoader,
       table: true,
       type: 'select',
@@ -170,6 +209,8 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '到期时间',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       table: true,
       type: 'datetime',
       width: 180,
@@ -177,6 +218,8 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'confidentialLevel',
       label: '机密等级',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       loadOptions: confidentialLevelOptionsLoader,
       type: 'select',
       valueType: 'number',
@@ -184,18 +227,25 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'bizObjId',
       label: '业务对象ID',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       table: true,
       width: 180,
     },
     {
       key: 'coverLayout',
       label: '封面布局',
+      layoutGroup: 'media',
+      layoutGroupTitle: '媒体资源',
+      layoutOrder: 10,
       loadOptions: articleCoverLayoutOptionsLoader,
       type: 'select',
     },
     {
       key: 'coverImgUrls',
       label: '封面图',
+      layoutGroup: 'media',
+      layoutOrder: 20,
       multiple: true,
       table: true,
       type: 'image',
@@ -205,6 +255,9 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'keywords',
       label: '关键字',
+      layoutGroup: 'content',
+      layoutGroupTitle: '内容信息',
+      layoutOrder: 10,
       layoutNewRow: true,
       span: 2,
       type: 'tags',
@@ -212,6 +265,8 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'tagList',
       label: '标签列表',
+      layoutGroup: 'content',
+      layoutOrder: 20,
       span: 2,
       type: 'tags',
     },
@@ -219,11 +274,15 @@ export const articlePageCrudConfig: CrudPageConfig = {
       key: 'summary',
       label: '摘要',
       fullRow: true,
+      layoutGroup: 'content',
+      layoutOrder: 30,
       type: 'textarea',
     },
     {
       key: 'readCount',
       label: '阅读数',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       table: true,
       type: 'number',
       width: 100,
@@ -231,6 +290,8 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'likeCount',
       label: '点赞数',
+      layoutGroup: 'business',
+      layoutOrder: 60,
       table: true,
       type: 'number',
       width: 100,
@@ -238,6 +299,8 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'forwardCount',
       label: '转发数',
+      layoutGroup: 'business',
+      layoutOrder: 70,
       table: true,
       type: 'number',
       width: 100,
@@ -245,6 +308,8 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'collectCount',
       label: '收藏数',
+      layoutGroup: 'business',
+      layoutOrder: 80,
       table: true,
       type: 'number',
       width: 100,
@@ -252,6 +317,8 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'shareCount',
       label: '分享数',
+      layoutGroup: 'business',
+      layoutOrder: 90,
       table: true,
       type: 'number',
       width: 100,
@@ -259,6 +326,8 @@ export const articlePageCrudConfig: CrudPageConfig = {
     {
       key: 'commentCount',
       label: '评论数',
+      layoutGroup: 'business',
+      layoutOrder: 100,
       table: true,
       type: 'number',
       width: 100,
@@ -267,6 +336,9 @@ export const articlePageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
+      layoutGroup: 'remark',
+      layoutGroupTitle: '备注信息',
+      layoutOrder: 10,
       type: 'textarea',
     },
     {

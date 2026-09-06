@@ -31,12 +31,22 @@ type FlowActionMethod =
   | 'publish';
 
 function buildFlowAction(methodName: FlowActionMethod) {
-  return async (record: Record<string, any>) => simpleFormService[methodName]({ _operatorAction: record._operatorAction, id: record.id });
+  return async (record: Record<string, any>) =>
+    simpleFormService[methodName]({
+      _operatorAction: record._operatorAction,
+      id: record.id,
+    });
 }
 
 function buildFlowActionPermission(methodName: FlowActionMethod) {
   return buildApiMethodPermissions(simpleFormService, methodName);
 }
+
+export const pageMeta = {
+  name: 'SimpleForm',
+  title: '简单表单管理',
+  description: '维护简单表单配置。',
+} as const;
 
 export const simpleFormPageCrudConfig: CrudPageConfig = {
   apiBase: '/SimpleForm',
@@ -64,6 +74,7 @@ export const simpleFormPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,

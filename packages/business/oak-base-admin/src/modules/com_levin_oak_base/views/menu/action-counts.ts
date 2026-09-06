@@ -10,9 +10,8 @@ export function getOpButtonCount(row: MenuRecord) {
   return (row.opButtonList || []).filter(
     (item) =>
       item.label?.trim() ||
-      item.name?.trim() ||
-      item.apiUrl?.trim() ||
-      item.requireAuthorization?.trim() ||
+      item.opName?.trim() ||
+      item.requireAuthorizations?.some((permission) => permission.trim()) ||
       item.remark?.trim(),
   ).length;
 }

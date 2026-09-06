@@ -104,6 +104,12 @@ const userOptionsLoader = (keyword?: string) =>
     ),
   );
 
+export const pageMeta = {
+  name: 'User',
+  title: '用户管理',
+  description: '维护用户、角色和组织归属。',
+} as const;
+
 export const userPageCrudConfig: CrudPageConfig = {
   apiBase: '/User',
   apiService: userService,
@@ -127,6 +133,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -135,6 +143,7 @@ export const userPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -146,6 +155,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgId',
       label: '所属组织',
+      layoutGroup: 'ownership',
+      layoutOrder: 20,
       search: true,
       type: 'org-tree-select',
     },
@@ -167,21 +178,23 @@ export const userPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     { key: 'containsName', label: '名称', form: false, search: true },
-    { key: 'name', label: '名称', required: true, table: true, width: 140 },
+    { key: 'name', label: '名称', layoutGroup: 'basic', layoutGroupTitle: '帐号信息', layoutOrder: 10, required: true, table: true, width: 140 },
     { key: 'containsTelephone', label: '手机号', form: false, search: true },
-    { key: 'telephone', label: '手机号', table: true, width: 130 },
-    { key: 'email', label: '邮箱', search: true, table: true, width: 180 },
+    { key: 'telephone', label: '手机号', layoutGroup: 'basic', layoutOrder: 20, table: true, width: 130 },
+    { key: 'email', label: '邮箱', layoutGroup: 'basic', layoutOrder: 30, search: true, table: true, width: 180 },
     {
       key: 'loginName',
       label: '登录名',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
       search: true,
       table: true,
       width: 140,
     },
     { key: 'containsNickname', label: '昵称', form: false, search: true },
-    { key: 'nickname', label: '昵称', table: true, width: 120 },
+    { key: 'nickname', label: '昵称', layoutGroup: 'basic', layoutOrder: 50, table: true, width: 120 },
     { key: 'containsStaffNo', label: '工号', form: false, search: true },
-    { key: 'staffNo', label: '工号', table: true, width: 110 },
+    { key: 'staffNo', label: '工号', layoutGroup: 'basic', layoutOrder: 60, table: true, width: 110 },
     {
       key: 'inType',
       label: '用户类型',
@@ -194,6 +207,9 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'type',
       label: '用户类型',
+      layoutGroup: 'identity',
+      layoutGroupTitle: '身份资料',
+      layoutOrder: 10,
       loadOptions: userTypeOptionsLoader,
       table: true,
       type: 'select',
@@ -211,6 +227,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'category',
       label: '帐号类别',
+      layoutGroup: 'identity',
+      layoutOrder: 20,
       loadOptions: userCategoryOptionsLoader,
       table: true,
       type: 'select',
@@ -228,6 +246,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'state',
       label: '帐号状态',
+      layoutGroup: 'identity',
+      layoutOrder: 30,
       loadOptions: userStateOptionsLoader,
       table: true,
       type: 'select',
@@ -245,6 +265,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'sex',
       label: '性别',
+      layoutGroup: 'identity',
+      layoutOrder: 40,
       loadOptions: userSexOptionsLoader,
       table: true,
       type: 'select',
@@ -263,6 +285,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'level',
       label: '用户等级',
+      layoutGroup: 'identity',
+      layoutOrder: 50,
       loadOptions: userLevelOptionsLoader,
       table: true,
       type: 'select',
@@ -272,6 +296,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'jobPostCode',
       label: '岗位编码',
+      layoutGroup: 'identity',
+      layoutOrder: 60,
       loadOptions: jobPostOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -314,6 +340,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'birthday',
       label: '出生日期',
+      layoutGroup: 'identity',
+      layoutOrder: 70,
       table: true,
       type: 'date',
       width: 120,
@@ -335,6 +363,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'joinDate',
       label: '加入会员时间',
+      layoutGroup: 'identity',
+      layoutOrder: 80,
       table: true,
       type: 'datetime',
       width: 180,
@@ -356,6 +386,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '到期时间',
+      layoutGroup: 'identity',
+      layoutOrder: 90,
       table: true,
       type: 'datetime',
       width: 180,
@@ -377,6 +409,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'lockExpiredTime',
       label: '锁定到期时间',
+      layoutGroup: 'identity',
+      layoutOrder: 100,
       table: true,
       type: 'datetime',
       width: 180,
@@ -413,7 +447,9 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'tagList',
       label: '标签列表',
+      layoutGroup: 'identity',
       layoutNewRow: true,
+      layoutOrder: 110,
       span: 2,
       table: true,
       type: 'tags',
@@ -429,6 +465,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'domainList',
       label: '可登录域名列表',
+      layoutGroup: 'identity',
+      layoutOrder: 120,
       span: 2,
       placeholder: '输入域名后回车，空值或空列表表示不限制',
       table: true,
@@ -464,6 +502,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'confidentialLevel',
       label: '机密等级',
+      layoutGroup: 'permission',
+      layoutOrder: 10,
       loadOptions: confidentialLevelOptionsLoader,
       search: true,
       table: true,
@@ -474,6 +514,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'confidentialDataAccessLevel',
       label: '机密数据访问级别',
+      layoutGroup: 'permission',
+      layoutOrder: 20,
       loadOptions: confidentialLevelOptionsLoader,
       search: true,
       table: true,
@@ -484,6 +526,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'avatar',
       label: '头像',
+      layoutGroup: 'basic',
+      layoutOrder: 70,
       table: true,
       type: 'image',
       width: 90,
@@ -491,22 +535,30 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'password',
       label: '登录密码',
+      layoutGroup: 'basic',
+      layoutOrder: 80,
       placeholder: '新增时设置初始密码；编辑时留空表示不修改',
       type: 'password',
     },
     {
       key: 'signature',
       label: '个性签名',
+      layoutGroup: 'profile',
+      layoutOrder: 10,
       type: 'textarea',
     },
     {
       key: 'pinyinName',
       label: '拼音名',
+      layoutGroup: 'profile',
+      layoutOrder: 20,
       placeholder: '简拼或全拼，逗号隔开',
     },
     {
       key: 'referrerId',
       label: '推荐人',
+      layoutGroup: 'profile',
+      layoutOrder: 30,
       loadOptions: userOptionsLoader,
       remoteSearch: true,
       type: 'select',
@@ -514,24 +566,34 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'referrerName',
       label: '推荐人姓名',
+      layoutGroup: 'profile',
+      layoutOrder: 40,
     },
     {
       key: 'wxOpenId',
       label: '微信OpendId',
+      layoutGroup: 'external',
+      layoutOrder: 10,
     },
     {
       key: 'aliOpenId',
       label: '阿里OpendId',
+      layoutGroup: 'external',
+      layoutOrder: 20,
     },
     {
       key: 'exInfo',
       label: '扩展信息',
+      layoutGroup: 'extension',
+      layoutOrder: 10,
       type: 'json',
     },
-    { key: 'orderCode', label: '排序代码', layoutNewRow: true, type: 'number' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'status', layoutNewRow: true, layoutOrder: 10, type: 'number' },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'status',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -541,6 +603,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'status',
+      layoutOrder: 30,
       search: true,
       table: true,
       type: 'switch',
@@ -567,6 +631,8 @@ export const userPageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
+      layoutGroup: 'remark',
+      layoutOrder: 10,
       type: 'textarea',
     },
     {
@@ -578,6 +644,7 @@ export const userPageCrudConfig: CrudPageConfig = {
       type: 'qrcode',
     },
   ],
+  formMaxColumns: 3,
   modalWidth: 1120,
   rowActions: [
     {

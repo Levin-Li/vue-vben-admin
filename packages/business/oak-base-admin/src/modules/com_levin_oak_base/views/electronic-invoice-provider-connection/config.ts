@@ -157,6 +157,12 @@ function normalizeSimulationFlag(value: unknown) {
   return Boolean(value);
 }
 
+export const pageMeta = {
+  name: 'ElectronicInvoiceProviderConnection',
+  title: '电子发票供应商连接',
+  description: '维护电子发票供应商连接。',
+} as const;
+
 export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
     apiBase: '/EInvoiceProviderConnection',

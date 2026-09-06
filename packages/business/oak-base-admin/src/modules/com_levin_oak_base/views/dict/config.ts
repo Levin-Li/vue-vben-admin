@@ -11,6 +11,12 @@ export const dictTypeOptions = [
   { label: '自定义', value: 'Custom' },
 ];
 
+export const pageMeta = {
+  name: 'Dict',
+  title: '数据字典管理',
+  description: '维护系统数据字典。',
+} as const;
+
 export const dictPageCrudConfig: CrudPageConfig = {
   apiBase: '/Dict',
   apiService: dictService,
@@ -39,6 +45,7 @@ export const dictPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,

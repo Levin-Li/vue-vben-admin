@@ -12,4 +12,7 @@ export const overridesPreferences = defineOverridesPreferences({
     defaultHomePath: '/clob/V1/index',
     name: import.meta.env.VITE_APP_TITLE,
   },
+  theme: {
+    mode: 'light',
+  },
 });

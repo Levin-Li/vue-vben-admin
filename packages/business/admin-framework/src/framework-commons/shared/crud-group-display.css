@@ -1,0 +1,19 @@
+.vben-crud-group-divider {
+  padding-block: 8px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.vben-crud-group-divider > .vben-crud-group-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.vben-crud-group-divider > .vben-crud-group-title::before {
+  flex-shrink: 0;
+  width: 3px;
+  height: 16px;
+  content: '';
+  background: hsl(var(--primary));
+  border-radius: 2px;
+}

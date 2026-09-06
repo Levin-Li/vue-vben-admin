@@ -11,6 +11,12 @@ const areaTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Area$Type',
 );
 
+export const pageMeta = {
+  name: 'Area',
+  title: '区域管理',
+  description: '维护行政区域信息。',
+} as const;
+
 export const areaPageCrudConfig: CrudPageConfig = {
   apiBase: '/Area',
   apiService: areaService,
@@ -27,19 +33,24 @@ export const areaPageCrudConfig: CrudPageConfig = {
     {
       key: 'id',
       label: '区域编码',
+      layoutGroup: 'basic',
+      layoutOrder: 10,
       disabledOnEdit: true,
       fixed: 'left',
       required: true,
       search: true,
+      showIdOnCreate: true,
       table: true,
       width: 140,
     },
     { key: 'containsName', label: '名称', form: false, search: true },
-    { key: 'code', label: '自定义编码', search: true, table: true, width: 140 },
-    { key: 'name', label: '名称', required: true, table: true, width: 160 },
+    { key: 'code', label: '自定义编码', layoutGroup: 'basic', layoutOrder: 20, search: true, table: true, width: 140 },
+    { key: 'name', label: '名称', layoutGroup: 'basic', layoutOrder: 30, required: true, table: true, width: 160 },
     {
       key: 'parentId',
       label: '父区域',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
       loadOptions: areaOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -57,6 +68,8 @@ export const areaPageCrudConfig: CrudPageConfig = {
     {
       key: 'type',
       label: '类型',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
       loadOptions: areaTypeOptionsLoader,
       required: true,
       table: true,
@@ -64,7 +77,7 @@ export const areaPageCrudConfig: CrudPageConfig = {
       width: 120,
     },
     { key: 'containsPinyinName', label: '拼音名', form: false, search: true },
-    { key: 'pinyinName', label: '拼音名', table: true, width: 160 },
+    { key: 'pinyinName', label: '拼音名', layoutGroup: 'basic', layoutOrder: 60, table: true, width: 160 },
     {
       key: 'gteCreateTime',
       label: '创建时间开始',
@@ -79,10 +92,12 @@ export const areaPageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'datetime',
     },
-    { key: 'icon', label: '图标', type: 'image' },
+    { key: 'icon', label: '图标', layoutGroup: 'media', layoutOrder: 10, type: 'image' },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 10,
       search: true,
       table: true,
       type: 'switch',
@@ -92,14 +107,16 @@ export const areaPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'business', layoutOrder: 30, type: 'number' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutOrder: 10, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',

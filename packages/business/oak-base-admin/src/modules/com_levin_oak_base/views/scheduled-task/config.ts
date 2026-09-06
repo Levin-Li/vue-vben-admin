@@ -40,6 +40,12 @@ function buildScheduledTaskActionPermission(
   return buildApiMethodPermissions(scheduledTaskService, methodName);
 }
 
+export const pageMeta = {
+  name: 'ScheduledTask',
+  title: '定时任务管理',
+  description: '维护定时任务。',
+} as const;
+
 export const scheduledTaskPageCrudConfig: CrudPageConfig = {
   apiBase: '/ScheduledTask',
   apiService: scheduledTaskService,
@@ -66,6 +72,9 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -74,6 +83,7 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -94,12 +104,15 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '名称',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '任务信息',
+      layoutOrder: 10,
       required: true,
       search: true,
       table: true,
       width: 180,
     },
-    { key: 'timeZone', label: '时区', table: true, width: 140 },
+    { key: 'timeZone', label: '时区', layoutGroup: 'basic', layoutOrder: 20, table: true, width: 140 },
     {
       key: 'inSchedulerType',
       label: '调度器',
@@ -112,6 +125,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'schedulerType',
       label: '调度器',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       loadOptions: schedulerTypeOptionsLoader,
       required: true,
       search: true,
@@ -122,6 +137,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'schedulerAppName',
       label: '执行器应用',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
       search: true,
       table: true,
       width: 150,
@@ -129,6 +146,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'schedulerJobId',
       label: '外部任务ID',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
       search: true,
       table: true,
       width: 150,
@@ -136,21 +155,28 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'handlerName',
       label: '处理器名称',
+      layoutGroup: 'basic',
+      layoutOrder: 60,
       table: true,
       width: 180,
     },
     {
       key: 'category',
       label: '任务分类',
+      layoutGroup: 'basic',
+      layoutOrder: 70,
       search: true,
       table: true,
       width: 140,
     },
     { key: 'containsGroupName', label: '任务组', form: false, search: true },
-    { key: 'groupName', label: '任务组', table: true, width: 160 },
+    { key: 'groupName', label: '任务组', layoutGroup: 'basic', layoutOrder: 80, table: true, width: 160 },
     {
       key: 'executionContentType',
       label: '执行内容类型',
+      layoutGroup: 'content',
+      layoutGroupTitle: '执行内容',
+      layoutOrder: 10,
       loadOptions: supportedExecutionContentTypeOptionsLoader,
       table: true,
       type: 'select',
@@ -159,6 +185,9 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'cron',
       label: '调度表达式',
+      layoutGroup: 'business',
+      layoutGroupTitle: '调度策略',
+      layoutOrder: 10,
       layoutNewRow: true,
       placeholder: '例如 0 0/5 * * * *',
       required: true,
@@ -169,6 +198,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'triggerTimeoutSeconds',
       label: '触发宽限秒',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       table: true,
       type: 'number',
       valueType: 'number',
@@ -177,6 +208,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'misfirePolicy',
       label: '错过策略',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       loadOptions: misfirePolicyOptionsLoader,
       search: true,
       table: true,
@@ -186,6 +219,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'timeoutSeconds',
       label: '执行超时秒',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       table: true,
       type: 'number',
       valueType: 'number',
@@ -204,21 +239,30 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
       key: 'executionContent',
       label: '执行内容',
       fullRow: true,
+      layoutGroup: 'content',
+      layoutOrder: 20,
       type: 'textarea',
     },
     {
       key: 'schedulerConfig',
       label: '调度器配置',
+      layoutGroup: 'extension',
+      layoutGroupTitle: '高级配置',
+      layoutOrder: 10,
       type: 'json',
     },
     {
       key: 'runParams',
       label: '执行参数',
+      layoutGroup: 'extension',
+      layoutOrder: 20,
       type: 'json',
     },
     {
       key: 'bizType',
       label: '业务类型',
+      layoutGroup: 'extension',
+      layoutOrder: 30,
       search: true,
       table: true,
       width: 140,
@@ -226,6 +270,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'bizId',
       label: '业务ID',
+      layoutGroup: 'extension',
+      layoutOrder: 40,
       search: true,
       table: true,
       width: 180,
@@ -235,6 +281,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'parallelExecution',
       label: '允许并发执行',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       search: true,
       table: true,
       type: 'switch',
@@ -244,6 +292,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'retryCount',
       label: '重试次数',
+      layoutGroup: 'business',
+      layoutOrder: 60,
       table: true,
       type: 'number',
       valueType: 'number',
@@ -252,6 +302,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'retryIntervalSeconds',
       label: '重试间隔秒',
+      layoutGroup: 'business',
+      layoutOrder: 70,
       table: true,
       type: 'number',
       valueType: 'number',
@@ -260,6 +312,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'taskVersion',
       label: '配置版本',
+      layoutGroup: 'business',
+      layoutOrder: 80,
       table: true,
       type: 'number',
       valueType: 'number',
@@ -268,6 +322,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'executionCount',
       label: '执行累计次数',
+      layoutGroup: 'business',
+      layoutOrder: 90,
       table: true,
       type: 'number',
       width: 120,
@@ -317,6 +373,8 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 100,
       search: true,
       table: true,
       type: 'switch',
@@ -326,13 +384,15 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 110,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutGroupTitle: '备注信息', layoutOrder: 10, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',

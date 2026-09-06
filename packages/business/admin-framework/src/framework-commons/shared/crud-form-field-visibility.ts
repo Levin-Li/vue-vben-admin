@@ -27,3 +27,10 @@ export function shouldShowCrudFormField(
 
   return mode === 'edit' ? field.formEdit !== false : field.formCreate !== false;
 }
+
+export function shouldSubmitCrudFormField(
+  field: Pick<CrudFieldConfig, 'omitOnEdit'>,
+  mode: CrudFormMode,
+) {
+  return mode !== 'edit' || field.omitOnEdit !== true;
+}

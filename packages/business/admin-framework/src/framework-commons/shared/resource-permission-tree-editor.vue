@@ -8,15 +8,14 @@ import type {
   RbacTypeNode,
 } from './data-permission-types';
 
-import { PermissionTreeNodeType as PermissionTreeNodeTypeEnum } from './data-permission-types';
-
-import { computed, ref, watch } from 'vue';
+import { computed, h, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { Checkbox, Radio, Tooltip } from 'ant-design-vue';
+import { Checkbox, Modal, Radio, Tooltip } from 'ant-design-vue';
 
 import { RbacPermissionMatchUtils } from '../rbac-permission-match';
+import { PermissionTreeNodeType as PermissionTreeNodeTypeEnum } from './data-permission-types';
 
 const props = withDefaults(
   defineProps<{
@@ -62,6 +61,7 @@ interface MenuPermissionNode {
   pathText: string;
   permissionExpr: string;
   permissions: string[];
+  resourcePermissions?: LinkedResource[];
   selfPermission: string;
   title: string;
   type: 'menu' | 'operation';
@@ -76,12 +76,14 @@ interface PermissionViewNode {
   children: PermissionViewNode[];
   depth: number;
   id: string;
+  isOperation?: boolean;
   label: string;
   nodeType: `${PermissionTreeNodeType}`;
   pathText: string;
   permissionExpr: string;
   permissions: string[];
   remark: string;
+  resourcePermissions?: LinkedResource[];
   title: string;
 }
 
@@ -187,19 +189,6 @@ const activeModulePermissions = computed(() => {
   );
 });
 
-const knownMenuPermissions = computed(() => {
-  const menuModule = props.modules.find((item) => item.id === MENU_MODULE_ID);
-  return new Set(
-    (menuModule?.typeList || []).flatMap((typeItem) =>
-      (typeItem.resList || []).flatMap((resourceItem) =>
-        (resourceItem.actionList || [])
-          .map((actionItem) => actionItem.permissionExpr)
-          .filter(Boolean),
-      ),
-    ),
-  );
-});
-
 const menuPermissionTree = computed(() =>
   buildMenuPermissionTree(props.menuTree || []),
 );
@@ -236,6 +225,280 @@ const permissionViewTree = computed(() => {
       : node,
   );
 });
+
+interface LinkedResource {
+  expression: string;
+  name: string;
+}
+
+const operationResources = computed(() => {
+  const operations = new Map<string, LinkedResource[]>();
+  function visit(nodes: PermissionViewNode[]) {
+    for (const node of nodes) {
+      if (node.isOperation && node.permissionExpr) {
+        const resources = new Map(
+          (operations.get(node.permissionExpr) || []).map((resource) => [
+            resource.expression,
+            resource,
+          ]),
+        );
+        for (const resource of node.resourcePermissions || []) {
+          resources.set(resource.expression, resource);
+        }
+        operations.set(node.permissionExpr, [...resources.values()]);
+      }
+      visit(node.children);
+    }
+  }
+  visit(
+    hasPermissionTree.value
+      ? permissionViewTree.value
+      : menuPermissionViewTree.value,
+  );
+  return operations;
+});
+
+function linkedResources(expression: string) {
+  return (
+    operationResources.value.get(normalizePermissionExpr(expression)) || []
+  );
+}
+
+const LinkedResourceBadge = (badgeProps: {
+  id: string;
+  permissionExpr: string;
+}) => {
+  const resources = linkedResources(badgeProps.permissionExpr);
+  if (resources.length === 0) return null;
+  return h(
+    Tooltip,
+    {},
+    {
+      title: () =>
+        h('div', [
+          h('div', { class: 'mb-1 font-medium' }, '关联的资源权限'),
+          h(
+            'ul',
+            { class: 'max-h-64 space-y-1 overflow-y-auto' },
+            resources.map((resource) =>
+              h('li', { key: resource.expression }, resource.name),
+            ),
+          ),
+        ]),
+      default: () =>
+        h(
+          'span',
+          {
+            tabindex: 0,
+            'data-test': `permission-linked-${badgeProps.id}`,
+            'aria-label': `关联 ${resources.length} 个资源权限`,
+            class:
+              'bg-destructive text-destructive-foreground relative -top-1.5 ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium leading-none',
+            onClick(event: MouseEvent) {
+              event.preventDefault();
+              event.stopPropagation();
+            },
+          },
+          String(resources.length),
+        ),
+    },
+  );
+};
+LinkedResourceBadge.props = ['id', 'permissionExpr'];
+
+function isOperationSelected(expression: string) {
+  const resources = linkedResources(expression);
+  return resources.length > 0
+    ? isActionSelected(expression) &&
+        resources.every((resource) => isActionSelected(resource.expression))
+    : isActionSelected(expression);
+}
+
+function isOperationIndeterminate(expression: string) {
+  const resources = linkedResources(expression);
+  return (
+    !isOperationSelected(expression) &&
+    resources.some((resource) => isActionSelected(resource.expression))
+  );
+}
+
+function viewNodeIcon(node: PermissionViewNode) {
+  return node.nodeType === PermissionTreeNodeTypeEnum.Action &&
+    !node.isOperation
+    ? 'lucide:cable'
+    : getPermissionNodeTypeIcon(node.nodeType);
+}
+
+const pendingRemoval = ref<null | {
+  permissions: string[];
+  resources: LinkedResource[];
+}>(null);
+function requestRemoval(permissions: string[], operationExpressions: string[]) {
+  if (pendingRemoval.value) return;
+  const resources = new Map<string, LinkedResource>();
+  for (const expression of operationExpressions) {
+    for (const resource of linkedResources(expression))
+      resources.set(resource.expression, resource);
+  }
+  const allPermissions = [...new Set([...permissions, ...resources.keys()])];
+  if (resources.size > 0) {
+    pendingRemoval.value = {
+      permissions: allPermissions,
+      resources: [...resources.values()],
+    };
+  } else {
+    emit('update:value', removeSelectedPermissions(allPermissions));
+  }
+}
+function confirmRemoval() {
+  if (!pendingRemoval.value) return;
+  const permissions = pendingRemoval.value.permissions;
+  pendingRemoval.value = null;
+  emit('update:value', removeSelectedPermissions(permissions));
+}
+watch(
+  () => [props.value, props.permissionTree, props.menuTree, props.modules],
+  () => {
+    pendingRemoval.value = null;
+  },
+  { deep: true },
+);
+
+// 位置索引来自完整展示树，不能随搜索、折叠或当前 Tab 缩小。
+const permissionLocations = computed(() => {
+  const locations = new Map<string, string[]>();
+  interface LocationNode {
+    children?: LocationNode[];
+    permissionExpr: string;
+    title: string;
+  }
+  function visit(nodes: LocationNode[], parents: string[]) {
+    for (const node of nodes) {
+      const path = [...parents, node.title].filter(Boolean);
+      const expression = normalizePermissionExpr(node.permissionExpr);
+      if (expression && isValidPermissionExpr(expression)) {
+        const entries = locations.get(expression) || [];
+        entries.push(path.join(' / '));
+        locations.set(expression, entries);
+      }
+      visit(node.children || [], path);
+    }
+  }
+  if (hasPermissionTree.value) {
+    for (const root of permissionViewTree.value) {
+      visit(root.children, [root.title]);
+    }
+  } else {
+    for (const module of props.modules) {
+      if (module.id === MENU_MODULE_ID) {
+        visit(menuPermissionTree.value, [module.name || module.id]);
+      } else {
+        for (const type of module.typeList || []) {
+          for (const resource of type.resList || []) {
+            visit(
+              (resource.actionList || []).map((action) => ({
+                permissionExpr: action.permissionExpr,
+                title: getActionDisplayName(action),
+              })),
+              [
+                module.name || module.id,
+                type.name || type.id,
+                getResourceName(resource),
+              ],
+            );
+          }
+        }
+      }
+    }
+  }
+  return locations;
+});
+
+interface SharedPermissionImpact {
+  expression: string;
+  locations: string[];
+}
+const cancelledSharedPermissions = ref<SharedPermissionImpact[]>([]);
+const locationDetails = ref<SharedPermissionImpact[]>([]);
+const locationDetailsOpen = ref(false);
+
+function showPermissionLocations(items: SharedPermissionImpact[]) {
+  locationDetails.value = items;
+  locationDetailsOpen.value = true;
+}
+
+const SharedPermissionBadge = (badgeProps: { permissionExpr: string }) => {
+  const expression = normalizePermissionExpr(badgeProps.permissionExpr);
+  const locations = permissionLocations.value.get(expression) || [];
+  if (locations.length < 2) return null;
+  return h(
+    'button',
+    {
+      type: 'button',
+      class:
+        'text-primary bg-primary/10 relative -top-1.5 ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium leading-none',
+      'data-test': `permission-shared-${expression}`,
+      'aria-label': `共享 ${locations.length} 处，查看同步位置`,
+      title: `${locations.length}处共用权限`,
+      onClick(event: MouseEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+        showPermissionLocations([{ expression, locations }]);
+      },
+    },
+    String(locations.length),
+  );
+};
+
+SharedPermissionBadge.props = ['permissionExpr'];
+
+// 解除覆盖目标的通配授权，并保留当前可选范围内其余已选权限。
+function removeSelectedPermissions(permissions: string[]) {
+  const current = [
+    ...new Set(
+      props.value
+        .map((permission) => normalizePermissionExpr(permission))
+        .filter(Boolean),
+    ),
+  ];
+  const coversRemoved = (expression: string) =>
+    permissions.some((permission) =>
+      RbacPermissionMatchUtils.simpleMatchList(permission, [expression]),
+    );
+  const covering = current.filter((permission) => coversRemoved(permission));
+  const remaining = current.filter((expression) => !coversRemoved(expression));
+  for (const expression of new Set([
+    ...[...operationResources.value.values()].flatMap((resources) =>
+      resources.map((resource) => resource.expression),
+    ),
+    ...permissionLocations.value.keys(),
+  ])) {
+    if (
+      !coversRemoved(expression) &&
+      RbacPermissionMatchUtils.simpleMatchList(expression, covering)
+    ) {
+      remaining.push(expression);
+    }
+  }
+  const next = [...new Set(remaining)];
+  cancelledSharedPermissions.value = [...permissionLocations.value.entries()]
+    .filter(
+      ([expression, locations]) =>
+        locations.length > 1 &&
+        RbacPermissionMatchUtils.simpleMatchList(expression, current) &&
+        !RbacPermissionMatchUtils.simpleMatchList(expression, next),
+    )
+    .map(([expression, locations]) => ({ expression, locations }));
+  return next;
+}
+
+watch(
+  () => [props.permissionTree, props.modules],
+  () => {
+    cancelledSharedPermissions.value = [];
+    locationDetailsOpen.value = false;
+  },
+);
 
 const activePermissionRoot = computed(
   () =>
@@ -280,7 +543,7 @@ const activeTabPermissions = computed(() =>
 
 const activeSelectedCount = computed(() => {
   return activeTabPermissions.value.filter((permission) =>
-    RbacPermissionMatchUtils.simpleMatchList(permission, props.value),
+    isSelectionComplete(permission),
   ).length;
 });
 
@@ -356,9 +619,13 @@ function handleToggle(
   permissionExpr: string,
   checked: boolean,
   parentPermissionExpr = '',
+  isOperation = false,
 ) {
   const normalizedPermissionExpr = normalizePermissionExpr(permissionExpr);
-  if (!normalizedPermissionExpr || !isValidPermissionExpr(normalizedPermissionExpr)) {
+  if (
+    !normalizedPermissionExpr ||
+    !isValidPermissionExpr(normalizedPermissionExpr)
+  ) {
     if (checked) {
       emit(
         'update:value',
@@ -373,14 +640,29 @@ function handleToggle(
     return;
   }
 
-  let next = checked
-    ? [...new Set([normalizedPermissionExpr, ...props.value])]
-    : props.value.filter((item) => item !== normalizedPermissionExpr);
+  if (!checked) {
+    requestRemoval(
+      [normalizedPermissionExpr],
+      isOperation ? [normalizedPermissionExpr] : [],
+    );
+    return;
+  }
+  let next = [
+    ...new Set([
+      normalizedPermissionExpr,
+      ...(isOperation
+        ? linkedResources(normalizedPermissionExpr).map(
+            (resource) => resource.expression,
+          )
+        : []),
+      ...props.value,
+    ]),
+  ];
 
-  const normalizedParentPermissionExpr = normalizePermissionExpr(
-    parentPermissionExpr,
-  );
+  const normalizedParentPermissionExpr =
+    normalizePermissionExpr(parentPermissionExpr);
   if (
+    checked &&
     normalizedParentPermissionExpr &&
     normalizedParentPermissionExpr !== normalizedPermissionExpr &&
     isValidPermissionExpr(normalizedParentPermissionExpr) &&
@@ -389,7 +671,10 @@ function handleToggle(
     next = [normalizedParentPermissionExpr, ...next];
   }
 
-  emit('update:value', next);
+  if (checked) cancelledSharedPermissions.value = [];
+  emit('update:value', [
+    ...new Set(next.map((permission) => normalizePermissionExpr(permission))),
+  ]);
 }
 
 function handleTogglePermissions(permissions: string[], checked: boolean) {
@@ -398,19 +683,36 @@ function handleTogglePermissions(permissions: string[], checked: boolean) {
   }
 
   const validPermissions = permissions
-    .map(normalizePermissionExpr)
+    .map((permission) => normalizePermissionExpr(permission))
     .filter((permission) => permission && isValidPermissionExpr(permission));
-  const next = checked
-    ? [...new Set([...validPermissions, ...props.value])]
-    : props.value.filter((item) => !validPermissions.includes(item));
+  const operations = validPermissions.filter((permission) =>
+    operationResources.value.has(permission),
+  );
+  if (!checked) {
+    requestRemoval(validPermissions, operations);
+    return;
+  }
+  const next = [
+    ...new Set([
+      ...operations.flatMap((permission) =>
+        linkedResources(permission).map((resource) => resource.expression),
+      ),
+      ...props.value,
+      ...validPermissions,
+    ]),
+  ];
 
-  emit('update:value', next);
+  if (checked) cancelledSharedPermissions.value = [];
+  emit('update:value', [
+    ...new Set(next.map((permission) => normalizePermissionExpr(permission))),
+  ]);
 }
 
 function buildPermissionViewTree(
   nodes: PermissionTreeNode[],
   depth = 0,
   parentPath = '',
+  menuSource = false,
 ): PermissionViewNode[] {
   return nodes.filter(Boolean).flatMap((node, index) => {
     const label = String(node.label || '').trim();
@@ -418,12 +720,16 @@ function buildPermissionViewTree(
     const permissionExpr = String(node.permissionExpr || '').trim();
     const remark = String(node.remark || '').trim();
     const nodeType = node.nodeType;
+    const fromMenu =
+      menuSource ||
+      (depth === 0 && nodeType === PermissionTreeNodeTypeEnum.Menu);
     const children = isInlinePermissionNodeType(nodeType)
       ? []
       : buildPermissionViewTree(
           node.children || [],
           depth + 1,
           [parentPath, title].filter(Boolean).join(' / '),
+          fromMenu,
         );
     const permissions = [
       ...(permissionExpr ? [permissionExpr] : []),
@@ -440,8 +746,23 @@ function buildPermissionViewTree(
         depth,
         id: String(node.id || `${parentPath || 'permission'}-${index}`),
         label,
+        resourcePermissions: (node.resourcePermissions || [])
+          .filter((resource) => resource.permissionExpr)
+          .map((resource) => ({
+            expression: normalizePermissionExpr(resource.permissionExpr || ''),
+            name:
+              resource.label || resource.name || resource.permissionExpr || '',
+          })),
+        isOperation: fromMenu && nodeType === PermissionTreeNodeTypeEnum.Action,
         nodeType,
-        pathText: [parentPath, title, label, node.name, nodeType, permissionExpr]
+        pathText: [
+          parentPath,
+          title,
+          label,
+          node.name,
+          nodeType,
+          permissionExpr,
+        ]
           .filter(Boolean)
           .join(' ')
           .toLowerCase(),
@@ -681,13 +1002,7 @@ function getPermissionActionName(permissionExpr?: null | string) {
 function getMenuOperationTitle(
   button: NonNullable<RbacMenuNode['opButtonList']>[number],
 ) {
-  return String(
-    button.label ||
-      button.name ||
-      getPermissionActionName(button.requireAuthorization) ||
-      button.apiUrl ||
-      '',
-  ).trim();
+  return String(button.label || button.name || button.opName || '').trim();
 }
 
 function buildMenuOperationNodes(
@@ -697,14 +1012,19 @@ function buildMenuOperationNodes(
 ): MenuPermissionNode[] {
   return (menuItem.opButtonList || [])
     .map((button, index) => {
-      const permissionExpr = String(button.requireAuthorization || '').trim();
+      const moduleId = menuItem.moduleId || DEFAULT_MENU_MODULE_ID;
+      const permissionExpr =
+        menuItem.id && button.opName
+          ? [
+              moduleId,
+              '系统数据-页面操作',
+              menuItem.id,
+              button.opName.trim(),
+            ].join(':')
+          : '';
       const title = getMenuOperationTitle(button);
 
       if (!permissionExpr || button.disabled) {
-        return null;
-      }
-
-      if (!knownMenuPermissions.value.has(permissionExpr)) {
         return null;
       }
 
@@ -716,13 +1036,17 @@ function buildMenuOperationNodes(
           'op',
           permissionExpr || index,
         ].join('-'),
-        moduleId: '',
-        pathText: [parentPath, title, button.apiUrl, permissionExpr]
+        moduleId,
+        pathText: [parentPath, title, permissionExpr]
           .filter(Boolean)
           .join(' ')
           .toLowerCase(),
         permissionExpr,
         permissions: [permissionExpr],
+        resourcePermissions: (button.requireAuthorizations || [])
+          .map((permission) => normalizePermissionExpr(permission))
+          .filter(Boolean)
+          .map((expression) => ({ expression, name: expression })),
         selfPermission: permissionExpr,
         title,
         type: 'operation' as const,
@@ -730,6 +1054,7 @@ function buildMenuOperationNodes(
     })
     .filter(Boolean) as MenuPermissionNode[];
 }
+
 
 function buildMenuPermissionTree(
   menuItems: RbacMenuNode[],
@@ -793,6 +1118,8 @@ function convertMenuPermissionTreeToViewTree(
       depth: node.depth + 1,
       id: node.id,
       label: node.title,
+      isOperation: node.type === 'operation',
+      resourcePermissions: node.resourcePermissions,
       nodeType,
       pathText: [
         node.pathText,
@@ -1022,15 +1349,24 @@ function isActionSelected(permissionExpr: string) {
   return RbacPermissionMatchUtils.simpleMatchList(permissionExpr, props.value);
 }
 
+function isSelectionComplete(expression: string) {
+  return operationResources.value.has(expression)
+    ? isOperationSelected(expression)
+    : isActionSelected(expression);
+}
+
 function isAllSelected(permissions: string[]) {
   return (
     permissions.length > 0 &&
-    permissions.every((permission) => isActionSelected(permission))
+    permissions.every((permission) => isSelectionComplete(permission))
   );
 }
 
 function isSomeSelected(permissions: string[]) {
-  return permissions.some((permission) => isActionSelected(permission));
+  return permissions.some(
+    (permission) =>
+      isSelectionComplete(permission) || isOperationIndeterminate(permission),
+  );
 }
 
 function isPermissionNodeSelected(
@@ -1048,7 +1384,7 @@ function isPermissionNodeIndeterminate(
 }
 
 function getSelectedPermissionCount(permissions: string[]) {
-  return permissions.filter((permission) => isActionSelected(permission))
+  return permissions.filter((permission) => isSelectionComplete(permission))
     .length;
 }
 
@@ -1059,6 +1395,76 @@ function getPermissionCountText(permissions: string[]) {
 
 <template>
   <div class="permission-tree-editor space-y-5">
+    <Modal
+      v-if="pendingRemoval"
+      :open="true"
+      title="确认取消操作权限"
+      ok-text="确认"
+      cancel-text="返回"
+      :mask-closable="false"
+      @ok="confirmRemoval"
+      @cancel="pendingRemoval = null"
+    >
+      <p>
+        将同时取消以下
+        {{ pendingRemoval?.resources.length || 0 }} 个关联的资源权限：
+      </p>
+      <ul
+        class="mt-3 max-h-[50vh] list-inside list-disc space-y-2 overflow-y-auto"
+      >
+        <li
+          v-for="resource in pendingRemoval?.resources || []"
+          :key="resource.expression"
+        >
+          {{ resource.name }}
+        </li>
+      </ul>
+    </Modal>
+    <p class="text-muted-foreground text-xs">
+      相同权限在所有位置同步勾选或取消，仅对当前授权对象生效；共享数量包含当前位置，保存后生效。
+    </p>
+    <div
+      v-if="cancelledSharedPermissions.length > 0"
+      role="status"
+      class="bg-primary/5 text-foreground rounded-lg px-3 py-2 text-sm"
+    >
+      已同步取消
+      {{ cancelledSharedPermissions.length }}
+      项共享权限，其他位置的相同权限也已取消，保存后生效。
+      <button
+        type="button"
+        class="text-primary ml-2 underline"
+        @click="showPermissionLocations(cancelledSharedPermissions)"
+      >
+        查看同步取消的位置
+      </button>
+    </div>
+    <Modal
+      v-model:open="locationDetailsOpen"
+      title="权限共享位置"
+      :footer="null"
+      :width="640"
+    >
+      <p class="text-muted-foreground mb-3 text-sm">
+        以下位置共享同一权限的勾选状态，在任一位置取消，其他位置也会同步取消；保存后生效。
+      </p>
+      <div class="max-h-[60vh] space-y-4 overflow-y-auto">
+        <section v-for="item in locationDetails" :key="item.expression">
+          <p class="text-muted-foreground break-all text-xs">
+            {{ item.expression }} · 共享 {{ item.locations.length }} 处
+          </p>
+          <ol class="mt-2 list-inside list-decimal space-y-1 text-sm">
+            <li
+              v-for="(location, index) in item.locations"
+              :key="index"
+              class="break-words"
+            >
+              {{ location }}
+            </li>
+          </ol>
+        </section>
+      </div>
+    </Modal>
     <div v-if="!hasPermissionTree" class="flex flex-wrap gap-2">
       <div
         v-for="moduleItem in modules"
@@ -1194,13 +1600,24 @@ function getPermissionCountText(permissions: string[]) {
               :is="isSingleSelection ? Radio : Checkbox"
               v-for="inlineNode in activeRootInlinePermissionNodes"
               :key="inlineNode.id"
-              :checked="isActionSelected(inlineNode.permissionExpr)"
+              :checked="
+                inlineNode.isOperation
+                  ? isOperationSelected(inlineNode.permissionExpr)
+                  : isActionSelected(inlineNode.permissionExpr)
+              "
+              :indeterminate="
+                !isSingleSelection &&
+                inlineNode.isOperation &&
+                isOperationIndeterminate(inlineNode.permissionExpr)
+              "
               class="permission-tree-choice"
               :data-test="`permission-${inlineNode.permissionExpr}`"
               @change="
-                        handleToggle(
-                          inlineNode.permissionExpr,
-                          ($event.target as HTMLInputElement).checked,
+                handleToggle(
+                  inlineNode.permissionExpr,
+                  ($event.target as HTMLInputElement).checked,
+                  '',
+                  inlineNode.isOperation,
                 )
               "
             >
@@ -1210,10 +1627,18 @@ function getPermissionCountText(permissions: string[]) {
               >
                 <IconifyIcon
                   class="text-muted-foreground mr-1 inline size-3.5 align-[-2px]"
-                  :icon="getPermissionNodeTypeIcon(inlineNode.nodeType)"
+                  :icon="viewNodeIcon(inlineNode)"
                 />
                 {{ inlineNode.title }}
               </span>
+              <LinkedResourceBadge
+                v-if="inlineNode.isOperation"
+                :id="inlineNode.id"
+                :permission-expr="inlineNode.permissionExpr"
+              />
+              <SharedPermissionBadge
+                :permission-expr="inlineNode.permissionExpr"
+              />
             </component>
           </div>
         </div>
@@ -1271,9 +1696,19 @@ function getPermissionCountText(permissions: string[]) {
             <div class="min-w-0 flex-1">
               <Checkbox
                 v-if="!isSingleSelection"
-                :checked="isPermissionNodeSelected(node.permissionExpr, node.permissions)"
+                :checked="
+                  isPermissionNodeSelected(
+                    node.permissionExpr,
+                    node.permissions,
+                  )
+                "
                 class="permission-tree-choice"
-                :indeterminate="isPermissionNodeIndeterminate(node.permissionExpr, node.permissions)"
+                :indeterminate="
+                  isPermissionNodeIndeterminate(
+                    node.permissionExpr,
+                    node.permissions,
+                  )
+                "
                 :data-test="`permission-node-${node.id}`"
                 @change="
                   handleTogglePermissions(
@@ -1290,11 +1725,18 @@ function getPermissionCountText(permissions: string[]) {
                     class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
                     :icon="getPermissionNodeTypeIcon(node.nodeType)"
                   />
-                  <Tooltip v-if="hasOwnPermissionMarker(node)" :title="`节点自身权限：${node.permissionExpr}`">
-                    <span class="bg-primary size-2 rounded-full" aria-label="节点自身权限"></span>
+                  <Tooltip
+                    v-if="hasOwnPermissionMarker(node)"
+                    :title="`节点自身权限：${node.permissionExpr}`"
+                  >
+                    <span
+                      class="bg-primary size-2 rounded-full"
+                      aria-label="节点自身权限"
+                    ></span>
                   </Tooltip>
                   {{ node.title }}
                 </span>
+                <SharedPermissionBadge :permission-expr="node.permissionExpr" />
                 <span
                   v-if="node.permissions.length > 0"
                   class="text-muted-foreground ml-2 text-xs leading-5"
@@ -1320,6 +1762,7 @@ function getPermissionCountText(permissions: string[]) {
                   />
                   {{ node.title }}
                 </span>
+                <SharedPermissionBadge :permission-expr="node.permissionExpr" />
               </component>
               <span
                 v-else
@@ -1342,7 +1785,16 @@ function getPermissionCountText(permissions: string[]) {
                     :is="isSingleSelection ? Radio : Checkbox"
                     v-for="inlineNode in getPermissionInlineChildren(node)"
                     :key="inlineNode.id"
-                    :checked="isActionSelected(inlineNode.permissionExpr)"
+                    :checked="
+                      inlineNode.isOperation
+                        ? isOperationSelected(inlineNode.permissionExpr)
+                        : isActionSelected(inlineNode.permissionExpr)
+                    "
+                    :indeterminate="
+                      !isSingleSelection &&
+                      inlineNode.isOperation &&
+                      isOperationIndeterminate(inlineNode.permissionExpr)
+                    "
                     class="permission-tree-choice"
                     :data-test="`permission-${inlineNode.permissionExpr}`"
                     @change="
@@ -1350,6 +1802,7 @@ function getPermissionCountText(permissions: string[]) {
                         inlineNode.permissionExpr,
                         ($event.target as HTMLInputElement).checked,
                         node.permissionExpr,
+                        inlineNode.isOperation,
                       )
                     "
                   >
@@ -1359,10 +1812,18 @@ function getPermissionCountText(permissions: string[]) {
                     >
                       <IconifyIcon
                         class="text-muted-foreground mr-1 inline size-3.5 align-[-2px]"
-                        :icon="getPermissionNodeTypeIcon(inlineNode.nodeType)"
+                        :icon="viewNodeIcon(inlineNode)"
                       />
                       {{ inlineNode.title }}
                     </span>
+                    <LinkedResourceBadge
+                      v-if="inlineNode.isOperation"
+                      :id="inlineNode.id"
+                      :permission-expr="inlineNode.permissionExpr"
+                    />
+                    <SharedPermissionBadge
+                      :permission-expr="inlineNode.permissionExpr"
+                    />
                   </component>
                 </div>
               </div>
@@ -1423,10 +1884,20 @@ function getPermissionCountText(permissions: string[]) {
 
             <div class="min-w-0 flex-1">
               <Checkbox
-                :checked="isPermissionNodeSelected(node.selfPermission, node.permissions)"
-                :indeterminate="isPermissionNodeIndeterminate(node.selfPermission, node.permissions)"
+                :checked="
+                  isPermissionNodeSelected(
+                    node.selfPermission,
+                    node.permissions,
+                  )
+                "
+                :indeterminate="
+                  isPermissionNodeIndeterminate(
+                    node.selfPermission,
+                    node.permissions,
+                  )
+                "
                 :data-test="`permission-${node.permissionExpr}`"
-                    @change="
+                @change="
                   handleTogglePermissions(
                     node.permissions,
                     ($event.target as HTMLInputElement).checked,
@@ -1441,14 +1912,25 @@ function getPermissionCountText(permissions: string[]) {
                     :icon="getMenuPermissionNodeIcon(node)"
                   />
                   <Tooltip
-                    v-if="node.children.length > 0 && normalizePermissionExpr(node.selfPermission) && isValidPermissionExpr(node.selfPermission)"
+                    v-if="
+                      node.children.length > 0 &&
+                      normalizePermissionExpr(node.selfPermission) &&
+                      isValidPermissionExpr(node.selfPermission)
+                    "
                     :title="`节点自身权限：${node.selfPermission}`"
                   >
-                    <span class="bg-primary size-2 rounded-full" aria-label="节点自身权限"></span>
+                    <span
+                      class="bg-primary size-2 rounded-full"
+                      aria-label="节点自身权限"
+                    ></span>
                   </Tooltip>
                   {{ node.title }}
                 </span>
-                <span v-if="node.permissions.length > 0" class="text-muted-foreground ml-2 text-xs">
+                <SharedPermissionBadge :permission-expr="node.permissionExpr" />
+                <span
+                  v-if="node.permissions.length > 0"
+                  class="text-muted-foreground ml-2 text-xs"
+                >
                   {{ getPermissionCountText(node.permissions) }}
                 </span>
               </Checkbox>
@@ -1461,13 +1943,17 @@ function getPermissionCountText(permissions: string[]) {
                   <Checkbox
                     v-for="operationNode in getMenuOperationChildren(node)"
                     :key="operationNode.id"
-                    :checked="isActionSelected(operationNode.permissionExpr)"
+                    :checked="isOperationSelected(operationNode.permissionExpr)"
+                    :indeterminate="
+                      isOperationIndeterminate(operationNode.permissionExpr)
+                    "
                     :data-test="`permission-${operationNode.permissionExpr}`"
                     @change="
-                        handleToggle(
-                          operationNode.permissionExpr,
-                          ($event.target as HTMLInputElement).checked,
-                          node.selfPermission,
+                      handleToggle(
+                        operationNode.permissionExpr,
+                        ($event.target as HTMLInputElement).checked,
+                        node.selfPermission,
+                        true,
                       )
                     "
                   >
@@ -1481,6 +1967,13 @@ function getPermissionCountText(permissions: string[]) {
                       />
                       {{ operationNode.title }}
                     </span>
+                    <LinkedResourceBadge
+                      :id="operationNode.id"
+                      :permission-expr="operationNode.permissionExpr"
+                    />
+                    <SharedPermissionBadge
+                      :permission-expr="operationNode.permissionExpr"
+                    />
                   </Checkbox>
                 </div>
               </div>
@@ -1577,8 +2070,15 @@ function getPermissionCountText(permissions: string[]) {
                     class="truncate"
                     :title="getActionDisplayName(actionItem) || undefined"
                   >
+                    <IconifyIcon
+                      class="text-muted-foreground mr-1 inline size-3.5"
+                      icon="lucide:cable"
+                    />
                     {{ getActionDisplayName(actionItem) }}
                   </span>
+                  <SharedPermissionBadge
+                    :permission-expr="actionItem.permissionExpr"
+                  />
                 </component>
               </div>
             </div>

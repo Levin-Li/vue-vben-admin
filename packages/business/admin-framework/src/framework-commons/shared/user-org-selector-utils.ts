@@ -8,6 +8,26 @@ import type {
 
 const SELECTED_GROUP_KEY = '__selected_user_org_records__';
 
+const ORG_TYPE_ICON_MAP: Record<string, string> = {
+  Branch: 'lucide:building',
+  Company: 'lucide:building-2',
+  Department: 'lucide:git-fork',
+  ExternalLegalSubject: 'lucide:handshake',
+  Group: 'lucide:users',
+  Team: 'lucide:users-round',
+  TempOrg: 'lucide:calendar-clock',
+};
+
+export function getUserOrgSelectorNodeIcon(
+  node: Pick<UserOrgSelectorRecord, 'kind' | 'type'>,
+) {
+  if (node.kind === 'user') {
+    return 'lucide:user-round';
+  }
+
+  return ORG_TYPE_ICON_MAP[String(node.type || '')] || 'lucide:network';
+}
+
 export function normalizeSelectorTypes(value?: string | string[]): string[] {
   if (Array.isArray(value)) {
     return value.map((item) => String(item || '').trim()).filter(Boolean);

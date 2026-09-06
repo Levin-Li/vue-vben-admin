@@ -3,6 +3,24 @@ import type { CrudFieldConfig } from './types';
 import { sortFormLayoutFields } from './crud-form-layout';
 import { formatAdministrativeArea } from './administrative-area-data';
 
+/** 集合只取响应契约或实际记录字段，通用配置仅补充同名展示元数据。 */
+export function resolveDetailFields(
+  record: unknown,
+  metadata: CrudFieldConfig[],
+  declared?: CrudFieldConfig[],
+) {
+  const definitions = new Map(
+    [...metadata, ...(declared || [])].map((field) => [field.key, field]),
+  );
+  const keys =
+    record && typeof record === 'object' && !Array.isArray(record)
+      ? Object.keys(record)
+      : (declared || []).map((field) => field.key);
+  return keys
+    .map((key) => definitions.get(key) || { key, label: key })
+    .filter((field) => field.detail !== false);
+}
+
 export type DetailDisplayEntryKind = 'array' | 'json' | 'qrcode' | 'scalar';
 
 export interface DetailDisplayEntry {
@@ -96,24 +114,38 @@ function getEntryKind(field: CrudFieldConfig | undefined, value: any) {
   return 'scalar';
 }
 
-function shouldShowDetailValue(field: CrudFieldConfig | undefined, value: any) {
-  if (isEmptyValue(value)) {
-    return false;
-  }
-
-  if (field?.type === 'json') {
+export function isEmptyDetailValue(
+  value: any,
+  field?: CrudFieldConfig,
+): boolean {
+  if (isEmptyValue(value) || (typeof value === 'string' && !value.trim()))
     return true;
+  if (Array.isArray(value)) return value.length === 0;
+  if (value && typeof value === 'object')
+    return Object.keys(value).length === 0;
+  if (field?.type === 'json' && typeof value === 'string') {
+    try {
+      return isEmptyDetailValue(JSON.parse(value));
+    } catch {
+      return false;
+    }
   }
+  return false;
+}
 
-  if (Array.isArray(value)) {
-    return isPrimitiveArrayValue(value);
-  }
-
-  if (value && typeof value === 'object') {
-    return false;
-  }
-
-  return true;
+function shouldShowDetailValue(
+  field: CrudFieldConfig | undefined,
+  value: any,
+  showEmptyValues: boolean,
+) {
+  if (field?.type === 'json')
+    return showEmptyValues || !isEmptyDetailValue(value, field);
+  if (Array.isArray(value))
+    return (
+      isPrimitiveArrayValue(value) && (showEmptyValues || value.length > 0)
+    );
+  if (value && typeof value === 'object') return false;
+  return showEmptyValues || !isEmptyDetailValue(value, field);
 }
 
 function formatScalarValue(field: CrudFieldConfig | undefined, value: any) {
@@ -196,13 +228,18 @@ export function isDetailJsonValue(entry: DetailDisplayEntry | undefined) {
 export function buildDetailDisplayEntries(
   data: Record<string, any>,
   fields: CrudFieldConfig[],
+  allFields: CrudFieldConfig[] = fields,
+  showEmptyValues = true,
 ) {
+  const configuredKeys = new Set(allFields.map((field) => field.key));
   const fieldMap = new Map(fields.map((field) => [field.key, field]));
   const fieldOrderMap = new Map(
     sortFormLayoutFields(fields).map((field, index) => [field.key, index]),
   );
 
+  // 已配置却不可见的字段不能退回为无配置字段展示。
   return Object.entries(data)
+    .filter(([key]) => !configuredKeys.has(key) || fieldMap.has(key))
     .map(([key, value], index) => {
       const field = fieldMap.get(key);
       return {
@@ -215,7 +252,9 @@ export function buildDetailDisplayEntries(
         value,
       };
     })
-    .filter((entry) => shouldShowDetailValue(entry.field, entry.value))
+    .filter((entry) =>
+      shouldShowDetailValue(entry.field, entry.value, showEmptyValues),
+    )
     .sort((a, b) => a.order - b.order)
     .map(
       ({ field, key, kind, label, value }) =>

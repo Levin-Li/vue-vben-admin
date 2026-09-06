@@ -1,22 +1,21 @@
-import { describe, expect, it } from 'vitest';
-
 import { buildModuleSyncMenuPayload } from '@levin/admin-framework/framework-commons/app/utils/sync-menu-routes';
+import { describe, expect, it } from 'vitest';
 
 import {
   createOakBaseAdminCrudRoutes,
-  oakBaseAdminModule,
   oakBaseAdminCrudResources,
+  oakBaseAdminModule,
 } from '../src/modules/com_levin_oak_base';
 import { oakBaseAdminBackendRouteMappings } from '../src/modules/com_levin_oak_base/backend-route-mappings';
 
 function flattenCrudRoutes(children: any[] | undefined): any[] {
-  return (children || []).flatMap((route) =>
-    Array.isArray(route?.children) && route.children.length > 0
-      ? flattenCrudRoutes(route.children)
-      : route?.meta?.crudResource
-        ? [route]
-        : [],
-  );
+  return (children || []).flatMap((route) => {
+    if (Array.isArray(route?.children) && route.children.length > 0) {
+      return flattenCrudRoutes(route.children);
+    }
+
+    return route?.meta?.crudResource ? [route] : [];
+  });
 }
 
 function findMenuByPath(items: any[] | undefined, path: string): any {
@@ -36,17 +35,18 @@ function findMenuByPath(items: any[] | undefined, path: string): any {
 }
 
 describe('oak base admin crud resources', () => {
-  it('does not store names in CRUD route mappings and derives route names from paths', () => {
+  it('stores page metadata in CRUD route mappings while deriving route names from paths', () => {
     expect(
       oakBaseAdminBackendRouteMappings.every(
-        (mapping) => !Object.hasOwn(mapping, 'name'),
+        (mapping) =>
+          Boolean(mapping.name) &&
+          Boolean(mapping.title) &&
+          Boolean(mapping.description),
       ),
     ).toBe(true);
 
     const [rootRoute] = createOakBaseAdminCrudRoutes();
-    expect(rootRoute?.name).toBe(
-      String(rootRoute?.path).replaceAll('/', '_'),
-    );
+    expect(rootRoute?.name).toBe(String(rootRoute?.path).replaceAll('/', '_'));
     const crudRoutes = flattenCrudRoutes(rootRoute?.children);
     expect(
       crudRoutes.every(
@@ -54,6 +54,19 @@ describe('oak base admin crud resources', () => {
           path === '' || String(name) === String(path).replaceAll('/', '_'),
       ),
     ).toBe(true);
+  });
+
+  it('uploads page name, title and description from page metadata', () => {
+    const payload = buildModuleSyncMenuPayload([oakBaseAdminModule]);
+    const roleMenu = findMenuByPath(payload.menuList, '/clob/V1/Role');
+
+    expect(roleMenu).toEqual(
+      expect.objectContaining({
+        label: '角色管理',
+        name: 'Role',
+        remark: '维护角色、资源权限和组织数据权限。',
+      }),
+    );
   });
 
   it('uses the current rbac permission item page instead of the removed permission page', () => {
@@ -182,7 +195,9 @@ describe('oak base admin crud resources', () => {
       (item) => item.path === '/clob/V1/ImportExportTemplate',
     );
     const payload = buildModuleSyncMenuPayload([oakBaseAdminModule]);
-    const rootMenu = payload.menuList.find((item) => item.path === '/clob/V1/index');
+    const rootMenu = payload.menuList.find(
+      (item) => item.path === '/clob/V1/index',
+    );
     const templateMenu = findMenuByPath(
       rootMenu?.children,
       '/clob/V1/ImportExportTemplate',

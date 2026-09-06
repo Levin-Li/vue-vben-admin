@@ -3,6 +3,12 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { brandService } from '../../api/brand-service';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
+export const pageMeta = {
+  name: 'Brand',
+  title: '品牌管理',
+  description: '维护品牌信息。',
+} as const;
+
 export const brandPageCrudConfig: CrudPageConfig = {
   apiBase: '/Brand',
   apiService: brandService,
@@ -29,6 +35,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -36,6 +43,13 @@ export const brandPageCrudConfig: CrudPageConfig = {
       type: 'tenant',
       visibleForPlatformUser: true,
       width: 180,
+    },
+    {
+      key: 'orgId',
+      label: '所属组织',
+      layoutGroup: 'ownership',
+      layoutOrder: 15,
+      type: 'org-tree-select',
     },
     {
       key: 'id',
@@ -173,6 +187,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
       label: '备注',
       layoutGroup: 'remark',
       layoutOrder: 10,
+      span: 2,
       type: 'textarea',
     },
     {

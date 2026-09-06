@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import 'go-captcha-vue/dist/style.css';
 
-import { Click as GoCaptchaClick, Slide as GoCaptchaSlide } from 'go-captcha-vue';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import {
+  Click as GoCaptchaClick,
+  Slide as GoCaptchaSlide,
+} from 'go-captcha-vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Spin } from 'ant-design-vue';
 
 import {
   encodeBehaviorCaptchaResult,
   isObstacleAvoidancePayload,
+  resolveBehaviorCaptchaViewport,
+  restoreBehaviorCaptchaPoint,
   type BehaviorCaptchaChallenge,
   type BehaviorCaptchaPathPayload,
   type BehaviorCaptchaPoint,
@@ -29,11 +34,14 @@ type ClickDot = { index: number; key: number; x: number; y: number };
 type TrackOperation = { t: number; type: string; x: number; y: number };
 
 const pathStage = ref<HTMLElement>();
+const captchaContainer = ref<HTMLElement>();
 const startedAt = ref<number>();
 const operations = ref<TrackOperation[]>([]);
 const submitted = ref(false);
 const dragging = ref(false);
 const activePointerId = ref<number | null>(null);
+const availableCaptchaWidth = ref(0);
+let captchaResizeObserver: ResizeObserver | undefined;
 
 const data = computed(() => {
   const payload = props.challenge?.payload || {};
@@ -46,39 +54,49 @@ const data = computed(() => {
 const isSlide = computed(() => props.challenge?.mode === 'SLIDE');
 const pathPayload = computed<BehaviorCaptchaPathPayload | null>(() => {
   if (
-    props.challenge?.mode === 'OBSTACLE_AVOIDANCE'
-    && isObstacleAvoidancePayload(props.challenge.payload)
+    props.challenge?.mode === 'OBSTACLE_AVOIDANCE' &&
+    isObstacleAvoidancePayload(props.challenge.payload)
   ) {
     return props.challenge.payload;
   }
   return null;
 });
 const isPath = computed(() => Boolean(pathPayload.value));
+const sourceViewport = computed(() =>
+  resolveBehaviorCaptchaViewport(props.challenge?.payload),
+);
+const renderedViewport = computed(() =>
+  resolveBehaviorCaptchaViewport(
+    props.challenge?.payload,
+    Math.max(0, availableCaptchaWidth.value - 2),
+  ),
+);
 
 const slideData = computed(() => {
   const payload = props.challenge?.payload || {};
+  const scale = renderedViewport.value.scale;
   return {
     image: String(payload.image || ''),
     thumb: String(payload.thumb || ''),
-    thumbHeight: Number(payload.thumbHeight) || 72,
-    thumbWidth: Number(payload.thumbWidth) || 72,
-    thumbX: Number(payload.thumbX) || 0,
-    thumbY: Number(payload.thumbY) || 0,
+    thumbHeight: (Number(payload.thumbHeight) || 72) * scale,
+    thumbWidth: (Number(payload.thumbWidth) || 72) * scale,
+    thumbX: (Number(payload.thumbX) || 0) * scale,
+    thumbY: (Number(payload.thumbY) || 0) * scale,
   };
 });
 
 const config = computed(() => {
-  const payload = props.challenge?.payload || {};
+  const viewport = renderedViewport.value;
   return {
     buttonText: '确认',
-    height: Number(payload.height) || 240,
+    height: viewport.height,
     horizontalPadding: 0,
     showTheme: true,
     thumbHeight: 40,
     thumbWidth: 150,
     title: '',
     verticalPadding: 10,
-    width: Number(payload.width) || 427,
+    width: viewport.width,
   };
 });
 
@@ -90,7 +108,8 @@ const pathViewBox = computed(() => {
 const pathPoints = computed(() =>
   operations.value
     .filter(
-      (operation) => Number.isFinite(operation.x) && Number.isFinite(operation.y),
+      (operation) =>
+        Number.isFinite(operation.x) && Number.isFinite(operation.y),
     )
     .map((operation) => ({
       x: Math.round(operation.x),
@@ -113,11 +132,11 @@ const pathStageStyle = computed(() => {
     return {};
   }
   return {
-    '--captcha-stage-height': `${payload.height}px`,
-    '--captcha-stage-width': `${payload.width}px`,
+    '--captcha-stage-height': `${renderedViewport.value.height}px`,
+    '--captcha-stage-width': `${renderedViewport.value.width}px`,
     backgroundImage: payload.image ? `url("${payload.image}")` : undefined,
-    height: `${payload.height}px`,
-    width: `${payload.width}px`,
+    height: `${renderedViewport.value.height}px`,
+    width: `${renderedViewport.value.width}px`,
   } as Record<string, string | undefined>;
 });
 
@@ -127,11 +146,12 @@ const ballStyle = computed(() => {
   if (!payload || !point) {
     return {};
   }
-  const diameter = payload.ballRadius * 2;
+  const scale = renderedViewport.value.scale;
+  const diameter = payload.ballRadius * 2 * scale;
   return {
     height: `${diameter}px`,
-    left: `${point.x}px`,
-    top: `${point.y}px`,
+    left: `${point.x * scale}px`,
+    top: `${point.y * scale}px`,
     width: `${diameter}px`,
   };
 });
@@ -141,12 +161,13 @@ function markerStyle(
   radius: number,
   labelOffset = radius + 14,
 ) {
-  const diameter = radius * 2;
+  const scale = renderedViewport.value.scale;
+  const diameter = radius * 2 * scale;
   return {
-    '--marker-label-offset': `${labelOffset}px`,
+    '--marker-label-offset': `${labelOffset * scale}px`,
     height: `${diameter}px`,
-    left: `${point.x}px`,
-    top: `${point.y}px`,
+    left: `${point.x * scale}px`,
+    top: `${point.y * scale}px`,
     width: `${diameter}px`,
   } as Record<string, string>;
 }
@@ -156,16 +177,33 @@ const startMarkerStyle = computed(() => {
   return payload ? markerStyle(payload.start, payload.ballRadius + 6) : {};
 });
 
-
 function begin() {
   startedAt.value ||= Date.now();
   return startedAt.value;
 }
 
+function updateAvailableCaptchaWidth() {
+  const container = captchaContainer.value;
+  const width =
+    container?.getBoundingClientRect().width || container?.clientWidth || 0;
+  availableCaptchaWidth.value = width > 0 ? width : 0;
+}
+
+function restoreDisplayPoint(point: BehaviorCaptchaPoint) {
+  return restoreBehaviorCaptchaPoint(
+    point,
+    sourceViewport.value,
+    renderedViewport.value,
+  );
+}
+
 function clearPathListeners() {
   window.removeEventListener('pointermove', onPathPointerMove as EventListener);
   window.removeEventListener('pointerup', onPathPointerUp as EventListener);
-  window.removeEventListener('pointercancel', onPathPointerCancel as EventListener);
+  window.removeEventListener(
+    'pointercancel',
+    onPathPointerCancel as EventListener,
+  );
 }
 
 function resetState() {
@@ -185,12 +223,9 @@ function submitAnswer(answer: unknown) {
   const start = begin();
   emit(
     'complete',
-    encodeBehaviorCaptchaResult(
-      props.challenge,
-      answer,
-      operations.value,
-      { startTime: start },
-    ),
+    encodeBehaviorCaptchaResult(props.challenge, answer, operations.value, {
+      startTime: start,
+    }),
   );
   return true;
 }
@@ -204,11 +239,11 @@ function onClick(x: number, y: number) {
     return;
   }
   const start = begin();
+  const point = restoreDisplayPoint({ x, y });
   operations.value.push({
     t: Date.now() - start,
     type: 'click',
-    x: Math.round(x),
-    y: Math.round(y),
+    ...point,
   });
   const requiredClicks = Number(props.challenge.payload?.requiredClicks) || 4;
   if (operations.value.length === requiredClicks) {
@@ -221,10 +256,7 @@ function onConfirm(dots: ClickDot[], reset: () => void) {
     reset();
     return false;
   }
-  const answerPoints = dots.map((dot) => ({
-    x: Math.round(dot.x),
-    y: Math.round(dot.y),
-  }));
+  const answerPoints = dots.map((dot) => restoreDisplayPoint(dot));
   if (operations.value.length !== answerPoints.length) {
     operations.value = answerPoints.map((point, index) => ({
       ...point,
@@ -240,11 +272,11 @@ function onSlideMove(x: number, y: number) {
     return;
   }
   const start = begin();
+  const point = restoreDisplayPoint({ x, y });
   operations.value.push({
     t: Date.now() - start,
     type: 'click',
-    x: Math.round(x),
-    y: Math.round(y),
+    ...point,
   });
 }
 
@@ -253,17 +285,27 @@ function onSlideConfirm(point: { x: number; y: number }, reset: () => void) {
     reset();
     return false;
   }
+  const restoredPoint = restoreDisplayPoint(point);
   if (!operations.value.length) {
     onSlideMove(point.x, point.y);
   }
-  return submitAnswer({ x: Math.round(point.x), y: Math.round(point.y) });
+  return submitAnswer(restoredPoint);
 }
 
-function clampPathPoint(point: BehaviorCaptchaPoint, payload: BehaviorCaptchaPathPayload) {
+function clampPathPoint(
+  point: BehaviorCaptchaPoint,
+  payload: BehaviorCaptchaPathPayload,
+) {
   const padding = payload.ballRadius;
   return {
-    x: Math.max(padding, Math.min(payload.width - padding, Math.round(point.x))),
-    y: Math.max(padding, Math.min(payload.height - padding, Math.round(point.y))),
+    x: Math.max(
+      padding,
+      Math.min(payload.width - padding, Math.round(point.x)),
+    ),
+    y: Math.max(
+      padding,
+      Math.min(payload.height - padding, Math.round(point.y)),
+    ),
   };
 }
 
@@ -284,7 +326,11 @@ function resolvePathPoint(event: MouseEvent | PointerEvent) {
   );
 }
 
-function appendPathOperation(type: string, point: BehaviorCaptchaPoint, force = false) {
+function appendPathOperation(
+  type: string,
+  point: BehaviorCaptchaPoint,
+  force = false,
+) {
   const start = begin();
   const last = operations.value.at(-1);
   if (!force && last) {
@@ -303,16 +349,19 @@ function appendPathOperation(type: string, point: BehaviorCaptchaPoint, force = 
 
 function isActivePointer(event: MouseEvent | PointerEvent) {
   return (
-    activePointerId.value == null
-    || !('pointerId' in event)
-    || event.pointerId === activePointerId.value
+    activePointerId.value == null ||
+    !('pointerId' in event) ||
+    event.pointerId === activePointerId.value
   );
 }
 
 function addPathListeners() {
   window.addEventListener('pointermove', onPathPointerMove as EventListener);
   window.addEventListener('pointerup', onPathPointerUp as EventListener);
-  window.addEventListener('pointercancel', onPathPointerCancel as EventListener);
+  window.addEventListener(
+    'pointercancel',
+    onPathPointerCancel as EventListener,
+  );
 }
 
 function startPathDrag(event: PointerEvent) {
@@ -394,23 +443,34 @@ const slideEvents = computed(() => ({
   refresh: () => emit('refresh'),
 }));
 
-watch(
-  () => props.challenge?.challengeId,
-  resetState,
-  { immediate: true },
-);
+watch(() => props.challenge?.challengeId, resetState, { immediate: true });
 
 onBeforeUnmount(() => {
   clearPathListeners();
+  captchaResizeObserver?.disconnect();
+  window.removeEventListener('resize', updateAvailableCaptchaWidth);
+});
+
+onMounted(() => {
+  updateAvailableCaptchaWidth();
+  if (typeof ResizeObserver === 'undefined') {
+    window.addEventListener('resize', updateAvailableCaptchaWidth);
+    return;
+  }
+  captchaResizeObserver = new ResizeObserver(updateAvailableCaptchaWidth);
+  if (captchaContainer.value) {
+    captchaResizeObserver.observe(captchaContainer.value);
+  }
 });
 </script>
 
 <template>
   <div
+    ref="captchaContainer"
     class="behavior-captcha-card flex justify-center"
     :data-test="`captcha-mode-${challenge?.mode || 'UNSUPPORTED'}`"
   >
-    <div class="behavior-captcha-stage relative min-h-[240px] w-full">
+    <div class="behavior-captcha-stage relative min-h-[120px] w-full">
       <div
         v-if="loading || !challenge"
         class="behavior-captcha-loading absolute inset-0 z-10 flex items-center justify-center"
@@ -420,16 +480,16 @@ onBeforeUnmount(() => {
       </div>
       <div
         v-if="challenge && isPath && pathPayload"
-        class="behavior-captcha-path-shell flex flex-col gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-sm"
+        class="behavior-captcha-path-shell border-border bg-card/95 flex flex-col gap-3 rounded-2xl border p-3 shadow-sm"
       >
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <p class="text-sm font-medium text-foreground">
+            <p class="text-foreground text-sm font-medium">
               {{ challenge.title || '障碍躲避' }}
             </p>
           </div>
           <button
-            class="behavior-captcha-path-refresh inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            class="behavior-captcha-path-refresh border-border bg-background/90 text-muted-foreground hover:border-primary/40 hover:text-primary inline-flex h-9 w-9 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-50"
             data-test="behavior-captcha-path-refresh"
             type="button"
             :disabled="loading"
@@ -440,7 +500,7 @@ onBeforeUnmount(() => {
         </div>
         <div
           ref="pathStage"
-          class="behavior-captcha-path-stage relative overflow-hidden rounded-2xl border border-border bg-muted/70"
+          class="behavior-captcha-path-stage border-border bg-muted/70 relative overflow-hidden rounded-2xl border"
           data-test="behavior-captcha-path-stage"
           :style="pathStageStyle"
         >
@@ -470,7 +530,6 @@ onBeforeUnmount(() => {
               <span>起</span>
             </div>
 
-
             <button
               class="behavior-captcha-ball"
               data-test="behavior-captcha-path-ball"
@@ -482,12 +541,21 @@ onBeforeUnmount(() => {
             />
           </div>
         </div>
-        <div class="rounded-xl bg-muted/70 px-4 py-3 text-center text-sm text-muted-foreground">
-          按住白球拖动，轨迹不可碰撞障碍，到达 [{{ pathPayload.targetIcon }}] 终点松开。
+        <div
+          class="bg-muted/70 text-muted-foreground rounded-xl px-4 py-3 text-center text-sm"
+        >
+          按住白球拖动，轨迹不可碰撞障碍，到达 [{{ pathPayload.targetIcon }}]
+          终点松开。
         </div>
       </div>
       <GoCaptchaClick
-        v-if="challenge && !isSlide && !isPath && data.image && (data.thumb || challenge.mode === 'IDIOM_CLICK')"
+        v-if="
+          challenge &&
+          !isSlide &&
+          !isPath &&
+          data.image &&
+          (data.thumb || challenge.mode === 'IDIOM_CLICK')
+        "
         :config="config"
         :data="data"
         :events="events"
@@ -522,13 +590,29 @@ onBeforeUnmount(() => {
   width: auto;
 }
 
-:deep(.behavior-captcha-card[data-test='captcha-mode-CLICK'] .go-captcha .gc-header),
-:deep(.behavior-captcha-card[data-test='captcha-mode-IDIOM_CLICK'] .go-captcha .gc-header) {
+:deep(
+  .behavior-captcha-card[data-test='captcha-mode-CLICK'] .go-captcha .gc-header
+),
+:deep(
+  .behavior-captcha-card[data-test='captcha-mode-IDIOM_CLICK']
+    .go-captcha
+    .gc-header
+) {
   height: 56px;
 }
 
-:deep(.behavior-captcha-card[data-test='captcha-mode-CLICK'] .go-captcha .gc-header img),
-:deep(.behavior-captcha-card[data-test='captcha-mode-CLICK'] .go-captcha .gc-header img) {
+:deep(
+  .behavior-captcha-card[data-test='captcha-mode-CLICK']
+    .go-captcha
+    .gc-header
+    img
+),
+:deep(
+  .behavior-captcha-card[data-test='captcha-mode-CLICK']
+    .go-captcha
+    .gc-header
+    img
+) {
   flex: 0 0 auto;
   max-height: 56px;
 }
@@ -547,8 +631,16 @@ onBeforeUnmount(() => {
 
 .behavior-captcha-path-fallback {
   background:
-    radial-gradient(circle at 20% 20%, hsl(var(--primary) / 0.18), transparent 32%),
-    radial-gradient(circle at 82% 18%, hsl(var(--success) / 0.15), transparent 28%),
+    radial-gradient(
+      circle at 20% 20%,
+      hsl(var(--primary) / 0.18),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 82% 18%,
+      hsl(var(--success) / 0.15),
+      transparent 28%
+    ),
     linear-gradient(135deg, hsl(var(--muted)), hsl(var(--background)));
 }
 
@@ -566,11 +658,8 @@ onBeforeUnmount(() => {
   color: rgb(255 255 255 / 0.92);
   display: inline-flex;
   font-family:
-    var(--captcha-obstacle-font, 'Noto Sans SC'),
-    'PingFang SC',
-    'Microsoft YaHei',
-    'Segoe UI Symbol',
-    sans-serif;
+    var(--captcha-obstacle-font, 'Noto Sans SC'), 'PingFang SC',
+    'Microsoft YaHei', 'Segoe UI Symbol', sans-serif;
   font-weight: 700;
   justify-content: center;
   pointer-events: none;
@@ -628,8 +717,12 @@ onBeforeUnmount(() => {
 }
 
 .behavior-captcha-ball {
-  background:
-    radial-gradient(circle at 35% 35%, rgb(255 255 255), rgb(255 255 255 / 0.88) 55%, rgb(226 232 240 / 0.98));
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgb(255 255 255),
+    rgb(255 255 255 / 0.88) 55%,
+    rgb(226 232 240 / 0.98)
+  );
   border: 2px solid rgb(255 255 255 / 0.96);
   border-radius: 9999px;
   box-shadow:

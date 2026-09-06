@@ -9,10 +9,13 @@ import {
   tenantLevelOptionsLoader,
   tenantTypeOptionsLoader,
 } from '../api-module';
-import {
-  siteInfoFormFields,
-  transformSiteInfoSubmit,
-} from '../site-info-form';
+import { siteInfoFormFields, transformSiteInfoSubmit } from '../site-info-form';
+
+export const pageMeta = {
+  name: 'Tenant',
+  title: '租户管理',
+  description: '维护租户信息。',
+} as const;
 
 export const tenantPageCrudConfig: CrudPageConfig = {
   apiBase: '/Tenant',
@@ -39,7 +42,16 @@ export const tenantPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     { key: 'containsName', label: '租户名称', form: false, search: true },
-    { key: 'name', label: '租户名称', required: true, table: true, width: 160 },
+    {
+      key: 'name',
+      label: '租户名称',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '租户信息',
+      layoutOrder: 10,
+      required: true,
+      table: true,
+      width: 160,
+    },
     {
       key: 'inType',
       label: '租户类型',
@@ -52,6 +64,8 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     {
       key: 'type',
       label: '租户类型',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       loadOptions: tenantTypeOptionsLoader,
       table: true,
       type: 'select',
@@ -69,6 +83,8 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     {
       key: 'level',
       label: '租户级别',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       loadOptions: tenantLevelOptionsLoader,
       table: true,
       type: 'select',
@@ -77,6 +93,8 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     {
       key: 'confidentialLevel',
       label: '机密等级',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
       loadOptions: confidentialLevelOptionsLoader,
       search: true,
       table: true,
@@ -87,12 +105,14 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     {
       key: 'sysName',
       label: '系统名称',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
       search: true,
       table: true,
       width: 160,
     },
-    { key: 'code', label: '企业信用编码', search: true, table: true },
-    { key: 'tenantKey', label: '租户Key', table: true, width: 150 },
+    { key: 'code', label: '企业信用编码', layoutGroup: 'basic', layoutOrder: 60, search: true, table: true },
+    { key: 'tenantKey', label: '租户Key', layoutGroup: 'basic', layoutOrder: 70, table: true, width: 150 },
     {
       key: 'inNationCode',
       label: '国家编码',
@@ -105,6 +125,8 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     {
       key: 'nationCode',
       label: '国家编码',
+      layoutGroup: 'basic',
+      layoutOrder: 80,
       loadOptions: nationCodeOptionsLoader,
       type: 'select',
     },
@@ -120,6 +142,8 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     {
       key: 'currencyCode',
       label: '货币编码',
+      layoutGroup: 'basic',
+      layoutOrder: 90,
       loadOptions: currencyCodeOptionsLoader,
       type: 'select',
     },
@@ -135,20 +159,24 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     {
       key: 'languageCode',
       label: '语言编码',
+      layoutGroup: 'basic',
+      layoutOrder: 100,
       loadOptions: languageCodeOptionsLoader,
       type: 'select',
     },
-    { key: 'sysLogo', label: '系统Logo', type: 'image' },
+    { key: 'sysLogo', label: '系统Logo', layoutGroup: 'basic', layoutOrder: 110, type: 'image' },
     ...siteInfoFormFields,
     {
       key: 'balance',
       label: '帐号余额',
+      layoutGroup: 'license',
       layoutNewRow: true,
+      layoutOrder: 10,
       table: true,
       type: 'number',
     },
-    { key: 'licenseCnt', label: '总许可数', type: 'number' },
-    { key: 'remainingLicenseCnt', label: '剩余许可数', type: 'number' },
+    { key: 'licenseCnt', label: '总许可数', layoutGroup: 'license', layoutOrder: 20, type: 'number' },
+    { key: 'remainingLicenseCnt', label: '剩余许可数', layoutGroup: 'license', layoutOrder: 30, type: 'number' },
     {
       key: 'gteExpiredTime',
       label: '到期时间开始',
@@ -166,22 +194,26 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '到期时间',
+      layoutGroup: 'license',
+      layoutOrder: 40,
       table: true,
       type: 'datetime',
       width: 180,
     },
-    { key: 'contractPerson', label: '联系人', table: true },
-    { key: 'contractPhone', label: '联系电话', table: true },
-    { key: 'appId', label: '应用ID' },
-    { key: 'appAuthDomain', label: '应用授权域名' },
-    { key: 'appSecret', label: '应用密钥', type: 'textarea' },
-    { key: 'encryptKey', label: '租户密钥', fullRow: true, type: 'textarea' },
-    { key: 'uiExInfo', label: '前端展示扩展信息', type: 'json' },
-    { key: 'exInfo', label: '扩展信息', type: 'json' },
-    { key: 'orderCode', label: '排序代码', layoutNewRow: true, type: 'number' },
+    { key: 'contractPerson', label: '联系人', layoutGroup: 'contact', layoutOrder: 10, table: true },
+    { key: 'contractPhone', label: '联系电话', layoutGroup: 'contact', layoutOrder: 20, table: true },
+    { key: 'appId', label: '应用ID', layoutGroup: 'application', layoutOrder: 10 },
+    { key: 'appAuthDomain', label: '应用授权域名', layoutGroup: 'application', layoutOrder: 20 },
+    { key: 'appSecret', label: '应用密钥', layoutGroup: 'application', layoutNewRow: true, layoutOrder: 30, span: 2, type: 'textarea' },
+    { key: 'encryptKey', label: '租户密钥', layoutGroup: 'application', layoutOrder: 40, type: 'textarea' },
+    { key: 'uiExInfo', label: '前端展示扩展信息', layoutGroup: 'extension', layoutOrder: 10, type: 'json' },
+    { key: 'exInfo', label: '扩展信息', layoutGroup: 'extension', layoutOrder: 20, type: 'json' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'status', layoutNewRow: true, layoutOrder: 10, type: 'number' },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'status',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -191,6 +223,8 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'status',
+      layoutOrder: 30,
       search: true,
       table: true,
       type: 'switch',
@@ -213,8 +247,9 @@ export const tenantPageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutOrder: 10, type: 'textarea' },
   ],
+  formMaxColumns: 3,
   modalWidth: 1120,
   title: '租户管理',
   transformSubmit: transformSiteInfoSubmit,

@@ -19,9 +19,9 @@ describe('menu action count helpers', () => {
       getOpButtonCount({
         opButtonList: [
           { label: '新增' },
-          { requireAuthorization: 'menu:update' },
-          { apiUrl: '/api/menu/delete' },
-          { label: '  ', requireAuthorization: '  ' },
+          { opName: 'update', requireAuthorizations: ['menu:update'] },
+          { opName: 'delete' },
+          { label: '  ', requireAuthorizations: ['  '] },
         ],
       }),
     ).toBe(3);

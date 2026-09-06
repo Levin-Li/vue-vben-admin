@@ -29,4 +29,11 @@ describe('service plugin setting oauth guidance', () => {
     expect(source).toContain('`${name}（${pluginTypeName}）`');
     expect(source).toContain('label: getPluginOptionLabel(plugin)');
   });
+
+  it('uses the shared local plugin option filter in search and form fields', () => {
+    const source = readFileSync(pagePath, 'utf8');
+
+    expect(source).toContain("import { filterServicePluginOption } from './plugin-option-search'");
+    expect(source.match(/:filter-option="filterServicePluginOption"/g)).toHaveLength(2);
+  });
 });

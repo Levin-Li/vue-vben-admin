@@ -6,6 +6,12 @@ import {
   FILE_STORAGE_SINGLE_UPLOAD_PATH,
 } from '../api-module';
 
+export const pageMeta = {
+  name: 'ServicePlugin',
+  title: '服务插件管理',
+  description: '维护服务插件。',
+} as const;
+
 export const servicePluginPageCrudConfig: CrudPageConfig = {
   apiBase: '/ServicePlugin',
   apiService: servicePluginService,

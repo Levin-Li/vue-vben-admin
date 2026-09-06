@@ -13,6 +13,12 @@ const currencyTypeOptionsLoader = buildEnumOptionsLoader(
 );
 const currencyCodeOptionsLoader = buildDictOptionsLoader('CurrencyCode');
 
+export const pageMeta = {
+  name: 'FundExchangeRule',
+  title: '资金兑换规则管理',
+  description: '维护资金兑换规则。',
+} as const;
+
 export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
   apiBase: '/FundExchangeRule',
   apiService: fundExchangeRuleService,
@@ -30,6 +36,9 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -38,6 +47,7 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -64,6 +74,9 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '名称',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '规则信息',
+      layoutOrder: 10,
       required: true,
       table: true,
       width: 160,
@@ -71,6 +84,8 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'category',
       label: '规则类别',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       search: true,
       table: true,
       width: 140,
@@ -92,6 +107,8 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '有效期',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       table: true,
       type: 'datetime',
       width: 180,
@@ -99,6 +116,9 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'sourceCurrencyOnlyFromRecharge',
       label: '仅支持外部充值来源',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
+      required: true,
       search: true,
       table: true,
       type: 'switch',
@@ -117,7 +137,11 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'sourceCurrencyType',
       label: '原货币类型',
+      layoutGroup: 'business',
+      layoutGroupTitle: '兑换信息',
+      layoutOrder: 10,
       loadOptions: currencyTypeOptionsLoader,
+      required: true,
       table: true,
       type: 'select',
       width: 120,
@@ -125,13 +149,19 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'sourceCurrencyCode',
       label: '原货币代码',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       loadOptions: currencyCodeOptionsLoader,
+      required: true,
       type: 'select',
       width: 120,
     },
     {
       key: 'sourceCurrencyAmount',
       label: '原货币数量',
+      layoutGroup: 'business',
+      layoutOrder: 30,
+      required: true,
       table: true,
       type: 'number',
       width: 120,
@@ -148,7 +178,10 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'targetCurrencyType',
       label: '目标货币类型',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       loadOptions: currencyTypeOptionsLoader,
+      required: true,
       table: true,
       type: 'select',
       width: 120,
@@ -156,21 +189,29 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'targetCurrencyCode',
       label: '目标货币代码',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       loadOptions: currencyCodeOptionsLoader,
+      required: true,
       type: 'select',
       width: 120,
     },
     {
       key: 'targetCurrencyAmount',
       label: '目标货币数量',
+      layoutGroup: 'business',
+      layoutOrder: 60,
+      required: true,
       table: true,
       type: 'number',
       width: 120,
     },
-    { key: 'targetCurrencyDuration', label: '目标有效时长', type: 'number' },
+    { key: 'targetCurrencyDuration', label: '目标有效时长', layoutGroup: 'business', layoutOrder: 70, type: 'number' },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 80,
       search: true,
       table: true,
       type: 'switch',
@@ -180,6 +221,8 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 90,
       search: true,
       table: true,
       type: 'switch',
@@ -189,13 +232,15 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'deleted',
       label: '是否已删除',
+      layoutGroup: 'business',
+      layoutOrder: 100,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 100,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutGroupTitle: '备注信息', layoutOrder: 10, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',

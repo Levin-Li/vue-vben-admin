@@ -26,7 +26,7 @@ describe('buildSyncMenuPayload', () => {
         },
       ]),
     ).toThrow(
-      '页面路由缺少完整映射：/example/V1/Example。请在 backendRouteMappings 中提供 viewPath 和 sourceFilePath。',
+      '页面路由缺少完整映射：/example/V1/Example。请在 backendRouteMappings 中提供 name、title、description、viewPath 和 sourceFilePath。',
     );
   });
 
@@ -36,7 +36,9 @@ describe('buildSyncMenuPayload', () => {
         {
           backendRouteMappings: [
             {
+              description: '维护示例页面。',
               icon: 'lucide:file',
+              name: 'Example',
               path: '/example/V1/Example',
               resource: 'Example',
               sourceFilePath: '',
@@ -50,7 +52,7 @@ describe('buildSyncMenuPayload', () => {
         },
       ]),
     ).toThrow(
-      '页面映射不完整：/example/V1/Example。必须同时提供 viewPath 和 sourceFilePath。',
+      '页面映射不完整：/example/V1/Example。必须同时提供 name、title、description、viewPath 和 sourceFilePath。',
     );
   });
 
@@ -104,6 +106,7 @@ describe('buildSyncMenuPayload', () => {
               icon: 'lucide:user',
               label: '用户管理',
               moduleId: 'com.levin.oak.base',
+              name: '用户管理',
               path: '/system/user',
               remark: '_system_user',
             },
@@ -111,6 +114,7 @@ describe('buildSyncMenuPayload', () => {
           icon: 'lucide:settings',
           label: '系统管理',
           moduleId: 'com.levin.oak.base',
+          name: '系统管理',
           path: '/system',
           remark: '_system',
         },
@@ -123,7 +127,9 @@ describe('buildSyncMenuPayload', () => {
       {
         backendRouteMappings: [
           {
+            description: '维护用户信息。',
             icon: 'lucide:user',
+            name: 'User',
             resource: 'User',
             sourceFilePath: 'modules/com_levin_oak_base/views/user/index.vue',
             path: '/clob/V1/User',
@@ -158,7 +164,9 @@ describe('buildSyncMenuPayload', () => {
       {
         backendRouteMappings: [
           {
+            description: '维护合同信息。',
             icon: 'lucide:file-text',
+            name: 'Contract',
             resource: 'Contract',
             sourceFilePath:
               'modules/com_levin_contract/views/contract/index.vue',
@@ -182,8 +190,9 @@ describe('buildSyncMenuPayload', () => {
               icon: 'lucide:user',
               label: '用户管理',
               moduleId: 'com.levin.oak.base',
+              name: 'User',
               path: '/clob/V1/User',
-              remark: '_clob_V1_User',
+              remark: '维护用户信息。',
               sourceFilePath: 'modules/com_levin_oak_base/views/user/index.vue',
               viewPath: '/system/com_levin_oak_base/user/index.vue',
             },
@@ -191,6 +200,7 @@ describe('buildSyncMenuPayload', () => {
           icon: 'lucide:database',
           label: '基础模块',
           moduleId: 'com.levin.oak.base',
+          name: '基础模块',
           path: '/oak-base',
           remark: '_oak-base',
         },
@@ -199,8 +209,9 @@ describe('buildSyncMenuPayload', () => {
           icon: 'lucide:file-text',
           label: '合同管理',
           moduleId: 'com.levin.contract',
+          name: 'Contract',
           path: '/contract/V1/Contract',
-          remark: '_contract_V1_Contract',
+          remark: '维护合同信息。',
           sourceFilePath: 'modules/com_levin_contract/views/contract/index.vue',
           viewPath: '/system/com_levin_contract/contract/index.vue',
         },
@@ -208,12 +219,81 @@ describe('buildSyncMenuPayload', () => {
     });
   });
 
+  it('keeps every page operation and resource permission in the upload payload', () => {
+    const payload = buildModuleSyncMenuPayload([
+      {
+        backendRouteMappings: [
+          {
+            description: '维护客户资料。',
+            icon: 'lucide:users',
+            name: 'Customer',
+            operations: [
+              {
+                apiMethods: ['create'],
+                description: '新增客户。',
+                label: '新增',
+                opName: 'create',
+                requireAuthorizations: ['com.levin.oak.base:客户:新增'],
+              },
+              {
+                apiMethods: ['export'],
+                description: '导出客户。',
+                label: '导出',
+                opName: 'export',
+                requireAuthorizations: [
+                  'com.levin.oak.base:客户:查看',
+                  'com.levin.oak.base:客户:导出',
+                ],
+              },
+            ],
+            path: '/clob/V1/Customer',
+            resource: 'Customer',
+            sourceFilePath:
+              'modules/com_levin_oak_base/views/customer/index.vue',
+            title: '客户',
+            viewPath: '/system/com_levin_oak_base/customer/index.vue',
+          },
+        ],
+        name: 'com.levin.oak.base',
+        routes: [
+          {
+            component: {},
+            meta: { title: '客户' },
+            name: '_clob_V1_Customer',
+            path: '/clob/V1/Customer',
+          },
+        ],
+        title: '基础模块',
+      },
+    ]);
+
+    expect(payload.menuList[0]?.opButtonList).toEqual([
+      {
+        label: '新增',
+        opName: 'create',
+        remark: '新增客户。',
+        requireAuthorizations: ['com.levin.oak.base:客户:新增'],
+      },
+      {
+        label: '导出',
+        opName: 'export',
+        remark: '导出客户。',
+        requireAuthorizations: [
+          'com.levin.oak.base:客户:查看',
+          'com.levin.oak.base:客户:导出',
+        ],
+      },
+    ]);
+  });
+
   it('deduplicates uploaded menu items by module id and path', () => {
     const payload = buildModuleSyncMenuPayload([
       {
         backendRouteMappings: [
           {
+            description: '展示后台首页。',
             icon: 'lucide:home',
+            name: 'Home',
             resource: 'Home',
             sourceFilePath: 'modules/com_levin_oak_base/views/home/index.vue',
             path: '/clob/V1/index',
@@ -238,7 +318,9 @@ describe('buildSyncMenuPayload', () => {
       {
         backendRouteMappings: [
           {
+            description: '展示后台首页。',
             icon: 'lucide:home',
+            name: 'Home',
             path: '/clob/V1/index',
             resource: 'Home',
             sourceFilePath: 'modules/com_levin_oak_base/views/home/index.vue',
@@ -267,6 +349,7 @@ describe('buildSyncMenuPayload', () => {
       expect.objectContaining({
         label: '首页',
         moduleId: 'com.levin.oak.base',
+        name: 'Home',
         path: '/clob/V1/index',
         sourceFilePath: 'modules/com_levin_oak_base/views/home/index.vue',
         viewPath: '/system/com_levin_oak_base/home/index.vue',
@@ -279,7 +362,9 @@ describe('buildSyncMenuPayload', () => {
       {
         backendRouteMappings: [
           {
+            description: '展示基础首页。',
             icon: 'lucide:home',
+            name: 'OakSharedHome',
             path: '/shared/index',
             resource: 'OakSharedHome',
             sourceFilePath: 'modules/com_levin_oak_base/views/shared/index.vue',
@@ -303,7 +388,9 @@ describe('buildSyncMenuPayload', () => {
       {
         backendRouteMappings: [
           {
+            description: '展示合同首页。',
             icon: 'lucide:home',
+            name: 'ContractSharedHome',
             path: '/shared/index',
             resource: 'ContractSharedHome',
             sourceFilePath: 'modules/com_levin_contract/views/shared/index.vue',
@@ -331,5 +418,30 @@ describe('buildSyncMenuPayload', () => {
       'com.levin.oak.base',
       'com.levin.contract',
     ]);
+  });
+
+  it('truncates uploaded page descriptions to the menu remark limit', () => {
+    const description = '页'.repeat(513);
+    const payload = buildModuleSyncMenuPayload([
+      {
+        backendRouteMappings: [
+          {
+            description,
+            icon: 'lucide:file',
+            name: 'Example',
+            path: '/example/V1/Example',
+            resource: 'Example',
+            sourceFilePath: 'modules/example/views/example/index.vue',
+            title: '示例页面',
+            viewPath: '/system/example/example/index.vue',
+          },
+        ],
+        name: 'com.levin.example',
+        routes: [],
+        title: '示例模块',
+      },
+    ]);
+
+    expect(payload.menuList[0]?.remark).toHaveLength(512);
   });
 });

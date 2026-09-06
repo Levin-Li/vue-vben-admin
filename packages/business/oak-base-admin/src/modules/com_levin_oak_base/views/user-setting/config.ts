@@ -7,12 +7,19 @@ import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
+  userOptionsLoader,
 } from '../api-module';
 import { transformSettingCrudSubmit } from '../setting-crud-submit';
 
 const userSettingValueTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Setting$ValueType',
 );
+
+export const pageMeta = {
+  name: 'UserSetting',
+  title: '用户设置管理',
+  description: '维护用户设置。',
+} as const;
 
 export const userSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/UserSetting',
@@ -32,6 +39,8 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -40,6 +49,7 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -47,6 +57,15 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       type: 'tenant',
       visibleForPlatformUser: true,
       width: 180,
+    },
+    {
+      key: 'ownerId',
+      label: '所属用户',
+      layoutGroup: 'ownership',
+      layoutOrder: 20,
+      loadOptions: userOptionsLoader,
+      remoteSearch: true,
+      type: 'select',
     },
     {
       key: 'id',
@@ -83,13 +102,23 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'datetime',
     },
-    { key: 'groupName', label: '分组名称', table: true, width: 160 },
-    { key: 'code', label: '编码', required: true, table: true, width: 180 },
-    { key: 'categoryName', label: '分类名称', table: true, width: 140 },
-    { key: 'icon', label: '图标', type: 'image' },
+    { key: 'groupName', label: '分组名称', layoutGroup: 'basic', layoutOrder: 10, table: true, width: 160 },
+    { key: 'code', label: '编码', layoutGroup: 'basic', layoutOrder: 20, required: true, table: true, width: 180 },
+    {
+      key: 'categoryName',
+      label: '分类名称',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
+      required: true,
+      table: true,
+      width: 140,
+    },
+    { key: 'icon', label: '图标', layoutGroup: 'basic', layoutOrder: 40, type: 'image' },
     {
       key: 'valueType',
       label: '值类型',
+      layoutGroup: 'content',
+      layoutOrder: 10,
       loadOptions: userSettingValueTypeOptionsLoader,
       table: true,
       type: 'select',
@@ -100,12 +129,17 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       label: '值编辑器',
       disabledOnEdit: ({ userInfo }) => !isSuperAdminUser(userInfo),
       fullRow: true,
+      layoutGroup: 'content',
+      layoutNewRow: true,
+      layoutOrder: 20,
       type: 'text',
     },
-    { key: 'valueContent', label: '值', fullRow: true, type: 'textarea' },
+    { key: 'valueContent', label: '值', fullRow: true, layoutGroup: 'content', layoutOrder: 30, type: 'textarea' },
     {
       key: 'nullable',
       label: '值是否可空',
+      layoutGroup: 'content',
+      layoutOrder: 40,
       search: true,
       table: true,
       type: 'switch',
@@ -116,12 +150,16 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       key: 'inputPlaceholder',
       label: '输入占位提示',
       fullRow: true,
+      layoutGroup: 'content',
+      layoutOrder: 50,
       type: 'textarea',
     },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'status', layoutOrder: 10, type: 'number' },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'status',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -131,6 +169,8 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'status',
+      layoutOrder: 30,
       search: true,
       table: true,
       type: 'switch',
@@ -153,8 +193,9 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutOrder: 10, type: 'textarea' },
   ],
+  formMaxColumns: 3,
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '用户设置管理',
   transformSubmit: transformSettingCrudSubmit,

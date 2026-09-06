@@ -57,13 +57,21 @@ const treeSelectStub = {
     'treeExpandedKeys',
     'value',
   ],
-  template: '<div data-test="tree-select"></div>',
+  template:
+    '<div data-test="tree-select"><slot name="title" v-bind="treeData[0] || {}" /></div>',
+};
+
+const iconifyIconStub = {
+  name: 'IconifyIcon',
+  props: ['icon'],
+  template: '<i :data-icon="icon" data-test="node-icon"></i>',
 };
 
 function mountSelector(props: Record<string, unknown>) {
   return mount(UserOrgSelector, {
     global: {
       stubs: {
+        IconifyIcon: iconifyIconStub,
         TreeSelect: treeSelectStub,
       },
     },
@@ -208,5 +216,55 @@ describe('UserOrgSelector', () => {
     expect(treeData[0]?.children).toEqual([
       expect.objectContaining({ id: 'user-1', kind: 'user' }),
     ]);
+  });
+
+  it('softens only disabled organization node titles', async () => {
+    const orgLoadApi = vi.fn(async () => [{ id: 'org-1', name: 'Org 1' }]);
+    const disabledWrapper = mountSelector({
+      allowSelectUser: false,
+      mode: 'user',
+      orgLoadApi,
+    });
+    const selectableWrapper = mountSelector({
+      mode: 'org',
+      orgLoadApi,
+    });
+
+    await flushPromises();
+
+    expect(
+      disabledWrapper.get('.user-org-selector__disabled-org-title').text(),
+    ).toBe('Org 1');
+    expect(
+      selectableWrapper.find('.user-org-selector__disabled-org-title').exists(),
+    ).toBe(false);
+  });
+
+  it('shows organization icons before titles by default and supports hiding them', async () => {
+    const orgLoadApi = vi.fn(async () => [
+      { id: 'company-1', name: '总部', type: 'Company' },
+    ]);
+    const defaultWrapper = mountSelector({
+      allowSelectUser: false,
+      mode: 'org',
+      orgLoadApi,
+    });
+    const textOnlyWrapper = mountSelector({
+      allowSelectUser: false,
+      mode: 'org',
+      orgLoadApi,
+      showNodeIcons: false,
+    });
+
+    await flushPromises();
+
+    const icon = defaultWrapper.get('.user-org-selector__node-icon');
+    expect(icon.element.nextElementSibling?.textContent).toBe('总部');
+    expect(defaultWrapper.get('.user-org-selector__node-title').text()).toBe(
+      '总部',
+    );
+    expect(
+      textOnlyWrapper.find('.user-org-selector__node-icon').exists(),
+    ).toBe(false);
   });
 });

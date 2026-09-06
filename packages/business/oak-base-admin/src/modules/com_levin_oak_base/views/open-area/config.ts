@@ -21,6 +21,12 @@ export function getOpenAreaDisplayNames(record: Record<string, any>) {
   return areaCodeList.map((code) => formatAdministrativeArea(code));
 }
 
+export const pageMeta = {
+  name: 'OpenArea',
+  title: '开通区域',
+  description: '维护开通区域配置。',
+} as const;
+
 export const openAreaPageCrudConfig: CrudPageConfig = {
   apiBase: '/OpenArea',
   apiService: openAreaService,
@@ -39,6 +45,9 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '所属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -47,6 +56,7 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '所属租户',
       fixed: 'left',
       form: false,
@@ -58,6 +68,8 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgId',
       label: '所属组织',
+      layoutGroup: 'ownership',
+      layoutOrder: 20,
       search: true,
       type: 'org-tree-select',
     },
@@ -73,6 +85,9 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     {
       key: 'domain',
       label: '域名',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '开通范围',
+      layoutOrder: 10,
       help: '为空时匹配当前租户、组织下的任意域名。',
       search: true,
       table: true,
@@ -81,6 +96,8 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     {
       key: 'bizCategory',
       label: '业务类别',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       help: '为空时匹配任意业务类别。',
       loadOptions: buildModuleDictOptionsLoader(
         'com.levin.oak.base.entities.OpenArea.bizCategory',
@@ -93,6 +110,8 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     {
       key: 'bizType',
       label: '业务类型',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       help: '为空时匹配任意业务类型。',
       loadOptions: buildModuleDictOptionsLoader(
         'com.levin.oak.base.entities.OpenArea.bizType',
@@ -116,6 +135,9 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '到期时间',
+      layoutGroup: 'business',
+      layoutGroupTitle: '状态设置',
+      layoutOrder: 10,
       help: '为空表示长期有效。',
       search: true,
       table: true,
@@ -125,6 +147,8 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -134,14 +158,16 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
-    { key: 'exInfo', label: '扩展信息', type: 'json' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'business', layoutOrder: 40, type: 'number' },
+    { key: 'exInfo', label: '扩展信息', layoutGroup: 'extension', layoutGroupTitle: '扩展信息', layoutOrder: 10, type: 'json' },
     {
       key: 'createTime',
       label: '创建时间',
@@ -158,7 +184,7 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutGroupTitle: '备注信息', layoutOrder: 10, type: 'textarea' },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '开通区域',

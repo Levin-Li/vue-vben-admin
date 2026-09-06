@@ -1,9 +1,13 @@
 <script lang="ts" setup>
-import type { MenuOpButton } from './types';
 import type { PermissionTreeNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 
-import { computed, ref } from 'vue';
+import type { MenuOpButton } from './types';
 
+import { computed, onMounted, ref } from 'vue';
+
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
+import { PermissionTreeNodeType } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
+import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
 import {
   Button,
   Empty,
@@ -13,11 +17,8 @@ import {
   Popconfirm,
   Spin,
   Table,
+  Tag,
 } from 'ant-design-vue';
-
-import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
-import { PermissionTreeNodeType } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
-import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
 
 const props = defineProps<{
   value?: MenuOpButton[];
@@ -37,14 +38,37 @@ const permissionTree = ref<PermissionTreeNode[]>([]);
 const permissionLoading = ref(false);
 const permissionModalOpen = ref(false);
 const permissionSelection = ref<string[]>([]);
+const temporaryRowKeys = new WeakMap<MenuOpButton, string>();
+let temporaryRowKeySequence = 0;
 
 const columns = [
-  { dataIndex: 'label', title: '显示Label', width: 180 },
-  { dataIndex: 'apiUrl', title: 'API地址', width: 240 },
-  { dataIndex: 'requireAuthorization', title: '需要权限', width: 320 },
+  { dataIndex: 'opName', title: '操作名称', width: 180 },
+  { dataIndex: 'label', title: '显示名称', width: 180 },
+  { dataIndex: 'requireAuthorizations', title: '资源权限', width: 360 },
   { dataIndex: 'remark', title: '备注', width: 220 },
   { dataIndex: 'operation', title: '操作', width: 90 },
 ];
+
+const permissionDisplayNames = computed(() => {
+  const names = new Map<string, string>();
+
+  function visit(nodes: PermissionTreeNode[], parents: string[]) {
+    for (const node of nodes) {
+      const title = String(node.label || node.name || node.id || '').trim();
+      const path = [...parents, title].filter(Boolean);
+      const permissionExpr = String(node.permissionExpr || '').trim();
+
+      if (permissionExpr && path.length > 0) {
+        names.set(permissionExpr, path.join(' / '));
+      }
+
+      visit(node.children || [], path);
+    }
+  }
+
+  visit(permissionTree.value, []);
+  return names;
+});
 
 function updateRow(index: number, patch: Partial<MenuOpButton>) {
   rows.value = rows.value.map((item, currentIndex) =>
@@ -56,11 +80,11 @@ function addRow() {
   rows.value = [
     ...rows.value,
     {
-      apiUrl: '',
+      opName: '',
       disabled: false,
       label: '',
       remark: '',
-      requireAuthorization: '',
+      requireAuthorizations: [],
     },
   ];
 }
@@ -71,11 +95,22 @@ function removeRow(index: number) {
   );
 }
 
-function getRowKey(record: MenuOpButton, index: number) {
-  return record.requireAuthorization || record.label || record.apiUrl || index;
+function getRowKey(record: MenuOpButton) {
+  if (record.opName?.trim()) {
+    return record.opName.trim();
+  }
+
+  let key = temporaryRowKeys.get(record);
+  if (!key) {
+    temporaryRowKeySequence += 1;
+    key = `new-operation-${temporaryRowKeySequence}`;
+    temporaryRowKeys.set(record, key);
+  }
+
+  return key;
 }
 
-async function ensurePermissionOptionsLoaded() {
+async function ensurePermissionOptionsLoaded(silent = false) {
   if (permissionTree.value.length > 0) {
     return;
   }
@@ -83,13 +118,14 @@ async function ensurePermissionOptionsLoaded() {
   permissionLoading.value = true;
 
   try {
-    permissionTree.value =
-      ((await rbacService.fetchAuthorizedPermissionTree({
-        excludeRootNodeTypes: [PermissionTreeNodeType.Menu],
-      })) || []) as PermissionTreeNode[];
+    permissionTree.value = ((await rbacService.fetchAuthorizedPermissionTree({
+      excludeRootNodeTypes: [PermissionTreeNodeType.Menu],
+    })) || []) as PermissionTreeNode[];
   } catch (error) {
-    console.error(error);
-    message.error('加载资源权限列表失败');
+    if (!silent) {
+      console.error(error);
+      message.error('加载资源权限列表失败');
+    }
   } finally {
     permissionLoading.value = false;
   }
@@ -97,35 +133,41 @@ async function ensurePermissionOptionsLoaded() {
 
 async function openPermissionSelector(index: number, record: MenuOpButton) {
   currentPermissionRowIndex.value = index;
-  permissionSelection.value = record.requireAuthorization
-    ? [record.requireAuthorization]
-    : [];
+  permissionSelection.value = [...(record.requireAuthorizations || [])];
   permissionModalOpen.value = true;
   await ensurePermissionOptionsLoaded();
 }
 
 function handlePermissionSelectorOk() {
-  if (permissionSelection.value.length > 1) {
-    message.warning('页面操作只能选择一个资源权限');
-    return;
-  }
-
-  const permissionExpr = permissionSelection.value[0];
-
-  if (!permissionExpr) {
-    message.warning('请选择一个资源权限');
-    return;
-  }
-
   updateRow(currentPermissionRowIndex.value, {
-    requireAuthorization: permissionExpr,
+    requireAuthorizations: [
+      ...new Set(
+        permissionSelection.value.map((value) => value.trim()).filter(Boolean),
+      ),
+    ],
   });
   permissionModalOpen.value = false;
 }
 
 function clearPermission(index: number) {
-  updateRow(index, { requireAuthorization: '' });
+  updateRow(index, { requireAuthorizations: [] });
 }
+
+function removePermission(index: number, permissionExpr: string) {
+  updateRow(index, {
+    requireAuthorizations: (
+      rows.value[index]?.requireAuthorizations || []
+    ).filter((item) => item !== permissionExpr),
+  });
+}
+
+function getPermissionDisplayName(permissionExpr: string) {
+  return permissionDisplayNames.value.get(permissionExpr) || permissionExpr;
+}
+
+onMounted(() => {
+  void ensurePermissionOptionsLoaded(true);
+});
 </script>
 
 <template>
@@ -147,24 +189,39 @@ function clearPermission(index: number) {
       </template>
       <template #bodyCell="{ column, index, record }">
         <Input
-          v-if="column.dataIndex === 'label'"
+          v-if="column.dataIndex === 'opName'"
+          :value="record.opName"
+          placeholder="请输入页面内唯一的操作名称"
+          @update:value="(value) => updateRow(index, { opName: value })"
+        />
+        <Input
+          v-else-if="column.dataIndex === 'label'"
           :value="record.label"
-          placeholder="请输入显示Label"
+          placeholder="请输入显示名称"
           @update:value="(value) => updateRow(index, { label: value })"
         />
-        <Input
-          v-else-if="column.dataIndex === 'apiUrl'"
-          :value="record.apiUrl"
-          placeholder="请输入API地址"
-          @update:value="(value) => updateRow(index, { apiUrl: value })"
-        />
-        <Input
-          v-else-if="column.dataIndex === 'requireAuthorization'"
-          readonly
-          :value="record.requireAuthorization"
-          placeholder="请选择需要权限"
+        <div
+          v-else-if="column.dataIndex === 'requireAuthorizations'"
+          class="border-border bg-background flex min-h-10 flex-wrap items-center gap-1 rounded-lg border px-2 py-1"
         >
-          <template #addonAfter>
+          <Tag
+            v-for="permissionExpr in record.requireAuthorizations || []"
+            :key="permissionExpr"
+            closable
+            :data-test="`operation-resource-permission-${index}-${permissionExpr}`"
+            :title="permissionExpr"
+            @close="removePermission(index, permissionExpr)"
+          >
+            {{ getPermissionDisplayName(permissionExpr) }}
+          </Tag>
+          <span
+            v-if="(record.requireAuthorizations || []).length === 0"
+            class="text-muted-foreground text-sm"
+          >
+            暂未选择资源权限
+          </span>
+          <div class="ml-auto flex items-center gap-1">
+            <span class="text-muted-foreground text-xs">可多选</span>
             <Button
               size="small"
               type="link"
@@ -173,7 +230,7 @@ function clearPermission(index: number) {
               选择权限
             </Button>
             <Button
-              v-if="record.requireAuthorization"
+              v-if="record.requireAuthorizations?.length"
               danger
               size="small"
               type="link"
@@ -181,8 +238,8 @@ function clearPermission(index: number) {
             >
               清空
             </Button>
-          </template>
-        </Input>
+          </div>
+        </div>
         <Input
           v-else-if="column.dataIndex === 'remark'"
           :value="record.remark"
@@ -204,7 +261,7 @@ function clearPermission(index: number) {
       :confirm-loading="permissionLoading"
       :mask-closable="false"
       :ok-button-props="{ disabled: permissionLoading }"
-      title="选择资源权限"
+      title="选择资源权限（可多选）"
       :width="1080"
       destroy-on-close
       @ok="handlePermissionSelectorOk"
@@ -214,7 +271,7 @@ function clearPermission(index: number) {
           <ResourcePermissionTreeEditor
             v-model:value="permissionSelection"
             :permission-tree="permissionTree"
-            selection-mode="single"
+            selection-mode="multiple"
           />
         </Spin>
       </div>

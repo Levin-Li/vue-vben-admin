@@ -10,13 +10,19 @@ import type {
 
 export type CrudDisplayState = 'ABSENT' | 'HIDDEN' | 'VISIBLE';
 
+export const CRUD_OPERATION_COLUMN_KEY = '__actions';
+export const CRUD_OPERATION_COLUMN_LABEL = '操作';
+export const DEFAULT_CRUD_OPERATION_COLUMN_WIDTH = 220;
+
 export function findDisplayRuleCycle(items: CrudPageDisplayFieldConfig[]) {
   const itemKeys = new Set(items.map((item) => item.key));
   const edges = new Map<string, string[]>();
   for (const item of items) {
     const rule = item.visibility;
-    const targets = [...(rule?.dependsOn?.fieldKeys || []), ...(rule?.exclusiveWith?.fieldKeys || [])]
-      .filter((key) => itemKeys.has(key));
+    const targets = [
+      ...(rule?.dependsOn?.fieldKeys || []),
+      ...(rule?.exclusiveWith?.fieldKeys || []),
+    ].filter((key) => itemKeys.has(key));
     edges.set(item.key, targets);
   }
   const visiting = new Set<string>();
@@ -155,7 +161,10 @@ export function shouldAutoForceUpdateField(
 }
 
 export function supportsInlineChoiceOptions(
-  field: Pick<CrudFieldConfig, 'type' | 'valueType' | 'options' | 'loadOptions'>,
+  field: Pick<
+    CrudFieldConfig,
+    'type' | 'valueType' | 'options' | 'loadOptions'
+  >,
 ) {
   return (
     field.type === 'switch' ||
@@ -168,7 +177,10 @@ export function supportsInlineChoiceOptions(
 
 /** 与 CRUD 列表实际渲染保持一致的默认列宽，用于配置面板回填。 */
 export function resolveDefaultTableColumnWidth(
-  field: Pick<CrudFieldConfig, 'key' | 'label' | 'sortable' | 'type' | 'valueType' | 'width'>,
+  field: Pick<
+    CrudFieldConfig,
+    'key' | 'label' | 'sortable' | 'type' | 'valueType' | 'width'
+  >,
 ) {
   if (field.width) return field.width;
   if (field.type === 'datetime') return 180;
@@ -177,8 +189,12 @@ export function resolveDefaultTableColumnWidth(
   if (field.type === 'switch' || field.valueType === 'boolean') return 110;
   if (field.type === 'number' || field.valueType === 'number') return 110;
 
-  const sorterWidth = field.sortable !== false && field.key !== '__tenant' ? 40 : 24;
-  return Math.min(180, Math.max(96, field.label.length * 14 + sorterWidth, 120));
+  const sorterWidth =
+    field.sortable !== false && field.key !== '__tenant' ? 40 : 24;
+  return Math.min(
+    180,
+    Math.max(96, field.label.length * 14 + sorterWidth, 120),
+  );
 }
 
 /** 列宽不足时保持最小宽度；仅把多余空间按配置分配给各列。 */
@@ -194,28 +210,54 @@ export function distributeExtraTableWidth(
   const totalWeight = widths.reduce((total, width) => total + width, 0);
   let distributed = 0;
   return widths.map((width, index) => {
-    const extra = index === widths.length - 1
-      ? extraWidth - distributed
-      : Math.round(extraWidth * (widths[index] ?? width) / totalWeight);
+    const extra =
+      index === widths.length - 1
+        ? extraWidth - distributed
+        : Math.round((extraWidth * (widths[index] ?? width)) / totalWeight);
     distributed += extra;
     return width + extra;
   });
 }
 
 /** 组织信息可能来自登录用户的直连字段或嵌套组织对象，统一为脚本上下文。 */
-export function buildOrganizationScriptContext(userInfo: Record<string, any> | undefined) {
+export function buildOrganizationScriptContext(
+  userInfo: Record<string, any> | undefined,
+) {
   const source = userInfo || {};
   const nested = source.org || source.organization || source.dept;
-  const org = nested && typeof nested === 'object' ? nested as Record<string, any> : {};
+  const org =
+    nested && typeof nested === 'object' ? (nested as Record<string, any>) : {};
   return {
-    code: org.code ?? source.orgCode ?? source.organizationCode ?? source.deptCode,
-    enable: org.enable ?? source.orgEnable ?? source.organizationEnable ?? source.deptEnable,
-    id: org.id ?? source.orgId ?? source.organizationId ?? source.deptId ?? source.currentOrgId ?? source.defaultOrgId,
-    level: org.level ?? source.orgLevel ?? source.organizationLevel ?? source.deptLevel,
-    name: org.name ?? source.orgName ?? source.organizationName ?? source.deptName,
-    parentId: org.parentId ?? source.orgParentId ?? source.organizationParentId ?? source.deptParentId,
-    path: org.path ?? source.orgPath ?? source.organizationPath ?? source.deptPath,
-    type: org.type ?? source.orgType ?? source.organizationType ?? source.deptType,
+    code:
+      org.code ?? source.orgCode ?? source.organizationCode ?? source.deptCode,
+    enable:
+      org.enable ??
+      source.orgEnable ??
+      source.organizationEnable ??
+      source.deptEnable,
+    id:
+      org.id ??
+      source.orgId ??
+      source.organizationId ??
+      source.deptId ??
+      source.currentOrgId ??
+      source.defaultOrgId,
+    level:
+      org.level ??
+      source.orgLevel ??
+      source.organizationLevel ??
+      source.deptLevel,
+    name:
+      org.name ?? source.orgName ?? source.organizationName ?? source.deptName,
+    parentId:
+      org.parentId ??
+      source.orgParentId ??
+      source.organizationParentId ??
+      source.deptParentId,
+    path:
+      org.path ?? source.orgPath ?? source.organizationPath ?? source.deptPath,
+    type:
+      org.type ?? source.orgType ?? source.organizationType ?? source.deptType,
   };
 }
 
@@ -235,6 +277,18 @@ export function isRoleVisibilitySatisfied(
   return visibleRoleCodes.some((roleCode) => userRoles.has(roleCode));
 }
 
+/** 分组条件在字段条件之前生效；不展示分组时，其中字段没有展示或提交资格。 */
+export function isDisplayGroupVisible(
+  group: Pick<CrudPageDisplayGroupConfig, 'visibleRoleCodes'> | undefined,
+  expressionResult: boolean,
+  userRoleCodes: Iterable<string>,
+) {
+  return (
+    expressionResult &&
+    isRoleVisibilitySatisfied(group?.visibleRoleCodes, userRoleCodes)
+  );
+}
+
 export function getDefaultVisibleRoleCodes(fieldKey: string) {
   if (fieldKey === 'tenantId') return ['R_SA'];
   if (fieldKey === 'orgId') {
@@ -251,8 +305,14 @@ export function initializeVisibleRoleCodes(
     : getDefaultVisibleRoleCodes(field.key);
 }
 
-export function getDefaultFieldHidden(fieldKey: string) {
-  return ['editable', 'id', 'lastUpdateTime', 'orderCode'].includes(fieldKey);
+export function getDefaultFieldHidden(
+  field: string | { key: string; showIdOnCreate?: boolean },
+) {
+  const key = typeof field === 'string' ? field : field.key;
+  if (key === 'id' && typeof field !== 'string' && field.showIdOnCreate) {
+    return false;
+  }
+  return ['editable', 'id', 'lastUpdateTime', 'orderCode'].includes(key);
 }
 
 export function initializeFieldHidden(
@@ -275,9 +335,7 @@ export function initializeHeaderVisibility(
     ? { ...header.visible }
     : { mode: defaultMode as 'always' | 'hidden' | 'script' };
 
-  visible.mode ||= visible.expression?.trim()
-    ? 'script'
-    : defaultMode;
+  visible.mode ||= visible.expression?.trim() ? 'script' : defaultMode;
 
   return visible;
 }
@@ -317,47 +375,69 @@ function hasSameStringValues(
 export function reconcileCrudPageDisplayHeaders(
   headers: CrudPageDisplayHeaderConfig[],
   fields: Array<
-    Pick<CrudFieldConfig, 'key' | 'label' | 'sortable' | 'table' | 'type' | 'valueType' | 'width'>
+    Pick<
+      CrudFieldConfig,
+      'key' | 'label' | 'sortable' | 'table' | 'type' | 'valueType' | 'width'
+    >
   >,
+  options: { includeOperationColumn?: boolean } = {},
 ) {
   const existing = new Map(headers.map((header) => [header.key, header]));
-  return fields
+  const listFields = fields
     .filter((field) => field.table)
-    .map((field, index) => {
-      const current = existing.get(field.key);
-      const defaults: CrudPageDisplayHeaderConfig = current || {
-        key: field.key,
-        label: field.label,
-        order: index,
-        valueDisplay: { mode: 'default' },
-        visible: initializeHeaderVisibility({ key: field.key }),
-        visibleRoleCodes: getDefaultVisibleRoleCodes(field.key),
-        width: resolveDefaultTableColumnWidth(field),
-      };
-      const visible = initializeHeaderVisibility(defaults);
-      const visibleRoleCodes = initializeVisibleRoleCodes(defaults);
-      const width =
-        defaults.width === 'auto' || !defaults.width
-          ? resolveDefaultTableColumnWidth(field)
-          : defaults.width;
+    .concat(
+      options.includeOperationColumn
+        ? {
+            key: CRUD_OPERATION_COLUMN_KEY,
+            label: CRUD_OPERATION_COLUMN_LABEL,
+            table: true,
+            width: DEFAULT_CRUD_OPERATION_COLUMN_WIDTH,
+          }
+        : [],
+    );
 
-      if (
-        current &&
-        current.width === width &&
-        current.visible?.expression === visible.expression &&
-        current.visible?.mode === visible.mode &&
-        hasSameStringValues(current.visibleRoleCodes, visibleRoleCodes)
-      ) {
-        return current;
-      }
+  return listFields.map((field, index) => {
+    const current = existing.get(field.key);
+    const isOperationColumn = field.key === CRUD_OPERATION_COLUMN_KEY;
+    const defaults: CrudPageDisplayHeaderConfig = current || {
+      key: field.key,
+      label: field.label,
+      order: index,
+      valueDisplay: { mode: 'default' },
+      visible: initializeHeaderVisibility({ key: field.key }),
+      visibleRoleCodes: getDefaultVisibleRoleCodes(field.key),
+      width: resolveDefaultTableColumnWidth(field),
+    };
+    const label = defaults.label || field.label;
+    const order = isOperationColumn ? index : defaults.order;
+    const visible = initializeHeaderVisibility(defaults);
+    const visibleRoleCodes = initializeVisibleRoleCodes(defaults);
+    const width =
+      defaults.width === 'auto' || !defaults.width
+        ? resolveDefaultTableColumnWidth(field)
+        : defaults.width;
 
-      return {
-        ...defaults,
-        visible,
-        visibleRoleCodes,
-        width,
-      };
-    });
+    if (
+      current &&
+      current.label === label &&
+      current.order === order &&
+      current.width === width &&
+      current.visible?.expression === visible.expression &&
+      current.visible?.mode === visible.mode &&
+      hasSameStringValues(current.visibleRoleCodes, visibleRoleCodes)
+    ) {
+      return current;
+    }
+
+    return {
+      ...defaults,
+      label,
+      order,
+      visible,
+      visibleRoleCodes,
+      width,
+    };
+  });
 }
 
 function getNestedRecord(
@@ -385,46 +465,34 @@ export function buildTenantScriptContext(
     'tenantInfo',
     'currentTenant',
   ]);
-  const siteInfo = getNestedRecord(tenantSiteInfo, ['siteInfo'])
-    || getNestedRecord(tenantRecord, ['siteInfo'])
-    || getNestedRecord(
-      getNestedRecord(userInfo, ['tenantSiteInfo']),
-      ['siteInfo'],
-    );
+  const siteInfo =
+    getNestedRecord(tenantSiteInfo, ['siteInfo']) ||
+    getNestedRecord(tenantRecord, ['siteInfo']) ||
+    getNestedRecord(getNestedRecord(userInfo, ['tenantSiteInfo']), [
+      'siteInfo',
+    ]);
 
   return {
-    code:
-      tenantRecord?.code
-      ?? userInfo?.tenantCode,
+    code: tenantRecord?.code ?? userInfo?.tenantCode,
     copyright:
-      siteInfo?.copyright
-      ?? tenantSiteInfo?.copyright
-      ?? tenantRecord?.copyright,
+      siteInfo?.copyright ??
+      tenantSiteInfo?.copyright ??
+      tenantRecord?.copyright,
     domain:
-      tenantSiteInfo?.domain
-      ?? tenantRecord?.domain
-      ?? userInfo?.tenantDomain,
+      tenantSiteInfo?.domain ?? tenantRecord?.domain ?? userInfo?.tenantDomain,
     id:
-      tenantSiteInfo?.tenantId
-      ?? tenantRecord?.id
-      ?? tenantRecord?.tenantId
-      ?? userInfo?.tenantId,
-    logo:
-      siteInfo?.logo
-      ?? tenantSiteInfo?.logo
-      ?? tenantRecord?.logo,
+      tenantSiteInfo?.tenantId ??
+      tenantRecord?.id ??
+      tenantRecord?.tenantId ??
+      userInfo?.tenantId,
+    logo: siteInfo?.logo ?? tenantSiteInfo?.logo ?? tenantRecord?.logo,
     mainImg:
-      siteInfo?.mainImg
-      ?? tenantSiteInfo?.mainImg
-      ?? tenantRecord?.mainImg,
-    name:
-      tenantSiteInfo?.name
-      ?? tenantRecord?.name
-      ?? userInfo?.tenantName,
+      siteInfo?.mainImg ?? tenantSiteInfo?.mainImg ?? tenantRecord?.mainImg,
+    name: tenantSiteInfo?.name ?? tenantRecord?.name ?? userInfo?.tenantName,
     shortcutIcon:
-      siteInfo?.shortcutIcon
-      ?? tenantSiteInfo?.shortcutIcon
-      ?? tenantRecord?.shortcutIcon,
+      siteInfo?.shortcutIcon ??
+      tenantSiteInfo?.shortcutIcon ??
+      tenantRecord?.shortcutIcon,
     siteInfo: siteInfo
       ? {
           copyright: siteInfo.copyright,
@@ -436,29 +504,20 @@ export function buildTenantScriptContext(
           titleImg: siteInfo.titleImg,
         }
       : undefined,
-    sysLogo:
-      tenantSiteInfo?.sysLogo
-      ?? tenantRecord?.sysLogo,
-    sysName:
-      tenantSiteInfo?.sysName
-      ?? tenantRecord?.sysName,
+    sysLogo: tenantSiteInfo?.sysLogo ?? tenantRecord?.sysLogo,
+    sysName: tenantSiteInfo?.sysName ?? tenantRecord?.sysName,
     techSupport:
-      siteInfo?.techSupport
-      ?? tenantSiteInfo?.techSupport
-      ?? tenantRecord?.techSupport,
+      siteInfo?.techSupport ??
+      tenantSiteInfo?.techSupport ??
+      tenantRecord?.techSupport,
     tenantId:
-      tenantSiteInfo?.tenantId
-      ?? tenantRecord?.tenantId
-      ?? tenantRecord?.id
-      ?? userInfo?.tenantId,
-    title:
-      siteInfo?.title
-      ?? tenantSiteInfo?.title
-      ?? tenantRecord?.title,
+      tenantSiteInfo?.tenantId ??
+      tenantRecord?.tenantId ??
+      tenantRecord?.id ??
+      userInfo?.tenantId,
+    title: siteInfo?.title ?? tenantSiteInfo?.title ?? tenantRecord?.title,
     titleImg:
-      siteInfo?.titleImg
-      ?? tenantSiteInfo?.titleImg
-      ?? tenantRecord?.titleImg,
+      siteInfo?.titleImg ?? tenantSiteInfo?.titleImg ?? tenantRecord?.titleImg,
   };
 }
 
@@ -531,37 +590,106 @@ export function resolveDisplayGroupExpandedFieldCount(
   return Math.min(totalFields, rows * columns);
 }
 
-function dependencySatisfied(rule: CrudDisplayRule | undefined, states: Record<string, CrudDisplayState>) {
+function dependencySatisfied(
+  rule: CrudDisplayRule | undefined,
+  states: Record<string, CrudDisplayState>,
+) {
   const dependencies = rule?.dependsOn;
   if (!dependencies?.fieldKeys.length) return true;
   const values = dependencies.fieldKeys.map((key) => states[key] !== 'HIDDEN');
   return values.every(Boolean);
 }
 
-function exclusionSatisfied(rule: CrudDisplayRule | undefined, states: Record<string, CrudDisplayState>) {
-  return (rule?.exclusiveWith?.fieldKeys || []).every((key) => states[key] !== 'VISIBLE');
+function exclusionSatisfied(
+  rule: CrudDisplayRule | undefined,
+  states: Record<string, CrudDisplayState>,
+) {
+  return (rule?.exclusiveWith?.fieldKeys || []).every(
+    (key) => states[key] !== 'VISIBLE',
+  );
 }
 
 export function resolveDisplayStates(
   items: CrudPageDisplayFieldConfig[],
   expressionResults: Record<string, boolean> = {},
+  excludedKeys: ReadonlySet<string> = new Set(),
 ) {
-  const states: Record<string, CrudDisplayState> = Object.fromEntries(items.map((item) => [item.key, item.hidden ? 'HIDDEN' : 'VISIBLE']));
+  const states: Record<string, CrudDisplayState> = Object.fromEntries([
+    ...items.map((item) => [item.key, item.hidden ? 'HIDDEN' : 'VISIBLE']),
+    ...[...excludedKeys].map((key) => [key, 'HIDDEN']),
+  ]);
   for (let index = 0; index < items.length + 1; index += 1) {
     let changed = false;
     for (const item of items) {
-      const visible = !item.hidden
-        && dependencySatisfied(item.visibility, states)
-        && exclusionSatisfied(item.visibility, states)
-        && expressionResults[item.key] !== false;
+      const visible =
+        !excludedKeys.has(item.key) &&
+        !item.hidden &&
+        dependencySatisfied(item.visibility, states) &&
+        exclusionSatisfied(item.visibility, states) &&
+        expressionResults[item.key] !== false;
       const next = visible ? 'VISIBLE' : 'HIDDEN';
-      if (states[item.key] !== next) { states[item.key] = next; changed = true; }
+      if (states[item.key] !== next) {
+        states[item.key] = next;
+        changed = true;
+      }
     }
     if (!changed) break;
   }
   return states;
 }
 
-export function sortDisplayItems<T extends CrudPageDisplayFieldConfig>(items: T[]) {
-  return [...items].sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER));
+/** 控件展示与提交资格分开；隐藏提交仍须满足原有条件依赖。 */
+export function resolveDisplaySubmitKeys(
+  items: CrudPageDisplayFieldConfig[],
+  expressionResults: Record<string, boolean> = {},
+  excludedKeys: ReadonlySet<string> = new Set(),
+) {
+  const states = resolveDisplayStates(items, expressionResults, excludedKeys);
+  return new Set(
+    items
+      .filter(
+        (item) =>
+          !excludedKeys.has(item.key) &&
+          (states[item.key] === 'VISIBLE' ||
+            (item.hidden === true &&
+              item.submitWhenHidden === true &&
+              dependencySatisfied(item.visibility, states) &&
+              exclusionSatisfied(item.visibility, states) &&
+              expressionResults[item.key] !== false)),
+      )
+      .map((item) => item.key),
+  );
+}
+
+export type CrudDisplaySubmitMode =
+  | 'display-submit'
+  | 'disabled-submit'
+  | 'hidden-submit'
+  | 'hidden-omit';
+
+export function getDisplaySubmitMode(
+  field: CrudPageDisplayFieldConfig,
+): CrudDisplaySubmitMode {
+  if (!field.hidden)
+    return field.disabled === true ? 'disabled-submit' : 'display-submit';
+  return field.submitWhenHidden === true ? 'hidden-submit' : 'hidden-omit';
+}
+
+export function setDisplaySubmitMode(
+  field: CrudPageDisplayFieldConfig,
+  mode: CrudDisplaySubmitMode,
+) {
+  field.hidden = mode === 'hidden-submit' || mode === 'hidden-omit';
+  field.disabled = mode === 'disabled-submit';
+  field.submitWhenHidden = mode === 'hidden-submit';
+}
+
+export function sortDisplayItems<T extends CrudPageDisplayFieldConfig>(
+  items: T[],
+) {
+  return [...items].sort(
+    (left, right) =>
+      (left.order ?? Number.MAX_SAFE_INTEGER) -
+      (right.order ?? Number.MAX_SAFE_INTEGER),
+  );
 }

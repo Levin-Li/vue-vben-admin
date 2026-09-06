@@ -19,8 +19,12 @@ const orgCategoryOptionsLoader = buildDictOptionsLoader(
 const orgTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Org$Type',
 );
-const userCategoryOptionsLoader = buildEnumOptionsLoader('com.levin.oak.base.entities.User$Category');
-const userTypeOptionsLoader = buildDictOptionsLoader('com.levin.oak.base.entities.User.type');
+const userCategoryOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.User$Category',
+);
+const userTypeOptionsLoader = buildDictOptionsLoader(
+  'com.levin.oak.base.entities.User.type',
+);
 
 function transformGlobalOrgSelectorSettingSubmit(values: Record<string, any>) {
   return {
@@ -30,6 +34,12 @@ function transformGlobalOrgSelectorSettingSubmit(values: Record<string, any>) {
     type: GLOBAL_ORG_SELECTOR_SETTING_TYPE,
   };
 }
+
+export const pageMeta = {
+  name: 'GlobalOrgSelectorSetting',
+  title: '全局组织选择器配置',
+  description: '维护全局组织选择器配置。',
+} as const;
 
 export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/UiSetting',
@@ -53,6 +63,8 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'scope',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -61,6 +73,7 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -80,6 +93,8 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '名称',
+      layoutGroup: 'basic',
+      layoutOrder: 10,
       required: true,
       table: true,
       width: 180,
@@ -87,6 +102,8 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'domain',
       label: '域名',
+      layoutGroup: 'scope',
+      layoutOrder: 20,
       search: true,
       table: true,
       width: 180,
@@ -94,6 +111,8 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgCategory',
       label: '组织类别',
+      layoutGroup: 'scope',
+      layoutOrder: 30,
       loadOptions: orgCategoryOptionsLoader,
       search: true,
       table: true,
@@ -103,16 +122,30 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgType',
       label: '组织类型',
+      layoutGroup: 'scope',
+      layoutOrder: 40,
       loadOptions: orgTypeOptionsLoader,
       search: true,
       table: true,
       type: 'select',
       width: 140,
     },
-    { key: 'userCategory', label: '用户类别', loadOptions: userCategoryOptionsLoader, search: true, table: true, type: 'select', width: 140 },
+    {
+      key: 'userCategory',
+      label: '用户类别',
+      layoutGroup: 'scope',
+      layoutOrder: 50,
+      loadOptions: userCategoryOptionsLoader,
+      search: true,
+      table: true,
+      type: 'select',
+      width: 140,
+    },
     {
       key: 'userType',
       label: '用户类型',
+      layoutGroup: 'scope',
+      layoutOrder: 60,
       loadOptions: userTypeOptionsLoader,
       search: true,
       table: true,
@@ -122,12 +155,17 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'valueContent',
       label: '组织选择器配置',
+      layoutGroup: 'content',
+      layoutNewRow: true,
+      layoutOrder: 10,
       type: 'json',
     },
-    { key: 'orderCode', label: '排序代码', type: 'number' },
+    { key: 'orderCode', label: '排序代码', layoutGroup: 'status', layoutOrder: 10, type: 'number' },
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'status',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -137,6 +175,8 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'status',
+      layoutOrder: 30,
       search: true,
       table: true,
       type: 'switch',
@@ -159,8 +199,9 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'remark', label: '备注', fullRow: true, type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutOrder: 10, type: 'textarea' },
   ],
+  formMaxColumns: 3,
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '全局组织选择器配置',
   transformSubmit: transformGlobalOrgSelectorSettingSubmit,

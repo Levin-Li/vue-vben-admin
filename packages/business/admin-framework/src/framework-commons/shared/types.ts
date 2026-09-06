@@ -81,10 +81,18 @@ export interface CrudFieldConfig {
   cellSingleLine?: boolean;
   cellTooltip?: boolean;
   complexGroupKey?: string;
+  /** 复杂对象、对象集合或扁平子字段的显式标记，用于排除快捷填写。 */
+  complexValue?: boolean;
   defaultValue?: any;
   /** 由页面展示设置注入的轻量区块元数据，不参与提交。 */
   displayGroup?: CrudPageDisplayGroupConfig;
+  /** 显式声明是否用于详情；仅查询字段默认不用于详情。 */
+  detail?: boolean;
   disabledOnEdit?: boolean | ((context: { userInfo: unknown }) => boolean);
+  /** 编辑请求中省略该字段；不影响创建请求。 */
+  omitOnEdit?: boolean;
+  /** 创建接口明确要求人工输入主键时，默认在创建表单展示该 ID。 */
+  showIdOnCreate?: boolean;
   export?: boolean;
   fixed?: 'left' | 'right' | boolean;
   form?: boolean;
@@ -158,6 +166,10 @@ export interface CrudDisplayDefaultValue {
 export interface CrudPageDisplayFieldConfig {
   defaultValue?: CrudDisplayDefaultValue;
   hidden?: boolean;
+  /** 隐藏控件时仍按权限、条件和分组契约校验提交；默认不提交。 */
+  submitWhenHidden?: boolean;
+  /** UI 禁用仅限制字段交互，仍按契约参与校验和提交。 */
+  disabled?: boolean;
   inputDisplay?: 'default' | 'inline-options';
   key: string;
   label?: string;
@@ -169,7 +181,9 @@ export interface CrudPageDisplayFieldConfig {
 
 /** 表单/详情中的轻量展示区块；用于视觉分隔，不产生额外的数据容器。 */
 export interface CrudPageDisplayGroupConfig {
-  displayStyle?: 'border' | 'card' | 'default' | 'newline';
+  /** 新增编辑是否显示提交数据勾选；默认不显示。 */
+  showSubmitCheckbox?: boolean;
+  displayStyle?: 'border' | 'card' | 'divider';
   /** 保存配置使用的稳定分组标识。 */
   key: string;
   /** 区块标题；为空时使用分组标识。 */
@@ -180,6 +194,10 @@ export interface CrudPageDisplayGroupConfig {
   defaultExpanded?: boolean;
   /** 首次打开时默认展示的字段行数；all 表示展示全部。 */
   defaultExpandedRows?: CrudPageDisplayQueryCollapsedRows;
+  /** 当前用户需具备其中任一角色才展示整个分组；为空时不限制。 */
+  visibleRoleCodes?: string[];
+  /** 以当前表单、用户、组织和租户上下文决定整个分组是否展示。 */
+  visibility?: CrudDisplayRule;
 }
 
 export interface CrudPageDisplayGroupedViewConfig {
@@ -195,6 +213,14 @@ export interface CrudPageDisplayFormViewConfig
   extends CrudPageDisplayGroupedViewConfig {
   modalMaxHeight?: string;
   modalMaxWidth?: string;
+  /** 表单首次打开时是否默认进入快捷填写；默认关闭。 */
+  quickFill?: boolean;
+}
+
+export interface CrudPageDisplayDetailViewConfig
+  extends CrudPageDisplayFormViewConfig {
+  /** 默认展示空值；关闭时隐藏空字符串、空数组及空 JSON 对象。 */
+  showEmptyValues?: boolean;
 }
 
 export interface CrudPageDisplayEditViewConfig
@@ -235,7 +261,7 @@ export type CrudPageDisplayQueryCollapsedRows =
 
 export interface CrudPageDisplayConfig {
   create?: CrudPageDisplayFormViewConfig;
-  detail?: CrudPageDisplayFormViewConfig;
+  detail?: CrudPageDisplayDetailViewConfig;
   edit?: CrudPageDisplayEditViewConfig;
   list?: {
     defaultMaxColumnWidth?: number;
@@ -383,6 +409,8 @@ export interface CrudPageConfig {
   editVisibleOn?: string;
   exportTemplateService?: CrudExportTemplateService;
   fields: CrudFieldConfig[];
+  /** 详情返回对象字段契约；无记录时用于详情设置候选。 */
+  detailFields?: CrudFieldConfig[];
   formMaxColumns?: number;
   listPath?: string;
   listTables?: CrudListTableConfig[];

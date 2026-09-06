@@ -110,7 +110,7 @@ describe('oak base admin routes', () => {
         expect.objectContaining({
           meta: expect.objectContaining({
             crudResource: 'TrafficControlRule',
-            title: '流量控制',
+            title: '流量控制规则管理',
           }),
           name: '_clob_V1_TrafficControlRule',
           path: '/clob/V1/TrafficControlRule',
@@ -124,7 +124,7 @@ describe('oak base admin routes', () => {
           path: '/clob/V1/TrafficControlRule',
           sourceFilePath:
             'modules/com_levin_oak_base/views/traffic-control-rule/index.vue',
-          title: '流量控制',
+          title: '流量控制规则管理',
           viewPath: '/system/com_levin_oak_base/traffic-control-rule/index.vue',
         }),
       ]),
@@ -187,11 +187,9 @@ describe('oak base admin routes', () => {
       expect.arrayContaining([
         expect.objectContaining({
           path: '/clob/V1/dev/TestDemo',
-          sourceFilePath:
-            'modules/com_levin_oak_base/views/dev/TestDemo.vue',
+          sourceFilePath: 'modules/com_levin_oak_base/views/dev/TestDemo.vue',
           title: '常用组件测试',
-          viewPath:
-            '/system/com_levin_oak_base/dev/TestDemo.vue',
+          viewPath: '/system/com_levin_oak_base/dev/TestDemo.vue',
         }),
       ]),
     );

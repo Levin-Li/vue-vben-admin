@@ -183,9 +183,10 @@ export function collectKnownPermissionTreeValues(nodes: PermissionTreeNode[]) {
       values.add(node.permissionExpr);
     }
 
-    for (const childValue of collectKnownPermissionTreeValues(
-      node.children || [],
-    )) {
+    for (const childValue of collectKnownPermissionTreeValues([
+      ...(node.children || []),
+      ...(node.resourcePermissions || []),
+    ])) {
       values.add(childValue);
     }
   }

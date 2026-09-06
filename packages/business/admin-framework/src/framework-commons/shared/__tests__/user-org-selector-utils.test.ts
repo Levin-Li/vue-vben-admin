@@ -7,11 +7,27 @@ import {
   decodeUserOrgSelectorKey,
   encodeUserOrgSelectorKey,
   flattenUserOrgTreeNodes,
+  getUserOrgSelectorNodeIcon,
   limitUserOrgSelectorRecords,
   normalizeSelectorTypes,
 } from '../user-org-selector-utils';
 
 describe('user-org-selector-utils', () => {
+  it('maps users and organization types to stable node icons', () => {
+    expect(getUserOrgSelectorNodeIcon({ kind: 'user' })).toBe(
+      'lucide:user-round',
+    );
+    expect(getUserOrgSelectorNodeIcon({ kind: 'org', type: 'Company' })).toBe(
+      'lucide:building-2',
+    );
+    expect(
+      getUserOrgSelectorNodeIcon({ kind: 'org', type: 'ExternalLegalSubject' }),
+    ).toBe('lucide:handshake');
+    expect(getUserOrgSelectorNodeIcon({ kind: 'org', type: 'Unknown' })).toBe(
+      'lucide:network',
+    );
+  });
+
   it('exposes a mockable org tree loader contract for public component demos', async () => {
     const loadOrgTree: UserOrgSelectorLoadOrgTree = async ({
       mode,

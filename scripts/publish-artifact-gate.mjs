@@ -1,8 +1,8 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   existsSync,
-  mkdtempSync,
   mkdirSync,
+  mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -14,7 +14,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 
 export function getDynamicRouteVueAssets(packageInfo) {
   const sourceRoot = resolve(packageInfo.dir, 'src');
-  const dynamicImportPattern = /import\(\s*['"](\.\/views\/[^'"]+\.vue)['"]\s*\)/g;
+  const dynamicImportPattern =
+    /import\(\s*['"](\.\/views\/[^'"]+\.vue)['"]\s*\)/g;
   const assets = new Set();
 
   for (const sourceFile of walkFiles(sourceRoot)) {
@@ -24,28 +25,87 @@ export function getDynamicRouteVueAssets(packageInfo) {
 
     const source = readFileSync(sourceFile, 'utf8');
     for (const match of source.matchAll(dynamicImportPattern)) {
-      const asset = relative(sourceRoot, resolve(dirname(sourceFile), match[1]));
+      const asset = relative(
+        sourceRoot,
+        resolve(dirname(sourceFile), match[1]),
+      );
       if (asset.startsWith('../')) {
-        throw new Error(`${packageInfo.name} 路由 Vue 文件越过 src 目录: ${match[1]}`);
+        throw new Error(
+          `${packageInfo.name} 路由 Vue 文件越过 src 目录: ${match[1]}`,
+        );
       }
       assets.add(`dist/${asset}`);
     }
   }
 
-  return [...assets].sort();
+  return [...assets].toSorted();
 }
 
 export function verifyBuiltRouteAssets(packageInfo) {
   const requiredPaths = getDynamicRouteVueAssets(packageInfo);
   const actualPaths = new Set(
-    walkFiles(resolve(packageInfo.dir, 'dist')).map((file) => relative(packageInfo.dir, file)),
+    walkFiles(resolve(packageInfo.dir, 'dist')).map((file) =>
+      relative(packageInfo.dir, file),
+    ),
   );
   assertRequiredPaths(packageInfo, requiredPaths, actualPaths, '构建产物');
   return requiredPaths;
 }
 
-export function verifyTarballRouteAssets(packageInfo, tarballPath, requiredPaths, location) {
-  const entries = execFileSync('tar', ['-tzf', tarballPath], { encoding: 'utf8' })
+export function verifyPageMetadata(packageInfo) {
+  const viewsRoot = resolve(packageInfo.dir, 'src/modules');
+  const indexPageFiles = walkFiles(viewsRoot).filter((file) =>
+    /\/views\/[^/]+\/index\.vue$/.test(file),
+  );
+  const routePageFiles = getDynamicRouteVueAssets(packageInfo).map((asset) =>
+    resolve(packageInfo.dir, 'src', asset.replace(/^dist\//, '')),
+  );
+  const pageFiles = [...new Set([...indexPageFiles, ...routePageFiles])];
+  const missing = [];
+
+  for (const pageFile of pageFiles) {
+    const pageDirectory = dirname(pageFile);
+    const metadataFile = resolve(pageDirectory, 'config.ts');
+    const pagePath = relative(packageInfo.dir, pageFile);
+
+    if (!existsSync(metadataFile)) {
+      missing.push(`${pagePath} 缺少 config.ts`);
+      continue;
+    }
+
+    const source = readFileSync(metadataFile, 'utf8');
+    const pageMeta = source.match(
+      /export\s+const\s+pageMeta\s*=\s*\{([\s\S]*?)\}\s+as\s+const/,
+    )?.[1];
+    const requiredFields = ['name', 'title', 'description'].filter(
+      (field) =>
+        !pageMeta ||
+        !new RegExp(String.raw`\b${field}\s*:\s*['"\`]`).test(pageMeta),
+    );
+
+    if (requiredFields.length > 0) {
+      missing.push(`${pagePath} 缺少 pageMeta.${requiredFields.join('、')}`);
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `${packageInfo.name} 页面元数据不完整：${missing.join('；')}`,
+    );
+  }
+
+  return pageFiles.map((file) => relative(packageInfo.dir, file)).toSorted();
+}
+
+export function verifyTarballRouteAssets(
+  packageInfo,
+  tarballPath,
+  requiredPaths,
+  location,
+) {
+  const entries = execFileSync('tar', ['-tzf', tarballPath], {
+    encoding: 'utf8',
+  })
     .split(/\r?\n/)
     .filter(Boolean)
     .map((entry) => entry.replace(/^package\//, ''));
@@ -59,10 +119,14 @@ export function verifyTarballModuleDevelopmentStandard(
 ) {
   const standardPath = 'package/docs/MODULE-DEVELOPMENT-STANDARD.md';
   const readmePath = 'package/README.md';
-  const entries = execFileSync('tar', ['-tzf', tarballPath], { encoding: 'utf8' });
+  const entries = execFileSync('tar', ['-tzf', tarballPath], {
+    encoding: 'utf8',
+  });
 
   if (!entries.split(/\r?\n/).includes(standardPath)) {
-    throw new Error(`${packageInfo.name} ${location}缺少模块使用与二次开发规范`);
+    throw new Error(
+      `${packageInfo.name} ${location}缺少模块使用与二次开发规范`,
+    );
   }
 
   const readme = execFileSync('tar', ['-xOf', tarballPath, readmePath], {
@@ -74,7 +138,11 @@ export function verifyTarballModuleDevelopmentStandard(
   }
 }
 
-export function verifyTarballDependencyProtocols(packageInfo, tarballPath, location) {
+export function verifyTarballDependencyProtocols(
+  packageInfo,
+  tarballPath,
+  location,
+) {
   const manifest = JSON.parse(
     execFileSync('tar', ['-xOf', tarballPath, 'package/package.json'], {
       encoding: 'utf8',
@@ -102,7 +170,11 @@ export function verifyTarballDependencyProtocols(packageInfo, tarballPath, locat
   }
 }
 
-export function verifyTarballStandaloneInstall(packageInfo, tarballPath, extraEnv = {}) {
+export function verifyTarballStandaloneInstall(
+  packageInfo,
+  tarballPath,
+  extraEnv = {},
+) {
   const consumerDir = mkdtempSync(
     join(tmpdir(), 'levin-package-install-smoke-'),
   );
@@ -169,7 +241,13 @@ export function packWorkspacePackage(packageInfo, destination) {
   return resolve(destination, JSON.parse(result.stdout).filename);
 }
 
-export function packPackage(packageInfo, destination, packageSpec, extraEnv = {}, cwd) {
+export function packPackage(
+  packageInfo,
+  destination,
+  packageSpec,
+  extraEnv = {},
+  cwd,
+) {
   mkdirSync(destination, { recursive: true });
   const args = ['pack'];
   if (packageSpec) {
@@ -183,14 +261,16 @@ export function packPackage(packageInfo, destination, packageSpec, extraEnv = {}
     env: { ...process.env, ...extraEnv },
   });
   if (result.status !== 0) {
-    throw new Error(`npm ${args.join(' ')} failed: ${result.stderr || result.stdout}`);
+    throw new Error(
+      `npm ${args.join(' ')} failed: ${result.stderr || result.stdout}`,
+    );
   }
 
   return resolve(destination, JSON.parse(result.stdout)[0].filename);
 }
 
 function isForbiddenPublishedDependencyProtocol(version) {
-  return /^(catalog:|workspace:)/.test(String(version));
+  return /^(?:catalog:|workspace:)/.test(String(version));
 }
 
 function writeStandaloneConsumerNpmrc(consumerDir, extraEnv) {
@@ -203,17 +283,18 @@ function writeStandaloneConsumerNpmrc(consumerDir, extraEnv) {
     return;
   }
 
-  const authLines = readFileSync(
-    String(extraEnv.NPM_CONFIG_USERCONFIG || ''),
-    'utf8',
-  )
-    .split(/\r?\n/)
-    .filter(
-      (line) =>
-        line.startsWith('//') ||
-        line.startsWith('always-auth=') ||
-        line.startsWith('auth-type='),
-    );
+  const userConfigPath = String(extraEnv.NPM_CONFIG_USERCONFIG || '').trim();
+  const authLines =
+    userConfigPath && existsSync(userConfigPath)
+      ? readFileSync(userConfigPath, 'utf8')
+          .split(/\r?\n/)
+          .filter(
+            (line) =>
+              line.startsWith('//') ||
+              line.startsWith('always-auth=') ||
+              line.startsWith('auth-type='),
+          )
+      : [];
 
   writeFileSync(
     resolve(consumerDir, '.npmrc'),
@@ -257,7 +338,9 @@ function walkFiles(directory) {
 function assertRequiredPaths(packageInfo, paths, actualPaths, location) {
   for (const path of paths) {
     if (!actualPaths.has(path)) {
-      throw new Error(`${packageInfo.name} ${location}缺少动态路由 Vue 文件: ${path}`);
+      throw new Error(
+        `${packageInfo.name} ${location}缺少动态路由 Vue 文件: ${path}`,
+      );
     }
   }
 }

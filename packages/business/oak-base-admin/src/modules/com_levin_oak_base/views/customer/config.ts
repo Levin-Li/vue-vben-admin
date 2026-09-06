@@ -27,6 +27,12 @@ const customerPhoneAreaCodeOptionsLoader = buildDictOptionsLoader(
   'com.levin.oak.base.entities.Customer.phoneAreaCode',
 );
 
+export const pageMeta = {
+  name: 'Customer',
+  title: '客户管理',
+  description: '维护客户信息。',
+} as const;
+
 export const customerPageCrudConfig: CrudPageConfig = {
   apiBase: '/Customer',
   apiService: customerService,
@@ -44,6 +50,9 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'ownership',
+      layoutGroupTitle: '归属信息',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -52,6 +61,7 @@ export const customerPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,
@@ -63,6 +73,8 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgId',
       label: '所属组织',
+      layoutGroup: 'ownership',
+      layoutOrder: 20,
       type: 'org-tree-select',
     },
     {
@@ -74,34 +86,43 @@ export const customerPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     { key: 'containsName', label: '名称', form: false, search: true },
-    { key: 'name', label: '名称', required: true, table: true, width: 150 },
+    { key: 'name', label: '名称', layoutGroup: 'basic', layoutGroupTitle: '客户信息', layoutOrder: 10, required: true, table: true, width: 150 },
     { key: 'containsTelephone', label: '手机号', form: false, search: true },
     {
       key: 'loginName',
       label: '登录名',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       search: true,
       table: true,
       width: 150,
     },
-    { key: 'telephone', label: '手机号', table: true, width: 140 },
-    { key: 'email', label: '邮箱', search: true, table: true, width: 180 },
+    { key: 'telephone', label: '手机号', layoutGroup: 'content', layoutOrder: 35, table: true, width: 140 },
+    { key: 'email', label: '邮箱', layoutGroup: 'content', layoutOrder: 36, search: true, table: true, width: 180 },
     { key: 'containsNickname', label: '昵称', form: false, search: true },
-    { key: 'nickname', label: '昵称', table: true, width: 140 },
+    { key: 'nickname', label: '昵称', layoutGroup: 'basic', layoutOrder: 30, table: true, width: 140 },
     {
       key: 'nationCode',
       label: '国家编码',
+      layoutGroup: 'content',
+      layoutGroupTitle: '联系与账号',
+      layoutOrder: 10,
       loadOptions: nationCodeOptionsLoader,
       type: 'select',
     },
     {
       key: 'langCode',
       label: '语言码',
+      layoutGroup: 'content',
+      layoutOrder: 20,
       loadOptions: languageCodeOptionsLoader,
       type: 'select',
     },
     {
       key: 'phoneAreaCode',
       label: '手机区域码',
+      layoutGroup: 'content',
+      layoutOrder: 30,
       loadOptions: customerPhoneAreaCodeOptionsLoader,
       type: 'select',
     },
@@ -117,6 +138,9 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'state',
       label: '帐号状态',
+      layoutGroup: 'business',
+      layoutGroupTitle: '账户与状态',
+      layoutOrder: 10,
       loadOptions: customerStateOptionsLoader,
       table: true,
       type: 'select',
@@ -134,6 +158,8 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'sex',
       label: '性别',
+      layoutGroup: 'business',
+      layoutOrder: 20,
       loadOptions: customerSexOptionsLoader,
       table: true,
       type: 'select',
@@ -152,6 +178,8 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'level',
       label: '用户等级',
+      layoutGroup: 'business',
+      layoutOrder: 30,
       loadOptions: customerLevelOptionsLoader,
       search: true,
       table: true,
@@ -161,6 +189,8 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'confidentialLevel',
       label: '机密等级',
+      layoutGroup: 'business',
+      layoutOrder: 40,
       loadOptions: confidentialLevelOptionsLoader,
       search: true,
       table: true,
@@ -184,6 +214,8 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'birthday',
       label: '出生日期',
+      layoutGroup: 'business',
+      layoutOrder: 50,
       table: true,
       type: 'date',
       width: 120,
@@ -205,6 +237,8 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'joinDate',
       label: '加入会员时间',
+      layoutGroup: 'business',
+      layoutOrder: 60,
       table: true,
       type: 'datetime',
       width: 180,
@@ -212,16 +246,20 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'password',
       label: '登录密码',
+      layoutGroup: 'content',
+      layoutOrder: 40,
       formEdit: false,
       placeholder: '新增时设置初始密码；编辑时留空表示不修改',
       type: 'password',
     },
-    { key: 'avatar', label: '头像', type: 'image' },
-    { key: 'signature', label: '个性签名', fullRow: true, type: 'textarea' },
-    { key: 'pinyinName', label: '拼音名' },
+    { key: 'avatar', label: '头像', layoutGroup: 'media', layoutGroupTitle: '头像资料', layoutOrder: 10, type: 'image' },
+    { key: 'signature', label: '个性签名', fullRow: true, layoutGroup: 'content', layoutOrder: 50, type: 'textarea' },
+    { key: 'pinyinName', label: '拼音名', layoutGroup: 'basic', layoutOrder: 40 },
     {
       key: 'referrerId',
       label: '推荐人',
+      layoutGroup: 'content',
+      layoutOrder: 60,
       loadOptions: userOptionsLoader,
       remoteSearch: true,
       type: 'select',
@@ -229,6 +267,8 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 70,
       search: true,
       table: true,
       type: 'switch',
@@ -238,13 +278,15 @@ export const customerPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 80,
       search: true,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutGroupTitle: '备注信息', layoutOrder: 10, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',

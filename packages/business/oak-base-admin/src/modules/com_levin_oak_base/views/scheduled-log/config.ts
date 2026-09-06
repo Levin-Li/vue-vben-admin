@@ -3,6 +3,12 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { scheduledLogService } from '../../api/scheduled-log-service';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
+export const pageMeta = {
+  name: 'ScheduledLog',
+  title: '定时任务日志管理',
+  description: '查询定时任务日志。',
+} as const;
+
 export const scheduledLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/ScheduledLog',
   apiService: scheduledLogService,
@@ -26,6 +32,7 @@ export const scheduledLogPageCrudConfig: CrudPageConfig = {
     },
     {
       key: '__tenant',
+      detail: false,
       label: '归属租户',
       fixed: 'left',
       form: false,

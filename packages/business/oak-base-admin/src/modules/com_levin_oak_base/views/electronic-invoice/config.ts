@@ -13,6 +13,12 @@ const partnerOptions = buildModuleOptionsLoader(
   'subjectName',
   'id',
 );
+export const pageMeta = {
+  name: 'ElectronicInvoice',
+  title: '电子发票',
+  description: '维护电子发票。',
+} as const;
+
 export const electronicInvoicePageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
     apiBase: '/EInvoice',

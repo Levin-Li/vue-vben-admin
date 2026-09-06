@@ -67,6 +67,7 @@ export interface PermissionTreeNode {
   nodeType: `${PermissionTreeNodeType}`;
   permissionExpr?: null | string;
   remark?: null | string;
+  resourcePermissions?: PermissionTreeNode[];
 }
 
 export interface RbacMenuNode {
@@ -82,12 +83,12 @@ export interface RbacMenuNode {
 }
 
 export interface RbacMenuOpButton {
-  apiUrl?: null | string;
   disabled?: boolean;
   label?: null | string;
   name?: null | string;
-  requireAuthorization?: null | string;
+  opName?: null | string;
   remark?: null | string;
+  requireAuthorizations?: null | string[];
 }
 
 export type DataPermissionSubjectType = 'role' | 'user';

@@ -28,12 +28,12 @@ describe('crud form layout', () => {
     );
     const spanClassBlock = source.slice(
       source.indexOf("'md:col-span-2'"),
-      source.indexOf(':style="getFormItemStyle(field)"'),
+      source.indexOf(':style=', source.indexOf("'md:col-span-2'")),
     );
 
     expect(source).toContain('style.gridColumn');
-    expect(source).toContain(
-      "'vben-crud-form-item-new-row': field.layoutNewRow",
+    expect(source).toMatch(
+      /'vben-crud-form-item-new-row':\s*!quickFillActive\s*&&\s*field.layoutNewRow/,
     );
     expect(source).toContain('grid-column-start: 1 !important');
     expect(spanClassBlock).toContain('shouldFormItemSpanTwoColumns(field)');

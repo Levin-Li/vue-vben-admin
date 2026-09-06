@@ -20,6 +20,12 @@ export interface BehaviorCaptchaPoint {
   y: number;
 }
 
+export interface BehaviorCaptchaViewport {
+  height: number;
+  scale: number;
+  width: number;
+}
+
 export interface BehaviorCaptchaBasePayload {
   height: number;
   kind?: string;
@@ -83,6 +89,44 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(next) ? next : fallback;
 }
 
+export function resolveBehaviorCaptchaViewport(
+  payload: unknown,
+  availableWidth?: number,
+): BehaviorCaptchaViewport {
+  const source = asRecord(payload);
+  const sourceWidth = Math.max(1, toNumber(source.width, 427));
+  const sourceHeight = Math.max(1, toNumber(source.height, 240));
+  const maxWidth = toNumber(availableWidth, sourceWidth);
+  const width = Math.min(sourceWidth, maxWidth > 0 ? maxWidth : sourceWidth);
+  const scale = width / sourceWidth;
+
+  return {
+    height: sourceHeight * scale,
+    scale,
+    width,
+  };
+}
+
+export function restoreBehaviorCaptchaPoint(
+  point: BehaviorCaptchaPoint,
+  sourceViewport: BehaviorCaptchaViewport,
+  renderedViewport: BehaviorCaptchaViewport,
+): BehaviorCaptchaPoint {
+  const scaleX = sourceViewport.width / Math.max(renderedViewport.width, 1);
+  const scaleY = sourceViewport.height / Math.max(renderedViewport.height, 1);
+
+  return {
+    x: Math.max(
+      0,
+      Math.min(sourceViewport.width, Math.round(toNumber(point.x) * scaleX)),
+    ),
+    y: Math.max(
+      0,
+      Math.min(sourceViewport.height, Math.round(toNumber(point.y) * scaleY)),
+    ),
+  };
+}
+
 function canonicalMode(value: unknown) {
   return MODE_ALIASES[
     String(value || '')
@@ -110,7 +154,11 @@ function imageData(value: unknown) {
   return image.startsWith('data:') ? image : `data:image/png;base64,${image}`;
 }
 
-function normalizePoint(value: unknown, fallbackX = 0, fallbackY = 0): BehaviorCaptchaPoint {
+function normalizePoint(
+  value: unknown,
+  fallbackX = 0,
+  fallbackY = 0,
+): BehaviorCaptchaPoint {
   const source = asRecord(value);
   return {
     x: toNumber(source.x ?? source.left ?? source.cx, fallbackX),
@@ -126,10 +174,7 @@ export function isObstacleAvoidancePayload(
   payload: unknown,
 ): payload is BehaviorCaptchaPathPayload {
   const source = asRecord(payload);
-  return (
-    source.kind === 'path'
-    && typeof source.start === 'object'
-  );
+  return source.kind === 'path' && typeof source.start === 'object';
 }
 
 function normalizeChallengePayload(
@@ -146,14 +191,24 @@ function normalizeChallengePayload(
   const height = Math.max(120, toNumber(viewport.height ?? puzzle.height, 240));
 
   if (mode === 'OBSTACLE_AVOIDANCE') {
-    const start = normalizePoint(puzzle.start ?? puzzle.origin, 28, height - 32);
-    const image = imageData(puzzle.image || puzzle.masterImage || puzzle.backgroundImage || puzzle.sceneImage);
+    const start = normalizePoint(
+      puzzle.start ?? puzzle.origin,
+      28,
+      height - 32,
+    );
+    const image = imageData(
+      puzzle.image ||
+        puzzle.masterImage ||
+        puzzle.backgroundImage ||
+        puzzle.sceneImage,
+    );
     if (!image) {
       return null;
     }
 
     return {
-      backgroundId: String(puzzle.backgroundId || puzzle.sceneId || '').trim() || undefined,
+      backgroundId:
+        String(puzzle.backgroundId || puzzle.sceneId || '').trim() || undefined,
       ballRadius: Math.max(6, toNumber(puzzle.ballRadius ?? puzzle.radius, 8)),
       height,
       image,
@@ -206,7 +261,9 @@ export function normalizeBehaviorCaptchaChallenge(input: unknown) {
     challengeId,
     mode,
     payload,
-    prompt: String(source.prompt || source.instruction || source.friendlyMessage || '').trim(),
+    prompt: String(
+      source.prompt || source.instruction || source.friendlyMessage || '',
+    ).trim(),
     title: String(source.title || source.label || '').trim() || undefined,
   } satisfies BehaviorCaptchaChallenge;
 }
@@ -229,9 +286,14 @@ export function encodeBehaviorCaptchaResult(
         x: Number(operation.x),
         y: Number(operation.y),
       };
-      return Number.isFinite(point.x) && Number.isFinite(point.y) ? point : null;
+      return Number.isFinite(point.x) && Number.isFinite(point.y)
+        ? point
+        : null;
     })
-    .filter((point): point is { t: number; type: string; x: number; y: number } => Boolean(point));
+    .filter(
+      (point): point is { t: number; type: string; x: number; y: number } =>
+        Boolean(point),
+    );
   const submission: BehaviorCaptchaSubmission = {
     answer,
     challengeId: challenge.challengeId,

@@ -15,6 +15,7 @@ import type {
 import { computed, onMounted, ref, watch } from 'vue';
 
 import { TreeSelect, message } from 'ant-design-vue';
+import { IconifyIcon } from '@vben/icons';
 
 import { fetchCrudList } from '../api';
 import { rbacService } from '../app/api/rbac-service';
@@ -24,6 +25,7 @@ import {
   decodeUserOrgSelectorKey,
   encodeUserOrgSelectorKey,
   flattenUserOrgTreeNodes,
+  getUserOrgSelectorNodeIcon,
   limitUserOrgSelectorRecords,
   normalizeSelectorTypes,
   normalizeUserSelectorRecord,
@@ -118,6 +120,10 @@ const props = defineProps({
     type: Array as PropType<UserOrgSelectorRecord[]>,
   },
   showSearch: {
+    default: true,
+    type: Boolean,
+  },
+  showNodeIcons: {
     default: true,
     type: Boolean,
   },
@@ -690,5 +696,41 @@ function mergeChildrenByKey(
     tree-node-filter-prop="title"
     v-model:tree-expanded-keys="treeExpandedKeys"
     @change="handleChange"
-  />
+  >
+    <template #title="node">
+      <span
+        :class="[
+          'user-org-selector__node-title',
+          {
+            'user-org-selector__disabled-org-title':
+              node.kind === 'org' && node.disabled,
+          },
+        ]"
+      >
+        <IconifyIcon
+          v-if="showNodeIcons"
+          :icon="getUserOrgSelectorNodeIcon(node)"
+          class="user-org-selector__node-icon"
+        />
+        <span>{{ node.title }}</span>
+      </span>
+    </template>
+  </TreeSelect>
 </template>
+
+<style>
+.user-org-selector__node-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.user-org-selector__node-icon {
+  flex: 0 0 auto;
+  font-size: 1em;
+}
+
+.user-org-selector__disabled-org-title {
+  color: hsl(var(--foreground) / 0.6667);
+}
+</style>
