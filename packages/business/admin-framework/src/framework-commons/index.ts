@@ -5,6 +5,7 @@ export * from './app/options';
 export * from './event-bus';
 export * from './locale-utils';
 export * from './module-contract';
+export * from './page-operation-metadata';
 export * from './page-map';
 export * from './page-registry';
 export * from './rbac-access';

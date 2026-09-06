@@ -15,6 +15,36 @@ function flattenCrudRoutes(children: any[] | undefined): any[] {
 }
 
 describe('oak base admin routes', () => {
+  it('derives uploaded page operations from the actual Dict API metadata', () => {
+    const mapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === '/clob/V1/Dict',
+    );
+
+    expect(mapping?.operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          apiMethods: ['create'],
+          label: '新增',
+          opName: 'create',
+          requireAuthorizations: [
+            'com.levin.oak.base:系统数据-字典::新增',
+            '/Dict/create',
+          ],
+        }),
+        expect.objectContaining({
+          apiMethods: ['delete'],
+          label: '删除',
+          opName: 'delete',
+        }),
+        expect.objectContaining({
+          apiMethods: ['update'],
+          label: '更新',
+          opName: 'update',
+        }),
+      ]),
+    );
+  });
+
   it('registers the tenant setting page in the explicit route table', () => {
     expect(oakBaseAdminRoutes).toEqual(
       expect.arrayContaining([

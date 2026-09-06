@@ -1,6 +1,11 @@
-import type { AdminBackendRouteMapping } from '@levin/admin-framework';
+import {
+  buildAdminPageOperations,
+  getServiceMeta,
+  type AdminBackendRouteMapping,
+} from '@levin/admin-framework';
 
 import { oakBaseAdminCrudResources } from './admin-crud';
+import * as oakBaseApi from './api';
 
 const MODULE_VIEW_PREFIX = '/system/com_levin_oak_base';
 const MODULE_SOURCE_PREFIX = 'modules/com_levin_oak_base/views';
@@ -49,6 +54,18 @@ function toKebabCase(value: string) {
     .toLowerCase();
 }
 
+function getPageOperations(resource: string) {
+  const expectedBasePath = `/${resource}`;
+  const service = Object.values(oakBaseApi).find(
+    (candidate): candidate is object =>
+      Boolean(candidate) &&
+      typeof candidate === 'object' &&
+      getServiceMeta(candidate).basePath === expectedBasePath,
+  );
+
+  return buildAdminPageOperations(service);
+}
+
 function createCrudBackendRouteMapping(
   item: (typeof oakBaseAdminCrudResources)[number],
 ): AdminBackendRouteMapping {
@@ -62,6 +79,7 @@ function createCrudBackendRouteMapping(
     description: pageMeta.description,
     icon: item.icon,
     name: pageMeta.name,
+    operations: getPageOperations(item.permissionResource || item.resource),
     path: `${CRUD_ROUTE_PATH_PREFIX}/${item.routePath || item.resource}`,
     resource: item.permissionResource || item.resource,
     sourceFilePath,
