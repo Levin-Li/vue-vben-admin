@@ -54,6 +54,7 @@ import {
 import { getAdminI18nLabelSyncService } from '../../runtime';
 import { getAdministrativeAreaOptions } from '../../shared/administrative-area-data';
 import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-service';
+import { getFrontendBuildInfo } from '../frontend-build-versions';
 import {
   buildAdminUiBaseSettingPayload,
   DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET,
@@ -135,6 +136,7 @@ const saveAdminUiBaseSettingLoading = ref(false);
 const syncNationalAdministrativeAreasModalOpen = ref(false);
 const syncNationalAdministrativeAreasLoading = ref(false);
 const eventListenerManagerOpen = ref(false);
+const frontendVersionModalOpen = ref(false);
 const eventListeners = ref<FrameworkEventListenerInfo[]>([]);
 const preferServerAdminUiBaseSetting = ref(true);
 const adminUiBaseSettingUploadTarget = ref<AdminUiBaseSettingUploadTarget>(
@@ -161,6 +163,18 @@ const canUploadPageRoutes = computed(() => {
   const userInfo = (userStore.userInfo || {}) as Record<string, any>;
   return userInfo.superAdmin === true && Boolean(getAdminMenuSyncService());
 });
+
+const canViewFrontendVersions = computed(() => {
+  const userInfo = (userStore.userInfo || {}) as Record<string, any>;
+  return userInfo.superAdmin === true;
+});
+
+const frontendBuildInfo = computed(() =>
+  getFrontendBuildInfo(
+    import.meta.env.VITE_APP_TITLE || appName.value,
+    import.meta.env.VITE_APP_VERSION,
+  ),
+);
 
 const canUploadI18nLabels = computed(() => {
   const userInfo = (userStore.userInfo || {}) as Record<string, any>;
@@ -243,6 +257,19 @@ const builtInUserDropdownExtensionMenus = computed(() =>
             id: 'sync-i18n-labels',
             order: 250,
             text: '上传国际化资源',
+          },
+        ]
+      : []),
+    ...(canViewFrontendVersions.value
+      ? [
+          {
+            handler: () => {
+              frontendVersionModalOpen.value = true;
+            },
+            icon: 'lucide:component',
+            id: 'frontend-build-versions',
+            order: 450,
+            text: '前端组件版本',
           },
         ]
       : []),
@@ -724,6 +751,36 @@ watch(
       </Modal>
       <SyncMenuRoutesModal v-model:open="syncMenuRoutesModalOpen" />
       <SyncI18nLabelsModal v-model:open="syncI18nLabelsModalOpen" />
+      <Modal
+        v-model:open="frontendVersionModalOpen"
+        :footer="null"
+        :mask-closable="false"
+        title="前端组件版本"
+      >
+        <div class="text-muted-foreground mb-3 text-sm">
+          构建时间：{{ frontendBuildInfo.buildTime }}
+        </div>
+        <div class="border-border max-h-[56vh] overflow-y-auto rounded border">
+          <div
+            v-for="item in frontendBuildInfo.versions"
+            :key="`${item.category}:${item.id}`"
+            class="border-border flex items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0"
+          >
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="truncate font-medium">{{ item.name }}</span>
+                <Tag class="shrink-0">{{ item.category }}</Tag>
+              </div>
+              <div
+                class="text-muted-foreground mt-1 truncate font-mono text-xs"
+              >
+                {{ item.id }}
+              </div>
+            </div>
+            <Tag class="shrink-0">{{ item.version }}</Tag>
+          </div>
+        </div>
+      </Modal>
       <Modal
         v-model:open="saveAdminUiBaseSettingModalOpen"
         :confirm-loading="saveAdminUiBaseSettingLoading"

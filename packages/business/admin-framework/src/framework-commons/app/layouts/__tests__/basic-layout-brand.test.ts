@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   destroyWatermark: vi.fn(),
@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   },
   updateWatermark: vi.fn(),
   push: vi.fn(),
+  userInfo: {} as Record<string, any>,
 }));
 
 vi.mock(
@@ -74,7 +75,17 @@ vi.mock('@vben/layouts', () => ({
     template: '<div />',
   },
   UserDropdown: {
-    template: '<div />',
+    props: ['systemMenus'],
+    template: `
+      <div>
+        <button
+          v-for="menu in systemMenus"
+          :key="menu.id"
+          :data-testid="'system-menu-' + menu.id"
+          @click="menu.handler"
+        >{{ menu.text }}</button>
+      </div>
+    `,
   },
 }));
 
@@ -88,7 +99,7 @@ vi.mock('@vben/stores', () => ({
     loginExpired: false,
   }),
   useUserStore: () => ({
-    userInfo: {},
+    userInfo: mocks.userInfo,
   }),
 }));
 
@@ -159,6 +170,37 @@ vi.mock('../tenant-site-admin-ui-base-setting', () => ({
 import Basic from '../basic.vue';
 
 describe('basic layout tenant site brand', () => {
+  beforeEach(() => {
+    mocks.loadAuthBrand.mockClear();
+    mocks.userInfo.superAdmin = false;
+  });
+
+  it('only exposes frontend versions to a super administrator', async () => {
+    mocks.userInfo.superAdmin = true;
+
+    const wrapper = mount(Basic, {
+      global: {
+        stubs: {
+          Button: true,
+          Checkbox: true,
+          Empty: true,
+          Modal: true,
+          Popconfirm: true,
+          Tag: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(
+      wrapper.get('[data-testid="system-menu-frontend-build-versions"]').text(),
+    ).toBe('前端组件版本');
+
+    mocks.userInfo.superAdmin = false;
+    wrapper.unmount();
+  });
+
   it('renders the layout logo text from tenant site brand state', async () => {
     const wrapper = mount(Basic, {
       global: {
