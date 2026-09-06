@@ -147,12 +147,6 @@ onMounted(() => {
             class="mx-auto mb-6 block max-h-24 max-w-full object-contain"
             @error="handleTitleImageError"
           />
-          <p
-            v-if="techSupport"
-            class="text-muted-foreground mx-auto mb-4 max-w-xl text-center text-sm"
-          >
-            {{ techSupport }}
-          </p>
           <div class="auth-flow-art h-full">
             <img
               v-if="displayHeroImage"

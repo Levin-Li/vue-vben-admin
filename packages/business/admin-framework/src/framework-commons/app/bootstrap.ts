@@ -21,12 +21,13 @@ import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
 import { registerRbacPermissionDirective } from './directives/rbac-permission';
+import { registerGlobalOrgSelectorRuntime } from './global-org-selector-runtime';
 import { router } from './router';
 import {
   loadTenantSiteAdminUiBaseSetting,
   registerTenantSiteAdminUiBaseSettingListener,
 } from './tenant-site-admin-ui-base-setting';
-import { registerGlobalOrgSelectorRuntime } from './global-org-selector-runtime';
+import { useAuthBrand } from './views/_core/authentication/auth-brand';
 
 import './styles/antd-message.css';
 
@@ -98,12 +99,16 @@ async function bootstrap(namespace: string) {
   const { MotionPlugin } = await import('@vben/plugins/motion');
   app.use(MotionPlugin);
 
-  // 动态更新标题
+  // 登录页使用站点标题，后台页面保持应用标题配置。
+  const authBrand = useAuthBrand();
   watchEffect(() => {
     if (preferences.app.dynamicTitle) {
       const routeTitle = router.currentRoute.value.meta?.title;
-      const pageTitle =
-        (routeTitle ? `${$t(routeTitle)} - ` : '') + preferences.app.name;
+      const isAuthPage = router.currentRoute.value.path.startsWith('/auth/');
+      const siteTitle = isAuthPage
+        ? authBrand.appName.value
+        : preferences.app.name;
+      const pageTitle = (routeTitle ? `${$t(routeTitle)} - ` : '') + siteTitle;
       useTitle(pageTitle);
     }
   });

@@ -1,6 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { nextTick, ref } from 'vue';
+
 import { describe, expect, it, vi } from 'vitest';
+
+import AuthLayout from '../auth.vue';
 
 const mocks = vi.hoisted(() => ({
   heroImageCandidates: undefined as any,
@@ -46,8 +49,6 @@ vi.mock(
   }),
 );
 
-import AuthLayout from '../auth.vue';
-
 describe('authentication layout login hero image', () => {
   it('shows copyright before technical support and allows the footer to wrap', () => {
     const wrapper = mount(AuthLayout, {
@@ -61,6 +62,9 @@ describe('authentication layout login hero image', () => {
     const footer = wrapper.get('.auth-copyright');
     expect(footer.text()).toBe('Copyright·租户技术支持');
     expect(footer.classes()).toContain('flex-wrap');
+    expect(wrapper.get('main').text()).not.toContain('租户技术支持');
+    expect(wrapper.text().match(/租户技术支持/g)).toHaveLength(1);
+    wrapper.unmount();
   });
 
   it('uses the built-in illustration when the configured image is missing or fails', async () => {
