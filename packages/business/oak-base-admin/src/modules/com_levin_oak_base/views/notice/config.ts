@@ -61,8 +61,6 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
-      layoutGroup: 'ownership',
-      layoutGroupTitle: '归属信息',
       layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -171,10 +169,9 @@ export const noticePageCrudConfig: CrudPageConfig = {
     {
       key: 'content',
       label: '通知内容',
+      layoutGroup: 'basic',
       fullRow: true,
-      layoutGroup: 'content',
-      layoutGroupTitle: '通知内容',
-      layoutOrder: 10,
+      layoutOrder: 40,
       type: 'textarea',
     },
     {
@@ -209,8 +206,6 @@ export const noticePageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
-      layoutGroup: 'remark',
-      layoutGroupTitle: '备注信息',
       layoutOrder: 10,
       type: 'textarea',
     },

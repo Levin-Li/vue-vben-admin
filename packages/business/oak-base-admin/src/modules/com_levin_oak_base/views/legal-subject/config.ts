@@ -545,8 +545,6 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     {
       key: 'remark',
       label: '备注',
-      layoutGroup: 'remark',
-      layoutGroupTitle: '备注',
       layoutOrder: 10,
       type: 'textarea',
       fullRow: true,

@@ -72,8 +72,6 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
-      layoutGroup: 'ownership',
-      layoutGroupTitle: '归属信息',
       layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -112,7 +110,14 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
       table: true,
       width: 180,
     },
-    { key: 'timeZone', label: '时区', layoutGroup: 'basic', layoutOrder: 20, table: true, width: 140 },
+    {
+      key: 'timeZone',
+      label: '时区',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
+      table: true,
+      width: 140,
+    },
     {
       key: 'inSchedulerType',
       label: '调度器',
@@ -170,7 +175,14 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
       width: 140,
     },
     { key: 'containsGroupName', label: '任务组', form: false, search: true },
-    { key: 'groupName', label: '任务组', layoutGroup: 'basic', layoutOrder: 80, table: true, width: 160 },
+    {
+      key: 'groupName',
+      label: '任务组',
+      layoutGroup: 'basic',
+      layoutOrder: 80,
+      table: true,
+      width: 160,
+    },
     {
       key: 'executionContentType',
       label: '执行内容类型',
@@ -392,7 +404,13 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutGroupTitle: '备注信息', layoutOrder: 10, type: 'textarea' },
+    {
+      key: 'remark',
+      label: '备注',
+      fullRow: true,
+      layoutOrder: 10,
+      type: 'textarea',
+    },
     {
       key: 'createTime',
       label: '创建时间',

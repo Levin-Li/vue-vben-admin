@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+
 import { userService } from '../../api/user-service';
 import {
   moduleFetchDictOptions,
@@ -133,7 +134,8 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
-      layoutGroup: 'ownership',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '帐号信息',
       layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -155,7 +157,7 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgId',
       label: '所属组织',
-      layoutGroup: 'ownership',
+      layoutGroup: 'basic',
       layoutOrder: 20,
       search: true,
       type: 'org-tree-select',
@@ -178,23 +180,60 @@ export const userPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     { key: 'containsName', label: '名称', form: false, search: true },
-    { key: 'name', label: '名称', layoutGroup: 'basic', layoutGroupTitle: '帐号信息', layoutOrder: 10, required: true, table: true, width: 140 },
+    {
+      key: 'name',
+      label: '名称',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
+      required: true,
+      table: true,
+      width: 140,
+    },
     { key: 'containsTelephone', label: '手机号', form: false, search: true },
-    { key: 'telephone', label: '手机号', layoutGroup: 'basic', layoutOrder: 20, table: true, width: 130 },
-    { key: 'email', label: '邮箱', layoutGroup: 'basic', layoutOrder: 30, search: true, table: true, width: 180 },
+    {
+      key: 'telephone',
+      label: '手机号',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
+      table: true,
+      width: 130,
+    },
+    {
+      key: 'email',
+      label: '邮箱',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
+      search: true,
+      table: true,
+      width: 180,
+    },
     {
       key: 'loginName',
       label: '登录名',
       layoutGroup: 'basic',
-      layoutOrder: 40,
+      layoutOrder: 60,
       search: true,
       table: true,
       width: 140,
     },
     { key: 'containsNickname', label: '昵称', form: false, search: true },
-    { key: 'nickname', label: '昵称', layoutGroup: 'basic', layoutOrder: 50, table: true, width: 120 },
+    {
+      key: 'nickname',
+      label: '昵称',
+      layoutGroup: 'basic',
+      layoutOrder: 70,
+      table: true,
+      width: 120,
+    },
     { key: 'containsStaffNo', label: '工号', form: false, search: true },
-    { key: 'staffNo', label: '工号', layoutGroup: 'basic', layoutOrder: 60, table: true, width: 110 },
+    {
+      key: 'staffNo',
+      label: '工号',
+      layoutGroup: 'basic',
+      layoutOrder: 80,
+      table: true,
+      width: 110,
+    },
     {
       key: 'inType',
       label: '用户类型',
@@ -502,7 +541,7 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'confidentialLevel',
       label: '机密等级',
-      layoutGroup: 'permission',
+      layoutGroup: 'status',
       layoutOrder: 10,
       loadOptions: confidentialLevelOptionsLoader,
       search: true,
@@ -514,7 +553,7 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'confidentialDataAccessLevel',
       label: '机密数据访问级别',
-      layoutGroup: 'permission',
+      layoutGroup: 'status',
       layoutOrder: 20,
       loadOptions: confidentialLevelOptionsLoader,
       search: true,
@@ -545,6 +584,7 @@ export const userPageCrudConfig: CrudPageConfig = {
       label: '个性签名',
       layoutGroup: 'profile',
       layoutOrder: 10,
+      fullRow: true,
       type: 'textarea',
     },
     {
@@ -572,23 +612,30 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'wxOpenId',
       label: '微信OpendId',
-      layoutGroup: 'external',
-      layoutOrder: 10,
+      layoutGroup: 'profile',
+      layoutOrder: 50,
     },
     {
       key: 'aliOpenId',
       label: '阿里OpendId',
-      layoutGroup: 'external',
-      layoutOrder: 20,
+      layoutGroup: 'profile',
+      layoutOrder: 60,
     },
     {
       key: 'exInfo',
       label: '扩展信息',
-      layoutGroup: 'extension',
-      layoutOrder: 10,
+      layoutGroup: 'profile',
+      layoutOrder: 70,
       type: 'json',
     },
-    { key: 'orderCode', label: '排序代码', layoutGroup: 'status', layoutNewRow: true, layoutOrder: 10, type: 'number' },
+    {
+      key: 'orderCode',
+      label: '排序代码',
+      layoutGroup: 'status',
+      layoutNewRow: true,
+      layoutOrder: 10,
+      type: 'number',
+    },
     {
       key: 'enable',
       label: '是否启用',

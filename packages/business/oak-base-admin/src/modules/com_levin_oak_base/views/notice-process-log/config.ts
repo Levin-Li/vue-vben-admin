@@ -29,7 +29,6 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
-      layoutGroup: 'ownership',
       layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -51,14 +50,12 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgId',
       label: '所属组织',
-      layoutGroup: 'ownership',
       layoutOrder: 20,
       type: 'org-tree-select',
     },
     {
       key: 'ownerId',
       label: '所属用户',
-      layoutGroup: 'ownership',
       layoutOrder: 30,
       loadOptions: userOptionsLoader,
       remoteSearch: true,
@@ -76,8 +73,7 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
     {
       key: 'noticeId',
       label: '通知ID',
-      layoutGroup: 'basic',
-      layoutOrder: 10,
+      layoutOrder: 40,
       required: true,
       search: true,
       table: true,
@@ -95,8 +91,7 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
     {
       key: 'status',
       label: '处理状态',
-      layoutGroup: 'basic',
-      layoutOrder: 20,
+      layoutOrder: 50,
       loadOptions: noticeProcessStatusOptionsLoader,
       required: true,
       table: true,
@@ -107,8 +102,7 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
-      layoutGroup: 'remark',
-      layoutOrder: 10,
+      layoutOrder: 60,
       required: true,
       type: 'textarea',
     },

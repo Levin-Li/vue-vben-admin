@@ -17,6 +17,7 @@ export const LEGACY_OAUTH_SETTING_CODE_PREFIX = 'oauth_platform_';
 
 type SettingListResult =
   | Record<string, any>
+  | Record<string, any>[]
   | {
       data?: Record<string, any>[];
       items?: Record<string, any>[];
@@ -24,8 +25,7 @@ type SettingListResult =
       records?: Record<string, any>[];
       total?: number;
       totals?: number;
-    }
-  | Record<string, any>[];
+    };
 
 function isLegacyOauthSettingCode(code: unknown) {
   return (
@@ -162,7 +162,6 @@ export const settingPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
-      layoutGroup: 'ownership',
       layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -219,8 +218,25 @@ export const settingPageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'datetime',
     },
-    { key: 'name', label: '名称', layoutGroup: 'basic', layoutGroupTitle: '设置标识', layoutOrder: 10, required: true, table: true, width: 180 },
-    { key: 'code', label: '编码', layoutGroup: 'basic', layoutOrder: 20, required: true, table: true, width: 180 },
+    {
+      key: 'name',
+      label: '名称',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '设置标识',
+      layoutOrder: 10,
+      required: true,
+      table: true,
+      width: 180,
+    },
+    {
+      key: 'code',
+      label: '编码',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
+      required: true,
+      table: true,
+      width: 180,
+    },
     {
       key: 'categoryName',
       label: '分类名称',
@@ -230,9 +246,29 @@ export const settingPageCrudConfig: CrudPageConfig = {
       table: true,
       width: 140,
     },
-    { key: 'groupName', label: '分组名称', layoutGroup: 'basic', layoutOrder: 40, table: true, width: 140 },
-    { key: 'domain', label: '域名', layoutGroup: 'basic', layoutOrder: 50, table: true, width: 180 },
-    { key: 'icon', label: '图标', layoutGroup: 'basic', layoutOrder: 60, type: 'image' },
+    {
+      key: 'groupName',
+      label: '分组名称',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
+      table: true,
+      width: 140,
+    },
+    {
+      key: 'domain',
+      label: '域名',
+      layoutGroup: 'basic',
+      layoutOrder: 50,
+      table: true,
+      width: 180,
+    },
+    {
+      key: 'icon',
+      label: '图标',
+      layoutGroup: 'basic',
+      layoutOrder: 60,
+      type: 'image',
+    },
     {
       key: 'valueType',
       label: '值类型',
@@ -253,7 +289,14 @@ export const settingPageCrudConfig: CrudPageConfig = {
       layoutOrder: 20,
       type: 'text',
     },
-    { key: 'valueContent', label: '值', fullRow: true, layoutGroup: 'content', layoutOrder: 30, type: 'textarea' },
+    {
+      key: 'valueContent',
+      label: '值',
+      fullRow: true,
+      layoutGroup: 'content',
+      layoutOrder: 30,
+      type: 'textarea',
+    },
     {
       key: 'nullable',
       label: '值是否可空',
@@ -273,8 +316,21 @@ export const settingPageCrudConfig: CrudPageConfig = {
       layoutOrder: 50,
       type: 'textarea',
     },
-    { key: 'pinyinName', label: '拼音名', layoutGroup: 'basic', layoutOrder: 70, table: true, width: 160 },
-    { key: 'orderCode', label: '排序代码', layoutGroup: 'status', layoutOrder: 10, type: 'number' },
+    {
+      key: 'pinyinName',
+      label: '拼音名',
+      layoutGroup: 'basic',
+      layoutOrder: 70,
+      table: true,
+      width: 160,
+    },
+    {
+      key: 'orderCode',
+      label: '排序代码',
+      layoutGroup: 'status',
+      layoutOrder: 10,
+      type: 'number',
+    },
     {
       key: 'enable',
       label: '是否启用',
@@ -313,7 +369,13 @@ export const settingPageCrudConfig: CrudPageConfig = {
       type: 'datetime',
       width: 180,
     },
-    { key: 'remark', label: '备注', fullRow: true, layoutGroup: 'remark', layoutOrder: 10, type: 'textarea' },
+    {
+      key: 'remark',
+      label: '备注',
+      fullRow: true,
+      layoutOrder: 10,
+      type: 'textarea',
+    },
   ],
   formMaxColumns: 3,
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,

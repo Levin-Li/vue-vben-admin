@@ -7,8 +7,8 @@ import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   roleOptionsLoader,
-  tenantSiteDomainOptionsLoader,
   tenantOptionsLoader,
+  tenantSiteDomainOptionsLoader,
 } from '../api-module';
 import { normalizeNameValueRuleList } from './traffic-control-match';
 
@@ -89,7 +89,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
-      layoutGroup: 'ownership',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '规则基本信息',
       layoutOrder: 1,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -115,6 +116,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '规则名称',
+      layoutGroup: 'basic',
+      layoutOrder: 20,
       required: true,
       table: true,
       width: 180,
@@ -122,6 +125,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'basic',
+      layoutOrder: 30,
       search: true,
       table: true,
       type: 'switch',
@@ -131,6 +136,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
       search: true,
       table: true,
       type: 'switch',
@@ -140,6 +147,9 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'urlPathList',
       label: 'URL包含列表',
+      layoutGroup: 'conditions',
+      layoutGroupTitle: '匹配条件',
+      layoutOrder: 10,
       help: '可搜索授权控制器路径填入，也可手动配置通配符数组；支持*和?，例如 /api/order/*、/api/order/??/detail。本字段内任一命中。',
       layoutNewRow: true,
       loadOptions: authorizedControllerPathOptionsLoader,
@@ -153,6 +163,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'urlPathExcludeList',
       label: 'URL排除列表',
+      layoutGroup: 'conditions',
+      layoutOrder: 20,
       help: '可搜索授权控制器路径填入，也可手动配置通配符数组；支持*和?；命中排除列表时跳过当前限流规则。',
       loadOptions: authorizedControllerPathOptionsLoader,
       remoteSearch: true,
@@ -162,6 +174,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'methodList',
       label: '请求方法',
+      layoutGroup: 'conditions',
+      layoutOrder: 30,
       help: ANY_MATCH_HELP,
       options: methodOptions,
       search: true,
@@ -173,6 +187,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'domainList',
       label: '域名包含列表',
+      layoutGroup: 'conditions',
+      layoutOrder: 40,
       help: '从租户站点查询域名，也可手动补充通配符；支持*和?，例如 *.example.com。本字段内任一命中。',
       loadOptions: tenantSiteDomainOptionsLoader,
       remoteSearch: true,
@@ -182,6 +198,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'regionList',
       label: '地区包含列表',
+      layoutGroup: 'conditions',
+      layoutOrder: 50,
       help: ANY_MATCH_HELP,
       span: 2,
       type: 'tags',
@@ -189,6 +207,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'ipList',
       label: 'IP包含列表',
+      layoutGroup: 'conditions',
+      layoutOrder: 60,
       help: '支持*和?匹配，例如 10.0.?.*；本字段内任一命中。',
       search: true,
       span: 2,
@@ -199,6 +219,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'ipExcludeList',
       label: 'IP排除列表',
+      layoutGroup: 'conditions',
+      layoutOrder: 70,
       help: '支持*和?匹配；命中排除列表时跳过当前限流规则。',
       span: 2,
       type: 'tags',
@@ -206,6 +228,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'userTypeList',
       label: '用户类型',
+      layoutGroup: 'conditions',
+      layoutOrder: 80,
       help: ANY_MATCH_HELP,
       loadOptions: userTypeOptionsLoader,
       span: 2,
@@ -214,6 +238,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'userRoleList',
       label: '用户角色',
+      layoutGroup: 'conditions',
+      layoutOrder: 90,
       help: ANY_MATCH_HELP,
       loadOptions: roleOptionsLoader,
       remoteSearch: true,
@@ -223,6 +249,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'requestParamRuleList',
       label: '请求参数匹配列表',
+      layoutGroup: 'conditions',
+      layoutOrder: 100,
       help: '每项使用未编码的name=value，必须且只能包含一个等号；名称和值支持*和?。示例：tenant*=ma?ket-*、status=*。',
       placeholder: '例如 tenant*=ma?ket-*',
       span: 2,
@@ -231,6 +259,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'headerRuleList',
       label: '请求头匹配列表',
+      layoutGroup: 'conditions',
+      layoutOrder: 110,
       help: '每项使用未编码的name=value，必须且只能包含一个等号；名称和值支持*和?。示例：X-Tenant-*=vip?、X-Client-App-Id=*。',
       placeholder: '例如 X-Tenant-*=vip?',
       span: 2,
@@ -239,6 +269,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'limitDimensionList',
       label: '限流维度',
+      layoutGroup: 'conditions',
+      layoutOrder: 120,
       help: '系统始终包含规则ID；选择Header或Param时只使用已配置且命中的请求头或参数。本字段内任一命中。',
       options: limitDimensionOptions,
       span: 2,
@@ -249,6 +281,9 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'algorithm',
       label: '限流算法',
+      layoutGroup: 'limit',
+      layoutGroupTitle: '限流策略',
+      layoutOrder: 10,
       loadOptions: algorithmOptionsLoader,
       required: true,
       search: true,
@@ -259,6 +294,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'limitCount',
       label: '窗口请求数上限',
+      layoutGroup: 'limit',
+      layoutOrder: 20,
       required: true,
       table: true,
       type: 'number',
@@ -268,6 +305,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'windowSeconds',
       label: '窗口秒数',
+      layoutGroup: 'limit',
+      layoutOrder: 30,
       required: true,
       table: true,
       type: 'number',
@@ -277,24 +316,32 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'burstCount',
       label: '突发请求数',
+      layoutGroup: 'limit',
+      layoutOrder: 40,
       type: 'number',
       valueType: 'number',
     },
     {
       key: 'rejectStatus',
       label: '拒绝状态码',
+      layoutGroup: 'limit',
+      layoutOrder: 50,
       type: 'number',
       valueType: 'number',
     },
     {
       key: 'orderCode',
       label: '排序代码',
+      layoutGroup: 'limit',
+      layoutOrder: 60,
       type: 'number',
       valueType: 'number',
     },
     {
       key: 'rejectMessage',
       label: '拒绝提示',
+      layoutGroup: 'limit',
+      layoutOrder: 70,
       fullRow: true,
       layoutNewRow: true,
       type: 'textarea',
@@ -302,6 +349,8 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'exInfo',
       label: '扩展信息',
+      layoutGroup: 'limit',
+      layoutOrder: 80,
       type: 'json',
     },
     {

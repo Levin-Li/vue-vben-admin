@@ -88,8 +88,9 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
-      layoutGroup: 'ownership',
-      layoutOrder: 10,
+      layoutGroup: 'basic',
+      layoutGroupTitle: '应用信息',
+      layoutOrder: 5,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -110,6 +111,8 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgId',
       label: '所属组织',
+      layoutGroup: 'basic',
+      layoutOrder: 6,
       type: 'org-tree-select',
     },
     {
@@ -188,6 +191,7 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       layoutOrder: 60,
       type: 'password',
     },
+    // 两项访问白名单共同定义应用的安全边界，保留独立分组以避免与主体资料混排。
     {
       key: 'allowedPathPatterns',
       label: '允许访问路径',
@@ -195,7 +199,7 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       help: '可搜索授权控制器URL路径填入，也可手动配置通配符路径；支持*和?，例如 /api/order/*、/api/order/??/detail。',
       layoutGroup: 'content',
       layoutNewRow: true,
-      layoutOrder: 10,
+      layoutOrder: 70,
       loadOptions: authorizedControllerPathOptionsLoader,
       remoteSearch: true,
       required: true,
@@ -207,7 +211,7 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       fullRow: true,
       help: '支持*和?通配匹配，例如 10.0.?.*；空表示不限制。',
       layoutGroup: 'content',
-      layoutOrder: 20,
+      layoutOrder: 80,
       type: 'tags',
     },
     {
@@ -222,6 +226,7 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       key: 'orderCode',
       label: '排序代码',
       layoutGroup: 'business',
+      layoutGroupTitle: '状态与排序',
       layoutOrder: 10,
       type: 'number',
     },
@@ -247,6 +252,7 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       valueType: 'boolean',
       width: 110,
     },
+    // 备注固定置于表单末尾，作为与访问白名单独立的补充说明区。
     {
       key: 'remark',
       label: '备注',

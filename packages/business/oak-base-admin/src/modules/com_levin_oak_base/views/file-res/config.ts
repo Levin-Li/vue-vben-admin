@@ -236,8 +236,6 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'exInfo',
       label: '扩展信息',
-      layoutGroup: 'extension',
-      layoutOrder: 10,
       type: 'json',
     },
     {
@@ -254,8 +252,6 @@ export const fileResPageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
-      layoutGroup: 'remark',
-      layoutOrder: 10,
       type: 'textarea',
     },
     {

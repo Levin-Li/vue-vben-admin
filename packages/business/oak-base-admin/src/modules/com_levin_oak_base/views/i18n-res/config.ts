@@ -42,8 +42,6 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
-      layoutGroup: 'ownership',
-      layoutGroupTitle: '归属信息',
       layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -239,8 +237,6 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
-      layoutGroup: 'remark',
-      layoutGroupTitle: '备注信息',
       layoutOrder: 10,
       type: 'textarea',
     },

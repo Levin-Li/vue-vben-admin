@@ -43,6 +43,9 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutGroup: 'scope',
+      layoutGroupTitle: '菜单适用范围',
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -70,10 +73,20 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     { key: 'containsName', label: '名称', form: false, search: true },
-    { key: 'name', label: '名称', required: true, table: true, width: 180 },
+    {
+      key: 'name',
+      label: '名称',
+      layoutGroup: 'scope',
+      layoutOrder: 20,
+      required: true,
+      table: true,
+      width: 180,
+    },
     {
       key: 'domain',
       label: '域名',
+      layoutGroup: 'scope',
+      layoutOrder: 30,
       allowInput: true,
       help: '可从租户站点查询选择，也可直接录入；留空表示租户公共菜单',
       loadOptions: tenantSiteDomainOptionsLoader,
@@ -87,6 +100,8 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     {
       key: 'userType',
       label: '用户类型',
+      layoutGroup: 'scope',
+      layoutOrder: 40,
       help: '留空表示匹配任意用户类型',
       loadOptions: userTypeOptionsLoader,
       search: true,
@@ -97,6 +112,8 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgCategory',
       label: '组织类别',
+      layoutGroup: 'scope',
+      layoutOrder: 50,
       help: '留空表示匹配任意组织类别',
       loadOptions: orgCategoryOptionsLoader,
       search: true,
@@ -107,6 +124,8 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgType',
       label: '组织类型',
+      layoutGroup: 'scope',
+      layoutOrder: 60,
       help: '留空表示匹配任意组织类型',
       loadOptions: orgTypeOptionsLoader,
       search: true,
@@ -117,6 +136,8 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     {
       key: 'userCategory',
       label: '用户类别',
+      layoutGroup: 'scope',
+      layoutOrder: 70,
       help: '留空表示匹配任意用户类别',
       loadOptions: userCategoryOptionsLoader,
       search: true,
@@ -128,6 +149,9 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     {
       key: 'orderCode',
       label: '排序代码',
+      layoutGroup: 'status',
+      layoutGroupTitle: '状态设置',
+      layoutOrder: 10,
       table: true,
       type: 'number',
       width: 110,
@@ -135,6 +159,8 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutGroup: 'status',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -144,12 +170,14 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
+      layoutGroup: 'status',
+      layoutOrder: 30,
       table: true,
       type: 'switch',
       valueType: 'boolean',
       width: 110,
     },
-    { key: 'remark', label: '备注', type: 'textarea' },
+    { key: 'remark', label: '备注', fullRow: true, type: 'textarea' },
     {
       key: 'createTime',
       label: '创建时间',
