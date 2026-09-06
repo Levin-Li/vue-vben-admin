@@ -2,6 +2,9 @@ import type { AdminBackendRouteMapping } from '@levin/admin-framework';
 
 import type { RouteRecordStringComponent } from '@vben/types';
 
+import type { MenuFixedQuery } from '../../../menu-fixed-query';
+
+import { parseMenuFixedQuery } from '../../../menu-fixed-query';
 import { toPathRouteName } from '../../../page-registry';
 
 export interface BackendMenuInfo {
@@ -16,14 +19,17 @@ export interface BackendMenuInfo {
   opButtonList?: any[] | null;
   orderCode?: number;
   pageType?: null | string;
+  params?: MenuFixedQuery | null;
   path?: null | string;
   remark?: null | string;
   requireAuthorizations?: null | string[];
+  viewPath?: null | string;
 }
 
 interface RouteMappingLookup {
   byPath: Map<string, AdminBackendRouteMapping>;
   byResource: Map<string, AdminBackendRouteMapping>;
+  byViewPath: Map<string, AdminBackendRouteMapping>;
 }
 
 const DEFAULT_LEAF_MENU_ICON = 'lucide:panel-right-open';
@@ -46,6 +52,7 @@ function createRouteMappingLookup(
 
   return {
     byPath,
+    byViewPath: new Map(routeMappings.map((item) => [item.viewPath, item])),
     byResource: new Map(
       routeMappings.map((item) => [item.resource.toLowerCase(), item]),
     ),
@@ -210,8 +217,51 @@ function convertLeafRoute(
   const finalPath = normalizedPath;
   const actionType = normalizeActionType(item.actionType);
   const pageType = normalizePageType(item.pageType);
-  const mapping = findRouteMapping(lookup, normalizedPath);
-  const routePath = mapping?.path || finalPath;
+  const mapping = item.viewPath
+    ? lookup.byViewPath.get(item.viewPath)
+    : findRouteMapping(lookup, normalizedPath);
+  const isSeparatePageEntry = Boolean(
+    item.viewPath && mapping && normalizedPath !== mapping.path,
+  );
+  let fixedQuery;
+  let fixedQueryError = '';
+  try {
+    fixedQuery = parseMenuFixedQuery(item.params);
+    if (
+      (Object.keys(fixedQuery).length > 0 || isSeparatePageEntry) &&
+      !item.id
+    ) {
+      throw new Error('独立页面菜单缺少菜单标识');
+    }
+    if (
+      Object.keys(fixedQuery).length > 0 &&
+      (pageType !== 'LocalPage' ||
+        !['Default', 'TabPanel'].includes(actionType))
+    ) {
+      throw new Error('固定查询条件仅支持本地页面菜单');
+    }
+    if (pageType === 'LocalPage' && /[?#]/.test(normalizedPath)) {
+      throw new Error('页面路径不能包含查询参数，请通过固定查询条件配置');
+    }
+  } catch (error) {
+    fixedQueryError = (error as Error).message;
+  }
+  const hasFixedQuery = Boolean(
+    fixedQuery && Object.keys(fixedQuery).length > 0,
+  );
+  const independentEntry = hasFixedQuery || isSeparatePageEntry;
+  const routePath =
+    independentEntry || fixedQueryError
+      ? `/menu/${encodeURIComponent(item.id || normalizedPath)}`
+      : mapping?.path || finalPath;
+  if (fixedQueryError) {
+    return {
+      component: NOT_FOUND_PAGE_COMPONENT,
+      meta: { ...toMissingRouteMeta(item, normalizedPath), fixedQueryError },
+      name: toRouteName(routePath),
+      path: routePath,
+    };
+  }
 
   if (actionType === 'NewWindow') {
     return {
@@ -259,6 +309,10 @@ function convertLeafRoute(
     return {
       component: mapping.viewPath,
       meta: {
+        ...(independentEntry
+          ? { fixedQuery, sourcePagePath: mapping.path }
+          : {}),
+        crudResource: mapping.resource,
         authority: toAuthority(item),
         disabled: item.enable === false,
         icon: resolveLocalPageIcon(item.icon, mapping.icon),
@@ -284,8 +338,8 @@ function convertLeafRoute(
     return {
       component: NOT_FOUND_PAGE_COMPONENT,
       meta: toMissingRouteMeta(item, normalizedPath),
-      name: toRouteName(finalPath),
-      path: finalPath,
+      name: toRouteName(routePath),
+      path: routePath,
     };
   }
 
@@ -340,10 +394,13 @@ export function convertMenuNode(
     : children;
 
   if (groupChildren.length > 0) {
-    const routePath =
+    const groupPath =
       normalizedPath && normalizedPath !== '/'
         ? normalizedPath
         : `/menu/${item.id || 'root'}`;
+    const routePath = groupPageRoute?.meta?.fixedQuery
+      ? groupPageRoute.path
+      : groupPath;
 
     return {
       children: groupChildren,

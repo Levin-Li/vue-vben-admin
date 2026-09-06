@@ -12,6 +12,7 @@ import { IconifyIcon, Plus } from '@vben/icons';
 
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
+import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { PermissionTreeNodeType } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
@@ -43,6 +44,7 @@ import {
   buildMenuTree,
   collectMenuSubtreeIds,
   collectMenuSubtreeIdsFromRows,
+  copyMenuFormRecord,
   getMenuParentId,
   normalizeMenuTree,
   sortMenuRows,
@@ -445,6 +447,22 @@ function openCreate(parentId = '') {
     parentId,
     requireAuthorizations: [],
   };
+  formOpen.value = true;
+}
+
+function openCopy(row: MenuRecord) {
+  if (!canCreateMenu.value) return;
+  const page = getEnabledFrontendModules()
+    .flatMap((module) => module.backendRouteMappings || [])
+    .find(
+      (mapping) =>
+        mapping.viewPath === row.viewPath || mapping.path === row.path,
+    );
+  currentRecord.value = copyMenuFormRecord({
+    ...row,
+    viewPath: row.viewPath || page?.viewPath,
+    sourceFilePath: row.sourceFilePath || page?.sourceFilePath,
+  });
   formOpen.value = true;
 }
 
@@ -1001,6 +1019,14 @@ function renderIcon(row: MenuRecord) {
                 >
                   {{ getOpButtonCount(row) }}
                 </span>
+              </Button>
+              <Button
+                v-if="canCreateMenu"
+                size="small"
+                type="link"
+                @click="openCopy(row)"
+              >
+                复制
               </Button>
               <Button
                 v-if="canUpdateMenu"

@@ -2,6 +2,7 @@ import type {
   AdminBackendRouteMapping,
   AdminFrontendModule,
   AdminPageOperation,
+  MenuFixedQuery,
 } from '@levin/admin-framework';
 
 import type { RouteRecordRaw } from 'vue-router';
@@ -21,7 +22,8 @@ export interface SyncMenuItem {
   opButtonList?: SyncMenuOperation[];
   overrideExisting?: boolean;
   pageName?: string;
-  params?: string;
+  params?: MenuFixedQuery | null;
+  paramsEditor?: string;
   path: string;
   remark?: string;
   sourceFilePath?: string;

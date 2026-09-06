@@ -58,7 +58,7 @@ export const pageMeta = {
   description: '维护角色、资源权限和组织数据权限。',
 } as const;
 
-const rolePageCrudConfig: CrudPageConfig = {
+export const rolePageCrudConfig: CrudPageConfig = {
   apiBase: '/Role',
   domainObject: true,
   apiService: roleService,

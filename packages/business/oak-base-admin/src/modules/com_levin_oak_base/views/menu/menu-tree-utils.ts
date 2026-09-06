@@ -2,12 +2,14 @@ import type { DataNode } from 'ant-design-vue/es/tree';
 
 import type { MenuRecord } from './types';
 
+import { parseMenuFixedQuery } from '@levin/admin-framework/framework-commons/menu-fixed-query';
+
 export function getMenuParentId(row: MenuRecord, fallbackParentId = '') {
   return row.parentId || row.parent?.id || fallbackParentId;
 }
 
 export function sortMenuRows(rows: MenuRecord[]) {
-  return [...rows].sort((a, b) => {
+  return rows.toSorted((a, b) => {
     const orderA = a.orderCode ?? 0;
     const orderB = b.orderCode ?? 0;
     if (orderA !== orderB) {
@@ -87,7 +89,7 @@ export function collectMenuSubtreeIdsFromRows(rows: MenuRecord[]): string[] {
   return [...idSet];
 }
 
-export function isMenuInSubtree(row: MenuRecord, id?: string) {
+export function isMenuInSubtree(row: MenuRecord, id?: string): boolean {
   if (!id) {
     return false;
   }
@@ -107,7 +109,11 @@ export function buildParentTreeOptions(
   return rows.map((row) => {
     const disabled = ancestorDisabled || row.id === disabledId;
     return {
-      children: buildParentTreeOptions(row.children || [], disabledId, disabled),
+      children: buildParentTreeOptions(
+        row.children || [],
+        disabledId,
+        disabled,
+      ),
       disabled,
       key: row.id || '',
       title: row.name || row.label || row.path || row.id || '未命名菜单',
@@ -121,5 +127,31 @@ export function toMenuFormRecord(row: MenuRecord): MenuRecord {
   return {
     ...record,
     parentId: getMenuParentId(row),
+  };
+}
+
+/** 复制为尚未保存的新菜单，不携带源菜单标识、审计或子节点。 */
+export function copyMenuFormRecord(row: MenuRecord): MenuRecord {
+  const {
+    id: _id,
+    createTime: _created,
+    lastUpdateTime: _updated,
+    optimisticLock: _lock,
+    ...record
+  } = toMenuFormRecord(row);
+  return {
+    ...record,
+    params: parseMenuFixedQuery(record.params),
+    name: `${row.name || '菜单'}（副本）`,
+    path: `/menu-entry/${crypto.randomUUID()}`,
+    requireAuthorizations: record.requireAuthorizations
+      ? [...record.requireAuthorizations]
+      : [],
+    opButtonList: record.opButtonList?.map((op) => ({
+      ...op,
+      requireAuthorizations: op.requireAuthorizations
+        ? [...op.requireAuthorizations]
+        : [],
+    })),
   };
 }

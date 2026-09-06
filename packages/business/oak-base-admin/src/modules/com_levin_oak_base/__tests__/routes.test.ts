@@ -256,6 +256,21 @@ describe('oak base admin routes', () => {
     );
   });
 
+  it('注册设置历史独立页面及查询详情删除操作', () => {
+    const mapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === '/clob/V1/SettingHistoryData',
+    );
+    expect(mapping).toMatchObject({
+      resource: 'SettingHistoryData',
+      sourceFilePath: 'modules/com_levin_oak_base/views/setting-history-data/index.vue',
+      viewPath: '/system/com_levin_oak_base/setting-history-data/index.vue',
+    });
+    const operations = mapping?.operations?.map((operation) => operation.opName);
+    expect(operations).toEqual(expect.arrayContaining(['retrieve', 'delete']));
+    expect(operations).not.toContain('create');
+    expect(operations).not.toContain('update');
+  });
+
   it('groups development support pages under development tools', () => {
     const module = createOakBaseAdminModule();
     const root = module.routes?.[0];
@@ -271,6 +286,7 @@ describe('oak base admin routes', () => {
     const movedResources = [
       'PaymentSimulationWorkbench',
       'UiSetting',
+      'SettingHistoryData',
       'GlobalOrgSelectorSetting',
       'ImportExportTemplate',
       'ServicePlugin',

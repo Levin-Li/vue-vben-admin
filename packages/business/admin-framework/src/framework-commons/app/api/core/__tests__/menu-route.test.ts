@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import type { BackendMenuInfo } from '../menu-route';
+
 import { buildMenuRoutes, convertMenuNodeForTest } from '../menu-route';
 
 const testBackendRouteMappings = [
@@ -581,5 +583,163 @@ describe('menu route conversion', () => {
     expect(fourthLevelGroup?.children?.[0]?.component).toBe(
       '/system/com_levin_oak_base/setting-for-tenant/index.vue',
     );
+  });
+});
+
+describe('菜单固定查询条件', () => {
+  it('同页面不同菜单使用独立路径并保留页面配置来源', () => {
+    const routes = ['success', 'failure'].map((id, index) =>
+      convertMenuNodeForTest(
+        {
+          id,
+          path: '/clob/V1/Role',
+          params: { enable: index === 0 },
+        },
+        testBackendRouteMappings,
+      ),
+    );
+    expect(routes.map((route) => route?.path)).toEqual([
+      '/menu/success',
+      '/menu/failure',
+    ]);
+    for (const route of routes) {
+      expect(route?.name).toBe(route?.path.replaceAll('/', '_'));
+      expect(route?.component).toBe(testBackendRouteMappings[0]?.viewPath);
+      expect(route?.meta?.sourcePagePath).toBe('/clob/V1/Role');
+    }
+    expect(routes[1]?.meta?.fixedQuery).toEqual({ enable: false });
+  });
+
+  it('选择页面注册路径可复用目标组件', () => {
+    const route = convertMenuNodeForTest(
+      {
+        id: 'custom',
+        path: '/custom-role',
+        viewPath: testBackendRouteMappings[0]?.viewPath,
+        params: { enable: false },
+      },
+      testBackendRouteMappings,
+    );
+    expect(route?.path).toBe('/menu/custom');
+    expect(route?.component).toBe(testBackendRouteMappings[0]?.viewPath);
+    expect(route?.meta?.sourcePagePath).toBe('/clob/V1/Role');
+  });
+
+  it.each([[], '{"enable":true}', { x: {} }, JSON.parse('{"__proto__":true}')])(
+    '非法条件 %s 不加载业务页面',
+    (params) => {
+      const route = convertMenuNodeForTest(
+        {
+          id: 'bad',
+          path: '/clob/V1/Role',
+          params: params as BackendMenuInfo['params'],
+        },
+        testBackendRouteMappings,
+      );
+      expect(route?.component).toBe('/_core/fallback/not-found.vue');
+      expect(route?.meta?.fixedQueryError).toBeTruthy();
+    },
+  );
+
+  it('空条件保留原页面路由', () => {
+    const route = convertMenuNodeForTest(
+      { id: 'empty', path: '/clob/V1/Role', params: {} },
+      testBackendRouteMappings,
+    );
+    expect(route?.path).toBe('/clob/V1/Role');
+    expect(route?.meta?.fixedQuery).toBeUndefined();
+  });
+
+  it('不把查询字符串注册为页面路径', () => {
+    const route = convertMenuNodeForTest(
+      { id: 'url', path: '/clob/V1/Role?enable=true' },
+      testBackendRouteMappings,
+    );
+    expect(route?.path).toBe('/menu/url');
+    expect(route?.meta?.fixedQueryError).toBeTruthy();
+  });
+
+  it('只有固定菜单时原页面仍禁止无条件访问', () => {
+    const routes = buildMenuRoutes(
+      [{ id: 'fixed', path: '/clob/V1/Role', params: { enable: true } }],
+      testBackendRouteMappings,
+    );
+    expect(
+      routes.find((route) => route.path === '/clob/V1/Role')?.meta
+        ?.menuRouteForbidden,
+    ).toBe(true);
+  });
+});
+
+it('目录内固定菜单使用绝对独立路径', () => {
+  const route = convertMenuNodeForTest(
+    {
+      id: 'group',
+      path: '/group',
+      children: [
+        { id: 'active', path: '/clob/V1/Role', params: { enable: true } },
+        { id: 'inactive', path: '/clob/V1/Role', params: { enable: false } },
+      ],
+    },
+    testBackendRouteMappings,
+  );
+  expect(route?.children?.map((child) => child.path)).toEqual([
+    '/menu/active',
+    '/menu/inactive',
+  ]);
+  for (const child of route?.children || []) {
+    expect(child.name).toBe(child.path.replaceAll('/', '_'));
+  }
+});
+
+describe('复制菜单清除固定条件', () => {
+  const buildCopiedMenu = (id: string, params: { enable?: boolean } = {}) =>
+    convertMenuNodeForTest(
+      {
+        id,
+        path: `/custom/${id}`,
+        viewPath: testBackendRouteMappings[0]?.viewPath,
+        params,
+      },
+      testBackendRouteMappings,
+    );
+
+  it('清除条件后保留独立入口和源页面设置', () => {
+    const before = buildCopiedMenu('role', { enable: false });
+    const after = buildCopiedMenu('role');
+    expect(after?.path).toBe(before?.path);
+    expect(after?.path).toBe('/menu/role');
+    expect(after?.meta?.sourcePagePath).toBe('/clob/V1/Role');
+    expect(after?.meta?.fixedQuery).toEqual({});
+  });
+
+  it('两个空条件复制菜单仍有不同路由和页签标识', () => {
+    const routes = [buildCopiedMenu('first'), buildCopiedMenu('second')];
+    expect(routes.map((route) => route?.path)).toEqual([
+      '/menu/first',
+      '/menu/second',
+    ]);
+    for (const route of routes) {
+      expect(route?.name).toBe(route?.path.replaceAll('/', '_'));
+      expect(route?.component).toBe(testBackendRouteMappings[0]?.viewPath);
+    }
+  });
+
+  it('空条件独立菜单缺少标识时明确阻断', () => {
+    const route = buildCopiedMenu('');
+    expect(route?.meta?.fixedQueryError).toBeTruthy();
+    expect(route?.component).toBe('/_core/fallback/not-found.vue');
+  });
+
+  it('同源无条件菜单保留原路由', () => {
+    const route = convertMenuNodeForTest(
+      {
+        id: 'original',
+        path: '/clob/V1/Role',
+        viewPath: testBackendRouteMappings[0]?.viewPath,
+      },
+      testBackendRouteMappings,
+    );
+    expect(route?.path).toBe('/clob/V1/Role');
   });
 });

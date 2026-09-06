@@ -141,7 +141,7 @@ export const menuPageCrudConfig: CrudPageConfig = {
       type: 'string-array',
       width: 220,
     },
-    { key: 'params', label: '参数', fullRow: true, type: 'textarea' },
+    { key: 'params', label: '固定查询条件', fullRow: true, type: 'json' },
     {
       key: 'alwaysShow',
       label: '无权限时是否展示',

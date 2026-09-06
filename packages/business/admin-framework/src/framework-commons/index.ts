@@ -4,6 +4,7 @@ export * from './app/views/_core/authentication/behavior-captcha';
 export * from './app/options';
 export * from './event-bus';
 export * from './locale-utils';
+export * from './menu-fixed-query';
 export * from './module-contract';
 export * from './page-operation-metadata';
 export * from './page-map';

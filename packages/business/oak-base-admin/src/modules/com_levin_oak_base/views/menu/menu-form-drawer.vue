@@ -5,22 +5,24 @@ import { computed, reactive, watch } from 'vue';
 
 import { useUserStore } from '@vben/stores';
 
+import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
+import { parseMenuFixedQuery } from '@levin/admin-framework/framework-commons/menu-fixed-query';
+import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
   Button,
   Drawer,
   Form,
   Input,
   InputNumber,
+  message,
+  Modal,
   Select,
   Switch,
   TreeSelect,
-  message,
 } from 'ant-design-vue';
 
-import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
-
 import { menuService } from '../../api/menu-service';
-
+import FixedQueryEditor from './fixed-query-editor.vue';
 import MenuIconPicker from './menu-icon-picker.vue';
 import { buildParentTreeOptions } from './menu-tree-utils';
 
@@ -33,8 +35,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'update:open': [open: boolean];
   success: [];
+  'update:open': [open: boolean];
 }>();
 
 const formState = reactive<MenuRecord>({
@@ -48,6 +50,7 @@ const formState = reactive<MenuRecord>({
   requireAuthorizations: [],
 });
 const submitting = reactive({ value: false });
+let savedFormSnapshot = '';
 const userStore = useUserStore();
 
 const isEdit = computed(() => Boolean(props.record?.id));
@@ -73,6 +76,35 @@ const pageTypeSelectOptions = computed(() =>
 const parentTreeData = computed(() =>
   buildParentTreeOptions(props.menuTree, props.record?.id),
 );
+
+const pageChoices = computed(() =>
+  getEnabledFrontendModules().flatMap((module) =>
+    (module.backendRouteMappings || []).map((mapping) => ({
+      ...mapping,
+      moduleId: module.name,
+      label: `${mapping.title} · ${module.title || module.name}`,
+      value: mapping.viewPath,
+      loadConfig: module.queryConfigLoaders?.[mapping.viewPath],
+    })),
+  ),
+);
+const selectedPage = computed(() =>
+  pageChoices.value.find((page) =>
+    formState.viewPath
+      ? page.viewPath === formState.viewPath
+      : page.path === formState.path,
+  ),
+);
+function selectTargetPage(value: string) {
+  const page = pageChoices.value.find((entry) => entry.value === value);
+  if (!page) return;
+  formState.viewPath = page.viewPath;
+  formState.sourceFilePath = page.sourceFilePath;
+  formState.moduleId = page.moduleId;
+  formState.pageType = 'LocalPage';
+  if (!formState.path) formState.path = `/menu-entry/${crypto.randomUUID()}`;
+  if (!formState.name) formState.name = page.title;
+}
 
 watch(
   () => props.open,
@@ -111,25 +143,39 @@ function resetForm(record: MenuRecord) {
     moduleId: record.moduleId || '',
     name: record.name || '',
     optimisticLock: record.optimisticLock,
+    opButtonList: (record.opButtonList || []).map((op) => ({
+      ...op,
+      requireAuthorizations: [...(op.requireAuthorizations || [])],
+    })),
     orderCode: record.orderCode ?? 100,
     pageType: record.pageType || 'LocalPage',
-    params: record.params || '',
+    params: parseMenuFixedQuery(record.params),
+    paramsEditor: record.paramsEditor || '',
     parentId: record.parentId || '',
     path: record.path || '',
+    viewPath: record.viewPath || '',
+    sourceFilePath: record.sourceFilePath || '',
     publicAccess: Boolean(record.publicAccess),
     remark: record.remark || '',
     requireAuthorizations: normalizeArray(record.requireAuthorizations),
     target: record.target || '',
     tenantId: record.tenantId,
   });
+  savedFormSnapshot = JSON.stringify(formState);
 }
 
 function close() {
-  emit('update:open', false);
+  if (submitting.value) return;
+  const done = () => emit('update:open', false);
+  if (JSON.stringify(formState) === savedFormSnapshot) {
+    done();
+  } else {
+    Modal.confirm({ title: '放弃本次菜单修改？', onOk: done });
+  }
 }
 
 function normalizeParentIdForPayload(value?: string) {
-  return value ? value : null;
+  return value || null;
 }
 
 function buildPayload() {
@@ -144,13 +190,24 @@ function buildPayload() {
     name: String(formState.name || '').trim(),
     orderCode: formState.orderCode ?? 100,
     pageType: formState.pageType || 'LocalPage',
-    params: formState.params || '',
+    params: parseMenuFixedQuery(formState.params),
+    paramsEditor: formState.paramsEditor || '',
     parentId: normalizeParentIdForPayload(formState.parentId),
     path: formState.path || '',
+    viewPath: formState.viewPath || selectedPage.value?.viewPath || '',
+    sourceFilePath:
+      formState.sourceFilePath || selectedPage.value?.sourceFilePath || '',
     publicAccess: Boolean(formState.publicAccess),
     remark: formState.remark || '',
     target: formState.target || '',
   };
+
+  if (!isEdit.value) {
+    payload.requireAuthorizations = [
+      ...(formState.requireAuthorizations || []),
+    ];
+    payload.opButtonList = formState.opButtonList || [];
+  }
 
   if (shouldShowEditableControl.value) {
     payload.editable = formState.editable ?? true;
@@ -172,8 +229,11 @@ function buildPayload() {
       'orderCode',
       'pageType',
       'params',
+      'paramsEditor',
       'parentId',
       'path',
+      'viewPath',
+      'sourceFilePath',
       'publicAccess',
       'remark',
       'target',
@@ -207,6 +267,14 @@ async function submit() {
 
   submitting.value = true;
   try {
+    const fixed = parseMenuFixedQuery(formState.params);
+    if (
+      Object.keys(fixed).length > 0 &&
+      (formState.pageType !== 'LocalPage' ||
+        !['Default', 'TabPanel'].includes(formState.actionType || 'Default'))
+    ) {
+      throw new Error('固定查询条件仅支持本地页面的默认或 Tab 栏打开方式');
+    }
     if (isEdit.value) {
       await menuService.update(buildPayload());
       await clearMenuCacheSilently();
@@ -216,8 +284,9 @@ async function submit() {
       await clearMenuCacheSilently();
       message.success('菜单创建成功');
     }
+    savedFormSnapshot = JSON.stringify(formState);
     emit('success');
-    close();
+    emit('update:open', false);
   } finally {
     submitting.value = false;
   }
@@ -226,6 +295,7 @@ async function submit() {
 
 <template>
   <Drawer
+    :mask-closable="false"
     :open="open"
     :title="drawerTitle"
     width="min(80vw, 1120px)"
@@ -260,7 +330,21 @@ async function submit() {
           />
         </Form.Item>
 
-        <Form.Item label="路径">
+        <Form.Item
+          v-if="formState.pageType === 'LocalPage'"
+          class="md:col-span-2 xl:col-span-3"
+          label="目标页面"
+        >
+          <Select
+            :value="selectedPage?.value"
+            :options="pageChoices"
+            show-search
+            option-filter-prop="label"
+            placeholder="选择要复用的已有页面"
+            @change="(value) => selectTargetPage(String(value))"
+          />
+        </Form.Item>
+        <Form.Item label="菜单入口路径">
           <Input v-model:value="formState.path" placeholder="请输入路径" />
         </Form.Item>
         <Form.Item label="打开方式">
@@ -318,13 +402,24 @@ async function submit() {
           </div>
         </Form.Item>
 
-        <Form.Item class="md:col-span-2 xl:col-span-3" label="参数">
-          <Input.TextArea
-            v-model:value="formState.params"
-            placeholder="请输入参数"
-            :rows="3"
+        <Form.Item class="md:col-span-2 xl:col-span-3" label="固定查询条件">
+          <FixedQueryEditor
+            v-model="formState.params"
+            :load-config="selectedPage?.loadConfig"
+            :params-editor="formState.paramsEditor"
           />
         </Form.Item>
+
+        <details class="mb-4 md:col-span-2 xl:col-span-3">
+          <summary class="cursor-pointer">高级：固定条件编辑器配置</summary>
+          <Form.Item
+            label="JSON Schema"
+            class="mt-3"
+            extra="支持 class:类名、url:地址或内联 JSON Schema；留空时使用目标页面查询表单。"
+          >
+            <Input.TextArea v-model:value="formState.paramsEditor" :rows="3" />
+          </Form.Item>
+        </details>
 
         <Form.Item class="md:col-span-2 xl:col-span-3" label="备注">
           <Input.TextArea

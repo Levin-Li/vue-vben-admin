@@ -295,6 +295,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '界面设置',
   },
   {
+    icon: 'lucide:history',
+    name: 'SettingHistoryData',
+    resource: 'SettingHistoryData',
+    title: '设置历史数据',
+  },
+  {
     icon: 'lucide:building-2',
     name: 'GlobalOrgSelectorSetting',
     resource: 'GlobalOrgSelectorSetting',
@@ -444,6 +450,7 @@ export const oakBaseAdminResourceViewMap: Record<
   TenantPluginSetting: () => import('./views/tenant-plugin-setting/index.vue'),
   Setting: () => import('./views/setting/index.vue'),
   UiSetting: () => import('./views/ui-setting/index.vue'),
+  SettingHistoryData: () => import('./views/setting-history-data/index.vue'),
   GlobalOrgSelectorSetting: () =>
     import('./views/global-org-selector-setting/index.vue'),
   SettingForTenant: () => import('./views/setting-for-tenant/index.vue'),
@@ -519,6 +526,7 @@ const menuGroups = [
       'AdministrativeAreaDemo',
       'PaymentSimulationWorkbench',
       'UiSetting',
+      'SettingHistoryData',
       'GlobalOrgSelectorSetting',
       'ImportExportTemplate',
       'ServicePlugin',

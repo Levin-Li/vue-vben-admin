@@ -43,6 +43,7 @@ export * from './scheduled-task-service';
 export * from './service-plugin-service';
 export * from './service-plugin-setting-service';
 export * from './setting-service';
+export * from './setting-history-data-service';
 export * from './simple-api-service';
 export * from './simple-form-service';
 export * from './simple-page-service';

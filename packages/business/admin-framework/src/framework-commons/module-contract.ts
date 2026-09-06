@@ -5,6 +5,7 @@ import type { Router, RouteRecordRaw } from 'vue-router';
 
 import type { AdminLocaleMessagesMap } from './locale-utils';
 import type { AdminPageMap } from './page-registry';
+import type { CrudPageConfig } from './shared/types';
 
 import { collectAdminModuleLocales as collectModuleLocales } from './locale-utils';
 
@@ -64,6 +65,8 @@ export interface AdminFrontendModule<
   name: string;
   order?: number;
   pageMap?: AdminPageMap;
+  /** 按页面 viewPath 注册实际 CRUD 查询配置，用于菜单固定条件编辑。 */
+  queryConfigLoaders?: Record<string, () => Promise<CrudPageConfig>>;
   routes?: RouteRecordRaw[];
   setup?: (
     context: AdminModuleContext<RequestClient, UserInfo>,

@@ -2,6 +2,7 @@
 import type { TableColumnsType, UploadFile } from 'ant-design-vue';
 
 import type { NormalizedCrudAction } from './crud-action-model';
+import type { SearchFieldItem } from './crud-query-items';
 import type {
   CrudExportTemplateConfig,
   CrudExportTemplateContext,
@@ -79,20 +80,16 @@ import {
   uploadFileByFileStorageController,
 } from '../app/api/file-storage-service';
 import { rbacService } from '../app/api/rbac-service';
-import { getCurrentTenantSiteInfo } from '../app/tenant-site-admin-ui-base-setting';
 import {
   replaceUiSettingRuntimeCache,
   resolveUiSettingRuntimeWithScope,
   UI_SETTING_RETRIEVE_PATH,
   type UiSettingRuntimeRecord,
 } from '../app/api/ui-setting-runtime';
+import { getCurrentTenantSiteInfo } from '../app/tenant-site-admin-ui-base-setting';
+import { mergeFixedQuery, parseMenuFixedQuery } from '../menu-fixed-query';
 import { useRbacAccess } from '../rbac-access';
 import { requestClient } from '../runtime';
-
-import {
-  applyAreaCascaderValueToRecord,
-  getAreaCascaderValueFromRecord,
-} from './area-cascader';
 import {
   formatAdministrativeArea,
   filterAdministrativeAreaOptions,
@@ -102,16 +99,48 @@ import {
   restrictAdministrativeAreaOptionsByLevels,
   resolveAdministrativeAreaSelectableLevels,
 } from './administrative-area-data';
+import {
+  applyAreaCascaderValueToRecord,
+  getAreaCascaderValueFromRecord,
+} from './area-cascader';
 import CodeEditorField from './code-editor-field.vue';
+import {
+  buildDictOptionsLoader,
+  DEFAULT_CONTENT_MODAL_BODY_STYLE,
+  DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+} from './config-helpers';
+import CronExpressionField from './cron-expression-field.vue';
+import {
+  buildActionLogTooltipItems,
+  hasDisplayableActionLog,
+} from './crud-action-log-tooltip';
 import {
   pickCrudActionResultData,
   resolveCrudActionAfterSuccess,
   shouldReloadDataListAfterAction,
 } from './crud-action-model';
+import {
+  getCrudBooleanDisplayText,
+  getCrudBooleanTagColor,
+  isCrudBooleanField,
+  isCrudEnableBooleanField,
+} from './crud-boolean-display';
+import {
+  findMatchingCrudChoiceOption,
+  normalizeCrudChoiceFormValue,
+  normalizeCrudChoiceOptions,
+  shouldPreserveUnmatchedCrudChoiceValue,
+} from './crud-choice-value';
+import {
+  buildCrudComplexGroupInitialState,
+  buildCrudComplexGroupPayload,
+} from './crud-complex-groups';
 import { buildCrudConfirmConfig } from './crud-confirm';
-import { resolvePageDisplayContextKey } from './crud-page-display';
+import {
+  canMutateCrudRecord as canMutateEditableCrudRecord,
+  shouldApplyEditableSearchDefault,
+} from './crud-editable-access';
 import CrudExportPanel from './crud-export-panel.vue';
-import CrudImportPanel from './crud-import-panel.vue';
 import {
   buildCrudExportTemplateTargetTypeVariants,
   CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES,
@@ -122,59 +151,14 @@ import {
   CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES,
   CRUD_IMPORT_TEMPLATE_SAVE_TYPE as IMPORT_TEMPLATE_TYPE,
 } from './crud-export-template';
-import {
-  buildDefaultImportMappings,
-  buildImportRecords,
-  chunkImportRecords,
-  CRUD_IMPORT_BATCH_SIZE,
-  normalizeImportTemplateConfig,
-  parseImportFile,
-  type CrudImportMapping,
-  type ParsedImportSheet,
-} from './crud-import';
+import { updateCrudFieldInput } from './crud-field-interaction';
+import { serializeCrudFieldValue } from './crud-field-value';
 import { buildExcelXml, downloadExcelXml } from './crud-file-export';
-import {
-  formatCrudExportValue,
-  type CrudExportConverter,
-} from './crud-value-converter';
-import {
-  buildCrudTemplateCode,
-  buildCrudTemplateScopeQueryVariants,
-  buildCrudTemplateScopePayload,
-  canShowCrudTemplateDelete,
-  dedupeCrudTemplates,
-  getCrudTemplateDeleteParams,
-  getCrudTemplateValue,
-  isSameCrudTemplate,
-  normalizeCreatedCrudTemplate,
-  normalizeCrudTemplateConfig,
-  normalizeCrudTemplateList,
-  removeCrudTemplateFromList,
-  type CrudTemplateSaveScope,
-} from './crud-template-service';
-import {
-  buildActionLogTooltipItems,
-  hasDisplayableActionLog,
-} from './crud-action-log-tooltip';
-import {
-  getCrudBooleanDisplayText,
-  getCrudBooleanTagColor,
-  isCrudBooleanField,
-  isCrudEnableBooleanField,
-} from './crud-boolean-display';
-import {
-  canMutateCrudRecord as canMutateEditableCrudRecord,
-  shouldApplyEditableSearchDefault,
-} from './crud-editable-access';
+import { isFixedCrudQueryField } from './crud-fixed-query';
 import {
   shouldShowCrudFormField,
   shouldSubmitCrudFormField,
 } from './crud-form-field-visibility';
-import {
-  buildCrudDeleteParams,
-  buildCrudRetrieveParams,
-  omitNonPlatformTenantId,
-} from './crud-retrieve-context';
 import { resolveCrudFormGroupCollapse } from './crud-form-group-collapse';
 import {
   getContainerColumnCount,
@@ -193,33 +177,22 @@ import {
   getUnsubmittedCrudGroupFields,
 } from './crud-group-submit';
 import {
+  buildDefaultImportMappings,
+  buildImportRecords,
+  chunkImportRecords,
+  CRUD_IMPORT_BATCH_SIZE,
+  normalizeImportTemplateConfig,
+  parseImportFile,
+  type CrudImportMapping,
+  type ParsedImportSheet,
+} from './crud-import';
+import CrudImportPanel from './crud-import-panel.vue';
+import { shouldShowCrudOperationColumn } from './crud-operation-column-visibility';
+import {
   filterCrudOperationsByListTable,
   groupCrudOperationsByRecordRef,
 } from './crud-operation-placement';
-import { shouldShowCrudOperationColumn } from './crud-operation-column-visibility';
-import {
-  buildApiMethodPermissions,
-  buildCrudOperationPermissions,
-} from './crud-permissions';
-import { resolveCrudQuickFill } from './crud-quick-fill';
-import {
-  shouldApplyFieldOptionsRequest,
-  shouldLoadFieldOptions,
-  shouldReloadRemoteOptionsOnDropdownOpen,
-} from './crud-select-options';
-import { normalizeLeftFixedTableColumns } from './crud-table-columns';
-import {
-  buildTableColumnPreference,
-  getTableColumnPreferenceStorageKey,
-  readTableColumnPreference,
-} from './crud-table-column-preference';
-import {
-  findMatchingCrudChoiceOption,
-  normalizeCrudChoiceFormValue,
-  normalizeCrudChoiceOptions,
-  shouldPreserveUnmatchedCrudChoiceValue,
-} from './crud-choice-value';
-import { evaluateJavaScriptExpression } from './javascript-expression';
+import { resolvePageDisplayContextKey } from './crud-page-display';
 import {
   buildOrganizationScriptContext,
   buildTenantScriptContext,
@@ -250,43 +223,73 @@ import {
   shouldShowManualQueryButton,
   supportsInlineChoiceOptions,
 } from './crud-page-display';
-import { serializeCrudFieldValue } from './crud-field-value';
-import { omitExcludedCrudFields } from './crud-submit-fields';
-import { updateCrudFieldInput } from './crud-field-interaction';
 import {
-  buildCrudComplexGroupInitialState,
-  buildCrudComplexGroupPayload,
-} from './crud-complex-groups';
+  buildApiMethodPermissions,
+  buildCrudOperationPermissions,
+} from './crud-permissions';
+import { buildCrudQueryItems } from './crud-query-items';
+import { resolveCrudQuickFill } from './crud-quick-fill';
+import {
+  buildCrudDeleteParams,
+  buildCrudRetrieveParams,
+  omitNonPlatformTenantId,
+} from './crud-retrieve-context';
+import {
+  shouldApplyFieldOptionsRequest,
+  shouldLoadFieldOptions,
+  shouldReloadRemoteOptionsOnDropdownOpen,
+} from './crud-select-options';
+import { omitExcludedCrudFields } from './crud-submit-fields';
+import {
+  buildTableColumnPreference,
+  getTableColumnPreferenceStorageKey,
+  readTableColumnPreference,
+} from './crud-table-column-preference';
+import { normalizeLeftFixedTableColumns } from './crud-table-columns';
+import {
+  buildCrudTemplateCode,
+  buildCrudTemplateScopeQueryVariants,
+  buildCrudTemplateScopePayload,
+  canShowCrudTemplateDelete,
+  dedupeCrudTemplates,
+  getCrudTemplateDeleteParams,
+  getCrudTemplateValue,
+  isSameCrudTemplate,
+  normalizeCreatedCrudTemplate,
+  normalizeCrudTemplateConfig,
+  normalizeCrudTemplateList,
+  removeCrudTemplateFromList,
+  type CrudTemplateSaveScope,
+} from './crud-template-service';
 import {
   buildCrudCollectionTooltipText,
   buildCrudTooltipText,
   CRUD_TOOLTIP_MOUSE_ENTER_DELAY,
 } from './crud-tooltip-preview';
-import { evaluateCrudVisibleOn } from './crud-visible-on';
 import {
-  collectUserRoleIdentityValues,
-  isSuperAdminUser,
-} from './user-identity';
-import CronExpressionField from './cron-expression-field.vue';
+  formatCrudExportValue,
+  type CrudExportConverter,
+} from './crud-value-converter';
+import { evaluateCrudVisibleOn } from './crud-visible-on';
 import {
   buildDetailDisplayEntries,
   resolveDetailFields,
   type DetailDisplayEntry,
 } from './detail-display';
 import DetailDisplayPanel from './detail-display-panel.vue';
-import {
-  buildDictOptionsLoader,
-  DEFAULT_CONTENT_MODAL_BODY_STYLE,
-  DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
-} from './config-helpers';
+import { evaluateJavaScriptExpression } from './javascript-expression';
 import JsonEditorField from './json-editor-field.vue';
 import JsonSchemaEditorField from './json-schema-editor-field.vue';
-import PageDisplaySettingsDrawer from './page-display-settings-drawer.vue';
 import {
   getJsonSchemaSourceInput,
   hasCrudFieldJsonSchema,
   isCrudFieldJsonSchemaInline,
 } from './json-schema-source';
+import PageDisplaySettingsDrawer from './page-display-settings-drawer.vue';
+import {
+  collectUserRoleIdentityValues,
+  isSuperAdminUser,
+} from './user-identity';
 
 import './crud-group-display.css';
 
@@ -313,20 +316,6 @@ function getCrudErrorMessage(error: unknown, fallback: string) {
   const data = (error as any)?.response?.data;
   return data?.msg || data?.detailMsg || data?.message || fallback;
 }
-type SearchFieldItem =
-  | {
-      endKey: string;
-      format: 'date' | 'datetime' | 'time';
-      key: string;
-      kind: 'range';
-      label: string;
-      startKey: string;
-    }
-  | {
-      field: CrudFieldConfig;
-      key: string;
-      kind: 'field';
-    };
 interface ListTableRuntimeState {
   dataSource: GenericRecord[];
   pagination: {
@@ -381,6 +370,13 @@ const domainIdCrudField: CrudFieldConfig = {
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
 const route = useRoute();
+const pageEntryPath = route.path;
+// 固定条件属于当前页面实例，避免缓存页面读取后来激活的另一菜单条件。
+const menuFixedQuery = parseMenuFixedQuery(route.meta.fixedQuery);
+const menuSourcePagePath =
+  typeof route.meta.sourcePagePath === 'string'
+    ? route.meta.sourcePagePath
+    : undefined;
 
 const effectiveFields = computed(() =>
   resolveDomainObjectCrudFields(
@@ -644,7 +640,7 @@ const listTableTabsFloatStyle = computed(() => ({
   top: `${listTableTabsPosition.y}px`,
 }));
 const listTableTabsPositionStorageKey = computed(() => {
-  const routeKey = route.path || route.name || 'crud-page';
+  const routeKey = pageEntryPath || route.name || 'crud-page';
   const tableKeys = listTables.value.map((table) => table.key).join(',');
 
   return [
@@ -1097,7 +1093,12 @@ const submittableSearchFields = computed(() =>
   applyPageDisplayFields(
     effectiveFields.value
       .map((field, index) => ({ field, index }))
-      .filter(({ field }) => field.search && isFieldVisible(field))
+      .filter(
+        ({ field }) =>
+          field.search &&
+          isFieldVisible(field) &&
+          !isFixedCrudQueryField(field, menuFixedQuery),
+      )
       .sort(
         (left, right) =>
           (left.field.searchOrder ?? left.index) -
@@ -1115,116 +1116,9 @@ const searchFields = computed(() =>
   ),
 );
 
-const RANGE_PREFIX_PAIRS: Array<[string, string]> = [
-  ['gte', 'lte'],
-  ['gt', 'lt'],
-  ['start', 'end'],
-  ['begin', 'end'],
-  ['from', 'to'],
-];
-
-function getRangePrefixPair(key: string) {
-  return RANGE_PREFIX_PAIRS.find(([startPrefix, endPrefix]) => {
-    const prefixes = [startPrefix, endPrefix];
-    return prefixes.some((prefix) => key.startsWith(prefix));
-  });
-}
-
-function isRangeDateField(field: CrudFieldConfig) {
-  return (
-    (field.type === 'date' ||
-      field.type === 'datetime' ||
-      field.type === 'time') &&
-    !!getRangePrefixPair(field.key)
-  );
-}
-
-function getRangePartnerKey(key: string) {
-  const pair = getRangePrefixPair(key);
-  if (!pair) {
-    return '';
-  }
-
-  const [startPrefix, endPrefix] = pair;
-  if (key.startsWith(startPrefix)) {
-    return `${endPrefix}${key.slice(startPrefix.length)}`;
-  }
-
-  if (key.startsWith(endPrefix)) {
-    return `${startPrefix}${key.slice(endPrefix.length)}`;
-  }
-
-  return '';
-}
-
-function isRangeStartKey(key: string) {
-  const pair = getRangePrefixPair(key);
-  return !!pair && key.startsWith(pair[0]);
-}
-
-function getRangeBaseLabel(label: string) {
-  return label
-    .replace(/开始$/, '')
-    .replace(/结束$/, '')
-    .replace(/起始$/, '')
-    .replace(/截止$/, '')
-    .trim();
-}
-
-const searchFieldItems = computed<SearchFieldItem[]>(() => {
-  const fieldMap = new Map(
-    searchFields.value.map((field) => [field.key, field]),
-  );
-  const visited = new Set<string>();
-  const items: SearchFieldItem[] = [];
-
-  for (const field of searchFields.value) {
-    if (visited.has(field.key)) {
-      continue;
-    }
-
-    if (isRangeDateField(field)) {
-      const partnerKey = getRangePartnerKey(field.key);
-      const partnerField = fieldMap.get(partnerKey);
-
-      if (
-        partnerField &&
-        partnerField.type === field.type &&
-        isRangeDateField(partnerField)
-      ) {
-        const startKey = isRangeStartKey(field.key)
-          ? field.key
-          : partnerField.key;
-        const endKey = isRangeStartKey(field.key)
-          ? partnerField.key
-          : field.key;
-        const label = getRangeBaseLabel(field.label || partnerField.label);
-
-        items.push({
-          endKey,
-          format: field.type as 'date' | 'datetime' | 'time',
-          key: `${startKey}__${endKey}`,
-          kind: 'range',
-          label,
-          startKey,
-        });
-
-        visited.add(startKey);
-        visited.add(endKey);
-        continue;
-      }
-    }
-
-    items.push({
-      field,
-      key: field.key,
-      kind: 'field',
-    });
-    visited.add(field.key);
-  }
-
-  return items;
-});
+const searchFieldItems = computed(() =>
+  buildCrudQueryItems(searchFields.value),
+);
 
 const formFields = computed(() =>
   effectiveFields.value.filter(
@@ -1693,7 +1587,7 @@ const importTemplateDeletePermission = computed(() => {
 
 const tableColumnPreferenceStorageKey = computed(() => {
   const routeKey =
-    route.path ||
+    pageEntryPath ||
     `${props.config.apiModuleBase || ''}${props.config.apiBase || ''}`;
 
   return getTableColumnPreferenceStorageKey(
@@ -1734,7 +1628,7 @@ const canManagePageDisplaySettings = computed(() =>
 );
 const pageDisplaySettingCode = computed(() =>
   resolvePageDisplaySettingCode(
-    route.path,
+    menuSourcePagePath || pageEntryPath,
     props.config.uiSettingCode || props.config.apiBase,
   ),
 );
@@ -3595,13 +3489,16 @@ function formatExportCellValue(field: CrudFieldConfig, record: GenericRecord) {
   );
 }
 
-function buildExportQueryParams(pageIndex: number, pageSize: number) {
-  return {
-    ...buildSearchParams(),
-    ...buildSortParams(),
-    pageIndex,
-    pageSize,
-  };
+function buildListQueryParams(pageIndex: number, pageSize: number) {
+  return mergeFixedQuery(
+    {
+      ...buildSearchParams(),
+      ...buildSortParams(),
+      pageIndex,
+      pageSize,
+    },
+    menuFixedQuery,
+  );
 }
 
 function showExportLimitWarning() {
@@ -3611,7 +3508,7 @@ function showExportLimitWarning() {
 async function checkExportRecordLimit() {
   const result = await fetchCrudList<GenericRecord>(
     activeListPath.value,
-    buildExportQueryParams(1, 1),
+    buildListQueryParams(1, 1),
     props.config.apiModuleBase,
   );
   const total = Number(result.totals || 0);
@@ -4036,7 +3933,7 @@ async function fetchExportRecords() {
   while (true) {
     const result = await fetchCrudList<GenericRecord>(
       activeListPath.value,
-      buildExportQueryParams(pageIndex, EXPORT_PAGE_SIZE),
+      buildListQueryParams(pageIndex, EXPORT_PAGE_SIZE),
       props.config.apiModuleBase,
     );
     const items = result.items || [];
@@ -4119,12 +4016,10 @@ async function loadList() {
   loading.value = true;
 
   try {
-    const listParams = {
-      ...buildSearchParams(),
-      ...buildSortParams(),
-      pageIndex: pagination.current,
-      pageSize: pagination.pageSize,
-    };
+    const listParams = buildListQueryParams(
+      pagination.current,
+      pagination.pageSize,
+    );
     const defaultListPath = `${props.config.apiBase}/list`;
     const result =
       props.config.apiService?.list &&

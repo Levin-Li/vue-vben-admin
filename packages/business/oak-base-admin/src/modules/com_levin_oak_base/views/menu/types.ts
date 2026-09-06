@@ -1,3 +1,5 @@
+import type { MenuFixedQuery } from '@levin/admin-framework/framework-commons/menu-fixed-query';
+
 export interface MenuOpButton {
   disabled?: boolean;
   label?: string;
@@ -24,7 +26,8 @@ export interface MenuRecord {
   optimisticLock?: number;
   orderCode?: number;
   pageType?: string;
-  params?: string;
+  params?: MenuFixedQuery;
+  paramsEditor?: string;
   parent?: MenuRecord;
   parentId?: string;
   path?: string;

@@ -6,6 +6,7 @@ export * from './framework-commons/app/views/_core/authentication/behavior-captc
 export * from './framework-commons/app/options';
 export * from './framework-commons/event-bus';
 export * from './framework-commons/locale-utils';
+export * from './framework-commons/menu-fixed-query';
 export * from './framework-commons/module-contract';
 export * from './framework-commons/page-operation-metadata';
 export * from './framework-commons/page-map';
