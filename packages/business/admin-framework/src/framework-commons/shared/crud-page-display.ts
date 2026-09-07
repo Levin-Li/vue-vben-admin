@@ -14,6 +14,28 @@ export const CRUD_OPERATION_COLUMN_KEY = '__actions';
 export const CRUD_OPERATION_COLUMN_LABEL = '操作';
 export const DEFAULT_CRUD_OPERATION_COLUMN_WIDTH = 220;
 
+/** 运行页面和设置面板共用的视图默认值，不修改传入的配置。 */
+export function resolveCrudPageDisplayDefaults(
+  config?: CrudPageDisplayConfig,
+): CrudPageDisplayConfig {
+  const resolved = {
+    ...config,
+    version: 1 as const,
+    create: { fields: [], ...config?.create },
+    query: { fields: [], ...config?.query },
+    edit: { fields: [], ...config?.edit },
+    detail: { fields: [], ...config?.detail },
+    list: { headers: [], ...config?.list },
+  } satisfies CrudPageDisplayConfig;
+  resolved.query.autoSearch ??= false;
+  resolved.edit.autoForceUpdateField ??= true;
+  resolved.detail.showEmptyValues ??= true;
+  resolved.list.defaultMinColumnWidth ??= 60;
+  resolved.list.defaultMaxColumnWidth ??= 360;
+  resolved.list.defaultOverflowStrategy ??= 'ellipsis';
+  return resolved;
+}
+
 /** 仅为显式声明 DomainObject 的页面补入标准领域字段，避免向其它接口伪造参数。 */
 export function resolveDomainObjectCrudFields(
   fields: CrudFieldConfig[],
@@ -344,10 +366,18 @@ export function initializeVisibleRoleCodes(
 
 export function getDefaultFieldHidden(
   field: string | { key: string; showIdOnCreate?: boolean },
-  options: { hideDomainId?: boolean } = { hideDomainId: false },
+  options: {
+    hideDomainId?: boolean;
+    view?: 'create' | 'detail' | 'edit' | 'list' | 'query';
+  } = { hideDomainId: false },
 ) {
   const key = typeof field === 'string' ? field : field.key;
-  if (key === 'id' && typeof field !== 'string' && field.showIdOnCreate) {
+  if (
+    options.view === 'create' &&
+    key === 'id' &&
+    typeof field !== 'string' &&
+    field.showIdOnCreate
+  ) {
     return false;
   }
   // DomainObject 的 domainId 是数据范围定位字段；新增、编辑、详情与列表默认隐藏，

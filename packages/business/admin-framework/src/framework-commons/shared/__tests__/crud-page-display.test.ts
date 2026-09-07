@@ -31,6 +31,7 @@ import {
   getDisplaySubmitMode,
   setDisplaySubmitMode,
   reconcileCrudPageDisplayHeaders,
+  resolveCrudPageDisplayDefaults,
   resolvePageDisplayContextKey,
   resolvePageDisplayViewTitle,
   resolvePageDisplaySettingCode,
@@ -808,4 +809,82 @@ it('UI 禁提保持可见和提交资格，并不能覆盖权限排除', () => {
   expect([
     ...resolveDisplaySubmitKeys(fields, {}, new Set(['priority'])),
   ]).toEqual([]);
+});
+
+describe('id新增录入与列表展示隔离', () => {
+  it.each([true, false, undefined])(
+    'showIdOnCreate=%s不改变列表默认隐藏',
+    (showIdOnCreate) => {
+      const field = { key: 'id', showIdOnCreate };
+      expect(getDefaultFieldHidden(field)).toBe(true);
+      expect(initializeHeaderVisibility(field)).toEqual({ mode: 'hidden' });
+      expect(
+        initializeHeaderVisibility({ ...field, visible: { mode: 'always' } }),
+      ).toEqual({ mode: 'always' });
+      expect(
+        initializeHeaderVisibility({ ...field, visible: { mode: 'hidden' } }),
+      ).toEqual({ mode: 'hidden' });
+    },
+  );
+});
+
+describe('showIdOnCreate仅影响新增场景', () => {
+  it.each(['list', 'edit', 'detail', 'query'] as const)(
+    '%s场景仍默认隐藏ID',
+    (view) => {
+      expect(
+        getDefaultFieldHidden({ key: 'id', showIdOnCreate: true }, { view }),
+      ).toBe(true);
+    },
+  );
+  it('新增场景按录入开关控制默认显示', () => {
+    expect(
+      getDefaultFieldHidden(
+        { key: 'id', showIdOnCreate: true },
+        { view: 'create' },
+      ),
+    ).toBe(false);
+    expect(
+      getDefaultFieldHidden(
+        { key: 'id', showIdOnCreate: false },
+        { view: 'create' },
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('运行与设置面板共用默认配置', () => {
+  it('缺省配置与空配置得到相同默认项', () => {
+    const defaults = resolveCrudPageDisplayDefaults();
+    expect(defaults).toEqual(resolveCrudPageDisplayDefaults({ version: 1 }));
+    expect(defaults.list).toEqual({
+      headers: [],
+      defaultMinColumnWidth: 60,
+      defaultMaxColumnWidth: 360,
+      defaultOverflowStrategy: 'ellipsis',
+    });
+    expect(defaults.query?.autoSearch).toBe(false);
+    expect(defaults.edit?.autoForceUpdateField).toBe(true);
+    expect(defaults.detail?.showEmptyValues).toBe(true);
+  });
+  it('保留显式值，补齐缺项且不修改原配置', () => {
+    const config = {
+      version: 1 as const,
+      edit: { fields: [], autoForceUpdateField: false },
+      detail: { fields: [], showEmptyValues: false },
+      list: {
+        headers: [{ key: 'id', visible: { mode: 'always' as const } }],
+        defaultMaxColumnWidth: 500,
+      },
+    };
+    const before = structuredClone(config);
+    const resolved = resolveCrudPageDisplayDefaults(config);
+    expect(resolved.edit?.autoForceUpdateField).toBe(false);
+    expect(resolved.detail?.showEmptyValues).toBe(false);
+    expect(resolved.list?.defaultMaxColumnWidth).toBe(500);
+    expect(resolved.list?.defaultMinColumnWidth).toBe(60);
+    expect(resolved.list?.headers[0]?.visible?.mode).toBe('always');
+    expect(config).toEqual(before);
+    expect(resolveCrudPageDisplayDefaults(resolved)).toEqual(resolved);
+  });
 });

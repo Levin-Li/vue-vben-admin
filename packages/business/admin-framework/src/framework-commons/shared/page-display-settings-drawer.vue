@@ -43,6 +43,7 @@ import {
   moveDisplayFieldToGroupEnd,
   reconcileCrudPageDisplayHeaders,
   releaseDisplayGroupFields,
+  resolveCrudPageDisplayDefaults,
   resolveDefaultTableColumnWidth,
   sortDisplayGroups,
   supportsInlineChoiceOptions,
@@ -104,7 +105,7 @@ function resetFieldRenderLimits() {
     fieldRenderLimits[view] = INITIAL_FIELD_RENDER_LIMIT;
   }
 }
-const draft = ref<CrudPageDisplayConfig>({ version: 1 });
+const draft = ref<CrudPageDisplayConfig>(resolveCrudPageDisplayDefaults());
 const scope = ref<Scope>({});
 const initialSnapshot = ref('');
 const scriptOpen = ref(false);
@@ -394,12 +395,6 @@ function getAllowedFields(view: Exclude<View, 'list'>) {
 
 function ensureFields(view: Exclude<View, 'list'>) {
   const holder = (draft.value[view] ||= { fields: [] });
-  if (view === 'query') {
-    holder.autoSearch ??= false;
-  }
-  if (view === 'edit') {
-    holder.autoForceUpdateField ??= true;
-  }
   const allowed = getAllowedFields(view);
   const existing = new Map(holder.fields.map((item) => [item.key, item]));
   const nextFields: CrudPageDisplayFieldConfig[] = allowed.map(
@@ -408,6 +403,7 @@ function ensureFields(view: Exclude<View, 'list'>) {
         inputDisplay: 'default',
         hidden: getDefaultFieldHidden(field, {
           hideDomainId: props.domainObject === true,
+          view,
         }),
         key: field.key,
         order: index,
@@ -442,7 +438,6 @@ function queryHolder() {
 function detailHolder() {
   ensureFields('detail');
   const holder = (draft.value.detail ||= { fields: [] });
-  holder.showEmptyValues ??= true;
   return holder;
 }
 
@@ -479,9 +474,6 @@ function ensureGroups(view: GroupView) {
 
 function ensureHeaders() {
   const holder = (draft.value.list ||= { headers: [] });
-  holder.defaultMinColumnWidth ??= 60;
-  holder.defaultMaxColumnWidth ??= 360;
-  holder.defaultOverflowStrategy ??= 'ellipsis';
   const nextHeaders = reconcileCrudPageDisplayHeaders(
     holder.headers,
     props.fields,
@@ -1330,7 +1322,7 @@ watch(
   (open) => {
     if (!open) return;
     resetFieldRenderLimits();
-    draft.value = clone(props.modelValue);
+    draft.value = resolveCrudPageDisplayDefaults(clone(props.modelValue));
     scope.value = normalizeScope(props.initialScope);
     void loadScopeOptions();
     void loadRoleVisibilityOptions();

@@ -201,8 +201,10 @@ import {
   DEFAULT_CRUD_OPERATION_COLUMN_WIDTH,
   distributeExtraTableWidth,
   getDefaultFieldHidden,
+  initializeHeaderVisibility,
   isDisplayGroupVisible,
   isRoleVisibilitySatisfied,
+  resolveCrudPageDisplayDefaults,
   resolveDefaultTableColumnWidth,
   resolveDisplayGroupOrder,
   resolveDomainObjectCrudFields,
@@ -463,7 +465,9 @@ const hiddenTableColumnKeys = ref<string[]>([]);
 const columnSettingsOpen = ref(false);
 const pageDisplaySettingsOpen = ref(false);
 const pageDisplaySettingSaving = ref(false);
-const pageDisplayConfig = ref<CrudPageDisplayConfig>({ version: 1 });
+const pageDisplayConfig = ref<CrudPageDisplayConfig>(
+  resolveCrudPageDisplayDefaults(),
+);
 const pageDisplayHeaderMap = computed(
   () =>
     new Map(
@@ -514,9 +518,9 @@ async function loadPageDisplaySettings() {
     const setting = resolution.setting;
     pageDisplaySettingRecord.value = setting;
     pageDisplayScope.value = { ...pageDisplayScope.value, ...resolution.scope };
-    pageDisplayConfig.value = (setting?.valueContent?.pageDisplay as
-      | CrudPageDisplayConfig
-      | undefined) || { version: 1 };
+    pageDisplayConfig.value = resolveCrudPageDisplayDefaults(
+      setting?.valueContent?.pageDisplay as CrudPageDisplayConfig | undefined,
+    );
   } catch (error) {
     console.warn('加载页面展示设置失败，将使用页面默认配置。', error);
   }
@@ -566,7 +570,7 @@ async function savePageDisplaySettings(payload: {
       const id = await requestClient.post<string>('/UiSetting/create', data);
       pageDisplaySettingRecord.value = { ...data, id };
     }
-    pageDisplayConfig.value = payload.config;
+    pageDisplayConfig.value = resolveCrudPageDisplayDefaults(payload.config);
     replaceUiSettingRuntimeCache(
       pageDisplaySettingCode.value,
       pageDisplayContextKey.value,
@@ -789,6 +793,7 @@ function getPageDisplayField(
       effectiveFields.value.find((item) => item.key === key) || { key },
       {
         hideDomainId: props.config.domainObject === true,
+        view,
       },
     ),
     inputDisplay: 'default',
@@ -874,13 +879,10 @@ function getPageDisplayHeader(
       .filter((item) => item.table && isFieldVisible(item))
       .findIndex((item) => item.key === key),
     valueDisplay: { mode: 'default' },
-    visible: {
-      mode: getDefaultFieldHidden(field, {
-        hideDomainId: props.config.domainObject === true,
-      })
-        ? 'hidden'
-        : 'always',
-    },
+    visible: initializeHeaderVisibility(
+      { key },
+      { hideDomainId: props.config.domainObject === true },
+    ),
     width: resolveDefaultTableColumnWidth(field),
   });
 }

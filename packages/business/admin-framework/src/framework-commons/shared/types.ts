@@ -91,7 +91,7 @@ export interface CrudFieldConfig {
   disabledOnEdit?: boolean | ((context: { userInfo: unknown }) => boolean);
   /** 编辑请求中省略该字段；不影响创建请求。 */
   omitOnEdit?: boolean;
-  /** 创建接口明确要求人工输入主键时，默认在创建表单展示该 ID。 */
+  /** 创建接口明确要求人工输入主键时，默认在创建表单展示该 ID；不影响列表、编辑、详情或查询可见性。 */
   showIdOnCreate?: boolean;
   export?: boolean;
   fixed?: 'left' | 'right' | boolean;
