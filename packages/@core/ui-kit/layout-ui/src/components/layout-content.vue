@@ -79,6 +79,7 @@ const style = computed((): CSSProperties => {
   return {
     ...compactStyle,
     flex: 1,
+    minHeight: 0,
     backgroundColor: props.backgroundColor,
     boxSizing: 'border-box',
     borderColor: 'hsl(var(--border))',
@@ -93,9 +94,8 @@ const style = computed((): CSSProperties => {
     marginLeft: keepCompactCentered ? 'auto' : `${marginLeft}px`,
     marginRight: keepCompactCentered ? 'auto' : `${marginRight}px`,
     marginTop: `${offsetTop + marginTop}px`,
-    ...(radiusTopLeft || radiusTopRight || radiusBottomRight || radiusBottomLeft
-      ? { overflow: 'hidden' }
-      : {}),
+    overflowX: 'hidden',
+    overflowY: 'auto',
   };
 });
 </script>

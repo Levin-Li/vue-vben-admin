@@ -28,6 +28,18 @@ describe('布局滚动边界', () => {
     );
   });
 
+  it('主内容容器可收缩，并独立承载页面级纵向滚动', () => {
+    const source = readFileSync(
+      'packages/@core/ui-kit/layout-ui/src/components/layout-content.vue',
+      'utf8',
+    );
+
+    expect(source).toContain("minHeight: 0");
+    expect(source).toContain("overflowX: 'hidden'");
+    expect(source).toContain("overflowY: 'auto'");
+    expect(source).not.toContain("{ overflow: 'hidden' }");
+  });
+
   it('双列菜单的内部间隔独立配置，不叠加侧边栏左右外边距', () => {
     const source = readFileSync(
       'packages/@core/ui-kit/layout-ui/src/components/layout-sidebar.vue',
