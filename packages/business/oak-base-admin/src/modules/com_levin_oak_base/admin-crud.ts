@@ -370,13 +370,13 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     icon: 'lucide:gauge',
     name: 'TrafficControlRule',
     resource: 'TrafficControlRule',
-    title: '流量控制规则管理',
+    title: '流控规则',
   },
   {
     icon: 'lucide:lock-keyhole',
     name: 'UrlExAcl',
     resource: 'UrlExAcl',
-    title: 'URL 访问控制',
+    title: '访问控制',
   },
   {
     icon: 'lucide:users-round',

@@ -155,3 +155,35 @@ export function copyMenuFormRecord(row: MenuRecord): MenuRecord {
     })),
   };
 }
+
+/** 业务树独立保留，表格仅接收带父ID的平铺副本，避免虚拟滚动改写业务子树。 */
+export function flattenMenuRows(rows: MenuRecord[]): MenuRecord[] {
+  return rows.flatMap((row) => {
+    const { children, parent: _parent, ...item } = row;
+    return [
+      { ...item, parentId: getMenuParentId(row) },
+      ...flattenMenuRows(children || []),
+    ];
+  });
+}
+
+/** 每个兄弟集合只排序一次，渲染阶段直接查询位置。 */
+export function indexMenuTree(rows: MenuRecord[]) {
+  const byId = new Map<string, MenuRecord>();
+  const positions = new Map<
+    string,
+    { index: number; siblings: MenuRecord[] }
+  >();
+  function visit(items: MenuRecord[]) {
+    const siblings = sortMenuRows(items).filter((row) => row.id);
+    siblings.forEach((row, index) => {
+      if (row.id) {
+        byId.set(row.id, row);
+        positions.set(row.id, { siblings, index });
+      }
+    });
+    for (const row of items) visit(row.children || []);
+  }
+  visit(rows);
+  return { byId, positions };
+}

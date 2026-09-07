@@ -3,49 +3,9 @@ import type { AdminPageOperation } from './module-contract';
 import {
   getCrudOpMeta,
   getResAuthorizeMeta,
-  getServiceMeta,
   hasResAuthorizeMeta,
 } from './api-authorize';
-
-function joinPermissionPath(...parts: string[]) {
-  const normalized = parts
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-    .map((part) => part.replace(/^\/+|\/+$/g, ''));
-
-  return normalized.length > 0 ? `/${normalized.join('/')}` : '';
-}
-
-function resolvePermissionType(authorizeType: string, serviceType: string) {
-  if (!authorizeType) return serviceType;
-
-  if (authorizeType.endsWith('-') && serviceType.startsWith(authorizeType)) {
-    return serviceType;
-  }
-
-  return authorizeType;
-}
-
-function buildMethodPermissions(service: object, methodName: string) {
-  const method = (service as Record<string, unknown>)[methodName];
-  const authorize = getResAuthorizeMeta(
-    typeof method === 'function' ? method : undefined,
-  );
-
-  if (authorize.ignored || authorize.onlyRequireAuthenticated) {
-    return [];
-  }
-
-  const serviceMeta = getServiceMeta(service);
-  const type = resolvePermissionType(authorize.type, serviceMeta.type || '');
-  const expression =
-    authorize.domain || type || authorize.res || authorize.action
-      ? `${authorize.domain}:${type}:${authorize.res}:${authorize.action}`
-      : '';
-  const path = joinPermissionPath(serviceMeta.basePath || '', methodName);
-
-  return [...new Set([expression, path].filter(Boolean))];
-}
+import { buildApiMethodPermissions } from './shared/crud-permissions';
 
 /**
  * Converts the page-facing controller operations already declared on a
@@ -58,9 +18,10 @@ export function buildAdminPageOperations(
 ): AdminPageOperation[] {
   if (!service) return [];
 
-  const prototype = Object.getPrototypeOf(service) as
-    | Record<string, unknown>
-    | null;
+  const prototype = Object.getPrototypeOf(service) as null | Record<
+    string,
+    unknown
+  >;
   if (!prototype) return [];
 
   return Object.getOwnPropertyNames(prototype).flatMap((methodName) => {
@@ -82,7 +43,7 @@ export function buildAdminPageOperations(
         description: crudOp.desc || authorize.remark || label,
         label,
         opName,
-        requireAuthorizations: buildMethodPermissions(service, methodName),
+        requireAuthorizations: buildApiMethodPermissions(service, methodName),
       },
     ];
   });

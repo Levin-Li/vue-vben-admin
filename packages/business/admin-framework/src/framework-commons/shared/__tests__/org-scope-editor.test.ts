@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent } from 'vue';
 
+import { message } from 'ant-design-vue';
 import { describe, expect, it, vi } from 'vitest';
 
 import OrgScopeEditor from '../org-scope-editor.vue';
@@ -38,8 +39,8 @@ vi.mock('ant-design-vue', () => ({
   },
   Select: defineComponent({
     name: 'Select',
-    emits: ['change'],
     props: ['options', 'value'],
+    emits: ['change'],
     template: `
       <select data-test="select" :value="value" @change="$emit('change', $event.target.value)">
         <option v-for="option in options" :key="String(option.value)" :value="option.value">
@@ -50,16 +51,17 @@ vi.mock('ant-design-vue', () => ({
   }),
   TreeSelect: defineComponent({
     name: 'TreeSelect',
-    emits: ['change'],
     props: ['treeData', 'value'],
+    emits: ['change'],
     template: '<div data-test="tree-select"></div>',
   }),
 }));
 
-describe('OrgScopeEditor', () => {
+describe('orgScopeEditor', () => {
   it('uses concise labels for the scope field and custom option', async () => {
     const wrapper = mount(OrgScopeEditor, {
       props: {
+        allowCustomScope: true,
         orgTree: [],
         value: [],
       },
@@ -83,6 +85,7 @@ describe('OrgScopeEditor', () => {
   it('shows SpringEL variables tip for custom org scope expressions', async () => {
     const wrapper = mount(OrgScopeEditor, {
       props: {
+        allowCustomScope: true,
         allowScriptExpressionTypes: true,
         orgTree: [],
         value: [],
@@ -102,9 +105,9 @@ describe('OrgScopeEditor', () => {
       'SpringEL 可用变量：_org 当前被匹配组织节点；_user 当前登录用户。',
     );
     expect(
-      wrapper.find('[data-test="org-expression-editor"]').attributes(
-        'placeholder',
-      ),
+      wrapper
+        .find('[data-test="org-expression-editor"]')
+        .attributes('placeholder'),
     ).toBe('请输入 SpringEL 表达式，可使用 _org、_user');
     expect(wrapper.text()).not.toContain('Groovy 可用变量：_org');
     expect(
@@ -115,6 +118,7 @@ describe('OrgScopeEditor', () => {
   it('hides script expression types when scripts are not allowed', async () => {
     const wrapper = mount(OrgScopeEditor, {
       props: {
+        allowCustomScope: true,
         expressionTypes: ['IdPath', 'NamePath', 'Groovy', 'SpringEL'],
         orgTree: [],
         value: [],
@@ -134,9 +138,9 @@ describe('OrgScopeEditor', () => {
 
     expect(optionTexts).toEqual(['IdPath', 'NamePath']);
     expect(
-      wrapper.find('[data-test="org-expression-editor"]').attributes(
-        'placeholder',
-      ),
+      wrapper
+        .find('[data-test="org-expression-editor"]')
+        .attributes('placeholder'),
     ).toBe('请输入 *?通配表达式');
     expect(wrapper.text()).not.toContain('Groovy');
     expect(wrapper.text()).not.toContain('SpringEL');
@@ -145,6 +149,7 @@ describe('OrgScopeEditor', () => {
   it('explains the matching fields and wildcards for IdPath and NamePath', async () => {
     const wrapper = mount(OrgScopeEditor, {
       props: {
+        allowCustomScope: true,
         orgTree: [],
         value: [],
       },
@@ -186,6 +191,7 @@ describe('OrgScopeEditor', () => {
   it('tests IdPath and NamePath expressions locally with PathPattern', async () => {
     const wrapper = mount(OrgScopeEditor, {
       props: {
+        allowCustomScope: true,
         orgTree: [],
         value: [],
       },
@@ -210,18 +216,18 @@ describe('OrgScopeEditor', () => {
       .setValue('/SALES/EAST');
     await wrapper.get('[data-test="org-path-pattern-test"]').trigger('click');
 
-    expect(wrapper.get('[data-test="org-path-pattern-test-result"]').text()).toBe(
-      '匹配结果：匹配',
-    );
+    expect(
+      wrapper.get('[data-test="org-path-pattern-test-result"]').text(),
+    ).toBe('匹配结果：匹配');
 
     await wrapper
       .get('[data-test="org-path-pattern-test-target"]')
       .setValue('/SALES');
     await wrapper.get('[data-test="org-path-pattern-test"]').trigger('click');
 
-    expect(wrapper.get('[data-test="org-path-pattern-test-result"]').text()).toBe(
-      '匹配结果：不匹配',
-    );
+    expect(
+      wrapper.get('[data-test="org-path-pattern-test-result"]').text(),
+    ).toBe('匹配结果：不匹配');
 
     const expressionTypeSelect = wrapper.findAll('[data-test="select"]')[1];
     if (!expressionTypeSelect) {
@@ -239,6 +245,7 @@ describe('OrgScopeEditor', () => {
   it('shows script expression types when scripts are allowed', async () => {
     const wrapper = mount(OrgScopeEditor, {
       props: {
+        allowCustomScope: true,
         allowScriptExpressionTypes: true,
         expressionTypes: ['IdPath', 'NamePath', 'Groovy', 'SpringEL'],
         orgTree: [],
@@ -263,6 +270,7 @@ describe('OrgScopeEditor', () => {
   it('hides tenant Groovy mode when scripts are not allowed', async () => {
     const wrapper = mount(OrgScopeEditor, {
       props: {
+        allowCustomScope: true,
         orgTree: [],
         showTenantMatchingExpression: true,
         value: [],
@@ -294,9 +302,10 @@ describe('OrgScopeEditor', () => {
     );
   });
 
-  it('does not expose an existing tenant Groovy script when scripts are not allowed', async () => {
+  it('保留已有 Groovy 租户规则且阻止普通用户保存', async () => {
     const wrapper = mount(OrgScopeEditor, {
       props: {
+        allowCustomScope: true,
         orgTree: [],
         showTenantMatchingExpression: true,
         value: [
@@ -304,7 +313,10 @@ describe('OrgScopeEditor', () => {
             isAllow: true,
             orgId: 'org-hq',
             orgName: '集团总部',
-            orgScopeExpression: '/**',
+            orgScopeMatchingMode: 'All',
+            mode: 'template',
+            templateKey: 'All',
+            orgScopeExpression: '',
             orgScopeExpressionType: 'IdPath',
             tenantMatchingExpression: '#!groovy:_tenant.id == 1',
           },
@@ -327,15 +339,19 @@ describe('OrgScopeEditor', () => {
       '指定租户',
       '路径表达式',
     ]);
-    expect(wrapper.findAll('[data-test="select"]')[0]!.element.value).toBe(
-      'default',
+    expect(wrapper.find('input').element.value).toBe('_tenant.id == 1');
+    wrapper.findComponent({ name: 'Modal' }).vm.$emit('ok');
+    await flushPromises();
+    expect(wrapper.emitted('update:value')).toBeUndefined();
+    expect(message.warning).toHaveBeenCalledWith(
+      '只有超级管理员可以保存 Groovy 租户匹配脚本',
     );
-    expect(wrapper.text()).not.toContain('Groovy');
   });
 
   it('shows tenant Groovy mode when scripts are allowed', async () => {
     const wrapper = mount(OrgScopeEditor, {
       props: {
+        allowCustomScope: true,
         allowScriptExpressionTypes: true,
         orgTree: [],
         showTenantMatchingExpression: true,
@@ -359,5 +375,135 @@ describe('OrgScopeEditor', () => {
       '路径表达式',
       'Groovy 脚本',
     ]);
+  });
+});
+
+describe('组织范围模式往返', () => {
+  function rule(overrides = {}) {
+    return {
+      isAllow: true,
+      orgId: '/*',
+      mode: 'template' as const,
+      templateKey: 'All',
+      orgScopeMatchingMode: 'All',
+      orgScopeExpression: '',
+      orgScopeExpressionType: '',
+      tenantMatchingExpression: '',
+      ...overrides,
+    };
+  }
+
+  it.each(['All', 'OnlySelf', 'OnlyDirectChild', 'SelfAndDirectChild'])(
+    '预设 %s 保留空表达式及无租户',
+    async (mode) => {
+      const wrapper = mount(OrgScopeEditor, {
+        props: {
+          orgTree: [],
+          showTenantMatchingExpression: true,
+          value: [rule({ orgScopeMatchingMode: mode })],
+        },
+      });
+      expect(wrapper.text()).toContain('预设匹配');
+      expect(wrapper.text()).not.toContain('未填写');
+      expect(wrapper.text()).toContain('无租户');
+      await wrapper.get('[data-test="org-edit-/*"]').trigger('click');
+      wrapper.findComponent({ name: 'Modal' }).vm.$emit('ok');
+      await flushPromises();
+      expect(wrapper.emitted('update:value')?.[0]?.[0]).toEqual([
+        expect.objectContaining({
+          orgScopeMatchingMode: mode,
+          orgScopeExpression: '',
+          orgScopeExpressionType: '',
+          tenantMatchingExpression: '',
+        }),
+      ]);
+    },
+  );
+
+  it('显式 null 租户规则按无租户展示并保存为空字符串', async () => {
+    const wrapper = mount(OrgScopeEditor, {
+      props: {
+        orgTree: [],
+        showTenantMatchingExpression: true,
+        value: [rule({ tenantMatchingExpression: null })],
+      },
+    });
+    expect(wrapper.text()).toContain('无租户');
+    await wrapper.get('[data-test="org-edit-/*"]').trigger('click');
+    wrapper.findComponent({ name: 'Modal' }).vm.$emit('ok');
+    await flushPromises();
+    expect(wrapper.emitted('update:value')?.[0]?.[0]).toEqual([
+      expect.objectContaining({
+        orgScopeMatchingMode: 'All',
+        tenantMatchingExpression: '',
+      }),
+    ]);
+  });
+
+  it.each(['', 'FutureMode'])(
+    '未知模式 %s 不从表达式推断且阻止保存',
+    async (mode) => {
+      const wrapper = mount(OrgScopeEditor, {
+        props: {
+          orgTree: [],
+          value: [
+            rule({ orgScopeMatchingMode: mode, orgScopeExpression: '/**' }),
+          ],
+        },
+      });
+      expect(wrapper.text()).toContain('未选择有效匹配模式');
+      await wrapper.get('[data-test="org-edit-/*"]').trigger('click');
+      wrapper.findComponent({ name: 'Modal' }).vm.$emit('ok');
+      await flushPromises();
+      expect(wrapper.emitted('update:value')).toBeUndefined();
+    },
+  );
+
+  it('普通用户没有自定义选项且不能保存已有自定义规则', async () => {
+    const wrapper = mount(OrgScopeEditor, {
+      props: {
+        orgTree: [],
+        value: [
+          rule({
+            orgScopeMatchingMode: 'Custom',
+            orgScopeExpressionType: 'IdPath',
+            orgScopeExpression: '/sales',
+          }),
+        ],
+      },
+    });
+    await wrapper.get('[data-test="org-edit-/*"]').trigger('click');
+    expect(
+      wrapper
+        .findAll('[data-test="select"]')[0]!
+        .findAll('option')
+        .map((item) => item.element.value),
+    ).not.toContain('Custom');
+    expect(
+      wrapper.get('[data-test="org-expression-editor"]').element.value,
+    ).toBe('/sales');
+    wrapper.findComponent({ name: 'Modal' }).vm.$emit('ok');
+    await flushPromises();
+    expect(wrapper.emitted('update:value')).toBeUndefined();
+  });
+
+  it('超管也不能保存空白自定义表达式', async () => {
+    const wrapper = mount(OrgScopeEditor, {
+      props: {
+        allowCustomScope: true,
+        orgTree: [],
+        value: [
+          rule({
+            orgScopeMatchingMode: 'Custom',
+            orgScopeExpressionType: 'IdPath',
+            orgScopeExpression: '  ',
+          }),
+        ],
+      },
+    });
+    await wrapper.get('[data-test="org-edit-/*"]').trigger('click');
+    wrapper.findComponent({ name: 'Modal' }).vm.$emit('ok');
+    await flushPromises();
+    expect(wrapper.emitted('update:value')).toBeUndefined();
   });
 });

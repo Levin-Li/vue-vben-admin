@@ -1496,7 +1496,6 @@ function getPermissionCountText(permissions: string[]) {
               ? 'border-primary bg-primary/5 text-primary shadow-sm'
               : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted'
           "
-          :title="rootNode.title || undefined"
           :data-test="`permission-root-tab-${rootNode.id}`"
           class="cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition"
           type="button"
@@ -1621,10 +1620,7 @@ function getPermissionCountText(permissions: string[]) {
                 )
               "
             >
-              <span
-                class="inline-block max-w-[12rem] truncate align-bottom"
-                :title="inlineNode.title || undefined"
-              >
+              <span class="inline-block max-w-[12rem] truncate align-bottom">
                 <IconifyIcon
                   class="text-muted-foreground mr-1 inline size-3.5 align-[-2px]"
                   :icon="viewNodeIcon(inlineNode)"
@@ -1719,7 +1715,6 @@ function getPermissionCountText(permissions: string[]) {
               >
                 <span
                   class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
-                  :title="node.title || undefined"
                 >
                   <IconifyIcon
                     class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
@@ -1754,7 +1749,6 @@ function getPermissionCountText(permissions: string[]) {
               >
                 <span
                   class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
-                  :title="node.title || undefined"
                 >
                   <IconifyIcon
                     class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
@@ -1767,7 +1761,6 @@ function getPermissionCountText(permissions: string[]) {
               <span
                 v-else
                 class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
-                :title="node.title || undefined"
               >
                 <IconifyIcon
                   class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
@@ -1808,7 +1801,6 @@ function getPermissionCountText(permissions: string[]) {
                   >
                     <span
                       class="inline-block max-w-[12rem] truncate align-bottom"
-                      :title="inlineNode.title || undefined"
                     >
                       <IconifyIcon
                         class="text-muted-foreground mr-1 inline size-3.5 align-[-2px]"
@@ -1959,7 +1951,6 @@ function getPermissionCountText(permissions: string[]) {
                   >
                     <span
                       class="inline-block max-w-[12rem] truncate align-bottom"
-                      :title="operationNode.title"
                     >
                       <IconifyIcon
                         class="text-muted-foreground mr-1 inline size-3.5 align-[-2px]"
@@ -2066,10 +2057,7 @@ function getPermissionCountText(permissions: string[]) {
                     )
                   "
                 >
-                  <span
-                    class="truncate"
-                    :title="getActionDisplayName(actionItem) || undefined"
-                  >
+                  <span class="truncate">
                     <IconifyIcon
                       class="text-muted-foreground mr-1 inline size-3.5"
                       icon="lucide:cable"

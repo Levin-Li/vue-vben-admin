@@ -7234,26 +7234,32 @@ watch(canCustomizeTableColumnsLocally, () => {
       :confirm-loading="submitting"
       :mask-closable="false"
       :open="modalOpen"
-      :title="
-        editingRecord
-          ? `编辑${getBusinessTitle(config.title)}`
-          : `新增${getBusinessTitle(config.title)}`
-      "
       :style="modalStyle"
       :width="modalWidth"
       destroy-on-close
       @cancel="modalOpen = false"
       @ok="handleSubmit"
     >
-      <div class="vben-crud-quick-fill-control">
-        <Checkbox
-          :checked="quickFillActive"
-          :disabled="!quickFillPlan.eligible || submitting"
-          @update:checked="quickFillRequested = $event"
-        >
-          快捷填写
-        </Checkbox>
-      </div>
+      <template #title>
+        <div class="vben-crud-modal-title">
+          <span class="min-w-0 break-words">
+            {{
+              editingRecord
+                ? `编辑${getBusinessTitle(config.title)}`
+                : `新增${getBusinessTitle(config.title)}`
+            }}
+          </span>
+          <Checkbox
+            v-if="quickFillPlan.eligible"
+            class="shrink-0 whitespace-nowrap font-normal"
+            :checked="quickFillActive"
+            :disabled="submitting"
+            @update:checked="quickFillRequested = $event"
+          >
+            快捷填写
+          </Checkbox>
+        </div>
+      </template>
       <Form
         layout="vertical"
         class="w-full max-w-full"
@@ -8049,10 +8055,12 @@ watch(canCustomizeTableColumnsLocally, () => {
   justify-content: flex-end;
 }
 
-.vben-crud-quick-fill-control {
+.vben-crud-modal-title {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 16px;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 32px;
 }
 
 .vben-crud-quick-fill-divider {

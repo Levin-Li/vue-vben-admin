@@ -644,7 +644,7 @@ describe('资源权限树编辑器', () => {
     expect(wrapper.text()).toContain('地址管理');
     expect(wrapper.text()).not.toContain('地址 0/1');
     expect(wrapper.find('[title="/clob/V1/Address"]').exists()).toBe(false);
-    expect(wrapper.get('[title="地址管理"]').exists()).toBe(true);
+    expect(wrapper.find('[title="地址管理"]').exists()).toBe(false);
   });
 
   it('falls back to permission tree name when label is empty', () => {
@@ -674,7 +674,7 @@ describe('资源权限树编辑器', () => {
 
     expect(wrapper.text()).toContain('地址');
     expect(wrapper.find('[title="/clob/V1/Address"]').exists()).toBe(false);
-    expect(wrapper.get('[title="地址"]').exists()).toBe(true);
+    expect(wrapper.find('[title="地址"]').exists()).toBe(false);
   });
 
   it('keeps the backend menu permission tree when it already uses the new node structure', () => {
@@ -723,7 +723,7 @@ describe('资源权限树编辑器', () => {
     expect(wrapper.text()).toContain('地址管理');
     expect(wrapper.text()).not.toContain('旧菜单角色');
     expect(wrapper.find('[title="/clob/V1/Address"]').exists()).toBe(false);
-    expect(wrapper.get('[title="地址管理"]').exists()).toBe(true);
+    expect(wrapper.find('[title="地址管理"]').exists()).toBe(false);
   });
 
   it('uses first-level pure permission tree nodes as tabs', async () => {
@@ -1206,7 +1206,8 @@ describe('资源权限树编辑器', () => {
     });
 
     expect(wrapper.find('[title="这里只负责组织节点"]').exists()).toBe(false);
-    expect(wrapper.get('[title="仅组织"]').exists()).toBe(true);
+    expect(wrapper.find('[title="仅组织"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('仅组织');
 
     await wrapper
       .get('[data-test="permission-node-child-org-only"]')

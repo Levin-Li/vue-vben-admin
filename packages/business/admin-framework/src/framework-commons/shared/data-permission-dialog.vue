@@ -14,11 +14,12 @@ import { Alert, message, Modal, Spin } from 'ant-design-vue';
 
 import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
+import { tenantOptionsLoader } from './config-helpers';
 import {
   buildOrgScopeDraftsFromValue,
-  DEFAULT_TENANT_MATCHING_EXPRESSION,
+  isOrgScopeValid,
+  serializeOrgScopes,
 } from './data-permission-transform';
-import { tenantOptionsLoader } from './config-helpers';
 import OrgScopeEditor from './org-scope-editor.vue';
 import { isSuperAdminUser } from './user-identity';
 
@@ -72,10 +73,7 @@ const summaryText = computed(() => {
 });
 
 const invalidOrgScopeCount = computed(
-  () =>
-    orgScopeDrafts.value.filter(
-      (item) => !item.orgScopeExpressionType || !item.orgScopeExpression,
-    ).length,
+  () => orgScopeDrafts.value.filter((item) => !isOrgScopeValid(item)).length,
 );
 
 const saveDisabled = computed(
@@ -142,7 +140,15 @@ async function handleSave() {
   }
 
   if (invalidOrgScopeCount.value > 0) {
-    message.warning('请先完善组织范围中的表达式类型和表达式内容');
+    message.warning('请先完善组织范围的匹配模式及自定义表达式');
+    return;
+  }
+
+  if (
+    !isSuperAdmin.value &&
+    orgScopeDrafts.value.some((item) => item.orgScopeMatchingMode === 'Custom')
+  ) {
+    message.warning('自定义组织范围只能由超级管理员保存');
     return;
   }
 
@@ -161,22 +167,9 @@ async function handleSave() {
       forceUpdateFields: ['orgScopeList'],
       id: detail.value.id,
       optimisticLock: detail.value.optimisticLock,
-      orgScopeList: orgScopeDrafts.value.map(
-        ({
-          isAllow,
-          orgId,
-          orgScopeExpression,
-          orgScopeExpressionType,
-          tenantMatchingExpression,
-        }) => ({
-          isAllow,
-          orgId,
-          orgScopeExpression,
-          orgScopeExpressionType,
-          tenantMatchingExpression: isSuperAdmin.value
-            ? tenantMatchingExpression || DEFAULT_TENANT_MATCHING_EXPRESSION
-            : DEFAULT_TENANT_MATCHING_EXPRESSION,
-        }),
+      orgScopeList: serializeOrgScopes(
+        orgScopeDrafts.value,
+        isSuperAdmin.value,
       ),
     };
 
@@ -235,6 +228,7 @@ watch(
 
       <Spin :spinning="loading">
         <OrgScopeEditor
+          :allow-custom-scope="isSuperAdmin"
           v-model:value="orgScopeDrafts"
           :allow-script-expression-types="isSuperAdmin"
           :expression-types="expressionTypes"

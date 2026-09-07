@@ -35,7 +35,7 @@ function transformUrlAclSubmit(values: Record<string, any>) {
 
 export const pageMeta = {
   name: 'UrlExAcl',
-  title: 'URL访问控制管理',
+  title: '访问控制',
   description: '维护 URL 访问控制规则。',
 } as const;
 
@@ -310,6 +310,6 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  title: 'URL访问控制管理',
+  title: '访问控制',
   transformSubmit: transformUrlAclSubmit,
 };

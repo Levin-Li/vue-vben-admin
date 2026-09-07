@@ -1,15 +1,18 @@
 export interface OrgScopeItem {
   isAllow: boolean;
   orgId: string;
-  orgScopeExpression: string;
-  orgScopeExpressionType?: string;
-  tenantMatchingExpression?: string;
+  orgScopeExpression?: null | string;
+  orgScopeExpressionType?: null | string;
+  orgScopeMatchingMode?: null | string;
+  tenantMatchingExpression?: null | string;
 }
 
 export interface OrgScopeDraft extends OrgScopeItem {
   mode: 'advanced' | 'template';
   orgName?: string;
+  orgScopeExpression: string;
   orgScopeExpressionType: string;
+  orgScopeMatchingMode: string;
   templateKey: string;
   tenantMatchingExpression: string;
 }

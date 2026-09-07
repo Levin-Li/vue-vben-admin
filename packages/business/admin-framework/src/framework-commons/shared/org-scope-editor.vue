@@ -18,17 +18,18 @@ import {
   DEFAULT_ORG_SCOPE_EXPRESSION_TYPE,
   DEFAULT_TENANT_MATCHING_EXPRESSION,
   flattenOrgTree,
-  getScopeKeyByExpression,
   getTenantMatchingExpressionLabel,
   normalizeOrgScopeExpressionType,
   normalizeOrgScopeId,
-  normalizeScopeKey,
+  normalizeOrgScopeMatchingMode,
+  normalizeTenantMatchingExpression,
   TENANT_GROOVY_EXPRESSION_PREFIX,
   USER_DEFAULT_ORG_ID,
 } from './data-permission-transform';
 import { matchPathPattern } from './path-pattern-match-utils';
 
 const props = defineProps<{
+  allowCustomScope?: boolean;
   allowScriptExpressionTypes?: boolean;
   expressionTypes?: string[];
   loadTenantOptions?: (
@@ -65,16 +66,21 @@ const USER_DEFAULT_ORG_VALUE = 'scope:user-default';
 const API_ORG_PREFIX = 'scope:api:';
 
 const scopeOptions = [
-  { expression: '/', label: '仅本节点', value: 'OnlySelf' },
-  { expression: '/*/', label: '仅直接子节点', value: 'OnlyDirectChild' },
+  { label: '仅本节点', value: 'OnlySelf' },
+  { label: '仅直接子节点', value: 'OnlyDirectChild' },
   {
-    expression: '/*',
     label: '本节点及直接子节点',
     value: 'SelfAndDirectChild',
   },
-  { expression: '/**', label: '本节点及所有子节点', value: 'All' },
-  { expression: '', label: '自定义', value: 'Custom' },
+  { label: '全部范围（本节点及所有子节点）', value: 'All' },
+  { label: '自定义', value: 'Custom' },
 ];
+
+const availableScopeOptions = computed(() =>
+  scopeOptions.filter(
+    (option) => option.value !== 'Custom' || props.allowCustomScope,
+  ),
+);
 
 const allowOptions = [
   { label: '允许', value: true },
@@ -107,7 +113,7 @@ const tenantOptions = ref<Array<{ label: string; value: string }>>([]);
 const tenantOptionsLoading = ref(false);
 const tenantMatchingMode = ref<TenantMatchingMode>('default');
 const tenantMatchingValue = ref('');
-const pathPatternTestResult = ref<null | boolean>(null);
+const pathPatternTestResult = ref<boolean | null>(null);
 const pathPatternTestTarget = ref('');
 
 const formState = reactive<
@@ -120,7 +126,8 @@ const formState = reactive<
   orgId: '',
   orgName: '',
   orgScopeExpression: '',
-  orgScopeExpressionType: DEFAULT_ORG_SCOPE_EXPRESSION_TYPE,
+  orgScopeMatchingMode: 'All',
+  orgScopeExpressionType: '',
   orgSelectValue: '',
   templateKey: 'All',
   tenantMatchingExpression: DEFAULT_TENANT_MATCHING_EXPRESSION,
@@ -291,17 +298,11 @@ function encodeOrgValue(orgId: string) {
   return `${API_ORG_PREFIX}${encodeURIComponent(orgId)}`;
 }
 
-function buildScopeExpression(templateKey: string) {
-  return (
-    scopeOptions.find((item) => item.value === templateKey)?.expression || ''
-  );
-}
-
-function parseTenantMatchingExpression(value?: string): {
+function parseTenantMatchingExpression(value?: null | string): {
   mode: TenantMatchingMode;
   value: string;
 } {
-  const nextValue = String(value ?? DEFAULT_TENANT_MATCHING_EXPRESSION).trim();
+  const nextValue = normalizeTenantMatchingExpression(value).trim();
 
   if (!nextValue) {
     return { mode: 'none', value: '' };
@@ -366,19 +367,14 @@ function syncTenantMatchingExpression() {
   );
 }
 
-function applyTenantMatchingExpression(value?: string) {
+function applyTenantMatchingExpression(value?: null | string) {
   const parsed = parseTenantMatchingExpression(value);
-  const safeParsed =
-    !props.allowScriptExpressionTypes && parsed.mode === 'groovy'
-      ? { mode: 'default', value: '' }
-      : parsed;
-
-  tenantMatchingMode.value = safeParsed.mode;
-  tenantMatchingValue.value = safeParsed.value;
-  syncTenantMatchingExpression();
+  tenantMatchingMode.value = parsed.mode;
+  tenantMatchingValue.value = parsed.value;
+  formState.tenantMatchingExpression = normalizeTenantMatchingExpression(value);
 }
 
-async function loadTenantOptions(keyword?: string) {
+async function fetchTenantOptions(keyword?: string) {
   if (tenantOptionsLoading.value) {
     return;
   }
@@ -415,7 +411,7 @@ function handleTenantMatchingModeChange(value: unknown) {
   }
 
   if (tenantMatchingMode.value === 'tenant') {
-    void loadTenantOptions();
+    void fetchTenantOptions();
   }
 
   syncTenantMatchingExpression();
@@ -431,21 +427,14 @@ function isCustomScope() {
 }
 
 function getDraftScopeLabel(draft: OrgScopeDraft) {
-  const scopeKey = getScopeKeyByExpression(draft.orgScopeExpression);
+  const scopeKey = normalizeOrgScopeMatchingMode(draft.orgScopeMatchingMode);
   return (
     scopeOptions.find((item) => item.value === scopeKey)?.label ||
-    '自定义表达式'
+    '未选择有效匹配模式'
   );
 }
 
-function getTenantMatchingExpressionDisplayLabel(value?: string) {
-  if (
-    !props.allowScriptExpressionTypes &&
-    String(value || '').startsWith(TENANT_GROOVY_EXPRESSION_PREFIX)
-  ) {
-    return getTenantMatchingExpressionLabel(DEFAULT_TENANT_MATCHING_EXPRESSION);
-  }
-
+function getTenantMatchingExpressionDisplayLabel(value?: null | string) {
   return getTenantMatchingExpressionLabel(value);
 }
 
@@ -456,7 +445,8 @@ function resetForm() {
     orgId: '',
     orgName: '',
     orgScopeExpression: '',
-    orgScopeExpressionType: DEFAULT_ORG_SCOPE_EXPRESSION_TYPE,
+    orgScopeMatchingMode: 'All',
+    orgScopeExpressionType: '',
     orgSelectValue: '',
     templateKey: 'All',
     tenantMatchingExpression: DEFAULT_TENANT_MATCHING_EXPRESSION,
@@ -474,10 +464,6 @@ function applyOrgSelection(value: string) {
   formState.orgSelectValue = value;
   formState.orgId = normalizeOrgScopeId(option.orgId);
   formState.orgName = option.orgName || getOrgName(option.orgId);
-
-  if (formState.templateKey !== 'Custom') {
-    formState.orgScopeExpression = buildScopeExpression(formState.templateKey);
-  }
 }
 
 function openCreateForm() {
@@ -495,22 +481,21 @@ function openEditForm(index: number) {
   }
 
   editingIndex.value = index;
-  const templateKey =
-    normalizeScopeKey(draft.templateKey) ||
-    getScopeKeyByExpression(draft.orgScopeExpression);
+  const templateKey = normalizeOrgScopeMatchingMode(draft.orgScopeMatchingMode);
 
   Object.assign(formState, {
     ...draft,
     orgId: normalizeOrgScopeId(draft.orgId),
-    orgScopeExpressionType: normalizeOrgScopeExpressionType(
-      draft.orgScopeExpressionType,
-    ),
+    orgScopeExpression: draft.orgScopeExpression ?? '',
+    orgScopeExpressionType: draft.orgScopeExpressionType ?? '',
+    orgScopeMatchingMode: templateKey,
     mode: templateKey === 'Custom' ? 'advanced' : 'template',
     orgName: draft.orgName || getOrgName(draft.orgId),
     orgSelectValue: encodeOrgValue(draft.orgId),
     templateKey,
-    tenantMatchingExpression:
-      draft.tenantMatchingExpression || DEFAULT_TENANT_MATCHING_EXPRESSION,
+    tenantMatchingExpression: normalizeTenantMatchingExpression(
+      draft.tenantMatchingExpression,
+    ),
   });
   applyTenantMatchingExpression(formState.tenantMatchingExpression);
   resetPathPatternTest();
@@ -555,13 +540,18 @@ function handleExpressionTypeChange(value: unknown) {
 
 function handleScopeChange(value: unknown) {
   const templateKey = String(value || '');
+  if (templateKey === 'Custom' && !props.allowCustomScope) {
+    message.warning('只有超级管理员可以配置自定义组织范围');
+    return;
+  }
+  formState.orgScopeMatchingMode = templateKey;
   formState.templateKey = templateKey;
   formState.mode = templateKey === 'Custom' ? 'advanced' : 'template';
   resetPathPatternTest();
 
   if (templateKey !== 'Custom') {
-    formState.orgScopeExpressionType = DEFAULT_ORG_SCOPE_EXPRESSION_TYPE;
-    formState.orgScopeExpression = buildScopeExpression(templateKey);
+    formState.orgScopeExpressionType = '';
+    formState.orgScopeExpression = '';
     return;
   }
 
@@ -572,6 +562,7 @@ function handleScopeChange(value: unknown) {
 function handleExpressionChange(expression: string) {
   formState.mode = 'advanced';
   formState.templateKey = 'Custom';
+  formState.orgScopeMatchingMode = 'Custom';
   formState.orgScopeExpression = expression;
   pathPatternTestResult.value = null;
 }
@@ -591,6 +582,28 @@ function handleSubmitForm() {
     return;
   }
 
+  if (
+    !scopeOptions.some(
+      (option) => option.value === formState.orgScopeMatchingMode,
+    )
+  ) {
+    message.warning('请选择有效的组织范围匹配模式');
+    return;
+  }
+
+  if (isCustomScope() && !props.allowCustomScope) {
+    message.warning('只有超级管理员可以保存自定义组织范围');
+    return;
+  }
+
+  if (
+    tenantMatchingMode.value === 'groovy' &&
+    !props.allowScriptExpressionTypes
+  ) {
+    message.warning('只有超级管理员可以保存 Groovy 租户匹配脚本');
+    return;
+  }
+
   if (isCustomScope() && !formState.orgScopeExpressionType) {
     message.warning('请选择表达式类型');
     return;
@@ -605,17 +618,12 @@ function handleSubmitForm() {
     return;
   }
 
-  if (isCustomScope() && !formState.orgScopeExpression) {
+  if (isCustomScope() && !formState.orgScopeExpression.trim()) {
     message.warning('请输入组织范围表达式');
     return;
   }
 
-  const orgScopeExpressionType = isCustomScope()
-    ? formState.orgScopeExpressionType
-    : DEFAULT_ORG_SCOPE_EXPRESSION_TYPE;
-  const orgScopeExpression = isCustomScope()
-    ? formState.orgScopeExpression
-    : buildScopeExpression(formState.templateKey);
+  const { orgScopeExpression, orgScopeExpressionType } = formState;
 
   const draft: OrgScopeDraft = {
     isAllow: formState.isAllow,
@@ -624,10 +632,11 @@ function handleSubmitForm() {
     orgName: formState.orgName,
     orgScopeExpression,
     orgScopeExpressionType,
+    orgScopeMatchingMode: formState.orgScopeMatchingMode,
     templateKey: formState.templateKey,
-    tenantMatchingExpression: props.showTenantMatchingExpression
-      ? formState.tenantMatchingExpression || DEFAULT_TENANT_MATCHING_EXPRESSION
-      : DEFAULT_TENANT_MATCHING_EXPRESSION,
+    tenantMatchingExpression: normalizeTenantMatchingExpression(
+      formState.tenantMatchingExpression,
+    ),
   };
 
   const next =
@@ -717,12 +726,19 @@ watch(formOpen, (open) => {
               {{ draft.isAllow ? '允许' : '拒绝' }}
             </td>
             <td class="px-3 py-2">
-              {{ draft.orgScopeExpressionType || '-' }}
+              {{
+                draft.orgScopeMatchingMode === 'Custom'
+                  ? draft.orgScopeExpressionType || '未填写'
+                  : '预设匹配'
+              }}
             </td>
             <td class="px-3 py-2">
               <span class="line-clamp-2 break-all">
                 {{ getDraftScopeLabel(draft) }}
-                <span class="text-muted-foreground">
+                <span
+                  v-if="draft.orgScopeMatchingMode === 'Custom'"
+                  class="text-muted-foreground"
+                >
                   / {{ getExpressionPreview(draft) }}
                 </span>
               </span>
@@ -786,8 +802,8 @@ watch(formOpen, (open) => {
               class="w-full"
               show-search
               @change="handleTenantMatchingValueChange"
-              @focus="() => loadTenantOptions()"
-              @search="loadTenantOptions"
+              @focus="() => fetchTenantOptions()"
+              @search="fetchTenantOptions"
             />
             <input
               v-else-if="showTenantMatchingValueControl"
@@ -848,13 +864,36 @@ watch(formOpen, (open) => {
             组织范围
           </span>
           <Select
-            :options="scopeOptions"
-            :value="formState.templateKey"
+            :options="availableScopeOptions"
+            :value="
+              scopeOptions.some(
+                (option) => option.value === formState.templateKey,
+              )
+                ? formState.templateKey
+                : undefined
+            "
+            placeholder="请选择组织范围匹配模式"
             class="w-full"
             @change="handleScopeChange"
           />
         </label>
 
+        <p
+          v-if="
+            !scopeOptions.some(
+              (option) => option.value === formState.templateKey,
+            )
+          "
+          class="text-destructive text-sm"
+        >
+          请选择有效的组织范围匹配模式，当前规则无法保存。
+        </p>
+        <p
+          v-if="isCustomScope() && !allowCustomScope"
+          class="text-muted-foreground text-sm"
+        >
+          此规则使用自定义范围，仅超级管理员可以保存；原有内容已保留。
+        </p>
         <template v-if="isCustomScope()">
           <label class="block space-y-1 text-sm">
             <span class="text-muted-foreground">组织范围表达式类型</span>

@@ -45,9 +45,9 @@ import {
   collectMenuSubtreeIds,
   collectMenuSubtreeIdsFromRows,
   copyMenuFormRecord,
-  getMenuParentId,
+  flattenMenuRows,
+  indexMenuTree,
   normalizeMenuTree,
-  sortMenuRows,
   toMenuFormRecord,
 } from './menu-tree-utils';
 import OpButtonEditor from './op-button-editor.vue';
@@ -57,6 +57,7 @@ type MenuMoveDirection = 'down' | 'up';
 const pageTypeOptions = ref<SelectOption[]>(fallbackPageTypeOptions);
 const actionTypeOptions = ref<SelectOption[]>(fallbackActionTypeOptions);
 const menuTree = ref<MenuRecord[]>([]);
+const menuIndex = computed(() => indexMenuTree(menuTree.value));
 const currentRecord = ref<MenuRecord | null>(null);
 const formOpen = ref(false);
 const opButtonOpen = ref(false);
@@ -131,7 +132,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
         query: async () => {
           const tree = await loadMenuTree();
           menuTree.value = tree;
-          return tree;
+          return flattenMenuRows(tree);
         },
       },
     },
@@ -139,7 +140,8 @@ const [Grid, gridApi] = useVbenVxeGrid({
       keyField: 'id',
     },
     scrollY: {
-      enabled: false,
+      enabled: true,
+      gt: 20,
     },
     toolbarConfig: {
       custom: true,
@@ -150,7 +152,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
     treeConfig: {
       parentField: 'parentId',
       rowField: 'id',
-      transform: false,
+      transform: true,
     },
   } as VxeTableGridOptions<MenuRecord>,
 });
@@ -227,50 +229,17 @@ function refresh() {
   gridApi.query();
 }
 
-function findMenuById(rows: MenuRecord[], id?: string): MenuRecord | undefined {
-  if (!id) {
-    return undefined;
-  }
-
-  for (const row of rows) {
-    if (row.id === id) {
-      return row;
-    }
-
-    const child = findMenuById(row.children || [], id);
-    if (child) {
-      return child;
-    }
-  }
-
-  return undefined;
-}
-
-function getMenuSiblings(row: MenuRecord) {
-  const parentId = getMenuParentId(row);
-
-  if (!parentId) {
-    return menuTree.value;
-  }
-
-  return findMenuById(menuTree.value, parentId)?.children || [];
-}
-
-function getOrderedMenuSiblings(row: MenuRecord) {
-  return sortMenuRows(getMenuSiblings(row)).filter((item) => item.id);
-}
-
 function getMoveTargetIndex(row: MenuRecord, direction: MenuMoveDirection) {
-  const siblings = getOrderedMenuSiblings(row);
-  const currentIndex = siblings.findIndex((item) => item.id === row.id);
-
-  if (currentIndex === -1) {
-    return { currentIndex, siblings, targetIndex: -1 };
-  }
-
-  const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
+  const position = menuIndex.value.positions.get(row.id || '');
+  const siblings = position?.siblings || [];
+  const currentIndex = position?.index ?? -1;
+  const targetIndex =
+    currentIndex < 0 ? -1 : currentIndex + (direction === 'up' ? -1 : 1);
   return { currentIndex, siblings, targetIndex };
+}
+
+function getCanonicalMenu(row: MenuRecord) {
+  return menuIndex.value.byId.get(row.id || '') || row;
 }
 
 function canMoveMenu(row: MenuRecord, direction: MenuMoveDirection) {
@@ -718,7 +687,7 @@ function deleteRow(row: MenuRecord) {
     return;
   }
 
-  const idList = collectMenuSubtreeIds(row);
+  const idList = collectMenuSubtreeIds(getCanonicalMenu(row));
   const childCount = Math.max(idList.length - 1, 0);
 
   if (idList.length === 0) {
@@ -764,7 +733,9 @@ function deleteSelectedRows() {
   }
 
   const selectedRows = getSelectedMenuRows();
-  const idList = collectMenuSubtreeIdsFromRows(selectedRows);
+  const idList = collectMenuSubtreeIdsFromRows(
+    selectedRows.map((row) => getCanonicalMenu(row)),
+  );
 
   if (selectedRows.length === 0 || idList.length === 0) {
     message.warning('请先选择要删除的菜单');
@@ -878,15 +849,11 @@ function renderIcon(row: MenuRecord) {
             <div class="menu-title-cell">
               <div class="menu-title-content">
                 <component :is="renderIcon(row)" />
-                <span class="truncate font-medium">
-                  {{ row.name || row.label || row.path || row.id || '-' }}
-                </span>
-                <span
-                  v-if="row.label && row.label !== row.name"
-                  class="text-muted-foreground"
-                >
-                  {{ row.label }}
-                </span>
+                <Tooltip :title="row.name || undefined">
+                  <span class="truncate font-medium">
+                    {{ row.label || row.name || row.path || row.id || '-' }}
+                  </span>
+                </Tooltip>
               </div>
               <div v-if="canUpdateMenu" class="menu-title-order-actions">
                 <Tooltip title="上移">
@@ -1066,16 +1033,6 @@ function renderIcon(row: MenuRecord) {
   height: 100% !important;
   min-height: 0;
   padding: 0;
-}
-
-.vben-menu-section :deep(.vxe-body--y-space) {
-  display: none !important;
-  height: 0 !important;
-}
-
-.vben-menu-section :deep(.vxe-table--body) {
-  margin-top: 0 !important;
-  transform: translate(0, 0) !important;
 }
 
 .menu-title-cell {

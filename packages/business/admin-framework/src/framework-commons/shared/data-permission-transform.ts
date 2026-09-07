@@ -35,8 +35,8 @@ export function normalizeOrgScopeId(value?: string) {
   return String(value || '').trim();
 }
 
-export function getTenantMatchingExpressionLabel(value?: string) {
-  const nextValue = String(value ?? DEFAULT_TENANT_MATCHING_EXPRESSION).trim();
+export function getTenantMatchingExpressionLabel(value?: null | string) {
+  const nextValue = normalizeTenantMatchingExpression(value).trim();
 
   if (!nextValue) {
     return '无租户';
@@ -87,8 +87,9 @@ export function toggleOrgScopeDraft(
       mode: 'template' as const,
       orgId,
       orgName: org.title,
-      orgScopeExpression: '/**',
-      orgScopeExpressionType: DEFAULT_ORG_SCOPE_EXPRESSION_TYPE,
+      orgScopeMatchingMode: 'All',
+      orgScopeExpression: '',
+      orgScopeExpressionType: '',
       templateKey: 'All' as const,
       tenantMatchingExpression: DEFAULT_TENANT_MATCHING_EXPRESSION,
     },
@@ -113,24 +114,81 @@ export function collectPermissionValues(checkedPermissions: string[]) {
   return [...new Set(checkedPermissions.filter(Boolean))];
 }
 
-export function buildOrgScopeDraftsFromValue(value: OrgScopeItem[]) {
-  return value.map((item) => {
-    const orgScopeExpressionType = normalizeOrgScopeExpressionType(
-      item.orgScopeExpressionType,
-    );
-    const templateKey = getScopeKeyByExpression(item.orgScopeExpression);
+const ORG_SCOPE_MODES = new Set([
+  'All',
+  'Custom',
+  'OnlyDirectChild',
+  'OnlySelf',
+  'SelfAndDirectChild',
+]);
 
+/** 未传字段才采用模型默认值；显式null与空字符串均表示无租户。 */
+export function normalizeTenantMatchingExpression(value?: null | string) {
+  return value === undefined
+    ? DEFAULT_TENANT_MATCHING_EXPRESSION
+    : (value ?? '');
+}
+
+export function normalizeOrgScopeMatchingMode(value?: null | string) {
+  return String(value ?? '').trim();
+}
+
+/** 预设模式不需要表达式；自定义规则必须显式提供类型和内容。 */
+export function isOrgScopeValid(item: OrgScopeItem) {
+  const mode = normalizeOrgScopeMatchingMode(item.orgScopeMatchingMode);
+  return (
+    Boolean(item.orgId?.trim()) &&
+    ORG_SCOPE_MODES.has(mode) &&
+    (mode !== 'Custom' ||
+      Boolean(
+        item.orgScopeExpressionType?.trim() && item.orgScopeExpression?.trim(),
+      ))
+  );
+}
+
+export function buildOrgScopeDraftsFromValue(
+  value: OrgScopeItem[],
+): OrgScopeDraft[] {
+  return value.map((item) => {
+    const matchingMode = normalizeOrgScopeMatchingMode(
+      item.orgScopeMatchingMode,
+    );
     return {
       ...item,
       orgId: normalizeOrgScopeId(item.orgId),
-      orgScopeExpressionType,
-      tenantMatchingExpression:
-        item.tenantMatchingExpression || DEFAULT_TENANT_MATCHING_EXPRESSION,
-      mode:
-        templateKey === 'Custom'
-          ? ('advanced' as const)
-          : ('template' as const),
-      templateKey,
+      orgScopeMatchingMode: matchingMode,
+      orgScopeExpression: item.orgScopeExpression ?? '',
+      orgScopeExpressionType: item.orgScopeExpressionType ?? '',
+      tenantMatchingExpression: normalizeTenantMatchingExpression(
+        item.tenantMatchingExpression,
+      ),
+      mode: matchingMode === 'Custom' ? 'advanced' : 'template',
+      templateKey: matchingMode,
+    };
+  });
+}
+
+/** 只发送后端字段，不把模板键等编辑草稿属性当作权限定义。 */
+export function serializeOrgScopes(
+  value: OrgScopeItem[],
+  isSuperAdmin: boolean,
+) {
+  return value.map((item) => {
+    if (!isOrgScopeValid(item))
+      throw new Error('请先完善组织范围的匹配模式及自定义表达式');
+    const mode = normalizeOrgScopeMatchingMode(item.orgScopeMatchingMode);
+    if (mode === 'Custom' && !isSuperAdmin)
+      throw new Error('自定义组织范围只能由超级管理员保存');
+    return {
+      isAllow: item.isAllow,
+      orgId: normalizeOrgScopeId(item.orgId),
+      orgScopeMatchingMode: mode,
+      orgScopeExpression: item.orgScopeExpression ?? '',
+      orgScopeExpressionType:
+        mode === 'Custom' ? item.orgScopeExpressionType : null,
+      tenantMatchingExpression: normalizeTenantMatchingExpression(
+        item.tenantMatchingExpression,
+      ),
     };
   });
 }

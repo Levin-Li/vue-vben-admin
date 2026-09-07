@@ -15,6 +15,25 @@ function flattenCrudRoutes(children: any[] | undefined): any[] {
 }
 
 describe('oak base admin routes', () => {
+  it('导入导出模板页面只上传显式资源权限，不添加接口路径', () => {
+    const mapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.resource === 'ImportExportTemplate',
+    );
+    expect(
+      mapping?.operations?.find((item) => item.opName === 'retrieve')
+        ?.requireAuthorizations,
+    ).toEqual(['com.levin.oak.base:系统数据-导入导出模板::查看详情']);
+    for (const route of oakBaseAdminBackendRouteMappings) {
+      for (const operation of route.operations || []) {
+        expect(
+          operation.requireAuthorizations.some((permission) =>
+            permission.startsWith('/'),
+          ),
+        ).toBe(false);
+      }
+    }
+  });
+
   it('derives uploaded page operations from the actual Dict API metadata', () => {
     const mapping = oakBaseAdminBackendRouteMappings.find(
       (item) => item.path === '/clob/V1/Dict',
@@ -26,10 +45,7 @@ describe('oak base admin routes', () => {
           apiMethods: ['create'],
           label: '新增',
           opName: 'create',
-          requireAuthorizations: [
-            'com.levin.oak.base:系统数据-字典::新增',
-            '/Dict/create',
-          ],
+          requireAuthorizations: ['com.levin.oak.base:系统数据-字典::新增'],
         }),
         expect.objectContaining({
           apiMethods: ['delete'],
@@ -140,7 +156,7 @@ describe('oak base admin routes', () => {
         expect.objectContaining({
           meta: expect.objectContaining({
             crudResource: 'TrafficControlRule',
-            title: '流量控制规则管理',
+            title: '流控规则',
           }),
           name: '_clob_V1_TrafficControlRule',
           path: '/clob/V1/TrafficControlRule',
@@ -154,7 +170,7 @@ describe('oak base admin routes', () => {
           path: '/clob/V1/TrafficControlRule',
           sourceFilePath:
             'modules/com_levin_oak_base/views/traffic-control-rule/index.vue',
-          title: '流量控制规则管理',
+          title: '流控规则',
           viewPath: '/system/com_levin_oak_base/traffic-control-rule/index.vue',
         }),
       ]),
@@ -262,10 +278,13 @@ describe('oak base admin routes', () => {
     );
     expect(mapping).toMatchObject({
       resource: 'SettingHistoryData',
-      sourceFilePath: 'modules/com_levin_oak_base/views/setting-history-data/index.vue',
+      sourceFilePath:
+        'modules/com_levin_oak_base/views/setting-history-data/index.vue',
       viewPath: '/system/com_levin_oak_base/setting-history-data/index.vue',
     });
-    const operations = mapping?.operations?.map((operation) => operation.opName);
+    const operations = mapping?.operations?.map(
+      (operation) => operation.opName,
+    );
     expect(operations).toEqual(expect.arrayContaining(['retrieve', 'delete']));
     expect(operations).not.toContain('create');
     expect(operations).not.toContain('update');

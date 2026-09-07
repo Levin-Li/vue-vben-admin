@@ -53,7 +53,7 @@ function transformRuleSubmit(values: Record<string, any>) {
 
 export const pageMeta = {
   name: 'TrafficControlRule',
-  title: '流量控制规则管理',
+  title: '流控规则',
   description: '维护流量控制规则。',
 } as const;
 
@@ -379,6 +379,6 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
   ],
   formMaxColumns: 4,
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  title: '流量控制规则管理',
+  title: '流控规则',
   transformSubmit: (values) => transformRuleSubmit(values),
 };
