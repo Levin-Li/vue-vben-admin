@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { UserOrgSelectorRecord } from '../shared/user-org-selector-types';
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { useUserStore } from '@vben/stores';
 
@@ -14,6 +14,7 @@ import { globalOrgSelectorRuntimeState } from './global-org-selector-runtime';
 
 const userStore = useUserStore();
 const loadedRecords = ref<UserOrgSelectorRecord[]>([]);
+const hasLoadedRecords = ref(false);
 
 const selectorConfig = computed<Record<string, any>>(() => ({
   ...globalOrgSelectorRuntimeState.valueContent,
@@ -28,7 +29,9 @@ const selectorConfig = computed<Record<string, any>>(() => ({
 const visible = computed(
   () =>
     globalOrgSelectorRuntimeState.enabled &&
-    (isAdmin.value || loadedRecords.value.length !== 1),
+    (isAdmin.value ||
+      !hasLoadedRecords.value ||
+      loadedRecords.value.length > 1),
 );
 const isAdmin = computed(() => {
   const user = (userStore.userInfo || {}) as Record<string, any>;
@@ -42,8 +45,17 @@ const isAdmin = computed(() => {
   );
 });
 
+watch(
+  () => globalOrgSelectorRuntimeState.valueContent,
+  () => {
+    hasLoadedRecords.value = false;
+    loadedRecords.value = [];
+  },
+);
+
 function handleLoaded(records: UserOrgSelectorRecord[]) {
   loadedRecords.value = records;
+  hasLoadedRecords.value = true;
   if (
     isAdmin.value ||
     selectorConfig.value.disabled === true ||
@@ -66,6 +78,7 @@ function handleSelectedRecords(records: UserOrgSelectorRecord[]) {
     v-show="globalOrgSelectorRuntimeState.enabled"
     v-bind="selectorConfig"
     :model-value="currentGlobalUserOrgRecord"
+    data-testid="global-user-org-selector"
     :class="visible ? 'w-full min-w-[220px]' : 'hidden'"
     @loaded="handleLoaded"
     @update:selected-records="handleSelectedRecords"
