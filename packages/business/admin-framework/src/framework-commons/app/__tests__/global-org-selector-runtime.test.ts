@@ -26,7 +26,7 @@ vi.mock('../global-org-selector.vue', () => ({ default: {} }));
 vi.mock('../router', () => ({ router: {} }));
 
 describe('global org selector runtime', () => {
-  it('uses 220px as the default width while retaining the 360px maximum', async () => {
+  it('does not reserve width while the selector is hidden', async () => {
     const { registerGlobalOrgSelectorRuntime } =
       await import('../global-org-selector-runtime');
 
@@ -35,7 +35,7 @@ describe('global org selector runtime', () => {
     expect(addLayoutHeaderExtensionAreaItem).toHaveBeenCalledWith(
       'center',
       expect.objectContaining({
-        class: 'w-[220px] min-w-[220px] max-w-[360px] shrink-0',
+        class: 'max-w-[360px] shrink-0',
       }),
     );
   });
