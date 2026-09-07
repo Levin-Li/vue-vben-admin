@@ -2,6 +2,8 @@ import type { UserOrgSelectorRecord } from '../shared/user-org-selector-types';
 
 import { computed, ref } from 'vue';
 
+import { evaluateJavaScriptExpression } from '../shared/javascript-expression';
+
 function normalizeId(value: unknown) {
   const id = String(value ?? '').trim();
   return id || undefined;
@@ -56,28 +58,109 @@ export function getCurrentGlobalOwnerId() {
   return currentGlobalOwnerId.value;
 }
 
+export interface GlobalUserOrgInjectionContext {
+  fieldName: 'orgId' | 'orgIdList' | 'ownerId';
+  originalValue: unknown;
+  params: Readonly<Record<string, any>>;
+  request: Readonly<{ method?: string; url?: string }>;
+  selected: Readonly<UserOrgSelectorRecord>;
+  user: Readonly<Record<string, any>>;
+  value: string | string[] | undefined;
+}
+
+export type GlobalUserOrgInjectionCondition =
+  | ((context: GlobalUserOrgInjectionContext) => boolean)
+  | boolean
+  | string;
+
+export interface GlobalUserOrgInjectionRules {
+  /** 是否强制覆盖；默认 false。 */
+  isOverride?: GlobalUserOrgInjectionCondition;
+  /** 是否必须注入；默认仅要求当前选择能提供的字段。 */
+  isRequired?: GlobalUserOrgInjectionCondition;
+}
+
+function evaluateInjectionCondition(
+  condition: GlobalUserOrgInjectionCondition | undefined,
+  fallback: boolean,
+  context: GlobalUserOrgInjectionContext,
+) {
+  let result: unknown = fallback;
+  if (typeof condition === 'function') {
+    result = condition(context);
+  } else if (typeof condition === 'string') {
+    result = evaluateJavaScriptExpression(condition, context);
+  } else if (condition !== undefined) {
+    result = condition;
+  }
+
+  if (typeof result !== 'boolean') {
+    throw new TypeError(
+      `全局参数 ${context.fieldName} 的注入条件必须返回布尔值`,
+    );
+  }
+  return result;
+}
+
 export function applyCurrentGlobalUserOrgContextToParams(
   params: Record<string, any> | undefined,
-  options: {
+  options: GlobalUserOrgInjectionRules & {
+    request?: GlobalUserOrgInjectionContext['request'];
     skip?: boolean;
+    user?: GlobalUserOrgInjectionContext['user'];
   } = {},
 ) {
-  if (options.skip) {
+  const selected = currentGlobalUserOrgRecord.value;
+  if (options.skip || !selected) {
     return params;
   }
 
   const orgId = getCurrentGlobalOrgId();
-  const ownerId = getCurrentGlobalOwnerId();
-
-  if (!orgId && !ownerId) {
-    return params;
-  }
-
-  return {
-    ...params,
-    ...(orgId ? { orgId, orgIdList: [orgId] } : {}),
-    ...(ownerId ? { ownerId } : {}),
+  const values = {
+    orgId,
+    orgIdList: orgId ? [orgId] : undefined,
+    ownerId: getCurrentGlobalOwnerId(),
   };
+  let result = params;
+  for (const fieldName of ['orgId', 'orgIdList', 'ownerId'] as const) {
+    const originalValue = params?.[fieldName];
+    const value = values[fieldName];
+    const context: GlobalUserOrgInjectionContext = {
+      fieldName,
+      originalValue,
+      params: params ?? {},
+      request: options.request ?? {},
+      selected,
+      user: options.user ?? {},
+      value,
+    };
+    const isOverride = evaluateInjectionCondition(
+      options.isOverride,
+      false,
+      context,
+    );
+    const isRequired = evaluateInjectionCondition(
+      options.isRequired,
+      value !== undefined,
+      context,
+    );
+
+    // 对齐公共对象：不覆盖时，已有值或非必填字段不参与注入。
+    if (
+      !isOverride &&
+      ((originalValue !== null && originalValue !== undefined) || !isRequired)
+    ) {
+      continue;
+    }
+    if (value === undefined) {
+      if (isRequired) {
+        throw new Error(`全局选择无法提供必填参数 ${fieldName}`);
+      }
+      continue;
+    }
+    result = { ...result, [fieldName]: value };
+  }
+  return result;
 }
 
 export function applyCurrentGlobalOrgIdToParams(

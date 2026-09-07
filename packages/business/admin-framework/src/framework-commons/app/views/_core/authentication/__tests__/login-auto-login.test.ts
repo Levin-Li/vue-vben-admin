@@ -7,6 +7,7 @@ const {
   authLogin,
   authLoginWithAccessToken,
   authLoginWithPasswordChallenge,
+  getLoginOptionsApi,
   getVerifyCodeApi,
   messageWarning,
   oauthService,
@@ -16,6 +17,7 @@ const {
     authLogin: vi.fn(),
     authLoginWithAccessToken: vi.fn(),
     authLoginWithPasswordChallenge: vi.fn(),
+    getLoginOptionsApi: vi.fn(),
     getVerifyCodeApi: vi.fn(),
     messageWarning: vi.fn(),
     oauthService: {
@@ -37,6 +39,7 @@ vi.mock('@vben/locales', () => ({
 }));
 
 vi.mock('@levin/admin-framework/framework-commons/app/api', () => ({
+  getLoginOptionsApi,
   getVerifyCodeApi,
   oauthService,
   startPasswordLoginApi,
@@ -172,6 +175,12 @@ describe('login auto-login prompt', () => {
     authLoginWithAccessToken.mockReset();
     authLoginWithPasswordChallenge.mockReset();
     getVerifyCodeApi.mockReset();
+    getLoginOptionsApi.mockReset();
+    getLoginOptionsApi.mockResolvedValue({
+      enableUserRegister: true,
+      enableThirdLogin: true,
+      enableThirdRegister: true,
+    });
     messageWarning.mockReset();
     oauthService.createTransaction.mockReset();
     oauthService.exchangeTransaction.mockReset();
@@ -199,6 +208,99 @@ describe('login auto-login prompt', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it('普通注册关闭时隐藏注册链接', async () => {
+    getLoginOptionsApi.mockResolvedValue({
+      enableUserRegister: false,
+      enableThirdLogin: true,
+      enableThirdRegister: true,
+    });
+    const { default: Login } = await import('../login.vue');
+    const wrapper = mount(Login);
+    await flushPromises();
+    expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('普通注册开启时展示注册链接', async () => {
+    const { default: Login } = await import('../login.vue');
+    const wrapper = mount(Login);
+    await flushPromises();
+    expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('第三方登录关闭时不查询平台也不显示入口', async () => {
+    getLoginOptionsApi.mockResolvedValue({
+      enableUserRegister: true,
+      enableThirdLogin: false,
+      enableThirdRegister: true,
+    });
+    const { default: Login } = await import('../login.vue');
+    const wrapper = mount(Login);
+    await flushPromises();
+    expect(oauthService.getSupportedPlatforms).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-test="oauth-login-section"]').exists()).toBe(
+      false,
+    );
+    wrapper.unmount();
+  });
+
+  it('第三方注册关闭仍保留已有绑定登录入口', async () => {
+    getLoginOptionsApi.mockResolvedValue({
+      enableUserRegister: false,
+      enableThirdLogin: true,
+      enableThirdRegister: false,
+    });
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      { code: 'WECHAT_OPEN', name: '微信', supports: ['qr_login'] },
+    ]);
+    const { default: Login } = await import('../login.vue');
+    const wrapper = mount(Login);
+    await flushPromises();
+    expect(wrapper.find('[aria-label="微信"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('已有绑定');
+    expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('登录选项未返回时注册和第三方入口保持隐藏', async () => {
+    let resolveOptions!: (value: object) => void;
+    getLoginOptionsApi.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOptions = resolve;
+      }),
+    );
+    const { default: Login } = await import('../login.vue');
+    const wrapper = mount(Login);
+    await flushPromises();
+    expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="oauth-login-section"]').exists()).toBe(
+      false,
+    );
+    expect(oauthService.getSupportedPlatforms).not.toHaveBeenCalled();
+    resolveOptions({
+      enableUserRegister: true,
+      enableThirdLogin: true,
+      enableThirdRegister: true,
+    });
+    await flushPromises();
+    expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('登录选项加载失败时不开放注册和第三方入口', async () => {
+    getLoginOptionsApi.mockRejectedValueOnce(new Error('登录选项加载失败'));
+    const { default: Login } = await import('../login.vue');
+    const wrapper = mount(Login);
+    await flushPromises();
+    expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="oauth-login-section"]').exists()).toBe(
+      false,
+    );
+    expect(oauthService.getSupportedPlatforms).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 
   it('hides the OAuth login section when the tenant has no scan platforms', async () => {

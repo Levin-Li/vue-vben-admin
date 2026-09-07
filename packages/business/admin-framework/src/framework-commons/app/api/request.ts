@@ -3,6 +3,8 @@
  */
 import type { RequestClientOptions } from '@vben/request';
 
+import type { GlobalUserOrgInjectionRules } from '../global-org-context-state';
+
 import { useAppConfig } from '@vben/hooks';
 import { preferences } from '@vben/preferences';
 import {
@@ -10,14 +12,13 @@ import {
   errorMessageResponseInterceptor,
   RequestClient,
 } from '@vben/request';
-import { useAccessStore } from '@vben/stores';
-
-import { message } from 'ant-design-vue';
+import { useAccessStore, useUserStore } from '@vben/stores';
 
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
+import { message } from 'ant-design-vue';
 
-import { createDynamicVerifyCodeInterceptor } from './dynamic-verify-code';
 import { applyCurrentGlobalUserOrgContextToParams } from '../global-org-context-state';
+import { createDynamicVerifyCodeInterceptor } from './dynamic-verify-code';
 import { emitApiRequestEvent } from './request-events';
 import {
   getHttpAuthorizationMessage,
@@ -26,6 +27,13 @@ import {
   isServiceResp,
   unwrapServiceResp,
 } from './service-resp';
+
+declare module '@vben/request' {
+  interface AxiosRequestConfig {
+    __globalUserOrgContext?: GlobalUserOrgInjectionRules;
+    __skipGlobalUserOrgContext?: boolean;
+  }
+}
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 const REQUEST_TIMEOUT_MS = 180_000;
@@ -179,7 +187,10 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
       config.headers.Authorization = formatToken(accessStore.accessToken);
       config.headers['Accept-Language'] = preferences.app.locale;
       config.params = applyCurrentGlobalUserOrgContextToParams(config.params, {
+        ...config.__globalUserOrgContext,
         skip: config.__skipGlobalUserOrgContext === true,
+        user: useUserStore().userInfo ?? {},
+        request: { url: config.url, method: config.method?.toUpperCase() },
       });
       return config;
     },

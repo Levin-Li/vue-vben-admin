@@ -1,3 +1,5 @@
+import type { GlobalUserOrgInjectionRules } from './app/global-org-context-state';
+
 import { requestClient } from './runtime';
 import { encodeUrlParamValue } from './url-encoding';
 
@@ -8,6 +10,8 @@ export interface CrudListQuery {
 }
 
 export interface CrudListRequestOptions {
+  /** 当前请求的全局参数条件注入规则。 */
+  globalUserOrgContext?: GlobalUserOrgInjectionRules;
   /**
    * 当前请求只用于加载选择器候选项，不应被已选全局组织上下文覆盖查询条件。
    */
@@ -158,6 +162,7 @@ export async function fetchCrudList<T>(
     {
       params: requestParams,
       baseURL: '',
+      __globalUserOrgContext: requestOptions.globalUserOrgContext,
       __skipGlobalUserOrgContext:
         requestOptions.skipGlobalUserOrgContext === true,
     },

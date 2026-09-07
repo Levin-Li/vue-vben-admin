@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import type { AuthApi } from '@levin/admin-framework/framework-commons/app/api';
 import {
   computed,
   onActivated,
@@ -25,6 +26,7 @@ import {
 } from 'ant-design-vue';
 
 import {
+  getLoginOptionsApi,
   getVerifyCodeApi,
   oauthService,
   startPasswordLoginApi,
@@ -115,6 +117,8 @@ const rememberMe = ref(!!rememberedAccount);
 const lastAutoLoginSignature = ref('');
 const autoLoginCountdown = ref(0);
 const oauthPlatformsLoading = ref(false);
+const loginOptions = ref<AuthApi.LoginOptions>();
+let loginOptionsVersion = 0;
 const oauthPlatforms = ref<OAuthLoginPlatform[]>([]);
 const oauthLoginModalOpen = ref(false);
 const oauthLoginErrorMessage = ref('');
@@ -196,7 +200,11 @@ const isContactVerifyCodeRequestDisabled = computed(
   () => verifyAssetLoading.value || countdown.value > 0 || !normalizeAccount(),
 );
 
-const hasOAuthPlatforms = computed(() => oauthPlatforms.value.length > 0);
+const hasOAuthPlatforms = computed(
+  () =>
+    loginOptions.value?.enableThirdLogin === true &&
+    oauthPlatforms.value.length > 0,
+);
 const oauthWaitProgress = computed(() =>
   Math.max(
     0,
@@ -986,20 +994,30 @@ function handlePasswordVerifyDialogOpenChange(open: boolean) {
 }
 
 async function loadOAuthPlatforms() {
+  const version = ++loginOptionsVersion;
+  loginOptions.value = undefined;
+  oauthPlatforms.value = [];
   try {
+    const options = await getLoginOptionsApi();
+    if (!loginPageActive || version !== loginOptionsVersion) return;
+    loginOptions.value = options;
+    if (options.enableThirdLogin !== true) return;
     oauthPlatformsLoading.value = true;
     const rawPlatforms = extractOAuthPlatforms(
       await oauthService.getSupportedPlatforms(),
     );
 
+    if (!loginPageActive || version !== loginOptionsVersion) return;
     oauthPlatforms.value = rawPlatforms
       .map((platform) => normalizeOAuthPlatform(platform))
       .filter((platform): platform is OAuthLoginPlatform => Boolean(platform));
   } catch (error: any) {
+    if (!loginPageActive || version !== loginOptionsVersion) return;
     oauthPlatforms.value = [];
-    message.error(error?.message || '加载第三方登录平台失败');
+    if (loginPageActive && version === loginOptionsVersion)
+      message.error(error?.message || '加载登录选项或第三方平台失败');
   } finally {
-    oauthPlatformsLoading.value = false;
+    if (version === loginOptionsVersion) oauthPlatformsLoading.value = false;
   }
 }
 
@@ -1266,16 +1284,26 @@ onMounted(() => {
   loginPageActive = true;
   const hasOAuthCallbackError = consumeOAuthCallbackError();
   void loadOAuthPlatforms().finally(() => {
-    if (!hasOAuthCallbackError) {
+    if (
+      !hasOAuthCallbackError &&
+      loginOptions.value?.enableThirdLogin === true
+    ) {
       resumeOAuthLoginFromStorage();
     }
   });
 });
 
 onActivated(() => {
+  const wasInactive = !loginPageActive;
   loginPageActive = true;
-  if (!oauthLoginActiveTransactionId.value) {
-    resumeOAuthLoginFromStorage();
+  if (wasInactive) {
+    void loadOAuthPlatforms().then(() => {
+      if (
+        loginOptions.value?.enableThirdLogin === true &&
+        !oauthLoginActiveTransactionId.value
+      )
+        resumeOAuthLoginFromStorage();
+    });
   }
 });
 
@@ -1393,11 +1421,27 @@ onBeforeUnmount(() => {
       </Button>
 
       <div
+        v-if="loginOptions?.enableUserRegister === true"
+        class="text-muted-foreground flex justify-center gap-1 text-sm"
+      >
+        <span>还没有账号？</span>
+        <a class="text-primary hover:underline" href="/auth/register">
+          <span>注册账号</span>
+        </a>
+      </div>
+
+      <div
         v-if="hasOAuthPlatforms"
         data-test="oauth-login-section"
         class="border-border mt-3 border-t pt-4"
       >
         <div class="text-muted-foreground mb-3 text-sm">其它第3方登录</div>
+        <p
+          v-if="loginOptions?.enableThirdRegister !== true"
+          class="text-muted-foreground mb-3 text-xs"
+        >
+          第三方新账号注册暂未开启，仅支持已有绑定账号登录。
+        </p>
 
         <div class="flex flex-wrap gap-3">
           <Tooltip

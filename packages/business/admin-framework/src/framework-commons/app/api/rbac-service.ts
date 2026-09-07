@@ -22,6 +22,12 @@ export namespace RbacApi {
     verifyCodeType?: 'Captcha' | 'Hmi' | 'Mfa';
   }
 
+  export interface LoginOptions {
+    enableThirdLogin: boolean;
+    enableThirdRegister: boolean;
+    enableUserRegister: boolean;
+  }
+
   export interface RegisterParams extends Record<string, any> {
     account?: string;
     password?: string;
@@ -221,6 +227,18 @@ function normalizeAuthorizedOrgOptions(data: any[]): any[] {
   type: '公共数据-权限控制',
 })
 export class RbacService extends RequestService {
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '获取公开登录选项',
+    ignored: true,
+  })
+  async getLoginOptions() {
+    return baseRequestClient.get<RbacApi.LoginOptions>(
+      this.buildRequestPath('loginOptions'),
+    );
+  }
+
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共数据-权限控制',

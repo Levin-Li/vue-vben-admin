@@ -15,7 +15,7 @@ describe('global organization context state', () => {
     setCurrentGlobalOrgId(undefined);
   });
 
-  it('adds the selected organization to request parameters and overrides stale caller input', () => {
+  it('默认保留请求已有的组织参数', () => {
     setCurrentGlobalOrgId('org-b');
 
     expect(
@@ -25,8 +25,8 @@ describe('global organization context state', () => {
         pageIndex: 1,
       }),
     ).toEqual({
-      orgId: 'org-b',
-      orgIdList: ['org-b'],
+      orgId: 'org-a',
+      orgIdList: ['org-a'],
       pageIndex: 1,
     });
   });
@@ -61,12 +61,15 @@ describe('global organization context state', () => {
     });
 
     expect(
-      applyCurrentGlobalUserOrgContextToParams({
-        orgId: 'org-a',
-        orgIdList: ['org-a'],
-        ownerId: 'user-a',
-        pageIndex: 1,
-      }),
+      applyCurrentGlobalUserOrgContextToParams(
+        {
+          orgId: 'org-a',
+          orgIdList: ['org-a'],
+          ownerId: 'user-a',
+          pageIndex: 1,
+        },
+        { isOverride: true },
+      ),
     ).toEqual({
       orgId: 'org-b',
       orgIdList: ['org-b'],

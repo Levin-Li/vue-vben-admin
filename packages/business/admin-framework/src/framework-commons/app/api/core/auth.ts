@@ -1,11 +1,11 @@
+import type { RbacApi } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
+
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { baseRequestClient } from '@levin/admin-framework/framework-commons/app/api/request';
-import {
-  rbacService,
-  type RbacApi,
-} from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 
 export namespace AuthApi {
   export type LoginParams = RbacApi.LoginParams;
+  export type LoginOptions = RbacApi.LoginOptions;
   export type PasswordLoginChallenge = RbacApi.PasswordLoginChallenge;
   export type LoginResult = RbacApi.LoginResult;
   export type RefreshTokenResult =
@@ -59,4 +59,8 @@ export async function getUserInfoApi() {
 
 export async function getAccessCodesApi() {
   return rbacService.getAccessCodes();
+}
+
+export async function getLoginOptionsApi(): Promise<AuthApi.LoginOptions> {
+  return rbacService.getLoginOptions();
 }
