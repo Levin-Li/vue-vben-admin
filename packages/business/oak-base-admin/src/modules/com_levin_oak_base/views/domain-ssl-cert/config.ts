@@ -177,7 +177,9 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
       type: 'textarea',
     },
   ],
-  modalWidth: 640,
+  formMaxColumns: 1,
+  modalWidth: 720,
+  modalWidthStrict: true,
   title: 'SSL证书管理',
   transformSubmit: async (values) => {
     const nextValues = { ...values };

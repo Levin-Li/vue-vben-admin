@@ -120,6 +120,14 @@ function getLayoutFieldType(field: { kind: string }) {
   return 'text';
 }
 
+function shouldUseFullRowLayout(field: (typeof fields.value)[number]) {
+  if (['json', 'section', 'textarea'].includes(field.kind)) return true;
+  const name = `${field.path.at(-1) || ''} ${field.label}`.toLowerCase();
+  return /content|template|message|remark|description|content|模板|内容|说明|备注|消息/.test(
+    name,
+  );
+}
+
 function cloneObjectValue(value: any) {
   if (value === undefined || value === null || value === '') {
     return {};
@@ -152,15 +160,10 @@ const layoutFields = computed<CrudFieldConfig[]>(() =>
   fields.value.map((field) => ({
     key: field.pathKey,
     label: field.label,
-    fullRow:
-      field.kind === 'section' ||
-      field.kind === 'json' ||
-      field.kind === 'textarea',
+    fullRow: shouldUseFullRowLayout(field),
     layoutNewRow: field.kind === 'section',
     span:
-      field.kind === 'section' ||
-      field.kind === 'json' ||
-      field.kind === 'textarea'
+      shouldUseFullRowLayout(field)
         ? -1
         : 1,
     type: getLayoutFieldType(field),
@@ -181,6 +184,7 @@ const modalAvailableWidth = computed(() => {
 const popupColumnCount = computed(() =>
   resolveFormColumnCount({
     fields: layoutFields.value,
+    configuredMaxColumns: 2,
     modalAvailableWidth: modalAvailableWidth.value,
     viewportHeight: viewportHeight.value || 900,
     viewportWidth: viewportWidth.value || 1440,

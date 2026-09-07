@@ -102,7 +102,12 @@ function selectTargetPage(value: string) {
   formState.sourceFilePath = page.sourceFilePath;
   formState.moduleId = page.moduleId;
   formState.pageType = 'LocalPage';
-  if (!formState.path) formState.path = `/menu-entry/${crypto.randomUUID()}`;
+  if (!formState.path || formState.path.startsWith('/menu-entry/')) {
+    const pagePath = String(page.path || '').replace(/\/+$/, '');
+    formState.path = pagePath
+      ? `${pagePath}/${crypto.randomUUID()}`
+      : `/menu-entry/${crypto.randomUUID()}`;
+  }
   if (!formState.name) formState.name = page.title;
 }
 
@@ -206,7 +211,9 @@ function buildPayload() {
     payload.requireAuthorizations = [
       ...(formState.requireAuthorizations || []),
     ];
-    payload.opButtonList = formState.opButtonList || [];
+    payload.opButtonList = (formState.opButtonList || []).filter((operation) =>
+      String(operation.opName || '').trim(),
+    );
   }
 
   if (shouldShowEditableControl.value) {

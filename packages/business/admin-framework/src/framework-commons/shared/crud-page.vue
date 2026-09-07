@@ -105,9 +105,9 @@ import {
 } from './area-cascader';
 import CodeEditorField from './code-editor-field.vue';
 import {
-  buildDictOptionsLoader,
   DEFAULT_CONTENT_MODAL_BODY_STYLE,
   DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+  DEFAULT_DETAIL_MODAL_WIDTH,
 } from './config-helpers';
 import CronExpressionField from './cron-expression-field.vue';
 import {
@@ -207,7 +207,6 @@ import {
   resolveCrudPageDisplayDefaults,
   resolveDefaultTableColumnWidth,
   resolveDisplayGroupOrder,
-  resolveDomainObjectCrudFields,
   resolveStaticDisplayGroup,
   resolveDisplayStates,
   resolveDisplaySubmitKeys,
@@ -355,19 +354,6 @@ const LIST_TABLE_TABS_INITIAL_LEFT = 20;
 const LIST_TABLE_TABS_INITIAL_TOP = 20;
 const LIST_TABLE_TABS_DRAG_THRESHOLD = 4;
 const LIST_TABLE_TABS_EDGE_PADDING = 8;
-const domainIdOptionsLoader = buildDictOptionsLoader(
-  'platform.framework_domainId',
-);
-const domainIdCrudField: CrudFieldConfig = {
-  export: false,
-  key: 'domainId',
-  label: '领域标识',
-  loadOptions: domainIdOptionsLoader,
-  search: true,
-  table: true,
-  type: 'select',
-  width: 180,
-};
 
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
@@ -380,19 +366,9 @@ const menuSourcePagePath =
     ? route.meta.sourcePagePath
     : undefined;
 
-const effectiveFields = computed(() =>
-  resolveDomainObjectCrudFields(
-    props.config.fields,
-    props.config.domainObject,
-    domainIdCrudField,
-  ),
-);
-const effectiveDetailFields = computed(() =>
-  resolveDomainObjectCrudFields(
-    props.config.detailFields || props.config.fields,
-    props.config.domainObject,
-    domainIdCrudField,
-  ),
+const effectiveFields = computed(() => props.config.fields);
+const effectiveDetailFields = computed(
+  () => props.config.detailFields || props.config.fields,
 );
 
 type ExportTemplateSaveScope =
@@ -1273,11 +1249,15 @@ function isPageDisplayGroupFieldVisible(field: CrudFieldConfig) {
 
 function togglePageDisplayGroup(groupKey: string) {
   pageDisplayGroupExpandedRows[groupKey] =
-    pageDisplayGroupExpandedRows[groupKey] === 'all' ? 0 : 'all';
+    isPageDisplayGroupExpanded(groupKey) ? 0 : 'all';
+}
+
+function isPageDisplayGroupExpanded(groupKey: string) {
+  return (pageDisplayGroupExpandedRows[groupKey] ?? 'all') === 'all';
 }
 
 function getPageDisplayGroupToggleLabel(groupKey: string) {
-  return pageDisplayGroupExpandedRows[groupKey] === 'all' ? '收起' : '展开全部';
+  return isPageDisplayGroupExpanded(groupKey) ? '收起' : '展开';
 }
 
 function shouldShowFormGroupTitle(field: CrudFieldConfig) {
@@ -2036,7 +2016,9 @@ const resolvedModalMaxWidthPx = computed(() => {
   const configuredWidth =
     getConfiguredModalMaxWidthPx(props.config.modalWidth) || recommendedWidth;
 
-  return Math.max(configuredWidth, recommendedWidth);
+  return props.config.modalWidthStrict
+    ? configuredWidth
+    : Math.max(configuredWidth, recommendedWidth);
 });
 
 const modalMaxWidth = computed(() => {
@@ -6819,7 +6801,7 @@ watch(canCustomizeTableColumnsLocally, () => {
                   type="link"
                   @click="handleRetrieve(record)"
                 >
-                  详情
+                  {{ props.config.retrieveLabel || '详情' }}
                 </Button>
                 <Button
                   v-if="canShowBuiltinEdit(record)"
@@ -7361,8 +7343,7 @@ watch(canCustomizeTableColumnsLocally, () => {
                   type="link"
                   size="small"
                   :aria-expanded="
-                    pageDisplayGroupExpandedRows[field.displayGroup.key] ===
-                    'all'
+                    isPageDisplayGroupExpanded(field.displayGroup.key)
                   "
                   @click="togglePageDisplayGroup(field.displayGroup.key)"
                 >
@@ -7371,9 +7352,7 @@ watch(canCustomizeTableColumnsLocally, () => {
                       class="vben-crud-toggle-icon"
                       :class="{
                         'is-expanded':
-                          pageDisplayGroupExpandedRows[
-                            field.displayGroup.key
-                          ] === 'all',
+                          isPageDisplayGroupExpanded(field.displayGroup.key),
                       }"
                       aria-hidden="true"
                     />
@@ -7839,13 +7818,14 @@ watch(canCustomizeTableColumnsLocally, () => {
               maxHeight:
                 detailModalConfig?.modalMaxHeight ||
                 DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
-              maxWidth: detailModalConfig?.modalMaxWidth || '80vw',
+              maxWidth:
+                detailModalConfig?.modalMaxWidth || DEFAULT_DETAIL_MODAL_WIDTH,
             }
           : undefined
       "
       :width="
         actionResultMode === 'showForm'
-          ? detailModalConfig?.modalMaxWidth || '80vw'
+          ? detailModalConfig?.modalMaxWidth || DEFAULT_DETAIL_MODAL_WIDTH
           : '720px'
       "
     >

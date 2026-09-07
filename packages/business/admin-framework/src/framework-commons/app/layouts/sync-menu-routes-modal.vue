@@ -423,7 +423,13 @@ watch(menuList, (data) => {
           placement="right"
         >
           <template #title>
-            <div class="sync-menu-operation-tooltip-content">
+            <div
+              class="sync-menu-operation-tooltip-content"
+              :class="{
+                'sync-menu-operation-tooltip-content--scrollable':
+                  row.opButtonList.length > 5,
+              }"
+            >
               <div
                 v-for="operation in row.opButtonList"
                 :key="operation.opName"
@@ -503,6 +509,12 @@ watch(menuList, (data) => {
   display: grid;
   gap: 8px;
   padding: 2px;
+}
+
+.sync-menu-operation-tooltip-content--scrollable {
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 8px;
 }
 
 .sync-menu-operation-tooltip-item {

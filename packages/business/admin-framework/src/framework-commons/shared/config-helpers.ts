@@ -6,6 +6,7 @@ import type { CrudOptionLoader } from './types';
 
 export const OAK_BASE_API_MODULE = '/com.levin.oak.base/V1/api';
 export const DEFAULT_CRUD_MODAL_WIDTH = 'min(80vw, 1280px)';
+export const DEFAULT_DETAIL_MODAL_WIDTH = 'min(80vw, 1080px)';
 export const DEFAULT_CONTENT_MODAL_MAX_HEIGHT = '90vh';
 export const DEFAULT_CONTENT_MODAL_BODY_MAX_HEIGHT = 'calc(90vh - 128px)';
 export const DEFAULT_CONTENT_MODAL_BODY_STYLE = {

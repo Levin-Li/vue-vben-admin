@@ -132,6 +132,33 @@ describe('crud form layout', () => {
     expect(source).toContain('class="w-full"');
   });
 
+  it('caps the default detail modal while preserving an explicit page override', () => {
+    const helpers = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/shared/config-helpers.ts',
+      'utf8',
+    );
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'utf8',
+    );
+
+    expect(helpers).toContain(
+      "DEFAULT_DETAIL_MODAL_WIDTH = 'min(80vw, 1080px)'",
+    );
+    expect(source).toContain('detailModalConfig?.modalMaxWidth || DEFAULT_DETAIL_MODAL_WIDTH');
+    expect(source).not.toContain("detailModalConfig?.modalMaxWidth || '80vw'");
+  });
+
+  it('shows concise group-toggle labels from the actual default expansion state', () => {
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'utf8',
+    );
+    expect(source).toContain("(pageDisplayGroupExpandedRows[groupKey] ?? 'all') === 'all'");
+    expect(source).toContain("? '收起' : '展开'");
+    expect(source).not.toContain("'展开全部'");
+  });
+
   it('uses one shared content grid boundary for compact and full-row fields', () => {
     expect(getFormGridContentMaxWidth(1)).toBe(480);
     expect(getFormGridContentMaxWidth(2)).toBe(976);

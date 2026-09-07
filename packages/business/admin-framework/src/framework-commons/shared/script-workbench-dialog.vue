@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { Button, Input, Modal, Tag } from 'ant-design-vue';
+import { Button, Input, Modal, Tag, Tooltip } from 'ant-design-vue';
 import { computed, reactive, ref, watch } from 'vue';
 
 import JavaScriptCodeEditor from './javascript-code-editor.vue';
@@ -44,8 +44,21 @@ const workbenchPaneHeight = 'calc(80vh - 188px)';
 const sidebarPaneStyle = {
   flex: '0 0 30%',
   height: workbenchPaneHeight,
-  minWidth: '400px',
+  minWidth: '270px',
 };
+const shortcutPaneStyle = {
+  flex: '0 0 12%',
+  height: workbenchPaneHeight,
+  minWidth: '100px',
+};
+const shortcuts = [
+  ['加', '+'], ['减', '-'], ['乘', '*'], ['除', '/'], ['取余', '%'],
+  ['大于', '>'], ['小于', '<'], ['大于等于', '>='], ['小于等于', '<='], ['精确等于', '==='], ['不等于', '!=='],
+  ['并且', '&&'], ['或者', '||'], ['取反', '!'], ['转文本', 'String()'], ['转数字', 'Number()'], ['转布尔', 'Boolean()'],
+  ['四舍五入', 'Math.round()'], ['向下取整', 'Math.floor()'], ['向上取整', 'Math.ceil()'], ['最大值', 'Math.max()'], ['最小值', 'Math.min()'],
+  ['绝对值', 'Math.abs()'], ['是否数组', 'Array.isArray()'], ['包含', 'includes()'], ['开头匹配', 'startsWith()'], ['结尾匹配', 'endsWith()'],
+  ['转小写', 'toLowerCase()'], ['转大写', 'toUpperCase()'], ['去空格', 'trim()'], ['长度', 'length'], ['空值合并', '??'],
+] as const;
 const editorPaneStyle = {
   height: `calc((${workbenchPaneHeight}) * 0.7)`,
 };
@@ -74,6 +87,7 @@ function variableLabel(variable: ScriptWorkbenchVariable) {
 function insertVariable(variable: ScriptWorkbenchVariable) {
   editor.value?.insertText(variable.name);
 }
+function insertShortcut(value: string) { editor.value?.insertText(value); }
 
 function resetTestValues() {
   for (const group of props.variableGroups) {
@@ -139,7 +153,7 @@ defineExpose({ setTestError: (value: string) => error.value = value, setTestResu
   <Modal
     :open="open"
     :title="`${title} - 编辑`"
-    :width="'80vw'"
+    :width="'92vw'"
     :style="{ top: '10vh' }"
     :body-style="modalBodyStyle"
     :mask-closable="false"
@@ -172,7 +186,15 @@ defineExpose({ setTestError: (value: string) => error.value = value, setTestResu
           <Button type="primary" @click="runTest">运行测试</Button>
         </div>
       </aside>
-      <section class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden" :style="{ height: workbenchPaneHeight }">
+      <aside class="flex min-h-0 flex-col rounded border border-border p-3" :style="shortcutPaneStyle">
+        <h4 class="mb-3 text-sm font-medium">快捷操作</h4>
+        <div class="grid min-h-0 flex-1 grid-cols-2 content-start gap-2 overflow-auto">
+          <Tooltip v-for="[label, code] in shortcuts" :key="code" :title="`插入：${code}`">
+            <Button size="small" @click="insertShortcut(code)">{{ label }}</Button>
+          </Tooltip>
+        </div>
+      </aside>
+      <section class="flex min-h-0 min-w-[260px] flex-1 flex-col gap-4 overflow-hidden" :style="{ height: workbenchPaneHeight }">
         <div class="min-h-0 overflow-hidden" :style="editorPaneStyle">
           <JavaScriptCodeEditor ref="editor" v-model="script" class="h-full w-full" />
         </div>
@@ -193,8 +215,8 @@ defineExpose({ setTestError: (value: string) => error.value = value, setTestResu
 
 <style scoped>
 :global(.script-workbench-dialog .ant-modal) {
-  max-width: 80vw;
-  width: min(80vw, 1600px) !important;
+  max-width: 92vw;
+  width: min(92vw, 1900px) !important;
 }
 
 :global(.script-workbench-dialog .ant-modal-content) {

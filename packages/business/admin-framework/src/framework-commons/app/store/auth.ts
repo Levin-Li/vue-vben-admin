@@ -158,7 +158,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (userInfo?.realName) {
       notification.success({
         description: `${$t('authentication.loginSuccessDesc')}:${userInfo?.realName}`,
-        duration: 3,
+        duration: 2,
         message: $t('authentication.loginSuccess'),
       });
     }

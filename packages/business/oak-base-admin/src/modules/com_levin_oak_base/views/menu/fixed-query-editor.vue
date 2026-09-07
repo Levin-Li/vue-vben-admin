@@ -18,6 +18,8 @@ import JsonSchemaFormField from '@levin/admin-framework/framework-commons/shared
 import { resolveJsonSchemaSource } from '@levin/admin-framework/framework-commons/shared/json-schema-source';
 import {
   Alert,
+  AutoComplete,
+  Badge,
   Button,
   Cascader,
   Checkbox,
@@ -47,6 +49,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: MenuFixedQuery] }>();
 const open = ref(false);
+const editingExtension = ref(false);
 const loading = ref(false);
 const error = ref('');
 const editorMode = ref<'json' | 'query' | 'schema'>('query');
@@ -54,6 +57,7 @@ const rawDraft = ref<any>({});
 const schema = ref<Record<string, any>>();
 const config = ref<CrudPageConfig>();
 const selected = ref<string[]>([]);
+const extensionRows = ref<Array<{ key: string; type: string; value: string }>>([]);
 const values = reactive<Record<string, any>>({});
 const options = reactive<Record<string, any[]>>({});
 const optionErrors = reactive<Record<string, string>>({});
@@ -82,6 +86,22 @@ const items = computed(() =>
       .toSorted((a, b) => (a.searchOrder ?? 0) - (b.searchOrder ?? 0)),
   ),
 );
+const extensionFieldOptions = computed(() =>
+  [...new Map(
+    (config.value?.fields || []).map((field) => [
+      field.key,
+      { label: `${field.label}（${field.key}）`, value: field.key },
+    ]),
+  ).values()],
+);
+function getExtensionFieldType(key: string) {
+  return String(
+    config.value?.fields?.find((field) => field.key === key)?.type || '文本',
+  );
+}
+function isKnownExtensionField(key: string) {
+  return extensionFieldOptions.value.some((field) => field.value === key);
+}
 const count = computed(() => {
   try {
     return Object.keys(parseMenuFixedQuery(props.modelValue)).length;
@@ -89,6 +109,12 @@ const count = computed(() => {
     return '?';
   }
 });
+const formCount = computed(() => {
+  const fixed = parseMenuFixedQuery(props.modelValue);
+  const known = new Set(items.value.flatMap((item) => queryItemKeys(item)));
+  return Object.keys(fixed).filter((key) => known.has(key)).length;
+});
+const extensionCount = computed(() => Math.max(count.value - formCount.value, 0));
 let session = 0;
 let baseline = '';
 function snapshot() {
@@ -119,7 +145,8 @@ async function loadOptions(
       pending[field.key] = false;
   }
 }
-async function edit() {
+async function edit(extension = false) {
+  editingExtension.value = extension;
   open.value = true;
   loading.value = true;
   error.value = '';
@@ -133,7 +160,7 @@ async function edit() {
   selected.value = [];
   Object.keys(pending).forEach((key) => delete pending[key]);
   try {
-    if (props.paramsEditor?.trim()) {
+    if (!extension && props.paramsEditor?.trim()) {
       editorMode.value = 'schema';
       const source = resolveJsonSchemaSource(props.paramsEditor);
       if (!source) throw new Error('配置的 Schema 无法解析。');
@@ -191,11 +218,17 @@ async function edit() {
       );
     const fixed = parseMenuFixedQuery(props.modelValue);
     const known = new Set(items.value.flatMap((item) => queryItemKeys(item)));
-    const unknown = Object.keys(fixed).filter((key) => !known.has(key));
-    if (unknown.length > 0)
-      throw new Error(
-        `原固定条件中有当前查询表单未提供的参数：${unknown.join('、')}。请先恢复对应页面配置。`,
-      );
+    extensionRows.value = Object.entries(fixed)
+      .filter(([key]) => !known.has(key))
+      .map(([key, value]) => ({
+        key,
+        type: isKnownExtensionField(key)
+          ? getExtensionFieldType(key)
+          : typeof value === 'number'
+            ? 'number'
+            : 'text',
+        value: typeof value === 'string' ? value : JSON.stringify(value),
+      }));
     for (const item of items.value) {
       values[item.key] = readFixedQueryValue(item, fixed);
       if (queryItemKeys(item).some((key) => Object.hasOwn(fixed, key)))
@@ -261,10 +294,22 @@ function save() {
       .map((key) => optionErrors[key])
       .filter(Boolean);
     if (failed.length > 0) throw new Error(failed.join('；'));
-    emit(
-      'update:modelValue',
-      serializeFixedQueryItems(items.value, selected.value, values, options),
+    const merged = serializeFixedQueryItems(
+      items.value,
+      selected.value,
+      values,
+      options,
     );
+    for (const row of extensionRows.value) {
+      const key = row.key.trim();
+      if (!key || Object.hasOwn(merged, key)) continue;
+      try {
+        merged[key] = parseMenuFixedQuery({ [key]: JSON.parse(row.value) })[key];
+      } catch {
+        merged[key] = row.type === 'number' ? Number(row.value) : row.value;
+      }
+    }
+    emit('update:modelValue', parseMenuFixedQuery(merged));
     open.value = false;
     session++;
   } catch (error_) {
@@ -275,15 +320,20 @@ function save() {
 
 <template>
   <div class="flex items-center gap-3">
-    <Button @click="edit">配置固定查询条件（{{ count }}）</Button>
+    <Badge :count="formCount">
+      <Button @click="edit(false)">表单查询条件</Button>
+    </Badge>
+    <Badge :count="extensionCount">
+      <Button @click="edit(true)">扩展查询条件</Button>
+    </Badge>
     <Button v-if="count !== 0" type="link" danger @click="clear">
       清除条件
     </Button>
   </div>
   <Modal
     :open="open"
-    title="固定查询条件"
-    :width="960"
+    :title="editingExtension ? '扩展查询条件' : '表单查询条件'"
+    :width="editingExtension ? 'min(90vw, 860px)' : 'min(92vw, 960px)'"
     :mask-closable="false"
     :ok-button-props="{ disabled: loading }"
     @ok="save"
@@ -311,7 +361,7 @@ function save() {
         inline-min-height="min(48vh, 480px)"
         title="固定查询条件"
       />
-      <template v-else-if="editorMode === 'query'">
+      <template v-else-if="editorMode === 'query' && !editingExtension">
         <p class="text-muted-foreground mb-4">
           勾选需要固定的查询字段。固定后，页面隐藏对应查询项，查询和导出始终使用这些值。
         </p>
@@ -452,6 +502,35 @@ function save() {
             </template>
           </Form.Item>
         </Form>
+      </template>
+      <template v-else-if="editorMode === 'query'">
+        <div>
+          <div class="mb-2 flex justify-end">
+            <Button size="small" @click="extensionRows.push({ key: '', type: 'text', value: '' })">
+              新增条件
+            </Button>
+          </div>
+          <div
+            v-for="(row, index) in extensionRows"
+            :key="index"
+            class="mb-2 grid grid-cols-[3fr_2fr_5fr_auto] gap-2"
+          >
+            <AutoComplete
+              v-model:value="row.key"
+              show-search
+              :options="extensionFieldOptions"
+              placeholder="字段名"
+            />
+            <Input v-if="isKnownExtensionField(row.key)" :value="getExtensionFieldType(row.key)" disabled />
+            <Select
+              v-else
+              v-model:value="row.type"
+              :options="[{ label: '文本', value: 'text' }, { label: '数字', value: 'number' }]"
+            />
+            <Input v-model:value="row.value" placeholder="值" />
+            <Button danger size="small" @click="extensionRows.splice(index, 1)">删除</Button>
+          </div>
+        </div>
       </template>
     </Spin>
   </Modal>

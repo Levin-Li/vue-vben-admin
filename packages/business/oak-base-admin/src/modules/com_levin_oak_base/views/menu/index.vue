@@ -20,6 +20,7 @@ import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commo
 import { moduleFetchEnumOptions } from '@levin/oak-base-admin/modules/com_levin_oak_base/views/api-module';
 import {
   Button,
+  Input,
   message,
   Modal,
   Space,
@@ -57,6 +58,7 @@ type MenuMoveDirection = 'down' | 'up';
 const pageTypeOptions = ref<SelectOption[]>(fallbackPageTypeOptions);
 const actionTypeOptions = ref<SelectOption[]>(fallbackActionTypeOptions);
 const menuTree = ref<MenuRecord[]>([]);
+const menuNameKeyword = ref('');
 const menuIndex = computed(() => indexMenuTree(menuTree.value));
 const currentRecord = ref<MenuRecord | null>(null);
 const formOpen = ref(false);
@@ -132,7 +134,28 @@ const [Grid, gridApi] = useVbenVxeGrid({
         query: async () => {
           const tree = await loadMenuTree();
           menuTree.value = tree;
-          return flattenMenuRows(tree);
+          const keyword = menuNameKeyword.value.trim().toLowerCase();
+          const rows = flattenMenuRows(tree);
+          if (!keyword) return rows;
+
+          const visibleIds = new Set(
+            rows
+              .filter((item) =>
+                String(item.name || item.label || '')
+                  .toLowerCase()
+                  .includes(keyword),
+              )
+              .map((item) => item.id),
+          );
+          const rowById = new Map(rows.map((item) => [item.id, item]));
+          for (const id of [...visibleIds]) {
+            let parentId = rowById.get(id)?.parentId;
+            while (parentId && !visibleIds.has(parentId)) {
+              visibleIds.add(parentId);
+              parentId = rowById.get(parentId)?.parentId;
+            }
+          }
+          return rows.filter((item) => visibleIds.has(item.id));
         },
       },
     },
@@ -223,10 +246,14 @@ async function clearMenuCacheSilently() {
   }
 }
 
-function refresh() {
+async function refresh() {
   gridApi.grid?.clearCheckboxRow?.();
   selectedMenuRows.value = [];
-  gridApi.query();
+  await gridApi.query();
+  if (menuNameKeyword.value.trim()) {
+    await new Promise<void>((resolve) => setTimeout(resolve));
+    await gridApi.grid?.setAllTreeExpand?.(true);
+  }
 }
 
 function getMoveTargetIndex(row: MenuRecord, direction: MenuMoveDirection) {
@@ -816,10 +843,17 @@ function renderIcon(row: MenuRecord) {
           <template #toolbar-actions>
             <div
               aria-label="菜单可见性规则"
-              class="text-muted-foreground rounded border border-dashed px-3 py-1.5 text-sm"
+              class="text-primary px-1 text-sm"
             >
               {{ MENU_VISIBILITY_PERMISSION_HINT }}
             </div>
+            <Input.Search
+              v-model:value="menuNameKeyword"
+              allow-clear
+              class="w-56"
+              placeholder="搜索菜单名称"
+              @update:value="refresh"
+            />
           </template>
           <template #toolbar-tools>
             <Space>
@@ -942,7 +976,7 @@ function renderIcon(row: MenuRecord) {
           </template>
 
           <template #operation="{ row }">
-            <div class="flex justify-end gap-2">
+            <div class="flex justify-end gap-1">
               <Button
                 v-if="canCreateMenu"
                 size="small"
@@ -1033,6 +1067,10 @@ function renderIcon(row: MenuRecord) {
   height: 100% !important;
   min-height: 0;
   padding: 0;
+}
+
+.vben-menu-section :deep(.vxe-toolbar) {
+  margin-bottom: 12px;
 }
 
 .menu-title-cell {

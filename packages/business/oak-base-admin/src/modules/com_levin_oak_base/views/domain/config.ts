@@ -181,6 +181,7 @@ export const domainPageCrudConfig: CrudPageConfig = {
     {
       key: 'nameservers',
       label: 'NS服务器',
+      fullRow: true,
       layoutGroup: 'basic',
       layoutOrder: 30,
       type: 'json',
@@ -188,6 +189,7 @@ export const domainPageCrudConfig: CrudPageConfig = {
     {
       key: 'exInfo',
       label: '扩展信息',
+      fullRow: true,
       layoutGroup: 'basic',
       layoutOrder: 40,
       type: 'json',
@@ -247,7 +249,9 @@ export const domainPageCrudConfig: CrudPageConfig = {
       type: 'textarea',
     },
   ],
-  modalWidth: 1200,
+  formMaxColumns: 2,
+  modalWidth: 860,
+  modalWidthStrict: true,
   title: '根域名管理',
   transformSubmit: async (values, editingRecord) => {
     const nextValues = { ...values };

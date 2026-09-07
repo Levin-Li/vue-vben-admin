@@ -51,6 +51,16 @@ export class SettingHistoryDataService extends RequestService {
   async retrieve(params?: any, options?: any) {
     return this.get('retrieve', { ...options, params });
   }
+
+  @CRUD.Op({ confirmText: '确认恢复这条历史数据吗？', confirmTitle: '恢复数据' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '平台数据-设置历史数据',
+    action: '恢复数据',
+  })
+  async restore(data?: any, options?: any) {
+    return this.post('restore', { ...options, data });
+  }
 }
 
 export const settingHistoryDataService = new SettingHistoryDataService();

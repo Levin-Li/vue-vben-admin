@@ -109,5 +109,19 @@ export const settingHistoryDataPageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
+  retrieveLabel: '查看数据',
+  rowActions: [
+    {
+      confirmText: '确认恢复这条历史数据吗？',
+      confirmTitle: '恢复数据',
+      handler: (record) =>
+        settingHistoryDataService.restore({
+          id: record.id,
+          tenantId: record.tenantId,
+        }),
+      label: '恢复数据',
+      permission: 'com.levin.oak.base:平台数据-设置历史数据::恢复数据',
+    },
+  ],
   title: pageMeta.title,
 };

@@ -421,7 +421,11 @@ export interface CrudPageConfig {
   listPath?: string;
   listTables?: CrudListTableConfig[];
   modalWidth?: number | string;
+  /** 显式宽度是否作为硬上限；仅用于需要紧凑布局的页面。 */
+  modalWidthStrict?: boolean;
   recordKey?: string;
+  /** 内置详情入口文案；未配置时为“详情”。 */
+  retrieveLabel?: string;
   permissionDomain?: string;
   permissionResourceName?: string;
   permissionTypePrefix?: string;

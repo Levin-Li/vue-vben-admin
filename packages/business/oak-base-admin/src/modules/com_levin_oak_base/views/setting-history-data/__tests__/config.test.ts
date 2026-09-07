@@ -12,7 +12,7 @@ vi.mock('../../api-module', () => ({
 }));
 
 describe('设置历史独立管理页面', () => {
-  it('仅允许查询、只读详情和删除', () => {
+  it('提供查看数据、恢复数据和删除入口', () => {
     expect(pageMeta.name).toBe('SettingHistoryData');
     expect(settingHistoryDataPageCrudConfig).toMatchObject({
       apiBase: '/SettingHistoryData',
@@ -20,6 +20,10 @@ describe('设置历史独立管理页面', () => {
       allowEdit: false,
       allowDelete: true,
       allowRetrieve: true,
+      retrieveLabel: '查看数据',
+    });
+    expect(settingHistoryDataPageCrudConfig.rowActions?.[0]).toMatchObject({
+      label: '恢复数据',
     });
     expect(
       settingHistoryDataPageCrudConfig.fields.find(
