@@ -117,6 +117,8 @@ export interface CrudFieldConfig {
   jsonSchemaInline?: boolean;
   jsonSchemaMode?: 'inline' | 'popup';
   layoutGroup?: string;
+  /** 显式保留少字段分组的展示标题；用于复杂对象或有独立信息意义的业务区域。 */
+  layoutGroupForceDisplay?: boolean;
   layoutGroupTitle?: string;
   layoutNewRow?: boolean;
   layoutOrder?: number;

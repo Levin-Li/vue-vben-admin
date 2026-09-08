@@ -60,7 +60,7 @@ export function resolveStaticDisplayGroup(
     (field) =>
       field.layoutGroup === groupKey && Boolean(field.layoutGroupTitle?.trim()),
   );
-  if (groupFields.length < 3) return undefined;
+  if (!isEligibleStaticDisplayGroup(groupFields)) return undefined;
 
   return {
     defaultExpanded: true,
@@ -72,6 +72,14 @@ export function resolveStaticDisplayGroup(
     title: groupFields.find((field) => field.layoutGroupTitle?.trim())
       ?.layoutGroupTitle,
   };
+}
+
+/** 显式保留或复杂对象可单独成组，普通静态分组至少包含三个字段。 */
+export function isEligibleStaticDisplayGroup(fields: CrudFieldConfig[]) {
+  return (
+    fields.length >= 3 ||
+    fields.some((field) => field.complexValue || field.layoutGroupForceDisplay)
+  );
 }
 
 export function findDisplayRuleCycle(items: CrudPageDisplayFieldConfig[]) {

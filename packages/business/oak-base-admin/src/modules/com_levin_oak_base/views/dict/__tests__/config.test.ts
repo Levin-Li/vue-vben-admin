@@ -24,13 +24,18 @@ describe('dict page config', () => {
       layoutGroup: 'basic',
     });
     expect(fields.find((field) => field.key === 'itemList')).toMatchObject({
+      complexValue: true,
       fullRow: true,
-      layoutGroup: 'basic',
+      layoutGroup: 'items',
       layoutNewRow: true,
     });
     expect(fields.find((field) => field.key === 'orderCode')).toMatchObject({
-      layoutGroup: 'business',
+      layoutGroup: 'maintenance',
       layoutNewRow: true,
+    });
+    expect(fields.find((field) => field.key === 'enable')).toMatchObject({
+      layoutGroup: 'maintenance',
+      layoutGroupForceDisplay: true,
     });
     expect(fields.find((field) => field.key === 'category' && field.table)).toMatchObject({
       layoutGroup: 'basic',
@@ -44,7 +49,7 @@ describe('dict page config', () => {
     });
     expect(fields.find((field) => field.key === 'remark')).toMatchObject({
       fullRow: true,
-      layoutGroup: 'business',
+      layoutGroup: 'maintenance',
       type: 'textarea',
     });
 

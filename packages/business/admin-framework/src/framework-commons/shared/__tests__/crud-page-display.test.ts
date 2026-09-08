@@ -64,6 +64,37 @@ describe('crud page display rules', () => {
     });
     expect(resolveStaticDisplayGroup(fields.slice(0, 6), 'basic')).toBeUndefined();
     expect(resolveStaticDisplayGroup(fields, 'business')).toBeUndefined();
+    expect(
+      resolveStaticDisplayGroup(
+        [
+          ...fields,
+          {
+            complexValue: true,
+            fullRow: true,
+            key: 'itemList',
+            label: '字典项',
+            layoutGroup: 'items',
+            layoutGroupTitle: '字典项',
+          },
+        ],
+        'items',
+      ),
+    ).toMatchObject({ key: 'items', title: '字典项' });
+    expect(
+      resolveStaticDisplayGroup(
+        [
+          ...fields,
+          {
+            key: 'enable',
+            label: '是否启用',
+            layoutGroup: 'maintenance',
+            layoutGroupForceDisplay: true,
+            layoutGroupTitle: '通用维护',
+          },
+        ],
+        'maintenance',
+      ),
+    ).toMatchObject({ key: 'maintenance', title: '通用维护' });
   });
 
   it('adds the standard domain field only for explicitly declared DomainObject pages', () => {

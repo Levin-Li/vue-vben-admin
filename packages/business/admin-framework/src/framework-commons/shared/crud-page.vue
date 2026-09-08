@@ -172,6 +172,7 @@ import {
   MAX_SEARCH_COLUMN_COUNT,
   MIN_SEARCH_COLUMN_WIDTH,
   resolveFormColumnCount,
+  resolveFormModalMaxWidth,
   shouldFormFieldSpanFullRow,
   sortFormLayoutFields,
 } from './crud-form-layout';
@@ -211,6 +212,7 @@ import {
   distributeExtraTableWidth,
   getDefaultFieldHidden,
   initializeHeaderVisibility,
+  isEligibleStaticDisplayGroup,
   isDisplayGroupVisible,
   isRoleVisibilitySatisfied,
   resolveCrudPageDisplayDefaults,
@@ -1350,7 +1352,12 @@ function shouldShowFormGroupTitle(field: CrudFieldConfig) {
     const staticGroupFields = staticFields.filter(
       (item) => !item.complexGroupKey && item.layoutGroup === field.layoutGroup,
     );
-    if (staticFields.length < 7 || staticGroupFields.length < 3) return false;
+    if (
+      staticFields.length < 7 ||
+      !isEligibleStaticDisplayGroup(staticGroupFields)
+    ) {
+      return false;
+    }
   }
   return (
     visibleFormFields.value.findIndex(
@@ -2071,50 +2078,49 @@ function getConfiguredModalMaxWidthPx(
   return Number.isFinite(width) ? width : undefined;
 }
 
-function isDefaultCrudModalWidth(
-  configuredWidth: CrudPageConfig['modalWidth'],
-) {
+function isDefaultCrudModalWidth(configuredWidth: number | string | undefined) {
   return (
     configuredWidth === undefined ||
     String(configuredWidth).trim() === DEFAULT_CRUD_MODAL_WIDTH
   );
 }
 
+const activeFormModalConfig = computed(
+  () => pageDisplayConfig.value[editingRecord.value ? 'edit' : 'create'],
+);
+const configuredFormModalWidth = computed(
+  () => activeFormModalConfig.value?.modalMaxWidth || props.config.modalWidth,
+);
+
 const resolvedModalMaxWidthPx = computed(() => {
   const recommendedWidth = getFormModalRecommendedMaxWidth(
     formColumnCount.value,
   );
+  const configuredWidth = configuredFormModalWidth.value;
 
-  if (isDefaultCrudModalWidth(props.config.modalWidth)) {
-    return recommendedWidth;
-  }
-
-  const configuredWidth =
-    getConfiguredModalMaxWidthPx(props.config.modalWidth) || recommendedWidth;
-
-  return props.config.modalWidthStrict
-    ? configuredWidth
-    : Math.max(configuredWidth, recommendedWidth);
+  return resolveFormModalMaxWidth({
+    configuredMaxWidth: isDefaultCrudModalWidth(configuredWidth)
+      ? undefined
+      : getConfiguredModalMaxWidthPx(configuredWidth),
+    recommendedWidth,
+    strict:
+      activeFormModalConfig.value?.modalMaxWidth === undefined &&
+      props.config.modalWidthStrict,
+  });
 });
 
 const modalMaxWidth = computed(() => {
   return `min(80vw, ${resolvedModalMaxWidthPx.value}px)`;
 });
 
-const activeFormModalConfig = computed(
-  () => pageDisplayConfig.value[editingRecord.value ? 'edit' : 'create'],
-);
-
 const modalStyle = computed(() => ({
   maxHeight:
     activeFormModalConfig.value?.modalMaxHeight ||
     DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
-  maxWidth: activeFormModalConfig.value?.modalMaxWidth || modalMaxWidth.value,
+  maxWidth: modalMaxWidth.value,
 }));
 
-const modalWidth = computed(
-  () => activeFormModalConfig.value?.modalMaxWidth || modalMaxWidth.value,
-);
+const modalWidth = computed(() => modalMaxWidth.value);
 const modalBodyStyle = DEFAULT_CONTENT_MODAL_BODY_STYLE;
 
 function handleViewportResize() {

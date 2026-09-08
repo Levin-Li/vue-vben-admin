@@ -8,6 +8,7 @@ import {
   getFormFieldColumnSpan,
   getFormGridContentMaxWidth,
   getFormModalRecommendedMaxWidth,
+  resolveFormModalMaxWidth,
   resolveFormColumnCount,
   resolveSearchCollapsedCount,
   sortFormLayoutFields,
@@ -173,6 +174,48 @@ describe('crud form layout', () => {
     expect(getFormModalRecommendedMaxWidth(5)).toBe(1480);
   });
 
+  it('shrinks a non-strict modal with the effective form column count', () => {
+    expect(
+      resolveFormModalMaxWidth({
+        configuredMaxWidth: 960,
+        recommendedWidth: getFormModalRecommendedMaxWidth(1),
+      }),
+    ).toBe(560);
+    expect(
+      resolveFormModalMaxWidth({
+        configuredMaxWidth: 960,
+        recommendedWidth: getFormModalRecommendedMaxWidth(2),
+      }),
+    ).toBe(960);
+    expect(
+      resolveFormModalMaxWidth({
+        configuredMaxWidth: 960,
+        recommendedWidth: getFormModalRecommendedMaxWidth(1),
+      }),
+    ).toBe(560);
+    expect(
+      resolveFormModalMaxWidth({
+        configuredMaxWidth: 960,
+        recommendedWidth: getFormModalRecommendedMaxWidth(1),
+        strict: true,
+      }),
+    ).toBe(960);
+  });
+
+  it('treats the saved modal maximum width as a content-width cap', () => {
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'utf8',
+    );
+
+    expect(source).toContain('const configuredFormModalWidth = computed(');
+    expect(source).toContain('configuredMaxWidth: isDefaultCrudModalWidth(configuredWidth)');
+    expect(source).toContain('maxWidth: modalMaxWidth.value');
+    expect(source).not.toContain(
+      'activeFormModalConfig.value?.modalMaxWidth || modalMaxWidth.value',
+    );
+  });
+
   it('allows four form columns on desktop-width modals', () => {
     expect(
       resolveFormColumnCount({
@@ -299,7 +342,7 @@ describe('crud form layout', () => {
     ]);
   });
 
-  it('uses only static layout group and order config when sorting fields', () => {
+  it('uses declared group order and static field order when sorting fields', () => {
     const fields: CrudFieldConfig[] = [
       { key: 'name', label: '名称', layoutGroup: 'basic', type: 'text' },
       {
@@ -326,11 +369,11 @@ describe('crud form layout', () => {
     ];
 
     expect(sortFormLayoutFields(fields).map((field) => field.key)).toEqual([
-      'ownerId',
       'name',
       'editable',
       'enabled',
       'code',
+      'ownerId',
     ]);
   });
 });

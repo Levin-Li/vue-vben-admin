@@ -37,6 +37,7 @@ import {
   setDisplaySubmitMode,
   getDefaultFieldHidden,
   getDefaultVisibleRoleCodes,
+  isEligibleStaticDisplayGroup,
   initializeVisibleRoleCodes,
   initializeFieldHidden,
   initializeHeaderVisibility,
@@ -535,16 +536,11 @@ function getDevelopmentDefaultGroups(view: GroupView): DrawerDisplayGroup[] {
     ]);
   }
   return [...entries.entries()]
-    .filter(([, groupFields]) => groupFields.length >= 3)
+    .filter(([, groupFields]) => isEligibleStaticDisplayGroup(groupFields))
     .map(([key, groupFields], index) => ({
       developmentDefault: true,
       key,
-      order: Math.min(
-        ...groupFields.map(
-          (field) => field.layoutOrder ?? Number.MAX_SAFE_INTEGER,
-        ),
-        index,
-      ),
+      order: index,
       title:
         groupFields.find((field) => field.layoutGroupTitle)?.layoutGroupTitle ||
         key,

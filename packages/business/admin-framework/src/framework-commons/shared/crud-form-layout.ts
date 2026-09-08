@@ -15,26 +15,6 @@ export const FORM_MODAL_RECOMMENDED_MAX_WIDTH_BY_COLUMN = {
   5: 1480,
 } as const;
 
-const FORM_LAYOUT_GROUP_ORDER = [
-  'ownership',
-  'basic',
-  'identity',
-  'contact',
-  'license',
-  'application',
-  'media',
-  'content',
-  'business',
-  'assignment',
-  'permission',
-  'profile',
-  'external',
-  'status',
-  'extension',
-  'remark',
-  'audit',
-];
-
 function clampInteger(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) {
     return min;
@@ -124,6 +104,25 @@ export function getFormModalRecommendedMaxWidth(columns: number) {
   return FORM_MODAL_RECOMMENDED_MAX_WIDTH_BY_COLUMN[safeColumns];
 }
 
+/** 非严格页面宽度是上限，随有效表单列数收敛；严格宽度保留页面明确意图。 */
+export function resolveFormModalMaxWidth({
+  configuredMaxWidth,
+  recommendedWidth,
+  strict = false,
+}: {
+  configuredMaxWidth?: number;
+  recommendedWidth: number;
+  strict?: boolean;
+}) {
+  if (!configuredMaxWidth || configuredMaxWidth <= 0) {
+    return recommendedWidth;
+  }
+
+  return strict
+    ? configuredMaxWidth
+    : Math.min(configuredMaxWidth, recommendedWidth);
+}
+
 export function shouldFormFieldSpanFullRow(field: CrudFieldConfig) {
   return field.fullRow === true || field.span === -1;
 }
@@ -139,20 +138,20 @@ export function getFormFieldColumnSpan(
   return Math.min(Math.max(field.span || 1, 1), columns);
 }
 
-function getFormLayoutGroupIndex(field: CrudFieldConfig, index: number) {
-  if (!field.layoutGroup) {
-    return FORM_LAYOUT_GROUP_ORDER.length + index / 1000;
+export function sortFormLayoutFields(fields: CrudFieldConfig[]) {
+  const groupOrder = new Map<string, number>();
+  for (const [index, field] of fields.entries()) {
+    if (field.layoutGroup && !groupOrder.has(field.layoutGroup)) {
+      groupOrder.set(field.layoutGroup, index);
+    }
   }
 
-  const groupIndex = FORM_LAYOUT_GROUP_ORDER.indexOf(field.layoutGroup);
-  return groupIndex >= 0 ? groupIndex : FORM_LAYOUT_GROUP_ORDER.length;
-}
-
-export function sortFormLayoutFields(fields: CrudFieldConfig[]) {
   return fields
     .map((field, index) => ({
       field,
-      groupIndex: getFormLayoutGroupIndex(field, index),
+      groupIndex: field.layoutGroup
+        ? (groupOrder.get(field.layoutGroup) ?? fields.length)
+        : fields.length + index / 1000,
       index,
       order: field.layoutOrder ?? index,
     }))
