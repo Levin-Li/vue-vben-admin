@@ -1,13 +1,7 @@
 # Published Package AGENTS.md
 
 <INSTRUCTIONS>
-本文件随 @levin/admin-framework npm 发布包分发，作为第三方项目和 AI 辅助工具读取模块使用规范的一等入口。
+本文件随 @levin/admin-framework npm 发布包分发。使用本包进行二次开发、扩展、配置、升级或发布的子项目，必须先读取并遵循 [模块开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。规范仅约束公开入口、兼容扩展、安全、测试和升级，不要求采用发布方代码包名、目录或业务实现。
 
-使用本包进行二次开发、扩展、配置、升级或发布的子项目，必须先读取并遵循 `docs/MODULE-DEVELOPMENT-STANDARD.md`。该规范约束公开入口、兼容扩展、安全、测试和升级，不要求子项目采用本包发布方的代码包名、源码目录或业务实现。
-
-必读入口：
-
-- `docs/MODULE-DEVELOPMENT-STANDARD.md`
-
-本文件和模块使用规范均由发布流程生成或同步；源码仓中的项目专用规则不构成下游子项目的强制要求。
+[项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。
 </INSTRUCTIONS>

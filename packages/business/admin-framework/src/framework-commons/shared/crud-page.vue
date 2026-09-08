@@ -191,6 +191,11 @@ import {
   type ParsedImportSheet,
 } from './crud-import';
 import CrudImportPanel from './crud-import-panel.vue';
+import { getCrudListScroll, resolveCrudListHeight } from './crud-list-height';
+import {
+  buildCrudJsonFieldUpdatePayload,
+  getCrudJsonSchemaEditFields,
+} from './crud-json-schema-actions';
 import { shouldShowCrudOperationColumn } from './crud-operation-column-visibility';
 import {
   filterCrudOperationsByListTable,
@@ -348,7 +353,6 @@ const EXPORT_TEMPLATE_SCOPE_OPTIONS = [
   { label: '租户共享', value: 'tenant' },
   { label: '组织共享', value: 'org' },
 ] as const;
-const TABLE_MIN_SCROLL_Y = 160;
 const TABLE_SECTION_HORIZONTAL_PADDING = 32;
 const TABLE_SECTION_VERTICAL_PADDING = 32;
 const TABLE_TOOLBAR_GAP = 12;
@@ -365,10 +369,6 @@ const route = useRoute();
 const pageEntryPath = route.path;
 // 固定条件属于当前页面实例，避免缓存页面读取后来激活的另一菜单条件。
 const menuFixedQuery = parseMenuFixedQuery(route.meta.fixedQuery);
-const menuSourcePagePath =
-  typeof route.meta.sourcePagePath === 'string'
-    ? route.meta.sourcePagePath
-    : undefined;
 
 const effectiveFields = computed(() => props.config.fields);
 const effectiveDetailFields = computed(
@@ -381,6 +381,10 @@ type ExportTemplateSaveScope =
 
 const dataSource = ref<GenericRecord[]>([]);
 const editingRecord = ref<GenericRecord | null>(null);
+const focusedJsonFieldKey = ref<string>();
+const focusedSchemaReady = ref(false);
+const focusedJsonValid = ref(true);
+const jsonEditSession = ref(0);
 const loading = ref(false);
 const modalOpen = ref(false);
 const searchExpanded = ref(false);
@@ -389,7 +393,10 @@ const selectedRows = ref<GenericRecord[]>([]);
 const actionResultOpen = ref(false);
 const actionResultTitle = ref('');
 const actionResultData = ref<any>(null);
-const latestDetailRecord = ref<{ source: string; record: GenericRecord }>();
+const latestDetailRecord = ref<{
+  source: string | undefined;
+  record: GenericRecord;
+}>();
 const actionResultMode = ref<NormalizedCrudAction>('showSchema');
 const exportModalOpen = ref(false);
 const exporting = ref(false);
@@ -448,6 +455,18 @@ const pageDisplaySettingSaving = ref(false);
 const pageDisplayConfig = ref<CrudPageDisplayConfig>(
   resolveCrudPageDisplayDefaults(),
 );
+const listHeightPolicy = computed(() =>
+  resolveCrudListHeight(pageDisplayConfig.value.list, tableFullscreen.value),
+);
+const tableScroll = computed(() =>
+  getCrudListScroll(listHeightPolicy.value.showAllPageRows, tableScrollY.value),
+);
+const pageContentClass = computed(() => [
+  props.embedded ? 'flex min-h-0 flex-1 flex-col' : '',
+  '!bg-transparent min-w-0 !p-0',
+  listHeightPolicy.value.pageScrollable ? '!overflow-x-hidden !overflow-y-auto' : '!overflow-hidden',
+].join(' '));
+
 const pageDisplayHeaderMap = computed(
   () =>
     new Map(
@@ -490,9 +509,15 @@ const pageDisplayContextKey = computed(() => {
 });
 
 async function loadPageDisplaySettings() {
+  const code = pageDisplaySettingCode.value;
+  if (!code) {
+    pageDisplaySettingRecord.value = null;
+    return;
+  }
+
   try {
     const resolution = await resolveUiSettingRuntimeWithScope(
-      pageDisplaySettingCode.value,
+      code,
       pageDisplayContextKey.value,
     );
     const setting = resolution.setting;
@@ -510,13 +535,14 @@ async function savePageDisplaySettings(payload: {
   config: CrudPageDisplayConfig;
   scope: Record<string, any>;
 }) {
-  if (pageDisplaySettingSaving.value) return;
+  const code = pageDisplaySettingCode.value;
+  if (!code || pageDisplaySettingSaving.value) return;
 
   pageDisplaySettingSaving.value = true;
   try {
     const current = pageDisplaySettingRecord.value;
     const data = {
-      code: pageDisplaySettingCode.value,
+      code,
       domain: payload.scope.domain || null,
       name: `${props.config.title}页面展示设置`,
       orgCategory: payload.scope.orgCategory || null,
@@ -552,7 +578,7 @@ async function savePageDisplaySettings(payload: {
     }
     pageDisplayConfig.value = resolveCrudPageDisplayDefaults(payload.config);
     replaceUiSettingRuntimeCache(
-      pageDisplaySettingCode.value,
+      code,
       pageDisplayContextKey.value,
       pageDisplaySettingRecord.value,
     );
@@ -756,7 +782,49 @@ function updateSearchRangeInput(
 }
 
 function shouldUseJsonSchemaEditor(field: CrudFieldConfig, value?: any) {
-  return field.type === 'json' && hasCrudFieldJsonSchema(field, value);
+  return (
+    field.type === 'json' &&
+    hasCrudFieldJsonSchema(
+      field,
+      value,
+      focusedJsonFieldKey.value
+        ? editingRecord.value || {}
+        : { ...editingRecord.value, ...formState },
+    )
+  );
+}
+
+function handleJsonEditorReady(key: string, ready: boolean) {
+  if (focusedJsonFieldKey.value === key) focusedSchemaReady.value = ready;
+}
+
+function handleJsonEditorValidity(key: string, valid: boolean) {
+  if (focusedJsonFieldKey.value === key) focusedJsonValid.value = valid;
+}
+
+function getFormJsonSchemaSource(field: CrudFieldConfig, value?: any) {
+  return getJsonSchemaSourceInput(
+    field,
+    value,
+    focusedJsonFieldKey.value
+      ? editingRecord.value || {}
+      : { ...editingRecord.value, ...formState },
+  );
+}
+
+function getRowJsonSchemaFields(record: GenericRecord) {
+  return getCrudJsonSchemaEditFields(effectiveFields.value, record, {
+    canEditRecord: canShowBuiltinEdit(record),
+    recordKey: recordKey.value,
+    userInfo: userStore.userInfo,
+    canEditField: (field) =>
+      isFieldVisible(field) &&
+      shouldShowCrudFormField(field, 'edit', userStore.userInfo) &&
+      shouldSubmitCrudFormField(field, 'edit') &&
+      !isFixedCrudFormField(field, menuFixedQuery) &&
+      !getPageDisplayField('edit', field.key).hidden &&
+      !getPageDisplayField('edit', field.key).disabled,
+  });
 }
 
 function getPageDisplayField(
@@ -767,7 +835,7 @@ function getPageDisplayField(
     (item) => item.key === key,
   );
   if (configured) {
-    return resolveRuntimeDisplayField(configured);
+    return resolveRuntimeDisplayField(configured, { view });
   }
 
   return resolveRuntimeDisplayField({
@@ -1106,7 +1174,10 @@ const searchFieldItems = computed(() =>
 
 const formFields = computed(() =>
   effectiveFields.value.filter(
-    (field) => field.form !== false && isFieldVisible(field),
+    (field) =>
+      field.form !== false &&
+      isFieldVisible(field) &&
+      (!focusedJsonFieldKey.value || field.key === focusedJsonFieldKey.value),
   ),
 );
 
@@ -1613,14 +1684,11 @@ const canCustomizeTableColumnsLocally = computed(
 );
 
 const hasRowActionSlot = computed(() => Boolean(slots['row-actions']));
-const canManagePageDisplaySettings = computed(() =>
-  isSuperAdminUser(userStore.userInfo),
-);
 const pageDisplaySettingCode = computed(() =>
-  resolvePageDisplaySettingCode(
-    menuSourcePagePath || pageEntryPath,
-    props.config.uiSettingCode || props.config.apiBase,
-  ),
+  resolvePageDisplaySettingCode(pageEntryPath),
+);
+const canManagePageDisplaySettings = computed(
+  () => isSuperAdminUser(userStore.userInfo) && Boolean(pageDisplaySettingCode.value),
 );
 
 const hasAvailableOperationColumn = computed(() =>
@@ -2089,6 +2157,9 @@ function updateTableScrollY() {
       section.clientWidth - TABLE_SECTION_HORIZONTAL_PADDING,
       0,
     );
+    if (listHeightPolicy.value.showAllPageRows) {
+      return;
+    }
     const toolbarHeight = listToolbarRef.value?.offsetHeight || 0;
     const toolbarGap = toolbarHeight > 0 ? TABLE_TOOLBAR_GAP : 0;
     const tableHeaderHeight =
@@ -2100,15 +2171,10 @@ function updateTableScrollY() {
     const paginationHeight =
       getElementOuterHeight(table?.querySelector('.ant-pagination') || null) ||
       TABLE_PAGINATION_HEIGHT;
-    const availableHeight =
-      section.clientHeight -
-      toolbarHeight -
-      toolbarGap -
-      TABLE_SECTION_VERTICAL_PADDING -
-      tableHeaderHeight -
-      paginationHeight;
-
-    tableScrollY.value = Math.max(TABLE_MIN_SCROLL_Y, availableHeight);
+    const chromeHeight = toolbarHeight + toolbarGap + TABLE_SECTION_VERTICAL_PADDING
+      + tableHeaderHeight + paginationHeight;
+    const availableHeight = section.clientHeight - chromeHeight;
+    tableScrollY.value = Math.max(160, availableHeight);
   });
 }
 
@@ -4041,14 +4107,33 @@ async function loadList() {
 }
 
 function handleCreate() {
+  jsonEditSession.value++;
+  focusedJsonFieldKey.value = undefined;
   editingRecord.value = null;
   resetForm();
   modalOpen.value = true;
 }
 
 function handleEdit(record: GenericRecord) {
+  jsonEditSession.value++;
+  focusedJsonFieldKey.value = undefined;
   editingRecord.value = record;
   resetForm(record);
+  modalOpen.value = true;
+}
+
+function handleJsonFieldEdit(record: GenericRecord, field: CrudFieldConfig) {
+  if (!getRowJsonSchemaFields(record).some((item) => item.key === field.key))
+    return;
+  jsonEditSession.value++;
+  editingRecord.value = record;
+  focusedJsonFieldKey.value = field.key;
+  focusedJsonValid.value = true;
+  resetForm(record);
+  focusedSchemaReady.value = !shouldUseJsonSchemaEditor(
+    field,
+    formState[field.key],
+  );
   modalOpen.value = true;
 }
 
@@ -4102,6 +4187,25 @@ async function handleDelete(record: GenericRecord) {
 
 async function handleSubmit() {
   if (submitting.value) return;
+  if (focusedJsonFieldKey.value) {
+    if (
+      !editingRecord.value ||
+      !getRowJsonSchemaFields(editingRecord.value).some(
+        (field) => field.key === focusedJsonFieldKey.value,
+      )
+    ) {
+      message.error('当前字段不可编辑');
+      return;
+    }
+    if (!focusedJsonValid.value) {
+      message.error('编辑内容不符合JSON或Schema约束，请修正后保存');
+      return;
+    }
+    if (!focusedSchemaReady.value) {
+      message.error('编辑器尚未就绪，请等待加载完成或检查配置');
+      return;
+    }
+  }
   if (!validateFormFields()) {
     return;
   }
@@ -4244,7 +4348,7 @@ async function handleSubmit() {
     const transformedPayload = props.config.transformSubmit
       ? await props.config.transformSubmit(payload, editingRecord.value)
       : payload;
-    const finalPayload = omitExcludedCrudFields(
+    let finalPayload = omitExcludedCrudFields(
       omitNonPlatformTenantId(transformedPayload, isPlatformUser.value),
       excludedFields,
       props.config.complexGroups,
@@ -4259,6 +4363,16 @@ async function handleSubmit() {
 
     if (!isCreating && shouldAutoForceUpdateField(pageDisplayConfig.value)) {
       finalPayload.autoForceUpdateField = true;
+    }
+
+    if (focusedJsonFieldKey.value && editingRecord.value) {
+      finalPayload = buildCrudJsonFieldUpdatePayload(
+        focusedJsonFieldKey.value,
+        finalPayload,
+        editingRecord.value,
+        recordKey.value,
+        isPlatformUser.value,
+      );
     }
 
     if (isCreating) {
@@ -6154,7 +6268,7 @@ watch(
   { immediate: true },
 );
 
-watch([searchExpanded, searchFieldItems, tableFullscreen], updateTableScrollY);
+watch([searchExpanded, searchFieldItems, tableFullscreen, listHeightPolicy], updateTableScrollY);
 
 watch(tableFields, () => {
   if (!canCustomizeTableColumnsLocally.value) {
@@ -6183,15 +6297,12 @@ watch(canCustomizeTableColumnsLocally, () => {
   <Page
     :auto-content-height="!embedded"
     :class="embedded ? '!min-h-0 flex-1' : undefined"
-    :content-class="
-      embedded
-        ? 'flex min-h-0 flex-1 flex-col !bg-transparent min-w-0 !overflow-hidden !p-0'
-        : '!bg-transparent min-w-0 !overflow-hidden !p-0'
-    "
+    :content-class="pageContentClass"
   >
     <div
       ref="crudPageRef"
       class="vben-crud-page relative flex h-full flex-col gap-2"
+      :class="{ 'vben-crud-page--all-page-rows': listHeightPolicy.showAllPageRows }"
     >
       <div
         v-if="hasListTableTabs"
@@ -6793,7 +6904,7 @@ watch(canCustomizeTableColumnsLocally, () => {
             total: pagination.total,
           }"
           :row-selection="rowSelection"
-          :scroll="{ x: 'max-content', y: tableScrollY }"
+          :scroll="tableScroll"
           :row-key="recordKey"
           @change="handleTableChange"
           class="vben-crud-table"
@@ -6825,6 +6936,15 @@ watch(canCustomizeTableColumnsLocally, () => {
                   @click="handleEdit(record)"
                 >
                   编辑
+                </Button>
+                <Button
+                  v-for="field in getRowJsonSchemaFields(record)"
+                  :key="`json-field-${field.key}`"
+                  size="small"
+                  type="link"
+                  @click="handleJsonFieldEdit(record, field)"
+                >
+                  编辑{{ field.label }}
                 </Button>
                 <slot
                   name="row-actions"
@@ -7231,6 +7351,10 @@ watch(canCustomizeTableColumnsLocally, () => {
       v-if="canCreate || (canEdit && editingRecord)"
       :body-style="modalBodyStyle"
       :confirm-loading="submitting"
+      :ok-button-props="{
+        disabled:
+          !!focusedJsonFieldKey && (!focusedSchemaReady || !focusedJsonValid),
+      }"
       :mask-closable="false"
       :open="modalOpen"
       :style="modalStyle"
@@ -7243,9 +7367,11 @@ watch(canCustomizeTableColumnsLocally, () => {
         <div class="vben-crud-modal-title">
           <span class="min-w-0 break-words">
             {{
-              editingRecord
-                ? `编辑${getBusinessTitle(config.title)}`
-                : `新增${getBusinessTitle(config.title)}`
+              focusedJsonFieldKey
+                ? `编辑${effectiveFields.find((field) => field.key === focusedJsonFieldKey)?.label || ''}`
+                : editingRecord
+                  ? `编辑${getBusinessTitle(config.title)}`
+                  : `新增${getBusinessTitle(config.title)}`
             }}
           </span>
           <Checkbox
@@ -7528,6 +7654,9 @@ watch(canCustomizeTableColumnsLocally, () => {
                 </Upload>
               </div>
               <JsonEditorField
+                :key="`json-${jsonEditSession}-${field.key}`"
+                @validity="handleJsonEditorValidity(field.key, $event)"
+                :inline="focusedJsonFieldKey === field.key"
                 v-else-if="
                   field.type === 'json' &&
                   !shouldUseJsonSchemaEditor(field, formState[field.key])
@@ -7545,6 +7674,8 @@ watch(canCustomizeTableColumnsLocally, () => {
                 :title="field.label"
               />
               <JsonSchemaEditorField
+                :key="`schema-${jsonEditSession}-${field.key}`"
+                @validity="handleJsonEditorValidity(field.key, $event)"
                 v-else-if="
                   shouldUseJsonSchemaEditor(field, formState[field.key])
                 "
@@ -7556,11 +7687,15 @@ watch(canCustomizeTableColumnsLocally, () => {
                 "
                 @update:model-value="updateFormFieldInput(field, $event)"
                 :disabled="isFormFieldInteractionDisabled(field)"
-                :inline="isCrudFieldJsonSchemaInline(field)"
+                :inline="
+                  focusedJsonFieldKey === field.key ||
+                  isCrudFieldJsonSchemaInline(field)
+                "
+                @ready="handleJsonEditorReady(field.key, $event)"
                 :modal-style="modalStyle"
                 :modal-width="modalWidth"
                 :schema-source="
-                  getJsonSchemaSourceInput(field, formState[field.key])
+                  getFormJsonSchemaSource(field, formState[field.key])
                 "
                 :title="field.label"
               />
@@ -7931,6 +8066,7 @@ watch(canCustomizeTableColumnsLocally, () => {
     />
 
     <PageDisplaySettingsDrawer
+      v-if="pageDisplaySettingCode"
       v-model:open="pageDisplaySettingsOpen"
       :code="pageDisplaySettingCode"
       :domain-object="props.config.domainObject"
@@ -7951,6 +8087,22 @@ watch(canCustomizeTableColumnsLocally, () => {
   min-height: 0;
   height: 100%;
 }
+
+.vben-crud-page--all-page-rows {
+  height: auto;
+  min-height: 100%;
+  flex-shrink: 0;
+}
+
+.vben-crud-page--all-page-rows > .vben-crud-section {
+  flex: none;
+}
+
+.vben-crud-page--all-page-rows :deep(.vben-crud-table) {
+  flex: none;
+  overflow: visible;
+}
+
 
 .vben-crud-list-tabs-float {
   position: absolute;

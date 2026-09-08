@@ -1,14 +1,14 @@
 <script lang="ts" setup>
 import type { JsonSchemaSourceInput } from './json-schema-source';
 
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 import { Spin } from 'ant-design-vue';
 
 import { jsonSchemaService } from '../app/api/json-schema-service';
 import { requestClient } from '../runtime';
-import JsonSchemaFormField from './json-schema-form-field.vue';
 import { normalizeJsonSchemaObject } from './json-schema-form';
+import JsonSchemaFormField from './json-schema-form-field.vue';
 import {
   getJsonValueJsonSchemaInput,
   resolveJsonSchemaSource,
@@ -27,6 +27,8 @@ const props = withDefaults(
   {
     disabled: false,
     inline: false,
+    modalStyle: undefined,
+    modelValue: undefined,
     modalWidth: 'min(80vw, 1120px)',
     schemaSource: undefined,
     title: 'JSON',
@@ -34,12 +36,18 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
+  ready: [ready: boolean];
   'update:modelValue': [value: Record<string, any>];
+  validity: [valid: boolean];
 }>();
 
 const schema = ref<Record<string, any>>();
 const schemaErrorMessage = ref('');
 const schemaLoading = ref(false);
+let loadSequence = 0;
+onBeforeUnmount(() => {
+  loadSequence++;
+});
 
 const resolvedSource = computed(() =>
   resolveJsonSchemaSource(
@@ -83,6 +91,8 @@ async function fetchJsonSchema() {
 }
 
 async function loadJsonSchema() {
+  const sequence = ++loadSequence;
+  emit('ready', false);
   schema.value = undefined;
   schemaErrorMessage.value = '';
 
@@ -94,6 +104,7 @@ async function loadJsonSchema() {
 
   try {
     const nextSchema = await fetchJsonSchema();
+    if (sequence !== loadSequence) return;
 
     if (nextSchema) {
       schema.value = nextSchema;
@@ -101,10 +112,14 @@ async function loadJsonSchema() {
       schemaErrorMessage.value = 'JSON Schema 解析失败';
     }
   } catch (error) {
+    if (sequence !== loadSequence) return;
     console.error(error);
     schemaErrorMessage.value = 'JSON Schema 加载失败';
   } finally {
-    schemaLoading.value = false;
+    if (sequence === loadSequence) {
+      schemaLoading.value = false;
+      emit('ready', !!schema.value && !schemaErrorMessage.value);
+    }
   }
 }
 
@@ -128,6 +143,7 @@ watch(
       :model-value="modelValue"
       :schema="schema"
       :title="title"
+      @validity="emit('validity', $event)"
       @update:model-value="emit('update:modelValue', $event)"
     />
   </Spin>

@@ -134,7 +134,7 @@ describe('traffic control rule page config', () => {
     expect(formKeys.slice(-3)).toEqual(['rejectMessage', 'exInfo', 'remark']);
     expect(fieldsByKey('tenantId')).toMatchObject({
       key: 'tenantId',
-      layoutGroup: 'ownership',
+      layoutGroup: 'basic',
       layoutOrder: 1,
       visibleForPlatformUser: true,
     });

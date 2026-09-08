@@ -251,7 +251,16 @@ function collectCoordinationIssues(
   mode: 'create' | 'edit',
   fields: CrudFieldConfig[],
 ) {
-  const rows = buildFormRows(getFormFields(fields, mode));
+  const groups = new Map<string, CrudFieldConfig[]>();
+  for (const field of getFormFields(fields, mode)) {
+    const key = field.layoutGroup || '';
+    groups.set(key, [...(groups.get(key) || []), field]);
+  }
+  return [...groups.values()].flatMap((group) => collectGroupCoordinationIssues(file, mode, group));
+}
+
+function collectGroupCoordinationIssues(file: string, mode: 'create' | 'edit', fields: CrudFieldConfig[]) {
+  const rows = buildFormRows(fields);
   const issues: string[] = [];
 
   rows.forEach((row, rowIndex) => {
@@ -292,6 +301,13 @@ function isCompactHighComponent(field: CrudFieldConfig) {
 }
 
 function isAllowedFullRowHighComponent(file: string, field: CrudFieldConfig) {
+  const reviewedWideJsonFields: Record<string, string[]> = {
+    'backend-fixed-job': ['configData'],
+    domain: ['nameservers', 'exInfo'],
+    menu: ['params'],
+    'service-plugin': ['baseConfig'],
+  };
+  if (Object.entries(reviewedWideJsonFields).some(([page, keys]) => file.endsWith(`${page}/config.ts`) && keys.includes(field.key))) return true;
   return (
     file.endsWith('client-app/config.ts') &&
     ['allowedIpList', 'allowedPathPatterns'].includes(field.key)

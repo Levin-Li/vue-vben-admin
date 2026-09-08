@@ -1,6 +1,6 @@
 {
   "name": "@vben/styles",
-  "version": "5.6.8",
+  "version": "5.6.9",
   "homepage": "https://github.com/vbenjs/vue-vben-admin",
   "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
@@ -35,18 +35,28 @@
     "./global": {
       "default": "./dist/global/index.scss",
       "development": "./src/global/index.scss"
+    },
+    "./package-version": {
+      "types": "./package-version.d.mts",
+      "default": "./package-version.mjs"
     }
   },
   "dependencies": {
     "@vben-core/design": "workspace:*"
   },
   "scripts": {
-    "build": "pnpm unbuild && node scripts/copy-assets.mjs",
-    "prepublishOnly": "npm run build"
+    "build": "node ../../scripts/sync-framework-package-metadata.mjs --package . && pnpm unbuild && node scripts/copy-assets.mjs",
+    "prepublishOnly": "npm run build",
+    "prepack": "node ../../scripts/sync-framework-package-metadata.mjs --package ."
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "package-version.mjs",
+    "package-version.d.mts",
+    "docs",
+    "AGENTS.md",
+    "README.md"
   ],
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -71,6 +81,10 @@
       },
       "./global": {
         "default": "./dist/global/index.scss"
+      },
+      "./package-version": {
+        "types": "./package-version.d.mts",
+        "default": "./package-version.mjs"
       }
     }
   }

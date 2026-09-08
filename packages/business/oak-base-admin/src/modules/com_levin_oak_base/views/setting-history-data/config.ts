@@ -102,6 +102,8 @@ export const settingHistoryDataPageCrudConfig: CrudPageConfig = {
     { key: 'editor', label: '编辑器', form: false },
     {
       key: 'content',
+      jsonSchemaEditor: true,
+      jsonSchema: ':editor',
       label: '数据内容',
       form: false,
       fullRow: true,

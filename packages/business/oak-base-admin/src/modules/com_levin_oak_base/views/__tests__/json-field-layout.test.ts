@@ -20,10 +20,10 @@ function listConfigFiles(dir: string): string[] {
 }
 
 const compactJsonFields = [
+  'electronic-contract/config.ts:signingSubjectList',
+  'electronic-contract/config.ts:sealPositionRules',
   'client-app/config.ts:exInfo',
   'demo/config.ts:jsonData',
-  'domain/config.ts:nameservers',
-  'domain/config.ts:exInfo',
   'domain-ssl-cert/config.ts:exInfo',
   'electronic-contract/config.ts:contractPartySnapshot',
   'electronic-contract/config.ts:sealPositionOverrides',
@@ -68,6 +68,13 @@ const compactJsonFields = [
 ];
 
 const wideJsonFields = [
+  'audit-report/config.ts:content',
+  'backend-fixed-job/config.ts:configData',
+  'domain/config.ts:nameservers',
+  'domain/config.ts:exInfo',
+  'menu/config.ts:params',
+  'service-plugin/config.ts:baseConfig',
+  'setting-history-data/config.ts:content',
   'domain/config.ts:dnsRecords',
   'email-relay-route/config.ts:targetList',
 ];

@@ -381,6 +381,9 @@ function packageVersionExists(packageInfo, publishEnv) {
 }
 
 function buildPackage(packageInfo) {
+  run('node', [resolve(frontendRoot, 'scripts/sync-frontend-rule-docs.mjs')], {
+    cwd: packageInfo.dir,
+  });
   if (!packageInfo.packageJson.scripts?.build) {
     return;
   }

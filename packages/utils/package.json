@@ -1,6 +1,6 @@
 {
   "name": "@vben/utils",
-  "version": "5.6.9",
+  "version": "5.6.10",
   "homepage": "https://github.com/vbenjs/vue-vben-admin",
   "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
@@ -18,6 +18,10 @@
       "types": "./src/index.ts",
       "default": "./dist/index.mjs",
       "development": "./src/index.ts"
+    },
+    "./package-version": {
+      "types": "./package-version.d.mts",
+      "default": "./package-version.mjs"
     }
   },
   "dependencies": {
@@ -26,12 +30,18 @@
     "vue-router": "catalog:"
   },
   "scripts": {
-    "build": "pnpm unbuild",
-    "prepublishOnly": "npm run build"
+    "build": "node ../../scripts/sync-framework-package-metadata.mjs --package . && pnpm unbuild",
+    "prepublishOnly": "npm run build",
+    "prepack": "node ../../scripts/sync-framework-package-metadata.mjs --package ."
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "package-version.mjs",
+    "package-version.d.mts",
+    "docs",
+    "AGENTS.md",
+    "README.md"
   ],
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -41,6 +51,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.mjs"
+      },
+      "./package-version": {
+        "types": "./package-version.d.mts",
+        "default": "./package-version.mjs"
       }
     }
   }

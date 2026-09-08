@@ -1,13 +1,14 @@
 {
   "name": "@levin/admin-framework",
-  "version": "5.6.93",
+  "version": "5.6.95",
   "description": "Common admin application framework contracts for Levin frontend modules.",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "node ../../../scripts/sync-frontend-rule-docs.mjs && pnpm unbuild",
+    "build": "node ../../../scripts/sync-framework-package-metadata.mjs --package . && node ../../../scripts/sync-frontend-rule-docs.mjs && pnpm unbuild",
     "check:route-transition": "node ./scripts/check-route-transition-guard.mjs .",
-    "prepublishOnly": "pnpm run build"
+    "prepublishOnly": "pnpm run build",
+    "prepack": "node ../../../scripts/sync-framework-package-metadata.mjs --package ."
   },
   "bin": {
     "levin-check-route-transition": "./scripts/check-route-transition-guard.mjs"
@@ -17,7 +18,10 @@
     "docs",
     "dist",
     "scripts",
-    "src"
+    "src",
+    "package-version.mjs",
+    "package-version.d.mts",
+    "README.md"
   ],
   "sideEffects": [
     "**/*.css",
@@ -104,23 +108,27 @@
       "development": "./src/framework-commons/shared/*.ts",
       "types": "./dist/framework-commons/shared/*.d.ts",
       "default": "./dist/framework-commons/shared/*.mjs"
+    },
+    "./package-version": {
+      "types": "./package-version.d.mts",
+      "default": "./package-version.mjs"
     }
   },
   "peerDependencies": {
-    "@vben/access": "5.6.10",
-    "@vben/common-ui": "5.6.13",
-    "@vben/constants": "5.6.8",
-    "@vben/hooks": "5.6.10",
-    "@vben/icons": "5.6.9",
-    "@vben/layouts": "5.6.25",
-    "@vben/locales": "5.6.16",
-    "@vben/plugins": "5.6.12",
-    "@vben/preferences": "5.6.12",
-    "@vben/request": "5.6.10",
-    "@vben/stores": "5.6.10",
-    "@vben/styles": "5.6.8",
-    "@vben/types": "5.6.8",
-    "@vben/utils": "5.6.9",
+    "@vben/access": "5.6.11",
+    "@vben/common-ui": "5.6.14",
+    "@vben/constants": "5.6.9",
+    "@vben/hooks": "5.6.11",
+    "@vben/icons": "5.6.10",
+    "@vben/layouts": "5.6.26",
+    "@vben/locales": "5.6.17",
+    "@vben/plugins": "5.6.13",
+    "@vben/preferences": "5.6.13",
+    "@vben/request": "5.6.11",
+    "@vben/stores": "5.6.11",
+    "@vben/styles": "5.6.9",
+    "@vben/types": "5.6.9",
+    "@vben/utils": "5.6.10",
     "@vueuse/core": ">=12.0.0",
     "ant-design-vue": ">=4.0.0",
     "dayjs": ">=1.11.0",

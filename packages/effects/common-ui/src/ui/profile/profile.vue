@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Props } from './types';
 
+import { computed } from 'vue';
+
 import { preferences } from '@vben-core/preferences';
 import {
   Card,
@@ -17,29 +19,45 @@ defineOptions({
   name: 'ProfileUI',
 });
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   title: '关于项目',
   tabs: () => [],
 });
 
 const tabsValue = defineModel<string>('modelValue');
+const displayName = computed(
+  () => props.userInfo?.realName || props.userInfo?.username || '',
+);
+const secondaryAccount = computed(() => {
+  const username = props.userInfo?.username || '';
+  return username && username !== displayName.value ? username : '';
+});
 </script>
 <template>
   <Page auto-content-height>
-    <div class="flex h-full w-full">
-      <Card class="w-1/6 flex-none">
-        <div class="mt-4 flex h-40 flex-col items-center justify-center gap-4">
+    <div class="flex h-full w-full min-w-0 gap-4">
+      <Card class="w-[clamp(220px,22vw,280px)] shrink-0">
+        <div
+          class="mt-4 flex h-40 flex-col items-center justify-center gap-4 px-4"
+        >
           <slot name="avatar" :user-info="userInfo">
             <VbenAvatar
               :src="userInfo?.avatar ?? preferences.app.defaultAvatar"
               class="size-20"
             />
           </slot>
-          <span class="text-lg font-semibold">
-            {{ userInfo?.realName ?? '' }}
+          <span
+            class="w-full truncate text-center text-lg font-semibold"
+            :title="displayName"
+          >
+            {{ displayName }}
           </span>
-          <span class="text-foreground/80 text-sm">
-            {{ userInfo?.username ?? '' }}
+          <span
+            v-if="secondaryAccount"
+            class="text-foreground/80 w-full truncate text-center text-sm"
+            :title="secondaryAccount"
+          >
+            {{ secondaryAccount }}
           </span>
         </div>
         <Separator class="my-4" />
@@ -56,7 +74,7 @@ const tabsValue = defineModel<string>('modelValue');
           </TabsList>
         </Tabs>
       </Card>
-      <Card class="ml-4 w-5/6 flex-auto p-8">
+      <Card class="min-w-0 flex-1 p-8">
         <slot name="content"></slot>
       </Card>
     </div>

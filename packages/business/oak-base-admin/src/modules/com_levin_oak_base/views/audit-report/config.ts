@@ -1,0 +1,156 @@
+import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
+
+import { auditReportService } from '../../api/audit-report-service';
+import {
+  buildDictOptionsLoader,
+  buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
+  tenantOptionsLoader,
+} from '../api-module';
+
+export const pageMeta = {
+  name: 'AuditReport',
+  title: '审计报告',
+  description: '查询审计对象、审计时间范围并查看审计服务生成的报告内容。',
+} as const;
+
+export const auditReportPageCrudConfig: CrudPageConfig = {
+  apiBase: '/AuditReport',
+  apiService: auditReportService,
+  allowCreate: false,
+  allowEdit: false,
+  allowDelete: false,
+  allowRetrieve: true,
+  defaultQuery: { pageIndex: 1, pageSize: 10 },
+  fields: [
+    {
+      key: 'containsTitle',
+      label: '标题',
+      search: true,
+      form: false,
+      detail: false,
+    },
+    { key: 'title', label: '标题', table: true, width: 280 },
+    {
+      key: 'targetType',
+      label: '审计对象类型',
+      search: true,
+      table: true,
+      type: 'select',
+      loadOptions: buildDictOptionsLoader(
+        'com.levin.oak.base.entities.AuditReport.targetType',
+      ),
+      width: 160,
+    },
+    {
+      key: 'targetId',
+      label: '审计对象标识',
+      search: true,
+      table: true,
+      width: 200,
+    },
+    {
+      key: 'bizType',
+      label: '业务类型',
+      search: true,
+      table: true,
+      type: 'select',
+      loadOptions: buildDictOptionsLoader(
+        'com.levin.oak.base.entities.AuditReport.bizType',
+      ),
+      width: 160,
+    },
+    {
+      key: 'bizCategory',
+      label: '业务类别',
+      search: true,
+      type: 'select',
+      loadOptions: buildDictOptionsLoader(
+        'com.levin.oak.base.entities.AuditReport.bizCategory',
+      ),
+    },
+    {
+      key: 'gteStartTime',
+      label: '审计开始时间起',
+      search: true,
+      detail: false,
+      form: false,
+      type: 'datetime',
+    },
+    {
+      key: 'lteEndTime',
+      label: '审计结束时间止',
+      search: true,
+      detail: false,
+      form: false,
+      type: 'datetime',
+    },
+    {
+      key: 'startTime',
+      label: '审计开始时间',
+      table: true,
+      type: 'datetime',
+      width: 180,
+    },
+    {
+      key: 'endTime',
+      label: '审计结束时间',
+      table: true,
+      type: 'datetime',
+      width: 180,
+    },
+    {
+      key: 'createTime',
+      label: '创建时间',
+      table: true,
+      type: 'datetime',
+      width: 180,
+    },
+    {
+      key: 'confidentialLevel',
+      label: '机密等级',
+      type: 'select',
+      valueType: 'number',
+      loadOptions: buildEnumOptionsLoader(
+        'com.levin.commons.rbac.ConfidentialLevel',
+      ),
+    },
+    {
+      key: 'tenantId',
+      label: '归属租户',
+      search: true,
+      type: 'select',
+      loadOptions: tenantOptionsLoader,
+      remoteSearch: true,
+      visibleForPlatformUser: true,
+    },
+    {
+      key: '__tenant',
+      label: '归属租户',
+      table: true,
+      detail: false,
+      type: 'tenant',
+      visibleForPlatformUser: true,
+      width: 180,
+    },
+    { key: 'tenantName', label: '租户名称', detail: false, form: false },
+    { key: 'id', label: '报告 ID', form: false },
+    { key: 'creator', label: '创建者', form: false },
+    { key: 'editor', label: '编辑器', form: false },
+    {
+      key: 'content',
+      jsonSchemaEditor: true,
+      jsonSchema: ':editor',
+      label: '数据内容',
+      detail: true,
+      form: false,
+      fullRow: true,
+      type: 'json',
+    },
+    { key: 'remark', label: '备注', form: false },
+  ],
+  rowActions: [],
+  modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
+  retrieveLabel: '查看报告',
+  title: pageMeta.title,
+};

@@ -23,8 +23,12 @@ describe('crud json schema editor integration', () => {
   });
 
   it('passes schema metadata and display mode into the schema editor without mutating field config', () => {
-    expect(source).toContain('getJsonSchemaSourceInput(field, formState[field.key])');
-    expect(source).toContain(':inline="isCrudFieldJsonSchemaInline(field)"');
+    expect(source).toContain(
+      'getFormJsonSchemaSource(field, formState[field.key])',
+    );
+    expect(source).toMatch(
+      /focusedJsonFieldKey\s*===\s*field.key\s*\|\|\s*isCrudFieldJsonSchemaInline\(field\)/,
+    );
     expect(source).toContain(':modal-width="modalWidth"');
     expect(source).toContain(':modal-style="modalStyle"');
   });

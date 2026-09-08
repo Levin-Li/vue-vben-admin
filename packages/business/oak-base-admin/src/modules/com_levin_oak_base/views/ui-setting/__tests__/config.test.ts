@@ -13,6 +13,7 @@ describe('uiSettingPageCrudConfig', () => {
     expect(valueContentField).toMatchObject({
       form: false,
       table: false,
+      jsonSchema: ':editor',
     });
   });
 

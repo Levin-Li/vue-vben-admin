@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 describe('script workbench dialog source', () => {
-  it('pins the dialog to the requested 80% viewport shell and 30/70 content split', () => {
+  it('pins the dialog to the wide viewport shell, shortcut pane and 30/70 content split', () => {
     const source = readFileSync(
       'packages/business/admin-framework/src/framework-commons/shared/script-workbench-dialog.vue',
       'utf8',
@@ -11,11 +11,13 @@ describe('script workbench dialog source', () => {
 
     expect(source).toContain('wrap-class-name="script-workbench-dialog"');
     expect(source).toContain("flex: '0 0 30%'");
-    expect(source).toContain("minWidth: '400px'");
+    expect(source).toContain("minWidth: '270px'");
     expect(source).toContain("height: `calc((${workbenchPaneHeight}) * 0.7)`");
     expect(source).toContain("height: `calc((${workbenchPaneHeight}) * 0.3)`");
-    expect(source).toContain("width: min(80vw, 1600px) !important");
+    expect(source).toContain("width: min(92vw, 1900px) !important");
     expect(source).toContain("max-height: 80vh");
+    expect(source).toContain("flex: '0 0 12%'");
+    expect(source).toContain("快捷操作");
   });
 
   it('renders a read-only console with distinct success and error colors', () => {

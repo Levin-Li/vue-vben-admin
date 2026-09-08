@@ -16,7 +16,7 @@ describe('domain page config', () => {
     });
   });
 
-  it('keeps the domain dialog at the wide content-form width', () => {
-    expect(domainPageCrudConfig.modalWidth).toBe(1200);
+  it('keeps the domain dialog at the explicit two-column content-form width', () => {
+    expect(domainPageCrudConfig.modalWidth).toBe(860);
   });
 });

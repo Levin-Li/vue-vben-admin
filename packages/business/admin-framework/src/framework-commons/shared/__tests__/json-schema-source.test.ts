@@ -1,3 +1,5 @@
+import type { CrudFieldConfig } from '../types';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,7 +10,6 @@ import {
   isCrudFieldJsonSchemaInline,
   resolveJsonSchemaSource,
 } from '../json-schema-source';
-import type { CrudFieldConfig } from '../types';
 
 describe('json schema source', () => {
   it('reads schema metadata from supported field property names', () => {
@@ -88,9 +89,7 @@ describe('json schema source', () => {
       enabled: true,
     };
 
-    expect(getJsonValueJsonSchemaInput(value)).toBe(
-      'class:com.example.ExInfo',
-    );
+    expect(getJsonValueJsonSchemaInput(value)).toBe('class:com.example.ExInfo');
     expect(getJsonSchemaSourceInput(field, value)).toBe(
       'class:com.example.ExInfo',
     );
@@ -152,6 +151,102 @@ describe('json schema source', () => {
         label: '扩展信息',
         type: 'json',
       }),
+    ).toBe(false);
+  });
+
+  const referenceField: CrudFieldConfig = {
+    jsonSchema: ':configDataEditor',
+    key: 'configData',
+    label: '配置数据',
+    type: 'json',
+  };
+
+  it('resolves an explicit editor reference separately for each record', () => {
+    for (const source of [
+      'class:com.example.TaskConfig',
+      'url:/schema/task-config.json',
+      { properties: { enabled: { type: 'boolean' } }, type: 'object' },
+    ]) {
+      const record = { configDataEditor: source };
+      expect(getJsonSchemaSourceInput(referenceField, null, record)).toEqual(
+        source,
+      );
+      expect(hasCrudFieldJsonSchema(referenceField, null, record)).toBe(true);
+    }
+    expect(
+      hasCrudFieldJsonSchema(referenceField, null, { configDataEditor: '' }),
+    ).toBe(false);
+  });
+
+  it.each([undefined, null, '', '   ', 'unknown', ':anotherEditor', [], 42])(
+    'ignores an unusable referenced editor: %j',
+    (source) => {
+      const record = { configDataEditor: source };
+      expect(
+        getJsonSchemaSourceInput(referenceField, undefined, record),
+      ).toBeUndefined();
+      expect(hasCrudFieldJsonSchema(referenceField, undefined, record)).toBe(
+        false,
+      );
+    },
+  );
+
+  it('does not use unresolved references or infer an editor from other fields', () => {
+    for (const record of [
+      undefined,
+      {},
+      { anotherEditor: 'class:com.example.TaskConfig' },
+      Object.create({ configDataEditor: 'class:com.example.TaskConfig' }),
+    ]) {
+      expect(
+        getJsonSchemaSourceInput(referenceField, undefined, record),
+      ).toBeUndefined();
+      expect(hasCrudFieldJsonSchema(referenceField, undefined, record)).toBe(
+        false,
+      );
+    }
+  });
+
+  it.each([
+    '__proto__',
+    'prototype',
+    'constructor',
+    'nested.editor',
+    'editor()',
+    '',
+    ' configDataEditor',
+  ])('rejects unsafe or non-field references: %s', (key) => {
+    const field = { ...referenceField, jsonSchema: `:${key}` };
+    const record = { [key]: 'class:com.example.TaskConfig' };
+    expect(getJsonSchemaSourceInput(field, undefined, record)).toBeUndefined();
+    expect(hasCrudFieldJsonSchema(field, undefined, record)).toBe(false);
+  });
+
+  it('keeps embedded schema precedence over referenced editors', () => {
+    const value = { '@JsonSchema': 'class:com.example.EmbeddedConfig' };
+    expect(
+      getJsonSchemaSourceInput(referenceField, value, {
+        configDataEditor: 'class:com.example.RecordConfig',
+      }),
+    ).toBe('class:com.example.EmbeddedConfig');
+    expect(
+      getJsonSchemaSourceInput(referenceField, JSON.stringify(value)),
+    ).toBe('class:com.example.EmbeddedConfig');
+    expect(hasCrudFieldJsonSchema(referenceField, value)).toBe(true);
+  });
+
+  it('keeps ordinary explicit schema sources independent of the record', () => {
+    for (const source of [
+      'class:com.example.TaskConfig',
+      'url:/schema/task-config.json',
+      '{"type":"object"}',
+    ]) {
+      const field = { ...referenceField, jsonSchema: source };
+      expect(getJsonSchemaSourceInput(field, null, {})).toBe(source);
+      expect(hasCrudFieldJsonSchema(field, null, {})).toBe(true);
+    }
+    expect(
+      hasCrudFieldJsonSchema({ ...referenceField, jsonSchema: 'unknown' }),
     ).toBe(false);
   });
 });

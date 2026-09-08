@@ -1,6 +1,6 @@
 {
   "name": "@vben/plugins",
-  "version": "5.6.12",
+  "version": "5.6.13",
   "homepage": "https://github.com/vbenjs/vue-vben-admin",
   "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
@@ -28,6 +28,10 @@
       "types": "./src/motion/index.ts",
       "default": "./dist/motion/index.mjs",
       "development": "./src/motion/index.ts"
+    },
+    "./package-version": {
+      "types": "./package-version.d.mts",
+      "default": "./package-version.mjs"
     }
   },
   "dependencies": {
@@ -48,12 +52,18 @@
     "vxe-table": "catalog:"
   },
   "scripts": {
-    "build": "pnpm unbuild && node scripts/copy-assets.mjs && vue-tsc -p tsconfig.json --declaration --emitDeclarationOnly --noEmit false --outDir dist",
-    "prepublishOnly": "npm run build"
+    "build": "node ../../../scripts/sync-framework-package-metadata.mjs --package . && pnpm unbuild && node scripts/copy-assets.mjs && vue-tsc -p tsconfig.json --declaration --emitDeclarationOnly --noEmit false --outDir dist",
+    "prepublishOnly": "npm run build",
+    "prepack": "node ../../../scripts/sync-framework-package-metadata.mjs --package ."
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "package-version.mjs",
+    "package-version.d.mts",
+    "docs",
+    "AGENTS.md",
+    "README.md"
   ],
   "publishConfig": {
     "exports": {
@@ -68,6 +78,10 @@
       "./motion": {
         "types": "./dist/motion/index.d.ts",
         "default": "./dist/motion/index.mjs"
+      },
+      "./package-version": {
+        "types": "./package-version.d.mts",
+        "default": "./package-version.mjs"
       }
     }
   }

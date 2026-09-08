@@ -21,11 +21,11 @@ describe('dict page config', () => {
     expect(dictPageCrudConfig.formMaxColumns).toBe(2);
     expect(dictPageCrudConfig.modalWidth).toBe(960);
     expect(fields.find((field) => field.key === 'tenantId')).toMatchObject({
-      layoutGroup: 'ownership',
+      layoutGroup: 'basic',
     });
     expect(fields.find((field) => field.key === 'itemList')).toMatchObject({
       fullRow: true,
-      layoutGroup: 'content',
+      layoutGroup: 'basic',
       layoutNewRow: true,
     });
     expect(fields.find((field) => field.key === 'orderCode')).toMatchObject({
@@ -44,7 +44,7 @@ describe('dict page config', () => {
     });
     expect(fields.find((field) => field.key === 'remark')).toMatchObject({
       fullRow: true,
-      layoutGroup: 'remark',
+      layoutGroup: 'business',
       type: 'textarea',
     });
 

@@ -152,6 +152,19 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       width: 110,
     },
     {
+      key: 'configEditor',
+      label: '配置编辑器',
+      form: false,
+    },
+    {
+      key: 'baseConfig',
+      label: '基本配置',
+      fullRow: true,
+      type: 'json',
+      jsonSchemaEditor: true,
+      jsonSchema: ':configEditor',
+    },
+    {
       key: 'exInfo',
       label: '扩展信息',
       form: false,

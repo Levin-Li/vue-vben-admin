@@ -64,6 +64,12 @@ export interface AdminFrontendModule<
   menus?: AdminMenuItem[];
   name: string;
   order?: number;
+  /** 发布包自身提供的元数据，用于展示实际引用的框架包版本。 */
+  packageInfo?: {
+    buildTime: string;
+    name: string;
+    version: string;
+  };
   pageMap?: AdminPageMap;
   /** 按页面 viewPath 注册实际 CRUD 查询配置，用于菜单固定条件编辑。 */
   queryConfigLoaders?: Record<string, () => Promise<CrudPageConfig>>;

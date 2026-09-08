@@ -156,6 +156,7 @@ export const fileResPageCrudConfig: CrudPageConfig = {
     {
       key: 'paths',
       label: '文件路径',
+      layoutNewRow: true,
       layoutGroup: 'basic',
       layoutOrder: 70,
       multiple: true,

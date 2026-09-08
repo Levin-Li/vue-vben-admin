@@ -15,6 +15,23 @@ function flattenCrudRoutes(children: any[] | undefined): any[] {
 }
 
 describe('oak base admin routes', () => {
+  it('审计管理页面位于基础模块运维分组且具有可用本地映射', () => {
+    const module = createOakBaseAdminModule();
+    const root = module.routes?.[0];
+    const group = root?.children?.find((route) => route.meta?.title === '运维&审计');
+    for (const resource of ['AuditReport', 'BackendFixedJob']) {
+      const page = group?.children?.find((route) => route.meta?.crudResource === resource);
+      expect(page?.path).toBe(`/clob/V1/${resource}`);
+      expect(page?.name).toBe(`/clob/V1/${resource}`.replaceAll('/', '_'));
+      expect(page?.component).toBeTypeOf('function');
+      expect(module.routes?.some((route) => route.path === page?.path)).toBe(false);
+      const mapping = oakBaseAdminBackendRouteMappings.find((item) => item.resource === resource);
+      expect(mapping?.sourceFilePath).toMatch(/views\/(audit-report|backend-fixed-job)\/index.vue$/);
+      expect(mapping?.viewPath).toMatch(/\/(audit-report|backend-fixed-job)\/index.vue$/);
+      expect(mapping?.operations?.some((op) => op.opName === 'retrieve')).toBe(true);
+    }
+  });
+
   it('导入导出模板页面只上传显式资源权限，不添加接口路径', () => {
     const mapping = oakBaseAdminBackendRouteMappings.find(
       (item) => item.resource === 'ImportExportTemplate',

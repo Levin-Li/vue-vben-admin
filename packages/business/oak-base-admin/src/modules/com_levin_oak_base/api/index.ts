@@ -56,3 +56,6 @@ export * from './url-ex-acl-service';
 export * from './user-service';
 export * from './user-setting-service';
 export * from './ui-setting-service';
+
+export * from './audit-report-service';
+export * from './backend-fixed-job-service';

@@ -282,6 +282,12 @@ try {
   const routeAssetsByPackage = new Map();
   for (const packageInfo of selectedPackages) {
     verifyPageMetadata(packageInfo);
+    run(
+      'node',
+      [resolve(frontendRoot, 'scripts/sync-frontend-rule-docs.mjs')],
+      {},
+      packageInfo.dir,
+    );
     run('pnpm', ['--filter', packageInfo.name, 'build']);
     routeAssetsByPackage.set(
       packageInfo.name,

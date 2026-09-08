@@ -148,7 +148,7 @@ let previewResizeObserver: null | ResizeObserver = null;
 let observedPreviewElement: HTMLElement | null = null;
 
 function currentSnapshot() {
-  return JSON.stringify({ config: draft.value, scope: scope.value });
+  return JSON.stringify({ config: draft.value, scope: normalizeScope(scope.value) });
 }
 
 const hasUnuploadedChanges = computed(
@@ -191,12 +191,12 @@ function requestClose() {
 function normalizeScope(source: Scope | undefined): Scope {
   const value = source || {};
   return {
-    domain: value.domain,
-    orgCategory: value.orgCategory,
-    orgType: value.orgType,
-    tenantId: value.tenantId,
-    userCategory: value.userCategory,
-    userType: value.userType,
+    domain: value.domain || undefined,
+    orgCategory: value.orgCategory || undefined,
+    orgType: value.orgType || undefined,
+    tenantId: value.tenantId || undefined,
+    userCategory: value.userCategory || undefined,
+    userType: value.userType || undefined,
   };
 }
 
@@ -418,7 +418,7 @@ function ensureFields(view: Exclude<View, 'list'>) {
     holder.fields = nextFields;
   }
   for (const field of holder.fields) {
-    field.hidden = initializeFieldHidden(field);
+    field.hidden = initializeFieldHidden(field, { view });
     field.inputDisplay ??= 'default';
     field.visibleRoleCodes = initializeVisibleRoleCodes(field);
   }
@@ -1338,16 +1338,15 @@ watch(
 );
 
 watch(
-  () => props.modelValue,
-  (modelValue) => {
+  () => [props.modelValue, props.initialScope] as const,
+  ([modelValue]) => {
     if (!props.open) return;
     const savedSnapshot = JSON.stringify({
       config: modelValue || { version: 1 },
       scope: normalizeScope(props.initialScope),
     });
-    if (savedSnapshot === currentSnapshot()) {
-      initialSnapshot.value = savedSnapshot;
-    }
+    // 保存结果成为新基线，保留上传期间继续编辑的草稿。
+    initialSnapshot.value = savedSnapshot;
   },
   { deep: true },
 );
@@ -1477,6 +1476,13 @@ onMounted(() => {
                 title="新增前端虚拟列。其值由当前行的值展示脚本计算，不对应后端实体字段。"
               >
                 <Button @click="addVirtualHeader">+ 添加虚拟字段</Button>
+              </Tooltip>
+              <Tooltip
+                title="开启后按当前分页实际行数完整展示，不补空白行、不加载其他页；取消表格内纵向滚动，仅本页内容区域纵向滚动，保留分页和横向滚动。"
+              >
+                <Form.Item label="显示完整分页" class="mb-0">
+                  <Switch v-model:checked="draft.list!.showAllPageRows" />
+                </Form.Item>
               </Tooltip>
               <Tooltip title="列表列未单独配置最小列宽时使用。">
                 <Form.Item label="默认最小列宽" class="mb-0">

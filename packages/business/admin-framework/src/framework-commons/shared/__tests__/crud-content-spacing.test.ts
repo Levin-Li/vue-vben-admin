@@ -13,7 +13,7 @@ const source = readFileSync(
 describe('shared CRUD content spacing', () => {
   it('does not add default padding to the normal Page content wrapper', () => {
     expect(source).toContain(
-      "'!bg-transparent min-w-0 !overflow-hidden !p-0'",
+      "'!bg-transparent min-w-0 !p-0'",
     );
   });
 
@@ -22,7 +22,7 @@ describe('shared CRUD content spacing', () => {
     expect(source).toContain(':auto-content-height="!embedded"');
     expect(source).toContain("embedded ? '!min-h-0 flex-1' : undefined");
     expect(source).toContain(
-      "'flex min-h-0 flex-1 flex-col !bg-transparent min-w-0 !overflow-hidden !p-0'",
+      "'flex min-h-0 flex-1 flex-col'",
     );
   });
 });

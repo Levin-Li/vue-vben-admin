@@ -33,6 +33,7 @@ export function resolveCrudPageDisplayDefaults(
   resolved.list.defaultMinColumnWidth ??= 60;
   resolved.list.defaultMaxColumnWidth ??= 360;
   resolved.list.defaultOverflowStrategy ??= 'ellipsis';
+  resolved.list.showAllPageRows ??= false;
   return resolved;
 }
 
@@ -139,10 +140,9 @@ export function canUseLocalTableColumnSettings(
 }
 
 export function resolvePageDisplaySettingCode(
-  routePath: string | undefined,
-  fallbackCode: string | undefined,
+  currentRoutePath: string | undefined,
 ) {
-  return routePath?.trim() || fallbackCode?.trim() || 'crud-page';
+  return currentRoutePath?.trim() || undefined;
 }
 
 export function resolvePageDisplayContextKey(
@@ -385,16 +385,18 @@ export function getDefaultFieldHidden(
   // 页面展示设置显式保存展示状态后仍可覆盖这个默认值。查询条件不应用此默认值。
   return (
     ['editable', 'id', 'lastUpdateTime', 'orderCode'].includes(key) ||
+    (options.view === 'edit' && key === 'tenantId') ||
     (options.hideDomainId === true && key === 'domainId')
   );
 }
 
 export function initializeFieldHidden(
   field: Pick<CrudPageDisplayFieldConfig, 'hidden' | 'key'>,
+  options: Parameters<typeof getDefaultFieldHidden>[1] = {},
 ) {
   return Object.hasOwn(field, 'hidden')
     ? field.hidden === true
-    : getDefaultFieldHidden(field.key);
+    : getDefaultFieldHidden(field.key, options);
 }
 
 export function initializeHeaderVisibility(
@@ -419,10 +421,11 @@ export function initializeHeaderVisibility(
 
 export function resolveRuntimeDisplayField(
   field: CrudPageDisplayFieldConfig,
+  options: Parameters<typeof getDefaultFieldHidden>[1] = {},
 ): CrudPageDisplayFieldConfig {
   return {
     ...field,
-    hidden: initializeFieldHidden(field),
+    hidden: initializeFieldHidden(field, options),
     inputDisplay: field.inputDisplay || 'default',
     visibleRoleCodes: initializeVisibleRoleCodes(field),
   };

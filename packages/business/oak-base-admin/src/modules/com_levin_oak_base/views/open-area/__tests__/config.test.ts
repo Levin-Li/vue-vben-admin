@@ -8,7 +8,8 @@ vi.mock('../../../api/open-area-service', () => ({
   openAreaService: {},
 }));
 
-vi.mock('../../api-module', () => ({
+vi.mock('../../api-module', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../api-module')>(),
   DEFAULT_CRUD_MODAL_WIDTH: '80%',
   tenantOptionsLoader: async () => [],
 }));

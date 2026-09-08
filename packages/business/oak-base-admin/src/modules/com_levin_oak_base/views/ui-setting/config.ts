@@ -206,6 +206,8 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'valueContent',
+      jsonSchemaEditor: true,
+      jsonSchema: ':editor',
       label: '内容值',
       form: false,
       table: false,

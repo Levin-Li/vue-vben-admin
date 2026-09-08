@@ -201,6 +201,30 @@ describe('basic layout tenant site brand', () => {
     wrapper.unmount();
   });
 
+  it('打开版本弹窗后显示包名、版本与逐包打包时间', async () => {
+    mocks.userInfo.superAdmin = true;
+    const wrapper = mount(Basic, {
+      global: { stubs: {
+        Button: true, Checkbox: true, Empty: true, Popconfirm: true,
+        Tag: { template: '<span><slot /></span>' },
+        AModal: {
+          props: ['open', 'title'],
+          template: '<section v-if="open" :aria-label="title"><slot /></section>',
+        },
+      } },
+    });
+    await flushPromises();
+    await wrapper.get('[data-testid="system-menu-frontend-build-versions"]').trigger('click');
+    const panel = wrapper.get('[aria-label="前端组件版本"]');
+    expect(panel.text()).toContain('@levin/admin-framework');
+    expect(panel.text()).toContain('@vben/stores');
+    expect(panel.text()).toContain('打包时间：');
+    expect(panel.text()).not.toContain('Invalid Date');
+    expect(panel.text()).not.toContain('版本不匹配');
+    expect(panel.text()).not.toContain('开发模式');
+    wrapper.unmount();
+  });
+
   it('renders the layout logo text from tenant site brand state', async () => {
     const wrapper = mount(Basic, {
       global: {

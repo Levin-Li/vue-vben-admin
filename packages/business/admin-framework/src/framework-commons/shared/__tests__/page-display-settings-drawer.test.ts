@@ -55,6 +55,55 @@ function getTab(title: string) {
 }
 
 describe('页面展示设置抽屉', () => {
+  it.each([undefined, { fields: [{ key: 'tenantId' }] }])(
+    '租户编辑设置缺省或稀疏时选中不提，新增查询保持展提',
+    async (edit) => {
+      const wrapper = mount(PageDisplaySettingsDrawer, {
+        attachTo: document.body,
+        props: {
+          code: '/clob/V1/Dict',
+          fields: [{ key: 'tenantId', label: '租户ID', search: true }],
+          detailFields: [{ key: 'tenantId', label: '租户ID' }],
+          modelValue: { version: 1, edit },
+          open: true,
+          saving: false,
+        },
+      });
+      try {
+        await flushPromises();
+        getTab('编辑表单').click();
+        await flushPromises();
+        const group = document.body.querySelector(
+          '[aria-label="租户ID展示与提交"]',
+        );
+        expect(group).toBeTruthy();
+        if (!group) throw new Error('缺少租户字段展示设置');
+        expect(
+          (
+            group.querySelector(
+              'input[value="hidden-omit"]',
+            ) as HTMLInputElement
+          ).checked,
+        ).toBe(true);
+        getUploadButton().click();
+        await nextTick();
+        const payload = wrapper.emitted('save')?.[0]?.[0] as {
+          config: Record<string, any>;
+        };
+        expect(payload.config.edit.fields[0]).toMatchObject({
+          key: 'tenantId',
+          hidden: true,
+        });
+        expect(payload.config.edit.fields[0].submitWhenHidden).not.toBe(true);
+        expect(payload.config.create.fields[0].hidden).toBe(false);
+        expect(payload.config.query.fields[0].hidden).toBe(false);
+      } finally {
+        wrapper.unmount();
+        document.body.innerHTML = '';
+      }
+    },
+  );
+
   it('initializes domainId as hidden and omitted in every view until the page setting overrides it', async () => {
     const wrapper = mount(PageDisplaySettingsDrawer, {
       attachTo: document.body,

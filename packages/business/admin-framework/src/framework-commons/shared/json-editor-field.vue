@@ -22,6 +22,8 @@ const props = withDefaults(
   {
     disabled: false,
     inline: false,
+    modalStyle: undefined,
+    modelValue: undefined,
     inlineMinHeight: 'min(62vh, 640px)',
     modalWidth: 'min(80vw, 1280px)',
     title: 'JSON',
@@ -30,18 +32,23 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:modelValue': [value: any];
+  validity: [valid: boolean];
 }>();
 
 const editorMode = 'text' as any;
 const open = ref(false);
 const draftValue = ref<any>({});
+const jsonValid = ref(true);
+watch(jsonValid, (valid) => emit('validity', valid), { immediate: true });
 
 function cloneJsonValue(value: any) {
-  if (value === undefined || value === null || value === '') {
+  if (value === undefined || value === '') {
     return {};
   }
 
   try {
+    // Vue响应式代理不能直接structuredClone；这里按JSON值语义复制。
+    // eslint-disable-next-line unicorn/prefer-structured-clone
     return JSON.parse(JSON.stringify(value));
   } catch {
     return value;
@@ -51,7 +58,7 @@ function cloneJsonValue(value: any) {
 const previewText = computed(() => {
   const value = props.modelValue;
 
-  if (value === undefined || value === null || value === '') {
+  if (value === undefined || value === '') {
     return '';
   }
 
@@ -74,10 +81,12 @@ function openEditor() {
   }
 
   draftValue.value = cloneJsonValue(props.modelValue);
+  jsonValid.value = true;
   open.value = true;
 }
 
 function handleOk() {
+  if (!jsonValid.value) return;
   emit('update:modelValue', draftValue.value);
   open.value = false;
 }
@@ -99,7 +108,7 @@ const modalBodyStyle = {
 
 const contentModalStyle = computed(() => ({
   maxHeight: DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
-  ...(props.modalStyle || {}),
+  ...props.modalStyle,
 }));
 
 const editorStyle = computed(() => ({
@@ -108,15 +117,21 @@ const editorStyle = computed(() => ({
   minHeight: props.inline ? props.inlineMinHeight : 'min(62vh, 640px)',
 }));
 
-watch(
-  draftValue,
-  (nextValue) => {
-    if (props.inline) {
-      emit('update:modelValue', nextValue);
-    }
-  },
-  { deep: true },
-);
+/** onChange立即校验和传播，避免模型防抖期间保存旧值。 */
+function handleJsonContentChange(content: { json?: any; text?: string }) {
+  try {
+    const value =
+      typeof content.text === 'string'
+        ? JSON.parse(content.text)
+        : content.json;
+    if (value === undefined) throw new Error('JSON内容不能为空');
+    jsonValid.value = true;
+    draftValue.value = cloneJsonValue(value);
+    if (props.inline) emit('update:modelValue', draftValue.value);
+  } catch {
+    jsonValid.value = false;
+  }
+}
 </script>
 
 <template>
@@ -127,7 +142,8 @@ watch(
   >
     <JsonEditorVue
       v-model="draftValue"
-      :debounce="300"
+      :debounce="0"
+      :on-change="handleJsonContentChange"
       :main-menu-bar="true"
       :mode="editorMode"
       :navigation-bar="false"
@@ -153,6 +169,7 @@ watch(
       destroy-on-close
       :mask-closable="false"
       ok-text="保存"
+      :ok-button-props="{ disabled: !jsonValid }"
       :style="contentModalStyle"
       :title="modalTitle"
       :width="modalWidth"
@@ -161,7 +178,8 @@ watch(
       <div class="crud-json-editor-dialog" :style="editorStyle">
         <JsonEditorVue
           v-model="draftValue"
-          :debounce="300"
+          :debounce="0"
+          :on-change="handleJsonContentChange"
           :main-menu-bar="true"
           :mode="editorMode"
           :navigation-bar="false"

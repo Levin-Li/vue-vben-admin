@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -138,11 +139,55 @@ export function verifyTarballModuleDevelopmentStandard(
   }
 }
 
+export function verifyTarballProjectDocs(packageInfo, tarballPath, location) {
+  const referencePath = 'docs/project-reference';
+  const sourceManifest = resolve(
+    packageInfo.dir,
+    referencePath,
+    'manifest.json',
+  );
+  if (!existsSync(sourceManifest)) return;
+  const expected = readFileSync(sourceManifest, 'utf8');
+  const directory = mkdtempSync(join(tmpdir(), 'release-docs-check-'));
+  try {
+    execFileSync('tar', [
+      '-xf',
+      tarballPath,
+      '-C',
+      directory,
+      `package/${referencePath}`,
+    ]);
+    const root = resolve(directory, 'package', referencePath);
+    if (readFileSync(resolve(root, 'manifest.json'), 'utf8') !== expected) {
+      throw new Error(`${packageInfo.name} ${location}设计文档清单不一致`);
+    }
+    for (const entry of JSON.parse(expected)) {
+      const file = resolve(root, entry.path);
+      if (
+        !file.startsWith(`${root}/`) ||
+        !existsSync(file) ||
+        createHash('sha256').update(readFileSync(file)).digest('hex') !==
+          entry.sha256
+      ) {
+        throw new Error(
+          `${packageInfo.name} ${location}设计或规范文档缺失或内容不一致: ${entry.path}`,
+        );
+      }
+    }
+    console.log(
+      `${packageInfo.name} ${location}设计与规范校验通过：${JSON.parse(expected).length} 份文件`,
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 export function verifyTarballDependencyProtocols(
   packageInfo,
   tarballPath,
   location,
 ) {
+  verifyTarballProjectDocs(packageInfo, tarballPath, location);
   const manifest = JSON.parse(
     execFileSync('tar', ['-xOf', tarballPath, 'package/package.json'], {
       encoding: 'utf8',
@@ -222,6 +267,19 @@ export function verifyTarballStandaloneInstall(
   }
 }
 
+/** 生命周期日志可能出现在 JSON 之前，必须解析到完整的最终结果。 */
+export function parsePackOutput(output) {
+  const starts = [...output.matchAll(/^[{[]/gm)].map((match) => match.index);
+  for (const start of starts.toReversed()) {
+    try {
+      return JSON.parse(output.slice(start));
+    } catch {
+      // 日志中的括号不是最终打包结果，继续寻找 JSON 起点。
+    }
+  }
+  throw new Error('打包命令未返回有效 JSON 结果');
+}
+
 export function packWorkspacePackage(packageInfo, destination) {
   mkdirSync(destination, { recursive: true });
   const result = spawnSync(
@@ -238,7 +296,7 @@ export function packWorkspacePackage(packageInfo, destination) {
     throw new Error(`pnpm pack 失败: ${result.stderr || result.stdout}`);
   }
 
-  return resolve(destination, JSON.parse(result.stdout).filename);
+  return resolve(destination, parsePackOutput(result.stdout).filename);
 }
 
 export function packPackage(
@@ -266,7 +324,7 @@ export function packPackage(
     );
   }
 
-  return resolve(destination, JSON.parse(result.stdout)[0].filename);
+  return resolve(destination, parsePackOutput(result.stdout)[0].filename);
 }
 
 function isForbiddenPublishedDependencyProtocol(version) {

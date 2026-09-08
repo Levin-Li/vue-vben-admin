@@ -58,7 +58,9 @@ function parseObjectRecord(value: any) {
 }
 
 export function getCrudFieldJsonSchemaInput(field: CrudFieldConfig) {
-  return getSchemaInputFromRecord(field as CrudFieldConfig & Record<string, any>);
+  return getSchemaInputFromRecord(
+    field as CrudFieldConfig & Record<string, any>,
+  );
 }
 
 export function hasJsonSchemaSourceInput(input: JsonSchemaSourceInput) {
@@ -77,6 +79,7 @@ export function getJsonValueJsonSchemaInput(value: any) {
 export function getJsonSchemaSourceInput(
   field: CrudFieldConfig,
   value?: any,
+  record?: Record<string, any>,
 ) {
   const valueInput = getJsonValueJsonSchemaInput(value);
 
@@ -86,11 +89,33 @@ export function getJsonSchemaSourceInput(
 
   const fieldInput = getCrudFieldJsonSchemaInput(field);
 
+  if (typeof fieldInput === 'string' && fieldInput.trim().startsWith(':')) {
+    const fieldKey = fieldInput.trim().slice(1);
+
+    if (
+      !/^[A-Z_$][\w$]*$/i.test(fieldKey) ||
+      ['__proto__', 'constructor', 'prototype'].includes(fieldKey) ||
+      !record ||
+      !Object.prototype.hasOwnProperty.call(record, fieldKey)
+    ) {
+      return undefined;
+    }
+
+    const sourceInput = record[fieldKey];
+    return resolveJsonSchemaSource(sourceInput) ? sourceInput : undefined;
+  }
+
   return hasJsonSchemaSourceInput(fieldInput) ? fieldInput : undefined;
 }
 
-export function hasCrudFieldJsonSchema(field: CrudFieldConfig, value?: any) {
-  return hasJsonSchemaSourceInput(getJsonSchemaSourceInput(field, value));
+export function hasCrudFieldJsonSchema(
+  field: CrudFieldConfig,
+  value?: any,
+  record?: Record<string, any>,
+) {
+  return !!resolveJsonSchemaSource(
+    getJsonSchemaSourceInput(field, value, record),
+  );
 }
 
 export function isCrudFieldJsonSchemaInline(field: CrudFieldConfig) {
@@ -118,22 +143,18 @@ export function resolveJsonSchemaSource(
 
   if (typeof input === 'string') {
     const text = input.trim();
-    const classMatch = text.match(/^class:\s*(.+)$/i);
-
-    if (classMatch?.[1]?.trim()) {
-      return {
-        kind: 'java-type',
-        typeGenericStr: classMatch[1].trim(),
-      };
+    const prefix = text.slice(0, 6).toLowerCase();
+    if (prefix === 'class:') {
+      const typeGenericStr = text.slice(6).trim();
+      return typeGenericStr && !/[\r\n\u2028\u2029]/.test(typeGenericStr)
+        ? { kind: 'java-type', typeGenericStr }
+        : undefined;
     }
-
-    const urlMatch = text.match(/^url:\s*(.+)$/i);
-
-    if (urlMatch?.[1]?.trim()) {
-      return {
-        kind: 'url',
-        url: urlMatch[1].trim(),
-      };
+    if (text.slice(0, 4).toLowerCase() === 'url:') {
+      const url = text.slice(4).trim();
+      return url && !/[\r\n\u2028\u2029]/.test(url)
+        ? { kind: 'url', url }
+        : undefined;
     }
 
     const schema = normalizeJsonSchemaObject(text);
@@ -148,7 +169,11 @@ export function resolveJsonSchemaSource(
     explicitKind === 'type'
   ) {
     const typeGenericStr = String(
-      input.typeGenericStr || input.className || input.class || input.type || '',
+      input.typeGenericStr ||
+        input.className ||
+        input.class ||
+        input.type ||
+        '',
     ).trim();
 
     return typeGenericStr

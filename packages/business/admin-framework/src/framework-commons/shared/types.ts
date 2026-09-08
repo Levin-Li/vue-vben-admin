@@ -112,6 +112,8 @@ export interface CrudFieldConfig {
   JsonschemaInline?: boolean;
   JsonschemaMode?: 'inline' | 'popup';
   jsonSchema?: Record<string, any> | string;
+  /** 对应后端 @JsonSchemaEditor 的显式声明，允许默认行操作编辑此JSON字段。 */
+  jsonSchemaEditor?: boolean;
   jsonSchemaInline?: boolean;
   jsonSchemaMode?: 'inline' | 'popup';
   layoutGroup?: string;
@@ -272,6 +274,8 @@ export interface CrudPageDisplayConfig {
     defaultMinColumnWidth?: number;
     defaultOverflowStrategy?: 'ellipsis' | 'wrap';
     headers: CrudPageDisplayHeaderConfig[];
+    /** 完整显示分页行，取消表格内纵向滚动，允许页面内容区域纵向滚动。 */
+    showAllPageRows?: boolean;
   };
   query?: CrudPageDisplayQueryViewConfig;
   version: 1;
@@ -434,8 +438,6 @@ export interface CrudPageConfig {
   searchCollapsedCount?: number;
   tableName?: string;
   title: string;
-  /** 页面展示设置编码的路由缺失兜底；正常情况下使用当前页面完整路由路径。 */
-  uiSettingCode?: string;
   transformSubmit?: (
     values: Record<string, any>,
     editingRecord: null | Record<string, any>,

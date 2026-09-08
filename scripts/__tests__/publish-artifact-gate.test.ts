@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   mkdirSync,
   mkdtempSync,
@@ -95,7 +96,7 @@ describe('publish artifact gate', () => {
 
     expect(() =>
       verifyTarballDependencyProtocols(
-        packageInfo,
+        { name: '@scope/test-package', dir: createTemporaryDirectory() },
         tarballPath,
         '本地 tarball',
       ),
@@ -113,7 +114,7 @@ describe('publish artifact gate', () => {
 
     expect(() =>
       verifyTarballDependencyProtocols(
-        packageInfo,
+        { name: '@scope/test-package', dir: createTemporaryDirectory() },
         tarballPath,
         '本地 tarball',
       ),
@@ -154,4 +155,48 @@ describe('publish artifact gate', () => {
       ),
     ).not.toThrow();
   }, 30_000);
+});
+
+describe('打包命令生命周期日志', () => {
+  it('保留前置日志后的对象和数组结果', async () => {
+    const { parsePackOutput } = await import('../publish-artifact-gate.mjs');
+    expect(
+      parsePackOutput(
+        '> prepack\n元数据已生成\n{\n"filename":"example.tgz"\n}\n',
+      ),
+    ).toEqual({ filename: 'example.tgz' });
+    expect(
+      parsePackOutput('> prepack\n[{"filename":"example.tgz"}]\n'),
+    ).toEqual([{ filename: 'example.tgz' }]);
+    expect(() => parsePackOutput('> prepack\n没有打包结果')).toThrow(
+      '未返回有效 JSON',
+    );
+  });
+});
+
+it('逐文件校验发布设计资料并拒绝内容篡改', async () => {
+  const { verifyTarballProjectDocs } =
+    await import('../publish-artifact-gate.mjs');
+  const root = createTemporaryDirectory();
+  const reference = join(root, 'package/docs/project-reference');
+  mkdirSync(reference, { recursive: true });
+  writeFileSync(join(reference, 'design.md'), '设计正文');
+  writeFileSync(
+    join(reference, 'manifest.json'),
+    JSON.stringify([
+      {
+        path: 'design.md',
+        sha256: createHash('sha256').update('设计正文').digest('hex'),
+      },
+    ]),
+  );
+  const tarball = join(root, 'docs.tgz');
+  execFileSync('tar', ['-czf', tarball, '-C', root, 'package']);
+  const info = { name: '@scope/docs', dir: join(root, 'package') };
+  expect(() => verifyTarballProjectDocs(info, tarball, '测试包')).not.toThrow();
+  writeFileSync(join(reference, 'design.md'), '被修改');
+  execFileSync('tar', ['-czf', tarball, '-C', root, 'package']);
+  expect(() => verifyTarballProjectDocs(info, tarball, '测试包')).toThrow(
+    '内容不一致',
+  );
 });

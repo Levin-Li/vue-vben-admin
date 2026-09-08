@@ -21,19 +21,20 @@ import {
 } from 'ant-design-vue';
 
 import {
+  DEFAULT_CONTENT_MODAL_BODY_STYLE,
+  DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
+} from './config-helpers';
+import {
+  getFormGridContentMaxWidth,
+  resolveFormColumnCount,
+} from './crud-form-layout';
+import { getJsonSchemaFieldError } from './json-schema-field-validation';
+import {
   applyJsonSchemaDefaults,
   buildJsonSchemaFormFields,
   getJsonSchemaPathValue,
   setJsonSchemaPathValue,
 } from './json-schema-form';
-import {
-  getFormGridContentMaxWidth,
-  resolveFormColumnCount,
-} from './crud-form-layout';
-import {
-  DEFAULT_CONTENT_MODAL_BODY_STYLE,
-  DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
-} from './config-helpers';
 
 const props = withDefaults(
   defineProps<{
@@ -51,6 +52,8 @@ const props = withDefaults(
     disabled: false,
     errorMessage: '',
     inline: false,
+    modalStyle: undefined,
+    modelValue: undefined,
     loading: false,
     modalWidth: 'min(80vw, 1120px)',
     schema: () => ({}),
@@ -60,11 +63,13 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:modelValue': [value: Record<string, any>];
+  validity: [valid: boolean];
 }>();
 
 const open = ref(false);
 const draftValue = ref<Record<string, any>>({});
 const complexTextValues = reactive<Record<string, string>>({});
+const complexErrors = reactive<Record<string, string>>({});
 const viewportWidth = ref(0);
 const viewportHeight = ref(0);
 
@@ -123,7 +128,7 @@ function getLayoutFieldType(field: { kind: string }) {
 function shouldUseFullRowLayout(field: (typeof fields.value)[number]) {
   if (['json', 'section', 'textarea'].includes(field.kind)) return true;
   const name = `${field.path.at(-1) || ''} ${field.label}`.toLowerCase();
-  return /content|template|message|remark|description|content|模板|内容|说明|备注|消息/.test(
+  return /content|template|message|remark|description|模板|内容|说明|备注|消息/.test(
     name,
   );
 }
@@ -149,6 +154,8 @@ function cloneObjectValue(value: any) {
   }
 
   try {
+    // Vue响应式代理不能直接structuredClone；这里按JSON值语义复制。
+    // eslint-disable-next-line unicorn/prefer-structured-clone
     return JSON.parse(JSON.stringify(value));
   } catch {
     return { ...value };
@@ -156,23 +163,35 @@ function cloneObjectValue(value: any) {
 }
 
 const fields = computed(() => buildJsonSchemaFormFields(props.schema));
+const fieldErrors = computed(() =>
+  Object.fromEntries(
+    fields.value
+      .map((field) => [
+        field.pathKey,
+        complexErrors[field.pathKey] ||
+          getJsonSchemaFieldError(
+            field,
+            getJsonSchemaPathValue(draftValue.value, field.path),
+          ),
+      ])
+      .filter(([, error]) => !!error),
+  ),
+);
+const formValid = computed(() => Object.keys(fieldErrors.value).length === 0);
+watch(formValid, (valid) => emit('validity', valid), { immediate: true });
 const layoutFields = computed<CrudFieldConfig[]>(() =>
   fields.value.map((field) => ({
     key: field.pathKey,
     label: field.label,
     fullRow: shouldUseFullRowLayout(field),
     layoutNewRow: field.kind === 'section',
-    span:
-      shouldUseFullRowLayout(field)
-        ? -1
-        : 1,
+    span: shouldUseFullRowLayout(field) ? -1 : 1,
     type: getLayoutFieldType(field),
   })),
 );
 const modalAvailableWidth = computed(() => {
   const configuredWidth = getConfiguredModalMaxWidthPx(props.modalWidth);
-  const viewportLimit =
-    viewportWidth.value > 0 ? viewportWidth.value * 0.8 : 0;
+  const viewportLimit = viewportWidth.value > 0 ? viewportWidth.value * 0.8 : 0;
   const configuredLimit = configuredWidth ?? (viewportLimit || 1120);
 
   if (viewportLimit > 0) {
@@ -198,7 +217,7 @@ const popupGridStyle = computed(() => ({
 }));
 const contentModalStyle = computed(() => ({
   maxHeight: DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
-  ...(props.modalStyle || {}),
+  ...props.modalStyle,
 }));
 
 const previewText = computed(() => {
@@ -236,6 +255,7 @@ function stringifyComplexValue(value: any) {
 }
 
 function resetComplexTextValues() {
+  Object.keys(complexErrors).forEach((key) => delete complexErrors[key]);
   Object.keys(complexTextValues).forEach(
     (key) => delete complexTextValues[key],
   );
@@ -274,14 +294,17 @@ function setComplexFieldValue(path: string[], pathKey: string, value: string) {
   complexTextValues[pathKey] = value;
 
   if (!value.trim()) {
+    delete complexErrors[pathKey];
     setFieldValue(path, undefined);
     return;
   }
 
   try {
-    setFieldValue(path, JSON.parse(value));
+    const parsed = JSON.parse(value);
+    delete complexErrors[pathKey];
+    setFieldValue(path, parsed);
   } catch {
-    // Keep the user's text in the textarea while they finish editing invalid JSON.
+    complexErrors[pathKey] = 'JSON格式不正确，请完成输入后再保存';
   }
 }
 
@@ -306,12 +329,13 @@ function getFieldItemStyle(field: {
 }
 
 function handleOk() {
+  if (!formValid.value) return;
   emit('update:modelValue', cloneObjectValue(draftValue.value));
   open.value = false;
 }
 
 function emitInlineValue() {
-  if (props.inline) {
+  if (props.inline && formValid.value) {
     emit('update:modelValue', cloneObjectValue(draftValue.value));
   }
 }
@@ -319,6 +343,7 @@ function emitInlineValue() {
 watch(
   () => props.modelValue,
   (nextValue) => {
+    if (props.inline && Object.keys(complexErrors).length > 0) return;
     if (props.inline || !open.value) {
       draftValue.value = applyJsonSchemaDefaults(
         cloneObjectValue(nextValue),
@@ -394,6 +419,8 @@ onBeforeUnmount(() => {
               'crud-json-schema-form-full': isWideField(field),
               'crud-json-schema-form-item': !isWideField(field),
             }"
+            :help="fieldErrors[field.pathKey]"
+            :validate-status="fieldErrors[field.pathKey] ? 'error' : undefined"
             :extra="field.description"
             :label="field.label"
             :required="field.required"
@@ -491,6 +518,7 @@ onBeforeUnmount(() => {
       destroy-on-close
       :mask-closable="false"
       ok-text="保存"
+      :ok-button-props="{ disabled: !formValid }"
       :style="contentModalStyle"
       :title="modalTitle"
       :width="modalWidth"
@@ -525,6 +553,10 @@ onBeforeUnmount(() => {
                 'crud-json-schema-form-full': isWideField(field),
                 'crud-json-schema-form-item': !isWideField(field),
               }"
+              :help="fieldErrors[field.pathKey]"
+              :validate-status="
+                fieldErrors[field.pathKey] ? 'error' : undefined
+              "
               :extra="field.description"
               :label="field.label"
               :required="field.required"
@@ -549,46 +581,46 @@ onBeforeUnmount(() => {
                 @update:checked="setFieldValue(field.path, $event)"
               />
 
-            <InputNumber
-              v-else-if="field.kind === 'number'"
-              :disabled="disabled || field.readOnly"
-              :placeholder="`请输入${field.label}`"
-              :value="getFieldValue(field.path)"
-              class="w-full"
-              @update:value="setFieldValue(field.path, $event)"
-            />
+              <InputNumber
+                v-else-if="field.kind === 'number'"
+                :disabled="disabled || field.readOnly"
+                :placeholder="`请输入${field.label}`"
+                :value="getFieldValue(field.path)"
+                class="w-full"
+                @update:value="setFieldValue(field.path, $event)"
+              />
 
-            <Input.TextArea
-              v-else-if="field.kind === 'json'"
-              :auto-size="{ minRows: 3, maxRows: 8 }"
-              :disabled="disabled || field.readOnly"
-              :placeholder="`请输入${field.label} JSON`"
-              :value="complexTextValues[field.pathKey]"
-              class="w-full"
-              @update:value="
-                setComplexFieldValue(field.path, field.pathKey, $event)
-              "
-            />
+              <Input.TextArea
+                v-else-if="field.kind === 'json'"
+                :auto-size="{ minRows: 3, maxRows: 8 }"
+                :disabled="disabled || field.readOnly"
+                :placeholder="`请输入${field.label} JSON`"
+                :value="complexTextValues[field.pathKey]"
+                class="w-full"
+                @update:value="
+                  setComplexFieldValue(field.path, field.pathKey, $event)
+                "
+              />
 
-            <Input.TextArea
-              v-else-if="field.kind === 'textarea'"
-              :auto-size="{ minRows: 3, maxRows: 8 }"
-              :disabled="disabled || field.readOnly"
-              :placeholder="`请输入${field.label}`"
-              :value="getFieldValue(field.path)"
-              class="w-full"
-              @update:value="setFieldValue(field.path, $event)"
-            />
+              <Input.TextArea
+                v-else-if="field.kind === 'textarea'"
+                :auto-size="{ minRows: 3, maxRows: 8 }"
+                :disabled="disabled || field.readOnly"
+                :placeholder="`请输入${field.label}`"
+                :value="getFieldValue(field.path)"
+                class="w-full"
+                @update:value="setFieldValue(field.path, $event)"
+              />
 
-            <Input
-              v-else
-              :disabled="disabled || field.readOnly"
-              :placeholder="`请输入${field.label}`"
-              :value="getFieldValue(field.path)"
-              class="w-full"
-              @update:value="setFieldValue(field.path, $event)"
-            />
-          </Form.Item>
+              <Input
+                v-else
+                :disabled="disabled || field.readOnly"
+                :placeholder="`请输入${field.label}`"
+                :value="getFieldValue(field.path)"
+                class="w-full"
+                @update:value="setFieldValue(field.path, $event)"
+              />
+            </Form.Item>
           </template>
 
           <div

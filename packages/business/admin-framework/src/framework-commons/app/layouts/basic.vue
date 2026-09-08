@@ -169,12 +169,7 @@ const canViewFrontendVersions = computed(() => {
   return userInfo.superAdmin === true;
 });
 
-const frontendBuildInfo = computed(() =>
-  getFrontendBuildInfo(
-    import.meta.env.VITE_APP_TITLE || appName.value,
-    import.meta.env.VITE_APP_VERSION,
-  ),
-);
+const frontendBuildInfo = computed(() => getFrontendBuildInfo());
 
 const canUploadI18nLabels = computed(() => {
   const userInfo = (userStore.userInfo || {}) as Record<string, any>;
@@ -758,12 +753,12 @@ watch(
         title="前端组件版本"
       >
         <div class="text-muted-foreground mb-3 text-sm">
-          构建时间：{{ frontendBuildInfo.buildTime }}
+          当前页面引用的框架、基础业务包及框架直接公共依赖版本。
         </div>
         <div class="border-border max-h-[56vh] overflow-y-auto rounded border">
           <div
             v-for="item in frontendBuildInfo.versions"
-            :key="`${item.category}:${item.id}`"
+            :key="`${item.id}:${item.version}`"
             class="border-border flex items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0"
           >
             <div class="min-w-0">
@@ -771,10 +766,12 @@ watch(
                 <span class="truncate font-medium">{{ item.name }}</span>
                 <Tag class="shrink-0">{{ item.category }}</Tag>
               </div>
-              <div
-                class="text-muted-foreground mt-1 truncate font-mono text-xs"
-              >
-                {{ item.id }}
+              <div class="text-muted-foreground mt-1 text-xs">
+                打包时间：{{
+                  new Date(item.buildTime).toLocaleString('zh-CN', {
+                    hour12: false,
+                  })
+                }}
               </div>
             </div>
             <Tag class="shrink-0">{{ item.version }}</Tag>

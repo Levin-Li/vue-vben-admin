@@ -85,9 +85,9 @@ async function requestCode(wrapper: VueWrapper) {
   const button = wrapper
     .findAll('button')
     .find((item) => item.text() === '获取验证码');
-  expect(button).toBeDefined();
-  if (!button) throw new Error('未找到获取验证码按钮');
-  await button.trigger('click');
+  await (button
+    ? button.trigger('click')
+    : new Promise((resolve) => setTimeout(resolve, 400)));
   await flushPromises();
 }
 
@@ -102,6 +102,7 @@ function inputValue(wrapper: VueWrapper, selector: string) {
 
 describe('注册页面', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.resetAllMocks();
     getLoginOptions.mockResolvedValue({
       enableUserRegister: true,
@@ -119,7 +120,41 @@ describe('注册页面', () => {
 
   afterEach(() => {
     wrappers.splice(0).forEach((wrapper) => wrapper.unmount());
+    vi.useRealTimers();
   });
+
+  it('普通账号输入稳定后自动加载图片验证码，不显示重复获取按钮', async () => {
+    vi.useFakeTimers();
+    const wrapper = await mountRegister();
+    await flushPromises();
+
+    await wrapper.get('#register-account').setValue('ordinary-user');
+    await vi.advanceTimersByTimeAsync(350);
+    await flushPromises();
+
+    expect(getVerifyCode).toHaveBeenCalledWith({ account: 'ordinary-user' });
+    expect(wrapper.get('img[alt="注册验证码"]').exists()).toBe(true);
+    expect(
+      wrapper.findAll('button').some((item) => item.text() === '获取验证码'),
+    ).toBe(false);
+  });
+
+  it.each(['13800138000', 'user@example.com'])(
+    '%s 保留显式获取验证码，不因输入而发送',
+    async (contact) => {
+      vi.useFakeTimers();
+      const wrapper = await mountRegister();
+      await flushPromises();
+
+      await wrapper.get('#register-account').setValue(contact);
+      await vi.advanceTimersByTimeAsync(350);
+
+      expect(getVerifyCode).not.toHaveBeenCalled();
+      expect(
+        wrapper.findAll('button').some((item) => item.text() === '获取验证码'),
+      ).toBe(true);
+    },
+  );
 
   it('注册开关开启才展示注册账号表单', async () => {
     const wrapper = await renderRegister();

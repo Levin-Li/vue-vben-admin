@@ -324,13 +324,11 @@ describe('crud page display rules', () => {
     });
   });
 
-  it('uses the complete route path as the page display setting code', () => {
-    expect(resolvePageDisplaySettingCode('/clob/V1/Address', '/Address')).toBe(
-      '/clob/V1/Address',
+  it('uses only the current route path as the page display setting code', () => {
+    expect(resolvePageDisplaySettingCode('/menu/7277575964265906172')).toBe(
+      '/menu/7277575964265906172',
     );
-    expect(resolvePageDisplaySettingCode(undefined, '/Address')).toBe(
-      '/Address',
-    );
+    expect(resolvePageDisplaySettingCode(undefined)).toBeUndefined();
   });
 
   it('includes user, org category, and org type in the page display context key', () => {
@@ -862,6 +860,7 @@ describe('运行与设置面板共用默认配置', () => {
       defaultMinColumnWidth: 60,
       defaultMaxColumnWidth: 360,
       defaultOverflowStrategy: 'ellipsis',
+      showAllPageRows: false,
     });
     expect(defaults.query?.autoSearch).toBe(false);
     expect(defaults.edit?.autoForceUpdateField).toBe(true);

@@ -4,6 +4,7 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import type { CreateOakBaseAdminCrudRoutesOptions } from './admin-crud';
 
+import { packageVersion } from '../../../package-version.mjs';
 import { createOakBaseAdminCrudRoutes } from './admin-crud';
 import { OAK_BASE_API_MODULE, OAK_BASE_MODULE_NAME } from './api-module';
 import { oakBaseAdminBackendRouteMappings } from './backend-route-mappings';
@@ -32,11 +33,12 @@ export function createOakBaseAdminModule(
     locales: oakBaseAdminLocales,
     name: OAK_BASE_MODULE_NAME,
     order: 100,
+    packageInfo: packageVersion,
     pageMap: oakBaseAdminPageMap,
     queryConfigLoaders: oakBaseQueryConfigLoaders,
     routes,
     title: '基础模块',
-    version: '5.6.18',
+    version: packageVersion.version,
   };
 }
 

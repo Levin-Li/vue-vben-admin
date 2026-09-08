@@ -1,18 +1,22 @@
 {
   "name": "@levin/oak-base-admin",
-  "version": "5.6.95",
+  "version": "5.6.97",
   "description": "Levin Oak base admin frontend module.",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "node ../../../scripts/sync-frontend-rule-docs.mjs && pnpm unbuild",
-    "prepublishOnly": "pnpm run build"
+    "build": "node ../../../scripts/sync-framework-package-metadata.mjs --package . && node ../../../scripts/sync-frontend-rule-docs.mjs && pnpm unbuild",
+    "prepublishOnly": "pnpm run build",
+    "prepack": "node ../../../scripts/sync-framework-package-metadata.mjs --package ."
   },
   "files": [
     "AGENTS.md",
     "docs",
     "dist",
-    "src"
+    "src",
+    "package-version.mjs",
+    "package-version.d.mts",
+    "README.md"
   ],
   "sideEffects": [
     "**/*.css",
@@ -56,14 +60,18 @@
       "development": "./src/modules/com_levin_oak_base/views/*.ts",
       "types": "./dist/modules/com_levin_oak_base/views/*.d.ts",
       "default": "./dist/modules/com_levin_oak_base/views/*.mjs"
+    },
+    "./package-version": {
+      "types": "./package-version.d.mts",
+      "default": "./package-version.mjs"
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": "5.6.93",
-    "@vben/common-ui": "5.6.13",
-    "@vben/icons": "5.6.9",
-    "@vben/plugins": "5.6.12",
-    "@vben/stores": "5.6.10",
+    "@levin/admin-framework": "5.6.95",
+    "@vben/common-ui": "5.6.14",
+    "@vben/icons": "5.6.10",
+    "@vben/plugins": "5.6.13",
+    "@vben/stores": "5.6.11",
     "ant-design-vue": ">=4.0.0",
     "pinia": ">=3.0.0",
     "vue": ">=3.5.0",

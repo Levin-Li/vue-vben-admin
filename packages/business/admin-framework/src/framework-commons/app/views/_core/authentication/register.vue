@@ -57,11 +57,30 @@ const codeAccount = ref('');
 const verifyType = ref<VerifyType>();
 const mockCodeFilled = ref(false);
 const countdown = ref(0);
+const autoCaptchaDelayMs = 350;
+const autoCaptchaFailed = ref(false);
 // 注册成功后只允许重试登录收尾，不能再次提交创建请求。
 const registrationToken = ref('');
 let requestVersion = 0;
 let active = true;
 let countdownTimer: ReturnType<typeof setInterval> | undefined;
+let autoCaptchaTimer: ReturnType<typeof setTimeout> | undefined;
+
+function isContactAccount(value: string) {
+  if (/^1\d{10}$/.test(value)) return true;
+  const [localPart, domain, ...otherParts] = value.split('@');
+  return (
+    !!localPart && !!domain && otherParts.length === 0 && domain.includes('.')
+  );
+}
+
+const isLikelyRegularAccount = computed(
+  () => !!account.value && !isContactAccount(account.value),
+);
+
+const codeButtonText = computed(() =>
+  countdown.value > 0 ? `${countdown.value}s 后重试` : '获取验证码',
+);
 
 const codeHint = computed(() => {
   if (mockCodeFilled.value) return '测试验证码已填入';
@@ -82,19 +101,29 @@ function failureMessage(error: unknown, fallback: string) {
 
 function resetVerification() {
   requestVersion += 1;
+  clearTimeout(autoCaptchaTimer);
   codeLoading.value = false;
   codeAccount.value = '';
   verifyType.value = undefined;
   form.verifyCode = '';
   captchaImage.value = '';
   mockCodeFilled.value = false;
+  autoCaptchaFailed.value = false;
   countdown.value = 0;
   clearInterval(countdownTimer);
 }
 
-watch(account, () => {
+function scheduleAutoCaptcha(currentAccount = account.value) {
+  if (!currentAccount || isContactAccount(currentAccount)) return;
+  autoCaptchaTimer = setTimeout(() => {
+    void requestCode();
+  }, autoCaptchaDelayMs);
+}
+
+watch(account, (currentAccount) => {
   resetVerification();
   errorMessage.value = '';
+  scheduleAutoCaptcha(currentAccount);
 });
 
 async function requestCode() {
@@ -158,6 +187,7 @@ async function requestCode() {
     }
   } catch (error) {
     if (active && version === requestVersion) {
+      autoCaptchaFailed.value = isLikelyRegularAccount.value;
       errorMessage.value = failureMessage(error, '获取验证码失败，请重试');
     }
   } finally {
@@ -213,7 +243,10 @@ async function handleSubmit() {
   } catch (error) {
     if (active) {
       errorMessage.value = failureMessage(error, '注册或登录失败，请重试');
-      if (!registrationToken.value) resetVerification();
+      if (!registrationToken.value) {
+        resetVerification();
+        scheduleAutoCaptcha();
+      }
     }
   } finally {
     if (active) loading.value = false;
@@ -313,6 +346,7 @@ onBeforeUnmount(() => {
               size="large"
             />
             <Button
+              v-if="!isLikelyRegularAccount || autoCaptchaFailed"
               :disabled="loading || codeLoading || countdown > 0 || !account"
               :loading="codeLoading"
               class="shrink-0"
@@ -320,7 +354,7 @@ onBeforeUnmount(() => {
               size="large"
               @click="requestCode"
             >
-              {{ countdown > 0 ? `${countdown}s 后重试` : '获取验证码' }}
+              {{ codeButtonText }}
             </Button>
           </div>
           <button

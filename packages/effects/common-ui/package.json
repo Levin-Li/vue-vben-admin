@@ -1,6 +1,6 @@
 {
   "name": "@vben/common-ui",
-  "version": "5.6.13",
+  "version": "5.6.14",
   "homepage": "https://github.com/vbenjs/vue-vben-admin",
   "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
@@ -11,12 +11,18 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "pnpm unbuild",
-    "prepublishOnly": "npm run build"
+    "build": "node ../../../scripts/sync-framework-package-metadata.mjs --package . && pnpm unbuild",
+    "prepublishOnly": "npm run build",
+    "prepack": "node ../../../scripts/sync-framework-package-metadata.mjs --package ."
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "package-version.mjs",
+    "package-version.d.mts",
+    "docs",
+    "AGENTS.md",
+    "README.md"
   ],
   "sideEffects": [
     "**/*.css"
@@ -39,6 +45,10 @@
       "types": "./src/components/loading/index.ts",
       "development": "./src/components/loading/index.ts",
       "default": "./dist/components/loading/index.mjs"
+    },
+    "./package-version": {
+      "types": "./package-version.d.mts",
+      "default": "./package-version.mjs"
     }
   },
   "publishConfig": {
@@ -54,6 +64,10 @@
       "./es/loading": {
         "types": "./dist/components/loading/index.d.ts",
         "default": "./dist/components/loading/index.mjs"
+      },
+      "./package-version": {
+        "types": "./package-version.d.mts",
+        "default": "./package-version.mjs"
       }
     }
   },

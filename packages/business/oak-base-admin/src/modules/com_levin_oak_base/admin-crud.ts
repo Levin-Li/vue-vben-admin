@@ -29,6 +29,18 @@ export interface CreateOakBaseAdminCrudRoutesOptions {
 
 export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   {
+    icon: 'lucide:clipboard-check',
+    name: 'AuditReport',
+    resource: 'AuditReport',
+    title: '审计报告',
+  },
+  {
+    icon: 'lucide:timer',
+    name: 'BackendFixedJob',
+    resource: 'BackendFixedJob',
+    title: '后端固定定时任务',
+  },
+  {
     icon: 'lucide:history',
     name: 'AccessLog',
     resource: 'AccessLog',
@@ -398,6 +410,8 @@ export const oakBaseAdminResourceViewMap: Record<
   NonNullable<RouteRecordRaw['component']>
 > = {
   AccessLog: () => import('./views/access-log/index.vue'),
+  AuditReport: () => import('./views/audit-report/index.vue'),
+  BackendFixedJob: () => import('./views/backend-fixed-job/index.vue'),
   Address: () => import('./views/address/index.vue'),
   ClientApp: () => import('./views/client-app/index.vue'),
   Area: () => import('./views/area/index.vue'),
@@ -541,6 +555,8 @@ const menuGroups = [
     '运维&审计',
     [
       'AccessLog',
+      'AuditReport',
+      'BackendFixedJob',
       'AiModelCallAudit',
       'TrafficControlRule',
       'UrlExAcl',
