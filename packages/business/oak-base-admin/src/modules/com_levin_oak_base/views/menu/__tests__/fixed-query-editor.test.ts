@@ -29,6 +29,22 @@ async function openEditor(props: Record<string, any>) {
 }
 
 describe('菜单参数编辑器回退', () => {
+  it('没有可复用查询表单时禁用表单条件，并仍可逐项编辑扩展条件', async () => {
+    const wrapper = shallowMount(FixedQueryEditor, {
+      props: { modelValue: {} },
+      global: { renderStubDefaultSlot: true },
+    });
+    const buttons = wrapper.findAllComponents(Button);
+
+    expect(buttons[0].props('disabled')).toBe(true);
+    buttons[1].vm.$emit('click');
+    await flushPromises();
+
+    expect(wrapper.findComponent(Modal).props('title')).toBe('扩展查询条件');
+    expect(wrapper.text()).toContain('新增条件');
+    wrapper.unmount();
+  });
+
   it('没有公共查询配置时使用JSON，保存仍为原对象', async () => {
     const wrapper = await openEditor({
       modelValue: { success: false, count: 0 },

@@ -265,6 +265,31 @@ describe('login auto-login prompt', () => {
     wrapper.unmount();
   });
 
+  it('优先显示供应商配置的自定义图标', async () => {
+    getLoginOptionsApi.mockResolvedValue({
+      enableUserRegister: false,
+      enableThirdLogin: true,
+      enableThirdRegister: true,
+    });
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      {
+        code: 'WECHAT_OPEN',
+        iconUrl: '/tenant-wechat.svg',
+        name: '微信',
+        supports: ['oauth'],
+      },
+    ]);
+    const { default: Login } = await import('../login.vue');
+    const wrapper = mount(Login);
+
+    await flushPromises();
+
+    expect(wrapper.find('img[alt="微信 图标"]').attributes('src')).toBe(
+      '/tenant-wechat.svg',
+    );
+    wrapper.unmount();
+  });
+
   it('登录选项未返回时注册和第三方入口保持隐藏', async () => {
     let resolveOptions!: (value: object) => void;
     getLoginOptionsApi.mockReturnValueOnce(

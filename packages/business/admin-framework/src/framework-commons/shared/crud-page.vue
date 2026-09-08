@@ -154,7 +154,11 @@ import {
 import { updateCrudFieldInput } from './crud-field-interaction';
 import { serializeCrudFieldValue } from './crud-field-value';
 import { buildExcelXml, downloadExcelXml } from './crud-file-export';
-import { isFixedCrudQueryField } from './crud-fixed-query';
+import {
+  getFixedCrudFormValue,
+  isFixedCrudFormField,
+  isFixedCrudQueryField,
+} from './crud-fixed-query';
 import {
   shouldShowCrudFormField,
   shouldSubmitCrudFormField,
@@ -695,6 +699,8 @@ function isFieldDisabledOnEdit(field: CrudFieldConfig) {
 
 function isFormFieldInteractionDisabled(field: CrudFieldConfig) {
   return (
+    (!editingRecord.value &&
+      isFixedCrudFormField(field, menuFixedQuery)) ||
     isFieldDisabledOnEdit(field) ||
     getPageDisplayField(editingRecord.value ? 'edit' : 'create', field.key)
       .disabled === true
@@ -1126,6 +1132,7 @@ const activeFormFields = computed(() =>
 const visibleFormFields = computed(() =>
   activeFormFields.value.filter(
     (field) =>
+      !(editingRecord.value && isFixedCrudFormField(field, menuFixedQuery)) &&
       !getPageDisplayField(editingRecord.value ? 'edit' : 'create', field.key)
         .hidden,
   ),
@@ -1137,6 +1144,7 @@ const submittableFormFields = computed(() =>
         field,
         editingRecord.value ? 'edit' : 'create',
       ) &&
+      !(editingRecord.value && isFixedCrudFormField(field, menuFixedQuery)) &&
       !isFieldDisabledOnEdit(field) &&
       isComplexGroupEnabled(field) &&
       !unsubmittedGroupKeys.value.has(field.key),
@@ -2828,6 +2836,13 @@ function resetForm(record?: GenericRecord) {
     Object.assign(complexGroupEnabled, groupState.enabled);
     Object.assign(complexGroupCollapsed, groupState.collapsed);
     initializeComplexFormValues(groupState.flatValues, false);
+    for (const field of initialFormFields.value) {
+      if (!isFixedCrudFormField(field, menuFixedQuery)) continue;
+      formState[field.key] = normalizeFormValue(
+        field,
+        getFixedCrudFormValue(field, menuFixedQuery),
+      );
+    }
     initializeFormGroupCollapse();
     return;
   }

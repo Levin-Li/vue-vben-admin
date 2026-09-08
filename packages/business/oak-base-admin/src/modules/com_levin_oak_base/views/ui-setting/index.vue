@@ -12,6 +12,7 @@ function serializeUiSettingValueContent(
 
 <template>
   <SettingCrudPage
+    always-allow-value-edit
     :config="uiSettingPageCrudConfig"
     :history-biz-type="'com.levin.oak.base.entities.UiSetting'"
     force-json-value-editor

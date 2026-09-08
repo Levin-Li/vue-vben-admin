@@ -94,6 +94,9 @@ const extensionFieldOptions = computed(() =>
     ]),
   ).values()],
 );
+const canEditFormQuery = computed(
+  () => Boolean(props.paramsEditor?.trim()) || typeof props.loadConfig === 'function',
+);
 function getExtensionFieldType(key: string) {
   return String(
     config.value?.fields?.find((field) => field.key === key)?.type || '文本',
@@ -118,9 +121,12 @@ const extensionCount = computed(() => Math.max(count.value - formCount.value, 0)
 let session = 0;
 let baseline = '';
 function snapshot() {
-  return editorMode.value === 'query'
-    ? JSON.stringify({ selected: selected.value, values })
-    : JSON.stringify(rawDraft.value);
+  if (editorMode.value !== 'query') return JSON.stringify(rawDraft.value);
+  return JSON.stringify(
+    editingExtension.value
+      ? { extensionRows: extensionRows.value }
+      : { selected: selected.value, values },
+  );
 }
 async function loadOptions(
   field: NonNullable<CrudPageConfig['fields']>[number],
@@ -158,8 +164,21 @@ async function edit(extension = false) {
   Object.keys(values).forEach((key) => delete values[key]);
   Object.keys(optionErrors).forEach((key) => delete optionErrors[key]);
   selected.value = [];
+  extensionRows.value = [];
   Object.keys(pending).forEach((key) => delete pending[key]);
   try {
+    if (extension) {
+      extensionRows.value = Object.entries(rawDraft.value).map(([key, value]) => ({
+        key,
+        type: isKnownExtensionField(key)
+          ? getExtensionFieldType(key)
+          : typeof value === 'number'
+            ? 'number'
+            : 'text',
+        value: typeof value === 'string' ? value : JSON.stringify(value),
+      }));
+      return;
+    }
     if (!extension && props.paramsEditor?.trim()) {
       editorMode.value = 'schema';
       const source = resolveJsonSchemaSource(props.paramsEditor);
@@ -217,18 +236,6 @@ async function edit(extension = false) {
         '该页面包含尚未接入的自定义查询控件，请先接入公共查询配置编辑器。',
       );
     const fixed = parseMenuFixedQuery(props.modelValue);
-    const known = new Set(items.value.flatMap((item) => queryItemKeys(item)));
-    extensionRows.value = Object.entries(fixed)
-      .filter(([key]) => !known.has(key))
-      .map(([key, value]) => ({
-        key,
-        type: isKnownExtensionField(key)
-          ? getExtensionFieldType(key)
-          : typeof value === 'number'
-            ? 'number'
-            : 'text',
-        value: typeof value === 'string' ? value : JSON.stringify(value),
-      }));
     for (const item of items.value) {
       values[item.key] = readFixedQueryValue(item, fixed);
       if (queryItemKeys(item).some((key) => Object.hasOwn(fixed, key)))
@@ -321,7 +328,9 @@ function save() {
 <template>
   <div class="flex items-center gap-3">
     <Badge :count="formCount">
-      <Button @click="edit(false)">表单查询条件</Button>
+      <Button :disabled="!canEditFormQuery" @click="edit(false)">
+        表单查询条件
+      </Button>
     </Badge>
     <Badge :count="extensionCount">
       <Button @click="edit(true)">扩展查询条件</Button>
@@ -503,7 +512,7 @@ function save() {
           </Form.Item>
         </Form>
       </template>
-      <template v-else-if="editorMode === 'query'">
+      <template v-else-if="editorMode === 'query' && editingExtension">
         <div>
           <div class="mb-2 flex justify-end">
             <Button size="small" @click="extensionRows.push({ key: '', type: 'text', value: '' })">

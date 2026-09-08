@@ -35,6 +35,7 @@ import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store
 
 import { useAuthBrand } from './auth-brand';
 import BehaviorCaptcha from './behavior-captcha.vue';
+import { resolveDefaultOAuthProviderIcon } from './oauth-provider-icons';
 import {
   isSupportedBehaviorCaptchaMode,
   normalizeBehaviorCaptchaChallenge,
@@ -72,6 +73,7 @@ interface OAuthLoginPlatform {
   code: string;
   description: string;
   displayName: string;
+  icon: string;
   iconUrl: string;
 }
 
@@ -332,6 +334,7 @@ function normalizeOAuthPlatform(
     code,
     description: String(platform.description || '').trim(),
     displayName: resolvePlatformDisplayName(platform),
+    icon: resolveDefaultOAuthProviderIcon(code),
     iconUrl: String(platform.iconUrl || platform.icon || '').trim(),
   };
 }
@@ -1269,6 +1272,7 @@ function resumeOAuthLoginFromStorage() {
     code: pendingTransaction.platformCode,
     description: '',
     displayName: pendingTransaction.platformCode,
+    icon: resolveDefaultOAuthProviderIcon(pendingTransaction.platformCode),
     iconUrl: '',
   };
   beginOAuthLoginPolling(pendingTransaction.transactionId);
@@ -1467,7 +1471,7 @@ onBeforeUnmount(() => {
                 v-else
                 aria-hidden="true"
                 class="size-6"
-                icon="lucide:scan-line"
+                :icon="platform.icon"
               />
             </Button>
           </Tooltip>

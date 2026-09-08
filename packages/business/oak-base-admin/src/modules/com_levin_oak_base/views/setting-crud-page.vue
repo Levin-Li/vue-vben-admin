@@ -17,6 +17,8 @@ import SettingValueContentField from './setting-value-content-field.vue';
 
 const props = defineProps<{
   config: CrudPageConfig;
+  /** 页面可将内容值编辑与记录自身 editable 标记分离。 */
+  alwaysAllowValueEdit?: boolean;
   forceJsonValueEditor?: boolean;
   historyBizType?: string;
   serializeValueContent?: (
@@ -51,6 +53,10 @@ const editValueModalBodyStyle = {
   maxHeight: 'calc(100vh - 160px)',
   overflowY: 'auto' as const,
 };
+
+function canEditValue(record: Record<string, any>) {
+  return props.alwaysAllowValueEdit || isSettingEditable(record);
+}
 
 function openPreviewValue(record: Record<string, any>) {
   editValueMode.value = 'view';
@@ -164,7 +170,7 @@ async function saveEditValue() {
         恢复数据
       </Button>
       <Button
-        v-if="isSettingEditable(record)"
+        v-if="canEditValue(record)"
         size="small"
         type="link"
         @click="openEditValue(record, reload)"

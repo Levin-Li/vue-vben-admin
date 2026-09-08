@@ -17,3 +17,18 @@ export function isFixedCrudQueryField(
   }
   return isFixedQueryField(keys, fixed);
 }
+
+/** 只识别与固定条件同名的实际表单字段，避免把模糊或范围查询键误当作写入字段。 */
+export function isFixedCrudFormField(
+  field: CrudFieldConfig,
+  fixed: MenuFixedQuery,
+) {
+  return Object.hasOwn(fixed, field.key);
+}
+
+export function getFixedCrudFormValue(
+  field: CrudFieldConfig,
+  fixed: MenuFixedQuery,
+) {
+  return fixed[field.key];
+}
