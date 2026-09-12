@@ -23,8 +23,9 @@ function updateConfig(patch: Partial<CrudPageDisplayDetailViewConfig>) {
 </script>
 
 <template>
-  <section class="border-border mb-4 rounded border p-3">
-    <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
+  <!-- 专属设置融入主抽屉工具区，避免重复外框和外围间距。 -->
+  <section class="contents">
+    <Form layout="inline" :style="{ display: 'contents' }">
       <Popover placement="bottomLeft" title="展示字段清单" trigger="hover">
         <template #content>
           <div class="flex max-w-80 flex-wrap gap-2">
@@ -43,7 +44,8 @@ function updateConfig(patch: Partial<CrudPageDisplayDetailViewConfig>) {
         <Form.Item label="弹窗最大宽度" class="mb-0">
           <Input
             :value="config.modalMaxWidth"
-            placeholder="例如 80vw 或 960px"
+            class="w-[90px]"
+            placeholder="80vw"
             @update:value="(value) => updateConfig({ modalMaxWidth: value })"
           />
         </Form.Item>
@@ -52,7 +54,8 @@ function updateConfig(patch: Partial<CrudPageDisplayDetailViewConfig>) {
         <Form.Item label="弹窗最大高度" class="mb-0">
           <Input
             :value="config.modalMaxHeight"
-            placeholder="例如 70vh 或 720px"
+            class="w-[90px]"
+            placeholder="70vh"
             @update:value="(value) => updateConfig({ modalMaxHeight: value })"
           />
         </Form.Item>

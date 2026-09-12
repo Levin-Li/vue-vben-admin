@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import {
+  AutoComplete,
   Button,
   Drawer,
   Form,
@@ -101,12 +102,19 @@ const emit = defineEmits<{
 }>();
 
 const activeKey = ref<View>('query');
-const renderedView = ref<View | undefined>(
-  props.open ? activeKey.value : undefined,
+// 搜索属于视图临时状态，不进入配置草稿；各页签独立记住本次打开期间的关键词。
+const fieldSearchKeywords = reactive<Record<View, string>>({
+  create: '',
+  detail: '',
+  edit: '',
+  list: '',
+  query: '',
+});
+const normalizedFieldSearch = computed(() =>
+  fieldSearchKeywords[activeKey.value].trim().toLocaleLowerCase(),
 );
-let tabRenderRequest = 0;
-// 小页面直接切换保持即时响应；超过首批规模后才需要拆分浏览器的布局帧。
-const DEFERRED_TAB_RENDER_FIELD_THRESHOLD = 12;
+// 仅维护一棵活动编辑树，切换时按字段键更新控件，关闭抽屉才释放整个编辑区。
+const renderedView = computed(() => (props.open ? activeKey.value : undefined));
 const INITIAL_FIELD_RENDER_LIMIT = 12;
 const FIELD_RENDER_STEP = 12;
 const fieldRenderLimits = reactive<Record<View, number>>({
@@ -123,32 +131,6 @@ function resetFieldRenderLimits() {
   }
 }
 
-async function renderActiveTab(view: View) {
-  const request = ++tabRenderRequest;
-
-  // 先卸载旧页签的 sticky 网格，避免新旧大字段配置树在同一帧参与布局和合成。
-  renderedView.value = undefined;
-  await nextTick();
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-  // 快速连续切换时只挂载最后一次选择的页签，避免过期任务重新创建已离开的 DOM。
-  if (request === tabRenderRequest && props.open && activeKey.value === view) {
-    renderedView.value = view;
-  }
-}
-
-function handleTabChange(view: number | string) {
-  if (typeof view !== 'string') return;
-  if (!['query', 'create', 'edit', 'detail', 'list'].includes(view)) return;
-  const hasLargeFieldSet =
-    (props.detailFields?.length || 0) > DEFERRED_TAB_RENDER_FIELD_THRESHOLD ||
-    props.fields.length > DEFERRED_TAB_RENDER_FIELD_THRESHOLD;
-  if (!hasLargeFieldSet) {
-    renderedView.value = view as View;
-    return;
-  }
-  void renderActiveTab(view as View);
-}
 const draft = ref<CrudPageDisplayConfig>(resolveCrudPageDisplayDefaults());
 const scope = ref<Scope>({});
 const initialSnapshot = ref('');
@@ -186,6 +168,7 @@ let cachedRoleVisibilityOptions:
 const roleVisibilityOptions = ref<Array<{ label: string; value: string }>>([]);
 const roleVisibilityLoading = ref(false);
 const groupRenderVersion = ref(0);
+const fieldScrollRef = ref<HTMLElement | null>(null);
 const previewContentRef = ref<HTMLElement | null>(null);
 const previewExpanded = ref(false);
 const previewOverflowing = ref(false);
@@ -445,11 +428,14 @@ function ensureFields(view: Exclude<View, 'list'>) {
   const holder = (draft.value[view] ||= { fields: [] });
   const allowed = getAllowedFields(view);
   const existing = new Map(holder.fields.map((item) => [item.key, item]));
+  // 计算属性只在尚未隐藏时修正；重复读取必须复用对象，避免渲染持续触发自身更新。
   const nextFields: CrudPageDisplayFieldConfig[] = allowed.map(
     (field, index) =>
       existing.has(field.key)
         ? Object.hasOwn(existing.get(field.key)!, 'hidden')
-          ? field.hasBackingField === false && view === 'detail'
+          ? field.hasBackingField === false &&
+            view === 'detail' &&
+            existing.get(field.key)?.hidden !== true
             ? { ...existing.get(field.key)!, hidden: true }
             : existing.get(field.key)!
           : {
@@ -621,6 +607,75 @@ function getRowsForView(view: View) {
 }
 
 const rows = computed(() => getRowsForView(activeKey.value));
+function matchesFieldSearch(
+  row:
+    | CrudPageDisplayActionConfig
+    | CrudPageDisplayFieldConfig
+    | CrudPageDisplayHeaderConfig,
+) {
+  const keyword = normalizedFieldSearch.value;
+  if (!keyword) return true;
+  // 同时匹配原始名称和当前别名，未挂载的行也通过完整配置参与搜索。
+  const detailLabel =
+    activeKey.value === 'detail'
+      ? props.detailFields?.find((field) => field.key === row.key)?.label
+      : undefined;
+  return [
+    row.key,
+    row.label,
+    'title' in row ? row.title : undefined,
+    getSourceFieldTitle(row.key),
+    detailLabel,
+  ].some(
+    (value) =>
+      typeof value === 'string' && value.toLocaleLowerCase().includes(keyword),
+  );
+}
+const filteredRows = computed(() =>
+  rows.value.filter((row) => matchesFieldSearch(row)),
+);
+const filteredActionRows = computed(() =>
+  activeKey.value === 'list'
+    ? actionRows.value.filter((row) => matchesFieldSearch(row))
+    : [],
+);
+const fieldSearchResultCount = computed(
+  () => filteredRows.value.length + filteredActionRows.value.length,
+);
+const fieldSearchTotalCount = computed(
+  () =>
+    rows.value.length +
+    (activeKey.value === 'list' ? actionRows.value.length : 0),
+);
+
+const fieldSearchOptions = computed(() => {
+  // 将字段名称与标题别名合并为一份候选，清除空白与重复文本，不截断到已挂载的行。
+  const names = new Set<string>();
+  for (const row of filteredRows.value) {
+    const sourceName =
+      (activeKey.value === 'detail'
+        ? props.detailFields?.find((field) => field.key === row.key)?.label
+        : undefined) || getSourceFieldTitle(row.key);
+    for (const candidate of [
+      sourceName,
+      row.label,
+      'title' in row ? row.title : undefined,
+    ]) {
+      if (typeof candidate === 'string' && candidate.trim())
+        names.add(candidate.trim());
+    }
+  }
+  for (const action of filteredActionRows.value) {
+    const name = (action.label || action.key).trim();
+    if (name) names.add(name);
+  }
+  // 属性名统一追加在名称、别名之后；共用 Set，重复文本仍保留前面的候选位置。
+  for (const row of filteredRows.value) {
+    const key = row.key.trim();
+    if (key) names.add(key);
+  }
+  return [...names].map((name) => ({ label: name, value: name }));
+});
 const previewSignature = computed(() =>
   rows.value
     .map((row) => {
@@ -749,21 +804,30 @@ function getRowGroupsForView(view: View) {
         (left.order ?? Number.MAX_SAFE_INTEGER) -
         (right.order ?? Number.MAX_SAFE_INTEGER),
     );
-  const groups = resolveGroups(view).map((group) => ({
+  // 分组解析在一次渲染内保持复用，避免大字段页面为每个字段重复扫描和排序所有分组。
+  const displayGroups = resolveGroups(view);
+  const displayGroupKeys = new Set(displayGroups.map((group) => group.key));
+  const sourceGroupByKey = new Map(
+    getAllowedFields(view).map((field) => [field.key, field.layoutGroup]),
+  );
+  const resolveRowGroupKey = (row: CrudPageDisplayFieldConfig) => {
+    if (row.layoutGroupExcluded === true) return undefined;
+    const groupKey = row.layoutGroup || sourceGroupByKey.get(row.key);
+    return groupKey && displayGroupKeys.has(groupKey) ? groupKey : undefined;
+  };
+  const groups = displayGroups.map((group) => ({
     group,
     key: group.key,
     order: group.order ?? Number.MAX_SAFE_INTEGER,
     rows: sortRows(
       (rowsForView as CrudPageDisplayFieldConfig[]).filter(
-        (row) => getRowGroupKey(row, view) === group.key,
+        (row) => resolveRowGroupKey(row) === group.key,
       ),
     ),
   }));
   const unassignedRows = sortRows(
     (rowsForView as CrudPageDisplayFieldConfig[]).filter(
-      (row) =>
-        !getRowGroupKey(row, view) ||
-        !groups.some((group) => group.key === getRowGroupKey(row, view)),
+      (row) => !resolveRowGroupKey(row),
     ),
   );
 
@@ -778,8 +842,21 @@ function getRowGroupsForView(view: View) {
   ].toSorted((left, right) => left.order - right.order);
 }
 
-function getRenderedRows<T>(rows: T[], view: View) {
-  return rows.slice(0, fieldRenderLimits[view]);
+function getRenderedRowGroups(view: View) {
+  let remaining = fieldRenderLimits[view];
+
+  // 首批额度属于当前 Tab，而不是每个分组，防止多分组页面一次性创建成倍的输入控件。
+  return getRowGroupsForView(view)
+    .map((group) => ({
+      ...group,
+      rows: group.rows.filter((row) => matchesFieldSearch(row)),
+    }))
+    .filter((group) => !normalizedFieldSearch.value || group.rows.length > 0)
+    .map((group) => {
+      const rows = group.rows.slice(0, Math.max(remaining, 0));
+      remaining -= rows.length;
+      return { ...group, rows };
+    });
 }
 
 function loadMoreFieldRows(event: Event, view: View) {
@@ -788,7 +865,7 @@ function loadMoreFieldRows(event: Event, view: View) {
   const isNearBottom =
     target.scrollTop + target.clientHeight >= target.scrollHeight - 160;
   if (!isNearBottom) return;
-  const totalRows = getRowsForView(view).length;
+  const totalRows = filteredRows.value.length;
   if (fieldRenderLimits[view] >= totalRows) return;
   fieldRenderLimits[view] = Math.min(
     fieldRenderLimits[view] + FIELD_RENDER_STEP,
@@ -797,7 +874,7 @@ function loadMoreFieldRows(event: Event, view: View) {
 }
 
 function loadMoreListFields() {
-  const totalRows = ensureHeaders().length;
+  const totalRows = filteredRows.value.length;
   fieldRenderLimits.list = Math.min(
     fieldRenderLimits.list + FIELD_RENDER_STEP,
     totalRows,
@@ -1289,7 +1366,7 @@ function ensureDefaultValue(row: CrudPageDisplayFieldConfig) {
 }
 
 function getDependencyKeys(row: CrudPageDisplayFieldConfig) {
-  return row.visibility?.dependsOn?.fieldKeys || [];
+  return row.visibility?.dependsOn?.fieldKeys || emptyFieldKeys;
 }
 
 function setDependencyKeys(row: CrudPageDisplayFieldConfig, value: string[]) {
@@ -1299,7 +1376,7 @@ function setDependencyKeys(row: CrudPageDisplayFieldConfig, value: string[]) {
 }
 
 function getExclusiveKeys(row: CrudPageDisplayFieldConfig) {
-  return row.visibility?.exclusiveWith?.fieldKeys || [];
+  return row.visibility?.exclusiveWith?.fieldKeys || emptyFieldKeys;
 }
 
 function setExclusiveKeys(row: CrudPageDisplayFieldConfig, value: string[]) {
@@ -1318,13 +1395,19 @@ function previewLabel(
   return row.label || getSourceFieldTitle(row.key);
 }
 
+// 选项与空选择使用稳定引用，避免无实际变化时反复触发选择器的深层更新。
+const emptyFieldKeys: string[] = [];
+const defaultInputDisplayOptions = [{ label: '默认', value: 'default' }];
+const inlineInputDisplayOptions = [
+  ...defaultInputDisplayOptions,
+  { label: '平铺选项', value: 'inline-options' },
+];
+
 function getInputDisplayOptions(row: CrudPageDisplayFieldConfig) {
   const field = props.fields.find((item) => item.key === row.key);
-  const options = [{ label: '默认', value: 'default' }];
-  if (field && supportsInlineChoiceOptions(field)) {
-    options.push({ label: '平铺选项', value: 'inline-options' });
-  }
-  return options;
+  return field && supportsInlineChoiceOptions(field)
+    ? inlineInputDisplayOptions
+    : defaultInputDisplayOptions;
 }
 
 const cssLengthPattern = /^\d+(?:\.\d+)?(?:px|%|vh|vw|vmin|vmax)$/i;
@@ -1506,12 +1589,12 @@ watch(
   () => props.open,
   (open) => {
     if (!open) {
-      // 关闭抽屉时立即释放复杂配置 DOM，并使未完成的切换任务失效。
-      tabRenderRequest += 1;
-      renderedView.value = undefined;
       return;
     }
     resetFieldRenderLimits();
+    for (const view of Object.keys(fieldSearchKeywords) as View[]) {
+      fieldSearchKeywords[view] = '';
+    }
     draft.value = resolveCrudPageDisplayDefaults(clone(props.modelValue));
     scope.value = normalizeScope(props.initialScope);
     void loadScopeOptions();
@@ -1524,8 +1607,6 @@ watch(
       ensureFields(activeKey.value);
       ensureGroups(activeKey.value);
     }
-    // 首次打开只挂载当前页签；其它页签继续按用户切换时懒初始化。
-    renderedView.value = activeKey.value;
     initialSnapshot.value = currentSnapshot();
     previewExpanded.value = false;
     void refreshPreviewOverflow();
@@ -1550,6 +1631,17 @@ watch([activeKey, previewSignature], () => {
   if (!props.open) return;
   previewExpanded.value = false;
   void refreshPreviewOverflow();
+});
+
+watch(activeKey, () => {
+  // 更新活动视图前恢复滚动起点，沿用原先重建容器时的行为，避免旧滚动位置触发批量加载。
+  if (fieldScrollRef.value) fieldScrollRef.value.scrollTop = 0;
+});
+
+watch(normalizedFieldSearch, () => {
+  // 搜索先覆盖全部候选，再从结果首批展示；清空后不会遗留旧滚动位置或加载额度。
+  fieldRenderLimits[activeKey.value] = INITIAL_FIELD_RENDER_LIMIT;
+  if (fieldScrollRef.value) fieldScrollRef.value.scrollTop = 0;
 });
 
 onUnmounted(() => {
@@ -1632,7 +1724,7 @@ onMounted(() => {
         >
       </Tooltip>
     </div>
-    <Tabs v-model:active-key="activeKey" @change="handleTabChange">
+    <Tabs v-model:active-key="activeKey">
       <Tabs.TabPane key="query" tab="查询表单" />
       <Tabs.TabPane key="create" tab="新增表单" />
       <Tabs.TabPane key="edit" tab="编辑表单" />
@@ -1640,132 +1732,150 @@ onMounted(() => {
       <Tabs.TabPane key="list" tab="展示列表" />
     </Tabs>
 
-    <PageDisplaySettingsTabContent
-      v-if="renderedView"
-      :key="renderedView"
-      :view="renderedView"
-    >
+    <PageDisplaySettingsTabContent v-if="renderedView" :view="renderedView">
       <template #default="{ view }">
-        <section
-          v-if="view === 'query'"
-          class="border-border mb-4 rounded border p-3"
-        >
-          <Form
-            layout="inline"
-            class="flex flex-nowrap gap-x-6 overflow-x-auto whitespace-nowrap"
-          >
-            <Popover
-              placement="bottomLeft"
-              title="展示字段清单"
-              trigger="hover"
+        <!-- 搜索和页签基础设置共用一个可换行工具区，保持在字段滚动区域外。 -->
+        <div class="mb-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div class="flex max-w-full flex-wrap items-center gap-3">
+            <AutoComplete
+              v-model:value="fieldSearchKeywords[activeKey]"
+              allow-clear
+              :default-active-first-option="false"
+              :filter-option="false"
+              :options="fieldSearchOptions"
+              :show-action="['focus']"
+              class="w-[13.333rem] max-w-full"
             >
-              <template #content
-                ><div class="flex max-w-80 flex-wrap gap-2">
-                  <span
-                    v-for="item in getRowsForView(view)"
-                    :key="item.key"
-                    class="border-border rounded border px-2 py-1 text-sm"
-                    >{{ previewLabel(item) }}</span
-                  >
-                </div></template
+              <Input aria-label="搜索字段" placeholder="搜索名称、编码或别名">
+                <template #prefix>
+                  <IconifyIcon
+                    icon="lucide:search"
+                    class="text-muted-foreground size-4"
+                  />
+                </template>
+              </Input>
+            </AutoComplete>
+            <span class="text-muted-foreground text-sm" role="status">
+              匹配 {{ fieldSearchResultCount }} / {{ fieldSearchTotalCount }} 项
+            </span>
+          </div>
+          <section v-if="view === 'query'" class="contents">
+            <Form layout="inline" :style="{ display: 'contents' }">
+              <Popover
+                placement="bottomLeft"
+                title="展示字段清单"
+                trigger="hover"
               >
-              <Button>展示字段清单</Button>
-            </Popover>
-            <Tooltip
-              title="启用后，查询字段变更会立即刷新列表，并隐藏手动查询按钮。"
-            >
-              <Form.Item label="自动查询" class="mb-0">
-                <Switch
-                  v-model:checked="queryHolder().autoSearch"
-                  checked-children="自动"
-                  un-checked-children="手动"
-                />
-              </Form.Item>
-            </Tooltip>
-          </Form>
-        </section>
+                <template #content
+                  ><div class="flex max-w-80 flex-wrap gap-2">
+                    <span
+                      v-for="item in getRowsForView(view)"
+                      :key="item.key"
+                      class="border-border rounded border px-2 py-1 text-sm"
+                      >{{ previewLabel(item) }}</span
+                    >
+                  </div></template
+                >
+                <Button>展示字段清单</Button>
+              </Popover>
+              <Tooltip
+                title="启用后，查询字段变更会立即刷新列表，并隐藏手动查询按钮。"
+              >
+                <Form.Item label="自动查询" class="mb-0">
+                  <Switch
+                    v-model:checked="queryHolder().autoSearch"
+                    checked-children="自动"
+                    un-checked-children="手动"
+                  />
+                </Form.Item>
+              </Tooltip>
+            </Form>
+          </section>
 
-        <PageDisplaySettingsListTab
-          v-if="view === 'list'"
-          :config="draft.list!"
-          :headers="listRows"
-          :preview-label="previewLabel"
-          @add-virtual-field="addVirtualHeader"
-          @update:config="(value) => (draft.list = value)"
-        />
+          <PageDisplaySettingsListTab
+            v-if="view === 'list'"
+            :config="draft.list!"
+            :headers="listRows"
+            :preview-label="previewLabel"
+            @add-virtual-field="addVirtualHeader"
+            @update:config="(value) => (draft.list = value)"
+          />
 
-        <PageDisplaySettingsDetailTab
-          v-if="view === 'detail'"
-          :config="detailHolder()"
-          :fields="detailRows"
-          :preview-label="previewLabel"
-          @update:config="(value) => (draft.detail = value)"
-        />
+          <PageDisplaySettingsDetailTab
+            v-if="view === 'detail'"
+            :config="detailHolder()"
+            :fields="detailRows"
+            :preview-label="previewLabel"
+            @update:config="(value) => (draft.detail = value)"
+          />
 
-        <section
-          v-if="view === 'create' || view === 'edit'"
-          class="border-border mb-4 rounded border p-3"
-        >
-          <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
-            <Popover placement="bottomLeft" title="展示字段清单" trigger="hover"
-              ><template #content
-                ><div class="flex max-w-80 flex-wrap gap-2">
-                  <span
-                    v-for="item in getRowsForView(view)"
-                    :key="item.key"
-                    class="border-border rounded border px-2 py-1 text-sm"
-                    >{{ previewLabel(item) }}</span
-                  >
-                </div></template
-              ><Button>展示字段清单</Button></Popover
-            >
-            <Tooltip
-              title="留空沿用当前页面配置；支持 960px、80vw 等 CSS 长度。"
-            >
-              <Form.Item label="弹窗最大宽度" class="mb-0">
-                <Input
-                  v-model:value="formHolder(view as FormView).modalMaxWidth"
-                  placeholder="例如 80vw 或 960px"
-                />
-              </Form.Item>
-            </Tooltip>
-            <Tooltip
-              title="留空沿用当前页面配置；支持 70vh、720px 等 CSS 长度。"
-            >
-              <Form.Item label="弹窗最大高度" class="mb-0">
-                <Input
-                  v-model:value="formHolder(view as FormView).modalMaxHeight"
-                  placeholder="例如 70vh 或 720px"
-                />
-              </Form.Item>
-            </Tooltip>
-            <Tooltip
-              v-if="view === 'create' || view === 'edit'"
-              title="开启后，表单首次打开默认进入快捷填写；不满足快捷填写条件时自动保持普通表单。"
-            >
-              <Form.Item label="快捷填写" class="mb-0">
-                <Switch
-                  v-model:checked="formHolder(view as FormView).quickFill"
-                  aria-label="快捷填写"
-                  checked-children="开启"
-                  un-checked-children="关闭"
-                />
-              </Form.Item>
-            </Tooltip>
-            <Tooltip
-              v-if="view === 'edit'"
-              title="开启后，编辑表单实际上传的字段即使为空也会更新；关闭后保留服务端默认的空值忽略语义。"
-            >
-              <Form.Item label="自动强制更新字段" class="mb-0">
-                <Switch
-                  v-model:checked="editHolder().autoForceUpdateField"
-                  checked-children="开启"
-                  un-checked-children="关闭"
-                />
-              </Form.Item>
-            </Tooltip>
-          </Form>
-        </section>
+          <section v-if="view === 'create' || view === 'edit'" class="contents">
+            <Form layout="inline" :style="{ display: 'contents' }">
+              <Popover
+                placement="bottomLeft"
+                title="展示字段清单"
+                trigger="hover"
+                ><template #content
+                  ><div class="flex max-w-80 flex-wrap gap-2">
+                    <span
+                      v-for="item in getRowsForView(view)"
+                      :key="item.key"
+                      class="border-border rounded border px-2 py-1 text-sm"
+                      >{{ previewLabel(item) }}</span
+                    >
+                  </div></template
+                ><Button>展示字段清单</Button></Popover
+              >
+              <Tooltip
+                title="留空沿用当前页面配置；支持 960px、80vw 等 CSS 长度。"
+              >
+                <Form.Item label="弹窗最大宽度" class="mb-0">
+                  <Input
+                    v-model:value="formHolder(view as FormView).modalMaxWidth"
+                    class="w-[90px]"
+                    placeholder="80vw"
+                  />
+                </Form.Item>
+              </Tooltip>
+              <Tooltip
+                title="留空沿用当前页面配置；支持 70vh、720px 等 CSS 长度。"
+              >
+                <Form.Item label="弹窗最大高度" class="mb-0">
+                  <Input
+                    v-model:value="formHolder(view as FormView).modalMaxHeight"
+                    class="w-[90px]"
+                    placeholder="70vh"
+                  />
+                </Form.Item>
+              </Tooltip>
+              <Tooltip
+                v-if="view === 'create' || view === 'edit'"
+                title="开启后，表单首次打开默认进入快捷填写；不满足快捷填写条件时自动保持普通表单。"
+              >
+                <Form.Item label="快捷填写" class="mb-0">
+                  <Switch
+                    v-model:checked="formHolder(view as FormView).quickFill"
+                    aria-label="快捷填写"
+                    checked-children="开启"
+                    un-checked-children="关闭"
+                  />
+                </Form.Item>
+              </Tooltip>
+              <Tooltip
+                v-if="view === 'edit'"
+                title="开启后，编辑表单实际上传的字段即使为空也会更新；关闭后保留服务端默认的空值忽略语义。"
+              >
+                <Form.Item label="自动强制更新字段" class="mb-0">
+                  <Switch
+                    v-model:checked="editHolder().autoForceUpdateField"
+                    checked-children="开启"
+                    un-checked-children="关闭"
+                  />
+                </Form.Item>
+              </Tooltip>
+            </Form>
+          </section>
+        </div>
 
         <div v-if="isGroupableView(view)" class="mb-3 flex items-center gap-3">
           <Button type="primary" class="px-4" @click="addGroup"
@@ -1784,10 +1894,18 @@ onMounted(() => {
         </div>
 
         <div
+          ref="fieldScrollRef"
           data-test="page-display-settings-scroll"
           class="page-display-settings-scroll min-h-0 flex-1 overflow-auto"
           @scroll.passive="(event) => loadMoreFieldRows(event, view)"
         >
+          <div
+            v-if="normalizedFieldSearch && fieldSearchResultCount === 0"
+            class="text-muted-foreground border-border rounded border px-4 py-8 text-center"
+            role="status"
+          >
+            未找到匹配的字段{{ view === 'list' ? '或操作' : '' }}
+          </div>
           <div
             class="border-border rounded border"
             :style="{ width: 'max-content' }"
@@ -1902,7 +2020,7 @@ onMounted(() => {
               </template>
             </div>
             <template
-              v-for="(rowGroup, groupIndex) in getRowGroupsForView(view)"
+              v-for="(rowGroup, groupIndex) in getRenderedRowGroups(view)"
               :key="rowGroup.key"
             >
               <div
@@ -2062,7 +2180,7 @@ onMounted(() => {
                   暂无字段，可通过字段行的分组选择器归入此分组。
                 </div>
                 <div
-                  v-for="row in getRenderedRows(rowGroup.rows, view)"
+                  v-for="row in rowGroup.rows"
                   :key="row.key"
                   draggable="true"
                   class="page-display-settings-field-row border-border grid w-full items-center gap-x-5 gap-y-3 border-b p-3 last:border-b-0"
@@ -2381,16 +2499,20 @@ onMounted(() => {
               </div>
             </template>
             <div
-              v-if="view === 'list' && fieldRenderLimits.list < rows.length"
+              v-if="
+                view === 'list' && fieldRenderLimits.list < filteredRows.length
+              "
               class="border-border border-x border-b px-3 py-2 text-center"
             >
               <Button @click="loadMoreListFields">
-                加载更多字段（{{ rows.length - fieldRenderLimits.list }}）
+                加载更多字段（{{
+                  filteredRows.length - fieldRenderLimits.list
+                }}）
               </Button>
             </div>
-            <template v-if="view === 'list' && actionRows.length">
+            <template v-if="view === 'list' && filteredActionRows.length">
               <div
-                v-for="action in actionRows"
+                v-for="action in filteredActionRows"
                 :key="action.key"
                 data-test="page-display-settings-action-row"
                 class="page-display-settings-field-row border-border grid w-full items-center gap-x-5 gap-y-3 border-x border-b p-3"

@@ -26,8 +26,9 @@ function updateConfig(patch: Partial<CrudPageDisplayListConfig>) {
 </script>
 
 <template>
-  <section class="border-border mb-4 rounded border p-3">
-    <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
+  <!-- 专属设置融入主抽屉工具区，避免重复外框和外围间距。 -->
+  <section class="contents">
+    <Form layout="inline" :style="{ display: 'contents' }">
       <Popover placement="bottomLeft" title="展示字段清单" trigger="hover">
         <template #content>
           <div class="flex max-w-80 flex-wrap gap-2">
@@ -62,7 +63,7 @@ function updateConfig(patch: Partial<CrudPageDisplayListConfig>) {
             :min="40"
             :precision="0"
             addon-after="px"
-            class="w-40"
+            class="w-[100px]"
             placeholder="60"
             @update:value="
               (value) =>
@@ -81,7 +82,7 @@ function updateConfig(patch: Partial<CrudPageDisplayListConfig>) {
             :min="40"
             :precision="0"
             addon-after="px"
-            class="w-40"
+            class="compact-column-width w-20"
             placeholder="不限制"
             @update:value="
               (value) =>
@@ -116,3 +117,10 @@ function updateConfig(patch: Partial<CrudPageDisplayListConfig>) {
     </Form>
   </section>
 </template>
+
+<style scoped>
+/* 缩窄输入后减少内部留白，保证三位数与 px 单位同时可读。 */
+.compact-column-width :deep(.ant-input-number-input) {
+  padding-inline: 6px;
+}
+</style>

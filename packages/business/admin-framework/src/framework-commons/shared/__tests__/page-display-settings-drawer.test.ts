@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, nextTick } from 'vue';
 
-import { Select, Switch, Tooltip } from 'ant-design-vue';
+import { AutoComplete, Select, Switch, Tooltip } from 'ant-design-vue';
 import { describe, expect, it, vi } from 'vitest';
 
 import PageDisplaySettingsDrawer from '../page-display-settings-drawer.vue';
@@ -60,7 +60,218 @@ function getTab(title: string) {
   ) as HTMLElement;
 }
 
+async function searchFields(keyword: string) {
+  // 抽屉通过 Teleport 挂载，输入事件使用真实搜索框驱动过滤。
+  const input = document.body.querySelector<HTMLInputElement>(
+    'input[aria-label="搜索字段"]',
+  );
+  if (!input) throw new Error('缺少字段搜索框');
+  input.value = keyword;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  await flushPromises();
+}
+
 describe('页面展示设置抽屉', () => {
+  it.each([
+    ['query', '查询表单'],
+    ['create', '新增表单'],
+    ['edit', '编辑表单'],
+    ['detail', '详情表单'],
+    ['list', '展示列表'],
+  ] as const)(
+    '%s 在完整字段集合中同时搜索名称和别名且不截断保存',
+    async (view, tab) => {
+      const fields = Array.from({ length: 25 }, (_, index) => {
+        let label = `字段 ${index}`;
+        if (index === 0) label = '用户名称';
+        if (index === 24) label = '尾部字段';
+        return { key: `field_${index}`, label, search: true, table: true };
+      });
+      const wrapper = mount(PageDisplaySettingsDrawer, {
+        attachTo: document.body,
+        props: {
+          code: '/clob/V1/User',
+          fields,
+          detailFields: fields,
+          modelValue: {
+            version: 1,
+            [view]:
+              view === 'list'
+                ? { headers: [{ key: 'field_24', title: '用户别名' }] }
+                : { fields: [{ key: 'field_24', label: '用户别名' }] },
+          },
+          open: false,
+        },
+      });
+      try {
+        await wrapper.setProps({ open: true });
+        getTab(tab).click();
+        await flushPromises();
+        const renderedRows = () =>
+          document.body.querySelectorAll(
+            '.page-display-settings-field-row[draggable="true"]',
+          );
+        expect(renderedRows()).toHaveLength(12);
+
+        // 候选同时包含原名称和当前别名，包括尚未挂载的末行；同名内容仅出现一次。
+        const suggestions = wrapper
+          .findComponent(AutoComplete)
+          .props('options')
+          .map((option: { value: string }) => option.value);
+        expect(suggestions).toContain('尾部字段');
+        expect(suggestions).toContain('用户别名');
+        expect(
+          suggestions.filter((value: string) => value === '用户名称'),
+        ).toHaveLength(1);
+
+        // 属性名作为完整尾段追加，不与每个字段的名称或别名穿插。
+        expect(suggestions.slice(-fields.length)).toEqual(
+          fields.map((field) => field.key),
+        );
+
+        // 一个词分别命中第一行名称和末行别名，后者起初并没有挂载。
+        await searchFields('用户');
+        expect(renderedRows()).toHaveLength(2);
+        for (const keyword of ['尾部字段', '用户别名', '  FiELD_24  ']) {
+          await searchFields(keyword);
+          expect(renderedRows()).toHaveLength(1);
+          expect(renderedRows()[0]?.textContent).toContain('尾部字段');
+        }
+
+        // 在编码匹配时编辑别名，再以零结果搜索保存，确认完整草稿仍保留。
+        const alias = document.body.querySelector<HTMLInputElement>(
+          'input[placeholder="尾部字段"]',
+        );
+        if (!alias) throw new Error('缺少末行标题别名');
+        alias.value = '已编辑别名';
+        alias.dispatchEvent(new Event('input', { bubbles: true }));
+        await flushPromises();
+        await searchFields('没有这个字段');
+        expect(renderedRows()).toHaveLength(0);
+        expect(document.body.textContent).toContain('未找到匹配的字段');
+        getUploadButton().click();
+        await flushPromises();
+        const payload = wrapper.emitted('save')?.at(-1)?.[0] as {
+          config: Record<string, any>;
+        };
+        const saved =
+          view === 'list'
+            ? payload.config.list.headers
+            : payload.config[view].fields;
+        expect(saved).toHaveLength(25);
+        expect(
+          saved.find((field: { key: string }) => field.key === 'field_24'),
+        ).toMatchObject(
+          view === 'list' ? { title: '已编辑别名' } : { label: '已编辑别名' },
+        );
+        expect(JSON.stringify(payload)).not.toContain('没有这个字段');
+        await searchFields('');
+        expect(renderedRows()).toHaveLength(12);
+      } finally {
+        wrapper.unmount();
+        document.body.innerHTML = '';
+      }
+    },
+  );
+
+  it('计算属性详情补齐后保持数组与字段身份稳定', async () => {
+    // 一个计算属性就能触发旧实现的重复替换，测试不依赖大字段规模。
+    const wrapper = mountDrawer(false);
+    try {
+      await wrapper.setProps({
+        detailFields: [
+          { key: 'admin', label: '管理员', hasBackingField: false },
+        ],
+      });
+      const state = wrapper.vm.$.setupState as unknown as {
+        ensureFields: (
+          view: 'detail',
+        ) => Array<{ hidden?: boolean; key: string; label?: string }>;
+      };
+      const fields = state.ensureFields('detail');
+      const field = fields[0];
+      if (!field) throw new Error('缺少计算属性详情草稿');
+      field.label = '身份标识';
+
+      // 补齐既不能反复生成对象，也不能丢弃已有字段草稿。
+      expect(state.ensureFields('detail')).toBe(fields);
+      expect(state.ensureFields('detail')[0]).toBe(fields[0]);
+      expect(fields[0]).toMatchObject({ hidden: true, label: '身份标识' });
+
+      // 显式错误的展示值只纠正一次，纠正后仍应复用已补齐结果。
+      field.hidden = false;
+      const corrected = state.ensureFields('detail');
+      expect(corrected[0]).toMatchObject({ hidden: true, label: '身份标识' });
+      expect(state.ensureFields('detail')).toBe(corrected);
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('搜索词按页签隔离、列表可搜索操作且重新打开后清空', async () => {
+    const wrapper = mountDrawer(false, true);
+    try {
+      await wrapper.setProps({
+        actionCandidates: [
+          { key: 'assignRoles', label: '分配角色' },
+          { key: 'builtin:edit', label: '编辑' },
+        ],
+      });
+      await flushPromises();
+      await searchFields('名称');
+      getTab('新增表单').click();
+      await flushPromises();
+      expect(
+        document.body.querySelector<HTMLInputElement>(
+          'input[aria-label="搜索字段"]',
+        )?.value,
+      ).toBe('');
+
+      // 操作行与字段行应用相同的搜索条件，且完整保存仍包含未匹配操作。
+      getTab('展示列表').click();
+      await flushPromises();
+      await searchFields('分配角色');
+      expect(
+        document.body.querySelectorAll(
+          '[data-test="page-display-settings-action-row"]',
+        ),
+      ).toHaveLength(1);
+      expect(document.body.textContent).toContain('匹配 1 / 3 项');
+      getUploadButton().click();
+      await flushPromises();
+      expect(wrapper.emitted('save')?.at(-1)?.[0]).toMatchObject({
+        config: {
+          list: {
+            actions: [
+              expect.objectContaining({ key: 'assignRoles' }),
+              expect.objectContaining({ key: 'builtin:edit' }),
+            ],
+          },
+        },
+      });
+
+      getTab('查询表单').click();
+      await flushPromises();
+      expect(
+        document.body.querySelector<HTMLInputElement>(
+          'input[aria-label="搜索字段"]',
+        )?.value,
+      ).toBe('名称');
+      await wrapper.setProps({ open: false });
+      await wrapper.setProps({ open: true });
+      await flushPromises();
+      expect(
+        document.body.querySelector<HTMLInputElement>(
+          'input[aria-label="搜索字段"]',
+        )?.value,
+      ).toBe('');
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
   it('将详情和展示列表的专属设置交由独立 Tab 组件渲染', async () => {
     const wrapper = mountDrawer(false);
     await flushPromises();
@@ -81,11 +292,74 @@ describe('页面展示设置抽屉', () => {
     document.body.innerHTML = '';
   });
 
-  it('大字段页签切换会先卸载旧 DOM，再在下一帧挂载目标页签', async () => {
-    const callbacks: FrameRequestCallback[] = [];
+  it('含用户身份计算属性时可反复切换详情、修改标题并保存完整草稿', async () => {
+    // 模拟用户页真实身份字段；只需两个字段便能覆盖递归更新的触发条件。
+    const fields = [
+      { key: 'name', label: '名称', search: true, table: true },
+      { key: 'admin', label: '管理员', hasBackingField: false, form: false },
+    ];
+    const wrapper = mount(PageDisplaySettingsDrawer, {
+      attachTo: document.body,
+      props: {
+        code: '/clob/V1/User',
+        fields,
+        detailFields: fields,
+        modelValue: { version: 1 },
+        open: false,
+      },
+    });
+    try {
+      await wrapper.setProps({ open: true });
+      await flushPromises();
+
+      // 等待每轮渲染稳定，任一未处理的递归更新异常都会使 Vitest 失败。
+      for (const title of [
+        '详情表单',
+        '展示列表',
+        '新增表单',
+        '编辑表单',
+        '详情表单',
+      ]) {
+        getTab(title).click();
+        await flushPromises();
+      }
+      const aliasInput = getTitleAliasInput();
+      aliasInput.value = '用户名称';
+      aliasInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await flushPromises();
+      getTab('查询表单').click();
+      await flushPromises();
+      getTab('详情表单').click();
+      await flushPromises();
+      expect(getTitleAliasInput().value).toBe('用户名称');
+
+      // 保存仍包含身份字段的隐藏约束与用户修改，不能以过滤字段规避崩溃。
+      getUploadButton().click();
+      await flushPromises();
+      const payload = wrapper.emitted('save')?.[0]?.[0] as {
+        config: {
+          detail: {
+            fields: Array<{ hidden?: boolean; key: string; label?: string }>;
+          };
+        };
+      };
+      expect(payload.config.detail.fields).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ key: 'admin', hidden: true }),
+          expect.objectContaining({ key: 'name', label: '用户名称' }),
+        ]),
+      );
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('大字段页签共用一棵活动编辑树并复用同键输入控件', async () => {
+    // 允许旧实现完成帧调度，以直接对照切换是否不必要地重建控件。
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
-      callbacks.push(callback);
-      return callbacks.length;
+      queueMicrotask(() => callback(performance.now()));
+      return 1;
     });
     const fields = Array.from({ length: 13 }, (_, index) => ({
       key: `field_${index}`,
@@ -106,23 +380,150 @@ describe('页面展示设置抽屉', () => {
     });
     try {
       await flushPromises();
-      const initialCallbackCount = callbacks.length;
-      getTab('展示列表').click();
-      await nextTick();
+      const content = document.body.querySelector(
+        '.page-display-settings-tab-content',
+      );
+      const input = document.body.querySelector('input[placeholder="字段 0"]');
+      getTab('新增表单').click();
+      await flushPromises();
       expect(
         document.body.querySelector('.page-display-settings-tab-content'),
-      ).toBeNull();
-      expect(callbacks.length).toBeGreaterThan(initialCallbackCount);
+      ).toBe(content);
+      expect(document.body.querySelector('input[placeholder="字段 0"]')).toBe(
+        input,
+      );
 
-      for (const callback of callbacks.slice(initialCallbackCount)) {
-        callback(performance.now());
-      }
+      // 即使连续切换也只有最后一个视图，不留下后台缓存树；关闭时完整卸载。
+      getTab('编辑表单').click();
+      getTab('详情表单').click();
+      getTab('展示列表').click();
       await flushPromises();
       expect(wrapper.findComponent(PageDisplaySettingsListTab).exists()).toBe(
         true,
       );
+      expect(wrapper.findComponent(PageDisplaySettingsDetailTab).exists()).toBe(
+        false,
+      );
+      expect(
+        document.body.querySelectorAll('.page-display-settings-tab-content'),
+      ).toHaveLength(1);
+      await wrapper.setProps({ open: false });
+      await flushPromises();
+      expect(
+        document.body.querySelector('.page-display-settings-tab-content'),
+      ).toBeNull();
     } finally {
       vi.unstubAllGlobals();
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('多分组大字段表单视图按当前页签总数分批渲染', async () => {
+    const fields = Array.from({ length: 36 }, (_, index) => ({
+      key: `field_${index}`,
+      label: `字段 ${index}`,
+      layoutGroup: `group_${Math.floor(index / 12)}`,
+      layoutGroupTitle: `分组 ${Math.floor(index / 12) + 1}`,
+      search: true,
+    }));
+    const wrapper = mount(PageDisplaySettingsDrawer, {
+      attachTo: document.body,
+      props: {
+        code: '/clob/V1/LargeGroupedFieldSet',
+        detailFields: fields,
+        fields,
+        modelValue: { version: 1 },
+        open: true,
+        saving: false,
+      },
+    });
+    try {
+      await flushPromises();
+      expect(
+        document.body.querySelectorAll(
+          '.page-display-settings-field-row[draggable="true"]',
+        ),
+      ).toHaveLength(12);
+
+      const scrollContainer = document.body.querySelector(
+        '[data-test="page-display-settings-scroll"]',
+      ) as HTMLElement;
+      Object.defineProperties(scrollContainer, {
+        clientHeight: { configurable: true, value: 100 },
+        scrollHeight: { configurable: true, value: 300 },
+        scrollTop: { configurable: true, value: 200 },
+      });
+      scrollContainer.dispatchEvent(new Event('scroll'));
+      await nextTick();
+      await flushPromises();
+      expect(
+        document.body.querySelectorAll(
+          '.page-display-settings-field-row[draggable="true"]',
+        ),
+      ).toHaveLength(24);
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('复用控件后各视图的标题和提交状态仍独立读写', async () => {
+    const wrapper = mountDrawer(false);
+    // 同一字段在三个视图使用不同值，验证复用后事件始终写入当前草稿。
+    const scenes = [
+      { tab: '查询表单', alias: '查询标题', mode: 'hidden-submit' },
+      { tab: '新增表单', alias: '新增标题', mode: 'disabled-submit' },
+      { tab: '编辑表单', alias: '编辑标题', mode: 'hidden-omit' },
+    ];
+    try {
+      await flushPromises();
+      for (const scene of scenes) {
+        getTab(scene.tab).click();
+        await flushPromises();
+        const input = getTitleAliasInput();
+        expect(input.value).toBe('');
+        input.value = scene.alias;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        const mode = document.body.querySelector<HTMLInputElement>(
+          `input[value="${scene.mode}"]`,
+        );
+        if (!mode) throw new Error('缺少字段提交状态');
+        mode.click();
+        await flushPromises();
+      }
+
+      // 逐一回访核验控件回显，再通过保存载荷检查没有发生跨视图写入。
+      for (const scene of scenes) {
+        getTab(scene.tab).click();
+        await flushPromises();
+        expect(getTitleAliasInput().value).toBe(scene.alias);
+        expect(
+          document.body.querySelector<HTMLInputElement>(
+            `input[value="${scene.mode}"]`,
+          )?.checked,
+        ).toBe(true);
+      }
+      getUploadButton().click();
+      await flushPromises();
+      expect(wrapper.emitted('save')?.at(-1)?.[0]).toMatchObject({
+        config: {
+          query: {
+            fields: [
+              { label: '查询标题', hidden: true, submitWhenHidden: true },
+            ],
+          },
+          create: {
+            fields: [{ label: '新增标题', hidden: false, disabled: true }],
+          },
+          edit: {
+            fields: [
+              { label: '编辑标题', hidden: true, submitWhenHidden: false },
+            ],
+          },
+        },
+      });
+    } finally {
       wrapper.unmount();
       document.body.innerHTML = '';
     }
