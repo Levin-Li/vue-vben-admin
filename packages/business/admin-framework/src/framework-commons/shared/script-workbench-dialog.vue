@@ -20,6 +20,7 @@ export interface ScriptWorkbenchVariableGroup {
 const props = withDefaults(defineProps<{
   modelValue?: string;
   open?: boolean;
+  testContext?: Record<string, any>;
   title?: string;
   variableGroups: ScriptWorkbenchVariableGroup[];
 }>(), { modelValue: '', open: false, title: '脚本工作台' });
@@ -34,6 +35,7 @@ const editor = ref<InstanceType<typeof JavaScriptCodeEditor>>();
 const script = ref('');
 const search = ref('');
 const testValues = reactive<Record<string, string>>({});
+const hasResult = ref(false);
 const result = ref('');
 const error = ref('');
 const modalBodyStyle = {
@@ -42,9 +44,9 @@ const modalBodyStyle = {
 };
 const workbenchPaneHeight = 'calc(80vh - 188px)';
 const sidebarPaneStyle = {
-  flex: '0 0 30%',
+  flex: '0 0 440px',
   height: workbenchPaneHeight,
-  minWidth: '270px',
+  minWidth: '440px',
 };
 const shortcutPaneStyle = {
   flex: '0 0 12%',
@@ -66,7 +68,9 @@ const outputPaneStyle = {
   height: `calc((${workbenchPaneHeight}) * 0.3)`,
 };
 const variableRowStyle = {
+  alignItems: 'center',
   gridTemplateColumns: 'minmax(0, 1fr) 220px',
+  minWidth: '520px',
 };
 
 const filteredGroups = computed(() => {
@@ -89,14 +93,29 @@ function insertVariable(variable: ScriptWorkbenchVariable) {
 }
 function insertShortcut(value: string) { editor.value?.insertText(value); }
 
+function getContextValue(source: Record<string, any>, path: string) {
+  let value = source;
+  for (const key of path.split('.')) {
+    if (!value || !Object.hasOwn(value, key)) return { found: false };
+    value = value[key];
+  }
+  return { found: true, value };
+}
+
+function stringifyTestValue(value: any) {
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
 function resetTestValues() {
+  for (const key of Object.keys(testValues)) delete testValues[key];
+  const testContext = cloneTestContext();
+
+  // 页面传入的运行时上下文优先，未提供的变量才退回组件声明的安全默认值。
   for (const group of props.variableGroups) {
     for (const variable of group.variables) {
-      testValues[variable.name] = variable.defaultValue == null
-        ? ''
-        : typeof variable.defaultValue === 'string'
-          ? variable.defaultValue
-          : JSON.stringify(variable.defaultValue);
+      const contextValue = getContextValue(testContext, variable.name);
+      const value = contextValue.found ? contextValue.value : variable.defaultValue;
+      if (value !== undefined) testValues[variable.name] = stringifyTestValue(value);
     }
   }
 }
@@ -105,6 +124,7 @@ function clearTestValues() {
   for (const variable of Object.keys(testValues)) {
     testValues[variable] = '';
   }
+  hasResult.value = false;
   result.value = '';
   error.value = '';
 }
@@ -115,8 +135,17 @@ function buildTestValues() {
   }));
 }
 
+function cloneTestContext() {
+  // 页面传入的 Pinia/Vue 响应式对象不能直接 structuredClone，先序列化为独立测试快照。
+  try {
+    return JSON.parse(JSON.stringify(props.testContext || {}));
+  } catch {
+    return {};
+  }
+}
+
 function buildTestContext() {
-  const context: Record<string, any> = {};
+  const context = cloneTestContext();
   for (const [path, value] of Object.entries(buildTestValues())) {
     const parts = path.split('.');
     let target = context;
@@ -126,13 +155,22 @@ function buildTestContext() {
   return context;
 }
 
+function formatTestResult(value: any) {
+  if (value === '') return '""（空字符串）';
+  if (value === undefined) return 'undefined';
+  if (value === null) return 'null';
+  return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+}
+
 function runTest() {
+  hasResult.value = false;
   result.value = '';
   error.value = '';
   try {
     const variables = buildTestValues();
     const value = evaluateJavaScriptExpression(script.value, buildTestContext());
-    result.value = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    result.value = formatTestResult(value);
+    hasResult.value = true;
     emit('test', { script: script.value, variables });
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause);
@@ -143,10 +181,25 @@ function close() { emit('update:open', false); }
 function save() { emit('update:modelValue', script.value); close(); }
 
 watch(() => props.open, (open) => {
-  if (open) { script.value = props.modelValue || ''; resetTestValues(); result.value = ''; error.value = ''; }
-});
+  if (open) { script.value = props.modelValue || ''; resetTestValues(); hasResult.value = false; result.value = ''; error.value = ''; }
+}, { immediate: true });
 
-defineExpose({ setTestError: (value: string) => error.value = value, setTestResult: (value: any) => result.value = typeof value === 'string' ? value : JSON.stringify(value, null, 2) });
+watch(
+  () => props.testContext,
+  () => {
+    // 数据列表异步加载或热更新时，已打开的工作台也要看到最新测试上下文。
+    if (props.open) resetTestValues();
+  },
+  { deep: true },
+);
+
+defineExpose({
+  setTestError: (value: string) => error.value = value,
+  setTestResult: (value: any) => {
+    result.value = formatTestResult(value);
+    hasResult.value = true;
+  },
+});
 </script>
 
 <template>
@@ -173,10 +226,15 @@ defineExpose({ setTestError: (value: string) => error.value = value, setTestResu
               class="mb-1 grid gap-2"
               :style="variableRowStyle"
             >
-              <Button class="min-w-0 text-left" @click="insertVariable(variable)">
-                <span class="truncate">{{ variableLabel(variable) }}</span>
-                <Tag class="ml-2" :title="variable.name">{{ variable.name }}</Tag>
-              </Button>
+              <Tooltip :title="variableLabel(variable)">
+                <Button
+                  class="grid min-w-0 grid-cols-[112px_minmax(0,1fr)] items-center gap-2 text-left"
+                  @click="insertVariable(variable)"
+                >
+                  <span class="truncate">{{ variableLabel(variable) }}</span>
+                  <Tag class="m-0 max-w-full truncate justify-self-start" :title="variable.name">{{ variable.name }}</Tag>
+                </Button>
+              </Tooltip>
               <Input v-model:value="testValues[variable.name]" :placeholder="variable.type === 'json' ? '输入 JSON 测试值' : '输入测试值'" />
             </div>
           </section>
@@ -204,8 +262,8 @@ defineExpose({ setTestError: (value: string) => error.value = value, setTestResu
           class="min-h-0 overflow-auto rounded border border-border bg-muted px-3 py-2 font-mono text-sm"
           :style="outputPaneStyle"
         >
-          <div v-if="!result && !error" class="text-muted-foreground">运行测试后将在此显示结果或错误信息。</div>
-          <pre v-if="result" class="m-0 whitespace-pre-wrap text-green-600 dark:text-green-400">{{ result }}</pre>
+          <div v-if="!hasResult && !error" class="text-muted-foreground">运行测试后将在此显示结果或错误信息。</div>
+          <pre v-if="hasResult" class="m-0 whitespace-pre-wrap text-green-600 dark:text-green-400">{{ result }}</pre>
           <pre v-if="error" class="m-0 whitespace-pre-wrap text-red-600 dark:text-red-400">{{ error }}</pre>
         </section>
       </section>

@@ -5,6 +5,8 @@ import { Select, Switch, Tooltip } from 'ant-design-vue';
 import { describe, expect, it, vi } from 'vitest';
 
 import PageDisplaySettingsDrawer from '../page-display-settings-drawer.vue';
+import PageDisplaySettingsDetailTab from '../page-display-settings-detail-tab.vue';
+import PageDisplaySettingsListTab from '../page-display-settings-list-tab.vue';
 
 vi.mock('../../api', () => ({
   fetchDictOptions: vi.fn().mockResolvedValue([]),
@@ -18,7 +20,11 @@ vi.mock('../config-helpers', () => ({
 }));
 
 vi.mock('../script-workbench-dialog.vue', () => ({
-  default: defineComponent({ template: '<div />' }),
+  default: defineComponent({
+    name: 'ScriptWorkbenchDialog',
+    props: { testContext: Object },
+    template: '<div />',
+  }),
 }));
 
 function mountDrawer(saving: boolean, showOperationColumn = false) {
@@ -55,6 +61,142 @@ function getTab(title: string) {
 }
 
 describe('页面展示设置抽屉', () => {
+  it('将详情和展示列表的专属设置交由独立 Tab 组件渲染', async () => {
+    const wrapper = mountDrawer(false);
+    await flushPromises();
+
+    getTab('详情表单').click();
+    await flushPromises();
+    expect(wrapper.findComponent(PageDisplaySettingsDetailTab).exists()).toBe(true);
+
+    getTab('展示列表').click();
+    await flushPromises();
+    expect(wrapper.findComponent(PageDisplaySettingsListTab).exists()).toBe(true);
+
+    wrapper.unmount();
+    document.body.innerHTML = '';
+  });
+
+  it('将脚本测试上下文传给公共脚本工作台', async () => {
+    const wrapper = mountDrawer(false);
+    await wrapper.setProps({
+      scriptTestContext: {
+        form: { name: '首条记录' },
+        org: { name: '当前组织' },
+        row: { name: '首条记录' },
+        tenant: { name: '当前租户' },
+        user: { username: '当前用户' },
+      },
+    });
+    await flushPromises();
+    expect(wrapper.findComponent({ name: 'ScriptWorkbenchDialog' }).props('testContext')).toMatchObject({
+      user: { username: '当前用户' },
+    });
+    wrapper.unmount();
+    document.body.innerHTML = '';
+  });
+
+  it('exposes each concrete row action as an independent display property', async () => {
+    const wrapper = mount(PageDisplaySettingsDrawer, {
+      attachTo: document.body,
+      props: {
+        actionCandidates: [
+          { key: 'builtin:edit', label: '编辑' },
+          { key: 'builtin:delete', label: '删除' },
+        ],
+        code: '/clob/V1/Dict',
+        detailFields: [{ key: 'name', label: '名称' }],
+        fields: [{ key: 'name', label: '名称', search: true, table: true }],
+        modelValue: { version: 1 },
+        open: true,
+        saving: false,
+        showOperationColumn: true,
+      },
+    });
+    try {
+      await flushPromises();
+      getTab('展示列表').click();
+      await flushPromises();
+      expect(document.body.textContent).toContain('操作');
+      expect(
+        document.body.querySelectorAll('button[aria-label="添加脚本"]'),
+      ).not.toHaveLength(0);
+      expect(document.body.textContent).not.toContain('列值脚本');
+      expect(document.body.textContent).not.toContain('标题脚本');
+      expect(
+        document
+          .body.querySelector('[data-test="page-display-settings-grid-header"]')
+          ?.classList.contains('bg-primary-background-lightest'),
+      ).toBe(true);
+      expect(document.body.innerHTML).toContain('sticky left-[86px] z-30');
+      expect(document.body.innerHTML).toContain('page-display-settings-fixed-cell');
+      expect(document.body.innerHTML).toContain('page-display-settings-fixed-body-cell');
+      expect(document.body.innerHTML).toContain('page-display-settings-fixed-control-cell');
+      expect(document.body.innerHTML).toContain('page-display-settings-fixed-header-cell');
+      expect(document.body.innerHTML).toContain('page-display-settings-grid-header');
+      expect(
+        document
+          .body.querySelector('[data-test="page-display-settings-scroll"]')
+          ?.classList.contains('overflow-auto'),
+      ).toBe(true);
+      expect(
+        document.body.querySelectorAll(
+          '.page-display-settings-field-row[draggable="true"]',
+        ),
+      ).not.toHaveLength(0);
+      expect(document.body.textContent).not.toContain('值展示脚本');
+      expect(document.body.textContent).toContain('编辑');
+      expect(document.body.textContent).toContain('删除');
+      expect(
+        document.body.querySelectorAll(
+          '[data-test="page-display-settings-action-row"]',
+        ),
+      ).toHaveLength(2);
+      expect(
+        document.body
+          .querySelector('[data-test="page-display-settings-action-row"]')
+          ?.getAttribute('style'),
+      ).toContain(
+        'grid-template-columns: 66px 110px 190px 120px 124px 124px 124px 120px 200px 200px 100px',
+      );
+      expect(
+        document
+          .body.querySelector('[data-test="page-display-settings-action-row"]')
+          ?.classList.contains('gap-x-5'),
+      ).toBe(true);
+
+      getUploadButton().click();
+      await nextTick();
+      const payload = wrapper.emitted('save')?.[0]?.[0] as {
+        config: Record<string, any>;
+      };
+      expect(payload.config.list.headers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ key: '__actions', label: '操作' }),
+        ]),
+      );
+      expect(payload.config.list.actions).toEqual([
+        {
+          key: 'builtin:edit',
+          label: '编辑',
+          order: 0,
+          visible: { mode: 'always' },
+          visibleRoleCodes: [],
+        },
+        {
+          key: 'builtin:delete',
+          label: '删除',
+          order: 1,
+          visible: { mode: 'always' },
+          visibleRoleCodes: [],
+        },
+      ]);
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
   it.each([undefined, { fields: [{ key: 'tenantId' }] }])(
     '租户编辑设置缺省或稀疏时选中不提，新增查询保持展提',
     async (edit) => {
@@ -269,12 +411,15 @@ describe('页面展示设置抽屉', () => {
     document.body.innerHTML = '';
   });
 
-  it('首次打开页签后保留该页签的字段编辑实例', async () => {
+  it('切换页签后由共享草稿保留字段编辑值', async () => {
     const wrapper = mountDrawer(false);
     await flushPromises();
 
     const queryAliasInput = getTitleAliasInput();
     expect(queryAliasInput).toBeTruthy();
+    queryAliasInput.value = '查询别名';
+    queryAliasInput.dispatchEvent(new Event('input', { bubbles: true }));
+    await nextTick();
 
     getTab('展示列表').click();
     await nextTick();
@@ -282,7 +427,7 @@ describe('页面展示设置抽屉', () => {
 
     getTab('查询表单').click();
     await nextTick();
-    expect(getTitleAliasInput()).toBe(queryAliasInput);
+    expect(getTitleAliasInput().value).toBe('查询别名');
 
     wrapper.unmount();
     document.body.innerHTML = '';
@@ -331,7 +476,9 @@ describe('页面展示设置抽屉', () => {
     await nextTick();
 
     expect(document.body.textContent).toContain('组自动折叠行数');
-    expect(document.body.textContent).toContain('展示脚本');
+    expect(
+      document.body.querySelector('button[aria-label="添加脚本"]'),
+    ).toBeTruthy();
     const roleSelect = wrapper
       .findAllComponents(Select)
       .find((component) => component.props('placeholder') === '分组可见角色');
@@ -665,6 +812,59 @@ describe('页面展示设置抽屉', () => {
     getUploadButton().click();
     await nextTick();
     expect(wrapper.emitted('save')).toBeUndefined();
+    wrapper.unmount();
+    document.body.innerHTML = '';
+  });
+
+  it.each(['新增表单', '编辑表单'] as const)(
+    '%s 按稳定字段键去重',
+    async (tabName) => {
+    const wrapper = mount(PageDisplaySettingsDrawer, {
+      attachTo: document.body,
+      props: {
+        code: '/clob/V1/DeduplicatedField',
+        detailFields: [],
+        fields: [
+          { key: 'tenantId', label: '归属租户' },
+          { key: 'name', label: '名称' },
+          { key: 'tenantId', label: '归属租户' },
+        ],
+        modelValue: { version: 1 },
+        open: true,
+        saving: false,
+      },
+    });
+    await flushPromises();
+    getTab(tabName).click();
+    await flushPromises();
+    expect(
+      document.body.querySelectorAll('input[placeholder="归属租户"]'),
+    ).toHaveLength(1);
+    wrapper.unmount();
+    document.body.innerHTML = '';
+    },
+  );
+
+  it('新增虚拟字段始终位于操作列之前', async () => {
+    const wrapper = mountDrawer(false, true);
+    await flushPromises();
+    getTab('展示列表').click();
+    await flushPromises();
+    const addVirtual = Array.from(
+      document.body.querySelectorAll('button'),
+    ).find((button) => button.textContent?.includes('添加虚拟字段')) as HTMLButtonElement;
+    addVirtual.click();
+    await nextTick();
+    const virtualField = document.body.querySelector(
+      'input[placeholder="虚拟字段编码"]',
+    ) as HTMLInputElement;
+    const operationHeader = document.body.querySelector(
+      'input[placeholder="操作"]',
+    ) as HTMLInputElement;
+    expect(
+      virtualField.compareDocumentPosition(operationHeader) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     wrapper.unmount();
     document.body.innerHTML = '';
   });

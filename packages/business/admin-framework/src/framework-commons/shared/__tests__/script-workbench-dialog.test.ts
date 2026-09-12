@@ -10,14 +10,24 @@ describe('script workbench dialog source', () => {
     );
 
     expect(source).toContain('wrap-class-name="script-workbench-dialog"');
-    expect(source).toContain("flex: '0 0 30%'");
-    expect(source).toContain("minWidth: '270px'");
+    expect(source).toContain("flex: '0 0 440px'");
+    expect(source).toContain("minWidth: '440px'");
     expect(source).toContain("height: `calc((${workbenchPaneHeight}) * 0.7)`");
     expect(source).toContain("height: `calc((${workbenchPaneHeight}) * 0.3)`");
     expect(source).toContain("width: min(92vw, 1900px) !important");
     expect(source).toContain("max-height: 80vh");
     expect(source).toContain("flex: '0 0 12%'");
     expect(source).toContain("快捷操作");
+    expect(source).toContain('grid-cols-[112px_minmax(0,1fr)]');
+    expect(source).toContain('<Tooltip :title="variableLabel(variable)">');
+    expect(source).toContain('testContext?: Record<string, any>');
+    expect(source).toContain('function cloneTestContext()');
+    expect(source).toContain('JSON.parse(JSON.stringify(props.testContext || {}))');
+    expect(source).toContain('const testContext = cloneTestContext();');
+    expect(source).toContain('{ immediate: true }');
+    expect(source).toContain('if (props.open) resetTestValues();');
+    expect(source).toContain("if (value === '') return '\"\"（空字符串）'");
+    expect(source).toContain('v-if="hasResult"');
   });
 
   it('renders a read-only console with distinct success and error colors', () => {

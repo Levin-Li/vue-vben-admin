@@ -7,12 +7,15 @@ import {
   InputNumber,
   message,
   Modal,
+  Popover,
   Radio,
   Select,
   Switch,
+  Tag,
   Tabs,
   Tooltip,
 } from 'ant-design-vue';
+import { IconifyIcon } from '@vben/icons';
 import {
   computed,
   defineComponent,
@@ -29,6 +32,8 @@ import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
 import ScriptWorkbenchDialog, {
   type ScriptWorkbenchVariableGroup,
 } from './script-workbench-dialog.vue';
+import PageDisplaySettingsDetailTab from './page-display-settings-detail-tab.vue';
+import PageDisplaySettingsListTab from './page-display-settings-list-tab.vue';
 import { OAK_BASE_API_MODULE, roleOptionsLoader } from './config-helpers';
 import { normalizeCrudGroupDisplayStyle } from './crud-group-display';
 import {
@@ -42,6 +47,7 @@ import {
   initializeFieldHidden,
   initializeHeaderVisibility,
   moveDisplayFieldToGroupEnd,
+  reconcileCrudPageDisplayActions,
   reconcileCrudPageDisplayHeaders,
   releaseDisplayGroupFields,
   resolveCrudPageDisplayDefaults,
@@ -51,6 +57,8 @@ import {
 } from './crud-page-display';
 import type {
   CrudFieldConfig,
+  CrudPageDisplayActionCandidate,
+  CrudPageDisplayActionConfig,
   CrudPageDisplayConfig,
   CrudPageDisplayFieldConfig,
   CrudPageDisplayGroupedViewConfig,
@@ -74,6 +82,7 @@ type Scope = {
 };
 
 const props = defineProps<{
+  actionCandidates?: CrudPageDisplayActionCandidate[];
   code: string;
   domainObject?: boolean;
   initialScope?: Scope;
@@ -83,6 +92,7 @@ const props = defineProps<{
   open: boolean;
   saving?: boolean;
   showOperationColumn?: boolean;
+  scriptTestContext?: Record<string, any>;
 }>();
 
 const emit = defineEmits<{
@@ -115,6 +125,7 @@ const scriptTitle = ref('脚本工作台');
 const scriptGroups = ref<ScriptWorkbenchVariableGroup[]>([]);
 const applyScript = ref<(value: string) => void>();
 const draggedRowIndex = ref<number>();
+const dragStartFromInteractiveControl = ref(false);
 const tenantScopeOptions = ref<Array<{ label: string; value: string }>>([]);
 const siteScopeOptions = ref<Array<{ label: string; value: string }>>([]);
 const userTypeScopeOptions = ref<Array<{ label: string; value: string }>>([]);
@@ -149,7 +160,10 @@ let previewResizeObserver: null | ResizeObserver = null;
 let observedPreviewElement: HTMLElement | null = null;
 
 function currentSnapshot() {
-  return JSON.stringify({ config: draft.value, scope: normalizeScope(scope.value) });
+  return JSON.stringify({
+    config: draft.value,
+    scope: normalizeScope(scope.value),
+  });
 }
 
 const hasUnuploadedChanges = computed(
@@ -365,33 +379,32 @@ function isGroupableView(view: View): view is GroupView {
   return view !== 'list';
 }
 
-function getFieldConfigGridClass(view: View) {
+function getFieldConfigGridTemplate(view: View) {
   return view === 'list'
-    ? 'grid-cols-[66px_160px_190px_124px_124px_124px_120px_220px_220px_600px]'
+    ? '66px 110px 190px 120px 124px 124px 124px 120px 200px 200px 100px'
     : view === 'detail'
-      ? 'grid-cols-[66px_160px_190px_190px_150px_220px_150px_170px_424px]'
-      : 'grid-cols-[52px_120px_150px_130px_110px_180px_250px_150px_360px]';
-}
-
-function getFieldConfigMinWidthClass(view: View) {
-  return view === 'list'
-    ? 'min-w-[1704px]'
-    : view === 'detail'
-      ? 'min-w-[1830px]'
-      : 'min-w-[1600px]';
+      ? '66px 160px 190px 170px 160px 150px 200px 60px 100px 220px 200px'
+      : '52px 120px 150px 170px 110px 110px 220px 200px 110px 220px 200px';
 }
 
 function getAllowedFields(view: Exclude<View, 'list'>) {
-  return (view === 'detail' ? props.detailFields || [] : props.fields).filter(
-    (field) => {
-      if (view === 'query') return field.search;
-      if (view === 'create')
-        return field.form !== false && field.formCreate !== false;
-      if (view === 'edit')
-        return field.form !== false && field.formEdit !== false;
-      return true;
-    },
-  );
+  const sourceFields = view === 'detail' ? props.detailFields || [] : props.fields;
+  const fieldKeys = new Set<string>();
+
+  // 同一稳定字段键只能进入一个表单行，避免页面静态配置重复时渲染重复控件。
+  return sourceFields.filter((field) => {
+    const available =
+      view === 'query'
+        ? field.search
+        : view === 'create'
+          ? field.form !== false && field.formCreate !== false
+          : view === 'edit'
+            ? field.form !== false && field.formEdit !== false
+            : true;
+    if (!available || fieldKeys.has(field.key)) return false;
+    fieldKeys.add(field.key);
+    return true;
+  });
 }
 
 function ensureFields(view: Exclude<View, 'list'>) {
@@ -400,17 +413,30 @@ function ensureFields(view: Exclude<View, 'list'>) {
   const existing = new Map(holder.fields.map((item) => [item.key, item]));
   const nextFields: CrudPageDisplayFieldConfig[] = allowed.map(
     (field, index) =>
-      existing.get(field.key) || {
-        inputDisplay: 'default',
-        hidden: getDefaultFieldHidden(field, {
-          hideDomainId: props.domainObject === true,
-          view,
-        }),
-        key: field.key,
-        order: index,
-        defaultValue: {},
-        visibleRoleCodes: getDefaultVisibleRoleCodes(field.key),
-      },
+      existing.has(field.key)
+        ? Object.hasOwn(existing.get(field.key)!, 'hidden')
+          ? field.hasBackingField === false && view === 'detail'
+            ? { ...existing.get(field.key)!, hidden: true }
+            : existing.get(field.key)!
+          : {
+              hidden: getDefaultFieldHidden(field, {
+                view,
+                hideDomainId: props.domainObject === true,
+              }),
+              ...existing.get(field.key),
+              key: field.key,
+            }
+        : {
+            inputDisplay: 'default',
+            hidden: getDefaultFieldHidden(field, {
+              hideDomainId: props.domainObject === true,
+              view,
+            }),
+            key: field.key,
+            order: index,
+            defaultValue: {},
+            visibleRoleCodes: getDefaultVisibleRoleCodes(field.key),
+          },
   );
   if (
     nextFields.length !== holder.fields.length ||
@@ -421,6 +447,12 @@ function ensureFields(view: Exclude<View, 'list'>) {
   for (const field of holder.fields) {
     field.hidden = initializeFieldHidden(field, { view });
     field.inputDisplay ??= 'default';
+    // 后端已必填字段固定保留必填标记，设置界面不得将其取消。
+    if ((view === 'create' || view === 'edit') && isSourceFieldRequired(field.key)) {
+      field.required = true;
+    }
+    // 默认值编辑器渲染前补齐，避免切换页签才写入空对象并产生假修改。
+    field.defaultValue ??= {};
     field.visibleRoleCodes = initializeVisibleRoleCodes(field);
   }
   return holder.fields;
@@ -492,14 +524,53 @@ function ensureHeaders() {
   return holder.headers;
 }
 
+function ensureActions() {
+  const holder = (draft.value.list ||= { actions: [], headers: [] });
+  const nextActions = reconcileCrudPageDisplayActions(
+    holder.actions,
+    props.actionCandidates || [],
+  );
+  if (
+    nextActions.length !== (holder.actions || []).length ||
+    nextActions.some((action, index) => action !== holder.actions?.[index])
+  ) {
+    holder.actions = nextActions;
+  }
+  return holder.actions || [];
+}
+
+const actionRows = computed(() => ensureActions());
+const detailRows = computed(() => ensureFields('detail'));
+const listRows = computed(() => ensureHeaders());
+
+function moveAction(action: CrudPageDisplayActionConfig, offset: -1 | 1) {
+  const actions = [...actionRows.value];
+  const index = actions.indexOf(action);
+  const targetIndex = index + offset;
+  if (index < 0 || targetIndex < 0 || targetIndex >= actions.length) return;
+  const target = actions[targetIndex];
+  if (!target) return;
+  [action.order, target.order] = [target.order, action.order];
+  draft.value.list!.actions = actions.toSorted(
+    (left, right) => (left.order ?? 0) - (right.order ?? 0),
+  );
+}
+
 function addVirtualHeader() {
   const holder = (draft.value.list ||= { headers: [] });
   const headers = ensureHeaders();
   const key = `virtual_${crypto.randomUUID().replaceAll('-', '')}`;
+  // 虚拟字段属于业务展示列，必须排在固定的操作列之前。
+  const lastDataColumnOrder = Math.max(
+    -1,
+    ...headers
+      .filter((header) => !isOperationHeader(header))
+      .map((header) => header.order ?? -1),
+  );
   headers.push({
     key,
     label: `虚拟字段 ${headers.filter((header) => header.virtual === true).length + 1}`,
-    order: Math.max(-1, ...headers.map((header) => header.order ?? -1)) + 1,
+    order: lastDataColumnOrder + 1,
     valueDisplay: { expression: '', mode: 'script' },
     virtual: true,
     visible: { mode: 'always' },
@@ -589,6 +660,10 @@ function getSourceFieldTitle(key: string) {
     props.fields.find((field) => field.key === key)?.label ||
     key
   );
+}
+
+function isSourceFieldRequired(key: string) {
+  return props.fields.some((field) => field.key === key && field.required);
 }
 
 function getSourceLayoutGroupTitle(key: string) {
@@ -712,7 +787,10 @@ function canMoveRow(
   row: CrudPageDisplayFieldConfig | CrudPageDisplayHeaderConfig,
   offset: -1 | 1,
 ) {
+  if (row.key === '__actions') return false;
   const groupRows = getRowGroupRows(row);
+  if (groupRows[groupRows.indexOf(row) + offset]?.key === '__actions')
+    return false;
   return (
     groupRows.indexOf(row) + offset >= 0 &&
     groupRows.indexOf(row) + offset < groupRows.length
@@ -723,6 +801,7 @@ function moveRow(
   row: CrudPageDisplayFieldConfig | CrudPageDisplayHeaderConfig,
   offset: -1 | 1,
 ) {
+  if (!canMoveRow(row, offset)) return;
   const groupRows = getRowGroupRows(row);
   const index = groupRows.indexOf(row);
   const target = groupRows[index + offset];
@@ -732,8 +811,32 @@ function moveRow(
 
 function startDrag(
   row: CrudPageDisplayFieldConfig | CrudPageDisplayHeaderConfig,
+  event: DragEvent,
 ) {
+  const target = event.target as HTMLElement | null;
+  if (
+    dragStartFromInteractiveControl.value ||
+    target?.closest(
+      'button, input, textarea, select, [contenteditable="true"], [role="combobox"], [role="switch"]',
+    )
+  ) {
+    event.preventDefault();
+    return;
+  }
   draggedRowIndex.value = rows.value.indexOf(row);
+}
+
+function captureDragOrigin(event: PointerEvent) {
+  const target = event.target as HTMLElement | null;
+  dragStartFromInteractiveControl.value = Boolean(
+    target?.closest(
+      'button, input, textarea, select, [contenteditable="true"], [role="combobox"], [role="switch"]',
+    ),
+  );
+}
+
+function clearDragOrigin() {
+  dragStartFromInteractiveControl.value = false;
 }
 
 function dropAt(
@@ -741,7 +844,13 @@ function dropAt(
 ) {
   const source = rows.value[draggedRowIndex.value ?? -1];
   draggedRowIndex.value = undefined;
-  if (!source || source === target) return;
+  if (
+    !source ||
+    source === target ||
+    source.key === '__actions' ||
+    target.key === '__actions'
+  )
+    return;
   if (isGroupableView(activeKey.value)) {
     (source as CrudPageDisplayFieldConfig).layoutGroup = getRowGroupKey(
       target as CrudPageDisplayFieldConfig,
@@ -1082,6 +1191,32 @@ function editHeaderScript(row: CrudPageDisplayHeaderConfig) {
   );
 }
 
+function editActionScript(row: CrudPageDisplayActionConfig) {
+  row.visible ||= { mode: 'script' };
+  row.visible.mode = 'script';
+  openScript(
+    '行操作显示表达式',
+    row.visible.expression,
+    createVariableGroups('row'),
+    (value) => {
+      row.visible!.expression = value;
+    },
+  );
+}
+
+function editActionValueScript(row: CrudPageDisplayActionConfig) {
+  row.valueDisplay ||= { mode: 'script' };
+  row.valueDisplay.mode = 'script';
+  openScript(
+    '按钮名称值展示脚本',
+    row.valueDisplay.expression,
+    createVariableGroups('row'),
+    (value) => {
+      row.valueDisplay!.expression = value;
+    },
+  );
+}
+
 function editCellScript(row: CrudPageDisplayHeaderConfig) {
   row.valueDisplay ||= { mode: 'script' };
   row.valueDisplay.mode = 'script';
@@ -1093,6 +1228,14 @@ function editCellScript(row: CrudPageDisplayHeaderConfig) {
       row.valueDisplay!.expression = value;
     },
   );
+}
+
+function getScriptButtonLabel(expression: string | undefined) {
+  return expression?.trim() ? '编辑脚本' : '添加脚本';
+}
+
+function getScriptButtonIcon(expression: string | undefined) {
+  return expression?.trim() ? 'lucide:pencil' : 'lucide:plus';
 }
 
 function ensureDefaultValue(row: CrudPageDisplayFieldConfig) {
@@ -1323,6 +1466,8 @@ watch(
     void loadScopeOptions();
     void loadRoleVisibilityOptions();
     ensureHeaders();
+    // 操作配置也属于初始化基线，不能等展示列表首次渲染才补齐。
+    ensureActions();
     for (const view of ['query', 'create', 'edit', 'detail'] as const) {
       ensureFields(view);
       ensureGroups(view);
@@ -1375,7 +1520,7 @@ onMounted(() => {
     :mask-closable="false"
     @close="requestClose"
   >
-    <div class="border-border mb-4 grid grid-cols-4 gap-3 rounded border p-3">
+    <div class="mb-1 grid grid-cols-4 gap-3 px-3 py-[3px]">
       <Tooltip :title="scopeMatchTooltip">
         <Input :value="code" disabled addon-before="设置项编码" />
       </Tooltip>
@@ -1441,14 +1586,20 @@ onMounted(() => {
       <Tabs.TabPane key="list" tab="展示列表" />
     </Tabs>
 
-    <KeepAlive>
-      <PageDisplaySettingsTabContent :key="activeKey" :view="activeKey">
+    <PageDisplaySettingsTabContent :key="activeKey" :view="activeKey">
         <template #default="{ view }">
           <section
             v-if="view === 'query'"
             class="border-border mb-4 rounded border p-3"
           >
-            <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
+            <Form
+              layout="inline"
+              class="flex flex-nowrap gap-x-6 overflow-x-auto whitespace-nowrap"
+            >
+              <Popover placement="bottomLeft" title="展示字段清单" trigger="hover">
+                <template #content><div class="flex max-w-80 flex-wrap gap-2"><span v-for="item in getRowsForView(view)" :key="item.key" class="border-border rounded border px-2 py-1 text-sm">{{ previewLabel(item) }}</span></div></template>
+                <Button>展示字段清单</Button>
+              </Popover>
               <Tooltip
                 title="启用后，查询字段变更会立即刷新列表，并隐藏手动查询按钮。"
               >
@@ -1463,70 +1614,29 @@ onMounted(() => {
             </Form>
           </section>
 
-          <section
+          <PageDisplaySettingsListTab
             v-if="view === 'list'"
-            class="border-border mb-4 rounded border p-3"
-          >
-            <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
-              <Tooltip
-                title="新增前端虚拟列。其值由当前行的值展示脚本计算，不对应后端实体字段。"
-              >
-                <Button @click="addVirtualHeader">+ 添加虚拟字段</Button>
-              </Tooltip>
-              <Tooltip
-                title="开启后按当前分页实际行数完整展示，不补空白行、不加载其他页；取消表格内纵向滚动，仅本页内容区域纵向滚动，保留分页和横向滚动。"
-              >
-                <Form.Item label="显示完整分页" class="mb-0">
-                  <Switch v-model:checked="draft.list!.showAllPageRows" />
-                </Form.Item>
-              </Tooltip>
-              <Tooltip title="列表列未单独配置最小列宽时使用。">
-                <Form.Item label="默认最小列宽" class="mb-0">
-                  <InputNumber
-                    v-model:value="draft.list!.defaultMinColumnWidth"
-                    :min="40"
-                    :precision="0"
-                    addon-after="px"
-                    class="w-40"
-                    placeholder="60"
-                  />
-                </Form.Item>
-              </Tooltip>
-              <Tooltip title="列表列未单独配置最大宽度时使用；留空表示不限制。">
-                <Form.Item label="默认最大列宽" class="mb-0">
-                  <InputNumber
-                    v-model:value="draft.list!.defaultMaxColumnWidth"
-                    :min="40"
-                    :precision="0"
-                    addon-after="px"
-                    class="w-40"
-                    placeholder="不限制"
-                  />
-                </Form.Item>
-              </Tooltip>
-              <Tooltip
-                title="列表列超出默认最大列宽时的展示方式；字段代码显式策略优先。"
-              >
-                <Form.Item label="默认超宽展示" class="mb-0">
-                  <Radio.Group
-                    v-model:value="draft.list!.defaultOverflowStrategy"
-                    button-style="solid"
-                    option-type="button"
-                    :options="[
-                      { label: '截断', value: 'ellipsis' },
-                      { label: '换行', value: 'wrap' },
-                    ]"
-                  />
-                </Form.Item>
-              </Tooltip>
-            </Form>
-          </section>
+            :config="draft.list!"
+            :headers="listRows"
+            :preview-label="previewLabel"
+            @add-virtual-field="addVirtualHeader"
+            @update:config="(value) => (draft.list = value)"
+          />
+
+          <PageDisplaySettingsDetailTab
+            v-if="view === 'detail'"
+            :config="detailHolder()"
+            :fields="detailRows"
+            :preview-label="previewLabel"
+            @update:config="(value) => (draft.detail = value)"
+          />
 
           <section
-            v-if="['create', 'edit', 'detail'].includes(view)"
+            v-if="view === 'create' || view === 'edit'"
             class="border-border mb-4 rounded border p-3"
           >
             <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
+              <Popover placement="bottomLeft" title="展示字段清单" trigger="hover"><template #content><div class="flex max-w-80 flex-wrap gap-2"><span v-for="item in getRowsForView(view)" :key="item.key" class="border-border rounded border px-2 py-1 text-sm">{{ previewLabel(item) }}</span></div></template><Button>展示字段清单</Button></Popover>
               <Tooltip
                 title="留空沿用当前页面配置；支持 960px、80vw 等 CSS 长度。"
               >
@@ -1560,23 +1670,8 @@ onMounted(() => {
                   />
                 </Form.Item>
               </Tooltip>
-              <Form.Item v-if="view === 'detail'" label="展示空值" class="mb-0">
-                <Switch
-                  v-model:checked="detailHolder().showEmptyValues"
-                  aria-label="展示空值"
-                  checked-children="展示"
-                  un-checked-children="隐藏"
-                />
-              </Form.Item>
-            </Form>
-          </section>
-
-          <section
-            v-if="view === 'edit'"
-            class="border-border mb-4 rounded border p-3"
-          >
-            <Form layout="inline" class="flex flex-wrap gap-x-6 gap-y-2">
               <Tooltip
+                v-if="view === 'edit'"
                 title="开启后，编辑表单实际上传的字段即使为空也会更新；关闭后保留服务端默认的空值忽略语义。"
               >
                 <Form.Item label="自动强制更新字段" class="mb-0">
@@ -1590,53 +1685,6 @@ onMounted(() => {
             </Form>
           </section>
 
-          <section
-            class="bg-muted/25 mb-4 rounded-lg p-3"
-            aria-label="实时预览"
-          >
-            <div class="text-muted-foreground mb-2 text-xs font-medium">
-              实时预览
-            </div>
-            <div
-              ref="previewContentRef"
-              class="flex flex-wrap items-center gap-2"
-              :class="previewExpanded ? '' : 'max-h-[72px] overflow-hidden'"
-            >
-              <template
-                v-for="row in getRowsForView(view)"
-                :key="`preview-${row.key}`"
-              >
-                <span
-                  class="rounded border px-2 py-1 text-sm"
-                  :class="
-                    row.hidden ||
-                    (view === 'list' &&
-                      (row as CrudPageDisplayHeaderConfig).visible?.mode ===
-                        'hidden')
-                      ? 'text-muted-foreground border-dashed line-through'
-                      : 'bg-background border-border'
-                  "
-                >
-                  {{ previewLabel(row) }}
-                </span>
-              </template>
-            </div>
-            <Button
-              v-if="previewOverflowing"
-              type="link"
-              size="small"
-              class="mt-2 px-0"
-              @click="previewExpanded = !previewExpanded"
-            >
-              {{ previewExpanded ? '收起预览' : '展开预览' }}
-            </Button>
-          </section>
-
-          <div
-            data-test="page-display-settings-scroll"
-            class="min-h-0 flex-1 overflow-auto pr-1"
-            @scroll.passive="(event) => loadMoreFieldRows(event, view)"
-          >
             <div
               v-if="isGroupableView(view)"
               class="mb-3 flex items-center gap-3"
@@ -1658,23 +1706,40 @@ onMounted(() => {
               >
             </div>
 
+          <div
+            data-test="page-display-settings-scroll"
+            class="page-display-settings-scroll min-h-0 flex-1 overflow-auto"
+            @scroll.passive="(event) => loadMoreFieldRows(event, view)"
+          >
+
             <div
               class="border-border rounded border"
-              :class="getFieldConfigMinWidthClass(view)"
+              :style="{ width: 'max-content' }"
             >
               <div
-                class="border-border bg-background sticky top-0 z-20 grid gap-3 border-b px-3 py-2 text-sm font-medium shadow-sm"
-                :class="getFieldConfigGridClass(view)"
+                data-test="page-display-settings-grid-header"
+                class="page-display-settings-grid-header border-border bg-primary-background-lightest sticky top-0 z-20 grid gap-x-5 gap-y-3 border-b px-3 py-2 text-sm font-medium shadow-sm"
+                :style="{ gridTemplateColumns: getFieldConfigGridTemplate(view) }"
               >
                 <template v-if="view === 'list'">
                   <Tooltip title="调整字段在当前展示列表中的前后顺序。"
-                    ><span>调整</span></Tooltip
+                    ><span
+                      aria-hidden="true"
+                      class="page-display-settings-fixed-cell page-display-settings-fixed-header-cell page-display-settings-fixed-header-control-cell bg-primary-background-lightest sticky left-0 z-30"
+                    ></span></Tooltip
                   >
-                  <Tooltip title="当前配置所对应的数据字段。"
-                    ><span>字段</span></Tooltip
+                  <div
+                    class="page-display-settings-fixed-cell page-display-settings-fixed-header-cell bg-primary-background-lightest sticky left-[86px] z-30"
                   >
+                    <Tooltip title="当前配置所对应的数据字段。"
+                      ><span>字段</span></Tooltip
+                    >
+                  </div>
                   <Tooltip title="当前列表列的标题别名；留空时沿用字段名称。"
                     ><span>标题别名</span></Tooltip
+                  >
+                  <Tooltip title="用于转换每行单元格显示内容。"
+                    ><span>展示值脚本</span></Tooltip
                   >
                   <Tooltip
                     title="列表列当前的基础宽度；留空时使用当前页面已有配置。"
@@ -1700,10 +1765,7 @@ onMounted(() => {
                     title="只有当前用户拥有任一选中角色时，才会看到该列表列。"
                     ><span>可见角色</span></Tooltip
                   >
-                  <Tooltip
-                    title="表头脚本控制列标题是否显示；值展示脚本用于转换每行单元格显示内容。"
-                    ><span>展示/值脚本</span></Tooltip
-                  >
+                  <Tooltip title="表头脚本控制列标题是否显示。"><span>显示脚本</span></Tooltip>
                 </template>
                 <template v-else>
                   <Tooltip title="调整字段在当前表单中的前后顺序。"
@@ -1714,6 +1776,12 @@ onMounted(() => {
                   >
                   <Tooltip title="当前表单字段的标题别名；留空时沿用字段名称。"
                     ><span>标题别名</span></Tooltip
+                  >
+                  <Tooltip v-if="view === 'detail'" title="初始化表单时为字段预填的值。"
+                    ><span>默认值</span></Tooltip
+                  >
+                  <Tooltip v-if="view !== 'detail'" title="初始化表单时为字段预填的值。"
+                    ><span>默认值</span></Tooltip
                   >
                   <Tooltip
                     title="选择字段所属的展示分组；选择后字段会移动到该分组末尾。"
@@ -1737,13 +1805,12 @@ onMounted(() => {
                       view === 'detail' ? '是否展示' : '展示与提交'
                     }}</span></Tooltip
                   >
-                  <Tooltip title="初始化表单时为字段预填的值。"
+                  <Tooltip v-if="false" title="初始化表单时为字段预填的值。"
                     ><span>默认值</span></Tooltip
                   >
-                  <Tooltip
-                    title="显示脚本、依赖显示项和互斥项均需满足，字段才会展示。"
-                    ><span>显示条件</span></Tooltip
-                  >
+                  <Tooltip title="编写脚本决定字段是否展示。"><span>显示脚本</span></Tooltip>
+                  <Tooltip title="依赖字段展示时当前字段才展示。"><span>依赖显示项</span></Tooltip>
+                  <Tooltip title="互斥字段展示时当前字段隐藏。"><span>互斥项</span></Tooltip>
                 </template>
               </div>
               <template
@@ -1840,9 +1907,22 @@ onMounted(() => {
                         >
                           <Button
                             size="small"
+                            :aria-label="
+                              getScriptButtonLabel(
+                                rowGroup.group.visibility?.expression,
+                              )
+                            "
                             @click="editGroupVisibilityScript(rowGroup.group)"
-                            >展示脚本</Button
                           >
+                            <IconifyIcon
+                              class="size-3.5"
+                              :icon="
+                                getScriptButtonIcon(
+                                  rowGroup.group.visibility?.expression,
+                                )
+                              "
+                            />
+                          </Button>
                         </Tooltip>
                         <template v-if="view === 'create' || view === 'edit'">
                           <span class="text-sm">显示提交勾选</span>
@@ -1899,13 +1979,22 @@ onMounted(() => {
                     v-for="row in getRenderedRows(rowGroup.rows, view)"
                     :key="row.key"
                     draggable="true"
-                    class="page-display-settings-field-row border-border grid w-full items-center gap-3 border-b p-3 last:border-b-0"
-                    :class="getFieldConfigGridClass(view)"
-                    @dragstart="startDrag(row)"
+                    class="page-display-settings-field-row border-border grid w-full items-center gap-x-5 gap-y-3 border-b p-3 last:border-b-0"
+                    :style="{ gridTemplateColumns: getFieldConfigGridTemplate(view) }"
+                    @pointerdown.capture="captureDragOrigin"
+                    @dragstart="startDrag(row, $event)"
+                    @dragend="clearDragOrigin"
                     @dragover.prevent
                     @drop="dropAt(row)"
                   >
-                    <div class="flex gap-1">
+                    <div
+                      class="flex gap-1"
+                      :class="
+                        view === 'list'
+                          ? 'page-display-settings-fixed-body-cell page-display-settings-fixed-control-cell page-display-settings-fixed-cell page-display-settings-fixed-control-cell--list sticky left-0 z-10'
+                          : ''
+                      "
+                    >
                       <Tooltip title="上移字段"
                         ><Button
                           size="small"
@@ -1922,36 +2011,89 @@ onMounted(() => {
                         ></Tooltip
                       >
                     </div>
-                    <Tooltip
-                      :title="
-                        view === 'list' &&
-                        (row as CrudPageDisplayHeaderConfig).virtual
-                          ? '虚拟字段编码由系统生成，创建后保持不变。'
-                          : '按住可拖拽排序'
+                    <div
+                      :class="
+                        view === 'list'
+                          ? 'page-display-settings-fixed-body-cell page-display-settings-fixed-field-cell page-display-settings-fixed-cell sticky left-[86px] z-10'
+                          : ''
                       "
                     >
-                      <Input
-                        v-if="
+                      <Tooltip
+                        :title="
                           view === 'list' &&
                           (row as CrudPageDisplayHeaderConfig).virtual
+                            ? '虚拟字段编码由系统生成，创建后保持不变。'
+                            : '按住可拖拽排序'
                         "
-                        :value="(row as CrudPageDisplayHeaderConfig).key"
-                        placeholder="虚拟字段编码"
-                        readonly
-                      />
-                      <div v-else>
-                        {{ getSourceFieldTitle(row.key) }}
-                      </div>
-                    </Tooltip>
+                      >
+                        <Input
+                          v-if="
+                            view === 'list' &&
+                            (row as CrudPageDisplayHeaderConfig).virtual
+                          "
+                          :value="(row as CrudPageDisplayHeaderConfig).key"
+                          placeholder="虚拟字段编码"
+                          readonly
+                        />
+                        <div v-else>
+                          {{ getSourceFieldTitle(row.key) }}
+                        </div>
+                      </Tooltip>
+                    </div>
                     <Input
                       v-if="view === 'list'"
                       v-model:value="(row as CrudPageDisplayHeaderConfig).title"
                       :placeholder="getSourceFieldTitle(row.key)"
                     />
+                    <Tooltip
+                      v-if="
+                        view === 'list' &&
+                        !isOperationHeader(
+                          row as CrudPageDisplayHeaderConfig,
+                        )
+                      "
+                      title="编写脚本转换当前字段在每一行中的展示内容。"
+                    >
+                      <Button
+                        size="small"
+                        :aria-label="
+                          getScriptButtonLabel(
+                            (row as CrudPageDisplayHeaderConfig).valueDisplay
+                              ?.expression,
+                          )
+                        "
+                        @click="
+                          editCellScript(row as CrudPageDisplayHeaderConfig)
+                        "
+                      >
+                        <IconifyIcon
+                          class="size-3.5"
+                          :icon="
+                            getScriptButtonIcon(
+                              (row as CrudPageDisplayHeaderConfig)
+                                .valueDisplay?.expression,
+                            )
+                          "
+                        />
+                      </Button>
+                    </Tooltip>
+                    <span v-else-if="view === 'list'" aria-hidden="true"></span>
                     <Input
                       v-else
                       v-model:value="row.label"
                       :placeholder="getSourceFieldTitle(row.key)"
+                    />
+                    <InputNumber
+                      v-if="view === 'detail'"
+                      v-model:value="ensureDefaultValue(row).value"
+                      placeholder="默认值"
+                      class="w-full"
+                    />
+                    <InputNumber
+                      v-if="view !== 'list' && view !== 'detail'"
+                      v-model:value="ensureDefaultValue(row).value"
+                      placeholder="默认值"
+                      class="w-full"
                     />
                     <Select
                       v-if="view !== 'list' && isGroupableView(view)"
@@ -1959,7 +2101,7 @@ onMounted(() => {
                       :options="groupOptions"
                       placeholder="选择分组"
                       allow-clear
-                      class="w-[95px]"
+                      class="w-full"
                       @update:value="(value) => assignRowToGroup(row, value)"
                     />
                     <Input
@@ -2033,39 +2175,36 @@ onMounted(() => {
                         :loading="roleVisibilityLoading"
                         :options="roleVisibilityOptions"
                         placeholder="可见角色"
-                        class="min-w-[200px]"
+                        class="w-full"
                         @focus="loadRoleVisibilityOptions"
                         @dropdown-visible-change="
                           (open) => open && loadRoleVisibilityOptions()
                         "
                       />
-                      <div class="flex gap-2">
                         <Tooltip title="编写脚本决定当前列是否展示。"
                           ><Button
                             size="small"
+                            :aria-label="
+                              getScriptButtonLabel(
+                                (row as CrudPageDisplayHeaderConfig).visible
+                                  ?.expression,
+                              )
+                            "
                             @click="
                               editHeaderScript(
                                 row as CrudPageDisplayHeaderConfig,
                               )
                             "
-                            >显示脚本</Button
-                          ></Tooltip
-                        ><Tooltip
-                          v-if="
-                            !isOperationHeader(
-                              row as CrudPageDisplayHeaderConfig,
-                            )
-                          "
-                          title="编写脚本转换当前字段在每一行中的展示内容。"
-                          ><Button
-                            size="small"
-                            @click="
-                              editCellScript(row as CrudPageDisplayHeaderConfig)
-                            "
-                            >值展示脚本</Button
-                          ></Tooltip
-                        >
-                      </div>
+                            ><IconifyIcon
+                              class="size-3.5"
+                              :icon="
+                                getScriptButtonIcon(
+                                  (row as CrudPageDisplayHeaderConfig).visible
+                                    ?.expression,
+                                )
+                              "
+                            /></Button
+                          ></Tooltip>
                     </template>
                     <template v-else>
                       <Select
@@ -2079,7 +2218,7 @@ onMounted(() => {
                         :loading="roleVisibilityLoading"
                         :options="roleVisibilityOptions"
                         placeholder="可见角色"
-                        class="min-w-[200px]"
+                        class="w-full"
                         @focus="loadRoleVisibilityOptions"
                         @dropdown-visible-change="
                           (open) => open && loadRoleVisibilityOptions()
@@ -2124,19 +2263,8 @@ onMounted(() => {
                         class="w-[57px] min-w-[57px]"
                         @change="(value) => (row.hidden = !value)"
                       />
-                      <InputNumber
-                        v-model:value="ensureDefaultValue(row).value"
-                        placeholder="默认值"
-                        class="w-full"
-                      />
-                      <div class="flex gap-2">
-                        <Tooltip title="编写脚本决定字段是否展示。"
-                          ><Button
-                            size="small"
-                            @click="editVisibilityScript(row)"
-                            >显示脚本</Button
-                          ></Tooltip
-                        ><Select
+                      <Tooltip title="编写脚本决定字段是否展示。"><Button size="small" :aria-label="getScriptButtonLabel(row.visibility?.expression)" @click="editVisibilityScript(row)"><IconifyIcon class="size-3.5" :icon="getScriptButtonIcon(row.visibility?.expression)" /></Button></Tooltip>
+                      <Select
                           :value="getDependencyKeys(row)"
                           mode="multiple"
                           :options="fieldOptions"
@@ -2145,7 +2273,8 @@ onMounted(() => {
                           @update:value="
                             (value) => setDependencyKeys(row, value as string[])
                           "
-                        /><Select
+                      />
+                      <Select
                           :value="getExclusiveKeys(row)"
                           mode="multiple"
                           :options="fieldOptions"
@@ -2154,20 +2283,145 @@ onMounted(() => {
                           @update:value="
                             (value) => setExclusiveKeys(row, value as string[])
                           "
-                        />
-                      </div>
+                      />
                     </template>
                   </div>
+                </div>
+              </template>
+              <template v-if="view === 'list' && actionRows.length">
+                <div
+                  v-for="action in actionRows"
+                  :key="action.key"
+                  data-test="page-display-settings-action-row"
+                  class="page-display-settings-field-row border-border grid w-full items-center gap-x-5 gap-y-3 border-x border-b p-3"
+                  :style="{ gridTemplateColumns: getFieldConfigGridTemplate(view) }"
+                >
+                  <div class="page-display-settings-fixed-body-cell page-display-settings-fixed-control-cell page-display-settings-fixed-cell sticky left-0 z-10 flex gap-1">
+                    <Tooltip title="上移操作属性">
+                      <Button
+                        size="small"
+                        :disabled="actionRows.indexOf(action) === 0"
+                        @click="moveAction(action, -1)"
+                      >
+                        ↑
+                      </Button>
+                    </Tooltip>
+                    <Tooltip title="下移操作属性">
+                      <Button
+                        size="small"
+                        :disabled="
+                          actionRows.indexOf(action) === actionRows.length - 1
+                        "
+                        @click="moveAction(action, 1)"
+                      >
+                        ↓
+                      </Button>
+                    </Tooltip>
+                  </div>
+                  <div class="page-display-settings-fixed-body-cell page-display-settings-fixed-cell sticky left-[86px] z-10 flex items-center gap-2">
+                    <Tag color="blue">操作</Tag>
+                    <span>{{ action.label }}</span>
+                  </div>
+                  <Input
+                    v-model:value="action.title"
+                    :placeholder="action.label"
+                  />
+                  <Tooltip
+                    title="返回非空文本时，它会以最高优先级作为按钮名称。"
+                  >
+                    <Button
+                      size="small"
+                      :aria-label="getScriptButtonLabel(action.valueDisplay?.expression)"
+                      @click="editActionValueScript(action)"
+                    >
+                      <IconifyIcon
+                        class="size-3.5"
+                        :icon="getScriptButtonIcon(action.valueDisplay?.expression)"
+                      />
+                    </Button>
+                  </Tooltip>
+                  <InputNumber
+                    v-model:value="action.width"
+                    :precision="0"
+                    addon-after="px"
+                    placeholder="默认"
+                    class="w-full"
+                  />
+                  <InputNumber
+                    v-model:value="action.minWidth"
+                    :min="-1"
+                    :precision="0"
+                    addon-after="px"
+                    placeholder="不限制"
+                    class="w-full"
+                  />
+                  <InputNumber
+                    v-model:value="action.maxWidth"
+                    :min="-1"
+                    :precision="0"
+                    addon-after="px"
+                    placeholder="默认"
+                    class="w-full"
+                  />
+                  <Switch
+                    :checked="action.visible?.mode !== 'hidden'"
+                    checked-children="展示"
+                    un-checked-children="隐藏"
+                    class="w-[57px] min-w-[57px]"
+                    @update:checked="
+                      (value) =>
+                        (action.visible = {
+                          ...action.visible,
+                          mode: value ? 'always' : 'hidden',
+                        })
+                    "
+                  />
+                  <Radio.Group
+                    v-model:value="action.overflowStrategy"
+                    button-style="solid"
+                    option-type="button"
+                    :options="[
+                      { label: '默认', value: undefined },
+                      { label: '截断', value: 'ellipsis' },
+                      { label: '换行', value: 'wrap' },
+                    ]"
+                  />
+                  <Select
+                    v-model:value="action.visibleRoleCodes"
+                    mode="multiple"
+                    :loading="roleVisibilityLoading"
+                    :options="roleVisibilityOptions"
+                    placeholder="可见角色"
+                    class="min-w-[200px]"
+                    @focus="loadRoleVisibilityOptions"
+                    @dropdown-visible-change="
+                      (open) => open && loadRoleVisibilityOptions()
+                    "
+                  />
+                  <Tooltip
+                    title="使用当前行数据、当前用户、组织和租户设置附加显示条件；表达式失败时隐藏该操作。"
+                  >
+                    <Button
+                      size="small"
+                      :aria-label="getScriptButtonLabel(action.visible?.expression)"
+                      @click="editActionScript(action)"
+                    >
+                      <IconifyIcon
+                        class="size-3.5"
+                        :icon="getScriptButtonIcon(action.visible?.expression)"
+                      />
+                    </Button>
+                  </Tooltip>
                 </div>
               </template>
             </div>
           </div>
         </template>
       </PageDisplaySettingsTabContent>
-    </KeepAlive>
     <ScriptWorkbenchDialog
       v-model:open="scriptOpen"
       :model-value="scriptText"
+      :test-context="scriptTestContext"
       :title="scriptTitle"
       :variable-groups="scriptGroups"
       @update:model-value="(value) => applyScript?.(value)"
@@ -2177,7 +2431,104 @@ onMounted(() => {
 
 <style scoped>
 .page-display-settings-field-row {
+  isolation: isolate;
   content-visibility: auto;
   contain-intrinsic-size: auto 72px;
+  /* 字段配置保持单行；宽度不足时由外层横向滚动承载，不拆分为第二行。 */
 }
+
+.page-display-settings-grid-header {
+  isolation: isolate;
+}
+
+.page-display-settings-field-row > :not(.page-display-settings-fixed-cell),
+.page-display-settings-grid-header > :not(.page-display-settings-fixed-cell) {
+  position: relative;
+  z-index: 0;
+}
+
+.page-display-settings-fixed-cell {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  width: 100%;
+  min-height: 100%;
+}
+
+.page-display-settings-fixed-body-cell {
+  height: 100%;
+  isolation: isolate;
+  z-index: 1000 !important;
+}
+
+.page-display-settings-fixed-field-cell {
+  z-index: 1001 !important;
+}
+
+.page-display-settings-fixed-control-cell::before {
+  position: absolute;
+  z-index: 0;
+  top: -0.75rem;
+  bottom: -0.75rem;
+  left: 0;
+  width: 13.5rem;
+  pointer-events: none;
+  content: '';
+  background-color: hsl(var(--background));
+}
+
+.page-display-settings-fixed-control-cell--list::before {
+  width: 13.5rem;
+}
+
+.page-display-settings-fixed-header-cell {
+  isolation: isolate;
+  z-index: 1010 !important;
+}
+
+.page-display-settings-fixed-header-control-cell::before {
+  position: absolute;
+  z-index: 0;
+  top: -0.5rem;
+  bottom: -0.5rem;
+  left: 0;
+  width: 13.5rem;
+  pointer-events: none;
+  content: '';
+  background-color: inherit;
+}
+
+.page-display-settings-fixed-cell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.page-display-settings-field-row :deep(.ant-input),
+.page-display-settings-field-row :deep(.ant-input-number),
+.page-display-settings-field-row :deep(.ant-select) {
+  width: 100%;
+}
+
+.page-display-settings-field-row :deep(.ant-radio-group) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+}
+
+.page-display-settings-field-row :deep(.ant-radio-button-wrapper) {
+  min-width: 0;
+  padding-inline: 8px;
+  text-align: center;
+}
+
+.page-display-settings-scroll {
+  box-sizing: border-box;
+}
+
+.page-display-settings-scroll > .border-border {
+  box-sizing: border-box;
+  min-width: max-content;
+}
+
 </style>

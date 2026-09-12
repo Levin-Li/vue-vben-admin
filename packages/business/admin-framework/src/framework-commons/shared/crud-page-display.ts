@@ -1,4 +1,6 @@
 import type {
+  CrudPageDisplayActionCandidate,
+  CrudPageDisplayActionConfig,
   CrudDisplayRule,
   CrudFieldConfig,
   CrudPageDisplayConfig,
@@ -13,6 +15,9 @@ export type CrudDisplayState = 'ABSENT' | 'HIDDEN' | 'VISIBLE';
 export const CRUD_OPERATION_COLUMN_KEY = '__actions';
 export const CRUD_OPERATION_COLUMN_LABEL = '操作';
 export const DEFAULT_CRUD_OPERATION_COLUMN_WIDTH = 220;
+export const CRUD_ROW_ACTION_DETAIL_KEY = 'builtin:detail';
+export const CRUD_ROW_ACTION_EDIT_KEY = 'builtin:edit';
+export const CRUD_ROW_ACTION_DELETE_KEY = 'builtin:delete';
 
 /** 运行页面和设置面板共用的视图默认值，不修改传入的配置。 */
 export function resolveCrudPageDisplayDefaults(
@@ -25,7 +30,7 @@ export function resolveCrudPageDisplayDefaults(
     query: { fields: [], ...config?.query },
     edit: { fields: [], ...config?.edit },
     detail: { fields: [], ...config?.detail },
-    list: { headers: [], ...config?.list },
+    list: { actions: [], headers: [], ...config?.list },
   } satisfies CrudPageDisplayConfig;
   resolved.query.autoSearch ??= false;
   resolved.edit.autoForceUpdateField ??= true;
@@ -67,7 +72,9 @@ export function resolveStaticDisplayGroup(
     displayStyle: 'divider',
     key: groupKey,
     order: Math.min(
-      ...groupFields.map((field) => field.layoutOrder ?? Number.MAX_SAFE_INTEGER),
+      ...groupFields.map(
+        (field) => field.layoutOrder ?? Number.MAX_SAFE_INTEGER,
+      ),
     ),
     title: groupFields.find((field) => field.layoutGroupTitle?.trim())
       ?.layoutGroupTitle,
@@ -140,11 +147,7 @@ export function canUseLocalTableColumnSettings(
   tableFieldCount: number,
   hasServerPageDisplaySetting = false,
 ) {
-  return (
-    !hasServerPageDisplaySetting &&
-    tableFieldCount > 0 &&
-    !hasServerListHeaderConfig(config)
-  );
+  return tableFieldCount > 0;
 }
 
 export function resolvePageDisplaySettingCode(
@@ -374,7 +377,19 @@ export function initializeVisibleRoleCodes(
 }
 
 export function getDefaultFieldHidden(
-  field: string | { key: string; showIdOnCreate?: boolean },
+  field:
+    | string
+    | Pick<
+        CrudFieldConfig,
+        | 'detail'
+        | 'hasBackingField'
+        | 'form'
+        | 'formCreate'
+        | 'formEdit'
+        | 'key'
+        | 'readOnly'
+        | 'showIdOnCreate'
+      >,
   options: {
     hideDomainId?: boolean;
     view?: 'create' | 'detail' | 'edit' | 'list' | 'query';
@@ -389,13 +404,21 @@ export function getDefaultFieldHidden(
   ) {
     return false;
   }
+  if (
+    options.view === 'detail' &&
+    typeof field !== 'string' &&
+    field.detail !== true &&
+    field.hasBackingField === false
+  ) {
+    return true;
+  }
   // DomainObject 的 domainId 是数据范围定位字段；新增、编辑、详情与列表默认隐藏，
   // 页面展示设置显式保存展示状态后仍可覆盖这个默认值。查询条件不应用此默认值。
-  return (
+  const isSystemHidden =
     ['editable', 'id', 'lastUpdateTime', 'orderCode'].includes(key) ||
     (options.view === 'edit' && key === 'tenantId') ||
-    (options.hideDomainId === true && key === 'domainId')
-  );
+    (options.hideDomainId === true && key === 'domainId');
+  return isSystemHidden;
 }
 
 export function initializeFieldHidden(
@@ -460,6 +483,54 @@ function hasSameStringValues(
   );
 }
 
+/** 页面配置应为自定义行操作声明稳定键；标签键仅用于兼容已有页面。 */
+export function getCrudRowActionDisplayKey(action: {
+  displayKey?: string;
+  label: string;
+}) {
+  return action.displayKey?.trim() || `custom:${action.label}`;
+}
+
+/** 设置抽屉和运行时共享当前页面可配置行操作的默认值。 */
+export function reconcileCrudPageDisplayActions(
+  actions: CrudPageDisplayActionConfig[] | undefined,
+  candidates: CrudPageDisplayActionCandidate[],
+) {
+  const existing = new Map(
+    (actions || []).map((action) => [action.key, action]),
+  );
+  const seen = new Set<string>();
+
+  return candidates
+    .flatMap((candidate, index) => {
+      if (seen.has(candidate.key)) return [];
+      seen.add(candidate.key);
+      const current = existing.get(candidate.key);
+      return [
+        current
+          ? current.label === candidate.label &&
+            current.visible &&
+            current.order !== undefined
+            ? current
+            : {
+                ...current,
+                label: candidate.label,
+                order: current.order ?? index,
+                visible: current.visible || { mode: 'always' },
+                visibleRoleCodes: initializeVisibleRoleCodes(current),
+              }
+          : {
+              key: candidate.key,
+              label: candidate.label,
+              order: index,
+              visible: { mode: 'always' as const },
+              visibleRoleCodes: [],
+            },
+      ];
+    })
+    .toSorted((left, right) => (left.order ?? 0) - (right.order ?? 0));
+}
+
 export function reconcileCrudPageDisplayHeaders(
   headers: CrudPageDisplayHeaderConfig[],
   fields: Array<
@@ -486,7 +557,6 @@ export function reconcileCrudPageDisplayHeaders(
 
   const reconciled = listFields.map((field, index) => {
     const current = existing.get(field.key);
-    const isOperationColumn = field.key === CRUD_OPERATION_COLUMN_KEY;
     const defaults: CrudPageDisplayHeaderConfig = current || {
       key: field.key,
       label: field.label,
@@ -500,7 +570,10 @@ export function reconcileCrudPageDisplayHeaders(
       width: resolveDefaultTableColumnWidth(field),
     };
     const label = defaults.label || field.label;
-    const order = isOperationColumn ? index : defaults.order;
+    const order =
+      field.key === CRUD_OPERATION_COLUMN_KEY
+        ? Number.MAX_SAFE_INTEGER
+        : (defaults.order ?? index);
     const visible = initializeHeaderVisibility(defaults);
     const visibleRoleCodes = initializeVisibleRoleCodes(defaults);
     const width =
@@ -533,9 +606,15 @@ export function reconcileCrudPageDisplayHeaders(
     ...reconciled,
     ...headers.filter((header) => header.virtual === true),
   ].toSorted(
-    (left, right) =>
-      (left.order ?? Number.MAX_SAFE_INTEGER) -
-      (right.order ?? Number.MAX_SAFE_INTEGER),
+    (left, right) => {
+      // 操作列固定收尾，避免历史虚拟列因相同最大顺序值排到操作列之后。
+      if (left.key === CRUD_OPERATION_COLUMN_KEY) return 1;
+      if (right.key === CRUD_OPERATION_COLUMN_KEY) return -1;
+      return (
+        (left.order ?? Number.MAX_SAFE_INTEGER) -
+        (right.order ?? Number.MAX_SAFE_INTEGER)
+      );
+    },
   );
 }
 

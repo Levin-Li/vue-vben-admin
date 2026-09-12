@@ -11,6 +11,7 @@ import type {
   CrudFieldConfig,
   CrudListTableConfig,
   CrudPageConfig,
+  CrudPageDisplayActionCandidate,
   CrudPageDisplayConfig,
   CrudPageDisplayFieldConfig,
   CrudPageDisplayHeaderConfig,
@@ -18,6 +19,11 @@ import type {
   CrudPathConfig,
   CrudRowAction,
 } from './types';
+
+import {
+  resolveActionButtonLabel,
+  resolveActionButtonStyle,
+} from './crud-action-display';
 
 import {
   computed,
@@ -207,10 +213,14 @@ import {
   buildOrganizationScriptContext,
   buildTenantScriptContext,
   canUseLocalTableColumnSettings,
+  CRUD_ROW_ACTION_DELETE_KEY,
+  CRUD_ROW_ACTION_DETAIL_KEY,
+  CRUD_ROW_ACTION_EDIT_KEY,
   CRUD_OPERATION_COLUMN_KEY,
   DEFAULT_CRUD_OPERATION_COLUMN_WIDTH,
   distributeExtraTableWidth,
   getDefaultFieldHidden,
+  getCrudRowActionDisplayKey,
   initializeHeaderVisibility,
   isEligibleStaticDisplayGroup,
   isDisplayGroupVisible,
@@ -319,6 +329,7 @@ type TableSortOrder = 'ascend' | 'descend';
 type CrudBuiltinAction = 'create' | 'delete' | 'edit' | 'retrieve';
 interface TableColumnSettingsSnapshot {
   hiddenKeys: string[];
+  orderedKeys: string[];
 }
 function getCrudErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
@@ -394,6 +405,7 @@ const selectedRowKeys = ref<Array<number | string>>([]);
 const selectedRows = ref<GenericRecord[]>([]);
 const actionResultOpen = ref(false);
 const actionResultTitle = ref('');
+const actionResultHideEmptyValues = ref(false);
 const actionResultData = ref<any>(null);
 const latestDetailRecord = ref<{
   source: string | undefined;
@@ -451,6 +463,7 @@ const listTableTabsCollapsed = ref(true);
 const isDraggingListTableTabs = ref(false);
 const listTableTabsHandleTooltipOpen = ref(false);
 const hiddenTableColumnKeys = ref<string[]>([]);
+const orderedTableColumnKeys = ref<string[]>([]);
 const columnSettingsOpen = ref(false);
 const pageDisplaySettingsOpen = ref(false);
 const pageDisplaySettingSaving = ref(false);
@@ -463,11 +476,15 @@ const listHeightPolicy = computed(() =>
 const tableScroll = computed(() =>
   getCrudListScroll(listHeightPolicy.value.showAllPageRows, tableScrollY.value),
 );
-const pageContentClass = computed(() => [
-  props.embedded ? 'flex min-h-0 flex-1 flex-col' : '',
-  '!bg-transparent min-w-0 !p-0',
-  listHeightPolicy.value.pageScrollable ? '!overflow-x-hidden !overflow-y-auto' : '!overflow-hidden',
-].join(' '));
+const pageContentClass = computed(() =>
+  [
+    props.embedded ? 'flex min-h-0 flex-1 flex-col' : '',
+    '!bg-transparent min-w-0 !p-0',
+    listHeightPolicy.value.pageScrollable
+      ? '!overflow-x-hidden !overflow-y-auto'
+      : '!overflow-hidden',
+  ].join(' '),
+);
 
 const pageDisplayHeaderMap = computed(
   () =>
@@ -594,6 +611,7 @@ async function savePageDisplaySettings(payload: {
 }
 const columnSettingsSnapshot = ref<null | TableColumnSettingsSnapshot>(null);
 const draftHiddenTableColumnKeys = ref<string[]>([]);
+const draftOrderedTableColumnKeys = ref<string[]>([]);
 const hasStoredTableColumnPreference = ref(false);
 const hoveredImageUploadTarget = ref<null | {
   field: CrudFieldConfig;
@@ -727,8 +745,7 @@ function isFieldDisabledOnEdit(field: CrudFieldConfig) {
 
 function isFormFieldInteractionDisabled(field: CrudFieldConfig) {
   return (
-    (!editingRecord.value &&
-      isFixedCrudFormField(field, menuFixedQuery)) ||
+    (!editingRecord.value && isFixedCrudFormField(field, menuFixedQuery)) ||
     isFieldDisabledOnEdit(field) ||
     getPageDisplayField(editingRecord.value ? 'edit' : 'create', field.key)
       .disabled === true
@@ -836,8 +853,21 @@ function getPageDisplayField(
   const configured = pageDisplayConfig.value[view]?.fields.find(
     (item) => item.key === key,
   );
+  const sourceField = effectiveFields.value.find((item) => item.key === key);
+  if (view === 'detail' && sourceField?.hasBackingField === false) {
+    return resolveRuntimeDisplayField(
+      { ...configured, hidden: true, inputDisplay: 'default', key },
+      { view },
+    );
+  }
   if (configured) {
-    return resolveRuntimeDisplayField(configured, { view });
+    return resolveRuntimeDisplayField(
+      {
+        hidden: getDefaultFieldHidden(sourceField || { key }, { view }),
+        ...configured,
+      },
+      { view },
+    );
   }
 
   return resolveRuntimeDisplayField({
@@ -1131,6 +1161,8 @@ function applyPageDisplayFields(
         resolveStaticDisplayGroup(fields, groupKey);
       return {
         ...field,
+        // 页面展示设置只能加严前端校验，原始字段的必填约束始终保留。
+        required: field.required || configured?.required === true,
         label: resolvePageDisplayViewTitle(configured, field.label),
         displayGroup: group,
         layoutGroup: groupKey,
@@ -1329,8 +1361,9 @@ function isPageDisplayGroupFieldVisible(field: CrudFieldConfig) {
 }
 
 function togglePageDisplayGroup(groupKey: string) {
-  pageDisplayGroupExpandedRows[groupKey] =
-    isPageDisplayGroupExpanded(groupKey) ? 0 : 'all';
+  pageDisplayGroupExpandedRows[groupKey] = isPageDisplayGroupExpanded(groupKey)
+    ? 0
+    : 'all';
 }
 
 function isPageDisplayGroupExpanded(groupKey: string) {
@@ -1401,7 +1434,16 @@ const tableFields = computed(() =>
     ),
 );
 
-const orderedTableFields = computed(() => tableFields.value);
+const orderedTableFields = computed(() => {
+  const order = new Map(
+    orderedTableColumnKeys.value.map((key, index) => [key, index]),
+  );
+  return tableFields.value.toSorted(
+    (left, right) =>
+      (order.get(getTableFieldKey(left)) ?? Number.MAX_SAFE_INTEGER) -
+      (order.get(getTableFieldKey(right)) ?? Number.MAX_SAFE_INTEGER),
+  );
+});
 
 const visibleTableFields = computed(() =>
   orderedTableFields.value.filter(
@@ -1679,23 +1721,48 @@ const draftTableColumnsIndeterminate = computed(
       isDraftTableColumnVisible(String(field.key)),
     ),
 );
+const draftTableColumnFields = computed(() => {
+  const fieldsByKey = new Map(
+    tableFields.value.map((field) => [getTableFieldKey(field), field]),
+  );
+  const keys =
+    draftOrderedTableColumnKeys.value.length > 0
+      ? draftOrderedTableColumnKeys.value
+      : tableFields.value.map((field) => getTableFieldKey(field));
+  return keys
+    .map((key) => fieldsByKey.get(key))
+    .filter((field): field is CrudFieldConfig => Boolean(field));
+});
 
-const canCustomizeTableColumnsLocally = computed(
-  () =>
-    !pageDisplaySettingRecord.value &&
-    canUseLocalTableColumnSettings(
-      pageDisplayConfig.value,
-      tableFields.value.length,
-      Boolean(pageDisplaySettingRecord.value),
-    ),
+const canCustomizeTableColumnsLocally = computed(() =>
+  canUseLocalTableColumnSettings(
+    pageDisplayConfig.value,
+    tableFields.value.length,
+    Boolean(pageDisplaySettingRecord.value),
+  ),
 );
 
 const hasRowActionSlot = computed(() => Boolean(slots['row-actions']));
 const pageDisplaySettingCode = computed(() =>
   resolvePageDisplaySettingCode(pageEntryPath),
 );
+const pageDisplayScriptTestContext = computed(() => {
+  // 脚本工作台复用列表运行时上下文；无列表数据时显式保留空 row/form。
+  const firstRecord = dataSource.value[0] || {};
+  return {
+    form: firstRecord,
+    org: buildOrganizationScriptContext(
+      userStore.userInfo as Record<string, any> | undefined,
+    ),
+    row: firstRecord,
+    tenant: getTenantScriptContext(),
+    user: userStore.userInfo || {},
+  };
+});
 const canManagePageDisplaySettings = computed(
-  () => isSuperAdminUser(userStore.userInfo) && Boolean(pageDisplaySettingCode.value),
+  () =>
+    isSuperAdminUser(userStore.userInfo) &&
+    Boolean(pageDisplaySettingCode.value),
 );
 
 const hasAvailableOperationColumn = computed(() =>
@@ -1795,13 +1862,13 @@ const tableColumns = computed<TableColumnsType>(() => {
 
   if (showActionColumn.value) {
     columns.push({
-      fixed: 'right',
       key: CRUD_OPERATION_COLUMN_KEY,
       title: actionHeader?.title || '操作',
       width: actionWidth,
     });
   }
 
+  // 普通列已完成服务端及本地排序，操作区只追加在最后。
   return columns;
 });
 
@@ -1930,6 +1997,31 @@ const canEdit = computed(
             ]
           : buildCrudOperationPermissions(props.config, 'update')),
     ),
+);
+
+const actionDisplayCandidates = computed<CrudPageDisplayActionCandidate[]>(
+  () => {
+    const candidates: CrudPageDisplayActionCandidate[] = [];
+    if (canRetrieve.value) {
+      candidates.push({
+        key: CRUD_ROW_ACTION_DETAIL_KEY,
+        label: props.config.retrieveLabel || '详情',
+      });
+    }
+    if (canEdit.value) {
+      candidates.push({ key: CRUD_ROW_ACTION_EDIT_KEY, label: '编辑' });
+    }
+    if (canDelete.value) {
+      candidates.push({ key: CRUD_ROW_ACTION_DELETE_KEY, label: '删除' });
+    }
+    for (const action of actionGroups.value.row) {
+      candidates.push({
+        key: getCrudRowActionDisplayKey(action),
+        label: action.label,
+      });
+    }
+    return candidates;
+  },
 );
 
 const autoSearchEnabled = computed(() => {
@@ -2177,8 +2269,12 @@ function updateTableScrollY() {
     const paginationHeight =
       getElementOuterHeight(table?.querySelector('.ant-pagination') || null) ||
       TABLE_PAGINATION_HEIGHT;
-    const chromeHeight = toolbarHeight + toolbarGap + TABLE_SECTION_VERTICAL_PADDING
-      + tableHeaderHeight + paginationHeight;
+    const chromeHeight =
+      toolbarHeight +
+      toolbarGap +
+      TABLE_SECTION_VERTICAL_PADDING +
+      tableHeaderHeight +
+      paginationHeight;
     const availableHeight = section.clientHeight - chromeHeight;
     tableScrollY.value = Math.max(160, availableHeight);
   });
@@ -4224,8 +4320,11 @@ async function handleSubmit() {
   submitting.value = true;
 
   try {
-    const payload: GenericRecord = {};
     const isCreating = editingRecord.value?.[recordKey.value] === undefined;
+    // 新增时先保留页面声明的默认值，避免被展示配置隐藏的必填控制字段丢失。
+    const payload: GenericRecord = isCreating
+      ? { ...props.config.defaultFormValues }
+      : {};
 
     if (editingRecord.value?.[recordKey.value] !== undefined) {
       payload[recordKey.value] = editingRecord.value[recordKey.value];
@@ -4360,6 +4459,14 @@ async function handleSubmit() {
       props.config.complexGroups,
       isCreating ? [] : [recordKey.value, 'optimisticLock'],
     );
+
+    // 展示配置隐藏的新增默认字段仍是服务端契约的一部分，不能被白名单剔除。
+    if (isCreating) {
+      finalPayload = {
+        ...props.config.defaultFormValues,
+        ...finalPayload,
+      };
+    }
 
     if (!isCreating) {
       finalPayload[recordKey.value] = editingRecord.value?.[recordKey.value];
@@ -4651,9 +4758,21 @@ function pruneTableColumnPreference() {
   const nextHiddenKeys = hiddenTableColumnKeys.value.filter((key) =>
     availableKeys.has(key),
   );
+  const nextOrderedKeys = [
+    ...orderedTableColumnKeys.value.filter((key) => availableKeys.has(key)),
+    ...tableFields.value
+      .map((field) => getTableFieldKey(field))
+      .filter((key) => !orderedTableColumnKeys.value.includes(key)),
+  ];
 
-  if (nextHiddenKeys.length !== hiddenTableColumnKeys.value.length) {
+  if (
+    nextHiddenKeys.length !== hiddenTableColumnKeys.value.length ||
+    nextOrderedKeys.some(
+      (key, index) => key !== orderedTableColumnKeys.value[index],
+    )
+  ) {
     hiddenTableColumnKeys.value = nextHiddenKeys;
+    orderedTableColumnKeys.value = nextOrderedKeys;
     return true;
   }
 
@@ -4671,14 +4790,27 @@ function saveTableColumnPreference() {
 
   pruneTableColumnPreference();
 
-  if (hiddenTableColumnKeys.value.length === 0) {
+  const defaultOrder = tableFields.value.map((field) =>
+    getTableFieldKey(field),
+  );
+  if (
+    hiddenTableColumnKeys.value.length === 0 &&
+    orderedTableColumnKeys.value.every(
+      (key, index) => key === defaultOrder[index],
+    )
+  ) {
     clearTableColumnPreference();
     return;
   }
 
   window.localStorage.setItem(
     tableColumnPreferenceStorageKey.value,
-    JSON.stringify(buildTableColumnPreference(hiddenTableColumnKeys.value)),
+    JSON.stringify(
+      buildTableColumnPreference(
+        hiddenTableColumnKeys.value,
+        orderedTableColumnKeys.value,
+      ),
+    ),
   );
   hasStoredTableColumnPreference.value = true;
 }
@@ -4692,7 +4824,9 @@ function clearTableColumnPreference() {
 
 function resetTableColumnPreferenceState() {
   hiddenTableColumnKeys.value = [];
+  orderedTableColumnKeys.value = [];
   draftHiddenTableColumnKeys.value = [];
+  draftOrderedTableColumnKeys.value = [];
   hasStoredTableColumnPreference.value = false;
   columnSettingsSnapshot.value = null;
 }
@@ -4725,6 +4859,7 @@ function loadTableColumnPreference() {
   );
 
   hiddenTableColumnKeys.value = preference.hiddenKeys;
+  orderedTableColumnKeys.value = preference.orderedKeys;
   hasStoredTableColumnPreference.value = preference.hasStoredPreference;
 
   if (preference.invalid) {
@@ -4736,17 +4871,20 @@ function loadTableColumnPreference() {
 function getTableColumnSettingsSnapshot(): TableColumnSettingsSnapshot {
   return {
     hiddenKeys: [...hiddenTableColumnKeys.value],
+    orderedKeys: [...orderedTableColumnKeys.value],
   };
 }
 
 function restoreTableColumnSettings(snapshot: TableColumnSettingsSnapshot) {
   hiddenTableColumnKeys.value = [...snapshot.hiddenKeys];
+  orderedTableColumnKeys.value = [...snapshot.orderedKeys];
   openTableColumnSettings(false);
   updateTableScrollY();
 }
 
 function syncDraftTableColumnSettingsToTable() {
   hiddenTableColumnKeys.value = [...draftHiddenTableColumnKeys.value];
+  orderedTableColumnKeys.value = [...draftOrderedTableColumnKeys.value];
   updateTableScrollY();
 }
 
@@ -4756,10 +4894,34 @@ function openTableColumnSettings(captureSnapshot = true) {
   }
 
   draftHiddenTableColumnKeys.value = [...hiddenTableColumnKeys.value];
+  draftOrderedTableColumnKeys.value = [...orderedTableColumnKeys.value];
+  if (draftOrderedTableColumnKeys.value.length === 0) {
+    draftOrderedTableColumnKeys.value = tableFields.value.map((field) =>
+      getTableFieldKey(field),
+    );
+  }
 }
 
 function isDraftTableColumnVisible(key: string) {
   return !draftHiddenTableColumnKeys.value.includes(String(key));
+}
+
+function moveDraftTableColumn(key: string, offset: -1 | 1) {
+  const index = draftOrderedTableColumnKeys.value.indexOf(key);
+  const targetIndex = index + offset;
+  if (
+    index < 0 ||
+    targetIndex < 0 ||
+    targetIndex >= draftOrderedTableColumnKeys.value.length
+  )
+    return;
+  const next = [...draftOrderedTableColumnKeys.value];
+  const target = next[targetIndex];
+  if (!target) return;
+  next[index] = target;
+  next[targetIndex] = key;
+  draftOrderedTableColumnKeys.value = next;
+  syncDraftTableColumnSettingsToTable();
 }
 
 function setDraftTableColumnVisible(key: string, visible: boolean) {
@@ -4827,6 +4989,9 @@ function cancelTableColumnSettings() {
 
 function resetTableColumns() {
   draftHiddenTableColumnKeys.value = [];
+  draftOrderedTableColumnKeys.value = tableFields.value.map((field) =>
+    getTableFieldKey(field),
+  );
   syncDraftTableColumnSettingsToTable();
   clearTableColumnPreference();
   columnSettingsSnapshot.value = getTableColumnSettingsSnapshot();
@@ -5807,12 +5972,121 @@ function canUseCurrentStatusEvent(record: GenericRecord, eventName: string) {
   );
 }
 
+function isPageDisplayActionVisible(key: string, record: GenericRecord) {
+  const actionConfig = pageDisplayConfig.value.list?.actions?.find(
+    (action) => action.key === key,
+  );
+  const userInfo = userStore.userInfo as Record<string, unknown> | undefined;
+  if (
+    !isRoleVisibilitySatisfied(
+      actionConfig?.visibleRoleCodes,
+      collectUserRoleIdentityValues(userInfo || {}),
+    )
+  )
+    return false;
+  const visible = actionConfig?.visible;
+  if (!visible || visible.mode === 'always') return true;
+  if (visible.mode === 'hidden') return false;
+  try {
+    return Boolean(
+      evaluateJavaScriptExpression(visible.expression || 'true', {
+        org: buildOrganizationScriptContext(
+          userStore.userInfo as Record<string, any> | undefined,
+        ),
+        row: record,
+        tenant: getTenantScriptContext(),
+        user: userStore.userInfo || {},
+      }),
+    );
+  } catch {
+    return false;
+  }
+}
+
+// 操作展示配置按稳定键读取，避免按钮名称改变后丢失配置。
+function getActionDisplayConfig(key: string) {
+  return pageDisplayConfig.value.list?.actions?.find(
+    (action) => action.key === key,
+  );
+}
+
+function getPageDisplayActionLabel(
+  key: string,
+  fallbackLabel: string,
+  record: GenericRecord,
+) {
+  return resolveActionButtonLabel(
+    getActionDisplayConfig(key),
+    fallbackLabel,
+    (expression) =>
+      evaluateJavaScriptExpression(expression, {
+        org: buildOrganizationScriptContext(
+          userStore.userInfo as Record<string, any> | undefined,
+        ),
+        row: record,
+        tenant: getTenantScriptContext(),
+        user: userStore.userInfo || {},
+      }),
+  );
+}
+
+// 所有可配置按钮共用渲染入口，保留各自已有的权限、确认和点击行为。
+function getDisplayRowButtons(record: GenericRecord) {
+  const buttons: Array<{
+    key: string;
+    label: string;
+    danger?: boolean;
+    badge?: number;
+    confirm?: { enabled: boolean; title?: string; text?: string };
+    run: () => unknown;
+  }> = [];
+  if (canShowBuiltinDetail(record))
+    buttons.push({
+      key: CRUD_ROW_ACTION_DETAIL_KEY,
+      label: props.config.retrieveLabel || '详情',
+      run: () => handleRetrieve(record),
+    });
+  if (canShowBuiltinEdit(record))
+    buttons.push({
+      key: CRUD_ROW_ACTION_EDIT_KEY,
+      label: '编辑',
+      run: () => handleEdit(record),
+    });
+  if (canShowBuiltinDelete(record))
+    buttons.push({
+      key: CRUD_ROW_ACTION_DELETE_KEY,
+      label: '删除',
+      danger: true,
+      confirm: { enabled: true, title: '确认删除当前记录吗？' },
+      run: () => handleDelete(record),
+    });
+  for (const action of getRowActions(record))
+    buttons.push({
+      key: getCrudRowActionDisplayKey(action),
+      label: action.label,
+      danger: action.danger,
+      badge: getActionBadgeCount(action, record),
+      confirm: getActionConfirm(action),
+      run: () => runRowAction(action, record),
+    });
+  const defaults = new Map(
+    actionDisplayCandidates.value.map((action, index) => [action.key, index]),
+  );
+  return buttons.toSorted(
+    (left, right) =>
+      (getActionDisplayConfig(left.key)?.order ?? defaults.get(left.key) ?? 0) -
+      (getActionDisplayConfig(right.key)?.order ??
+        defaults.get(right.key) ??
+        0),
+  );
+}
 function getRowActions(record: GenericRecord) {
   return actionGroups.value.row.filter(
     (action) =>
       (!action.permission || hasPermission(action.permission)) &&
       canUseCurrentStatusEvent(record, action.label) &&
       evaluateCrudVisibleOn(action.visibleOn, record, userStore.userInfo) &&
+      isPageDisplayActionVisible(getCrudRowActionDisplayKey(action), record) &&
       (action.visible ? action.visible(record) : true),
   );
 }
@@ -5932,6 +6206,7 @@ function canShowBuiltinEdit(record: GenericRecord) {
     canEdit.value &&
     canMutateCrudRecord(record) &&
     canUseCurrentStatusEvent(record, '编辑') &&
+    isPageDisplayActionVisible(CRUD_ROW_ACTION_EDIT_KEY, record) &&
     (!props.config.editVisibleOn ||
       evaluateCrudVisibleOn(
         props.config.editVisibleOn,
@@ -5998,6 +6273,7 @@ async function updateBooleanEnableField(
 function canShowBuiltinDetail(record: GenericRecord) {
   return (
     canRetrieve.value &&
+    isPageDisplayActionVisible(CRUD_ROW_ACTION_DETAIL_KEY, record) &&
     (!props.config.detailVisibleOn ||
       evaluateCrudVisibleOn(
         props.config.detailVisibleOn,
@@ -6012,6 +6288,7 @@ function canShowBuiltinDelete(record: GenericRecord) {
     canDelete.value &&
     canMutateCrudRecord(record) &&
     canUseCurrentStatusEvent(record, '删除') &&
+    isPageDisplayActionVisible(CRUD_ROW_ACTION_DELETE_KEY, record) &&
     (!props.config.deleteVisibleOn ||
       evaluateCrudVisibleOn(
         props.config.deleteVisibleOn,
@@ -6274,18 +6551,18 @@ watch(
   { immediate: true },
 );
 
-watch([searchExpanded, searchFieldItems, tableFullscreen, listHeightPolicy], updateTableScrollY);
+watch(
+  [searchExpanded, searchFieldItems, tableFullscreen, listHeightPolicy],
+  updateTableScrollY,
+);
 
 watch(tableFields, () => {
   if (!canCustomizeTableColumnsLocally.value) {
     return;
   }
 
-  const changed = pruneTableColumnPreference();
-
-  if (changed) {
-    saveTableColumnPreference();
-  }
+  // 候选条件变化只更新内存；初始化不得覆盖尚未读取的本地偏好。
+  pruneTableColumnPreference();
 });
 
 watch(tableColumnPreferenceStorageKey, () => {
@@ -6308,7 +6585,9 @@ watch(canCustomizeTableColumnsLocally, () => {
     <div
       ref="crudPageRef"
       class="vben-crud-page relative flex h-full flex-col gap-2"
-      :class="{ 'vben-crud-page--all-page-rows': listHeightPolicy.showAllPageRows }"
+      :class="{
+        'vben-crud-page--all-page-rows': listHeightPolicy.showAllPageRows,
+      }"
     >
       <div
         v-if="hasListTableTabs"
@@ -6828,6 +7107,9 @@ watch(canCustomizeTableColumnsLocally, () => {
             >
               <template #content>
                 <div class="w-[380px] max-w-[80vw]">
+                  <p class="text-muted-foreground mb-2 text-xs">
+                    显示与排序仅保存在当前浏览器。
+                  </p>
                   <div class="border-border mb-2 border-b pb-2">
                     <Checkbox
                       :checked="allDraftTableColumnsVisible"
@@ -6842,7 +7124,7 @@ watch(canCustomizeTableColumnsLocally, () => {
                   </div>
                   <div class="flex max-h-96 flex-col overflow-auto">
                     <div
-                      v-for="field in tableFields"
+                      v-for="(field, index) in draftTableColumnFields"
                       :key="field.key"
                       class="vben-crud-column-setting-row"
                     >
@@ -6856,8 +7138,32 @@ watch(canCustomizeTableColumnsLocally, () => {
                             )
                         "
                       >
-                        {{ field.label }}
+                        {{
+                          getPageDisplayHeader(field.key)?.title || field.label
+                        }}
                       </Checkbox>
+                      <span class="ml-auto flex shrink-0 gap-1">
+                        <Button
+                          size="small"
+                          :aria-label="`上移${field.label}`"
+                          :disabled="index === 0"
+                          @click="
+                            moveDraftTableColumn(getTableFieldKey(field), -1)
+                          "
+                          >↑</Button
+                        >
+                        <Button
+                          size="small"
+                          :aria-label="`下移${field.label}`"
+                          :disabled="
+                            index === draftTableColumnFields.length - 1
+                          "
+                          @click="
+                            moveDraftTableColumn(getTableFieldKey(field), 1)
+                          "
+                          >↓</Button
+                        >
+                      </span>
                     </div>
                   </div>
                   <div
@@ -6926,85 +7232,83 @@ watch(canCustomizeTableColumnsLocally, () => {
               ></slot>
             </template>
             <template v-else-if="column.key === '__actions'">
-              <Space :size="4" wrap>
-                <Button
-                  v-if="canShowBuiltinDetail(record)"
-                  size="small"
-                  type="link"
-                  @click="handleRetrieve(record)"
+              <div class="flex flex-wrap items-center gap-1">
+                <template
+                  v-for="action in getDisplayRowButtons(record)"
+                  :key="action.key"
                 >
-                  {{ props.config.retrieveLabel || '详情' }}
-                </Button>
-                <Button
-                  v-if="canShowBuiltinEdit(record)"
-                  size="small"
-                  type="link"
-                  @click="handleEdit(record)"
-                >
-                  编辑
-                </Button>
+                  <Popconfirm
+                    v-if="action.confirm?.enabled"
+                    :description="action.confirm.text"
+                    :title="action.confirm.title"
+                    @confirm="action.run()"
+                  >
+                    <Button
+                      class="vben-crud-configured-action"
+                      :style="
+                        resolveActionButtonStyle(
+                          getActionDisplayConfig(action.key),
+                        )
+                      "
+                      :danger="action.danger"
+                      size="small"
+                      type="link"
+                    >
+                      <span class="vben-crud-action-label">{{
+                        getPageDisplayActionLabel(
+                          action.key,
+                          action.label,
+                          record,
+                        )
+                      }}</span>
+                      <sup
+                        v-if="action.badge"
+                        class="vben-crud-row-action-badge"
+                        >{{ action.badge }}</sup
+                      >
+                    </Button>
+                  </Popconfirm>
+                  <Button
+                    v-else
+                    class="vben-crud-configured-action"
+                    :style="
+                      resolveActionButtonStyle(
+                        getActionDisplayConfig(action.key),
+                      )
+                    "
+                    :danger="action.danger"
+                    size="small"
+                    type="link"
+                    @click="action.run()"
+                  >
+                    <span class="vben-crud-action-label">{{
+                      getPageDisplayActionLabel(
+                        action.key,
+                        action.label,
+                        record,
+                      )
+                    }}</span>
+                    <sup
+                      v-if="action.badge"
+                      class="vben-crud-row-action-badge"
+                      >{{ action.badge }}</sup
+                    >
+                  </Button>
+                </template>
                 <Button
                   v-for="field in getRowJsonSchemaFields(record)"
-                  :key="`json-field-${field.key}`"
+                  :key="field.key"
                   size="small"
                   type="link"
                   @click="handleJsonFieldEdit(record, field)"
+                  >编辑{{ field.label }}</Button
                 >
-                  编辑{{ field.label }}
-                </Button>
                 <slot
                   name="row-actions"
                   :record="record"
                   :reload="loadList"
                 ></slot>
-                <Popconfirm
-                  v-if="canShowBuiltinDelete(record)"
-                  title="确认删除当前记录吗？"
-                  @confirm="handleDelete(record)"
-                >
-                  <Button danger size="small" type="link">删除</Button>
-                </Popconfirm>
-                <template
-                  v-for="action in getRowActions(record)"
-                  :key="action.label"
-                >
-                  <Popconfirm
-                    v-if="getActionConfirm(action).enabled"
-                    :description="getActionConfirm(action).text"
-                    :title="getActionConfirm(action).title"
-                    @confirm="runRowAction(action, record)"
-                  >
-                    <Button :danger="action.danger" size="small" type="link">
-                      <span class="vben-crud-row-action-content">
-                        <span>{{ action.label }}</span>
-                        <span
-                          v-if="getActionBadgeCount(action, record) > 0"
-                          class="vben-crud-row-action-badge"
-                        >
-                          {{ getActionBadgeCount(action, record) }}
-                        </span>
-                      </span>
-                    </Button>
-                  </Popconfirm>
-                  <Button
-                    v-else
-                    :danger="action.danger"
-                    size="small"
-                    type="link"
-                    @click="runRowAction(action, record)"
-                  >
-                    <span class="vben-crud-row-action-content">
-                      <span>{{ action.label }}</span>
-                      <span
-                        v-if="getActionBadgeCount(action, record) > 0"
-                        class="vben-crud-row-action-badge"
-                      >
-                        {{ getActionBadgeCount(action, record) }}
-                      </span>
-                    </span>
-                  </Button>
-                </template>
-              </Space>
+              </div>
             </template>
             <template v-else>
               <pre
@@ -7498,8 +7802,9 @@ watch(canCustomizeTableColumnsLocally, () => {
                     <ChevronDown
                       class="vben-crud-toggle-icon"
                       :class="{
-                        'is-expanded':
-                          isPageDisplayGroupExpanded(field.displayGroup.key),
+                        'is-expanded': isPageDisplayGroupExpanded(
+                          field.displayGroup.key,
+                        ),
                       }"
                       aria-hidden="true"
                     />
@@ -7967,7 +8272,7 @@ watch(canCustomizeTableColumnsLocally, () => {
       v-model:open="actionResultOpen"
       :body-style="modalBodyStyle"
       :footer="null"
-      :title="actionResultTitle"
+      :title="undefined"
       :style="
         actionResultMode === 'showForm'
           ? {
@@ -7985,6 +8290,15 @@ watch(canCustomizeTableColumnsLocally, () => {
           : '720px'
       "
     >
+      <template #title>
+        <div class="flex items-center gap-3">
+          <span>{{ actionResultTitle }}</span>
+          <Checkbox
+            v-if="actionResultMode === 'showForm' && actionResultEntries.length > 10"
+            v-model:checked="actionResultHideEmptyValues"
+          >不展示空值</Checkbox>
+        </div>
+      </template>
       <div
         v-if="actionResultMode === 'showQrCode'"
         class="flex flex-col items-center gap-4 py-4"
@@ -8026,6 +8340,7 @@ watch(canCustomizeTableColumnsLocally, () => {
           !Array.isArray(actionResultData)
         "
         :entries="actionResultEntries"
+        v-model:hide-empty-values="actionResultHideEmptyValues"
       />
       <div
         v-else
@@ -8074,6 +8389,7 @@ watch(canCustomizeTableColumnsLocally, () => {
     <PageDisplaySettingsDrawer
       v-if="pageDisplaySettingCode"
       v-model:open="pageDisplaySettingsOpen"
+      :action-candidates="actionDisplayCandidates"
       :code="pageDisplaySettingCode"
       :domain-object="props.config.domainObject"
       :fields="effectiveFields"
@@ -8082,12 +8398,20 @@ watch(canCustomizeTableColumnsLocally, () => {
       :model-value="pageDisplayConfig"
       :saving="pageDisplaySettingSaving"
       :show-operation-column="hasAvailableOperationColumn"
+      :script-test-context="pageDisplayScriptTestContext"
       @save="savePageDisplaySettings"
     />
   </Page>
 </template>
 
 <style scoped>
+/* 按钮文字继承配置的截断或换行规则，尺寸直接作用在按钮上。 */
+.vben-crud-configured-action :deep(.vben-crud-action-label) {
+  min-width: 0;
+  overflow: inherit;
+  text-overflow: inherit;
+  white-space: inherit;
+}
 .vben-crud-page {
   min-width: 0;
   min-height: 0;
@@ -8108,7 +8432,6 @@ watch(canCustomizeTableColumnsLocally, () => {
   flex: none;
   overflow: visible;
 }
-
 
 .vben-crud-list-tabs-float {
   position: absolute;
