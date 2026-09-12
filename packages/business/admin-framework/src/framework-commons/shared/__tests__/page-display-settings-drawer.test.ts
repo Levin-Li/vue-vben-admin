@@ -67,14 +67,65 @@ describe('页面展示设置抽屉', () => {
 
     getTab('详情表单').click();
     await flushPromises();
-    expect(wrapper.findComponent(PageDisplaySettingsDetailTab).exists()).toBe(true);
+    expect(wrapper.findComponent(PageDisplaySettingsDetailTab).exists()).toBe(
+      true,
+    );
 
     getTab('展示列表').click();
     await flushPromises();
-    expect(wrapper.findComponent(PageDisplaySettingsListTab).exists()).toBe(true);
+    expect(wrapper.findComponent(PageDisplaySettingsListTab).exists()).toBe(
+      true,
+    );
 
     wrapper.unmount();
     document.body.innerHTML = '';
+  });
+
+  it('大字段页签切换会先卸载旧 DOM，再在下一帧挂载目标页签', async () => {
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    });
+    const fields = Array.from({ length: 13 }, (_, index) => ({
+      key: `field_${index}`,
+      label: `字段 ${index}`,
+      search: true,
+      table: true,
+    }));
+    const wrapper = mount(PageDisplaySettingsDrawer, {
+      attachTo: document.body,
+      props: {
+        code: '/clob/V1/LargeFieldSet',
+        detailFields: fields,
+        fields,
+        modelValue: { version: 1 },
+        open: true,
+        saving: false,
+      },
+    });
+    try {
+      await flushPromises();
+      const initialCallbackCount = callbacks.length;
+      getTab('展示列表').click();
+      await nextTick();
+      expect(
+        document.body.querySelector('.page-display-settings-tab-content'),
+      ).toBeNull();
+      expect(callbacks.length).toBeGreaterThan(initialCallbackCount);
+
+      for (const callback of callbacks.slice(initialCallbackCount)) {
+        callback(performance.now());
+      }
+      await flushPromises();
+      expect(wrapper.findComponent(PageDisplaySettingsListTab).exists()).toBe(
+        true,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
   });
 
   it('将脚本测试上下文传给公共脚本工作台', async () => {
@@ -89,7 +140,11 @@ describe('页面展示设置抽屉', () => {
       },
     });
     await flushPromises();
-    expect(wrapper.findComponent({ name: 'ScriptWorkbenchDialog' }).props('testContext')).toMatchObject({
+    expect(
+      wrapper
+        .findComponent({ name: 'ScriptWorkbenchDialog' })
+        .props('testContext'),
+    ).toMatchObject({
       user: { username: '当前用户' },
     });
     wrapper.unmount();
@@ -124,19 +179,29 @@ describe('页面展示设置抽屉', () => {
       expect(document.body.textContent).not.toContain('列值脚本');
       expect(document.body.textContent).not.toContain('标题脚本');
       expect(
-        document
-          .body.querySelector('[data-test="page-display-settings-grid-header"]')
+        document.body
+          .querySelector('[data-test="page-display-settings-grid-header"]')
           ?.classList.contains('bg-primary-background-lightest'),
       ).toBe(true);
       expect(document.body.innerHTML).toContain('sticky left-[86px] z-30');
-      expect(document.body.innerHTML).toContain('page-display-settings-fixed-cell');
-      expect(document.body.innerHTML).toContain('page-display-settings-fixed-body-cell');
-      expect(document.body.innerHTML).toContain('page-display-settings-fixed-control-cell');
-      expect(document.body.innerHTML).toContain('page-display-settings-fixed-header-cell');
-      expect(document.body.innerHTML).toContain('page-display-settings-grid-header');
+      expect(document.body.innerHTML).toContain(
+        'page-display-settings-fixed-cell',
+      );
+      expect(document.body.innerHTML).toContain(
+        'page-display-settings-fixed-body-cell',
+      );
+      expect(document.body.innerHTML).toContain(
+        'page-display-settings-fixed-control-cell',
+      );
+      expect(document.body.innerHTML).toContain(
+        'page-display-settings-fixed-header-cell',
+      );
+      expect(document.body.innerHTML).toContain(
+        'page-display-settings-grid-header',
+      );
       expect(
-        document
-          .body.querySelector('[data-test="page-display-settings-scroll"]')
+        document.body
+          .querySelector('[data-test="page-display-settings-scroll"]')
           ?.classList.contains('overflow-auto'),
       ).toBe(true);
       expect(
@@ -147,6 +212,7 @@ describe('页面展示设置抽屉', () => {
       expect(document.body.textContent).not.toContain('值展示脚本');
       expect(document.body.textContent).toContain('编辑');
       expect(document.body.textContent).toContain('删除');
+      expect(document.body.textContent).not.toContain('操作编辑');
       expect(
         document.body.querySelectorAll(
           '[data-test="page-display-settings-action-row"]',
@@ -160,8 +226,8 @@ describe('页面展示设置抽屉', () => {
         'grid-template-columns: 66px 110px 190px 120px 124px 124px 124px 120px 200px 200px 100px',
       );
       expect(
-        document
-          .body.querySelector('[data-test="page-display-settings-action-row"]')
+        document.body
+          .querySelector('[data-test="page-display-settings-action-row"]')
           ?.classList.contains('gap-x-5'),
       ).toBe(true);
 
@@ -440,7 +506,7 @@ describe('页面展示设置抽屉', () => {
     getTab('展示列表').click();
     await nextTick();
 
-    expect(document.body.textContent).toContain('操作');
+    expect(document.body.textContent).toContain('编辑');
     getUploadButton().click();
     await nextTick();
     expect(wrapper.emitted('save')?.at(-1)?.[0]).toMatchObject({
@@ -819,29 +885,29 @@ describe('页面展示设置抽屉', () => {
   it.each(['新增表单', '编辑表单'] as const)(
     '%s 按稳定字段键去重',
     async (tabName) => {
-    const wrapper = mount(PageDisplaySettingsDrawer, {
-      attachTo: document.body,
-      props: {
-        code: '/clob/V1/DeduplicatedField',
-        detailFields: [],
-        fields: [
-          { key: 'tenantId', label: '归属租户' },
-          { key: 'name', label: '名称' },
-          { key: 'tenantId', label: '归属租户' },
-        ],
-        modelValue: { version: 1 },
-        open: true,
-        saving: false,
-      },
-    });
-    await flushPromises();
-    getTab(tabName).click();
-    await flushPromises();
-    expect(
-      document.body.querySelectorAll('input[placeholder="归属租户"]'),
-    ).toHaveLength(1);
-    wrapper.unmount();
-    document.body.innerHTML = '';
+      const wrapper = mount(PageDisplaySettingsDrawer, {
+        attachTo: document.body,
+        props: {
+          code: '/clob/V1/DeduplicatedField',
+          detailFields: [],
+          fields: [
+            { key: 'tenantId', label: '归属租户' },
+            { key: 'name', label: '名称' },
+            { key: 'tenantId', label: '归属租户' },
+          ],
+          modelValue: { version: 1 },
+          open: true,
+          saving: false,
+        },
+      });
+      await flushPromises();
+      getTab(tabName).click();
+      await flushPromises();
+      expect(
+        document.body.querySelectorAll('input[placeholder="归属租户"]'),
+      ).toHaveLength(1);
+      wrapper.unmount();
+      document.body.innerHTML = '';
     },
   );
 
@@ -852,7 +918,9 @@ describe('页面展示设置抽屉', () => {
     await flushPromises();
     const addVirtual = Array.from(
       document.body.querySelectorAll('button'),
-    ).find((button) => button.textContent?.includes('添加虚拟字段')) as HTMLButtonElement;
+    ).find((button) =>
+      button.textContent?.includes('添加虚拟字段'),
+    ) as HTMLButtonElement;
     addVirtual.click();
     await nextTick();
     const virtualField = document.body.querySelector(
