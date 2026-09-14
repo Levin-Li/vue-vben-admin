@@ -10,7 +10,7 @@ import {
   errorMessageResponseInterceptor,
   RequestClient,
 } from '@vben/request';
-import { useAccessStore } from '@vben/stores';
+import { useAccessStore, useUserStore } from '@vben/stores';
 
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 import { message } from 'ant-design-vue';
@@ -19,6 +19,7 @@ import {
   currentGlobalDomainIds,
   globalDomainContextMultiple,
 } from '../global-domain-context-state';
+import { getCurrentTenantSiteInfo } from '../tenant-site-admin-ui-base-setting';
 import {
   currentGlobalOrgIds,
   currentGlobalOwnerIds,
@@ -37,6 +38,7 @@ import {
 } from './service-resp';
 
 const GLOBAL_CONTEXT_HEADERS = [
+  'X-Oak-Tenant-Id',
   'X-Oak-Domain-Id',
   'X-Oak-Domain-Id-List',
   'X-Oak-Org-Id',
@@ -59,6 +61,16 @@ function setContextHeader(
   headers[multiple ? list : single] = multiple
     ? formatListValue(values)
     : values[0];
+}
+
+function getCurrentRequestTenantId() {
+  // 租户只能来自认证用户或已加载的租户站点，不能信任页面参数与表单值。
+  const userInfo = (useUserStore().userInfo || {}) as Record<string, any>;
+  const tenantSiteInfo = getCurrentTenantSiteInfo();
+  const tenantId = userInfo.tenantId || tenantSiteInfo?.tenantId;
+  return typeof tenantId === 'string' && tenantId.trim()
+    ? tenantId.trim()
+    : undefined;
 }
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
@@ -216,6 +228,10 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
       GLOBAL_CONTEXT_HEADERS.forEach((header) =>
         Reflect.deleteProperty(config.headers, header),
       );
+      const tenantId = getCurrentRequestTenantId();
+      if (tenantId) {
+        config.headers['X-Oak-Tenant-Id'] = tenantId;
+      }
       setContextHeader(
         config.headers,
         'X-Oak-Domain-Id',

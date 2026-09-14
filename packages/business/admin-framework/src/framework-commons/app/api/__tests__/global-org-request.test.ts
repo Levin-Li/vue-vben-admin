@@ -9,7 +9,8 @@ import {
 import { baseRequestClient, requestClient } from '../request';
 
 const mocks = vi.hoisted(() => ({
-  user: { superAdmin: false },
+  tenantSiteInfo: undefined as undefined | { tenantId?: string },
+  user: { superAdmin: false, tenantId: undefined as string | undefined },
   get: vi.fn().mockResolvedValue({ items: [] }),
 }));
 vi.mock('@vben/hooks', () => ({ useAppConfig: () => ({ apiURL: '/api' }) }));
@@ -32,6 +33,9 @@ vi.mock('@vben/request', () => ({
 vi.mock('@levin/admin-framework/framework-commons/app/store', () => ({
   useAuthStore: vi.fn(),
 }));
+vi.mock('../../tenant-site-admin-ui-base-setting', () => ({
+  getCurrentTenantSiteInfo: () => mocks.tenantSiteInfo,
+}));
 vi.mock('ant-design-vue', () => ({ message: {} }));
 vi.mock('../dynamic-verify-code', () => ({
   createDynamicVerifyCodeInterceptor: vi.fn(),
@@ -46,12 +50,27 @@ describe('全局注入请求配置', () => {
   beforeEach(() => {
     setGlobalUserOrgContextEnabled(true);
     mocks.user.superAdmin = false;
+    mocks.user.tenantId = undefined;
+    mocks.tenantSiteInfo = undefined;
     mocks.get.mockClear();
     setCurrentGlobalUserOrgRecord({
       id: 'u',
       kind: 'user',
       name: '用户',
       orgId: 'o',
+    });
+  });
+
+  it('从当前用户或租户站点注入受信任的租户 Header', async () => {
+    mocks.user.tenantId = 'tenant-user';
+    expect((await intercept({ headers: {} })).headers).toMatchObject({
+      'X-Oak-Tenant-Id': 'tenant-user',
+    });
+
+    mocks.user.tenantId = undefined;
+    mocks.tenantSiteInfo = { tenantId: 'tenant-site' };
+    expect((await intercept({ headers: {} })).headers).toMatchObject({
+      'X-Oak-Tenant-Id': 'tenant-site',
     });
   });
 
