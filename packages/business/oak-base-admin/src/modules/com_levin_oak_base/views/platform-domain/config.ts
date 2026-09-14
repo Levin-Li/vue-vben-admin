@@ -119,6 +119,7 @@ export const platformDomainPageCrudConfig: CrudPageConfig = {
     {
       handler: (record: Record<string, any>) =>
         platformDomainService.publish({ id: record.id }),
+      flowFormFields: [],
       label: '发布',
       permission: buildApiMethodPermissions(platformDomainService, 'publish'),
       visible: (record: Record<string, any>) => canFirePlatformDomainEvent(record, '发布'),
@@ -126,6 +127,7 @@ export const platformDomainPageCrudConfig: CrudPageConfig = {
     {
       handler: (record: Record<string, any>) =>
         platformDomainService.offline({ id: record.id }),
+      flowFormFields: [],
       label: '下线',
       permission: buildApiMethodPermissions(platformDomainService, 'offline'),
       visible: (record: Record<string, any>) => canFirePlatformDomainEvent(record, '下线'),

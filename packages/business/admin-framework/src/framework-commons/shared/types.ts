@@ -330,6 +330,11 @@ export interface CrudRowAction {
   /** 稳定操作标识；列表/批量操作必须声明后才能配置显示脚本，旧行操作保留原标签兜底规则。 */
   displayKey?: string;
   failAction?: string;
+  /**
+   * 简单流程事件表单的三态声明：null 继承完整事件表单、空数组表示无表单需确认、非空数组表示已有专用表单。
+   * 未声明时不是简单流程事件，不参与流程确认兜底。
+   */
+  flowFormFields?: null | string[];
   handler: (payload: any) => Promise<any>;
   label: string;
   opRefTargetListName?: string;

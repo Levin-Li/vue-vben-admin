@@ -142,7 +142,7 @@ import {
   buildCrudComplexGroupInitialState,
   buildCrudComplexGroupPayload,
 } from './crud-complex-groups';
-import { buildCrudConfirmConfig } from './crud-confirm';
+import { buildNoFormFlowConfirmConfig } from './crud-confirm';
 import {
   canMutateCrudRecord as canMutateEditableCrudRecord,
   shouldApplyEditableSearchDefault,
@@ -6232,7 +6232,7 @@ function getDisplayRowButtons(record: GenericRecord) {
       label: action.label,
       danger: action.danger,
       badge: getActionBadgeCount(action, record),
-      confirm: getActionConfirm(action),
+      confirm: getActionConfirm(action, record),
       run: () => runRowAction(action, record),
     });
   const defaults = new Map(
@@ -6287,8 +6287,17 @@ function getBatchActions() {
   );
 }
 
-function getActionConfirm(action: CrudRowAction) {
-  return buildCrudConfirmConfig(action.confirmText, action.confirmTitle);
+function getActionConfirm(
+  action: CrudRowAction,
+  record: GenericRecord | GenericRecord[],
+) {
+  return buildNoFormFlowConfirmConfig({
+    confirmText: action.confirmText,
+    confirmTitle: action.confirmTitle,
+    eventName: action.label,
+    flowFormFields: action.flowFormFields,
+    recordTitle: getActionRecordTitle(record),
+  });
 }
 
 function getActionRecordTitle(record: GenericRecord | GenericRecord[]) {
@@ -7180,9 +7189,9 @@ watch(canCustomizeTableColumnsLocally, () => {
             </Button>
             <template v-for="action in getBatchActions()" :key="action.label">
               <Popconfirm
-                v-if="getActionConfirm(action).enabled"
-                :description="getActionConfirm(action).text"
-                :title="getActionConfirm(action).title"
+                v-if="getActionConfirm(action, selectedRows).enabled"
+                :description="getActionConfirm(action, selectedRows).text"
+                :title="getActionConfirm(action, selectedRows).title"
                 @confirm="runRowAction(action, selectedRows)"
               >
                 <Button :danger="action.danger">

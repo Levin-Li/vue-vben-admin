@@ -231,31 +231,37 @@ export const noticePageCrudConfig: CrudPageConfig = {
   rowActions: [
     {
       handler: buildNoticeAction('auditCommit'),
+      flowFormFields: [],
       label: '提交审核',
       permission: buildNoticeActionPermission('auditCommit'),
     },
     {
       handler: buildNoticeAction('auditReject'),
+      flowFormFields: ['_operatorAction'],
       label: '审核拒绝',
       permission: buildNoticeActionPermission('auditReject'),
     },
     {
       handler: buildNoticeAction('auditApproved'),
+      flowFormFields: [],
       label: '审核通过',
       permission: buildNoticeActionPermission('auditApproved'),
     },
     {
       handler: buildNoticeAction('publish'),
+      flowFormFields: [],
       label: '发布',
       permission: buildNoticeActionPermission('publish'),
     },
     {
       handler: buildNoticeAction('offline'),
+      flowFormFields: [],
       label: '下线',
       permission: buildNoticeActionPermission('offline'),
     },
     {
       handler: buildNoticeAction('archived'),
+      flowFormFields: [],
       label: '存档',
       permission: buildNoticeActionPermission('archived'),
     },

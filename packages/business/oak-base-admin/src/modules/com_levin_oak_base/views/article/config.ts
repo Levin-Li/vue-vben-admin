@@ -358,31 +358,37 @@ export const articlePageCrudConfig: CrudPageConfig = {
   rowActions: [
     {
       handler: buildArticleAction('auditCommit'),
+      flowFormFields: [],
       label: '提交审核',
       permission: buildArticleActionPermission('auditCommit'),
     },
     {
       handler: buildArticleAction('auditReject'),
+      flowFormFields: ['_operatorAction'],
       label: '审核拒绝',
       permission: buildArticleActionPermission('auditReject'),
     },
     {
       handler: buildArticleAction('auditApproved'),
+      flowFormFields: [],
       label: '审核通过',
       permission: buildArticleActionPermission('auditApproved'),
     },
     {
       handler: buildArticleAction('publish'),
+      flowFormFields: [],
       label: '发布',
       permission: buildArticleActionPermission('publish'),
     },
     {
       handler: buildArticleAction('offline'),
+      flowFormFields: [],
       label: '下线',
       permission: buildArticleActionPermission('offline'),
     },
     {
       handler: buildArticleAction('archived'),
+      flowFormFields: [],
       label: '存档',
       permission: buildArticleActionPermission('archived'),
     },

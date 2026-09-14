@@ -253,31 +253,37 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
     },
     {
       handler: buildSimplePageAction('auditCommit'),
+      flowFormFields: [],
       label: '提交审核',
       permission: buildSimplePageActionPermission('auditCommit'),
     },
     {
       handler: buildSimplePageAction('auditReject'),
+      flowFormFields: ['_operatorAction'],
       label: '审核拒绝',
       permission: buildSimplePageActionPermission('auditReject'),
     },
     {
       handler: buildSimplePageAction('auditApproved'),
+      flowFormFields: [],
       label: '审核通过',
       permission: buildSimplePageActionPermission('auditApproved'),
     },
     {
       handler: buildSimplePageAction('publish'),
+      flowFormFields: [],
       label: '发布',
       permission: buildSimplePageActionPermission('publish'),
     },
     {
       handler: buildSimplePageAction('offline'),
+      flowFormFields: [],
       label: '下线',
       permission: buildSimplePageActionPermission('offline'),
     },
     {
       handler: buildSimplePageAction('archived'),
+      flowFormFields: [],
       label: '存档',
       permission: buildSimplePageActionPermission('archived'),
     },
