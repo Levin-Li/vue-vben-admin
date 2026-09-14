@@ -13,6 +13,7 @@ export interface UserOrgSelectorRecord {
   orgId?: string;
   orgName?: string;
   raw?: Record<string, any>;
+  tenantId?: string;
   type?: string;
 }
 

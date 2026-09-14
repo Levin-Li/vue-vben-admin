@@ -9,8 +9,7 @@ import {
 import { baseRequestClient, requestClient } from '../request';
 
 const mocks = vi.hoisted(() => ({
-  tenantSiteInfo: undefined as undefined | { tenantId?: string },
-  user: { superAdmin: false, tenantId: undefined as string | undefined },
+  user: { superAdmin: false },
   get: vi.fn().mockResolvedValue({ items: [] }),
 }));
 vi.mock('@vben/hooks', () => ({ useAppConfig: () => ({ apiURL: '/api' }) }));
@@ -33,9 +32,6 @@ vi.mock('@vben/request', () => ({
 vi.mock('@levin/admin-framework/framework-commons/app/store', () => ({
   useAuthStore: vi.fn(),
 }));
-vi.mock('../../tenant-site-admin-ui-base-setting', () => ({
-  getCurrentTenantSiteInfo: () => mocks.tenantSiteInfo,
-}));
 vi.mock('ant-design-vue', () => ({ message: {} }));
 vi.mock('../dynamic-verify-code', () => ({
   createDynamicVerifyCodeInterceptor: vi.fn(),
@@ -50,8 +46,6 @@ describe('全局注入请求配置', () => {
   beforeEach(() => {
     setGlobalUserOrgContextEnabled(true);
     mocks.user.superAdmin = false;
-    mocks.user.tenantId = undefined;
-    mocks.tenantSiteInfo = undefined;
     mocks.get.mockClear();
     setCurrentGlobalUserOrgRecord({
       id: 'u',
@@ -61,17 +55,28 @@ describe('全局注入请求配置', () => {
     });
   });
 
-  it('从当前用户或租户站点注入受信任的租户 Header', async () => {
-    mocks.user.tenantId = 'tenant-user';
+  it('仅按所选组织或用户的唯一所属租户注入租户 Header', async () => {
+    setCurrentGlobalUserOrgRecord({
+      id: 'org-a',
+      kind: 'org',
+      name: '组织A',
+      tenantId: 'tenant-a',
+    });
     expect((await intercept({ headers: {} })).headers).toMatchObject({
-      'X-Oak-Tenant-Id': 'tenant-user',
+      'X-Oak-Tenant-Id': 'tenant-a',
     });
 
-    mocks.user.tenantId = undefined;
-    mocks.tenantSiteInfo = { tenantId: 'tenant-site' };
-    expect((await intercept({ headers: {} })).headers).toMatchObject({
-      'X-Oak-Tenant-Id': 'tenant-site',
-    });
+    setCurrentGlobalUserOrgRecords([], false);
+    expect((await intercept({ headers: {} })).headers['X-Oak-Tenant-Id']).toBeUndefined();
+
+    setCurrentGlobalUserOrgRecords(
+      [
+        { id: 'org-a', kind: 'org', name: '组织A', tenantId: 'tenant-a' },
+        { id: 'org-b', kind: 'org', name: '组织B', tenantId: 'tenant-b' },
+      ],
+      true,
+    );
+    expect((await intercept({ headers: {} })).headers['X-Oak-Tenant-Id']).toBeUndefined();
   });
 
   it.each(['get', 'post', 'put', 'delete'])(

@@ -608,6 +608,7 @@ function toRecord(
     orgId: node.orgId,
     orgName: node.orgName,
     raw: node.raw,
+    tenantId: node.tenantId,
     type: node.type,
   };
 }

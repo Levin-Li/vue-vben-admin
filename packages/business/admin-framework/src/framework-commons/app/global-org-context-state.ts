@@ -26,6 +26,7 @@ function normalizeSelectedRecord(value: unknown) {
     id,
     kind: record.kind,
     orgId,
+    tenantId: normalizeId(record.tenantId),
   } as UserOrgSelectorRecord;
 }
 
@@ -71,6 +72,16 @@ export const currentGlobalOwnerIds = computed(() => [
       .map((record) => record.id),
   ),
 ]);
+export const currentGlobalTenantId = computed(() => {
+  const tenantIds = [
+    ...new Set(
+      selectedRecordsRef.value
+        .map((record) => normalizeId(record.tenantId))
+        .filter(Boolean),
+    ),
+  ];
+  return tenantIds.length === 1 ? tenantIds[0] : undefined;
+});
 export const currentGlobalOrgId = computed(
   () => selectedRecordRef.value?.orgId,
 );
@@ -198,7 +209,8 @@ export function setCurrentGlobalUserOrgRecords(
       (record, index) =>
         record.id === next[index]?.id &&
         record.kind === next[index]?.kind &&
-        record.orgId === next[index]?.orgId,
+        record.orgId === next[index]?.orgId &&
+        record.tenantId === next[index]?.tenantId,
     )
   ) {
     return false;

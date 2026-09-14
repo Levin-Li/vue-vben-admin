@@ -125,6 +125,7 @@ export function normalizeOrgSelectorRecord(
     kind: 'org',
     name,
     raw: item,
+    tenantId: String(item.tenantId ?? '').trim() || undefined,
     type: getRawOrgType(item),
   };
 }
@@ -150,6 +151,8 @@ export function normalizeUserSelectorRecord(
     orgId: String(item.orgId ?? org?.id ?? ''),
     orgName: String(item.orgName ?? org?.name ?? ''),
     raw: item,
+    tenantId:
+      String(item.tenantId ?? org?.tenantId ?? '').trim() || undefined,
     type: item.type ?? item.userType ?? item.typeCode,
   };
 }
