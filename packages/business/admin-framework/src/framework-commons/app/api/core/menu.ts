@@ -2,11 +2,11 @@ import type { RouteRecordStringComponent } from '@vben/types';
 
 import {
   collectAdminModuleBackendRouteMappings,
-  toPathRouteName,
 } from '@levin/admin-framework';
 
 import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 
+import { toPathRouteName } from '../../../page-registry';
 import { buildMenuRoutes } from './menu-route';
 import { rbacService } from '../rbac-service';
 

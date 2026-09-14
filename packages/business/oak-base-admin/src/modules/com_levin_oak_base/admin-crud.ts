@@ -424,6 +424,7 @@ export const oakBaseAdminResourceViewMap: Record<
   Demo: () => import('./views/demo/index.vue'),
   Dict: () => import('./views/dict/index.vue'),
   Domain: () => import('./views/domain/index.vue'),
+  PlatformDomain: () => import('./views/platform-domain/index.vue'),
   EContract: () => import('./views/electronic-contract/index.vue'),
   EInvoice: () => import('./views/electronic-invoice/index.vue'),
   EInvoiceProviderConnection: () =>
@@ -485,6 +486,7 @@ export const oakBaseAdminResourceViewMap: Record<
 const menuGroups = [
   [
     '用户&权限',
+    'lucide:shield-check',
     [
       'User',
       'Role',
@@ -498,6 +500,7 @@ const menuGroups = [
   ],
   [
     '租户&域名',
+    'lucide:building-2',
     [
       'Tenant',
       'TenantSite',
@@ -508,9 +511,10 @@ const menuGroups = [
       'TenantCustomMenu',
     ],
   ],
-  ['应用&接入', ['ClientApp', 'EmailRelayRoute']],
+  ['应用&接入', 'lucide:app-window', ['ClientApp', 'EmailRelayRoute']],
   [
     '支付&交易',
+    'lucide:wallet-cards',
     [
       'PayOrder',
       'PayChannel',
@@ -525,11 +529,16 @@ const menuGroups = [
       'EInvoiceProviderConnection',
     ],
   ],
-  ['客户&伙伴', ['Customer', 'Partner', 'LegalSubject']],
-  ['内容&资源', ['Article', 'ArticleChannel', 'Brand', 'FileRes', 'Notice']],
-  ['基础&设置', ['Address', 'OpenArea', 'Dict', 'Setting', 'JobPost']],
+  ['客户&伙伴', 'lucide:handshake', ['Customer', 'Partner', 'LegalSubject']],
+  ['内容&资源', 'lucide:folder-open', ['Article', 'ArticleChannel', 'Brand', 'FileRes', 'Notice']],
+  [
+    '基础&设置',
+    'lucide:settings-2',
+    ['Address', 'OpenArea', 'Dict', 'Setting', 'JobPost', 'PlatformDomain'],
+  ],
   [
     '开发&工具',
+    'lucide:code-2',
     [
       'OnlineCodeGen',
       'SimpleForm',
@@ -549,9 +558,10 @@ const menuGroups = [
       'I18nRes',
     ],
   ],
-  ['个人&中心', ['MySetting', 'MyMessages']],
+  ['个人&中心', 'lucide:circle-user-round', ['MySetting', 'MyMessages']],
   [
     '运维&审计',
+    'lucide:clipboard-check',
     [
       'AccessLog',
       'AuditReport',
@@ -587,7 +597,7 @@ export function createOakBaseAdminCrudRoutes(
       },
       name: toPathRouteName(rootPath),
       path: rootPath,
-      children: menuGroups.map<RouteRecordRaw>(([title, resources]) => ({
+      children: menuGroups.map<RouteRecordRaw>(([title, icon, resources]) => ({
         children: resources.flatMap((resource) => {
           const item = oakBaseAdminCrudResources.find(
             (candidate) => candidate.resource === resource,
@@ -617,7 +627,7 @@ export function createOakBaseAdminCrudRoutes(
             path,
           };
         }),
-        meta: { icon: 'lucide:folder-tree', title },
+        meta: { icon, title },
         name: toPathRouteName(`${rootPath}/groups/${title}`),
         path: `groups/${title}`,
       })),

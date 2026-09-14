@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import {
+  oakBaseAdminCrudResources,
+  oakBaseAdminResourceViewMap,
+} from '../admin-crud';
 import { oakBaseAdminBackendRouteMappings } from '../backend-route-mappings';
 import { createOakBaseAdminModule } from '../module';
 import { oakBaseAdminRoutes } from '../routes';
@@ -15,6 +19,57 @@ function flattenCrudRoutes(children: any[] | undefined): any[] {
 }
 
 describe('oak base admin routes', () => {
+  it('默认将所有可生成 CRUD 页面唯一归入十个带语义图标的业务分组', () => {
+    const module = createOakBaseAdminModule();
+    const root = module.routes?.[0];
+    const expectedGroupIcons = {
+      '用户&权限': 'lucide:shield-check',
+      '租户&域名': 'lucide:building-2',
+      '应用&接入': 'lucide:app-window',
+      '支付&交易': 'lucide:wallet-cards',
+      '客户&伙伴': 'lucide:handshake',
+      '内容&资源': 'lucide:folder-open',
+      '基础&设置': 'lucide:settings-2',
+      '开发&工具': 'lucide:code-2',
+      '个人&中心': 'lucide:circle-user-round',
+      '运维&审计': 'lucide:clipboard-check',
+    };
+
+    // 页面路径是 CRUD 资源的稳定唯一标识，按映射表验证所有默认页面均被纳入业务分组。
+    const groupedCrudRoutes = flattenCrudRoutes(root?.children);
+    const expectedPaths = oakBaseAdminCrudResources
+      .filter((resource) => oakBaseAdminResourceViewMap[resource.resource])
+      .map((resource) => `/clob/V1/${resource.routePath || resource.resource}`)
+      .sort();
+    const actualPaths = groupedCrudRoutes.map((route) => route.path).sort();
+
+    expect(actualPaths).toEqual(expectedPaths);
+    expect(new Set(actualPaths)).toHaveLength(actualPaths.length);
+    expect(
+      root?.children?.filter((route) => route.meta?.crudResource),
+    ).toHaveLength(0);
+
+    for (const [title, icon] of Object.entries(expectedGroupIcons)) {
+      const group = root?.children?.find((route) => route.meta?.title === title);
+      expect(group?.meta?.icon).toBe(icon);
+      expect(group?.children).toBeTruthy();
+    }
+  });
+
+  it('平台领域页面位于基础设置二级分组且保留稳定路由地址', () => {
+    const module = createOakBaseAdminModule();
+    const root = module.routes?.[0];
+    const group = root?.children?.find((route) => route.meta?.title === '基础&设置');
+    const page = group?.children?.find(
+      (route) => route.meta?.crudResource === 'PlatformDomain',
+    );
+
+    expect(page?.path).toBe('/clob/V1/PlatformDomain');
+    expect(page?.name).toBe('_clob_V1_PlatformDomain');
+    expect(page?.component).toBeTypeOf('function');
+    expect(root?.children?.filter((route) => route.meta?.title === '基础&设置')).toHaveLength(1);
+  });
+
   it('访问控制测试页可独立直达且有完整页面映射', () => {
     const normal = createOakBaseAdminModule();
     const explicit = createOakBaseAdminModule({ crud: false });
