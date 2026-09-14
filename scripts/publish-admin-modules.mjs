@@ -90,6 +90,18 @@ const publishUserConfig = resolve(frontendRoot, '.npmrc.publish.tmp');
 const publishLockPath = resolve(frontendRoot, '.frontend-package-publish.lock');
 const packageTarballDir = resolve(outputDir, '.publish-tarballs');
 
+if (mode === 'publish') {
+  const registryUrl = String(registry || '').replace(/\/$/, '');
+  const invalidRegistry = /(?:npm-public|npmmirror)/i.test(registryUrl);
+  if (!registryUrl || invalidRegistry) {
+    throw new Error(
+      '发布必须显式使用 Nexus hosted npm 仓库，不能使用安装镜像或 npm-public。' +
+        '请执行：NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ ' +
+        'NPM_AUTH_FROM_MAVEN=true MAVEN_SERVER_ID=dist-repo pnpm run publish:admin-modules -- --publish',
+    );
+  }
+}
+
 function getRegistryAuthLine(registryUrl) {
   const url = new URL(registryUrl);
   const path = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;

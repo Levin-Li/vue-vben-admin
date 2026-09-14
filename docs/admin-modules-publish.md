@@ -68,10 +68,10 @@ pnpm run publish:admin-modules
 
 ### 本项目默认私服发现
 
-发布前先按“显式配置优先、本地项目配置兜底”的顺序确认私服信息，避免每次重新摸索：
+发布前必须显式设置发布仓库；项目 `.npmrc` 的默认镜像只用于安装，发布器不会再把它作为兜底：
 
 1. 优先使用命令行环境变量：`NPM_REGISTRY`、`NPM_CONFIG_REGISTRY` 或 `npm_config_registry`。
-2. 没有显式环境变量时，发布脚本读取前端工程 `.npmrc` 的 `registry=`。
+2. 未设置发布仓库、或使用 `npm-public` / `npmmirror` 时，发布器直接失败并输出标准命令。
 3. 使用 token 发布时，优先读取 `NPM_TOKEN`，其次读取 `NODE_AUTH_TOKEN`。
 4. 本项目 Nexus 同时承载 Maven 和 NPM 私服时，优先复用 Maven 本地认证：设置 `NPM_AUTH_FROM_MAVEN=true`，并通过 `MAVEN_SERVER_ID` 指定 `~/.m2/settings.xml` 中的 `<server><id>`，默认值是 `dist-repo`。
 
