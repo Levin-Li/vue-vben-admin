@@ -1,6 +1,6 @@
 // 由框架包元数据生成脚本生成，记录此包本次构建或打包时间。
 export const packageVersion = {
-  buildTime: '2026-09-14T04:49:08.433Z',
+  buildTime: '2026-09-14T06:05:17.410Z',
   name: '@vben/access',
-  version: '5.6.11',
+  version: '5.6.12',
 };

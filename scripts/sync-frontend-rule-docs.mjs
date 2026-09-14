@@ -37,11 +37,11 @@ export function isReferenceDocument(path) {
     )
   )
     return false;
-  if (
-    /(?:^|[\\/])(?:deploy|deployment|部署)(?:[\\/]|$)/i.test(path) ||
-    /(?:deploy|deployment|部署)(?:[.\-_]|$)/i.test(basename(path))
-  )
-    return false;
+  const normalized = path.replaceAll('\\', '/');
+  if (normalized.includes('/openspec/'))
+    return /\/(?:design|proposal)\.md$/i.test(normalized) || /\/specs\/.*\.md$/i.test(normalized);
+  const name = basename(path);
+  return /(?:设计|方案|实现|模块说明|功能说明|使用手册|用户手册|使用指南|开发指南|开发规范|发布包文档分类与交付规范)/.test(name);
   if (
     /(?:secrets?|credentials?|passwords?|tokens?|\.env|\.pem|\.key)(?:[.\-_]|$)/i.test(
       basename(path),
