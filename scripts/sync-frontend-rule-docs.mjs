@@ -96,6 +96,16 @@ export function syncPackageDocuments(
   const manifest = JSON.parse(
     readFileSync(resolve(packageRoot, 'package.json'), 'utf8'),
   );
+  const publishFiles = new Set(manifest.files || []);
+  publishFiles.add('docs');
+  const normalizedPublishFiles = [...publishFiles];
+  if (JSON.stringify(manifest.files || []) !== JSON.stringify(normalizedPublishFiles)) {
+    manifest.files = normalizedPublishFiles;
+    writeFileSync(
+      resolve(packageRoot, 'package.json'),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+    );
+  }
   const docs = resolve(packageRoot, 'docs');
   const reference = resolve(docs, 'project-reference');
   const sources = collectReferenceDocuments(root, adminRoot);
