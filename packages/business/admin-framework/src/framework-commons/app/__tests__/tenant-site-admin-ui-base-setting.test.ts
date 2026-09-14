@@ -77,6 +77,34 @@ describe('tenant-site-admin-ui-base-setting', () => {
     });
   });
 
+  it('uses light mode when tenant site does not provide a valid server setting', () => {
+    mocks.store.userInfo = { superAdmin: false };
+
+    const unsubscribe = registerTenantSiteAdminUiBaseSettingListener();
+
+    emitApiRequestEvent({
+      config: {
+        url: '/api/rbac/tenantSiteInfo',
+      },
+      data: {
+        uiExInfo: {},
+      },
+    });
+
+    unsubscribe();
+
+    expect(mocks.updatePreferences).toHaveBeenNthCalledWith(1, {
+      theme: {
+        mode: 'light',
+      },
+    });
+    expect(mocks.updatePreferences).toHaveBeenNthCalledWith(2, {
+      app: {
+        enablePreferences: true,
+      },
+    });
+  });
+
   it('keeps preferences entry for super admin when server setting is preferred', () => {
     mocks.store.userInfo = { superAdmin: true };
 
@@ -288,10 +316,14 @@ describe('tenant-site-admin-ui-base-setting', () => {
 
     unsubscribe();
 
-    expect(mocks.updatePreferences).toHaveBeenCalledTimes(1);
-    expect(mocks.updatePreferences).toHaveBeenCalledWith({
+    expect(mocks.updatePreferences).toHaveBeenNthCalledWith(1, {
+      theme: {
+        mode: 'light',
+      },
+    });
+    expect(mocks.updatePreferences).toHaveBeenNthCalledWith(2, {
       app: {
-        enablePreferences: false,
+        enablePreferences: true,
       },
     });
   });

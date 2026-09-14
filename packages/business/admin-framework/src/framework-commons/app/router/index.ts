@@ -31,7 +31,7 @@ const router = createRouter({
 
 const resetRoutes = () => resetStaticRoutes(router, routes);
 
-// 创建路由守卫
-createRouterGuard(router);
+// 创建路由守卫；登录页进入时通过同一重置函数清理前一账号的动态访问状态。
+createRouterGuard(router, resetRoutes);
 
 export { resetRoutes, router };

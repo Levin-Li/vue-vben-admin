@@ -12,6 +12,7 @@ import {
   resolveRestorablePath,
 } from '@levin/admin-framework/framework-commons/app/router/routes';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
+import { clearPreviousUserAccessState } from '@levin/admin-framework/framework-commons/app/store/user-access-session';
 
 import { generateAccess } from './access';
 
@@ -63,7 +64,7 @@ function setupCommonGuard(router: Router) {
  * 权限访问守卫配置
  * @param router
  */
-function setupAccessGuard(router: Router) {
+function setupAccessGuard(router: Router, resetRoutes: () => void) {
   router.beforeEach(async (to, from) => {
     const accessStore = useAccessStore();
     const userStore = useUserStore();
@@ -78,6 +79,14 @@ function setupAccessGuard(router: Router) {
             preferences.app.defaultHomePath,
         );
       }
+
+      // 进入登录页意味着会话已经失效或正在切换账号。先撤销旧账号的动态路由、
+      // 菜单和权限缓存，避免挑战登录完成后新账号沿用旧账号的访问限制。
+      if (to.path === LOGIN_PATH) {
+        clearPreviousUserAccessState(accessStore, resetRoutes);
+        userStore.setUserInfo(null);
+      }
+
       return true;
     }
 
@@ -169,11 +178,11 @@ function setupAccessGuard(router: Router) {
  * 项目守卫配置
  * @param router
  */
-function createRouterGuard(router: Router) {
+function createRouterGuard(router: Router, resetRoutes: () => void) {
   /** 通用 */
   setupCommonGuard(router);
   /** 权限访问 */
-  setupAccessGuard(router);
+  setupAccessGuard(router, resetRoutes);
 }
 
 export { createRouterGuard };

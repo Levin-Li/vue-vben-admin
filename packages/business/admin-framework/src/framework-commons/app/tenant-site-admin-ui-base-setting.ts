@@ -101,6 +101,19 @@ function applyTenantSiteAdminUiBaseSetting(
       >)
     : undefined;
 
+  // 没有有效服务端设置时，不能保留框架默认或历史本地的黑夜模式。
+  // 显式回退浅色仅处理“无配置”分支；服务端设置存在但选择不优先时仍保留用户偏好。
+  if (!isRecord(setting)) {
+    latestPreferServerSetting = false;
+    updatePreferences({
+      theme: {
+        mode: 'light',
+      },
+    });
+    syncPreferencesEntryVisibility();
+    return;
+  }
+
   if (!preferServerSetting) {
     latestPreferServerSetting = false;
     syncPreferencesEntryVisibility();
