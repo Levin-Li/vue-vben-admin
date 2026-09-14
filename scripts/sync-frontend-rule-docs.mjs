@@ -38,12 +38,10 @@ export function isReferenceDocument(path) {
   )
     return false;
   if (
-    /verification|live-test|test-report|security-audit|frontend-registration-verification|release-inventory|pack-manifest/i.test(
-      basename(path),
-    )
+    /(?:^|[\\/])(?:deploy|deployment|部署)(?:[\\/]|$)/i.test(path) ||
+    /(?:deploy|deployment|部署)(?:[.\-_]|$)/i.test(basename(path))
   )
     return false;
-  if (/(?:^|[\\/])(?:release|releases)[\\/]\d{8}/i.test(path)) return false;
   if (
     /(?:secrets?|credentials?|passwords?|tokens?|\.env|\.pem|\.key)(?:[.\-_]|$)/i.test(
       basename(path),
