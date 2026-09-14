@@ -107,7 +107,7 @@ export function syncPackageDocuments(
   const usageDocument = manifest.name === '@levin/admin-framework'
     ? '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)。'
     : manifest.name === '@levin/oak-base-admin'
-      ? '具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)。'
+      ? '具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。'
       : '';
   function output(path, content) {
     const expected = Buffer.isBuffer(content) ? content : Buffer.from(content);
