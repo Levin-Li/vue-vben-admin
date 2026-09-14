@@ -13,8 +13,6 @@ import {
 import { useAccessStore, useUserStore } from '@vben/stores';
 
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
-import { message } from 'ant-design-vue';
-
 import {
   currentGlobalDomainIds,
   globalDomainContextMultiple,
@@ -27,6 +25,7 @@ import {
   isGlobalUserOrgContextEnabled,
 } from '../global-org-context-state';
 import { createDynamicVerifyCodeInterceptor } from './dynamic-verify-code';
+import { showApiErrorMessage } from './api-error-message';
 import { createMultipartRequestInterceptor } from './multipart-request';
 import { emitApiRequestEvent } from './request-events';
 import {
@@ -172,7 +171,7 @@ function applyCommonInterceptors(client: RequestClient) {
         return;
       }
 
-      message.error(getUnifiedErrorMessage(msg, error));
+      showApiErrorMessage(getUnifiedErrorMessage(msg, error));
     }),
   );
 }
