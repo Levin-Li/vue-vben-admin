@@ -133,6 +133,21 @@ describe('crud form layout', () => {
     expect(source).toContain('class="w-full"');
   });
 
+  it('uses one bounded scrolling popup policy for query and form organization trees', () => {
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'utf8',
+    );
+
+    expect(
+      source.match(/popup-class-name="vben-crud-org-tree-select-dropdown"/g),
+    ).toHaveLength(2);
+    expect(source.match(/:list-height="640"/g)).toHaveLength(2);
+    expect(source.match(/:virtual="false"/g)).toHaveLength(2);
+    expect(source).toContain('max-width: min(480px, calc(100vw - 32px));');
+    expect(source).toContain('white-space: nowrap;');
+  });
+
   it('caps the default detail modal while preserving an explicit page override', () => {
     const helpers = readFileSync(
       'packages/business/admin-framework/src/framework-commons/shared/config-helpers.ts',

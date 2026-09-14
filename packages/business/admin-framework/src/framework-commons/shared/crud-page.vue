@@ -6951,6 +6951,10 @@ watch(canCustomizeTableColumnsLocally, () => {
                 :tree-data="getFieldOptions(item.field)"
                 tree-default-expand-all
                 tree-node-filter-prop="label"
+                popup-class-name="vben-crud-org-tree-select-dropdown"
+                :dropdown-match-select-width="false"
+                :list-height="640"
+                :virtual="false"
                 @blur="() => restoreRemoteFieldOptions(item.field)"
                 @dropdown-visible-change="
                   (open) => handleSelectDropdownVisibleChange(item.field, open)
@@ -8134,6 +8138,10 @@ watch(canCustomizeTableColumnsLocally, () => {
                 :tree-data="getFieldOptions(field)"
                 tree-default-expand-all
                 tree-node-filter-prop="label"
+                popup-class-name="vben-crud-org-tree-select-dropdown"
+                :dropdown-match-select-width="false"
+                :list-height="640"
+                :virtual="false"
                 @blur="() => restoreRemoteFieldOptions(field)"
                 @dropdown-visible-change="
                   (open) => handleSelectDropdownVisibleChange(field, open)
@@ -8955,6 +8963,31 @@ watch(canCustomizeTableColumnsLocally, () => {
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+/* 通用组织树选择器：长组织名称保持单行，弹层达到视口边界后由候选区承担滚动。 */
+:global(.vben-crud-org-tree-select-dropdown) {
+  width: max-content !important;
+  max-width: min(480px, calc(100vw - 32px));
+}
+
+:global(.vben-crud-org-tree-select-dropdown .ant-select-tree-list-holder) {
+  max-height: min(640px, calc(100vh - 32px));
+  overflow: auto !important;
+}
+
+:global(
+  .vben-crud-org-tree-select-dropdown .ant-select-tree-list-holder-inner
+) {
+  display: inline-block;
+  min-width: 100%;
+  width: max-content;
+}
+
+:global(
+  .vben-crud-org-tree-select-dropdown .ant-select-tree-node-content-wrapper
+) {
+  white-space: nowrap;
 }
 
 .vben-crud-action-log-tooltip-content {

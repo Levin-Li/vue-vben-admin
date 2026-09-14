@@ -263,8 +263,8 @@ describe('UserOrgSelector', () => {
     expect(defaultWrapper.get('.user-org-selector__node-title').text()).toBe(
       '总部',
     );
-    expect(
-      textOnlyWrapper.find('.user-org-selector__node-icon').exists(),
-    ).toBe(false);
+    expect(textOnlyWrapper.find('.user-org-selector__node-icon').exists()).toBe(
+      false,
+    );
   });
 });

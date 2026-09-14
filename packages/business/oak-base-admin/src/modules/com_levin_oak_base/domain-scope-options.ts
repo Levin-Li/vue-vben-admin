@@ -1,12 +1,12 @@
 import type { SelectOption } from '@levin/admin-framework';
 
 import { oakBaseGet } from './api/_module';
-import { platformDomainService } from './api/platform-domain-service';
+import { loadAuthorizedPlatformDomainList } from './api/rbac-service';
 
 const SETTING_CODE = '全局平台领域选择器';
 
 /**
- * 领域候选统一沿用 PlatformDomain/list：仅取远程配置类型前缀下已发布的领域。
+ * 领域候选由 RbacController 从缓存读取并按当前用户领域权限过滤；前端配置只用于收窄类型范围。
  * 列表接口仍由服务端按当前操作者的数据范围过滤，前端不维护第二套授权接口。
  */
 export async function loadDomainScopeOptions(
@@ -26,14 +26,10 @@ export async function loadDomainScopeOptions(
     return [];
   }
 
-  const result: any = await platformDomainService.list({
-    ...(keyword.trim() ? { containsName: keyword.trim() } : {}),
-    pageIndex: 1,
-    pageSize: keyword.trim() ? 50 : 10,
-    startsWithType: typePrefix,
-    state: 'Published',
+  const items = await loadAuthorizedPlatformDomainList({
+    ...(keyword.trim() ? { keyword: keyword.trim() } : {}),
+    typePrefix,
   });
-  const items = result?.items || result?.records || result || [];
   return Array.isArray(items)
     ? items.map((domain) => ({
         label: String(domain.name || domain.id),

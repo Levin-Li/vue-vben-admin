@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, ref } from 'vue';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -7,7 +7,7 @@ import GlobalOrgSelector from '../global-org-selector.vue';
 
 vi.mock('@vben/stores', () => ({
   useUserStore: () => ({
-    userInfo: {},
+    userInfo: { admin: true },
   }),
 }));
 
@@ -25,8 +25,8 @@ vi.mock('../../shared/user-org-selector.vue', () => ({
 }));
 
 vi.mock('../global-org-context-state', () => ({
-  currentGlobalUserOrgRecord: undefined,
-  setCurrentGlobalUserOrgRecord: vi.fn(),
+  currentGlobalUserOrgRecords: ref([]),
+  setCurrentGlobalUserOrgRecords: vi.fn(),
 }));
 
 vi.mock('../global-org-selector-runtime', () => ({

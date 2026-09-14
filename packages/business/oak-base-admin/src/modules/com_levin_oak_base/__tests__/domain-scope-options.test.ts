@@ -4,12 +4,12 @@ import { loadDomainScopeOptions } from '../domain-scope-options';
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
-  list: vi.fn(),
+  authorizedList: vi.fn(),
 }));
 
 vi.mock('../api/_module', () => ({ oakBaseGet: mocks.get }));
-vi.mock('../api/platform-domain-service', () => ({
-  platformDomainService: { list: mocks.list },
+vi.mock('../api/rbac-service', () => ({
+  loadAuthorizedPlatformDomainList: mocks.authorizedList,
 }));
 
 describe('loadDomainScopeOptions', () => {
@@ -19,45 +19,39 @@ describe('loadDomainScopeOptions', () => {
     mocks.get.mockResolvedValue({ valueContent: {} });
 
     await expect(loadDomainScopeOptions()).resolves.toEqual([]);
-    expect(mocks.list).not.toHaveBeenCalled();
+    expect(mocks.authorizedList).not.toHaveBeenCalled();
   });
 
   it('远程配置不存在时降级为空候选', async () => {
     mocks.get.mockRejectedValue(new Error('setting not found'));
 
     await expect(loadDomainScopeOptions()).resolves.toEqual([]);
-    expect(mocks.list).not.toHaveBeenCalled();
+    expect(mocks.authorizedList).not.toHaveBeenCalled();
   });
 
-  it('按配置前缀和已发布状态使用原列表接口', async () => {
+  it('按配置前缀使用当前用户已授权领域接口', async () => {
     mocks.get.mockResolvedValue({ valueContent: { type: 'payment.' } });
-    mocks.list.mockResolvedValue({
-      items: [{ id: 'domain-1', name: '支付领域' }],
-    });
+    mocks.authorizedList.mockResolvedValue([
+      { id: 'domain-1', name: '支付领域' },
+    ]);
 
     await expect(loadDomainScopeOptions()).resolves.toEqual([
       { label: '支付领域', value: 'domain-1' },
     ]);
-    expect(mocks.list).toHaveBeenCalledWith({
-      pageIndex: 1,
-      pageSize: 10,
-      startsWithType: 'payment.',
-      state: 'Published',
+    expect(mocks.authorizedList).toHaveBeenCalledWith({
+      typePrefix: 'payment.',
     });
   });
 
   it('输入名称时查询前五十条匹配领域', async () => {
     mocks.get.mockResolvedValue({ valueContent: { type: 'payment.' } });
-    mocks.list.mockResolvedValue({ items: [] });
+    mocks.authorizedList.mockResolvedValue([]);
 
     await loadDomainScopeOptions('支付');
 
-    expect(mocks.list).toHaveBeenCalledWith({
-      containsName: '支付',
-      pageIndex: 1,
-      pageSize: 50,
-      startsWithType: 'payment.',
-      state: 'Published',
+    expect(mocks.authorizedList).toHaveBeenCalledWith({
+      keyword: '支付',
+      typePrefix: 'payment.',
     });
   });
 });

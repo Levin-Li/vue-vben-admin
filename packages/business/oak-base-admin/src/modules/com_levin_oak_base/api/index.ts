@@ -39,6 +39,7 @@ export * from './partner-service';
 export * from './platform-domain-service';
 export * from './rbac-permission-item-service';
 export * from './role-service';
+export * from './rbac-service';
 export * from './scheduled-log-service';
 export * from './scheduled-task-service';
 export * from './service-plugin-service';
