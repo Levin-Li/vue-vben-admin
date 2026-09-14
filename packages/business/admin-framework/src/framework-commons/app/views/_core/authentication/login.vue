@@ -1,5 +1,8 @@
 <script lang="ts" setup>
 import type { AuthApi } from '@levin/admin-framework/framework-commons/app/api';
+
+import type { BehaviorCaptchaChallenge } from './behavior-captcha';
+
 import {
   computed,
   onActivated,
@@ -11,9 +14,16 @@ import {
   watch,
 } from 'vue';
 
-import { $t } from '@vben/locales';
 import { IconifyIcon } from '@vben/icons';
+import { $t } from '@vben/locales';
 
+import {
+  getLoginOptionsApi,
+  getVerifyCodeApi,
+  oauthService,
+  startPasswordLoginApi,
+} from '@levin/admin-framework/framework-commons/app/api';
+import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 import {
   Alert,
   Button,
@@ -26,25 +36,15 @@ import {
 } from 'ant-design-vue';
 
 import {
-  getLoginOptionsApi,
-  getVerifyCodeApi,
-  oauthService,
-  startPasswordLoginApi,
-} from '@levin/admin-framework/framework-commons/app/api';
-import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
-
-import { useAuthBrand } from './auth-brand';
-import BehaviorCaptcha from './behavior-captcha.vue';
-import { resolveDefaultOAuthProviderIcon } from './oauth-provider-icons';
-import {
   isSupportedBehaviorCaptchaMode,
   normalizeBehaviorCaptchaChallenge,
-  type BehaviorCaptchaChallenge,
 } from './behavior-captcha';
+import BehaviorCaptcha from './behavior-captcha.vue';
 import {
   extractReturnedVerifyCode,
   resolveContactVerifyCodeType,
 } from './login-verify-type';
+import { resolveDefaultOAuthProviderIcon } from './oauth-provider-icons';
 
 defineOptions({ name: 'Login' });
 
@@ -217,7 +217,7 @@ const oauthWaitProgress = computed(() =>
   ),
 );
 
-function unwrapOAuthPayload<T extends Record<string, any> | null | undefined>(
+function unwrapOAuthPayload<T extends null | Record<string, any> | undefined>(
   payload: T,
 ) {
   if (!payload || typeof payload !== 'object') {
@@ -321,7 +321,7 @@ function supportsOauthLogin(platform: Record<string, any>) {
 
 function normalizeOAuthPlatform(
   platform: Record<string, any>,
-): OAuthLoginPlatform | null {
+): null | OAuthLoginPlatform {
   const code = resolvePlatformCode(platform);
   if (!code || !supportsOauthLogin(platform)) {
     return null;
@@ -867,9 +867,9 @@ async function completePasswordLogin(verifyCodeValue?: unknown) {
     message.warning(
       isPasswordMfaMode.value
         ? '请输入 MFA 验证码'
-        : isPasswordHmiMode.value
+        : (isPasswordHmiMode.value
           ? '请先完成行为验证码'
-          : '请输入验证码',
+          : '请输入验证码'),
     );
     return;
   }
@@ -969,7 +969,9 @@ async function startPasswordLogin(
     }
 
     passwordVerifyDialogOpen.value = true;
-  } catch {
+  } catch (error: any) {
+    // 登录挑战失败必须给出可见反馈，不能静默清空状态导致用户无法判断验证码为何未展示。
+    message.error(error?.message || '创建登录验证码挑战失败');
     resetPasswordLoginChallenge();
   } finally {
     verifyAssetLoading.value = false;
@@ -1013,7 +1015,7 @@ async function loadOAuthPlatforms() {
     if (!loginPageActive || version !== loginOptionsVersion) return;
     oauthPlatforms.value = rawPlatforms
       .map((platform) => normalizeOAuthPlatform(platform))
-      .filter((platform): platform is OAuthLoginPlatform => Boolean(platform));
+      .filter(Boolean);
   } catch (error: any) {
     if (!loginPageActive || version !== loginOptionsVersion) return;
     oauthPlatforms.value = [];
@@ -1357,12 +1359,15 @@ onBeforeUnmount(() => {
           登录账号
         </label>
         <Input
-          v-model:value="formState.account"
+          :value="formState.account"
           autocomplete="username"
           placeholder="请输入手机号或邮箱"
           size="large"
           @update:value="
-            () => passwordVerifyDialogOpen && resetPasswordLoginChallenge()
+            (value) => {
+              formState.account = value;
+              passwordVerifyDialogOpen && resetPasswordLoginChallenge();
+            }
           "
         />
       </div>
@@ -1488,7 +1493,7 @@ onBeforeUnmount(() => {
     </div>
 
     <Modal
-      :cancel-text="'取消等待'"
+      cancel-text="取消等待"
       :closable="!oauthTransactionExchanging"
       :confirm-loading="oauthTransactionExchanging"
       :footer="null"
@@ -1534,7 +1539,7 @@ onBeforeUnmount(() => {
             <div
               class="bg-primary h-full rounded-full transition-all duration-1000"
               :style="{ width: `${oauthWaitProgress}%` }"
-            />
+            ></div>
           </div>
           <div class="text-muted-foreground text-center text-xs">
             剩余等待时间 {{ formatOAuthRemainingTime() }}
@@ -1547,7 +1552,7 @@ onBeforeUnmount(() => {
     </Modal>
 
     <Modal
-      :cancel-text="'取消'"
+      cancel-text="取消"
       :closable="!authStore.loginLoading"
       :confirm-loading="authStore.loginLoading"
       :ok-button-props="{

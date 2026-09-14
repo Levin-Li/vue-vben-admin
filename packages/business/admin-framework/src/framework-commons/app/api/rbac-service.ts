@@ -454,11 +454,9 @@ export class RbacService extends RequestService {
     ignored: true,
   })
   async getVerifyCode(params: RbacApi.VerifyCodeParams) {
-    return baseRequestClient.get<RbacApi.VerifyCodeResult>(
+    return baseRequestClient.post<RbacApi.VerifyCodeResult>(
       this.buildRequestPath('getVerifyCode'),
-      {
-        params,
-      },
+      params,
     );
   }
 
