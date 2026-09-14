@@ -15,6 +15,22 @@ function flattenCrudRoutes(children: any[] | undefined): any[] {
 }
 
 describe('oak base admin routes', () => {
+  it('访问控制测试页可独立直达且有完整页面映射', () => {
+    const normal = createOakBaseAdminModule();
+    const explicit = createOakBaseAdminModule({ crud: false });
+    for (const routes of [normal.routes?.[0]?.children, explicit.routes]) {
+      const route = routes?.find((item) => item.path === '/clob/V1/aclTest');
+      expect(route?.name).toBe('_clob_V1_aclTest');
+      expect(route?.meta?.crudResource).toBeUndefined();
+      expect(route?.component).toBeTypeOf('function');
+    }
+    expect(oakBaseAdminBackendRouteMappings).toContainEqual(expect.objectContaining({
+      path: '/clob/V1/aclTest',
+      onlyRequireAuthenticated: true,
+      sourceFilePath: 'modules/com_levin_oak_base/views/acl-test/index.vue',
+      viewPath: '/system/com_levin_oak_base/acl-test/index.vue',
+    }));
+  });
   it('审计管理页面位于基础模块运维分组且具有可用本地映射', () => {
     const module = createOakBaseAdminModule();
     const root = module.routes?.[0];

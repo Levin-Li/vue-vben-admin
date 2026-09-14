@@ -119,6 +119,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '根域名管理',
   },
   {
+    icon: 'lucide:network',
+    name: 'PlatformDomain',
+    resource: 'PlatformDomain',
+    title: '平台领域',
+  },
+  {
     icon: 'lucide:file-signature',
     name: 'EContract',
     resource: 'EContract',
@@ -367,12 +373,6 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '租户管理',
   },
   {
-    icon: 'lucide:panels-top-left',
-    name: 'TenantApp',
-    resource: 'TenantApp',
-    title: '租户应用',
-  },
-  {
     icon: 'lucide:monitor',
     name: 'TenantSite',
     resource: 'TenantSite',
@@ -475,7 +475,6 @@ export const oakBaseAdminResourceViewMap: Record<
   SimplePage: () => import('./views/simple-page/index.vue'),
   SocialUser: () => import('./views/social-user/index.vue'),
   Tenant: () => import('./views/tenant/index.vue'),
-  TenantApp: () => import('./views/tenant-app/index.vue'),
   TenantSite: () => import('./views/tenant-site/index.vue'),
   TrafficControlRule: () => import('./views/traffic-control-rule/index.vue'),
   UrlExAcl: () => import('./views/url-ex-acl/index.vue'),
@@ -509,7 +508,7 @@ const menuGroups = [
       'TenantCustomMenu',
     ],
   ],
-  ['应用&接入', ['ClientApp', 'TenantApp', 'EmailRelayRoute']],
+  ['应用&接入', ['ClientApp', 'EmailRelayRoute']],
   [
     '支付&交易',
     [

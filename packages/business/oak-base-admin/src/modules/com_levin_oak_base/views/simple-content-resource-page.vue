@@ -8,7 +8,7 @@ import type {
   SimpleContentResourceService,
 } from './simple-content-resource';
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { useUserStore } from '@vben/stores';
 
@@ -91,6 +91,9 @@ const contentReload = ref<ReloadList | null>(null);
 const scriptTestBodyText = ref('{}');
 const scriptTestHeadersText = ref(toPrettyJson(getDefaultScriptHeaders()));
 const scriptTestLoading = ref(false);
+const scriptTestInitialDraftFingerprint = ref('');
+const scriptTestPassedDraftFingerprint = ref('');
+const scriptTestStatus = ref<'failed' | 'passed' | 'untested'>('untested');
 const scriptTestMethod = ref('POST');
 const scriptTestPathVariablesText = ref('{}');
 const scriptTestPath = ref('');
@@ -266,6 +269,30 @@ const canShowScriptTestPanel = computed(
     contentEditorMeta.value.kind === 'code' &&
     isTopSuperAdminUser(userStore.userInfo),
 );
+const currentScriptDraftFingerprint = computed(() =>
+  buildScriptDraftFingerprint(contentRecord.value),
+);
+const hasCurrentScriptTestPassed = computed(
+  () =>
+    scriptTestStatus.value === 'passed' &&
+    Boolean(scriptTestPassedDraftFingerprint.value) &&
+    scriptTestPassedDraftFingerprint.value ===
+      currentScriptDraftFingerprint.value,
+);
+
+// 初始草稿不显示结论；用户改动任一保存字段后，必须重新执行模拟测试。
+watch(currentScriptDraftFingerprint, (fingerprint) => {
+  if (
+    !scriptTestInitialDraftFingerprint.value ||
+    (fingerprint === scriptTestInitialDraftFingerprint.value &&
+      scriptTestStatus.value === 'untested')
+  ) {
+    return;
+  }
+
+  scriptTestPassedDraftFingerprint.value = '';
+  scriptTestStatus.value = 'failed';
+});
 
 function getRecordTitle(record: GenericRecord) {
   return String(record.name || record.title || record.id || '当前记录').trim();
@@ -868,6 +895,9 @@ function initScriptWorkbench(record: GenericRecord) {
   scriptTestTimeoutMs.value = Number(setting.timeoutMs || 3000);
   scriptEditorTab.value = 'code';
   scriptWorkbenchTab.value = 'input';
+  scriptTestInitialDraftFingerprint.value = currentScriptDraftFingerprint.value;
+  scriptTestPassedDraftFingerprint.value = '';
+  scriptTestStatus.value = 'untested';
 }
 
 function getSupportEventsByCurrentStatus(record: GenericRecord) {
@@ -966,6 +996,9 @@ function closeContentEditor() {
   contentValue.value = '';
   contentReload.value = null;
   scriptTestResult.value = '';
+  scriptTestInitialDraftFingerprint.value = '';
+  scriptTestPassedDraftFingerprint.value = '';
+  scriptTestStatus.value = 'untested';
 }
 
 async function submitContent() {
@@ -1028,6 +1061,16 @@ function parseJsonInput(text: string, defaultValue: any) {
 }
 
 function buildScriptSetting(record: GenericRecord) {
+  const setting = createScriptSetting(record);
+
+  // 将经参数定义生成的 Schema 回填为格式化文本，保持后续保存和展示一致。
+  scriptTestRequestSchemaText.value = toPrettyJson(setting.requestSchema);
+  scriptTestResponseSchemaText.value = toPrettyJson(setting.responseSchema);
+
+  return setting;
+}
+
+function createScriptSetting(record: GenericRecord) {
   const setting = parseSettingObject(record.setting);
   const requestParams = scriptRequestParams.value
     .map((item) => serializeScriptParam(item, true))
@@ -1047,9 +1090,6 @@ function buildScriptSetting(record: GenericRecord) {
   const query = parseJsonInput(scriptTestQueryText.value, {});
   const pathVariables = parseJsonInput(scriptTestPathVariablesText.value, {});
   const body = parseJsonInput(scriptTestBodyText.value, {});
-
-  scriptTestRequestSchemaText.value = toPrettyJson(requestSchema);
-  scriptTestResponseSchemaText.value = toPrettyJson(responseSchema);
 
   return {
     ...setting,
@@ -1071,6 +1111,41 @@ function buildScriptSetting(record: GenericRecord) {
       ...(Array.isArray(setting.examples) ? setting.examples.slice(1) : []),
     ],
   };
+}
+
+function buildScriptDraftFingerprint(record: GenericRecord | null) {
+  if (!record) {
+    return '';
+  }
+
+  try {
+    // 保存资格绑定实际提交载荷，避免测试成功后修改任一持久化字段仍可直接保存。
+    return JSON.stringify({
+      content: serializeSimpleContentValue(
+        contentEditorMeta.value,
+        contentValue.value,
+      ),
+      methods: scriptTestMethod.value,
+      path: scriptTestPath.value,
+      setting: createScriptSetting(record),
+    });
+  } catch {
+    // 无法解析的测试配置不能沿用此前通过状态，使用原始输入确保它与旧草稿不匹配。
+    return JSON.stringify({
+      content: contentValue.value,
+      method: scriptTestMethod.value,
+      path: scriptTestPath.value,
+      requestSchema: scriptTestRequestSchemaText.value,
+      responseSchema: scriptTestResponseSchemaText.value,
+      headers: scriptTestHeadersText.value,
+      query: scriptTestQueryText.value,
+      pathVariables: scriptTestPathVariablesText.value,
+      body: scriptTestBodyText.value,
+      requestParams: scriptRequestParams.value,
+      responseParams: scriptResponseParams.value,
+      timeoutMs: scriptTestTimeoutMs.value,
+    });
+  }
 }
 
 function substituteScriptTestPathVariables(
@@ -1232,6 +1307,7 @@ async function testScriptContent() {
     ));
     setting = buildScriptSetting(record);
   } catch (error) {
+    scriptTestStatus.value = 'failed';
     const reason = error instanceof Error ? error.message : error;
     scriptWorkbenchTab.value = 'result';
     appendScriptConsole({
@@ -1271,11 +1347,18 @@ async function testScriptContent() {
     closeScriptTestInputDialog();
 
     if (responseBody?.success === false) {
+      scriptTestPassedDraftFingerprint.value = '';
+      scriptTestStatus.value = 'failed';
       message.warning('脚本测试执行失败');
     } else {
-      message.success('脚本测试执行完成');
+      // 只有运行时明确成功的当前草稿，才能解锁最终保存。
+      scriptTestPassedDraftFingerprint.value = currentScriptDraftFingerprint.value;
+      scriptTestStatus.value = 'passed';
+      message.success('模拟测试通过，现可保存');
     }
   } catch (error) {
+    scriptTestPassedDraftFingerprint.value = '';
+    scriptTestStatus.value = 'failed';
     console.error(error);
     scriptWorkbenchTab.value = 'result';
     appendScriptConsole(
@@ -1420,6 +1503,9 @@ async function submitRequireAuthorizations() {
   <Modal
     :body-style="{ maxHeight: 'calc(100vh - 220px)', overflow: 'auto' }"
     :confirm-loading="contentSubmitting"
+    :ok-button-props="{
+      disabled: canShowScriptTestPanel && !hasCurrentScriptTestPassed,
+    }"
     destroy-on-close
     :mask-closable="false"
     :open="contentOpen"
@@ -1498,8 +1584,19 @@ async function submitRequireAuthorizations() {
                     type="primary"
                     @click="testScriptContent"
                   >
-                    运行测试
+                    模拟测试
                   </Button>
+                  <span
+                    v-if="scriptTestStatus !== 'untested'"
+                    :class="
+                      hasCurrentScriptTestPassed
+                        ? 'simple-script-test-status--passed'
+                        : 'simple-script-test-status--failed'
+                    "
+                    class="simple-script-test-status"
+                  >
+                    {{ hasCurrentScriptTestPassed ? '模拟测试已通过' : '模拟测试未通过' }}
+                  </span>
                 </Space>
 
                 <Tabs v-model:active-key="scriptWorkbenchTab" size="small">
@@ -1775,11 +1872,12 @@ async function submitRequireAuthorizations() {
       <div class="simple-script-test-dialog-actions">
         <Button @click="closeScriptTestInputDialog">取消</Button>
         <Button
+          class="simple-script-run-button"
           :loading="scriptTestLoading"
           type="primary"
           @click="testScriptContent"
         >
-          测试
+          模拟测试
         </Button>
       </div>
     </div>
@@ -2001,6 +2099,19 @@ async function submitRequireAuthorizations() {
 
 .simple-script-run-button {
   flex: 0 0 auto;
+}
+
+.simple-script-test-status {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.simple-script-test-status--passed {
+  color: #389e0d;
+}
+
+.simple-script-test-status--failed {
+  color: #cf1322;
 }
 
 .simple-script-test-panel {

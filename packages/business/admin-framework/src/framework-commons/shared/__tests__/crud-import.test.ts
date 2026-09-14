@@ -4,6 +4,7 @@ import {
   buildDefaultImportMappings,
   buildImportRecords,
   chunkImportRecords,
+  getMissingRequiredImportMappings,
   parseCsvRows,
   parseSpreadsheetText,
   parseXlsxBuffer,
@@ -172,6 +173,32 @@ describe('crud import utilities', () => {
         { message: 'amount: 找不到来源列：金额', rowIndex: 1 },
       ],
     });
+  });
+
+  it('accepts a default value for a required field without a source column', () => {
+    const sheet = { headers: ['名称'], rows: [['Oak']] };
+    const mappings = [
+      { fieldKey: 'name', header: '名称', required: true },
+      { defaultValue: '默认租户', fieldKey: 'tenantName', required: true },
+    ];
+
+    expect(getMissingRequiredImportMappings(sheet, mappings)).toEqual([]);
+    expect(buildImportRecords(sheet, mappings)).toEqual({
+      records: [{ name: 'Oak', tenantName: '默认租户' }],
+      rowErrors: [],
+    });
+  });
+
+  it('finds required fields missing both source columns and defaults', () => {
+    expect(
+      getMissingRequiredImportMappings(
+        { headers: ['名称'], rows: [['Oak']] },
+        [
+          { fieldKey: 'name', header: '名称', required: true },
+          { fieldKey: 'tenantName', required: true },
+        ],
+      ),
+    ).toMatchObject([{ fieldKey: 'tenantName' }]);
   });
 
   it('chunks records by 2000 by default', () => {

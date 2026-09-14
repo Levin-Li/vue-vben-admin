@@ -3,8 +3,6 @@
  */
 import type { RequestClientOptions } from '@vben/request';
 
-import type { GlobalUserOrgInjectionRules } from '../global-org-context-state';
-
 import { useAppConfig } from '@vben/hooks';
 import { preferences } from '@vben/preferences';
 import {
@@ -12,13 +10,23 @@ import {
   errorMessageResponseInterceptor,
   RequestClient,
 } from '@vben/request';
-import { useAccessStore, useUserStore } from '@vben/stores';
+import { useAccessStore } from '@vben/stores';
 
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 import { message } from 'ant-design-vue';
 
-import { applyCurrentGlobalUserOrgContextToParams } from '../global-org-context-state';
+import {
+  currentGlobalDomainIds,
+  globalDomainContextMultiple,
+} from '../global-domain-context-state';
+import {
+  currentGlobalOrgIds,
+  currentGlobalOwnerIds,
+  globalOrgContextMultiple,
+  isGlobalUserOrgContextEnabled,
+} from '../global-org-context-state';
 import { createDynamicVerifyCodeInterceptor } from './dynamic-verify-code';
+import { createMultipartRequestInterceptor } from './multipart-request';
 import { emitApiRequestEvent } from './request-events';
 import {
   getHttpAuthorizationMessage,
@@ -28,11 +36,29 @@ import {
   unwrapServiceResp,
 } from './service-resp';
 
-declare module '@vben/request' {
-  interface AxiosRequestConfig {
-    __globalUserOrgContext?: GlobalUserOrgInjectionRules;
-    __skipGlobalUserOrgContext?: boolean;
-  }
+const GLOBAL_CONTEXT_HEADERS = [
+  'X-Oak-Domain-Id',
+  'X-Oak-Domain-Id-List',
+  'X-Oak-Org-Id',
+  'X-Oak-Org-Id-List',
+  'X-Oak-Owner-Id',
+  'X-Oak-Owner-Id-List',
+] as const;
+
+function setContextHeader(
+  headers: Record<string, any>,
+  single: string,
+  list: string,
+  values: string[],
+  multiple: boolean,
+  formatListValue: (values: string[]) => string = JSON.stringify,
+) {
+  Reflect.deleteProperty(headers, single);
+  Reflect.deleteProperty(headers, list);
+  if (values.length === 0) return;
+  headers[multiple ? list : single] = multiple
+    ? formatListValue(values)
+    : values[0];
 }
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
@@ -67,6 +93,7 @@ function getUnifiedErrorMessage(msg: string, error: any) {
 }
 
 function applyCommonInterceptors(client: RequestClient) {
+  client.addRequestInterceptor(createMultipartRequestInterceptor());
   client.addResponseInterceptor(createDynamicVerifyCodeInterceptor(client));
 
   client.addResponseInterceptor({
@@ -186,12 +213,34 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 
       config.headers.Authorization = formatToken(accessStore.accessToken);
       config.headers['Accept-Language'] = preferences.app.locale;
-      config.params = applyCurrentGlobalUserOrgContextToParams(config.params, {
-        ...config.__globalUserOrgContext,
-        skip: config.__skipGlobalUserOrgContext === true,
-        user: useUserStore().userInfo ?? {},
-        request: { url: config.url, method: config.method?.toUpperCase() },
-      });
+      GLOBAL_CONTEXT_HEADERS.forEach((header) =>
+        Reflect.deleteProperty(config.headers, header),
+      );
+      setContextHeader(
+        config.headers,
+        'X-Oak-Domain-Id',
+        'X-Oak-Domain-Id-List',
+        currentGlobalDomainIds.value,
+        globalDomainContextMultiple.value,
+      );
+      if (isGlobalUserOrgContextEnabled()) {
+        setContextHeader(
+          config.headers,
+          'X-Oak-Org-Id',
+          'X-Oak-Org-Id-List',
+          currentGlobalOrgIds.value,
+          globalOrgContextMultiple.value,
+          (values) => values.join(','),
+        );
+        setContextHeader(
+          config.headers,
+          'X-Oak-Owner-Id',
+          'X-Oak-Owner-Id-List',
+          currentGlobalOwnerIds.value,
+          globalOrgContextMultiple.value,
+          (values) => values.join(','),
+        );
+      }
       return config;
     },
   });

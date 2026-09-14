@@ -23,6 +23,7 @@ const userTypeOptionsLoader = buildDictOptionsLoader(
 const limitDimensionOptions = [
   { label: '规则', value: 'Rule' },
   { label: '租户', value: 'Tenant' },
+  { label: '域名', value: 'Domain' },
   { label: '用户', value: 'User' },
   { label: 'IP', value: 'Ip' },
   { label: '路径', value: 'Path' },
@@ -272,7 +273,7 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
       label: '限流维度',
       layoutGroup: 'conditions',
       layoutOrder: 120,
-      help: '系统始终包含规则ID；选择Header或Param时只使用已配置且命中的请求头或参数。本字段内任一命中。',
+      help: '所选维度组合为一份计数，始终包含规则ID。域名按已识别站点分别计数；不同维度需各自限额时，请分别建规则。',
       options: limitDimensionOptions,
       span: 2,
       table: true,

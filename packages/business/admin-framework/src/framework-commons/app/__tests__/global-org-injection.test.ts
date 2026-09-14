@@ -4,10 +4,12 @@ import {
   applyCurrentGlobalUserOrgContextToParams as inject,
   setCurrentGlobalOrgId,
   setCurrentGlobalUserOrgRecord,
+  setGlobalUserOrgContextEnabled,
 } from '../global-org-context-state';
 
 describe('全局参数条件注入', () => {
   beforeEach(() => {
+    setGlobalUserOrgContextEnabled(true);
     setCurrentGlobalUserOrgRecord({
       id: 'u',
       kind: 'user',

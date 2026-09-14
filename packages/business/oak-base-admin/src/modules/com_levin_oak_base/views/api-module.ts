@@ -285,8 +285,6 @@ export const jobPostOptionsLoader = buildModuleOptionsLoader('/JobPost/list');
 export const menuOptionsLoader = buildModuleOptionsLoader('/Menu/list');
 export const payChannelOptionsLoader =
   buildModuleOptionsLoader('/PayChannel/list');
-export const tenantAppOptionsLoader =
-  buildModuleOptionsLoader('/TenantApp/list');
 export const userOptionsLoader = buildModuleOptionsLoader('/User/list');
 export const menuPageTypeOptionsLoader = buildModuleEnumOptionsLoader(
   'com.levin.oak.base.entities.Menu$PageType',

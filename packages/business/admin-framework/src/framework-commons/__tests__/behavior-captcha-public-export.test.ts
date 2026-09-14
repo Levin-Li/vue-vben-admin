@@ -7,6 +7,7 @@ describe('BehaviorCaptcha public export', () => {
   it('can be imported from the admin-framework package root without auth-local paths', async () => {
     const challenge = normalizeBehaviorCaptchaChallenge({
       challengeId: 'public-export-1',
+      instruction: '请按提示顺序点击目标',
       mode: 'CLICK',
       publicData: {
         image:
@@ -29,5 +30,6 @@ describe('BehaviorCaptcha public export', () => {
     expect(wrapper.find('[data-test="captcha-mode-CLICK"]').exists()).toBe(
       true,
     );
+    expect(wrapper.get('.gc-header').text()).toBe('请按提示顺序点击目标');
   });
 });

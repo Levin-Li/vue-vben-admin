@@ -32,6 +32,10 @@ export const pageMeta = {
 } as const;
 
 export const domainPageCrudConfig: CrudPageConfig = {
+  // 插槽按钮显式登记稳定标识，与公共列表操作显示脚本关联。
+  listOperations: [
+    { key: 'domain:apply', label: '申请域名', placement: 'left' },
+  ],
   apiBase: '/Domain',
   domainObject: true,
   apiService: domainService,

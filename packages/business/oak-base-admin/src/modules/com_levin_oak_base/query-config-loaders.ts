@@ -173,10 +173,6 @@ export const oakBaseQueryConfigLoaders: NonNullable<
     import('./views/tenant/config').then(
       (module) => module.tenantPageCrudConfig,
     ),
-  '/system/com_levin_oak_base/tenant-app/index.vue': () =>
-    import('./views/tenant-app/config').then(
-      (module) => module.tenantAppPageCrudConfig,
-    ),
   '/system/com_levin_oak_base/tenant-custom-menu/index.vue': () =>
     import('./views/tenant-custom-menu/config').then(
       (module) => module.tenantCustomMenuPageCrudConfig,

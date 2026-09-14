@@ -31,6 +31,8 @@ import {
   getDisplaySubmitMode,
   setDisplaySubmitMode,
   reconcileCrudPageDisplayHeaders,
+  reconcileCrudPageDisplayActions,
+  getCrudRowActionDisplayKey,
   resolveCrudPageDisplayDefaults,
   resolvePageDisplayContextKey,
   resolvePageDisplayViewTitle,
@@ -46,15 +48,92 @@ import {
 } from '../crud-page-display';
 
 describe('crud page display rules', () => {
+  it('reconciles configurable row actions by stable keys', () => {
+    const actions = reconcileCrudPageDisplayActions(
+      [
+        {
+          key: 'builtin:edit',
+          label: '旧编辑文案',
+          visible: { expression: "row.status == 'Draft'", mode: 'script' },
+        },
+      ],
+      [
+        { key: 'builtin:edit', label: '编辑' },
+        { key: 'auditCommit', label: '提交审核' },
+      ],
+    );
+
+    expect(actions).toEqual([
+      {
+        key: 'builtin:edit',
+        label: '编辑',
+        order: 0,
+        visible: { expression: "row.status == 'Draft'", mode: 'script' },
+        visibleRoleCodes: [],
+      },
+      {
+        key: 'auditCommit',
+        label: '提交审核',
+        order: 1,
+        visible: { mode: 'always' },
+        visibleRoleCodes: [],
+      },
+    ]);
+    expect(
+      getCrudRowActionDisplayKey({
+        displayKey: 'auditCommit',
+        label: '提交审核',
+      }),
+    ).toBe('auditCommit');
+    expect(getCrudRowActionDisplayKey({ label: '提交审核' })).toBe(
+      'custom:提交审核',
+    );
+  });
+
   it('converts eligible static layout groups into detail display groups', () => {
     const fields = [
-      { key: 'name', label: '名称', layoutGroup: 'basic', layoutGroupTitle: '基本信息' },
-      { key: 'code', label: '编码', layoutGroup: 'basic', layoutGroupTitle: '基本信息' },
-      { key: 'type', label: '类型', layoutGroup: 'basic', layoutGroupTitle: '基本信息' },
-      { key: 'category', label: '类别', layoutGroup: 'basic', layoutGroupTitle: '基本信息' },
-      { key: 'groupName', label: '分组', layoutGroup: 'basic', layoutGroupTitle: '基本信息' },
-      { key: 'orderCode', label: '排序', layoutGroup: 'business', layoutGroupTitle: '状态与排序' },
-      { key: 'enable', label: '启用', layoutGroup: 'business', layoutGroupTitle: '状态与排序' },
+      {
+        key: 'name',
+        label: '名称',
+        layoutGroup: 'basic',
+        layoutGroupTitle: '基本信息',
+      },
+      {
+        key: 'code',
+        label: '编码',
+        layoutGroup: 'basic',
+        layoutGroupTitle: '基本信息',
+      },
+      {
+        key: 'type',
+        label: '类型',
+        layoutGroup: 'basic',
+        layoutGroupTitle: '基本信息',
+      },
+      {
+        key: 'category',
+        label: '类别',
+        layoutGroup: 'basic',
+        layoutGroupTitle: '基本信息',
+      },
+      {
+        key: 'groupName',
+        label: '分组',
+        layoutGroup: 'basic',
+        layoutGroupTitle: '基本信息',
+      },
+      {
+        key: 'orderCode',
+        label: '排序',
+        layoutGroup: 'business',
+        layoutGroupTitle: '状态与排序',
+      },
+      {
+        key: 'enable',
+        label: '启用',
+        layoutGroup: 'business',
+        layoutGroupTitle: '状态与排序',
+      },
     ];
 
     expect(resolveStaticDisplayGroup(fields, 'basic')).toMatchObject({
@@ -62,7 +141,9 @@ describe('crud page display rules', () => {
       key: 'basic',
       title: '基本信息',
     });
-    expect(resolveStaticDisplayGroup(fields.slice(0, 6), 'basic')).toBeUndefined();
+    expect(
+      resolveStaticDisplayGroup(fields.slice(0, 6), 'basic'),
+    ).toBeUndefined();
     expect(resolveStaticDisplayGroup(fields, 'business')).toBeUndefined();
     expect(
       resolveStaticDisplayGroup(
@@ -179,14 +260,15 @@ describe('crud page display rules', () => {
         { list: { headers: [{ key: 'name' }] }, version: 1 },
         3,
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       canUseLocalTableColumnSettings(
         { list: { headers: [] }, version: 1 },
         3,
         true,
       ),
-    ).toBe(false);
+    ).toBe(true);
+    expect(canUseLocalTableColumnSettings(undefined, 0)).toBe(false);
   });
 
   it('uses the same default widths for list rendering and editable list settings', () => {
@@ -239,6 +321,27 @@ describe('crud page display rules', () => {
     expect(header.visible).toEqual({ mode: 'hidden' });
   });
 
+  it('hides getter-only detail properties by default but keeps explicit detail fields visible', () => {
+    expect(
+      getDefaultFieldHidden(
+        { hasBackingField: false, key: 'computedName' },
+        { view: 'detail' },
+      ),
+    ).toBe(true);
+    expect(
+      getDefaultFieldHidden(
+        {
+          detail: true,
+          hasBackingField: false,
+          formCreate: false,
+          formEdit: false,
+          key: 'computedName',
+        },
+        { view: 'detail' },
+      ),
+    ).toBe(false);
+  });
+
   it('appends the operation column after data fields when the list has row actions', () => {
     const headers = reconcileCrudPageDisplayHeaders(
       [],
@@ -256,7 +359,7 @@ describe('crud page display rules', () => {
     ]);
     expect(headers.at(-1)).toMatchObject({
       label: '操作',
-      order: 2,
+      order: Number.MAX_SAFE_INTEGER,
       width: 220,
     });
   });
@@ -277,9 +380,23 @@ describe('crud page display rules', () => {
 
     expect(headers.at(-1)).toMatchObject({
       key: '__actions',
-      order: 1,
+      order: Number.MAX_SAFE_INTEGER,
       title: '处理',
       visible: { mode: 'hidden' },
+      width: 260,
+    });
+  });
+
+  it('操作区始终排在普通属性之后', () => {
+    const headers = reconcileCrudPageDisplayHeaders(
+      [{ key: '__actions', order: -1, width: 260 }],
+      [{ key: 'name', label: '名称', table: true }],
+      { includeOperationColumn: true },
+    );
+
+    expect(headers.map((header) => header.key)).toEqual(['name', '__actions']);
+    expect(headers[1]).toMatchObject({
+      order: Number.MAX_SAFE_INTEGER,
       width: 260,
     });
   });
@@ -562,10 +679,7 @@ describe('crud page display rules', () => {
 
   it('applies the same hidden-by-default rule to list headers unless a value was saved', () => {
     expect(
-      initializeHeaderVisibility(
-        { key: 'domainId' },
-        { hideDomainId: true },
-      ),
+      initializeHeaderVisibility({ key: 'domainId' }, { hideDomainId: true }),
     ).toEqual({ mode: 'hidden' });
     expect(initializeHeaderVisibility({ key: 'lastUpdateTime' })).toEqual({
       mode: 'hidden',
@@ -858,7 +972,7 @@ describe('id新增录入与列表展示隔离', () => {
 });
 
 describe('showIdOnCreate仅影响新增场景', () => {
-  it.each(['list', 'edit', 'detail', 'query'] as const)(
+  it.each(['list', 'edit', 'query'] as const)(
     '%s场景仍默认隐藏ID',
     (view) => {
       expect(
@@ -887,6 +1001,7 @@ describe('运行与设置面板共用默认配置', () => {
     const defaults = resolveCrudPageDisplayDefaults();
     expect(defaults).toEqual(resolveCrudPageDisplayDefaults({ version: 1 }));
     expect(defaults.list).toEqual({
+      actions: [],
       headers: [],
       defaultMinColumnWidth: 60,
       defaultMaxColumnWidth: 360,

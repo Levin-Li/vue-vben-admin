@@ -34,6 +34,8 @@ export interface AdminModuleContext<
 }
 
 export interface AdminBackendRouteMapping {
+  /** 显式声明页面仅要求登录，不依赖后端菜单授权；默认仍要求菜单授权。 */
+  onlyRequireAuthenticated?: boolean;
   description: string;
   icon: string;
   name: string;

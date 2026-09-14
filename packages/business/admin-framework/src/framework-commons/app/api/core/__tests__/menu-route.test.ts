@@ -230,6 +230,25 @@ describe('menu route conversion', () => {
     expect(route?.meta?.openInNewWindow).toBe(true);
   });
 
+  it('仅显式登录页面在空授权菜单下可访问，其余页面仍拒绝', () => {
+    const routes = buildMenuRoutes([], [
+      ...testBackendRouteMappings,
+      {
+        description: '登录后测试访问控制。', icon: 'lucide:shield-check', name: 'AclTest',
+        onlyRequireAuthenticated: true, path: '/clob/V1/aclTest', resource: 'AclTest',
+        sourceFilePath: 'modules/com_levin_oak_base/views/acl-test/index.vue',
+        title: '访问控制测试', viewPath: '/system/com_levin_oak_base/acl-test/index.vue',
+      },
+    ]);
+    const testPage = routes.find((route) => route.path === '/clob/V1/aclTest');
+    expect(testPage?.component).toBe('/system/com_levin_oak_base/acl-test/index.vue');
+    expect(testPage?.meta?.hideInMenu).toBe(true);
+    expect(testPage?.meta?.menuRouteForbidden).toBe(false);
+    expect(testPage?.meta?.ignoreAccess).toBeUndefined();
+    expect(testPage?.name).toBe('_clob_V1_aclTest');
+    expect(routes.find((route) => route.path === '/clob/V1/Role')?.component).toBe('/_core/fallback/forbidden.vue');
+  });
+
   it('routes pages absent from backend menus to the forbidden page', () => {
     const routes = buildMenuRoutes([], testBackendRouteMappings);
     const roleRoute = routes.find((route) => route.path === '/clob/V1/Role');

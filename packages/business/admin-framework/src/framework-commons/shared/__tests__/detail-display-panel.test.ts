@@ -29,6 +29,22 @@ vi.mock('@vben/common-ui', () => ({
 }));
 
 describe('公共详情展示', () => {
+  it('超过十个字段时可以隐藏空值但保留零和false', async () => {
+    const entries = Array.from({ length: 11 }, (_, index) => ({
+      key: `k${index}`,
+      label: `字段${index}`,
+      kind: 'scalar' as const,
+      value:
+        index === 0 ? null : index === 1 ? false : index === 2 ? 0 : '内容',
+    }));
+    const wrapper = mount(DetailDisplayPanel, { props: { entries } });
+    expect(wrapper.text()).toContain('不展示空值');
+    await wrapper.find('input[type="checkbox"]').setValue(true);
+    expect(wrapper.find('[data-detail-key="k0"]').exists()).toBe(false);
+    expect(wrapper.find('[data-detail-key="k1"]').exists()).toBe(true);
+    expect(wrapper.find('[data-detail-key="k2"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
   it('保留标签与二维码，并通过独立查看器阅读 JSON', async () => {
     const entries = buildDetailDisplayEntries(
       {

@@ -1,7 +1,8 @@
-export const TABLE_COLUMN_PREFERENCE_VERSION = 3;
+export const TABLE_COLUMN_PREFERENCE_VERSION = 4;
 
 export interface TableColumnPreference {
   hiddenKeys: string[];
+  orderedKeys: string[];
   version: number;
 }
 
@@ -17,9 +18,13 @@ export function getTableColumnPreferenceStorageKey(
   return `vben:crud-table-columns:${pageKey}`;
 }
 
-export function buildTableColumnPreference(hiddenKeys: string[]) {
+export function buildTableColumnPreference(
+  hiddenKeys: string[],
+  orderedKeys: string[],
+) {
   return {
     hiddenKeys: [...hiddenKeys],
+    orderedKeys: [...orderedKeys],
     version: TABLE_COLUMN_PREFERENCE_VERSION,
   } satisfies TableColumnPreference;
 }
@@ -29,7 +34,12 @@ export function readTableColumnPreference(
   availableKeys: Iterable<string>,
 ) {
   if (!rawValue) {
-    return { hasStoredPreference: false, hiddenKeys: [], invalid: false };
+    return {
+      hasStoredPreference: false,
+      hiddenKeys: [],
+      invalid: false,
+      orderedKeys: [],
+    };
   }
 
   try {
@@ -41,9 +51,17 @@ export function readTableColumnPreference(
       hiddenKeys: (preference.hiddenKeys || [])
         .map(String)
         .filter((key) => availableKeySet.has(key)),
+      orderedKeys: [
+        ...new Set((preference.orderedKeys || []).map(String)),
+      ].filter((key) => availableKeySet.has(key)),
       invalid: false,
     };
   } catch {
-    return { hasStoredPreference: false, hiddenKeys: [], invalid: true };
+    return {
+      hasStoredPreference: false,
+      hiddenKeys: [],
+      invalid: true,
+      orderedKeys: [],
+    };
   }
 }

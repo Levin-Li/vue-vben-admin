@@ -8,9 +8,10 @@ import {
 } from '../crud-table-column-preference';
 
 describe('crud table column preference', () => {
-  it('persists only hidden columns', () => {
-    expect(buildTableColumnPreference(['tenantType'])).toEqual({
+  it('persists hidden columns and local column order', () => {
+    expect(buildTableColumnPreference(['tenantType'], ['tenantName'])).toEqual({
       hiddenKeys: ['tenantType'],
+      orderedKeys: ['tenantName'],
       version: TABLE_COLUMN_PREFERENCE_VERSION,
     });
   });
@@ -42,6 +43,7 @@ describe('crud table column preference', () => {
       hasStoredPreference: true,
       hiddenKeys: ['tenantType'],
       invalid: false,
+      orderedKeys: ['tenantType', 'tenantName'],
     });
   });
 
@@ -50,6 +52,7 @@ describe('crud table column preference', () => {
       hasStoredPreference: false,
       hiddenKeys: [],
       invalid: true,
+      orderedKeys: [],
     });
   });
 });

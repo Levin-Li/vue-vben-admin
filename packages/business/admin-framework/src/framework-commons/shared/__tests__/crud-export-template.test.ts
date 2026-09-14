@@ -26,7 +26,7 @@ describe('crud export template flow', () => {
     );
   });
 
-  it('persists export aliases order and selection in saved templates', () => {
+  it('persists export aliases, widths, order and selection in saved templates', () => {
     const configBlock = source.slice(
       source.indexOf('function buildExportTemplateConfig()'),
       source.indexOf('function applyExportTemplateConfig('),
@@ -34,9 +34,30 @@ describe('crud export template flow', () => {
 
     expect(configBlock).toContain('fieldAliases');
     expect(configBlock).toContain('fieldConverters');
+    expect(configBlock).toContain('fieldWidths');
     expect(configBlock).toContain('fieldOrderKeys');
     expect(configBlock).toContain('selectedFieldKeys');
     expect(configBlock).toContain('selected: selectedKeys.includes(key)');
+    expect(configBlock).toContain('width: fieldWidths[key]');
+  });
+
+  it('uses current visible columns by default and exposes the width field', () => {
+    const openExportBlock = source.slice(
+      source.indexOf('async function openExportModal()'),
+      source.indexOf('function resetImportState()'),
+    );
+
+    expect(openExportBlock).toContain('resetExportFieldConfig();');
+    expect(source).toContain('getDefaultSelectedExportFieldKeys()');
+    expect(source).toContain('orderedVisibleTableFields.value');
+    expect(source).toContain('const headerLength = Array.from(');
+    expect(source).toContain(
+      'return Math.min(Math.max(headerLength * 2 + 6, 1), 255);',
+    );
+    expect(source).toContain(':field-widths="displayedExportFieldWidths"');
+    expect(exportPanelSource).toContain('<span>导出字段</span>');
+    expect(exportPanelSource).toContain('<span>导出列宽</span>');
+    expect(exportPanelSource).toContain('updateFieldWidth:');
   });
 
   it('offers save and apply entry points for export templates', () => {
@@ -51,18 +72,38 @@ describe('crud export template flow', () => {
     expect(source).toContain('formatCrudExportValue(');
   });
 
-  it('loads compatible export templates by type and target variants', () => {
-    expect(source).toContain(
-      'buildCrudExportTemplateTargetTypeVariants(context)',
+  it('loads each template selector once with exact visibility filters', () => {
+    const loadExportBlock = source.slice(
+      source.indexOf('async function loadExportTemplates()'),
+      source.indexOf('async function loadImportTemplates()'),
     );
-    expect(source).toContain(
-      'inType: [...CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES]',
+    const loadImportBlock = source.slice(
+      source.indexOf('async function loadImportTemplates()'),
+      source.indexOf('function handleExportTemplateChange('),
     );
-    expect(source).toContain('dedupeCrudTemplates(');
+
+    for (const block of [loadExportBlock, loadImportBlock]) {
+      expect(block).toContain('const result = await list(');
+      expect(block).toContain('enable: true');
+      expect(block).toContain('fileType: EXPORT_TEMPLATE_FILE_TYPE');
+      expect(block).toContain('orgShared: true');
+      expect(block).toContain('...getTemplateIdentityParams(context),');
+      expect(block).toContain('tenantShared: true');
+      expect(block).not.toContain('Promise.all(');
+      expect(block).not.toContain('buildCrudTemplateScopeQueryVariants');
+      expect(block).not.toContain('buildCrudExportTemplateTargetTypeVariants');
+      expect(block).not.toContain('category: context.listTableName');
+    }
+
+    expect(loadExportBlock).toContain('type: EXPORT_TEMPLATE_TYPE');
+    expect(loadImportBlock).toContain('type: IMPORT_TEMPLATE_TYPE');
+    expect(source).toContain('getCrudTemplateOwnershipLabel(item)');
+    expect(source).toContain('[pageEntryPath, activeListTableName.value]');
+    expect(source).toContain('function getTemplateIdentityParams(');
   });
 
   it('offers import templates, preview, batch create, and template delete', () => {
-    expect(source).toContain('v-if="canImport"');
+    expect(source).toContain('v-if="canImport && isListOperationVisible');
     expect(source).toContain('@click="openImportModal"');
     expect(source).toContain('parseImportFile(file)');
     expect(source).toContain('chunkImportRecords(records)');
@@ -78,14 +119,42 @@ describe('crud export template flow', () => {
     expect(source).toContain('deleteTemplate(selectedExportTemplate,');
   });
 
-  it('stores import templates under the import category', () => {
+  it('keeps the import dialog open after a successful batch import', () => {
+    const importConfirmBlock = source.slice(
+      source.indexOf('async function handleImportConfirm()'),
+      source.indexOf('async function fetchExportRecords()'),
+    );
+
+    expect(importConfirmBlock).toContain(
+      'appendImportConsole(`导入完成，成功 ${successCount} 条`);',
+    );
+    expect(importConfirmBlock).not.toContain('importModalOpen.value = false;');
+  });
+
+  it('marks required import fields and blocks incomplete small-file mappings', () => {
+    expect(source).toContain('CRUD_IMPORT_REQUIRED_FIELD_PRECHECK_MAX_ROWS');
+    expect(source).toContain('getMissingRequiredImportMappings(');
+    expect(source).toContain(
+      'missingRequiredImportFieldLabels.value.length > 0',
+    );
+    expect(importPanelSource).toContain('v-if="mapping.required"');
+    expect(importPanelSource).toContain('必填字段缺少来源列或默认值');
+  });
+
+  it('uses readable sizing for import template and file controls', () => {
+    expect(importPanelSource).toContain('min-height: 40px;');
+    expect(importPanelSource).toContain('font-size: 14px;');
+    expect(importPanelSource).toContain('padding: 2px 0;');
+  });
+
+  it('does not use category when loading or saving templates', () => {
     const loadExportBlock = source.slice(
       source.indexOf('async function loadExportTemplates()'),
       source.indexOf('async function loadImportTemplates()'),
     );
     const loadImportBlock = source.slice(
       source.indexOf('async function loadImportTemplates()'),
-      source.indexOf('function applyExportTemplate('),
+      source.indexOf('function handleExportTemplateChange('),
     );
     const saveExportBlock = source.slice(
       source.indexOf('async function saveExportTemplate('),
@@ -96,16 +165,19 @@ describe('crud export template flow', () => {
       source.indexOf('function promptSaveImportTemplate()'),
     );
 
-    expect(loadExportBlock).toContain('category: EXPORT_TEMPLATE_CATEGORY');
-    expect(loadImportBlock).toContain(
-      'category: CRUD_IMPORT_TEMPLATE_CATEGORY',
-    );
-    expect(loadImportBlock).toContain(
-      'inType: [...CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES]',
-    );
-    expect(saveExportBlock).toContain('category: EXPORT_TEMPLATE_CATEGORY');
-    expect(saveImportBlock).toContain(
-      'category: CRUD_IMPORT_TEMPLATE_CATEGORY',
-    );
+    for (const block of [
+      loadExportBlock,
+      loadImportBlock,
+      saveExportBlock,
+      saveImportBlock,
+    ]) {
+      expect(block).not.toContain('category:');
+      expect(block).toContain('...getTemplateIdentityParams(context),');
+    }
+    expect(loadExportBlock).toContain('type: EXPORT_TEMPLATE_TYPE');
+    expect(loadImportBlock).toContain('type: IMPORT_TEMPLATE_TYPE');
+    expect(saveExportBlock).toContain('type: EXPORT_TEMPLATE_TYPE');
+    expect(saveImportBlock).toContain('type: IMPORT_TEMPLATE_TYPE');
+    expect(source).toContain("replace(/^\\/+/, '')");
   });
 });

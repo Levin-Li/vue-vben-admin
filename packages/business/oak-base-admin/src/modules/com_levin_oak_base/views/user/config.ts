@@ -132,6 +132,24 @@ export const userPageCrudConfig: CrudPageConfig = {
   description:
     '页面字段、查询、操作按钮以 BizUserController/UserController 及用户 DTO 注解为准。',
   fields: [
+    // RbacUserInfo 的身份判断只有 getter，没有对应 setter；详情默认隐藏。
+    ...[
+      'admin',
+      'platformUser',
+      'tenantUser',
+      'saasUser',
+      'topSuperAdmin',
+      'superAdmin',
+      'saasAdmin',
+      'tenantAdmin',
+    ].map((key) => ({
+      key,
+      label: key,
+      readOnly: true,
+      hasBackingField: false,
+      form: false,
+      table: false,
+    })),
     {
       key: 'tenantId',
       label: '归属租户',

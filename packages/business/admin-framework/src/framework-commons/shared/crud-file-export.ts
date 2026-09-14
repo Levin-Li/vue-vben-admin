@@ -4,8 +4,27 @@ export interface BuildExcelXmlOptions<T extends Record<string, any>> {
   fields: CrudFieldConfig[];
   formatCellValue: (field: CrudFieldConfig, record: T) => any;
   getFieldHeader: (field: CrudFieldConfig) => any;
+  getFieldWidth?: (field: CrudFieldConfig) => number | undefined;
   records: T[];
   worksheetName?: string;
+}
+
+const EXCEL_COLUMN_WIDTH_MAX = 255;
+const EXCEL_COLUMN_WIDTH_MIN = 1;
+const SPREADSHEET_ML_POINTS_PER_EXCEL_CHARACTER = 5.25;
+
+export function getSpreadsheetMlColumnWidth(value: unknown) {
+  const width = Number(value);
+
+  if (
+    !Number.isFinite(width) ||
+    width < EXCEL_COLUMN_WIDTH_MIN ||
+    width > EXCEL_COLUMN_WIDTH_MAX
+  ) {
+    return undefined;
+  }
+
+  return Number((width * SPREADSHEET_ML_POINTS_PER_EXCEL_CHARACTER).toFixed(2));
 }
 
 export function escapeExcelXmlValue(value: any) {
@@ -29,9 +48,17 @@ export function buildExcelXml<T extends Record<string, any>>({
   fields,
   formatCellValue,
   getFieldHeader,
+  getFieldWidth,
   records,
   worksheetName,
 }: BuildExcelXmlOptions<T>) {
+  const columnXml = fields
+    .map((field) => {
+      const width = getSpreadsheetMlColumnWidth(getFieldWidth?.(field));
+
+      return width ? `<Column ss:AutoFitWidth="0" ss:Width="${width}"/>` : '';
+    })
+    .join('');
   const headerXml = fields
     .map(
       (field) =>
@@ -65,6 +92,7 @@ export function buildExcelXml<T extends Record<string, any>>({
  xmlns:html="http://www.w3.org/TR/REC-html40">
  <Worksheet ss:Name="${escapeExcelXmlValue(sheetName)}">
   <Table>
+   ${columnXml}
    <Row>${headerXml}</Row>
    ${rowXml}
   </Table>

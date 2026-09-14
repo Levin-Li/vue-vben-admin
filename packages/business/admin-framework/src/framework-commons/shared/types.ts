@@ -1,4 +1,8 @@
 import type { SelectOption } from '../api';
+import type {
+  CrudListOperationCandidate,
+  CrudListOperationConfig,
+} from './crud-list-operations';
 import type { AdministrativeAreaLevel } from './administrative-area-data';
 
 import type { CrudExportConverter } from './crud-value-converter';
@@ -65,7 +69,9 @@ export type CrudDynamicText =
   | ((formState: Record<string, any>) => string);
 
 export type CrudOptionSource = 'dictionary' | 'enum';
-export type CrudOptionLoader = ((keyword?: string) => Promise<SelectOption[]>) & {
+export type CrudOptionLoader = ((
+  keyword?: string,
+) => Promise<SelectOption[]>) & {
   optionSource?: CrudOptionSource;
 };
 
@@ -129,6 +135,10 @@ export interface CrudFieldConfig {
   options?: SelectOption[];
   placeholder?: CrudDynamicText;
   remoteSearch?: boolean;
+  /** 仅有读取方法、没有对应设置方法的属性；详情默认隐藏但可由展示设置显式开启。 */
+  readOnly?: boolean;
+  /** 后端属性是否有实际字段；纯计算 getter 明确标记 false。 */
+  hasBackingField?: boolean;
   required?: boolean;
   search?: boolean;
   searchOrder?: number;
@@ -142,7 +152,10 @@ export interface CrudFieldConfig {
   type?: CrudFieldType;
   uploadPath?: string;
   /** 返回校验错误文本时阻止提交；空值是否允许仍由 required 决定。 */
-  validator?: (value: any, formState: Record<string, any>) => string | undefined;
+  validator?: (
+    value: any,
+    formState: Record<string, any>,
+  ) => string | undefined;
   valueType?: 'boolean' | 'number' | 'string';
   visibleForPlatformUser?: boolean;
   width?: number;
@@ -169,6 +182,8 @@ export interface CrudDisplayDefaultValue {
 
 export interface CrudPageDisplayFieldConfig {
   defaultValue?: CrudDisplayDefaultValue;
+  /** 仅可将原本可选字段加严为必填；不能取消原始字段必填约束。 */
+  required?: boolean;
   hidden?: boolean;
   /** 隐藏控件时仍按权限、条件和分组契约校验提交；默认不提交。 */
   submitWhenHidden?: boolean;
@@ -215,28 +230,24 @@ export interface CrudPageDisplayGroupedViewConfig {
   unassignedOrder?: number;
 }
 
-export interface CrudPageDisplayFormViewConfig
-  extends CrudPageDisplayGroupedViewConfig {
+export interface CrudPageDisplayFormViewConfig extends CrudPageDisplayGroupedViewConfig {
   modalMaxHeight?: string;
   modalMaxWidth?: string;
   /** 表单首次打开时是否默认进入快捷填写；默认关闭。 */
   quickFill?: boolean;
 }
 
-export interface CrudPageDisplayDetailViewConfig
-  extends CrudPageDisplayFormViewConfig {
+export interface CrudPageDisplayDetailViewConfig extends CrudPageDisplayFormViewConfig {
   /** 默认展示空值；关闭时隐藏空字符串、空数组及空 JSON 对象。 */
   showEmptyValues?: boolean;
 }
 
-export interface CrudPageDisplayEditViewConfig
-  extends CrudPageDisplayFormViewConfig {
+export interface CrudPageDisplayEditViewConfig extends CrudPageDisplayFormViewConfig {
   /** 为当前编辑表单提交的已上传字段启用服务端空值强制更新。默认开启。 */
   autoForceUpdateField?: boolean;
 }
 
-export interface CrudPageDisplayQueryViewConfig
-  extends CrudPageDisplayGroupedViewConfig {
+export interface CrudPageDisplayQueryViewConfig extends CrudPageDisplayGroupedViewConfig {
   autoSearch?: boolean;
   collapsedRows?: CrudPageDisplayQueryCollapsedRows;
   defaultExpanded?: boolean;
@@ -254,6 +265,29 @@ export interface CrudPageDisplayHeaderConfig extends CrudPageDisplayFieldConfig 
   width?: number | 'auto';
 }
 
+/** 列表行内具体操作的展示设置；只能额外隐藏操作，不能替代权限或业务限制。 */
+export interface CrudPageDisplayActionConfig {
+  key: string;
+  label: string;
+  maxWidth?: number;
+  minWidth?: number;
+  order?: number;
+  overflowStrategy?: 'ellipsis' | 'wrap';
+  title?: string;
+  /** 值展示脚本返回非空值时，作为按钮名称的最高优先级来源。 */
+  valueDisplay?: { expression?: string; mode: 'default' | 'script' };
+  /** 与普通展示属性一致：限制可见角色。 */
+  visibleRoleCodes?: string[];
+  visible?: { expression?: string; mode: 'always' | 'hidden' | 'script' };
+  width?: number | 'auto';
+}
+
+/** 页面展示设置抽屉的可配置行操作候选项，不作为持久化契约。 */
+export interface CrudPageDisplayActionCandidate {
+  key: string;
+  label: string;
+}
+
 export type CrudPageDisplayQueryCollapsedRows =
   | 1
   | 2
@@ -268,10 +302,13 @@ export type CrudPageDisplayQueryCollapsedRows =
   | 'all';
 
 export interface CrudPageDisplayConfig {
+  /** 左右工具栏的附加显示表达式，只能收紧原有可见条件。 */
+  listOperations?: CrudListOperationConfig;
   create?: CrudPageDisplayFormViewConfig;
   detail?: CrudPageDisplayDetailViewConfig;
   edit?: CrudPageDisplayEditViewConfig;
   list?: {
+    actions?: CrudPageDisplayActionConfig[];
     defaultMaxColumnWidth?: number;
     defaultMinColumnWidth?: number;
     defaultOverflowStrategy?: 'ellipsis' | 'wrap';
@@ -290,6 +327,8 @@ export interface CrudRowAction {
   confirmText?: string;
   confirmTitle?: string;
   danger?: boolean;
+  /** 稳定操作标识；列表/批量操作必须声明后才能配置显示脚本，旧行操作保留原标签兜底规则。 */
+  displayKey?: string;
   failAction?: string;
   handler: (payload: any) => Promise<any>;
   label: string;
@@ -327,11 +366,13 @@ export interface CrudExportTemplateField {
   label?: string;
   order?: number;
   selected?: boolean;
+  width?: number;
 }
 
 export interface CrudExportTemplateConfig {
   fieldAliases?: Record<string, string>;
   fieldOrderKeys?: string[];
+  fieldWidths?: Record<string, number>;
   fields?: CrudExportTemplateField[];
   selectedFieldKeys?: string[];
   version?: number;
@@ -358,6 +399,8 @@ export interface CrudExportTemplateRecord {
 export interface CrudExportTemplateContext {
   apiBase: string;
   apiModuleBase?: string;
+  /** 浏览器路由与当前 ListTable 组合的模板编码。 */
+  code: string;
   listPath: string;
   listTableName?: string;
   listTitle: string;
@@ -396,6 +439,8 @@ export interface CrudListTableConfig {
 }
 
 export interface CrudPageConfig {
+  /** 显式登记 toolbar-extra 等扩展按钮，稳定键不得随显示名称改变。 */
+  listOperations?: CrudListOperationCandidate[];
   apiBase: string;
   apiModuleBase?: string;
   apiService?: CrudApiService;

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildCrudTemplateScopeQueryVariants,
   buildCrudTemplateScopePayload,
   canDeleteCrudTemplateByOwnership,
   canShowCrudTemplateDelete,
   getCrudTemplateDeleteParams,
+  getCrudTemplateOwnershipLabel,
   normalizeCreatedCrudTemplate,
   normalizeCrudTemplateList,
   removeCrudTemplateFromList,
@@ -63,34 +63,25 @@ describe('crud template service', () => {
     expect(buildCrudTemplateScopePayload(scope, user)).toEqual(expectedPayload);
   });
 
-  it('queries personal, organization-shared, and platform-shared visibility', () => {
+  it('labels template ownership with the most specific returned owner field', () => {
     expect(
-      buildCrudTemplateScopeQueryVariants({
-        category: 'crud-export-template',
-        targetType: 'com.example.Demo',
+      getCrudTemplateOwnershipLabel({ name: '个人', ownerId: 'user-1' }),
+    ).toBe('个人');
+    expect(
+      getCrudTemplateOwnershipLabel({
+        name: '个人优先',
+        orgId: 'org-1',
+        ownerId: 'user-1',
+        tenantId: 'tenant-1',
       }),
-    ).toEqual([
-      {
-        category: 'crud-export-template',
-        targetType: 'com.example.Demo',
-      },
-      {
-        category: 'crud-export-template',
-        orgShared: true,
-        targetType: 'com.example.Demo',
-      },
-      {
-        category: 'crud-export-template',
-        targetType: 'com.example.Demo',
-        tenantShared: true,
-      },
-      {
-        category: 'crud-export-template',
-        orgShared: true,
-        targetType: 'com.example.Demo',
-        tenantShared: true,
-      },
-    ]);
+    ).toBe('个人');
+    expect(
+      getCrudTemplateOwnershipLabel({ name: '组织', orgId: 'org-1' }),
+    ).toBe('组织');
+    expect(
+      getCrudTemplateOwnershipLabel({ name: '租户', tenantId: 'tenant-1' }),
+    ).toBe('租户');
+    expect(getCrudTemplateOwnershipLabel({ name: '平台' })).toBeUndefined();
   });
 
   it('only permits deletion for the template owner or the matching sharing administrator', () => {
@@ -170,9 +161,9 @@ describe('crud template service', () => {
     expect(getCrudTemplateDeleteParams({ id: 8, name: '导出' })).toEqual({
       id: '8',
     });
-    expect(getCrudTemplateDeleteParams({ code: 'legacy', name: '旧模板' })).toBe(
-      undefined,
-    );
+    expect(
+      getCrudTemplateDeleteParams({ code: 'legacy', name: '旧模板' }),
+    ).toBe(undefined);
     expect(
       removeCrudTemplateFromList(
         [

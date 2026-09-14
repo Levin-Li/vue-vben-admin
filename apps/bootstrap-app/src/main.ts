@@ -1,10 +1,11 @@
+import type { AdminPageMap } from '@levin/admin-framework';
+
 import { initPreferences } from '@vben/preferences';
 import { unmountGlobalLoading } from '@vben/utils';
 
 import {
   configureAdminApplication,
   normalizeAdminGlobPageMap,
-  type AdminPageMap,
 } from '@levin/admin-framework';
 import {
   i18nResService,
@@ -13,9 +14,9 @@ import {
   userService,
 } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/index';
 
+import { registerDemoInfrastructureExtensions } from './demo-infrastructure-extensions';
 import { enabledFrontendModules } from './modules/list';
 import { overridesPreferences } from './preferences';
-import { registerDemoInfrastructureExtensions } from './demo-infrastructure-extensions';
 
 const pageOverrides = normalizeAdminGlobPageMap(
   import.meta.glob('./pages/**/*.vue') as AdminPageMap,

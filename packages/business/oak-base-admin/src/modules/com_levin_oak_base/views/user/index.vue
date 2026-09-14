@@ -12,6 +12,7 @@ import {
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
 
 import { userService } from '../../api/user-service';
+import { loadDomainScopeOptions } from '../../domain-scope-options';
 import CrudPage from '../crud-page.vue';
 import { getDataPermissionCount } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from './config';
@@ -115,6 +116,7 @@ watch(dialogOpen, (open) => {
     v-if="selectedRecord"
     v-model:open="dialogOpen"
     :record="selectedRecord"
+    :load-domain-options="loadDomainScopeOptions"
     subject-type="user"
     @saved="handleSaved"
   />

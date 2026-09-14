@@ -1,0 +1,19 @@
+/* 保留二次验证独立生命周期，仅将确认框外观对齐登录使用的标准 Modal。 */
+.dynamic-verify-dialog .ant-modal-content {
+  padding: 20px 24px;
+}
+
+.dynamic-verify-dialog .ant-modal-confirm-body {
+  display: block;
+}
+
+.dynamic-verify-dialog .ant-modal-confirm-content {
+  width: 100%;
+  max-width: 100% !important;
+  margin-inline-start: 0 !important;
+  margin-top: 8px;
+}
+
+.dynamic-verify-dialog .ant-modal-confirm-btns {
+  margin-top: 12px;
+}

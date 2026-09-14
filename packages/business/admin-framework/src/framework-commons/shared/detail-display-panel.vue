@@ -15,7 +15,15 @@ import {
 import { JsonViewer } from '@vben/common-ui';
 import { ChevronDown } from '@vben/icons';
 
-import { Button, Modal, QRCode, Space, Tag, Tooltip } from 'ant-design-vue';
+import {
+  Button,
+  Checkbox,
+  Modal,
+  QRCode,
+  Space,
+  Tag,
+  Tooltip,
+} from 'ant-design-vue';
 
 import { DEFAULT_CONTENT_MODAL_BODY_STYLE } from './config-helpers';
 import { getCrudGroupTitleClass } from './crud-group-display';
@@ -32,9 +40,15 @@ import './crud-group-display.css';
 
 const props = defineProps<{
   entries: DetailDisplayEntry[];
+  hideEmptyValues?: boolean;
 }>();
+const emit = defineEmits<{ 'update:hideEmptyValues': [value: boolean] }>();
 
 const panel = ref<HTMLElement>();
+const hideEmptyValues = computed({
+  get: () => props.hideEmptyValues === true,
+  set: (value) => emit('update:hideEmptyValues', value),
+});
 const jsonViewerOpen = ref(false);
 const jsonViewerTitle = ref('');
 const jsonViewerValue = ref<any>(null);
@@ -52,6 +66,8 @@ const sections = computed(() => {
   }> = [];
   const byKey = new Map<string, (typeof values)[number]>();
   for (const entry of props.entries) {
+    if (hideEmptyValues.value && isEmptyDetailValue(entry.value, entry.field))
+      continue;
     const group = entry.field?.displayGroup;
     const key = group?.key || '__ungrouped';
     let section = byKey.get(key);

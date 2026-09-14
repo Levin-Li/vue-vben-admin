@@ -16,6 +16,7 @@ const outputPath = resolve(
   'src/framework-commons/app/framework-package-metadata.ts',
 );
 const metadataFiles = ['package-version.mjs', 'package-version.d.mts'];
+const requiredPublishedFiles = [...metadataFiles, 'docs'];
 const declaration =
   'export declare const packageVersion: {\n  name: string;\n  version: string;\n  buildTime: string;\n};\n';
 const args = process.argv.slice(2);
@@ -72,8 +73,8 @@ function validateExports({ manifest }) {
         `${manifest.name} 必须公开 ./package-version 普通 JavaScript 和类型入口`,
       );
   }
-  if (!metadataFiles.every((file) => manifest.files?.includes(file)))
-    throw new Error(`${manifest.name} 发布文件清单缺少包版本元数据`);
+  if (!requiredPublishedFiles.every((file) => manifest.files?.includes(file)))
+    throw new Error(`${manifest.name} 发布文件清单缺少包版本元数据或开发文档`);
 }
 async function validateMetadata({ manifest, root }) {
   if (!metadataFiles.every((file) => existsSync(resolve(root, file))))
@@ -122,13 +123,21 @@ const content = [
   '',
 ].join('\n');
 
-for (const pkg of trackedPackages) validateExports(pkg);
 if (checkOnly) {
+  for (const pkg of trackedPackages) validateExports(pkg);
   for (const pkg of trackedPackages) await validateMetadata(pkg);
   if (!existsSync(outputPath) || readFileSync(outputPath, 'utf8') !== content)
     throw new Error('框架包元数据导入清单已过期，请运行生成脚本');
 } else {
   for (const pkg of trackedPackages) {
+    const files = new Set(pkg.manifest.files || []);
+    requiredPublishedFiles.forEach((file) => files.add(file));
+    const normalizedFiles = [...files];
+    if (JSON.stringify(pkg.manifest.files || []) !== JSON.stringify(normalizedFiles)) {
+      pkg.manifest.files = normalizedFiles;
+      writeFileSync(resolve(pkg.root, 'package.json'), `${JSON.stringify(pkg.manifest, null, 2)}\n`);
+    }
+    validateExports(pkg);
     const missing = !metadataFiles.some((file) =>
       existsSync(resolve(pkg.root, file)),
     );

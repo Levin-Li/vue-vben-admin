@@ -8,10 +8,12 @@ import {
   onGlobalOrgIdChange,
   setCurrentGlobalOrgId,
   setCurrentGlobalUserOrgRecord,
+  setGlobalUserOrgContextEnabled,
 } from '../global-org-context-state';
 
 describe('global organization context state', () => {
   beforeEach(() => {
+    setGlobalUserOrgContextEnabled(true);
     setCurrentGlobalOrgId(undefined);
   });
 
@@ -52,7 +54,7 @@ describe('global organization context state', () => {
     });
   });
 
-  it('uses the selected user organization and ID as orgId and ownerId', () => {
+  it('never overrides business parameters with the selected user context', () => {
     setCurrentGlobalUserOrgRecord({
       id: 'user-b',
       kind: 'user',
@@ -71,9 +73,9 @@ describe('global organization context state', () => {
         { isOverride: true },
       ),
     ).toEqual({
-      orgId: 'org-b',
-      orgIdList: ['org-b'],
-      ownerId: 'user-b',
+      orgId: 'org-a',
+      orgIdList: ['org-a'],
+      ownerId: 'user-a',
       pageIndex: 1,
     });
     expect(getCurrentGlobalOrgId()).toBe('org-b');

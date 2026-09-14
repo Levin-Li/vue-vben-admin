@@ -1,8 +1,8 @@
+import type { CrudOptionLoader } from './types';
+
 import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
 import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
-
-import type { CrudOptionLoader } from './types';
 
 export const OAK_BASE_API_MODULE = '/com.levin.oak.base/V1/api';
 export const DEFAULT_CRUD_MODAL_WIDTH = 'min(80vw, 1280px)';
@@ -13,6 +13,7 @@ export const DEFAULT_CONTENT_MODAL_BODY_STYLE = {
   maxHeight: DEFAULT_CONTENT_MODAL_BODY_MAX_HEIGHT,
   overflowY: 'auto',
 } as const;
+const DEFAULT_OPTION_LOADER_PARAMS = { pageIndex: 1, pageSize: 500 };
 
 export function withOptionSearchParams(
   defaultParams: Record<string, any>,
@@ -33,10 +34,7 @@ export function buildOptionsLoader(
   path: string,
   labelKey: string = 'name',
   valueKey: string = 'id',
-  defaultParams: Record<string, any> = {
-    pageIndex: 1,
-    pageSize: 500,
-  },
+  defaultParams: Record<string, any> = DEFAULT_OPTION_LOADER_PARAMS,
   searchParamName = 'containsName',
 ) {
   return (keyword?: string) =>
@@ -64,6 +62,19 @@ export function buildDictOptionsLoader(dictCode: string): CrudOptionLoader {
 }
 
 export const tenantOptionsLoader = buildOptionsLoader('/Tenant/list');
+/** 数据权限候选弹窗默认只加载前十条，输入搜索条件后仍使用同一列表接口。 */
+export const tenantDataScopeOptionsLoader = (keyword = '') =>
+  fetchOptions(
+    '/Tenant/list',
+    'name',
+    'id',
+    withOptionSearchParams(
+      { pageIndex: 1, pageSize: keyword.trim() ? 50 : 10 },
+      'containsName',
+      keyword,
+    ),
+    OAK_BASE_API_MODULE,
+  );
 export const areaOptionsLoader = buildOptionsLoader('/Area/list');
 export const articleChannelOptionsLoader = buildOptionsLoader(
   '/ArticleChannel/list',
@@ -72,7 +83,6 @@ export const brandOptionsLoader = buildOptionsLoader('/Brand/list');
 export const jobPostOptionsLoader = buildOptionsLoader('/JobPost/list');
 export const menuOptionsLoader = buildOptionsLoader('/Menu/list');
 export const payChannelOptionsLoader = buildOptionsLoader('/PayChannel/list');
-export const tenantAppOptionsLoader = buildOptionsLoader('/TenantApp/list');
 export const userOptionsLoader = buildOptionsLoader('/User/list');
 export const menuPageTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Menu$PageType',

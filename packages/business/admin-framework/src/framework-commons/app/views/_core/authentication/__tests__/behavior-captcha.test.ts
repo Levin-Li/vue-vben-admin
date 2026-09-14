@@ -115,7 +115,46 @@ function mockCaptchaContainerWidth(width: number) {
     });
 }
 
+function instructionText(wrapper: ReturnType<typeof mount>) {
+  const pathInstruction = wrapper.find(
+    '[data-test="behavior-captcha-instruction"]',
+  );
+  return pathInstruction.exists()
+    ? pathInstruction.text()
+    : wrapper.get('.gc-header').text();
+}
+
 describe('BehaviorCaptcha', () => {
+  it.each<BehaviorCaptchaMode>([
+    'CLICK',
+    'IDIOM_CLICK',
+    'SLIDE',
+    'OBSTACLE_AVOIDANCE',
+  ])('%s 原样展示服务端指令，不自行拼接缺省文案', async (mode) => {
+    const data =
+      mode === 'OBSTACLE_AVOIDANCE' ? pathChallenge() : challenge(mode);
+    data.prompt = '请依次点击提示中的目标，不要点击其他位置。';
+    const wrapper = mount(BehaviorCaptcha, { props: { challenge: data } });
+    expect(instructionText(wrapper)).toBe(data.prompt);
+    await wrapper.setProps({ challenge: { ...data, prompt: '   ' } });
+    expect(instructionText(wrapper)).toBe('');
+    wrapper.unmount();
+  });
+
+  it('优先采用服务端操作instruction，不被通用认证提示覆盖', () => {
+    const data = normalizeBehaviorCaptchaChallenge({
+      challengeId: 'instructions',
+      mode: 'click',
+      prompt: '当前接口需要人机验证',
+      instruction: '请按顺序点击：春、夏、秋、冬',
+      puzzle: { image: masterImage, thumb: thumbImage },
+    });
+    const wrapper = mount(BehaviorCaptcha, { props: { challenge: data } });
+    expect(instructionText(wrapper)).toBe('请按顺序点击：春、夏、秋、冬');
+    expect(wrapper.text()).not.toContain('当前接口需要人机验证');
+    wrapper.unmount();
+  });
+
   it('fits the server puzzle in a narrow container and restores its original coordinates', () => {
     const sourceViewport = resolveBehaviorCaptchaViewport({
       height: 360,
@@ -531,7 +570,7 @@ describe('BehaviorCaptcha', () => {
 
     expect(wrapper.findComponent(GoCaptchaClick).exists()).toBe(true);
     expect(wrapper.getComponent(GoCaptchaClick).props('config')).toMatchObject({
-      title: '',
+      title: '请按语义顺序点击文字',
     });
     expect(wrapper.find('.gc-header img').exists()).toBe(false);
     wrapper.unmount();

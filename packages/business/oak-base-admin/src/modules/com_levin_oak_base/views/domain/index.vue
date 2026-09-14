@@ -413,8 +413,12 @@ onMounted(async () => {
 
 <template>
   <CrudPage :config="pageConfig">
-    <template #toolbar-extra>
-      <Button type="primary" @click="openDomainApply">
+    <template #toolbar-extra="{ isListOperationVisible }">
+      <Button
+        v-if="isListOperationVisible('domain:apply', true)"
+        type="primary"
+        @click="openDomainApply"
+      >
         <IconifyIcon class="size-4" icon="lucide:globe-2" />
         申请域名
       </Button>

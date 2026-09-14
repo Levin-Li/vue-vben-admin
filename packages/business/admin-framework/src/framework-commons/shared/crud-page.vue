@@ -27,6 +27,7 @@ import {
 
 import {
   computed,
+  defineAsyncComponent,
   h,
   nextTick,
   onMounted,
@@ -148,13 +149,8 @@ import {
 } from './crud-editable-access';
 import CrudExportPanel from './crud-export-panel.vue';
 import {
-  buildCrudExportTemplateTargetTypeVariants,
-  CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES,
-  CRUD_EXPORT_TEMPLATE_CATEGORY as EXPORT_TEMPLATE_CATEGORY,
   CRUD_EXPORT_TEMPLATE_FILE_TYPE as EXPORT_TEMPLATE_FILE_TYPE,
   CRUD_EXPORT_TEMPLATE_SAVE_TYPE as EXPORT_TEMPLATE_TYPE,
-  CRUD_IMPORT_TEMPLATE_CATEGORY,
-  CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES,
   CRUD_IMPORT_TEMPLATE_SAVE_TYPE as IMPORT_TEMPLATE_TYPE,
 } from './crud-export-template';
 import { updateCrudFieldInput } from './crud-field-interaction';
@@ -192,6 +188,8 @@ import {
   buildImportRecords,
   chunkImportRecords,
   CRUD_IMPORT_BATCH_SIZE,
+  CRUD_IMPORT_REQUIRED_FIELD_PRECHECK_MAX_ROWS,
+  getMissingRequiredImportMappings,
   normalizeImportTemplateConfig,
   parseImportFile,
   type CrudImportMapping,
@@ -269,12 +267,11 @@ import {
 } from './crud-table-column-preference';
 import { normalizeLeftFixedTableColumns } from './crud-table-columns';
 import {
-  buildCrudTemplateCode,
-  buildCrudTemplateScopeQueryVariants,
   buildCrudTemplateScopePayload,
   canShowCrudTemplateDelete,
   dedupeCrudTemplates,
   getCrudTemplateDeleteParams,
+  getCrudTemplateOwnershipLabel,
   getCrudTemplateValue,
   isSameCrudTemplate,
   normalizeCreatedCrudTemplate,
@@ -308,6 +305,11 @@ import {
   isCrudFieldJsonSchemaInline,
 } from './json-schema-source';
 import PageDisplaySettingsDrawer from './page-display-settings-drawer.vue';
+import {
+  buildListOperationCandidates,
+  getListOperationKey,
+  isListOperationVisible as resolveListOperationVisible,
+} from './crud-list-operations';
 import {
   collectUserRoleIdentityValues,
   isSuperAdminUser,
@@ -419,6 +421,7 @@ const exportSelectedFieldKeys = ref<string[]>([]);
 const exportFieldOrderKeys = ref<string[]>([]);
 const exportFieldAliases = ref<Record<string, string>>({});
 const exportFieldConverters = ref<Record<string, CrudExportConverter>>({});
+const exportFieldWidths = ref<Record<string, number>>({});
 const exportTemplates = ref<CrudExportTemplateRecord[]>([]);
 const exportTemplateLoading = ref(false);
 const exportTemplateSaving = ref(false);
@@ -466,6 +469,11 @@ const hiddenTableColumnKeys = ref<string[]>([]);
 const orderedTableColumnKeys = ref<string[]>([]);
 const columnSettingsOpen = ref(false);
 const pageDisplaySettingsOpen = ref(false);
+// 第二版按需加载并独立挂载，原版组件和编辑状态继续保持原有路径。
+const PageDisplaySettingsDrawerV2 = defineAsyncComponent(
+  () => import('./page-display-settings-drawer-v2.vue'),
+);
+const pageDisplaySettingsV2Open = ref(false);
 const pageDisplaySettingSaving = ref(false);
 const pageDisplayConfig = ref<CrudPageDisplayConfig>(
   resolveCrudPageDisplayDefaults(),
@@ -1569,16 +1577,18 @@ const exportTemplateContext = computed<CrudExportTemplateContext>(() => {
   const listTitle = activeListTable.value
     ? getListTableTitle(activeListTable.value, activeIndex)
     : '列表';
+  // 首段使用模块编码而非 URL 根路径；后续接口路径保持前导斜杠。
   const targetParts = [
-    props.config.apiModuleBase,
+    String(props.config.apiModuleBase || '').replace(/^\/+/, ''),
     props.config.apiBase,
     activeListPath.value,
-    activeListTableName.value,
   ].filter(Boolean);
 
   return {
     apiBase: props.config.apiBase,
     apiModuleBase: props.config.apiModuleBase,
+    // code 使用地址栏路由加 ListTable 名，避免同一路由多表格复用模板。
+    code: [pageEntryPath, activeListTableName.value].filter(Boolean).join(':'),
     listPath: activeListPath.value,
     listTableName: activeListTableName.value,
     listTitle,
@@ -1590,7 +1600,10 @@ const exportTemplateContext = computed<CrudExportTemplateContext>(() => {
 const exportTemplateOptions = computed(() =>
   exportTemplates.value
     .map((item) => ({
-      label: item.name,
+      // 返回记录的归属字段决定模板来源，优先展示个人、组织、租户。
+      label: [getCrudTemplateOwnershipLabel(item), item.name]
+        .filter(Boolean)
+        .join(' · '),
       value: getCrudTemplateValue(item),
     }))
     .filter((item) => item.value !== undefined),
@@ -1599,7 +1612,10 @@ const exportTemplateOptions = computed(() =>
 const importTemplateOptions = computed(() =>
   importTemplates.value
     .map((item) => ({
-      label: item.name,
+      // 返回记录的归属字段决定模板来源，优先展示个人、组织、租户。
+      label: [getCrudTemplateOwnershipLabel(item), item.name]
+        .filter(Boolean)
+        .join(' · '),
       value: getCrudTemplateValue(item),
     }))
     .filter((item) => item.value !== undefined),
@@ -1655,9 +1671,35 @@ const importPreviewResult = computed(() =>
     : { records: [], rowErrors: [] },
 );
 
+const missingRequiredImportMappings = computed(() => {
+  const sheet = importSheet.value;
+
+  // 小于十万行时在浏览器内完整校验必填字段的来源列或默认值。
+  if (
+    !sheet ||
+    sheet.rows.length >= CRUD_IMPORT_REQUIRED_FIELD_PRECHECK_MAX_ROWS
+  ) {
+    return [];
+  }
+
+  return getMissingRequiredImportMappings(sheet, importMappings.value);
+});
+
+const missingRequiredImportFieldLabels = computed(() =>
+  missingRequiredImportMappings.value.map((mapping) => {
+    const field = importableFields.value.find(
+      (item) => String(item.key) === mapping.fieldKey,
+    );
+
+    return field?.label || mapping.fieldKey;
+  }),
+);
+
 const importCanStart = computed(
   () =>
-    Boolean(importSheet.value) && importPreviewResult.value.records.length > 0,
+    Boolean(importSheet.value) &&
+    importPreviewResult.value.records.length > 0 &&
+    missingRequiredImportMappings.value.length === 0,
 );
 
 const importPreviewRows = computed(() =>
@@ -1886,6 +1928,38 @@ const actionGroups = computed(() =>
 );
 
 const hasBatchActions = computed(() => actionGroups.value.batch.length > 0);
+
+// 左右列表按钮统一登记稳定标识；插槽扩展显式接入，不扫描 DOM 或猜测按钮名称。
+const listOperationCandidates = computed(() =>
+  buildListOperationCandidates(
+    actionGroups.value.toolbar,
+    actionGroups.value.batch,
+    props.config.listOperations,
+  ),
+);
+function isListOperationVisible(key: string, baseVisible = true) {
+  return resolveListOperationVisible({
+    key,
+    baseVisible,
+    config: pageDisplayConfig.value.listOperations,
+    isSuperAdmin: isSuperAdminUser(userStore.userInfo),
+    context: {
+      user: userStore.userInfo || {},
+      org: buildOrganizationScriptContext(
+        userStore.userInfo as Record<string, any> | undefined,
+      ),
+      tenant: getTenantScriptContext(),
+    },
+  });
+}
+
+function isCustomListOperationVisible(
+  action: CrudRowAction,
+  kind: 'toolbar' | 'batch',
+) {
+  const key = getListOperationKey(action, kind);
+  return !key || isListOperationVisible(key);
+}
 
 function getStaticCrudPath(path?: CrudPathConfig) {
   return typeof path === 'string' ? path : undefined;
@@ -3132,6 +3206,19 @@ function getDefaultExportFieldConverters() {
   return {};
 }
 
+function getDefaultExportFieldWidths() {
+  return {};
+}
+
+function resetExportFieldConfig() {
+  // 未选择模板时，导出配置始终以当前列表的实时可见列为准。
+  exportFieldOrderKeys.value = getDefaultExportFieldOrder();
+  exportSelectedFieldKeys.value = getDefaultSelectedExportFieldKeys();
+  exportFieldAliases.value = getDefaultExportFieldAliases();
+  exportFieldConverters.value = getDefaultExportFieldConverters();
+  exportFieldWidths.value = getDefaultExportFieldWidths();
+}
+
 function findExportTemplate(target: CrudExportTemplateRecord) {
   return exportTemplates.value.find((item) => isSameCrudTemplate(item, target));
 }
@@ -3165,11 +3252,13 @@ function buildExportTemplateConfig(): CrudExportTemplateConfig {
     .filter(([, value]) => value);
   const fieldAliases = Object.fromEntries(aliasEntries);
   const fieldConverters = exportFieldConverters.value;
+  const fieldWidths = exportFieldWidths.value;
   const orderedFields = orderedExportFields.value;
 
   return {
     fieldAliases,
     fieldOrderKeys: orderedFields.map((field) => String(field.key)),
+    fieldWidths,
     fields: orderedFields.map((field, index) => {
       const key = String(field.key);
 
@@ -3180,10 +3269,11 @@ function buildExportTemplateConfig(): CrudExportTemplateConfig {
         label: field.label,
         order: index,
         selected: selectedKeys.includes(key),
+        width: fieldWidths[key],
       };
     }),
     selectedFieldKeys: selectedKeys,
-    version: 2,
+    version: 3,
   };
 }
 
@@ -3240,6 +3330,38 @@ function applyExportTemplateConfig(config: CrudExportTemplateConfig) {
     },
     {},
   );
+  // 列宽同时兼容新版顶层映射和字段数组中的配置。
+  const fieldWidths = templateFields.reduce<Record<string, number>>(
+    (result, field) => {
+      const key = String(field.key);
+      const width = Number(field.width);
+
+      if (
+        availableKeys.has(key) &&
+        Number.isFinite(width) &&
+        width >= 1 &&
+        width <= 255
+      ) {
+        result[key] = width;
+      }
+
+      return result;
+    },
+    {},
+  );
+
+  for (const [key, value] of Object.entries(config.fieldWidths || {})) {
+    const width = Number(value);
+
+    if (
+      availableKeys.has(key) &&
+      Number.isFinite(width) &&
+      width >= 1 &&
+      width <= 255
+    ) {
+      fieldWidths[key] = width;
+    }
+  }
 
   exportFieldOrderKeys.value = orderKeys.length
     ? orderKeys
@@ -3251,6 +3373,15 @@ function applyExportTemplateConfig(config: CrudExportTemplateConfig) {
       .filter(([key, value]) => availableKeys.has(key) && value),
   );
   exportFieldConverters.value = converters;
+  exportFieldWidths.value = fieldWidths;
+}
+
+function getTemplateIdentityParams(context: CrudExportTemplateContext) {
+  // 查询和保存共用同一份列表身份，避免 targetType 与 code 出现不一致。
+  return {
+    code: context.code,
+    targetType: context.targetType,
+  };
 }
 
 async function loadExportTemplates() {
@@ -3265,26 +3396,24 @@ async function loadExportTemplates() {
 
   try {
     const context = exportTemplateContext.value;
-    const targetTypes = buildCrudExportTemplateTargetTypeVariants(context);
-    const resultList = await Promise.all(
-      targetTypes.flatMap((targetType) =>
-        buildCrudTemplateScopeQueryVariants({
-          category: EXPORT_TEMPLATE_CATEGORY,
-          enable: true,
-          fileType: EXPORT_TEMPLATE_FILE_TYPE,
-          inType: [...CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES],
-          orderBy: 'lastUpdateTime',
-          orderDir: 'Desc',
-          pageIndex: 1,
-          pageSize: 200,
-          targetType,
-        }).map((params) => list(params, context)),
-      ),
+    // 使用当前精确目标和共享范围一次性加载，避免兼容范围组合造成重复请求。
+    const result = await list(
+      {
+        ...getTemplateIdentityParams(context),
+        enable: true,
+        fileType: EXPORT_TEMPLATE_FILE_TYPE,
+        orgShared: true,
+        orderBy: 'lastUpdateTime',
+        orderDir: 'Desc',
+        pageIndex: 1,
+        pageSize: 200,
+        tenantShared: true,
+        type: EXPORT_TEMPLATE_TYPE,
+      },
+      context,
     );
 
-    exportTemplates.value = dedupeCrudTemplates(
-      resultList.flatMap((result) => normalizeCrudTemplateList(result)),
-    );
+    exportTemplates.value = dedupeCrudTemplates(normalizeCrudTemplateList(result));
   } catch (error) {
     console.error(error);
     message.warning('导出模板加载失败');
@@ -3305,26 +3434,24 @@ async function loadImportTemplates() {
 
   try {
     const context = exportTemplateContext.value;
-    const targetTypes = buildCrudExportTemplateTargetTypeVariants(context);
-    const resultList = await Promise.all(
-      targetTypes.flatMap((targetType) =>
-        buildCrudTemplateScopeQueryVariants({
-          category: CRUD_IMPORT_TEMPLATE_CATEGORY,
-          enable: true,
-          fileType: EXPORT_TEMPLATE_FILE_TYPE,
-          inType: [...CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES],
-          orderBy: 'lastUpdateTime',
-          orderDir: 'Desc',
-          pageIndex: 1,
-          pageSize: 200,
-          targetType,
-        }).map((params) => list(params, context)),
-      ),
+    // 使用当前精确目标和共享范围一次性加载，避免兼容范围组合造成重复请求。
+    const result = await list(
+      {
+        ...getTemplateIdentityParams(context),
+        enable: true,
+        fileType: EXPORT_TEMPLATE_FILE_TYPE,
+        orgShared: true,
+        orderBy: 'lastUpdateTime',
+        orderDir: 'Desc',
+        pageIndex: 1,
+        pageSize: 200,
+        tenantShared: true,
+        type: IMPORT_TEMPLATE_TYPE,
+      },
+      context,
     );
 
-    importTemplates.value = dedupeCrudTemplates(
-      resultList.flatMap((result) => normalizeCrudTemplateList(result)),
-    );
+    importTemplates.value = dedupeCrudTemplates(normalizeCrudTemplateList(result));
   } catch (error) {
     console.error(error);
     message.warning('导入模板加载失败');
@@ -3338,6 +3465,7 @@ function handleExportTemplateChange(value?: number | string) {
     value === undefined || value === null ? undefined : String(value);
 
   if (!selectedExportTemplateId.value) {
+    resetExportFieldConfig();
     return;
   }
 
@@ -3428,8 +3556,8 @@ async function saveExportTemplate(
   try {
     const context = exportTemplateContext.value;
     const payload = {
-      category: EXPORT_TEMPLATE_CATEGORY,
-      code: buildCrudTemplateCode('crud-export', context, name),
+      // code 使用地址栏路由和 ListTable 名；targetType 标识当前列表接口。
+      ...getTemplateIdentityParams(context),
       config: buildExportTemplateConfig(),
       editable: true,
       enable: true,
@@ -3440,7 +3568,6 @@ async function saveExportTemplate(
         scope,
         userStore.userInfo as Record<string, any> | undefined,
       ),
-      targetType: context.targetType,
       type: EXPORT_TEMPLATE_TYPE,
     };
     const created = normalizeCreatedCrudTemplate(
@@ -3588,6 +3715,19 @@ function updateExportFieldConverter(
   exportFieldConverters.value[String(key)] = converter;
 }
 
+function updateExportFieldWidth(key: string, value?: number | string) {
+  const fieldKey = String(key);
+  const width = Number(value);
+
+  // 只保留 Excel 可接受的正数列宽；清空后使用 Excel 自动宽度。
+  if (!Number.isFinite(width) || width < 1 || width > 255) {
+    delete exportFieldWidths.value[fieldKey];
+    return;
+  }
+
+  exportFieldWidths.value[fieldKey] = Math.round(width);
+}
+
 function moveExportField(field: CrudFieldConfig, offset: -1 | 1) {
   const fieldKey = String(field.key);
   const orderedKeys = orderedExportFields.value.map((item) => String(item.key));
@@ -3608,6 +3748,29 @@ function getExportFieldHeader(field: CrudFieldConfig) {
 
   return alias || field.label || field.key;
 }
+
+function getDefaultExportFieldWidth(field: CrudFieldConfig) {
+  // 默认列宽以最终导出表头为准，中文和英文字符均按一个字符计算。
+  const headerLength = Array.from(String(getExportFieldHeader(field))).length;
+
+  return Math.min(Math.max(headerLength * 2 + 6, 1), 255);
+}
+
+function getExportFieldWidth(field: CrudFieldConfig) {
+  return (
+    exportFieldWidths.value[String(field.key)] ??
+    getDefaultExportFieldWidth(field)
+  );
+}
+
+const displayedExportFieldWidths = computed(() =>
+  Object.fromEntries(
+    orderedExportFields.value.map((field) => [
+      String(field.key),
+      getExportFieldWidth(field),
+    ]),
+  ),
+);
 
 function getExportFileName() {
   const now = new Date();
@@ -3701,10 +3864,7 @@ async function openExportModal() {
       return;
     }
 
-    exportFieldOrderKeys.value = getDefaultExportFieldOrder();
-    exportSelectedFieldKeys.value = getDefaultSelectedExportFieldKeys();
-    exportFieldAliases.value = getDefaultExportFieldAliases();
-    exportFieldConverters.value = getDefaultExportFieldConverters();
+    resetExportFieldConfig();
     selectedExportTemplateId.value = undefined;
     await loadExportTemplates();
     exportModalOpen.value = true;
@@ -3849,8 +4009,8 @@ async function saveImportTemplate(
   try {
     const context = exportTemplateContext.value;
     const payload = {
-      category: CRUD_IMPORT_TEMPLATE_CATEGORY,
-      code: buildCrudTemplateCode('crud-import', context, name, 'import'),
+      // code 使用地址栏路由和 ListTable 名；targetType 标识当前列表接口。
+      ...getTemplateIdentityParams(context),
       config: buildImportTemplateConfig(),
       editable: true,
       enable: true,
@@ -3861,7 +4021,6 @@ async function saveImportTemplate(
         scope,
         userStore.userInfo as Record<string, any> | undefined,
       ),
-      targetType: context.targetType,
       type: IMPORT_TEMPLATE_TYPE,
     };
     const created = normalizeCreatedCrudTemplate(
@@ -4024,6 +4183,13 @@ async function handleImportConfirm() {
     return;
   }
 
+  if (missingRequiredImportFieldLabels.value.length > 0) {
+    message.warning(
+      `必填字段缺少来源列或默认值：${missingRequiredImportFieldLabels.value.join('、')}`,
+    );
+    return;
+  }
+
   const { records, rowErrors } = importPreviewResult.value;
 
   if (rowErrors.length > 0) {
@@ -4073,7 +4239,6 @@ async function handleImportConfirm() {
     if (!stopped) {
       appendImportConsole(`导入完成，成功 ${successCount} 条`);
       message.success(`导入完成，成功 ${successCount} 条`);
-      importModalOpen.value = false;
     } else {
       message.warning(`导入已停止，成功 ${successCount} 条`);
     }
@@ -4142,6 +4307,7 @@ async function handleExportConfirm() {
       fields,
       formatCellValue: formatExportCellValue,
       getFieldHeader: getExportFieldHeader,
+      getFieldWidth: getExportFieldWidth,
       records,
       worksheetName: props.config.title,
     });
@@ -6101,7 +6267,8 @@ function getToolbarActions() {
     (action) =>
       (!action.permission || hasPermission(action.permission)) &&
       evaluateCrudVisibleOn(action.visibleOn, {}, userStore.userInfo) &&
-      (action.visible ? action.visible({}) : true),
+      (action.visible ? action.visible({}) : true) &&
+      isCustomListOperationVisible(action, 'toolbar'),
   );
 }
 
@@ -6115,7 +6282,8 @@ function getBatchActions() {
         selectedRows.value[0] || {},
         userStore.userInfo,
       ) &&
-      (action.visible ? action.visible(selectedRows.value[0] || {}) : true),
+      (action.visible ? action.visible(selectedRows.value[0] || {}) : true) &&
+      isCustomListOperationVisible(action, 'batch'),
   );
 }
 
@@ -6987,12 +7155,17 @@ watch(canCustomizeTableColumnsLocally, () => {
           class="mb-3 flex flex-wrap items-center gap-2"
         >
           <div class="flex flex-wrap items-center gap-2">
-            <Button v-if="canCreate" type="primary" @click="handleCreate">
+            <Button
+              v-if="canCreate && isListOperationVisible('builtin:create')"
+              type="primary"
+              @click="handleCreate"
+            >
               <Plus class="size-4" />
               新增
             </Button>
             <slot
               name="toolbar-extra"
+              :is-list-operation-visible="isListOperationVisible"
               :editing-record="editingRecord"
               :form-state="formState"
               :load-list="loadList"
@@ -7029,7 +7202,7 @@ watch(canCustomizeTableColumnsLocally, () => {
           <Space class="ml-auto" :size="8">
             <Tooltip title="导出">
               <Button
-                v-if="canQuery"
+                v-if="canQuery && isListOperationVisible('tool:export')"
                 aria-label="导出"
                 class="vben-crud-table-tool-button"
                 shape="circle"
@@ -7045,7 +7218,7 @@ watch(canCustomizeTableColumnsLocally, () => {
 
             <Tooltip title="导入">
               <Button
-                v-if="canImport"
+                v-if="canImport && isListOperationVisible('tool:import')"
                 aria-label="导入"
                 class="vben-crud-table-tool-button"
                 shape="circle"
@@ -7057,6 +7230,7 @@ watch(canCustomizeTableColumnsLocally, () => {
 
             <Tooltip title="刷新">
               <Button
+                v-if="isListOperationVisible('tool:refresh')"
                 aria-label="刷新"
                 class="vben-crud-table-tool-button"
                 shape="circle"
@@ -7069,7 +7243,13 @@ watch(canCustomizeTableColumnsLocally, () => {
               </Button>
             </Tooltip>
 
-            <Tooltip v-if="canManagePageDisplaySettings" title="页面展示设置">
+            <Tooltip
+              v-if="
+                canManagePageDisplaySettings &&
+                isListOperationVisible('settings:display')
+              "
+              title="页面展示设置"
+            >
               <Button
                 aria-label="页面展示设置"
                 class="vben-crud-table-tool-button"
@@ -7082,8 +7262,28 @@ watch(canCustomizeTableColumnsLocally, () => {
               </Button>
             </Tooltip>
 
+            <Tooltip
+              v-if="
+                canManagePageDisplaySettings &&
+                isListOperationVisible('settings:display-v2')
+              "
+              title="展示设置2"
+            >
+              <Button
+                aria-label="展示设置2"
+                class="vben-crud-table-tool-button"
+                shape="circle"
+                @click="pageDisplaySettingsV2Open = true"
+              >
+                <template #icon>
+                  <IconifyIcon class="size-4" icon="lucide:panel-right" />
+                </template>
+              </Button>
+            </Tooltip>
+
             <Tooltip :title="tableFullscreen ? '退出全屏' : '全屏'">
               <Button
+                v-if="isListOperationVisible('tool:fullscreen')"
                 :aria-label="tableFullscreen ? '退出全屏' : '全屏'"
                 class="vben-crud-table-tool-button"
                 shape="circle"
@@ -7099,7 +7299,10 @@ watch(canCustomizeTableColumnsLocally, () => {
             </Tooltip>
 
             <Popover
-              v-if="canCustomizeTableColumnsLocally"
+              v-if="
+                canCustomizeTableColumnsLocally &&
+                isListOperationVisible('tool:columns')
+              "
               v-model:open="columnSettingsOpen"
               placement="bottomRight"
               trigger="click"
@@ -7599,6 +7802,7 @@ watch(canCustomizeTableColumnsLocally, () => {
       :confirm-loading="exporting"
       :field-aliases="exportFieldAliases"
       :field-converters="exportFieldConverters"
+      :field-widths="displayedExportFieldWidths"
       :fields-indeterminate="exportFieldsIndeterminate"
       :ordered-fields="orderedExportFields"
       :selected-field-keys="exportSelectedFieldKeys"
@@ -7620,6 +7824,7 @@ watch(canCustomizeTableColumnsLocally, () => {
       @template-change="handleExportTemplateChange"
       @update-field-alias="updateExportFieldAlias"
       @update-field-converter="updateExportFieldConverter"
+      @update-field-width="updateExportFieldWidth"
     />
 
     <CrudImportPanel
@@ -7632,6 +7837,7 @@ watch(canCustomizeTableColumnsLocally, () => {
       :importable-fields="importableFields"
       :importing="importing"
       :mappings="importMappings"
+      :missing-required-fields="missingRequiredImportFieldLabels"
       :preview-columns="importPreviewColumns"
       :preview-rows="importPreviewRows"
       :row-count="importSheet?.rows.length || 0"
@@ -8294,9 +8500,12 @@ watch(canCustomizeTableColumnsLocally, () => {
         <div class="flex items-center gap-3">
           <span>{{ actionResultTitle }}</span>
           <Checkbox
-            v-if="actionResultMode === 'showForm' && actionResultEntries.length > 10"
+            v-if="
+              actionResultMode === 'showForm' && actionResultEntries.length > 10
+            "
             v-model:checked="actionResultHideEmptyValues"
-          >不展示空值</Checkbox>
+            >不展示空值</Checkbox
+          >
         </div>
       </template>
       <div
@@ -8390,6 +8599,22 @@ watch(canCustomizeTableColumnsLocally, () => {
       v-if="pageDisplaySettingCode"
       v-model:open="pageDisplaySettingsOpen"
       :action-candidates="actionDisplayCandidates"
+      :code="pageDisplaySettingCode"
+      :domain-object="props.config.domainObject"
+      :fields="effectiveFields"
+      :detail-fields="detailSettingsFields"
+      :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
+      :model-value="pageDisplayConfig"
+      :saving="pageDisplaySettingSaving"
+      :show-operation-column="hasAvailableOperationColumn"
+      :script-test-context="pageDisplayScriptTestContext"
+      @save="savePageDisplaySettings"
+    />
+    <PageDisplaySettingsDrawerV2
+      v-if="pageDisplaySettingCode && pageDisplaySettingsV2Open"
+      v-model:open="pageDisplaySettingsV2Open"
+      :action-candidates="actionDisplayCandidates"
+      :list-operation-candidates="listOperationCandidates"
       :code="pageDisplaySettingCode"
       :domain-object="props.config.domainObject"
       :fields="effectiveFields"

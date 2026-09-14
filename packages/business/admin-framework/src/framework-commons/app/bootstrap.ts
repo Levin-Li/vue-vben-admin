@@ -3,7 +3,7 @@ import { createApp, watch, watchEffect } from 'vue';
 import { registerAccessDirective } from '@vben/access';
 import { registerLoadingDirective } from '@vben/common-ui/es/loading';
 import { preferences } from '@vben/preferences';
-import { initStores, useAccessStore } from '@vben/stores';
+import { initStores, useAccessStore, useUserStore } from '@vben/stores';
 import '@vben/styles';
 import '@vben/styles/antd';
 
@@ -13,10 +13,14 @@ import {
   $t,
   setupI18n,
 } from '@levin/admin-framework/framework-commons/app/locales';
-import { getAdminApplicationServices } from '@levin/admin-framework/framework-commons/app/options';
+import {
+  getAdminApplicationServices,
+  getEnabledFrontendModules,
+} from '@levin/admin-framework/framework-commons/app/options';
 import { useTitle } from '@vueuse/core';
 
 import { loadAdministrativeAreaOverride } from '../shared/administrative-area-data';
+import { setupAdminModules } from '../module-contract';
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
@@ -64,7 +68,7 @@ async function bootstrap(namespace: string) {
   await setupI18n(app);
 
   // 配置 pinia-tore
-  await initStores(app, { namespace });
+  const pinia = await initStores(app, { namespace });
   let hasLoadedAdministrativeAreaOverride = false;
   watch(
     () => useAccessStore().accessToken,
@@ -94,6 +98,15 @@ async function bootstrap(namespace: string) {
 
   // 配置路由及路由守卫
   app.use(router);
+
+  // 模块可在 setup 中注册应用级扩展；必须在挂载前统一执行，避免模块声明只被收集而未生效。
+  await setupAdminModules(getEnabledFrontendModules(), {
+    app,
+    getUser: () => useUserStore().userInfo || null,
+    pinia,
+    request: requestClient,
+    router,
+  });
 
   // 配置Motion插件
   const { MotionPlugin } = await import('@vben/plugins/motion');

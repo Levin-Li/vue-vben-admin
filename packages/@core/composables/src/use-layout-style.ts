@@ -38,8 +38,17 @@ export function useLayoutContentStyle() {
 
   const debouncedCalcHeight = useDebounceFn(
     (_entries: ResizeObserverEntry[]) => {
-      visibleDomRect.value = getElementVisibleRect(contentElement.value);
-      contentHeight.value = `${visibleDomRect.value.height}px`;
+      const element = contentElement.value;
+      visibleDomRect.value = getElementVisibleRect(element);
+      const style = element ? getComputedStyle(element) : null;
+      // 页面使用内容盒高度，遮罩继续覆盖包含内边距和边框的可见外框。
+      const verticalInset = style
+        ? (Number.parseFloat(style.paddingTop) || 0) +
+          (Number.parseFloat(style.paddingBottom) || 0) +
+          (Number.parseFloat(style.borderTopWidth) || 0) +
+          (Number.parseFloat(style.borderBottomWidth) || 0)
+        : 0;
+      contentHeight.value = `${Math.max(0, visibleDomRect.value.height - verticalInset)}px`;
       contentWidth.value = `${visibleDomRect.value.width}px`;
     },
     16,

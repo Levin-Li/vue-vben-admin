@@ -1,5 +1,3 @@
-import type { GlobalUserOrgInjectionRules } from './app/global-org-context-state';
-
 import { requestClient } from './runtime';
 import { encodeUrlParamValue } from './url-encoding';
 
@@ -10,11 +8,9 @@ export interface CrudListQuery {
 }
 
 export interface CrudListRequestOptions {
-  /** 当前请求的全局参数条件注入规则。 */
-  globalUserOrgContext?: GlobalUserOrgInjectionRules;
-  /**
-   * 当前请求只用于加载选择器候选项，不应被已选全局组织上下文覆盖查询条件。
-   */
+  /** @deprecated 全局选择器已改用请求头，此字段不再影响请求。 */
+  globalUserOrgContext?: unknown;
+  /** 保留该选项仅供调用方兼容；全局选择器不再改写请求参数。 */
   skipGlobalUserOrgContext?: boolean;
 }
 

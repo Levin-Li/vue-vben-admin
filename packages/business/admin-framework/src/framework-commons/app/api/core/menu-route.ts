@@ -450,12 +450,12 @@ export function buildMenuRoutes(
     }
 
     routes.push({
-      component: FORBIDDEN_PAGE_COMPONENT,
+      component: mapping.onlyRequireAuthenticated === true ? mapping.viewPath : FORBIDDEN_PAGE_COMPONENT,
       meta: {
         crudResource: mapping.resource,
         hideInMenu: true,
         icon: mapping.icon,
-        menuRouteForbidden: true,
+        menuRouteForbidden: mapping.onlyRequireAuthenticated !== true,
         title: mapping.title,
       },
       name: toRouteName(mapping.path),

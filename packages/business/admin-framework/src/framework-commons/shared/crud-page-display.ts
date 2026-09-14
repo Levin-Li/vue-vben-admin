@@ -26,6 +26,7 @@ export function resolveCrudPageDisplayDefaults(
   const resolved = {
     ...config,
     version: 1 as const,
+    listOperations: { ...config?.listOperations },
     create: { fields: [], ...config?.create },
     query: { fields: [], ...config?.query },
     edit: { fields: [], ...config?.edit },
@@ -605,17 +606,15 @@ export function reconcileCrudPageDisplayHeaders(
   return [
     ...reconciled,
     ...headers.filter((header) => header.virtual === true),
-  ].toSorted(
-    (left, right) => {
-      // 操作列固定收尾，避免历史虚拟列因相同最大顺序值排到操作列之后。
-      if (left.key === CRUD_OPERATION_COLUMN_KEY) return 1;
-      if (right.key === CRUD_OPERATION_COLUMN_KEY) return -1;
-      return (
-        (left.order ?? Number.MAX_SAFE_INTEGER) -
-        (right.order ?? Number.MAX_SAFE_INTEGER)
-      );
-    },
-  );
+  ].toSorted((left, right) => {
+    // 操作列固定收尾，避免历史虚拟列因相同最大顺序值排到操作列之后。
+    if (left.key === CRUD_OPERATION_COLUMN_KEY) return 1;
+    if (right.key === CRUD_OPERATION_COLUMN_KEY) return -1;
+    return (
+      (left.order ?? Number.MAX_SAFE_INTEGER) -
+      (right.order ?? Number.MAX_SAFE_INTEGER)
+    );
+  });
 }
 
 function getNestedRecord(

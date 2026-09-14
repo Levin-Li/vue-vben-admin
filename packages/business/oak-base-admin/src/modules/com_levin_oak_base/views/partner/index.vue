@@ -1,8 +1,10 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import { Select } from 'ant-design-vue';
 
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { partnerService } from '../../api/partner-service';
 import CrudPage from '../crud-page.vue';
 import { partnerPageCrudConfig, partnerTypeOptionsLoader } from './config';
 
@@ -10,6 +12,8 @@ type PartnerSubCategoryOption = {
   label: string;
   value: number | string;
 };
+
+type PartnerRecord = Record<string, any>;
 
 const subCategoryOptions = ref<PartnerSubCategoryOption[]>([]);
 
@@ -53,10 +57,56 @@ function updateCategory(formState: Record<string, any>, category?: unknown) {
     formState.subCategory = undefined;
   }
 }
+
+const pageConfig = computed(() => ({
+  ...partnerPageCrudConfig,
+  rowActions: [
+    {
+      handler: (record: PartnerRecord) => partnerService.submitCertification(buildCertificationActionPayload(record)),
+      label: '提交认证',
+      permission: buildApiMethodPermissions(partnerService, 'submitCertification'),
+      visible: (record: PartnerRecord) => canFireCertificationEvent(record, '提交认证'),
+    },
+    {
+      handler: (record: PartnerRecord) => partnerService.approveCertification(buildCertificationActionPayload(record)),
+      label: '认证通过',
+      permission: buildApiMethodPermissions(partnerService, 'approveCertification'),
+      visible: (record: PartnerRecord) => canFireCertificationEvent(record, '认证通过'),
+    },
+    {
+      handler: (record: PartnerRecord) => partnerService.rejectCertification(buildCertificationActionPayload(record)),
+      label: '认证拒绝',
+      permission: buildApiMethodPermissions(partnerService, 'rejectCertification'),
+      visible: (record: PartnerRecord) => canFireCertificationEvent(record, '认证拒绝'),
+    },
+    {
+      handler: (record: PartnerRecord) => partnerService.revokeCertification(buildCertificationActionPayload(record)),
+      label: '撤销认证',
+      permission: buildApiMethodPermissions(partnerService, 'revokeCertification'),
+      visible: (record: PartnerRecord) => canFireCertificationEvent(record, '撤销认证'),
+    },
+  ],
+}));
+
+function canFireCertificationEvent(record: PartnerRecord, event: string) {
+  return Array.isArray(record.supportCertificationEventsByCurrentStatus)
+    && record.supportCertificationEventsByCurrentStatus.includes(event);
+}
+
+function buildCertificationActionPayload(record: PartnerRecord) {
+  return {
+    id: record.id,
+    _operatorAction: record._operatorAction,
+    optimisticLock: record.optimisticLock,
+    orgId: record.orgId,
+    ownerId: record.ownerId,
+    tenantId: record.tenantId,
+  };
+}
 </script>
 
 <template>
-  <CrudPage :config="partnerPageCrudConfig">
+  <CrudPage :config="pageConfig">
     <template #form-field-category="{ formState }">
       <Select
         :options="[

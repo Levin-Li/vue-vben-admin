@@ -8,9 +8,9 @@ export interface UiSettingRuntimeRecord {
   domain?: string;
   id?: string;
   lastUpdateTime?: string;
+  optimisticLock?: number;
   orgCategory?: string;
   orgType?: string;
-  optimisticLock?: number;
   tenantId?: string;
   type?: string;
   userCategory?: string;
@@ -26,8 +26,8 @@ export interface UiSettingRuntimeResolution {
 interface UiSettingCacheEntry {
   etag?: string;
   lastModified?: string;
-  setting: null | UiSettingRuntimeRecord;
   scope: UiSettingRuntimeResolution['scope'];
+  setting: null | UiSettingRuntimeRecord;
 }
 
 const uiSettingCache = new Map<string, UiSettingCacheEntry>();
@@ -65,11 +65,14 @@ function getHeader(headers: Record<string, any> | undefined, name: string) {
 export async function resolveUiSettingRuntimeWithScope(
   code: string,
   contextKey: string,
+  options: { refresh?: boolean } = {},
 ): Promise<UiSettingRuntimeResolution> {
   const cacheKey = buildCacheKey(code, contextKey);
   const cached = uiSettingCache.get(cacheKey);
 
-  if (cached) return { scope: cached.scope, setting: cached.setting };
+  // 全局选择器重载时重新向服务端确认，不能由旧缓存恢复已关闭的功能。
+  if (cached && !options.refresh)
+    return { scope: cached.scope, setting: cached.setting };
 
   const response: any = await requestClient.get('/UiSetting/use/resolve', {
     params: { code },
@@ -100,6 +103,12 @@ export async function resolveUiSettingRuntimeWithScope(
 export async function resolveUiSettingRuntime(
   code: string,
   contextKey: string,
+  options: { refresh?: boolean } = {},
 ): Promise<null | UiSettingRuntimeRecord> {
-  return (await resolveUiSettingRuntimeWithScope(code, contextKey)).setting;
+  const resolution = await resolveUiSettingRuntimeWithScope(
+    code,
+    contextKey,
+    options,
+  );
+  return resolution.setting;
 }

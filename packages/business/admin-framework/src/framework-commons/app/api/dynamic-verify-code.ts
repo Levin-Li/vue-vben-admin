@@ -17,6 +17,9 @@ import {
   type BehaviorCaptchaChallenge,
 } from '../views/_core/authentication/behavior-captcha';
 
+import { prepareMultipartReplay } from './multipart-request';
+import './dynamic-verify-code.css';
+
 type DynamicVerifyRequestConfig = RequestClientConfig & {
   __dynamicVerifyKeepRaw?: boolean;
   __dynamicVerifyRetried?: boolean;
@@ -33,6 +36,7 @@ type DynamicVerifyApplyResult = Required<
   Pick<DynamicVerifyPromptInfo, 'type'>
 > &
   Pick<DynamicVerifyPromptInfo, 'friendlyMessage' | 'interactionData'> & {
+    mockCode?: string;
     paramName: string;
     verifyId: string;
   };
@@ -41,7 +45,6 @@ const DYNAMIC_VERIFY_HEADER = '-DynamicVerifyCode-';
 const DYNAMIC_VERIFY_APPLY_VALUE = 'Apply';
 const DYNAMIC_VERIFY_PARAM_NAME_HEADER = '-DynamicVerifyCode-ParamName';
 const DYNAMIC_VERIFY_ID_HEADER = '-DynamicVerifyCode-VerifyId';
-const DYNAMIC_VERIFY_REQUEST_HASH_HEADER = '-DynamicVerifyCode-RequestHash';
 const DYNAMIC_VERIFY_TYPE_HEADER = '-DynamicVerifyCode-Type';
 const DYNAMIC_VERIFY_PROMPT_HEADER = '-DynamicVerifyCode-Prompt';
 const DYNAMIC_VERIFY_INTERACTION_DATA_HEADER =
@@ -149,49 +152,6 @@ function buildReplayConfig(
     ...extraConfig,
     headers,
   };
-}
-
-function stableBodyText(data: unknown) {
-  if (data === undefined || data === null) {
-    return '';
-  }
-
-  if (typeof data === 'string') {
-    return data;
-  }
-
-  if (
-    typeof URLSearchParams !== 'undefined' &&
-    data instanceof URLSearchParams
-  ) {
-    return data.toString();
-  }
-
-  if (typeof FormData !== 'undefined' && data instanceof FormData) {
-    return '[FormData]';
-  }
-
-  if (typeof Blob !== 'undefined' && data instanceof Blob) {
-    return `[Blob:${data.size}:${data.type}]`;
-  }
-
-  try {
-    return JSON.stringify(data);
-  } catch {
-    return String(data);
-  }
-}
-
-function buildRequestBodyHash(config: DynamicVerifyRequestConfig) {
-  const text = stableBodyText(config.data);
-  let hash = 0x811c9dc5;
-
-  for (let index = 0; index < text.length; index += 1) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-
-  return `fnv1a32:${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
 function toImageSrc(data: string) {
@@ -334,8 +294,22 @@ function promptDynamicVerifyCode(
 
     const getCurrentType = () => applyResult?.type || info.type;
 
+    // 外层生命周期独立；展示宽度与登录的 passwordVerifyDialogWidth 保持同一规则。
+    const presentation = () => ({
+      closable: !applying,
+      icon: null,
+      okButtonProps: isBehaviorVerify(getCurrentType())
+        ? { style: { display: 'none' } }
+        : undefined,
+      width: isBehaviorVerify(getCurrentType())
+        ? Math.min((Number(behaviorChallenge?.payload?.width) || 427) + 48, 700)
+        : 520,
+      wrapClassName: 'dynamic-verify-dialog',
+    });
+
     const updateModal = () => {
       modalRef?.update?.({
+        ...presentation(),
         content: renderContent(),
         title: renderVerifyModalTitle(getCurrentType()),
       });
@@ -397,6 +371,7 @@ function promptDynamicVerifyCode(
           disabled: applying,
           loading: applying,
           onClick: () => triggerApply(true),
+          size: 'large',
           style: 'width:112px;',
           type: 'primary',
         },
@@ -420,24 +395,16 @@ function promptDynamicVerifyCode(
 
     const renderContent = () => {
       const type = getCurrentType();
-      const description =
-        info.friendlyMessage ||
-        info.prompt ||
-        '当前接口需要完成验证码验证后才能继续。';
-      const interactionData = isCaptchaVerify(type) || isBehaviorVerify(type)
-        ? undefined
-        : applyResult?.interactionData;
-      const serverPrompt = applyResult?.friendlyMessage;
+      const interactionData =
+        isCaptchaVerify(type) || isBehaviorVerify(type)
+          ? undefined
+          : applyResult?.interactionData;
+      const serverPrompt =
+        type === 'Sms' || type === 'Email'
+          ? applyResult?.friendlyMessage
+          : undefined;
 
-      return h('div', { style: 'min-height:180px;padding-top:4px;' }, [
-        h(
-          'div',
-          {
-            style:
-              'margin-bottom:10px;color:hsl(var(--foreground));line-height:1.6;',
-          },
-          [description],
-        ),
+      return h('div', { style: 'padding-top:4px;' }, [
         isBehaviorVerify(type)
           ? behaviorChallenge
             ? h(BehaviorCaptcha, {
@@ -470,6 +437,7 @@ function promptDynamicVerifyCode(
                   allowClear: true,
                   autofocus: true,
                   placeholder: `请输入${getVerifyTypeLabel(type)}`,
+                  size: 'large',
                   style: 'flex:1;min-width:0;',
                   'onUpdate:value': (value: string) => {
                     verifyCode = value;
@@ -480,6 +448,16 @@ function promptDynamicVerifyCode(
                 }),
                 renderActionControl(type),
               ],
+            )
+          : undefined,
+        applyResult?.mockCode
+          ? h(
+              'div',
+              {
+                'data-test': 'dynamic-verify-mock-code',
+                style: 'margin-top:12px;',
+              },
+              `测试验证码（非生产）：${applyResult.mockCode}`,
             )
           : undefined,
         serverPrompt
@@ -498,7 +476,6 @@ function promptDynamicVerifyCode(
     modalRef = Modal.confirm({
       cancelText: '取消',
       centered: true,
-      closable: false,
       content: renderContent(),
       keyboard: false,
       maskClosable: false,
@@ -547,7 +524,7 @@ function promptDynamicVerifyCode(
         return undefined;
       },
       title: renderVerifyModalTitle(getCurrentType()),
-      width: 400,
+      ...presentation(),
     });
 
     if (!shouldShowGetCodeButton(getCurrentType())) {
@@ -573,20 +550,18 @@ async function processDynamicVerifyCode(
     throw new Error(prompt || '动态验证码验证失败，请重新发起请求');
   }
 
-  const requestBodyHash = buildRequestBodyHash(originalConfig);
-
   const { paramName, verifyCode, verifyId } = await promptDynamicVerifyCode(
     {
       prompt,
       type: requiredVerifyType,
     },
     async () => {
+      await prepareMultipartReplay(originalConfig);
       const codeResponse = await client.instance.request(
         buildReplayConfig(
           originalConfig,
           {
             [DYNAMIC_VERIFY_HEADER]: DYNAMIC_VERIFY_APPLY_VALUE,
-            [DYNAMIC_VERIFY_REQUEST_HASH_HEADER]: requestBodyHash,
           },
           {
             __dynamicVerifyKeepRaw: true,
@@ -611,21 +586,29 @@ async function processDynamicVerifyCode(
         throw new Error(prompt || '动态验证码接口未返回验证ID');
       }
 
+      const type =
+        getHeader(codeResponse.headers, DYNAMIC_VERIFY_TYPE_HEADER) ||
+        requiredVerifyType ||
+        '';
       return {
+        mockCode: getHeader(
+          codeResponse.headers,
+          '-DynamicVerifyCode-MockCode',
+        ),
         friendlyMessage: decodeHeaderValue(
           getHeader(codeResponse.headers, DYNAMIC_VERIFY_PROMPT_HEADER),
         ),
-        interactionData: decodeHeaderValue(
-          getHeader(
-            codeResponse.headers,
-            DYNAMIC_VERIFY_INTERACTION_DATA_HEADER,
-          ),
-        ),
+        // 行为题面包含图片，使用响应体避免超过 HTTP 响应头上限。
+        interactionData: isBehaviorVerify(type)
+          ? JSON.stringify(codeResponse.data)
+          : decodeHeaderValue(
+              getHeader(
+                codeResponse.headers,
+                DYNAMIC_VERIFY_INTERACTION_DATA_HEADER,
+              ),
+            ),
         paramName,
-        type:
-          getHeader(codeResponse.headers, DYNAMIC_VERIFY_TYPE_HEADER) ||
-          requiredVerifyType ||
-          '',
+        type,
         verifyId,
       };
     },
@@ -637,7 +620,6 @@ async function processDynamicVerifyCode(
       {
         [paramName]: verifyCode,
         [DYNAMIC_VERIFY_ID_HEADER]: verifyId,
-        [DYNAMIC_VERIFY_REQUEST_HASH_HEADER]: requestBodyHash,
       },
       {
         __dynamicVerifyKeepRaw: true,

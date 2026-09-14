@@ -47,8 +47,8 @@ export namespace RbacApi {
   }
 
   export interface CaptchaParams extends AppClientParams {
-    account: string;
     [key: string]: any;
+    account: string;
   }
 
   export interface VerifyCodeParams extends AppClientParams {
@@ -69,6 +69,7 @@ export namespace RbacApi {
   }
 
   export interface BackendUserInfo {
+    [key: string]: any;
     avatar?: string;
     email?: string;
     id?: string;
@@ -78,27 +79,26 @@ export namespace RbacApi {
     roleList?: string[];
     telephone?: string;
     tenantId?: string;
-    [key: string]: any;
   }
 
   export interface TenantSiteInfo {
+    [key: string]: any;
     appAuthDomain?: null | string;
     copyright?: null | string;
     domain?: null | string;
     id?: null | string;
     logo?: null | string;
+    mainImg?: null | string;
     name?: null | string;
     shortcutIcon?: null | string;
-    title?: null | string;
-    titleImg?: null | string;
-    mainImg?: null | string;
+    siteInfo?: null | TenantSiteDisplayInfo;
     sysLogo?: null | string;
     sysName?: null | string;
-    siteInfo?: null | TenantSiteDisplayInfo;
     techSupport?: null | string;
     tenantId?: null | string;
+    title?: null | string;
+    titleImg?: null | string;
     uiExInfo?: null | Record<string, any>;
-    [key: string]: any;
   }
 
   export interface TenantSiteDisplayInfo {
@@ -175,7 +175,7 @@ export namespace RbacApi {
     keyword?: string;
   }
 
-  export interface AdjustSiteUiSettingParams extends Record<string, any> {}
+  export type AdjustSiteUiSettingParams = Record<string, any>;
 }
 
 type BackendUserInfo = RbacApi.BackendUserInfo;
@@ -230,84 +230,34 @@ export class RbacService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共数据-权限控制',
-    action: '获取公开登录选项',
-    ignored: true,
+    action: '调整站点UI设置',
+    onlyRequireAuthenticated: true,
   })
-  async getLoginOptions() {
-    return baseRequestClient.get<RbacApi.LoginOptions>(
-      this.buildRequestPath('loginOptions'),
+  async adjustSiteUiSetting(
+    data: RbacApi.AdjustSiteUiSettingParams,
+    options: Record<string, any> = {},
+  ) {
+    return requestClient.put<null>(
+      this.buildRequestPath('adjustSiteUiSetting'),
+      data,
+      options,
     );
   }
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共数据-权限控制',
-    action: '获取验证码',
+    action: '查询授权的控制器路径',
     ignored: true,
   })
-  async getVerifyCode(params: RbacApi.VerifyCodeParams) {
-    return baseRequestClient.get<RbacApi.VerifyCodeResult>(
-      this.buildRequestPath('getVerifyCode'),
+  async authorizedControllerPathList(
+    params: RbacApi.AuthorizedControllerPathListParams = {},
+  ) {
+    return requestClient.get<RbacApi.AuthorizedControllerPathInfo[]>(
+      this.buildRequestPath('authorizedControllerPathList'),
       {
         params,
       },
-    );
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '验证码图片链接',
-    ignored: true,
-  })
-  getCaptchaUrl(params: RbacApi.CaptchaParams) {
-    const search = new URLSearchParams();
-    for (const [key, value] of Object.entries(params)) {
-      if (value !== undefined && value !== null) {
-        search.set(key, String(value));
-      }
-    }
-    const query = search.toString();
-    const path = this.buildRequestPath('captcha');
-    return query ? `${path}?${query}` : path;
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '用户注册并登录',
-    ignored: true,
-  })
-  async register(data: RbacApi.RegisterParams) {
-    return baseRequestClient.post<RbacApi.LoginResult>(
-      this.buildRequestPath('register'),
-      data,
-    );
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '用户登录',
-    ignored: true,
-  })
-  async login(data: RbacApi.LoginParams) {
-    return requestClient.post<RbacApi.LoginResult>(
-      this.buildRequestPath('login'),
-      data,
-    );
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '创建密码登录验证码挑战',
-    ignored: true,
-  })
-  async startPasswordLogin(data: RbacApi.LoginParams) {
-    return requestClient.post<RbacApi.PasswordLoginChallenge>(
-      this.buildRequestPath('loginVerifyChallenge'),
-      data,
     );
   }
 
@@ -327,86 +277,14 @@ export class RbacService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共数据-权限控制',
-    action: '用户登出',
-    ignored: true,
-  })
-  async logout() {
-    return requestClient.get(this.buildRequestPath('logout'), {
-      withCredentials: true,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '用户信息',
+    action: '获取授权的组织选项',
     onlyRequireAuthenticated: true,
   })
-  async getUserInfo() {
-    const data = await requestClient.get<BackendUserInfo>(
-      this.buildRequestPath('userInfo'),
-    );
-    return normalizeUserInfo(data);
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '获取租户站点信息',
-    ignored: true,
-  })
-  async getTenantSiteInfo() {
-    return baseRequestClient.get<RbacApi.TenantSiteInfo>(
-      this.buildRequestPath('tenantSiteInfo'),
-      {
-        __silentError: true,
-      } as any,
-    );
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '获取租户信息',
-    ignored: true,
-  })
-  async getTenantInfo() {
-    return baseRequestClient.get<RbacApi.TenantInfo>(
-      this.buildRequestPath('tenantInfo'),
-      {
-        __silentError: true,
-      } as any,
-    );
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '修改登录信息',
-    onlyRequireAuthenticated: true,
-  })
-  async updateLoginInfo(data: RbacApi.UpdateLoginInfoParams) {
-    return requestClient.put<null>(
-      this.buildRequestPath('updateLoginInfo'),
-      data,
-    );
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '调整站点UI设置',
-    onlyRequireAuthenticated: true,
-  })
-  async adjustSiteUiSetting(
-    data: RbacApi.AdjustSiteUiSettingParams,
-    options: Record<string, any> = {},
+  async fetchAuthorizedOrgOptions(
+    params: RbacApi.AuthorizedOrgListParams = {},
   ) {
-    return requestClient.put<null>(
-      this.buildRequestPath('adjustSiteUiSetting'),
-      data,
-      options,
-    );
+    const data = await this.fetchAuthorizedOrgTree(params);
+    return normalizeAuthorizedOrgOptions(data);
   }
 
   @ResAuthorize({
@@ -432,14 +310,18 @@ export class RbacService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共数据-权限控制',
-    action: '获取授权的组织选项',
+    action: '获取授权的纯树形资源权限',
     onlyRequireAuthenticated: true,
   })
-  async fetchAuthorizedOrgOptions(
-    params: RbacApi.AuthorizedOrgListParams = {},
+  async fetchAuthorizedPermissionTree(
+    params: RbacApi.AuthorizedPermissionTreeParams = {},
   ) {
-    const data = await this.fetchAuthorizedOrgTree(params);
-    return normalizeAuthorizedOrgOptions(data);
+    return requestClient.get<RbacApi.PermissionTreeNode[]>(
+      this.buildRequestPath('authorizedPermissionTree'),
+      {
+        params,
+      },
+    );
   }
 
   @ResAuthorize({
@@ -458,23 +340,6 @@ export class RbacService extends RequestService {
           isShowSysDefaultRes: false,
           ...params,
         },
-      },
-    );
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '获取授权的纯树形资源权限',
-    onlyRequireAuthenticated: true,
-  })
-  async fetchAuthorizedPermissionTree(
-    params: RbacApi.AuthorizedPermissionTreeParams = {},
-  ) {
-    return requestClient.get<RbacApi.PermissionTreeNode[]>(
-      this.buildRequestPath('authorizedPermissionTree'),
-      {
-        params,
       },
     );
   }
@@ -512,17 +377,152 @@ export class RbacService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共数据-权限控制',
-    action: '查询授权的控制器路径',
+    action: '验证码图片链接',
     ignored: true,
   })
-  async authorizedControllerPathList(
-    params: RbacApi.AuthorizedControllerPathListParams = {},
-  ) {
-    return requestClient.get<RbacApi.AuthorizedControllerPathInfo[]>(
-      this.buildRequestPath('authorizedControllerPathList'),
+  getCaptchaUrl(params: RbacApi.CaptchaParams) {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null) {
+        search.set(key, String(value));
+      }
+    }
+    const query = search.toString();
+    const path = this.buildRequestPath('captcha');
+    return query ? `${path}?${query}` : path;
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '获取公开登录选项',
+    ignored: true,
+  })
+  async getLoginOptions() {
+    return baseRequestClient.get<RbacApi.LoginOptions>(
+      this.buildRequestPath('loginOptions'),
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '获取租户信息',
+    ignored: true,
+  })
+  async getTenantInfo() {
+    return baseRequestClient.get<RbacApi.TenantInfo>(
+      this.buildRequestPath('tenantInfo'),
+      {
+        __silentError: true,
+      } as any,
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '获取租户站点信息',
+    ignored: true,
+  })
+  async getTenantSiteInfo() {
+    return baseRequestClient.get<RbacApi.TenantSiteInfo>(
+      this.buildRequestPath('tenantSiteInfo'),
+      {
+        __silentError: true,
+      } as any,
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '用户信息',
+    onlyRequireAuthenticated: true,
+  })
+  async getUserInfo() {
+    const data = await requestClient.get<BackendUserInfo>(
+      this.buildRequestPath('userInfo'),
+    );
+    return normalizeUserInfo(data);
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '获取验证码',
+    ignored: true,
+  })
+  async getVerifyCode(params: RbacApi.VerifyCodeParams) {
+    return baseRequestClient.get<RbacApi.VerifyCodeResult>(
+      this.buildRequestPath('getVerifyCode'),
       {
         params,
       },
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '用户登录',
+    ignored: true,
+  })
+  async login(data: RbacApi.LoginParams) {
+    return requestClient.post<RbacApi.LoginResult>(
+      this.buildRequestPath('login'),
+      data,
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '用户登出',
+    ignored: true,
+  })
+  async logout() {
+    return requestClient.get(this.buildRequestPath('logout'), {
+      withCredentials: true,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '用户注册并登录',
+    ignored: true,
+  })
+  async register(data: RbacApi.RegisterParams) {
+    return baseRequestClient.post<RbacApi.LoginResult>(
+      this.buildRequestPath('register'),
+      data,
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '创建密码登录验证码挑战',
+    ignored: true,
+  })
+  async startPasswordLogin(data: RbacApi.LoginParams) {
+    return requestClient.post<RbacApi.PasswordLoginChallenge>(
+      this.buildRequestPath('loginVerifyChallenge'),
+      data,
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '修改登录信息',
+    onlyRequireAuthenticated: true,
+  })
+  async updateLoginInfo(data: RbacApi.UpdateLoginInfoParams) {
+    return requestClient.put<null>(
+      this.buildRequestPath('updateLoginInfo'),
+      data,
     );
   }
 }

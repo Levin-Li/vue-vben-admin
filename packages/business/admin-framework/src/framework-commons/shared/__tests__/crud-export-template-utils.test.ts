@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildCrudExportTemplateTargetTypeVariants,
-  CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES,
   CRUD_EXPORT_TEMPLATE_SAVE_TYPE,
-  CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES,
   CRUD_IMPORT_TEMPLATE_SAVE_TYPE,
 } from '../crud-export-template';
-import { buildExcelXml, escapeExcelXmlValue } from '../crud-file-export';
+import {
+  buildExcelXml,
+  escapeExcelXmlValue,
+  getSpreadsheetMlColumnWidth,
+} from '../crud-file-export';
 import {
   canShowCrudTemplateDelete,
   dedupeCrudTemplates,
@@ -15,43 +16,9 @@ import {
 } from '../crud-template-service';
 
 describe('crud export template utils', () => {
-  it('loads both export-only and import-export templates for export dropdowns', () => {
+  it('keeps distinct saved template types for export and import', () => {
     expect(CRUD_EXPORT_TEMPLATE_SAVE_TYPE).toBe('Export');
-    expect(CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES).toEqual([
-      'Export',
-      'ImportAndExport',
-    ]);
-    expect(CRUD_EXPORT_TEMPLATE_APPLICABLE_TYPES).not.toContain('Import');
-  });
-
-  it('loads both import-only and import-export templates for import dropdowns', () => {
     expect(CRUD_IMPORT_TEMPLATE_SAVE_TYPE).toBe('Import');
-    expect(CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES).toEqual([
-      'Import',
-      'ImportAndExport',
-    ]);
-    expect(CRUD_IMPORT_TEMPLATE_APPLICABLE_TYPES).not.toContain('Export');
-  });
-
-  it('builds current and legacy target type variants', () => {
-    expect(
-      buildCrudExportTemplateTargetTypeVariants({
-        apiBase: '/Role',
-        apiModuleBase: '/com.levin.oak.base/V1/api',
-        listPath: '/Role/list',
-        listTableName: 'main',
-        listTitle: '列表',
-        targetType: '/com.levin.oak.base/V1/api:/Role:/Role/list:main',
-        title: '角色管理',
-      }),
-    ).toEqual([
-      '/com.levin.oak.base/V1/api:/Role:/Role/list:main',
-      '/Role:/Role/list:main',
-      '/com.levin.oak.base/V1/api:/Role:/Role/list',
-      '/Role:/Role/list',
-      '/com.levin.oak.base/V1/api:/Role',
-      '/Role',
-    ]);
   });
 
   it('deduplicates templates and normalizes stored config', () => {
@@ -89,5 +56,21 @@ describe('crud export template utils', () => {
         worksheetName: 'Demo',
       }),
     ).toContain('A&amp;B');
+  });
+
+  it('writes configured export widths as SpreadsheetML columns', () => {
+    expect(getSpreadsheetMlColumnWidth(20)).toBe(105);
+    expect(getSpreadsheetMlColumnWidth(0)).toBeUndefined();
+    expect(getSpreadsheetMlColumnWidth(256)).toBeUndefined();
+
+    expect(
+      buildExcelXml({
+        fields: [{ key: 'name', label: '名称' }],
+        formatCellValue: (_field, record) => record.name,
+        getFieldHeader: (field) => field.label,
+        getFieldWidth: () => 20,
+        records: [{ name: 'A' }],
+      }),
+    ).toContain('<Column ss:AutoFitWidth="0" ss:Width="105"/>');
   });
 });

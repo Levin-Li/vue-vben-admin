@@ -12,6 +12,7 @@ export {
 } from './crud-value-converter';
 
 export const CRUD_IMPORT_BATCH_SIZE = 2000;
+export const CRUD_IMPORT_REQUIRED_FIELD_PRECHECK_MAX_ROWS = 100_000;
 
 export interface CrudImportMapping {
   converter?: CrudImportConverter;
@@ -41,6 +42,10 @@ export interface BuildImportRecordsResult {
 
 function normalizeText(value: unknown) {
   return String(value ?? '').trim();
+}
+
+function hasImportValue(value: unknown) {
+  return Boolean(normalizeText(value));
 }
 
 function normalizeHeader(value: unknown) {
@@ -457,18 +462,23 @@ export function buildImportRecords(
   const records: Record<string, any>[] = [];
   const rowErrors: BuildImportRecordsResult['rowErrors'] = [];
   const activeMappings = mappings.filter((mapping) => {
-    if (!mapping.header) {
-      return false;
-    }
+    const hasSourceHeader = Boolean(
+      mapping.header && sheet.headers.includes(mapping.header),
+    );
+    const hasDefaultValue = hasImportValue(mapping.defaultValue);
 
-    if (sheet.headers.includes(mapping.header)) {
+    // 有来源列或默认值的字段都需要参与记录构造，默认值可补足缺少的来源列。
+    if (hasSourceHeader || hasDefaultValue) {
       return true;
     }
 
-    rowErrors.push({
-      message: `${mapping.fieldKey}: 找不到来源列：${mapping.header}`,
-      rowIndex: 1,
-    });
+    if (mapping.header) {
+      rowErrors.push({
+        message: `${mapping.fieldKey}: 找不到来源列：${mapping.header}`,
+        rowIndex: 1,
+      });
+    }
+
     return false;
   });
 
@@ -482,7 +492,7 @@ export function buildImportRecords(
           ? rawValue
           : mapping.defaultValue;
 
-      if (mapping.required && !normalizeText(value)) {
+      if (mapping.required && !hasImportValue(value)) {
         rowErrors.push({
           message: `${mapping.fieldKey} 不能为空`,
           rowIndex: rowIndex + 2,
@@ -519,6 +529,23 @@ export function buildImportRecords(
     records,
     rowErrors,
   };
+}
+
+export function getMissingRequiredImportMappings(
+  sheet: ParsedImportSheet,
+  mappings: CrudImportMapping[],
+) {
+  return mappings.filter((mapping) => {
+    if (!mapping.required) {
+      return false;
+    }
+
+    const hasSourceHeader = Boolean(
+      mapping.header && sheet.headers.includes(mapping.header),
+    );
+
+    return !hasSourceHeader && !hasImportValue(mapping.defaultValue);
+  });
 }
 
 export function chunkImportRecords<T>(

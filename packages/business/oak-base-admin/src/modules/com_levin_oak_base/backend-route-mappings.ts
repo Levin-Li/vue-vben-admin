@@ -56,7 +56,7 @@ function toKebabCase(value: string) {
 
 function getPageOperations(resource: string) {
   const expectedBasePath = `/${resource}`;
-  const service = Object.values(oakBaseApi).find(
+  const service = Object.values<unknown>(oakBaseApi).find(
     (candidate): candidate is object =>
       Boolean(candidate) &&
       typeof candidate === 'object' &&
@@ -90,6 +90,31 @@ function createCrudBackendRouteMapping(
 }
 
 export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
+  {
+    ...getPageMeta(
+      `${MODULE_SOURCE_PREFIX}/named-scope-variable-acceptance/index.vue`,
+    ),
+    icon: 'lucide:scan-search',
+    operations: [],
+    onlyRequireAuthenticated: true,
+    path: '/clob/V1/namedScopeVariableAcceptance',
+    resource: 'NamedScopeVariableAcceptance',
+    sourceFilePath: `${MODULE_SOURCE_PREFIX}/named-scope-variable-acceptance/index.vue`,
+    title: getPageMeta(
+      `${MODULE_SOURCE_PREFIX}/named-scope-variable-acceptance/index.vue`,
+    ).title,
+    viewPath: `${MODULE_VIEW_PREFIX}/named-scope-variable-acceptance/index.vue`,
+  },
+  {
+    ...getPageMeta(`${MODULE_SOURCE_PREFIX}/acl-test/index.vue`),
+    icon: 'lucide:shield-check',
+    operations: buildAdminPageOperations(oakBaseApi.aclTestService),
+    onlyRequireAuthenticated: true,
+    path: '/clob/V1/aclTest',
+    resource: 'AclTest',
+    sourceFilePath: `${MODULE_SOURCE_PREFIX}/acl-test/index.vue`,
+    viewPath: `${MODULE_VIEW_PREFIX}/acl-test/index.vue`,
+  },
   {
     description: getPageMeta(`${MODULE_SOURCE_PREFIX}/home/index.vue`)
       .description,

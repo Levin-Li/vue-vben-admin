@@ -11,7 +11,23 @@ export const oakBaseAdminHomeRoute: RouteRecordRaw = {
   path: '',
 };
 
+export const aclTestRoute: RouteRecordRaw = {
+  component: () => import('./views/acl-test/index.vue'),
+  meta: { title: '访问控制测试', icon: 'lucide:shield-check' },
+  name: toPathRouteName('/clob/V1/aclTest'),
+  path: '/clob/V1/aclTest',
+};
+
+export const namedScopeVariableAcceptanceRoute: RouteRecordRaw = {
+  component: () => import('./views/named-scope-variable-acceptance/index.vue'),
+  meta: { title: '具名数据范围变量验收', icon: 'lucide:scan-search' },
+  name: toPathRouteName('/clob/V1/namedScopeVariableAcceptance'),
+  path: '/clob/V1/namedScopeVariableAcceptance',
+};
+
 export const oakBaseAdminRoutes: RouteRecordRaw[] = [
+  aclTestRoute,
+  namedScopeVariableAcceptanceRoute,
   {
     component: () => import('./views/setting-for-tenant/index.vue'),
     meta: {

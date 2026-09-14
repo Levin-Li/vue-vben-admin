@@ -2,8 +2,6 @@ import type { UserOrgSelectorRecord } from '../shared/user-org-selector-types';
 
 import { computed, ref } from 'vue';
 
-import { evaluateJavaScriptExpression } from '../shared/javascript-expression';
-
 function normalizeId(value: unknown) {
   const id = String(value ?? '').trim();
   return id || undefined;
@@ -31,7 +29,24 @@ function normalizeSelectedRecord(value: unknown) {
   } as UserOrgSelectorRecord;
 }
 
+// 配置未加载或已关闭时默认禁止补值；不依赖界面是否可见。
+let contextEnabled = false;
+
+/** 运行时开关关闭后先停止注入，再清空选择以免刷新请求带入旧范围。 */
+export function setGlobalUserOrgContextEnabled(enabled: boolean) {
+  contextEnabled = enabled;
+  if (!enabled) {
+    setCurrentGlobalUserOrgRecord(undefined);
+  }
+}
+
+export function isGlobalUserOrgContextEnabled() {
+  return contextEnabled;
+}
+
 const selectedRecordRef = ref<UserOrgSelectorRecord>();
+const selectedRecordsRef = ref<UserOrgSelectorRecord[]>([]);
+const multipleRef = ref(false);
 const revisionRef = ref(0);
 const listeners = new Set<
   (record: undefined | UserOrgSelectorRecord) => void
@@ -40,6 +55,22 @@ const listeners = new Set<
 export const currentGlobalUserOrgRecord = computed(
   () => selectedRecordRef.value,
 );
+export const currentGlobalUserOrgRecords = computed(
+  () => selectedRecordsRef.value,
+);
+export const globalOrgContextMultiple = computed(() => multipleRef.value);
+export const currentGlobalOrgIds = computed(() => [
+  ...new Set(
+    selectedRecordsRef.value.map((record) => record.orgId).filter(Boolean),
+  ),
+]);
+export const currentGlobalOwnerIds = computed(() => [
+  ...new Set(
+    selectedRecordsRef.value
+      .filter((record) => record.kind === 'user')
+      .map((record) => record.id),
+  ),
+]);
 export const currentGlobalOrgId = computed(
   () => selectedRecordRef.value?.orgId,
 );
@@ -80,38 +111,19 @@ export interface GlobalUserOrgInjectionRules {
   isRequired?: GlobalUserOrgInjectionCondition;
 }
 
-function evaluateInjectionCondition(
-  condition: GlobalUserOrgInjectionCondition | undefined,
-  fallback: boolean,
-  context: GlobalUserOrgInjectionContext,
-) {
-  let result: unknown = fallback;
-  if (typeof condition === 'function') {
-    result = condition(context);
-  } else if (typeof condition === 'string') {
-    result = evaluateJavaScriptExpression(condition, context);
-  } else if (condition !== undefined) {
-    result = condition;
-  }
-
-  if (typeof result !== 'boolean') {
-    throw new TypeError(
-      `全局参数 ${context.fieldName} 的注入条件必须返回布尔值`,
-    );
-  }
-  return result;
-}
-
 export function applyCurrentGlobalUserOrgContextToParams(
   params: Record<string, any> | undefined,
-  options: GlobalUserOrgInjectionRules & {
+  _options: GlobalUserOrgInjectionRules & {
     request?: GlobalUserOrgInjectionContext['request'];
     skip?: boolean;
     user?: GlobalUserOrgInjectionContext['user'];
   } = {},
 ) {
+  // 全局上下文已改为请求头传递，绝不再改写业务查询参数。
+  return params;
+  /*
   const selected = currentGlobalUserOrgRecord.value;
-  if (options.skip || !selected) {
+  if (!contextEnabled || options.skip || !selected) {
     return params;
   }
 
@@ -160,7 +172,7 @@ export function applyCurrentGlobalUserOrgContextToParams(
     }
     result = { ...result, [fieldName]: value };
   }
-  return result;
+  return result; */
 }
 
 export function applyCurrentGlobalOrgIdToParams(
@@ -169,22 +181,39 @@ export function applyCurrentGlobalOrgIdToParams(
   return applyCurrentGlobalUserOrgContextToParams(params);
 }
 
-export function setCurrentGlobalUserOrgRecord(value: unknown) {
-  const record = normalizeSelectedRecord(value);
-  const previousRecord = selectedRecordRef.value;
-
+export function setCurrentGlobalUserOrgRecords(
+  value: unknown,
+  multiple = false,
+) {
+  const source = Array.isArray(value) ? value : [value];
+  const records = source
+    .map((item) => normalizeSelectedRecord(item))
+    .filter(Boolean) as UserOrgSelectorRecord[];
+  const next = multiple ? records : records.slice(0, 1);
+  const previous = selectedRecordsRef.value;
   if (
-    previousRecord?.id === record?.id &&
-    previousRecord?.kind === record?.kind &&
-    previousRecord?.orgId === record?.orgId
+    multipleRef.value === multiple &&
+    previous.length === next.length &&
+    previous.every(
+      (record, index) =>
+        record.id === next[index]?.id &&
+        record.kind === next[index]?.kind &&
+        record.orgId === next[index]?.orgId,
+    )
   ) {
     return false;
   }
-
+  multipleRef.value = multiple;
+  selectedRecordsRef.value = next;
+  const record = next[0];
   selectedRecordRef.value = record;
   revisionRef.value += 1;
   listeners.forEach((listener) => listener(record));
   return true;
+}
+
+export function setCurrentGlobalUserOrgRecord(value: unknown) {
+  return setCurrentGlobalUserOrgRecords(value, false);
 }
 
 export function setCurrentGlobalOrgId(value: unknown) {

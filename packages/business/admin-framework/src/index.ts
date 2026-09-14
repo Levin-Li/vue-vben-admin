@@ -2,21 +2,24 @@ import { defineAsyncComponent } from 'vue';
 
 export * from './framework-commons/api';
 export * from './framework-commons/api-authorize';
-export * from './framework-commons/app/views/_core/authentication/behavior-captcha';
+export { rbacService } from './framework-commons/app/api/rbac-service';
+export * from './framework-commons/app/global-domain-context-state';
 export * from './framework-commons/app/options';
+export * from './framework-commons/app/views/_core/authentication/behavior-captcha';
 export * from './framework-commons/event-bus';
 export * from './framework-commons/locale-utils';
 export * from './framework-commons/menu-fixed-query';
 export * from './framework-commons/module-contract';
-export * from './framework-commons/page-operation-metadata';
 export * from './framework-commons/page-map';
+export * from './framework-commons/page-operation-metadata';
 export * from './framework-commons/page-registry';
 export { default as RbacPermissionMatchUtils } from './framework-commons/rbac-permission-match';
 export * from './framework-commons/request-service';
 export * from './framework-commons/runtime';
-export * from './framework-commons/shared/draggable-floating-panel-service';
 export * from './framework-commons/shared/administrative-area-data';
+export * from './framework-commons/shared/draggable-floating-panel-service';
 export * from './framework-commons/shared/pattern-list-utils';
+export * from './framework-commons/shared/crud-list-operations';
 export * from './framework-commons/shared/user-dropdown-menu-service';
 export * from './framework-commons/shared/user-org-selector-types';
 

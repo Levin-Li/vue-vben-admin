@@ -8,6 +8,7 @@ import {
   Button,
   Checkbox,
   Input,
+  InputNumber,
   Modal,
   Popconfirm,
   Select,
@@ -21,6 +22,7 @@ defineProps<{
   confirmLoading: boolean;
   fieldAliases: Record<string, string>;
   fieldConverters: Record<string, CrudExportConverter>;
+  fieldWidths: Record<string, number>;
   fieldsIndeterminate: boolean;
   open: boolean;
   orderedFields: CrudFieldConfig[];
@@ -44,6 +46,7 @@ const emit = defineEmits<{
   'update:open': [value: boolean];
   updateFieldAlias: [key: string, value: string];
   updateFieldConverter: [key: string, value: CrudExportConverter];
+  updateFieldWidth: [key: string, value?: number | string];
 }>();
 </script>
 
@@ -53,7 +56,7 @@ const emit = defineEmits<{
     :mask-closable="false"
     :open="open"
     title="导出 Excel"
-    width="720px"
+    width="900px"
     destroy-on-close
     @cancel="emit('update:open', false)"
     @ok="emit('confirm')"
@@ -112,8 +115,9 @@ const emit = defineEmits<{
       </div>
       <div class="flex max-h-[420px] flex-col overflow-auto">
         <div class="vben-crud-export-field-header">
-          <span>字段</span>
+          <span>导出字段</span>
           <span>导出列别名</span>
+          <span>导出列宽</span>
           <span>转换</span>
           <span>排序</span>
         </div>
@@ -143,6 +147,23 @@ const emit = defineEmits<{
             size="small"
             @update:value="
               (value) => emit('updateFieldAlias', String(field.key), value)
+            "
+          />
+          <InputNumber
+            :max="255"
+            :min="1"
+            :precision="0"
+            :value="fieldWidths[String(field.key)]"
+            class="vben-crud-export-width-input"
+            placeholder="自动"
+            size="small"
+            @update:value="
+              (value) =>
+                emit(
+                  'updateFieldWidth',
+                  String(field.key),
+                  value === null ? undefined : value,
+                )
             "
           />
           <Select
@@ -199,10 +220,9 @@ const emit = defineEmits<{
 
 .vben-crud-export-field-header {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(150px, 210px) minmax(
-      120px,
-      150px
-    ) 56px;
+  grid-template-columns:
+    minmax(120px, 1fr) minmax(150px, 210px) 90px minmax(120px, 150px)
+    56px;
   gap: 8px;
   align-items: center;
   padding: 4px 0 6px;
@@ -212,10 +232,9 @@ const emit = defineEmits<{
 
 .vben-crud-export-field-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(150px, 210px) minmax(
-      120px,
-      150px
-    ) 56px;
+  grid-template-columns:
+    minmax(120px, 1fr) minmax(150px, 210px) 90px minmax(120px, 150px)
+    56px;
   gap: 8px;
   align-items: center;
   min-width: 0;
@@ -239,6 +258,10 @@ const emit = defineEmits<{
 }
 
 .vben-crud-export-alias-input {
+  min-width: 0;
+}
+
+.vben-crud-export-width-input {
   min-width: 0;
 }
 </style>

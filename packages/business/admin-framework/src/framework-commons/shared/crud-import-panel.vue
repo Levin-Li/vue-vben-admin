@@ -30,6 +30,7 @@ defineProps<{
   importableFields: CrudFieldConfig[];
   importing: boolean;
   mappings: CrudImportMapping[];
+  missingRequiredFields: string[];
   open: boolean;
   previewColumns: TableColumnsType;
   previewRows: Record<string, any>[];
@@ -128,11 +129,9 @@ function getMappingFieldLabel(
           :loading="templateLoading"
           :options="templateOptions"
           placeholder="选择导入模板"
-          size="small"
           @change="(value) => emit('templateChange', value)"
         />
         <Button
-          size="small"
           :disabled="templateLoading || importing"
           :loading="templateSaving"
           @click="emit('saveTemplate')"
@@ -154,7 +153,7 @@ function getMappingFieldLabel(
             删除模板
           </Button>
         </Popconfirm>
-        <Button size="small" :disabled="importing" @click="triggerFileSelect">
+        <Button :disabled="importing" @click="triggerFileSelect">
           <template #icon>
             <IconifyIcon class="size-3.5" icon="lucide:file-up" />
           </template>
@@ -180,6 +179,13 @@ function getMappingFieldLabel(
       <Tabs>
         <Tabs.TabPane key="mapping" tab="字段映射">
           <div class="vben-crud-import-mapping">
+            <div
+              v-if="missingRequiredFields.length > 0"
+              class="vben-crud-import-required-warning"
+            >
+              必填字段缺少来源列或默认值：
+              {{ missingRequiredFields.join('、') }}
+            </div>
             <div class="vben-crud-import-mapping-header">
               <span>目标字段</span>
               <span>来源列</span>
@@ -192,6 +198,12 @@ function getMappingFieldLabel(
               class="vben-crud-import-mapping-row"
             >
               <span class="truncate">
+                <span
+                  v-if="mapping.required"
+                  class="vben-crud-import-required-mark"
+                >
+                  *
+                </span>
                 {{ getMappingFieldLabel(importableFields, mapping) }}
               </span>
               <Select
@@ -285,12 +297,30 @@ function getMappingFieldLabel(
   display: flex;
   gap: 8px;
   align-items: center;
-  margin-bottom: 12px;
+  padding: 2px 0;
+  margin-bottom: 8px;
 }
 
 .vben-crud-export-template-select {
   min-width: 0;
   flex: 1;
+}
+
+.vben-crud-export-template-bar :deep(.ant-btn) {
+  min-height: 40px;
+  padding-inline: 14px;
+  font-size: 14px;
+}
+
+.vben-crud-export-template-select :deep(.ant-select-selector) {
+  min-height: 40px;
+  padding-inline: 10px;
+}
+
+.vben-crud-export-template-select :deep(.ant-select-selection-item),
+.vben-crud-export-template-select :deep(.ant-select-selection-placeholder),
+.vben-crud-export-template-select :deep(.ant-select-selection-search-input) {
+  font-size: 14px;
 }
 
 .vben-crud-import-modal {
@@ -322,6 +352,17 @@ function getMappingFieldLabel(
   flex-direction: column;
   max-height: 360px;
   overflow: auto;
+}
+
+.vben-crud-import-required-warning {
+  padding: 6px 0;
+  color: hsl(var(--destructive));
+  font-size: 12px;
+}
+
+.vben-crud-import-required-mark {
+  margin-right: 4px;
+  color: hsl(var(--destructive));
 }
 
 .vben-crud-import-mapping-header,

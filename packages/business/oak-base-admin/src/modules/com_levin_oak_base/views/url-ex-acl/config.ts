@@ -24,8 +24,23 @@ const methodOptions = [
 ];
 
 function transformUrlAclSubmit(values: Record<string, any>) {
+  // 数值控件使用扁平键录入，保存时显式映射回扩展信息，保留其他扩展参数。
+  const payload = { ...values };
+  const bodyLimitKey = 'exInfo.maxRequestBodyBytes';
+  if (
+    payload.interceptType === 'RequestBodyLimit' &&
+    Object.hasOwn(payload, bodyLimitKey)
+  ) {
+    payload.exInfo = {
+      ...payload.exInfo,
+      maxRequestBodyBytes: payload[bodyLimitKey],
+    };
+  }
+  Reflect.deleteProperty(payload, bodyLimitKey);
+
+  // 请求头与参数继续使用统一规则格式，其他访问控制类型保持原有提交语义。
   return {
-    ...values,
+    ...payload,
     headerRuleList: normalizeNameValueRuleList(values.headerRuleList),
     requestParamRuleList: normalizeNameValueRuleList(
       values.requestParamRuleList,
@@ -118,6 +133,27 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'select',
       width: 120,
+    },
+    // 仅请求体限制使用本字段；其他类型不校验、不写入阈值。
+    {
+      key: 'exInfo.maxRequestBodyBytes',
+      label: '请求体最大字节数',
+      layoutGroup: 'basic',
+      layoutOrder: 45,
+      defaultValue: 1_048_576,
+      type: 'number',
+      valueType: 'number',
+      help: '仅请求体大小限制类型生效，单位：字节，默认 1048576（1 MiB），超限返回 413，长度未知返回 411（无正文 GET 也不例外），建议仅匹配 POST/PUT/PATCH。支持 URL、方法、域名、IP、地区、操作系统和请求头，不支持用户类型、角色或请求参数条件。',
+      validator(value, formState) {
+        // 其他拦截类型不受请求体限制字段的校验影响。
+        if (formState.interceptType !== 'RequestBodyLimit') return undefined;
+
+        // 与服务端正整数约束一致，不允许用零或负数停用规则。
+        if (!Number.isSafeInteger(Number(value)) || Number(value) <= 0) {
+          return '请求体最大字节数必须为正整数';
+        }
+        return undefined;
+      },
     },
     {
       key: 'containsInterceptor',

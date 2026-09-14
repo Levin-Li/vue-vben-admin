@@ -61,17 +61,36 @@ export function getCrudTemplateValue(template: CrudExportTemplateRecord) {
     return String(template.id);
   }
 
-  const code = String(template.code || '').trim();
+  return getCrudTemplateFallbackIdentity(template);
+}
 
-  return code || undefined;
+function getCrudTemplateFallbackIdentity(template: CrudExportTemplateRecord) {
+  const code = String(template.code || '').trim();
+  const name = String(template.name || '').trim();
+  const ownerId = normalizeCrudTemplateOwnerValue(template.ownerId) || '';
+  const orgId = normalizeCrudTemplateOwnerValue(template.orgId) || '';
+  const tenantId = normalizeCrudTemplateOwnerValue(template.tenantId) || '';
+
+  return [code, name, ownerId, orgId, tenantId].some(Boolean)
+    ? [code, name, ownerId, orgId, tenantId].join(':')
+    : undefined;
 }
 
 export function isSameCrudTemplate(
   template: CrudExportTemplateRecord,
   target: CrudExportTemplateRecord,
 ) {
-  const templateValue = getCrudTemplateValue(template);
-  const targetValue = getCrudTemplateValue(target);
+  if (
+    template.id !== undefined &&
+    template.id !== null &&
+    target.id !== undefined &&
+    target.id !== null
+  ) {
+    return String(template.id) === String(target.id);
+  }
+
+  const templateValue = getCrudTemplateFallbackIdentity(template);
+  const targetValue = getCrudTemplateFallbackIdentity(target);
 
   if (templateValue && targetValue && templateValue === targetValue) {
     return true;
@@ -122,27 +141,6 @@ export function getCrudTemplateDeleteParams(
   return { id: String(template.id) };
 }
 
-export function buildCrudTemplateCode(
-  prefix: string,
-  context: CrudExportTemplateContext,
-  name: string,
-  extra = '',
-) {
-  const source = [context.targetType, extra, name, Date.now().toString()].join(
-    ':',
-  );
-  let hash = 0;
-
-  for (const char of source) {
-    hash = (hash * 31 + (char.codePointAt(0) || 0)) >>> 0;
-  }
-
-  return `${prefix}-${Date.now().toString(36)}-${hash.toString(36)}`.slice(
-    0,
-    128,
-  );
-}
-
 export function normalizeCrudTemplateOwnerValue(value: unknown) {
   if (value === undefined || value === null) {
     return null;
@@ -151,6 +149,27 @@ export function normalizeCrudTemplateOwnerValue(value: unknown) {
   const text = String(value).trim();
 
   return text || null;
+}
+
+/**
+ * 用返回记录的实际归属字段标记模板来源，个人归属优先于组织和租户归属。
+ */
+export function getCrudTemplateOwnershipLabel(
+  template: CrudExportTemplateRecord,
+) {
+  if (normalizeCrudTemplateOwnerValue(template.ownerId)) {
+    return '个人';
+  }
+
+  if (normalizeCrudTemplateOwnerValue(template.orgId)) {
+    return '组织';
+  }
+
+  if (normalizeCrudTemplateOwnerValue(template.tenantId)) {
+    return '租户';
+  }
+
+  return undefined;
 }
 
 export function getCurrentCrudTemplateUserValue(
@@ -368,20 +387,4 @@ export function buildCrudTemplateScopePayload(
     tenantId,
     tenantShared: false,
   };
-}
-
-/**
- * The backend's multi-tenant filters only include shared records when the
- * matching request flag is true. Query every visibility scope that the save
- * dialog can create, then let the caller deduplicate overlapping records.
- */
-export function buildCrudTemplateScopeQueryVariants<
-  T extends Record<string, unknown>,
->(query: T) {
-  return [
-    query,
-    { ...query, orgShared: true },
-    { ...query, tenantShared: true },
-    { ...query, orgShared: true, tenantShared: true },
-  ];
 }

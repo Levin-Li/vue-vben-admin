@@ -39,6 +39,7 @@ import {
   buildCrudOperationPermissions,
 } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
+import { loadDomainScopeOptions } from '../../domain-scope-options';
 import { getDataPermissionCount } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from '../user/config';
 
@@ -760,6 +761,7 @@ onMounted(async () => {
       v-if="selectedRecord"
       v-model:open="dialogOpen"
       :record="selectedRecord"
+      :load-domain-options="loadDomainScopeOptions"
       subject-type="user"
       @saved="handleSaved"
     />

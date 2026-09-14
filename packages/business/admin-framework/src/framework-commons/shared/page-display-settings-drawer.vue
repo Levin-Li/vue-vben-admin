@@ -1662,6 +1662,7 @@ onMounted(() => {
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
+      paddingTop: '12px',
     }"
     :mask-closable="false"
     @close="requestClose"
@@ -1734,31 +1735,8 @@ onMounted(() => {
 
     <PageDisplaySettingsTabContent v-if="renderedView" :view="renderedView">
       <template #default="{ view }">
-        <!-- 搜索和页签基础设置共用一个可换行工具区，保持在字段滚动区域外。 -->
+        <!-- 页签基础设置在上方独立排列，保持在字段滚动区域外。 -->
         <div class="mb-3 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div class="flex max-w-full flex-wrap items-center gap-3">
-            <AutoComplete
-              v-model:value="fieldSearchKeywords[activeKey]"
-              allow-clear
-              :default-active-first-option="false"
-              :filter-option="false"
-              :options="fieldSearchOptions"
-              :show-action="['focus']"
-              class="w-[13.333rem] max-w-full"
-            >
-              <Input aria-label="搜索字段" placeholder="搜索名称、编码或别名">
-                <template #prefix>
-                  <IconifyIcon
-                    icon="lucide:search"
-                    class="text-muted-foreground size-4"
-                  />
-                </template>
-              </Input>
-            </AutoComplete>
-            <span class="text-muted-foreground text-sm" role="status">
-              匹配 {{ fieldSearchResultCount }} / {{ fieldSearchTotalCount }} 项
-            </span>
-          </div>
           <section v-if="view === 'query'" class="contents">
             <Form layout="inline" :style="{ display: 'contents' }">
               <Popover
@@ -1877,20 +1855,51 @@ onMounted(() => {
           </section>
         </div>
 
-        <div v-if="isGroupableView(view)" class="mb-3 flex items-center gap-3">
-          <Button type="primary" class="px-4" @click="addGroup"
-            >+ 添加分组</Button
-          >
-          <Tooltip
-            title="移除当前表单的运行时分组覆盖，并按开发阶段的有效分组重新组织草稿；上传后才保存。"
-          >
-            <Button @click="restoreDevelopmentDefaultGroups(view as GroupView)">
-              恢复开发默认分组
-            </Button>
-          </Tooltip>
-          <span class="text-muted-foreground text-sm"
-            >字段未归入任何分组时显示在默认分组。</span
-          >
+        <!-- 搜索及分组操作紧邻字段清单，两个版本分别维护自身工具区。 -->
+        <div
+          data-test="page-display-field-tools"
+          class="mb-3 flex flex-wrap items-center gap-3"
+        >
+          <div class="flex max-w-full flex-wrap items-center gap-3">
+            <AutoComplete
+              v-model:value="fieldSearchKeywords[activeKey]"
+              allow-clear
+              :default-active-first-option="false"
+              :filter-option="false"
+              :options="fieldSearchOptions"
+              :show-action="['focus']"
+              class="w-[13.333rem] max-w-full"
+            >
+              <Input aria-label="搜索字段" placeholder="搜索名称、编码或别名">
+                <template #prefix>
+                  <IconifyIcon
+                    icon="lucide:search"
+                    class="text-muted-foreground size-4"
+                  />
+                </template>
+              </Input>
+            </AutoComplete>
+            <span class="text-muted-foreground text-sm" role="status">
+              匹配 {{ fieldSearchResultCount }} / {{ fieldSearchTotalCount }} 项
+            </span>
+          </div>
+          <template v-if="isGroupableView(view)">
+            <Button type="primary" class="px-4" @click="addGroup"
+              >+ 添加分组</Button
+            >
+            <Tooltip
+              title="移除当前表单的运行时分组覆盖，并按开发阶段的有效分组重新组织草稿；上传后才保存。"
+            >
+              <Button
+                @click="restoreDevelopmentDefaultGroups(view as GroupView)"
+              >
+                恢复开发默认分组
+              </Button>
+            </Tooltip>
+            <span class="text-muted-foreground text-sm"
+              >字段未归入任何分组时显示在默认分组。</span
+            >
+          </template>
         </div>
 
         <div

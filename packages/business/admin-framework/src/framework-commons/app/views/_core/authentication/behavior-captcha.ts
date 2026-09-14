@@ -59,6 +59,13 @@ export interface BehaviorCaptchaChallenge {
   title?: string;
 }
 
+/** 操作指令由服务端提供，组件只负责展示，不自行推导题目文案。 */
+export function resolveBehaviorCaptchaInstruction(
+  challenge: BehaviorCaptchaChallenge | null,
+): string {
+  return challenge?.prompt?.trim() || '';
+}
+
 export interface BehaviorCaptchaSubmission {
   answer: unknown;
   challengeId: string;
@@ -262,7 +269,7 @@ export function normalizeBehaviorCaptchaChallenge(input: unknown) {
     mode,
     payload,
     prompt: String(
-      source.prompt || source.instruction || source.friendlyMessage || '',
+      source.instruction || source.prompt || source.friendlyMessage || '',
     ).trim(),
     title: String(source.title || source.label || '').trim() || undefined,
   } satisfies BehaviorCaptchaChallenge;

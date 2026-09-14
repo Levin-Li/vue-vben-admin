@@ -917,32 +917,6 @@ function fundExchangeRuleAdapter(): CrudLifecycleAdapter {
   });
 }
 
-function tenantAppAdapter(): CrudLifecycleAdapter {
-  return buildSimpleCrudAdapter({
-    async create(page, run) {
-      const value = run.value('验收租户应用');
-      const code = `crud-${run.id}`;
-      const modal = await openCreateModal(page);
-      await selectFirstFormOption(page, modal, '请选择归属租户');
-      await fillFormText(modal, '请输入名称', value);
-      await fillFormText(modal, '请输入应用编码', code);
-      await disableFormSwitch(modal, '是否启用');
-      await submitModal(page, modal, '创建成功');
-      await expect(rowContainingRunValue(page, value)).toBeVisible();
-      return { key: code, label: value };
-    },
-    route: '/clob/V1/TenantApp',
-    async update(page, record, run) {
-      const modal = await editRow(page, record);
-      const updated = run.value('验收租户应用已更新');
-      await fillFormText(modal, '请输入名称', updated);
-      await submitModal(page, modal, '更新成功');
-      await expect(rowContainingRunValue(page, updated)).toBeVisible();
-      record.label = updated;
-    },
-  });
-}
-
 function tenantAdapter(): CrudLifecycleAdapter {
   return buildSimpleCrudAdapter({
     async create(page, run) {
@@ -1425,7 +1399,6 @@ export const firstSimpleCrudPageAdapters: Readonly<
   ServicePluginSetting: servicePluginSettingAdapter(),
   Setting: settingAdapter(),
   TrafficControlRule: trafficControlRuleAdapter(),
-  TenantApp: tenantAppAdapter(),
   Tenant: tenantAdapter(),
   TenantSite: tenantSiteAdapter(),
   UrlExAcl: urlExAclAdapter(),

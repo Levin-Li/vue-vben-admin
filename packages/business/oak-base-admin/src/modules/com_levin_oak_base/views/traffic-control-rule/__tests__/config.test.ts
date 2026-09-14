@@ -157,6 +157,7 @@ describe('traffic control rule page config', () => {
       options: expect.arrayContaining([
         expect.objectContaining({ value: 'Rule' }),
         expect.objectContaining({ value: 'Tenant' }),
+        expect.objectContaining({ label: '域名', value: 'Domain' }),
         expect.objectContaining({ value: 'User' }),
         expect.objectContaining({ value: 'Ip' }),
         expect.objectContaining({ value: 'Path' }),

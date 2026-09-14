@@ -48,3 +48,5 @@ configureAdminApplication({
 ## 模块开发与设计资料
 
 使用本模块的子项目必须遵循 [模块开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。[项目设计和开发参考资料](docs/project-reference/INDEX.md) 提供发布方的设计、需求及规则背景，不构成下游强制约束。
+
+公共组件：[通用行为验证码组件](docs/behavior-captcha.md)，登录与 API 二次验证共用，包含操作指引、题面刷新和验证结果事件。

@@ -134,7 +134,19 @@ export function observeGlobalSelection() {
 
 在 Vue 组件中使用此事件订阅时，应通过 `onUnmounted(dispose)` 解除订阅。选择变化按 `kind`、`id`、`orgId` 判定；重复设置相同三项不会通知订阅者，仅名称或原始记录变化也不会更新当前记录。该状态用于选择上下文，不应当作用户资料实时缓存。
 
-## 请求参数按条件注入
+## 请求头上下文传递
+
+全局选择器不再改写任何 URL 参数或 JSON body。选择存在时，请求客户端只附加下列 Header；后端接口自行决定是否读取它们以及如何筛选数据。
+
+| 上下文 | 单选 Header | 多选 Header |
+| --- | --- | --- |
+| 平台领域 | `X-Oak-Domain-Id` | 不支持 |
+| 组织 | `X-Oak-Org-Id` | `X-Oak-Org-Id-List` |
+| 用户/拥有者 | `X-Oak-Owner-Id` | `X-Oak-Owner-Id-List` |
+
+平台领域选择器当前仅支持单选和清空，因此只发送 `X-Oak-Domain-Id`。组织与用户的单选与多选 Header 互斥；`X-Oak-Org-Id-List` 与 `X-Oak-Owner-Id-List` 均使用去重、非空 ID 的逗号分隔字符串。未选择、清空或组件未展示时不发送对应 Header。该规则替代下文历史的参数补值说明。
+
+## 历史参数注入（已废弃）
 
 业务请求拦截器逐字段处理 URL 参数 orgId、orgIdList、ownerId。规则放在请求 config 的 `__globalUserOrgContext` 中，不放在 params 或 JSON body 中。默认行为已从无条件覆盖改为保留原值。
 
@@ -230,3 +242,10 @@ await fetchCrudList('/Demo/list', { orgId: 'org-a' }, undefined, {
 `__skipGlobalUserOrgContext=true` 仍表示完全跳过，优先于覆盖规则且不计算条件，供选择器候选数据等独立查询使用。它与 isOverride=false 不同；列表 helper 对应选项为 skipGlobalUserOrgContext。
 
 以上规则不区分 HTTP 方法，不修改 JSON body，也不注入 tenantId。选择组织时不提供全局 ownerId；选没有所属组织的用户时不提供全局 orgId/orgIdList。基础请求客户端不执行此注入。读取状态本身不发送请求、改变选择或授予权限。
+
+
+## 功能关闭与请求补值
+
+全局组织与用户选择器默认不注入上下文。只有当前用户的运行时配置加载完成且有效启用，才会按原有条件补充 `orgId`、`orgIdList`、`ownerId`。配置读取中、未命中、失败、退出或运行时注销时立即停止注入并清空选中；旧请求和候选事件不能重新启用。全局配置每次加载会重新向服务端确认，避免复用关闭前的旧缓存。
+
+功能关闭不等于删除请求字段：用户或表单显式提供的参数原样保留。功能启用但单候选时隐藏控件，仍保持自动选择和补值；这与服务端关闭功能不同。服务端变更不会主动推送到已打开页面，需要重新加载配置（例如刷新页面或重新登录）才会获取最新结果。

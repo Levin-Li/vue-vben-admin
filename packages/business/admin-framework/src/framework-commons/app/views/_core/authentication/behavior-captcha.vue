@@ -11,6 +11,7 @@ import { Spin } from 'ant-design-vue';
 import {
   encodeBehaviorCaptchaResult,
   isObstacleAvoidancePayload,
+  resolveBehaviorCaptchaInstruction,
   resolveBehaviorCaptchaViewport,
   restoreBehaviorCaptchaPoint,
   type BehaviorCaptchaChallenge,
@@ -52,6 +53,9 @@ const data = computed(() => {
 });
 
 const isSlide = computed(() => props.challenge?.mode === 'SLIDE');
+const instruction = computed(() =>
+  resolveBehaviorCaptchaInstruction(props.challenge),
+);
 const pathPayload = computed<BehaviorCaptchaPathPayload | null>(() => {
   if (
     props.challenge?.mode === 'OBSTACLE_AVOIDANCE' &&
@@ -94,7 +98,7 @@ const config = computed(() => {
     showTheme: true,
     thumbHeight: 40,
     thumbWidth: 150,
-    title: '',
+    title: instruction.value,
     verticalPadding: 10,
     width: viewport.width,
   };
@@ -483,9 +487,12 @@ onMounted(() => {
         class="behavior-captcha-path-shell border-border bg-card/95 flex flex-col gap-3 rounded-2xl border p-3 shadow-sm"
       >
         <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <p class="text-foreground text-sm font-medium">
-              {{ challenge.title || '障碍躲避' }}
+          <div class="min-w-0 flex-1">
+            <p
+              class="text-foreground text-right text-sm font-medium"
+              data-test="behavior-captcha-instruction"
+            >
+              {{ instruction }}
             </p>
           </div>
           <button
@@ -541,12 +548,6 @@ onMounted(() => {
             />
           </div>
         </div>
-        <div
-          class="bg-muted/70 text-muted-foreground rounded-xl px-4 py-3 text-center text-sm"
-        >
-          按住白球拖动，轨迹不可碰撞障碍，到达 [{{ pathPayload.targetIcon }}]
-          终点松开。
-        </div>
       </div>
       <GoCaptchaClick
         v-if="
@@ -573,6 +574,16 @@ onMounted(() => {
 <style scoped>
 :deep(.go-captcha.gc-theme) {
   border: 0;
+}
+
+:deep(.go-captcha .gc-header > span) {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-inline-end: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: normal;
+  text-align: right;
 }
 
 :deep(.go-captcha .gc-body .gc-body-inner) {

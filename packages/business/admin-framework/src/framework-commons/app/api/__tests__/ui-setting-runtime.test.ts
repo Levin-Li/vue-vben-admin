@@ -4,7 +4,7 @@ const get = vi.fn();
 
 vi.mock('../request', () => ({ requestClient: { get } }));
 
-describe('UiSetting runtime cache', () => {
+describe('uiSetting runtime cache', () => {
   it('uses the generated UiSetting detail route when a saved setting is refreshed', async () => {
     const { UI_SETTING_RETRIEVE_PATH } = await import('../ui-setting-runtime');
 
@@ -29,16 +29,38 @@ describe('UiSetting runtime cache', () => {
   it('uses the ApiResp data record rather than the response envelope', async () => {
     get.mockResolvedValue({
       data: { data: { code: '/Tenant', id: 'setting-1' } },
-      headers: { 'x-ui-setting-domain': 'tenant.example.test', 'x-ui-setting-tenant-id': 'tenant-1' },
+      headers: {
+        'x-ui-setting-domain': 'tenant.example.test',
+        'x-ui-setting-tenant-id': 'tenant-1',
+      },
     });
-    const { resolveUiSettingRuntime, resolveUiSettingRuntimeWithScope } = await import('../ui-setting-runtime');
+    const { resolveUiSettingRuntime, resolveUiSettingRuntimeWithScope } =
+      await import('../ui-setting-runtime');
 
-    await expect(resolveUiSettingRuntime('/Tenant', 'tenant:site')).resolves.toMatchObject({
+    await expect(
+      resolveUiSettingRuntime('/Tenant', 'tenant:site'),
+    ).resolves.toMatchObject({
       code: '/Tenant',
       id: 'setting-1',
     });
-    await expect(resolveUiSettingRuntimeWithScope('/Tenant', 'tenant:site')).resolves.toMatchObject({
+    await expect(
+      resolveUiSettingRuntimeWithScope('/Tenant', 'tenant:site'),
+    ).resolves.toMatchObject({
       scope: { domain: 'tenant.example.test', tenantId: 'tenant-1' },
     });
+  });
+  it('主动刷新覆盖旧启用缓存，其它调用继续复用缓存', async () => {
+    const { resolveUiSettingRuntime } = await import('../ui-setting-runtime');
+    get.mockResolvedValueOnce({
+      data: { data: { code: 'selector', valueContent: { multiple: false } } },
+      headers: {},
+    });
+    expect(await resolveUiSettingRuntime('selector', 'user')).not.toBeNull();
+    get.mockResolvedValueOnce({ data: { data: null }, headers: {} });
+    expect(
+      await resolveUiSettingRuntime('selector', 'user', { refresh: true }),
+    ).toBeNull();
+    expect(await resolveUiSettingRuntime('selector', 'user')).toBeNull();
+    expect(get).toHaveBeenCalledTimes(2);
   });
 });

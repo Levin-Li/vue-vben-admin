@@ -143,6 +143,55 @@ describe('显示完整分页设置', () => {
 });
 
 describe('页面展示设置上传后的关闭状态', () => {
+  it('仅切换全部页签不触发放弃修改确认，实际改值仍提示', async () => {
+    const confirm = vi
+      .spyOn(Modal, 'confirm')
+      .mockImplementation(() => ({ destroy: vi.fn(), update: vi.fn() }));
+    const wrapper = await mountDrawer({
+      version: 1,
+      detail: { fields: [{ key: 'name' }] },
+    });
+    try {
+      await wrapper.setProps({
+        open: false,
+        actionCandidates: [{ key: 'builtin:edit', label: '编辑' }],
+        showOperationColumn: true,
+      });
+      await wrapper.setProps({ open: true });
+      await flushPromises();
+      for (const title of [
+        '展示列表',
+        '新增表单',
+        '编辑表单',
+        '详情表单',
+        '查询表单',
+      ]) {
+        const tab = [...document.body.querySelectorAll('[role="tab"]')].find(
+          (item) => item.textContent?.trim() === title,
+        ) as HTMLElement;
+        tab.click();
+        await flushPromises();
+      }
+      wrapper.findComponent(Drawer).vm.$emit('close');
+      await nextTick();
+      expect(confirm).not.toHaveBeenCalled();
+      expect(wrapper.emitted('update:open')).toEqual([[false]]);
+      await openListTab();
+      const toggle = required(
+        wrapper
+          .findAllComponents(Form.Item)
+          .find((item) => item.props('label') === '显示完整分页'),
+      ).findComponent(Switch);
+      toggle.vm.$emit('update:checked', true);
+      await nextTick();
+      wrapper.findComponent(Drawer).vm.$emit('close');
+      expect(confirm).toHaveBeenCalledOnce();
+    } finally {
+      wrapper.unmount();
+      confirm.mockRestore();
+      document.body.innerHTML = '';
+    }
+  });
   it.each(['成功', '失败', '继续修改'])(
     '首次上传%s时正确判断未上传修改',
     async (result) => {

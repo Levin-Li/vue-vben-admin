@@ -20,7 +20,14 @@ export function countConfiguredItems(value: unknown) {
 }
 
 export function getDataPermissionCount(record: Record<string, any>) {
-  return countConfiguredItems(record.orgScopeList);
+  return [
+    'tenantScopeList',
+    'deniedTenantScopeList',
+    'domainScopeList',
+    'deniedDomainScopeList',
+    'orgScopeList',
+    'deniedOrgScopeList',
+  ].reduce((count, field) => count + countConfiguredItems(record[field]), 0);
 }
 
 export function getResourcePermissionCount(record: Record<string, any>) {

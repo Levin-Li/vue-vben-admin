@@ -36,6 +36,7 @@ export * from './pay-channel-service';
 export * from './pay-order-service';
 export * from './payment-simulation-workbench-service';
 export * from './partner-service';
+export * from './platform-domain-service';
 export * from './rbac-permission-item-service';
 export * from './role-service';
 export * from './scheduled-log-service';
@@ -49,7 +50,6 @@ export * from './simple-form-service';
 export * from './simple-page-service';
 export * from './social-user-service';
 export * from './tenant-service';
-export * from './tenant-app-service';
 export * from './tenant-site-service';
 export * from './traffic-control-rule-service';
 export * from './url-ex-acl-service';
@@ -59,3 +59,5 @@ export * from './ui-setting-service';
 
 export * from './audit-report-service';
 export * from './backend-fixed-job-service';
+
+export * from './acl-test-service';

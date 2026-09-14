@@ -1,7 +1,9 @@
 <script lang="ts" setup>
-import CrudPage from '../crud-page.vue';
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
 import ResourcePermissionDialog from '@levin/admin-framework/framework-commons/shared/resource-permission-dialog.vue';
+
+import { loadDomainScopeOptions } from '../../domain-scope-options';
+import CrudPage from '../crud-page.vue';
 import { useRolePageConfig } from './config';
 
 const {
@@ -32,6 +34,7 @@ const {
       v-if="selectedDataPermissionRecord"
       v-model:open="dataPermissionDialogOpen"
       :record="selectedDataPermissionRecord"
+      :load-domain-options="loadDomainScopeOptions"
       subject-type="role"
       @saved="handleSaved"
     />
