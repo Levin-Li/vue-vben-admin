@@ -24,7 +24,7 @@ describe('审计报告只读页面', () => {
     expect(auditReportPageCrudConfig.allowEdit).toBe(false);
   });
 
-  it('仅提供查看报告，禁止人工创建、编辑和删除', () => {
+  it('保留记录详情，禁止人工创建、编辑和删除', () => {
     expect(pageMeta).toMatchObject({ name: 'AuditReport', title: '审计报告' });
     expect(auditReportPageCrudConfig).toMatchObject({
       apiBase: '/AuditReport',
@@ -32,30 +32,34 @@ describe('审计报告只读页面', () => {
       allowEdit: false,
       allowDelete: false,
       allowRetrieve: true,
-      retrieveLabel: '查看报告',
       defaultQuery: { pageIndex: 1, pageSize: 10 },
       rowActions: [],
     });
   });
 
-  it('查询条件来自查询请求，报告正文不参与查询', () => {
+  it('标准列表筛选字段来自 QueryAuditReportReq，报告正文不参与查询', () => {
     const keys = auditReportPageCrudConfig.fields
       .filter((field) => field.search)
       .map((field) => field.key);
     expect(keys).toEqual([
       'containsTitle',
+      'id',
+      'confidentialLevel',
       'targetType',
       'targetId',
       'bizType',
       'bizCategory',
       'gteStartTime',
       'lteEndTime',
+      'creator',
+      'gteCreateTime',
+      'lteCreateTime',
       'tenantId',
     ]);
     expect(keys).not.toContain('content');
   });
 
-  it('对象类型使用字典，列表展示审计窗口和创建时间', () => {
+  it('标准列表展示 PagingData<AuditReportInfo> 的核心字段', () => {
     expect(
       auditReportPageCrudConfig.fields.find(
         (field) => field.key === 'targetType',
@@ -66,22 +70,64 @@ describe('审计报告只读页面', () => {
       .map((field) => field.key);
     expect(columns).toEqual(
       expect.arrayContaining([
+        'id',
         'title',
+        'confidentialLevel',
         'targetType',
         'targetId',
+        'bizType',
+        'bizCategory',
         'startTime',
         'endTime',
         'createTime',
+        'enable',
+        '__tenant',
       ]),
     );
   });
 
-  it('详情保留编辑器声明和完整只读 JSON 内容', () => {
+  it('报告正文保留编辑器声明，但不混入记录详情', () => {
     expect(
       auditReportPageCrudConfig.fields.find((field) => field.key === 'content'),
-    ).toMatchObject({ type: 'json', detail: true, fullRow: true, form: false });
+    ).toMatchObject({ type: 'json', detail: false, fullRow: true, form: false });
     expect(
       auditReportPageCrudConfig.fields.find((field) => field.key === 'editor'),
-    ).toMatchObject({ form: false });
+    ).toMatchObject({ detail: false, form: false });
+  });
+
+  it('详情字段与 retrieve 返回的 AuditReportInfo 元数据对齐', () => {
+    const fields = auditReportPageCrudConfig.fields;
+    const detailKeys = fields
+      .filter((field) => field.detail !== false)
+      .map((field) => field.key);
+
+    expect(auditReportPageCrudConfig.domainObject).toBe(true);
+    expect(detailKeys).toEqual(
+      expect.arrayContaining([
+        'id',
+        'title',
+        'confidentialLevel',
+        'bizType',
+        'bizCategory',
+        'targetType',
+        'targetId',
+        'startTime',
+        'endTime',
+        'tenantId',
+        'orgId',
+        'domainId',
+        'creator',
+        'createTime',
+        'lastUpdateTime',
+        'orderCode',
+        'enable',
+        'editable',
+        'remark',
+        'optimisticLock',
+      ]),
+    );
+    expect(detailKeys).not.toEqual(
+      expect.arrayContaining(['content', 'editor', 'tenantName', 'orgName']),
+    );
   });
 });
