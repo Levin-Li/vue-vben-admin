@@ -252,8 +252,11 @@ function setDetailState(nextDetail: Record<string, any>) {
   for (const tab of scopeTabs)
     for (const field of [tab.allowField, tab.denyField]) {
       const value = toScopeValue(nextDetail[field]);
-      scopeValues.value[field] = cloneValue(value);
-      savedValues.value[field] = cloneValue(value);
+
+      // 角色不存在字段级继承开关，空值必须作为可编辑的空列表初始化。
+      const initialValue = !isUser.value && value === null ? [] : value;
+      scopeValues.value[field] = cloneValue(initialValue);
+      savedValues.value[field] = cloneValue(initialValue);
     }
 }
 function flattenOrgOptions(

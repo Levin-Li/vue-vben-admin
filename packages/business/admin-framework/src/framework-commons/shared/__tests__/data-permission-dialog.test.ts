@@ -153,6 +153,42 @@ describe('数据权限列表管理', () => {
     wrapper.unmount();
   });
 
+  it('角色的空范围字段仍可添加范围规则', async () => {
+    mocks.get.mockResolvedValue({
+      deniedDomainScopeList: null,
+      deniedOrgScopeList: null,
+      deniedTenantScopeList: null,
+      domainScopeList: null,
+      id: 'subject-1',
+      orgScopeList: null,
+      optimisticLock: 7,
+      tenantScopeList: null,
+    });
+    const wrapper = mount(DataPermissionDialog, {
+      props: {
+        loadDomainOptions: mocks.domainOptions,
+        open: false,
+        record: { id: 'subject-1' },
+        subjectType: 'role',
+      },
+    });
+    await wrapper.setProps({ open: true });
+    await flushPromises();
+
+    const addButtons = wrapper
+      .findAll('button')
+      .filter((button) => button.text() === '添加');
+    expect(addButtons).toHaveLength(6);
+    expect(
+      addButtons.every((button) => button.attributes('disabled') === undefined),
+    ).toBe(true);
+
+    await addButtons[0]?.trigger('click');
+    await flushPromises();
+    expect(mocks.domainOptions).toHaveBeenCalledWith('');
+    wrapper.unmount();
+  });
+
   it('非超级管理员不显示租户配置 Tab', async () => {
     mocks.superAdmin = false;
     const wrapper = await openDialog('role');
@@ -306,7 +342,9 @@ describe('数据权限列表管理', () => {
     // 先取消继承，再重新启用自定义，空列表必须保留为明确配置值。
     await unsetCheckboxes[0]?.vm.$emit('update:checked', false);
     await unsetCheckboxes[0]?.vm.$emit('update:checked', true);
-    const saveButton = wrapper.findAll('button').find((button) => button.text() === '保存');
+    const saveButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === '保存');
     await saveButton?.trigger('click');
     await flushPromises();
 
@@ -328,7 +366,9 @@ describe('数据权限列表管理', () => {
     // 只将允许字段切换为显式空范围；拒绝字段保持原始值且不参与本次更新。
     await unsetCheckboxes[0]?.vm.$emit('update:checked', false);
     await unsetCheckboxes[0]?.vm.$emit('update:checked', true);
-    const saveButton = wrapper.findAll('button').find((button) => button.text() === '保存');
+    const saveButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === '保存');
     await saveButton?.trigger('click');
     await flushPromises();
 
