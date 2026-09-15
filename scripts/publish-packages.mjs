@@ -65,6 +65,7 @@ const mavenServerId = process.env.MAVEN_SERVER_ID || 'dist-repo';
 const publishUserConfig = resolve(frontendRoot, '.npmrc.publish.tmp');
 const publishLockPath = resolve(frontendRoot, '.frontend-package-publish.lock');
 const packageTarballDir = resolve(outputDir, '.publish-tarballs');
+const hostedRegistry = 'http://nexus.v-ma.com/repository/npm/';
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'));
@@ -258,6 +259,46 @@ function getAllPackages() {
   return sortPackages(selectedPackages);
 }
 
+function getPublishablePackages() {
+  return sortPackages(
+    findPackageJsonFiles(packagesRoot)
+      .map((packageJsonPath) => {
+        const packageDir = dirname(packageJsonPath);
+        const packageJson = readJson(packageJsonPath);
+        return { dir: packageDir, name: packageJson.name, packageJson, packageJsonPath, path: relative(frontendRoot, packageDir), private: packageJson.private === true, version: packageJson.version };
+      })
+      .filter((item) => item.name && item.version && !item.private),
+  );
+}
+
+function assertPublishConfiguration() {
+  if (mode !== 'publish') return;
+  if (registry !== hostedRegistry || !authFromMaven || mavenServerId !== 'dist-repo') {
+    throw new Error(`发布必须使用 ${hostedRegistry} 和 Maven dist-repo 凭据`);
+  }
+}
+
+function assertConsumerClosure(selectedPackages) {
+  if (mode !== 'publish') return;
+  const selectedVersions = new Map(selectedPackages.map((item) => [item.name, item.version]));
+  const selectedNames = new Set(selectedVersions.keys());
+  const omittedConsumers = [];
+
+  for (const consumer of getPublishablePackages()) {
+    if (selectedNames.has(consumer.name)) continue;
+    const dependencies = { ...consumer.packageJson.dependencies, ...consumer.packageJson.peerDependencies };
+    for (const [dependencyName, dependencyVersion] of Object.entries(dependencies)) {
+      if (selectedVersions.get(dependencyName) === dependencyVersion) {
+        omittedConsumers.push(`${consumer.name}@${consumer.version} -> ${dependencyName}@${dependencyVersion}`);
+      }
+    }
+  }
+
+  if (omittedConsumers.length > 0) {
+    throw new Error(`发布清单遗漏内部消费者：${omittedConsumers.join('; ')}`);
+  }
+}
+
 function sortPackages(packages) {
   const packageByName = new Map(
     packages.map((packageInfo) => [packageInfo.name, packageInfo]),
@@ -354,7 +395,7 @@ function validatePackagePublishRules(packageInfo) {
 }
 
 function packageVersionExists(packageInfo, publishEnv) {
-  if (!registry || !skipExisting) {
+  if (!registry) {
     return false;
   }
 
@@ -414,6 +455,8 @@ if (!skipVersionSync) {
 const selectedPackages = getAllPackages();
 const versionConfig = readJson(resolve(frontendRoot, 'package-versions.json'));
 
+assertPublishConfiguration();
+
 if (mode === 'list') {
   for (const packageInfo of selectedPackages) {
     console.log(
@@ -443,6 +486,7 @@ if (mode === 'publish') {
 }
 
 try {
+  assertConsumerClosure(selectedPackages);
   const selectedPackageVersionByName = new Map(
     selectedPackages.map((packageInfo) => [
       packageInfo.name,
@@ -496,6 +540,9 @@ try {
       );
 
       if (packageVersionExists(packageInfo, publishEnv)) {
+        if (mode === 'publish') {
+          throw new Error(`${packageInfo.name}@${packageInfo.version} 已存在于私服，必须先递增版本`);
+        }
         const remoteTarball = packPackage(
           packageInfo,
           resolve(packageOutputDir, 'remote'),
