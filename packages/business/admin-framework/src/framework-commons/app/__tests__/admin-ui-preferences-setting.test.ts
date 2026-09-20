@@ -36,7 +36,7 @@ describe('界面偏好设置上传', () => {
 
     await saveAdminUiPreferencesSetting({ theme: 'dark' }, { tenantId: 't-1' });
 
-    expect(get).toHaveBeenNthCalledWith(1, '/UiSetting/saveCandidates', {
+    expect(get).toHaveBeenNthCalledWith(1, '/UiSetting/findCandidates', {
       params: expect.objectContaining({ tenantId: 't-1', type: 'Preferences' }),
     });
     expect(put).toHaveBeenCalledWith('/UiSetting/update', {

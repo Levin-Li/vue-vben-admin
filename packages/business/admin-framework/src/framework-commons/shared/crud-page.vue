@@ -646,7 +646,7 @@ async function savePageDisplaySettings(payload: {
       valueContent: { pageDisplay: payload.config },
     };
     const candidatePage = await requestClient.get<PageDisplaySettingCandidatePage>(
-      '/UiSetting/saveCandidates',
+      '/UiSetting/findCandidates',
       {
         params: {
           code,

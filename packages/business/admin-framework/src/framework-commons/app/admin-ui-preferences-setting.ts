@@ -136,7 +136,7 @@ export async function saveAdminUiPreferencesSetting(
     valueContent: { preferences },
   };
   const candidatePage = await requestClient.get<UiSettingCandidatePage>(
-    '/UiSetting/saveCandidates',
+    '/UiSetting/findCandidates',
     {
       params: {
         ...normalizedScope,
