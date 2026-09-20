@@ -105,6 +105,14 @@ function rememberLastVisitedPath(routeOrPath: unknown) {
   }
 }
 
+function clearLastVisitedPath() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.sessionStorage.removeItem(LAST_VISITED_PATH_KEY);
+}
+
 function resolveRestorablePath(
   rawPath: unknown,
   routeResolver?: RouteResolverLike,
@@ -136,8 +144,9 @@ function resolveRootRedirectPath(defaultHomePath: string) {
 }
 
 export {
+  clearLastVisitedPath,
   rememberLastVisitedPath,
-  ROOT_HOME_PATH,
   resolveRestorablePath,
   resolveRootRedirectPath,
+  ROOT_HOME_PATH,
 };

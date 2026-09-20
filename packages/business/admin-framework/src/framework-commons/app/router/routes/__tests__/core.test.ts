@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { buildCoreRouteNames } from '../access-route-names';
 import {
+  clearLastVisitedPath,
   rememberLastVisitedPath,
-  ROOT_HOME_PATH,
   resolveRestorablePath,
   resolveRootRedirectPath,
+  ROOT_HOME_PATH,
 } from '../root-redirect';
 
 describe('resolveRootRedirectPath', () => {
@@ -52,6 +53,13 @@ describe('resolveRootRedirectPath', () => {
     });
 
     expect(resolveRootRedirectPath('/')).toBe('/clob/V1/Menu');
+  });
+
+  it('clears the prior account last visited path on login entry', () => {
+    rememberLastVisitedPath('/clob/V1/Menu');
+    clearLastVisitedPath();
+
+    expect(resolveRootRedirectPath('/')).toBe(ROOT_HOME_PATH);
   });
 
   it('falls back to the default home route when a restore target resolves to an error page', () => {

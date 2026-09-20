@@ -38,8 +38,14 @@ import {
 } from './service-resp';
 import {
   importCryptoKey,
-  isClientCryptoPath,
+  isAnonymousRbacCryptoPath,
+  rememberNegotiatedCryptoPath,
+  rememberNegotiatedSignaturePath,
   resolveMinuteByNonce,
+  shouldEncryptClientRequest,
+  shouldRetryCryptoNegotiation,
+  shouldRetrySignatureNegotiation,
+  shouldSignClientRequest,
 } from './url-acl-crypto';
 
 const GLOBAL_CONTEXT_HEADERS = [
@@ -72,7 +78,11 @@ const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 const REQUEST_TIMEOUT_MS = 180_000;
 
 function isClientCryptoRequest(config: any) {
-  return isClientCryptoPath(config?.url);
+  return shouldEncryptClientRequest(config?.url, window.location.hostname);
+}
+
+function isClientSignatureRequest(config: any) {
+  return shouldSignClientRequest(config?.url, window.location.hostname);
 }
 
 function base64(bytes: Uint8Array) {
@@ -115,7 +125,8 @@ function resolveClientCryptoSource(forceAnonymous = false) {
 function isAnonymousCryptoContext(config: any) {
   return (
     isClientCryptoRequest(config) &&
-    window.location.pathname.startsWith('/auth/')
+    (window.location.pathname.startsWith('/auth/') ||
+      isAnonymousRbacCryptoPath(config?.url))
   );
 }
 
@@ -164,10 +175,16 @@ async function verifyClientResponseSignature(response: any) {
 }
 
 async function encryptClientRequest(config: any) {
+  // 保存原始业务载荷，协商响应触发重发时不能复用 Axios 已转换的字符串请求体。
+  if (!Reflect.has(config, '__urlAclPlainData')) {
+    config.__urlAclPlainData = config.data;
+  }
+
   if (!isClientCryptoRequest(config) || config.__urlAclCrypto) return config;
   const domain = window.location.hostname.toLowerCase();
   const minute = Math.floor(Date.now() / 60_000);
-  const source = resolveClientCryptoSource(isAnonymousCryptoContext(config));
+  const anonymousCryptoContext = isAnonymousCryptoContext(config);
+  const source = resolveClientCryptoSource(anonymousCryptoContext);
   const encoder = new TextEncoder();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const body = encoder.encode(JSON.stringify(config.data ?? {}));
@@ -178,6 +195,12 @@ async function encryptClientRequest(config: any) {
   );
   config.data = base64(new Uint8Array(cipher));
   config.headers ||= {};
+  // 登录、注册和匿名租户上下文不能携带历史登录态；否则服务端会按 token、
+  // 客户端却按匿名 User-Agent 派生密钥，造成 AES-GCM 校验失败。
+  if (anonymousCryptoContext) {
+    Reflect.deleteProperty(config.headers, 'Authorization');
+    Reflect.deleteProperty(config.headers, 'authorization');
+  }
   config.headers['Content-Type'] = 'text/plain';
   config.headers['X-UrlAcl-Crypto-Algorithm'] = 'AES_GCM';
   config.headers['X-UrlAcl-Crypto-Iv'] = base64(iv);
@@ -189,6 +212,132 @@ async function encryptClientRequest(config: any) {
   config.__urlAclCrypto = true;
   config.__urlAclCryptoSource = source;
   return config;
+}
+
+/** 对协商命中的请求生成与服务端原始明文体一致的 URL ACL 签名。 */
+async function signClientRequest(config: any) {
+  if (!isClientSignatureRequest(config) || config.__urlAclSignature) {
+    return config;
+  }
+
+  // 加密与签名同时要求时，签名绑定解密后会交给 URL ACL 的原始 JSON 正文。
+  const bodyData = config.__urlAclCrypto
+    ? config.__urlAclPlainData
+    : config.data;
+  const body =
+    typeof bodyData === 'string' ? bodyData : JSON.stringify(bodyData ?? {});
+  const domain = window.location.hostname.toLowerCase();
+  const source = resolveClientCryptoSource(isAnonymousCryptoContext(config));
+  const timestamp = String(Date.now());
+  const nonce = crypto.randomUUID();
+  const bodyHash = hex(await sha256(new TextEncoder().encode(body)));
+  const minute = Math.floor(Number(timestamp) / 60_000);
+  const signingKey = await sha256(
+    new TextEncoder().encode(`${domain}\n${source}\n${minute}`),
+  );
+
+  config.headers ||= {};
+  const appId = configuredAppId();
+  if (appId) config.headers['X-UrlAcl-App-Id'] = appId;
+  config.headers['X-UrlAcl-Timestamp'] = timestamp;
+  config.headers['X-UrlAcl-Nonce'] = nonce;
+  config.headers['X-UrlAcl-Body-Sha256'] = bodyHash;
+  config.headers['X-UrlAcl-Signature'] = hex(
+    await hmacSha256(signingKey, `${timestamp}\n${nonce}\n${bodyHash}`),
+  );
+  config.__urlAclSignature = true;
+  config.__urlAclSignatureSource = source;
+  return config;
+}
+
+/** 加密完成后再按原始明文体签名，两个协商路径始终复用这一个公共入口。 */
+async function secureClientRequest(config: any) {
+  return signClientRequest(await encryptClientRequest(config));
+}
+
+/** 重发时清除上次请求的协议状态，确保公共安全入口重新生成随机材料。 */
+function resetSecurityRequestForRetry(config: any) {
+  const headers = { ...config.headers };
+  [
+    'X-UrlAcl-Crypto-Algorithm',
+    'X-UrlAcl-Crypto-Iv',
+    'X-UrlAcl-Crypto-Nonce',
+    'X-UrlAcl-Timestamp',
+    'X-UrlAcl-Nonce',
+    'X-UrlAcl-Body-Sha256',
+    'X-UrlAcl-Signature',
+  ].forEach((header) => Reflect.deleteProperty(headers, header));
+
+  return {
+    ...config,
+    data: config.__urlAclPlainData,
+    headers,
+    __urlAclCrypto: false,
+    __urlAclSignature: false,
+  };
+}
+
+/** 协商只允许重发一次，避免服务端配置异常或中间代理篡改响应时形成请求循环。 */
+function addCryptoNegotiationInterceptor(client: RequestClient) {
+  client.addResponseInterceptor({
+    rejected: async (error: any) => {
+      const response = error?.response;
+      const config = error?.config || response?.config;
+      const required = responseHeader(
+        response?.headers,
+        'X-UrlAcl-Crypto-Required',
+      );
+
+      if (
+        !shouldRetryCryptoNegotiation(
+          required,
+          config?.url,
+          Boolean(config?.__urlAclCryptoNegotiationRetry),
+        )
+      ) {
+        throw error;
+      }
+
+      // 仅以服务端协商头建立页面内记忆；密钥仍按每次请求的当前上下文重新派生。
+      rememberNegotiatedCryptoPath(config.url, window.location.hostname);
+
+      return client.instance.request({
+        ...resetSecurityRequestForRetry(config),
+        __urlAclCryptoNegotiationRetry: true,
+      });
+    },
+  });
+}
+
+/** 签名协商与加密协商都优先于登录态处理，避免 428 被误判为会话过期。 */
+function addSignatureNegotiationInterceptor(client: RequestClient) {
+  client.addResponseInterceptor({
+    rejected: async (error: any) => {
+      const response = error?.response;
+      const config = error?.config || response?.config;
+      const required = responseHeader(
+        response?.headers,
+        'X-UrlAcl-Signature-Required',
+      );
+
+      if (
+        !shouldRetrySignatureNegotiation(
+          required,
+          config?.url,
+          Boolean(config?.__urlAclSignatureNegotiationRetry),
+        )
+      ) {
+        throw error;
+      }
+
+      // 只记忆服务端明确协商的路径；每次重试都会重新生成时间戳和随机串。
+      rememberNegotiatedSignaturePath(config.url, window.location.hostname);
+      return client.instance.request({
+        ...resetSecurityRequestForRetry(config),
+        __urlAclSignatureNegotiationRetry: true,
+      });
+    },
+  });
 }
 
 async function decryptClientResponse(response: any) {
@@ -250,12 +399,15 @@ function getUnifiedErrorMessage(msg: string, error: any) {
 }
 
 function applyCommonInterceptors(client: RequestClient) {
-  client.addRequestInterceptor({ fulfilled: encryptClientRequest });
+  client.addRequestInterceptor({ fulfilled: secureClientRequest });
   client.addRequestInterceptor(createMultipartRequestInterceptor());
   client.addResponseInterceptor(createDynamicVerifyCodeInterceptor(client));
 
   client.addResponseInterceptor({
     fulfilled: (response: any) => {
+      // 协商重试会在内部重新经过本响应链；外层收到的已解包结果无需重复解密。
+      if (!response?.config) return response;
+
       return decryptClientResponse(response).then((decryptedResponse) => {
         response = decryptedResponse;
         const { config, data: responseData, status } = response;
@@ -371,7 +523,14 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     fulfilled: async (config) => {
       const accessStore = useAccessStore();
 
-      config.headers.Authorization = formatToken(accessStore.accessToken);
+      // 匿名认证入口必须保持无 token：它们按 User-Agent 派生 URL ACL 密钥，
+      // 不能在加密后又由公共认证拦截器补回历史 Authorization。
+      if (isAnonymousCryptoContext(config)) {
+        Reflect.deleteProperty(config.headers, 'Authorization');
+        Reflect.deleteProperty(config.headers, 'authorization');
+      } else {
+        config.headers.Authorization = formatToken(accessStore.accessToken);
+      }
       config.headers['Accept-Language'] = preferences.app.locale;
       GLOBAL_CONTEXT_HEADERS.forEach((header) =>
         Reflect.deleteProperty(config.headers, header),
@@ -408,6 +567,10 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     },
   });
 
+  // 必须早于 401 登录态处理，协商加密不表示 token 失效。
+  addCryptoNegotiationInterceptor(client);
+  addSignatureNegotiationInterceptor(client);
+
   // token过期的处理
   client.addResponseInterceptor(
     authenticateResponseInterceptor({
@@ -437,4 +600,6 @@ export const baseRequestClient = new RequestClient({
   timeout: REQUEST_TIMEOUT_MS,
 });
 
+addCryptoNegotiationInterceptor(baseRequestClient);
+addSignatureNegotiationInterceptor(baseRequestClient);
 applyCommonInterceptors(baseRequestClient);

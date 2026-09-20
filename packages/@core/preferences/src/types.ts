@@ -10,6 +10,7 @@ import type {
   LayoutType,
   LoginExpiredModeType,
   NavigationStyleType,
+  NavigationVisualStyleType,
   PageTransitionType,
   PreferencesButtonPositionType,
   TabsStyleType,
@@ -231,6 +232,8 @@ interface NavigationPreferences {
   split: boolean;
   /** 导航菜单风格 */
   styleType: NavigationStyleType;
+  /** 导航视觉主题 */
+  visualStyle: NavigationVisualStyleType;
 }
 
 interface SidebarPreferences {

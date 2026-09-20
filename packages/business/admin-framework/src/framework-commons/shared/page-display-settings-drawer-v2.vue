@@ -12,6 +12,7 @@ import type {
   CrudPageDisplayGroupedViewConfig,
   CrudPageDisplayHeaderConfig,
 } from './types';
+import type { CrudFormElementDeclaration } from './crud-form-elements';
 
 import {
   computed,
@@ -88,6 +89,7 @@ const props = defineProps<{
   detailFields?: CrudFieldConfig[];
   domainObject?: boolean;
   fields: CrudFieldConfig[];
+  formElements?: CrudFormElementDeclaration[];
   initialScope?: Scope;
   modelValue?: CrudPageDisplayConfig;
   listOperationCandidates?: CrudListOperationCandidate[];
@@ -425,7 +427,7 @@ function getAllowedFields(view: Exclude<View, 'list'>) {
   const fieldKeys = new Set<string>();
 
   // 同一稳定字段键只能进入一个表单行，避免页面静态配置重复时渲染重复控件。
-  return sourceFields.filter((field) => {
+  const fields = sourceFields.filter((field) => {
     const available =
       view === 'query'
         ? field.search
@@ -438,6 +440,17 @@ function getAllowedFields(view: Exclude<View, 'list'>) {
     fieldKeys.add(field.key);
     return true;
   });
+  const known = new Set(fields.map((field) => field.key));
+  for (const element of props.formElements || []) {
+    if (element.view !== view || known.has(element.key)) continue;
+    fields.push({
+      key: element.key,
+      label: element.label,
+      search: view === 'query',
+      form: view !== 'query',
+    });
+  }
+  return fields;
 }
 
 function ensureFields(view: Exclude<View, 'list'>) {
@@ -2021,6 +2034,9 @@ onMounted(() => {
                     checked-children="自动"
                     un-checked-children="手动"
                   />
+                </Form.Item>
+                <Form.Item label="默认不展示标题" class="mb-0">
+                  <Switch v-model:checked="queryHolder().defaultHideFieldTitle" />
                 </Form.Item>
               </Tooltip>
             </Form>

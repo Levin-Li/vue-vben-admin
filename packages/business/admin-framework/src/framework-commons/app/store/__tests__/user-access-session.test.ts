@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { clearPreviousUserAccessState } from '../user-access-session';
 
 describe('clearPreviousUserAccessState', () => {
-  it('clears every access cache and removes the previous user routes', () => {
+  it('clears every account access and navigation cache', () => {
     const calls: string[] = [];
     const accessStore = {
       setAccessCodes: vi.fn((value: string[]) => {
@@ -22,8 +22,15 @@ describe('clearPreviousUserAccessState', () => {
     const resetRoutes = vi.fn(() => {
       calls.push('reset-routes');
     });
+    const resetNavigationState = vi.fn(() => {
+      calls.push('reset-navigation');
+    });
 
-    clearPreviousUserAccessState(accessStore, resetRoutes);
+    clearPreviousUserAccessState(
+      accessStore,
+      resetRoutes,
+      resetNavigationState,
+    );
 
     expect(calls).toEqual([
       'codes:0',
@@ -31,6 +38,7 @@ describe('clearPreviousUserAccessState', () => {
       'routes:0',
       'checked:false',
       'reset-routes',
+      'reset-navigation',
     ]);
   });
 });

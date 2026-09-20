@@ -97,6 +97,7 @@ const defaultPreferences: Preferences = {
     accordion: true,
     split: true,
     styleType: 'rounded',
+    visualStyle: 'brand-gradient',
   },
   shortcutKeys: {
     enable: true,

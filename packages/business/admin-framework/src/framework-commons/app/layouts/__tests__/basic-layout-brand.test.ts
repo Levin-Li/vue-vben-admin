@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
       watermarkTransparency: 85,
       watermarkContent: '',
     },
+    navigation: {
+      visualStyle: 'brand-gradient',
+    },
   },
   updateWatermark: vi.fn(),
   push: vi.fn(),
@@ -204,17 +207,25 @@ describe('basic layout tenant site brand', () => {
   it('打开版本弹窗后显示包名、版本与逐包打包时间', async () => {
     mocks.userInfo.superAdmin = true;
     const wrapper = mount(Basic, {
-      global: { stubs: {
-        Button: true, Checkbox: true, Empty: true, Popconfirm: true,
-        Tag: { template: '<span><slot /></span>' },
-        AModal: {
-          props: ['open', 'title'],
-          template: '<section v-if="open" :aria-label="title"><slot /></section>',
+      global: {
+        stubs: {
+          Button: true,
+          Checkbox: true,
+          Empty: true,
+          Popconfirm: true,
+          Tag: { template: '<span><slot /></span>' },
+          AModal: {
+            props: ['open', 'title'],
+            template:
+              '<section v-if="open" :aria-label="title"><slot /></section>',
+          },
         },
-      } },
+      },
     });
     await flushPromises();
-    await wrapper.get('[data-testid="system-menu-frontend-build-versions"]').trigger('click');
+    await wrapper
+      .get('[data-testid="system-menu-frontend-build-versions"]')
+      .trigger('click');
     const panel = wrapper.get('[aria-label="前端组件版本"]');
     expect(panel.text()).toContain('@levin/admin-framework');
     expect(panel.text()).toContain('@vben/stores');
@@ -246,6 +257,9 @@ describe('basic layout tenant site brand', () => {
       '租户站点后台',
     );
     expect(wrapper.get('[data-testid="footer"]').text()).toBe('租户站点版权');
+    expect(wrapper.get('[data-testid="basic-layout"]').classes()).toContain(
+      'admin-navigation-theme-brand-gradient',
+    );
   });
 
   it('navigates to the current user home path when the layout logo is clicked', async () => {

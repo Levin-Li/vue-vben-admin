@@ -971,6 +971,7 @@ async function startPasswordLogin(
     passwordVerifyDialogOpen.value = true;
   } catch (error: any) {
     // 登录挑战失败必须给出可见反馈，不能静默清空状态导致用户无法判断验证码为何未展示。
+    console.error('创建登录验证码挑战失败', error);
     message.error(error?.message || '创建登录验证码挑战失败');
     resetPasswordLoginChallenge();
   } finally {

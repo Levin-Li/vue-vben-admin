@@ -36,9 +36,14 @@ import {
   readonly,
   ref,
   render,
+  provide,
   useSlots,
   watch,
 } from 'vue';
+import {
+  CRUD_FORM_ELEMENT_REGISTRY_KEY,
+  createCrudFormElementRegistry,
+} from './crud-form-elements';
 import { useRoute } from 'vue-router';
 
 import { Page, VCropper } from '@vben/common-ui';
@@ -324,6 +329,10 @@ const props = defineProps<{
    */
   embedded?: boolean;
 }>();
+
+// 页面初始化期统一收集 schema 与自定义表单元素，展示设置不依赖实际 DOM 挂载状态。
+const formElementRegistry = createCrudFormElementRegistry();
+provide(CRUD_FORM_ELEMENT_REGISTRY_KEY, formElementRegistry);
 const slots = useSlots();
 
 type GenericRecord = Record<string, any>;
@@ -386,6 +395,19 @@ const pageEntryPath = route.path;
 const menuFixedQuery = parseMenuFixedQuery(route.meta.fixedQuery);
 
 const effectiveFields = computed(() => props.config.fields);
+
+watch(
+  effectiveFields,
+  (fields) => {
+    for (const field of fields) {
+      if (field.search) formElementRegistry.register({ formId: 'crud-query', formName: '查询表单', key: field.key, label: field.label, fieldKeys: [field.key], view: 'query' });
+      if (field.form !== false && field.formCreate !== false) formElementRegistry.register({ formId: 'crud-create', formName: '新增表单', key: field.key, label: field.label, fieldKeys: [field.key], view: 'create' });
+      if (field.form !== false && field.formEdit !== false) formElementRegistry.register({ formId: 'crud-edit', formName: '编辑表单', key: field.key, label: field.label, fieldKeys: [field.key], view: 'edit' });
+      if (field.detail !== false) formElementRegistry.register({ formId: 'crud-detail', formName: '详情表单', key: field.key, label: field.label, fieldKeys: [field.key], view: 'detail' });
+    }
+  },
+  { immediate: true },
+);
 const effectiveDetailFields = computed(
   () => props.config.detailFields || props.config.fields,
 );
@@ -982,6 +1004,13 @@ function getPageDisplayInputDisplay(
   key: string,
 ) {
   return getPageDisplayField(view, key)?.inputDisplay || 'default';
+}
+
+function getSearchFieldLabel(item: (typeof visibleSearchFieldItems.value)[number]) {
+  const visibility = getPageDisplayField('query', item.key)?.titleVisibility || 'default';
+  if (visibility === 'hidden') return '';
+  if (visibility === 'default' && pageDisplayConfig.value.query?.defaultHideFieldTitle === true) return '';
+  return item.kind === 'range' ? item.label : item.field.label;
 }
 
 function isPageDisplayRoleVisible(
@@ -6829,7 +6858,7 @@ watch(canCustomizeTableColumnsLocally, () => {
             <Form.Item
               v-for="item in visibleSearchFieldItems"
               :key="item.key"
-              :label="item.kind === 'range' ? item.label : item.field.label"
+              :label="getSearchFieldLabel(item)"
               class="mb-0 min-w-0"
               :style="getSearchItemStyle(item)"
             >
@@ -8619,6 +8648,7 @@ watch(canCustomizeTableColumnsLocally, () => {
       :code="pageDisplaySettingCode"
       :domain-object="props.config.domainObject"
       :fields="effectiveFields"
+      :form-elements="formElementRegistry.elements"
       :detail-fields="detailSettingsFields"
       :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
       :model-value="pageDisplayConfig"
@@ -8635,6 +8665,7 @@ watch(canCustomizeTableColumnsLocally, () => {
       :code="pageDisplaySettingCode"
       :domain-object="props.config.domainObject"
       :fields="effectiveFields"
+      :form-elements="formElementRegistry.elements"
       :detail-fields="detailSettingsFields"
       :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
       :model-value="pageDisplayConfig"

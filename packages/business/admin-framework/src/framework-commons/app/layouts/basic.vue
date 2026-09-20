@@ -59,6 +59,7 @@ import {
   buildAdminUiBaseSettingPayload,
   DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET,
 } from '../tenant-site-admin-ui-base-setting';
+import { getNavigationVisualThemeClass } from './navigation-visual-theme';
 import SyncI18nLabelsModal from './sync-i18n-labels-modal.vue';
 import SyncMenuRoutesModal from './sync-menu-routes-modal.vue';
 
@@ -297,6 +298,9 @@ const userDropdownDescription = computed(() => {
     userInfo.username ||
     ''
   );
+});
+const navigationThemeClass = computed(() => {
+  return getNavigationVisualThemeClass(preferences.navigation.visualStyle);
 });
 
 async function handleLogout() {
@@ -724,7 +728,7 @@ watch(
 </script>
 
 <template>
-  <BasicLayout @click-logo="handleClickLogo">
+  <BasicLayout :class="navigationThemeClass" @click-logo="handleClickLogo">
     <template #logo-text>
       {{ appName }}
     </template>
@@ -925,3 +929,245 @@ watch(
     </template>
   </BasicLayout>
 </template>
+
+<style scoped>
+/* 浅色侧栏以低饱和品牌渐变建立视觉锚点，不改变深色主题。 */
+.admin-navigation-theme-brand-gradient :deep(aside.light.bg-sidebar) {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--sidebar)) 0%,
+    hsl(var(--primary) / 4%) 100%
+  );
+  border-right: 1px solid hsl(var(--primary) / 10%);
+}
+
+/* 品牌区使用柔和渐变承接应用 Logo 与菜单主体。 */
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light .layout-sidebar-brand) {
+  position: relative;
+  margin: 10px 10px 6px;
+  overflow: hidden;
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 16%) 0%,
+    hsl(var(--accent) / 72%) 58%,
+    hsl(var(--background)) 100%
+  );
+  border: 1px solid hsl(var(--primary) / 12%);
+  border-radius: calc(var(--radius) + 0.45rem);
+  box-shadow: 0 8px 20px hsl(var(--primary) / 7%);
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light .layout-sidebar-brand a) {
+  position: relative;
+  z-index: 1;
+  padding-right: 14px;
+  padding-left: 14px;
+}
+
+/* 顶栏沿用白色基底与极淡品牌渐变，保持内容区的阅读优先级。 */
+.admin-navigation-theme-brand-gradient :deep(header.light.bg-header) {
+  background: linear-gradient(
+    105deg,
+    hsl(var(--background)) 0%,
+    hsl(var(--primary) / 2.5%) 52%,
+    hsl(var(--background)) 100%
+  );
+  border-bottom: 1px solid hsl(var(--primary) / 7%);
+  box-shadow: 0 5px 14px hsl(var(--primary) / 3%);
+}
+
+/* 搜索与用户入口使用同一轻量表面，形成可扫描的操作区域。 */
+.admin-navigation-theme-brand-gradient
+  :deep(header.light .header-global-search),
+.admin-navigation-theme-brand-gradient
+  :deep(header.light .header-user-dropdown) {
+  background: hsl(var(--primary) / 6%);
+  border: 1px solid hsl(var(--primary) / 10%);
+  box-shadow: 0 3px 10px hsl(var(--primary) / 4%);
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(header.light .header-global-search:hover),
+.admin-navigation-theme-brand-gradient
+  :deep(header.light [data-state='open'] .header-user-dropdown),
+.admin-navigation-theme-brand-gradient
+  :deep(header.light .header-user-dropdown:hover) {
+  background: hsl(var(--primary) / 10%);
+  border-color: hsl(var(--primary) / 18%);
+}
+
+/* 菜单主体维持中性，只在悬停和当前项提供明确、轻量的层次。 */
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light .vben-menu.is-vertical) {
+  padding: 6px 8px 20px;
+  background: transparent;
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(
+    aside.light .vben-menu.is-vertical .vben-menu-item,
+    aside.light .vben-menu.is-vertical .vben-sub-menu-content
+  ) {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) + 0.2rem);
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(
+    aside.light .vben-menu.is-vertical .vben-menu-item:not(.is-active):hover,
+    aside.light
+      .vben-menu.is-vertical
+      .vben-sub-menu-content:not(.is-active):hover
+  ) {
+  background: hsl(var(--primary) / 7%);
+  border-color: hsl(var(--primary) / 8%);
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(
+    aside.light .vben-menu.is-vertical .vben-menu-item.is-active,
+    aside.light .vben-menu.is-vertical .vben-sub-menu-content.is-active
+  ) {
+  color: hsl(var(--primary));
+  background: linear-gradient(
+    105deg,
+    hsl(var(--primary) / 20%) 0%,
+    hsl(var(--primary) / 7%) 100%
+  ) !important;
+  border-color: hsl(var(--primary) / 16%);
+  box-shadow:
+    inset 3px 0 0 hsl(var(--primary)),
+    0 7px 16px hsl(var(--primary) / 9%);
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(
+    aside.light .vben-menu.is-vertical .vben-menu-item:focus-visible,
+    aside.light .vben-menu.is-vertical .vben-sub-menu-content:focus-visible
+  ) {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* 收起后移除品牌卡片边距，确保图标导航保持紧凑清晰。 */
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light .vben-menu.is-collapse) {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light:has(.vben-menu.is-collapse) .layout-sidebar-brand) {
+  margin-right: 0;
+  margin-left: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* 极简留白主题仅保留边界与选中态，适合追求信息密度的后台。 */
+.admin-navigation-theme-minimal :deep(aside.light.bg-sidebar) {
+  background: hsl(var(--sidebar));
+  border-right: 1px solid hsl(var(--border));
+}
+
+.admin-navigation-theme-minimal :deep(aside.light .layout-sidebar-brand) {
+  margin: 0 12px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.admin-navigation-theme-minimal :deep(aside.light .vben-menu.is-vertical) {
+  padding: 8px;
+}
+
+.admin-navigation-theme-minimal
+  :deep(aside.light .vben-menu.is-vertical .vben-menu-item.is-active),
+.admin-navigation-theme-minimal
+  :deep(aside.light .vben-menu.is-vertical .vben-sub-menu-content.is-active) {
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 8%) !important;
+  border-radius: var(--radius);
+  box-shadow: inset 2px 0 0 hsl(var(--primary));
+}
+
+.admin-navigation-theme-minimal :deep(header.light.bg-header) {
+  background: hsl(var(--header));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+/* 柔和卡片主题以中性表面组织导航，提供更明显的分区感。 */
+.admin-navigation-theme-soft-card :deep(aside.light.bg-sidebar) {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--background)) 0%,
+    hsl(var(--accent) / 72%) 100%
+  );
+  border-right: 1px solid hsl(var(--border));
+}
+
+.admin-navigation-theme-soft-card :deep(aside.light .layout-sidebar-brand) {
+  margin: 10px 10px 8px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 0.35rem);
+  box-shadow: 0 6px 16px hsl(var(--foreground) / 5%);
+}
+
+.admin-navigation-theme-soft-card :deep(aside.light .vben-menu.is-vertical) {
+  padding: 6px 8px 20px;
+  background: transparent;
+}
+
+.admin-navigation-theme-soft-card
+  :deep(
+    aside.light .vben-menu.is-vertical .vben-menu-item,
+    aside.light .vben-menu.is-vertical .vben-sub-menu-content
+  ) {
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) + 0.25rem);
+}
+
+.admin-navigation-theme-soft-card
+  :deep(
+    aside.light .vben-menu.is-vertical .vben-menu-item:not(.is-active):hover,
+    aside.light
+      .vben-menu.is-vertical
+      .vben-sub-menu-content:not(.is-active):hover
+  ) {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.admin-navigation-theme-soft-card
+  :deep(aside.light .vben-menu.is-vertical .vben-menu-item.is-active),
+.admin-navigation-theme-soft-card
+  :deep(aside.light .vben-menu.is-vertical .vben-sub-menu-content.is-active) {
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 11%) !important;
+  border-color: hsl(var(--primary) / 15%);
+  box-shadow: 0 5px 12px hsl(var(--primary) / 8%);
+}
+
+.admin-navigation-theme-soft-card :deep(header.light.bg-header) {
+  background: linear-gradient(
+    105deg,
+    hsl(var(--background)) 0%,
+    hsl(var(--accent) / 82%) 100%
+  );
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.admin-navigation-theme-soft-card :deep(header.light .header-global-search),
+.admin-navigation-theme-soft-card :deep(header.light .header-user-dropdown) {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+</style>

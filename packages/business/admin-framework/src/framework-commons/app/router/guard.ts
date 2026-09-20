@@ -2,7 +2,7 @@ import type { Router } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/constants';
 import { preferences } from '@vben/preferences';
-import { useAccessStore, useUserStore } from '@vben/stores';
+import { useAccessStore, useTabbarStore, useUserStore } from '@vben/stores';
 import { startProgress, stopProgress } from '@vben/utils';
 
 import {
@@ -67,23 +67,17 @@ function setupCommonGuard(router: Router) {
 function setupAccessGuard(router: Router, resetRoutes: () => void) {
   router.beforeEach(async (to, from) => {
     const accessStore = useAccessStore();
+    const tabbarStore = useTabbarStore();
     const userStore = useUserStore();
     const authStore = useAuthStore();
 
     // 基本路由，这些路由不需要进入权限拦截
     if (coreRouteNames.includes(to.name as string)) {
-      if (to.path === LOGIN_PATH && accessStore.accessToken) {
-        return decodeURIComponent(
-          (to.query?.redirect as string) ||
-            userStore.userInfo?.homePath ||
-            preferences.app.defaultHomePath,
-        );
-      }
-
-      // 进入登录页意味着会话已经失效或正在切换账号。先撤销旧账号的动态路由、
-      // 菜单和权限缓存，避免挑战登录完成后新账号沿用旧账号的访问限制。
+      // 到达登录页即结束当前账号会话；即使旧令牌仍在，也不得跳过清理并重定向。
       if (to.path === LOGIN_PATH) {
-        clearPreviousUserAccessState(accessStore, resetRoutes);
+        clearPreviousUserAccessState(accessStore, resetRoutes, () =>
+          tabbarStore.$reset(),
+        );
         userStore.setUserInfo(null);
       }
 

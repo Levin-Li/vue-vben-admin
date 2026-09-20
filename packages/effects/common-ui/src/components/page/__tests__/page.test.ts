@@ -55,8 +55,14 @@ describe('page.vue', () => {
       },
     });
 
-    const contentDiv = wrapper.find('.p-4');
+    const contentDiv = wrapper.find('.custom-class');
     expect(contentDiv.classes()).toContain('custom-class');
+  });
+
+  it('does not add default padding to the content wrapper', () => {
+    const wrapper = mount(Page);
+
+    expect(wrapper.find('.p-4').exists()).toBe(false);
   });
 
   it('does not render title slot if title prop is provided', () => {

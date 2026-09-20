@@ -5,10 +5,12 @@ import { useRouter } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/constants';
 import { preferences } from '@vben/preferences';
-import { resetAllStores, useAccessStore, useUserStore } from '@vben/stores';
-
-import { notification } from 'ant-design-vue';
-import { defineStore } from 'pinia';
+import {
+  resetAllStores,
+  useAccessStore,
+  useTabbarStore,
+  useUserStore,
+} from '@vben/stores';
 
 import {
   completePasswordLoginApi,
@@ -19,10 +21,14 @@ import {
 } from '@levin/admin-framework/framework-commons/app/api';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import { shouldRefreshAuthorizedPermissions } from '@levin/admin-framework/framework-commons/rbac-access';
+import { notification } from 'ant-design-vue';
+import { defineStore } from 'pinia';
+
 import { clearPreviousUserAccessState } from './user-access-session';
 
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
+  const tabbarStore = useTabbarStore();
   const userStore = useUserStore();
   const router = useRouter();
 
@@ -95,6 +101,12 @@ export const useAuthStore = defineStore('auth', () => {
     } catch {
       // 不做任何处理
     }
+    // 无论登出接口是否成功，先撤销当前账号动态路由与页面缓存。
+    const { resetRoutes } = await import('../router');
+    clearPreviousUserAccessState(accessStore, resetRoutes, () =>
+      tabbarStore.$reset(),
+    );
+    userStore.setUserInfo(null);
     resetAllStores();
     accessStore.setLoginExpired(false);
 
@@ -134,7 +146,10 @@ export const useAuthStore = defineStore('auth', () => {
     onSuccess?: () => Promise<void> | void,
   ) {
     const { resetRoutes } = await import('../router');
-    clearPreviousUserAccessState(accessStore, resetRoutes);
+    clearPreviousUserAccessState(accessStore, resetRoutes, () =>
+      tabbarStore.$reset(),
+    );
+    userStore.setUserInfo(null);
     accessStore.setAccessToken(accessToken);
 
     const [userInfo, accessCodes] = await Promise.all([

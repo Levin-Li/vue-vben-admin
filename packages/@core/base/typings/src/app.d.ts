@@ -72,6 +72,14 @@ type AccessModeType = 'backend' | 'frontend' | 'mixed';
 type NavigationStyleType = 'plain' | 'rounded';
 
 /**
+ * 导航视觉主题
+ * brand-gradient 品牌渐变
+ * minimal 极简留白
+ * soft-card 柔和卡片
+ */
+type NavigationVisualStyleType = 'brand-gradient' | 'minimal' | 'soft-card';
+
+/**
  * 标签栏风格
  * brisk 轻快
  * card 卡片
@@ -113,6 +121,7 @@ export type {
   LayoutType,
   LoginExpiredModeType,
   NavigationStyleType,
+  NavigationVisualStyleType,
   PageTransitionType,
   PreferencesButtonPositionType,
   TabsStyleType,

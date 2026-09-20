@@ -192,6 +192,8 @@ export interface CrudPageDisplayFieldConfig {
   inputDisplay?: 'default' | 'inline-options';
   key: string;
   label?: string;
+  /** 查询字段标题展示策略；default 继承查询表单默认值。 */
+  titleVisibility?: 'default' | 'hidden' | 'visible';
   layoutGroup?: string;
   /** 显式取消开发阶段默认分组。 */
   layoutGroupExcluded?: boolean;
@@ -249,6 +251,8 @@ export interface CrudPageDisplayEditViewConfig extends CrudPageDisplayFormViewCo
 
 export interface CrudPageDisplayQueryViewConfig extends CrudPageDisplayGroupedViewConfig {
   autoSearch?: boolean;
+  /** 开启后，未明确覆盖的查询字段默认不展示标题。 */
+  defaultHideFieldTitle?: boolean;
   collapsedRows?: CrudPageDisplayQueryCollapsedRows;
   defaultExpanded?: boolean;
 }

@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  hasNegotiatedCryptoPath,
+  hasNegotiatedSignaturePath,
   hex,
   importCryptoKey,
+  isAnonymousRbacCryptoPath,
   isClientCryptoPath,
+  rememberNegotiatedCryptoPath,
+  rememberNegotiatedSignaturePath,
   resolveMinuteByNonce,
   sha256,
+  shouldEncryptClientRequest,
+  shouldRetryCryptoNegotiation,
+  shouldRetrySignatureNegotiation,
+  shouldSignClientRequest,
 } from '../url-acl-crypto';
 
 describe('uRL ACL 前端加密协议', () => {
@@ -14,7 +23,7 @@ describe('uRL ACL 前端加密协议', () => {
   const minute = 2_982_350;
   const encoder = new TextEncoder();
 
-  it('完整路径和 RequestService 短路径都进入强制加密分支', () => {
+  it('rbac JSON API 都进入主动加密分支，非 RBAC API 不受影响', () => {
     expect(isClientCryptoPath('/com.levin.oak.base/V1/api/Rbac/login')).toBe(
       true,
     );
@@ -31,11 +40,80 @@ describe('uRL ACL 前端加密协议', () => {
         '/com.levin.oak.base/V1/api/Rbac/loginVerifyChallenge/complete',
       ),
     ).toBe(true);
-    expect(isClientCryptoPath('login')).toBe(true);
-    expect(isClientCryptoPath('getVerifyCode')).toBe(true);
-    expect(isClientCryptoPath('loginVerifyChallenge')).toBe(true);
-    expect(isClientCryptoPath('loginVerifyChallenge/complete')).toBe(true);
-    expect(isClientCryptoPath('/Rbac/getLoginOptions')).toBe(false);
+    expect(isClientCryptoPath('/Rbac/tenantInfo')).toBe(true);
+    expect(isClientCryptoPath('/Rbac/tenantSiteInfo?refresh=true')).toBe(true);
+    expect(isClientCryptoPath('/Rbac/userInfo#current')).toBe(true);
+    expect(isClientCryptoPath('/Rbac/authorizedMenuList')).toBe(true);
+    expect(isClientCryptoPath('/enums/UserCategory')).toBe(true);
+    expect(isClientCryptoPath('/Rbac/captcha')).toBe(false);
+    expect(isClientCryptoPath('/Tenant/list')).toBe(false);
+  });
+
+  it('匿名登录和租户上下文 API 不依赖当前页面路由判断', () => {
+    expect(isAnonymousRbacCryptoPath('/Rbac/login')).toBe(true);
+    expect(isAnonymousRbacCryptoPath('/Rbac/loginVerifyChallenge')).toBe(true);
+    expect(
+      isAnonymousRbacCryptoPath('/Rbac/loginVerifyChallenge/complete'),
+    ).toBe(true);
+    expect(isAnonymousRbacCryptoPath('/Rbac/tenantSiteInfo')).toBe(true);
+    expect(isAnonymousRbacCryptoPath('/Rbac/userInfo')).toBe(false);
+  });
+
+  it('协商加密仅按当前域名与路径记忆，query 和 hash 不参与匹配', () => {
+    const domain = 'negotiated.example.test';
+    rememberNegotiatedCryptoPath('/Order/list?first=true', domain);
+
+    expect(hasNegotiatedCryptoPath('/Order/list#second', domain)).toBe(true);
+    expect(hasNegotiatedCryptoPath('/Order/list', 'other.example.test')).toBe(
+      false,
+    );
+    expect(hasNegotiatedCryptoPath('/Order/detail', domain)).toBe(false);
+  });
+
+  it('协商仅对 AES_GCM 且尚未重试的有效请求重发一次', () => {
+    expect(shouldRetryCryptoNegotiation('AES_GCM', '/Order/list', false)).toBe(
+      true,
+    );
+    expect(shouldRetryCryptoNegotiation('AES_GCM', '/Order/list', true)).toBe(
+      false,
+    );
+    expect(shouldRetryCryptoNegotiation('OTHER', '/Order/list', false)).toBe(
+      false,
+    );
+    expect(shouldRetryCryptoNegotiation('AES_GCM', '', false)).toBe(false);
+  });
+
+  it('签名协商只按当前域名与路径记忆，并且只重发一次', () => {
+    const domain = 'signed.example.test';
+    rememberNegotiatedSignaturePath('/Order/list?first=true', domain);
+
+    expect(hasNegotiatedSignaturePath('/Order/list#second', domain)).toBe(true);
+    expect(
+      hasNegotiatedSignaturePath('/Order/list', 'other.example.test'),
+    ).toBe(false);
+    expect(shouldSignClientRequest('/Order/list', domain)).toBe(true);
+    expect(shouldSignClientRequest('/Order/detail', domain)).toBe(false);
+    expect(
+      shouldRetrySignatureNegotiation('HMAC_SHA256', '/Order/list', false),
+    ).toBe(true);
+    expect(
+      shouldRetrySignatureNegotiation('HMAC_SHA256', '/Order/list', true),
+    ).toBe(false);
+  });
+
+  it('主动路径和协商记忆经同一加密启用判定汇合', () => {
+    const domain = 'unified.example.test';
+    const negotiatedPath = '/Order/list';
+
+    expect(shouldEncryptClientRequest('/Rbac/userInfo', domain)).toBe(true);
+    expect(shouldEncryptClientRequest(negotiatedPath, domain)).toBe(false);
+
+    rememberNegotiatedCryptoPath(negotiatedPath, domain);
+
+    expect(shouldEncryptClientRequest(negotiatedPath, domain)).toBe(true);
+    expect(
+      shouldEncryptClientRequest('/Order/list', 'other.example.test'),
+    ).toBe(false);
   });
 
   it('使用域名、来源和分钟派生相同 AES 密钥并可往返加解密', async () => {
@@ -84,7 +162,8 @@ describe('uRL ACL 前端加密协议', () => {
         plain,
       ),
     );
-    cipher[0] ^= 1;
+    expect(cipher).not.toHaveLength(0);
+    cipher[0] = (cipher[0] ?? 0) ^ 1;
     await expect(
       crypto.subtle.decrypt(
         { name: 'AES-GCM', iv },

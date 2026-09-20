@@ -502,6 +502,16 @@ describe('preferences', () => {
     );
   });
 
+  it('updates the navigation visual style correctly', () => {
+    preferenceManager.updatePreferences({
+      navigation: { visualStyle: 'soft-card' },
+    });
+
+    expect(preferenceManager.getPreferences().navigation.visualStyle).toBe(
+      'soft-card',
+    );
+  });
+
   it('resets preferences to default correctly', () => {
     // 先更新一些偏好设置
     preferenceManager.updatePreferences({

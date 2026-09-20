@@ -4,7 +4,7 @@ import {
   createWebHistory,
 } from 'vue-router';
 
-import { resetStaticRoutes } from '@vben/utils';
+import { getStaticRouteNames, resetStaticRoutes } from '@vben/utils';
 
 import { createRouterGuard } from './guard';
 import { routes } from './routes';
@@ -29,7 +29,9 @@ const router = createRouter({
   // strict: true,
 });
 
-const resetRoutes = () => resetStaticRoutes(router, routes);
+// 动态菜单会更新路由记录，静态白名单必须在首次装配前固定。
+const staticRouteNames = getStaticRouteNames(routes);
+const resetRoutes = () => resetStaticRoutes(router, staticRouteNames);
 
 // 创建路由守卫；登录页进入时通过同一重置函数清理前一账号的动态访问状态。
 createRouterGuard(router, resetRoutes);

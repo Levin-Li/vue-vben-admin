@@ -232,6 +232,17 @@ function scriptLabel(expression?: string) {
             @update:checked="patchProperty('hidden', !$event)"
           />
         </Form.Item>
+        <Form.Item v-if="view === 'query'" label="标题展示">
+          <Radio.Group
+            :value="field.titleVisibility || 'default'"
+            button-style="solid"
+            @update:value="patchProperty('titleVisibility', $event)"
+          >
+            <Radio.Button value="default">默认</Radio.Button>
+            <Radio.Button value="visible">展示</Radio.Button>
+            <Radio.Button value="hidden">不展示</Radio.Button>
+          </Radio.Group>
+        </Form.Item>
         <Form.Item label="默认值">
           <InputNumber
             :value="field.defaultValue?.value"

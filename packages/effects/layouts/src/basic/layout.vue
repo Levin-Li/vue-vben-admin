@@ -486,6 +486,7 @@ const headerSlots = computed(() => {
       <VbenLogo
         v-if="preferences.logo.enable"
         :fit="preferences.logo.fit"
+        class="layout-sidebar-brand"
         :class="logoClass"
         :collapsed="logoCollapsed"
         :src="preferences.logo.source"

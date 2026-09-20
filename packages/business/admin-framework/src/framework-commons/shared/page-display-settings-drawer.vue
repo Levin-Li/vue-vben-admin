@@ -66,6 +66,7 @@ import type {
   CrudPageDisplayGroupConfig,
   CrudPageDisplayHeaderConfig,
 } from './types';
+import type { CrudFormElementDeclaration } from './crud-form-elements';
 
 type FormView = 'create' | 'detail' | 'edit';
 type View = FormView | 'list' | 'query';
@@ -88,6 +89,7 @@ const props = defineProps<{
   domainObject?: boolean;
   initialScope?: Scope;
   fields: CrudFieldConfig[];
+  formElements?: CrudFormElementDeclaration[];
   detailFields?: CrudFieldConfig[];
   modelValue?: CrudPageDisplayConfig;
   open: boolean;
@@ -409,7 +411,7 @@ function getAllowedFields(view: Exclude<View, 'list'>) {
   const fieldKeys = new Set<string>();
 
   // 同一稳定字段键只能进入一个表单行，避免页面静态配置重复时渲染重复控件。
-  return sourceFields.filter((field) => {
+  const fields = sourceFields.filter((field) => {
     const available =
       view === 'query'
         ? field.search
@@ -422,6 +424,17 @@ function getAllowedFields(view: Exclude<View, 'list'>) {
     fieldKeys.add(field.key);
     return true;
   });
+  const known = new Set(fields.map((field) => field.key));
+  for (const element of props.formElements || []) {
+    if (element.view !== view || known.has(element.key)) continue;
+    fields.push({
+      key: element.key,
+      label: element.label,
+      search: view === 'query',
+      form: view !== 'query',
+    });
+  }
+  return fields;
 }
 
 function ensureFields(view: Exclude<View, 'list'>) {
@@ -1499,12 +1512,24 @@ function validateView(view: Exclude<View, 'list'>) {
   return undefined;
 }
 
-function validateDisplayConfig(): { message: string; view: View } | undefined {
+function changedViews(): View[] {
+  try {
+    const baseline = JSON.parse(initialSnapshot.value || '{}').config || {};
+    return (['query', 'create', 'edit', 'detail', 'list'] as const).filter(
+      (view) => JSON.stringify(draft.value[view]) !== JSON.stringify(baseline[view]),
+    );
+  } catch {
+    return [activeKey.value];
+  }
+}
+
+function validateDisplayConfig(views: View[]): { message: string; view: View } | undefined {
   ensureHeaders();
-  for (const view of ['query', 'create', 'edit', 'detail'] as const) {
+  for (const view of views.filter((view): view is Exclude<View, 'list'> => view !== 'list')) {
     const error = validateView(view);
     if (error) return { message: error, view };
   }
+  if (!views.includes('list')) return undefined;
   const titles = new Set<string>();
   for (const header of draft.value.list?.headers || []) {
     const title = header.title?.trim() || header.label?.trim() || header.key;
@@ -1576,7 +1601,7 @@ const uploadTooltip = computed(() => {
 });
 
 function save() {
-  const validationError = validateDisplayConfig();
+  const validationError = validateDisplayConfig(changedViews());
   if (validationError) {
     activeKey.value = validationError.view;
     message.error(validationError.message);
@@ -1765,6 +1790,9 @@ onMounted(() => {
                     checked-children="自动"
                     un-checked-children="手动"
                   />
+                </Form.Item>
+                <Form.Item label="默认不展示标题" class="mb-0">
+                  <Switch v-model:checked="queryHolder().defaultHideFieldTitle" />
                 </Form.Item>
               </Tooltip>
             </Form>
@@ -2414,6 +2442,15 @@ onMounted(() => {
                     ></Tooltip>
                   </template>
                   <template v-else>
+                    <Radio.Group
+                      v-if="view === 'query'"
+                      v-model:value="row.titleVisibility"
+                      button-style="solid"
+                    >
+                      <Radio.Button value="default">默认</Radio.Button>
+                      <Radio.Button value="visible">展示</Radio.Button>
+                      <Radio.Button value="hidden">不展示</Radio.Button>
+                    </Radio.Group>
                     <Select
                       v-model:value="row.inputDisplay"
                       :options="getInputDisplayOptions(row)"

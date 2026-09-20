@@ -86,7 +86,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <div :class="cn('h-full p-4', contentClass)" :style="contentStyle">
+    <!-- 内容区外侧留白由布局设置统一管理，页面局部间距仅通过 contentClass 显式声明。 -->
+    <div :class="cn('h-full', contentClass)" :style="contentStyle">
       <slot></slot>
     </div>
     <div

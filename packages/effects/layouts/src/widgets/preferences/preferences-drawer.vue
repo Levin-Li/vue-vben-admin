@@ -8,6 +8,7 @@ import type {
   LayoutHeaderModeType,
   LayoutType,
   NavigationStyleType,
+  NavigationVisualStyleType,
   PreferencesButtonPositionType,
   ThemeModeType,
 } from '@vben/types';
@@ -288,6 +289,9 @@ const tabbarMiddleClickToClose = defineModel<boolean>(
 
 const navigationStyleType = defineModel<NavigationStyleType>(
   'navigationStyleType',
+);
+const navigationVisualStyle = defineModel<NavigationVisualStyleType>(
+  'navigationVisualStyle',
 );
 const navigationSplit = defineModel<boolean>('navigationSplit');
 const navigationAccordion = defineModel<boolean>('navigationAccordion');
@@ -756,6 +760,7 @@ function openColorSettings(
                 v-model:navigation-accordion="navigationAccordion"
                 v-model:navigation-split="navigationSplit"
                 v-model:navigation-style-type="navigationStyleType"
+                v-model:navigation-visual-style="navigationVisualStyle"
                 v-model:tabbar-enable="tabbarEnable"
                 :disabled="isFullContent"
                 :disabled-navigation-split="!isMixedNav"
