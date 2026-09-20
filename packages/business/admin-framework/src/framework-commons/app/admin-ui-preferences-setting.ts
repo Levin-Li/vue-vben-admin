@@ -116,7 +116,7 @@ export async function loadAdminUiPreferencesSetting() {
   const preferences = resolution.setting?.valueContent?.preferences;
   // 仅应用独立界面偏好记录，未命中或格式无效时保留当前本地默认值。
   if (isRecord(preferences)) updatePreferences(preferences as any);
-  return resolution.setting;
+  return resolution;
 }
 
 export async function saveAdminUiPreferencesSetting(
@@ -139,6 +139,8 @@ export async function saveAdminUiPreferencesSetting(
     '/UiSetting/findCandidates',
     {
       params: {
+        pageIndex: 1,
+        pageSize: 10,
         ...normalizedScope,
         code: ADMIN_UI_PREFERENCES_SETTING_CODE,
         type: 'Preferences',
@@ -146,12 +148,12 @@ export async function saveAdminUiPreferencesSetting(
     },
   );
   const candidates = candidatePage?.items || [];
-  const total = candidatePage?.total ?? candidates.length;
+  const candidateCount = candidates.length;
   const target =
-    total === 1
+    candidateCount === 1
       ? candidates[0]
-      : total > 1
-        ? await selectCandidate?.(candidates, total)
+      : candidateCount > 1
+        ? await selectCandidate?.(candidates, candidateCount)
         : undefined;
   let setting: UiSettingRuntimeRecord;
   if (target?.id) {

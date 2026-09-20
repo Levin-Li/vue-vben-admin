@@ -60,6 +60,7 @@ import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-servic
 import { getFrontendBuildInfo } from '../frontend-build-versions';
 import {
   ADMIN_UI_PREFERENCES_SETTING_CODE,
+  loadAdminUiPreferencesSetting,
   loadAdminUiPreferencesScopeOptions,
   saveAdminUiPreferencesSetting,
 } from '../admin-ui-preferences-setting';
@@ -137,6 +138,7 @@ const profileModalOpen = ref(false);
 const syncMenuRoutesModalOpen = ref(false);
 const syncI18nLabelsModalOpen = ref(false);
 const adminUiPreferencesUploadLoading = ref(false);
+const adminUiPreferencesLoadLoading = ref(false);
 const adminUiPreferencesUploadModalOpen = ref(false);
 const syncNationalAdministrativeAreasModalOpen = ref(false);
 const syncNationalAdministrativeAreasLoading = ref(false);
@@ -373,13 +375,13 @@ function handleAdminUiPreferencesTenantChange() {
   ).then((options) => Object.assign(adminUiPreferencesScopeOptions, options));
 }
 
-function selectAdminUiPreferencesCandidate(candidates: any[], total: number) {
+function selectAdminUiPreferencesCandidate(candidates: any[], candidateCount: number) {
   return new Promise<any | undefined>((resolve) => {
     let selectedId: string | undefined;
     Modal.confirm({
       cancelText: '新建记录',
       content: h('div', { class: 'grid gap-3' }, [
-        h('div', `找到 ${total} 条完全匹配的配置，请选择一条更新；不选择将新建记录。`),
+        h('div', `找到 ${candidateCount} 条完全匹配的配置，请选择一条更新；不选择将新建记录。`),
         h(
           'select',
           {
@@ -439,6 +441,31 @@ async function handleSaveAdminUiPreferences() {
   }
 }
 
+async function handleLoadAdminUiPreferences() {
+  if (adminUiPreferencesLoadLoading.value) {
+    return;
+  }
+
+  adminUiPreferencesLoadLoading.value = true;
+  try {
+    const resolution = await loadAdminUiPreferencesSetting();
+    Object.assign(adminUiPreferencesScope, resolution.scope);
+    const options = await loadAdminUiPreferencesScopeOptions(
+      resolution.scope.tenantId,
+    );
+    Object.assign(adminUiPreferencesScopeOptions, options);
+    if (resolution.setting) {
+      message.success('界面设置已加载');
+    } else {
+      message.warning('无适配设置');
+    }
+  } catch {
+    message.error('加载界面设置失败');
+  } finally {
+    adminUiPreferencesLoadLoading.value = false;
+  }
+}
+
 async function syncNationalAdministrativeAreas() {
   if (syncNationalAdministrativeAreasLoading.value) {
     return;
@@ -462,6 +489,7 @@ async function syncNationalAdministrativeAreas() {
 
 function resetAdminUiPreferencesUploadLoading() {
   adminUiPreferencesUploadLoading.value = false;
+  adminUiPreferencesLoadLoading.value = false;
 }
 
 function refreshEventListeners() {
@@ -949,6 +977,23 @@ watch(
             show-search
           />
         </div>
+        <template #footer>
+          <Button
+            :disabled="adminUiPreferencesUploadLoading"
+            :loading="adminUiPreferencesLoadLoading"
+            @click="handleLoadAdminUiPreferences"
+          >
+            加载设置
+          </Button>
+          <Button @click="adminUiPreferencesUploadModalOpen = false">取消</Button>
+          <Button
+            :loading="adminUiPreferencesUploadLoading"
+            type="primary"
+            @click="handleSaveAdminUiPreferences"
+          >
+            上传设置
+          </Button>
+        </template>
       </Modal>
       <Modal
         v-model:open="syncNationalAdministrativeAreasModalOpen"

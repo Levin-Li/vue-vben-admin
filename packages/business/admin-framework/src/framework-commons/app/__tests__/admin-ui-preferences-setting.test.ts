@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const get = vi.fn();
 const post = vi.fn();
 const put = vi.fn();
+const updatePreferences = vi.fn();
+const resolveUiSettingRuntimeWithScope = vi.fn();
 
-vi.mock('@vben/preferences', () => ({ updatePreferences: vi.fn() }));
+vi.mock('@vben/preferences', () => ({ updatePreferences }));
 vi.mock('../../api', () => ({
   fetchDictOptions: vi.fn(),
   fetchEnumOptions: vi.fn(),
@@ -12,7 +14,7 @@ vi.mock('../../api', () => ({
 }));
 vi.mock('../api/request', () => ({ requestClient: { get, post, put } }));
 vi.mock('../api/ui-setting-runtime', () => ({
-  resolveUiSettingRuntimeWithScope: vi.fn(),
+  resolveUiSettingRuntimeWithScope,
   UI_SETTING_RETRIEVE_PATH: '/UiSetting/retrieve',
 }));
 
@@ -21,6 +23,31 @@ describe('界面偏好设置上传', () => {
     get.mockReset();
     post.mockReset();
     put.mockReset();
+    updatePreferences.mockReset();
+    resolveUiSettingRuntimeWithScope.mockReset();
+  });
+
+  it('加载只解析当前适配设置并应用偏好，不发起写入', async () => {
+    const resolution = {
+      scope: { domain: 'admin.example.test', tenantId: 'tenant-1' },
+      setting: { valueContent: { preferences: { theme: 'dark' } } },
+    };
+    resolveUiSettingRuntimeWithScope.mockResolvedValue(resolution);
+    const { loadAdminUiPreferencesSetting } = await import(
+      '../admin-ui-preferences-setting'
+    );
+
+    await expect(loadAdminUiPreferencesSetting()).resolves.toBe(resolution);
+
+    expect(resolveUiSettingRuntimeWithScope).toHaveBeenCalledWith(
+      '界面偏好设置',
+      'admin-ui-preferences',
+      { refresh: true },
+    );
+    expect(updatePreferences).toHaveBeenCalledWith({ theme: 'dark' });
+    expect(get).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+    expect(put).not.toHaveBeenCalled();
   });
 
   it('唯一精确候选只更新 ID、乐观锁和配置内容', async () => {
@@ -37,7 +64,12 @@ describe('界面偏好设置上传', () => {
     await saveAdminUiPreferencesSetting({ theme: 'dark' }, { tenantId: 't-1' });
 
     expect(get).toHaveBeenNthCalledWith(1, '/UiSetting/findCandidates', {
-      params: expect.objectContaining({ tenantId: 't-1', type: 'Preferences' }),
+      params: expect.objectContaining({
+        pageIndex: 1,
+        pageSize: 10,
+        tenantId: 't-1',
+        type: 'Preferences',
+      }),
     });
     expect(put).toHaveBeenCalledWith('/UiSetting/update', {
       id: 'setting-1',

@@ -649,6 +649,8 @@ async function savePageDisplaySettings(payload: {
       '/UiSetting/findCandidates',
       {
         params: {
+          pageIndex: 1,
+          pageSize: 10,
           code,
           type: 'PageDisplay',
           domain: payload.scope.domain || null,
@@ -661,7 +663,7 @@ async function savePageDisplaySettings(payload: {
       },
     );
     const candidates = candidatePage?.items || [];
-    const candidateCount = candidatePage?.total ?? candidates.length;
+    const candidateCount = candidates.length;
     const target =
       candidateCount === 1
         ? candidates[0]
