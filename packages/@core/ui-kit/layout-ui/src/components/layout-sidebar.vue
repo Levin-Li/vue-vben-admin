@@ -387,10 +387,7 @@ function calcMenuWidthStyle(isHiddenDom: boolean): CSSProperties {
     width,
   } = props;
 
-  let widthValue =
-    width === 0
-      ? '0px'
-      : `${width}px`;
+  let widthValue = width === 0 ? '0px' : `${width}px`;
 
   const { collapseWidth } = props;
 
@@ -399,13 +396,14 @@ function calcMenuWidthStyle(isHiddenDom: boolean): CSSProperties {
   }
 
   const hasExtraMenu = isHiddenDom && shouldShowExtra.value && show;
-  const placeholderWidth = isHiddenDom && show
-    ? hasExtraMenu
-      ? `calc(${widthValue} + ${
-          marginLeft + extraGap + extraWidth + marginRight
-        }px)`
-      : `calc(${widthValue} + ${marginLeft + marginRight}px)`
-    : widthValue;
+  const placeholderWidth =
+    isHiddenDom && show
+      ? hasExtraMenu
+        ? `calc(${widthValue} + ${
+            marginLeft + extraGap + extraWidth + marginRight
+          }px)`
+        : `calc(${widthValue} + ${marginLeft + marginRight}px)`
+      : widthValue;
 
   return {
     ...(placeholderWidth === '0px' ? { overflow: 'hidden' } : {}),
@@ -466,7 +464,7 @@ function handleMouseleave() {
       },
     ]"
     :style="style"
-    class="fixed left-0 top-0 h-full transition-all duration-150"
+    class="layout-sidebar fixed left-0 top-0 h-full transition-all duration-150"
     @mouseenter="handleMouseenter"
     @mouseleave="handleMouseleave"
   >
@@ -495,11 +493,9 @@ function handleMouseleave() {
   <div
     v-if="shouldShowExtra"
     ref="asideRef"
-    :class="[
-      theme,
-    ]"
+    :class="[theme]"
     :style="extraStyle"
-    class="fixed top-0 overflow-hidden bg-sidebar transition-all duration-200"
+    class="layout-sidebar-extra fixed top-0 overflow-hidden bg-sidebar transition-all duration-200"
   >
     <SidebarCollapseButton
       v-if="isSidebarMixed && expandOnHover"

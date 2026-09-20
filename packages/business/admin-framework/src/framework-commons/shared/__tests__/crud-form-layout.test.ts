@@ -165,6 +165,21 @@ describe('crud form layout', () => {
     expect(source).not.toContain("detailModalConfig?.modalMaxWidth || '80vw'");
   });
 
+  it('keeps the detail empty-value switch in the title action area', () => {
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'utf8',
+    );
+    const detailTitleStart = source.lastIndexOf('<template #title>');
+    const detailTitle = source.slice(
+      detailTitleStart,
+      source.indexOf('</template>', detailTitleStart),
+    );
+
+    expect(detailTitle).toContain('class="vben-crud-modal-title"');
+    expect(detailTitle).toContain('>不展示空值</Checkbox');
+  });
+
   it('shows concise group-toggle labels from the actual default expansion state', () => {
     const source = readFileSync(
       'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',

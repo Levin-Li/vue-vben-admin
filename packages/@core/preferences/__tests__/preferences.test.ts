@@ -504,11 +504,17 @@ describe('preferences', () => {
 
   it('updates the navigation visual style correctly', () => {
     preferenceManager.updatePreferences({
-      navigation: { visualStyle: 'soft-card' },
+      navigation: { visualStyle: 'brand-gradient' },
     });
 
     expect(preferenceManager.getPreferences().navigation.visualStyle).toBe(
-      'soft-card',
+      'brand-gradient',
+    );
+  });
+
+  it('uses the minimal visual style as the default navigation theme', () => {
+    expect(preferenceManager.getPreferences().navigation.visualStyle).toBe(
+      'minimal',
     );
   });
 

@@ -73,11 +73,10 @@ type NavigationStyleType = 'plain' | 'rounded';
 
 /**
  * 导航视觉主题
- * brand-gradient 品牌渐变
+ * brand-gradient 主题渐变
  * minimal 极简留白
- * soft-card 柔和卡片
  */
-type NavigationVisualStyleType = 'brand-gradient' | 'minimal' | 'soft-card';
+type NavigationVisualStyleType = 'brand-gradient' | 'minimal';
 
 /**
  * 标签栏风格

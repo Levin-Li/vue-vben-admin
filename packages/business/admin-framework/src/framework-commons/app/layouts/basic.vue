@@ -2,12 +2,15 @@
 import type { NotificationItem } from '@vben/layouts';
 
 import type { FrameworkEventListenerInfo } from '../../event-bus';
-import type { AdminUiBaseSettingUploadTarget } from '../tenant-site-admin-ui-base-setting';
+import type { AdminUiPreferencesScope } from '../admin-ui-preferences-setting';
 
 import {
   computed,
   defineAsyncComponent,
+  h,
+  onBeforeUnmount,
   onMounted,
+  reactive,
   ref,
   useSlots,
   watch,
@@ -20,6 +23,7 @@ import {
   BasicLayout,
   LockScreen,
   Notification,
+  registerPreferencesUploadAction,
   UserDropdown,
 } from '@vben/layouts';
 import { preferences } from '@vben/preferences';
@@ -37,12 +41,12 @@ import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store
 import { useAuthBrand } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/auth-brand';
 import {
   Button,
-  Checkbox,
   Empty,
+  Input,
   message,
   Modal,
   Popconfirm,
-  Radio,
+  Select,
   Tag,
 } from 'ant-design-vue';
 
@@ -56,9 +60,10 @@ import { getAdministrativeAreaOptions } from '../../shared/administrative-area-d
 import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-service';
 import { getFrontendBuildInfo } from '../frontend-build-versions';
 import {
-  buildAdminUiBaseSettingPayload,
-  DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET,
-} from '../tenant-site-admin-ui-base-setting';
+  ADMIN_UI_PREFERENCES_SETTING_CODE,
+  loadAdminUiPreferencesScopeOptions,
+  saveAdminUiPreferencesSetting,
+} from '../admin-ui-preferences-setting';
 import { getNavigationVisualThemeClass } from './navigation-visual-theme';
 import SyncI18nLabelsModal from './sync-i18n-labels-modal.vue';
 import SyncMenuRoutesModal from './sync-menu-routes-modal.vue';
@@ -139,19 +144,15 @@ const syncNationalAdministrativeAreasLoading = ref(false);
 const eventListenerManagerOpen = ref(false);
 const frontendVersionModalOpen = ref(false);
 const eventListeners = ref<FrameworkEventListenerInfo[]>([]);
-const preferServerAdminUiBaseSetting = ref(true);
-const adminUiBaseSettingUploadTarget = ref<AdminUiBaseSettingUploadTarget>(
-  DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET,
-);
-const SAVE_ADMIN_UI_BASE_SETTING_TIMEOUT_MS = 15_000;
-const adminUiBaseSettingUploadTargetOptions: Array<{
-  label: string;
-  value: AdminUiBaseSettingUploadTarget;
-}> = [
-  { label: '平台', value: 'Platform' },
-  { label: '租户站点', value: 'TenantSite' },
-  { label: '租户', value: 'Tenant' },
-];
+const adminUiPreferencesScope = reactive<AdminUiPreferencesScope>({});
+const adminUiPreferencesScopeOptions = reactive({
+  orgCategories: [] as Array<{ label: string; value: string }>,
+  orgTypes: [] as Array<{ label: string; value: string }>,
+  sites: [] as Array<{ label: string; value: string }>,
+  tenants: [] as Array<{ label: string; value: string }>,
+  userCategories: [] as Array<{ label: string; value: string }>,
+  userTypes: [] as Array<{ label: string; value: string }>,
+});
 const eventListenerManagerModalMaxWidth = 'min(80vw, 960px)';
 const eventListenerManagerModalStyle = {
   maxWidth: eventListenerManagerModalMaxWidth,
@@ -164,6 +165,7 @@ const canUploadPageRoutes = computed(() => {
   const userInfo = (userStore.userInfo || {}) as Record<string, any>;
   return userInfo.superAdmin === true && Boolean(getAdminMenuSyncService());
 });
+let unregisterPreferencesUploadAction: (() => void) | undefined;
 
 const canViewFrontendVersions = computed(() => {
   const userInfo = (userStore.userInfo || {}) as Record<string, any>;
@@ -210,18 +212,6 @@ const builtInUserDropdownExtensionMenus = computed(() =>
             id: 'sync-menu-routes',
             order: 200,
             text: '上传页面路由',
-          },
-          {
-            handler: () => {
-              preferServerAdminUiBaseSetting.value = true;
-              adminUiBaseSettingUploadTarget.value =
-                DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET;
-              saveAdminUiBaseSettingModalOpen.value = true;
-            },
-            icon: 'lucide:settings',
-            id: 'save-admin-ui-base-setting',
-            order: 300,
-            text: '上传界面设置',
           },
           {
             handler: () => {
@@ -300,7 +290,62 @@ const userDropdownDescription = computed(() => {
   );
 });
 const navigationThemeClass = computed(() => {
-  return getNavigationVisualThemeClass(preferences.navigation.visualStyle);
+  const themeClass = getNavigationVisualThemeClass(
+    preferences.navigation.visualStyle,
+  );
+  const navigation = preferences.navigation;
+  const classes = [themeClass];
+
+  if (navigation.visualStyle !== 'brand-gradient') {
+    return classes;
+  }
+  if (navigation.gradientSidebarEnabled !== false) {
+    classes.push('admin-navigation-theme-gradient-sidebar');
+  }
+  if (navigation.gradientHeaderEnabled !== false) {
+    classes.push('admin-navigation-theme-gradient-header');
+  }
+  if (navigation.gradientTabbarEnabled) {
+    classes.push('admin-navigation-theme-gradient-tabbar');
+  }
+  if (navigation.gradientCrudHeaderEnabled !== false) {
+    classes.push('admin-navigation-theme-gradient-crud-header');
+  }
+  if (navigation.gradientCrudToolbarEnabled) {
+    classes.push('admin-navigation-theme-gradient-crud-toolbar');
+  }
+  if (navigation.gradientCrudTableEnabled) {
+    classes.push('admin-navigation-theme-gradient-crud-table');
+  }
+  if (navigation.gradientCrudRowsEnabled) {
+    classes.push('admin-navigation-theme-gradient-crud-rows');
+  }
+  if (navigation.gradientCrudQueryEnabled) {
+    classes.push('admin-navigation-theme-gradient-crud-query');
+  }
+  if (navigation.gradientCrudCreateFormEnabled) {
+    classes.push('admin-navigation-theme-gradient-crud-create-form');
+  }
+  if (navigation.gradientCrudEditFormEnabled) {
+    classes.push('admin-navigation-theme-gradient-crud-edit-form');
+  }
+  if (navigation.gradientCrudDetailFormEnabled) {
+    classes.push('admin-navigation-theme-gradient-crud-detail-form');
+  }
+
+  return classes;
+});
+const navigationGradientStyle = computed(() => {
+  const navigation = preferences.navigation;
+  const endColor = navigation.gradientEndColor || '#fff4f5';
+
+  return {
+    '--navigation-gradient-end-color': endColor,
+    '--navigation-gradient-transition-color':
+      navigation.gradientTransitionColorEnabled
+        ? navigation.gradientTransitionColor || endColor
+        : endColor,
+  };
 });
 
 async function handleLogout() {
@@ -311,6 +356,68 @@ function clonePreferences() {
   return JSON.parse(JSON.stringify(preferences)) as Record<string, any>;
 }
 
+function openAdminUiBaseSettingUpload() {
+  // 每次打开都从独立 UI 设置的通用范围开始选择。
+  Object.assign(adminUiPreferencesScope, {});
+  void loadAdminUiPreferencesScopeOptions().then((options) =>
+    Object.assign(adminUiPreferencesScopeOptions, options),
+  );
+  saveAdminUiBaseSettingModalOpen.value = true;
+}
+
+function handleAdminUiPreferencesTenantChange() {
+  // 域名候选依赖租户；切换租户后不能保留旧域名。
+  adminUiPreferencesScope.domain = undefined;
+  adminUiPreferencesScopeOptions.sites = [];
+  void loadAdminUiPreferencesScopeOptions(
+    adminUiPreferencesScope.tenantId,
+  ).then((options) => Object.assign(adminUiPreferencesScopeOptions, options));
+}
+
+function selectAdminUiPreferencesCandidate(candidates: any[], total: number) {
+  return new Promise<any | undefined>((resolve) => {
+    let selectedId: string | undefined;
+    Modal.confirm({
+      cancelText: '新建记录',
+      content: h('div', { class: 'grid gap-3' }, [
+        h('div', `找到 ${total} 条完全匹配的配置，请选择一条更新；不选择将新建记录。`),
+        h(
+          'select',
+          {
+            class: 'border-border rounded border px-3 py-2',
+            onChange: (event: Event) => {
+              selectedId = (event.target as HTMLSelectElement).value || undefined;
+            },
+          },
+          [
+            h('option', { value: '' }, '不选择，改为新建记录'),
+            ...candidates.map((item) =>
+              h('option', { value: item.id }, `${item.code || '界面偏好设置'} · ${item.id || ''}`),
+            ),
+          ],
+        ),
+      ]),
+      okText: '更新所选记录',
+      onCancel: () => resolve(undefined),
+      onOk: () => resolve(candidates.find((item) => item.id === selectedId)),
+      title: '选择界面偏好设置',
+    });
+  });
+}
+
+watch(
+  canUploadPageRoutes,
+  (canUpload) => {
+    unregisterPreferencesUploadAction?.();
+    unregisterPreferencesUploadAction = canUpload
+      ? registerPreferencesUploadAction(openAdminUiBaseSettingUpload)
+      : undefined;
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => unregisterPreferencesUploadAction?.());
+
 async function handleSaveAdminUiBaseSetting() {
   if (saveAdminUiBaseSettingLoading.value) {
     return;
@@ -319,15 +426,10 @@ async function handleSaveAdminUiBaseSetting() {
   saveAdminUiBaseSettingLoading.value = true;
 
   try {
-    await rbacService.adjustSiteUiSetting(
-      buildAdminUiBaseSettingPayload(
-        clonePreferences(),
-        preferServerAdminUiBaseSetting.value,
-        adminUiBaseSettingUploadTarget.value,
-      ),
-      {
-        timeout: SAVE_ADMIN_UI_BASE_SETTING_TIMEOUT_MS,
-      },
+    await saveAdminUiPreferencesSetting(
+      clonePreferences(),
+      adminUiPreferencesScope,
+      selectAdminUiPreferencesCandidate,
     );
     message.success('界面设置上传成功');
     saveAdminUiBaseSettingModalOpen.value = false;
@@ -728,7 +830,11 @@ watch(
 </script>
 
 <template>
-  <BasicLayout :class="navigationThemeClass" @click-logo="handleClickLogo">
+  <BasicLayout
+    :class="navigationThemeClass"
+    :style="navigationGradientStyle"
+    @click-logo="handleClickLogo"
+  >
     <template #logo-text>
       {{ appName }}
     </template>
@@ -786,23 +892,63 @@ watch(
         v-model:open="saveAdminUiBaseSettingModalOpen"
         :confirm-loading="saveAdminUiBaseSettingLoading"
         :mask-closable="false"
+        :width="676"
         title="上传界面设置"
         @after-close="resetSaveAdminUiBaseSettingLoading"
         @cancel="resetSaveAdminUiBaseSettingLoading"
         @ok="handleSaveAdminUiBaseSetting"
       >
-        <div class="flex flex-col gap-4">
-          <label class="block space-y-2 text-sm">
-            <span class="text-muted-foreground block">上传目标</span>
-            <Radio.Group
-              v-model:value="adminUiBaseSettingUploadTarget"
-              :options="adminUiBaseSettingUploadTargetOptions"
-              option-type="button"
-            />
-          </label>
-          <Checkbox v-model:checked="preferServerAdminUiBaseSetting">
-            优先使用服务端设置参数
-          </Checkbox>
+        <div class="grid grid-cols-2 gap-4">
+          <!-- 独立界面偏好记录的编码固定，适用范围为空时匹配任意上下文。 -->
+          <Input
+            :value="ADMIN_UI_PREFERENCES_SETTING_CODE"
+            addon-before="设置项编码"
+            disabled
+          />
+          <Select
+            v-model:value="adminUiPreferencesScope.tenantId"
+            :options="adminUiPreferencesScopeOptions.tenants"
+            allow-clear
+            placeholder="适用租户（留空匹配任意）"
+            show-search
+            @change="handleAdminUiPreferencesTenantChange"
+          />
+          <Select
+            v-model:value="adminUiPreferencesScope.domain"
+            :options="adminUiPreferencesScopeOptions.sites"
+            :disabled="!adminUiPreferencesScope.tenantId"
+            allow-clear
+            placeholder="适用站点（留空匹配任意；请先选择租户）"
+            show-search
+          />
+          <Select
+            v-model:value="adminUiPreferencesScope.userType"
+            :options="adminUiPreferencesScopeOptions.userTypes"
+            allow-clear
+            placeholder="适用用户类型（留空匹配任意）"
+            show-search
+          />
+          <Select
+            v-model:value="adminUiPreferencesScope.userCategory"
+            :options="adminUiPreferencesScopeOptions.userCategories"
+            allow-clear
+            placeholder="适用用户类别（留空匹配任意）"
+            show-search
+          />
+          <Select
+            v-model:value="adminUiPreferencesScope.orgCategory"
+            :options="adminUiPreferencesScopeOptions.orgCategories"
+            allow-clear
+            placeholder="适用组织类别（留空匹配任意）"
+            show-search
+          />
+          <Select
+            v-model:value="adminUiPreferencesScope.orgType"
+            :options="adminUiPreferencesScopeOptions.orgTypes"
+            allow-clear
+            placeholder="适用组织类型（留空匹配任意）"
+            show-search
+          />
         </div>
       </Modal>
       <Modal
@@ -932,50 +1078,98 @@ watch(
 
 <style scoped>
 /* 浅色侧栏以低饱和品牌渐变建立视觉锚点，不改变深色主题。 */
-.admin-navigation-theme-brand-gradient :deep(aside.light.bg-sidebar) {
+.admin-navigation-theme-gradient-sidebar :deep(aside.layout-sidebar.light),
+.admin-navigation-theme-gradient-sidebar :deep(.layout-sidebar-extra.light) {
   background: linear-gradient(
-    180deg,
-    hsl(var(--sidebar)) 0%,
-    hsl(var(--primary) / 4%) 100%
-  );
-  border-right: 1px solid hsl(var(--primary) / 10%);
+      165deg,
+      hsl(var(--primary) / 18%) 0%,
+      var(--navigation-gradient-transition-color) 52%,
+      var(--navigation-gradient-end-color) 100%
+    )
+    fixed !important;
+  border: 0 !important;
+  outline: 0;
+  box-shadow: none;
 }
 
 /* 品牌区使用柔和渐变承接应用 Logo 与菜单主体。 */
 .admin-navigation-theme-brand-gradient
-  :deep(aside.light .layout-sidebar-brand) {
+  :deep(aside.light div.layout-sidebar-brand.light) {
   position: relative;
   margin: 10px 10px 6px;
   overflow: hidden;
   background: linear-gradient(
     125deg,
     hsl(var(--primary) / 16%) 0%,
-    hsl(var(--accent) / 72%) 58%,
-    hsl(var(--background)) 100%
+    hsl(var(--primary) / 8%) 100%
   );
-  border: 1px solid hsl(var(--primary) / 12%);
-  border-radius: calc(var(--radius) + 0.45rem);
-  box-shadow: 0 8px 20px hsl(var(--primary) / 7%);
+  border: 0;
+  border-radius: 9999px;
+  box-shadow: none;
 }
 
 .admin-navigation-theme-brand-gradient
-  :deep(aside.light .layout-sidebar-brand a) {
+  :deep(aside.light div.layout-sidebar-brand.light > a.layout-sidebar-brand) {
   position: relative;
   z-index: 1;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
   padding-right: 14px;
   padding-left: 14px;
 }
 
-/* 顶栏沿用白色基底与极淡品牌渐变，保持内容区的阅读优先级。 */
-.admin-navigation-theme-brand-gradient :deep(header.light.bg-header) {
+/* 主题 class 切换时也保持品牌区无边框，避免过渡中短暂闪现矩形轮廓。 */
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light div.layout-sidebar-brand.light),
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light div.layout-sidebar-brand.light > a.layout-sidebar-brand),
+.admin-navigation-theme-minimal
+  :deep(aside.light div.layout-sidebar-brand.light),
+.admin-navigation-theme-minimal
+  :deep(aside.light div.layout-sidebar-brand.light > a.layout-sidebar-brand) {
+  border-color: transparent !important;
+}
+
+/* 主题渐变下，顶栏与标签栏复用侧栏同一条三段渐变。 */
+.admin-navigation-theme-gradient-header :deep(header.light.bg-header),
+.admin-navigation-theme-gradient-tabbar :deep(.layout-tabbar) {
   background: linear-gradient(
-    105deg,
-    hsl(var(--background)) 0%,
-    hsl(var(--primary) / 2.5%) 52%,
-    hsl(var(--background)) 100%
-  );
-  border-bottom: 1px solid hsl(var(--primary) / 7%);
-  box-shadow: 0 5px 14px hsl(var(--primary) / 3%);
+    165deg,
+    hsl(var(--primary) / 18%) 0%,
+    var(--navigation-gradient-transition-color) 52%,
+    var(--navigation-gradient-end-color) 100%
+  ) !important;
+  border-color: transparent !important;
+  box-shadow: none;
+}
+
+/* 菜单组件保持透明，由连续的侧栏或顶栏容器承接渐变。 */
+.admin-navigation-theme-gradient-header :deep(.vben-menu),
+.admin-navigation-theme-gradient-header :deep(.vben-normal-menu),
+.admin-navigation-theme-gradient-sidebar :deep(.vben-menu),
+.admin-navigation-theme-gradient-sidebar :deep(.vben-normal-menu) {
+  --menu-background-color: transparent !important;
+  --sidebar-menu-background-color: transparent !important;
+  --sidebar-menu-hover-background-color: transparent !important;
+  background: transparent !important;
+}
+
+.admin-navigation-theme-gradient-header
+  :deep(.vben-menu .vben-menu-item.is-active),
+.admin-navigation-theme-gradient-header
+  :deep(.vben-normal-menu__item.is-active),
+.admin-navigation-theme-gradient-sidebar
+  :deep(.vben-menu .vben-menu-item.is-active),
+.admin-navigation-theme-gradient-sidebar
+  :deep(.vben-normal-menu__item.is-active) {
+  background: hsl(var(--primary) / 14%) !important;
+  color: hsl(var(--primary));
+}
+
+.admin-navigation-theme-gradient-sidebar
+  :deep(.layout-sidebar-extra .layout-sidebar-scrollbar) {
+  background: transparent !important;
 }
 
 /* 搜索与用户入口使用同一轻量表面，形成可扫描的操作区域。 */
@@ -998,11 +1192,205 @@ watch(
   border-color: hsl(var(--primary) / 18%);
 }
 
+/* 标签栏与侧栏菜单保持一致的悬停、选中渐变层级。 */
+.admin-navigation-theme-brand-gradient
+  :deep(
+    .layout-tabbar
+      .tabs-chrome__item:not(.is-active):hover
+      .tabs-chrome__background-content
+  ) {
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 14%) 0%,
+    hsl(var(--primary) / 7%) 100%
+  ) !important;
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(
+    .layout-tabbar
+      .tabs-chrome__item:not(.is-active):hover
+      .tabs-chrome__background-before,
+    .layout-tabbar
+      .tabs-chrome__item:not(.is-active):hover
+      .tabs-chrome__background-after
+  ) {
+  fill: hsl(var(--primary) / 14%) !important;
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(
+    .layout-tabbar .tabs-chrome__item.is-active .tabs-chrome__background-content
+  ) {
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 36%) 0%,
+    hsl(var(--primary) / 20%) 100%
+  ) !important;
+  box-shadow: 0 7px 16px hsl(var(--primary) / 18%);
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(
+    .layout-tabbar .tabs-chrome__item.is-active .tabs-chrome__background-before,
+    .layout-tabbar .tabs-chrome__item.is-active .tabs-chrome__background-after
+  ) {
+  fill: hsl(var(--primary) / 36%) !important;
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(.layout-tabbar .tabs-chrome__item.is-active .tab-item-main),
+.admin-navigation-theme-brand-gradient
+  :deep(.layout-tabbar .tabs-chrome__item.is-active .tabs-chrome__extra) {
+  color: hsl(var(--primary)) !important;
+}
+
+/* 标准 CRUD 的多种表格实现共用低饱和主题渐变表头。 */
+.admin-navigation-theme-gradient-crud-header
+  :deep(
+    .ant-table-thead > tr,
+    .vxe-table--header-wrapper .vxe-header--row,
+    table thead > tr
+  ) {
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 12%) 0%,
+    var(--navigation-gradient-transition-color) 52%,
+    var(--navigation-gradient-end-color) 100%
+  ) !important;
+}
+
+.admin-navigation-theme-gradient-crud-header
+  :deep(
+    .ant-table-thead > tr > th,
+    .vxe-table--header-wrapper .vxe-header--row > th,
+    table thead > tr > th
+  ) {
+  background: transparent !important;
+}
+
+/* CRUD 操作栏只作轻量承接，不抢占新增和工具按钮的操作层级。 */
+.admin-navigation-theme-gradient-crud-toolbar
+  :deep(.vben-crud-page > .vben-crud-section:nth-of-type(2) > .mb-3.flex) {
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 8%) 0%,
+    var(--navigation-gradient-transition-color) 52%,
+    var(--navigation-gradient-end-color) 100%
+  );
+  border-radius: calc(var(--radius) + 0.15rem);
+}
+
+.admin-navigation-theme-gradient-crud-table
+  :deep(.vben-crud-page > .vben-crud-section:nth-of-type(2)) {
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 5%) 0%,
+    var(--navigation-gradient-transition-color) 52%,
+    var(--navigation-gradient-end-color) 100%
+  );
+  border-radius: calc(var(--radius) + 0.2rem);
+}
+
+.admin-navigation-theme-gradient-crud-rows
+  :deep(
+    .ant-table-tbody > tr,
+    .vxe-table--body-wrapper .vxe-body--row,
+    table tbody > tr
+  ) {
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 4%) 0%,
+    var(--navigation-gradient-transition-color) 52%,
+    var(--navigation-gradient-end-color) 100%
+  ) !important;
+}
+
+.admin-navigation-theme-gradient-crud-rows
+  :deep(
+    .ant-table-tbody > tr > td,
+    .vxe-table--body-wrapper .vxe-body--row > td,
+    table tbody > tr > td
+  ) {
+  background: transparent !important;
+}
+
+.admin-navigation-theme-gradient-crud-query
+  :deep(.vben-crud-page > .vben-crud-section:nth-of-type(1)) {
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 6%) 0%,
+    var(--navigation-gradient-transition-color) 52%,
+    var(--navigation-gradient-end-color) 100%
+  );
+  border-radius: calc(var(--radius) + 0.15rem);
+}
+
+.admin-navigation-theme-gradient-crud-create-form
+  :deep(.vben-crud-form-modal--create .ant-modal-content),
+.admin-navigation-theme-gradient-crud-edit-form
+  :deep(.vben-crud-form-modal--edit .ant-modal-content),
+.admin-navigation-theme-gradient-crud-detail-form
+  :deep(.vben-crud-detail-form-modal .ant-modal-content) {
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 7%) 0%,
+    var(--navigation-gradient-transition-color) 52%,
+    var(--navigation-gradient-end-color) 100%
+  );
+}
+
+.admin-navigation-theme-gradient-crud-create-form
+  :deep(
+    .vben-crud-form-modal--create .ant-modal-header,
+    .vben-crud-form-modal--create .ant-modal-body,
+    .vben-crud-form-modal--create .ant-modal-footer
+  ),
+.admin-navigation-theme-gradient-crud-edit-form
+  :deep(
+    .vben-crud-form-modal--edit .ant-modal-header,
+    .vben-crud-form-modal--edit .ant-modal-body,
+    .vben-crud-form-modal--edit .ant-modal-footer
+  ),
+.admin-navigation-theme-gradient-crud-detail-form
+  :deep(
+    .vben-crud-detail-form-modal .ant-modal-header,
+    .vben-crud-detail-form-modal .ant-modal-body,
+    .vben-crud-detail-form-modal .ant-modal-footer
+  ) {
+  background: transparent !important;
+}
+
 /* 菜单主体维持中性，只在悬停和当前项提供明确、轻量的层次。 */
 .admin-navigation-theme-brand-gradient
   :deep(aside.light .vben-menu.is-vertical) {
   padding: 6px 8px 20px;
-  background: transparent;
+  --menu-background-color: transparent !important;
+  --sidebar-menu-active-background-color: transparent !important;
+  --sidebar-menu-background-color: transparent !important;
+  --sidebar-menu-hover-background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* 滚动层、子菜单和底部控制层必须透明，才能露出整块侧栏渐变。 */
+.admin-navigation-theme-brand-gradient
+  :deep(
+    aside.light .layout-sidebar-scrollbar,
+    aside.light .vben-menu,
+    aside.light .vben-menu .vben-sub-menu,
+    aside.light .vben-menu .vben-sub-menu-content
+  ) {
+  background: transparent !important;
+}
+
+.admin-navigation-theme-brand-gradient :deep(aside.light .scrollbar-top-shadow),
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light .scrollbar-bottom-shadow),
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light .sidebar-bottom-control) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .admin-navigation-theme-brand-gradient
@@ -1027,25 +1415,26 @@ watch(
       .vben-menu.is-vertical
       .vben-sub-menu-content:not(.is-active):hover
   ) {
-  background: hsl(var(--primary) / 7%);
-  border-color: hsl(var(--primary) / 8%);
+  background: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 14%) 0%,
+    hsl(var(--primary) / 7%) 100%
+  ) !important;
+  border-color: transparent;
+  border-radius: 9999px;
 }
 
 .admin-navigation-theme-brand-gradient
-  :deep(
-    aside.light .vben-menu.is-vertical .vben-menu-item.is-active,
-    aside.light .vben-menu.is-vertical .vben-sub-menu-content.is-active
-  ) {
+  :deep(aside.light .vben-menu.is-vertical .vben-menu-item.is-active) {
   color: hsl(var(--primary));
   background: linear-gradient(
-    105deg,
-    hsl(var(--primary) / 20%) 0%,
-    hsl(var(--primary) / 7%) 100%
+    125deg,
+    hsl(var(--primary) / 36%) 0%,
+    hsl(var(--primary) / 20%) 100%
   ) !important;
-  border-color: hsl(var(--primary) / 16%);
-  box-shadow:
-    inset 3px 0 0 hsl(var(--primary)),
-    0 7px 16px hsl(var(--primary) / 9%);
+  border-color: transparent;
+  border-radius: 9999px;
+  box-shadow: 0 7px 16px hsl(var(--primary) / 18%);
 }
 
 .admin-navigation-theme-brand-gradient
@@ -1065,7 +1454,9 @@ watch(
 }
 
 .admin-navigation-theme-brand-gradient
-  :deep(aside.light:has(.vben-menu.is-collapse) .layout-sidebar-brand) {
+  :deep(
+    aside.light:has(.vben-menu.is-collapse) div.layout-sidebar-brand.light
+  ) {
   margin-right: 0;
   margin-left: 0;
   background: transparent;
@@ -1079,23 +1470,30 @@ watch(
   border-right: 1px solid hsl(var(--border));
 }
 
-.admin-navigation-theme-minimal :deep(aside.light .layout-sidebar-brand) {
-  margin: 0 12px;
-  border-bottom: 1px solid hsl(var(--border));
+.admin-navigation-theme-minimal
+  :deep(aside.light div.layout-sidebar-brand.light) {
+  margin: 10px 10px 8px;
 }
 
 .admin-navigation-theme-minimal :deep(aside.light .vben-menu.is-vertical) {
-  padding: 8px;
+  padding: 6px 8px 20px;
+  --menu-item-margin-y: var(--sidebar-menu-item-gap, 2px);
 }
 
 .admin-navigation-theme-minimal
-  :deep(aside.light .vben-menu.is-vertical .vben-menu-item.is-active),
+  :deep(
+    aside.light .vben-menu.is-vertical .vben-menu-item,
+    aside.light .vben-menu.is-vertical .vben-sub-menu-content
+  ) {
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) + 0.2rem);
+}
+
 .admin-navigation-theme-minimal
-  :deep(aside.light .vben-menu.is-vertical .vben-sub-menu-content.is-active) {
+  :deep(aside.light .vben-menu.is-vertical .vben-menu-item.is-active) {
   color: hsl(var(--primary));
   background: hsl(var(--primary) / 8%) !important;
   border-radius: var(--radius);
-  box-shadow: inset 2px 0 0 hsl(var(--primary));
 }
 
 .admin-navigation-theme-minimal :deep(header.light.bg-header) {
@@ -1103,71 +1501,41 @@ watch(
   border-bottom: 1px solid hsl(var(--border));
 }
 
-/* 柔和卡片主题以中性表面组织导航，提供更明显的分区感。 */
-.admin-navigation-theme-soft-card :deep(aside.light.bg-sidebar) {
-  background: linear-gradient(
-    180deg,
-    hsl(var(--background)) 0%,
-    hsl(var(--accent) / 72%) 100%
-  );
-  border-right: 1px solid hsl(var(--border));
+/* 两种导航主题统一收紧租户名称，Logo 图标仍由组件独立尺寸控制。 */
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light div.layout-sidebar-brand.light),
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light div.layout-sidebar-brand.light > a.layout-sidebar-brand),
+.admin-navigation-theme-minimal
+  :deep(aside.light div.layout-sidebar-brand.light),
+.admin-navigation-theme-minimal
+  :deep(aside.light div.layout-sidebar-brand.light > a.layout-sidebar-brand) {
+  font-size: 0.9375rem !important;
 }
 
-.admin-navigation-theme-soft-card :deep(aside.light .layout-sidebar-brand) {
-  margin: 10px 10px 8px;
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) + 0.35rem);
-  box-shadow: 0 6px 16px hsl(var(--foreground) / 5%);
-}
-
-.admin-navigation-theme-soft-card :deep(aside.light .vben-menu.is-vertical) {
-  padding: 6px 8px 20px;
-  background: transparent;
-}
-
-.admin-navigation-theme-soft-card
+/* 菜单选中和悬停不依赖边框，主题切换时也不会闪现边框颜色。 */
+.admin-navigation-theme-brand-gradient
+  :deep(
+    aside.light .vben-menu.is-vertical .vben-menu-item,
+    aside.light .vben-menu.is-vertical .vben-sub-menu-content
+  ),
+.admin-navigation-theme-minimal
   :deep(
     aside.light .vben-menu.is-vertical .vben-menu-item,
     aside.light .vben-menu.is-vertical .vben-sub-menu-content
   ) {
-  border: 1px solid transparent;
-  border-radius: calc(var(--radius) + 0.25rem);
+  border-color: transparent !important;
+  transition-property: background-color, box-shadow, color;
 }
 
-.admin-navigation-theme-soft-card
-  :deep(
-    aside.light .vben-menu.is-vertical .vben-menu-item:not(.is-active):hover,
-    aside.light
-      .vben-menu.is-vertical
-      .vben-sub-menu-content:not(.is-active):hover
-  ) {
-  background: hsl(var(--card));
-  border-color: hsl(var(--border));
-}
-
-.admin-navigation-theme-soft-card
-  :deep(aside.light .vben-menu.is-vertical .vben-menu-item.is-active),
-.admin-navigation-theme-soft-card
+/* 父级只负责展开当前分支，不继承叶子菜单的选中颜色和背景。 */
+.admin-navigation-theme-brand-gradient
+  :deep(aside.light .vben-menu.is-vertical .vben-sub-menu-content.is-active),
+.admin-navigation-theme-minimal
   :deep(aside.light .vben-menu.is-vertical .vben-sub-menu-content.is-active) {
-  color: hsl(var(--primary));
-  background: hsl(var(--primary) / 11%) !important;
-  border-color: hsl(var(--primary) / 15%);
-  box-shadow: 0 5px 12px hsl(var(--primary) / 8%);
-}
-
-.admin-navigation-theme-soft-card :deep(header.light.bg-header) {
-  background: linear-gradient(
-    105deg,
-    hsl(var(--background)) 0%,
-    hsl(var(--accent) / 82%) 100%
-  );
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.admin-navigation-theme-soft-card :deep(header.light .header-global-search),
-.admin-navigation-theme-soft-card :deep(header.light .header-user-dropdown) {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
+  color: inherit;
+  background: transparent !important;
+  border-color: transparent;
+  box-shadow: none;
 }
 </style>

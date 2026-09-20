@@ -674,6 +674,7 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
 
         <LayoutTabbar
           v-if="tabbarEnable"
+          class="layout-tabbar"
           :background-color="tabbarBackgroundColor"
           :border-bottom-width="tabbarBorderBottomWidth"
           :border-left-width="tabbarBorderLeftWidth"

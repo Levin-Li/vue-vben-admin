@@ -1,6 +1,4 @@
 <script lang="ts" setup>
-import type { CrudFieldConfig } from './types';
-
 import {
   computed,
   onBeforeUnmount,
@@ -25,8 +23,8 @@ import {
   DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
 } from './config-helpers';
 import {
+  getFormModalRecommendedMaxWidth,
   getFormGridContentMaxWidth,
-  resolveFormColumnCount,
 } from './crud-form-layout';
 import { getJsonSchemaFieldError } from './json-schema-field-validation';
 import {
@@ -35,6 +33,11 @@ import {
   getJsonSchemaPathValue,
   setJsonSchemaPathValue,
 } from './json-schema-form';
+import {
+  buildJsonSchemaFormNodes,
+  planJsonSchemaColumns,
+} from './json-schema-form-layout';
+import JsonSchemaRuntimeForm from './json-schema-runtime-form.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -105,34 +108,6 @@ function getConfiguredModalMaxWidthPx(configuredWidth?: number | string) {
   return Number.isFinite(width) ? width : undefined;
 }
 
-function getLayoutFieldType(field: { kind: string }) {
-  if (field.kind === 'boolean') {
-    return 'switch';
-  }
-
-  if (field.kind === 'number') {
-    return 'number';
-  }
-
-  if (field.kind === 'textarea') {
-    return 'textarea';
-  }
-
-  if (field.kind === 'json') {
-    return 'json';
-  }
-
-  return 'text';
-}
-
-function shouldUseFullRowLayout(field: (typeof fields.value)[number]) {
-  if (['json', 'section', 'textarea'].includes(field.kind)) return true;
-  const name = `${field.path.at(-1) || ''} ${field.label}`.toLowerCase();
-  return /content|template|message|remark|description|模板|内容|说明|备注|消息/.test(
-    name,
-  );
-}
-
 function cloneObjectValue(value: any) {
   if (value === undefined || value === null || value === '') {
     return {};
@@ -163,6 +138,7 @@ function cloneObjectValue(value: any) {
 }
 
 const fields = computed(() => buildJsonSchemaFormFields(props.schema));
+const layoutNodes = computed(() => buildJsonSchemaFormNodes(props.schema));
 const fieldErrors = computed(() =>
   Object.fromEntries(
     fields.value
@@ -179,16 +155,6 @@ const fieldErrors = computed(() =>
 );
 const formValid = computed(() => Object.keys(fieldErrors.value).length === 0);
 watch(formValid, (valid) => emit('validity', valid), { immediate: true });
-const layoutFields = computed<CrudFieldConfig[]>(() =>
-  fields.value.map((field) => ({
-    key: field.pathKey,
-    label: field.label,
-    fullRow: shouldUseFullRowLayout(field),
-    layoutNewRow: field.kind === 'section',
-    span: shouldUseFullRowLayout(field) ? -1 : 1,
-    type: getLayoutFieldType(field),
-  })),
-);
 const modalAvailableWidth = computed(() => {
   const configuredWidth = getConfiguredModalMaxWidthPx(props.modalWidth);
   const viewportLimit = viewportWidth.value > 0 ? viewportWidth.value * 0.8 : 0;
@@ -200,15 +166,13 @@ const modalAvailableWidth = computed(() => {
 
   return configuredLimit;
 });
-const popupColumnCount = computed(() =>
-  resolveFormColumnCount({
-    fields: layoutFields.value,
-    configuredMaxColumns: 2,
-    modalAvailableWidth: modalAvailableWidth.value,
-    viewportHeight: viewportHeight.value || 900,
-    viewportWidth: viewportWidth.value || 1440,
-  }),
-);
+const popupColumnCount = computed(() => {
+  const plannedColumns = planJsonSchemaColumns(layoutNodes.value);
+  if (modalAvailableWidth.value < getFormModalRecommendedMaxWidth(plannedColumns)) {
+    return 1;
+  }
+  return plannedColumns;
+});
 const popupGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${popupColumnCount.value}, minmax(0, 1fr))`,
   margin: '0 auto',
@@ -396,7 +360,15 @@ onBeforeUnmount(() => {
       编辑
     </Button>
 
-    <Form v-if="inline" layout="vertical">
+    <JsonSchemaRuntimeForm
+      v-if="inline"
+      :disabled="disabled"
+      :model-value="draftValue"
+      :schema="schema"
+      @update:model-value="draftValue = $event; emitInlineValue()"
+    />
+
+    <Form v-else-if="false" layout="vertical">
       <div class="crud-json-schema-form-grid">
         <template v-for="field in fields" :key="field.pathKey">
           <div
@@ -476,6 +448,15 @@ onBeforeUnmount(() => {
               @update:value="setFieldValue(field.path, $event)"
             />
 
+            <Input.Password
+              v-else-if="field.kind === 'password'"
+              :disabled="disabled || field.readOnly"
+              :placeholder="`请输入${field.label}`"
+              :value="getFieldValue(field.path)"
+              class="w-full"
+              @update:value="setFieldValue(field.path, $event)"
+            />
+
             <Input
               v-else
               :disabled="disabled || field.readOnly"
@@ -524,7 +505,14 @@ onBeforeUnmount(() => {
       :width="modalWidth"
       @ok="handleOk"
     >
-      <Form layout="vertical">
+      <JsonSchemaRuntimeForm
+        :disabled="disabled"
+        :model-value="draftValue"
+        :schema="schema"
+        @update:model-value="draftValue = $event"
+      />
+
+      <Form v-if="false" layout="vertical">
         <div
           class="crud-json-schema-form-grid crud-json-schema-form-grid--popup"
           :style="popupGridStyle"
@@ -605,6 +593,15 @@ onBeforeUnmount(() => {
               <Input.TextArea
                 v-else-if="field.kind === 'textarea'"
                 :auto-size="{ minRows: 3, maxRows: 8 }"
+                :disabled="disabled || field.readOnly"
+                :placeholder="`请输入${field.label}`"
+                :value="getFieldValue(field.path)"
+                class="w-full"
+                @update:value="setFieldValue(field.path, $event)"
+              />
+
+              <Input.Password
+                v-else-if="field.kind === 'password'"
                 :disabled="disabled || field.readOnly"
                 :placeholder="`请输入${field.label}`"
                 :value="getFieldValue(field.path)"

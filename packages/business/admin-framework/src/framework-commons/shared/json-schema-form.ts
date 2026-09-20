@@ -2,6 +2,7 @@ export type JsonSchemaFieldKind =
   | 'boolean'
   | 'json'
   | 'number'
+  | 'password'
   | 'section'
   | 'select'
   | 'string'

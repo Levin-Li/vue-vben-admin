@@ -29,7 +29,7 @@ vi.mock('@vben/common-ui', () => ({
 }));
 
 describe('公共详情展示', () => {
-  it('超过十个字段时可以隐藏空值但保留零和false', async () => {
+  it('由标题栏开关隐藏空值时保留零和false', async () => {
     const entries = Array.from({ length: 11 }, (_, index) => ({
       key: `k${index}`,
       label: `字段${index}`,
@@ -37,9 +37,10 @@ describe('公共详情展示', () => {
       value:
         index === 0 ? null : index === 1 ? false : index === 2 ? 0 : '内容',
     }));
-    const wrapper = mount(DetailDisplayPanel, { props: { entries } });
-    expect(wrapper.text()).toContain('不展示空值');
-    await wrapper.find('input[type="checkbox"]').setValue(true);
+    const wrapper = mount(DetailDisplayPanel, {
+      props: { entries, hideEmptyValues: false },
+    });
+    await wrapper.setProps({ hideEmptyValues: true });
     expect(wrapper.find('[data-detail-key="k0"]').exists()).toBe(false);
     expect(wrapper.find('[data-detail-key="k1"]').exists()).toBe(true);
     expect(wrapper.find('[data-detail-key="k2"]').exists()).toBe(true);

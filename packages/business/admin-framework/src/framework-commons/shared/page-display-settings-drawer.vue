@@ -99,6 +99,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  load: [];
   'update:open': [value: boolean];
   save: [value: { config: CrudPageDisplayConfig; scope: Scope }];
 }>();
@@ -164,6 +165,7 @@ let cachedScopeOptions:
       userTypes: Array<{ label: string; value: string }>;
     }
   | undefined;
+let scopeOptionsRequestVersion = 0;
 let cachedRoleVisibilityOptions:
   | Array<{ label: string; value: string }>
   | undefined;
@@ -189,6 +191,14 @@ const hasUnuploadedChanges = computed(
     props.open &&
     initialSnapshot.value !== '' &&
     initialSnapshot.value !== currentSnapshot(),
+);
+
+watch(
+  () => props.open,
+  (open) => {
+    // 每次打开都刷新当前页面编码的服务端匹配记录，自动加载不弹未命中提示。
+    if (open) emit('load');
+  },
 );
 
 const scopeMatchTooltip = computed(() => {
@@ -301,8 +311,10 @@ function retainScopeValue(
 }
 
 async function loadScopeOptions() {
+  const requestVersion = ++scopeOptionsRequestVersion;
+  const requestTenantId = scope.value.tenantId;
   const cachedOptions = cachedScopeOptions;
-  if (cachedOptions && cachedOptions.tenantId === scope.value.tenantId) {
+  if (cachedOptions && cachedOptions.tenantId === requestTenantId) {
     tenantScopeOptions.value = cachedOptions.tenants;
     siteScopeOptions.value = cachedOptions.sites;
     userTypeScopeOptions.value = cachedOptions.userTypes;
@@ -321,18 +333,15 @@ async function loadScopeOptions() {
           { pageIndex: 1, pageSize: 500 },
           OAK_BASE_API_MODULE,
         ),
-        fetchOptions(
-          '/TenantSite/list',
-          'domain',
-          'domain',
-          {
-            enable: true,
-            pageIndex: 1,
-            pageSize: 500,
-            tenantId: scope.value.tenantId || undefined,
-          },
-          OAK_BASE_API_MODULE,
-        ),
+        requestTenantId
+          ? fetchOptions(
+              '/TenantSite/list',
+              'domain',
+              'domain',
+              { enable: true, pageIndex: 1, pageSize: 500, tenantId: requestTenantId },
+              OAK_BASE_API_MODULE,
+            )
+          : Promise.resolve([]),
         fetchDictOptions(
           'com.levin.oak.base.entities.User.type',
           OAK_BASE_API_MODULE,
@@ -350,6 +359,7 @@ async function loadScopeOptions() {
           OAK_BASE_API_MODULE,
         ),
       ]);
+    if (requestVersion !== scopeOptionsRequestVersion || requestTenantId !== scope.value.tenantId) return;
     tenantScopeOptions.value = normalizeOptions(tenants || []);
     siteScopeOptions.value = normalizeOptions(sites || []);
     userTypeScopeOptions.value = normalizeOptions(userTypes || []);
@@ -374,6 +384,13 @@ async function loadScopeOptions() {
   } catch (error) {
     console.warn('加载页面展示设置作用范围选项失败。', error);
   }
+}
+
+function handleTenantScopeChange() {
+  // 域名必须属于当前租户；切换租户后不能保留旧域名或使用旧请求的候选项。
+  scope.value.domain = undefined;
+  siteScopeOptions.value = [];
+  void loadScopeOptions();
 }
 
 async function loadRoleVisibilityOptions() {
@@ -1516,16 +1533,21 @@ function changedViews(): View[] {
   try {
     const baseline = JSON.parse(initialSnapshot.value || '{}').config || {};
     return (['query', 'create', 'edit', 'detail', 'list'] as const).filter(
-      (view) => JSON.stringify(draft.value[view]) !== JSON.stringify(baseline[view]),
+      (view) =>
+        JSON.stringify(draft.value[view]) !== JSON.stringify(baseline[view]),
     );
   } catch {
     return [activeKey.value];
   }
 }
 
-function validateDisplayConfig(views: View[]): { message: string; view: View } | undefined {
+function validateDisplayConfig(
+  views: View[],
+): { message: string; view: View } | undefined {
   ensureHeaders();
-  for (const view of views.filter((view): view is Exclude<View, 'list'> => view !== 'list')) {
+  for (const view of views.filter(
+    (view): view is Exclude<View, 'list'> => view !== 'list',
+  )) {
     const error = validateView(view);
     if (error) return { message: error, view };
   }
@@ -1702,12 +1724,13 @@ onMounted(() => {
         placeholder="当前租户"
         allow-clear
         show-search
-        @change="loadScopeOptions"
+        @change="handleTenantScopeChange"
       />
       <Select
         v-model:value="scope.domain"
         :options="siteScopeOptions"
-        placeholder="当前域名站点"
+        :disabled="!scope.tenantId"
+        placeholder="当前域名站点（请先选择租户）"
         allow-clear
         show-search
       />
@@ -1739,16 +1762,20 @@ onMounted(() => {
         allow-clear
         show-search
       />
-      <Tooltip :title="uploadTooltip">
-        <Button
-          type="primary"
-          class="col-start-4 w-full"
-          :disabled="saving"
-          :loading="saving"
-          @click="save"
-          >上传当前配置</Button
-        >
-      </Tooltip>
+      <!-- 加载与上传共用范围区最后一格，避免挤占其它适用范围控件。 -->
+      <div class="col-start-4 flex gap-3">
+        <Button class="flex-1">加载设置</Button>
+        <Tooltip :title="uploadTooltip" class="flex-1">
+          <Button
+            type="primary"
+            class="w-full"
+            :disabled="saving"
+            :loading="saving"
+            @click="save"
+            >上传设置</Button
+          >
+        </Tooltip>
+      </div>
     </div>
     <Tabs v-model:active-key="activeKey">
       <Tabs.TabPane key="query" tab="查询表单" />
@@ -1792,7 +1819,9 @@ onMounted(() => {
                   />
                 </Form.Item>
                 <Form.Item label="默认不展示标题" class="mb-0">
-                  <Switch v-model:checked="queryHolder().defaultHideFieldTitle" />
+                  <Switch
+                    v-model:checked="queryHolder().defaultHideFieldTitle"
+                  />
                 </Form.Item>
               </Tooltip>
             </Form>

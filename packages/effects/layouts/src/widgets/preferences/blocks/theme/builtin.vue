@@ -43,6 +43,21 @@ function typeView(name: BuiltinThemeType) {
     case 'custom': {
       return $t('preferences.theme.builtin.custom');
     }
+    case 'mist-blue': {
+      return '雾蓝';
+    }
+    case 'mint-green': {
+      return '薄荷绿';
+    }
+    case 'lavender': {
+      return '薰衣草';
+    }
+    case 'cream-yellow': {
+      return '奶油黄';
+    }
+    case 'blush-pink': {
+      return '樱雾粉';
+    }
     case 'deep-blue': {
       return $t('preferences.theme.builtin.deepBlue');
     }

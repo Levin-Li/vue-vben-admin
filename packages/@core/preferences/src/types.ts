@@ -234,6 +234,34 @@ interface NavigationPreferences {
   styleType: NavigationStyleType;
   /** 导航视觉主题 */
   visualStyle: NavigationVisualStyleType;
+  /** 主题渐变过渡色 */
+  gradientTransitionColor: string;
+  /** 是否启用主题渐变过渡色 */
+  gradientTransitionColorEnabled: boolean;
+  /** 主题渐变最终色 */
+  gradientEndColor: string;
+  /** 是否启用主题渐变 CRUD 表头渐变 */
+  gradientCrudHeaderEnabled: boolean;
+  /** 是否启用主题渐变 CRUD 操作区渐变 */
+  gradientCrudToolbarEnabled: boolean;
+  /** 是否启用主题渐变 CRUD 整表渐变 */
+  gradientCrudTableEnabled: boolean;
+  /** 是否启用主题渐变 CRUD 表格行渐变 */
+  gradientCrudRowsEnabled: boolean;
+  /** 是否启用主题渐变侧边栏 */
+  gradientSidebarEnabled: boolean;
+  /** 是否启用主题渐变顶栏 */
+  gradientHeaderEnabled: boolean;
+  /** 是否启用主题渐变标签栏 */
+  gradientTabbarEnabled: boolean;
+  /** 是否启用主题渐变查询面板 */
+  gradientCrudQueryEnabled: boolean;
+  /** 是否启用主题渐变新增表单 */
+  gradientCrudCreateFormEnabled: boolean;
+  /** 是否启用主题渐变编辑表单 */
+  gradientCrudEditFormEnabled: boolean;
+  /** 是否启用主题渐变详情表单 */
+  gradientCrudDetailFormEnabled: boolean;
 }
 
 interface SidebarPreferences {

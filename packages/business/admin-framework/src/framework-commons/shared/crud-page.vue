@@ -26,6 +26,7 @@ import {
 } from './crud-action-display';
 
 import {
+  cloneVNode,
   computed,
   defineAsyncComponent,
   h,
@@ -38,6 +39,7 @@ import {
   render,
   provide,
   useSlots,
+  type VNode,
   watch,
 } from 'vue';
 import {
@@ -48,6 +50,7 @@ import { useRoute } from 'vue-router';
 
 import { Page, VCropper } from '@vben/common-ui';
 import { ChevronDown, IconifyIcon, Plus } from '@vben/icons';
+import { preferences } from '@vben/preferences';
 import { useUserStore } from '@vben/stores';
 
 import {
@@ -93,7 +96,6 @@ import {
 } from '../app/api/file-storage-service';
 import { rbacService } from '../app/api/rbac-service';
 import {
-  replaceUiSettingRuntimeCache,
   resolveUiSettingRuntimeWithScope,
   UI_SETTING_RETRIEVE_PATH,
   type UiSettingRuntimeRecord,
@@ -400,10 +402,42 @@ watch(
   effectiveFields,
   (fields) => {
     for (const field of fields) {
-      if (field.search) formElementRegistry.register({ formId: 'crud-query', formName: '查询表单', key: field.key, label: field.label, fieldKeys: [field.key], view: 'query' });
-      if (field.form !== false && field.formCreate !== false) formElementRegistry.register({ formId: 'crud-create', formName: '新增表单', key: field.key, label: field.label, fieldKeys: [field.key], view: 'create' });
-      if (field.form !== false && field.formEdit !== false) formElementRegistry.register({ formId: 'crud-edit', formName: '编辑表单', key: field.key, label: field.label, fieldKeys: [field.key], view: 'edit' });
-      if (field.detail !== false) formElementRegistry.register({ formId: 'crud-detail', formName: '详情表单', key: field.key, label: field.label, fieldKeys: [field.key], view: 'detail' });
+      if (field.search)
+        formElementRegistry.register({
+          formId: 'crud-query',
+          formName: '查询表单',
+          key: field.key,
+          label: field.label,
+          fieldKeys: [field.key],
+          view: 'query',
+        });
+      if (field.form !== false && field.formCreate !== false)
+        formElementRegistry.register({
+          formId: 'crud-create',
+          formName: '新增表单',
+          key: field.key,
+          label: field.label,
+          fieldKeys: [field.key],
+          view: 'create',
+        });
+      if (field.form !== false && field.formEdit !== false)
+        formElementRegistry.register({
+          formId: 'crud-edit',
+          formName: '编辑表单',
+          key: field.key,
+          label: field.label,
+          fieldKeys: [field.key],
+          view: 'edit',
+        });
+      if (field.detail !== false)
+        formElementRegistry.register({
+          formId: 'crud-detail',
+          formName: '详情表单',
+          key: field.key,
+          label: field.label,
+          fieldKeys: [field.key],
+          view: 'detail',
+        });
     }
   },
   { immediate: true },
@@ -527,6 +561,12 @@ const pageDisplayHeaderMap = computed(
 );
 const autoSearchReady = ref(false);
 const pageDisplaySettingRecord = ref<null | UiSettingRuntimeRecord>(null);
+type PageDisplaySettingCandidate = UiSettingRuntimeRecord;
+
+interface PageDisplaySettingCandidatePage {
+  items?: PageDisplaySettingCandidate[];
+  total?: number;
+}
 const pageDisplayScope = ref<{
   domain?: string;
   orgCategory?: string;
@@ -557,7 +597,7 @@ const pageDisplayContextKey = computed(() => {
   );
 });
 
-async function loadPageDisplaySettings() {
+async function loadPageDisplaySettings(force = false) {
   const code = pageDisplaySettingCode.value;
   if (!code) {
     pageDisplaySettingRecord.value = null;
@@ -568,6 +608,7 @@ async function loadPageDisplaySettings() {
     const resolution = await resolveUiSettingRuntimeWithScope(
       code,
       pageDisplayContextKey.value,
+      { refresh: force },
     );
     const setting = resolution.setting;
     pageDisplaySettingRecord.value = setting;
@@ -575,6 +616,9 @@ async function loadPageDisplaySettings() {
     pageDisplayConfig.value = resolveCrudPageDisplayDefaults(
       setting?.valueContent?.pageDisplay as CrudPageDisplayConfig | undefined,
     );
+    if (force && !setting) {
+      message.warning('无适配设置');
+    }
   } catch (error) {
     console.warn('加载页面展示设置失败，将使用页面默认配置。', error);
   }
@@ -589,7 +633,6 @@ async function savePageDisplaySettings(payload: {
 
   pageDisplaySettingSaving.value = true;
   try {
-    const current = pageDisplaySettingRecord.value;
     const data = {
       code,
       domain: payload.scope.domain || null,
@@ -602,35 +645,50 @@ async function savePageDisplaySettings(payload: {
       userType: payload.scope.userType || null,
       valueContent: { pageDisplay: payload.config },
     };
-    if (current?.id) {
+    const candidatePage = await requestClient.get<PageDisplaySettingCandidatePage>(
+      '/UiSetting/saveCandidates',
+      {
+        params: {
+          code,
+          type: 'PageDisplay',
+          domain: payload.scope.domain || null,
+          orgCategory: payload.scope.orgCategory || null,
+          orgType: payload.scope.orgType || null,
+          tenantId: payload.scope.tenantId || null,
+          userCategory: payload.scope.userCategory || null,
+          userType: payload.scope.userType || null,
+        },
+      },
+    );
+    const candidates = candidatePage?.items || [];
+    const candidateCount = candidatePage?.total ?? candidates.length;
+    const target =
+      candidateCount === 1
+        ? candidates[0]
+        : candidateCount > 1
+          ? await selectPageDisplaySettingCandidate(candidates, candidateCount)
+          : undefined;
+
+    if (target?.id) {
       const latest = await requestClient.get<UiSettingRuntimeRecord>(
         UI_SETTING_RETRIEVE_PATH,
         {
-          params: { id: current.id },
+          params: { id: target.id },
         },
       );
       const optimisticLock =
-        latest?.optimisticLock ?? current.optimisticLock ?? 0;
+        latest?.optimisticLock ?? target.optimisticLock ?? 0;
       await requestClient.put('/UiSetting/update', {
-        ...data,
-        id: current.id,
+        id: target.id,
         optimisticLock,
+        // 更新已选候选时仅替换展示配置，范围与名称继续保持该记录原值。
+        valueContent: data.valueContent,
       });
-      pageDisplaySettingRecord.value = {
-        ...current,
-        ...data,
-        optimisticLock: optimisticLock + 1,
-      };
     } else {
-      const id = await requestClient.post<string>('/UiSetting/create', data);
-      pageDisplaySettingRecord.value = { ...data, id };
+      await requestClient.post<string>('/UiSetting/create', data);
     }
-    pageDisplayConfig.value = resolveCrudPageDisplayDefaults(payload.config);
-    replaceUiSettingRuntimeCache(
-      code,
-      pageDisplayContextKey.value,
-      pageDisplaySettingRecord.value,
-    );
+    // 保存目标可不同于当前登录人，重新解析当前上下文，避免把目标配置错误套用到当前页面。
+    await loadPageDisplaySettings(true);
     message.success('当前配置已上传');
   } catch (error) {
     console.error('上传当前页面展示配置失败。', error);
@@ -638,6 +696,51 @@ async function savePageDisplaySettings(payload: {
   } finally {
     pageDisplaySettingSaving.value = false;
   }
+}
+
+async function selectPageDisplaySettingCandidate(
+  candidates: PageDisplaySettingCandidate[],
+  total: number,
+): Promise<PageDisplaySettingCandidate | undefined> {
+  return new Promise((resolve) => {
+    let selectedId: string | undefined;
+    const options = candidates.map((item) => ({
+      label: `${item.code || '页面展示设置'} · ${item.id || ''}`,
+      value: item.id,
+    }));
+    Modal.confirm({
+      cancelText: '新建记录',
+      content: h('div', { class: 'grid gap-3' }, [
+        h('div', `找到 ${total} 条完全匹配的配置，请选择一条更新；不选择将新建记录。`),
+        h(
+          'select',
+          {
+            class: 'border-border rounded border px-3 py-2',
+            onChange: (event: Event) => {
+              selectedId = (event.target as HTMLSelectElement).value || undefined;
+            },
+          },
+          [
+            h('option', { value: '' }, '不选择，改为新建记录'),
+            ...options.map((option) =>
+              h('option', { value: option.value }, option.label),
+            ),
+          ],
+        ),
+      ]),
+      okButtonProps: { disabled: false },
+      okText: '更新所选记录',
+      onCancel: () => resolve(undefined),
+      onOk: () => {
+        const selected = candidates.find((item) => item.id === selectedId);
+        if (!selected) {
+          message.warning('未选择已有配置，将新建记录');
+        }
+        resolve(selected);
+      },
+      title: '选择页面展示设置',
+    });
+  });
 }
 const columnSettingsSnapshot = ref<null | TableColumnSettingsSnapshot>(null);
 const draftHiddenTableColumnKeys = ref<string[]>([]);
@@ -1006,10 +1109,17 @@ function getPageDisplayInputDisplay(
   return getPageDisplayField(view, key)?.inputDisplay || 'default';
 }
 
-function getSearchFieldLabel(item: (typeof visibleSearchFieldItems.value)[number]) {
-  const visibility = getPageDisplayField('query', item.key)?.titleVisibility || 'default';
+function getSearchFieldLabel(
+  item: (typeof visibleSearchFieldItems.value)[number],
+) {
+  const visibility =
+    getPageDisplayField('query', item.key)?.titleVisibility || 'default';
   if (visibility === 'hidden') return '';
-  if (visibility === 'default' && pageDisplayConfig.value.query?.defaultHideFieldTitle === true) return '';
+  if (
+    visibility === 'default' &&
+    pageDisplayConfig.value.query?.defaultHideFieldTitle === true
+  )
+    return '';
   return item.kind === 'range' ? item.label : item.field.label;
 }
 
@@ -2314,9 +2424,111 @@ const modalStyle = computed(() => ({
     DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
   maxWidth: modalMaxWidth.value,
 }));
+const modalBodyStyle = DEFAULT_CONTENT_MODAL_BODY_STYLE;
+const modalGradientVariables = computed(() => {
+  const navigation = preferences.navigation;
+  const endColor = navigation.gradientEndColor || '#fff4f5';
+
+  return {
+    '--crud-gradient-end-color': endColor,
+    '--crud-gradient-transition-color':
+      navigation.gradientTransitionColorEnabled
+        ? navigation.gradientTransitionColor || endColor
+        : endColor,
+  };
+});
+const formModalWrapClass = computed(() => {
+  if (preferences.navigation.visualStyle !== 'brand-gradient') {
+    return undefined;
+  }
+
+  return editingRecord.value
+    ? preferences.navigation.gradientCrudEditFormEnabled
+      ? 'vben-crud-form-modal--edit'
+      : undefined
+    : preferences.navigation.gradientCrudCreateFormEnabled
+      ? 'vben-crud-form-modal--create'
+      : undefined;
+});
+const detailModalWrapClass = computed(() =>
+  preferences.navigation.visualStyle === 'brand-gradient' &&
+  preferences.navigation.gradientCrudDetailFormEnabled &&
+  actionResultMode.value === 'showForm'
+    ? 'vben-crud-detail-form-modal'
+    : undefined,
+);
+const modalGradientBackground = computed(() => {
+  const navigation = preferences.navigation;
+  const endColor = navigation.gradientEndColor || '#fff4f5';
+  const transitionColor = navigation.gradientTransitionColorEnabled
+    ? navigation.gradientTransitionColor || endColor
+    : endColor;
+
+  return {
+    backgroundColor: 'hsl(var(--background))',
+    backgroundImage: `linear-gradient(125deg, hsl(var(--primary) / 7%) 0%, ${transitionColor} 52%, ${endColor} 100%)`,
+  };
+});
+const formModalBodyStyle = computed(() => ({
+  ...modalBodyStyle,
+  ...(formModalWrapClass.value ? modalGradientBackground.value : {}),
+}));
+const detailModalBodyStyle = computed(() => ({
+  ...modalBodyStyle,
+  ...(detailModalWrapClass.value ? modalGradientBackground.value : {}),
+}));
+function renderGradientModal(
+  wrapClass: string | undefined,
+  originVNode: VNode,
+) {
+  return wrapClass
+    ? cloneVNode(originVNode, {
+        class: [originVNode.props?.class, wrapClass],
+        style: [originVNode.props?.style, modalGradientBackground.value],
+      })
+    : originVNode;
+}
+function renderFormModal({ originVNode }: { originVNode: VNode }) {
+  return renderGradientModal(formModalWrapClass.value, originVNode);
+}
+function renderDetailModal({ originVNode }: { originVNode: VNode }) {
+  return renderGradientModal(detailModalWrapClass.value, originVNode);
+}
+function applyGradientModalBackground(wrapClass: string | undefined) {
+  if (!wrapClass || typeof document === 'undefined') {
+    return;
+  }
+
+  nextTick(() => {
+    const modalContents = document.querySelectorAll<HTMLElement>(
+      `.${wrapClass} .ant-modal-content, .ant-modal-content.${wrapClass}`,
+    );
+    const { backgroundColor, backgroundImage } = modalGradientBackground.value;
+
+    for (const content of modalContents) {
+      content.style.backgroundColor = backgroundColor;
+      content.style.backgroundImage = backgroundImage;
+
+      for (const section of content.querySelectorAll<HTMLElement>(
+        '.ant-modal-header, .ant-modal-body, .ant-modal-footer',
+      )) {
+        section.style.background = 'transparent';
+      }
+    }
+  });
+}
+watch([modalOpen, formModalWrapClass], ([isOpen, wrapClass]) => {
+  if (isOpen) {
+    applyGradientModalBackground(wrapClass);
+  }
+});
+watch([actionResultOpen, detailModalWrapClass], ([isOpen, wrapClass]) => {
+  if (isOpen) {
+    applyGradientModalBackground(wrapClass);
+  }
+});
 
 const modalWidth = computed(() => modalMaxWidth.value);
-const modalBodyStyle = DEFAULT_CONTENT_MODAL_BODY_STYLE;
 
 function handleViewportResize() {
   viewportWidth.value = window.innerWidth;
@@ -3442,7 +3654,9 @@ async function loadExportTemplates() {
       context,
     );
 
-    exportTemplates.value = dedupeCrudTemplates(normalizeCrudTemplateList(result));
+    exportTemplates.value = dedupeCrudTemplates(
+      normalizeCrudTemplateList(result),
+    );
   } catch (error) {
     console.error(error);
     message.warning('导出模板加载失败');
@@ -3480,7 +3694,9 @@ async function loadImportTemplates() {
       context,
     );
 
-    importTemplates.value = dedupeCrudTemplates(normalizeCrudTemplateList(result));
+    importTemplates.value = dedupeCrudTemplates(
+      normalizeCrudTemplateList(result),
+    );
   } catch (error) {
     console.error(error);
     message.warning('导入模板加载失败');
@@ -7907,15 +8123,18 @@ watch(canCustomizeTableColumnsLocally, () => {
 
     <Modal
       v-if="canCreate || (canEdit && editingRecord)"
-      :body-style="modalBodyStyle"
+      :body-style="formModalBodyStyle"
+      :class="formModalWrapClass"
       :confirm-loading="submitting"
       :ok-button-props="{
         disabled:
           !!focusedJsonFieldKey && (!focusedSchemaReady || !focusedJsonValid),
       }"
       :mask-closable="false"
+      :modal-render="renderFormModal"
       :open="modalOpen"
-      :style="modalStyle"
+      :style="[modalStyle, modalGradientVariables]"
+      :wrap-class-name="formModalWrapClass"
       :width="modalWidth"
       destroy-on-close
       @cancel="modalOpen = false"
@@ -8522,10 +8741,12 @@ watch(canCustomizeTableColumnsLocally, () => {
 
     <Modal
       v-model:open="actionResultOpen"
-      :body-style="modalBodyStyle"
+      :body-style="detailModalBodyStyle"
+      :class="detailModalWrapClass"
       :footer="null"
+      :modal-render="renderDetailModal"
       :title="undefined"
-      :style="
+      :style="[
         actionResultMode === 'showForm'
           ? {
               maxHeight:
@@ -8534,16 +8755,19 @@ watch(canCustomizeTableColumnsLocally, () => {
               maxWidth:
                 detailModalConfig?.modalMaxWidth || DEFAULT_DETAIL_MODAL_WIDTH,
             }
-          : undefined
-      "
+          : undefined,
+        modalGradientVariables,
+      ]"
       :width="
         actionResultMode === 'showForm'
           ? detailModalConfig?.modalMaxWidth || DEFAULT_DETAIL_MODAL_WIDTH
           : '720px'
       "
+      :wrap-class-name="detailModalWrapClass"
     >
       <template #title>
-        <div class="flex items-center gap-3">
+        <!-- 标题与详情筛选操作分别停靠在标题栏两端。 -->
+        <div class="vben-crud-modal-title">
           <span>{{ actionResultTitle }}</span>
           <Checkbox
             v-if="
@@ -8656,6 +8880,7 @@ watch(canCustomizeTableColumnsLocally, () => {
       :show-operation-column="hasAvailableOperationColumn"
       :script-test-context="pageDisplayScriptTestContext"
       @save="savePageDisplaySettings"
+      @load="() => loadPageDisplaySettings(true)"
     />
     <PageDisplaySettingsDrawerV2
       v-if="pageDisplaySettingCode && pageDisplaySettingsV2Open"
@@ -8673,6 +8898,7 @@ watch(canCustomizeTableColumnsLocally, () => {
       :show-operation-column="hasAvailableOperationColumn"
       :script-test-context="pageDisplayScriptTestContext"
       @save="savePageDisplaySettings"
+      @load="() => loadPageDisplaySettings(true)"
     />
   </Page>
 </template>
@@ -9051,6 +9277,46 @@ watch(canCustomizeTableColumnsLocally, () => {
   min-width: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+:global(
+  .vben-crud-form-modal--create .ant-modal-content,
+  .vben-crud-form-modal--edit .ant-modal-content,
+  .vben-crud-detail-form-modal .ant-modal-content,
+  .ant-modal-content.vben-crud-form-modal--create,
+  .ant-modal-content.vben-crud-form-modal--edit,
+  .ant-modal-content.vben-crud-detail-form-modal
+) {
+  background-color: hsl(var(--background)) !important;
+  background-image: linear-gradient(
+    125deg,
+    hsl(var(--primary) / 7%) 0%,
+    var(--crud-gradient-transition-color) 52%,
+    var(--crud-gradient-end-color) 100%
+  ) !important;
+}
+
+:global(
+  .vben-crud-form-modal--create .ant-modal-header,
+  .vben-crud-form-modal--create .ant-modal-body,
+  .vben-crud-form-modal--create .ant-modal-footer,
+  .vben-crud-form-modal--edit .ant-modal-header,
+  .vben-crud-form-modal--edit .ant-modal-body,
+  .vben-crud-form-modal--edit .ant-modal-footer,
+  .vben-crud-detail-form-modal .ant-modal-header,
+  .vben-crud-detail-form-modal .ant-modal-body,
+  .vben-crud-detail-form-modal .ant-modal-footer,
+  .ant-modal-content.vben-crud-form-modal--create .ant-modal-header,
+  .ant-modal-content.vben-crud-form-modal--create .ant-modal-body,
+  .ant-modal-content.vben-crud-form-modal--create .ant-modal-footer,
+  .ant-modal-content.vben-crud-form-modal--edit .ant-modal-header,
+  .ant-modal-content.vben-crud-form-modal--edit .ant-modal-body,
+  .ant-modal-content.vben-crud-form-modal--edit .ant-modal-footer,
+  .ant-modal-content.vben-crud-detail-form-modal .ant-modal-header,
+  .ant-modal-content.vben-crud-detail-form-modal .ant-modal-body,
+  .ant-modal-content.vben-crud-detail-form-modal .ant-modal-footer
+) {
+  background: transparent !important;
 }
 
 :global(.vben-crud-export-save-template-form) {

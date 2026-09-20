@@ -75,7 +75,11 @@ export async function resolveUiSettingRuntimeWithScope(
     return { scope: cached.scope, setting: cached.setting };
 
   const response: any = await requestClient.get('/UiSetting/use/resolve', {
-    params: { code },
+    // 手动刷新使用唯一查询参数绕过浏览器的 ETag 304 空响应，确保拿到服务端实体。
+    params: {
+      code,
+      refresh: options.refresh ? Date.now() : undefined,
+    },
     responseReturn: 'raw',
     validateStatus: (status: number) => status === 200 || status === 304,
   });

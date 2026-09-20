@@ -94,6 +94,26 @@ function upload() {
 }
 
 describe('界面UI设置2', () => {
+  it('清楚说明页面编码与作用范围的填写语义', () => {
+    const wrapper = mountEditor();
+    try {
+      const scope = document.querySelector<HTMLElement>(
+        '[data-test="page-display-v2-scope"]',
+      );
+      if (!scope) throw new Error('缺少作用范围设置区');
+
+      expect(scope.textContent).toContain('页面编码（自动生成）');
+      expect(scope.textContent).toContain('适用租户（留空匹配任意）');
+      expect(scope.textContent).toContain('适用站点（留空匹配任意）');
+      expect(scope.textContent).toContain('适用用户类型（留空匹配任意）');
+      expect(scope.textContent).toContain('适用用户类别（留空匹配任意）');
+      expect(scope.textContent).toContain('适用组织类别（留空匹配任意）');
+      expect(scope.textContent).toContain('适用组织类型（留空匹配任意）');
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   it('列表操作位于搜索之前，默认 true，保存回显且不使用首行测试上下文', async () => {
     const wrapper = mountEditor();
     let savedConfig: CrudPageDisplayConfig;

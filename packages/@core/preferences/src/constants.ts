@@ -72,6 +72,27 @@ const BUILT_IN_THEME_PRESETS: BuiltinThemePreset[] = [
     primaryColor: 'hsl(240 5.9% 10%)',
     type: 'gray',
   },
+  // 低饱和色作为内置颜色选择器的背景与渐变候选色，避免仅提供高饱和主题色。
+  {
+    color: '#eef3ff',
+    type: 'mist-blue',
+  },
+  {
+    color: '#eaf8ef',
+    type: 'mint-green',
+  },
+  {
+    color: '#f1efff',
+    type: 'lavender',
+  },
+  {
+    color: '#fff8e8',
+    type: 'cream-yellow',
+  },
+  {
+    color: '#fff1f5',
+    type: 'blush-pink',
+  },
   {
     color: '',
     type: 'custom',

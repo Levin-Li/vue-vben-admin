@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
 
-import type { BuiltinThemeType, ThemeModeType } from '@vben/types';
+import type {
+  BuiltinThemeType,
+  NavigationVisualStyleType,
+  ThemeModeType,
+} from '@vben/types';
 
 import { computed, watch } from 'vue';
 
@@ -11,11 +15,14 @@ import { BUILT_IN_THEME_PRESETS, usePreferences } from '@vben/preferences';
 import { TinyColor } from '@vben/utils';
 
 import SwitchItem from '../switch-item.vue';
+import NavigationVisualStyle from './navigation-visual-style.vue';
 
 type ThemeColorTarget =
   | 'baseBackground'
   | 'contentBackground'
   | 'footerBackground'
+  | 'gradientEnd'
+  | 'gradientTransition'
   | 'headerMenuBackground'
   | 'headerMenuTheme'
   | 'menuBackground'
@@ -76,6 +83,51 @@ const themeSidebarMenuBackgroundColor = defineModel<string>(
 const themeSidebarMenuBackgroundColorCustom = defineModel<boolean>(
   'themeSidebarMenuBackgroundColorCustom',
 );
+const navigationVisualStyle = defineModel<NavigationVisualStyleType>(
+  'navigationVisualStyle',
+);
+const navigationGradientTransitionColor = defineModel<string>(
+  'navigationGradientTransitionColor',
+);
+const navigationGradientTransitionColorEnabled = defineModel<boolean>(
+  'navigationGradientTransitionColorEnabled',
+);
+const navigationGradientEndColor = defineModel<string>(
+  'navigationGradientEndColor',
+);
+const navigationGradientCrudToolbarEnabled = defineModel<boolean>(
+  'navigationGradientCrudToolbarEnabled',
+);
+const navigationGradientCrudHeaderEnabled = defineModel<boolean>(
+  'navigationGradientCrudHeaderEnabled',
+);
+const navigationGradientCrudTableEnabled = defineModel<boolean>(
+  'navigationGradientCrudTableEnabled',
+);
+const navigationGradientCrudRowsEnabled = defineModel<boolean>(
+  'navigationGradientCrudRowsEnabled',
+);
+const navigationGradientSidebarEnabled = defineModel<boolean>(
+  'navigationGradientSidebarEnabled',
+);
+const navigationGradientHeaderEnabled = defineModel<boolean>(
+  'navigationGradientHeaderEnabled',
+);
+const navigationGradientTabbarEnabled = defineModel<boolean>(
+  'navigationGradientTabbarEnabled',
+);
+const navigationGradientCrudQueryEnabled = defineModel<boolean>(
+  'navigationGradientCrudQueryEnabled',
+);
+const navigationGradientCrudCreateFormEnabled = defineModel<boolean>(
+  'navigationGradientCrudCreateFormEnabled',
+);
+const navigationGradientCrudEditFormEnabled = defineModel<boolean>(
+  'navigationGradientCrudEditFormEnabled',
+);
+const navigationGradientCrudDetailFormEnabled = defineModel<boolean>(
+  'navigationGradientCrudDetailFormEnabled',
+);
 
 const { layout } = usePreferences();
 
@@ -132,6 +184,21 @@ function builtinThemeName(name: BuiltinThemeType) {
   switch (name) {
     case 'custom': {
       return $t('preferences.theme.builtin.custom');
+    }
+    case 'mist-blue': {
+      return '雾蓝';
+    }
+    case 'mint-green': {
+      return '薄荷绿';
+    }
+    case 'lavender': {
+      return '薰衣草';
+    }
+    case 'cream-yellow': {
+      return '奶油黄';
+    }
+    case 'blush-pink': {
+      return '樱雾粉';
     }
     case 'deep-blue': {
       return $t('preferences.theme.builtin.deepBlue');
@@ -222,6 +289,51 @@ function openColorSettings(target: 'header' | 'sidebar' | ThemeColorTarget) {
       </div>
     </template>
 
+    <NavigationVisualStyle
+      v-model:navigation-visual-style="navigationVisualStyle"
+      v-model:navigation-gradient-transition-color="
+        navigationGradientTransitionColor
+      "
+      v-model:navigation-gradient-transition-color-enabled="
+        navigationGradientTransitionColorEnabled
+      "
+      v-model:navigation-gradient-end-color="navigationGradientEndColor"
+      v-model:navigation-gradient-crud-toolbar-enabled="
+        navigationGradientCrudToolbarEnabled
+      "
+      v-model:navigation-gradient-crud-header-enabled="
+        navigationGradientCrudHeaderEnabled
+      "
+      v-model:navigation-gradient-crud-table-enabled="
+        navigationGradientCrudTableEnabled
+      "
+      v-model:navigation-gradient-crud-rows-enabled="
+        navigationGradientCrudRowsEnabled
+      "
+      v-model:navigation-gradient-sidebar-enabled="
+        navigationGradientSidebarEnabled
+      "
+      v-model:navigation-gradient-header-enabled="
+        navigationGradientHeaderEnabled
+      "
+      v-model:navigation-gradient-tabbar-enabled="
+        navigationGradientTabbarEnabled
+      "
+      v-model:navigation-gradient-crud-query-enabled="
+        navigationGradientCrudQueryEnabled
+      "
+      v-model:navigation-gradient-crud-create-form-enabled="
+        navigationGradientCrudCreateFormEnabled
+      "
+      v-model:navigation-gradient-crud-edit-form-enabled="
+        navigationGradientCrudEditFormEnabled
+      "
+      v-model:navigation-gradient-crud-detail-form-enabled="
+        navigationGradientCrudDetailFormEnabled
+      "
+      @open-color-settings="openColorSettings"
+    />
+
     <SwitchItem
       v-model="themeBaseBackgroundColorCustom"
       shortcut-class="semi-dark-shortcut"
@@ -292,7 +404,6 @@ function openColorSettings(target: 'header' | 'sidebar' | ThemeColorTarget) {
         </button>
       </template>
     </SwitchItem>
-
 
     <SwitchItem
       v-model="themeSemiDarkSidebar"

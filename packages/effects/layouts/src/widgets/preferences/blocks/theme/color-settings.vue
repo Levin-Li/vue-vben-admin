@@ -19,6 +19,8 @@ type ColorTarget =
   | 'contentBackground'
   | 'destructive'
   | 'footerBackground'
+  | 'gradientEnd'
+  | 'gradientTransition'
   | 'header'
   | 'headerMenuBackground'
   | 'headerMenuTheme'
@@ -45,6 +47,15 @@ const themeColorSuccess = defineModel<string>('themeColorSuccess');
 const themeColorWarning = defineModel<string>('themeColorWarning');
 const themeBaseBackgroundColor = defineModel<string>(
   'themeBaseBackgroundColor',
+);
+const navigationGradientTransitionColor = defineModel<string>(
+  'navigationGradientTransitionColor',
+);
+const navigationGradientTransitionColorEnabled = defineModel<boolean>(
+  'navigationGradientTransitionColorEnabled',
+);
+const navigationGradientEndColor = defineModel<string>(
+  'navigationGradientEndColor',
 );
 const themeBaseBackgroundTransparency = defineModel<number>(
   'themeBaseBackgroundTransparency',
@@ -122,6 +133,12 @@ const activeColor = computed(() => {
     }
     case 'footerBackground': {
       return footerBackgroundColor.value;
+    }
+    case 'gradientEnd': {
+      return navigationGradientEndColor.value;
+    }
+    case 'gradientTransition': {
+      return navigationGradientTransitionColor.value;
     }
     case 'header': {
       return themeSemiDarkHeaderColor.value;
@@ -296,6 +313,12 @@ function getColorTargetLabel(target: ColorTarget) {
     case 'footerBackground': {
       return $t('preferences.footer.backgroundColor');
     }
+    case 'gradientEnd': {
+      return '最终色';
+    }
+    case 'gradientTransition': {
+      return '过渡色';
+    }
     case 'header': {
       return $t('preferences.theme.darkHeaderColor');
     }
@@ -337,6 +360,21 @@ function getBuiltinThemeName(name: BuiltinThemeType) {
   switch (name) {
     case 'custom': {
       return $t('preferences.theme.builtin.custom');
+    }
+    case 'mist-blue': {
+      return '雾蓝';
+    }
+    case 'mint-green': {
+      return '薄荷绿';
+    }
+    case 'lavender': {
+      return '薰衣草';
+    }
+    case 'cream-yellow': {
+      return '奶油黄';
+    }
+    case 'blush-pink': {
+      return '樱雾粉';
     }
     case 'deep-blue': {
       return $t('preferences.theme.builtin.deepBlue');
@@ -482,6 +520,17 @@ function resetThemeColors() {
     return;
   }
 
+  if (activeTarget.value === 'gradientEnd') {
+    editorColor.value = initialPreferences.navigation.gradientEndColor;
+    return;
+  }
+
+  if (activeTarget.value === 'gradientTransition') {
+    editorColor.value = initialPreferences.navigation.gradientTransitionColor;
+    navigationGradientTransitionColorEnabled.value = false;
+    return;
+  }
+
   if (activeTarget.value === 'watermark') {
     editorColor.value = initialPreferences.app.watermarkColor;
     appWatermarkTransparency.value =
@@ -553,6 +602,17 @@ watch(editorColor, (value) => {
     }
     case 'footerBackground': {
       footerBackgroundColor.value = value;
+
+      break;
+    }
+    case 'gradientEnd': {
+      navigationGradientEndColor.value = value;
+
+      break;
+    }
+    case 'gradientTransition': {
+      navigationGradientTransitionColor.value = value;
+      navigationGradientTransitionColorEnabled.value = true;
 
       break;
     }

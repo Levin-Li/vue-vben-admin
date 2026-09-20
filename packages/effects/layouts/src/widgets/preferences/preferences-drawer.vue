@@ -57,8 +57,10 @@ import {
   Theme,
   Widget,
 } from './blocks';
+import { usePreferencesUploadAction } from './use-preferences-upload';
 
 const message = globalShareState.getMessage();
+const { uploadSettingsAction } = usePreferencesUploadAction();
 
 const appLocale = defineModel<SupportedLanguagesType>('appLocale');
 const appDynamicTitle = defineModel<boolean>('appDynamicTitle');
@@ -293,6 +295,48 @@ const navigationStyleType = defineModel<NavigationStyleType>(
 const navigationVisualStyle = defineModel<NavigationVisualStyleType>(
   'navigationVisualStyle',
 );
+const navigationGradientTransitionColor = defineModel<string>(
+  'navigationGradientTransitionColor',
+);
+const navigationGradientTransitionColorEnabled = defineModel<boolean>(
+  'navigationGradientTransitionColorEnabled',
+);
+const navigationGradientEndColor = defineModel<string>(
+  'navigationGradientEndColor',
+);
+const navigationGradientCrudToolbarEnabled = defineModel<boolean>(
+  'navigationGradientCrudToolbarEnabled',
+);
+const navigationGradientCrudHeaderEnabled = defineModel<boolean>(
+  'navigationGradientCrudHeaderEnabled',
+);
+const navigationGradientCrudTableEnabled = defineModel<boolean>(
+  'navigationGradientCrudTableEnabled',
+);
+const navigationGradientCrudRowsEnabled = defineModel<boolean>(
+  'navigationGradientCrudRowsEnabled',
+);
+const navigationGradientSidebarEnabled = defineModel<boolean>(
+  'navigationGradientSidebarEnabled',
+);
+const navigationGradientHeaderEnabled = defineModel<boolean>(
+  'navigationGradientHeaderEnabled',
+);
+const navigationGradientTabbarEnabled = defineModel<boolean>(
+  'navigationGradientTabbarEnabled',
+);
+const navigationGradientCrudQueryEnabled = defineModel<boolean>(
+  'navigationGradientCrudQueryEnabled',
+);
+const navigationGradientCrudCreateFormEnabled = defineModel<boolean>(
+  'navigationGradientCrudCreateFormEnabled',
+);
+const navigationGradientCrudEditFormEnabled = defineModel<boolean>(
+  'navigationGradientCrudEditFormEnabled',
+);
+const navigationGradientCrudDetailFormEnabled = defineModel<boolean>(
+  'navigationGradientCrudDetailFormEnabled',
+);
 const navigationSplit = defineModel<boolean>('navigationSplit');
 const navigationAccordion = defineModel<boolean>('navigationAccordion');
 
@@ -400,6 +444,10 @@ async function handleCopy() {
   );
 }
 
+function handleUploadSettings() {
+  uploadSettingsAction.value?.();
+}
+
 async function handleClearCacheAndRestoreDefaults() {
   clearCache();
   resetPreferences();
@@ -419,6 +467,8 @@ function openColorSettings(
     | 'baseBackground'
     | 'contentBackground'
     | 'footerBackground'
+    | 'gradientEnd'
+    | 'gradientTransition'
     | 'header'
     | 'headerMenuBackground'
     | 'headerMenuTheme'
@@ -558,6 +608,49 @@ function openColorSettings(
                 v-model:theme-sidebar-menu-background-color-custom="
                   themeSidebarMenuBackgroundColorCustom
                 "
+                v-model:navigation-visual-style="navigationVisualStyle"
+                v-model:navigation-gradient-transition-color="
+                  navigationGradientTransitionColor
+                "
+                v-model:navigation-gradient-transition-color-enabled="
+                  navigationGradientTransitionColorEnabled
+                "
+                v-model:navigation-gradient-end-color="
+                  navigationGradientEndColor
+                "
+                v-model:navigation-gradient-crud-toolbar-enabled="
+                  navigationGradientCrudToolbarEnabled
+                "
+                v-model:navigation-gradient-crud-header-enabled="
+                  navigationGradientCrudHeaderEnabled
+                "
+                v-model:navigation-gradient-crud-table-enabled="
+                  navigationGradientCrudTableEnabled
+                "
+                v-model:navigation-gradient-crud-rows-enabled="
+                  navigationGradientCrudRowsEnabled
+                "
+                v-model:navigation-gradient-sidebar-enabled="
+                  navigationGradientSidebarEnabled
+                "
+                v-model:navigation-gradient-header-enabled="
+                  navigationGradientHeaderEnabled
+                "
+                v-model:navigation-gradient-tabbar-enabled="
+                  navigationGradientTabbarEnabled
+                "
+                v-model:navigation-gradient-crud-query-enabled="
+                  navigationGradientCrudQueryEnabled
+                "
+                v-model:navigation-gradient-crud-create-form-enabled="
+                  navigationGradientCrudCreateFormEnabled
+                "
+                v-model:navigation-gradient-crud-edit-form-enabled="
+                  navigationGradientCrudEditFormEnabled
+                "
+                v-model:navigation-gradient-crud-detail-form-enabled="
+                  navigationGradientCrudDetailFormEnabled
+                "
                 @open-color-settings="openColorSettings"
               />
             </Block>
@@ -581,6 +674,15 @@ function openColorSettings(
                 v-model:theme-color-primary="themeColorPrimary"
                 v-model:theme-color-success="themeColorSuccess"
                 v-model:theme-color-warning="themeColorWarning"
+                v-model:navigation-gradient-transition-color="
+                  navigationGradientTransitionColor
+                "
+                v-model:navigation-gradient-transition-color-enabled="
+                  navigationGradientTransitionColorEnabled
+                "
+                v-model:navigation-gradient-end-color="
+                  navigationGradientEndColor
+                "
                 v-model:theme-content-background-color="
                   themeContentBackgroundColor
                 "
@@ -760,7 +862,6 @@ function openColorSettings(
                 v-model:navigation-accordion="navigationAccordion"
                 v-model:navigation-split="navigationSplit"
                 v-model:navigation-style-type="navigationStyleType"
-                v-model:navigation-visual-style="navigationVisualStyle"
                 v-model:tabbar-enable="tabbarEnable"
                 :disabled="isFullContent"
                 :disabled-navigation-split="!isMixedNav"
@@ -870,6 +971,14 @@ function openColorSettings(
 
       <template #footer>
         <VbenButton
+          v-if="uploadSettingsAction"
+          class="ml-4 w-full"
+          size="sm"
+          @click="handleUploadSettings"
+        >
+          {{ $t('preferences.uploadSettings') }}
+        </VbenButton>
+        <VbenButton
           :disabled="!diffPreference"
           class="mx-4 w-full"
           size="sm"
@@ -882,7 +991,7 @@ function openColorSettings(
         <VbenButton
           class="mr-4 w-full"
           size="sm"
-          variant="ghost"
+          variant="default"
           @click="handleClearCacheAndRestoreDefaults"
         >
           {{ $t('preferences.clearCacheAndRestoreDefaults') }}

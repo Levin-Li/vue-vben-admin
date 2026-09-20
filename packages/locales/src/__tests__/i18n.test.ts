@@ -102,10 +102,10 @@ describe('locale fallback resolution', () => {
     expect(messages['en-US']?.common?.login).toBe('Login');
     expect(Object.keys(messages['zh-CN'] || {})).toContain('preferences');
     expect(messages['zh-CN']?.preferences?.clearCacheAndRestoreDefaults).toBe(
-      '清除缓存并恢复默认设置',
+      '恢复默认',
     );
     expect(messages['en-US']?.preferences?.clearCacheAndRestoreDefaults).toBe(
-      'Clear Cache and Restore Defaults',
+      'Restore Defaults',
     );
     expect(messages['zh-CN']?.preferences?.theme.headingFontSizeScale).toBe(
       '标题字号倍率',

@@ -1,10 +1,14 @@
+import { readFileSync } from 'node:fs';
+
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  adminMenuSyncService: null as null | Record<string, never>,
   destroyWatermark: vi.fn(),
   loadAuthBrand: vi.fn().mockResolvedValue(undefined),
   refreshAuthBrand: vi.fn().mockResolvedValue(undefined),
+  registerPreferencesUploadAction: vi.fn(() => vi.fn()),
   preferences: {
     app: {
       defaultHomePath: '/analytics',
@@ -15,7 +19,10 @@ const mocks = vi.hoisted(() => ({
       watermarkContent: '',
     },
     navigation: {
-      visualStyle: 'brand-gradient',
+      gradientEndColor: '#fff4f5',
+      gradientTransitionColor: '#f1efff',
+      gradientTransitionColorEnabled: false,
+      visualStyle: 'minimal',
     },
   },
   updateWatermark: vi.fn(),
@@ -77,6 +84,7 @@ vi.mock('@vben/layouts', () => ({
   Notification: {
     template: '<div />',
   },
+  registerPreferencesUploadAction: mocks.registerPreferencesUploadAction,
   UserDropdown: {
     props: ['systemMenus'],
     template: `
@@ -113,7 +121,7 @@ vi.mock('vue-router', () => ({
 }));
 
 vi.mock('@levin/admin-framework', () => ({
-  getAdminMenuSyncService: () => null,
+  getAdminMenuSyncService: () => mocks.adminMenuSyncService,
   getAdminNoticeService: () => null,
 }));
 
@@ -165,9 +173,10 @@ vi.mock('../sync-menu-routes-modal.vue', () => ({
   },
 }));
 
-vi.mock('../tenant-site-admin-ui-base-setting', () => ({
-  buildAdminUiBaseSettingPayload: vi.fn(),
-  DEFAULT_ADMIN_UI_BASE_SETTING_UPLOAD_TARGET: 'TenantSite',
+vi.mock('../admin-ui-preferences-setting', () => ({
+  ADMIN_UI_PREFERENCES_SETTING_CODE: '界面偏好设置',
+  loadAdminUiPreferencesScopeOptions: vi.fn().mockResolvedValue({}),
+  saveAdminUiPreferencesSetting: vi.fn(),
 }));
 
 import Basic from '../basic.vue';
@@ -175,7 +184,46 @@ import Basic from '../basic.vue';
 describe('basic layout tenant site brand', () => {
   beforeEach(() => {
     mocks.loadAuthBrand.mockClear();
+    mocks.registerPreferencesUploadAction.mockClear();
+    mocks.adminMenuSyncService = null;
     mocks.userInfo.superAdmin = false;
+  });
+
+  it('仅为超级管理员向偏好设置注册上传入口，并从用户菜单移除入口', async () => {
+    mocks.adminMenuSyncService = {};
+    mocks.userInfo.superAdmin = true;
+
+    const wrapper = mount(Basic, {
+      global: {
+        stubs: {
+          Button: true,
+          Checkbox: true,
+          Empty: true,
+          Modal: true,
+          Popconfirm: true,
+          Tag: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(mocks.registerPreferencesUploadAction).toHaveBeenCalledOnce();
+    expect(
+      wrapper
+        .find('[data-testid="system-menu-save-admin-ui-base-setting"]')
+        .exists(),
+    ).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('将界面偏好上传表单放大到默认宽度的 1.3 倍', () => {
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/app/layouts/basic.vue',
+      'utf8',
+    );
+
+    expect(source).toContain(':width="676"');
   });
 
   it('only exposes frontend versions to a super administrator', async () => {
@@ -258,7 +306,7 @@ describe('basic layout tenant site brand', () => {
     );
     expect(wrapper.get('[data-testid="footer"]').text()).toBe('租户站点版权');
     expect(wrapper.get('[data-testid="basic-layout"]').classes()).toContain(
-      'admin-navigation-theme-brand-gradient',
+      'admin-navigation-theme-minimal',
     );
   });
 

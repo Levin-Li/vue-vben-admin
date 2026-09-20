@@ -26,6 +26,7 @@ import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
 import { registerRbacPermissionDirective } from './directives/rbac-permission';
 import { registerGlobalOrgSelectorRuntime } from './global-org-selector-runtime';
+import { loadAdminUiPreferencesSetting } from './admin-ui-preferences-setting';
 import { router } from './router';
 import {
   loadTenantSiteAdminUiBaseSetting,
@@ -81,6 +82,8 @@ async function bootstrap(namespace: string) {
         hasLoadedAdministrativeAreaOverride = true;
         void loadAdministrativeAreaOverride();
       }
+      // 登录后仅从独立 UI 设置记录加载界面偏好，不读取租户站点扩展字段。
+      void loadAdminUiPreferencesSetting();
     },
     { immediate: true },
   );
