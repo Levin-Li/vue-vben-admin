@@ -125,12 +125,6 @@ vi.mock('@levin/admin-framework', () => ({
   getAdminNoticeService: () => null,
 }));
 
-vi.mock('@levin/admin-framework/framework-commons/app/api', () => ({
-  rbacService: {
-    adjustSiteUiSetting: vi.fn(),
-  },
-}));
-
 vi.mock('@levin/admin-framework/framework-commons/app/locales', () => ({
   $t: (key: string) => key,
 }));

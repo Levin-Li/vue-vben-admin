@@ -34,7 +34,6 @@ import {
   getAdminNoticeService,
   getAdminRequestClient,
 } from '@levin/admin-framework';
-import { rbacService } from '@levin/admin-framework/framework-commons/app/api';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
@@ -137,8 +136,8 @@ const ProfileCenter = defineAsyncComponent(
 const profileModalOpen = ref(false);
 const syncMenuRoutesModalOpen = ref(false);
 const syncI18nLabelsModalOpen = ref(false);
-const saveAdminUiBaseSettingModalOpen = ref(false);
-const saveAdminUiBaseSettingLoading = ref(false);
+const adminUiPreferencesUploadLoading = ref(false);
+const adminUiPreferencesUploadModalOpen = ref(false);
 const syncNationalAdministrativeAreasModalOpen = ref(false);
 const syncNationalAdministrativeAreasLoading = ref(false);
 const eventListenerManagerOpen = ref(false);
@@ -356,13 +355,13 @@ function clonePreferences() {
   return JSON.parse(JSON.stringify(preferences)) as Record<string, any>;
 }
 
-function openAdminUiBaseSettingUpload() {
+function openAdminUiPreferencesUpload() {
   // 每次打开都从独立 UI 设置的通用范围开始选择。
   Object.assign(adminUiPreferencesScope, {});
   void loadAdminUiPreferencesScopeOptions().then((options) =>
     Object.assign(adminUiPreferencesScopeOptions, options),
   );
-  saveAdminUiBaseSettingModalOpen.value = true;
+  adminUiPreferencesUploadModalOpen.value = true;
 }
 
 function handleAdminUiPreferencesTenantChange() {
@@ -410,7 +409,7 @@ watch(
   (canUpload) => {
     unregisterPreferencesUploadAction?.();
     unregisterPreferencesUploadAction = canUpload
-      ? registerPreferencesUploadAction(openAdminUiBaseSettingUpload)
+      ? registerPreferencesUploadAction(openAdminUiPreferencesUpload)
       : undefined;
   },
   { immediate: true },
@@ -418,12 +417,12 @@ watch(
 
 onBeforeUnmount(() => unregisterPreferencesUploadAction?.());
 
-async function handleSaveAdminUiBaseSetting() {
-  if (saveAdminUiBaseSettingLoading.value) {
+async function handleSaveAdminUiPreferences() {
+  if (adminUiPreferencesUploadLoading.value) {
     return;
   }
 
-  saveAdminUiBaseSettingLoading.value = true;
+  adminUiPreferencesUploadLoading.value = true;
 
   try {
     await saveAdminUiPreferencesSetting(
@@ -432,11 +431,11 @@ async function handleSaveAdminUiBaseSetting() {
       selectAdminUiPreferencesCandidate,
     );
     message.success('界面设置上传成功');
-    saveAdminUiBaseSettingModalOpen.value = false;
+    adminUiPreferencesUploadModalOpen.value = false;
   } catch {
     message.error('界面设置上传失败');
   } finally {
-    saveAdminUiBaseSettingLoading.value = false;
+    adminUiPreferencesUploadLoading.value = false;
   }
 }
 
@@ -461,8 +460,8 @@ async function syncNationalAdministrativeAreas() {
   }
 }
 
-function resetSaveAdminUiBaseSettingLoading() {
-  saveAdminUiBaseSettingLoading.value = false;
+function resetAdminUiPreferencesUploadLoading() {
+  adminUiPreferencesUploadLoading.value = false;
 }
 
 function refreshEventListeners() {
@@ -889,14 +888,14 @@ watch(
         </div>
       </Modal>
       <Modal
-        v-model:open="saveAdminUiBaseSettingModalOpen"
-        :confirm-loading="saveAdminUiBaseSettingLoading"
+        v-model:open="adminUiPreferencesUploadModalOpen"
+        :confirm-loading="adminUiPreferencesUploadLoading"
         :mask-closable="false"
         :width="676"
         title="上传界面设置"
-        @after-close="resetSaveAdminUiBaseSettingLoading"
-        @cancel="resetSaveAdminUiBaseSettingLoading"
-        @ok="handleSaveAdminUiBaseSetting"
+        @after-close="resetAdminUiPreferencesUploadLoading"
+        @cancel="resetAdminUiPreferencesUploadLoading"
+        @ok="handleSaveAdminUiPreferences"
       >
         <div class="grid grid-cols-2 gap-4">
           <!-- 独立界面偏好记录的编码固定，适用范围为空时匹配任意上下文。 -->

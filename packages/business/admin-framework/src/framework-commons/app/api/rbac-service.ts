@@ -175,7 +175,6 @@ export namespace RbacApi {
     keyword?: string;
   }
 
-  export type AdjustSiteUiSettingParams = Record<string, any>;
 }
 
 type BackendUserInfo = RbacApi.BackendUserInfo;
@@ -227,23 +226,6 @@ function normalizeAuthorizedOrgOptions(data: any[]): any[] {
   type: '公共数据-权限控制',
 })
 export class RbacService extends RequestService {
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
-    action: '调整站点UI设置',
-    onlyRequireAuthenticated: true,
-  })
-  async adjustSiteUiSetting(
-    data: RbacApi.AdjustSiteUiSettingParams,
-    options: Record<string, any> = {},
-  ) {
-    return requestClient.put<null>(
-      this.buildRequestPath('adjustSiteUiSetting'),
-      data,
-      options,
-    );
-  }
-
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共数据-权限控制',
