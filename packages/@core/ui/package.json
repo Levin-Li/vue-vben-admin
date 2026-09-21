@@ -1,6 +1,6 @@
 {
   "name": "@vben-core/ui",
-  "version": "5.6.108",
+  "version": "5.6.111",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -19,31 +19,43 @@
     "./shadcn": {
       "types": "./src/shadcn.ts",
       "development": "./src/shadcn.ts",
+      "import": "./dist/shadcn.mjs",
+      "require": "./dist/shadcn.mjs",
       "default": "./dist/shadcn.mjs"
     },
     "./form": {
       "types": "./src/form.ts",
       "development": "./src/form.ts",
+      "import": "./dist/form.mjs",
+      "require": "./dist/form.mjs",
       "default": "./dist/form.mjs"
     },
     "./layout": {
       "types": "./src/layout.ts",
       "development": "./src/layout.ts",
+      "import": "./dist/layout.mjs",
+      "require": "./dist/layout.mjs",
       "default": "./dist/layout.mjs"
     },
     "./menu": {
       "types": "./src/menu.ts",
       "development": "./src/menu.ts",
+      "import": "./dist/menu.mjs",
+      "require": "./dist/menu.mjs",
       "default": "./dist/menu.mjs"
     },
     "./popup": {
       "types": "./src/popup.ts",
       "development": "./src/popup.ts",
+      "import": "./dist/popup.mjs",
+      "require": "./dist/popup.mjs",
       "default": "./dist/popup.mjs"
     },
     "./tabs": {
       "types": "./src/tabs.ts",
       "development": "./src/tabs.ts",
+      "import": "./dist/tabs.mjs",
+      "require": "./dist/tabs.mjs",
       "default": "./dist/tabs.mjs"
     },
     "./package-version": {
@@ -55,26 +67,38 @@
     "exports": {
       "./shadcn": {
         "types": "./dist/shadcn.d.ts",
+        "import": "./dist/shadcn.mjs",
+        "require": "./dist/shadcn.mjs",
         "default": "./dist/shadcn.mjs"
       },
       "./form": {
         "types": "./dist/form.d.ts",
+        "import": "./dist/form.mjs",
+        "require": "./dist/form.mjs",
         "default": "./dist/form.mjs"
       },
       "./layout": {
         "types": "./dist/layout.d.ts",
+        "import": "./dist/layout.mjs",
+        "require": "./dist/layout.mjs",
         "default": "./dist/layout.mjs"
       },
       "./menu": {
         "types": "./dist/menu.d.ts",
+        "import": "./dist/menu.mjs",
+        "require": "./dist/menu.mjs",
         "default": "./dist/menu.mjs"
       },
       "./popup": {
         "types": "./dist/popup.d.ts",
+        "import": "./dist/popup.mjs",
+        "require": "./dist/popup.mjs",
         "default": "./dist/popup.mjs"
       },
       "./tabs": {
         "types": "./dist/tabs.d.ts",
+        "import": "./dist/tabs.mjs",
+        "require": "./dist/tabs.mjs",
         "default": "./dist/tabs.mjs"
       },
       "./package-version": {

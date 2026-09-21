@@ -544,6 +544,49 @@ try {
 
     console.log(`已打包 ${selectedPackages.length} 个包到 ${outputDir}`);
   } else {
+    // 阶段一：先为完整批次创建并校验全部本地 tarball；此阶段绝不上传任何制品。
+    rmSync(packageTarballDir, { recursive: true, force: true });
+    mkdirSync(packageTarballDir, { recursive: true });
+    const preflightTarballs = new Map();
+    for (const packageInfo of selectedPackages) {
+      const packageOutputDir = resolve(
+        packageTarballDir,
+        'preflight',
+        packageInfo.name.replaceAll('/', '__'),
+      );
+      const tarball = packWorkspacePackage(packageInfo, packageOutputDir);
+      const routeAssets = routeAssetsByPackage.get(packageInfo.name);
+      verifyTarballRouteAssets(packageInfo, tarball, routeAssets, '本地预检 tarball');
+      verifyTarballDependencyProtocols(packageInfo, tarball, '本地预检 tarball');
+      verifyTarballModuleDevelopmentStandard(packageInfo, tarball, '本地预检 tarball');
+      preflightTarballs.set(packageInfo.name, tarball);
+    }
+
+    // 全批次依赖必须固定为本地 tarball，不能在预检阶段从私服解析尚未上传的新版本。
+    for (const packageInfo of selectedPackages) {
+      verifyTarballStandaloneInstall(
+        packageInfo,
+        preflightTarballs.get(packageInfo.name),
+        remotePackEnv,
+        preflightTarballs,
+      );
+    }
+
+    // framework 的稳定公开入口必须在任何上传动作之前通过；oak 的完整页面图由下方应用构建验证。
+    const frameworkTarball = preflightTarballs.get('@levin/admin-framework');
+    if (frameworkTarball) {
+      verifyTarballStandaloneViteBuild(
+        { name: '@levin/admin-framework' },
+        frameworkTarball,
+        '@levin/admin-framework/framework-commons/module-contract',
+        remotePackEnv,
+        preflightTarballs,
+      );
+    }
+    // 应用使用本地工作区中刚完成构建的全部内部包与本地 Vite 工具链进行生产构建。
+    run('pnpm', ['--filter', '@levin/bootstrap-app', 'build']);
+
+    // 阶段二：仅在上述完整本地预检通过后，才开始上传。
     rmSync(packageTarballDir, { recursive: true, force: true });
     mkdirSync(packageTarballDir, { recursive: true });
 
@@ -605,14 +648,6 @@ try {
         '本地 tarball',
       );
       verifyTarballStandaloneInstall(packageInfo, tarball, remotePackEnv);
-      if (packageInfo.name === '@levin/admin-framework') {
-        verifyTarballStandaloneViteBuild(
-          packageInfo,
-          tarball,
-          '@levin/admin-framework/framework-commons/app/layouts/basic.vue',
-          remotePackEnv,
-        );
-      }
       publishPackage(tarball, publishEnv);
 
       const remoteTarball = packPackage(

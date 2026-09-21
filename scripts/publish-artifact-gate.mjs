@@ -219,6 +219,7 @@ export function verifyTarballStandaloneInstall(
   packageInfo,
   tarballPath,
   extraEnv = {},
+  batchTarballs = new Map(),
 ) {
   const consumerDir = mkdtempSync(
     join(tmpdir(), 'levin-package-install-smoke-'),
@@ -230,9 +231,11 @@ export function verifyTarballStandaloneInstall(
       `${JSON.stringify(
         {
           dependencies: {
+            ...getBatchTarballDependencies(batchTarballs),
             [packageInfo.name]: `file:${tarballPath}`,
           },
           name: 'levin-package-install-smoke',
+          pnpm: getBatchTarballPnpmConfig(batchTarballs),
           private: true,
           version: '0.0.0',
         },
@@ -279,6 +282,7 @@ export function verifyTarballStandaloneViteBuild(
   tarballPath,
   entrypoint,
   extraEnv = {},
+  batchTarballs = new Map(),
 ) {
   const absoluteTarballPath = resolve(tarballPath);
   const manifest = JSON.parse(
@@ -295,6 +299,7 @@ export function verifyTarballStandaloneViteBuild(
         {
           dependencies: {
             ...(manifest.peerDependencies || {}),
+            ...getBatchTarballDependencies(batchTarballs),
             [packageInfo.name]: `file:${absoluteTarballPath}`,
           },
           devDependencies: {
@@ -304,6 +309,7 @@ export function verifyTarballStandaloneViteBuild(
             vite: '^7.3.1',
           },
           name: 'levin-package-build-smoke',
+          pnpm: getBatchTarballPnpmConfig(batchTarballs),
           private: true,
           scripts: { build: 'vite build' },
           version: '0.0.0',
@@ -323,7 +329,7 @@ export function verifyTarballStandaloneViteBuild(
     mkdirSync(resolve(consumerDir, 'src'));
     writeFileSync(
       resolve(consumerDir, 'src/main.ts'),
-      `import component from '${entrypoint}';\ndocument.getElementById('app')!.textContent = String(component);\n`,
+      `import * as entry from '${entrypoint}';\ndocument.getElementById('app')!.textContent = String(entry);\n`,
     );
     writeStandaloneConsumerNpmrc(consumerDir, extraEnv);
 
@@ -356,6 +362,24 @@ export function verifyTarballStandaloneViteBuild(
   } finally {
     rmSync(consumerDir, { recursive: true, force: true });
   }
+}
+
+/**
+ * 将同一发布批次的内部依赖固定为本地 tarball，避免预检意外解析私服中的旧版本。
+ */
+function getBatchTarballDependencies(batchTarballs) {
+  return Object.fromEntries(
+    [...batchTarballs.entries()].map(([name, tarballPath]) => [
+      name,
+      `file:${resolve(tarballPath)}`,
+    ]),
+  );
+}
+
+/** pnpm 的解析图也必须指向本地制品，确保间接精确依赖不会回退查询 Nexus。 */
+function getBatchTarballPnpmConfig(batchTarballs) {
+  const overrides = getBatchTarballDependencies(batchTarballs);
+  return Object.keys(overrides).length === 0 ? undefined : { overrides };
 }
 
 /** 生命周期日志可能出现在 JSON 之前，必须解析到完整的最终结果。 */
