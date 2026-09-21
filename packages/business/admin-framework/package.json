@@ -1,6 +1,6 @@
 {
   "name": "@levin/admin-framework",
-  "version": "5.6.107",
+  "version": "5.6.108",
   "description": "Common admin application framework contracts for Levin frontend modules.",
   "license": "MIT",
   "type": "module",
@@ -115,11 +115,11 @@
     }
   },
   "peerDependencies": {
-    "@vben-core/foundation": "5.6.107",
-    "@vben-core/ui": "5.6.107",
-    "@vben/runtime": "5.6.107",
-    "@vben/common-ui": "5.6.107",
-    "@vben/layouts": "5.6.107",
+    "@vben-core/foundation": "5.6.108",
+    "@vben-core/ui": "5.6.108",
+    "@vben/runtime": "5.6.108",
+    "@vben/common-ui": "5.6.108",
+    "@vben/layouts": "5.6.108",
     "@vueuse/core": ">=12.0.0",
     "ant-design-vue": ">=4.0.0",
     "dayjs": ">=1.11.0",

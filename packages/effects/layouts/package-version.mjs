@@ -1,6 +1,6 @@
 // 由框架包元数据生成脚本生成，记录此包本次构建或打包时间。
 export const packageVersion = {
-  buildTime: '2026-09-21T07:25:04.025Z',
+  buildTime: '2026-09-21T18:55:05.374Z',
   name: '@vben/layouts',
-  version: '5.6.107',
+  version: '5.6.108',
 };
