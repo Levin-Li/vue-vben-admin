@@ -1,3 +1,5 @@
+import { fileURLToPath, URL } from 'node:url';
+
 import { defineConfig } from '@vben/vite-config';
 
 export default defineConfig(async () => {
@@ -5,8 +7,12 @@ export default defineConfig(async () => {
     process.env.VITE_NITRO_MOCK === 'true'
       ? 'http://localhost:5320'
       : 'http://127.0.0.1:8081';
-  const jitiBrowserShim =
-    '@levin/admin-framework/framework-commons/app/shims/jiti-browser';
+  const jitiBrowserShim = fileURLToPath(
+    new URL(
+      '../../packages/business/admin-framework/src/framework-commons/app/shims/jiti-browser.ts',
+      import.meta.url,
+    ),
+  );
 
   return {
     application: {},
