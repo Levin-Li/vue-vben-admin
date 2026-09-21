@@ -53,4 +53,22 @@ describe('组织与用户页面组织树', () => {
     expect(source).toContain('tabindex="0"');
     expect(source).toContain('@focusout="handleOrgNodeFocusOut"');
   });
+
+  it('为租户组织维护请求传递树节点租户上下文', () => {
+    const source = readFileSync(pagePath, 'utf8');
+
+    // 节点携带授权组织接口返回的 tenantId，根级新增不从其它节点推断。
+    expect(source).toContain('tenantId?: string;');
+    expect(source).toContain(
+      'tenantId: option.tenantId ? String(option.tenantId) : undefined,',
+    );
+    expect(source).toContain('function getOrgTenantId(id: string)');
+    expect(source).toContain(
+      'tenantId: parentId ? getOrgTenantId(parentId) : undefined,',
+    );
+
+    // 详情、删除与保存操作均把节点租户交给后端继续执行一致性校验。
+    expect(source).toContain('tenantId: getOrgTenantId(id),');
+    expect(source).toContain('tenantId: orgFormState.tenantId || undefined,');
+  });
 });

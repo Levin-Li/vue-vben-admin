@@ -48,6 +48,7 @@ interface OrgTreeNode {
   disabled?: boolean;
   key: string;
   label: string;
+  tenantId?: string;
   title: string;
   type?: string;
   value: string;
@@ -255,6 +256,7 @@ function toOrgTreeNodes(options: SelectOption[]): OrgTreeNode[] {
         children: option.children ? toOrgTreeNodes(option.children) : undefined,
         key: id,
         label,
+        tenantId: option.tenantId ? String(option.tenantId) : undefined,
         title: label,
         type: option.type ? String(option.type) : undefined,
         value: id,
@@ -321,6 +323,11 @@ function findOrgNode(
   return undefined;
 }
 
+// 树节点是组织维护请求的唯一租户上下文来源，不能由超级管理员身份绕过校验。
+function getOrgTenantId(id: string) {
+  return findOrgNode(orgTreeData.value, id)?.tenantId;
+}
+
 function filterOrgTreeNodes(nodes: OrgTreeNode[], keyword: string) {
   return nodes.reduce<OrgTreeNode[]>((result, node) => {
     const children = node.children
@@ -365,6 +372,7 @@ function resetOrgForm(values: Record<string, any> = {}) {
     remark: '',
     shortName: '',
     state: 'Normal',
+    tenantId: undefined,
     type: 'Department',
     ...values,
   });
@@ -468,8 +476,11 @@ function handleOrgNodeFocusOut(event: FocusEvent) {
 
 function openCreateOrgModal(parentId = '') {
   orgModalMode.value = 'create';
+
+  // 新增下级组织继承父节点租户；根级新增继续使用既有全局或域名上下文。
   resetOrgForm({
     parentId,
+    tenantId: parentId ? getOrgTenantId(parentId) : undefined,
   });
   orgModalOpen.value = true;
 }
@@ -484,9 +495,13 @@ async function openEditOrgModal(id = selectedOrgId.value) {
   orgModalMode.value = 'edit';
   orgTreeLoading.value = true;
 
+  // 详情请求显式携带树节点租户，供后端校验组织归属。
+  const tenantId = getOrgTenantId(id);
+
   try {
     const org = (await orgService.retrieve({
       id,
+      tenantId,
     })) as Record<string, any>;
 
     resetOrgForm({
@@ -494,6 +509,7 @@ async function openEditOrgModal(id = selectedOrgId.value) {
       enable: org?.enable ?? true,
       editable: org?.editable ?? true,
       parentId: org?.parentId || '',
+      tenantId: org?.tenantId || tenantId,
       type: org?.type || 'Department',
     });
     orgModalOpen.value = true;
@@ -508,8 +524,10 @@ async function deleteOrg(id = selectedOrgId.value) {
     return;
   }
 
+  // 删除请求与详情、更新共用节点租户上下文，避免被判定为公共组织。
   await orgService.delete({
     id,
+    tenantId: getOrgTenantId(id),
   });
 
   message.success('组织已删除');
@@ -540,6 +558,7 @@ async function submitOrgForm() {
       remark: orgFormState.remark || undefined,
       shortName: orgFormState.shortName || undefined,
       state: orgFormState.state || 'Normal',
+      tenantId: orgFormState.tenantId || undefined,
       type: orgFormState.type || 'Department',
     };
 
