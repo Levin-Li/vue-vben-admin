@@ -88,7 +88,7 @@ function mountEditor(modelValue: CrudPageDisplayConfig = { version: 1 }) {
 function upload() {
   const button = [
     ...document.body.querySelectorAll<HTMLButtonElement>('button'),
-  ].find((item) => item.textContent?.includes('上传当前配置'));
+  ].find((item) => item.textContent?.includes('上传设置'));
   if (!button) throw new Error('缺少上传按钮');
   button.click();
 }
@@ -104,7 +104,7 @@ describe('界面UI设置2', () => {
 
       expect(scope.textContent).toContain('页面编码（自动生成）');
       expect(scope.textContent).toContain('适用租户（留空匹配任意）');
-      expect(scope.textContent).toContain('适用站点（留空匹配任意）');
+      expect(scope.textContent).toContain('适用站点（留空匹配任意；请先选择租户）');
       expect(scope.textContent).toContain('适用用户类型（留空匹配任意）');
       expect(scope.textContent).toContain('适用用户类别（留空匹配任意）');
       expect(scope.textContent).toContain('适用组织类别（留空匹配任意）');

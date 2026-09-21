@@ -44,7 +44,7 @@ function mountDrawer(saving: boolean, showOperationColumn = false) {
 
 function getUploadButton() {
   return Array.from(document.body.querySelectorAll('button')).find((button) =>
-    button.textContent?.includes('上传当前配置'),
+    button.textContent?.includes('上传设置'),
   ) as HTMLButtonElement;
 }
 

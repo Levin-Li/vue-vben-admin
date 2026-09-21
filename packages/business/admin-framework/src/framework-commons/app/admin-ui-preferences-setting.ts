@@ -4,9 +4,8 @@ import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
 import {
   type UiSettingRuntimeRecord,
   resolveUiSettingRuntimeWithScope,
-  UI_SETTING_RETRIEVE_PATH,
 } from './api/ui-setting-runtime';
-import { requestClient } from './api/request';
+import { saveUiSettingWithCandidates } from './api/ui-setting-candidate-save';
 
 const ADMIN_UI_PREFERENCES_CONTEXT = 'admin-ui-preferences';
 const OAK_BASE_API_MODULE = '/com.levin.oak.base/V1/api';
@@ -52,11 +51,6 @@ function normalizeScope(scope: AdminUiPreferencesScope) {
     userCategory: scope.userCategory || undefined,
     userType: scope.userType || undefined,
   };
-}
-
-export interface UiSettingCandidatePage {
-  items?: UiSettingRuntimeRecord[];
-  total?: number;
 }
 
 export async function loadAdminUiPreferencesScopeOptions(
@@ -135,43 +129,5 @@ export async function saveAdminUiPreferencesSetting(
     type: 'Preferences',
     valueContent: { preferences },
   };
-  const candidatePage = await requestClient.get<UiSettingCandidatePage>(
-    '/UiSetting/findCandidates',
-    {
-      params: {
-        pageIndex: 1,
-        pageSize: 10,
-        ...normalizedScope,
-        code: ADMIN_UI_PREFERENCES_SETTING_CODE,
-        type: 'Preferences',
-      },
-    },
-  );
-  const candidates = candidatePage?.items || [];
-  const candidateCount = candidates.length;
-  const target =
-    candidateCount === 1
-      ? candidates[0]
-      : candidateCount > 1
-        ? await selectCandidate?.(candidates, candidateCount)
-        : undefined;
-  let setting: UiSettingRuntimeRecord;
-  if (target?.id) {
-    const latest = await requestClient.get<UiSettingRuntimeRecord>(
-      UI_SETTING_RETRIEVE_PATH,
-      { params: { id: target.id } },
-    );
-    const optimisticLock =
-      latest?.optimisticLock ?? target.optimisticLock ?? 0;
-    await requestClient.put('/UiSetting/update', {
-      id: target.id,
-      optimisticLock,
-      valueContent: data.valueContent,
-    });
-    setting = { ...target, optimisticLock: optimisticLock + 1, valueContent: data.valueContent };
-  } else {
-    const id = await requestClient.post<string>('/UiSetting/create', data);
-    setting = { ...data, id };
-  }
-  return setting;
+  return saveUiSettingWithCandidates(data, selectCandidate);
 }

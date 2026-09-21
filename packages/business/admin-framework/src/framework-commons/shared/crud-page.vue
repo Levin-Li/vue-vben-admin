@@ -97,9 +97,9 @@ import {
 import { rbacService } from '../app/api/rbac-service';
 import {
   resolveUiSettingRuntimeWithScope,
-  UI_SETTING_RETRIEVE_PATH,
   type UiSettingRuntimeRecord,
 } from '../app/api/ui-setting-runtime';
+import { saveUiSettingWithCandidates } from '../app/api/ui-setting-candidate-save';
 import { getCurrentTenantSiteInfo } from '../app/tenant-site-admin-ui-base-setting';
 import { mergeFixedQuery, parseMenuFixedQuery } from '../menu-fixed-query';
 import { useRbacAccess } from '../rbac-access';
@@ -562,11 +562,6 @@ const pageDisplayHeaderMap = computed(
 const autoSearchReady = ref(false);
 const pageDisplaySettingRecord = ref<null | UiSettingRuntimeRecord>(null);
 type PageDisplaySettingCandidate = UiSettingRuntimeRecord;
-
-interface PageDisplaySettingCandidatePage {
-  items?: PageDisplaySettingCandidate[];
-  total?: number;
-}
 const pageDisplayScope = ref<{
   domain?: string;
   orgCategory?: string;
@@ -645,50 +640,7 @@ async function savePageDisplaySettings(payload: {
       userType: payload.scope.userType || null,
       valueContent: { pageDisplay: payload.config },
     };
-    const candidatePage = await requestClient.get<PageDisplaySettingCandidatePage>(
-      '/UiSetting/findCandidates',
-      {
-        params: {
-          pageIndex: 1,
-          pageSize: 10,
-          code,
-          type: 'PageDisplay',
-          domain: payload.scope.domain || null,
-          orgCategory: payload.scope.orgCategory || null,
-          orgType: payload.scope.orgType || null,
-          tenantId: payload.scope.tenantId || null,
-          userCategory: payload.scope.userCategory || null,
-          userType: payload.scope.userType || null,
-        },
-      },
-    );
-    const candidates = candidatePage?.items || [];
-    const candidateCount = candidates.length;
-    const target =
-      candidateCount === 1
-        ? candidates[0]
-        : candidateCount > 1
-          ? await selectPageDisplaySettingCandidate(candidates, candidateCount)
-          : undefined;
-
-    if (target?.id) {
-      const latest = await requestClient.get<UiSettingRuntimeRecord>(
-        UI_SETTING_RETRIEVE_PATH,
-        {
-          params: { id: target.id },
-        },
-      );
-      const optimisticLock =
-        latest?.optimisticLock ?? target.optimisticLock ?? 0;
-      await requestClient.put('/UiSetting/update', {
-        id: target.id,
-        optimisticLock,
-        // 更新已选候选时仅替换展示配置，范围与名称继续保持该记录原值。
-        valueContent: data.valueContent,
-      });
-    } else {
-      await requestClient.post<string>('/UiSetting/create', data);
-    }
+    await saveUiSettingWithCandidates(data, selectPageDisplaySettingCandidate);
     // 保存目标可不同于当前登录人，重新解析当前上下文，避免把目标配置错误套用到当前页面。
     await loadPageDisplaySettings(true);
     message.success('当前配置已上传');
