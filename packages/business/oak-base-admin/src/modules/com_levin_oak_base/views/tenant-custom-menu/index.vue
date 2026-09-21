@@ -29,6 +29,7 @@ import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-acc
 import { tenantCustomMenuService } from '../../api/tenant-custom-menu-service';
 import { menuService } from '../../api/menu-service';
 import CrudPage from '../crud-page.vue';
+import MenuIconPicker from '../menu/menu-icon-picker.vue';
 import { tenantCustomMenuPageCrudConfig } from './config';
 import {
   appendLayoutItem,
@@ -144,13 +145,8 @@ const layoutOptions = computed(() =>
 );
 const sourceTreeData = computed(() => buildSourceTree(menuSources.value));
 const filteredSourceTreeData = computed(() =>
-  filterTreeByLabel(
-    sourceTreeData.value,
-    sourceSearchText.value,
-    (item) =>
-      [item.name, item.label, item.path, item.title]
-        .filter(Boolean)
-        .join(' '),
+  filterTreeByLabel(sourceTreeData.value, sourceSearchText.value, (item) =>
+    [item.name, item.label, item.path, item.title].filter(Boolean).join(' '),
   ),
 );
 const sourceSearchExpandedKeys = computed(() =>
@@ -167,7 +163,9 @@ const selectedMenuSources = computed(() =>
     .map((key) => sourceByKey.value.get(key))
     .filter((item): item is MenuDisplaySource => Boolean(item)),
 );
-const hasSelectedSourceMenus = computed(() => selectedMenuSources.value.length > 0);
+const hasSelectedSourceMenus = computed(
+  () => selectedMenuSources.value.length > 0,
+);
 const checkedLayoutItemKeys = computed(() =>
   checkedLayoutKeys.value.filter((key) => key !== MY_MENU_ROOT_KEY),
 );
@@ -175,10 +173,8 @@ const hasCheckedLayoutItems = computed(
   () => checkedLayoutItemKeys.value.length > 0,
 );
 const filteredLayoutItems = computed(() =>
-  filterTreeByLabel(
-    layoutItems.value,
-    layoutSearchText.value,
-    (item) => [item.name, item.label, item.path].filter(Boolean).join(' '),
+  filterTreeByLabel(layoutItems.value, layoutSearchText.value, (item) =>
+    [item.name, item.label, item.path].filter(Boolean).join(' '),
   ),
 );
 const hasLayoutSearchResults = computed(
@@ -301,11 +297,20 @@ function normalizeLayoutItems(
     return {
       children: normalizeLayoutItems(item.children || [], key),
       enable: item.enable !== false,
+      icon: item.icon,
       key,
       label: item.label || '未命名分组',
       path,
     };
   });
+}
+
+function getLayoutItemIcon(item: TenantCustomMenuItem) {
+  if (item.icon) return item.icon;
+  const source = flattenMenuSources(menuSources.value).find(
+    (candidate) => candidate.path === item.path,
+  );
+  return source?.icon || '';
 }
 
 async function loadPage() {
@@ -569,9 +574,7 @@ function getTreeNodeKey(node: any) {
   return key == null ? undefined : String(key);
 }
 
-function getLayoutDropModeFromPointer(
-  event: DragEvent,
-): LayoutDropMode {
+function getLayoutDropModeFromPointer(event: DragEvent): LayoutDropMode {
   const pointerTarget = event.target as HTMLElement | null;
   if (pointerTarget?.closest('.layout-menu-label-drop-zone')) {
     return 'child';
@@ -664,7 +667,11 @@ function findLayoutParentKey(
       return parentKey;
     }
 
-    const foundParentKey = findLayoutParentKey(item.children || [], key, item.key);
+    const foundParentKey = findLayoutParentKey(
+      item.children || [],
+      key,
+      item.key,
+    );
     if (foundParentKey) {
       return foundParentKey;
     }
@@ -678,9 +685,7 @@ function appendSourceAtTarget(
 ) {
   const sourceItem = createLayoutItemForTarget(source, targetKey);
   if (!sourceItem.path) {
-    message.warning(
-      '该菜单没有路由路径',
-    );
+    message.warning('该菜单没有路由路径');
     return false;
   }
   const destinationKey =
@@ -873,13 +878,15 @@ function removeCheckedLayoutItems() {
 }
 
 function getLayoutTreeItem(dataRef: DataNode) {
-  return (dataRef.dataRef as TenantCustomMenuItem | undefined) ||
-    (dataRef as TenantCustomMenuItem);
+  return (
+    (dataRef.dataRef as TenantCustomMenuItem | undefined) ||
+    (dataRef as TenantCustomMenuItem)
+  );
 }
 
 function updateLayoutItem(
   dataRef: DataNode,
-  field: 'enable' | 'label',
+  field: 'enable' | 'icon' | 'label',
   value: boolean | string,
 ) {
   const item = getLayoutTreeItem(dataRef);
@@ -896,23 +903,13 @@ function updateLayoutItem(
     message.warning('同一节点下不能存在同名菜单');
     return;
   }
-  if (
-    !updateLayoutItemValue(
-      layoutItems.value,
-      item.key,
-      field,
-      value,
-    )
-  ) {
+  if (!updateLayoutItemValue(layoutItems.value, item.key, field, value)) {
     return;
   }
   layoutItems.value = cloneLayoutItems(layoutItems.value);
 }
 
-function moveLayoutItemByKey(
-  key: string,
-  direction: 'down' | 'up',
-) {
+function moveLayoutItemByKey(key: string, direction: 'down' | 'up') {
   if (moveLayoutItem(layoutItems.value, key, direction)) {
     layoutItems.value = cloneLayoutItems(layoutItems.value);
   }
@@ -942,7 +939,9 @@ function handleLayoutDrop(info: any) {
   }
 
   const movedAsChild = dropMode ? dropMode === 'child' : !info.dropToGap;
-  const moveAfter = dropMode ? dropMode === 'after' : Number(info.dropPosition) > 0;
+  const moveAfter = dropMode
+    ? dropMode === 'after'
+    : Number(info.dropPosition) > 0;
   const destinationKey = movedAsChild
     ? targetKey
     : findLayoutParentKey(layoutItems.value, targetKey) || MY_MENU_ROOT_KEY;
@@ -969,21 +968,14 @@ function handleLayoutDrop(info: any) {
 
   const success =
     targetKey === MY_MENU_ROOT_KEY
-      ? (
-          (dropMode === 'before' ||
-            (info.dropToGap && Number(info.dropPosition) < 0)
-            ? next.unshift(moved)
-            : next.push(moved)),
-          true
-        )
+      ? (dropMode === 'before' ||
+        (info.dropToGap && Number(info.dropPosition) < 0)
+          ? next.unshift(moved)
+          : next.push(moved),
+        true)
       : movedAsChild
-    ? appendLayoutItem(next, targetKey, moved)
-    : insertLayoutItemBeside(
-        next,
-        targetKey,
-        moved,
-        moveAfter,
-      );
+        ? appendLayoutItem(next, targetKey, moved)
+        : insertLayoutItemBeside(next, targetKey, moved, moveAfter);
 
   if (success) {
     layoutItems.value = next;
@@ -1133,365 +1125,372 @@ function closeLayoutAdjuster() {
     @cancel="closeLayoutAdjuster"
   >
     <Page auto-content-height content-class="flex min-h-0 flex-col gap-4">
-    <Card :bordered="false" size="small">
-      <div class="flex flex-wrap items-center gap-3">
-        <span class="text-muted-foreground">{{ currentLayout?.name }}</span>
-        <div class="flex-1" />
-        <Button
-          v-if="canUpdate"
-          :disabled="!hasCurrentLayout"
-          :loading="saving"
-          type="primary"
-          @click="saveLayout"
-        >
-          保存
-        </Button>
-      </div>
-    </Card>
-
-    <Spin :spinning="loading" class="min-h-0 flex-1">
-      <div
-        class="grid h-[calc(80vh-230px)] min-h-[320px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]"
-      >
-        <Card
-          :body-style="{ height: 'calc(80vh - 300px)', overflowY: 'auto' }"
-          :bordered="false"
-          class="min-h-0"
-        >
-          <template #title>
-            <div class="flex w-full items-center gap-2">
-              <span>系统菜单</span>
-              <Input
-                v-model:value="sourceSearchText"
-                allow-clear
-                class="w-48"
-                placeholder="搜索菜单"
-              />
-              <div class="flex-1" />
-              <Button
-                size="small"
-                @click="toggleAllSourceMenuChecks"
-              >
-                {{ hasSelectedSourceMenus ? '清空选中' : '全部选中' }}
-              </Button>
-            </div>
-          </template>
-          <Tree
-            v-if="filteredSourceTreeData.length"
-            checkable
-            class="min-h-0"
-            default-expand-all
-            :checked-keys="selectedSourceKeys"
-            :expanded-keys="
-              sourceSearchText.trim() ? sourceSearchExpandedKeys : undefined
-            "
-            :tree-data="filteredSourceTreeData"
-            @check="handleSourceCheck"
+      <Card :bordered="false" size="small">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="text-muted-foreground">{{ currentLayout?.name }}</span>
+          <div class="flex-1" />
+          <Button
+            v-if="canUpdate"
+            :disabled="!hasCurrentLayout"
+            :loading="saving"
+            type="primary"
+            @click="saveLayout"
           >
-            <template #title="{ dataRef }">
-              <Tooltip
-                :title="
-                  sourceAddActionHoverKey === dataRef.key
-                    ? undefined
-                    : '可拖到我的菜单'
-                "
-              >
-                <div
-                  class="group relative flex h-9 w-full min-w-0 items-center gap-2 py-1 pr-9"
-                  :class="
-                    isAdjusting ? 'cursor-grab active:cursor-grabbing' : undefined
-                  "
-                  :draggable="isAdjusting"
-                  @click="toggleSourceMenuCheck(dataRef)"
-                  @dragend="clearLayoutDropTarget"
-                  @dragstart="(event) => handleSourceDragStart(event, dataRef)"
-                >
-                  <IconifyIcon
-                    v-if="isAdjusting"
-                    class="text-muted-foreground size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                    icon="lucide:grip-vertical"
-                  />
-                  <IconifyIcon
-                    class="text-muted-foreground size-4 shrink-0"
-                    :icon="dataRef.icon || 'lucide:panel-right-open'"
-                  />
-                  <span class="block min-w-0 flex-1 truncate">
-                    {{ dataRef.title }}
-                  </span>
-                  <Tooltip title="点击添加到右侧选中的节点">
-                    <Button
-                      class="absolute right-1 top-1/2 hidden !size-7 shrink-0 -translate-y-1/2 items-center justify-center !p-0 group-hover:inline-flex"
-                      size="small"
-                      type="text"
-                      @mouseenter="sourceAddActionHoverKey = dataRef.key"
-                      @mouseleave="sourceAddActionHoverKey = undefined"
-                      @mousedown.stop
-                      @click.stop="addMenu(dataRef)"
-                    >
-                      <IconifyIcon class="size-4" icon="lucide:arrow-right" />
-                    </Button>
-                  </Tooltip>
-                </div>
-              </Tooltip>
-            </template>
-          </Tree>
-          <Empty
-            v-else
-            :description="
-              sourceSearchText.trim() ? '未找到匹配菜单' : '暂无可用菜单'
-            "
-          />
-        </Card>
-
-        <div class="flex items-center justify-center">
-          <Tooltip title="添加选中的系统菜单到右侧选中节点">
-            <Button
-              aria-label="添加选中的系统菜单"
-              :disabled="!hasSelectedSourceMenus"
-              shape="circle"
-              type="primary"
-              @click="addSelectedMenus"
-            >
-              <IconifyIcon class="size-4" icon="lucide:arrow-right" />
-            </Button>
-          </Tooltip>
+            保存
+          </Button>
         </div>
+      </Card>
 
-        <Card
-          :body-style="{ height: 'calc(80vh - 300px)', overflowY: 'auto' }"
-          :bordered="false"
-          class="min-h-0"
+      <Spin :spinning="loading" class="min-h-0 flex-1">
+        <div
+          class="grid h-[calc(80vh-230px)] min-h-[320px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]"
         >
-          <template #title>
-            <div class="flex w-full items-center gap-2">
-              <span>我的菜单</span>
-              <Input
-                v-model:value="layoutSearchText"
-                allow-clear
-                class="w-48"
-                placeholder="搜索菜单"
-              />
-              <div class="flex-1" />
-              <Button
-                size="small"
-                @click="toggleAllLayoutItemChecks"
-              >
-                {{ hasCheckedLayoutItems ? '清空选中' : '全部选中' }}
-              </Button>
-              <Button
-                danger
-                :disabled="!hasCheckedLayoutItems"
-                size="small"
-                @click="removeCheckedLayoutItems"
-              >
-                删除选中
-              </Button>
-            </div>
-          </template>
-          <Empty
-            v-if="!hasCurrentLayout"
-            description="请先新增一个菜单展示布局"
-          />
-          <Empty
-            v-else-if="layoutSearchText.trim() && !hasLayoutSearchResults"
-            description="未找到匹配菜单"
-          />
-          <Tree
-            v-else
-            checkable
-            class="-ml-2 -mt-2 min-h-0"
-            :checked-keys="checkedLayoutKeys"
-            :draggable="layoutTreeDraggable"
-            :expanded-keys="visibleLayoutExpandedKeys"
-            :selected-keys="selectedItemKey ? [selectedItemKey] : []"
-            :tree-data="layoutTreeData"
-            @dragend="clearLayoutDropTarget"
-            @dragenter="handleLayoutDragEnter"
-            @dragstart="handleLayoutDragStart"
-            @drop="handleLayoutDrop"
-            @expand="handleLayoutExpand"
-            @check="handleLayoutCheck"
-            @select="(keys: string[]) => (selectedItemKey = keys[0])"
+          <Card
+            :body-style="{ height: 'calc(80vh - 300px)', overflowY: 'auto' }"
+            :bordered="false"
+            class="min-h-0"
           >
-            <template #title="{ dataRef }">
-              <div
-                class="relative flex min-w-0 flex-wrap items-center gap-2 rounded border border-transparent px-1 py-1"
-                @click.stop="toggleLayoutItemCheck(dataRef)"
-                @dragenter="
-                  (event) => updateLayoutDropTargetFromPointer(event, dataRef.key)
-                "
-                @dragover="
-                  (event) => updateLayoutDropTargetFromPointer(event, dataRef.key)
-                "
-                @drop="(event) => handleLayoutSourceDrop(event, dataRef.key)"
-                @mouseenter="hoveredLayoutKey = dataRef.key"
-                @mouseleave="hoveredLayoutKey = undefined"
-              >
-                <span
-                  v-if="isActiveLayoutDropTarget(dataRef.key, 'before')"
-                  class="pointer-events-none absolute -top-1 left-0 right-0 z-10 h-0.5 bg-primary"
+            <template #title>
+              <div class="flex w-full items-center gap-2">
+                <span>系统菜单</span>
+                <Input
+                  v-model:value="sourceSearchText"
+                  allow-clear
+                  class="w-48"
+                  placeholder="搜索菜单"
                 />
-                <span
-                  v-if="isActiveLayoutDropTarget(dataRef.key, 'after')"
-                  class="pointer-events-none absolute -bottom-1 left-0 right-0 z-10 h-0.5 bg-primary"
-                />
-                <span
-                  v-if="dataRef.key === MY_MENU_ROOT_KEY"
-                  class="min-w-28 flex-1"
-                >
-                  菜单列表
-                </span>
-                <template v-else>
-                  <IconifyIcon
-                    v-if="isAdjusting"
-                    class="text-muted-foreground size-3.5 shrink-0 cursor-grab active:cursor-grabbing"
-                    icon="lucide:grip-vertical"
-                  />
-                  <div
-                    class="layout-menu-label-drop-zone relative min-w-28 flex-1"
-                  >
-                    <Tooltip :title="getLayoutTreeItem(dataRef).path || undefined">
-                      <Input
-                        :class="
-                          isActiveLayoutDropTarget(dataRef.key, 'child')
-                            ? '!border-primary'
-                            : undefined
-                        "
-                        class="layout-menu-label-input w-full"
-                        :value="getLayoutTreeItem(dataRef).label"
-                        @click.stop="selectedItemKey = dataRef.key"
-                        @mousedown.stop
-                        @update:value="
-                          (value) => updateLayoutItem(dataRef, 'label', value)
-                        "
-                      />
-                    </Tooltip>
-                  </div>
-                  <Switch
-                    :checked="getLayoutTreeItem(dataRef).enable !== false"
-                    checked-children="启用"
-                    @click.stop
-                    @mousedown.stop
-                    @update:checked="
-                      (value) => updateLayoutItem(dataRef, 'enable', value)
-                    "
-                  />
-                </template>
-                <template
-                  v-if="
-                    hoveredLayoutKey === dataRef.key ||
-                    deleteConfirmKey === dataRef.key ||
-                    isActiveLayoutDropTarget(dataRef.key, 'child')
-                  "
-                >
-                  <template v-if="dataRef.key !== MY_MENU_ROOT_KEY">
-                    <Tooltip title="上移">
-                      <Button
-                        :disabled="
-                          !canMoveLayoutItem(
-                            layoutItems,
-                            dataRef.key,
-                            'up',
-                          )
-                        "
-                        size="small"
-                        @click.stop="moveLayoutItemByKey(dataRef.key, 'up')"
-                      >
-                        <IconifyIcon class="size-3.5" icon="lucide:arrow-up" />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip title="下移">
-                      <Button
-                        :disabled="
-                          !canMoveLayoutItem(
-                            layoutItems,
-                            dataRef.key,
-                            'down',
-                          )
-                        "
-                        size="small"
-                        @click.stop="moveLayoutItemByKey(dataRef.key, 'down')"
-                      >
-                        <IconifyIcon
-                          class="size-3.5"
-                          icon="lucide:arrow-down"
-                        />
-                      </Button>
-                    </Tooltip>
-                    <Popconfirm
-                      title="确认删除当前菜单及其子菜单？"
-                      @confirm="removeLayoutItemByKey(dataRef.key)"
-                      @open-change="
-                        (open) =>
-                          handleDeleteConfirmOpenChange(dataRef.key, open)
-                      "
-                    >
-                      <Tooltip title="删除菜单">
-                        <Button danger size="small" @click.stop>
-                          －
-                        </Button>
-                      </Tooltip>
-                    </Popconfirm>
-                  </template>
-                  <template v-if="shouldShowAddChildMenuAction(dataRef.key)">
-                    <Tooltip title="新增子菜单">
-                      <Button
-                        :class="
-                          isActiveLayoutDropTarget(dataRef.key, 'child')
-                            ? '!border-primary text-primary'
-                            : undefined
-                        "
-                        size="small"
-                        @click.stop="addChildLayoutItem(dataRef)"
-                      >
-                        ＋
-                      </Button>
-                    </Tooltip>
-                  </template>
-                </template>
+                <div class="flex-1" />
+                <Button size="small" @click="toggleAllSourceMenuChecks">
+                  {{ hasSelectedSourceMenus ? '清空选中' : '全部选中' }}
+                </Button>
               </div>
             </template>
-          </Tree>
-        </Card>
+            <Tree
+              v-if="filteredSourceTreeData.length"
+              checkable
+              class="min-h-0"
+              default-expand-all
+              :checked-keys="selectedSourceKeys"
+              :expanded-keys="
+                sourceSearchText.trim() ? sourceSearchExpandedKeys : undefined
+              "
+              :tree-data="filteredSourceTreeData"
+              @check="handleSourceCheck"
+            >
+              <template #title="{ dataRef }">
+                <Tooltip
+                  :title="
+                    sourceAddActionHoverKey === dataRef.key
+                      ? undefined
+                      : '可拖到我的菜单'
+                  "
+                >
+                  <div
+                    class="group relative flex h-9 w-full min-w-0 items-center gap-2 py-1 pr-9"
+                    :class="
+                      isAdjusting
+                        ? 'cursor-grab active:cursor-grabbing'
+                        : undefined
+                    "
+                    :draggable="isAdjusting"
+                    @click="toggleSourceMenuCheck(dataRef)"
+                    @dragend="clearLayoutDropTarget"
+                    @dragstart="
+                      (event) => handleSourceDragStart(event, dataRef)
+                    "
+                  >
+                    <IconifyIcon
+                      v-if="isAdjusting"
+                      class="text-muted-foreground size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                      icon="lucide:grip-vertical"
+                    />
+                    <IconifyIcon
+                      class="text-muted-foreground size-4 shrink-0"
+                      :icon="dataRef.icon || 'lucide:panel-right-open'"
+                    />
+                    <span class="block min-w-0 flex-1 truncate">
+                      {{ dataRef.title }}
+                    </span>
+                    <Tooltip title="点击添加到右侧选中的节点">
+                      <Button
+                        class="absolute right-1 top-1/2 hidden !size-7 shrink-0 -translate-y-1/2 items-center justify-center !p-0 group-hover:inline-flex"
+                        size="small"
+                        type="text"
+                        @mouseenter="sourceAddActionHoverKey = dataRef.key"
+                        @mouseleave="sourceAddActionHoverKey = undefined"
+                        @mousedown.stop
+                        @click.stop="addMenu(dataRef)"
+                      >
+                        <IconifyIcon class="size-4" icon="lucide:arrow-right" />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                </Tooltip>
+              </template>
+            </Tree>
+            <Empty
+              v-else
+              :description="
+                sourceSearchText.trim() ? '未找到匹配菜单' : '暂无可用菜单'
+              "
+            />
+          </Card>
 
-      </div>
-    </Spin>
+          <div class="flex items-center justify-center">
+            <Tooltip title="添加选中的系统菜单到右侧选中节点">
+              <Button
+                aria-label="添加选中的系统菜单"
+                :disabled="!hasSelectedSourceMenus"
+                shape="circle"
+                type="primary"
+                @click="addSelectedMenus"
+              >
+                <IconifyIcon class="size-4" icon="lucide:arrow-right" />
+              </Button>
+            </Tooltip>
+          </div>
 
-    <Modal
-      v-model:open="newLayoutOpen"
-      :mask-closable="false"
-      :confirm-loading="saving"
-      title="新增菜单展示布局"
-      @ok="createLayout"
-    >
-      <Form layout="vertical">
-        <Form.Item label="布局名称" required>
-          <Input
-            v-model:value="newLayoutForm.name"
-            placeholder="例如：默认后台布局"
-          />
-        </Form.Item>
-        <Form.Item label="排序代码">
-          <InputNumber v-model:value="newLayoutForm.orderCode" class="w-full" />
-        </Form.Item>
-      </Form>
-    </Modal>
+          <Card
+            :body-style="{ height: 'calc(80vh - 300px)', overflowY: 'auto' }"
+            :bordered="false"
+            class="min-h-0"
+          >
+            <template #title>
+              <div class="flex w-full items-center gap-2">
+                <span>我的菜单</span>
+                <Input
+                  v-model:value="layoutSearchText"
+                  allow-clear
+                  class="w-48"
+                  placeholder="搜索菜单"
+                />
+                <div class="flex-1" />
+                <Button size="small" @click="toggleAllLayoutItemChecks">
+                  {{ hasCheckedLayoutItems ? '清空选中' : '全部选中' }}
+                </Button>
+                <Button
+                  danger
+                  :disabled="!hasCheckedLayoutItems"
+                  size="small"
+                  @click="removeCheckedLayoutItems"
+                >
+                  删除选中
+                </Button>
+              </div>
+            </template>
+            <Empty
+              v-if="!hasCurrentLayout"
+              description="请先新增一个菜单展示布局"
+            />
+            <Empty
+              v-else-if="layoutSearchText.trim() && !hasLayoutSearchResults"
+              description="未找到匹配菜单"
+            />
+            <Tree
+              v-else
+              checkable
+              class="-ml-2 -mt-2 min-h-0"
+              :checked-keys="checkedLayoutKeys"
+              :draggable="layoutTreeDraggable"
+              :expanded-keys="visibleLayoutExpandedKeys"
+              :selected-keys="selectedItemKey ? [selectedItemKey] : []"
+              :tree-data="layoutTreeData"
+              @dragend="clearLayoutDropTarget"
+              @dragenter="handleLayoutDragEnter"
+              @dragstart="handleLayoutDragStart"
+              @drop="handleLayoutDrop"
+              @expand="handleLayoutExpand"
+              @check="handleLayoutCheck"
+              @select="(keys: string[]) => (selectedItemKey = keys[0])"
+            >
+              <template #title="{ dataRef }">
+                <div
+                  class="relative flex min-w-0 flex-wrap items-center gap-2 rounded border border-transparent px-1 py-1"
+                  @click.stop="toggleLayoutItemCheck(dataRef)"
+                  @dragenter="
+                    (event) =>
+                      updateLayoutDropTargetFromPointer(event, dataRef.key)
+                  "
+                  @dragover="
+                    (event) =>
+                      updateLayoutDropTargetFromPointer(event, dataRef.key)
+                  "
+                  @drop="(event) => handleLayoutSourceDrop(event, dataRef.key)"
+                  @mouseenter="hoveredLayoutKey = dataRef.key"
+                  @mouseleave="hoveredLayoutKey = undefined"
+                >
+                  <span
+                    v-if="isActiveLayoutDropTarget(dataRef.key, 'before')"
+                    class="bg-primary pointer-events-none absolute -top-1 left-0 right-0 z-10 h-0.5"
+                  />
+                  <span
+                    v-if="isActiveLayoutDropTarget(dataRef.key, 'after')"
+                    class="bg-primary pointer-events-none absolute -bottom-1 left-0 right-0 z-10 h-0.5"
+                  />
+                  <span
+                    v-if="dataRef.key === MY_MENU_ROOT_KEY"
+                    class="min-w-28 flex-1"
+                  >
+                    菜单列表
+                  </span>
+                  <template v-else>
+                    <IconifyIcon
+                      v-if="isAdjusting"
+                      class="text-muted-foreground size-3.5 shrink-0 cursor-grab active:cursor-grabbing"
+                      icon="lucide:grip-vertical"
+                    />
+                    <div
+                      class="layout-menu-label-drop-zone relative min-w-28 flex-1"
+                    >
+                      <Tooltip
+                        :title="getLayoutTreeItem(dataRef).path || undefined"
+                      >
+                        <Input
+                          :class="
+                            isActiveLayoutDropTarget(dataRef.key, 'child')
+                              ? '!border-primary'
+                              : undefined
+                          "
+                          class="layout-menu-label-input w-full"
+                          :value="getLayoutTreeItem(dataRef).label"
+                          @click.stop="selectedItemKey = dataRef.key"
+                          @mousedown.stop
+                          @update:value="
+                            (value) => updateLayoutItem(dataRef, 'label', value)
+                          "
+                        />
+                      </Tooltip>
+                    </div>
+                    <div class="w-48 shrink-0" @click.stop @mousedown.stop>
+                      <MenuIconPicker
+                        :model-value="
+                          getLayoutItemIcon(getLayoutTreeItem(dataRef))
+                        "
+                        @update:model-value="
+                          (value) => updateLayoutItem(dataRef, 'icon', value)
+                        "
+                      />
+                    </div>
+                    <Switch
+                      :checked="getLayoutTreeItem(dataRef).enable !== false"
+                      checked-children="启用"
+                      @click.stop
+                      @mousedown.stop
+                      @update:checked="
+                        (value) => updateLayoutItem(dataRef, 'enable', value)
+                      "
+                    />
+                  </template>
+                  <template
+                    v-if="
+                      hoveredLayoutKey === dataRef.key ||
+                      deleteConfirmKey === dataRef.key ||
+                      isActiveLayoutDropTarget(dataRef.key, 'child')
+                    "
+                  >
+                    <template v-if="dataRef.key !== MY_MENU_ROOT_KEY">
+                      <Tooltip title="上移">
+                        <Button
+                          :disabled="
+                            !canMoveLayoutItem(layoutItems, dataRef.key, 'up')
+                          "
+                          size="small"
+                          @click.stop="moveLayoutItemByKey(dataRef.key, 'up')"
+                        >
+                          <IconifyIcon
+                            class="size-3.5"
+                            icon="lucide:arrow-up"
+                          />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="下移">
+                        <Button
+                          :disabled="
+                            !canMoveLayoutItem(layoutItems, dataRef.key, 'down')
+                          "
+                          size="small"
+                          @click.stop="moveLayoutItemByKey(dataRef.key, 'down')"
+                        >
+                          <IconifyIcon
+                            class="size-3.5"
+                            icon="lucide:arrow-down"
+                          />
+                        </Button>
+                      </Tooltip>
+                      <Popconfirm
+                        title="确认删除当前菜单及其子菜单？"
+                        @confirm="removeLayoutItemByKey(dataRef.key)"
+                        @open-change="
+                          (open) =>
+                            handleDeleteConfirmOpenChange(dataRef.key, open)
+                        "
+                      >
+                        <Tooltip title="删除菜单">
+                          <Button danger size="small" @click.stop> － </Button>
+                        </Tooltip>
+                      </Popconfirm>
+                    </template>
+                    <template v-if="shouldShowAddChildMenuAction(dataRef.key)">
+                      <Tooltip title="新增子菜单">
+                        <Button
+                          :class="
+                            isActiveLayoutDropTarget(dataRef.key, 'child')
+                              ? '!border-primary text-primary'
+                              : undefined
+                          "
+                          size="small"
+                          @click.stop="addChildLayoutItem(dataRef)"
+                        >
+                          ＋
+                        </Button>
+                      </Tooltip>
+                    </template>
+                  </template>
+                </div>
+              </template>
+            </Tree>
+          </Card>
+        </div>
+      </Spin>
 
-    <Modal
-      v-model:open="newGroupOpen"
-      :mask-closable="false"
-      title="新增展示分组"
-      @ok="addGroup"
-    >
-      <Form layout="vertical">
-        <Form.Item label="分组名称" required>
-          <Input
-            v-model:value="newGroupForm.label"
-            placeholder="例如：视频号"
-          />
-        </Form.Item>
-      </Form>
-    </Modal>
+      <Modal
+        v-model:open="newLayoutOpen"
+        :mask-closable="false"
+        :confirm-loading="saving"
+        title="新增菜单展示布局"
+        @ok="createLayout"
+      >
+        <Form layout="vertical">
+          <Form.Item label="布局名称" required>
+            <Input
+              v-model:value="newLayoutForm.name"
+              placeholder="例如：默认后台布局"
+            />
+          </Form.Item>
+          <Form.Item label="排序代码">
+            <InputNumber
+              v-model:value="newLayoutForm.orderCode"
+              class="w-full"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        v-model:open="newGroupOpen"
+        :mask-closable="false"
+        title="新增展示分组"
+        @ok="addGroup"
+      >
+        <Form layout="vertical">
+          <Form.Item label="分组名称" required>
+            <Input
+              v-model:value="newGroupForm.label"
+              placeholder="例如：视频号"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Page>
   </Modal>
 </template>

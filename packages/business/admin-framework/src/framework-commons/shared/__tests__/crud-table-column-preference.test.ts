@@ -6,8 +6,24 @@ import {
   readTableColumnPreference,
   TABLE_COLUMN_PREFERENCE_VERSION,
 } from '../crud-table-column-preference';
+import { normalizeLeftFixedTableColumns } from '../crud-table-columns';
 
 describe('crud table column preference', () => {
+  it('keeps every left and right fixed column in its fixed group', () => {
+    expect(
+      normalizeLeftFixedTableColumns(
+        [
+          { fixed: 'left', key: '__tenant' },
+          { fixed: 'left', key: 'orgName' },
+          { fixed: undefined, key: 'name' },
+          { fixed: 'right', key: '__actions' },
+        ],
+        (field) => field.fixed,
+        (field) => field.key,
+      ),
+    ).toEqual({ __actions: 'right', __tenant: 'left', orgName: 'left' });
+  });
+
   it('persists hidden columns and local column order', () => {
     expect(buildTableColumnPreference(['tenantType'], ['tenantName'])).toEqual({
       hiddenKeys: ['tenantType'],

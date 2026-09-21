@@ -7,5 +7,3 @@
 
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。
 </INSTRUCTIONS>
-
-- [页面展示设置加载、上传与标题记录信息](docs/page-display-setting-record.md)

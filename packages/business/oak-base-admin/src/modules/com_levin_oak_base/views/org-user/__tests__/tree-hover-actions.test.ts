@@ -39,7 +39,7 @@ describe('组织与用户页面组织树', () => {
       /\.user-org-tree-actions\s*\{[^}]*position:\s*absolute;[^}]*top:\s*50%;[^}]*right:\s*2px;[^}]*background:\s*hsl\(var\(--popover\)\);/s,
     );
     expect(source).toMatch(
-      /\.user-org-sidebar\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*3;[^}]*overflow:\s*visible;/s,
+      /\.user-org-sidebar\s*\{[^}]*overflow:\s*hidden;[^}]*position:\s*relative;[^}]*z-index:\s*3;/s,
     );
     expect(source).toMatch(
       /\.user-org-main\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*1;/s,
@@ -70,5 +70,26 @@ describe('组织与用户页面组织树', () => {
     // 详情、删除与保存操作均把节点租户交给后端继续执行一致性校验。
     expect(source).toContain('tenantId: getOrgTenantId(id),');
     expect(source).toContain('tenantId: orgFormState.tenantId || undefined,');
+  });
+
+  it('仅为平台用户新增根级组织提供必填租户选择', () => {
+    const source = readFileSync(pagePath, 'utf8');
+
+    expect(source).toContain("message.warning('请选择归属租户')");
+    expect(source).toContain(
+      "orgModalMode === 'create' && isPlatformUser && !orgFormState.parentId",
+    );
+    expect(source).toContain('v-model:value="orgFormState.tenantId"');
+  });
+
+  it('将长组织树限制在侧栏内部滚动', () => {
+    const source = readFileSync(pagePath, 'utf8');
+
+    expect(source).toContain('.user-org-sidebar {\n  height: 100%;');
+    expect(source).toContain('class="user-org-tree-scroll"');
+    expect(source).toContain('.user-org-tree-scroll {');
+    expect(source).toContain('overflow-y: scroll !important;');
+    expect(source).toContain('overflow-x: hidden !important;');
+    expect(source).toContain('scrollbar-gutter: stable;');
   });
 });

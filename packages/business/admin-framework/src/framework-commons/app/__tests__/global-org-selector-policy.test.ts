@@ -20,10 +20,8 @@ vi.mock('../../shared/user-org-selector.vue', () => ({
     name: 'UserOrgSelector',
     props: [
       'allowClear',
-      'allowSelectOrg',
-      'allowSelectUser',
       'maxSelectCount',
-      'mode',
+      'selectableTypes',
       'multiple',
       'orgTypes',
       'userApiModuleBase',
@@ -131,8 +129,7 @@ describe('global org selector policy', () => {
   });
   it('forwards server candidate restrictions without widening them', () => {
     state.runtime.valueContent = {
-      allowSelectOrg: false,
-      allowSelectUser: true,
+      selectableTypes: ['user'],
       orgTypes: ['总部'],
       userApiModuleBase: '/com.example/V1/api',
       userTypes: ['员工'],
@@ -140,19 +137,16 @@ describe('global org selector policy', () => {
     const selector = mount(GlobalOrgSelector).findComponent({
       name: 'UserOrgSelector',
     });
-    expect(selector.props('allowSelectOrg')).toBe(false);
-    expect(selector.props('allowSelectUser')).toBe(true);
+    expect(selector.props('selectableTypes')).toEqual(['user']);
     expect(selector.props('orgTypes')).toEqual(['总部']);
     expect(selector.props('userApiModuleBase')).toBe('/com.example/V1/api');
     expect(selector.props('userTypes')).toEqual(['员工']);
   });
-  it('未配置选择限制时显式保留组织和用户双选默认值', () => {
+  it('未配置选择限制时显式保留组织和用户可选默认值', () => {
     const selector = mount(GlobalOrgSelector).findComponent({
       name: 'UserOrgSelector',
     });
-    expect(selector.props('allowSelectOrg')).toBe(true);
-    expect(selector.props('allowSelectUser')).toBe(true);
-    expect(selector.props('mode')).toBe('both');
+    expect(selector.props('selectableTypes')).toEqual(['org', 'user']);
   });
   it('只在多选时应用服务端最大选择数量', () => {
     state.runtime.valueContent = { maxSelectCount: 3, multiple: true };

@@ -7,13 +7,13 @@ import {
 } from '../crud-select-options';
 
 describe('crud select options', () => {
-  it('reloads default options when a remote-search dropdown opens', () => {
+  it('loads backend options only when the dropdown opens', () => {
     expect(
       shouldReloadRemoteOptionsOnDropdownOpen({
         key: 'roleList',
         label: '角色列表',
         loadOptions: async () => [],
-        remoteSearch: true,
+        remoteSearch: false,
       }),
     ).toBe(true);
   });

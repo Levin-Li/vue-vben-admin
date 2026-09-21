@@ -147,6 +147,23 @@ describe('数据权限列表管理', () => {
     wrapper.unmount();
   });
 
+  it('为角色和用户的全部允许与拒绝范围提供图标化编辑入口', async () => {
+    for (const subjectType of ['role', 'user'] as const) {
+      const wrapper = await openDialog(subjectType);
+      const editButtons = wrapper
+        .findAll('button')
+        .filter((button) => button.attributes('aria-label')?.startsWith('编辑'));
+
+      expect(editButtons).toHaveLength(6);
+      await editButtons[0]?.trigger('click');
+      await flushPromises();
+      expect(
+        wrapper.findAll('button').some((button) => button.text() === '保存'),
+      ).toBe(true);
+      wrapper.unmount();
+    }
+  });
+
   it('角色不显示不设置控件', async () => {
     const wrapper = await openDialog('role');
     expect(wrapper.text()).not.toContain('不设置');

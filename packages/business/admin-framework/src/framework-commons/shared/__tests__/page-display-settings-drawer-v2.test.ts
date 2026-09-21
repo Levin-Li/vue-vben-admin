@@ -635,6 +635,89 @@ describe('界面UI设置2', () => {
     }
   });
 
+  it('展示列表字段可保存左固定、不固定和右固定位置', async () => {
+    const wrapper = mountEditor();
+    try {
+      await clickTab('展示列表');
+      fieldRow('field_0').click();
+      await flushPromises();
+      expect(document.body.textContent).toContain('列固定位置');
+
+      wrapper
+        .findComponent(PropertyPanel)
+        .vm.$emit('patch', { fixed: 'right' });
+      upload();
+      await flushPromises();
+      const payload = wrapper.emitted('save')?.at(-1)?.[0] as {
+        config: CrudPageDisplayConfig;
+      };
+      expect(payload.config.list?.headers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ fixed: 'right', key: 'field_0' }),
+        ]),
+      );
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('展示列表字段可关闭排序并保存到展示配置', async () => {
+    const wrapper = mountEditor();
+    try {
+      await clickTab('展示列表');
+      fieldRow('field_0').click();
+      await flushPromises();
+      expect(document.body.textContent).toContain('是否可排序');
+
+      wrapper.findComponent(PropertyPanel).vm.$emit('patch', {
+        sortable: false,
+      });
+      upload();
+      await flushPromises();
+      const payload = wrapper.emitted('save')?.at(-1)?.[0] as {
+        config: CrudPageDisplayConfig;
+      };
+      expect(payload.config.list?.headers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ key: 'field_0', sortable: false }),
+        ]),
+      );
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('虚拟字段始终显示为不可排序', async () => {
+    const wrapper = mountEditor();
+    try {
+      await clickTab('展示列表');
+      const addVirtualField = [
+        ...document.body.querySelectorAll<HTMLButtonElement>('button'),
+      ].find((button) => button.textContent?.includes('添加虚拟字段'));
+      if (!addVirtualField) throw new Error('缺少添加虚拟字段入口');
+      addVirtualField.click();
+      await flushPromises();
+
+      const virtualField = document.querySelector<HTMLElement>(
+        '[data-test="page-display-v2-field-row"][data-field-key^="virtual_"]',
+      );
+      if (!virtualField) throw new Error('缺少虚拟字段');
+      virtualField.click();
+      await flushPromises();
+
+      expect(
+        document.body
+          .querySelector('[aria-label="是否可排序"]')
+          ?.getAttribute('disabled'),
+      ).not.toBeNull();
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
   it('支持上下排序、跨组拖拽以及调整分组', async () => {
     const wrapper = mountEditor();
     try {

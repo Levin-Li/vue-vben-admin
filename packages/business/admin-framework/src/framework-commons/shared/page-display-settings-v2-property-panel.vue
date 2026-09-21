@@ -109,11 +109,35 @@ const overflowOptions = [
   { label: '截断', value: 'ellipsis' },
   { label: '换行', value: 'wrap' },
 ];
+const fixedPositionOptions = [
+  { label: '靠左', value: 'left' },
+  { label: '不固定', value: 'none' },
+  { label: '靠右', value: 'right' },
+];
 const groupStyleOptions = [
   { label: '默认', value: 'divider' },
   { label: '卡片', value: 'card' },
   { label: '边框', value: 'border' },
 ];
+const columnFixedPosition = computed(() => {
+  if (column.value.fixed) return column.value.fixed;
+  if (props.sourceField?.fixed === true) return 'left';
+  return props.sourceField?.fixed === 'left' ||
+    props.sourceField?.fixed === 'right'
+    ? props.sourceField.fixed
+    : 'none';
+});
+const canConfigureColumnSort = computed(
+  () =>
+    props.kind === 'field' &&
+    props.view === 'list' &&
+    column.value.virtual !== true &&
+    props.sourceField?.key !== '__tenant' &&
+    props.sourceField?.sortable !== false,
+);
+const columnSortable = computed(
+  () => canConfigureColumnSort.value && column.value.sortable !== false,
+);
 const expandedRowsOptions = [
   { label: '展开所有字段', value: 'all' },
   ...Array.from({ length: 10 }, (_, index) => ({
@@ -328,6 +352,26 @@ function scriptLabel(expression?: string) {
             option-type="button"
             aria-label="超宽展示样式"
             @update:value="patchProperty('overflowStrategy', $event)"
+          />
+        </Form.Item>
+        <Form.Item v-if="kind === 'field'" label="列固定位置">
+          <Radio.Group
+            :value="columnFixedPosition"
+            :options="fixedPositionOptions"
+            button-style="solid"
+            option-type="button"
+            aria-label="列固定位置"
+            @update:value="patchProperty('fixed', $event)"
+          />
+        </Form.Item>
+        <Form.Item v-if="kind === 'field'" label="是否可排序">
+          <Switch
+            :checked="columnSortable"
+            :disabled="!canConfigureColumnSort"
+            checked-children="是"
+            un-checked-children="否"
+            aria-label="是否可排序"
+            @update:checked="patchProperty('sortable', $event === true)"
           />
         </Form.Item>
         <Form.Item

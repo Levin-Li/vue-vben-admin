@@ -30,4 +30,15 @@ describe('user page config', () => {
       }),
     );
   });
+
+  it('shows the nested organization name with an organization ID fallback', () => {
+    const orgField = userPageCrudConfig.fields.find(
+      (field) => field.key === 'orgName',
+    );
+
+    expect(orgField?.tableValue?.({ org: { name: '研发中心' }, orgId: 'org-1' })).toBe(
+      '研发中心',
+    );
+    expect(orgField?.tableValue?.({ orgId: 'org-1' })).toBe('org-1');
+  });
 });

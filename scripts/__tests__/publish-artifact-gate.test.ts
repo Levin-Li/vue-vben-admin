@@ -16,6 +16,7 @@ import {
   packWorkspacePackage,
   verifyPageMetadata,
   verifyTarballDependencyProtocols,
+  verifyTarballModuleDevelopmentStandard,
   verifyTarballStandaloneInstall,
   verifyTarballStandaloneViteBuild,
 } from '../publish-artifact-gate.mjs';
@@ -34,7 +35,10 @@ function createTemporaryDirectory() {
   return directory;
 }
 
-function createTarball(manifest: Record<string, unknown>) {
+function createTarball(
+  manifest: Record<string, unknown>,
+  files: Record<string, string> = {},
+) {
   const directory = createTemporaryDirectory();
   const packageDirectory = join(directory, 'package');
   const tarballPath = join(directory, 'package.tgz');
@@ -44,6 +48,14 @@ function createTarball(manifest: Record<string, unknown>) {
     join(packageDirectory, 'package.json'),
     `${JSON.stringify(manifest, null, 2)}\n`,
   );
+
+  // 模拟 npm tarball 中的文档结构，覆盖发布门禁的成功和失败分支。
+  for (const [path, content] of Object.entries(files)) {
+    const filePath = join(packageDirectory, path);
+    mkdirSync(resolve(filePath, '..'), { recursive: true });
+    writeFileSync(filePath, content);
+  }
+
   execFileSync('tar', ['-czf', tarballPath, '-C', directory, 'package']);
 
   return tarballPath;
@@ -117,6 +129,45 @@ describe('publish artifact gate', () => {
       verifyTarballDependencyProtocols(
         { name: '@scope/test-package', dir: createTemporaryDirectory() },
         tarballPath,
+        '本地 tarball',
+      ),
+    ).not.toThrow();
+  });
+
+  it('requires the module development standard and a README reference', () => {
+    const manifest = { name: '@scope/test-package', version: '1.0.0' };
+    const packageInfo = {
+      dir: createTemporaryDirectory(),
+      name: '@scope/test-package',
+    };
+
+    expect(() =>
+      verifyTarballModuleDevelopmentStandard(
+        packageInfo,
+        createTarball(manifest),
+        '本地 tarball',
+      ),
+    ).toThrow('缺少模块使用与二次开发规范');
+
+    expect(() =>
+      verifyTarballModuleDevelopmentStandard(
+        packageInfo,
+        createTarball(manifest, {
+          'README.md': '# 包说明\n',
+          'docs/MODULE-DEVELOPMENT-STANDARD.md': '# 模块规范\n',
+        }),
+        '本地 tarball',
+      ),
+    ).toThrow('README 未引用模块使用规范');
+
+    expect(() =>
+      verifyTarballModuleDevelopmentStandard(
+        packageInfo,
+        createTarball(manifest, {
+          'README.md':
+            '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n',
+          'docs/MODULE-DEVELOPMENT-STANDARD.md': '# 模块规范\n',
+        }),
         '本地 tarball',
       ),
     ).not.toThrow();

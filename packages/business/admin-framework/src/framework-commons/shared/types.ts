@@ -143,6 +143,8 @@ export interface CrudFieldConfig {
   search?: boolean;
   searchOrder?: number;
   searchParamName?: string;
+  /** 后端排序字段；展示字段来自 join 或计算属性时显式声明。 */
+  sortField?: string;
   showEmptyImage?: boolean;
   sortable?: boolean;
   span?: number;
@@ -260,6 +262,10 @@ export interface CrudPageDisplayQueryViewConfig extends CrudPageDisplayGroupedVi
 export interface CrudPageDisplayHeaderConfig extends CrudPageDisplayFieldConfig {
   /** 前端展示专用列，不映射后端实体字段。 */
   virtual?: boolean;
+  /** 列固定位置；缺失时继承页面字段默认，none 用于明确取消默认固定。 */
+  fixed?: 'left' | 'none' | 'right';
+  /** 是否允许表头排序；缺失时继承页面静态字段的排序能力。 */
+  sortable?: boolean;
   maxWidth?: number;
   minWidth?: number;
   overflowStrategy?: 'ellipsis' | 'wrap';
@@ -492,6 +498,8 @@ export interface CrudPageConfig {
   queryPermission?: string | string[];
   rowActions?: CrudRowAction[];
   searchCollapsedCount?: number;
+  /** 当前实体排序字段别名前缀；用于同实体 join 下限定默认排序字段。 */
+  sortFieldPrefix?: string;
   tableName?: string;
   title: string;
   transformSubmit?: (

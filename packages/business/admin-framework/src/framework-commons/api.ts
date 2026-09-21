@@ -40,6 +40,10 @@ const enumInfoCachePromiseMap = new Map<
   string,
   Promise<Record<string, EnumInfo>>
 >();
+const dictOptionCacheMap = new Map<
+  string,
+  { eTag?: string; options: SelectOption[]; request?: Promise<SelectOption[]> }
+>();
 
 function getOptionLabel(item: any, labelKey: string, valueKey: string) {
   return (
@@ -359,15 +363,37 @@ export async function fetchEnumOptions(enumName: string, moduleBase?: string) {
  * 对应 Java 控制器: com.levin.oak.base.controller.BizDictController
  */
 export async function fetchDictOptions(dictCode: string, moduleBase?: string) {
-  const data = await requestClient.get<any>(
-    buildModuleRequestPath('/Dict/retrieveByCode', moduleBase),
-    {
-      baseURL: '',
-      params: {
-        code: dictCode,
-      },
-    },
-  );
+  const cacheKey = `${moduleBase || ''}:dict:${dictCode}`;
+  const cached = dictOptionCacheMap.get(cacheKey);
+  if (cached?.request) return cached.request;
 
-  return normalizeOptions(data?.itemList || [], 'name', 'code');
+  // 字典使用 ETag 条件请求；304 时复用上次成功加载的候选。
+  const request = requestClient
+    .get<any>(buildModuleRequestPath('/Dict/retrieveByCode', moduleBase), {
+      baseURL: '',
+      params: { code: dictCode },
+      headers: cached?.eTag ? { 'If-None-Match': cached.eTag } : undefined,
+      responseReturn: 'raw',
+      validateStatus: (status: number) => status === 200 || status === 304,
+    })
+    .then((response: any) => {
+      if (response.status === 304 && cached) return cached.options;
+      const payload = response.data?.data ?? response.data;
+      const options = normalizeOptions(payload?.itemList || [], 'name', 'code');
+      dictOptionCacheMap.set(cacheKey, {
+        eTag: response.headers?.etag || response.headers?.ETag,
+        options,
+      });
+      return options;
+    })
+    .catch((error) => {
+      dictOptionCacheMap.delete(cacheKey);
+      throw error;
+    });
+  dictOptionCacheMap.set(cacheKey, {
+    eTag: cached?.eTag,
+    options: cached?.options || [],
+    request,
+  });
+  return request;
 }

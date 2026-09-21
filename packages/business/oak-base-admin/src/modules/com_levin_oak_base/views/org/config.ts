@@ -35,6 +35,8 @@ export const orgPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  // 加载父级组织会产生同实体 join，列表排序必须限定到当前组织别名。
+  sortFieldPrefix: '_org.',
   complexGroups: [
     {
       key: 'bank-account',
@@ -131,6 +133,8 @@ export const orgPageCrudConfig: CrudPageConfig = {
       layoutGroup: 'basic',
       layoutOrder: 40,
       loadOptions: orgTypeOptionsLoader,
+      // 父级组织 join 后 type 会重名，排序必须限定为当前组织别名。
+      sortField: '_org.type',
       table: true,
       type: 'select',
       width: 130,

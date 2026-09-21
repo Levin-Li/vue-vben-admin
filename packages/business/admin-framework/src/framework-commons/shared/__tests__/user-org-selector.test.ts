@@ -87,10 +87,29 @@ function mountSelector(props: Record<string, unknown>) {
   });
 }
 
+async function openSelector(wrapper: ReturnType<typeof mountSelector>) {
+  wrapper.findComponent(treeSelectStub).vm.$emit('dropdown-visible-change', true);
+  await flushPromises();
+}
+
 describe('UserOrgSelector', () => {
   beforeEach(() => {
     fetchCrudList.mockReset();
     fetchCrudList.mockResolvedValue({ items: [] });
+  });
+
+  it('defers organization loading until the user opens the selector', async () => {
+    const orgLoadApi = vi.fn(async () => []);
+    const wrapper = mountSelector({ orgLoadApi });
+
+    await flushPromises();
+    expect(orgLoadApi).not.toHaveBeenCalled();
+
+    await openSelector(wrapper);
+    expect(orgLoadApi).toHaveBeenCalledTimes(1);
+
+    await openSelector(wrapper);
+    expect(orgLoadApi).toHaveBeenCalledTimes(1);
   });
 
   it('keeps unloaded lazy org nodes expandable and marks empty nodes as leaf after load attempt', async () => {
@@ -114,7 +133,7 @@ describe('UserOrgSelector', () => {
       orgLoadMode: 'lazy',
     });
 
-    await flushPromises();
+    await openSelector(wrapper);
 
     let treeData = wrapper
       .findComponent(treeSelectStub)
@@ -128,7 +147,7 @@ describe('UserOrgSelector', () => {
     await wrapper.findComponent(treeSelectStub).props('loadData')({
       key: encodeUserOrgSelectorKey('org', 'root'),
     });
-    await flushPromises();
+    await openSelector(wrapper);
 
     treeData = wrapper.findComponent(treeSelectStub).props('treeData') as any[];
     expect(orgLoadApi).toHaveBeenCalledTimes(2);
@@ -166,7 +185,7 @@ describe('UserOrgSelector', () => {
       orgLoadMode: 'lazy',
     });
 
-    await flushPromises();
+    await openSelector(wrapper);
 
     await wrapper.findComponent(treeSelectStub).props('loadData')({
       key: encodeUserOrgSelectorKey('org', 'root'),
@@ -206,7 +225,7 @@ describe('UserOrgSelector', () => {
       orgLoadApi: vi.fn(async () => [{ id: 'org-1', name: 'Org 1' }]),
     });
 
-    await flushPromises();
+    await openSelector(wrapper);
     await wrapper.findComponent(treeSelectStub).props('loadData')({
       key: encodeUserOrgSelectorKey('org', 'org-1'),
     });
@@ -232,13 +251,15 @@ describe('UserOrgSelector', () => {
       allowSelectUser: false,
       mode: 'user',
       orgLoadApi,
+      selectableTypes: ['user'],
     });
     const selectableWrapper = mountSelector({
       mode: 'org',
       orgLoadApi,
     });
 
-    await flushPromises();
+    await openSelector(disabledWrapper);
+    await openSelector(selectableWrapper);
 
     expect(
       disabledWrapper.get('.user-org-selector__disabled-org-title').text(),
@@ -264,7 +285,8 @@ describe('UserOrgSelector', () => {
       showNodeIcons: false,
     });
 
-    await flushPromises();
+    await openSelector(defaultWrapper);
+    await openSelector(textOnlyWrapper);
 
     const icon = defaultWrapper.get('.user-org-selector__node-icon');
     expect(icon.element.nextElementSibling?.textContent).toBe('总部');
@@ -285,7 +307,7 @@ describe('UserOrgSelector', () => {
       ]),
     });
 
-    await flushPromises();
+    await openSelector(wrapper);
 
     const treeSelect = wrapper.findComponent(treeSelectStub);
     expect(treeSelect.props()).toMatchObject({
@@ -315,7 +337,7 @@ describe('UserOrgSelector', () => {
       ]),
     });
 
-    await flushPromises();
+    await openSelector(wrapper);
 
     const treeSelect = wrapper.findComponent(treeSelectStub);
     treeSelect.vm.$emit('search', '目标');

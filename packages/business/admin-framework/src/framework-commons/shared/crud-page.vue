@@ -264,7 +264,6 @@ import {
 } from './crud-retrieve-context';
 import {
   shouldApplyFieldOptionsRequest,
-  shouldLoadFieldOptions,
   shouldReloadRemoteOptionsOnDropdownOpen,
 } from './crud-select-options';
 import { omitExcludedCrudFields } from './crud-submit-fields';
@@ -499,6 +498,7 @@ const uploadPreviewOpen = ref(false);
 const uploadPreviewUrl = ref('');
 const optionState = reactive<Record<string, any[]>>({});
 const optionLoadingState = reactive<Record<string, boolean>>({});
+const optionLoadedState = reactive<Record<string, boolean>>({});
 const areaCascaderRestrictedOptions = reactive<Record<string, any[]>>({});
 const optionRequestVersions = reactive<Record<string, number>>({});
 const quickSwitchLoadingState = reactive<Record<string, boolean>>({});
@@ -1579,7 +1579,7 @@ const visibleTableFields = computed(() =>
 const effectiveTableColumnFixedMap = computed(() =>
   normalizeLeftFixedTableColumns(
     visibleTableFields.value,
-    getDefaultTableColumnFixed,
+    resolveConfiguredTableColumnFixed,
     getTableFieldKey,
   ),
 );
@@ -1987,8 +1987,9 @@ const tableColumns = computed<TableColumnsType>(() => {
       fixed: getEffectiveTableColumnFixed(field),
       key: field.key,
       sorter: isTableFieldSortable(field),
+      sortField: getTableSortField(field),
       sortOrder:
-        tableSorterState.field === String(field.key)
+        tableSorterState.field === String(getTableSortField(field))
           ? tableSorterState.order
           : undefined,
       title: () =>
@@ -2021,6 +2022,8 @@ const tableColumns = computed<TableColumnsType>(() => {
 
   if (showActionColumn.value) {
     columns.push({
+      // 操作入口始终贴靠列表右侧，避免多列左固定调整后操作列落入普通滚动区。
+      fixed: 'right',
       key: CRUD_OPERATION_COLUMN_KEY,
       title: actionHeader?.title || '操作',
       width: actionWidth,
@@ -2251,8 +2254,16 @@ const visibleSearchFieldItems = computed(() => {
   return searchFieldItems.value.slice(0, effectiveSearchCollapsedCount.value);
 });
 
+function getTableSortField(field: CrudFieldConfig) {
+  // 页面可为 join 或计算字段声明精确排序表达式；其余字段按当前实体别名前缀限定。
+  return field.sortField || `${props.config.sortFieldPrefix || ''}${field.key}`;
+}
+
 function isTableFieldSortable(field: CrudFieldConfig) {
-  return field.sortable !== false && field.key !== '__tenant';
+  if (field.sortable === false || field.key === '__tenant') return false;
+
+  // 页面展示设置只能关闭静态字段已支持的排序，不能为虚拟或后端不支持的字段新增排序请求。
+  return getPageDisplayHeader(field.key)?.sortable !== false;
 }
 
 function getModalAvailableWidth() {
@@ -3367,6 +3378,7 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
       )
     ) {
       optionState[field.key] = normalizeCrudChoiceOptions(field, options);
+      if (!keyword.trim()) optionLoadedState[field.key] = true;
     }
   } catch (error) {
     console.error(error);
@@ -3381,19 +3393,6 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
       optionLoadingState[field.key] = false;
     }
   }
-}
-
-async function loadOptions() {
-  await Promise.all(
-    effectiveFields.value
-      .filter((field) =>
-        shouldLoadFieldOptions(
-          Boolean(field.loadOptions || getDefaultOptionsLoader(field)),
-          isFieldVisible(field),
-        ),
-      )
-      .map((field) => loadFieldOptions(field)),
-  );
 }
 
 function buildSortParams() {
@@ -4979,6 +4978,7 @@ function normalizeTableSorter(sorter: any): TableSorterState {
   }
 
   const field =
+    sorterItem?.column?.sortField ??
     sorterItem?.field ??
     sorterItem?.columnKey ??
     sorterItem?.column?.key ??
@@ -5117,6 +5117,20 @@ function getDefaultTableColumnFixed(field: CrudFieldConfig) {
 
 function getEffectiveTableColumnFixed(field: CrudFieldConfig) {
   return effectiveTableColumnFixedMap.value[getTableFieldKey(field)];
+}
+
+function resolveConfiguredTableColumnFixed(field: CrudFieldConfig) {
+  const configuredFixed = getPageDisplayHeader(field.key)?.fixed;
+  if (configuredFixed === 'left' || configuredFixed === 'right') {
+    return configuredFixed;
+  }
+
+  if (configuredFixed === 'none') {
+    return undefined;
+  }
+
+  // 历史展示设置未保存固定位置时，继续继承页面字段的开发默认。
+  return getDefaultTableColumnFixed(field);
 }
 
 function resetReactiveRecord(record: Record<string, any>) {
@@ -5935,6 +5949,11 @@ function handleSearchSelectSearch(field: CrudFieldConfig, keyword: string) {
 
 function restoreRemoteFieldOptions(field: CrudFieldConfig) {
   if (!shouldReloadRemoteOptionsOnDropdownOpen(field)) {
+    return;
+  }
+
+  // 业务候选在当前页面和当前授权上下文内只加载一次；搜索结果由搜索事件独立处理。
+  if (optionLoadedState[field.key] || optionLoadingState[field.key]) {
     return;
   }
 
@@ -6882,7 +6901,6 @@ onMounted(async () => {
   await loadPageDisplaySettings();
   loadTableColumnPreference();
   applyPageDisplayQueryDefaults();
-  await loadOptions();
   await loadList();
   autoSearchReady.value = true;
   await nextTick();

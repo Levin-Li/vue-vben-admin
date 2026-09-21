@@ -72,6 +72,29 @@ async function searchFields(keyword: string) {
 }
 
 describe('页面展示设置抽屉', () => {
+  it('查询字段配置保留完整状态控件宽度，并让分组随网格横向滚动', async () => {
+    const wrapper = mountDrawer(false);
+    await flushPromises();
+
+    const header = document.body.querySelector<HTMLElement>(
+      '[data-test="page-display-settings-grid-header"]',
+    );
+    expect(header?.style.gridTemplateColumns).toBe(
+      '52px 120px 150px 170px 160px 160px 220px 220px 220px 220px 200px 200px',
+    );
+    expect(
+      document.body
+        .querySelector('[data-test="page-display-settings-group"]')
+        ?.classList.contains('min-w-max'),
+    ).toBe(true);
+    expect(
+      document.body.querySelector('.ant-radio-button-wrapper')?.className,
+    ).toContain('ant-radio-button-wrapper');
+
+    wrapper.unmount();
+    document.body.innerHTML = '';
+  });
+
   it('打开和重开不加载，手动加载才发出事件，并替换标题记录', async () => {
     const wrapper = mountDrawer(false);
     try {

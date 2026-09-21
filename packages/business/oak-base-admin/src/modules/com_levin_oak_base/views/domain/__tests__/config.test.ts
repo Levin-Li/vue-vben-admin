@@ -16,7 +16,10 @@ describe('domain page config', () => {
     });
   });
 
-  it('keeps the domain dialog at the explicit two-column content-form width', () => {
-    expect(domainPageCrudConfig.modalWidth).toBe(860);
+  it('delegates dialog width and columns to the shared responsive CRUD layout', () => {
+    expect(domainPageCrudConfig.formMaxColumns).toBeUndefined();
+    expect(domainPageCrudConfig.modalWidth).toBeUndefined();
+    expect(domainPageCrudConfig.modalWidthStrict).toBeUndefined();
   });
+
 });

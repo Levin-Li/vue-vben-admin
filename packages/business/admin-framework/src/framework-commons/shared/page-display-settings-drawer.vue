@@ -423,7 +423,11 @@ function getFieldConfigGridTemplate(view: View) {
     ? '66px 110px 190px 120px 124px 124px 124px 120px 200px 200px 100px'
     : view === 'detail'
       ? '66px 160px 190px 170px 160px 150px 200px 60px 100px 220px 200px'
-      : '52px 120px 150px 170px 110px 110px 220px 200px 110px 220px 200px';
+      : view === 'query'
+        ? // 查询表单额外包含“标题展示”控件，互斥项必须占独立第十二列而不能折到下一行。
+          '52px 120px 150px 170px 160px 160px 220px 220px 220px 220px 200px 200px'
+        : // 查询、新增和编辑视图的状态组、角色与关联选择器需要保持完整操作宽度；窄视口由外层横向滚动承载。
+          '52px 120px 150px 170px 160px 160px 220px 220px 220px 220px 200px';
 }
 
 function getAllowedFields(view: Exclude<View, 'list'>) {
@@ -2099,7 +2103,8 @@ onMounted(() => {
               :key="rowGroup.key"
             >
               <div
-                class="w-full"
+                data-test="page-display-settings-group"
+                class="w-full min-w-max"
                 :class="
                   isGroupableView(view)
                     ? [
@@ -2833,6 +2838,7 @@ onMounted(() => {
   min-width: 0;
   padding-inline: 8px;
   text-align: center;
+  white-space: nowrap;
 }
 
 .page-display-settings-scroll {

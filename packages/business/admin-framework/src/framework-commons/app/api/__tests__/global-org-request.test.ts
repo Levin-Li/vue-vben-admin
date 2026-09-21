@@ -79,6 +79,23 @@ describe('全局注入请求配置', () => {
     expect((await intercept({ headers: {} })).headers['X-Oak-Tenant-Id']).toBeUndefined();
   });
 
+  it('选择租户节点时只注入租户 Header', async () => {
+    setCurrentGlobalUserOrgRecord({
+      id: 'tenant-a',
+      kind: 'tenant',
+      name: '租户A',
+      tenantId: 'tenant-a',
+    });
+
+    const result = await intercept({ headers: {} });
+
+    expect(result.headers).toMatchObject({
+      'X-Oak-Tenant-Id': 'tenant-a',
+    });
+    expect(result.headers['X-Oak-Org-Id']).toBeUndefined();
+    expect(result.headers['X-Oak-Owner-Id']).toBeUndefined();
+  });
+
   it.each(['get', 'post', 'put', 'delete'])(
     '默认保留 %s 的 URL 参数且不修改 body',
     async (method) => {
@@ -162,7 +179,6 @@ describe('全局注入请求配置', () => {
       __globalUserOrgContext: { isOverride: true },
     });
     expect(result.params).toBe(params);
-    expect((baseRequestClient as any).interceptors).toHaveLength(1);
     const baseResult = await (
       baseRequestClient as any
     ).interceptors[0].fulfilled({

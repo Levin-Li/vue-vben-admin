@@ -6,6 +6,7 @@ import { computed, ref, watch } from 'vue';
 import { useUserStore } from '@vben/runtime/stores';
 
 import UserOrgSelector from '../shared/user-org-selector.vue';
+import { fetchCrudList } from '../api';
 import {
   currentGlobalUserOrgRecords,
   setCurrentGlobalUserOrgRecords,
@@ -15,6 +16,8 @@ import { globalOrgSelectorRuntimeState } from './global-org-selector-runtime';
 const userStore = useUserStore();
 const loadedRecords = ref<UserOrgSelectorRecord[]>([]);
 const hasLoadedRecords = ref(false);
+const tenantOptions = ref<Array<{ label: string; value: string }>>([]);
+const hasLoadedTenantOptions = ref(false);
 
 const selectedValue = computed(() =>
   selectorConfig.value.multiple === true
@@ -31,17 +34,15 @@ const maxSelectCount = computed(() => {
 
 const selectorConfig = computed<Record<string, any>>(() => ({
   ...globalOrgSelectorRuntimeState.valueContent,
-  // 全局运行时配置缺少这两个开关时，显式保留组件的默认“组织和用户均可选”语义。
-  allowSelectOrg:
-    globalOrgSelectorRuntimeState.valueContent?.allowSelectOrg !== false,
-  allowSelectUser:
-    globalOrgSelectorRuntimeState.valueContent?.allowSelectUser !== false,
+  // 平台用户默认允许三类节点；非平台用户不产生跨租户根节点。
+  selectableTypes:
+    globalOrgSelectorRuntimeState.valueContent?.selectableTypes ||
+    (isPlatformUser.value ? ['tenant', 'org', 'user'] : ['org', 'user']),
   maxSelectCount:
     globalOrgSelectorRuntimeState.valueContent?.multiple === true
       ? maxSelectCount.value
       : 1,
   multiple: globalOrgSelectorRuntimeState.valueContent?.multiple === true,
-  mode: globalOrgSelectorRuntimeState.valueContent?.mode || 'both',
   allowClear:
     globalOrgSelectorRuntimeState.valueContent?.allowClear !== false &&
     isAdmin.value,
@@ -65,6 +66,29 @@ const isAdmin = computed(() => {
     user.isTopSuperAdmin === true
   );
 });
+const isPlatformUser = computed(() => {
+  const user = (userStore.userInfo || {}) as Record<string, any>;
+  return user.platformUser === true || user.isPlatformUser === true || user.superAdmin === true || user.isSuperAdmin === true;
+});
+
+watch(isPlatformUser, (platformUser) => {
+  // 身份切换后清空旧候选，下一次展开时按当前身份重新加载。
+  hasLoadedTenantOptions.value = false;
+  if (!platformUser) tenantOptions.value = [];
+});
+
+async function handleDropdownVisibleChange(visible: boolean) {
+  // 平台租户名称只用于展开后的虚拟根展示，无需在页面初次进入时请求。
+  if (!visible || !isPlatformUser.value || hasLoadedTenantOptions.value) return;
+
+  try {
+    const result = await fetchCrudList('/Tenant/list', { pageIndex: 1, pageSize: 500 }, '/com.levin.oak.base/V1/api');
+    tenantOptions.value = result.items.map((item: any) => ({ label: String(item.name || item.id), value: String(item.id) }));
+    hasLoadedTenantOptions.value = true;
+  } catch {
+    tenantOptions.value = [];
+  }
+}
 
 watch(
   () => globalOrgSelectorRuntimeState.valueContent,
@@ -111,6 +135,9 @@ function handleSelectedRecords(records: UserOrgSelectorRecord[]) {
     :model-value="selectedValue"
     data-testid="global-user-org-selector"
     :class="visible ? 'w-full min-w-[220px]' : 'hidden'"
+    :show-tenant-nodes="isPlatformUser"
+    :tenant-options="tenantOptions"
+    @dropdown-visible-change="handleDropdownVisibleChange"
     @loaded="handleLoaded"
     @update:selected-records="handleSelectedRecords"
   />

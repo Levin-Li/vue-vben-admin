@@ -25,4 +25,16 @@ describe('orgPageCrudConfig', () => {
       ]),
     );
   });
+
+  it('qualifies the organization type sort field after loading parents', () => {
+    expect(orgPageCrudConfig.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'type', sortField: '_org.type' }),
+      ]),
+    );
+  });
+
+  it('uses the current organization alias for all default table sort fields', () => {
+    expect(orgPageCrudConfig.sortFieldPrefix).toBe('_org.');
+  });
 });

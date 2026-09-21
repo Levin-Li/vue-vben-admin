@@ -1326,8 +1326,7 @@ watch(
 }
 
 /* 顶栏控件静止透明，交互时与当前选中项使用同强度主题色。 */
-.admin-navigation-theme-brand-gradient
-  :deep(header.light) {
+.admin-navigation-theme-brand-gradient :deep(header.light) {
   --header-control-background: transparent;
   --header-control-background-hover: hsl(var(--primary) / 36%);
 }
@@ -1386,32 +1385,59 @@ watch(
 }
 
 /* 标准 CRUD 的多种表格实现共用低饱和主题渐变表头。 */
+.admin-navigation-theme-gradient-crud-header {
+  --admin-crud-header-gradient: linear-gradient(
+    125deg,
+    color-mix(in srgb, hsl(var(--primary)) 12%, hsl(var(--background))) 0%,
+    var(--navigation-gradient-transition-color) 52%,
+    var(--navigation-gradient-end-color) 100%
+  );
+}
+
 .admin-navigation-theme-gradient-crud-header
   :deep(
     .ant-table-thead > tr,
     .vxe-table--header-wrapper .vxe-header--row,
     table thead > tr
   ) {
-  background: linear-gradient(
-    125deg,
-    hsl(var(--primary) / 12%) 0%,
-    var(--navigation-gradient-transition-color) 52%,
-    var(--navigation-gradient-end-color) 100%
-  ) !important;
+  background-color: hsl(var(--background)) !important;
+  background-image: var(--admin-crud-header-gradient) !important;
+  background-attachment: fixed;
 }
 
 .admin-navigation-theme-gradient-crud-header
   :deep(
-    .ant-table-thead > tr > th,
+    .ant-table-thead
+      > tr
+      > th:not(.ant-table-cell-fix-left):not(.ant-table-cell-fix-left-last):not(
+        .ant-table-cell-fix-right
+      ):not(.ant-table-cell-fix-right-first):not([style*='position: sticky']),
     .vxe-table--header-wrapper .vxe-header--row > th,
     table thead > tr > th
   ) {
   background: transparent !important;
 }
 
+/* 固定表头在渐变模式下复用不透明品牌渐变。 */
+.admin-navigation-theme-gradient-crud-header
+  :deep(
+    .ant-table-thead
+      > tr
+      > th:is(
+        .ant-table-cell-fix-left,
+        .ant-table-cell-fix-left-last,
+        .ant-table-cell-fix-right,
+        .ant-table-cell-fix-right-first
+      ),
+    .ant-table-thead > tr > th[style*='position: sticky']
+  ) {
+  background-color: hsl(var(--background)) !important;
+  background-image: var(--admin-crud-header-gradient) !important;
+  background-attachment: fixed;
+}
+
 /* 工具栏图标静止时不叠加圆形表面，交互时与顶栏使用同强度主题色。 */
-.admin-navigation-theme-brand-gradient
-  :deep(.vben-crud-table-tool-button) {
+.admin-navigation-theme-brand-gradient :deep(.vben-crud-table-tool-button) {
   background: transparent !important;
   border-color: transparent !important;
   box-shadow: none !important;
@@ -1548,6 +1574,20 @@ watch(
   background: transparent !important;
   border-color: transparent !important;
   box-shadow: none !important;
+}
+
+/* 底部收起与固定控件静止透明，悬停时与顶部菜单按钮使用同一主色反馈。 */
+.admin-navigation-theme-brand-gradient
+  :deep(
+    aside.light .sidebar-bottom-control:hover,
+    aside.light .sidebar-bottom-control:focus-visible
+  ) {
+  color: hsl(var(--foreground)) !important;
+  background: var(
+    --header-control-background-hover,
+    hsl(var(--primary) / 36%)
+  ) !important;
+  border-color: transparent !important;
 }
 
 .admin-navigation-theme-brand-gradient

@@ -45,7 +45,7 @@ const modules = [
 ];
 
 describe('资源权限树编辑器', () => {
-  it('keeps a filtered parent permission expression when saving its subtree', async () => {
+  it('selects only a filtered menu permission without its child operations', async () => {
     const wrapper = mount(ResourcePermissionTreeEditor, {
       props: {
         permissionTree: [
@@ -82,12 +82,9 @@ describe('资源权限树编辑器', () => {
       .get('[data-test="permission-node-backend-management"]')
       .setValue(true);
 
-    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual(
-      expect.arrayContaining([
-        'framework-base:系统数据-系统菜单:后台管理:展示',
-        'framework-base:系统数据-系统菜单:后台管理:查询列表',
-      ]),
-    );
+    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual([
+      'framework-base:系统数据-系统菜单:后台管理:展示',
+    ]);
   });
 
   it('取消最后一个子权限时保留已有菜单展示权限', async () => {
@@ -140,7 +137,7 @@ describe('资源权限树编辑器', () => {
     ).toBe(true);
   });
 
-  it('selects a parent permission when a child permission is selected', async () => {
+  it('keeps a menu unselected when only its child operation is selected', async () => {
     const parentPermission = 'framework-base:系统数据-系统菜单:后台管理:展示';
     const childPermission =
       'framework-base:系统数据-系统菜单:后台管理:查询列表';
@@ -180,16 +177,14 @@ describe('资源权限树编辑器', () => {
     const nextPermissions = wrapper
       .emitted('update:value')
       ?.at(-1)?.[0] as string[];
-    expect(nextPermissions).toEqual(
-      expect.arrayContaining([parentPermission, childPermission]),
-    );
+    expect(nextPermissions).toEqual([childPermission]);
     await wrapper.setProps({ value: nextPermissions });
     expect(
       (
         wrapper.get('[data-test="permission-node-backend-management"]')
           .element as HTMLInputElement
       ).checked,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('marks module, type, and resource parents as indeterminate when one child action is selected', () => {
@@ -1376,7 +1371,7 @@ describe('权限表达式共享状态', () => {
       .trigger('click');
     expect(sharedCheckbox(wrapper, 0).element.checked).toBe(true);
     await sharedCheckbox(wrapper, 0).setValue(false);
-    expect(await applyPermissionUpdate(wrapper)).toEqual([menuPermission]);
+    expect(await applyPermissionUpdate(wrapper)).toEqual([]);
     await wrapper
       .get('[data-test="permission-root-tab-menus"]')
       .trigger('click');
@@ -1411,15 +1406,13 @@ describe('权限表达式共享状态', () => {
     wrapper.unmount();
   });
 
-  it.each(['permission-node-team-menu', 'permission-tree-toggle'])(
-    '通过 %s 批量取消会同步模块权限并保留范围外权限',
-    async (selector) => {
+  it('通过全树批量取消会同步模块权限并保留范围外权限', async () => {
       const wrapper = mountSharedPermissions([
         menuPermission,
         sharedPermission,
         queryPermission,
       ]);
-      await wrapper.get(`[data-test="${selector}"]`).setValue(false);
+      await wrapper.get('[data-test="permission-tree-toggle"]').setValue(false);
       await confirmOperationCancellation();
       expect(await applyPermissionUpdate(wrapper)).toEqual([queryPermission]);
       await wrapper
@@ -1429,11 +1422,22 @@ describe('权限表达式共享状态', () => {
       expect(
         wrapper.get<HTMLInputElement>(
           `[data-test="permission-${queryPermission}"]`,
-        ).element.checked,
+      ).element.checked,
       ).toBe(true);
       wrapper.unmount();
-    },
-  );
+  });
+
+  it('取消菜单不会取消菜单下已选的页面操作', async () => {
+    const wrapper = mountSharedPermissions([menuPermission, sharedPermission]);
+
+    await wrapper
+      .get('[data-test="permission-node-team-menu"]')
+      .setValue(false);
+
+    expect(await applyPermissionUpdate(wrapper)).toEqual([sharedPermission]);
+    expect(findVisibleDialog()).toBeUndefined();
+    wrapper.unmount();
+  });
 
   it('不同授权对象的独立编辑器不会相互影响', async () => {
     const first = mountSharedPermissions([sharedPermission]);

@@ -1,6 +1,21 @@
 /* 保留二次验证独立生命周期，仅将确认框外观对齐登录使用的标准 Modal。 */
 .dynamic-verify-dialog .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
   padding: 20px 24px;
+}
+
+/* 操作按钮固定在弹窗底部，验证码提示和错误信息只占用上方内容区。 */
+.dynamic-verify-dialog .ant-modal-body {
+  display: flex;
+  flex: 1;
+}
+
+.dynamic-verify-dialog .ant-modal-confirm-body-wrapper {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 
 .dynamic-verify-dialog .ant-modal-confirm-body {
@@ -15,5 +30,6 @@
 }
 
 .dynamic-verify-dialog .ant-modal-confirm-btns {
-  margin-top: 12px;
+  margin-top: auto;
+  padding-top: 12px;
 }

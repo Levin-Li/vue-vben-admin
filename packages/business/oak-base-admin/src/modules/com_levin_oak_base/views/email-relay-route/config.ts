@@ -3,6 +3,44 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { emailRelayRouteService } from '../../api/email-relay-route-service';
 import { tenantOptionsLoader } from '../api-module';
 
+type RelayTarget = {
+  enable?: boolean;
+  endpoint?: string;
+  id?: string;
+  type?: string;
+};
+
+function normalizeTargets(value: unknown): RelayTarget[] {
+  // 统一前端提交形态，避免将 JSON 编辑器中的空白或未知类型直接发送到服务端。
+  if (!Array.isArray(value)) {
+    throw new TypeError('投递目标必须是数组');
+  }
+
+  const targets = value.map((value) => {
+    const target = (value || {}) as RelayTarget;
+    const type = String(target.type || '').trim();
+    const endpoint = String(target.endpoint || '').trim();
+    if (!['Email', 'Webhook'].includes(type) || !endpoint) {
+      throw new TypeError('每个投递目标都必须填写 Email 或 Webhook 类型及地址');
+    }
+    if (type === 'Email' && !/^\S+@\S+\.\S+$/.test(endpoint)) {
+      throw new TypeError('邮箱投递目标格式无效');
+    }
+    if (type === 'Webhook') {
+      const url = new URL(endpoint);
+      if (url.protocol !== 'https:' || url.username || url.password || !url.hostname) {
+        throw new TypeError('Webhook 必须是没有用户信息的 HTTPS URL');
+      }
+    }
+    return { ...target, enable: target.enable !== false, endpoint, type };
+  });
+
+  if (!targets.some((target) => target.enable)) {
+    throw new TypeError('至少需要一个启用的投递目标');
+  }
+  return targets;
+}
+
 export const pageMeta = {
   name: 'EmailRelayRoute',
   title: '邮件中转路由',
@@ -186,6 +224,8 @@ export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
     ) {
       throw new TypeError('请填写邮件域名、邮箱别名和提供商');
     }
+    // 在保存前规范化目标列表，后端仍会执行最终校验和 SSRF 防护。
+    nextValues.targetList = normalizeTargets(nextValues.targetList);
     return nextValues;
   },
 };

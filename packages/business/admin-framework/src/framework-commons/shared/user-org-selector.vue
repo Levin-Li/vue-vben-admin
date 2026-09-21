@@ -3,7 +3,7 @@ import type { PropType } from 'vue';
 import type {
   UserOrgSelectorLoadOrgTree,
   UserOrgSelectorLoadUsers,
-  UserOrgSelectorMode,
+  UserOrgSelectorKind,
   UserOrgSelectorModelValue,
   UserOrgSelectorOrgLoadMode,
   UserOrgSelectorRecord,
@@ -12,7 +12,7 @@ import type {
   UserOrgTreeSelectNode,
 } from './user-org-selector-types';
 
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { TreeSelect, message } from 'ant-design-vue';
 import { IconifyIcon } from '@vben/runtime/icons';
@@ -41,13 +41,9 @@ const props = defineProps({
     default: true,
     type: Boolean,
   },
-  allowSelectOrg: {
-    default: true,
-    type: Boolean,
-  },
-  allowSelectUser: {
-    default: true,
-    type: Boolean,
+  selectableTypes: {
+    default: () => ['org', 'user'],
+    type: Array as PropType<UserOrgSelectorKind[]>,
   },
   disabled: {
     default: false,
@@ -76,10 +72,6 @@ const props = defineProps({
   orgLoadMode: {
     default: 'all',
     type: String as PropType<UserOrgSelectorOrgLoadMode>,
-  },
-  mode: {
-    default: 'both',
-    type: String as PropType<UserOrgSelectorMode>,
   },
   modelValue: {
     type: [Array, Object, String] as PropType<UserOrgSelectorModelValue>,
@@ -119,6 +111,11 @@ const props = defineProps({
     default: () => [],
     type: Array as PropType<UserOrgSelectorRecord[]>,
   },
+  showTenantNodes: { default: false, type: Boolean },
+  tenantOptions: {
+    default: () => [],
+    type: Array as PropType<Array<{ label: string; value: string }>>,
+  },
   showSearch: {
     default: true,
     type: Boolean,
@@ -154,6 +151,7 @@ const emit = defineEmits<{
     selected: null | UserOrgSelectorRecord | UserOrgSelectorRecord[],
     value: UserOrgSelectorModelValue,
   ];
+  'dropdown-visible-change': [visible: boolean];
   loaded: [records: UserOrgSelectorRecord[]];
   'update:modelValue': [value: UserOrgSelectorModelValue];
   'update:selectedRecords': [records: UserOrgSelectorRecord[]];
@@ -167,6 +165,7 @@ const expandedKeysBeforeSearch = ref<string[]>();
 const selectedRecordMap = ref(new Map<string, UserOrgSelectorRecord>());
 const loadedOrgNodeKeys = ref(new Set<string>());
 const loadingOrgNodeKeys = ref(new Set<string>());
+const hasLoadedOrgTree = ref(false);
 
 const normalizedOrgTypes = computed(() =>
   normalizeSelectorTypes(props.orgTypes),
@@ -175,13 +174,8 @@ const normalizedUserTypes = computed(() =>
   normalizeSelectorTypes(props.userTypes),
 );
 const normalizedRootOrgIds = computed(() => props.rootOrgIdList);
-const allowSelectOrgByMode = computed(
-  () => props.allowSelectOrg && (props.mode === 'both' || props.mode === 'org'),
-);
-const allowSelectUserByMode = computed(
-  () =>
-    props.allowSelectUser && (props.mode === 'both' || props.mode === 'user'),
-);
+const allowSelectOrgByMode = computed(() => props.selectableTypes.includes('org'));
+const allowSelectUserByMode = computed(() => props.selectableTypes.includes('user'));
 const effectiveMultiple = computed(() =>
   props.maxSelectCount === 1 ? false : props.multiple,
 );
@@ -250,29 +244,38 @@ watch(
 
 watch(
   () => [
-    props.allowSelectOrg,
-    props.allowSelectUser,
     props.maxLoadDeep,
-    props.mode,
     props.onlyLeafNode,
     props.onlyNotLeafNode,
     props.onlyShowTypeMatchNode,
     props.orgLoadMode,
     props.orgTypes,
     props.rootOrgIdList,
+    props.selectableTypes,
+    props.tenantOptions,
+    props.showTenantNodes,
   ],
   () => {
-    void loadOrgTree();
+    // 首次进入保持空候选，只有已打开过选择器时才随配置变化刷新。
+    if (hasLoadedOrgTree.value) {
+      void loadOrgTree();
+    }
   },
   {
     deep: true,
   },
 );
 
-onMounted(() => {
-  warnInvalidSelectorOptions();
-  void loadOrgTree();
-});
+warnInvalidSelectorOptions();
+
+async function handleDropdownVisibleChange(visible: boolean) {
+  // 候选树只在用户首次展开时请求，避免页面切换产生无效组织请求。
+  if (visible && !hasLoadedOrgTree.value && !loading.value) {
+    await loadOrgTree();
+  }
+
+  emit('dropdown-visible-change', visible);
+}
 
 async function loadOrgTree() {
   loading.value = true;
@@ -285,16 +288,35 @@ async function loadOrgTree() {
           rootOrgIdList: normalizedRootOrgIds.value,
         });
 
-    orgTreeData.value = buildUserOrgSelectorOrgTree(data || [], {
-      allowSelectOrg: allowSelectOrgByMode.value,
-      allowSelectUser: allowSelectUserByMode.value,
+    const orgNodes = buildUserOrgSelectorOrgTree(data || [], {
       maxLoadDeep: props.maxLoadDeep,
       onlyLeafNode: props.onlyLeafNode,
       onlyNotLeafNode: props.onlyNotLeafNode,
       onlyShowTypeMatchNode: props.onlyShowTypeMatchNode,
       orgLoadMode: props.orgLoadMode,
       orgTypes: normalizedOrgTypes.value,
+      selectableTypes: props.selectableTypes,
     });
+    // 平台用户才按租户包装组织根；租户名称优先取组织返回值，缺失时使用授权租户候选补齐。
+    if (props.showTenantNodes) {
+      const names = new Map(props.tenantOptions.map((item) => [String(item.value), item.label]));
+      const groups = new Map<string, UserOrgTreeSelectNode[]>();
+      for (const node of orgNodes) {
+        const tenantId = node.tenantId || '__platform__';
+        groups.set(tenantId, [...(groups.get(tenantId) || []), node]);
+      }
+      orgTreeData.value = [...groups.entries()].map(([tenantId, children]) =>
+        toUserOrgTreeSelectNode({
+          id: tenantId,
+          kind: 'tenant',
+          name: tenantId === '__platform__' ? '平台组织' : children.find((node) => node.tenantName)?.tenantName || names.get(tenantId) || `租户 ${tenantId}`,
+          tenantId: tenantId === '__platform__' ? undefined : tenantId,
+        }, { children, selectable: props.selectableTypes.includes('tenant') }),
+      );
+    } else {
+      orgTreeData.value = orgNodes;
+    }
+    hasLoadedOrgTree.value = true;
     emit(
       'loaded',
       flattenUserOrgTreeNodes(orgTreeData.value).filter(
@@ -419,8 +441,6 @@ async function loadOrgChildren(org: UserOrgTreeSelectNode) {
   const childData = extractLazyOrgChildren(data || [], org.id);
 
   return buildUserOrgSelectorOrgTree(childData, {
-    allowSelectOrg: allowSelectOrgByMode.value,
-    allowSelectUser: allowSelectUserByMode.value,
     depth: (org.depth || 1) + 1,
     maxLoadDeep: props.maxLoadDeep,
     onlyLeafNode: props.onlyLeafNode,
@@ -459,11 +479,9 @@ function buildOrgLoadContext(
   const rootOrgIdList = normalizedRootOrgIds.value;
 
   return {
-    allowSelectOrg: allowSelectOrgByMode.value,
-    allowSelectUser: allowSelectUserByMode.value,
     depth: extra.depth || 1,
     maxLoadDeep: props.maxLoadDeep,
-    mode: props.mode,
+    selectableTypes: props.selectableTypes,
     onlyLeafNode: props.onlyLeafNode,
     onlyNotLeafNode: props.onlyNotLeafNode,
     onlyShowTypeMatchNode: props.onlyShowTypeMatchNode,
@@ -561,8 +579,8 @@ function getKeyFromModelValueItem(
     return encodeUserOrgSelectorKey(record.kind, record.id);
   }
 
-  if (props.mode === 'org' || props.mode === 'user') {
-    return encodeUserOrgSelectorKey(props.mode, normalizedValue);
+  if (props.selectableTypes.length === 1) {
+    return encodeUserOrgSelectorKey(props.selectableTypes[0]!, normalizedValue);
   }
 
   return undefined;
@@ -779,6 +797,7 @@ function handleSearch(value: string) {
     tree-node-filter-prop="title"
     v-model:tree-expanded-keys="treeExpandedKeys"
     @change="handleChange"
+    @dropdown-visible-change="handleDropdownVisibleChange"
     @search="handleSearch"
   >
     <template #title="node">

@@ -65,9 +65,18 @@ function withOakBaseAdminHomeRoute(routes: RouteRecordRaw[]) {
           ...route,
           children: [
             oakBaseAdminHomeRoute,
-            aclTestRoute,
-            namedScopeVariableAcceptanceRoute,
-            ...(route.children || []),
+            ...(route.children || []).map((child) =>
+              child.meta?.title === '开发&工具'
+                ? {
+                    ...child,
+                    children: [
+                      ...(child.children || []),
+                      aclTestRoute,
+                      namedScopeVariableAcceptanceRoute,
+                    ],
+                  }
+                : child,
+            ),
           ],
         }
       : route,

@@ -1,5 +1,8 @@
-export type UserOrgSelectorKind = 'org' | 'user';
+export type UserOrgSelectorKind = 'org' | 'tenant' | 'user';
 
+export type UserOrgSelectorSelectableType = UserOrgSelectorKind;
+
+/** @deprecated 内部过渡别名；持久化配置改用 selectableTypes。 */
 export type UserOrgSelectorMode = 'both' | 'org' | 'user';
 
 export type UserOrgSelectorValueMode = 'id' | 'record';
@@ -14,6 +17,7 @@ export interface UserOrgSelectorRecord {
   orgName?: string;
   raw?: Record<string, any>;
   tenantId?: string;
+  tenantName?: string;
   type?: string;
 }
 
@@ -35,11 +39,9 @@ export type UserOrgSelectorLoadUsers = (
 ) => Promise<Record<string, any>[]>;
 
 export interface UserOrgSelectorLoadOrgTreeContext {
-  allowSelectOrg: boolean;
-  allowSelectUser: boolean;
+  selectableTypes?: UserOrgSelectorSelectableType[];
   depth: number;
   maxLoadDeep: number;
-  mode: UserOrgSelectorMode;
   onlyLeafNode: boolean;
   onlyNotLeafNode: boolean;
   onlyShowTypeMatchNode: boolean;

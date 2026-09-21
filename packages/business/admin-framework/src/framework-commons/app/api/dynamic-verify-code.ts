@@ -5,7 +5,7 @@ import type {
   ResponseInterceptorConfig,
 } from '@vben/runtime/request';
 
-import { h } from 'vue';
+import { h, ref } from 'vue';
 
 import { CanceledError } from '@vben/runtime/request';
 
@@ -18,6 +18,11 @@ import {
 } from '../views/_core/authentication/behavior-captcha';
 
 import { prepareMultipartReplay } from './multipart-request';
+import {
+  getServiceRespMessage,
+  isServiceResp,
+  isServiceRespSuccessful,
+} from './service-resp';
 import './dynamic-verify-code.css';
 
 type DynamicVerifyRequestConfig = RequestClientConfig & {
@@ -41,14 +46,24 @@ type DynamicVerifyApplyResult = Required<
     verifyId: string;
   };
 
-const DYNAMIC_VERIFY_HEADER = '-DynamicVerifyCode-';
+const DYNAMIC_VERIFY_HEADER = '-dynamic-verify-code-';
 const DYNAMIC_VERIFY_APPLY_VALUE = 'Apply';
-const DYNAMIC_VERIFY_PARAM_NAME_HEADER = '-DynamicVerifyCode-ParamName';
-const DYNAMIC_VERIFY_ID_HEADER = '-DynamicVerifyCode-VerifyId';
-const DYNAMIC_VERIFY_TYPE_HEADER = '-DynamicVerifyCode-Type';
-const DYNAMIC_VERIFY_PROMPT_HEADER = '-DynamicVerifyCode-Prompt';
+const DYNAMIC_VERIFY_PARAM_NAME_HEADER = '-dynamic-verify-code-param-name';
+const DYNAMIC_VERIFY_ID_HEADER = '-dynamic-verify-code-verify-id';
+const DYNAMIC_VERIFY_TYPE_HEADER = '-dynamic-verify-code-type';
+const DYNAMIC_VERIFY_PROMPT_HEADER = '-dynamic-verify-code-prompt';
 const DYNAMIC_VERIFY_INTERACTION_DATA_HEADER =
-  '-DynamicVerifyCode--InteractionData';
+  '-dynamic-verify-code-interaction-data';
+const LEGACY_DYNAMIC_HEADERS: Record<string, string> = {
+  '-dynamic-verify-code-': '-DynamicVerifyCode-',
+  '-dynamic-verify-code-param-name': '-DynamicVerifyCode-ParamName',
+  '-dynamic-verify-code-verify-id': '-DynamicVerifyCode-VerifyId',
+  '-dynamic-verify-code-type': '-DynamicVerifyCode-Type',
+  '-dynamic-verify-code-prompt': '-DynamicVerifyCode-Prompt',
+  '-dynamic-verify-code-interaction-data':
+    '-DynamicVerifyCode--InteractionData',
+  '-dynamic-verify-code-mock-code': '-DynamicVerifyCode-MockCode',
+};
 
 const VERIFY_TYPE_LABELS: Record<string, string> = {
   Bio: '生物验证',
@@ -104,7 +119,8 @@ function getHeader(headers: any, name: string) {
     }
   }
 
-  return undefined;
+  const legacyName = LEGACY_DYNAMIC_HEADERS[name];
+  return legacyName ? getHeader(headers, legacyName) : undefined;
 }
 
 function normalizeHeaderValue(value: unknown) {
@@ -145,6 +161,8 @@ function buildReplayConfig(
 
   for (const [name, value] of Object.entries(extraHeaders)) {
     headers[name] = value;
+    const legacyName = LEGACY_DYNAMIC_HEADERS[name];
+    if (legacyName) headers[legacyName] = value;
   }
 
   return {
@@ -280,8 +298,10 @@ function promptDynamicVerifyCode(
     verifyCode: string;
   }>((resolve, reject) => {
     let verifyCode = '';
+    const cooldownSeconds = ref(0);
     let applyResult: DynamicVerifyApplyResult | undefined;
     let applying = false;
+    let applyErrorMessage = '';
     let applyPromise: Promise<DynamicVerifyApplyResult> | undefined;
     let behaviorChallenge: BehaviorCaptchaChallenge | null = null;
     let modalRef:
@@ -291,8 +311,29 @@ function promptDynamicVerifyCode(
         }
       | undefined;
     let settled = false;
+    let cooldownTimer: ReturnType<typeof setInterval> | undefined;
 
     const getCurrentType = () => applyResult?.type || info.type;
+
+    const clearCooldown = () => {
+      if (cooldownTimer) {
+        clearInterval(cooldownTimer);
+        cooldownTimer = undefined;
+      }
+      cooldownSeconds.value = 0;
+    };
+
+    const startCooldown = () => {
+      clearCooldown();
+      cooldownSeconds.value = 60;
+      cooldownTimer = setInterval(() => {
+        cooldownSeconds.value -= 1;
+        if (cooldownSeconds.value <= 0) {
+          clearCooldown();
+        }
+        updateModal();
+      }, 1000);
+    };
 
     // 外层生命周期独立；展示宽度与登录的 passwordVerifyDialogWidth 保持同一规则。
     const presentation = () => ({
@@ -325,6 +366,7 @@ function promptDynamicVerifyCode(
       }
 
       applying = true;
+      applyErrorMessage = '';
       updateModal();
       applyPromise = applyCode()
         .then((result) => {
@@ -334,7 +376,22 @@ function promptDynamicVerifyCode(
                 parseBehaviorChallengeInput(result.interactionData),
               )
             : null;
+          // 仅后端明确下发的非生产模拟码允许自动回填，生产验证码始终由用户手动输入。
+          if (result.mockCode) {
+            verifyCode = String(result.mockCode);
+          }
+          if (result.type === 'Sms' || result.type === 'Email') {
+            startCooldown();
+          }
           return result;
+        })
+        .catch((error: unknown) => {
+          // 申请失败时保留弹窗和当前输入，让用户能看到限流等安全拒绝原因。
+          applyErrorMessage =
+            error instanceof Error && error.message
+              ? error.message
+              : '获取验证码失败，请稍后重试';
+          throw error;
         })
         .finally(() => {
           applying = false;
@@ -345,6 +402,20 @@ function promptDynamicVerifyCode(
       return applyPromise;
     };
 
+    const applyWithFailureFeedback = async (force = false) => {
+      try {
+        return await triggerApply(force);
+      } catch (error: unknown) {
+        // 所有动态挑战共用同一失败提示，确保短信、邮箱、图片、行为和 MFA 不会静默失败。
+        const typeLabel = getVerifyTypeLabel(getCurrentType());
+        const reason = applyErrorMessage || '请稍后重试';
+        applyErrorMessage = `获取${typeLabel}失败：${reason}`;
+        updateModal();
+        message.error(applyErrorMessage);
+        throw error;
+      }
+    };
+
     const renderActionControl = (type?: string) => {
       if (isCaptchaVerify(type) && applyResult?.interactionData) {
         const imageSrc = toImageSrc(applyResult.interactionData);
@@ -352,7 +423,9 @@ function promptDynamicVerifyCode(
         if (imageSrc) {
           return h('img', {
             alt: '图片验证码',
-            onClick: () => triggerApply(true),
+            onClick: () => {
+              void applyWithFailureFeedback(true).catch(() => undefined);
+            },
             src: imageSrc,
             style:
               'width:112px;height:40px;object-fit:contain;cursor:pointer;border:1px solid hsl(var(--border));border-radius:6px;background:hsl(var(--muted));',
@@ -368,14 +441,20 @@ function promptDynamicVerifyCode(
       return h(
         Button,
         {
-          disabled: applying,
+          disabled: applying || cooldownSeconds.value > 0,
           loading: applying,
-          onClick: () => triggerApply(true),
+          onClick: () => applyWithFailureFeedback(true),
+          // 对齐登录页验证码入口：描边默认按钮、同高输入框和紧凑文字。
+          class: 'min-w-[116px] text-[11px]',
           size: 'large',
-          style: 'width:112px;',
-          type: 'primary',
+          style: 'height:40px;',
         },
-        () => (isCaptchaVerify(type) ? '获取图片' : '获取验证码'),
+        () =>
+          cooldownSeconds.value > 0
+            ? `${cooldownSeconds.value}s 后重试`
+            : isCaptchaVerify(type)
+              ? '获取图片'
+              : '获取验证码',
       );
     };
 
@@ -411,7 +490,9 @@ function promptDynamicVerifyCode(
                 challenge: behaviorChallenge,
                 loading: applying,
                 onComplete: resolveBehaviorVerify,
-                onRefresh: () => triggerApply(true),
+                onRefresh: () => {
+                  void applyWithFailureFeedback(true).catch(() => undefined);
+                },
               })
             : applyResult
               ? h(
@@ -439,6 +520,7 @@ function promptDynamicVerifyCode(
                   placeholder: `请输入${getVerifyTypeLabel(type)}`,
                   size: 'large',
                   style: 'flex:1;min-width:0;',
+                  value: verifyCode,
                   'onUpdate:value': (value: string) => {
                     verifyCode = value;
                   },
@@ -470,6 +552,17 @@ function promptDynamicVerifyCode(
               [serverPrompt],
             )
           : undefined,
+        applyErrorMessage
+          ? h(
+              'div',
+              {
+                'data-test': 'dynamic-verify-apply-error',
+                style:
+                  'margin-top:8px;font-size:12px;line-height:1.5;color:hsl(var(--destructive));',
+              },
+              [applyErrorMessage],
+            )
+          : undefined,
       ]);
     };
 
@@ -481,6 +574,7 @@ function promptDynamicVerifyCode(
       maskClosable: false,
       okText: '确定',
       onCancel: () => {
+        clearCooldown();
         if (!settled) {
           settled = true;
           reject(new CanceledError('已取消动态验证码验证'));
@@ -516,6 +610,7 @@ function promptDynamicVerifyCode(
         }
 
         settled = true;
+        clearCooldown();
         resolve({
           paramName: result.paramName,
           verifyId: result.verifyId,
@@ -528,7 +623,7 @@ function promptDynamicVerifyCode(
     });
 
     if (!shouldShowGetCodeButton(getCurrentType())) {
-      void triggerApply();
+      void applyWithFailureFeedback().catch(() => undefined);
     }
   });
 }
@@ -570,6 +665,14 @@ async function processDynamicVerifyCode(
         ),
       );
 
+      // 原始申请响应仍可能携带失败 ApiResp；先展示脱敏业务原因，不能误报为缺少挑战头。
+      if (
+        isServiceResp(codeResponse.data) &&
+        !isServiceRespSuccessful(codeResponse.data)
+      ) {
+        throw new Error(getServiceRespMessage(codeResponse.data));
+      }
+
       const paramName = getHeader(
         codeResponse.headers,
         DYNAMIC_VERIFY_PARAM_NAME_HEADER,
@@ -593,7 +696,7 @@ async function processDynamicVerifyCode(
       return {
         mockCode: getHeader(
           codeResponse.headers,
-          '-DynamicVerifyCode-MockCode',
+          '-dynamic-verify-code-mock-code',
         ),
         friendlyMessage: decodeHeaderValue(
           getHeader(codeResponse.headers, DYNAMIC_VERIFY_PROMPT_HEADER),

@@ -15,7 +15,7 @@ function normalizeSelectedRecord(value: unknown) {
   const record = value as Partial<UserOrgSelectorRecord>;
   const id = normalizeId(record.id);
 
-  if (!id || (record.kind !== 'org' && record.kind !== 'user')) {
+  if (!id || !['tenant', 'org', 'user'].includes(String(record.kind))) {
     return undefined;
   }
 
@@ -26,7 +26,7 @@ function normalizeSelectedRecord(value: unknown) {
     id,
     kind: record.kind,
     orgId,
-    tenantId: normalizeId(record.tenantId),
+    tenantId: normalizeId(record.tenantId) || (record.kind === 'tenant' ? id : undefined),
   } as UserOrgSelectorRecord;
 }
 

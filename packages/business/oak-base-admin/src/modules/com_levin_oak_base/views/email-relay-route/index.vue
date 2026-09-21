@@ -46,6 +46,15 @@ const pageConfig = computed(() => ({
       },
       label: '同步',
     },
+    {
+      confirmText: '确认删除当前路由在邮件提供商中的资源吗？本地路由记录会保留。',
+      handler: async (record: Recordable) => {
+        await emailRelayRouteService.removeProviderResource({ id: record.id });
+        message.success('邮件提供商资源已删除');
+        return record;
+      },
+      label: '删除提供商资源',
+    },
   ],
 }));
 </script>

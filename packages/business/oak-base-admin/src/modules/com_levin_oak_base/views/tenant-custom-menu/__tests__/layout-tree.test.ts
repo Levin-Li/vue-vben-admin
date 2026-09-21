@@ -446,7 +446,7 @@ describe('menu display layout tree', () => {
 
   it('keeps the route in a hover tooltip instead of permanently rendering it', () => {
     expect(adjusterSource).toMatch(
-      /<Tooltip :title="getLayoutTreeItem\(dataRef\)\.path \|\| undefined">/,
+      /<Tooltip\s+:title="getLayoutTreeItem\(dataRef\)\.path \|\| undefined"/,
     );
     expect(adjusterSource).not.toContain('{{ getLayoutTreeItem(dataRef).path }}');
   });

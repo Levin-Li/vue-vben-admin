@@ -1,6 +1,5 @@
 import type {
   UserOrgSelectorKind,
-  UserOrgSelectorMode,
   UserOrgSelectorOrgLoadMode,
   UserOrgSelectorRecord,
   UserOrgTreeSelectNode,
@@ -23,6 +22,10 @@ export function getUserOrgSelectorNodeIcon(
 ) {
   if (node.kind === 'user') {
     return 'lucide:user-round';
+  }
+
+  if (node.kind === 'tenant') {
+    return 'lucide:building-2';
   }
 
   return ORG_TYPE_ICON_MAP[String(node.type || '')] || 'lucide:network';
@@ -59,7 +62,7 @@ export function decodeUserOrgSelectorKey(value?: unknown):
 
   const kind = text.slice(0, separatorIndex);
 
-  if (kind !== 'org' && kind !== 'user') {
+  if (kind !== 'tenant' && kind !== 'org' && kind !== 'user') {
     return undefined;
   }
 
@@ -110,8 +113,11 @@ export function isUserOrgSelectorTypeMatched(
   return acceptedTypes.includes(String(type || ''));
 }
 
-function canSelectKind(mode: UserOrgSelectorMode, kind: UserOrgSelectorKind) {
-  return mode === 'both' || mode === kind;
+function canSelectKind(
+  selectableTypes: UserOrgSelectorKind[] | undefined,
+  kind: UserOrgSelectorKind,
+) {
+  return (selectableTypes || ['org', 'user']).includes(kind);
 }
 
 export function normalizeOrgSelectorRecord(
@@ -126,6 +132,7 @@ export function normalizeOrgSelectorRecord(
     name,
     raw: item,
     tenantId: String(item.tenantId ?? '').trim() || undefined,
+    tenantName: String(item.tenantName ?? item.tenant?.name ?? '').trim() || undefined,
     type: getRawOrgType(item),
   };
 }
@@ -180,7 +187,7 @@ export function buildUserOrgSelectorOrgTree(
     allowSelectUser?: boolean;
     depth?: number;
     maxLoadDeep?: number;
-    mode?: UserOrgSelectorMode;
+    selectableTypes?: UserOrgSelectorKind[];
     onlyLeafNode?: boolean;
     onlyNotLeafNode?: boolean;
     onlyShowTypeMatchNode?: boolean;
@@ -229,10 +236,9 @@ export function buildUserOrgSelectorOrgTree(
     }
 
     const hasChildren = getRawHasChildren(item, rawChildren.length);
-    const mode = options.mode ?? 'both';
-    const allowSelectOrg = options.allowSelectOrg ?? canSelectKind(mode, 'org');
+    const allowSelectOrg = options.allowSelectOrg ?? canSelectKind(options.selectableTypes, 'org');
     const allowSelectUser =
-      options.allowSelectUser ?? canSelectKind(mode, 'user');
+      options.allowSelectUser ?? canSelectKind(options.selectableTypes, 'user');
     const canAttemptLazyLoad =
       options.orgLoadMode === 'lazy' &&
       (maxLoadDeep <= 0 || depth < maxLoadDeep);

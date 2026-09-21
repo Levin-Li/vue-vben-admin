@@ -21,6 +21,7 @@ import {
   verifyBuiltRouteAssets,
   verifyPageMetadata,
   verifyTarballDependencyProtocols,
+  verifyTarballModuleDevelopmentStandard,
   verifyTarballRouteAssets,
   verifyTarballStandaloneInstall,
   verifyTarballStandaloneViteBuild,
@@ -532,6 +533,13 @@ try {
         '本地 tarball',
       );
       verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
+
+      // 本地打包也必须验证下游可发现的模块开发规范和 README 入口。
+      verifyTarballModuleDevelopmentStandard(
+        packageInfo,
+        tarball,
+        '本地 tarball',
+      );
     }
 
     console.log(`已打包 ${selectedPackages.length} 个包到 ${outputDir}`);
@@ -568,6 +576,13 @@ try {
           remoteTarball,
           '私服 tarball',
         );
+
+        // 已发布版本被复用前，先确认私服制品仍保留必要的使用规范。
+        verifyTarballModuleDevelopmentStandard(
+          packageInfo,
+          remoteTarball,
+          '私服 tarball',
+        );
         console.log(
           `跳过 ${packageInfo.name}@${packageInfo.version}：私服中已存在该版本。`,
         );
@@ -582,6 +597,13 @@ try {
         '本地 tarball',
       );
       verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
+
+      // 上传前阻止缺少下游开发规范的制品进入私服。
+      verifyTarballModuleDevelopmentStandard(
+        packageInfo,
+        tarball,
+        '本地 tarball',
+      );
       verifyTarballStandaloneInstall(packageInfo, tarball, remotePackEnv);
       if (packageInfo.name === '@levin/admin-framework') {
         verifyTarballStandaloneViteBuild(
@@ -607,6 +629,13 @@ try {
         '私服 tarball',
       );
       verifyTarballDependencyProtocols(
+        packageInfo,
+        remoteTarball,
+        '私服 tarball',
+      );
+
+      // 上传成功后从私服回取同一制品，再次确认文档没有丢失。
+      verifyTarballModuleDevelopmentStandard(
         packageInfo,
         remoteTarball,
         '私服 tarball',

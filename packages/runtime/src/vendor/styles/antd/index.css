@@ -7,6 +7,19 @@
   color: inherit;
 }
 
+/* 固定表头独立叠加，统一使用主题底色，避免水印和滚动内容透出。 */
+.ant-table-thead
+  > tr
+  > th:is(
+    .ant-table-cell-fix-left,
+    .ant-table-cell-fix-left-last,
+    .ant-table-cell-fix-right,
+    .ant-table-cell-fix-right-first
+  ),
+.ant-table-thead > tr > th[style*='position: sticky'] {
+  background-color: hsl(var(--muted)) !important;
+}
+
 .ant-btn {
   .anticon {
     display: inline-flex;

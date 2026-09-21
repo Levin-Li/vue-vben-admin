@@ -620,6 +620,7 @@ function handleToggle(
   checked: boolean,
   parentPermissionExpr = '',
   isOperation = false,
+  keepParentSelectionIndependent = false,
 ) {
   const normalizedPermissionExpr = normalizePermissionExpr(permissionExpr);
   if (
@@ -663,6 +664,7 @@ function handleToggle(
     normalizePermissionExpr(parentPermissionExpr);
   if (
     checked &&
+    !keepParentSelectionIndependent &&
     normalizedParentPermissionExpr &&
     normalizedParentPermissionExpr !== normalizedPermissionExpr &&
     isValidPermissionExpr(normalizedParentPermissionExpr) &&
@@ -675,6 +677,25 @@ function handleToggle(
   emit('update:value', [
     ...new Set(next.map((permission) => normalizePermissionExpr(permission))),
   ]);
+}
+
+function isManualMenuPermissionNode(node: PermissionViewNode) {
+  return (
+    node.nodeType === PermissionTreeNodeTypeEnum.Menu &&
+    Boolean(normalizePermissionExpr(node.permissionExpr))
+  );
+}
+
+function handlePermissionNodeToggle(
+  node: PermissionViewNode,
+  checked: boolean,
+) {
+  if (isManualMenuPermissionNode(node)) {
+    handleToggle(node.permissionExpr, checked, '', false, true);
+    return;
+  }
+
+  handleTogglePermissions(node.permissions, checked);
 }
 
 function handleTogglePermissions(permissions: string[], checked: boolean) {
@@ -1693,13 +1714,16 @@ function getPermissionCountText(permissions: string[]) {
               <Checkbox
                 v-if="!isSingleSelection"
                 :checked="
-                  isPermissionNodeSelected(
-                    node.permissionExpr,
-                    node.permissions,
-                  )
+                  isManualMenuPermissionNode(node)
+                    ? isActionSelected(node.permissionExpr)
+                    : isPermissionNodeSelected(
+                        node.permissionExpr,
+                        node.permissions,
+                      )
                 "
                 class="permission-tree-choice"
                 :indeterminate="
+                  !isManualMenuPermissionNode(node) &&
                   isPermissionNodeIndeterminate(
                     node.permissionExpr,
                     node.permissions,
@@ -1707,8 +1731,8 @@ function getPermissionCountText(permissions: string[]) {
                 "
                 :data-test="`permission-node-${node.id}`"
                 @change="
-                  handleTogglePermissions(
-                    node.permissions,
+                  handlePermissionNodeToggle(
+                    node,
                     ($event.target as HTMLInputElement).checked,
                   )
                 "
@@ -1796,6 +1820,7 @@ function getPermissionCountText(permissions: string[]) {
                         ($event.target as HTMLInputElement).checked,
                         node.permissionExpr,
                         inlineNode.isOperation,
+                        isManualMenuPermissionNode(node),
                       )
                     "
                   >
@@ -1876,23 +1901,17 @@ function getPermissionCountText(permissions: string[]) {
 
             <div class="min-w-0 flex-1">
               <Checkbox
-                :checked="
-                  isPermissionNodeSelected(
-                    node.selfPermission,
-                    node.permissions,
-                  )
-                "
-                :indeterminate="
-                  isPermissionNodeIndeterminate(
-                    node.selfPermission,
-                    node.permissions,
-                  )
-                "
+              :checked="
+                  isActionSelected(node.selfPermission)
+              "
                 :data-test="`permission-${node.permissionExpr}`"
                 @change="
-                  handleTogglePermissions(
-                    node.permissions,
+                  handleToggle(
+                    node.selfPermission,
                     ($event.target as HTMLInputElement).checked,
+                    '',
+                    false,
+                    true,
                   )
                 "
               >
@@ -1944,7 +1963,8 @@ function getPermissionCountText(permissions: string[]) {
                       handleToggle(
                         operationNode.permissionExpr,
                         ($event.target as HTMLInputElement).checked,
-                        node.selfPermission,
+                        '',
+                        true,
                         true,
                       )
                     "

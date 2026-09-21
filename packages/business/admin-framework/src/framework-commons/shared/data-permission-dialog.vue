@@ -90,6 +90,7 @@ const candidateLoading = ref(false);
 const candidateOptions = ref<Option[]>([]);
 const candidateOpen = ref(false);
 const candidateSide = ref<ScopeSide>('allow');
+const candidateEditingValue = ref('');
 const orgMatchingMode = ref('SelfAndAllChild');
 const orgMatchingExpression = ref('');
 const orgStartValue = ref('_DEFAULT_');
@@ -529,9 +530,24 @@ async function loadCandidates(nextKeyword?: string) {
       );
       remoteOptions = remoteOptions.slice(0, keyword ? 50 : 10);
     }
+    const editingOption = candidateEditingValue.value
+      ? [
+          {
+            label: optionLabel(candidateKind.value, candidateEditingValue.value),
+            preset: isPresetValue(
+              candidateKind.value,
+              candidateEditingValue.value,
+            ),
+            value: candidateEditingValue.value,
+          },
+        ]
+      : [];
     candidateOptions.value = [
       ...new Map(
-        [...presetOptions, ...remoteOptions].map((item) => [item.value, item]),
+        [...editingOption, ...presetOptions, ...remoteOptions].map((item) => [
+          item.value,
+          item,
+        ]),
       ).values(),
     ];
     cacheOptions(candidateOptions.value);
@@ -543,6 +559,7 @@ async function openCandidate(tab: ScopeTab, side: ScopeSide) {
   if (isTabReadOnly(tab)) return;
   candidateKind.value = tab.kind;
   candidateSide.value = side;
+  candidateEditingValue.value = '';
   candidateKeyword.value = '';
   orgStartValue.value = '_DEFAULT_';
   orgMatchingMode.value = 'SelfAndAllChild';
@@ -550,10 +567,44 @@ async function openCandidate(tab: ScopeTab, side: ScopeSide) {
   candidateOpen.value = true;
   await loadCandidates();
 }
+async function openCandidateEditor(
+  tab: ScopeTab,
+  side: ScopeSide,
+  value: string,
+) {
+  if (isTabReadOnly(tab)) return;
+
+  candidateKind.value = tab.kind;
+  candidateSide.value = side;
+  candidateEditingValue.value = value;
+  candidateKeyword.value = '';
+
+  if (tab.kind === 'org') {
+    const rule = parseOrgRule(value);
+    orgStartValue.value = rule.startValue;
+    orgMatchingMode.value = rule.matchingMode;
+    orgMatchingExpression.value = rule.expression;
+  } else {
+    candidateOptions.value = [
+      {
+        label: optionLabel(tab.kind, value),
+        preset: isPresetValue(tab.kind, value),
+        value,
+      },
+    ];
+  }
+
+  candidateOpen.value = true;
+  await loadCandidates();
+}
 function addCandidate(tab: ScopeTab, value: string) {
   const field = fieldFor(tab, candidateSide.value);
   const current = scopeValues.value[field] || [];
-  scopeValues.value[field] = [...new Set([value, ...current])];
+  const editingValue = candidateEditingValue.value;
+
+  scopeValues.value[field] = editingValue
+    ? [...new Set(current.map((item) => (item === editingValue ? value : item)))]
+    : [...new Set([value, ...current])];
 }
 function addOrgRule(tab: ScopeTab, closeAfterAdd = false) {
   const matchingRule = requiresOrgMatchingExpression.value
@@ -563,11 +614,14 @@ function addOrgRule(tab: ScopeTab, closeAfterAdd = false) {
     tab,
     `${orgStartValue.value}|${isNoOrgStart.value ? 'Self' : matchingRule}`,
   );
-  if (closeAfterAdd) candidateOpen.value = false;
+  if (closeAfterAdd || candidateEditingValue.value) candidateOpen.value = false;
 }
 function isCandidateAdded(tab: ScopeTab, value: string) {
-  return (scopeValues.value[fieldFor(tab, candidateSide.value)] || []).includes(
-    value,
+  return (
+    value !== candidateEditingValue.value &&
+    (scopeValues.value[fieldFor(tab, candidateSide.value)] || []).includes(
+      value,
+    )
   );
 }
 function removeValue(field: ScopeField, value: string) {
@@ -817,7 +871,22 @@ watch(
                                     </Tag>
                                   </span>
                                 </Tooltip>
-                                <Tooltip title="删除">
+                                <div class="flex items-center gap-1">
+                                  <Tooltip title="编辑">
+                                    <Button
+                                      :aria-label="`编辑${orgRuleLabel(item)}`"
+                                      :disabled="isTabReadOnly(tab)"
+                                      size="small"
+                                      type="text"
+                                      @click="openCandidateEditor(tab, side, item)"
+                                    >
+                                      <IconifyIcon
+                                        class="size-4"
+                                        icon="lucide:pencil"
+                                      />
+                                    </Button>
+                                  </Tooltip>
+                                  <Tooltip title="删除">
                                   <Button
                                     aria-label="删除"
                                     class="border border-rose-200 text-rose-500 hover:!border-rose-300 hover:!bg-rose-50"
@@ -835,6 +904,7 @@ watch(
                                     />
                                   </Button>
                                 </Tooltip>
+                                </div>
                               </div>
                               <template v-else>
                                 <Tooltip
@@ -854,7 +924,22 @@ watch(
                                 <span v-else>
                                   {{ optionLabel(tab.kind, item) }}
                                 </span>
-                                <Tooltip title="删除">
+                                <div class="flex items-center gap-1">
+                                  <Tooltip title="编辑">
+                                    <Button
+                                      :aria-label="`编辑${optionLabel(tab.kind, item)}`"
+                                      :disabled="isTabReadOnly(tab)"
+                                      size="small"
+                                      type="text"
+                                      @click="openCandidateEditor(tab, side, item)"
+                                    >
+                                      <IconifyIcon
+                                        class="size-4"
+                                        icon="lucide:pencil"
+                                      />
+                                    </Button>
+                                  </Tooltip>
+                                  <Tooltip title="删除">
                                   <Button
                                     aria-label="删除"
                                     class="border border-rose-200 text-rose-500 hover:!border-rose-300 hover:!bg-rose-50"
@@ -872,6 +957,7 @@ watch(
                                     />
                                   </Button>
                                 </Tooltip>
+                                </div>
                               </template>
                             </List.Item>
                           </template>
@@ -918,7 +1004,7 @@ watch(
   <Modal
     v-model:open="candidateOpen"
     :footer="null"
-    :title="`添加${candidateSide === 'allow' ? '允许' : '拒绝'}${candidateKind === 'domain' ? '领域' : candidateKind === 'tenant' ? '租户' : '组织'}`"
+    :title="`${candidateEditingValue ? '编辑' : '添加'}${candidateSide === 'allow' ? '允许' : '拒绝'}${candidateKind === 'domain' ? '领域' : candidateKind === 'tenant' ? '租户' : '组织'}`"
     :width="480"
     :body-style="candidateModalBodyStyle"
   >
@@ -997,7 +1083,7 @@ watch(
           type="primary"
           @click="addOrgRule(scopeTabs.find((tab) => tab.kind === 'org')!)"
         >
-          添加
+          {{ candidateEditingValue ? '保存' : '添加' }}
         </Button>
         <Button
           :disabled="
@@ -1011,7 +1097,7 @@ watch(
             addOrgRule(scopeTabs.find((tab) => tab.kind === 'org')!, true)
           "
         >
-          添加并关闭
+          {{ candidateEditingValue ? '保存并关闭' : '添加并关闭' }}
         </Button>
       </div>
     </div>
@@ -1053,16 +1139,19 @@ watch(
                 addCandidate(
                   scopeTabs.find((tab) => tab.kind === candidateKind)!,
                   item.value,
-                )
+                );
+                candidateEditingValue && (candidateOpen = false)
               "
             >
               {{
-                isCandidateAdded(
-                  scopeTabs.find((tab) => tab.kind === candidateKind)!,
-                  item.value,
-                )
-                  ? '已添加'
-                  : '添加'
+                candidateEditingValue
+                  ? '保存'
+                  : isCandidateAdded(
+                        scopeTabs.find((tab) => tab.kind === candidateKind)!,
+                        item.value,
+                      )
+                    ? '已添加'
+                    : '添加'
               }}
             </Button>
           </List.Item>

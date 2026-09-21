@@ -21,14 +21,20 @@ vi.mock('../../api-module', () => ({
 }));
 
 describe('client app page config', () => {
-  it('uses generated immutable credentials and wildcard pattern editors', () => {
+  it('uses record IDs for the application-ID list column and wildcard pattern editors', () => {
     const fields = clientAppPageCrudConfig.fields;
 
     expect(fields.find((field) => field.key === 'appId')).toMatchObject({
-      disabledOnEdit: true,
-      formCreate: false,
+      form: false,
       key: 'appId',
+      sortField: 'id',
+      tableValue: expect.any(Function),
     });
+    expect(
+      fields
+        .find((field) => field.key === 'appId')
+        ?.tableValue?.({ id: 'client-1' }),
+    ).toBe('client-1');
     expect(fields.find((field) => field.key === 'appSignSecret')).toMatchObject(
       {
         disabledOnEdit: true,
@@ -114,8 +120,7 @@ describe('client app page config', () => {
       null,
     );
 
-    expect(payload.appId).toMatch(/^app_/);
-    expect(payload.appId).toHaveLength(20);
+    expect(payload.appId).toBeUndefined();
     expect(payload.appSignSecret).toHaveLength(32);
     expect(payload.allowedIpList).toEqual(['10.0.?.*', '127.0.0.1']);
     expect(payload.allowedPathPatterns).toEqual(['/api/order/*']);

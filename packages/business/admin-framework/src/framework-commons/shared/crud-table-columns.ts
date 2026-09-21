@@ -6,17 +6,14 @@ export function normalizeLeftFixedTableColumns<T>(
   getKey: (field: T) => string,
 ) {
   const fixedMap: Record<string, CrudTableColumnFixed> = {};
-  let hasLeftFixedColumn = false;
 
   for (const field of fields) {
     const fixed = getFixed(field);
     const key = getKey(field);
 
     if (fixed === 'left') {
-      if (!hasLeftFixedColumn) {
-        fixedMap[key] = 'left';
-        hasLeftFixedColumn = true;
-      }
+      // 左固定列按当前顺序组成完整左侧列组，不能因前一个字段已固定而丢弃后续字段。
+      fixedMap[key] = 'left';
       continue;
     }
 

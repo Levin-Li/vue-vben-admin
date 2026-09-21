@@ -33,6 +33,7 @@ import CrudPage from '../crud-page.vue';
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   orgTypeOptionsLoader,
+  tenantOptionsLoader,
 } from '../api-module';
 import {
   buildApiMethodPermissions,
@@ -49,6 +50,7 @@ interface OrgTreeNode {
   key: string;
   label: string;
   tenantId?: string;
+  virtual?: boolean;
   title: string;
   type?: string;
   value: string;
@@ -127,6 +129,7 @@ const hoveredOrgId = ref('');
 const expandedOrgKeys = ref<string[]>([]);
 const orgTreeData = ref<OrgTreeNode[]>([]);
 const orgTypeOptions = ref<Array<{ label: string; value: string }>>([]);
+const tenantOptions = ref<StringSelectOption[]>([]);
 const userStore = useUserStore();
 
 const orgModalOpen = ref(false);
@@ -148,6 +151,15 @@ const selectedOrgName = computed(
   () => findOrgNode(orgTreeData.value, selectedOrgId.value)?.title || '',
 );
 const isSuperAdmin = computed(() => isSuperAdminUser(userStore.userInfo));
+const isPlatformUser = computed(() => {
+  const userInfo = userStore.userInfo as Record<string, any>;
+  return (
+    userInfo?.platformUser === true ||
+    userInfo?.isPlatformUser === true ||
+    userInfo?.saasAdmin === true ||
+    userInfo?.isSaasAdmin === true
+  );
+});
 const shouldShowOrgEditableControl = computed(
   () => orgModalMode.value === 'create' || isSuperAdmin.value,
 );
@@ -262,6 +274,32 @@ function toOrgTreeNodes(options: SelectOption[]): OrgTreeNode[] {
         value: id,
       };
     });
+}
+
+function groupOrgTreeByTenant(
+  nodes: OrgTreeNode[],
+  tenantNames: Map<string, string>,
+) {
+  const groups = new Map<string, OrgTreeNode[]>();
+  for (const node of nodes) {
+    const tenantId = node.tenantId || '__platform__';
+    groups.set(tenantId, [...(groups.get(tenantId) || []), node]);
+  }
+  return [...groups.entries()].map(([tenantId, children]) => ({
+    children,
+    disabled: true,
+    key: `__tenant__:${tenantId}`,
+    label:
+      tenantId === '__platform__'
+        ? '平台组织'
+        : tenantNames.get(tenantId) || `租户 ${tenantId}`,
+    title:
+      tenantId === '__platform__'
+        ? '平台组织'
+        : tenantNames.get(tenantId) || `租户 ${tenantId}`,
+    value: `__tenant__:${tenantId}`,
+    virtual: true,
+  }));
 }
 
 function getOrgTypeIcon(type?: string) {
@@ -422,16 +460,24 @@ async function loadOrgTree() {
   orgTreeLoading.value = true;
 
   try {
-    const options = await rbacService.fetchAuthorizedOrgOptions({
-      assembleTree: true,
-    });
-    const nextTreeData = toOrgTreeNodes(options);
-    const nextKeys = collectOrgKeys(nextTreeData);
+    const [options, tenantOptionList] = await Promise.all([
+      rbacService.fetchAuthorizedOrgOptions({ assembleTree: true }),
+      isPlatformUser.value ? tenantOptionsLoader('') : Promise.resolve([]),
+    ]);
+    const realTreeData = toOrgTreeNodes(options);
+    const tenantNames = new Map(
+      tenantOptionList.map((option) => [String(option.value), option.label]),
+    );
+    tenantOptions.value = toStringSelectOptions(tenantOptionList);
+    const nextTreeData = isPlatformUser.value
+      ? groupOrgTreeByTenant(realTreeData, tenantNames)
+      : realTreeData;
+    const nextKeys = collectOrgKeys(realTreeData);
 
     orgTreeData.value = nextTreeData;
 
     if (!selectedOrgId.value || !nextKeys.includes(selectedOrgId.value)) {
-      selectedOrgId.value = findFirstOrgId(nextTreeData);
+      selectedOrgId.value = findFirstOrgId(realTreeData);
     }
 
     if (!orgKeyword.value) {
@@ -461,7 +507,8 @@ function handleOrgSelect(keys: Array<number | string>) {
   const [key] = keys;
 
   if (key !== undefined && key !== null) {
-    selectedOrgId.value = String(key);
+    const node = findOrgNode(orgTreeData.value, String(key));
+    if (!node?.virtual) selectedOrgId.value = String(key);
   }
 }
 
@@ -541,6 +588,16 @@ async function deleteOrg(id = selectedOrgId.value) {
 async function submitOrgForm() {
   if (!String(orgFormState.name || '').trim()) {
     message.warning('请输入组织名称');
+    return;
+  }
+
+  if (
+    orgModalMode.value === 'create' &&
+    isPlatformUser.value &&
+    !orgFormState.parentId &&
+    !orgFormState.tenantId
+  ) {
+    message.warning('请选择归属租户');
     return;
   }
 
@@ -684,15 +741,16 @@ onMounted(async () => {
       />
 
       <Spin :spinning="orgTreeLoading" class="min-h-0 flex-1">
-        <Tree
-          v-if="filteredOrgTreeData.length > 0"
-          v-model:expandedKeys="expandedOrgKeys"
-          :selected-keys="selectedOrgId ? [selectedOrgId] : []"
-          :tree-data="filteredOrgTreeData"
-          block-node
-          class="user-org-tree"
-          @select="handleOrgSelect"
-        >
+        <div class="user-org-tree-scroll">
+          <Tree
+            v-if="filteredOrgTreeData.length > 0"
+            v-model:expandedKeys="expandedOrgKeys"
+            :selected-keys="selectedOrgId ? [selectedOrgId] : []"
+            :tree-data="filteredOrgTreeData"
+            block-node
+            class="user-org-tree"
+            @select="handleOrgSelect"
+          >
           <template #title="node">
             <div
               :class="{
@@ -719,7 +777,7 @@ onMounted(async () => {
                 <span class="min-w-0 truncate">{{ node.title }}</span>
               </span>
               <span
-                v-if="hoveredOrgId === String(node.key)"
+                v-if="!node.virtual && hoveredOrgId === String(node.key)"
                 class="user-org-tree-actions"
               >
                 <Tooltip title="新增下级组织">
@@ -761,8 +819,9 @@ onMounted(async () => {
               </span>
             </div>
           </template>
-        </Tree>
-        <Empty v-else description="暂无组织" />
+          </Tree>
+          <Empty v-else description="暂无组织" />
+        </div>
       </Spin>
     </aside>
 
@@ -833,6 +892,18 @@ onMounted(async () => {
               tree-node-filter-prop="label"
             />
           </Form.Item>
+          <Form.Item
+            v-if="orgModalMode === 'create' && isPlatformUser && !orgFormState.parentId"
+            label="归属租户"
+            required
+          >
+            <Select
+              v-model:value="orgFormState.tenantId"
+              :options="tenantOptions"
+              placeholder="请选择归属租户"
+              show-search
+            />
+          </Form.Item>
           <Form.Item label="组织类型">
             <Select
               v-model:value="orgFormState.type"
@@ -891,10 +962,11 @@ onMounted(async () => {
 }
 
 .user-org-sidebar {
+  height: 100%;
   min-height: 0;
+  overflow: hidden;
   position: relative;
   z-index: 3;
-  overflow: visible;
 }
 
 .user-org-main {
@@ -903,26 +975,37 @@ onMounted(async () => {
 }
 
 .user-org-sidebar :deep(.ant-spin-nested-loading) {
+  display: flex;
+  width: 100%;
   min-height: 0;
   flex: 1;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .user-org-sidebar :deep(.ant-spin-container) {
   display: flex;
+  width: 100%;
   min-height: 0;
   height: 100%;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
 }
 
-.user-org-tree {
+.user-org-tree-scroll {
+  width: 100%;
   min-height: 0;
+  align-self: stretch;
   flex: 1;
   position: relative;
   z-index: 1;
-  overflow-y: auto;
-  overflow-x: visible;
+  overflow-y: scroll !important;
+  overflow-x: hidden !important;
+  scrollbar-gutter: stable;
+}
+
+.user-org-sidebar :deep(.user-org-tree) {
+  min-width: 100%;
+  overflow: visible !important;
 }
 
 .user-org-tree :deep(.ant-tree-node-content-wrapper) {

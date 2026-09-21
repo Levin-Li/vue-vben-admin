@@ -253,9 +253,6 @@ export const domainPageCrudConfig: CrudPageConfig = {
       type: 'textarea',
     },
   ],
-  formMaxColumns: 2,
-  modalWidth: 860,
-  modalWidthStrict: true,
   title: '根域名管理',
   transformSubmit: async (values, editingRecord) => {
     const nextValues = { ...values };

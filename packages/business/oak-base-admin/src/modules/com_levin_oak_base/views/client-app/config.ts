@@ -17,10 +17,6 @@ function generateUuidPart(length: number) {
   return randomPart.padEnd(length, randomPart).slice(0, length);
 }
 
-function generateClientAppId() {
-  return `app_${generateUuidPart(16)}`;
-}
-
 function generateClientAppSecret() {
   return generateUuidPart(32);
 }
@@ -48,14 +44,12 @@ function transformClientAppSubmit(
     allowedPathPatterns: normalizePatternListValue(values.allowedPathPatterns),
   };
 
+  // appId 只是列表展示别名，后端请求对象以记录主键 id 识别应用，不能提交虚构字段。
+  delete payload.appId;
+
   if (editingRecord) {
-    delete payload.appId;
     delete payload.appSignSecret;
     return payload;
-  }
-
-  if (!String(payload.appId || '').trim()) {
-    payload.appId = generateClientAppId();
   }
 
   if (!String(payload.appSignSecret || '').trim()) {
@@ -138,13 +132,13 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'appId',
       label: '应用ID',
-      disabledOnEdit: true,
-      formCreate: false,
-      help: '新增时由前端自动生成，编辑时不允许修改。',
+      // 后端将应用 ID 定义为记录主键；保留列键以兼容已保存的列设置。
+      form: false,
       layoutGroup: 'basic',
       layoutOrder: 20,
-      search: true,
+      sortField: 'id',
       table: true,
+      tableValue: (record) => record.id,
       width: 180,
     },
     {

@@ -1,10 +1,12 @@
 export interface TenantCustomMenuItem {
   children?: TenantCustomMenuItem[];
   enable?: boolean;
+  icon?: string;
   key: string;
   label: string;
   name?: string;
   path?: string;
+  sourceIcon?: string;
 }
 
 export interface MenuDisplaySource {
@@ -35,9 +37,10 @@ export function cloneLayoutItems(items: TenantCustomMenuItem[] = []) {
 }
 
 export function toPersistedLayoutItems(items: TenantCustomMenuItem[] = []) {
-  return items.map(({ children, enable, label, path }) => ({
+  return items.map(({ children, enable, icon, label, path }) => ({
     ...(children?.length ? { children: toPersistedLayoutItems(children) } : {}),
     ...(enable === false ? { enable: false } : {}),
+    ...(icon?.trim() ? { icon: icon.trim() } : {}),
     label,
     ...(path ? { path } : {}),
   }));
@@ -77,7 +80,7 @@ export function findLayoutItem(
 export function updateLayoutItemValue(
   items: TenantCustomMenuItem[],
   key: string,
-  field: 'enable' | 'label',
+  field: 'enable' | 'icon' | 'label',
   value: boolean | string,
 ) {
   const item = findLayoutItem(items, key);
@@ -87,6 +90,8 @@ export function updateLayoutItemValue(
 
   if (field === 'enable') {
     item.enable = Boolean(value);
+  } else if (field === 'icon') {
+    item.icon = String(value || '').trim() || undefined;
   } else {
     item.label = String(value);
   }
@@ -172,7 +177,9 @@ export function hasLayoutPathAtTarget(
 }
 
 function normalizeLayoutLabel(label: string) {
-  return String(label || '').trim().toLocaleLowerCase();
+  return String(label || '')
+    .trim()
+    .toLocaleLowerCase();
 }
 
 function hasDuplicateLayoutLabel(
@@ -237,13 +244,8 @@ export function appendLayoutItemsAtTarget(
         virtualRootKey,
         targetKey,
         item.path || '',
-      )
-      || hasLayoutLabelAtTarget(
-        items,
-        virtualRootKey,
-        targetKey,
-        item.label,
-      )
+      ) ||
+      hasLayoutLabelAtTarget(items, virtualRootKey, targetKey, item.label)
     ) {
       skipped += 1;
       continue;
@@ -323,6 +325,7 @@ export function toLayoutItem(source: MenuDisplaySource): TenantCustomMenuItem {
 
   return {
     enable: source.enable !== false,
+    sourceIcon: source.icon,
     key: `menu:${path}`,
     label,
     path,

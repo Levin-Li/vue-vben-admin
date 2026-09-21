@@ -252,7 +252,7 @@ describe('user-org-selector-utils', () => {
         },
       ],
       {
-        mode: 'user',
+        selectableTypes: ['user'],
         orgTypes: ['Department'],
       },
     );

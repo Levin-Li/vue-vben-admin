@@ -73,7 +73,10 @@ describe('oak base admin routes', () => {
   it('访问控制测试页可独立直达且有完整页面映射', () => {
     const normal = createOakBaseAdminModule();
     const explicit = createOakBaseAdminModule({ crud: false });
-    for (const routes of [normal.routes?.[0]?.children, explicit.routes]) {
+    const developmentToolsGroup = normal.routes?.[0]?.children?.find(
+      (route) => route.meta?.title === '开发&工具',
+    );
+    for (const routes of [developmentToolsGroup?.children, explicit.routes]) {
       const route = routes?.find((item) => item.path === '/clob/V1/aclTest');
       expect(route?.name).toBe('_clob_V1_aclTest');
       expect(route?.meta?.crudResource).toBeUndefined();

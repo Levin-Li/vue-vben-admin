@@ -187,6 +187,7 @@ export const userPageCrudConfig: CrudPageConfig = {
       fixed: 'left',
       form: false,
       table: true,
+      tableValue: (record) => record.org?.name || record.orgId,
       width: 150,
     },
     {

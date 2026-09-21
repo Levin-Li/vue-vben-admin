@@ -10,7 +10,7 @@ function handleCollapsed() {
 
 <template>
   <div
-    class="sidebar-bottom-control flex-center absolute bottom-2 left-3 z-10 cursor-pointer rounded-sm p-1 text-foreground/60 hover:text-foreground"
+    class="sidebar-bottom-control flex-center absolute bottom-2 left-3 z-10 cursor-pointer rounded-md p-2 text-foreground/60 transition-colors duration-200 hover:text-foreground"
     @click.stop="handleCollapsed"
   >
     <ChevronsRight v-if="collapsed" class="size-4" />
@@ -20,12 +20,14 @@ function handleCollapsed() {
 
 <style scoped>
 .sidebar-bottom-control {
-  background-color: hsl(var(--sidebar-menu-background-color, var(--accent)));
+  background-color: transparent;
 }
 
 .sidebar-bottom-control:hover {
-  background-color: hsl(
-    var(--sidebar-menu-hover-background-color, var(--accent-hover))
+  /* 与顶部菜单按钮共用同一主题悬浮层，确保在定制主题下效果一致。 */
+  background-color: var(
+    --header-control-background-hover,
+    hsl(var(--primary) / 36%)
   );
 }
 </style>

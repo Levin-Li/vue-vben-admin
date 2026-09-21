@@ -168,6 +168,7 @@ vi.mock('ant-design-vue', () => ({
   Button: 'button',
   Input: 'input',
   message: {
+    error: vi.fn(),
     warning: vi.fn(),
   },
   Modal: {
@@ -623,9 +624,17 @@ describe('dynamic verify code interceptor', () => {
               ? '请输入MFA 验证码'
               : '请输入图片验证码',
       );
-      expect(Boolean(findNode(modalOptions.content, 'button'))).toBe(
+      const getCodeButton = findNode(modalOptions.content, 'button');
+      expect(Boolean(getCodeButton)).toBe(
         verifyType === 'Sms' || verifyType === 'Email',
       );
+      if (verifyType === 'Sms' || verifyType === 'Email') {
+        expect(getCodeButton?.props).toMatchObject({
+          class: 'min-w-[116px] text-[11px]',
+          size: 'large',
+          style: 'height:40px;',
+        });
+      }
       if (verifyType === 'Captcha') {
         const updatedContent =
           modalInstances[0]?.update.mock.calls.at(-1)?.[0]?.content;
