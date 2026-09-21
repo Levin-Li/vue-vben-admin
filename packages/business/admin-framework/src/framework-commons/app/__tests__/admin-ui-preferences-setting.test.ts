@@ -6,7 +6,7 @@ const put = vi.fn();
 const updatePreferences = vi.fn();
 const resolveUiSettingRuntimeWithScope = vi.fn();
 
-vi.mock('@vben/preferences', () => ({ updatePreferences }));
+vi.mock('@vben-core/foundation/preferences', () => ({ updatePreferences }));
 vi.mock('../../api', () => ({
   fetchDictOptions: vi.fn(),
   fetchEnumOptions: vi.fn(),

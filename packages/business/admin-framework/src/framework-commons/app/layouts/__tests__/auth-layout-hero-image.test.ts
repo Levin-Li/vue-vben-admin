@@ -21,7 +21,7 @@ vi.mock('@vben/layouts', () => ({
   ThemeToggle: { template: '<div />' },
 }));
 
-vi.mock('@vben/preferences', () => ({
+vi.mock('@vben-core/foundation/preferences', () => ({
   preferences: {
     logo: {
       source: '/logo.svg',

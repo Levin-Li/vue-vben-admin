@@ -34,7 +34,7 @@ describe('runtime i18n labels', () => {
               labels: {
                 'common.login': '服务端登录',
               },
-              moduleId: '@vben/locales',
+              moduleId: '@vben/runtime/locales',
             },
             {
               labels: {
@@ -55,7 +55,7 @@ describe('runtime i18n labels', () => {
           labels: {
             'common.login': '不应使用备用服务',
           },
-          moduleId: '@vben/locales',
+          moduleId: '@vben/runtime/locales',
         },
       ],
     });
@@ -108,7 +108,7 @@ describe('runtime i18n labels', () => {
           domain: 'localhost',
           language: 'zh-CN',
           moduleIds: [
-            '@vben/locales',
+            '@vben/runtime/locales',
             '@levin/admin-framework',
             'com.levin.order',
           ],

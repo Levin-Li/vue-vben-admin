@@ -8,7 +8,7 @@ import {
   LanguageToggle,
   ThemeToggle,
 } from '@vben/layouts';
-import { preferences, usePreferences } from '@vben/preferences';
+import { preferences, usePreferences } from '@vben-core/foundation/preferences';
 
 import { useAuthBrand } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/auth-brand';
 

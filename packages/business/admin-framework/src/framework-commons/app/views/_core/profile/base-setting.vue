@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import { useUserStore } from '@vben/stores';
+import { useUserStore } from '@vben/runtime/stores';
 
 import {
   Button,

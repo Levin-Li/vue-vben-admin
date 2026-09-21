@@ -18,7 +18,7 @@ import {
 import { useRouter } from 'vue-router';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
-import { useWatermark } from '@vben/hooks';
+import { useWatermark } from '@vben/runtime/hooks';
 import {
   BasicLayout,
   LockScreen,
@@ -26,8 +26,8 @@ import {
   registerPreferencesUploadAction,
   UserDropdown,
 } from '@vben/layouts';
-import { preferences } from '@vben/preferences';
-import { useAccessStore, useUserStore } from '@vben/stores';
+import { preferences } from '@vben-core/foundation/preferences';
+import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
 import {
   getAdminMenuSyncService,
@@ -61,6 +61,7 @@ import { getFrontendBuildInfo } from '../frontend-build-versions';
 import {
   ADMIN_UI_PREFERENCES_SETTING_CODE,
   loadAdminUiPreferencesSetting,
+  loadAdminUiPreferencesUploadTargets,
   loadAdminUiPreferencesScopeOptions,
   saveAdminUiPreferencesSetting,
 } from '../admin-ui-preferences-setting';
@@ -140,12 +141,50 @@ const syncI18nLabelsModalOpen = ref(false);
 const adminUiPreferencesUploadLoading = ref(false);
 const adminUiPreferencesLoadLoading = ref(false);
 const adminUiPreferencesUploadModalOpen = ref(false);
+// 仅展示本次加载命中的记录，不将展示信息作为保存目标。
+const loadedAdminUiSetting = ref<null | {
+  id?: string;
+  name?: string;
+  lastUpdateTime?: string;
+}>(null);
 const syncNationalAdministrativeAreasModalOpen = ref(false);
 const syncNationalAdministrativeAreasLoading = ref(false);
 const eventListenerManagerOpen = ref(false);
 const frontendVersionModalOpen = ref(false);
 const eventListeners = ref<FrameworkEventListenerInfo[]>([]);
 const adminUiPreferencesScope = reactive<AdminUiPreferencesScope>({});
+const uploadTargetRecords = ref<
+  Array<{ id?: string; name?: string; lastUpdateTime?: string }>
+>([]);
+const uploadTargetStatus = ref('');
+// 范围变更时清除旧目标，并忽略已经过期的查询响应。
+watch(
+  [adminUiPreferencesUploadModalOpen, () => ({ ...adminUiPreferencesScope })],
+  async ([open], _previous, onCleanup) => {
+    let expired = false;
+    onCleanup(() => {
+      expired = true;
+    });
+    uploadTargetRecords.value = [];
+    uploadTargetStatus.value = open ? '正在查询上传目标…' : '';
+    if (!open) return;
+    try {
+      const records = await loadAdminUiPreferencesUploadTargets({
+        ...adminUiPreferencesScope,
+      });
+      if (expired) return;
+      uploadTargetRecords.value = records;
+      uploadTargetStatus.value =
+        records.length === 0
+          ? '无精确匹配记录，上传将新建设置'
+          : records.length > 1
+            ? `匹配 ${records.length} 条，上传时选择更新目标或新建`
+            : '';
+    } catch {
+      if (!expired) uploadTargetStatus.value = '目标查询失败，上传时将重新查询';
+    }
+  },
+);
 const adminUiPreferencesScopeOptions = reactive({
   orgCategories: [] as Array<{ label: string; value: string }>,
   orgTypes: [] as Array<{ label: string; value: string }>,
@@ -358,6 +397,7 @@ function clonePreferences() {
 }
 
 function openAdminUiPreferencesUpload() {
+  loadedAdminUiSetting.value = null;
   // 每次打开都从独立 UI 设置的通用范围开始选择。
   Object.assign(adminUiPreferencesScope, {});
   void loadAdminUiPreferencesScopeOptions().then((options) =>
@@ -375,25 +415,36 @@ function handleAdminUiPreferencesTenantChange() {
   ).then((options) => Object.assign(adminUiPreferencesScopeOptions, options));
 }
 
-function selectAdminUiPreferencesCandidate(candidates: any[], candidateCount: number) {
+function selectAdminUiPreferencesCandidate(
+  candidates: any[],
+  candidateCount: number,
+) {
   return new Promise<any | undefined>((resolve) => {
     let selectedId: string | undefined;
     Modal.confirm({
       cancelText: '新建记录',
       content: h('div', { class: 'grid gap-3' }, [
-        h('div', `找到 ${candidateCount} 条完全匹配的配置，请选择一条更新；不选择将新建记录。`),
+        h(
+          'div',
+          `找到 ${candidateCount} 条完全匹配的配置，请选择一条更新；不选择将新建记录。`,
+        ),
         h(
           'select',
           {
             class: 'border-border rounded border px-3 py-2',
             onChange: (event: Event) => {
-              selectedId = (event.target as HTMLSelectElement).value || undefined;
+              selectedId =
+                (event.target as HTMLSelectElement).value || undefined;
             },
           },
           [
             h('option', { value: '' }, '不选择，改为新建记录'),
             ...candidates.map((item) =>
-              h('option', { value: item.id }, `${item.code || '界面偏好设置'} · ${item.id || ''}`),
+              h(
+                'option',
+                { value: item.id },
+                `${item.code || '界面偏好设置'} · ${item.id || ''}`,
+              ),
             ),
           ],
         ),
@@ -447,6 +498,7 @@ async function handleLoadAdminUiPreferences() {
   }
 
   adminUiPreferencesLoadLoading.value = true;
+  loadedAdminUiSetting.value = null;
   try {
     const resolution = await loadAdminUiPreferencesSetting();
     Object.assign(adminUiPreferencesScope, resolution.scope);
@@ -455,6 +507,7 @@ async function handleLoadAdminUiPreferences() {
     );
     Object.assign(adminUiPreferencesScopeOptions, options);
     if (resolution.setting) {
+      loadedAdminUiSetting.value = resolution.setting;
       message.success('界面设置已加载');
     } else {
       message.warning('无适配设置');
@@ -925,6 +978,60 @@ watch(
         @cancel="resetAdminUiPreferencesUploadLoading"
         @ok="handleSaveAdminUiPreferences"
       >
+        <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <!-- 已加载记录只读展示，便于管理员确认适配结果。 -->
+          <section class="bg-muted min-w-0 rounded p-3 text-sm">
+            <div class="mb-2 font-medium">匹配用户的设置</div>
+            <dl
+              v-if="loadedAdminUiSetting"
+              class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 whitespace-nowrap"
+              data-testid="loaded-admin-ui-setting"
+            >
+              <dt class="text-muted-foreground">设置 ID</dt>
+              <dd class="truncate" :title="loadedAdminUiSetting.id">
+                {{ loadedAdminUiSetting.id || '—' }}
+              </dd>
+              <dt class="text-muted-foreground">设置名称</dt>
+              <dd class="truncate" :title="loadedAdminUiSetting.name">
+                {{ loadedAdminUiSetting.name || '—' }}
+              </dd>
+              <dt class="text-muted-foreground">最后更新时间</dt>
+              <dd class="truncate" :title="loadedAdminUiSetting.lastUpdateTime">
+                {{ loadedAdminUiSetting.lastUpdateTime || '—' }}
+              </dd>
+            </dl>
+            <div v-else class="text-muted-foreground">尚未加载适配设置</div>
+          </section>
+          <section
+            class="bg-muted min-w-0 rounded p-3 text-sm"
+            data-testid="admin-ui-upload-target"
+          >
+            <div class="mb-2 font-medium">上传更新的设置</div>
+            <div v-if="uploadTargetStatus" class="text-muted-foreground">
+              {{ uploadTargetStatus }}
+            </div>
+            <dl
+              v-if="uploadTargetRecords.length === 1"
+              class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 whitespace-nowrap"
+            >
+              <dt>设置 ID</dt>
+              <dd class="truncate" :title="uploadTargetRecords[0]?.id">
+                {{ uploadTargetRecords[0]?.id || '—' }}
+              </dd>
+              <dt>设置名称</dt>
+              <dd class="truncate" :title="uploadTargetRecords[0]?.name">
+                {{ uploadTargetRecords[0]?.name || '—' }}
+              </dd>
+              <dt>最后更新时间</dt>
+              <dd
+                class="truncate"
+                :title="uploadTargetRecords[0]?.lastUpdateTime"
+              >
+                {{ uploadTargetRecords[0]?.lastUpdateTime || '—' }}
+              </dd>
+            </dl>
+          </section>
+        </div>
         <div class="grid grid-cols-2 gap-4">
           <!-- 独立界面偏好记录的编码固定，适用范围为空时匹配任意上下文。 -->
           <Input
@@ -985,7 +1092,9 @@ watch(
           >
             加载设置
           </Button>
-          <Button @click="adminUiPreferencesUploadModalOpen = false">取消</Button>
+          <Button @click="adminUiPreferencesUploadModalOpen = false"
+            >取消</Button
+          >
           <Button
             :loading="adminUiPreferencesUploadLoading"
             type="primary"
@@ -1216,24 +1325,11 @@ watch(
   background: transparent !important;
 }
 
-/* 搜索与用户入口使用同一轻量表面，形成可扫描的操作区域。 */
+/* 顶栏控件静止透明，交互时与当前选中项使用同强度主题色。 */
 .admin-navigation-theme-brand-gradient
-  :deep(header.light .header-global-search),
-.admin-navigation-theme-brand-gradient
-  :deep(header.light .header-user-dropdown) {
-  background: hsl(var(--primary) / 6%);
-  border: 1px solid hsl(var(--primary) / 10%);
-  box-shadow: 0 3px 10px hsl(var(--primary) / 4%);
-}
-
-.admin-navigation-theme-brand-gradient
-  :deep(header.light .header-global-search:hover),
-.admin-navigation-theme-brand-gradient
-  :deep(header.light [data-state='open'] .header-user-dropdown),
-.admin-navigation-theme-brand-gradient
-  :deep(header.light .header-user-dropdown:hover) {
-  background: hsl(var(--primary) / 10%);
-  border-color: hsl(var(--primary) / 18%);
+  :deep(header.light) {
+  --header-control-background: transparent;
+  --header-control-background-hover: hsl(var(--primary) / 36%);
 }
 
 /* 标签栏与侧栏菜单保持一致的悬停、选中渐变层级。 */
@@ -1311,6 +1407,23 @@ watch(
     table thead > tr > th
   ) {
   background: transparent !important;
+}
+
+/* 工具栏图标静止时不叠加圆形表面，交互时与顶栏使用同强度主题色。 */
+.admin-navigation-theme-brand-gradient
+  :deep(.vben-crud-table-tool-button) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.admin-navigation-theme-brand-gradient
+  :deep(.vben-crud-table-tool-button:hover),
+.admin-navigation-theme-brand-gradient
+  :deep(.vben-crud-table-tool-button:focus-visible) {
+  color: hsl(var(--primary)) !important;
+  background: hsl(var(--primary) / 36%) !important;
+  border-color: transparent !important;
 }
 
 /* CRUD 操作栏只作轻量承接，不抢占新增和工具按钮的操作层级。 */

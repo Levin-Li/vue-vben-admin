@@ -6,7 +6,7 @@ import type {
   TenantSiteRecord,
 } from '../../api/tenant-site-service';
 
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import {
   Button,

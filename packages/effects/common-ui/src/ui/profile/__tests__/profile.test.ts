@@ -5,11 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import Profile from '../profile.vue';
 
-vi.mock('@vben-core/preferences', () => ({
+vi.mock('@vben-core/foundation/preferences', () => ({
   preferences: { app: { defaultAvatar: '' } },
 }));
 
-vi.mock('@vben-core/shadcn-ui', () => {
+vi.mock('@vben-core/ui/shadcn', () => {
   const Container = defineComponent({ template: '<div><slot /></div>' });
   return {
     Card: Container,

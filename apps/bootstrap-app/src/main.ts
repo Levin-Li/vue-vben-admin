@@ -1,7 +1,7 @@
 import type { AdminPageMap } from '@levin/admin-framework';
 
-import { initPreferences } from '@vben/preferences';
-import { unmountGlobalLoading } from '@vben/utils';
+import { initPreferences } from '@vben-core/foundation/preferences';
+import { unmountGlobalLoading } from '@vben/runtime/utils';
 
 import {
   configureAdminApplication,

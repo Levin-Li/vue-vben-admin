@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import { preferences } from '@vben/preferences';
-import { useUserStore } from '@vben/stores';
+import { preferences } from '@vben-core/foundation/preferences';
+import { useUserStore } from '@vben/runtime/stores';
 
 import { message } from 'ant-design-vue';
 

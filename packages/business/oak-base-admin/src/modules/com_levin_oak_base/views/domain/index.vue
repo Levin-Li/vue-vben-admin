@@ -3,8 +3,8 @@ import type { DomainRecord } from '../../api/domain-service';
 
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
-import { useUserStore } from '@vben/stores';
+import { IconifyIcon } from '@vben/runtime/icons';
+import { useUserStore } from '@vben/runtime/stores';
 
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { Button, Form, Input, message, Modal, Select } from 'ant-design-vue';

@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import type { Recordable } from '@vben/types';
+import type { Recordable } from '@vben/runtime/types';
 
 import { useRouter } from 'vue-router';
 
-import { AccessControl, useAccess } from '@vben/access';
+import { AccessControl, useAccess } from '@vben/runtime/access';
 import { Page } from '@vben/common-ui';
-import { resetAllStores, useUserStore } from '@vben/stores';
+import { resetAllStores, useUserStore } from '@vben/runtime/stores';
 
 import { Button, Card } from 'ant-design-vue';
 

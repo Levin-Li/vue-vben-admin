@@ -4,7 +4,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { computed, reactive, ref } from 'vue';
 
-import { useUserStore } from '@vben/stores';
+import { useUserStore } from '@vben/runtime/stores';
 
 import { jsonSchemaService } from '@levin/admin-framework/framework-commons/app/api/json-schema-service';
 import { parseMenuFixedQuery } from '@levin/admin-framework/framework-commons/menu-fixed-query';

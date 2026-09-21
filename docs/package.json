@@ -14,11 +14,9 @@
     }
   },
   "dependencies": {
-    "@vben-core/shadcn-ui": "workspace:*",
+    "@vben-core/ui": "workspace:*",
     "@vben/common-ui": "workspace:*",
-    "@vben/locales": "workspace:*",
-    "@vben/plugins": "workspace:*",
-    "@vben/styles": "workspace:*",
+    "@vben/runtime": "workspace:*",
     "ant-design-vue": "catalog:",
     "lucide-vue-next": "catalog:",
     "medium-zoom": "catalog:",

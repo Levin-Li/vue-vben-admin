@@ -1,4 +1,4 @@
-import type { UserInfo } from '@vben/types';
+import type { UserInfo } from '@vben/runtime/types';
 
 import type { BackendMenuInfo } from './core/menu-route';
 

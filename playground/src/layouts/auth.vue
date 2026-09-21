@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 
 import { AuthPageLayout } from '@vben/layouts';
-import { preferences } from '@vben/preferences';
+import { preferences } from '@vben-core/foundation/preferences';
 
 import { $t } from '#/locales';
 

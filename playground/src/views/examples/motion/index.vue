@@ -2,7 +2,7 @@
 import { reactive } from 'vue';
 
 import { Page } from '@vben/common-ui';
-import { Motion, MotionGroup, MotionPresets } from '@vben/plugins/motion';
+import { Motion, MotionGroup, MotionPresets } from '@vben/runtime/plugins/motion';
 
 import { refAutoReset, watchDebounced } from '@vueuse/core';
 import {

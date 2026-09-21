@@ -1,6 +1,6 @@
 {
   "name": "@levin/oak-base-admin",
-  "version": "5.6.104",
+  "version": "5.6.107",
   "description": "Levin Oak base admin frontend module.",
   "license": "MIT",
   "type": "module",
@@ -67,11 +67,10 @@
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": "5.6.101",
-    "@vben/common-ui": "5.6.16",
-    "@vben/icons": "5.6.11",
-    "@vben/plugins": "5.6.14",
-    "@vben/stores": "5.6.12",
+    "@levin/admin-framework": "5.6.107",
+    "@vben-core/ui": "5.6.107",
+    "@vben/runtime": "5.6.107",
+    "@vben/common-ui": "5.6.107",
     "ant-design-vue": ">=4.0.0",
     "pinia": ">=3.0.0",
     "vue": ">=3.5.0",
@@ -79,10 +78,9 @@
   },
   "devDependencies": {
     "@levin/admin-framework": "workspace:*",
+    "@vben-core/ui": "workspace:*",
+    "@vben/runtime": "workspace:*",
     "@vben/common-ui": "workspace:*",
-    "@vben/icons": "workspace:*",
-    "@vben/plugins": "workspace:*",
-    "@vben/stores": "workspace:*",
     "@vben/tsconfig": "workspace:*",
     "ant-design-vue": "catalog:",
     "pinia": "catalog:",

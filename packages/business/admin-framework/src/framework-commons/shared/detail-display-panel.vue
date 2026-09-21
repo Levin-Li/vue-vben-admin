@@ -13,7 +13,7 @@ import {
 } from 'vue';
 
 import { JsonViewer } from '@vben/common-ui';
-import { ChevronDown } from '@vben/icons';
+import { ChevronDown } from '@vben/runtime/icons';
 
 import {
   Button,

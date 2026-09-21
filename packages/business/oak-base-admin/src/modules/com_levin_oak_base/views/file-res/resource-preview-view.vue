@@ -8,7 +8,7 @@ import type { UploadFile } from 'ant-design-vue';
 
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import { uploadFileByFileStorageController } from '@levin/admin-framework/framework-commons/app/api/file-storage-service';
 import {

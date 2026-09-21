@@ -1,0 +1,128 @@
+{
+  "name": "@vben-core/foundation",
+  "version": "5.6.107",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node ../../../scripts/sync-framework-package-metadata.mjs --package . && pnpm unbuild"
+  },
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "dist",
+    "src",
+    "docs",
+    "package-version.mjs",
+    "package-version.d.mts"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./shared/*": {
+      "types": "./src/shared/*.ts",
+      "development": "./src/shared/*.ts",
+      "default": "./dist/shared/*.mjs"
+    },
+    "./typings": {
+      "types": "./src/typings.ts",
+      "development": "./src/typings.ts",
+      "default": "./dist/typings.mjs"
+    },
+    "./composables": {
+      "types": "./src/composables.ts",
+      "development": "./src/composables.ts",
+      "default": "./dist/composables.mjs"
+    },
+    "./preferences": {
+      "types": "./src/preferences.ts",
+      "development": "./src/preferences.ts",
+      "default": "./dist/preferences.mjs"
+    },
+    "./icons": {
+      "types": "./src/icons.ts",
+      "development": "./src/icons.ts",
+      "default": "./dist/icons.mjs"
+    },
+    "./package-version": {
+      "types": "./package-version.d.mts",
+      "default": "./package-version.mjs"
+    },
+    "./design": {
+      "types": "./src/vendor/design/index.ts",
+      "development": "./src/vendor/design/index.ts",
+      "default": "./dist/vendor/design/index.mjs"
+    },
+    "./design/bem": {
+      "development": "./src/vendor/design/scss-bem/bem.scss",
+      "default": "./dist/vendor/design/scss-bem/bem.scss"
+    },
+    "./typings/vue-router": {
+      "types": "./src/vendor/typings/vue-router.d.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      "./shared/*": {
+        "types": "./dist/shared/*.d.ts",
+        "default": "./dist/shared/*.mjs"
+      },
+      "./typings": {
+        "types": "./dist/typings.d.ts",
+        "default": "./dist/typings.mjs"
+      },
+      "./composables": {
+        "types": "./dist/composables.d.ts",
+        "default": "./dist/composables.mjs"
+      },
+      "./preferences": {
+        "types": "./dist/preferences.d.ts",
+        "default": "./dist/preferences.mjs"
+      },
+      "./icons": {
+        "types": "./dist/icons.d.ts",
+        "default": "./dist/icons.mjs"
+      },
+      "./package-version": {
+        "types": "./package-version.d.mts",
+        "default": "./package-version.mjs"
+      },
+      "./design": {
+        "types": "./dist/vendor/design/index.d.ts",
+        "default": "./dist/vendor/design/index.mjs"
+      },
+      "./design/bem": {
+        "default": "./dist/vendor/design/scss-bem/bem.scss"
+      },
+      "./typings/vue-router": {
+        "types": "./dist/vendor/typings/vue-router.d.ts"
+      }
+    }
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "catalog:",
+    "@iconify/vue": "catalog:",
+    "@vueuse/core": "catalog:",
+    "lucide-vue-next": "catalog:",
+    "reka-ui": "catalog:",
+    "sortablejs": "catalog:",
+    "vue": "catalog:",
+    "vue-router": "catalog:",
+    "@ctrl/tinycolor": "catalog:",
+    "@tanstack/vue-store": "catalog:",
+    "@vue/shared": "catalog:",
+    "clsx": "catalog:",
+    "dayjs": "catalog:",
+    "defu": "catalog:",
+    "es-toolkit": "catalog:",
+    "lodash.clonedeep": "catalog:",
+    "nprogress": "catalog:",
+    "tailwind-merge": "catalog:",
+    "theme-colors": "catalog:"
+  },
+  "devDependencies": {
+    "@types/lodash.clonedeep": "catalog:",
+    "@types/nprogress": "catalog:",
+    "@types/sortablejs": "catalog:"
+  }
+}

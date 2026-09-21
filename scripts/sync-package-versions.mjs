@@ -41,6 +41,9 @@ function findPackageJsonFiles(dir) {
 }
 
 function resolvePackageVersion(packageName, versionConfig) {
+  if (versionConfig.releaseVersion) {
+    return versionConfig.releaseVersion;
+  }
   if (versionConfig.packages?.[packageName]) {
     return versionConfig.packages[packageName];
   }
@@ -55,7 +58,7 @@ function assertVersion(version, source) {
 }
 
 const versionConfig = readJson(versionConfigPath);
-assertVersion(versionConfig.default, 'package-versions.json default');
+assertVersion(versionConfig.releaseVersion || versionConfig.default, 'package-versions.json releaseVersion');
 
 const packageFiles = findPackageJsonFiles(packagesRoot).sort();
 const changedPackages = [];

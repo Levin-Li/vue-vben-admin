@@ -3,7 +3,7 @@ import type { Props } from './types';
 
 import { computed } from 'vue';
 
-import { preferences } from '@vben-core/preferences';
+import { preferences } from '@vben-core/foundation/preferences';
 import {
   Card,
   Separator,
@@ -11,7 +11,7 @@ import {
   TabsList,
   TabsTrigger,
   VbenAvatar,
-} from '@vben-core/shadcn-ui';
+} from '@vben-core/ui/shadcn';
 
 import { Page } from '../../components';
 

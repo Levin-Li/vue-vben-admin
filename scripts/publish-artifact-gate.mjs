@@ -267,6 +267,97 @@ export function verifyTarballStandaloneInstall(
   }
 }
 
+/**
+ * Builds a package entry from a fresh consumer instead of this workspace.
+ *
+ * This is deliberately stronger than the install smoke test: peer dependencies
+ * are resolved by the configured registry, so an unpublished upstream export
+ * cannot be hidden by a workspace link or a stale local node_modules tree.
+ */
+export function verifyTarballStandaloneViteBuild(
+  packageInfo,
+  tarballPath,
+  entrypoint,
+  extraEnv = {},
+) {
+  const absoluteTarballPath = resolve(tarballPath);
+  const manifest = JSON.parse(
+    execFileSync('tar', ['-xOf', absoluteTarballPath, 'package/package.json'], {
+      encoding: 'utf8',
+    }),
+  );
+  const consumerDir = mkdtempSync(join(tmpdir(), 'levin-package-build-smoke-'));
+
+  try {
+    writeFileSync(
+      resolve(consumerDir, 'package.json'),
+      `${JSON.stringify(
+        {
+          dependencies: {
+            ...(manifest.peerDependencies || {}),
+            [packageInfo.name]: `file:${absoluteTarballPath}`,
+          },
+          devDependencies: {
+            '@vitejs/plugin-vue': '^6.0.4',
+            'sass-embedded': '^1.97.3',
+            typescript: '^5.9.3',
+            vite: '^7.3.1',
+          },
+          name: 'levin-package-build-smoke',
+          private: true,
+          scripts: { build: 'vite build' },
+          version: '0.0.0',
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    writeFileSync(
+      resolve(consumerDir, 'index.html'),
+      '<div id="app"></div><script type="module" src="/src/main.ts"></script>\n',
+    );
+    writeFileSync(
+      resolve(consumerDir, 'vite.config.mjs'),
+      "import vue from '@vitejs/plugin-vue';\nimport { defineConfig } from 'vite';\nexport default defineConfig({ plugins: [vue()] });\n",
+    );
+    mkdirSync(resolve(consumerDir, 'src'));
+    writeFileSync(
+      resolve(consumerDir, 'src/main.ts'),
+      `import component from '${entrypoint}';\ndocument.getElementById('app')!.textContent = String(component);\n`,
+    );
+    writeStandaloneConsumerNpmrc(consumerDir, extraEnv);
+
+    const installEnv = { ...process.env, ...extraEnv };
+    delete installEnv.NPM_CONFIG_FALLBACK_REGISTRY;
+    delete installEnv.NPM_CONFIG_REGISTRY;
+    delete installEnv.NPM_CONFIG_USERCONFIG;
+
+    const install = spawnSync(
+      'pnpm',
+      ['install', '--ignore-scripts', '--no-lockfile'],
+      { cwd: consumerDir, encoding: 'utf8', env: installEnv },
+    );
+    if (install.status !== 0) {
+      throw new Error(
+        `${packageInfo.name} registry 消费者安装失败: ${install.stderr || install.stdout}`,
+      );
+    }
+
+    const build = spawnSync('pnpm', ['run', 'build'], {
+      cwd: consumerDir,
+      encoding: 'utf8',
+      env: installEnv,
+    });
+    if (build.status !== 0) {
+      throw new Error(
+        `${packageInfo.name} registry 消费者生产构建失败（依赖必须以私服真实制品为准）: ${build.stderr || build.stdout}`,
+      );
+    }
+  } finally {
+    rmSync(consumerDir, { recursive: true, force: true });
+  }
+}
+
 /** 生命周期日志可能出现在 JSON 之前，必须解析到完整的最终结果。 */
 export function parsePackOutput(output) {
   const starts = [...output.matchAll(/^[{[]/gm)].map((match) => match.index);

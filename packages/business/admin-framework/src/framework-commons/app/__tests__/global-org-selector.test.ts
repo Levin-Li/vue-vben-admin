@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import GlobalOrgSelector from '../global-org-selector.vue';
 
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({
     userInfo: { admin: true },
   }),

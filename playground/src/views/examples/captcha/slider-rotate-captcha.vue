@@ -2,8 +2,8 @@
 import { computed } from 'vue';
 
 import { Page, SliderRotateCaptcha } from '@vben/common-ui';
-import { preferences } from '@vben/preferences';
-import { useUserStore } from '@vben/stores';
+import { preferences } from '@vben-core/foundation/preferences';
+import { useUserStore } from '@vben/runtime/stores';
 
 import { Card, message } from 'ant-design-vue';
 

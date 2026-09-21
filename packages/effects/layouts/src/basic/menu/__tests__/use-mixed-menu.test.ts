@@ -13,7 +13,7 @@ const testState = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@vben/preferences', () => ({
+vi.mock('@vben-core/foundation/preferences', () => ({
   preferences: {
     app: { layout: 'side-nav' },
     navigation: { split: false },
@@ -25,13 +25,13 @@ vi.mock('@vben/preferences', () => ({
   }),
 }));
 
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   useAccessStore: () => ({
     accessMenus: [],
   }),
 }));
 
-vi.mock('@vben/utils', () => ({
+vi.mock('@vben/runtime/utils', () => ({
   findRootMenuByPath: () => ({}),
 }));
 

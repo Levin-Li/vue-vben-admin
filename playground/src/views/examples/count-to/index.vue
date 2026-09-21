@@ -4,7 +4,7 @@ import type { CountToProps, TransitionPresets } from '@vben/common-ui';
 import { reactive } from 'vue';
 
 import { CountTo, Page, TransitionPresetsKeys } from '@vben/common-ui';
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import {
   Button,

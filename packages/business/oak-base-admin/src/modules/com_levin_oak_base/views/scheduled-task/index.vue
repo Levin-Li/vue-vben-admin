@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue';
 
-import { useUserStore } from '@vben/stores';
+import { useUserStore } from '@vben/runtime/stores';
 
 import {
   isSuperAdminUser,

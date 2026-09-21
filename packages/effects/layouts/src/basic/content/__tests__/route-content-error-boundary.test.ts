@@ -9,11 +9,11 @@ import { RouteContentErrorBoundary } from '../route-content-error-boundary';
 const alert = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 const refresh = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 
-vi.mock('@vben-core/popup-ui', () => ({
+vi.mock('@vben-core/ui/popup', () => ({
   alert,
 }));
 
-vi.mock('@vben/hooks', () => ({
+vi.mock('@vben/runtime/hooks', () => ({
   useRefresh: () => ({
     refresh,
   }),

@@ -3,7 +3,7 @@ import type { SelectProps } from 'ant-design-vue';
 
 import { computed, ref, watch } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import {
   AutoComplete,

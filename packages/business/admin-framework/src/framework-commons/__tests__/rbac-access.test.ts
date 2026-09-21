@@ -9,7 +9,7 @@ const stores = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   useAccessStore: () => stores.access,
   useUserStore: () => stores.user,
 }));

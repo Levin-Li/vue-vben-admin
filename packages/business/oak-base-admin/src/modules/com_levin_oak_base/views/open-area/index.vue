@@ -4,7 +4,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { computed, ref } from 'vue';
 
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 import { Button, message, Tooltip } from 'ant-design-vue';
 
 import { openAreaService } from '../../api/open-area-service';

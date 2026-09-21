@@ -1,4 +1,4 @@
-import { authenticateResponseInterceptor, RequestClient } from '@vben/request';
+import { authenticateResponseInterceptor, RequestClient } from '@vben/runtime/request';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

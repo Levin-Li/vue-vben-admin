@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Page } from '@vben/common-ui';
 
-import { VbenContextMenu } from '@vben-core/shadcn-ui';
+import { VbenContextMenu } from '@vben-core/ui/shadcn';
 
 import { Button, Card, message } from 'ant-design-vue';
 

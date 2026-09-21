@@ -1,6 +1,6 @@
 import { computed, readonly, ref } from 'vue';
 
-import { preferences } from '@vben/preferences';
+import { preferences } from '@vben-core/foundation/preferences';
 
 import {
   rbacService,

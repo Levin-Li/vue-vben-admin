@@ -1,4 +1,4 @@
-import type { NavigationVisualStyleType } from '@vben/types';
+import type { NavigationVisualStyleType } from '@vben/runtime/types';
 
 const NAVIGATION_VISUAL_STYLES = new Set<NavigationVisualStyleType>([
   'brand-gradient',

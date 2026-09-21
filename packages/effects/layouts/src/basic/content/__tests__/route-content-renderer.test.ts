@@ -11,7 +11,7 @@ import { RouteContentRenderer } from '../route-content-renderer';
 
 const refresh = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 
-vi.mock('@vben/hooks', () => ({
+vi.mock('@vben/runtime/hooks', () => ({
   useRefresh: () => ({
     refresh,
   }),

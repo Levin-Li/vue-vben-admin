@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 
 import { Profile } from '@vben/common-ui';
-import { useUserStore } from '@vben/stores';
+import { useUserStore } from '@vben/runtime/stores';
 
 import ProfileAvatarUpload from './avatar-upload.vue';
 import ProfileBase from './base-setting.vue';

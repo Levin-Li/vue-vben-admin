@@ -12,7 +12,7 @@ const state = vi.hoisted(() => ({
 }));
 const setCurrentGlobalUserOrgRecords = vi.hoisted(() => vi.fn());
 
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({ userInfo: state.user }),
 }));
 vi.mock('../../shared/user-org-selector.vue', () => ({

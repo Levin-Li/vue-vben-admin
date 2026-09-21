@@ -2,24 +2,24 @@
 import type { CSSProperties, SetupContext } from 'vue';
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
 
-import type { MenuRecordRaw } from '@vben/types';
+import type { MenuRecordRaw } from '@vben/runtime/types';
 
 import { computed, onMounted, useSlots, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
-import { useRefresh } from '@vben/hooks';
-import { $t, i18n } from '@vben/locales';
+import { useRefresh } from '@vben/runtime/hooks';
+import { $t, i18n } from '@vben/runtime/locales';
 import {
   preferences,
   resolveBackgroundColor,
   updatePreferences,
   usePreferences,
-} from '@vben/preferences';
-import { useAccessStore, useTabbarStore, useTimezoneStore } from '@vben/stores';
-import { cloneDeep, convertToHslCssVar, mapTree, TinyColor } from '@vben/utils';
+} from '@vben-core/foundation/preferences';
+import { useAccessStore, useTabbarStore, useTimezoneStore } from '@vben/runtime/stores';
+import { cloneDeep, convertToHslCssVar, mapTree, TinyColor } from '@vben/runtime/utils';
 
-import { VbenAdminLayout } from '@vben-core/layout-ui';
-import { VbenBackTop, VbenLogo } from '@vben-core/shadcn-ui';
+import { VbenAdminLayout } from '@vben-core/ui/layout';
+import { VbenBackTop, VbenLogo } from '@vben-core/ui/shadcn';
 
 import { Breadcrumb, CheckUpdates, Preferences } from '../widgets';
 import { LayoutContent, LayoutContentSpinner } from './content';

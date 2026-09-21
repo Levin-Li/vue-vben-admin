@@ -10,7 +10,7 @@ import {
   ref,
 } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import { Tooltip } from 'ant-design-vue';
 

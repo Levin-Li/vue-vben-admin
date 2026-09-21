@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getRouteContentKey } from '../route-content-key';
 
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   getTabKey(route: RouteLocationNormalizedLoadedGeneric) {
     return route.fullPath;
   },

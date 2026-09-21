@@ -30,29 +30,18 @@
   },
   "dependencies": {
     "@tanstack/vue-query": "catalog:",
-    "@vben-core/menu-ui": "workspace:*",
-    "@vben-core/shadcn-ui": "workspace:*",
-    "@vben/access": "workspace:*",
     "@vben/common-ui": "workspace:*",
-    "@vben/constants": "workspace:*",
-    "@vben/hooks": "workspace:*",
-    "@vben/icons": "workspace:*",
     "@vben/layouts": "workspace:*",
-    "@vben/locales": "workspace:*",
-    "@vben/plugins": "workspace:*",
-    "@vben/preferences": "workspace:*",
-    "@vben/request": "workspace:*",
-    "@vben/stores": "workspace:*",
-    "@vben/styles": "workspace:*",
-    "@vben/types": "workspace:*",
-    "@vben/utils": "workspace:*",
     "@vueuse/core": "catalog:",
     "ant-design-vue": "catalog:",
     "dayjs": "catalog:",
     "json-bigint": "catalog:",
     "pinia": "catalog:",
     "vue": "catalog:",
-    "vue-router": "catalog:"
+    "vue-router": "catalog:",
+    "@vben-core/ui": "workspace:*",
+    "@vben/runtime": "workspace:*",
+    "@vben-core/foundation": "workspace:*"
   },
   "devDependencies": {
     "@types/json-bigint": "catalog:"

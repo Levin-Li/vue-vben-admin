@@ -8,6 +8,7 @@ export interface UiSettingRuntimeRecord {
   domain?: string;
   id?: string;
   lastUpdateTime?: string;
+  name?: string;
   optimisticLock?: number;
   orgCategory?: string;
   orgType?: string;

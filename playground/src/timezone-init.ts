@@ -1,4 +1,4 @@
-import { setTimezoneHandler } from '@vben/stores';
+import { setTimezoneHandler } from '@vben/runtime/stores';
 
 import { getTimezoneApi, getTimezoneOptionsApi, setTimezoneApi } from '#/api';
 

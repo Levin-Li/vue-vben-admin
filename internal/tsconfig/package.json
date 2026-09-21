@@ -19,7 +19,7 @@
     "web.json"
   ],
   "dependencies": {
-    "@vben/types": "workspace:*",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "@vben/runtime": "workspace:*"
   }
 }

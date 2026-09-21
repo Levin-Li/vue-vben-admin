@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { ref, unref } from 'vue';
 
-import { Clock3 } from '@vben/icons';
-import { $t } from '@vben/locales';
-import { useTimezoneStore } from '@vben/stores';
+import { Clock3 } from '@vben/runtime/icons';
+import { $t } from '@vben/runtime/locales';
+import { useTimezoneStore } from '@vben/runtime/stores';
 
-import { useVbenModal } from '@vben-core/popup-ui';
+import { useVbenModal } from '@vben-core/ui/popup';
 import {
   RadioGroup,
   RadioGroupItem,
   VbenIconButton,
-} from '@vben-core/shadcn-ui';
+} from '@vben-core/ui/shadcn';
 
 const timezoneStore = useTimezoneStore();
 

@@ -56,8 +56,12 @@ const trackedPackages = [
 ]
   .map((name) => publishedPackages.get(name))
   .filter(Boolean);
-if (targetRoot && !trackedPackages.some((pkg) => pkg.root === targetRoot))
-  throw new Error('--package 目录不是受管理的框架发布包');
+const targetPackage = targetRoot
+  ? [...publishedPackages.values()].find((pkg) => pkg.root === targetRoot)
+  : undefined;
+if (targetRoot && !targetPackage) {
+  throw new Error('--package 目录不是可发布包');
+}
 
 function validateExports({ manifest }) {
   for (const exports of [
@@ -129,13 +133,25 @@ if (checkOnly) {
   if (!existsSync(outputPath) || readFileSync(outputPath, 'utf8') !== content)
     throw new Error('框架包元数据导入清单已过期，请运行生成脚本');
 } else {
-  for (const pkg of trackedPackages) {
+  const packagesToSync = targetPackage
+    ? [...trackedPackages, targetPackage].filter(
+        (pkg, index, list) =>
+          list.findIndex((item) => item.root === pkg.root) === index,
+      )
+    : trackedPackages;
+  for (const pkg of packagesToSync) {
     const files = new Set(pkg.manifest.files || []);
     requiredPublishedFiles.forEach((file) => files.add(file));
     const normalizedFiles = [...files];
-    if (JSON.stringify(pkg.manifest.files || []) !== JSON.stringify(normalizedFiles)) {
+    if (
+      JSON.stringify(pkg.manifest.files || []) !==
+      JSON.stringify(normalizedFiles)
+    ) {
       pkg.manifest.files = normalizedFiles;
-      writeFileSync(resolve(pkg.root, 'package.json'), `${JSON.stringify(pkg.manifest, null, 2)}\n`);
+      writeFileSync(
+        resolve(pkg.root, 'package.json'),
+        `${JSON.stringify(pkg.manifest, null, 2)}\n`,
+      );
     }
     validateExports(pkg);
     const missing = !metadataFiles.some((file) =>

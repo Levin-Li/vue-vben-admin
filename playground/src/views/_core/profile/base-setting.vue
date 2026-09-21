@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BasicOption } from '@vben/types';
+import type { BasicOption } from '@vben/runtime/types';
 
 import type { VbenFormSchema } from '#/adapter/form';
 

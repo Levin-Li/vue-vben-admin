@@ -6,7 +6,7 @@ import type {
 import type { SystemDeptApi } from '#/api/system/dept';
 
 import { Page, useVbenModal } from '@vben/common-ui';
-import { Plus } from '@vben/icons';
+import { Plus } from '@vben/runtime/icons';
 
 import { Button, message } from 'ant-design-vue';
 

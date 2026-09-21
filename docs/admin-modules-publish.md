@@ -2,7 +2,45 @@
 
 本前端工程支持把可复用的后台模块发布到 NPM 私服。最终应用安装这些模块包，并显式注册需要启用的模块。
 
+## 强制：统一正式版本发布流程
+
+本节是所有前端发布的唯一执行流程，优先于本文其它历史示例。所有内部 npm 构件必须始终使用同一个正式版本号；任一包的源码、构建配置、随包文档、公开 API 或依赖约束变化，均触发整套非私有内部包统一升版本、全量构建和全量发布。npm 制品不可覆盖，因此未变化包也必须发布新的统一版本。
+
+唯一版本来源是根目录 `package-versions.json` 的 `releaseVersion`。每次发布只修改这一项为新的补丁版本；不得手工改各包 `package.json.version` 或内部 `peerDependencies`，同步脚本会将全部内部包和内部依赖约束写为这个统一版本。
+
+执行顺序固定如下：
+
+1. 只将 `releaseVersion` 升级为新的正式版本，并同步全部内部包版本和精确内部依赖约束。
+2. 扫描全部非私有内部包，按依赖图拓扑排序；被依赖的上游包必须排在消费者之前。
+3. 全量构建每个包，并验证 `dist`、本地 tarball、导出和依赖协议。构件相关的设计文档、实现说明、使用指南、开发规范和操作手册必须同步进入包内 `docs/` 与 `docs/project-reference/`，并以 `manifest.json` 的逐文件 SHA-256 清单验证 tarball 内容；缺任一应交付文档即构建失败。发布记录、验收记录、日志、临时截图、trace 与迁移执行记录不属于发布构件，不得打入包内。
+4. 串行发布每个包。每个上游包上传后，必须通过 Nexus hosted npm registry 查询精确版本并下载该版本 tarball；只有该制品可从 npm 安装和验证后，才允许继续下一个消费者。
+5. 网络类失败（连接超时、DNS、连接重置、临时 5xx 或 registry 临时不可达）对当前步骤最多自动重试 10 次；每次重试前重新从 Nexus 获取状态。第 10 次仍失败时停止整个批次。构建失败、版本已存在、依赖约束不一致、tarball 内容/导出错误或安装验证失败属于确定性构件错误，必须立即停止，不得重试掩盖问题。
+6. 任一不可恢复失败时，立即停止整个批次。不得继续发布下游包，不得从 workspace、本地缓存、`link`、`overrides` 或旧版本取代失败的制品。
+7. 全部包完成后，必须在新的非 workspace 目录中仅从 Nexus 安装本批构件集，并执行 `bootstrap-app` 生产构建；通过后才允许部署。
+
+### 失败恢复与重试
+
+一个 `releaseVersion` 对应一个固定发布批次。失败恢复必须继续该批次，禁止仅因一个模块失败就再次修改 `releaseVersion`、重新发布已验证上游包或重新生成整个版本集合。
+
+1. 网络类错误只重试失败的当前步骤，最多 10 次；已成功上传和回取验证的包不重发。
+2. 构建、导出、tarball 或应用认证等确定性错误，修复后只从失败模块重新构建和验证；依赖它的后续消费者按顺序继续。此前已在 Nexus 完成精确版本验证的上游构件必须先重新查询确认存在，但不重新上传。
+3. 只有显式放弃当前批次、或需要改变一个已发布构件的内容时，才创建新的 `releaseVersion`。这时必须重新走完整构件集发布；不能覆盖同名同版本制品。
+4. 发布状态必须持久化记录每个包的 `pending`、`published-and-verified` 或 `failed` 状态，使恢复命令能从失败包继续，不能把“已经发布”误作“尚未发布”或反之。
+
+标准命令：
+
+```bash
+NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ \
+NPM_AUTH_FROM_MAVEN=true \
+MAVEN_SERVER_ID=dist-repo \
+pnpm run publish:packages
+```
+
+`publish:admin-modules` 是完整统一版本发布的兼容别名；正式发布不得传递 `--only`。
+
 ## 包说明
+
+合并后公开构件固定为七个：`@vben-core/foundation`、`@vben-core/ui`、`@vben/runtime`、`@vben/common-ui`、`@vben/layouts`、`@levin/admin-framework`、`@levin/oak-base-admin`。源码归属和旧入口映射见 [聚合包使用与迁移指南](frontend-package-consolidation.md)。`pnpm run list:packages` 应仅列出这七个包；发布前先执行完整 `pnpm build`，再执行 `node scripts/verify-consolidated-consumer.mjs` 验证本批候选 tarball。Nexus 上传与回取验证仍按上文逐包执行。
 
 - `@levin/admin-framework`：公共后台框架包，提供模块契约、运行时注入、CRUD 辅助能力、页面注册表和可复用后台 UI。
 - `@levin/oak-base-admin`：基础后台模块包，拥有自己的 API 辅助方法、页面源码、路由和国际化资源。
@@ -113,7 +151,7 @@ MAVEN_SERVER_ID=dist-repo \
 pnpm run publish:packages
 ```
 
-`publish:packages` 会自动扫描 `packages/**/package.json`，跳过 `private: true` 的包，按 workspace 依赖顺序构建和发布。发布时默认检查私服中是否已经存在同名同版本包，已存在的版本会跳过，避免批量发布因为某个旧版本不可覆盖而中断。
+`publish:packages` 会自动扫描 `packages/**/package.json`，跳过 `private: true` 的包，按 workspace 依赖顺序构建和发布。已存在的同名同版本是发布错误，必须失败；任何包均不得跳过、覆盖或复用旧制品。
 
 ## 版本统一管理
 
@@ -123,15 +161,16 @@ pnpm run publish:packages
 
 ```json
 {
+  "releaseVersion": "5.6.105",
   "default": "5.6.6",
   "packages": {}
 }
 ```
 
-版本调整流程：
+版本调整流程（只修改 `releaseVersion`）：
 
 ```bash
-# 修改 package-versions.json 后同步所有子包 package.json
+# 只修改 releaseVersion 后同步所有子包 package.json 和内部 peer 依赖
 pnpm run sync:package-versions
 
 # 校验子包版本是否和统一配置一致

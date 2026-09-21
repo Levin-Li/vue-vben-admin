@@ -7,8 +7,8 @@ import type {
 
 import { computed, ref, watch } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
-import { useUserStore } from '@vben/stores';
+import { IconifyIcon } from '@vben/runtime/icons';
+import { useUserStore } from '@vben/runtime/stores';
 
 import {
   Alert,

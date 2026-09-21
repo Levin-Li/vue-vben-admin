@@ -10,7 +10,7 @@ import type {
 
 import { computed, ref, watch } from 'vue';
 
-import { useUserStore } from '@vben/stores';
+import { useUserStore } from '@vben/runtime/stores';
 
 import { requestClient } from '@levin/admin-framework';
 import {

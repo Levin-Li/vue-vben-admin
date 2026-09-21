@@ -22,7 +22,7 @@ vi.mock(
 vi.mock('@levin/admin-framework/framework-commons/app/store', () => ({
   useAuthStore: () => ({ authLoginWithAccessToken, loginLoading: false }),
 }));
-vi.mock('@vben/locales', () => ({ $t: (key: string) => key }));
+vi.mock('@vben/runtime/locales', () => ({ $t: (key: string) => key }));
 vi.mock('ant-design-vue', () => {
   const input = defineComponent({
     props: { value: String },

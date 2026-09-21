@@ -17,9 +17,9 @@ import {
   WorkbenchTodo,
   WorkbenchTrends,
 } from '@vben/common-ui';
-import { preferences } from '@vben/preferences';
-import { useUserStore } from '@vben/stores';
-import { openWindow } from '@vben/utils';
+import { preferences } from '@vben-core/foundation/preferences';
+import { useUserStore } from '@vben/runtime/stores';
+import { openWindow } from '@vben/runtime/utils';
 
 import AnalyticsVisitsSource from '../analytics/analytics-visits-source.vue';
 

@@ -10,7 +10,7 @@ import type {
 
 import { computed, h, ref, watch } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import { Checkbox, Modal, Radio, Tooltip } from 'ant-design-vue';
 

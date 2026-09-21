@@ -1,0 +1,184 @@
+{
+  "name": "@vben/runtime",
+  "version": "5.6.107",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/sync-framework-package-metadata.mjs --package . && pnpm unbuild"
+  },
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "dist",
+    "src",
+    "docs",
+    "package-version.mjs",
+    "package-version.d.mts"
+  ],
+  "exports": {
+    "./styles/*": {
+      "development": "./src/vendor/styles/*/index.css",
+      "default": "./dist/vendor/styles/*/index.css"
+    },
+    "./constants": {
+      "types": "./src/constants.ts",
+      "development": "./src/constants.ts",
+      "default": "./dist/constants.mjs"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "development": "./src/types.ts",
+      "default": "./dist/types.mjs"
+    },
+    "./utils": {
+      "types": "./src/utils.ts",
+      "development": "./src/utils.ts",
+      "default": "./dist/utils.mjs"
+    },
+    "./stores": {
+      "types": "./src/stores.ts",
+      "development": "./src/stores.ts",
+      "default": "./dist/stores.mjs"
+    },
+    "./hooks": {
+      "types": "./src/hooks.ts",
+      "development": "./src/hooks.ts",
+      "default": "./dist/hooks.mjs"
+    },
+    "./access": {
+      "types": "./src/access.ts",
+      "development": "./src/access.ts",
+      "default": "./dist/access.mjs"
+    },
+    "./icons": {
+      "types": "./src/icons.ts",
+      "development": "./src/icons.ts",
+      "default": "./dist/icons.mjs"
+    },
+    "./locales": {
+      "types": "./src/locales.ts",
+      "development": "./src/locales.ts",
+      "default": "./dist/locales.mjs"
+    },
+    "./plugins/*": {
+      "types": "./src/vendor/plugins/*/index.ts",
+      "development": "./src/vendor/plugins/*/index.ts",
+      "default": "./dist/vendor/plugins/*/index.mjs"
+    },
+    "./request": {
+      "types": "./src/request.ts",
+      "development": "./src/request.ts",
+      "default": "./dist/request.mjs"
+    },
+    "./styles": {
+      "development": "./src/vendor/styles/index.ts",
+      "default": "./dist/vendor/styles/index.mjs"
+    },
+    "./styles/antd": {
+      "development": "./src/vendor/styles/antd/index.css",
+      "default": "./dist/vendor/styles/antd/index.css"
+    },
+    "./package-version": {
+      "types": "./package-version.d.mts",
+      "default": "./package-version.mjs"
+    },
+    "./types/global": {
+      "types": "./src/global.d.ts"
+    },
+    "./styles/global": {
+      "development": "./src/vendor/styles/global/index.scss",
+      "default": "./dist/vendor/styles/global/index.scss"
+    }
+  },
+  "dependencies": {
+    "@vben-core/foundation": "workspace:*",
+    "@vueuse/core": "catalog:",
+    "@vueuse/motion": "catalog:",
+    "axios": "catalog:",
+    "echarts": "catalog:",
+    "pinia": "catalog:",
+    "vue": "catalog:",
+    "vxe-pc-ui": "catalog:",
+    "vxe-table": "catalog:",
+    "vue-router": "catalog:",
+    "pinia-plugin-persistedstate": "catalog:",
+    "secure-ls": "catalog:",
+    "watermark-js-plus": "catalog:",
+    "@intlify/core-base": "catalog:",
+    "vue-i18n": "catalog:",
+    "qs": "catalog:",
+    "@vben-core/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/qs": "catalog:",
+    "axios-mock-adapter": "catalog:"
+  },
+  "sideEffects": [
+    "**/*.css",
+    "**/*.scss",
+    "**/styles/index.*"
+  ],
+  "publishConfig": {
+    "exports": {
+      "./styles/*": {
+        "default": "./dist/vendor/styles/*/index.css"
+      },
+      "./constants": {
+        "types": "./dist/constants.d.ts",
+        "default": "./dist/constants.mjs"
+      },
+      "./types": {
+        "types": "./dist/types.d.ts",
+        "default": "./dist/types.mjs"
+      },
+      "./utils": {
+        "types": "./dist/utils.d.ts",
+        "default": "./dist/utils.mjs"
+      },
+      "./stores": {
+        "types": "./dist/stores.d.ts",
+        "default": "./dist/stores.mjs"
+      },
+      "./hooks": {
+        "types": "./dist/hooks.d.ts",
+        "default": "./dist/hooks.mjs"
+      },
+      "./access": {
+        "types": "./dist/access.d.ts",
+        "default": "./dist/access.mjs"
+      },
+      "./icons": {
+        "types": "./dist/icons.d.ts",
+        "default": "./dist/icons.mjs"
+      },
+      "./locales": {
+        "types": "./dist/locales.d.ts",
+        "default": "./dist/locales.mjs"
+      },
+      "./plugins/*": {
+        "types": "./dist/vendor/plugins/*/index.d.ts",
+        "default": "./dist/vendor/plugins/*/index.mjs"
+      },
+      "./request": {
+        "types": "./dist/request.d.ts",
+        "default": "./dist/request.mjs"
+      },
+      "./styles": {
+        "default": "./dist/vendor/styles/index.mjs"
+      },
+      "./styles/antd": {
+        "default": "./dist/vendor/styles/antd/index.css"
+      },
+      "./package-version": {
+        "types": "./package-version.d.mts",
+        "default": "./package-version.mjs"
+      },
+      "./types/global": {
+        "types": "./dist/global.d.ts"
+      },
+      "./styles/global": {
+        "default": "./dist/vendor/styles/global/index.scss"
+      }
+    }
+  }
+}

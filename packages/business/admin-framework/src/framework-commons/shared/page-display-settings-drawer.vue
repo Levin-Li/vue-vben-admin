@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { UiSettingRuntimeRecord } from '../app/api/ui-setting-runtime';
+import PageDisplaySettingTitle from './page-display-setting-title.vue';
 import {
   AutoComplete,
   Button,
@@ -16,7 +18,7 @@ import {
   Tabs,
   Tooltip,
 } from 'ant-design-vue';
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 import {
   computed,
   defineComponent,
@@ -94,6 +96,7 @@ const props = defineProps<{
   modelValue?: CrudPageDisplayConfig;
   open: boolean;
   saving?: boolean;
+  settingRecord?: null | UiSettingRuntimeRecord;
   showOperationColumn?: boolean;
   scriptTestContext?: Record<string, any>;
 }>();
@@ -191,14 +194,6 @@ const hasUnuploadedChanges = computed(
     props.open &&
     initialSnapshot.value !== '' &&
     initialSnapshot.value !== currentSnapshot(),
-);
-
-watch(
-  () => props.open,
-  (open) => {
-    // 每次打开都刷新当前页面编码的服务端匹配记录，自动加载不弹未命中提示。
-    if (open) emit('load');
-  },
 );
 
 const scopeMatchTooltip = computed(() => {
@@ -338,7 +333,12 @@ async function loadScopeOptions() {
               '/TenantSite/list',
               'domain',
               'domain',
-              { enable: true, pageIndex: 1, pageSize: 500, tenantId: requestTenantId },
+              {
+                enable: true,
+                pageIndex: 1,
+                pageSize: 500,
+                tenantId: requestTenantId,
+              },
               OAK_BASE_API_MODULE,
             )
           : Promise.resolve([]),
@@ -359,7 +359,11 @@ async function loadScopeOptions() {
           OAK_BASE_API_MODULE,
         ),
       ]);
-    if (requestVersion !== scopeOptionsRequestVersion || requestTenantId !== scope.value.tenantId) return;
+    if (
+      requestVersion !== scopeOptionsRequestVersion ||
+      requestTenantId !== scope.value.tenantId
+    )
+      return;
     tenantScopeOptions.value = normalizeOptions(tenants || []);
     siteScopeOptions.value = normalizeOptions(sites || []);
     userTypeScopeOptions.value = normalizeOptions(userTypes || []);
@@ -1703,7 +1707,6 @@ onMounted(() => {
 <template>
   <Drawer
     :open="open"
-    :title="`页面展示设置 · ${code}`"
     :width="'min(90vw, 1800px)'"
     :body-style="{
       display: 'flex',
@@ -1714,6 +1717,12 @@ onMounted(() => {
     :mask-closable="false"
     @close="requestClose"
   >
+    <template #title>
+      <PageDisplaySettingTitle
+        :title="`页面展示设置 · ${code}`"
+        :record="settingRecord"
+      />
+    </template>
     <div class="mb-1 grid grid-cols-4 gap-3 px-3 py-[3px]">
       <Tooltip :title="scopeMatchTooltip">
         <Input :value="code" disabled addon-before="设置项编码" />
@@ -1764,7 +1773,7 @@ onMounted(() => {
       />
       <!-- 加载与上传共用范围区最后一格，避免挤占其它适用范围控件。 -->
       <div class="col-start-4 flex gap-3">
-        <Button class="flex-1">加载设置</Button>
+        <Button class="flex-1" @click="emit('load')">加载设置</Button>
         <Tooltip :title="uploadTooltip" class="flex-1">
           <Button
             type="primary"

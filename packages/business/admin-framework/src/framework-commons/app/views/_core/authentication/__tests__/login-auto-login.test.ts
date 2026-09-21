@@ -30,7 +30,7 @@ const {
   };
 });
 
-vi.mock('@vben/locales', () => ({
+vi.mock('@vben/runtime/locales', () => ({
   $t: (key: string) =>
     ({
       'authentication.welcomeBack': '欢迎回来',

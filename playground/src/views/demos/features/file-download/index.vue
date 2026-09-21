@@ -7,7 +7,7 @@ import {
   downloadFileFromBlobPart,
   downloadFileFromImageUrl,
   downloadFileFromUrl,
-} from '@vben/utils';
+} from '@vben/runtime/utils';
 
 import { Button, Card } from 'ant-design-vue';
 

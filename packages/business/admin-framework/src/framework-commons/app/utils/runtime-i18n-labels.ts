@@ -1,6 +1,6 @@
 import type { AdminLocaleMessages } from '../../locale-utils';
 
-import type { SupportedLanguagesType } from '@vben/locales';
+import type { SupportedLanguagesType } from '@vben/runtime/locales';
 
 import { unwrapServiceResp } from '../api/service-resp';
 import { getAdminI18nLabelSyncService } from '../../runtime';

@@ -8,7 +8,7 @@ import { computed, h, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
-import { IconifyIcon, Plus } from '@vben/icons';
+import { IconifyIcon, Plus } from '@vben/runtime/icons';
 
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';

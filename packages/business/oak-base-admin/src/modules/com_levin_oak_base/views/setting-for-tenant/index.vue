@@ -4,7 +4,7 @@ import type { TenantSettingItem } from './setting-for-tenant';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import { Page } from '@vben/common-ui';
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import {
   Alert,

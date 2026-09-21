@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import type { StyleValue } from 'vue';
 
-import type { MenuRecordRaw, ThemeModeType } from '@vben/types';
+import type { MenuRecordRaw, ThemeModeType } from '@vben/runtime/types';
 
-import { Menu } from '@vben-core/menu-ui';
+import { Menu } from '@vben-core/ui/menu';
 
 interface Props {
   accordion?: boolean;

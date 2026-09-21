@@ -1,6 +1,6 @@
 import type { AdminBackendRouteMapping } from '@levin/admin-framework';
 
-import type { RouteRecordStringComponent } from '@vben/types';
+import type { RouteRecordStringComponent } from '@vben/runtime/types';
 
 import type { MenuFixedQuery } from '../../../menu-fixed-query';
 

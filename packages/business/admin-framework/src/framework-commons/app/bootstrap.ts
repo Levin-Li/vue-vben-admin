@@ -1,11 +1,11 @@
 import { createApp, watch, watchEffect } from 'vue';
 
-import { registerAccessDirective } from '@vben/access';
+import { registerAccessDirective } from '@vben/runtime/access';
 import { registerLoadingDirective } from '@vben/common-ui/es/loading';
-import { preferences } from '@vben/preferences';
-import { initStores, useAccessStore, useUserStore } from '@vben/stores';
-import '@vben/styles';
-import '@vben/styles/antd';
+import { preferences } from '@vben-core/foundation/preferences';
+import { initStores, useAccessStore, useUserStore } from '@vben/runtime/stores';
+import '@vben/runtime/styles';
+import '@vben/runtime/styles/antd';
 
 import { setAdminFrameworkRuntime } from '@levin/admin-framework';
 import { requestClient } from '@levin/admin-framework/framework-commons/app/api/request';
@@ -112,7 +112,7 @@ async function bootstrap(namespace: string) {
   });
 
   // 配置Motion插件
-  const { MotionPlugin } = await import('@vben/plugins/motion');
+  const { MotionPlugin } = await import('@vben/runtime/plugins/motion');
   app.use(MotionPlugin);
 
   // 登录页使用站点标题，后台页面保持应用标题配置。

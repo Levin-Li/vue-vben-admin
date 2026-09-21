@@ -1,5 +1,7 @@
 <!-- 第二版独立副本：来源 stable/page-display-settings-performance-20260912，后续界面修改仅维护本文件。 -->
 <script lang="ts" setup>
+import type { UiSettingRuntimeRecord } from '../app/api/ui-setting-runtime';
+import PageDisplaySettingTitle from './page-display-setting-title.vue';
 import type { ScriptWorkbenchVariableGroup } from './script-workbench-dialog.vue';
 import type { CrudListOperationCandidate } from './crud-list-operations';
 import type {
@@ -26,7 +28,7 @@ import {
   watch,
 } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import {
   AutoComplete,
@@ -95,6 +97,7 @@ const props = defineProps<{
   listOperationCandidates?: CrudListOperationCandidate[];
   open: boolean;
   saving?: boolean;
+  settingRecord?: null | UiSettingRuntimeRecord;
   scriptTestContext?: Record<string, any>;
   showOperationColumn?: boolean;
 }>();
@@ -354,7 +357,12 @@ async function loadScopeOptions() {
               '/TenantSite/list',
               'domain',
               'domain',
-              { enable: true, pageIndex: 1, pageSize: 500, tenantId: requestTenantId },
+              {
+                enable: true,
+                pageIndex: 1,
+                pageSize: 500,
+                tenantId: requestTenantId,
+              },
               OAK_BASE_API_MODULE,
             )
           : Promise.resolve([]),
@@ -375,7 +383,11 @@ async function loadScopeOptions() {
           OAK_BASE_API_MODULE,
         ),
       ]);
-    if (requestVersion !== scopeOptionsRequestVersion || requestTenantId !== scope.value.tenantId) return;
+    if (
+      requestVersion !== scopeOptionsRequestVersion ||
+      requestTenantId !== scope.value.tenantId
+    )
+      return;
     tenantScopeOptions.value = normalizeOptions(tenants || []);
     siteScopeOptions.value = normalizeOptions(sites || []);
     userTypeScopeOptions.value = normalizeOptions(userTypes || []);
@@ -1939,7 +1951,6 @@ onMounted(() => {
 <template>
   <Drawer
     :open="open"
-    :title="`界面UI设置2 · ${code}`"
     width="min(90vw, 1800px)"
     :body-style="{
       display: 'flex',
@@ -1949,6 +1960,12 @@ onMounted(() => {
     :mask-closable="false"
     @close="requestClose"
   >
+    <template #title>
+      <PageDisplaySettingTitle
+        :title="`界面UI设置2 · ${code}`"
+        :record="settingRecord"
+      />
+    </template>
     <div
       data-test="page-display-v2-scope"
       class="mb-0.5 grid grid-cols-4 gap-3 px-0 py-[1.5px]"

@@ -1,9 +1,9 @@
 import type {
   AxiosRequestConfig,
   RequestInterceptorConfig,
-} from '@vben/request';
+} from '@vben/runtime/request';
 
-import { AxiosHeaders } from '@vben/request';
+import { AxiosHeaders } from '@vben/runtime/request';
 
 /** 只保存条目快照，普通上传不提前读取文件或编码整个请求体。 */
 export function createMultipartRequestInterceptor(): RequestInterceptorConfig {

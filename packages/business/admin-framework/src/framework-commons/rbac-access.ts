@@ -1,4 +1,4 @@
-import { useAccessStore, useUserStore } from '@vben/stores';
+import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
 import RbacPermissionMatchUtils from './rbac-permission-match';
 import { isSuperAdminUser } from './shared/user-identity';

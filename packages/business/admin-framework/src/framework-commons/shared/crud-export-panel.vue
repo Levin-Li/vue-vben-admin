@@ -2,7 +2,7 @@
 import type { CrudExportTemplateRecord, CrudFieldConfig } from './types';
 import type { CrudExportConverter } from './crud-value-converter';
 
-import { ArrowDown, ArrowUp, IconifyIcon } from '@vben/icons';
+import { ArrowDown, ArrowUp, IconifyIcon } from '@vben/runtime/icons';
 
 import {
   Button,

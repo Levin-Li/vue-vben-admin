@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { $t } from '@vben/locales';
+import { $t } from '@vben/runtime/locales';
 
 import SwitchItem from '../switch-item.vue';
 import NumberFieldItem from '../number-field-item.vue';

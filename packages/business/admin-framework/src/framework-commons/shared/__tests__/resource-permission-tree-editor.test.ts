@@ -5,7 +5,7 @@ import {
   mount,
 } from '@vue/test-utils';
 
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import { afterEach, describe, expect, it } from 'vitest';
 

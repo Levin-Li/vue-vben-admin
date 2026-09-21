@@ -9,12 +9,12 @@ import {
   VBEN_LOGO_URL,
   VBEN_NAIVE_PREVIEW_URL,
   VBEN_TD_PREVIEW_URL,
-} from '@vben/constants';
+} from '@vben/runtime/constants';
 import {
   SvgAntdvLogoIcon,
   SvgAntdvNextLogoIcon,
   SvgTDesignIcon,
-} from '@vben/icons';
+} from '@vben/runtime/icons';
 
 import { IFrameView } from '#/layouts';
 import { $t } from '#/locales';

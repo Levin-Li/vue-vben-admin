@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { VbenLoading } from '@vben-core/shadcn-ui';
-import { cn } from '@vben-core/shared/utils';
+import { VbenLoading } from '@vben-core/ui/shadcn';
+import { cn } from '@vben-core/foundation/shared/utils';
 
 interface LoadingProps {
   class?: string;

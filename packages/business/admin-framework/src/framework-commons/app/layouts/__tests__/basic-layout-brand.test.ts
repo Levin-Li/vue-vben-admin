@@ -54,7 +54,7 @@ vi.mock('@vben/common-ui', () => ({
   },
 }));
 
-vi.mock('@vben/hooks', () => ({
+vi.mock('@vben/runtime/hooks', () => ({
   useAppConfig: () => ({
     apiURL: '',
   }),
@@ -100,11 +100,11 @@ vi.mock('@vben/layouts', () => ({
   },
 }));
 
-vi.mock('@vben/preferences', () => ({
+vi.mock('@vben-core/foundation/preferences', () => ({
   preferences: mocks.preferences,
 }));
 
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   useAccessStore: () => ({
     accessToken: '',
     loginExpired: false,
@@ -270,7 +270,7 @@ describe('basic layout tenant site brand', () => {
       .trigger('click');
     const panel = wrapper.get('[aria-label="前端组件版本"]');
     expect(panel.text()).toContain('@levin/admin-framework');
-    expect(panel.text()).toContain('@vben/stores');
+    expect(panel.text()).toContain('@vben/runtime/stores');
     expect(panel.text()).toContain('打包时间：');
     expect(panel.text()).not.toContain('Invalid Date');
     expect(panel.text()).not.toContain('版本不匹配');
@@ -301,6 +301,70 @@ describe('basic layout tenant site brand', () => {
     expect(wrapper.get('[data-testid="footer"]').text()).toBe('租户站点版权');
     expect(wrapper.get('[data-testid="basic-layout"]').classes()).toContain(
       'admin-navigation-theme-minimal',
+    );
+  });
+
+  it('仅在交互时为主题渐变用户入口显示圆角高亮', () => {
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/app/layouts/basic.vue',
+      'utf8',
+    );
+
+    // 静止状态不覆盖用户入口，确保它与默认主题的透明状态一致。
+    expect(source).not.toContain(':deep(header.light .header-user-dropdown) {');
+  });
+
+  it('使主题渐变顶栏控件使用选中态主题色强度', () => {
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/app/layouts/basic.vue',
+      'utf8',
+    );
+    const headerControlSection = source.slice(
+      source.indexOf(
+        '/* 顶栏控件静止透明，交互时与当前选中项使用同强度主题色。 */',
+      ),
+      source.indexOf('/* 标签栏与侧栏菜单保持一致的悬停、选中渐变层级。 */'),
+    );
+
+    // 静止态透明，折叠、刷新和头像等控件继承同一选中态强度。
+    expect(headerControlSection).toContain(
+      '--header-control-background: transparent;',
+    );
+    expect(headerControlSection).toContain(
+      '--header-control-background-hover: hsl(var(--primary) / 36%);',
+    );
+    expect(headerControlSection).not.toContain('hsl(var(--primary) / 10%)');
+  });
+
+  it('仅在交互时为主题渐变 CRUD 工具栏图标显示选中态主题色', () => {
+    const source = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/app/layouts/basic.vue',
+      'utf8',
+    );
+    const toolbarControlSection = source.slice(
+      source.indexOf(
+        '/* 工具栏图标静止时不叠加圆形表面，交互时与顶栏使用同强度主题色。 */',
+      ),
+      source.indexOf(
+        '/* CRUD 操作栏只作轻量承接，不抢占新增和工具按钮的操作层级。 */',
+      ),
+    );
+
+    // 统一工具栏类覆盖导入、导出、刷新、展示设置、全屏和列设置。
+    expect(toolbarControlSection).toContain(
+      ':deep(.vben-crud-table-tool-button) {',
+    );
+    expect(toolbarControlSection).toContain(
+      'background: transparent !important;',
+    );
+    expect(toolbarControlSection).toContain(
+      ':deep(.vben-crud-table-tool-button:hover)',
+    );
+    expect(toolbarControlSection).toContain(
+      ':deep(.vben-crud-table-tool-button:focus-visible)',
+    );
+    expect(toolbarControlSection).toContain(
+      'background: hsl(var(--primary) / 36%) !important;',
     );
   });
 

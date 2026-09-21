@@ -1,4 +1,4 @@
-import { listIcons } from '@vben/icons';
+import { listIcons } from '@vben/runtime/icons';
 
 import { describe, expect, it } from 'vitest';
 

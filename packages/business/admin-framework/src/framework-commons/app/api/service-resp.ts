@@ -1,4 +1,4 @@
-import { $t } from '@vben/locales';
+import { $t } from '@vben/runtime/locales';
 
 export interface ServiceRespLike {
   bizError?: boolean;

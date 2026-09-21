@@ -30,7 +30,7 @@ const modalConfirm = vi.fn(async (options?: any) => {
   await options?.onOk?.();
 });
 
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({
     userInfo: {
       email: 'demo@example.com',

@@ -1,17 +1,32 @@
 import { clearLastVisitedPath } from '../router/routes/root-redirect';
 
 interface UserAccessSessionStore {
+  setAccessToken(accessToken: null): void;
   setAccessCodes(codes: []): void;
   setAccessMenus(menus: []): void;
   setAccessRoutes(routes: []): void;
   setIsAccessChecked(isAccessChecked: boolean): void;
+  setLoginExpired(loginExpired: boolean): void;
+  setRefreshToken(refreshToken: null): void;
+}
+
+interface ClearPreviousUserAccessStateOptions {
+  clearCredentials?: boolean;
 }
 
 export function clearPreviousUserAccessState(
   accessStore: UserAccessSessionStore,
   resetRoutes: () => void,
   resetNavigationState?: () => void,
+  options: ClearPreviousUserAccessStateOptions = {},
 ) {
+  if (options.clearCredentials !== false) {
+    // 显式退出或接收新令牌前撤销旧凭据，避免请求携带上一账号身份。
+    accessStore.setAccessToken(null);
+    accessStore.setRefreshToken(null);
+    accessStore.setLoginExpired(false);
+  }
+
   // 清理上一账号的授权结果，禁止下一个账号复用菜单或权限码。
   accessStore.setAccessCodes([]);
   accessStore.setAccessMenus([]);

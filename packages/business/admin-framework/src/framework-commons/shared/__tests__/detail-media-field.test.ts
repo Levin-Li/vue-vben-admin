@@ -1,13 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils';
 
-import { downloadFileFromBlob } from '@vben/utils';
+import { downloadFileFromBlob } from '@vben/runtime/utils';
 
 import { Image, ImagePreviewGroup, message } from 'ant-design-vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import DetailMediaField from '../detail-media-field.vue';
 
-vi.mock('@vben/utils', () => ({ downloadFileFromBlob: vi.fn() }));
+vi.mock('@vben/runtime/utils', () => ({ downloadFileFromBlob: vi.fn() }));
 
 afterEach(() => {
   vi.unstubAllGlobals();

@@ -7,7 +7,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { Page } from '@vben/common-ui';
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 import {
   Alert,
   Button,

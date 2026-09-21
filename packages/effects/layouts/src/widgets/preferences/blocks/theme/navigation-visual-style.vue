@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { NavigationVisualStyleType, SelectOption } from '@vben/types';
+import type { NavigationVisualStyleType, SelectOption } from '@vben/runtime/types';
 
-import { Switch, VbenTooltip } from '@vben-core/shadcn-ui';
+import { Switch, VbenTooltip } from '@vben-core/ui/shadcn';
 
 import ToggleItem from '../toggle-item.vue';
 

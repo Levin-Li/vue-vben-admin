@@ -6,7 +6,7 @@ import type {
 import type { ComponentType } from './component';
 
 import { setupVbenForm, useVbenForm as useForm, z } from '@vben/common-ui';
-import { $t } from '@vben/locales';
+import { $t } from '@vben/runtime/locales';
 
 import { initComponentAdapter } from './component';
 

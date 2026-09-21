@@ -4,8 +4,8 @@ import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import { computed } from 'vue';
 import { RouterView } from 'vue-router';
 
-import { preferences, usePreferences } from '@vben/preferences';
-import { storeToRefs, useTabbarStore } from '@vben/stores';
+import { preferences, usePreferences } from '@vben-core/foundation/preferences';
+import { storeToRefs, useTabbarStore } from '@vben/runtime/stores';
 
 import { IFrameRouterView } from '../../iframe';
 import { RouteContentErrorBoundary } from './route-content-error-boundary';

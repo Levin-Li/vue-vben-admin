@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@vben/layouts/basic/header-extension-area', () => ({
   addLayoutHeaderExtensionAreaItem: mocks.addHeader,
 }));
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   useTabbarStore: () => ({ invalidateCachedRouteViews: vi.fn() }),
   useAccessStore: () => ({ setIsAccessChecked: vi.fn() }),
   useUserStore: () => ({ userInfo: mocks.user }),

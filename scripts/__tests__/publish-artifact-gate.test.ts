@@ -17,6 +17,7 @@ import {
   verifyPageMetadata,
   verifyTarballDependencyProtocols,
   verifyTarballStandaloneInstall,
+  verifyTarballStandaloneViteBuild,
 } from '../publish-artifact-gate.mjs';
 
 const temporaryDirectories: string[] = [];
@@ -49,8 +50,8 @@ function createTarball(manifest: Record<string, unknown>) {
 }
 
 const packageInfo = {
-  dir: resolve('packages/preferences'),
-  name: '@vben/preferences',
+  dir: resolve('packages/@core/ui'),
+  name: '@vben-core/ui',
 };
 
 describe('publish artifact gate', () => {
@@ -135,10 +136,8 @@ describe('publish artifact gate', () => {
     const packageVersions = JSON.parse(
       readFileSync(resolve('package-versions.json'), 'utf8'),
     );
-    expect(manifest.dependencies).toEqual({
-      '@vben-core/preferences':
-        packageVersions.packages['@vben-core/preferences'],
-      '@vben-core/typings': packageVersions.packages['@vben-core/typings'],
+    expect(manifest.dependencies).toMatchObject({
+      '@vben-core/foundation': packageVersions.releaseVersion,
     });
   });
 
@@ -155,6 +154,22 @@ describe('publish artifact gate', () => {
       ),
     ).not.toThrow();
   }, 30_000);
+
+  it('fails registry-consumer production certification when an entry cannot be resolved', () => {
+    const tarballPath = createTarball({
+      exports: { '.': './index.js' },
+      name: '@scope/test-package',
+      version: '1.0.0',
+    });
+
+    expect(() =>
+      verifyTarballStandaloneViteBuild(
+        { name: '@scope/test-package' },
+        tarballPath,
+        '@scope/test-package/missing.vue',
+      ),
+    ).toThrow('registry 消费者生产构建失败');
+  }, 120_000);
 });
 
 describe('打包命令生命周期日志', () => {

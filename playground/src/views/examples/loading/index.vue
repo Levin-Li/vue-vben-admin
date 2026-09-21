@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { Loading, Page, Spinner } from '@vben/common-ui';
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import { refAutoReset } from '@vueuse/core';
 import { Button, Card, Spin } from 'ant-design-vue';

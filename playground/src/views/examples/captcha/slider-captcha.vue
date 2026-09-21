@@ -7,7 +7,7 @@ import type {
 import { ref } from 'vue';
 
 import { Page, SliderCaptcha } from '@vben/common-ui';
-import { Bell, Sun } from '@vben/icons';
+import { Bell, Sun } from '@vben/runtime/icons';
 
 import { Button, Card, message } from 'ant-design-vue';
 

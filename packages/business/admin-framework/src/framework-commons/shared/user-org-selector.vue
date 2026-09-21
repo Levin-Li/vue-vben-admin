@@ -15,7 +15,7 @@ import type {
 import { computed, onMounted, ref, watch } from 'vue';
 
 import { TreeSelect, message } from 'ant-design-vue';
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import { fetchCrudList } from '../api';
 import { rbacService } from '../app/api/rbac-service';
@@ -162,6 +162,8 @@ const emit = defineEmits<{
 const loading = ref(false);
 const orgTreeData = ref<UserOrgTreeSelectNode[]>([]);
 const treeExpandedKeys = ref<string[]>([]);
+const searchValue = ref('');
+const expandedKeysBeforeSearch = ref<string[]>();
 const selectedRecordMap = ref(new Map<string, UserOrgSelectorRecord>());
 const loadedOrgNodeKeys = ref(new Set<string>());
 const loadingOrgNodeKeys = ref(new Set<string>());
@@ -679,6 +681,83 @@ function mergeChildrenByKey(
 
   return [...map.values()];
 }
+
+function getSearchExpandedKeys(
+  nodes: UserOrgTreeSelectNode[],
+  keyword: string,
+  ancestorKeys: string[] = [],
+) {
+  const expandedKeys = new Set<string>();
+
+  for (const node of nodes) {
+    const nodeTitle = String(node.title || '').toLocaleLowerCase();
+    const isMatched = nodeTitle.includes(keyword);
+    const nextAncestorKeys = [...ancestorKeys, node.key];
+
+    if (isMatched) {
+      ancestorKeys.forEach((key) => expandedKeys.add(key));
+      if (node.children?.length) {
+        expandedKeys.add(node.key);
+      }
+    }
+
+    getSearchExpandedKeys(node.children || [], keyword, nextAncestorKeys).forEach(
+      (key) => expandedKeys.add(key),
+    );
+  }
+
+  return [...expandedKeys];
+}
+
+function getNodeTitleParts(title: string) {
+  const keyword = searchValue.value.trim();
+
+  if (!keyword) {
+    return [{ highlighted: false, text: title }];
+  }
+
+  const normalizedTitle = title.toLocaleLowerCase();
+  const normalizedKeyword = keyword.toLocaleLowerCase();
+  const parts: Array<{ highlighted: boolean; text: string }> = [];
+  let offset = 0;
+  let matchIndex = normalizedTitle.indexOf(normalizedKeyword, offset);
+
+  while (matchIndex >= 0) {
+    if (matchIndex > offset) {
+      parts.push({ highlighted: false, text: title.slice(offset, matchIndex) });
+    }
+    parts.push({
+      highlighted: true,
+      text: title.slice(matchIndex, matchIndex + keyword.length),
+    });
+    offset = matchIndex + keyword.length;
+    matchIndex = normalizedTitle.indexOf(normalizedKeyword, offset);
+  }
+
+  if (offset < title.length) {
+    parts.push({ highlighted: false, text: title.slice(offset) });
+  }
+
+  return parts.length > 0 ? parts : [{ highlighted: false, text: title }];
+}
+
+function handleSearch(value: string) {
+  const keyword = value.trim().toLocaleLowerCase();
+
+  if (!keyword) {
+    searchValue.value = '';
+    treeExpandedKeys.value = expandedKeysBeforeSearch.value || [];
+    expandedKeysBeforeSearch.value = undefined;
+    return;
+  }
+
+  if (!searchValue.value) {
+    expandedKeysBeforeSearch.value = [...treeExpandedKeys.value];
+  }
+
+  searchValue.value = value;
+  treeExpandedKeys.value = getSearchExpandedKeys(orgTreeData.value, keyword);
+}
 </script>
 
 <template>
@@ -688,15 +767,19 @@ function mergeChildrenByKey(
     :load-data="handleLoadData"
     :loading="loading"
     :multiple="effectiveMultiple"
+    :dropdown-match-select-width="false"
     :placeholder="placeholder"
+    popup-class-name="user-org-selector__dropdown"
     :show-search="showSearch"
     :tree-checkable="effectiveMultiple"
     :tree-data="displayTreeData"
     :value="treeValue"
+    :virtual="false"
     class="w-full"
     tree-node-filter-prop="title"
     v-model:tree-expanded-keys="treeExpandedKeys"
     @change="handleChange"
+    @search="handleSearch"
   >
     <template #title="node">
       <span
@@ -713,7 +796,20 @@ function mergeChildrenByKey(
           :icon="getUserOrgSelectorNodeIcon(node)"
           class="user-org-selector__node-icon"
         />
-        <span>{{ node.title }}</span>
+        <span>
+          <template
+            v-for="(part, index) in getNodeTitleParts(String(node.title || ''))"
+            :key="`${node.key}-${index}`"
+          >
+            <mark
+              v-if="part.highlighted"
+              class="user-org-selector__node-highlight"
+            >
+              {{ part.text }}
+            </mark>
+            <template v-else>{{ part.text }}</template>
+          </template>
+        </span>
       </span>
     </template>
   </TreeSelect>
@@ -724,6 +820,7 @@ function mergeChildrenByKey(
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
 }
 
 .user-org-selector__node-icon {
@@ -733,5 +830,33 @@ function mergeChildrenByKey(
 
 .user-org-selector__disabled-org-title {
   color: hsl(var(--foreground) / 0.6667);
+}
+
+.user-org-selector__node-highlight {
+  padding: 0;
+  color: inherit;
+  background: hsl(var(--primary) / 0.16);
+  border-radius: 2px;
+}
+
+/* 公共组织与用户树：候选区自行滚动，避免深层节点挤压中文标题。 */
+.user-org-selector__dropdown {
+  width: max-content !important;
+  max-width: min(640px, calc(100vw - 32px));
+}
+
+.user-org-selector__dropdown .ant-select-tree-list-holder {
+  max-height: 80vh !important;
+  overflow: auto !important;
+}
+
+.user-org-selector__dropdown .ant-select-tree-list-holder-inner {
+  display: inline-block;
+  min-width: 100%;
+  width: max-content;
+}
+
+.user-org-selector__dropdown .ant-select-tree-node-content-wrapper {
+  white-space: nowrap;
 }
 </style>

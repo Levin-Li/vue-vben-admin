@@ -7,7 +7,7 @@ import type {
 import { computed, ref, watch } from 'vue';
 
 import { JsonViewer } from '@vben/common-ui';
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import { requestClient } from '@levin/admin-framework';
 import CodeEditorField from '@levin/admin-framework/framework-commons/shared/code-editor-field.vue';

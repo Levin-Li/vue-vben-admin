@@ -2,7 +2,7 @@ import type { Locale } from 'ant-design-vue/es/locale';
 
 import type { App } from 'vue';
 
-import type { LocaleSetupOptions, SupportedLanguagesType } from '@vben/locales';
+import type { LocaleSetupOptions, SupportedLanguagesType } from '@vben/runtime/locales';
 
 import { ref } from 'vue';
 
@@ -10,8 +10,8 @@ import {
   $t,
   setupI18n as coreSetup,
   loadLocalesMapFromDir,
-} from '@vben/locales';
-import { preferences } from '@vben/preferences';
+} from '@vben/runtime/locales';
+import { preferences } from '@vben-core/foundation/preferences';
 
 import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 import antdEnLocale from 'ant-design-vue/es/locale/en_US';

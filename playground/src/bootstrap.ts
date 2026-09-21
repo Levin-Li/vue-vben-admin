@@ -1,11 +1,11 @@
 import { createApp, watchEffect } from 'vue';
 
-import { registerAccessDirective } from '@vben/access';
+import { registerAccessDirective } from '@vben/runtime/access';
 import { registerLoadingDirective } from '@vben/common-ui';
-import { preferences } from '@vben/preferences';
-import { initStores } from '@vben/stores';
-import '@vben/styles';
-import '@vben/styles/antd';
+import { preferences } from '@vben-core/foundation/preferences';
+import { initStores } from '@vben/runtime/stores';
+import '@vben/runtime/styles';
+import '@vben/runtime/styles/antd';
 
 import { useTitle } from '@vueuse/core';
 
@@ -65,7 +65,7 @@ async function bootstrap(namespace: string) {
   app.use(VueQueryPlugin);
 
   // 配置Motion插件
-  const { MotionPlugin } = await import('@vben/plugins/motion');
+  const { MotionPlugin } = await import('@vben/runtime/plugins/motion');
   app.use(MotionPlugin);
 
   // 动态更新标题

@@ -7,7 +7,7 @@ import {
   NumberFieldDecrement,
   NumberFieldIncrement,
   NumberFieldInput,
-} from '@vben-core/shadcn-ui';
+} from '@vben-core/ui/shadcn';
 
 defineOptions({
   name: 'PreferenceFontScale',

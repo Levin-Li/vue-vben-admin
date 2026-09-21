@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   put: vi.fn(),
   superAdmin: true,
 }));
-vi.mock('@vben/stores', () => ({ useUserStore: () => ({ userInfo: {} }) }));
+vi.mock('@vben/runtime/stores', () => ({ useUserStore: () => ({ userInfo: {} }) }));
 vi.mock('../user-identity', () => ({
   isSuperAdminUser: () => mocks.superAdmin,
 }));

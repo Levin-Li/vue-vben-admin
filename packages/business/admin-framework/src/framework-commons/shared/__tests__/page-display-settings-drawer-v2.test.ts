@@ -94,6 +94,50 @@ function upload() {
 }
 
 describe('界面UI设置2', () => {
+  it('保持打开加载并显示和替换记录标题', async () => {
+    const wrapper = mountEditor();
+    try {
+      await wrapper.setProps({ open: false });
+      await wrapper.setProps({ open: true });
+      expect(wrapper.emitted('load')).toHaveLength(1);
+      await wrapper.setProps({
+        settingRecord: {
+          id: 'loaded',
+          name: '加载记录',
+          lastUpdateTime: '2026-09-21T10:00:00',
+        },
+      });
+      expect(
+        document.body.querySelector(
+          '[data-testid="page-display-setting-record"]',
+        )?.textContent,
+      ).toContain('loaded');
+      await wrapper.setProps({
+        settingRecord: {
+          id: 'saved',
+          name: '上传记录',
+          lastUpdateTime: '2026-09-21T11:00:00',
+        },
+      });
+      const title = document.body.querySelector(
+        '[data-testid="page-display-setting-record"]',
+      )?.textContent;
+      expect(title).toContain('saved');
+      expect(title).toContain('上传记录');
+      expect(title).toContain('2026-09-21T11:00:00');
+      expect(title).not.toContain('loaded');
+      await wrapper.setProps({ settingRecord: null });
+      expect(
+        document.body.querySelector(
+          '[data-testid="page-display-setting-record"]',
+        ),
+      ).toBeNull();
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
   it('清楚说明页面编码与作用范围的填写语义', () => {
     const wrapper = mountEditor();
     try {
@@ -104,7 +148,9 @@ describe('界面UI设置2', () => {
 
       expect(scope.textContent).toContain('页面编码（自动生成）');
       expect(scope.textContent).toContain('适用租户（留空匹配任意）');
-      expect(scope.textContent).toContain('适用站点（留空匹配任意；请先选择租户）');
+      expect(scope.textContent).toContain(
+        '适用站点（留空匹配任意；请先选择租户）',
+      );
       expect(scope.textContent).toContain('适用用户类型（留空匹配任意）');
       expect(scope.textContent).toContain('适用用户类别（留空匹配任意）');
       expect(scope.textContent).toContain('适用组织类别（留空匹配任意）');

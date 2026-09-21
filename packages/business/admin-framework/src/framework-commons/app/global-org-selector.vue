@@ -3,7 +3,7 @@ import type { UserOrgSelectorRecord } from '../shared/user-org-selector-types';
 
 import { computed, ref, watch } from 'vue';
 
-import { useUserStore } from '@vben/stores';
+import { useUserStore } from '@vben/runtime/stores';
 
 import UserOrgSelector from '../shared/user-org-selector.vue';
 import {

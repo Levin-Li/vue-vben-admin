@@ -3,8 +3,8 @@ import type { SelectOption } from '@levin/admin-framework';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
-import { useUserStore } from '@vben/stores';
+import { IconifyIcon } from '@vben/runtime/icons';
+import { useUserStore } from '@vben/runtime/stores';
 
 import {
   Button,

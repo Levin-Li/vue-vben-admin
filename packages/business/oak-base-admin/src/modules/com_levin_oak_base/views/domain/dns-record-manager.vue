@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch } from 'vue';
 
 import type { DomainDnsRecord, DomainRecord } from '../../api/domain-service';
 
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 import { useRouter } from 'vue-router';
 
 import {

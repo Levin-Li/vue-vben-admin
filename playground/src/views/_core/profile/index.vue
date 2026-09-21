@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 
 import { Profile } from '@vben/common-ui';
-import { useUserStore } from '@vben/stores';
+import { useUserStore } from '@vben/runtime/stores';
 
 import ProfileBase from './base-setting.vue';
 import ProfileNotificationSetting from './notification-setting.vue';

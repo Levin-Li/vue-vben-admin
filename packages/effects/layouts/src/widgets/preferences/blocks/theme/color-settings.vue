@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { BuiltinThemeType } from '@vben/types';
+import type { BuiltinThemeType } from '@vben/runtime/types';
 
 import { computed, ref, watch } from 'vue';
 
-import { Palette, RotateCw } from '@vben/icons';
-import { $t } from '@vben/locales';
-import { BUILT_IN_THEME_PRESETS, preferencesManager } from '@vben/preferences';
-import { convertToHsl, TinyColor } from '@vben/utils';
+import { Palette, RotateCw } from '@vben/runtime/icons';
+import { $t } from '@vben/runtime/locales';
+import { BUILT_IN_THEME_PRESETS, preferencesManager } from '@vben-core/foundation/preferences';
+import { convertToHsl, TinyColor } from '@vben/runtime/utils';
 
-import { useVbenModal } from '@vben-core/popup-ui';
-import { Input, VbenButton } from '@vben-core/shadcn-ui';
+import { useVbenModal } from '@vben-core/ui/popup';
+import { Input, VbenButton } from '@vben-core/ui/shadcn';
 
 import BackgroundSettings from './background-settings.vue';
 import BuiltinTheme from './builtin.vue';

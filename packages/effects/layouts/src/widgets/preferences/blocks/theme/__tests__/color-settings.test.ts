@@ -1,12 +1,12 @@
 import { mount } from '@vue/test-utils';
-import { TinyColor } from '@vben/utils';
+import { TinyColor } from '@vben/runtime/utils';
 import { defineComponent, h, nextTick } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
 
 import ColorSettings from '../color-settings.vue';
 import PreferencesDrawer from '../../../preferences-drawer.vue';
 
-vi.mock('@vben-core/popup-ui', () => ({
+vi.mock('@vben-core/ui/popup', () => ({
   useVbenDrawer: () => [
     defineComponent({
       name: 'TestDrawer',

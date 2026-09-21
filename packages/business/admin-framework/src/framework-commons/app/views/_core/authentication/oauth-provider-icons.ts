@@ -1,4 +1,4 @@
-import { addIcon } from '@vben/icons';
+import { addIcon } from '@vben/runtime/icons';
 
 /**
  * JustAuth 已知供应商的本地图标。品牌路径在构建时写入模块，登录页不请求图标服务。

@@ -5,14 +5,14 @@ import type {
   BuiltinThemeType,
   NavigationVisualStyleType,
   ThemeModeType,
-} from '@vben/types';
+} from '@vben/runtime/types';
 
 import { computed, watch } from 'vue';
 
-import { MoonStar, Sun, SunMoon } from '@vben/icons';
-import { $t } from '@vben/locales';
-import { BUILT_IN_THEME_PRESETS, usePreferences } from '@vben/preferences';
-import { TinyColor } from '@vben/utils';
+import { MoonStar, Sun, SunMoon } from '@vben/runtime/icons';
+import { $t } from '@vben/runtime/locales';
+import { BUILT_IN_THEME_PRESETS, usePreferences } from '@vben-core/foundation/preferences';
+import { TinyColor } from '@vben/runtime/utils';
 
 import SwitchItem from '../switch-item.vue';
 import NavigationVisualStyle from './navigation-visual-style.vue';

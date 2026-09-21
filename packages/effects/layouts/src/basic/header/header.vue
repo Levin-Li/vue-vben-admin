@@ -10,17 +10,17 @@ import {
   useSlots,
 } from 'vue';
 
-import { useRefresh } from '@vben/hooks';
-import { RotateCw } from '@vben/icons';
-import { $t } from '@vben/locales';
-import { preferences, usePreferences } from '@vben/preferences';
-import { useAccessStore } from '@vben/stores';
+import { useRefresh } from '@vben/runtime/hooks';
+import { RotateCw } from '@vben/runtime/icons';
+import { $t } from '@vben/runtime/locales';
+import { preferences, usePreferences } from '@vben-core/foundation/preferences';
+import { useAccessStore } from '@vben/runtime/stores';
 
 import {
   VbenFullScreen,
   VbenIconButton,
   VbenTooltip,
-} from '@vben-core/shadcn-ui';
+} from '@vben-core/ui/shadcn';
 
 import {
   GlobalSearch,

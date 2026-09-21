@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { Recordable } from '@vben/types';
+import type { Recordable } from '@vben/runtime/types';
 
 import type {
   OnActionClickParams,
@@ -8,7 +8,7 @@ import type {
 import type { SystemRoleApi } from '#/api';
 
 import { Page, useVbenDrawer } from '@vben/common-ui';
-import { Plus } from '@vben/icons';
+import { Plus } from '@vben/runtime/icons';
 
 import { Button, message, Modal } from 'ant-design-vue';
 

@@ -1,8 +1,8 @@
 import { defineComponent, h, nextTick, onErrorCaptured, ref, watch } from 'vue';
 
-import { useRefresh } from '@vben/hooks';
+import { useRefresh } from '@vben/runtime/hooks';
 
-import { alert } from '@vben-core/popup-ui';
+import { alert } from '@vben-core/ui/popup';
 
 const ROUTE_RENDER_ERROR_INFO = new Set([
   'async component loader',

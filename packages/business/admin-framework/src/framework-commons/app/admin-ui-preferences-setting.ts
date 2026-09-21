@@ -1,11 +1,25 @@
-import { updatePreferences } from '@vben/preferences';
+import { updatePreferences } from '@vben-core/foundation/preferences';
 
 import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
 import {
   type UiSettingRuntimeRecord,
   resolveUiSettingRuntimeWithScope,
 } from './api/ui-setting-runtime';
-import { saveUiSettingWithCandidates } from './api/ui-setting-candidate-save';
+import {
+  findUiSettingCandidates,
+  saveUiSettingWithCandidates,
+} from './api/ui-setting-candidate-save';
+
+/** 预览与保存共用同一精确范围查询。 */
+export function loadAdminUiPreferencesUploadTargets(
+  scope: AdminUiPreferencesScope,
+) {
+  return findUiSettingCandidates({
+    ...normalizeScope(scope),
+    code: ADMIN_UI_PREFERENCES_SETTING_CODE,
+    type: 'Preferences',
+  });
+}
 
 const ADMIN_UI_PREFERENCES_CONTEXT = 'admin-ui-preferences';
 const OAK_BASE_API_MODULE = '/com.levin.oak.base/V1/api';

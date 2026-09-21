@@ -1,6 +1,6 @@
 import type { RouteLocationNormalizedLoadedGeneric } from 'vue-router';
 
-import { getTabKey } from '@vben/stores';
+import { getTabKey } from '@vben/runtime/stores';
 
 function getRouteValue(
   route: RouteLocationNormalizedLoadedGeneric,

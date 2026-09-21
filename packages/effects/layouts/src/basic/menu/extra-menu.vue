@@ -1,11 +1,11 @@
 <script lang="ts" setup>
 import type { StyleValue } from 'vue';
 
-import type { MenuRecordRaw, ThemeModeType } from '@vben/types';
+import type { MenuRecordRaw, ThemeModeType } from '@vben/runtime/types';
 
 import { useRoute } from 'vue-router';
 
-import { Menu } from '@vben-core/menu-ui';
+import { Menu } from '@vben-core/ui/menu';
 
 import { useNavigation } from './use-navigation';
 

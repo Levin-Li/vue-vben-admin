@@ -22,6 +22,7 @@ import {
   verifyTarballModuleDevelopmentStandard,
   verifyTarballRouteAssets,
   verifyTarballStandaloneInstall,
+  verifyTarballStandaloneViteBuild,
 } from './publish-artifact-gate.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -89,13 +90,17 @@ const mavenServerId = process.env.MAVEN_SERVER_ID || 'dist-repo';
 const publishUserConfig = resolve(frontendRoot, '.npmrc.publish.tmp');
 const publishLockPath = resolve(frontendRoot, '.frontend-package-publish.lock');
 const packageTarballDir = resolve(outputDir, '.publish-tarballs');
+const hostedRegistry = 'http://nexus.v-ma.com/repository/npm/';
 
 if (mode === 'publish') {
   const registryUrl = String(registry || '').replace(/\/$/, '');
-  const invalidRegistry = /(?:npm-public|npmmirror)/i.test(registryUrl);
-  if (!registryUrl || invalidRegistry) {
+  if (
+    `${registryUrl}/` !== hostedRegistry ||
+    !authFromMaven ||
+    mavenServerId !== 'dist-repo'
+  ) {
     throw new Error(
-      '发布必须显式使用 Nexus hosted npm 仓库，不能使用安装镜像或 npm-public。' +
+      '发布必须使用 Nexus hosted npm 仓库和 Maven dist-repo 凭据。' +
         '请执行：NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ ' +
         'NPM_AUTH_FROM_MAVEN=true MAVEN_SERVER_ID=dist-repo pnpm run publish:admin-modules -- --publish',
     );
@@ -203,6 +208,25 @@ function run(command, commandArgs, extraEnv = {}, cwd = frontendRoot) {
     error.exitCode = result.status || 1;
     throw error;
   }
+}
+
+function packageVersionExists(packageInfo, extraEnv) {
+  const result = spawnSync(
+    'npm',
+    [
+      'view',
+      `${packageInfo.name}@${packageInfo.version}`,
+      'version',
+      '--registry',
+      registry,
+    ],
+    {
+      cwd: frontendRoot,
+      env: { ...process.env, ...extraEnv },
+      stdio: 'ignore',
+    },
+  );
+  return result.status === 0;
 }
 
 run('node', ['./scripts/sync-package-versions.mjs']);
@@ -346,6 +370,16 @@ try {
         const json = JSON.parse(
           readFileSync(resolve(packageInfo.dir, 'package.json'), 'utf8'),
         );
+        if (
+          packageVersionExists(
+            { ...packageInfo, version: json.version },
+            publishEnv,
+          )
+        ) {
+          throw new Error(
+            `${json.name}@${json.version} 已存在于私服，必须先递增版本，禁止用源码或本地构建覆盖已发布制品。`,
+          );
+        }
         const packageOutputDir = resolve(
           packageTarballDir,
           json.name.replaceAll('/', '__'),
@@ -366,6 +400,14 @@ try {
           '本地 tarball',
         );
         verifyTarballStandaloneInstall(packageInfo, tarball, remotePackEnv);
+        if (packageInfo.name === '@levin/admin-framework') {
+          verifyTarballStandaloneViteBuild(
+            packageInfo,
+            tarball,
+            '@levin/admin-framework/framework-commons/app/layouts/basic.vue',
+            remotePackEnv,
+          );
+        }
 
         const publishArgs = ['publish', tarball, '--ignore-scripts'];
 

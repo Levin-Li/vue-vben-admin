@@ -3,11 +3,11 @@ import type {
   RequestClientConfig,
   RequestResponse,
   ResponseInterceptorConfig,
-} from '@vben/request';
+} from '@vben/runtime/request';
 
 import { h } from 'vue';
 
-import { CanceledError } from '@vben/request';
+import { CanceledError } from '@vben/runtime/request';
 
 import { Button, Input, message, Modal } from 'ant-design-vue';
 

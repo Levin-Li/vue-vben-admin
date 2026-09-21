@@ -29,10 +29,9 @@ export type UiSettingCandidateSelector = (
 /**
  * 供三套界面设置上传共用：查询第一页十条精确候选，再决定更新或新建。
  */
-export async function saveUiSettingWithCandidates(
-  data: UiSettingCandidateSaveData,
-  selectCandidate?: UiSettingCandidateSelector,
-): Promise<UiSettingRuntimeRecord> {
+export async function findUiSettingCandidates(
+  data: Omit<UiSettingCandidateSaveData, 'name' | 'valueContent'>,
+): Promise<UiSettingRuntimeRecord[]> {
   const candidatePage = await requestClient.get<UiSettingCandidatePage>(
     '/UiSetting/findCandidates',
     {
@@ -50,7 +49,15 @@ export async function saveUiSettingWithCandidates(
       },
     },
   );
-  const candidates = candidatePage?.items || [];
+  return candidatePage?.items || [];
+}
+
+/** 保存时重新查询，避免使用预览阶段的过期候选。 */
+export async function saveUiSettingWithCandidates(
+  data: UiSettingCandidateSaveData,
+  selectCandidate?: UiSettingCandidateSelector,
+): Promise<UiSettingRuntimeRecord> {
+  const candidates = await findUiSettingCandidates(data);
   const candidateCount = candidates.length;
   const target =
     candidateCount === 1

@@ -1,16 +1,16 @@
-import type { Recordable, UserInfo } from '@vben/types';
+import type { Recordable, UserInfo } from '@vben/runtime/types';
 
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { LOGIN_PATH } from '@vben/constants';
-import { preferences } from '@vben/preferences';
+import { LOGIN_PATH } from '@vben/runtime/constants';
+import { preferences } from '@vben-core/foundation/preferences';
 import {
   resetAllStores,
   useAccessStore,
   useTabbarStore,
   useUserStore,
-} from '@vben/stores';
+} from '@vben/runtime/stores';
 
 import {
   completePasswordLoginApi,

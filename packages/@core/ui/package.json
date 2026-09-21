@@ -1,0 +1,98 @@
+{
+  "name": "@vben-core/ui",
+  "version": "5.6.107",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node ../../../scripts/sync-framework-package-metadata.mjs --package . && pnpm unbuild"
+  },
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "dist",
+    "src",
+    "docs",
+    "package-version.mjs",
+    "package-version.d.mts"
+  ],
+  "exports": {
+    "./shadcn": {
+      "types": "./src/shadcn.ts",
+      "development": "./src/shadcn.ts",
+      "default": "./dist/shadcn.mjs"
+    },
+    "./form": {
+      "types": "./src/form.ts",
+      "development": "./src/form.ts",
+      "default": "./dist/form.mjs"
+    },
+    "./layout": {
+      "types": "./src/layout.ts",
+      "development": "./src/layout.ts",
+      "default": "./dist/layout.mjs"
+    },
+    "./menu": {
+      "types": "./src/menu.ts",
+      "development": "./src/menu.ts",
+      "default": "./dist/menu.mjs"
+    },
+    "./popup": {
+      "types": "./src/popup.ts",
+      "development": "./src/popup.ts",
+      "default": "./dist/popup.mjs"
+    },
+    "./tabs": {
+      "types": "./src/tabs.ts",
+      "development": "./src/tabs.ts",
+      "default": "./dist/tabs.mjs"
+    },
+    "./package-version": {
+      "types": "./package-version.d.mts",
+      "default": "./package-version.mjs"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      "./shadcn": {
+        "types": "./dist/shadcn.d.ts",
+        "default": "./dist/shadcn.mjs"
+      },
+      "./form": {
+        "types": "./dist/form.d.ts",
+        "default": "./dist/form.mjs"
+      },
+      "./layout": {
+        "types": "./dist/layout.d.ts",
+        "default": "./dist/layout.mjs"
+      },
+      "./menu": {
+        "types": "./dist/menu.d.ts",
+        "default": "./dist/menu.mjs"
+      },
+      "./popup": {
+        "types": "./dist/popup.d.ts",
+        "default": "./dist/popup.mjs"
+      },
+      "./tabs": {
+        "types": "./dist/tabs.d.ts",
+        "default": "./dist/tabs.mjs"
+      },
+      "./package-version": {
+        "types": "./package-version.d.mts",
+        "default": "./package-version.mjs"
+      }
+    }
+  },
+  "dependencies": {
+    "@vee-validate/zod": "catalog:",
+    "@vueuse/core": "catalog:",
+    "vee-validate": "catalog:",
+    "vue": "catalog:",
+    "zod": "catalog:",
+    "zod-defaults": "catalog:",
+    "class-variance-authority": "catalog:",
+    "lucide-vue-next": "catalog:",
+    "reka-ui": "catalog:",
+    "@vben-core/foundation": "workspace:*"
+  }
+}

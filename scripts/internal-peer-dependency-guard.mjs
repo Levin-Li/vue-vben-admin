@@ -1,4 +1,4 @@
-const INTERNAL_PACKAGE_PATTERN = /^@(levin|vben|vben-core)\//;
+const INTERNAL_PACKAGE_PATTERN = /^@(?:levin|vben|vben-core)\//;
 
 export function validateInternalPeerVersions(
   packageInfo,
@@ -17,6 +17,7 @@ export function validateInternalPeerVersions(
 
     const expectedVersion =
       selectedPackageVersionByName.get(dependencyName) ||
+      versionConfig.releaseVersion ||
       versionConfig.packages?.[dependencyName] ||
       versionConfig.default;
 

@@ -6,7 +6,7 @@ import type { CrudExportTemplateRecord, CrudFieldConfig } from './types';
 
 import { ref } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import {
   Button,

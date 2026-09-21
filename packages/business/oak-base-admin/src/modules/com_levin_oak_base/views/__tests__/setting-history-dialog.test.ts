@@ -9,7 +9,7 @@ const { moduleFetchCrudList } = vi.hoisted(() => ({
   moduleFetchCrudList: vi.fn(),
 }));
 
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({ userInfo: { superAdmin: true } }),
 }));
 

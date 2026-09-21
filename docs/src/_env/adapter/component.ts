@@ -10,7 +10,7 @@ import type { BaseFormComponentType } from '@vben/common-ui';
 import { h } from 'vue';
 
 import { globalShareState } from '@vben/common-ui';
-import { $t } from '@vben/locales';
+import { $t } from '@vben/runtime/locales';
 
 import {
   AutoComplete,

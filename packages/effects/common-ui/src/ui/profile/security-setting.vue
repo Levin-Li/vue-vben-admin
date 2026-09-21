@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Recordable } from '@vben/types';
+import type { Recordable } from '@vben/runtime/types';
 
 import type { SettingProps } from './types';
 
@@ -11,7 +11,7 @@ import {
   FormItem,
   FormLabel,
   Switch,
-} from '@vben-core/shadcn-ui';
+} from '@vben-core/ui/shadcn';
 
 withDefaults(defineProps<SettingProps>(), {
   formSchema: () => [],

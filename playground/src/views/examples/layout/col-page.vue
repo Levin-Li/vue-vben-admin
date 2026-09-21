@@ -2,7 +2,7 @@
 import { reactive, ref } from 'vue';
 
 import { ColPage } from '@vben/common-ui';
-import { IconifyIcon } from '@vben/icons';
+import { IconifyIcon } from '@vben/runtime/icons';
 
 import {
   Alert,

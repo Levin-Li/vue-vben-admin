@@ -29,20 +29,20 @@ const layoutPreferences = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@vben/hooks', () => ({
+vi.mock('@vben/runtime/hooks', () => ({
   useRefresh: () => ({
     refresh: vi.fn(),
   }),
 }));
 
-vi.mock('@vben/icons', () => ({
+vi.mock('@vben/runtime/icons', () => ({
   RotateCw: defineComponent({
     name: 'RotateCw',
     setup: () => () => h('span'),
   }),
 }));
 
-vi.mock('@vben/preferences', () => ({
+vi.mock('@vben-core/foundation/preferences', () => ({
   preferences: {
     header: {
       menuAlign: 'start',
@@ -57,17 +57,17 @@ vi.mock('@vben/preferences', () => ({
   }),
 }));
 
-vi.mock('@vben/locales', () => ({
+vi.mock('@vben/runtime/locales', () => ({
   $t: (key: string) => key,
 }));
 
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   useAccessStore: () => ({
     accessMenus: [],
   }),
 }));
 
-vi.mock('@vben-core/shadcn-ui', () => ({
+vi.mock('@vben-core/ui/shadcn', () => ({
   VbenFullScreen: defineComponent({
     name: 'VbenFullScreen',
     setup: () => () => h('span'),
@@ -187,7 +187,7 @@ describe('layout header extension area', () => {
 
   it('keeps the header wrapper open for the expanded quick-action overlay', () => {
     const source = readFileSync(
-      'packages/@core/ui-kit/layout-ui/src/vben-layout.vue',
+      'packages/@core/ui/src/vendor/layout/vben-layout.vue',
       'utf8',
     );
 
@@ -198,7 +198,7 @@ describe('layout header extension area', () => {
 
   it('does not clip the quick-action overlay when the header has rounded corners', () => {
     const source = readFileSync(
-      'packages/@core/ui-kit/layout-ui/src/components/layout-header.vue',
+      'packages/@core/ui/src/vendor/layout/components/layout-header.vue',
       'utf8',
     );
 
@@ -207,7 +207,7 @@ describe('layout header extension area', () => {
 
   it('uses theme tokens for controls when a custom header color is active', () => {
     const layoutHeaderSource = readFileSync(
-      'packages/@core/ui-kit/layout-ui/src/components/layout-header.vue',
+      'packages/@core/ui/src/vendor/layout/components/layout-header.vue',
       'utf8',
     );
     const globalSearchSource = readFileSync(
@@ -215,7 +215,7 @@ describe('layout header extension area', () => {
       'utf8',
     );
     const layoutSource = readFileSync(
-      'packages/@core/ui-kit/layout-ui/src/vben-layout.vue',
+      'packages/@core/ui/src/vendor/layout/vben-layout.vue',
       'utf8',
     );
     const userDropdownSource = readFileSync(
@@ -262,7 +262,7 @@ describe('layout header extension area', () => {
     expect(notificationSource).toContain('--header-menu-background');
 
     const preferencesSource = readFileSync(
-      'packages/@core/preferences/src/update-css-variables.ts',
+      'packages/@core/foundation/src/vendor/preferences/update-css-variables.ts',
       'utf8',
     );
     expect(preferencesSource).toContain('headerMenuBackgroundColorCustom');

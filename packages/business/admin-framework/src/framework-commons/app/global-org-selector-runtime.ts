@@ -1,7 +1,7 @@
 import { reactive, watch } from 'vue';
 
 import { addLayoutHeaderExtensionAreaItem } from '@vben/layouts/basic/header-extension-area';
-import { useAccessStore, useTabbarStore, useUserStore } from '@vben/stores';
+import { useAccessStore, useTabbarStore, useUserStore } from '@vben/runtime/stores';
 
 import { resolveUiSettingRuntime } from './api/ui-setting-runtime';
 import { onGlobalDomainContextChange } from './global-domain-context-state';

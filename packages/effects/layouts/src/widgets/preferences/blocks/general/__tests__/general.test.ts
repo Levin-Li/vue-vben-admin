@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import General from '../general.vue';
 
-vi.mock('@vben/locales', () => ({
+vi.mock('@vben/runtime/locales', () => ({
   $t: (key: string) => key,
 }));
 

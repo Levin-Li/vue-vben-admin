@@ -3,7 +3,7 @@ import type { MenuRecord, SelectOption } from './types';
 
 import { computed, reactive, watch } from 'vue';
 
-import { useUserStore } from '@vben/stores';
+import { useUserStore } from '@vben/runtime/stores';
 
 import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 import { parseMenuFixedQuery } from '@levin/admin-framework/framework-commons/menu-fixed-query';

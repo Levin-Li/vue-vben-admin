@@ -15,15 +15,19 @@ vi.mock('ant-design-vue', () => ({
     props: [
       'allowClear',
       'disabled',
+      'dropdownMatchSelectWidth',
       'loadData',
       'loading',
       'multiple',
+      'popupClassName',
       'placeholder',
       'showSearch',
+      'search',
       'treeCheckable',
       'treeData',
       'treeExpandedKeys',
       'value',
+      'virtual',
     ],
     template: '<div data-test="tree-select"></div>',
   },
@@ -47,15 +51,19 @@ const treeSelectStub = {
   props: [
     'allowClear',
     'disabled',
+    'dropdownMatchSelectWidth',
     'loadData',
     'loading',
     'multiple',
+    'popupClassName',
     'placeholder',
     'showSearch',
+    'search',
     'treeCheckable',
     'treeData',
     'treeExpandedKeys',
     'value',
+    'virtual',
   ],
   template:
     '<div data-test="tree-select"><slot name="title" v-bind="treeData[0] || {}" /></div>',
@@ -266,5 +274,64 @@ describe('UserOrgSelector', () => {
     expect(textOnlyWrapper.find('.user-org-selector__node-icon').exists()).toBe(
       false,
     );
+  });
+
+  it('uses a bounded scrolling popup so deep organization titles stay on one line', async () => {
+    const wrapper = mountSelector({
+      allowSelectUser: false,
+      mode: 'org',
+      orgLoadApi: vi.fn(async () => [
+        { id: 'org-1', name: '这是一个层级很深的组织名称' },
+      ]),
+    });
+
+    await flushPromises();
+
+    const treeSelect = wrapper.findComponent(treeSelectStub);
+    expect(treeSelect.props()).toMatchObject({
+      dropdownMatchSelectWidth: false,
+      popupClassName: 'user-org-selector__dropdown',
+      virtual: false,
+    });
+    expect(wrapper.html()).toContain('这是一个层级很深的组织名称');
+  });
+
+  it('expands matching organization paths and highlights the search keyword', async () => {
+    const wrapper = mountSelector({
+      allowSelectUser: false,
+      mode: 'org',
+      orgLoadApi: vi.fn(async () => [
+        {
+          children: [
+            {
+              children: [{ id: 'team', name: '搜索目标团队' }],
+              id: 'department',
+              name: '研发中心',
+            },
+          ],
+          id: 'root',
+          name: '集团总部',
+        },
+      ]),
+    });
+
+    await flushPromises();
+
+    const treeSelect = wrapper.findComponent(treeSelectStub);
+    treeSelect.vm.$emit('search', '目标');
+    await flushPromises();
+
+    expect(treeSelect.props('treeExpandedKeys')).toEqual([
+      encodeUserOrgSelectorKey('org', 'root'),
+      encodeUserOrgSelectorKey('org', 'department'),
+    ]);
+
+    treeSelect.vm.$emit('search', '集团');
+    await flushPromises();
+    expect(wrapper.get('mark').text()).toBe('集团');
+
+    treeSelect.vm.$emit('search', '');
+    await flushPromises();
+    expect(treeSelect.props('treeExpandedKeys')).toEqual([]);
   });
 });

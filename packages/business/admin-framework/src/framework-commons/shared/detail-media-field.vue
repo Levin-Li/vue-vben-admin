@@ -3,7 +3,7 @@ import type { DetailMediaResource } from './detail-media';
 
 import { computed, reactive } from 'vue';
 
-import { downloadFileFromBlob } from '@vben/utils';
+import { downloadFileFromBlob } from '@vben/runtime/utils';
 
 import { Button, Image, ImagePreviewGroup, message } from 'ant-design-vue';
 

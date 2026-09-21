@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { i18n } from '@vben/locales';
+import { i18n } from '@vben/runtime/locales';
 
 import {
   ErrorType,

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import FixedQueryEditor from '../fixed-query-editor.vue';
 
-vi.mock('@vben/stores', () => ({ useUserStore: () => ({ userInfo: {} }) }));
+vi.mock('@vben/runtime/stores', () => ({ useUserStore: () => ({ userInfo: {} }) }));
 vi.mock(
   '@levin/admin-framework/framework-commons/app/api/json-schema-service',
   () => ({

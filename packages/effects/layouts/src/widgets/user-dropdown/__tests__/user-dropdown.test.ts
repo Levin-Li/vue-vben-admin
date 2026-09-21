@@ -5,11 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import UserDropdown from '../user-dropdown.vue';
 
-vi.mock('@vben/hooks', () => ({
+vi.mock('@vben/runtime/hooks', () => ({
   useHoverToggle: () => [ref(false), { disable: vi.fn(), enable: vi.fn() }],
 }));
 
-vi.mock('@vben/icons', () => ({
+vi.mock('@vben/runtime/icons', () => ({
   LockKeyhole: defineComponent({
     name: 'LockKeyhole',
     setup: () => () => h('span'),
@@ -20,9 +20,9 @@ vi.mock('@vben/icons', () => ({
   }),
 }));
 
-vi.mock('@vben/locales', () => ({ $t: (key: string) => key }));
+vi.mock('@vben/runtime/locales', () => ({ $t: (key: string) => key }));
 
-vi.mock('@vben/preferences', () => ({
+vi.mock('@vben-core/foundation/preferences', () => ({
   preferences: {
     shortcutKeys: { enable: false },
     widget: { lockScreen: false },
@@ -33,13 +33,13 @@ vi.mock('@vben/preferences', () => ({
   }),
 }));
 
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/stores', () => ({
   useAccessStore: () => ({ lockScreen: vi.fn() }),
 }));
 
-vi.mock('@vben/utils', () => ({ isWindowsOs: () => false }));
+vi.mock('@vben/runtime/utils', () => ({ isWindowsOs: () => false }));
 
-vi.mock('@vben-core/popup-ui', () => ({
+vi.mock('@vben-core/ui/popup', () => ({
   useVbenModal: () => [
     defineComponent({
       inheritAttrs: false,
@@ -52,7 +52,7 @@ vi.mock('@vben-core/popup-ui', () => ({
   ],
 }));
 
-vi.mock('@vben-core/shadcn-ui', () => {
+vi.mock('@vben-core/ui/shadcn', () => {
   const Stub = (name: string) =>
     defineComponent({
       name,

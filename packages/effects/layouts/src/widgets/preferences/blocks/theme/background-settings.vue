@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { $t } from '@vben/locales';
+import { $t } from '@vben/runtime/locales';
 
 const props = defineProps<{ label?: string }>();
 

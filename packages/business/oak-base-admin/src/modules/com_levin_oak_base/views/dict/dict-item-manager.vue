@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, reactive, ref } from 'vue';
 
-import { Plus } from '@vben/icons';
+import { Plus } from '@vben/runtime/icons';
 
 import {
   Button,

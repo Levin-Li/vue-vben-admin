@@ -16,7 +16,7 @@ import {
   SvgGoogleIcon,
   SvgQQChatIcon,
   SvgWeChatIcon,
-} from '@vben/icons';
+} from '@vben/runtime/icons';
 
 import { Card, Input } from 'ant-design-vue';
 

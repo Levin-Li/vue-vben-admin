@@ -1,6 +1,6 @@
 import type { AdminFrontendModule } from '../../module-contract';
 
-import { getBaseLocaleMessages } from '@vben/locales';
+import { getBaseLocaleMessages } from '@vben/runtime/locales';
 
 import { getEnabledFrontendModules } from '../options';
 
@@ -10,7 +10,7 @@ export function getApplicationI18nModules(
   return [
     {
       locales: getBaseLocaleMessages(),
-      name: '@vben/locales',
+      name: '@vben/runtime/locales',
       order: -200,
       title: 'Vben 基础语言包',
     },

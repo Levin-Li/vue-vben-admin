@@ -12,13 +12,13 @@ const mocks = vi.hoisted(() => ({
   user: { superAdmin: false },
   get: vi.fn().mockResolvedValue({ items: [] }),
 }));
-vi.mock('@vben/hooks', () => ({ useAppConfig: () => ({ apiURL: '/api' }) }));
-vi.mock('@vben/preferences', () => ({ preferences: { app: {} } }));
-vi.mock('@vben/stores', () => ({
+vi.mock('@vben/runtime/hooks', () => ({ useAppConfig: () => ({ apiURL: '/api' }) }));
+vi.mock('@vben-core/foundation/preferences', () => ({ preferences: { app: {} } }));
+vi.mock('@vben/runtime/stores', () => ({
   useAccessStore: () => ({ accessToken: 'token' }),
   useUserStore: () => ({ userInfo: mocks.user }),
 }));
-vi.mock('@vben/request', () => ({
+vi.mock('@vben/runtime/request', () => ({
   RequestClient: class {
     interceptors: any[] = [];
     addRequestInterceptor(value: any) {

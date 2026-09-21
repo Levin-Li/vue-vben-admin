@@ -14,8 +14,8 @@ import {
   watch,
 } from 'vue';
 
-import { IconifyIcon } from '@vben/icons';
-import { $t } from '@vben/locales';
+import { IconifyIcon } from '@vben/runtime/icons';
+import { $t } from '@vben/runtime/locales';
 
 import {
   getLoginOptionsApi,

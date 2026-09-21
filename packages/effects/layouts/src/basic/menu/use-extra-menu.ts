@@ -1,13 +1,13 @@
 import type { ComputedRef, Ref } from 'vue';
 
-import type { MenuRecordRaw } from '@vben/types';
+import type { MenuRecordRaw } from '@vben/runtime/types';
 
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
-import { preferences } from '@vben/preferences';
-import { useAccessStore } from '@vben/stores';
-import { findRootMenuByPath } from '@vben/utils';
+import { preferences } from '@vben-core/foundation/preferences';
+import { useAccessStore } from '@vben/runtime/stores';
+import { findRootMenuByPath } from '@vben/runtime/utils';
 
 import { useNavigation } from './use-navigation';
 import { shouldNavigateSelectedMenu } from './group-navigation';

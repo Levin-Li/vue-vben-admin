@@ -2,9 +2,9 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
-import { useAntdDesignTokens } from '@vben/hooks';
-import { preferences, usePreferences } from '@vben/preferences';
-import { useAccessStore } from '@vben/stores';
+import { useAntdDesignTokens } from '@vben/runtime/hooks';
+import { preferences, usePreferences } from '@vben-core/foundation/preferences';
+import { useAccessStore } from '@vben/runtime/stores';
 
 import { App, ConfigProvider, theme } from 'ant-design-vue';
 

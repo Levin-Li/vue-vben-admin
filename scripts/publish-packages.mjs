@@ -23,6 +23,7 @@ import {
   verifyTarballDependencyProtocols,
   verifyTarballRouteAssets,
   verifyTarballStandaloneInstall,
+  verifyTarballStandaloneViteBuild,
 } from './publish-artifact-gate.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -457,6 +458,12 @@ const versionConfig = readJson(resolve(frontendRoot, 'package-versions.json'));
 
 assertPublishConfiguration();
 
+if (mode === 'publish' && onlyPackages.length > 0) {
+  throw new Error(
+    '正式前端发布必须是完整内部包批次，不能使用 --only。请使用 pnpm run publish:packages。',
+  );
+}
+
 if (mode === 'list') {
   for (const packageInfo of selectedPackages) {
     console.log(
@@ -576,6 +583,14 @@ try {
       );
       verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
       verifyTarballStandaloneInstall(packageInfo, tarball, remotePackEnv);
+      if (packageInfo.name === '@levin/admin-framework') {
+        verifyTarballStandaloneViteBuild(
+          packageInfo,
+          tarball,
+          '@levin/admin-framework/framework-commons/app/layouts/basic.vue',
+          remotePackEnv,
+        );
+      }
       publishPackage(tarball, publishEnv);
 
       const remoteTarball = packPackage(

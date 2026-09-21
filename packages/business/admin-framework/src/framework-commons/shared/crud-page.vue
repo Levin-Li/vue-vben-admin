@@ -49,9 +49,9 @@ import {
 import { useRoute } from 'vue-router';
 
 import { Page, VCropper } from '@vben/common-ui';
-import { ChevronDown, IconifyIcon, Plus } from '@vben/icons';
-import { preferences } from '@vben/preferences';
-import { useUserStore } from '@vben/stores';
+import { ChevronDown, IconifyIcon, Plus } from '@vben/runtime/icons';
+import { preferences } from '@vben-core/foundation/preferences';
+import { useUserStore } from '@vben/runtime/stores';
 
 import {
   AutoComplete,
@@ -97,6 +97,7 @@ import {
 import { rbacService } from '../app/api/rbac-service';
 import {
   resolveUiSettingRuntimeWithScope,
+  UI_SETTING_RETRIEVE_PATH,
   type UiSettingRuntimeRecord,
 } from '../app/api/ui-setting-runtime';
 import { saveUiSettingWithCandidates } from '../app/api/ui-setting-candidate-save';
@@ -561,6 +562,8 @@ const pageDisplayHeaderMap = computed(
 );
 const autoSearchReady = ref(false);
 const pageDisplaySettingRecord = ref<null | UiSettingRuntimeRecord>(null);
+// 抽屉记录独立于运行时匹配结果，避免上传到其它范围后展示错误目标。
+const pageDisplayTitleRecord = ref<null | UiSettingRuntimeRecord>(null);
 type PageDisplaySettingCandidate = UiSettingRuntimeRecord;
 const pageDisplayScope = ref<{
   domain?: string;
@@ -592,7 +595,8 @@ const pageDisplayContextKey = computed(() => {
   );
 });
 
-async function loadPageDisplaySettings(force = false) {
+async function loadPageDisplaySettings(force = false, updateTitle = false) {
+  if (updateTitle) pageDisplayTitleRecord.value = null;
   const code = pageDisplaySettingCode.value;
   if (!code) {
     pageDisplaySettingRecord.value = null;
@@ -607,6 +611,7 @@ async function loadPageDisplaySettings(force = false) {
     );
     const setting = resolution.setting;
     pageDisplaySettingRecord.value = setting;
+    if (updateTitle) pageDisplayTitleRecord.value = setting;
     pageDisplayScope.value = { ...pageDisplayScope.value, ...resolution.scope };
     pageDisplayConfig.value = resolveCrudPageDisplayDefaults(
       setting?.valueContent?.pageDisplay as CrudPageDisplayConfig | undefined,
@@ -640,7 +645,22 @@ async function savePageDisplaySettings(payload: {
       userType: payload.scope.userType || null,
       valueContent: { pageDisplay: payload.config },
     };
-    await saveUiSettingWithCandidates(data, selectPageDisplaySettingCandidate);
+    const saved = await saveUiSettingWithCandidates(
+      data,
+      selectPageDisplaySettingCandidate,
+    );
+    // 写入返回值不含最新时间，按实际保存 ID 回查，不使用当前用户适配记录。
+    try {
+      pageDisplayTitleRecord.value =
+        await requestClient.get<UiSettingRuntimeRecord>(
+          UI_SETTING_RETRIEVE_PATH,
+          { params: { id: saved.id } },
+        );
+    } catch {
+      // 上传已成功但回查失败，清除旧时间并明确提示，避免误报上传失败。
+      pageDisplayTitleRecord.value = { ...saved, lastUpdateTime: undefined };
+      message.warning('上传成功，但最新记录信息读取失败，请重新加载确认');
+    }
     // 保存目标可不同于当前登录人，重新解析当前上下文，避免把目标配置错误套用到当前页面。
     await loadPageDisplaySettings(true);
     message.success('当前配置已上传');
@@ -665,13 +685,17 @@ async function selectPageDisplaySettingCandidate(
     Modal.confirm({
       cancelText: '新建记录',
       content: h('div', { class: 'grid gap-3' }, [
-        h('div', `找到 ${total} 条完全匹配的配置，请选择一条更新；不选择将新建记录。`),
+        h(
+          'div',
+          `找到 ${total} 条完全匹配的配置，请选择一条更新；不选择将新建记录。`,
+        ),
         h(
           'select',
           {
             class: 'border-border rounded border px-3 py-2',
             onChange: (event: Event) => {
-              selectedId = (event.target as HTMLSelectElement).value || undefined;
+              selectedId =
+                (event.target as HTMLSelectElement).value || undefined;
             },
           },
           [
@@ -8831,10 +8855,11 @@ watch(canCustomizeTableColumnsLocally, () => {
       :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
       :model-value="pageDisplayConfig"
       :saving="pageDisplaySettingSaving"
+      :setting-record="pageDisplayTitleRecord"
       :show-operation-column="hasAvailableOperationColumn"
       :script-test-context="pageDisplayScriptTestContext"
       @save="savePageDisplaySettings"
-      @load="() => loadPageDisplaySettings(true)"
+      @load="() => loadPageDisplaySettings(true, true)"
     />
     <PageDisplaySettingsDrawerV2
       v-if="pageDisplaySettingCode && pageDisplaySettingsV2Open"
@@ -8849,10 +8874,11 @@ watch(canCustomizeTableColumnsLocally, () => {
       :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
       :model-value="pageDisplayConfig"
       :saving="pageDisplaySettingSaving"
+      :setting-record="pageDisplayTitleRecord"
       :show-operation-column="hasAvailableOperationColumn"
       :script-test-context="pageDisplayScriptTestContext"
       @save="savePageDisplaySettings"
-      @load="() => loadPageDisplaySettings(true)"
+      @load="() => loadPageDisplaySettings(true, true)"
     />
   </Page>
 </template>

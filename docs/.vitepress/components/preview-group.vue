@@ -3,7 +3,7 @@ import type { SetupContext } from 'vue';
 
 import { computed, ref, useSlots } from 'vue';
 
-import { VbenTooltip } from '@vben-core/shadcn-ui';
+import { VbenTooltip } from '@vben-core/ui/shadcn';
 
 import { Code } from 'lucide-vue-next';
 import {

@@ -16,7 +16,7 @@ vi.mock('@levin/admin-framework/framework-commons/app/locales', () => ({
   },
 }));
 
-vi.mock('@vben/preferences', () => ({
+vi.mock('@vben-core/foundation/preferences', () => ({
   preferences: {
     app: {
       defaultHomePath: '/index',

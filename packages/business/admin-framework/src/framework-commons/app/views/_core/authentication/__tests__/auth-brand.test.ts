@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   getTenantSiteInfo: vi.fn(),
 }));
 
-vi.mock('@vben/preferences', () => ({
+vi.mock('@vben-core/foundation/preferences', () => ({
   preferences: {
     app: {
       name: 'Levin Main App',

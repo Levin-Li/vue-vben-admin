@@ -5,10 +5,10 @@ import type {
 } from '#/adapter/vxe-table';
 
 import { Page, useVbenDrawer } from '@vben/common-ui';
-import { IconifyIcon, Plus } from '@vben/icons';
-import { $t } from '@vben/locales';
+import { IconifyIcon, Plus } from '@vben/runtime/icons';
+import { $t } from '@vben/runtime/locales';
 
-import { MenuBadge } from '@vben-core/menu-ui';
+import { MenuBadge } from '@vben-core/ui/menu';
 
 import { Button, message } from 'ant-design-vue';
 

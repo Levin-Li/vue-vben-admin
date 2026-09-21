@@ -5,18 +5,18 @@ import { computed, onBeforeMount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
-import { VBEN_DOC_URL, VBEN_GITHUB_URL } from '@vben/constants';
-import { useWatermark } from '@vben/hooks';
-import { BookOpenText, CircleHelp, SvgGithubIcon } from '@vben/icons';
+import { VBEN_DOC_URL, VBEN_GITHUB_URL } from '@vben/runtime/constants';
+import { useWatermark } from '@vben/runtime/hooks';
+import { BookOpenText, CircleHelp, SvgGithubIcon } from '@vben/runtime/icons';
 import {
   BasicLayout,
   LockScreen,
   Notification,
   UserDropdown,
 } from '@vben/layouts';
-import { preferences } from '@vben/preferences';
-import { useAccessStore, useTabbarStore, useUserStore } from '@vben/stores';
-import { openWindow } from '@vben/utils';
+import { preferences } from '@vben-core/foundation/preferences';
+import { useAccessStore, useTabbarStore, useUserStore } from '@vben/runtime/stores';
+import { openWindow } from '@vben/runtime/utils';
 
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';

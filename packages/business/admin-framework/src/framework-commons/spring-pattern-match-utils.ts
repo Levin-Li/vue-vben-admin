@@ -1,1 +1,1 @@
-export { SpringPatternMatchUtils as default } from '@vben/utils';
+export { SpringPatternMatchUtils as default } from '@vben/runtime/utils';

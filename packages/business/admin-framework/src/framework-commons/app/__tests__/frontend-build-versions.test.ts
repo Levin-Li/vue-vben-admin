@@ -36,18 +36,18 @@ describe('框架实际包版本', () => {
 
   it('展示实际解析版本，不受子项目构建元数据和版本要求影响', () => {
     vi.stubGlobal('__VBEN_ADMIN_METADATA__', {
-      dependencies: { '@vben/stores': '99.0.0' },
+      dependencies: { '@vben/runtime/stores': '99.0.0' },
     });
     dependencyPackages.push({
       buildTime,
-      name: '@vben/stores',
+      name: '@vben/runtime/stores',
       version: '0.0.1',
     });
     expect(getFrontendBuildInfo().versions[1]).toEqual({
       buildTime,
       category: '公共依赖',
-      id: '@vben/stores',
-      name: '@vben/stores',
+      id: '@vben/runtime/stores',
+      name: '@vben/runtime/stores',
       version: '0.0.1',
     });
   });

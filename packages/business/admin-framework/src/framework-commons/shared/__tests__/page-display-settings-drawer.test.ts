@@ -72,6 +72,56 @@ async function searchFields(keyword: string) {
 }
 
 describe('页面展示设置抽屉', () => {
+  it('打开和重开不加载，手动加载才发出事件，并替换标题记录', async () => {
+    const wrapper = mountDrawer(false);
+    try {
+      await flushPromises();
+      await wrapper.setProps({ open: false });
+      await wrapper.setProps({ open: true });
+      expect(wrapper.emitted('load')).toBeUndefined();
+      const loadButton = Array.from(
+        document.body.querySelectorAll('button'),
+      ).find((button) => button.textContent?.includes('加载设置'))!;
+      loadButton.click();
+      expect(wrapper.emitted('load')).toHaveLength(1);
+      await wrapper.setProps({
+        settingRecord: {
+          id: 'loaded',
+          name: '已加载',
+          lastUpdateTime: '2026-09-21T10:00:00',
+        },
+      });
+      expect(
+        document.body.querySelector(
+          '[data-testid="page-display-setting-record"]',
+        )?.textContent,
+      ).toContain('loaded');
+      await wrapper.setProps({
+        settingRecord: {
+          id: 'saved',
+          name: '已上传',
+          lastUpdateTime: '2026-09-21T11:00:00',
+        },
+      });
+      const title = document.body.querySelector(
+        '[data-testid="page-display-setting-record"]',
+      )?.textContent;
+      expect(title).toContain('saved');
+      expect(title).toContain('已上传');
+      expect(title).toContain('2026-09-21T11:00:00');
+      expect(title).not.toContain('loaded');
+      await wrapper.setProps({ settingRecord: null });
+      expect(
+        document.body.querySelector(
+          '[data-testid="page-display-setting-record"]',
+        ),
+      ).toBeNull();
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
   it.each([
     ['query', '查询表单'],
     ['create', '新增表单'],

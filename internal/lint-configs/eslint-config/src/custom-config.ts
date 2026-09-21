@@ -101,7 +101,7 @@ const customConfig: Linter.Config[] = [
             {
               group: ['@vben/*', '@vben-core/*'],
               message:
-                'The @vben-core/shared package cannot import the @vben package, please use the @core/shared package itself',
+                'The @vben-core/foundation/shared package cannot import the @vben package, please use the @core/shared package itself',
             },
           ],
         },
