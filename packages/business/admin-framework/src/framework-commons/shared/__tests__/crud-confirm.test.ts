@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildNoFormFlowConfirmConfig } from '../crud-confirm';
 
 describe('简单流程无表单确认', () => {
-  it('仅对显式空事件表单生成包含记录与状态影响的确认提示', () => {
+  it('仅对显式空事件表单生成简洁的流程确认提示', () => {
     expect(
       buildNoFormFlowConfirmConfig({
         eventName: '发布',
@@ -12,7 +12,7 @@ describe('简单流程无表单确认', () => {
       }),
     ).toEqual({
       enabled: true,
-      text: '确认对「领域 A」执行「发布」吗？该操作将改变当前流程状态。',
+      text: '确认「发布」吗？',
       title: '确认发布',
     });
   });

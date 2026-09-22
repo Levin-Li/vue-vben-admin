@@ -1,20 +1,39 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { noticeService } from '../../api/notice-service';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+
+import { noticeService } from '../../api/notice-service';
 import {
+  buildDictOptionsLoader,
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   jobPostOptionsLoader,
+  orgCategoryOptionsLoader,
+  orgTypeOptionsLoader,
   roleOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
 
-const noticeContentTypeOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.Notice$ContentType',
-);
+// 内容类型是 Notice 的固定展示契约，显式声明后不依赖枚举扫描接口是否已发现内部枚举。
+const noticeContentTypeOptionsLoader = async () => [
+  { label: '文本', value: 'Text' },
+  { label: 'MarkDown', value: 'Markdown' },
+  { label: '网页', value: 'Html' },
+  { label: 'JsonSchema', value: 'JsonSchema' },
+  { label: 'AmisJsonView', value: 'AmisJsonView' },
+  { label: '图片', value: 'Pic' },
+  { label: '视频', value: 'Video' },
+  { label: '音频', value: 'Audio' },
+  { label: '文件', value: 'File' },
+];
 const noticeStatusOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.enums.SimpleFlowStatus',
+);
+const userTypeOptionsLoader = buildDictOptionsLoader(
+  'com.levin.oak.base.entities.User.type',
+);
+const userCategoryOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.User$Category',
 );
 type NoticeActionMethod =
   | 'archived'
@@ -50,8 +69,12 @@ export const noticePageCrudConfig: CrudPageConfig = {
     editable: true,
     enable: true,
     matchCategoryList: [],
+    matchAreaList: [],
     matchJobPostCodeList: [],
     matchRoleCodeList: [],
+    matchTypeList: [],
+    orgCategoryList: [],
+    orgTypeList: [],
     orderCode: 100,
   },
   defaultQuery: {
@@ -97,13 +120,30 @@ export const noticePageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'name',
-      label: '名称',
+      label: '内部名称',
       layoutGroup: 'basic',
       layoutGroupTitle: '通知信息',
       layoutOrder: 10,
       required: true,
       table: true,
       width: 180,
+    },
+    // 面向接收用户展示的标题和摘要，与管理端内部名称分开维护。
+    {
+      key: 'title',
+      label: '通知标题',
+      layoutGroup: 'basic',
+      layoutOrder: 15,
+      table: true,
+      width: 220,
+    },
+    {
+      key: 'subtitle',
+      label: '通知摘要',
+      layoutGroup: 'basic',
+      layoutOrder: 18,
+      fullRow: true,
+      type: 'textarea',
     },
     {
       key: 'status',
@@ -134,6 +174,28 @@ export const noticePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'select',
       width: 140,
+    },
+    {
+      key: 'level',
+      label: '通知级别',
+      layoutGroup: 'business',
+      layoutGroupTitle: '发布设置',
+      layoutOrder: 5,
+      loadOptions: buildEnumOptionsLoader(
+        'com.levin.oak.base.entities.Notice$Level',
+      ),
+      table: true,
+      type: 'select',
+      width: 120,
+    },
+    {
+      key: 'publishTime',
+      label: '计划发布时间',
+      layoutGroup: 'business',
+      layoutOrder: 8,
+      table: true,
+      type: 'datetime',
+      width: 180,
     },
     {
       key: 'expiredTime',
@@ -176,15 +238,59 @@ export const noticePageCrudConfig: CrudPageConfig = {
       type: 'textarea',
     },
     {
+      key: 'matchAreaList',
+      detail: true,
+      label: '匹配用户区域',
+      help: '可选择省、市或区县；省、市范围会覆盖下属区域，空值不限制用户区域。',
+      layoutGroup: 'extension',
+      layoutGroupTitle: '投放范围',
+      layoutOrder: 5,
+      type: 'string-array',
+    },
+    {
+      key: 'matchTypeList',
+      detail: true,
+      label: '匹配用户类型',
+      layoutGroup: 'extension',
+      layoutOrder: 8,
+      loadOptions: userTypeOptionsLoader,
+      multiple: true,
+      type: 'select',
+    },
+    {
       key: 'matchCategoryList',
+      detail: true,
       label: '匹配用户类别',
       layoutGroup: 'extension',
       layoutGroupTitle: '投放范围',
       layoutOrder: 10,
-      type: 'tags',
+      loadOptions: userCategoryOptionsLoader,
+      multiple: true,
+      type: 'select',
+    },
+    {
+      key: 'orgCategoryList',
+      detail: true,
+      label: '匹配组织类别',
+      layoutGroup: 'extension',
+      layoutOrder: 35,
+      loadOptions: orgCategoryOptionsLoader,
+      multiple: true,
+      type: 'select',
+    },
+    {
+      key: 'orgTypeList',
+      detail: true,
+      label: '匹配组织类型',
+      layoutGroup: 'extension',
+      layoutOrder: 40,
+      loadOptions: orgTypeOptionsLoader,
+      multiple: true,
+      type: 'select',
     },
     {
       key: 'matchJobPostCodeList',
+      detail: true,
       label: '匹配岗位编码',
       layoutGroup: 'extension',
       layoutOrder: 20,
@@ -195,6 +301,7 @@ export const noticePageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'matchRoleCodeList',
+      detail: true,
       label: '匹配角色列表',
       layoutGroup: 'extension',
       layoutOrder: 30,

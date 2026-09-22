@@ -537,7 +537,7 @@ describe('menu display layout tree', () => {
     expect(adjusterSource).toContain('function getLayoutDropModeFromPointer');
     expect(adjusterSource).toContain("pointerTarget?.closest('.layout-menu-label-drop-zone')");
     expect(adjusterSource).toContain("return relativeY < rect.height / 2 ? 'before' : 'after';");
-    expect(adjusterSource).toContain('class="layout-menu-label-drop-zone relative min-w-28 flex-1"');
+    expect(adjusterSource).toContain('class="layout-menu-label-drop-zone relative min-w-0 flex-1"');
     expect(adjusterSource).toContain('class="layout-menu-label-input w-full"');
     expect(adjusterSource).toContain('updateLayoutDropTargetFromPointer(event, dataRef.key)');
     expect(getAdjusterFunctionSource('handleLayoutDrop')).toContain(

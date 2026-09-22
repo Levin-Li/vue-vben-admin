@@ -376,6 +376,7 @@ describe('preferences', () => {
     preferenceManager.resetPreferences();
 
     expect(preferenceManager.getPreferences()).toEqual(defaultPreferences);
+    expect(preferenceManager.getPreferences().theme.mode).toBe('light');
   });
 
   it('updates isMobile correctly', () => {

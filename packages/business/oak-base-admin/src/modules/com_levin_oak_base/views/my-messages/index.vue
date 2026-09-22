@@ -17,6 +17,7 @@ import {
 } from 'ant-design-vue';
 
 import { noticeService } from '../../api/index';
+import NoticeContentViewer from './notice-content-viewer.vue';
 
 type NoticeProcessStatus = 'Finished' | 'Processing' | 'Rejected';
 type MessageFilter = 'all' | 'read' | 'unread';
@@ -165,14 +166,6 @@ function getMessageSummary(item: MyNoticeMessage) {
   return String(item.subtitle || stripContent(item.content) || '请查看通知详情')
     .trim()
     .slice(0, 160);
-}
-
-function getMessageContent(item?: MyNoticeMessage | null) {
-  if (!item) {
-    return '';
-  }
-
-  return stripContent(item.content) || item.subtitle || '暂无内容';
 }
 
 function formatDate(value?: string) {
@@ -724,10 +717,11 @@ onMounted(loadMessages);
             {{ activeMessage.subtitle }}
           </div>
 
-          <pre
-            class="bg-muted/40 text-foreground max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-md p-3 text-sm leading-6"
-            >{{ getMessageContent(activeMessage) }}</pre
-          >
+          <!-- 详情按公告内容类型只读展示，避免把管理员配置当作宿主页面脚本执行。 -->
+          <NoticeContentViewer
+            :content="activeMessage.content"
+            :content-type="activeMessage.contentType"
+          />
 
           <div class="flex justify-end gap-2">
             <Button @click="detailOpen = false">关闭</Button>

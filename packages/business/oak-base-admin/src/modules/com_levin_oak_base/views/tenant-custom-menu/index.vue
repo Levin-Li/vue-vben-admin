@@ -1305,7 +1305,7 @@ function closeLayoutAdjuster() {
             >
               <template #title="{ dataRef }">
                 <div
-                  class="relative flex min-w-0 flex-wrap items-center gap-2 rounded border border-transparent px-1 py-1"
+                  class="relative flex min-w-0 flex-nowrap items-center gap-2 rounded border border-transparent px-1 py-1"
                   @click.stop="toggleLayoutItemCheck(dataRef)"
                   @dragenter="
                     (event) =>
@@ -1340,7 +1340,7 @@ function closeLayoutAdjuster() {
                       icon="lucide:grip-vertical"
                     />
                     <div
-                      class="layout-menu-label-drop-zone relative min-w-28 flex-1"
+                      class="layout-menu-label-drop-zone relative min-w-0 flex-1"
                     >
                       <Tooltip
                         :title="getLayoutTreeItem(dataRef).path || undefined"
@@ -1361,7 +1361,7 @@ function closeLayoutAdjuster() {
                         />
                       </Tooltip>
                     </div>
-                    <div class="w-48 shrink-0" @click.stop @mousedown.stop>
+                    <div class="w-12 shrink-0" @click.stop @mousedown.stop>
                       <MenuIconPicker
                         :model-value="
                           getLayoutItemIcon(getLayoutTreeItem(dataRef))

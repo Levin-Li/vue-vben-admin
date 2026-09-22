@@ -127,6 +127,7 @@ import {
 import CronExpressionField from './cron-expression-field.vue';
 import {
   buildActionLogTooltipItems,
+  formatWorkflowStatusLabel,
   hasDisplayableActionLog,
 } from './crud-action-log-tooltip';
 import {
@@ -612,7 +613,8 @@ async function loadPageDisplaySettings(force = false, updateTitle = false) {
     const setting = resolution.setting;
     pageDisplaySettingRecord.value = setting;
     if (updateTitle) pageDisplayTitleRecord.value = setting;
-    pageDisplayScope.value = { ...pageDisplayScope.value, ...resolution.scope };
+    // 加载设置只回显服务端实际匹配范围，不能保留支付、域名等当前页面上下文。
+    pageDisplayScope.value = { ...resolution.scope };
     pageDisplayConfig.value = resolveCrudPageDisplayDefaults(
       setting?.valueContent?.pageDisplay as CrudPageDisplayConfig | undefined,
     );
@@ -6027,7 +6029,14 @@ function formatCellValue(field: CrudFieldConfig, value: any) {
   const options = getFieldOptions(field);
   const matched = findMatchingCrudChoiceOption(field, value, options);
 
-  return matched ? String(matched.label) : String(value);
+  if (matched) {
+    return String(matched.label);
+  }
+
+  // 流程状态缺少选项标签时仍使用公共中文映射，避免列表回退为枚举常量。
+  return isStatusLikeField(field)
+    ? formatWorkflowStatusLabel(value)
+    : String(value);
 }
 
 function getCellDisplayText(field: CrudFieldConfig | undefined, value: any) {
@@ -6165,12 +6174,17 @@ function shouldShowActionLogTooltip(
   return (
     isStatusLikeField(field) &&
     shouldRenderStatusTag(field, getRecordValue(record, field?.key)) &&
-    hasDisplayableActionLog(record.actionLog)
+    hasDisplayableActionLog(getWorkflowActionLog(record))
   );
 }
 
 function getActionLogTooltipItems(record: GenericRecord) {
-  return buildActionLogTooltipItems(record.actionLog);
+  return buildActionLogTooltipItems(getWorkflowActionLog(record));
+}
+
+function getWorkflowActionLog(record: GenericRecord) {
+  // 各领域的历史字段统一复用默认时间线，优先使用标准 actionLog。
+  return record.actionLog ?? record.signingLog ?? record.certificationLog;
 }
 
 function isLinkField(field: CrudFieldConfig | undefined, value: any) {
@@ -7811,16 +7825,35 @@ watch(canCustomizeTableColumnsLocally, () => {
                       :key="item.key"
                       class="vben-crud-action-log-tooltip-item"
                     >
+                      <span class="vben-crud-action-log-tooltip-point"></span>
+                      <div class="vben-crud-action-log-tooltip-row">
+                        <span class="vben-crud-action-log-tooltip-label">
+                          操作时间
+                        </span>
+                        <span class="vben-crud-action-log-tooltip-value">
+                          {{ item.occurTime }}
+                        </span>
+                      </div>
+                      <div class="vben-crud-action-log-tooltip-row">
+                        <span class="vben-crud-action-log-tooltip-label">
+                          操作人
+                        </span>
+                        <span class="vben-crud-action-log-tooltip-value">
+                          {{ item.operator }}
+                        </span>
+                      </div>
+                      <div class="vben-crud-action-log-tooltip-transition">
+                        {{ item.transition }}
+                      </div>
                       <div
-                        v-for="row in item.rows"
-                        :key="`${item.key}-${row.label}`"
+                        v-if="item.remark"
                         class="vben-crud-action-log-tooltip-row"
                       >
                         <span class="vben-crud-action-log-tooltip-label">
-                          {{ row.label }}
+                          备注
                         </span>
                         <span class="vben-crud-action-log-tooltip-value">
-                          {{ row.value }}
+                          {{ item.remark }}
                         </span>
                       </div>
                     </div>
@@ -9255,9 +9288,32 @@ watch(canCustomizeTableColumnsLocally, () => {
 }
 
 .vben-crud-action-log-tooltip-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding-left: 18px;
+}
+
+.vben-crud-action-log-tooltip-item:not(:last-child)::after {
+  position: absolute;
+  top: 14px;
+  bottom: -10px;
+  left: 5px;
+  width: 1px;
+  background: hsl(var(--primary) / 45%);
+  content: '';
+}
+
+.vben-crud-action-log-tooltip-point {
+  position: absolute;
+  top: 4px;
+  left: 1px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid hsl(var(--primary));
+  border-radius: 50%;
+  background: hsl(var(--background));
 }
 
 .vben-crud-action-log-tooltip-row {
@@ -9274,6 +9330,13 @@ watch(canCustomizeTableColumnsLocally, () => {
 .vben-crud-action-log-tooltip-value {
   min-width: 0;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.vben-crud-action-log-tooltip-transition {
+  overflow-wrap: anywhere;
+  color: hsl(var(--primary));
+  font-weight: 600;
   white-space: pre-wrap;
 }
 

@@ -40,7 +40,7 @@ export function buildNoFormFlowConfirmConfig(input: {
 
   return {
     enabled: true as const,
-    text: `确认对「${input.recordTitle}」执行「${input.eventName}」吗？该操作将改变当前流程状态。`,
+    text: `确认「${input.eventName}」吗？`,
     title: `确认${input.eventName}`,
   };
 }

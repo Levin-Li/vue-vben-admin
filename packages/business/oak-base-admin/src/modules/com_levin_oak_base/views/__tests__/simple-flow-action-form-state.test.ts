@@ -44,4 +44,20 @@ describe('简单流程操作表单三态配置', () => {
       expect(flowAction.flowFormFields).toEqual([]);
     }
   });
+
+  it('通知管理页提供发布和接收者展示所需的核心字段', () => {
+    const fieldKeys = new Set(
+      noticePageCrudConfig.fields.map((field) => field.key),
+    );
+
+    expect([...fieldKeys]).toEqual(
+      expect.arrayContaining([
+        'contentType',
+        'level',
+        'publishTime',
+        'subtitle',
+        'title',
+      ]),
+    );
+  });
 });

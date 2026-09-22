@@ -160,6 +160,9 @@ export const useAuthStore = defineStore('auth', () => {
     userStore.setUserInfo(userInfo);
     accessStore.setAccessCodes(accessCodes);
 
+    // 用户信息和权限码到位后再次撤销路由检查状态，避免旧账号未完成的异步路由生成回写其结果。
+    accessStore.setIsAccessChecked(false);
+
     if (accessStore.loginExpired) {
       accessStore.setLoginExpired(false);
     } else {

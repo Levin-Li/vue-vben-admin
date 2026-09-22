@@ -12,6 +12,9 @@ import {
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
+const electronicContractStatusOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.enums.ElectronicContractFlowStatus',
+);
 const templateOptionsLoader = buildModuleOptionsLoader(
   '/EContractTemplate/list',
   'name',
@@ -222,10 +225,12 @@ export const electronicContractPageCrudConfig: CrudPageConfig =
       {
         key: 'status',
         label: '签署状态',
+        loadOptions: electronicContractStatusOptionsLoader,
         search: true,
         table: true,
         width: 120,
         form: false,
+        type: 'select',
       },
       {
         key: 'providerFlowId',

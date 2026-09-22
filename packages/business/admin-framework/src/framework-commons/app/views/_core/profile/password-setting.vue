@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, onUnmounted, reactive, ref } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
@@ -23,12 +23,21 @@ import { extractReturnedVerifyCode } from '../authentication/login-verify-type';
 
 type PasswordMode = 'email' | 'oldPwd' | 'sms';
 type VerifyCodeType = 'Email' | 'Sms';
+const VERIFY_CODE_COOLDOWN_SECONDS = 60;
 
 const userStore = useUserStore();
 
 const mode = ref<PasswordMode>('oldPwd');
 const saving = ref(false);
 const loading = reactive<Record<string, boolean>>({});
+const cooldownSeconds = reactive<Record<VerifyCodeType, number>>({
+  Email: 0,
+  Sms: 0,
+});
+const cooldownTimers = new Map<
+  VerifyCodeType,
+  ReturnType<typeof setInterval>
+>();
 const form = reactive({
   confirmPassword: '',
   newPwd: '',
@@ -97,6 +106,40 @@ function resetForm() {
   form.confirmPassword = '';
 }
 
+// 短信和邮箱验证码独立冷却，切换修改密码方式时不相互影响。
+function getVerifyCodeCooldown(verifyCodeType: VerifyCodeType) {
+  return cooldownSeconds[verifyCodeType];
+}
+
+function clearVerifyCodeCooldown(verifyCodeType: VerifyCodeType) {
+  const timer = cooldownTimers.get(verifyCodeType);
+  if (timer) {
+    clearInterval(timer);
+    cooldownTimers.delete(verifyCodeType);
+  }
+  cooldownSeconds[verifyCodeType] = 0;
+}
+
+function startVerifyCodeCooldown(verifyCodeType: VerifyCodeType) {
+  clearVerifyCodeCooldown(verifyCodeType);
+  cooldownSeconds[verifyCodeType] = VERIFY_CODE_COOLDOWN_SECONDS;
+
+  const timer = setInterval(() => {
+    const remainingSeconds = getVerifyCodeCooldown(verifyCodeType);
+    if (remainingSeconds <= 1) {
+      clearVerifyCodeCooldown(verifyCodeType);
+      return;
+    }
+    cooldownSeconds[verifyCodeType] = remainingSeconds - 1;
+  }, 1000);
+  cooldownTimers.set(verifyCodeType, timer);
+}
+
+function getVerifyCodeButtonText() {
+  const remainingSeconds = getVerifyCodeCooldown(currentVerifyType.value);
+  return remainingSeconds > 0 ? `${remainingSeconds}s 后重试` : '发送验证码';
+}
+
 function validateForm() {
   if (mode.value === 'oldPwd' && !form.oldPwd.trim()) {
     message.warning('请输入旧密码');
@@ -139,6 +182,7 @@ function validateForm() {
 
 async function sendCurrentVerifyCode() {
   const account = currentVerifyAccount.value.trim();
+  const verifyCodeType = currentVerifyType.value;
   if (!account) {
     message.warning(
       mode.value === 'email'
@@ -152,8 +196,9 @@ async function sendCurrentVerifyCode() {
     loading.verifyCode = true;
     const payload = await getVerifyCodeApi({
       account,
-      verifyCodeType: currentVerifyType.value,
+      verifyCodeType,
     });
+    startVerifyCodeCooldown(verifyCodeType);
     const returnedCode = String(extractReturnedVerifyCode(payload)).trim();
 
     if (returnedCode) {
@@ -163,7 +208,7 @@ async function sendCurrentVerifyCode() {
     }
 
     message.success(
-      currentVerifyType.value === 'Email'
+      verifyCodeType === 'Email'
         ? '邮箱验证码已发送，请注意查收'
         : '短信验证码已发送，请注意查收',
     );
@@ -197,6 +242,11 @@ async function handleSubmit() {
     saving.value = false;
   }
 }
+
+onUnmounted(() => {
+  // 离开个人中心后清理短信和邮箱倒计时，避免无效计时器遗留。
+  Array.from(cooldownTimers.keys()).forEach(clearVerifyCodeCooldown);
+});
 </script>
 
 <template>
@@ -245,11 +295,14 @@ async function handleSubmit() {
             />
             <Button
               html-type="button"
-              :disabled="!currentVerifyAccount"
+              :disabled="
+                !currentVerifyAccount ||
+                getVerifyCodeCooldown(currentVerifyType) > 0
+              "
               :loading="loading.verifyCode"
               @click="sendCurrentVerifyCode"
             >
-              发送验证码
+              {{ getVerifyCodeButtonText() }}
             </Button>
           </Space.Compact>
         </Form.Item>

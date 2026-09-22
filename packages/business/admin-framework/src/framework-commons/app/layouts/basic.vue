@@ -110,6 +110,7 @@ const noticeUnreadCount = ref(0);
 const noticeProcessLogMap = ref(new Map<string, NoticeProcessLogRecord>());
 const NOTIFICATION_PREVIEW_LIMIT = 7;
 const NOTIFICATION_QUERY_LIMIT = 200;
+const NOTIFICATION_SYNC_INTERVAL = 3 * 60 * 1000;
 const noticeLevelLabelMap: Record<string, string> = {
   Important: '重要',
   Normal: '普通',
@@ -206,6 +207,7 @@ const canUploadPageRoutes = computed(() => {
   return userInfo.superAdmin === true && Boolean(getAdminMenuSyncService());
 });
 let unregisterPreferencesUploadAction: (() => void) | undefined;
+let notificationSyncTimer: ReturnType<typeof setInterval> | undefined;
 
 const canViewFrontendVersions = computed(() => {
   const userInfo = (userStore.userInfo || {}) as Record<string, any>;
@@ -468,7 +470,11 @@ watch(
   { immediate: true },
 );
 
-onBeforeUnmount(() => unregisterPreferencesUploadAction?.());
+onBeforeUnmount(() => {
+  // 组件卸载时释放全局扩展与通知轮询，避免离开布局后继续发起请求。
+  unregisterPreferencesUploadAction?.();
+  stopNotificationSync();
+});
 
 async function handleSaveAdminUiPreferences() {
   if (adminUiPreferencesUploadLoading.value) {
@@ -501,6 +507,10 @@ async function handleLoadAdminUiPreferences() {
   loadedAdminUiSetting.value = null;
   try {
     const resolution = await loadAdminUiPreferencesSetting();
+    // 加载设置仅使用服务端返回的匹配范围，空字段不得沿用打开弹窗前的页面上下文。
+    Object.keys(adminUiPreferencesScope).forEach((key) => {
+      delete adminUiPreferencesScope[key as keyof AdminUiPreferencesScope];
+    });
     Object.assign(adminUiPreferencesScope, resolution.scope);
     const options = await loadAdminUiPreferencesScopeOptions(
       resolution.scope.tenantId,
@@ -746,6 +756,34 @@ async function loadNotifications() {
   notifications.value = unreadItems.slice(0, NOTIFICATION_PREVIEW_LIMIT);
 }
 
+function syncNotifications() {
+  // 统一处理异步同步失败，确保定时器回调不会产生未处理的 Promise 拒绝。
+  void loadNotifications().catch((error) => {
+    console.warn('加载通知失败', error);
+  });
+}
+
+function stopNotificationSync() {
+  // 同一基础布局只保留一个通知同步计时器。
+  if (notificationSyncTimer) {
+    clearInterval(notificationSyncTimer);
+    notificationSyncTimer = undefined;
+  }
+}
+
+function startNotificationSync() {
+  // 仅在当前存在登录令牌时轮询，并在重新启动前清理旧计时器。
+  stopNotificationSync();
+  if (!accessStore.accessToken) {
+    return;
+  }
+
+  notificationSyncTimer = setInterval(
+    syncNotifications,
+    NOTIFICATION_SYNC_INTERVAL,
+  );
+}
+
 async function saveNoticeProcessLog(
   item: NotificationItem,
   status: NoticeProcessStatus,
@@ -851,9 +889,9 @@ onMounted(() => {
   loadAuthBrand().catch((error) => {
     console.warn('加载租户站点品牌信息失败', error);
   });
-  loadNotifications().catch((error) => {
-    console.warn('加载通知失败', error);
-  });
+  // 布局挂载后立即加载一次，并为已登录会话启动后续的三分钟同步。
+  syncNotifications();
+  startNotificationSync();
 });
 
 watch(
@@ -869,9 +907,9 @@ watch(
 watch(
   () => [accessStore.accessToken, userStore.userInfo?.id],
   () => {
-    loadNotifications().catch((error) => {
-      console.warn('加载通知失败', error);
-    });
+    // 登录身份变化时立即同步，并按最新登录态更新定时器。
+    syncNotifications();
+    startNotificationSync();
   },
 );
 

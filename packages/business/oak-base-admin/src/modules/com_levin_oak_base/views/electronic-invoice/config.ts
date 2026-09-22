@@ -2,6 +2,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { electronicInvoiceService } from '../../api/electronic-invoice-service';
 import {
+  buildEnumOptionsLoader,
   buildModuleOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
@@ -12,6 +13,9 @@ const partnerOptions = buildModuleOptionsLoader(
   '/Partner/list',
   'subjectName',
   'id',
+);
+const electronicInvoiceStatusOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.EInvoice$Status',
 );
 export const pageMeta = {
   name: 'ElectronicInvoice',
@@ -144,9 +148,11 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
       {
         key: 'status',
         label: '开票状态',
+        loadOptions: electronicInvoiceStatusOptionsLoader,
         search: true,
         table: true,
         form: false,
+        type: 'select',
         width: 130,
       },
       {

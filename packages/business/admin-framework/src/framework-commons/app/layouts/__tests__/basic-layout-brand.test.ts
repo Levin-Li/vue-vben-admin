@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs';
 
 import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   adminMenuSyncService: null as null | Record<string, never>,
+  adminNoticeService: null as null | { myMessages: ReturnType<typeof vi.fn> },
+  accessToken: '',
   destroyWatermark: vi.fn(),
   loadAuthBrand: vi.fn().mockResolvedValue(undefined),
   refreshAuthBrand: vi.fn().mockResolvedValue(undefined),
@@ -106,7 +109,7 @@ vi.mock('@vben-core/foundation/preferences', () => ({
 
 vi.mock('@vben/runtime/stores', () => ({
   useAccessStore: () => ({
-    accessToken: '',
+    accessToken: mocks.accessToken,
     loginExpired: false,
   }),
   useUserStore: () => ({
@@ -122,7 +125,7 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@levin/admin-framework', () => ({
   getAdminMenuSyncService: () => mocks.adminMenuSyncService,
-  getAdminNoticeService: () => null,
+  getAdminNoticeService: () => mocks.adminNoticeService,
 }));
 
 vi.mock('@levin/admin-framework/framework-commons/app/locales', () => ({
@@ -177,10 +180,46 @@ import Basic from '../basic.vue';
 
 describe('basic layout tenant site brand', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     mocks.loadAuthBrand.mockClear();
     mocks.registerPreferencesUploadAction.mockClear();
     mocks.adminMenuSyncService = null;
+    mocks.adminNoticeService = null;
+    mocks.accessToken = '';
     mocks.userInfo.superAdmin = false;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('登录后每三分钟同步一次通知，并在布局卸载后停止同步', async () => {
+    mocks.accessToken = 'access-token';
+    mocks.adminNoticeService = {
+      myMessages: vi.fn().mockResolvedValue([]),
+    };
+
+    const wrapper = mount(Basic, {
+      global: {
+        stubs: {
+          Button: true,
+          Checkbox: true,
+          Empty: true,
+          Modal: true,
+          Popconfirm: true,
+          Tag: true,
+        },
+      },
+    });
+    await flushPromises();
+
+    expect(mocks.adminNoticeService.myMessages).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+    expect(mocks.adminNoticeService.myMessages).toHaveBeenCalledTimes(2);
+
+    wrapper.unmount();
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+    expect(mocks.adminNoticeService.myMessages).toHaveBeenCalledTimes(2);
   });
 
   it('仅为超级管理员向偏好设置注册上传入口，并从用户菜单移除入口', async () => {

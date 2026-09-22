@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
@@ -20,11 +20,14 @@ import {
   getVerifyCodeApi,
   updateLoginInfoApi,
 } from '@levin/admin-framework/framework-commons/app/api';
+import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
 import { extractReturnedVerifyCode } from '../authentication/login-verify-type';
 
 type VerifyCodeType = 'Email' | 'Sms';
+const VERIFY_CODE_COOLDOWN_SECONDS = 60;
 const userStore = useUserStore();
+const authStore = useAuthStore();
 
 interface UserMfaInfo {
   id?: string;
@@ -46,6 +49,8 @@ const emailForm = reactive({
 });
 
 const loading = reactive<Record<string, boolean>>({});
+const cooldownSeconds = reactive<Record<string, number>>({});
+const cooldownTimers = new Map<string, ReturnType<typeof setInterval>>();
 const mfaInfo = ref<null | UserMfaInfo>(null);
 const currentUser = computed(() => userStore.userInfo as Record<string, any>);
 const currentUserId = computed(() =>
@@ -95,6 +100,40 @@ function maskEmail(email: string) {
   const visibleName =
     rawName.length <= 2 ? rawName.slice(0, 1) : `${rawName.slice(0, 2)}***`;
   return `${visibleName}@${domain}`;
+}
+
+// 每个验证码入口独立冷却，避免手机号和邮箱发送操作互相阻塞。
+function getCooldownSeconds(key: string) {
+  return cooldownSeconds[key] || 0;
+}
+
+function clearVerifyCodeCooldown(key: string) {
+  const timer = cooldownTimers.get(key);
+  if (timer) {
+    clearInterval(timer);
+    cooldownTimers.delete(key);
+  }
+  cooldownSeconds[key] = 0;
+}
+
+function startVerifyCodeCooldown(key: string) {
+  clearVerifyCodeCooldown(key);
+  cooldownSeconds[key] = VERIFY_CODE_COOLDOWN_SECONDS;
+
+  const timer = setInterval(() => {
+    const remainingSeconds = getCooldownSeconds(key);
+    if (remainingSeconds <= 1) {
+      clearVerifyCodeCooldown(key);
+      return;
+    }
+    cooldownSeconds[key] = remainingSeconds - 1;
+  }, 1000);
+  cooldownTimers.set(key, timer);
+}
+
+function getVerifyCodeButtonText(key: string) {
+  const remainingSeconds = getCooldownSeconds(key);
+  return remainingSeconds > 0 ? `${remainingSeconds}s 后重试` : '发送验证码';
 }
 
 async function loadMfaInfo(silent = false) {
@@ -168,6 +207,7 @@ async function sendVerifyCode(
       account: normalizedAccount,
       verifyCodeType,
     });
+    startVerifyCodeCooldown(key);
     const returnedCode = String(extractReturnedVerifyCode(payload)).trim();
 
     if (returnedCode) {
@@ -276,6 +316,11 @@ onMounted(() => {
     mfaInfo.value = null;
   });
 });
+
+onUnmounted(() => {
+  // 页面离开后清理所有计时器，避免无效定时任务持续运行。
+  Array.from(cooldownTimers.keys()).forEach(clearVerifyCodeCooldown);
+});
 </script>
 
 <template>
@@ -307,7 +352,10 @@ onMounted(() => {
                 />
                 <Button
                   html-type="button"
-                  :disabled="!currentTelephone"
+                  :disabled="
+                    !currentTelephone ||
+                    getCooldownSeconds('currentPhoneCode') > 0
+                  "
                   :loading="loading.currentPhoneCode"
                   @click="
                     sendVerifyCode(
@@ -318,7 +366,7 @@ onMounted(() => {
                     )
                   "
                 >
-                  发送验证码
+                  {{ getVerifyCodeButtonText('currentPhoneCode') }}
                 </Button>
               </div>
             </Form.Item>
@@ -340,7 +388,10 @@ onMounted(() => {
                 />
                 <Button
                   html-type="button"
-                  :disabled="!phoneForm.newTelephone"
+                  :disabled="
+                    !phoneForm.newTelephone ||
+                    getCooldownSeconds('newPhoneCode') > 0
+                  "
                   :loading="loading.newPhoneCode"
                   @click="
                     sendVerifyCode(
@@ -351,7 +402,7 @@ onMounted(() => {
                     )
                   "
                 >
-                  发送验证码
+                  {{ getVerifyCodeButtonText('newPhoneCode') }}
                 </Button>
               </div>
             </Form.Item>
@@ -387,7 +438,9 @@ onMounted(() => {
                 />
                 <Button
                   html-type="button"
-                  :disabled="!currentEmail"
+                  :disabled="
+                    !currentEmail || getCooldownSeconds('currentEmailCode') > 0
+                  "
                   :loading="loading.currentEmailCode"
                   @click="
                     sendVerifyCode(
@@ -398,7 +451,7 @@ onMounted(() => {
                     )
                   "
                 >
-                  发送验证码
+                  {{ getVerifyCodeButtonText('currentEmailCode') }}
                 </Button>
               </div>
             </Form.Item>
@@ -420,7 +473,10 @@ onMounted(() => {
                 />
                 <Button
                   html-type="button"
-                  :disabled="!emailForm.newEmail"
+                  :disabled="
+                    !emailForm.newEmail ||
+                    getCooldownSeconds('newEmailCode') > 0
+                  "
                   :loading="loading.newEmailCode"
                   @click="
                     sendVerifyCode(
@@ -431,7 +487,7 @@ onMounted(() => {
                     )
                   "
                 >
-                  发送验证码
+                  {{ getVerifyCodeButtonText('newEmailCode') }}
                 </Button>
               </div>
             </Form.Item>

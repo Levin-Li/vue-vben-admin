@@ -1,7 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { computed, defineComponent } from 'vue';
+import { computed, defineComponent, reactive } from 'vue';
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const currentUser = reactive({
+  email: 'demo@example.com',
+  id: 'user-1',
+  mobile: '13800000000',
+});
 
 const {
   fetchUserInfo,
@@ -32,11 +38,7 @@ const modalConfirm = vi.fn(async (options?: any) => {
 
 vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({
-    userInfo: {
-      email: 'demo@example.com',
-      id: 'user-1',
-      mobile: '13800000000',
-    },
+    userInfo: currentUser,
   }),
 }));
 
@@ -176,6 +178,10 @@ vi.mock('ant-design-vue', () => {
 
 describe('social-account-setting', () => {
   beforeEach(() => {
+    // 恢复测试账号资料，避免联系方式刷新用例污染其它个人中心测试。
+    currentUser.email = 'demo@example.com';
+    currentUser.mobile = '13800000000';
+
     fetchUserInfo.mockReset();
     getAdminUserSecurityService.mockReset();
     getVerifyCodeApi.mockReset();
@@ -220,6 +226,10 @@ describe('social-account-setting', () => {
     );
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders social bindings and available bind platforms', async () => {
     const SocialAccountSetting = (await import('../social-account-setting.vue'))
       .default;
@@ -243,6 +253,131 @@ describe('social-account-setting', () => {
     await flushPromises();
 
     expect(wrapper.text()).not.toContain('第三方账号绑定');
+
+    wrapper.unmount();
+  });
+
+  it('starts independent 60-second cooldowns for phone and email verification codes', async () => {
+    // 使用虚拟时钟验证发送成功后的按钮冷却与剩余秒数展示。
+    vi.useFakeTimers();
+    getVerifyCodeApi.mockResolvedValue({});
+
+    const SecuritySetting = (await import('../security-setting.vue')).default;
+    const wrapper = mount(SecuritySetting);
+    const verifyCodeButtons = () =>
+      wrapper
+        .findAll('button')
+        .filter(
+          (button) =>
+            button.text().includes('验证码') ||
+            button.text().includes('后重试'),
+        );
+
+    await verifyCodeButtons()[0]?.trigger('click');
+    await flushPromises();
+
+    expect(verifyCodeButtons()[0]?.text()).toBe('60s 后重试');
+    expect(verifyCodeButtons()[0]?.attributes('disabled')).toBeDefined();
+
+    // 邮箱发送入口必须拥有自己的冷却状态，不能被手机号入口阻塞。
+    await verifyCodeButtons()[2]?.trigger('click');
+    await flushPromises();
+
+    expect(getVerifyCodeApi).toHaveBeenCalledWith({
+      account: '13800000000',
+      verifyCodeType: 'Sms',
+    });
+    expect(getVerifyCodeApi).toHaveBeenCalledWith({
+      account: 'demo@example.com',
+      verifyCodeType: 'Email',
+    });
+    expect(verifyCodeButtons()[2]?.text()).toBe('60s 后重试');
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(verifyCodeButtons()[0]?.text()).toBe('59s 后重试');
+    expect(verifyCodeButtons()[2]?.text()).toBe('59s 后重试');
+
+    wrapper.unmount();
+  });
+
+  it('refreshes the displayed phone number after a successful binding', async () => {
+    // 绑定成功后仅使用服务端刷新资料更新当前联系方式展示。
+    updateLoginInfoApi.mockResolvedValue({});
+    fetchUserInfo.mockImplementation(async () => {
+      currentUser.mobile = '13900000000';
+    });
+
+    const SecuritySetting = (await import('../security-setting.vue')).default;
+    const wrapper = mount(SecuritySetting);
+    const inputs = wrapper.findAll('input');
+
+    await inputs
+      .find(
+        (input) => input.attributes('placeholder') === '请输入当前手机号验证码',
+      )
+      ?.setValue('old-code');
+    await inputs
+      .find((input) => input.attributes('placeholder') === '请输入新手机号')
+      ?.setValue('13900000000');
+    await inputs
+      .find(
+        (input) => input.attributes('placeholder') === '请输入新手机号验证码',
+      )
+      ?.setValue('new-code');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('提交绑定'))
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(updateLoginInfoApi).toHaveBeenCalledWith({
+      newTelephone: '13900000000',
+      newTelephoneVerifyCode: 'new-code',
+      verifyCode: 'old-code',
+      verifyCodeType: 'Sms',
+    });
+    expect(fetchUserInfo).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain('139****0000');
+
+    wrapper.unmount();
+  });
+
+  it('refreshes the displayed email after a successful binding', async () => {
+    // 邮箱换绑与手机号共用资料刷新契约，但必须独立验证新值展示。
+    updateLoginInfoApi.mockResolvedValue({});
+    fetchUserInfo.mockImplementation(async () => {
+      currentUser.email = 'next@example.com';
+    });
+
+    const SecuritySetting = (await import('../security-setting.vue')).default;
+    const wrapper = mount(SecuritySetting);
+    const inputs = wrapper.findAll('input');
+
+    await inputs
+      .find(
+        (input) => input.attributes('placeholder') === '请输入当前邮箱验证码',
+      )
+      ?.setValue('old-code');
+    await inputs
+      .find((input) => input.attributes('placeholder') === '请输入新邮箱')
+      ?.setValue('next@example.com');
+    await inputs
+      .find((input) => input.attributes('placeholder') === '请输入新邮箱验证码')
+      ?.setValue('new-code');
+    await wrapper
+      .findAll('button')
+      .filter((button) => button.text().includes('提交绑定'))[1]
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(updateLoginInfoApi).toHaveBeenCalledWith({
+      newEmail: 'next@example.com',
+      newEmailVerifyCode: 'new-code',
+      verifyCode: 'old-code',
+      verifyCodeType: 'Email',
+    });
+    expect(fetchUserInfo).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain('ne***@example.com');
 
     wrapper.unmount();
   });

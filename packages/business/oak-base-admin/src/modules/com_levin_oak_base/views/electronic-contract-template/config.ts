@@ -12,6 +12,9 @@ import {
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
+const electronicContractTemplateStatusOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.EContractTemplate$Status',
+);
 
 export const pageMeta = {
   name: 'ElectronicContractTemplate',
@@ -157,6 +160,8 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
         layoutOrder: 10,
         search: true,
         table: true,
+        loadOptions: electronicContractTemplateStatusOptionsLoader,
+        type: 'select',
         width: 120,
       },
       { key: 'versionNo', label: '版本号', layoutGroup: 'business', layoutOrder: 20, table: true, width: 100 },
