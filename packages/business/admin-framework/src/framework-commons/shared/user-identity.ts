@@ -43,6 +43,19 @@ export function isSuperAdminUser(userInfo: unknown) {
   return isRuntimeSuperAdminUser(userInfo);
 }
 
+export function isPlatformUser(userInfo: unknown) {
+  if (!userInfo || typeof userInfo !== 'object') return false;
+  const user = userInfo as Record<string, unknown>;
+  return user.platformUser === true || user.isPlatformUser === true || isSuperAdminUser(user);
+}
+
+export function isTenantAdminUser(userInfo: unknown) {
+  if (!userInfo || typeof userInfo !== 'object') return false;
+  const user = userInfo as Record<string, unknown>;
+  const roles = collectUserRoleIdentityValues(user);
+  return user.tenantAdmin === true || user.isTenantAdmin === true || roles.has('TenantAdmin') || roles.has('R_TENANT_ADMIN') || roles.has('TENANT_ADMIN');
+}
+
 export function isTopSuperAdminUser(userInfo: unknown) {
   if (!userInfo || typeof userInfo !== 'object') {
     return false;

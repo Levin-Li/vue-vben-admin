@@ -3,6 +3,7 @@ import { updatePreferences } from '@vben-core/foundation/preferences';
 import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
 import {
   type UiSettingRuntimeRecord,
+  type UiSettingRuntimeResolution,
   resolveUiSettingRuntimeWithScope,
 } from './api/ui-setting-runtime';
 import {
@@ -142,6 +143,15 @@ export async function loadAdminUiPreferencesSetting() {
   // 仅应用展示类偏好；入口应用的后端菜单访问模式不得被服务端记录覆盖。
   if (isRecord(preferences)) updatePreferences(omitAccessMode(preferences));
   return resolution;
+}
+
+/**
+ * 上传弹窗只回填实际命中记录的范围，运行时上下文不能作为新建记录的默认范围。
+ */
+export function resolveAdminUiPreferencesUploadScope(
+  resolution: UiSettingRuntimeResolution,
+): AdminUiPreferencesScope {
+  return resolution.setting ? resolution.scope : {};
 }
 
 export async function saveAdminUiPreferencesSetting(

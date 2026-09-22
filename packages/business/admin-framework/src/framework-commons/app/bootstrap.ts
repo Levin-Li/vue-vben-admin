@@ -1,11 +1,12 @@
 import { createApp, watch, watchEffect } from 'vue';
 
-import { registerAccessDirective } from '@vben/runtime/access';
 import { registerLoadingDirective } from '@vben/common-ui/es/loading';
-import { preferences } from '@vben-core/foundation/preferences';
+import { registerAccessDirective } from '@vben/runtime/access';
 import { initStores, useAccessStore, useUserStore } from '@vben/runtime/stores';
 import '@vben/runtime/styles';
 import '@vben/runtime/styles/antd';
+
+import { preferences } from '@vben-core/foundation/preferences';
 
 import { setAdminFrameworkRuntime } from '@levin/admin-framework';
 import { requestClient } from '@levin/admin-framework/framework-commons/app/api/request';
@@ -19,19 +20,17 @@ import {
 } from '@levin/admin-framework/framework-commons/app/options';
 import { useTitle } from '@vueuse/core';
 
-import { loadAdministrativeAreaOverride } from '../shared/administrative-area-data';
 import { setupAdminModules } from '../module-contract';
+import { loadAdministrativeAreaOverride } from '../shared/administrative-area-data';
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
+import { createAdminUiPreferencesStartupLoader } from './admin-ui-preferences-startup';
 import App from './app.vue';
 import { registerRbacPermissionDirective } from './directives/rbac-permission';
 import { registerGlobalOrgSelectorRuntime } from './global-org-selector-runtime';
-import { loadAdminUiPreferencesSetting } from './admin-ui-preferences-setting';
 import { router } from './router';
 import { resetAccessStateForApplicationStart } from './store/user-access-session';
-import {
-  registerTenantSiteAdminUiBaseSettingListener,
-} from './tenant-site-admin-ui-base-setting';
+import { registerTenantSiteAdminUiBaseSettingListener } from './tenant-site-admin-ui-base-setting';
 import { useAuthBrand } from './views/_core/authentication/auth-brand';
 
 import './styles/antd-message.css';
@@ -72,10 +71,12 @@ async function bootstrap(namespace: string) {
   const pinia = await initStores(app, { namespace });
   // 菜单只信任本次启动从服务端获得的结果；未能加载时由路由守卫保持会话但清空菜单。
   resetAccessStateForApplicationStart(useAccessStore(pinia));
+  const adminUiPreferencesStartupLoader =
+    createAdminUiPreferencesStartupLoader();
   let hasLoadedAdministrativeAreaOverride = false;
   watch(
     () => useAccessStore().accessToken,
-    (accessToken) => {
+    (accessToken, previousAccessToken) => {
       if (!accessToken) {
         hasLoadedAdministrativeAreaOverride = false;
         return;
@@ -84,8 +85,11 @@ async function bootstrap(namespace: string) {
         hasLoadedAdministrativeAreaOverride = true;
         void loadAdministrativeAreaOverride();
       }
-      // 登录后仅从独立 UI 设置记录加载界面偏好，不读取租户站点扩展字段。
-      void loadAdminUiPreferencesSetting();
+      // 登录成功后重新从独立 UI 设置记录加载界面偏好。
+      adminUiPreferencesStartupLoader.onAccessTokenChanged(
+        accessToken,
+        previousAccessToken,
+      );
     },
     { immediate: true },
   );
@@ -131,6 +135,8 @@ async function bootstrap(namespace: string) {
   });
 
   app.mount('#app');
+  // 应用挂载后首次加载独立界面偏好设置。
+  adminUiPreferencesStartupLoader.onApplicationMounted();
 }
 
 export { bootstrap };

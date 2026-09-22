@@ -31,7 +31,7 @@ import {
 import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
 import { tenantDataScopeOptionsLoader } from './config-helpers';
-import { isSuperAdminUser } from './user-identity';
+import { isPlatformUser, isTenantAdminUser } from './user-identity';
 
 type ScopeField =
   | 'deniedDomainScopeList'
@@ -124,7 +124,8 @@ const apiBase = computed(() => (isUser.value ? '/User' : '/Role'));
 const modalTitle = computed(() =>
   isUser.value ? '用户数据权限分配' : '角色数据权限分配',
 );
-const isSuperAdmin = computed(() => isSuperAdminUser(userStore.userInfo));
+const isPlatformOperator = computed(() => isPlatformUser(userStore.userInfo));
+const canConfigureDomainScope = computed(() => isPlatformOperator.value || isTenantAdminUser(userStore.userInfo));
 const hasGroovyOrgRule = computed(() =>
   [
     ...(scopeValues.value.orgScopeList || []),
@@ -135,7 +136,13 @@ const isOrgScopeReadOnly = computed(
   () => !isSuperAdmin.value && hasGroovyOrgRule.value,
 );
 const visibleScopeTabs = computed(() =>
-  scopeTabs.filter((tab) => tab.kind !== 'tenant' || isSuperAdmin.value),
+  scopeTabs.filter((tab) =>
+    tab.kind === 'tenant'
+      ? isPlatformOperator.value
+      : tab.kind === 'domain'
+        ? canConfigureDomainScope.value
+        : true,
+  ),
 );
 const hasChanges = computed(
   () => visibleScopeTabs.value.flatMap((tab) => fieldsChanged(tab)).length > 0,

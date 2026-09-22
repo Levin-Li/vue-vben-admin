@@ -63,6 +63,7 @@ import {
   loadAdminUiPreferencesSetting,
   loadAdminUiPreferencesUploadTargets,
   loadAdminUiPreferencesScopeOptions,
+  resolveAdminUiPreferencesUploadScope,
   saveAdminUiPreferencesSetting,
 } from '../admin-ui-preferences-setting';
 import { getNavigationVisualThemeClass } from './navigation-visual-theme';
@@ -511,9 +512,12 @@ async function handleLoadAdminUiPreferences() {
     Object.keys(adminUiPreferencesScope).forEach((key) => {
       delete adminUiPreferencesScope[key as keyof AdminUiPreferencesScope];
     });
-    Object.assign(adminUiPreferencesScope, resolution.scope);
+    Object.assign(
+      adminUiPreferencesScope,
+      resolveAdminUiPreferencesUploadScope(resolution),
+    );
     const options = await loadAdminUiPreferencesScopeOptions(
-      resolution.scope.tenantId,
+      resolution.setting ? resolution.scope.tenantId : undefined,
     );
     Object.assign(adminUiPreferencesScopeOptions, options);
     if (resolution.setting) {

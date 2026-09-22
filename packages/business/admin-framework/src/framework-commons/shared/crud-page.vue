@@ -613,8 +613,8 @@ async function loadPageDisplaySettings(force = false, updateTitle = false) {
     const setting = resolution.setting;
     pageDisplaySettingRecord.value = setting;
     if (updateTitle) pageDisplayTitleRecord.value = setting;
-    // 加载设置只回显服务端实际匹配范围，不能保留支付、域名等当前页面上下文。
-    pageDisplayScope.value = { ...resolution.scope };
+    // 未命中时不将运行时上下文伪装成可保存的设置范围。
+    pageDisplayScope.value = setting ? { ...resolution.scope } : {};
     pageDisplayConfig.value = resolveCrudPageDisplayDefaults(
       setting?.valueContent?.pageDisplay as CrudPageDisplayConfig | undefined,
     );

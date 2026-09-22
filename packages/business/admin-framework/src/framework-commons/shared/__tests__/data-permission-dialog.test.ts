@@ -13,7 +13,8 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('@vben/runtime/stores', () => ({ useUserStore: () => ({ userInfo: {} }) }));
 vi.mock('../user-identity', () => ({
-  isSuperAdminUser: () => mocks.superAdmin,
+  isPlatformUser: () => mocks.superAdmin,
+  isTenantAdminUser: () => mocks.superAdmin,
 }));
 vi.mock('../../runtime', () => ({
   requestClient: { get: mocks.get, put: mocks.put },
