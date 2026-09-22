@@ -29,6 +29,10 @@ const layoutPreferences = vi.hoisted(() => ({
   },
 }));
 
+const layoutUser = vi.hoisted(() => ({
+  userInfo: null as unknown,
+}));
+
 vi.mock('@vben/runtime/hooks', () => ({
   useRefresh: () => ({
     refresh: vi.fn(),
@@ -65,6 +69,12 @@ vi.mock('@vben/runtime/stores', () => ({
   useAccessStore: () => ({
     accessMenus: [],
   }),
+  useUserStore: () => layoutUser,
+}));
+
+vi.mock('@vben/runtime/utils', () => ({
+  isSuperAdminUser: (userInfo: unknown) =>
+    (userInfo as { superAdmin?: boolean } | null)?.superAdmin === true,
 }));
 
 vi.mock('@vben-core/ui/shadcn', () => ({
@@ -112,6 +122,7 @@ describe('layout header extension area', () => {
       fixed: false,
       header: false,
     });
+    layoutUser.userInfo = null;
     Object.assign(layoutPreferences.widget, {
       fullscreen: false,
       globalSearch: false,
@@ -124,6 +135,7 @@ describe('layout header extension area', () => {
   });
 
   it('groups enabled interface utilities into a compact vertical action list', () => {
+    layoutUser.userInfo = { superAdmin: true };
     Object.assign(layoutPreferences.preferencesButtonPosition, {
       header: true,
     });
@@ -156,6 +168,16 @@ describe('layout header extension area', () => {
     expect(
       quickActions.findComponent({ name: 'VbenFullScreen' }).exists(),
     ).toBe(true);
+  });
+
+  it('does not render interface settings for a non-super-admin user', () => {
+    layoutPreferences.preferencesButtonPosition.header = true;
+
+    const wrapper = mount(LayoutHeader);
+
+    expect(
+      wrapper.findComponent({ name: 'PreferencesButton' }).exists(),
+    ).toBe(false);
   });
 
   it('keeps the right-side controls above center extensions without shrinking', () => {

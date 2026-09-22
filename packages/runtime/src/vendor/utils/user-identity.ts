@@ -23,7 +23,7 @@ function addRoleIdentityValue(values: Set<string>, role: unknown) {
   }
 }
 
-export function collectUserRoleIdentityValues(userInfo: Record<string, unknown>) {
+function collectRoleIdentityValues(userInfo: Record<string, unknown>) {
   const values = new Set<string>();
 
   for (const role of Array.isArray(userInfo.roles) ? userInfo.roles : []) {
@@ -39,26 +39,21 @@ export function collectUserRoleIdentityValues(userInfo: Record<string, unknown>)
   return values;
 }
 
+/** 基于服务端登录用户上下文识别超级管理员，供通用布局隐藏敏感入口。 */
 export function isSuperAdminUser(userInfo: unknown) {
-  return isRuntimeSuperAdminUser(userInfo);
-}
-
-export function isTopSuperAdminUser(userInfo: unknown) {
   if (!userInfo || typeof userInfo !== 'object') {
     return false;
   }
 
   const userRecord = userInfo as Record<string, unknown>;
-  const roleValues = collectUserRoleIdentityValues(userRecord);
+  const roleValues = collectRoleIdentityValues(userRecord);
 
   return (
-    userRecord.topSuperAdmin === true ||
-    userRecord.isTopSuperAdmin === true ||
-    userRecord.tsa === true ||
+    userRecord.superAdmin === true ||
+    userRecord.isSuperAdmin === true ||
+    userRecord.sa === true ||
     userRecord.loginName === 'sa' ||
     userRecord.username === 'sa' ||
-    roleValues.has('R_TSA') ||
-    roleValues.has('TopSuperAdmin')
+    roleValues.has('R_SA')
   );
 }
-import { isSuperAdminUser as isRuntimeSuperAdminUser } from '@vben/runtime/utils';

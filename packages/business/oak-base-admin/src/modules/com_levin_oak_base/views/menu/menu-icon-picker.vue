@@ -45,7 +45,7 @@ function selectIcon(icon: string) {
     <template #content>
       <section
         aria-label="菜单图标选择器"
-        class="w-[500px] max-w-[calc(100vw-48px)] p-3"
+        class="w-[600px] max-w-[90vw] p-3"
       >
         <div class="mb-3 flex flex-wrap gap-1">
           <Button
@@ -106,21 +106,20 @@ function selectIcon(icon: string) {
         />
 
         <p class="text-muted-foreground mb-0 mt-3 text-xs leading-5">
-          已选图标会保存为
-          <code>lucide:名称</code>；也可以直接在输入框中填写兼容的 Iconify
-          图标名。
+          选择后会保存兼容的 Iconify 图标名。
         </p>
       </section>
     </template>
 
-    <Input
-      v-model:value="modelValue"
-      allow-clear
-      placeholder="选择或输入图标，例如 lucide:settings"
+    <Button
+      :aria-label="modelValue ? '更换菜单图标' : '选择菜单图标'"
+      class="size-10! p-0!"
+      type="default"
     >
-      <template #prefix>
-        <IconifyIcon v-if="modelValue" class="size-4" :icon="modelValue" />
-      </template>
-    </Input>
+      <IconifyIcon
+        class="size-5"
+        :icon="modelValue || 'lucide:image-plus'"
+      />
+    </Button>
   </Popover>
 </template>

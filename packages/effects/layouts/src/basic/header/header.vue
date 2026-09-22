@@ -13,8 +13,9 @@ import {
 import { useRefresh } from '@vben/runtime/hooks';
 import { RotateCw } from '@vben/runtime/icons';
 import { $t } from '@vben/runtime/locales';
+import { isSuperAdminUser } from '@vben/runtime/utils';
 import { preferences, usePreferences } from '@vben-core/foundation/preferences';
-import { useAccessStore } from '@vben/runtime/stores';
+import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
 import {
   VbenFullScreen,
@@ -49,6 +50,7 @@ withDefaults(defineProps<Props>(), {
 const REFERENCE_VALUE = 50;
 
 const accessStore = useAccessStore();
+const userStore = useUserStore();
 const { globalSearchShortcutKey, preferencesButtonPosition } = usePreferences();
 const slots = useSlots();
 const { refresh } = useRefresh();
@@ -107,7 +109,10 @@ const HeaderExtensionAreaRender = defineComponent({
 
 const quickActionSlots = computed(() => {
   const list: string[] = [];
-  if (preferencesButtonPosition.value.header) {
+  if (
+    preferencesButtonPosition.value.header &&
+    isSuperAdminUser(userStore.userInfo)
+  ) {
     list.push('preferences');
   }
   if (preferences.widget.themeToggle) {
