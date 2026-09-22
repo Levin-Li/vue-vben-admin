@@ -15,6 +15,7 @@ import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store
 import { clearPreviousUserAccessState } from '@levin/admin-framework/framework-commons/app/store/user-access-session';
 
 import { generateAccess } from './access';
+import { keepSessionWithoutMenus } from './menu-load-failure';
 
 function decodeRedirectPath(redirectPath: unknown) {
   const rawPath = Array.isArray(redirectPath) ? redirectPath[0] : redirectPath;
@@ -149,22 +150,8 @@ function setupAccessGuard(router: Router, resetRoutes: () => void) {
       };
     } catch (error) {
       console.error(error);
-      accessStore.setAccessToken(null);
-      accessStore.setRefreshToken(null);
-      accessStore.setAccessCodes([]);
-      accessStore.setAccessMenus([]);
-      accessStore.setAccessRoutes([]);
-      accessStore.setIsAccessChecked(false);
-      userStore.setUserInfo(null);
-
-      return {
-        path: LOGIN_PATH,
-        query:
-          to.fullPath === preferences.app.defaultHomePath
-            ? {}
-            : { redirect: encodeURIComponent(to.fullPath) },
-        replace: true,
-      };
+      keepSessionWithoutMenus(accessStore);
+      return true;
     }
   });
 }

@@ -28,6 +28,7 @@ import { registerRbacPermissionDirective } from './directives/rbac-permission';
 import { registerGlobalOrgSelectorRuntime } from './global-org-selector-runtime';
 import { loadAdminUiPreferencesSetting } from './admin-ui-preferences-setting';
 import { router } from './router';
+import { resetAccessStateForApplicationStart } from './store/user-access-session';
 import {
   loadTenantSiteAdminUiBaseSetting,
   registerTenantSiteAdminUiBaseSettingListener,
@@ -70,6 +71,8 @@ async function bootstrap(namespace: string) {
 
   // 配置 pinia-tore
   const pinia = await initStores(app, { namespace });
+  // 菜单只信任本次启动从服务端获得的结果；未能加载时由路由守卫保持会话但清空菜单。
+  resetAccessStateForApplicationStart(useAccessStore(pinia));
   let hasLoadedAdministrativeAreaOverride = false;
   watch(
     () => useAccessStore().accessToken,

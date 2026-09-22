@@ -4,9 +4,26 @@ import {
   rememberLastVisitedPath,
   resolveRootRedirectPath,
 } from '../../router/routes/root-redirect';
-import { clearPreviousUserAccessState } from '../user-access-session';
+import {
+  clearPreviousUserAccessState,
+  resetAccessStateForApplicationStart,
+} from '../user-access-session';
 
 describe('clearPreviousUserAccessState', () => {
+  it('clears a prior dynamic-menu result when the application starts', () => {
+    const accessStore = {
+      setAccessMenus: vi.fn(),
+      setAccessRoutes: vi.fn(),
+      setIsAccessChecked: vi.fn(),
+    };
+
+    resetAccessStateForApplicationStart(accessStore);
+
+    expect(accessStore.setAccessMenus).toHaveBeenCalledWith([]);
+    expect(accessStore.setAccessRoutes).toHaveBeenCalledWith([]);
+    expect(accessStore.setIsAccessChecked).toHaveBeenCalledWith(false);
+  });
+
   it('clears every account access and navigation cache', () => {
     const calls: string[] = [];
     rememberLastVisitedPath('/previous-account-page');
