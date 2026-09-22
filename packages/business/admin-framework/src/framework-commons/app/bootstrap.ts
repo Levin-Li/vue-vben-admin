@@ -30,7 +30,6 @@ import { loadAdminUiPreferencesSetting } from './admin-ui-preferences-setting';
 import { router } from './router';
 import { resetAccessStateForApplicationStart } from './store/user-access-session';
 import {
-  loadTenantSiteAdminUiBaseSetting,
   registerTenantSiteAdminUiBaseSettingListener,
 } from './tenant-site-admin-ui-base-setting';
 import { useAuthBrand } from './views/_core/authentication/auth-brand';
@@ -96,7 +95,6 @@ async function bootstrap(namespace: string) {
   registerRbacPermissionDirective(app);
   registerTenantSiteAdminUiBaseSettingListener();
   registerGlobalOrgSelectorRuntime();
-  void loadTenantSiteAdminUiBaseSetting();
 
   // 初始化 tippy
   const { initTippy } = await import('@vben/common-ui/es/tippy');

@@ -1,6 +1,6 @@
 import { onFrameworkEvent, type FrameworkEvent } from '../event-bus';
 import type { ApiRequestEventPayload } from './api/request-events';
-import { rbacService, type RbacApi } from './api/rbac-service';
+import type { RbacApi } from './api/rbac-service';
 
 let latestTenantSiteInfo: null | RbacApi.TenantSiteInfo | undefined;
 
@@ -18,8 +18,4 @@ export function registerTenantSiteAdminUiBaseSettingListener() {
     },
     '缓存当前租户站点上下文',
   );
-}
-
-export async function loadTenantSiteAdminUiBaseSetting() {
-  await rbacService.getTenantSiteInfo();
 }
