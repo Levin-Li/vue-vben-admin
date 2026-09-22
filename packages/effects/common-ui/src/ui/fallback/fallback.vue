@@ -2,7 +2,6 @@
 import type { FallbackProps } from './fallback';
 
 import { computed, defineAsyncComponent } from 'vue';
-import { useRouter } from 'vue-router';
 
 import { ArrowLeft, RotateCw } from '@vben/runtime/icons';
 import { $t } from '@vben/runtime/locales';
@@ -17,7 +16,6 @@ defineOptions({
 
 const props = withDefaults(defineProps<Props>(), {
   description: '',
-  homePath: '/',
   image: '',
   showBack: true,
   status: 'coming-soon',
@@ -115,11 +113,9 @@ const showRefresh = computed(() => {
   return props.status === '500' || props.status === 'offline';
 });
 
-const { push } = useRouter();
-
-// 返回首页
+// 直接重定向浏览器地址栏至根路径，确保不复用当前单页路由状态。
 function back() {
-  push(props.homePath);
+  window.location.href = '/';
 }
 
 function refresh() {

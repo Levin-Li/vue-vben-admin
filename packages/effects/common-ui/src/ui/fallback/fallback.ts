@@ -4,11 +4,6 @@ interface FallbackProps {
    */
   description?: string;
   /**
-   *  @zh_CN 首页路由地址
-   *  @default /
-   */
-  homePath?: string;
-  /**
    * @zh_CN 默认显示的图片
    * @default pageNotFoundSvg
    */

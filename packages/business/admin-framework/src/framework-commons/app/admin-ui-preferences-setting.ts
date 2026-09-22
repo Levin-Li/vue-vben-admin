@@ -47,6 +47,23 @@ function isRecord(value: unknown): value is Record<string, any> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+/**
+ * 访问模式属于入口应用安全边界，不能由可配置的界面偏好覆盖。
+ */
+function omitAccessMode(preferences: Record<string, any>) {
+  const { app, ...otherPreferences } = preferences;
+
+  if (!isRecord(app)) {
+    return otherPreferences;
+  }
+
+  const { accessMode: _accessMode, ...appPreferences } = app;
+
+  return Object.keys(appPreferences).length > 0
+    ? { ...otherPreferences, app: appPreferences }
+    : otherPreferences;
+}
+
 function normalizeOptions(options: any[]) {
   return options
     .map((option) => ({
@@ -122,8 +139,8 @@ export async function loadAdminUiPreferencesSetting() {
     { refresh: true },
   );
   const preferences = resolution.setting?.valueContent?.preferences;
-  // 仅应用独立界面偏好记录，未命中或格式无效时保留当前本地默认值。
-  if (isRecord(preferences)) updatePreferences(preferences as any);
+  // 仅应用展示类偏好；入口应用的后端菜单访问模式不得被服务端记录覆盖。
+  if (isRecord(preferences)) updatePreferences(omitAccessMode(preferences));
   return resolution;
 }
 

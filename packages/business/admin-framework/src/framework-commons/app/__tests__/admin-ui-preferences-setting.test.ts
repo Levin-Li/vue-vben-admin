@@ -50,6 +50,30 @@ describe('界面偏好设置上传', () => {
     expect(put).not.toHaveBeenCalled();
   });
 
+  it('does not allow a server preference record to replace backend menu access mode', async () => {
+    resolveUiSettingRuntimeWithScope.mockResolvedValue({
+      scope: {},
+      setting: {
+        valueContent: {
+          preferences: {
+            app: { accessMode: 'frontend', defaultHomePath: '/custom-home' },
+            theme: { mode: 'dark' },
+          },
+        },
+      },
+    });
+    const { loadAdminUiPreferencesSetting } = await import(
+      '../admin-ui-preferences-setting'
+    );
+
+    await loadAdminUiPreferencesSetting();
+
+    expect(updatePreferences).toHaveBeenCalledWith({
+      app: { defaultHomePath: '/custom-home' },
+      theme: { mode: 'dark' },
+    });
+  });
+
   it('唯一精确候选只更新 ID、乐观锁和配置内容', async () => {
     get
       .mockResolvedValueOnce({
