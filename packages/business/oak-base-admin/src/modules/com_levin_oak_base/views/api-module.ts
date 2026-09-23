@@ -7,6 +7,7 @@ import type {
   CrudPageConfig,
 } from '@levin/admin-framework/framework-commons/shared/types';
 import type {
+  ProviderOnboardingGuidance,
   TenantSiteOption,
   TenantSiteProvider,
 } from './tenant-site-capability';
@@ -150,8 +151,7 @@ export const moduleExportTemplateService: CrudExportTemplateService = {
     moduleCreateCrudRecord('/ImportExportTemplate/create', data),
   delete: (params) =>
     moduleDeleteCrudRecord('/ImportExportTemplate/delete', params?.id),
-  list: (params) =>
-    moduleFetchCrudList('/ImportExportTemplate/list', params),
+  list: (params) => moduleFetchCrudList('/ImportExportTemplate/list', params),
 };
 
 export const tenantOptionsLoader = buildModuleOptionsLoader('/Tenant/list');
@@ -218,11 +218,15 @@ export const tenantSiteDomainOptionsLoader = async (keyword?: string) => {
       pageSize: 500,
     },
   );
-  const normalizedKeyword = String(keyword || '').trim().toLowerCase();
+  const normalizedKeyword = String(keyword || '')
+    .trim()
+    .toLowerCase();
   const optionMap = new Map<string, SelectOption>();
 
   for (const site of tenantSites.items || []) {
-    const domain = String(site?.domain || '').trim().replace(/\.$/, '');
+    const domain = String(site?.domain || '')
+      .trim()
+      .replace(/\.$/, '');
 
     if (!domain) {
       continue;
@@ -323,8 +327,9 @@ export const currencyCodeOptionsLoader =
   buildModuleDictOptionsLoader('CurrencyCode');
 export const languageCodeOptionsLoader =
   buildModuleDictOptionsLoader('LanguageCode');
-export const payChannelCategoryOptionsLoader =
-  buildModuleDictOptionsLoader('PayChannel.category');
+export const payChannelCategoryOptionsLoader = buildModuleDictOptionsLoader(
+  'PayChannel.category',
+);
 export const payChannelTypeOptionsLoader =
   buildModuleDictOptionsLoader('PayChannel.type');
 export const payChannelAgentCodeOptionsLoader = buildModuleDictOptionsLoader(
@@ -433,6 +438,7 @@ const tenantSiteCapabilityState: {
   suffixVendorMap: Record<string, string>;
   vendorApplyApiMap: Record<string, string>;
   vendorDomainRenewBeforeDaysMap: Record<string, number>;
+  vendorOnboardingGuidanceMap: Record<string, ProviderOnboardingGuidance>;
   vendorOptions: TenantSiteOption[];
   vendorSuffixOptionsMap: Record<string, TenantSiteOption[]>;
 } = {
@@ -449,6 +455,7 @@ const tenantSiteCapabilityState: {
   suffixesLoaded: false,
   vendorApplyApiMap: {},
   vendorDomainRenewBeforeDaysMap: {},
+  vendorOnboardingGuidanceMap: {},
   vendorOptions: [],
   vendorSuffixOptionsMap: {},
 };
@@ -495,6 +502,8 @@ async function doLoadTenantSiteSuffixOptions() {
     capabilityOptions.vendorApplyApiMap;
   tenantSiteCapabilityState.vendorDomainRenewBeforeDaysMap =
     capabilityOptions.vendorDomainRenewBeforeDaysMap;
+  tenantSiteCapabilityState.vendorOnboardingGuidanceMap =
+    capabilityOptions.vendorOnboardingGuidanceMap;
   tenantSiteCapabilityState.vendorOptions = capabilityOptions.vendorOptions;
   tenantSiteCapabilityState.vendorSuffixOptionsMap =
     capabilityOptions.vendorSuffixOptionsMap;
@@ -530,6 +539,12 @@ export function getTenantSiteVendorDomainRenewBeforeDays(vendor?: string) {
   return vendor
     ? (tenantSiteCapabilityState.vendorDomainRenewBeforeDaysMap[vendor] ?? 30)
     : 30;
+}
+
+export function getTenantSiteVendorOnboardingGuidance(vendor?: string) {
+  return vendor
+    ? tenantSiteCapabilityState.vendorOnboardingGuidanceMap[vendor]
+    : undefined;
 }
 
 export function getTenantSiteSuffixDomainRenewBeforeDays(suffix?: string) {

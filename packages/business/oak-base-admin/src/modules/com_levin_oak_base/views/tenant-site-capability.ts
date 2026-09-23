@@ -2,7 +2,15 @@ export interface TenantSiteProvider {
   domainApplyApi?: string;
   domainRenewBeforeDays?: number;
   name?: string;
+  onboardingGuidance?: ProviderOnboardingGuidance;
   supportedDomainSuffixes?: string[];
+}
+
+export interface ProviderOnboardingGuidance {
+  applicationUrl?: string;
+  documentationUrl?: string;
+  prerequisites?: string[];
+  steps?: string[];
 }
 
 export type TenantSiteOption = { label: string; value: string };
@@ -14,6 +22,7 @@ export interface TenantSiteCapabilityOptions {
   suffixVendorMap: Record<string, string>;
   vendorApplyApiMap: Record<string, string>;
   vendorDomainRenewBeforeDaysMap: Record<string, number>;
+  vendorOnboardingGuidanceMap: Record<string, ProviderOnboardingGuidance>;
   vendorOptions: TenantSiteOption[];
   vendorSuffixOptionsMap: Record<string, TenantSiteOption[]>;
 }
@@ -35,6 +44,10 @@ export function buildTenantSiteCapabilityOptions(
   const suffixVendorMap: Record<string, string> = {};
   const vendorApplyApiMap: Record<string, string> = {};
   const vendorDomainRenewBeforeDaysMap: Record<string, number> = {};
+  const vendorOnboardingGuidanceMap: Record<
+    string,
+    ProviderOnboardingGuidance
+  > = {};
   const vendorSuffixOptionKeys: Record<string, Set<string>> = {};
   const vendorSuffixOptionsMap: Record<string, TenantSiteOption[]> = {};
 
@@ -60,6 +73,9 @@ export function buildTenantSiteCapabilityOptions(
       vendorApplyApiMap[vendorName] = provider.domainApplyApi;
     }
     vendorDomainRenewBeforeDaysMap[vendorName] = domainRenewBeforeDays;
+    if (provider.onboardingGuidance) {
+      vendorOnboardingGuidanceMap[vendorName] = provider.onboardingGuidance;
+    }
 
     for (const rawSuffix of provider.supportedDomainSuffixes || []) {
       const normalizedSuffix = rawSuffix.trim();
@@ -107,6 +123,7 @@ export function buildTenantSiteCapabilityOptions(
     suffixVendorMap,
     vendorApplyApiMap,
     vendorDomainRenewBeforeDaysMap,
+    vendorOnboardingGuidanceMap,
     vendorOptions,
     vendorSuffixOptionsMap,
   };

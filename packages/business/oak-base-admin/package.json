@@ -1,6 +1,6 @@
 {
   "name": "@levin/oak-base-admin",
-  "version": "5.6.116",
+  "version": "5.6.117",
   "description": "Levin Oak base admin frontend module.",
   "license": "MIT",
   "type": "module",
@@ -67,10 +67,10 @@
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": "5.6.116",
-    "@vben-core/ui": "5.6.116",
-    "@vben/runtime": "5.6.116",
-    "@vben/common-ui": "5.6.116",
+    "@levin/admin-framework": "5.6.117",
+    "@vben-core/ui": "5.6.117",
+    "@vben/runtime": "5.6.117",
+    "@vben/common-ui": "5.6.117",
     "ant-design-vue": ">=4.0.0",
     "pinia": ">=3.0.0",
     "vue": ">=3.5.0",

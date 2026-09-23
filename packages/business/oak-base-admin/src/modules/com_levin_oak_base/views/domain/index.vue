@@ -1,5 +1,9 @@
 <script lang="ts" setup>
-import type { DomainEmailReceivingStatus, DomainOperationProfile, DomainRecord } from '../../api/domain-service';
+import type {
+  DomainEmailReceivingStatus,
+  DomainOperationProfile,
+  DomainRecord,
+} from '../../api/domain-service';
 
 import { computed, onMounted, reactive, ref } from 'vue';
 
@@ -7,13 +11,22 @@ import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
 
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
-import { Button, Form, Input, message, Modal, Select } from 'ant-design-vue';
+import {
+  Alert,
+  Button,
+  Form,
+  Input,
+  message,
+  Modal,
+  Select,
+} from 'ant-design-vue';
 
 import { domainService } from '../../api/domain-service';
 import {
   getTenantSiteSuffixApplyApi,
   getTenantSiteVendorApplyApi,
   getTenantSiteVendorDomainRenewBeforeDays,
+  getTenantSiteVendorOnboardingGuidance,
   getTenantSiteVendorSuffixOptions,
   tenantOptionsLoader,
   tenantSiteVendorOptionsLoader,
@@ -30,6 +43,9 @@ const providerOptions = ref<Array<{ label: string; value: any }>>([]);
 const tenantOptions = ref<Array<{ label: string; value: any }>>([]);
 const userStore = useUserStore();
 const operationProfiles = reactive<Record<string, DomainOperationProfile>>({});
+const selectedProviderGuidance = computed(() =>
+  getTenantSiteVendorOnboardingGuidance(applyDomainForm.providerName),
+);
 
 const applyDomainForm = reactive({
   domain: '',
@@ -45,39 +61,57 @@ const pageConfig = computed(() => ({
   rowActions: [
     {
       handler: async (record: DomainRecord) => {
-        const result = await domainService.checkEmailReceiving(String(record.id || ''));
+        const result = await domainService.checkEmailReceiving(
+          String(record.id || ''),
+        );
         showEmailReceivingResult(result);
         return record;
       },
       label: '检查邮件接收',
-      permission: buildApiMethodPermissions(domainService, 'checkEmailReceiving'),
+      permission: buildApiMethodPermissions(
+        domainService,
+        'checkEmailReceiving',
+      ),
       reloadAfterAction: false as const,
       successMessage: false as const,
       visible: (record: DomainRecord) => Boolean(record.id),
     },
     {
       handler: async (record: DomainRecord) => {
-        const result = await domainService.enableEmailReceiving(String(record.id || ''));
+        const result = await domainService.enableEmailReceiving(
+          String(record.id || ''),
+        );
         showEmailReceivingResult(result);
         return record;
       },
       label: '开启邮件接收',
-      permission: buildApiMethodPermissions(domainService, 'enableEmailReceiving'),
-      visible: (record: DomainRecord) => Boolean(record.id) && !record.emailReceivingEnabled,
+      permission: buildApiMethodPermissions(
+        domainService,
+        'enableEmailReceiving',
+      ),
+      visible: (record: DomainRecord) =>
+        Boolean(record.id) && !record.emailReceivingEnabled,
     },
     {
       handler: async (record: DomainRecord) => {
-        const result = await domainService.syncEmailReceiving(String(record.id || ''));
+        const result = await domainService.syncEmailReceiving(
+          String(record.id || ''),
+        );
         showEmailReceivingResult(result);
         return record;
       },
       label: '同步修复邮件接收',
-      permission: buildApiMethodPermissions(domainService, 'syncEmailReceiving'),
-      visible: (record: DomainRecord) => Boolean(record.id) && Boolean(record.emailReceivingEnabled),
+      permission: buildApiMethodPermissions(
+        domainService,
+        'syncEmailReceiving',
+      ),
+      visible: (record: DomainRecord) =>
+        Boolean(record.id) && Boolean(record.emailReceivingEnabled),
     },
     {
       handler: async (record: DomainRecord) => {
-        if (!(await ensureOperationEnabled(record, 'dnsRecords'))) return record;
+        if (!(await ensureOperationEnabled(record, 'dnsRecords')))
+          return record;
         selectedDomain.value = record;
         dnsManagerOpen.value = true;
         return record;
@@ -90,7 +124,8 @@ const pageConfig = computed(() => ({
     },
     {
       handler: async (record: DomainRecord) => {
-        if (!(await ensureOperationEnabled(record, 'syncStatus'))) return record;
+        if (!(await ensureOperationEnabled(record, 'syncStatus')))
+          return record;
         await domainService.syncDomainStatus(String(record.id || ''));
       },
       label: '同步状态',
@@ -127,7 +162,8 @@ function showEmailReceivingResult(result?: DomainEmailReceivingStatus) {
     ...(result?.missingRecords || []).map((item) => `缺失：${item}`),
     ...(result?.warnings || []).map((item) => `提示：${item}`),
   ];
-  if (result?.ready) message.success(`域名[${result.domain || '-'}]邮件接收 DNS 已就绪`);
+  if (result?.ready)
+    message.success(`域名[${result.domain || '-'}]邮件接收 DNS 已就绪`);
   else message.warning(details.join('；') || '邮件接收 DNS 尚未就绪');
 }
 
@@ -387,6 +423,14 @@ function getApplyDomainSuffixOptions() {
     : [];
 }
 
+function isSafeExternalUrl(url?: string) {
+  try {
+    return new URL(String(url || '')).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function openDomainApply() {
   resetApplyDomainForm();
   domainApplyOpen.value = true;
@@ -548,6 +592,62 @@ onMounted(async () => {
               "
             />
           </Form.Item>
+          <Alert
+            v-if="selectedProviderGuidance"
+            class="mb-4"
+            message="供应商申请与配置准备"
+            show-icon
+            type="info"
+          >
+            <template #description>
+              <div class="space-y-3 pt-2">
+                <div v-if="selectedProviderGuidance.prerequisites?.length">
+                  <div class="text-foreground font-medium">前置条件</div>
+                  <ul class="mb-0 mt-1 list-disc pl-5">
+                    <li
+                      v-for="item in selectedProviderGuidance.prerequisites"
+                      :key="item"
+                    >
+                      {{ item }}
+                    </li>
+                  </ul>
+                </div>
+                <div v-if="selectedProviderGuidance.steps?.length">
+                  <div class="text-foreground font-medium">简要步骤</div>
+                  <ol class="mb-0 mt-1 list-decimal pl-5">
+                    <li
+                      v-for="item in selectedProviderGuidance.steps"
+                      :key="item"
+                    >
+                      {{ item }}
+                    </li>
+                  </ol>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                  <a
+                    v-if="
+                      isSafeExternalUrl(selectedProviderGuidance.applicationUrl)
+                    "
+                    :href="selectedProviderGuidance.applicationUrl"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                    >前往申请/注册</a
+                  >
+                  <a
+                    v-if="
+                      isSafeExternalUrl(
+                        selectedProviderGuidance.documentationUrl,
+                      )
+                    "
+                    :href="selectedProviderGuidance.documentationUrl"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                    >查看官方配置文档</a
+                  >
+                </div>
+              </div>
+            </template>
+          </Alert>
           <Form.Item label="域名后缀" required>
             <Select
               v-model:value="applyDomainForm.domainSuffix"

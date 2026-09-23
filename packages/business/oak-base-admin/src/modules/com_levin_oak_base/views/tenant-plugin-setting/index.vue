@@ -37,6 +37,14 @@ interface ServicePluginProvider {
   configEditor?: string;
   disabled?: boolean;
   name?: string;
+  onboardingGuidance?: ProviderOnboardingGuidance;
+}
+
+interface ProviderOnboardingGuidance {
+  applicationUrl?: string;
+  documentationUrl?: string;
+  prerequisites?: string[];
+  steps?: string[];
 }
 
 interface ServicePluginRecord {
@@ -150,6 +158,11 @@ const basicProviderPlaceholder = computed(() => {
 const currentProviderCode = computed(
   () => editValueItem.value?.record.servicePluginProviderCode,
 );
+const currentProviderGuidance = computed(
+  () =>
+    editValueItem.value &&
+    getProvider(editValueItem.value.record)?.onboardingGuidance,
+);
 const editValueTitle = computed(() => {
   const item = editValueItem.value;
   const action = editValueReadonly.value ? '查看配置' : '编辑配置';
@@ -191,6 +204,14 @@ function cloneJsonValue(value: any) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function isSafeExternalUrl(url?: string) {
+  try {
+    return new URL(String(url || '')).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function getProvider(record: ServicePluginSettingRecord) {
   return record.servicePlugin?.providerList?.find(
     (item) => item.code === record.servicePluginProviderCode,
@@ -216,9 +237,7 @@ function toTenantPluginSettingItem(
     normalizeText(plugin.name) || record.servicePluginId || '未命名插件';
   const providerName = normalizeText(provider.name) || providerCode;
   return {
-    categoryName:
-      normalizeText(plugin.categoryName) ||
-      '服务插件',
+    categoryName: normalizeText(plugin.categoryName) || '服务插件',
     code: providerCode,
     domain: record.domain,
     // 禁用供应商仍需允许先录入凭据；只有整个插件被禁用时才禁止编辑具体配置。
@@ -770,6 +789,57 @@ onMounted(() => {
         <div class="text-foreground text-sm font-medium">
           匹配域名：{{ editValueItem ? getMatchingDomain(editValueItem) : '-' }}
         </div>
+        <Alert
+          v-if="currentProviderGuidance"
+          class="mt-3"
+          message="供应商申请与配置准备"
+          show-icon
+          type="info"
+        >
+          <template #description>
+            <div class="space-y-3 pt-2">
+              <div v-if="currentProviderGuidance.prerequisites?.length">
+                <div class="text-foreground font-medium">前置条件</div>
+                <ul class="mb-0 mt-1 list-disc pl-5">
+                  <li
+                    v-for="item in currentProviderGuidance.prerequisites"
+                    :key="item"
+                  >
+                    {{ item }}
+                  </li>
+                </ul>
+              </div>
+              <div v-if="currentProviderGuidance.steps?.length">
+                <div class="text-foreground font-medium">简要步骤</div>
+                <ol class="mb-0 mt-1 list-decimal pl-5">
+                  <li v-for="item in currentProviderGuidance.steps" :key="item">
+                    {{ item }}
+                  </li>
+                </ol>
+              </div>
+              <div class="flex flex-wrap gap-3">
+                <a
+                  v-if="
+                    isSafeExternalUrl(currentProviderGuidance.applicationUrl)
+                  "
+                  :href="currentProviderGuidance.applicationUrl"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  >前往申请/注册</a
+                >
+                <a
+                  v-if="
+                    isSafeExternalUrl(currentProviderGuidance.documentationUrl)
+                  "
+                  :href="currentProviderGuidance.documentationUrl"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  >查看官方配置文档</a
+                >
+              </div>
+            </div>
+          </template>
+        </Alert>
         <SettingValueContentField
           :disabled="editValueReadonly"
           :form-state="editValueFormState"

@@ -2,6 +2,13 @@ import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
 import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
 
+export interface ProviderOnboardingGuidance {
+  applicationUrl?: string;
+  documentationUrl?: string;
+  prerequisites?: string[];
+  steps?: string[];
+}
+
 export interface DomainDnsRecord {
   enable?: boolean;
   host?: string;
@@ -46,6 +53,15 @@ export interface DomainRecord {
   providerName?: string;
 }
 
+export interface DomainVendor {
+  domainApplyApi?: string;
+  domainRenewBeforeDays?: number;
+  name?: string;
+  onboardingGuidance?: ProviderOnboardingGuidance;
+  remark?: string;
+  supportedDomainSuffixes?: string[];
+}
+
 export interface DomainEmailReceivingStatus {
   conflicts?: string[];
   domain?: string;
@@ -60,7 +76,10 @@ export interface DomainOperationProfile {
   providerAvailable?: boolean;
   providerCode?: string;
   providerName?: string;
-  operations?: Record<string, { enabled?: boolean; reason?: string; visible?: boolean }>;
+  operations?: Record<
+    string,
+    { enabled?: boolean; reason?: string; visible?: boolean }
+  >;
 }
 
 @Service({
@@ -75,21 +94,37 @@ export class DomainService extends RequestService {
     super(OAK_BASE_API_MODULE);
   }
 
-  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-根域名', action: '获取域名动态操作画像' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-根域名',
+    action: '获取域名动态操作画像',
+  })
   async operationProfile(id: string, options?: any) {
-    return this.get<DomainOperationProfile>('operationProfile', { ...options, params: { id } });
+    return this.get<DomainOperationProfile>('operationProfile', {
+      ...options,
+      params: { id },
+    });
   }
 
   async checkEmailReceiving(id: string, options?: any) {
-    return this.post<DomainEmailReceivingStatus>('emailReceiving/check', { ...options, data: { id } });
+    return this.post<DomainEmailReceivingStatus>('emailReceiving/check', {
+      ...options,
+      data: { id },
+    });
   }
 
   async enableEmailReceiving(id: string, options?: any) {
-    return this.post<DomainEmailReceivingStatus>('emailReceiving/enable', { ...options, data: { id } });
+    return this.post<DomainEmailReceivingStatus>('emailReceiving/enable', {
+      ...options,
+      data: { id },
+    });
   }
 
   async syncEmailReceiving(id: string, options?: any) {
-    return this.post<DomainEmailReceivingStatus>('emailReceiving/sync', { ...options, data: { id } });
+    return this.post<DomainEmailReceivingStatus>('emailReceiving/sync', {
+      ...options,
+      data: { id },
+    });
   }
 
   @ResAuthorize({
