@@ -73,6 +73,9 @@ async function bootstrap(namespace: string) {
   resetAccessStateForApplicationStart(useAccessStore(pinia));
   const adminUiPreferencesStartupLoader =
     createAdminUiPreferencesStartupLoader();
+  // 启动期并行获取服务端偏好，后续初始化继续执行；挂载前最多等待三秒。
+  const adminUiPreferencesReady =
+    adminUiPreferencesStartupLoader.prepareForMount();
   let hasLoadedAdministrativeAreaOverride = false;
   watch(
     () => useAccessStore().accessToken,
@@ -134,8 +137,10 @@ async function bootstrap(namespace: string) {
     }
   });
 
+  // 首屏最多等待三秒使用服务端偏好，超时后的结果由加载器在后台补应用。
+  await adminUiPreferencesReady;
   app.mount('#app');
-  // 应用挂载后首次加载独立界面偏好设置。
+  // 应用挂载后允许登录令牌变化触发用户范围的重新解析。
   adminUiPreferencesStartupLoader.onApplicationMounted();
 }
 

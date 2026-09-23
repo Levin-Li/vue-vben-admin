@@ -39,10 +39,28 @@ export interface DomainRecord {
   domainExpiredTime?: string;
   dnsRecords?: DomainDnsRecord[];
   enable?: boolean;
+  emailReceivingEnabled?: boolean;
   id?: string;
   name?: string;
   neverExpires?: boolean;
   providerName?: string;
+}
+
+export interface DomainEmailReceivingStatus {
+  conflicts?: string[];
+  domain?: string;
+  enabled?: boolean;
+  missingRecords?: string[];
+  publicIpv4?: string;
+  ready?: boolean;
+  warnings?: string[];
+}
+
+export interface DomainOperationProfile {
+  providerAvailable?: boolean;
+  providerCode?: string;
+  providerName?: string;
+  operations?: Record<string, { enabled?: boolean; reason?: string; visible?: boolean }>;
 }
 
 @Service({
@@ -55,6 +73,23 @@ export interface DomainRecord {
 export class DomainService extends RequestService {
   constructor() {
     super(OAK_BASE_API_MODULE);
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-根域名', action: '获取域名动态操作画像' })
+  async operationProfile(id: string, options?: any) {
+    return this.get<DomainOperationProfile>('operationProfile', { ...options, params: { id } });
+  }
+
+  async checkEmailReceiving(id: string, options?: any) {
+    return this.post<DomainEmailReceivingStatus>('emailReceiving/check', { ...options, data: { id } });
+  }
+
+  async enableEmailReceiving(id: string, options?: any) {
+    return this.post<DomainEmailReceivingStatus>('emailReceiving/enable', { ...options, data: { id } });
+  }
+
+  async syncEmailReceiving(id: string, options?: any) {
+    return this.post<DomainEmailReceivingStatus>('emailReceiving/sync', { ...options, data: { id } });
   }
 
   @ResAuthorize({

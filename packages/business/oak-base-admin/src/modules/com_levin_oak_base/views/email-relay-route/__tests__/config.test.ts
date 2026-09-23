@@ -1,16 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { emailRelayRoutePageCrudConfig } from '../config';
+import { EmailRelayRouteService } from '../../../api/email-relay-route-service';
 
 describe('email relay route page config', () => {
-  it('normalizes enabled relay targets before submission', async () => {
+  it('serializes typed relay targets with the stable provider protocol', async () => {
     const payload = await emailRelayRoutePageCrudConfig.transformSubmit?.({
       localPart: 'Support',
       mailDomain: 'Example.COM.',
       providerCode: 'forward-email',
       targetList: [
-        { enable: true, endpoint: ' OPS@example.com ', type: 'Email' },
-        { enable: false, endpoint: 'https://hooks.example.com/inbound', type: 'Webhook' },
+        { endpoint: ' OPS@example.com ', type: 'email' },
+        { endpoint: 'https://hooks.example.com/inbound', type: 'mail-webhook' },
       ],
     });
 
@@ -18,20 +19,28 @@ describe('email relay route page config', () => {
       localPart: 'support',
       mailDomain: 'example.com',
       targetList: [
-        { enable: true, endpoint: 'OPS@example.com', type: 'Email' },
-        { enable: false, endpoint: 'https://hooks.example.com/inbound', type: 'Webhook' },
+        'email:OPS@example.com',
+        'mail-webhook:https://hooks.example.com/inbound',
       ],
     });
   });
 
-  it('rejects a route without an enabled target', async () => {
+  it('rejects a route without a target', async () => {
     await expect(
       emailRelayRoutePageCrudConfig.transformSubmit?.({
         localPart: 'support',
         mailDomain: 'example.com',
         providerCode: 'forward-email',
-        targetList: [{ enable: false, endpoint: 'ops@example.com', type: 'Email' }],
+        targetList: [],
       }),
-    ).rejects.toThrow('至少需要一个启用的投递目标');
+    ).rejects.toThrow('至少需要一个投递目标');
+  });
+
+  it('converts persisted protocol strings back to editable typed rows', async () => {
+    const service = new EmailRelayRouteService();
+    vi.spyOn(service as any, 'get').mockResolvedValue({ data: { targetList: ['email:ops@example.com', 'notify-webhook:https://hooks.example.com/n'] } });
+    await expect(service.retrieve({ id: 'route-1' })).resolves.toEqual({
+      data: { targetList: [{ type: 'email', endpoint: 'ops@example.com' }, { type: 'notify-webhook', endpoint: 'https://hooks.example.com/n' }] },
+    });
   });
 });

@@ -17,6 +17,7 @@ export * from './electronic-contract-template-service';
 export * from './electronic-invoice-provider-connection-service';
 export * from './electronic-invoice-service';
 export * from './email-relay-route-service';
+export * from './inbox-service';
 export * from './file-res-service';
 export * from './fund-account-service';
 export * from './fund-account-log-service';

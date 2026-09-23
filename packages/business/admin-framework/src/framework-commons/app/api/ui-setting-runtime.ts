@@ -63,6 +63,16 @@ function getHeader(headers: Record<string, any> | undefined, name: string) {
   );
 }
 
+/** 空对象、空列表和非记录响应都表示当前上下文没有匹配的设置。 */
+function normalizeUiSettingRuntimeRecord(
+  value: unknown,
+): null | UiSettingRuntimeRecord {
+  if (!value || Array.isArray(value) || typeof value !== 'object') return null;
+  return Object.keys(value).length > 0
+    ? (value as UiSettingRuntimeRecord)
+    : null;
+}
+
 export async function resolveUiSettingRuntimeWithScope(
   code: string,
   contextKey: string,
@@ -86,11 +96,12 @@ export async function resolveUiSettingRuntimeWithScope(
   });
 
   const payload = response.data;
-  // ApiResp 的 data 为 null 时不能回退为整个响应壳，否则调用方会误认为已命中设置。
-  const setting =
+  // ApiResp 的 data 为空时不能回退为整个响应壳，否则调用方会误认为已命中设置。
+  const settingPayload =
     payload && typeof payload === 'object' && 'data' in payload
-      ? (payload.data ?? null)
-      : (payload ?? null);
+      ? payload.data
+      : payload;
+  const setting = normalizeUiSettingRuntimeRecord(settingPayload);
   const scope = {
     domain: getHeader(response.headers, 'x-ui-setting-domain') || undefined,
     tenantId:

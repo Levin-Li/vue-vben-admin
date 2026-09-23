@@ -41,4 +41,19 @@ describe('user page config', () => {
     );
     expect(orgField?.tableValue?.({ orgId: 'org-1' })).toBe('org-1');
   });
+
+  it('supports district-level area selection in CRUD forms and list queries', () => {
+    expect(userPageCrudConfig.fields).toContainEqual(
+      expect.objectContaining({
+        areaCascader: {
+          selectableLevels: ['district'],
+          valueKey: 'areaCode',
+        },
+        key: 'areaCode',
+        search: true,
+        table: true,
+        type: 'area-cascader',
+      }),
+    );
+  });
 });

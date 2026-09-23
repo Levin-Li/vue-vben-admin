@@ -133,15 +133,28 @@ export async function loadAdminUiPreferencesScopeOptions(
   };
 }
 
-export async function loadAdminUiPreferencesSetting() {
-  const resolution = await resolveUiSettingRuntimeWithScope(
+/** 读取当前上下文的界面偏好；调用方决定何时应用结果。 */
+export function resolveAdminUiPreferencesSetting() {
+  return resolveUiSettingRuntimeWithScope(
     ADMIN_UI_PREFERENCES_SETTING_CODE,
     ADMIN_UI_PREFERENCES_CONTEXT,
     { refresh: true },
   );
+}
+
+/** 将已校验的运行时解析结果合并到当前响应式偏好。 */
+export function applyAdminUiPreferencesSetting(
+  resolution: UiSettingRuntimeResolution,
+) {
   const preferences = resolution.setting?.valueContent?.preferences;
   // 仅应用展示类偏好；入口应用的后端菜单访问模式不得被服务端记录覆盖。
   if (isRecord(preferences)) updatePreferences(omitAccessMode(preferences));
+}
+
+/** 供手动加载入口复用的读取并应用操作。 */
+export async function loadAdminUiPreferencesSetting() {
+  const resolution = await resolveAdminUiPreferencesSetting();
+  applyAdminUiPreferencesSetting(resolution);
   return resolution;
 }
 

@@ -18,17 +18,26 @@ describe('设置加载范围回显', () => {
     expect(source).toContain(
       ':initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"',
     );
-    expect(source.match(/:initial-scope="pageDisplaySettingRecord \|\| pageDisplayInitialScope"/g)).toHaveLength(2);
+    expect(
+      source.match(
+        /:initial-scope="pageDisplaySettingRecord \|\| pageDisplayInitialScope"/g,
+      ),
+    ).toHaveLength(2);
   });
 
-  it('界面偏好设置加载前清除已有范围', () => {
+  it('界面偏好设置打开或加载前均清除已有范围', () => {
     const source = readFileSync(
       'packages/business/admin-framework/src/framework-commons/app/layouts/basic.vue',
       'utf8',
     );
 
-    expect(source).toContain('Object.keys(adminUiPreferencesScope).forEach');
+    expect(
+      source.match(/Object\.keys\(adminUiPreferencesScope\)\.forEach/g),
+    ).toHaveLength(2);
     expect(source).toContain('delete adminUiPreferencesScope');
-    expect(source).toContain('resolveAdminUiPreferencesUploadScope(resolution)');
+    expect(source).not.toContain('Object.assign(adminUiPreferencesScope, {});');
+    expect(source).toContain(
+      'resolveAdminUiPreferencesUploadScope(resolution)',
+    );
   });
 });

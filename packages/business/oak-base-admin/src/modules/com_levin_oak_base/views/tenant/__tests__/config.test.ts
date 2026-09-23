@@ -29,4 +29,39 @@ describe('tenant page configuration', () => {
       ]),
     );
   });
+
+  it('supports contact information and district-level area selection', () => {
+    expect(tenantPageCrudConfig.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'contractPerson',
+          layoutGroup: 'contact',
+          search: true,
+          table: true,
+        }),
+        expect.objectContaining({
+          key: 'contractEmail',
+          layoutGroup: 'contact',
+          search: true,
+          table: true,
+        }),
+        expect.objectContaining({
+          key: 'contractPhone',
+          layoutGroup: 'contact',
+          search: true,
+          table: true,
+        }),
+        expect.objectContaining({
+          areaCascader: {
+            selectableLevels: ['district'],
+            valueKey: 'areaCode',
+          },
+          key: 'areaCode',
+          search: true,
+          table: true,
+          type: 'area-cascader',
+        }),
+      ]),
+    );
+  });
 });

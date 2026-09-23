@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { DomainRecord } from '../../api/domain-service';
+import type { DomainEmailReceivingStatus, DomainOperationProfile, DomainRecord } from '../../api/domain-service';
 
 import { computed, onMounted, reactive, ref } from 'vue';
 
@@ -29,6 +29,7 @@ const domainApplying = ref(false);
 const providerOptions = ref<Array<{ label: string; value: any }>>([]);
 const tenantOptions = ref<Array<{ label: string; value: any }>>([]);
 const userStore = useUserStore();
+const operationProfiles = reactive<Record<string, DomainOperationProfile>>({});
 
 const applyDomainForm = reactive({
   domain: '',
@@ -44,6 +45,39 @@ const pageConfig = computed(() => ({
   rowActions: [
     {
       handler: async (record: DomainRecord) => {
+        const result = await domainService.checkEmailReceiving(String(record.id || ''));
+        showEmailReceivingResult(result);
+        return record;
+      },
+      label: '检查邮件接收',
+      permission: buildApiMethodPermissions(domainService, 'checkEmailReceiving'),
+      reloadAfterAction: false as const,
+      successMessage: false as const,
+      visible: (record: DomainRecord) => Boolean(record.id),
+    },
+    {
+      handler: async (record: DomainRecord) => {
+        const result = await domainService.enableEmailReceiving(String(record.id || ''));
+        showEmailReceivingResult(result);
+        return record;
+      },
+      label: '开启邮件接收',
+      permission: buildApiMethodPermissions(domainService, 'enableEmailReceiving'),
+      visible: (record: DomainRecord) => Boolean(record.id) && !record.emailReceivingEnabled,
+    },
+    {
+      handler: async (record: DomainRecord) => {
+        const result = await domainService.syncEmailReceiving(String(record.id || ''));
+        showEmailReceivingResult(result);
+        return record;
+      },
+      label: '同步修复邮件接收',
+      permission: buildApiMethodPermissions(domainService, 'syncEmailReceiving'),
+      visible: (record: DomainRecord) => Boolean(record.id) && Boolean(record.emailReceivingEnabled),
+    },
+    {
+      handler: async (record: DomainRecord) => {
+        if (!(await ensureOperationEnabled(record, 'dnsRecords'))) return record;
         selectedDomain.value = record;
         dnsManagerOpen.value = true;
         return record;
@@ -52,18 +86,20 @@ const pageConfig = computed(() => ({
       permission: buildApiMethodPermissions(domainService, 'listDnsRecords'),
       reloadAfterAction: false as const,
       successMessage: false as const,
-      visible: canUseDomainProviderActions,
+      visible: (record: DomainRecord) => operationVisible(record, 'dnsRecords'),
     },
     {
       handler: async (record: DomainRecord) => {
+        if (!(await ensureOperationEnabled(record, 'syncStatus'))) return record;
         await domainService.syncDomainStatus(String(record.id || ''));
       },
       label: '同步状态',
       permission: buildApiMethodPermissions(domainService, 'syncDomainStatus'),
-      visible: canUseDomainProviderActions,
+      visible: (record: DomainRecord) => operationVisible(record, 'syncStatus'),
     },
     {
       handler: async (record: DomainRecord) => {
+        if (!(await ensureOperationEnabled(record, 'renew'))) return record;
         if (!isDomainRenewDue(record)) {
           message.warning(
             `域名[${record.name || '-'}]还没有进入提前续期窗口，暂时无需续期`,
@@ -80,15 +116,59 @@ const pageConfig = computed(() => ({
       label: '续期域名',
       permission: buildApiMethodPermissions(domainService, 'renewDomain'),
       successMessage: false as const,
-      visible: canShowRenewDomain,
+      visible: (record: DomainRecord) => operationVisible(record, 'renew'),
     },
   ],
 }));
+
+function showEmailReceivingResult(result?: DomainEmailReceivingStatus) {
+  const details = [
+    ...(result?.conflicts || []).map((item) => `冲突：${item}`),
+    ...(result?.missingRecords || []).map((item) => `缺失：${item}`),
+    ...(result?.warnings || []).map((item) => `提示：${item}`),
+  ];
+  if (result?.ready) message.success(`域名[${result.domain || '-'}]邮件接收 DNS 已就绪`);
+  else message.warning(details.join('；') || '邮件接收 DNS 尚未就绪');
+}
 
 function canUseDomainProviderActions(record: Record<string, any>) {
   return Boolean(
     record?.id && hasDomainProvider(record) && isRealDomainName(record?.name),
   );
+}
+
+function operationVisible(record: DomainRecord, operation: string) {
+  const id = String(record?.id || '');
+  if (!id) return false;
+  const profile = operationProfiles[id];
+  if (!profile) {
+    void loadOperationProfile(id);
+    return false;
+  }
+  return Boolean(profile.operations?.[operation]?.visible);
+}
+
+async function loadOperationProfile(id: string) {
+  if (operationProfiles[id]) return operationProfiles[id];
+  try {
+    const profile = await domainService.operationProfile(id);
+    operationProfiles[id] = profile || {};
+    return operationProfiles[id];
+  } catch {
+    operationProfiles[id] = {};
+    return operationProfiles[id];
+  }
+}
+
+async function ensureOperationEnabled(record: DomainRecord, operation: string) {
+  const id = String(record?.id || '');
+  const profile = await loadOperationProfile(id);
+  const state = profile.operations?.[operation];
+  if (!state?.enabled) {
+    message.warning(state?.reason || '当前供应商不支持此操作或配置不可用');
+    return false;
+  }
+  return true;
 }
 
 function hasDomainProvider(record: Record<string, any>) {

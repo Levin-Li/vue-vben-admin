@@ -33,9 +33,8 @@ describe('界面偏好设置上传', () => {
       setting: { valueContent: { preferences: { theme: 'dark' } } },
     };
     resolveUiSettingRuntimeWithScope.mockResolvedValue(resolution);
-    const { loadAdminUiPreferencesSetting } = await import(
-      '../admin-ui-preferences-setting'
-    );
+    const { loadAdminUiPreferencesSetting } =
+      await import('../admin-ui-preferences-setting');
 
     await expect(loadAdminUiPreferencesSetting()).resolves.toBe(resolution);
 
@@ -50,6 +49,22 @@ describe('界面偏好设置上传', () => {
     expect(put).not.toHaveBeenCalled();
   });
 
+  it('可单独读取偏好，在调用方选择时应用', async () => {
+    const resolution = {
+      scope: {},
+      setting: { valueContent: { preferences: { theme: 'dark' } } },
+    };
+    resolveUiSettingRuntimeWithScope.mockResolvedValue(resolution);
+    const { applyAdminUiPreferencesSetting, resolveAdminUiPreferencesSetting } =
+      await import('../admin-ui-preferences-setting');
+
+    await expect(resolveAdminUiPreferencesSetting()).resolves.toBe(resolution);
+    expect(updatePreferences).not.toHaveBeenCalled();
+
+    applyAdminUiPreferencesSetting(resolution);
+    expect(updatePreferences).toHaveBeenCalledWith({ theme: 'dark' });
+  });
+
   it('does not allow a server preference record to replace backend menu access mode', async () => {
     resolveUiSettingRuntimeWithScope.mockResolvedValue({
       scope: {},
@@ -62,9 +77,8 @@ describe('界面偏好设置上传', () => {
         },
       },
     });
-    const { loadAdminUiPreferencesSetting } = await import(
-      '../admin-ui-preferences-setting'
-    );
+    const { loadAdminUiPreferencesSetting } =
+      await import('../admin-ui-preferences-setting');
 
     await loadAdminUiPreferencesSetting();
 
@@ -75,9 +89,8 @@ describe('界面偏好设置上传', () => {
   });
 
   it('仅在命中设置记录时回填上传范围', async () => {
-    const { resolveAdminUiPreferencesUploadScope } = await import(
-      '../admin-ui-preferences-setting'
-    );
+    const { resolveAdminUiPreferencesUploadScope } =
+      await import('../admin-ui-preferences-setting');
 
     expect(
       resolveAdminUiPreferencesUploadScope({
@@ -100,9 +113,8 @@ describe('界面偏好设置上传', () => {
         total: 1,
       })
       .mockResolvedValueOnce({ id: 'setting-1', optimisticLock: 5 });
-    const { saveAdminUiPreferencesSetting } = await import(
-      '../admin-ui-preferences-setting'
-    );
+    const { saveAdminUiPreferencesSetting } =
+      await import('../admin-ui-preferences-setting');
 
     await saveAdminUiPreferencesSetting({ theme: 'dark' }, { tenantId: 't-1' });
 
@@ -130,9 +142,8 @@ describe('界面偏好设置上传', () => {
     get.mockResolvedValueOnce({ items: candidates, total: 2 });
     post.mockResolvedValue('setting-3');
     const selectCandidate = vi.fn().mockResolvedValue(undefined);
-    const { saveAdminUiPreferencesSetting } = await import(
-      '../admin-ui-preferences-setting'
-    );
+    const { saveAdminUiPreferencesSetting } =
+      await import('../admin-ui-preferences-setting');
 
     await saveAdminUiPreferencesSetting(
       { theme: 'light' },
@@ -143,7 +154,10 @@ describe('界面偏好设置上传', () => {
     expect(selectCandidate).toHaveBeenCalledWith(candidates, 2);
     expect(post).toHaveBeenCalledWith(
       '/UiSetting/create',
-      expect.objectContaining({ type: 'Preferences', valueContent: { preferences: { theme: 'light' } } }),
+      expect.objectContaining({
+        type: 'Preferences',
+        valueContent: { preferences: { theme: 'light' } },
+      }),
     );
     expect(put).not.toHaveBeenCalled();
   });

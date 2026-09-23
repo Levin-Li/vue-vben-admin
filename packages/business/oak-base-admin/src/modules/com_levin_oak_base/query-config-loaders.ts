@@ -69,6 +69,8 @@ export const oakBaseQueryConfigLoaders: NonNullable<
     import('./views/email-relay-route/config').then(
       (module) => module.emailRelayRoutePageCrudConfig,
     ),
+  '/system/com_levin_oak_base/inbox/index.vue': () =>
+    import('./views/inbox/config').then((module) => module.inboxPageCrudConfig),
   '/system/com_levin_oak_base/file-res/index.vue': () =>
     import('./views/file-res/config').then(
       (module) => module.fileResPageCrudConfig,

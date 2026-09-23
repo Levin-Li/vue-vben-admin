@@ -26,6 +26,22 @@ describe('uiSetting runtime cache', () => {
     expect(get).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ['empty object', {}],
+    ['empty list', []],
+  ])(
+    'treats an ApiResp %s data payload as a no-setting result',
+    async (_, data) => {
+      get.mockResolvedValue({ data: { data }, headers: {} });
+      const { resolveUiSettingRuntimeWithScope } =
+        await import('../ui-setting-runtime');
+
+      await expect(
+        resolveUiSettingRuntimeWithScope('/Tenant', `tenant:${_}`),
+      ).resolves.toEqual({ scope: {}, setting: null });
+    },
+  );
+
   it('uses the ApiResp data record rather than the response envelope', async () => {
     get.mockResolvedValue({
       data: { data: { code: '/Tenant', id: 'setting-1' } },

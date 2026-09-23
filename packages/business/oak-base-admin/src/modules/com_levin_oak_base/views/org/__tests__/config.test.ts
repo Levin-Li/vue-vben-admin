@@ -37,4 +37,37 @@ describe('orgPageCrudConfig', () => {
   it('uses the current organization alias for all default table sort fields', () => {
     expect(orgPageCrudConfig.sortFieldPrefix).toBe('_org.');
   });
+
+  it('supports contact information and district-level area selection', () => {
+    expect(orgPageCrudConfig.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'contractPerson',
+          layoutGroup: 'contact',
+          table: true,
+        }),
+        expect.objectContaining({
+          key: 'contractEmail',
+          layoutGroup: 'contact',
+          search: true,
+          table: true,
+        }),
+        expect.objectContaining({
+          key: 'contractPhone',
+          layoutGroup: 'contact',
+          table: true,
+        }),
+        expect.objectContaining({
+          areaCascader: {
+            selectableLevels: ['district'],
+            valueKey: 'areaCode',
+          },
+          key: 'areaCode',
+          search: true,
+          table: true,
+          type: 'area-cascader',
+        }),
+      ]),
+    );
+  });
 });

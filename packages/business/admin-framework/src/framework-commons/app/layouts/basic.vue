@@ -401,8 +401,10 @@ function clonePreferences() {
 
 function openAdminUiPreferencesUpload() {
   loadedAdminUiSetting.value = null;
-  // 每次打开都从独立 UI 设置的通用范围开始选择。
-  Object.assign(adminUiPreferencesScope, {});
+  // 每次打开都清除上次加载或编辑遗留的范围，避免未命中时误保存为旧范围。
+  Object.keys(adminUiPreferencesScope).forEach((key) => {
+    delete adminUiPreferencesScope[key as keyof AdminUiPreferencesScope];
+  });
   void loadAdminUiPreferencesScopeOptions().then((options) =>
     Object.assign(adminUiPreferencesScopeOptions, options),
   );

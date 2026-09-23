@@ -76,6 +76,8 @@ const wideJsonFields = [
   'setting-history-data/config.ts:content',
   'domain/config.ts:dnsRecords',
   'email-relay-route/config.ts:targetList',
+  'inbox/config.ts:authenticationResult',
+  'platform-domain/config.ts:exInfo',
 ];
 
 function getJsonFieldSource(source: string, key: string) {

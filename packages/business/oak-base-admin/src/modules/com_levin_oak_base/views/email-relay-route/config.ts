@@ -1,44 +1,62 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { emailRelayRouteService } from '../../api/email-relay-route-service';
-import { tenantOptionsLoader } from '../api-module';
+import { domainOptionsLoader, tenantOptionsLoader } from '../api-module';
 
 type RelayTarget = {
-  enable?: boolean;
   endpoint?: string;
-  id?: string;
   type?: string;
 };
 
-function normalizeTargets(value: unknown): RelayTarget[] {
-  // 统一前端提交形态，避免将 JSON 编辑器中的空白或未知类型直接发送到服务端。
+const relayTargetJsonSchema = {
+  items: {
+    properties: {
+      endpoint: { title: '地址', type: 'string' },
+      type: {
+        oneOf: [
+          { const: 'email', title: '邮箱' },
+          { const: 'mail-webhook', title: '完整邮件 Webhook' },
+          { const: 'notify-webhook', title: '通知 Webhook' },
+        ],
+        title: '投递类型',
+      },
+    },
+    required: ['type', 'endpoint'],
+    type: 'object',
+  },
+  title: '投递目标',
+  type: 'array',
+} as const;
+
+function normalizeTargets(value: unknown): string[] {
+  // UI 使用可编辑的类型化行；持久化使用稳定的 type:endpoint 协议。
   if (!Array.isArray(value)) {
     throw new TypeError('投递目标必须是数组');
   }
 
   const targets = value.map((value) => {
+    if (typeof value === 'string') return value.trim();
     const target = (value || {}) as RelayTarget;
-    const type = String(target.type || '').trim();
+    const type = String(target.type || '').trim().toLowerCase();
     const endpoint = String(target.endpoint || '').trim();
-    if (!['Email', 'Webhook'].includes(type) || !endpoint) {
-      throw new TypeError('每个投递目标都必须填写 Email 或 Webhook 类型及地址');
+    if (!['email', 'mail-webhook', 'notify-webhook'].includes(type) || !endpoint) {
+      throw new TypeError('每个投递目标都必须填写邮箱、完整邮件 Webhook 或通知 Webhook 类型及地址');
     }
-    if (type === 'Email' && !/^\S+@\S+\.\S+$/.test(endpoint)) {
+    if (type === 'email' && !/^\S+@\S+\.\S+$/.test(endpoint)) {
       throw new TypeError('邮箱投递目标格式无效');
     }
-    if (type === 'Webhook') {
+    if (type !== 'email') {
       const url = new URL(endpoint);
       if (url.protocol !== 'https:' || url.username || url.password || !url.hostname) {
         throw new TypeError('Webhook 必须是没有用户信息的 HTTPS URL');
       }
     }
-    return { ...target, enable: target.enable !== false, endpoint, type };
+    return `${type}:${endpoint}`;
   });
 
-  if (!targets.some((target) => target.enable)) {
-    throw new TypeError('至少需要一个启用的投递目标');
-  }
-  return targets;
+  const valid = targets.filter(Boolean);
+  if (!valid.length) throw new TypeError('至少需要一个投递目标');
+  return valid;
 }
 
 export const pageMeta = {
@@ -111,7 +129,12 @@ export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
       layoutGroup: 'basic',
       layoutOrder: 20,
       required: true,
+      allowInput: true,
+      help: '可搜索并选择本系统已托管的根域名，也可手工输入外部域名；仅本地域名可自动同步 DNS。',
+      loadOptions: domainOptionsLoader,
+      remoteSearch: true,
       table: true,
+      type: 'select',
       width: 240,
     },
     { key: 'containsLocalPart', label: '邮箱别名', form: false, search: true },
@@ -158,6 +181,8 @@ export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
       key: 'targetList',
       label: '投递目标',
       fullRow: true,
+      jsonSchema: relayTargetJsonSchema,
+      jsonSchemaInline: true,
       layoutGroup: 'basic',
       layoutOrder: 50,
       type: 'json',

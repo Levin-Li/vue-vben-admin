@@ -228,6 +228,21 @@ export const userPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     {
+      key: 'areaCode',
+      label: '区域编码',
+      areaCascader: {
+        selectableLevels: ['district'],
+        valueKey: 'areaCode',
+      },
+      layoutGroup: 'profile',
+      layoutGroupTitle: '个人资料',
+      layoutOrder: 80,
+      search: true,
+      table: true,
+      type: 'area-cascader',
+      width: 180,
+    },
+    {
       key: 'loginName',
       label: '登录名',
       layoutGroup: 'basic',

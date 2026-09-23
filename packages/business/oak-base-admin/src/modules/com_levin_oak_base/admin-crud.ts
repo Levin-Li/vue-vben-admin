@@ -310,6 +310,7 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     resource: 'EmailRelayRoute',
     title: '邮件中转路由',
   },
+  { icon: 'lucide:inbox', name: 'Inbox', resource: 'Inbox', title: '收件箱' },
   {
     icon: 'lucide:settings',
     name: 'Setting',
@@ -444,6 +445,7 @@ export const oakBaseAdminResourceViewMap: Record<
     import('./views/electronic-contract-template/index.vue'),
   DomainSslCert: () => import('./views/domain-ssl-cert/index.vue'),
   EmailRelayRoute: () => import('./views/email-relay-route/index.vue'),
+  Inbox: () => import('./views/inbox/index.vue'),
   FileRes: () => import('./views/file-res/index.vue'),
   FundAccount: () => import('./views/fund-account/index.vue'),
   FundAccountLog: () => import('./views/fund-account-log/index.vue'),
@@ -522,7 +524,7 @@ const menuGroups = [
       'TenantCustomMenu',
     ],
   ],
-  ['应用&接入', 'lucide:app-window', ['ClientApp', 'EmailRelayRoute']],
+  ['应用&接入', 'lucide:app-window', ['ClientApp', 'EmailRelayRoute', 'Inbox']],
   [
     '支付&交易',
     'lucide:wallet-cards',
