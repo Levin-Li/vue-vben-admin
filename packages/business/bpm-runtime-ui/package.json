@@ -1,0 +1,50 @@
+{
+  "name": "@levin/bpm-runtime-ui",
+  "version": "6.0.0",
+  "description": "Levin workflow runtime and approval UI package.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node ../../../scripts/sync-framework-package-metadata.mjs --package . && node ../../../scripts/sync-frontend-rule-docs.mjs && pnpm unbuild",
+    "prepublishOnly": "pnpm run build",
+    "prepack": "node ../../../scripts/sync-framework-package-metadata.mjs --package ."
+  },
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "docs",
+    "dist",
+    "src",
+    "package-version.mjs",
+    "package-version.d.mts"
+  ],
+  "sideEffects": [
+    "**/*.css",
+    "**/*.vue"
+  ],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.mjs"
+    },
+    "./package-version": {
+      "types": "./package-version.d.mts",
+      "default": "./package-version.mjs"
+    }
+  },
+  "peerDependencies": {
+    "@levin/admin-framework": "5.6.117",
+    "ant-design-vue": ">=4.0.0",
+    "vue": ">=3.5.0"
+  },
+  "devDependencies": {
+    "@levin/admin-framework": "workspace:*",
+    "@vben/tsconfig": "workspace:*",
+    "ant-design-vue": "catalog:",
+    "vue": "catalog:"
+  }
+}
