@@ -13,6 +13,7 @@ export interface BackendMenuInfo {
   children?: BackendMenuInfo[] | null;
   enable?: boolean;
   icon?: null | string;
+  hidden?: boolean;
   id?: string;
   label?: null | string;
   name?: string;
@@ -21,6 +22,7 @@ export interface BackendMenuInfo {
   pageType?: null | string;
   params?: MenuFixedQuery | null;
   path?: null | string;
+  replacePath?: null | string;
   remark?: null | string;
   requireAuthorizations?: null | string[];
   viewPath?: null | string;
@@ -155,10 +157,12 @@ function toMeta(
     crudResource: extractResourceFromMenuPath(normalizedPath),
     disabled: item.enable === false,
     icon: resolveBackendMenuIcon(item, normalizedPath, DEFAULT_LEAF_MENU_ICON),
+    hideInMenu: item.hidden === true,
     menuActionType: normalizeActionType(item.actionType),
     pageDescription: item.remark || '',
     pageName: item.name || '',
     pageOperations: item.opButtonList || [],
+    replacePath: item.replacePath || undefined,
     menuPageType: normalizePageType(item.pageType),
     order: item.orderCode,
     title: item.label || item.name || normalizedPath || '未命名页面',
@@ -316,12 +320,14 @@ function convertLeafRoute(
         authority: toAuthority(item),
         disabled: item.enable === false,
         icon: resolveLocalPageIcon(item.icon, mapping.icon),
+        hideInMenu: item.hidden === true,
         menuActionType: actionType,
         menuPageType: pageType,
         order: item.orderCode,
         pageDescription: item.remark || mapping.description,
         pageName: item.name || mapping.name,
         pageOperations: item.opButtonList || mapping.operations || [],
+        replacePath: item.replacePath || undefined,
         title:
           item.label ||
           item.name ||
@@ -444,6 +450,20 @@ export function buildMenuRoutes(
 
   const existingPaths = collectRoutePaths(routes);
 
+  // 替换入口必须先注册，防止后续缺省禁止路由占用同一个系统路径。
+  collectRouteEntryReplacements(routes).forEach(({ replacePath, targetPath }) => {
+    if (!replacePath || replacePath === targetPath || existingPaths.has(replacePath)) {
+      return;
+    }
+    routes.push({
+      meta: { hideInMenu: true, title: '菜单路径替换' },
+      name: toRouteName(`/menu-replacement/${encodeURIComponent(replacePath)}`),
+      path: replacePath,
+      redirect: targetPath,
+    } as unknown as RouteRecordStringComponent);
+    existingPaths.add(replacePath);
+  });
+
   routeMappings.forEach((mapping) => {
     if (existingPaths.has(mapping.path)) {
       return;
@@ -465,6 +485,22 @@ export function buildMenuRoutes(
   });
 
   return routes;
+}
+
+function collectRouteEntryReplacements(routes: RouteRecordStringComponent[]) {
+  const replacements: Array<{ replacePath: string; targetPath: string }> = [];
+  routes.forEach((route) => {
+    const replacePath = String((route.meta as any)?.replacePath || '').trim();
+    if (replacePath) {
+      replacements.push({ replacePath, targetPath: route.path });
+    }
+    if (route.children?.length) {
+      replacements.push(
+        ...collectRouteEntryReplacements(route.children as RouteRecordStringComponent[]),
+      );
+    }
+  });
+  return replacements;
 }
 
 export function convertMenuNodeForTest(

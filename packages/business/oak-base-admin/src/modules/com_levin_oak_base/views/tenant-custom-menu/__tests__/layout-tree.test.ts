@@ -58,6 +58,27 @@ describe('menu display layout tree', () => {
     expect(findLayoutItem(items, 'group:video')?.path).toBeUndefined();
   });
 
+  it('persists hidden and replace-path menu configuration', () => {
+    expect(
+      toPersistedLayoutItems([
+        {
+          hidden: true,
+          key: 'menu:custom',
+          label: '自定义入口',
+          path: '/menu/custom',
+          replacePath: '/clob/V1/Role',
+        },
+      ]),
+    ).toEqual([
+      {
+        hidden: true,
+        label: '自定义入口',
+        path: '/menu/custom',
+        replacePath: '/clob/V1/Role',
+      },
+    ]);
+  });
+
   it('moves items between layout groups without duplicating them', () => {
     const items = [
       { key: 'group:video', label: '视频号' },

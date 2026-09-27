@@ -762,3 +762,22 @@ describe('复制菜单清除固定条件', () => {
     expect(route?.path).toBe('/clob/V1/Role');
   });
 });
+
+describe('自定义菜单入口替换', () => {
+  it('保留目标授权路由并为被替换路径生成隐藏重定向', () => {
+    const routes = buildMenuRoutes(
+      [
+        {
+          hidden: true,
+          id: 'custom-role',
+          path: '/menu/custom-role',
+          replacePath: '/clob/V1/Role',
+          viewPath: testBackendRouteMappings[0]?.viewPath,
+        },
+      ],
+      testBackendRouteMappings,
+    );
+    expect(routes.find((route) => route.path === '/menu/custom-role')?.meta?.hideInMenu).toBe(true);
+    expect(routes.find((route) => route.path === '/clob/V1/Role')?.redirect).toBe('/menu/custom-role');
+  });
+});
