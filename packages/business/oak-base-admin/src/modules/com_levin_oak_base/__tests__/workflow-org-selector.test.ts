@@ -1,11 +1,49 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { defineComponent } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import { UserOrgSelector } from '@levin/admin-framework';
+import { encodeUserOrgSelectorKey } from '@levin/admin-framework/framework-commons/shared/user-org-selector-utils';
 import { TreeSelect } from 'ant-design-vue';
 import { describe, expect, it, vi } from 'vitest';
 
 describe('工作流宿主使用真实授权组织选择器', () => {
+  it('选择授权组织会向宿主发出包含租户归属的记录', async () => {
+    const loader = vi.fn(async () => [
+      {
+        id: 'org-root',
+        tenantId: 'tenant-a',
+        name: '默认部门',
+        type: 'Company',
+        children: [],
+      },
+    ]);
+    const wrapper = mount(
+      defineComponent({
+        components: { UserOrgSelector },
+        setup: () => ({ loader, selected: ref<unknown>() }),
+        template:
+          '<UserOrgSelector :selectable-types="[\'org\']" value-mode="record" :multiple="false" :show-tenant-nodes="true" :load-org-tree="loader" @update:selected-records="selected = $event" />',
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(wrapper.findComponent(TreeSelect).exists()).toBe(true),
+    );
+    wrapper.findComponent(TreeSelect).vm.$emit('dropdownVisibleChange', true);
+    await flushPromises();
+    wrapper
+      .findComponent(TreeSelect)
+      .vm.$emit('change', encodeUserOrgSelectorKey('org', 'org-root'));
+    await flushPromises();
+    expect(wrapper.vm.selected).toEqual([
+      expect.objectContaining({
+        id: 'org-root',
+        kind: 'org',
+        tenantId: 'tenant-a',
+      }),
+    ]);
+    wrapper.unmount();
+  });
+
   it('展开加载真实树形契约并保留租户归属', async () => {
     const loader = vi.fn(async () => [
       {
