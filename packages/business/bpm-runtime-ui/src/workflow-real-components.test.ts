@@ -15,6 +15,132 @@ vi.mock('@levin/admin-framework', () => ({
 }));
 
 describe('运行时公开组件独立挂载', () => {
+  it('只有待办权限时不请求或展示无权限的已办和我发起', async () => {
+    // 最小候选只获待办读取权，其他接口即使返回403也不能阻断已授权任务。
+    const task = {
+      taskId: 'task-only-todo',
+      taskName: '核定报销',
+      status: 'Todo',
+      businessTitle: '普通候选的报销',
+    };
+    const api = {
+      todo: vi.fn().mockResolvedValue([task]),
+      done: vi.fn().mockRejectedValue(new Error('403')),
+      started: vi.fn().mockRejectedValue(new Error('403')),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewTodo: true,
+        canViewDone: false,
+        canViewStarted: false,
+      },
+    });
+    await flushPromises();
+
+    expect(api.todo).toHaveBeenCalledTimes(1);
+    expect(api.done).not.toHaveBeenCalled();
+    expect(api.started).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('普通候选的报销');
+    expect(wrapper.text()).not.toContain('流程列表加载失败');
+    expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual([
+      expect.stringContaining('待办'),
+      expect.stringContaining('抄送'),
+    ]);
+    wrapper.unmount();
+  });
+
+  it('列表权限在请求期间失效时仍保留成功加载的待办', async () => {
+    // 后端撤权拒绝某个分栏后，不能把另一项合法待办一并清空或误报全局空列表。
+    const api = {
+      todo: vi.fn().mockResolvedValue([
+        {
+          taskId: 'allowed-task',
+          taskName: '待核定报销',
+          status: 'Todo',
+        },
+      ]),
+      done: vi.fn().mockRejectedValue(new Error('403')),
+      started: vi.fn().mockResolvedValue([]),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: { service: api as unknown as WorkflowRuntimeService },
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('待核定报销');
+    expect(wrapper.text()).toContain('部分流程列表加载失败');
+    expect(wrapper.emitted('error')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('没有待办权限但有我发起权限时进入可见分栏', async () => {
+    // 工作台不能停留在已隐藏的默认待办页，也不能为此试探无权接口。
+    const api = {
+      todo: vi.fn(),
+      done: vi.fn(),
+      started: vi.fn().mockResolvedValue([
+        {
+          instanceId: 'instance-1',
+          businessTitle: '我发起的流程',
+          status: 'Running',
+        },
+      ]),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewTodo: false,
+        canViewDone: false,
+        canViewStarted: true,
+      },
+    });
+    await flushPromises();
+
+    expect(api.todo).not.toHaveBeenCalled();
+    expect(api.done).not.toHaveBeenCalled();
+    expect(api.started).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toContain(
+      '我发起',
+    );
+    expect(wrapper.text()).toContain('我发起的流程');
+    wrapper.unmount();
+  });
+
+  it('待办权限被撤销后丢弃先前在途响应', async () => {
+    // 权限变化会启动新一代刷新，旧请求即使稍后成功也不能重新显示任务详情。
+    let completeTodo!: (
+      items: Array<{ taskId: string; taskName: string }>,
+    ) => void;
+    const api = {
+      todo: vi.fn().mockReturnValue(
+        new Promise((resolve) => {
+          completeTodo = resolve;
+        }),
+      ),
+      done: vi.fn(),
+      started: vi.fn(),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewTodo: true,
+        canViewDone: false,
+        canViewStarted: false,
+      },
+    });
+    await wrapper.setProps({ canViewTodo: false });
+    completeTodo([{ taskId: 'stale', taskName: '已撤权任务' }]);
+    await flushPromises();
+
+    expect(api.todo).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).not.toContain('已撤权任务');
+    expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual([
+      expect.stringContaining('抄送'),
+    ]);
+    wrapper.unmount();
+  });
+
   it('同名已办节点按业务标题与实例区分，键盘打开保留真实连线和轨迹', async () => {
     const first = {
       taskId: 't1',

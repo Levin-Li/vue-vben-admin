@@ -16,6 +16,16 @@ const detailComponents = {
   'workflow-expense': WorkflowExpenseDetail,
 };
 const { hasPermission } = useRbacAccess();
+// 每个列表只消费对应控制器方法的当前权限，菜单展示权不替代 API 授权。
+const canViewTodo = computed(() =>
+  hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'todo')),
+);
+const canViewDone = computed(() =>
+  hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'done')),
+);
+const canViewStarted = computed(() =>
+  hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'started')),
+);
 const canRetry = computed(() =>
   hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'retry')),
 );
@@ -32,6 +42,9 @@ function showError(error: unknown) {
   <WorkflowRuntimeWorkbench
     :detail-components="detailComponents"
     :service="workflowRuntimeService"
+    :can-view-todo="canViewTodo"
+    :can-view-done="canViewDone"
+    :can-view-started="canViewStarted"
     :can-retry="canRetry"
     @error="showError"
   />

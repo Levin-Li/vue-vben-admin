@@ -77,13 +77,13 @@ describe('工作流宿主使用真实授权组织选择器', () => {
     await flushPromises();
     expect(loader).toHaveBeenCalledTimes(1);
     const nodes = wrapper.findComponent(TreeSelect).props('treeData');
-    expect(nodes[0].children[0]).toMatchObject({
+    expect(nodes?.[0]?.children?.[0]).toMatchObject({
       id: 'org-root',
       tenantId: 'tenant-a',
       title: '默认部门',
       selectable: true,
     });
-    expect(nodes[0].children[0].children[0]).toMatchObject({
+    expect(nodes?.[0]?.children?.[0]?.children?.[0]).toMatchObject({
       id: 'org-child',
       tenantId: 'tenant-a',
       selectable: true,
@@ -92,7 +92,7 @@ describe('工作流宿主使用真实授权组织选择器', () => {
     wrapper.findComponent(TreeSelect).vm.$emit('search', '研发');
     await flushPromises();
     expect(wrapper.findComponent(TreeSelect).props('treeExpandedKeys')).toEqual(
-      expect.arrayContaining([nodes[0].key, nodes[0].children[0].key]),
+      expect.arrayContaining([nodes?.[0]?.key, nodes?.[0]?.children?.[0]?.key]),
     );
     wrapper.unmount();
   });

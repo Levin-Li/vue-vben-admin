@@ -8,7 +8,7 @@ import type {
   WorkflowTaskView,
 } from './types';
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 // 待办列表和具名槽依赖真实组件，不能退化为未注册的自定义DOM标签。
 import {
@@ -32,12 +32,25 @@ import { WorkflowRuntimeService } from './workflow-runtime-service';
 import { workflowStatusLabel } from './workflow-task-form';
 import WorkflowTaskPanel from './workflow-task-panel.vue';
 
-const props = defineProps<{
-  canRetry?: boolean;
-  detailComponents?: Record<string, Component>;
-  loadCopied?: () => Promise<WorkflowTaskView[]>;
-  service?: WorkflowRuntimeService;
-}>();
+const props = withDefaults(
+  defineProps<{
+    canRetry?: boolean;
+    canViewDone?: boolean;
+    canViewStarted?: boolean;
+    canViewTodo?: boolean;
+    detailComponents?: Record<string, Component>;
+    loadCopied?: () => Promise<WorkflowTaskView[]>;
+    service?: WorkflowRuntimeService;
+  }>(),
+  {
+    canViewDone: true,
+    canViewStarted: true,
+    canViewTodo: true,
+    detailComponents: undefined,
+    loadCopied: undefined,
+    service: undefined,
+  },
+);
 const emit = defineEmits<{
   completed: [task: WorkflowTaskView];
   error: [error: unknown];
@@ -46,6 +59,10 @@ const emit = defineEmits<{
 // 默认连接器只创建一次，避免响应式刷新导致重复初始化。
 const defaultService = new WorkflowRuntimeService();
 const service = computed(() => props.service ?? defaultService);
+// 独立包默认保留全部分栏；宿主必须按当前 API 方法权限显式关闭无权分栏。
+const canViewTodo = computed(() => props.canViewTodo !== false);
+const canViewDone = computed(() => props.canViewDone !== false);
+const canViewStarted = computed(() => props.canViewStarted !== false);
 const activeKey = ref('todo');
 const loading = ref(false);
 const todo = ref<WorkflowTaskView[]>([]);
@@ -63,18 +80,40 @@ async function refresh() {
   const version = ++refreshVersion;
   loading.value = true;
   try {
+    // 权限变化后切换到仍可读取的分栏；不让无权请求的403吞掉合法待办。
+    const visibleKeys = [
+      canViewTodo.value && 'todo',
+      canViewDone.value && 'done',
+      canViewStarted.value && 'started',
+      'copied',
+    ].filter(Boolean) as string[];
+    if (!visibleKeys.includes(activeKey.value))
+      activeKey.value = visibleKeys[0] || 'copied';
+
     const [todoResult, doneResult, startedResult, copiedResult] =
-      await Promise.all([
-        service.value.todo(),
-        service.value.done(),
-        service.value.started(),
+      await Promise.allSettled([
+        canViewTodo.value ? service.value.todo() : Promise.resolve([]),
+        canViewDone.value ? service.value.done() : Promise.resolve([]),
+        canViewStarted.value ? service.value.started() : Promise.resolve([]),
         props.loadCopied?.() ?? Promise.resolve([]),
       ]);
     if (version !== refreshVersion) return;
-    todo.value = todoResult;
-    done.value = doneResult;
-    started.value = startedResult;
-    copied.value = copiedResult;
+
+    // 某分栏在请求期间撤权或故障时只丢弃该分栏结果，保留其它已授权列表。
+    const results = [todoResult, doneResult, startedResult, copiedResult];
+    const firstFailure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    todo.value = todoResult.status === 'fulfilled' ? todoResult.value : [];
+    done.value = doneResult.status === 'fulfilled' ? doneResult.value : [];
+    started.value =
+      startedResult.status === 'fulfilled' ? startedResult.value : [];
+    copied.value =
+      copiedResult.status === 'fulfilled' ? copiedResult.value : [];
+    errorMessage.value = firstFailure
+      ? '部分流程列表加载失败，请检查权限或稍后重试。'
+      : '';
+    if (firstFailure) emit('error', firstFailure.reason);
     if (selectedTask.value)
       selectedTask.value = [...todo.value, ...done.value, ...copied.value].find(
         (task) => task.taskId === selectedTask.value?.taskId,
@@ -87,6 +126,12 @@ async function refresh() {
     if (version === refreshVersion) loading.value = false;
   }
 }
+
+// 当前用户权限重新载入或撤销时丢弃旧详情，并重新按最新授权加载列表。
+watch([canViewTodo, canViewDone, canViewStarted], () => {
+  selectedTask.value = undefined;
+  void refresh();
+});
 
 async function complete(payload: WorkflowTaskSubmitPayload) {
   if (!selectedTask.value || submitting.value) return;
@@ -190,7 +235,7 @@ defineExpose({ refresh });
         <AButton :loading="loading" @click="refresh">刷新</AButton>
       </template>
       <ATabs v-model:active-key="activeKey">
-        <ATabPane key="todo" :tab="`待办 ${todo.length}`">
+        <ATabPane v-if="canViewTodo" key="todo" :tab="`待办 ${todo.length}`">
           <AList :data-source="todo" item-layout="horizontal">
             <template #renderItem="{ item }">
               <AListItem
@@ -214,7 +259,7 @@ defineExpose({ refresh });
             </template>
           </AList>
         </ATabPane>
-        <ATabPane key="done" :tab="`已办 ${done.length}`">
+        <ATabPane v-if="canViewDone" key="done" :tab="`已办 ${done.length}`">
           <AList :data-source="done">
             <template #renderItem="{ item }">
               <AListItem
@@ -241,7 +286,11 @@ defineExpose({ refresh });
             </template>
           </AList>
         </ATabPane>
-        <ATabPane key="started" :tab="`我发起 ${started.length}`">
+        <ATabPane
+          v-if="canViewStarted"
+          key="started"
+          :tab="`我发起 ${started.length}`"
+        >
           <AList :data-source="started">
             <template #renderItem="{ item }">
               <AListItem>
