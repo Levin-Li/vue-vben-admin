@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import type { RouteMeta } from '@vben-core/foundation/typings';
+
 import { filterTree, mapTree } from '@vben-core/foundation/shared/utils';
 
 /**
@@ -34,7 +36,8 @@ async function generateRoutesByFrontend(
  * @param access
  */
 function hasAuthority(route: RouteRecordRaw, access: string[]) {
-  const authority = route.meta?.authority;
+  // 显式沿用框架的角色数组类型，不依赖宿主项目是否加载全局路由类型扩展。
+  const authority = (route.meta as Partial<RouteMeta> | undefined)?.authority;
   if (!authority) {
     return true;
   }

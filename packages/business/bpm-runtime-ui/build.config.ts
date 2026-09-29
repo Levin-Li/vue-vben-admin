@@ -15,7 +15,8 @@ export default defineBuildConfig({
       format: 'esm',
       input: './src',
       loaders: ['js'],
-      pattern: ['**/*.ts'],
+      // 单测仅参与开发验证，不作为运行时模块输出到发布目录。
+      pattern: ['**/*.ts', '!**/*.test.ts'],
     },
   ],
 });

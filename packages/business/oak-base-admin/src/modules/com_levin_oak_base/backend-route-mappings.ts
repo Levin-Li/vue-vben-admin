@@ -55,6 +55,21 @@ function toKebabCase(value: string) {
 }
 
 function getPageOperations(resource: string) {
+  // 工作流宿主页组合两个明确控制器的操作；运行页复用公共服务但仍上传真实操作权限。
+  if (resource === 'WorkflowDefinition') {
+    return [
+      ...buildAdminPageOperations(oakBaseApi.workflowDefinitionService),
+      ...buildAdminPageOperations(oakBaseApi.workflowDefinitionVersionService)
+        .map((operation) => operation.opName === 'create' ? { ...operation, opName: 'createVersion' } : operation),
+    ];
+  }
+  if (resource === 'MyWorkflow') return buildAdminPageOperations(oakBaseApi.workflowRuntimeService);
+  if (resource === 'WorkflowRequest') {
+    return [
+      ...buildAdminPageOperations(oakBaseApi.workflowRequestService),
+      ...buildAdminPageOperations(oakBaseApi.workflowRuntimeService).filter((operation) => ['start', 'retry'].includes(operation.opName)),
+    ];
+  }
   const expectedBasePath = `/${resource}`;
   const service = Object.values<unknown>(oakBaseApi).find(
     (candidate): candidate is object =>

@@ -137,10 +137,10 @@ export const userPageCrudConfig: CrudPageConfig = {
       'admin',
       'platformUser',
       'tenantUser',
-      'saasUser',
       'topSuperAdmin',
       'superAdmin',
-      'saasAdmin',
+      'platformAdmin',
+      'isPlatformAdmin',
       'tenantAdmin',
     ].map((key) => ({
       key,

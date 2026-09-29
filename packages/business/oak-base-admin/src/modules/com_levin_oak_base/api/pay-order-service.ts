@@ -31,7 +31,7 @@ export class PayOrderService extends RequestService {
     domain: 'com.levin.oak.base',
     type: '业务数据-支付订单',
     action: '自动配置支付回调地址',
-    anyRoles: ['R_SA'],
+    anyRoles: ['R_PLATFORM_SA'],
   })
   async autoConfigPayCallbackUrl(params?: any, options?: any) {
     return this.get('autoConfigPayCallbackUrl', {

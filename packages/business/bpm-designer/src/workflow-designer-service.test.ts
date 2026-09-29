@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createDefinition } from './definition-model';
+import { WorkflowDesignerService } from './workflow-designer-service';
+
 const requestCalls = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -7,17 +10,15 @@ const requestCalls = vi.hoisted(() => ({
 
 vi.mock('@levin/admin-framework', () => ({
   RequestService: class {
-    constructor(readonly basePath: string) {}
-
     get = requestCalls.get;
 
     post = requestCalls.post;
+
+    constructor(readonly basePath: string) {}
   },
 }));
 
-import { WorkflowDesignerService } from './workflow-designer-service';
-
-describe('WorkflowDesignerService', () => {
+describe('workflowDesignerService', () => {
   beforeEach(() => {
     requestCalls.get.mockReset();
     requestCalls.post.mockReset();
@@ -28,18 +29,43 @@ describe('WorkflowDesignerService', () => {
     // 设计期请求只提交服务端版本标识与 lowflow 定义，最终生命周期裁决始终留在后端。
     const service = new WorkflowDesignerService('/workflow-api');
 
-    await service.saveDraft('version-1', '{"nodes":[]}');
+    const definition = createDefinition('review', '审核');
+    await service.saveDraft('version-1', definition, 3);
     await service.startSimulation('version-1');
     await service.publishAfterSimulation('version-1');
 
-    expect(requestCalls.post).toHaveBeenNthCalledWith(1, 'workflowdefinitionversion/update', {
-      data: { id: 'version-1', lowflowJson: '{"nodes":[]}' },
-    });
-    expect(requestCalls.post).toHaveBeenNthCalledWith(2, 'workflowdefinitionversion/start-simulation', {
-      data: { id: 'version-1' },
-    });
-    expect(requestCalls.post).toHaveBeenNthCalledWith(3, 'workflowdefinitionversion/publish-after-simulation', {
-      data: { id: 'version-1' },
-    });
+    expect(requestCalls.post).toHaveBeenNthCalledWith(
+      1,
+      'WorkflowDefinitionVersion/save-design',
+      {
+        data: {
+          id: 'version-1',
+          optimisticLock: 3,
+          lowflowDefinition: definition,
+        },
+      },
+    );
+    expect(requestCalls.post).toHaveBeenNthCalledWith(
+      2,
+      'WorkflowDefinitionVersion/start-simulation',
+      {
+        data: { id: 'version-1' },
+      },
+    );
+    expect(requestCalls.post).toHaveBeenNthCalledWith(
+      3,
+      'WorkflowDefinitionVersion/publish-after-simulation',
+      {
+        data: { id: 'version-1' },
+      },
+    );
+  });
+
+  it('通过独立目录接口读取业务能力', async () => {
+    const service = new WorkflowDesignerService('/workflow-api');
+    await service.listBusinessTypes();
+    expect(requestCalls.get).toHaveBeenCalledWith(
+      'workflow-runtime/business-types',
+    );
   });
 });

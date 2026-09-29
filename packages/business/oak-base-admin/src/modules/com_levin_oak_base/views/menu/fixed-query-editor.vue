@@ -70,9 +70,9 @@ const isPlatformUser = computed(() => {
   return (
     user?.platformUser === true ||
     user?.isPlatformUser === true ||
-    user?.saasAdmin === true ||
-    user?.isSaasAdmin === true ||
-    roles.some((role: unknown) => String(role || '').startsWith('R_SAAS'))
+    user?.platformAdmin === true ||
+    user?.isPlatformAdmin === true ||
+    roles.some((role: unknown) => String(role || '').startsWith('R_PLATFORM_'))
   );
 });
 const items = computed(() =>

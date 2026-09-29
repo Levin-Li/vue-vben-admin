@@ -63,3 +63,8 @@ export * from './audit-report-service';
 export * from './backend-fixed-job-service';
 
 export * from './acl-test-service';
+export * from './workflow-definition-service';
+export * from './workflow-definition-version-service';
+export * from './workflow-expense-service';
+export * from './workflow-request-service';
+export * from './workflow-runtime-service';

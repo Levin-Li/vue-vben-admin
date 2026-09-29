@@ -156,8 +156,8 @@ const isPlatformUser = computed(() => {
   return (
     userInfo?.platformUser === true ||
     userInfo?.isPlatformUser === true ||
-    userInfo?.saasAdmin === true ||
-    userInfo?.isSaasAdmin === true
+    userInfo?.platformAdmin === true ||
+    userInfo?.isPlatformAdmin === true
   );
 });
 const shouldShowOrgEditableControl = computed(

@@ -28,6 +28,8 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 
 ## 子项目开发规范
 
+工作流设计、个人办理与无状态字段业务样例的操作说明见[工作流页面使用指南](docs/workflow-pages.md)。
+
 使用本包进行二次开发、配置、扩展或升级的子项目，必须遵循包内的[模块使用与二次开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。该规范不要求子项目采用本包发布方的代码包名、源码目录或业务实现。
 
 ## 模块开发与设计资料

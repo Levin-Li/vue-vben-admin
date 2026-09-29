@@ -28,6 +28,9 @@ export interface CreateOakBaseAdminCrudRoutesOptions {
 }
 
 export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
+  { icon: 'lucide:git-branch', name: 'WorkflowDefinition', resource: 'WorkflowDefinition', title: '流程设计' },
+  { icon: 'lucide:clipboard-check', name: 'WorkflowRequest', resource: 'WorkflowRequest', title: '流程申请样例' },
+  { icon: 'lucide:list-checks', name: 'MyWorkflow', resource: 'MyWorkflow', title: '我的流程' },
   {
     icon: 'lucide:clipboard-check',
     name: 'AuditReport',
@@ -420,6 +423,9 @@ export const oakBaseAdminResourceViewMap: Record<
   string,
   NonNullable<RouteRecordRaw['component']>
 > = {
+  WorkflowDefinition: () => import('./views/workflow-definition/index.vue'),
+  WorkflowRequest: () => import('./views/workflow-request/index.vue'),
+  MyWorkflow: () => import('./views/my-workflow/index.vue'),
   AccessLog: () => import('./views/access-log/index.vue'),
   AuditReport: () => import('./views/audit-report/index.vue'),
   BackendFixedJob: () => import('./views/backend-fixed-job/index.vue'),
@@ -554,6 +560,8 @@ const menuGroups = [
     'lucide:code-2',
     [
       'OnlineCodeGen',
+      'WorkflowDefinition',
+      'WorkflowRequest',
       'SimpleForm',
       'SimpleApi',
       'SimplePage',
@@ -572,7 +580,7 @@ const menuGroups = [
       'I18nRes',
     ],
   ],
-  ['个人&中心', 'lucide:circle-user-round', ['MySetting', 'MyMessages']],
+  ['个人&中心', 'lucide:circle-user-round', ['MySetting', 'MyMessages', 'MyWorkflow']],
   [
     '运维&审计',
     'lucide:clipboard-check',

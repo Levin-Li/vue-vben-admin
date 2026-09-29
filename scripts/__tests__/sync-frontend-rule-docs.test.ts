@@ -39,6 +39,9 @@ function fixture() {
   put('docs/migrations/20260908-change.sql', 'select 1;');
   put('docs/release/20260908-results.md', 'run output');
   put('openspec/changes/demo/design.md', '# Proposal');
+  put('openspec/changes/demo/business-binding-design.md', '# Binding design');
+  put('docs/平台设计安全审计.md', 'internal audit');
+  put('frontend/admin/docs/project-reference/docs/旧设计.md', 'generated copy');
   put('openspec/changes/demo/verification.md', 'run output');
   put('openspec/config.yaml', 'schema: spec-driven');
   put('frontend/admin/AGENTS.md', '# Rules');
@@ -50,15 +53,19 @@ function fixture() {
   return { root, adminRoot, packageRoot };
 }
 describe('published reference documents', () => {
-  it('includes design, rules, migrations and images while excluding execution and secret files', () => {
+  it('仅交付允许类别并排除迁移、执行材料及生成副本', () => {
     const { root, adminRoot } = fixture();
     const paths = collectReferenceDocuments(root, adminRoot).map(
       ([path]: [string, string]) => path,
     );
-    expect(paths).toContain('docs/images/diagram.svg');
-    expect(paths).toContain('docs/migrations/20260908-change.sql');
-    expect(paths).toContain('openspec/config.yaml');
-    expect(paths).toContain('frontend/admin/AGENTS.md');
+    expect(paths).toContain('docs/design.md');
+    expect(paths).toContain('openspec/changes/demo/business-binding-design.md');
+    expect(paths).not.toContain('docs/images/diagram.svg');
+    expect(paths).not.toContain('docs/migrations/20260908-change.sql');
+    expect(paths).not.toContain('openspec/config.yaml');
+    expect(paths).not.toContain('frontend/admin/AGENTS.md');
+    expect(paths).not.toContain('docs/平台设计安全审计.md');
+    expect(paths.some((path: string) => path.includes('project-reference'))).toBe(false);
     expect(paths).not.toContain('docs/release/20260908-results.md');
     expect(paths).not.toContain('openspec/changes/demo/verification.md');
     expect(isReferenceDocument('docs/credentials.yaml')).toBe(false);
@@ -83,8 +90,10 @@ describe('published reference documents', () => {
     );
     const paths = packed[0].files.map(({ path }: { path: string }) => path);
     expect(paths).toContain('docs/project-reference/docs/design.md');
+    expect(paths).toContain('docs/project-reference/openspec/changes/demo/business-binding-design.md');
     expect(paths).toContain('docs/project-reference/manifest.json');
     expect(paths).toContain('docs/MODULE-DEVELOPMENT-STANDARD.md');
+    expect(paths.some((path: string) => path.includes('/migrations/') || path.includes('安全审计'))).toBe(false);
   });
   it('generates reproducible hashes and detects stale source documents', () => {
     const options = fixture();
@@ -115,5 +124,21 @@ describe('published reference documents', () => {
         checkOnly: true,
       }),
     ).toThrow('发布文档未同步');
+  });
+  it.each([
+    ['@levin/bpm-designer', '工作流设计器使用指南.md'],
+    ['@levin/bpm-runtime-ui', '工作流执行界面使用指南.md'],
+  ])('同步后保留 %s 的直接使用指南入口', (name, guide) => {
+    const options = fixture();
+    writeFileSync(join(options.packageRoot, 'package.json'), JSON.stringify({ name }));
+    syncPackageDocuments(options.packageRoot, options);
+    expect(readFileSync(join(options.packageRoot, 'AGENTS.md'), 'utf8')).toContain(`](docs/${guide})`);
+  });
+  it('只读检查不会补写缺少 docs 的包声明', () => {
+    const options = fixture();
+    const file = join(options.packageRoot, 'package.json');
+    const before = readFileSync(file, 'utf8');
+    expect(() => syncPackageDocuments(options.packageRoot, { ...options, checkOnly: true })).toThrow('发布文档未同步');
+    expect(readFileSync(file, 'utf8')).toBe(before);
   });
 });

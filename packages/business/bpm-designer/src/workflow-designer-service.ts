@@ -1,6 +1,10 @@
-import { RequestService } from '@levin/admin-framework';
+import type {
+  WorkflowBusinessType,
+  WorkflowDefinitionVersion,
+  WorkflowDesignerDefinition,
+} from './types';
 
-import type { WorkflowDefinitionVersion } from './types';
+import { RequestService } from '@levin/admin-framework';
 
 /**
  * 默认设计期 API 连接器。所有生命周期判断仍在服务端完成，UI 仅按当前版本
@@ -11,15 +15,33 @@ export class WorkflowDesignerService extends RequestService {
     super(basePath);
   }
 
-  async publishAfterSimulation(id: string) {
-    return this.post<WorkflowDefinitionVersion>('workflowdefinitionversion/publish-after-simulation', { data: { id } });
+  /** 目录只包含当前主体可用的业务能力，不读取任何真实业务记录。 */
+  async listBusinessTypes() {
+    return this.get<WorkflowBusinessType[]>('workflow-runtime/business-types');
   }
 
-  async saveDraft(id: string, lowflowJson: string) {
-    return this.post<WorkflowDefinitionVersion>('workflowdefinitionversion/update', { data: { id, lowflowJson } });
+  async publishAfterSimulation(id: string) {
+    return this.post<WorkflowDefinitionVersion>(
+      'WorkflowDefinitionVersion/publish-after-simulation',
+      { data: { id } },
+    );
+  }
+
+  async saveDraft(
+    id: string,
+    lowflowDefinition: WorkflowDesignerDefinition,
+    optimisticLock?: number,
+  ) {
+    return this.post<WorkflowDefinitionVersion>(
+      'WorkflowDefinitionVersion/save-design',
+      { data: { id, optimisticLock, lowflowDefinition } },
+    );
   }
 
   async startSimulation(id: string) {
-    return this.post<WorkflowDefinitionVersion>('workflowdefinitionversion/start-simulation', { data: { id } });
+    return this.post<WorkflowDefinitionVersion>(
+      'WorkflowDefinitionVersion/start-simulation',
+      { data: { id } },
+    );
   }
 }

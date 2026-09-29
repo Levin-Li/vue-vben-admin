@@ -830,9 +830,9 @@ const isPlatformUser = computed(() => {
   return (
     userInfo?.platformUser === true ||
     userInfo?.isPlatformUser === true ||
-    userInfo?.saasAdmin === true ||
-    userInfo?.isSaasAdmin === true ||
-    roles.some((role) => String(role || '').startsWith('R_SAAS'))
+    userInfo?.platformAdmin === true ||
+    userInfo?.isPlatformAdmin === true ||
+    roles.some((role) => String(role || '').startsWith('R_PLATFORM_'))
   );
 });
 

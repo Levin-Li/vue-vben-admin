@@ -1276,14 +1276,14 @@ function createVariableGroups(
         },
         {
           defaultValue: false,
-          label: '是否SAAS管理员',
-          name: 'user.saasAdmin',
+          label: '是否平台管理员',
+          name: 'user.platformAdmin',
           type: 'boolean',
         },
         {
           defaultValue: false,
-          label: '是否SAAS管理员（兼容字段）',
-          name: 'user.isSaasAdmin',
+          label: '是否平台管理员（兼容字段）',
+          name: 'user.isPlatformAdmin',
           type: 'boolean',
         },
       ],

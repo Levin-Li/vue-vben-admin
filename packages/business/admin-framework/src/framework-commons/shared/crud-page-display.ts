@@ -361,10 +361,10 @@ export function isDisplayGroupVisible(
 }
 
 export function getDefaultVisibleRoleCodes(fieldKey: string) {
-  if (fieldKey === 'tenantId') return ['R_SA'];
-  if (fieldKey === 'domainId') return ['R_SA'];
+  if (fieldKey === 'tenantId') return ['R_PLATFORM_SA'];
+  if (fieldKey === 'domainId') return ['R_PLATFORM_SA'];
   if (fieldKey === 'orgId') {
-    return ['R_ORG_ADMIN', 'R_SA', 'R_ADMIN', 'R_SAAS_ADMIN'];
+    return ['R_ORG_ADMIN', 'R_PLATFORM_SA', 'R_ADMIN', 'R_PLATFORM_ADMIN'];
   }
   return [];
 }

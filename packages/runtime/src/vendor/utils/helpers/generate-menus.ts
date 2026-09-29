@@ -6,7 +6,11 @@ import type {
   RouteMeta,
 } from '@vben-core/foundation/typings';
 
-import { filterTree, mapTree, sortTree } from '@vben-core/foundation/shared/utils';
+import {
+  filterTree,
+  mapTree,
+  sortTree,
+} from '@vben-core/foundation/shared/utils';
 
 /**
  * 根据 routes 生成菜单列表
@@ -27,12 +31,9 @@ function generateMenus(
     // 获取最终的路由路径
     const path = finalRoutesMap[route.name as string] ?? route.path ?? '';
 
-    const {
-      meta = {} as RouteMeta,
-      name: routeName,
-      redirect,
-      children = [],
-    } = route;
+    const { name: routeName, redirect, children = [] } = route;
+    // 使用框架已声明的元数据契约，避免独立包检查时退化为Vue Router的unknown索引。
+    const meta = (route.meta ?? {}) as Partial<RouteMeta>;
     const {
       activeIcon,
       badge,

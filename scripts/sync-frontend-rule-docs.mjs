@@ -8,47 +8,35 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, dirname, extname, relative, resolve } from 'node:path';
+import { basename, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const projectRoot = resolve(frontendRoot, '..', '..');
-const extensions = new Set([
-  '.css',
-  '.gif',
-  '.jpeg',
-  '.jpg',
-  '.md',
-  '.png',
-  '.sql',
-  '.svg',
-  '.webp',
-  '.yaml',
-  '.yml',
-]);
+// 生成副本和执行材料永不作为下一次同步输入，避免资料递归复制。
+const excludedDirectory =
+  /^(?:node_modules|target|dist|\.git|\.omx|\.cache|cache|logs|screenshots|project-reference|frontend-rules|migrations|release)$/i;
 
 export function isReferenceDocument(path) {
   const segments = path.split(/[\\/]/);
-  if (
-    segments.some((part) =>
-      /^(?:node_modules|target|dist|\.git|\.omx|\.cache|cache|logs|screenshots)$/i.test(
-        part,
-      ),
-    )
-  )
-    return false;
+  if (segments.some((part) => excludedDirectory.test(part))) return false;
+  // 先排除凭据及过程记录，再选择与 Maven 相同的使用方文档白名单。
   const normalized = path.replaceAll('\\', '/');
-  if (normalized.includes('/openspec/'))
-    return /\/(?:design|proposal)\.md$/i.test(normalized) || /\/specs\/.*\.md$/i.test(normalized);
   const name = basename(path);
-  return /(?:设计|方案|实现|模块说明|功能说明|使用手册|用户手册|使用指南|开发指南|开发规范|发布包文档分类与交付规范)/.test(name);
   if (
     /(?:secrets?|credentials?|passwords?|tokens?|\.env|\.pem|\.key)(?:[.\-_]|$)/i.test(
-      basename(path),
+      name,
     )
   )
     return false;
-  return extensions.has(extname(path).toLowerCase());
+  if (
+    /(?:验收记录|验证输出|安全审计|测试报告|迁移|发布说明|部署|运维|任务清单|日志|截图)/.test(name)
+  ) return false;
+  if (/(?:^|\/)openspec\//.test(normalized))
+    return /\/(?:design|proposal|business-binding-design)\.md$/i.test(normalized)
+      || /\/specs\/.*\.md$/i.test(normalized);
+  return /^(?:design|proposal)\.md$/i.test(name)
+    || /(?:设计|方案|实现|模块说明|功能说明|使用手册|用户手册|使用指南|开发指南|开发规范|发布包文档分类与交付规范).*\.md$/.test(name);
 }
 
 export function collectReferenceDocuments(root, adminRoot) {
@@ -62,12 +50,7 @@ export function collectReferenceDocuments(root, adminRoot) {
       const source = resolve(dir, entry.name);
       const target = `${prefix}/${entry.name}`;
       if (entry.isDirectory()) {
-        if (
-          !/^(?:node_modules|target|dist|\.git|\.omx|\.cache|cache|logs|screenshots)$/i.test(
-            entry.name,
-          )
-        )
-          walk(source, target);
+        if (!excludedDirectory.test(entry.name)) walk(source, target);
       } else if (entry.isFile()) add(source, target);
     }
   }
@@ -100,6 +83,8 @@ export function syncPackageDocuments(
   publishFiles.add('docs');
   const normalizedPublishFiles = [...publishFiles];
   if (JSON.stringify(manifest.files || []) !== JSON.stringify(normalizedPublishFiles)) {
+    // 只读校验不得修改包声明，即使发现尚未加入 docs 也只报告差异。
+    if (checkOnly) throw new Error(`发布文档未同步: ${resolve(packageRoot, 'package.json')}`);
     manifest.files = normalizedPublishFiles;
     writeFileSync(
       resolve(packageRoot, 'package.json'),
@@ -112,13 +97,18 @@ export function syncPackageDocuments(
   const standard = readFileSync(
     resolve(root, 'docs/release/MODULE-DEVELOPMENT-STANDARD.md'),
   );
-  const usageDocument = manifest.name === '@levin/admin-framework'
-    ? '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)。'
-    : manifest.name === '@levin/oak-base-admin'
-      ? '具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。'
-      : existsSync(resolve(docs, '聚合包使用与迁移指南.md'))
-        ? '聚合包公开入口与升级步骤见 [使用与迁移指南](docs/聚合包使用与迁移指南.md)。'
-        : '';
+  // 已发布包的 Agent 入口由同一模板生成，重新构建不能丢失直接使用指南链接。
+  const usageDocuments = {
+    '@levin/bpm-designer': '[工作流设计器使用指南](docs/工作流设计器使用指南.md) 说明组件入口、受支持节点、宿主候选数据边界和最小验证。\n\n[流程设计器设计与实现](docs/流程设计器设计与实现.md) 说明版本化配置、组件边界、条件与业务操作参数契约。',
+    '@levin/bpm-runtime-ui': '[工作流执行界面使用指南](docs/工作流执行界面使用指南.md) 说明业务面板、办理轮次、节点动作、权限边界与最小验证。',
+    '@levin/admin-framework': '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)。',
+    '@levin/oak-base-admin': '工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。',
+  };
+  const usageDocument = usageDocuments[manifest.name] ?? (
+    existsSync(resolve(docs, '聚合包使用与迁移指南.md'))
+      ? '聚合包公开入口与升级步骤见 [使用与迁移指南](docs/聚合包使用与迁移指南.md)。'
+      : ''
+  );
   function output(path, content) {
     const expected = Buffer.isBuffer(content) ? content : Buffer.from(content);
     if (checkOnly) {
@@ -157,7 +147,7 @@ export function syncPackageDocuments(
   );
   output(
     resolve(reference, 'INDEX.md'),
-    `# 发布方项目参考资料\n\n这些设计、需求和开发记录是发布方项目参考，不构成下游项目额外强制规范。下游规范见 [模块开发规范](../MODULE-DEVELOPMENT-STANDARD.md)。迁移 SQL 仅作为参考，不自动执行。\n\n完整文件及 SHA-256 清单：[manifest.json](manifest.json)。\n\n${inventory.map(({ path }) => `- [${path}](${encodeURI(path)})`).join('\n')}\n`,
+    `# 发布方项目参考资料\n\n这些设计、实现、使用指南和开发规范是发布方项目参考，不构成下游项目额外强制规范。下游规范见 [模块开发规范](../MODULE-DEVELOPMENT-STANDARD.md)。发布、验收、审计、迁移、部署、运维和执行记录不随包提供。\n\n完整文件及 SHA-256 清单：[manifest.json](manifest.json)。\n\n${inventory.map(({ path }) => `- [${path}](${encodeURI(path)})`).join('\n')}\n`,
   );
   output(
     resolve(packageRoot, 'AGENTS.md'),

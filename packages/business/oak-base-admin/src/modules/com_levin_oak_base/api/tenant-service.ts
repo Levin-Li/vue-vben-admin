@@ -19,7 +19,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '批量新增',
     isAndMode: true,
-    anyRoles: ['R_SA', 'R_SAAS_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
   })
   async batchCreate(data?: any, options?: any) {
     return this.post('batchCreate', {
@@ -33,7 +33,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '批量删除',
     isAndMode: true,
-    anyRoles: ['R_SA', 'R_SAAS_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
   })
   @CRUD.Op({
     opRefTargetType: 'MultipleRow',
@@ -50,7 +50,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '批量更新',
     isAndMode: true,
-    anyRoles: ['R_SA', 'R_SAAS_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
   })
   async batchUpdate(data?: any, options?: any) {
     return this.put('batchUpdate', {
@@ -64,7 +64,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '清除缓存',
     isAndMode: true,
-    anyRoles: ['R_SA', 'R_SAAS_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
   })
   async clearCache(params?: any, options?: any) {
     return this.get('clearCache', {
@@ -78,7 +78,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '新增',
     isAndMode: true,
-    anyRoles: ['R_SA', 'R_SAAS_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
   })
   @CRUD.Op({
     opRefTargetType: 'None',
@@ -95,7 +95,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '删除',
     isAndMode: true,
-    anyRoles: ['R_SA', 'R_SAAS_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
   })
   @CRUD.Op()
   async delete(params?: any, options?: any) {
@@ -110,7 +110,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '查询列表',
     isAndMode: true,
-    anyRoles: ['R_SA', 'R_SAAS_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
   })
   @CRUD.ListTable({
     refEntityClass: 'com.levin.oak.base.entities.Tenant',
@@ -127,7 +127,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '查看详情',
     isAndMode: true,
-    anyRoles: ['R_SA', 'R_SAAS_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
   })
   @CRUD.Op({
     confirmText: 'None',
@@ -144,7 +144,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '统计',
     isAndMode: true,
-    anyRoles: ['R_SA', 'R_SAAS_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
   })
   async stat(params?: any, options?: any) {
     return this.get('stat', {
@@ -158,7 +158,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '更新',
     isAndMode: true,
-    anyRoles: ['R_SA', 'R_SAAS_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
   })
   @CRUD.Op()
   async update(data?: any, options?: any) {

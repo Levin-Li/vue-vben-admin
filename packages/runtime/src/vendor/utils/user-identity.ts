@@ -54,6 +54,6 @@ export function isSuperAdminUser(userInfo: unknown) {
     userRecord.sa === true ||
     userRecord.loginName === 'sa' ||
     userRecord.username === 'sa' ||
-    roleValues.has('R_SA')
+    roleValues.has('R_PLATFORM_SA')
   );
 }

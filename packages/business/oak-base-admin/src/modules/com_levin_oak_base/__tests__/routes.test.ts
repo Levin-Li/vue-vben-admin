@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { getServiceMeta, getResAuthorizeMeta } from '@levin/admin-framework';
+import { workflowRuntimeService } from '../api/workflow-runtime-service';
 
 import {
   oakBaseAdminCrudResources,
@@ -19,6 +21,36 @@ function flattenCrudRoutes(children: any[] | undefined): any[] {
 }
 
 describe('oak base admin routes', () => {
+  it('工作流办理采用业务数据权限域，不误用平台设计权限', () => {
+    expect(getServiceMeta(workflowRuntimeService).type).toBe('业务数据-工作流运行时');
+    for (const key of ['catalog', 'todo', 'done', 'started', 'complete', 'prepareStepUpAuth', 'eligibility', 'history', 'start', 'retry'] as const) {
+      // 装饰器在运行时附加符号元数据，静态方法签名不会体现该属性。
+      const metadata = getResAuthorizeMeta(workflowRuntimeService[key] as Parameters<typeof getResAuthorizeMeta>[0]);
+      expect(metadata.domain).toBe('WorkflowRuntime');
+      expect(metadata.type).toBe('业务数据-工作流运行时');
+    }
+  });
+  it('工作流设计、业务样例与个人办理页具有唯一业务归属及完整映射', () => {
+    const root = createOakBaseAdminModule().routes?.[0];
+    for (const [resource, directory, groupName] of [
+      ['WorkflowDefinition', 'workflow-definition', '开发&工具'],
+      ['WorkflowRequest', 'workflow-request', '开发&工具'],
+      ['MyWorkflow', 'my-workflow', '个人&中心'],
+    ]) {
+      const group = root?.children?.find((item) => item.meta?.title === groupName);
+      const route = group?.children?.find((item) => item.path === `/clob/V1/${resource}`);
+      expect(route?.name).toBe(route?.path.replaceAll('/', '_'));
+      expect(route?.component).toBeTypeOf('function');
+      expect(oakBaseAdminBackendRouteMappings.filter((item) => item.path === route?.path)).toEqual([
+        expect.objectContaining({
+          sourceFilePath: `modules/com_levin_oak_base/views/${directory}/index.vue`,
+          viewPath: `/system/com_levin_oak_base/${directory}/index.vue`,
+        }),
+      ]);
+    }
+    const design = oakBaseAdminBackendRouteMappings.find((item) => item.resource === 'WorkflowDefinition');
+    expect(design?.operations?.map((item) => item.opName)).toEqual(expect.arrayContaining(['create', 'createVersion', 'saveDraft', 'startSimulation', 'publishAfterSimulation']));
+  });
   it('默认将所有可生成 CRUD 页面唯一归入十个带语义图标的业务分组', () => {
     const module = createOakBaseAdminModule();
     const root = module.routes?.[0];

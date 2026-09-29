@@ -26,6 +26,25 @@ export const namedScopeVariableAcceptanceRoute: RouteRecordRaw = {
 };
 
 export const oakBaseAdminRoutes: RouteRecordRaw[] = [
+  // 关闭自动 CRUD 注册的宿主仍可显式访问同一套独立工作流页面。
+  {
+    component: () => import('./views/workflow-definition/index.vue'),
+    meta: { title: '流程设计', icon: 'lucide:git-branch' },
+    name: toPathRouteName('/clob/V1/WorkflowDefinition'),
+    path: '/clob/V1/WorkflowDefinition',
+  },
+  {
+    component: () => import('./views/workflow-request/index.vue'),
+    meta: { title: '流程申请样例', icon: 'lucide:clipboard-check' },
+    name: toPathRouteName('/clob/V1/WorkflowRequest'),
+    path: '/clob/V1/WorkflowRequest',
+  },
+  {
+    component: () => import('./views/my-workflow/index.vue'),
+    meta: { title: '我的流程', icon: 'lucide:list-checks' },
+    name: toPathRouteName('/clob/V1/MyWorkflow'),
+    path: '/clob/V1/MyWorkflow',
+  },
   aclTestRoute,
   namedScopeVariableAcceptanceRoute,
   {

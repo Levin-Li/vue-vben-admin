@@ -88,6 +88,8 @@
     "vue-router": "catalog:"
   },
   "dependencies": {
+    "@levin/bpm-designer": "workspace:*",
+    "@levin/bpm-runtime-ui": "workspace:*",
     "docx-preview": "^0.4.0"
   }
 }

@@ -24,9 +24,8 @@ describe('useRbacAccess', () => {
 
   it('allows super admin users even when authorized permission list is empty', () => {
     stores.user.userInfo = {
-      loginName: 'sa',
-      roleList: ['R_SA'],
-      superAdmin: true,
+      loginName: 'platform-sa',
+      roleList: ['R_PLATFORM_SA'],
     };
 
     expect(
@@ -34,6 +33,15 @@ describe('useRbacAccess', () => {
         'com.levin.oak.base:专家数据-简单页面::查询列表',
       ),
     ).toBe(true);
+  });
+
+  it('旧超级平台角色码不授予无限制权限', () => {
+    stores.user.userInfo = {
+      loginName: 'legacy-user',
+      roleList: ['R_SA'],
+    };
+
+    expect(useRbacAccess().hasPermission('demo:resource:read')).toBe(false);
   });
 
   it('still requires permission matches for normal users', () => {

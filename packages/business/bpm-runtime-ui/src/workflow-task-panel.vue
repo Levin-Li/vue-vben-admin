@@ -1,78 +1,544 @@
 <script lang="ts" setup>
-import { computed, reactive, ref } from 'vue';
+import type { Component } from 'vue';
 
-import type { WorkflowTaskAction, WorkflowTaskSubmitPayload, WorkflowTaskView } from './types';
+import type {
+  WorkflowActionInput,
+  WorkflowFormItem,
+  WorkflowTaskAction,
+  WorkflowTaskSubmitPayload,
+  WorkflowTaskView,
+} from './types';
 
+import { computed, reactive, ref, watch } from 'vue';
+
+// 审批表单、动作和轨迹在公共包内显式注册，独立宿主也能直接交互。
+import {
+  Alert as AAlert,
+  Button as AButton,
+  Card as ACard,
+  Descriptions as ADescriptions,
+  DescriptionsItem as ADescriptionsItem,
+  Divider as ADivider,
+  Empty as AEmpty,
+  Form as AForm,
+  FormItem as AFormItem,
+  Input as AInput,
+  InputNumber as AInputNumber,
+  List as AList,
+  ListItem as AListItem,
+  ListItemMeta as AListItemMeta,
+  Select as ASelect,
+  Space as ASpace,
+  Tag as ATag,
+  Textarea as ATextarea,
+  Timeline as ATimeline,
+  TimelineItem as ATimelineItem,
+} from 'ant-design-vue';
+
+import WorkflowBusinessDetail from './workflow-business-detail.vue';
+import {
+  isWorkflowEmpty,
+  validateWorkflowAction,
+  workflowActionUnavailable,
+  workflowFormData,
+  workflowStatusLabel,
+} from './workflow-task-form';
+
+// 任务及服务端动作是唯一授权来源，不补造默认“通过”动作。
 const props = defineProps<{
+  detailComponents?: Record<string, Component>;
+  submitting?: boolean;
   task: WorkflowTaskView;
 }>();
-
 const emit = defineEmits<{
   action: [action: WorkflowTaskAction];
-  prepareVerification: [payload: { action: WorkflowTaskAction; formData: Record<string, unknown>; verificationType: string }];
+  prepareVerification: [
+    payload: WorkflowActionInput & {
+      action: WorkflowTaskAction;
+      verificationType: string;
+    },
+  ];
   submit: [payload: WorkflowTaskSubmitPayload];
 }>();
-
 const formData = reactive<Record<string, unknown>>({});
+const comment = ref('');
+const targetNodeId = ref<string>();
+const targetUserId = ref<string>();
+const targetUserIds = ref<string[]>([]);
+const addSignPosition = ref<string>();
 const verificationCode = ref('');
 const verificationType = ref<string>();
 const selectedAction = ref<WorkflowTaskAction>();
-const displayFormItems = computed(() => props.task.formItems || props.task.requiredFields?.map((key) => ({ key, label: key, required: true })) || []);
+const errors = ref<string[]>([]);
+const displayFormItems = computed<WorkflowFormItem[]>(
+  () =>
+    props.task.formItems ??
+    props.task.requiredFields?.map((key) => ({
+      key,
+      label: key,
+      required: true,
+      type: 'text',
+    })) ??
+    [],
+);
+const actions = computed(() =>
+  props.task.status === 'Todo'
+    ? (props.task.actions ?? []).filter(
+        (action) => !workflowActionUnavailable(action),
+      )
+    : [],
+);
+const unavailableActions = computed(() =>
+  props.task.status === 'Todo'
+    ? (props.task.actions ?? []).filter((action) =>
+        workflowActionUnavailable(action),
+      )
+    : [],
+);
+const readOnly = computed(
+  () => props.task.status !== 'Todo' || props.submitting,
+);
+const missingRequired = computed(() =>
+  displayFormItems.value.some(
+    (item) =>
+      !item.readOnly && item.required && isWorkflowEmpty(formData[item.key]),
+  ),
+);
 
-function chooseAction(action: WorkflowTaskAction) { selectedAction.value = action; emit('action', action); }
-function prepareVerification() {
-  if (!selectedAction.value || !verificationType.value) return;
-  emit('prepareVerification', { action: selectedAction.value, formData, verificationType: verificationType.value });
+// 换任务时清除上一对象输入和凭据；同任务失败后保留用户输入。
+watch(
+  () => props.task.taskId,
+  () => {
+    for (const key of Object.keys(formData)) delete formData[key];
+    for (const field of displayFormItems.value)
+      if (field.value !== undefined) formData[field.key] = field.value;
+    comment.value = '';
+    selectedAction.value = undefined;
+    resetActionParameters();
+    errors.value = [];
+  },
+  { immediate: true },
+);
+
+// 验证挑战绑定表单、意见与动作参数，修改后不能继续使用旧验证码。
+watch(
+  [
+    formData,
+    comment,
+    targetNodeId,
+    targetUserId,
+    targetUserIds,
+    addSignPosition,
+    verificationType,
+  ],
+  () => {
+    verificationCode.value = '';
+  },
+  { deep: true, flush: 'sync' },
+);
+
+function resetActionParameters() {
+  targetNodeId.value = undefined;
+  targetUserId.value = undefined;
+  targetUserIds.value = [];
+  addSignPosition.value = undefined;
+  verificationCode.value = '';
+  verificationType.value = undefined;
 }
+
+// 控件仅接收其声明支持的标量，提交模型仍保留原始业务类型。
+function inputValue(value: unknown): number | string | undefined {
+  return typeof value === 'string' || typeof value === 'number'
+    ? value
+    : undefined;
+}
+
+function selectValue(item: WorkflowFormItem) {
+  const value = formData[item.key];
+  if (value === undefined || value === null) return undefined;
+  const index =
+    item.options?.findIndex((option) => option.value === value) ?? -1;
+  return index < 0 ? 'current' : String(index);
+}
+
+function selectOptions(item: WorkflowFormItem) {
+  // 用稳定位置传递选择，避免Ant Select把布尔业务值强制转换成字符串。
+  const options = (item.options ?? []).map((option, index) => ({
+    label: option.label,
+    value: String(index),
+    disabled: false,
+  }));
+  if (selectValue(item) === 'current')
+    options.push({
+      label: String(formData[item.key]),
+      value: 'current',
+      disabled: true,
+    });
+  return options;
+}
+
+function updateSelectValue(item: WorkflowFormItem, value: unknown) {
+  const option = selectOptions(item).find(
+    (entry) => entry.value === value && !entry.disabled,
+  );
+  if (option) formData[item.key] = item.options?.[Number(option.value)]?.value;
+}
+
+function chooseAction(action: WorkflowTaskAction) {
+  if (
+    readOnly.value ||
+    !actions.value.some((item) => item.code === action.code)
+  )
+    return;
+  selectedAction.value = action;
+  resetActionParameters();
+  errors.value = [];
+  emit('action', action);
+}
+
+function actionInput(): WorkflowActionInput {
+  // 只组装所选动作适用参数，切换后不得携带上个动作的目标。
+  const input: WorkflowActionInput = {
+    formData: workflowFormData(props.task, formData),
+    comment: comment.value.trim() || undefined,
+  };
+  if (selectedAction.value?.code === 'return')
+    input.targetNodeId = targetNodeId.value;
+  if (['delegate', 'transfer'].includes(selectedAction.value?.code ?? ''))
+    input.targetUserId = targetUserId.value;
+  if (selectedAction.value?.code === 'add-sign') {
+    input.targetUserIds = [...targetUserIds.value];
+    input.addSignPosition = addSignPosition.value;
+  }
+  return input;
+}
+
+function prepareVerification() {
+  if (!selectedAction.value || !verificationType.value || readOnly.value)
+    return;
+  const input = actionInput();
+  errors.value = validateWorkflowAction(
+    props.task,
+    selectedAction.value,
+    input,
+  );
+  if (errors.value.length > 0) return;
+  emit('prepareVerification', {
+    ...input,
+    action: selectedAction.value,
+    verificationType: verificationType.value,
+  });
+}
+
 function submit() {
-  if (!selectedAction.value) return;
-  const missing = displayFormItems.value.filter((item) => item.required && !formData[item.key]);
-  if (missing.length) return;
-  if (props.task.verificationTypes?.length && (!verificationType.value || !verificationCode.value)) return;
-  emit('submit', { action: selectedAction.value, formData, verificationCode: verificationCode.value || undefined, verificationType: verificationType.value });
+  if (!selectedAction.value || readOnly.value) return;
+  const input = actionInput();
+  errors.value = validateWorkflowAction(
+    props.task,
+    selectedAction.value,
+    input,
+  );
+  if (
+    props.task.verificationTypes?.length &&
+    (!verificationType.value || !verificationCode.value.trim())
+  )
+    errors.value.push('请完成二次验证');
+  if (errors.value.length > 0) return;
+  emit('submit', {
+    ...input,
+    action: selectedAction.value,
+    verificationCode: verificationCode.value || undefined,
+    verificationType: verificationType.value,
+  });
 }
 </script>
 
 <template>
   <section class="levin-workflow-task-panel">
-    <a-card :title="task.businessTitle || task.taskName || '流程待办'" size="small">
-      <template #extra><a-tag>{{ task.status === 'Completed' ? '已处理' : '待处理' }}</a-tag></template>
-      <a-descriptions :column="1" bordered size="small">
-        <a-descriptions-item label="流程实例">{{ task.processInstanceId || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="节点">{{ task.taskName || task.taskDefinitionKey || '-' }}</a-descriptions-item>
-      </a-descriptions>
-      <a-divider orientation="left">审批表单</a-divider>
-      <a-form layout="vertical">
-        <a-form-item v-for="item in displayFormItems" :key="item.key" :label="item.label" :required="item.required">
-          <a-textarea v-if="item.type === 'textarea'" v-model:value="formData[item.key]" :disabled="task.status === 'Completed'" />
-          <a-input v-else v-model:value="formData[item.key]" :disabled="task.status === 'Completed'" />
-        </a-form-item>
-      </a-form>
-      <a-alert v-if="displayFormItems.some((item) => item.required && !formData[item.key])" class="mb-3" message="请填写节点要求的表单字段后再提交。" type="warning" />
-      <slot name="form" />
-      <a-divider orientation="left">审批动作</a-divider>
-      <a-space wrap>
-        <a-button
-          v-for="action in task.actions || [{ code: 'approve', label: '通过' }]"
+    <ACard
+      :title="task.businessTitle || task.taskName || '流程待办'"
+      size="small"
+    >
+      <template #extra>
+        <ATag>
+          {{
+            task.status === 'Completed'
+              ? '已处理'
+              : workflowStatusLabel(task.status)
+          }}
+        </ATag>
+      </template>
+      <!-- 授权业务摘要与流程运行事实分开呈现。 -->
+      <WorkflowBusinessDetail
+        v-if="task.businessType && task.businessId"
+        :detail="{
+          ...task,
+          businessType: task.businessType,
+          businessId: task.businessId,
+        }"
+        :components="detailComponents"
+      />
+      <AAlert
+        v-else
+        type="info"
+        message="此任务尚未提供可授权查看的业务引用。"
+      />
+      <ADescriptions class="mt-3" :column="1" size="small">
+        <ADescriptionsItem label="流程实例">
+          {{ task.processInstanceId || '—' }}
+        </ADescriptionsItem>
+        <ADescriptionsItem label="节点">
+          {{ task.taskName || task.taskDefinitionKey || '—' }}
+        </ADescriptionsItem>
+        <ADescriptionsItem v-if="task.executionStatus" label="执行状态">
+          {{ workflowStatusLabel(task.executionStatus) }}
+        </ADescriptionsItem>
+        <ADescriptionsItem v-if="task.outcome" label="流程结果">
+          {{ workflowStatusLabel(task.outcome) }}
+        </ADescriptionsItem>
+        <ADescriptionsItem v-if="task.effectStatus" label="业务处理">
+          {{ workflowStatusLabel(task.effectStatus) }}
+        </ADescriptionsItem>
+      </ADescriptions>
+
+      <!-- 只渲染节点明确声明的控件，数字和布尔保持实际类型。 -->
+      <template v-if="displayFormItems.length > 0">
+        <ADivider orientation="left">审批表单</ADivider>
+        <AForm layout="vertical" @submit.prevent>
+          <AFormItem
+            v-for="item in displayFormItems"
+            :key="item.key"
+            :label="item.label"
+            :required="item.required"
+          >
+            <ATextarea
+              v-if="item.type === 'textarea'"
+              :value="inputValue(formData[item.key])"
+              @update:value="formData[item.key] = $event"
+              :disabled="readOnly || item.readOnly"
+            />
+            <AInputNumber
+              v-else-if="item.type === 'number'"
+              :value="inputValue(formData[item.key])"
+              @update:value="formData[item.key] = $event"
+              :disabled="readOnly || item.readOnly"
+              style="width: 100%"
+            />
+            <ASelect
+              v-else-if="item.type === 'boolean'"
+              :value="
+                typeof formData[item.key] === 'boolean'
+                  ? String(formData[item.key])
+                  : undefined
+              "
+              :disabled="readOnly || item.readOnly"
+              :options="[
+                { label: '是', value: 'true' },
+                { label: '否', value: 'false' },
+              ]"
+              @update:value="
+                (value: string) => {
+                  formData[item.key] = value === 'true';
+                }
+              "
+            />
+            <ASelect
+              v-else-if="item.type === 'select'"
+              :value="selectValue(item)"
+              @update:value="(value: unknown) => updateSelectValue(item, value)"
+              :disabled="readOnly || item.readOnly"
+              :options="selectOptions(item)"
+            />
+            <AInput
+              v-else
+              :value="inputValue(formData[item.key])"
+              @update:value="formData[item.key] = $event"
+              :type="item.type === 'date' ? 'date' : 'text'"
+              :disabled="readOnly || item.readOnly"
+            />
+          </AFormItem>
+        </AForm>
+        <AAlert
+          v-if="missingRequired && !readOnly"
+          class="mb-3"
+          message="请填写节点要求的表单字段后再提交。"
+          type="warning"
+        />
+      </template>
+      <slot
+        name="form"
+        :task="task"
+        :form-data="formData"
+        :read-only="readOnly"
+      ></slot>
+
+      <!-- 动作参数来自任务专属选项，不能输入任意人员或节点。 -->
+      <template v-if="task.status === 'Todo'">
+        <ADivider orientation="left">审批动作</ADivider>
+        <ASpace wrap>
+          <AButton
+            v-for="action in actions"
+            :key="action.code"
+            :type="selectedAction?.code === action.code ? 'primary' : 'default'"
+            :disabled="submitting"
+            @click="chooseAction(action)"
+          >
+            {{ action.label }}
+          </AButton>
+        </ASpace>
+        <AAlert
+          v-if="actions.length === 0"
+          type="info"
+          message="当前没有可执行的授权动作。"
+        />
+        <AAlert
+          v-for="action in unavailableActions"
           :key="action.code"
-          :type="selectedAction?.code === action.code ? 'primary' : 'default'"
-          :disabled="task.status === 'Completed'"
-          @click="chooseAction(action)"
+          class="mt-2"
+          type="info"
+          :message="`${action.label}：${workflowActionUnavailable(action)}`"
+        />
+        <AForm
+          v-if="selectedAction"
+          class="mt-4"
+          layout="vertical"
+          @submit.prevent
         >
-          {{ action.label }}
-        </a-button>
-      </a-space>
-      <a-form v-if="selectedAction && task.verificationTypes?.length" class="mt-4" layout="inline">
-        <a-form-item label="二次验证"><a-select v-model:value="verificationType" :options="task.verificationTypes.map((type) => ({ label: type, value: type }))" placeholder="选择验证方式" style="min-width: 9rem" /></a-form-item>
-        <a-form-item label="验证码"><a-input v-model:value="verificationCode" autocomplete="one-time-code" /></a-form-item>
-        <a-form-item><a-button :disabled="!verificationType" @click="prepareVerification">获取验证码</a-button></a-form-item>
-      </a-form>
-      <a-button v-if="selectedAction" class="mt-4" type="primary" @click="submit">确认{{ selectedAction.label }}</a-button>
-      <a-divider orientation="left">流程轨迹</a-divider>
-      <a-timeline v-if="task.timeline?.length"><a-timeline-item v-for="item in task.timeline" :key="`${item.name}-${item.time}`"><strong>{{ item.name }}</strong><span class="ml-2 text-muted-foreground">{{ item.time }}</span><div v-if="item.actor || item.comment">{{ item.actor }} {{ item.comment }}</div></a-timeline-item></a-timeline>
-      <a-empty v-else description="暂无可展示的流程轨迹" :image-style="{ height: '48px' }" />
-      <slot name="timeline" />
-      <template v-if="task.notifications?.length"><a-divider orientation="left">通知</a-divider><a-list :data-source="task.notifications" size="small"><template #renderItem="{ item }"><a-list-item><a-list-item-meta :description="item.content"><template #title>{{ item.title || item.channel }}<a-tag class="ml-2">{{ item.channel }}</a-tag></template></a-list-item-meta></a-list-item></template></a-list></template>
-    </a-card>
+          <AFormItem
+            label="审批意见"
+            :required="selectedAction.requiresComment"
+          >
+            <ATextarea
+              v-model:value="comment"
+              :disabled="submitting"
+              :rows="3"
+            />
+          </AFormItem>
+          <AFormItem
+            v-if="selectedAction.code === 'return'"
+            label="退回节点"
+            required
+          >
+            <ASelect
+              v-model:value="targetNodeId"
+              :options="selectedAction.returnTargets"
+              :disabled="submitting"
+            />
+          </AFormItem>
+          <AFormItem
+            v-if="['transfer', 'delegate'].includes(selectedAction.code)"
+            label="目标处理人"
+            required
+          >
+            <ASelect
+              v-model:value="targetUserId"
+              :options="selectedAction.candidateUsers"
+              :disabled="submitting"
+            />
+          </AFormItem>
+          <template v-if="selectedAction.code === 'add-sign'">
+            <AFormItem label="加签人员" required>
+              <ASelect
+                v-model:value="targetUserIds"
+                mode="multiple"
+                :options="selectedAction.candidateUsers"
+                :disabled="submitting"
+              />
+            </AFormItem>
+            <AFormItem label="加签顺序" required>
+              <ASelect
+                v-model:value="addSignPosition"
+                :options="selectedAction.addSignPositions"
+                :disabled="submitting"
+              />
+            </AFormItem>
+          </template>
+          <template v-if="task.verificationTypes?.length">
+            <AFormItem label="二次验证" required>
+              <ASelect
+                v-model:value="verificationType"
+                :options="
+                  task.verificationTypes.map((type) => ({
+                    label: type,
+                    value: type,
+                  }))
+                "
+                :disabled="submitting"
+              />
+            </AFormItem>
+            <AFormItem label="验证码" required>
+              <AInput
+                v-model:value="verificationCode"
+                autocomplete="one-time-code"
+                :disabled="submitting"
+              />
+            </AFormItem>
+            <AButton
+              :disabled="!verificationType || submitting"
+              @click="prepareVerification"
+            >
+              获取验证码
+            </AButton>
+          </template>
+        </AForm>
+        <AAlert
+          v-if="errors.length > 0"
+          class="mt-3"
+          type="error"
+          :message="errors.join('；')"
+          role="alert"
+        />
+        <AButton
+          v-if="selectedAction"
+          class="mt-4"
+          type="primary"
+          :loading="submitting"
+          @click="submit"
+        >
+          确认{{ selectedAction.label }}
+        </AButton>
+      </template>
+
+      <!-- 轨迹只能展示已记录事实，不通过按钮点击推算历史。 -->
+      <ADivider orientation="left">流程轨迹</ADivider>
+      <AAlert
+        v-if="task.timelineTruncated"
+        class="mb-3"
+        type="info"
+        message="仅展示最近1000条记录，原始历史仍保留。"
+      />
+      <ATimeline v-if="task.timeline?.length">
+        <ATimelineItem
+          v-for="(item, index) in task.timeline"
+          :key="item.id || index"
+        >
+          <div>{{ item.time }}</div>
+          <strong>{{ item.name }}</strong>
+          <div v-if="item.actor || item.comment">
+            {{ item.actor }} {{ item.comment }}
+          </div>
+        </ATimelineItem>
+      </ATimeline>
+      <AEmpty
+        v-else
+        description="暂无可展示的流程轨迹"
+        :image-style="{ height: '48px' }"
+      />
+      <slot name="timeline" :task="task"></slot>
+      <template v-if="task.notifications?.length">
+        <ADivider orientation="left">通知</ADivider>
+        <AList :data-source="task.notifications" size="small">
+          <template #renderItem="{ item }">
+            <AListItem>
+              <AListItemMeta :description="item.content">
+                <template #title>
+                  {{ item.title || item.channel }}
+                </template>
+              </AListItemMeta>
+            </AListItem>
+          </template>
+        </AList>
+      </template>
+    </ACard>
   </section>
 </template>

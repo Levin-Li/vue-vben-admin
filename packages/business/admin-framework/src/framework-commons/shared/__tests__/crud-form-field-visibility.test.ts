@@ -71,9 +71,14 @@ describe('crud form field visibility', () => {
   it('recognizes super admins from role identity values', () => {
     expect(
       isSuperAdminUser({
-        roleList: [{ code: 'R_SA' }],
+        roleList: [{ code: 'R_PLATFORM_SA' }],
       }),
     ).toBe(true);
+    expect(
+      isSuperAdminUser({
+        roleList: [{ code: 'R_SA' }],
+      }),
+    ).toBe(false);
   });
 
   it('keeps non-editable fields controlled by normal form mode flags', () => {

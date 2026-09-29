@@ -1,14 +1,51 @@
 <script lang="ts" setup>
+import type { Component } from 'vue';
+
+import type {
+  WorkflowActionInput,
+  WorkflowInstanceView,
+  WorkflowTaskSubmitPayload,
+  WorkflowTaskView,
+} from './types';
+
 import { computed, onMounted, ref } from 'vue';
+
+// 待办列表和具名槽依赖真实组件，不能退化为未注册的自定义DOM标签。
+import {
+  Alert as AAlert,
+  Button as AButton,
+  Card as ACard,
+  Col as ACol,
+  Empty as AEmpty,
+  List as AList,
+  ListItem as AListItem,
+  ListItemMeta as AListItemMeta,
+  Row as ARow,
+  Space as ASpace,
+  TabPane as ATabPane,
+  Tabs as ATabs,
+  Tag as ATag,
+} from 'ant-design-vue';
 
 import WorkflowProcessDiagram from './workflow-process-diagram.vue';
 import { WorkflowRuntimeService } from './workflow-runtime-service';
+import { workflowStatusLabel } from './workflow-task-form';
 import WorkflowTaskPanel from './workflow-task-panel.vue';
-import type { WorkflowInstanceView, WorkflowTaskSubmitPayload, WorkflowTaskView } from './types';
 
-const props = defineProps<{ service?: WorkflowRuntimeService; loadCopied?: () => Promise<WorkflowTaskView[]> }>();
-const emit = defineEmits<{ completed: [task: WorkflowTaskView]; error: [error: unknown] }>();
-const service = computed(() => props.service ?? new WorkflowRuntimeService());
+const props = defineProps<{
+  canRetry?: boolean;
+  detailComponents?: Record<string, Component>;
+  loadCopied?: () => Promise<WorkflowTaskView[]>;
+  service?: WorkflowRuntimeService;
+}>();
+const emit = defineEmits<{
+  completed: [task: WorkflowTaskView];
+  error: [error: unknown];
+  retried: [instanceId: string];
+}>();
+// 默认连接器只创建一次，避免响应式刷新导致重复初始化。
+const defaultService = new WorkflowRuntimeService();
+const service = computed(() => props.service ?? defaultService);
 const activeKey = ref('todo');
 const loading = ref(false);
 const todo = ref<WorkflowTaskView[]>([]);
@@ -16,45 +53,279 @@ const done = ref<WorkflowTaskView[]>([]);
 const copied = ref<WorkflowTaskView[]>([]);
 const started = ref<WorkflowInstanceView[]>([]);
 const selectedTask = ref<WorkflowTaskView>();
+const submitting = ref(false);
+const retrying = ref<string>();
+const errorMessage = ref('');
+const verificationMessage = ref('');
+let refreshVersion = 0;
 
 async function refresh() {
+  const version = ++refreshVersion;
   loading.value = true;
   try {
-    const [todoResult, doneResult, startedResult, copiedResult] = await Promise.all([
-      service.value.todo(), service.value.done(), service.value.started(), props.loadCopied?.() ?? Promise.resolve([]),
-    ]);
-    todo.value = todoResult; done.value = doneResult; started.value = startedResult; copied.value = copiedResult;
-    if (selectedTask.value) selectedTask.value = [...todo.value, ...done.value, ...copied.value].find((task) => task.taskId === selectedTask.value?.taskId);
-  } catch (error) { emit('error', error); } finally { loading.value = false; }
+    const [todoResult, doneResult, startedResult, copiedResult] =
+      await Promise.all([
+        service.value.todo(),
+        service.value.done(),
+        service.value.started(),
+        props.loadCopied?.() ?? Promise.resolve([]),
+      ]);
+    if (version !== refreshVersion) return;
+    todo.value = todoResult;
+    done.value = doneResult;
+    started.value = startedResult;
+    copied.value = copiedResult;
+    if (selectedTask.value)
+      selectedTask.value = [...todo.value, ...done.value, ...copied.value].find(
+        (task) => task.taskId === selectedTask.value?.taskId,
+      );
+  } catch (error) {
+    if (version !== refreshVersion) return;
+    errorMessage.value = '流程列表加载失败，请重试。';
+    emit('error', error);
+  } finally {
+    if (version === refreshVersion) loading.value = false;
+  }
 }
 
 async function complete(payload: WorkflowTaskSubmitPayload) {
-  if (!selectedTask.value) return;
+  if (!selectedTask.value || submitting.value) return;
+  submitting.value = true;
+  errorMessage.value = '';
+  verificationMessage.value = '';
   try {
-    const result = await service.value.complete({ actionCode: payload.action.code, formData: payload.formData, taskId: selectedTask.value.taskId, verificationCode: payload.verificationCode, verificationType: payload.verificationType });
-    emit('completed', result); await refresh();
-  } catch (error) { emit('error', error); }
+    // 移除仅供界面展示的action对象，完整传递意见及动作专属参数。
+    const { action, ...input } = payload;
+    const result = await service.value.complete({
+      ...input,
+      actionCode: action.code,
+      taskId: selectedTask.value.taskId,
+    });
+    emit('completed', result);
+    await refresh();
+  } catch (error) {
+    errorMessage.value = '任务处理未成功，输入已保留，请根据错误提示重试。';
+    emit('error', error);
+  } finally {
+    submitting.value = false;
+  }
 }
-async function prepareVerification(payload: { action: { code: string }; formData: Record<string, unknown>; verificationType: string }) {
+
+async function retry(item: WorkflowInstanceView) {
+  // 我发起列表中的重试同时要求宿主权限、可信交付标识及完整业务引用。
+  if (
+    !props.canRetry ||
+    !item.pendingDispatchId ||
+    !item.businessType ||
+    !item.businessId ||
+    retrying.value ||
+    submitting.value ||
+    loading.value
+  )
+    return;
+  retrying.value = item.pendingDispatchId;
+  errorMessage.value = '';
+  try {
+    await service.value.retry({
+      businessType: item.businessType,
+      businessId: item.businessId,
+      tenantId: item.tenantId,
+      orgId: item.orgId,
+      dispatchId: item.pendingDispatchId,
+    });
+    emit('retried', item.instanceId);
+    await refresh();
+  } catch (error) {
+    errorMessage.value = '业务处理重试未成功，请根据错误提示处理后重试。';
+    emit('error', error);
+  } finally {
+    retrying.value = undefined;
+  }
+}
+async function prepareVerification(
+  payload: WorkflowActionInput & {
+    action: { code: string };
+    verificationType: string;
+  },
+) {
   if (!selectedTask.value) return;
   try {
-    await service.value.prepareStepUpAuth({ actionCode: payload.action.code, formSummary: JSON.stringify(payload.formData), taskId: selectedTask.value.taskId, verificationType: payload.verificationType });
-  } catch (error) { emit('error', error); }
+    // 摘要由服务端规范化计算，不将原始表单伪装成客户端“摘要”。
+    const { action, ...input } = payload;
+    const challenge = await service.value.prepareStepUpAuth({
+      ...input,
+      actionCode: action.code,
+      taskId: selectedTask.value.taskId,
+    });
+    verificationMessage.value =
+      challenge.message ||
+      (challenge.successful
+        ? '验证请求已发送，请完成验证。'
+        : '验证请求未成功。');
+  } catch (error) {
+    errorMessage.value = '获取验证挑战失败，请重试。';
+    emit('error', error);
+  }
 }
 onMounted(refresh);
+defineExpose({ refresh });
 </script>
 
 <template>
   <section class="levin-workflow-runtime-workbench">
-    <a-card title="工作流中心" size="small">
-      <template #extra><a-button :loading="loading" @click="refresh">刷新</a-button></template>
-      <a-tabs v-model:active-key="activeKey">
-        <a-tab-pane key="todo" :tab="`待办 ${todo.length}`"><a-list :data-source="todo" item-layout="horizontal"><template #renderItem="{ item }"><a-list-item class="cursor-pointer" @click="selectedTask = item"><a-list-item-meta :description="item.processInstanceId"><template #title>{{ item.taskName || item.taskId }}</template></a-list-item-meta><a-tag color="processing">待处理</a-tag></a-list-item></template></a-list></a-tab-pane>
-        <a-tab-pane key="done" :tab="`已办 ${done.length}`"><a-list :data-source="done"><template #renderItem="{ item }"><a-list-item class="cursor-pointer" @click="selectedTask = item">{{ item.taskName || item.taskId }}</a-list-item></template></a-list></a-tab-pane>
-        <a-tab-pane key="started" :tab="`我发起 ${started.length}`"><a-list :data-source="started"><template #renderItem="{ item }"><a-list-item><a-list-item-meta :description="item.instanceId"><template #title>流程版本 {{ item.definitionVersionId || '-' }}</template></a-list-item-meta><a-tag>{{ item.status }}</a-tag></a-list-item></template></a-list></a-tab-pane>
-        <a-tab-pane key="copied" :tab="`抄送 ${copied.length}`"><a-empty v-if="!loadCopied" description="宿主未提供抄送数据连接器" /><a-list v-else :data-source="copied"><template #renderItem="{ item }"><a-list-item class="cursor-pointer" @click="selectedTask = item">{{ item.taskName || item.taskId }}</a-list-item></template></a-list></a-tab-pane>
-      </a-tabs>
-    </a-card>
-    <a-row v-if="selectedTask" class="mt-4" :gutter="16"><a-col :lg="15" :span="24"><WorkflowTaskPanel :task="selectedTask" @prepare-verification="prepareVerification" @submit="complete" /></a-col><a-col :lg="9" :span="24"><a-card size="small" title="流程图"><WorkflowProcessDiagram :task="selectedTask" /></a-card></a-col></a-row>
+    <AAlert
+      v-if="errorMessage"
+      class="mb-3"
+      type="error"
+      :message="errorMessage"
+    />
+    <AAlert
+      v-if="verificationMessage"
+      class="mb-3"
+      type="info"
+      :message="verificationMessage"
+    />
+    <ACard title="工作流中心" size="small">
+      <template #extra>
+        <AButton :loading="loading" @click="refresh">刷新</AButton>
+      </template>
+      <ATabs v-model:active-key="activeKey">
+        <ATabPane key="todo" :tab="`待办 ${todo.length}`">
+          <AList :data-source="todo" item-layout="horizontal">
+            <template #renderItem="{ item }">
+              <AListItem
+                class="cursor-pointer"
+                role="button"
+                tabindex="0"
+                :aria-label="`查看${item.businessTitle || item.taskName || item.taskId}`"
+                @click="selectedTask = item"
+                @keydown.enter.prevent="selectedTask = item"
+                @keydown.space.prevent="selectedTask = item"
+              >
+                <AListItemMeta
+                  :description="`${item.taskName || item.taskId} · ${item.processInstanceId || '—'}`"
+                >
+                  <template #title>
+                    {{ item.businessTitle || item.taskName || item.taskId }}
+                  </template>
+                </AListItemMeta>
+                <ATag color="processing">待处理</ATag>
+              </AListItem>
+            </template>
+          </AList>
+        </ATabPane>
+        <ATabPane key="done" :tab="`已办 ${done.length}`">
+          <AList :data-source="done">
+            <template #renderItem="{ item }">
+              <AListItem
+                class="cursor-pointer"
+                role="button"
+                tabindex="0"
+                :aria-label="`查看${item.businessTitle || item.taskName || item.taskId}`"
+                @click="selectedTask = item"
+                @keydown.enter.prevent="selectedTask = item"
+                @keydown.space.prevent="selectedTask = item"
+              >
+                <AListItemMeta
+                  :title="item.businessTitle || item.taskName || item.taskId"
+                  :description="`${item.taskName || item.taskId} · ${item.processInstanceId || '—'}`"
+                />
+                <ATag>
+                  {{
+                    item.status === 'Completed'
+                      ? '已处理'
+                      : workflowStatusLabel(item.status)
+                  }}
+                </ATag>
+              </AListItem>
+            </template>
+          </AList>
+        </ATabPane>
+        <ATabPane key="started" :tab="`我发起 ${started.length}`">
+          <AList :data-source="started">
+            <template #renderItem="{ item }">
+              <AListItem>
+                <AListItemMeta :description="item.instanceId">
+                  <template #title>
+                    {{ item.businessTitle || item.purposeKey || '流程实例' }}
+                  </template>
+                  <template #description>
+                    <div>{{ item.instanceId }}</div>
+                    <div v-if="item.lastError" class="text-destructive">
+                      {{ item.lastError }}
+                    </div>
+                  </template>
+                </AListItemMeta>
+                <ASpace wrap>
+                  <ATag>
+                    执行：{{
+                      workflowStatusLabel(item.executionStatus || item.status)
+                    }}
+                  </ATag>
+                  <ATag v-if="item.outcome">
+                    结果：{{ workflowStatusLabel(item.outcome) }}
+                  </ATag>
+                  <ATag v-if="item.effectStatus">
+                    业务处理：{{ workflowStatusLabel(item.effectStatus) }}
+                  </ATag>
+                  <AButton
+                    v-if="
+                      canRetry &&
+                      item.pendingDispatchId &&
+                      item.businessType &&
+                      item.businessId
+                    "
+                    :loading="retrying === item.pendingDispatchId"
+                    :disabled="!!retrying || submitting || loading"
+                    @click="retry(item)"
+                  >
+                    重试业务处理
+                  </AButton>
+                </ASpace>
+              </AListItem>
+            </template>
+          </AList>
+        </ATabPane>
+        <ATabPane key="copied" :tab="`抄送 ${copied.length}`">
+          <AEmpty
+            v-if="!loadCopied"
+            description="宿主未提供抄送数据连接器"
+          /><AList v-else :data-source="copied">
+            <template #renderItem="{ item }">
+              <AListItem
+                class="cursor-pointer"
+                role="button"
+                tabindex="0"
+                :aria-label="`查看${item.businessTitle || item.taskName || item.taskId}`"
+                @click="selectedTask = item"
+                @keydown.enter.prevent="selectedTask = item"
+                @keydown.space.prevent="selectedTask = item"
+              >
+                <AListItemMeta
+                  :title="item.businessTitle || item.taskName || item.taskId"
+                  :description="`${item.taskName || item.taskId} · ${item.processInstanceId || '—'}`"
+                />
+              </AListItem>
+            </template>
+          </AList>
+        </ATabPane>
+      </ATabs>
+    </ACard>
+    <ARow v-if="selectedTask" class="mt-4" :gutter="16">
+      <ACol :lg="15" :span="24">
+        <WorkflowTaskPanel
+          :task="selectedTask"
+          :submitting="submitting"
+          :detail-components="detailComponents"
+          @prepare-verification="prepareVerification"
+          @submit="complete"
+        />
+      </ACol>
+      <ACol :lg="9" :span="24">
+        <ACard size="small" title="流程图">
+          <WorkflowProcessDiagram :task="selectedTask" />
+        </ACard>
+      </ACol>
+    </ARow>
   </section>
 </template>

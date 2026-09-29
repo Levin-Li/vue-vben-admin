@@ -639,18 +639,36 @@ describe('crud page display rules', () => {
   });
 
   it('preselects role visibility only for tenant and organization ownership fields', () => {
-    expect(getDefaultVisibleRoleCodes('tenantId')).toEqual(['R_SA']);
+    expect(getDefaultVisibleRoleCodes('tenantId')).toEqual(['R_PLATFORM_SA']);
+    expect(getDefaultVisibleRoleCodes('domainId')).toEqual(['R_PLATFORM_SA']);
     expect(getDefaultVisibleRoleCodes('orgId')).toEqual([
       'R_ORG_ADMIN',
-      'R_SA',
+      'R_PLATFORM_SA',
       'R_ADMIN',
-      'R_SAAS_ADMIN',
+      'R_PLATFORM_ADMIN',
     ]);
+    expect(
+      isRoleVisibilitySatisfied(getDefaultVisibleRoleCodes('tenantId'), [
+        'R_PLATFORM_SA',
+      ]),
+    ).toBe(true);
+    expect(
+      isRoleVisibilitySatisfied(getDefaultVisibleRoleCodes('tenantId'), [
+        'R_SA',
+      ]),
+    ).toBe(false);
+    expect(
+      isRoleVisibilitySatisfied(getDefaultVisibleRoleCodes('orgId'), [
+        'R_SAAS_ADMIN',
+      ]),
+    ).toBe(false);
     expect(getDefaultVisibleRoleCodes('name')).toEqual([]);
   });
 
   it('does not overwrite an explicitly saved empty visible-role selection', () => {
-    expect(initializeVisibleRoleCodes({ key: 'tenantId' })).toEqual(['R_SA']);
+    expect(initializeVisibleRoleCodes({ key: 'tenantId' })).toEqual([
+      'R_PLATFORM_SA',
+    ]);
     expect(
       initializeVisibleRoleCodes({ key: 'tenantId', visibleRoleCodes: [] }),
     ).toEqual([]);
@@ -708,7 +726,7 @@ describe('crud page display rules', () => {
       hidden: false,
       inputDisplay: 'default',
       key: 'tenantId',
-      visibleRoleCodes: ['R_SA'],
+      visibleRoleCodes: ['R_PLATFORM_SA'],
     });
     expect(runtimeField).not.toBe(savedField);
     expect(savedField).toEqual({ key: 'tenantId' });
@@ -939,9 +957,9 @@ describe('分组可见条件', () => {
 
   it('未设置可见角色时只依赖展示脚本结果', () => {
     expect(isDisplayGroupVisible({ key: 'basic' }, true, [])).toBe(true);
-    expect(isDisplayGroupVisible({ key: 'basic' }, false, ['R_SA'])).toBe(
-      false,
-    );
+    expect(
+      isDisplayGroupVisible({ key: 'basic' }, false, ['R_PLATFORM_SA']),
+    ).toBe(false);
   });
 });
 
