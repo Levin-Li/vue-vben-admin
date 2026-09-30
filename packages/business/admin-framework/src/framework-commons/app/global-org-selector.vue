@@ -3,17 +3,23 @@ import type { UserOrgSelectorRecord } from '../shared/user-org-selector-types';
 
 import { computed, ref, watch } from 'vue';
 
+import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
 
-import UserOrgSelector from '../shared/user-org-selector.vue';
+import { Drawer } from 'ant-design-vue';
+
 import { fetchCrudList } from '../api';
+import UserOrgSelector from '../shared/user-org-selector.vue';
 import {
   currentGlobalUserOrgRecords,
   setCurrentGlobalUserOrgRecords,
 } from './global-org-context-state';
 import { globalOrgSelectorRuntimeState } from './global-org-selector-runtime';
 
+defineProps<{ mobileOnly?: boolean }>();
+
 const userStore = useUserStore();
+const mobileSelectorOpen = ref(false);
 const loadedRecords = ref<UserOrgSelectorRecord[]>([]);
 const hasLoadedRecords = ref(false);
 const tenantOptions = ref<Array<{ label: string; value: string }>>([]);
@@ -66,9 +72,17 @@ const isAdmin = computed(() => {
     user.isTopSuperAdmin === true
   );
 });
+watch(visible, (isVisible) => {
+  if (!isVisible) mobileSelectorOpen.value = false;
+});
 const isPlatformUser = computed(() => {
   const user = (userStore.userInfo || {}) as Record<string, any>;
-  return user.platformUser === true || user.isPlatformUser === true || user.superAdmin === true || user.isSuperAdmin === true;
+  return (
+    user.platformUser === true ||
+    user.isPlatformUser === true ||
+    user.superAdmin === true ||
+    user.isSuperAdmin === true
+  );
 });
 
 watch(isPlatformUser, (platformUser) => {
@@ -82,8 +96,15 @@ async function handleDropdownVisibleChange(visible: boolean) {
   if (!visible || !isPlatformUser.value || hasLoadedTenantOptions.value) return;
 
   try {
-    const result = await fetchCrudList('/Tenant/list', { pageIndex: 1, pageSize: 500 }, '/com.levin.oak.base/V1/api');
-    tenantOptions.value = result.items.map((item: any) => ({ label: String(item.name || item.id), value: String(item.id) }));
+    const result = await fetchCrudList(
+      '/Tenant/list',
+      { pageIndex: 1, pageSize: 500 },
+      '/com.levin.oak.base/V1/api',
+    );
+    tenantOptions.value = result.items.map((item: any) => ({
+      label: String(item.name || item.id),
+      value: String(item.id),
+    }));
     hasLoadedTenantOptions.value = true;
   } catch {
     tenantOptions.value = [];
@@ -125,12 +146,23 @@ function handleSelectedRecords(records: UserOrgSelectorRecord[]) {
     records,
     selectorConfig.value.multiple === true,
   );
+  if (selectorConfig.value.multiple !== true) mobileSelectorOpen.value = false;
 }
 </script>
 
 <template>
+  <button
+    v-if="mobileOnly && globalOrgSelectorRuntimeState.enabled && visible"
+    aria-label="选择用户或组织"
+    class="border-border bg-card text-foreground flex size-9 shrink-0 items-center justify-center rounded-md border"
+    data-testid="mobile-global-user-org-trigger"
+    type="button"
+    @click="mobileSelectorOpen = true"
+  >
+    <IconifyIcon class="size-5" icon="lucide:users-round" />
+  </button>
   <UserOrgSelector
-    v-if="globalOrgSelectorRuntimeState.enabled"
+    v-if="!mobileOnly && globalOrgSelectorRuntimeState.enabled"
     v-bind="selectorConfig"
     :model-value="selectedValue"
     data-testid="global-user-org-selector"
@@ -141,4 +173,24 @@ function handleSelectedRecords(records: UserOrgSelectorRecord[]) {
     @loaded="handleLoaded"
     @update:selected-records="handleSelectedRecords"
   />
+  <Drawer
+    v-if="mobileOnly"
+    v-model:open="mobileSelectorOpen"
+    data-testid="mobile-global-user-org-drawer"
+    height="75vh"
+    placement="bottom"
+    title="选择用户或组织"
+  >
+    <UserOrgSelector
+      v-if="mobileSelectorOpen && globalOrgSelectorRuntimeState.enabled"
+      v-bind="selectorConfig"
+      :model-value="selectedValue"
+      class="w-full"
+      :show-tenant-nodes="isPlatformUser"
+      :tenant-options="tenantOptions"
+      @dropdown-visible-change="handleDropdownVisibleChange"
+      @loaded="handleLoaded"
+      @update:selected-records="handleSelectedRecords"
+    />
+  </Drawer>
 </template>

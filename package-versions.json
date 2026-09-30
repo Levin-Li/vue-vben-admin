@@ -5,7 +5,7 @@
     "@vben/runtime": "5.6.119",
     "@vben/common-ui": "5.6.119",
     "@vben/layouts": "5.6.119",
-    "@levin/admin-framework": "5.6.119",
-    "@levin/oak-base-admin": "5.6.119"
+    "@levin/admin-framework": "5.6.120",
+    "@levin/oak-base-admin": "5.6.120"
   }
 }
