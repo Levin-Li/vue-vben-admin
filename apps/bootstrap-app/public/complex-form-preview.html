@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>三层嵌套对象表单预览</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f3f5f8; color: #303745; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .page { max-width: 1320px; margin: 0 auto; padding: 40px 28px 64px; }
+      h1 { margin: 0; font-size: 26px; } .intro { margin: 8px 0 28px; color: #778194; font-size: 15px; }
+      .form { padding: 28px; border: 1px solid #dbe1eb; border-radius: 12px; background: #fff; box-shadow: 0 8px 30px rgba(31, 46, 78, .08); }
+      .business-group { margin-top: 30px; } .business-group:first-child { margin-top: 0; }
+      .business-head { display: flex; align-items: center; gap: 12px; padding: 0 0 14px; border-bottom: 1px solid #dce3ee; }
+      .business-number { width: 4px; height: 26px; border-radius: 999px; background: #716cf0; color: transparent; font-size: 0; } .business-title { font-size: 18px; font-weight: 700; } .business-tip { display: none; } .business-collapse { margin-left: auto; padding: 0; color: #716cf0; font-size: 14px; font-weight: 500; background: transparent; border: 0; cursor: pointer; }
+      .object { margin: 18px; overflow: hidden; border: 1px solid #d8dfeb; border-radius: 8px; background: #fff; } .object.depth-1 { margin: 18px 0; } .object.depth-2 { margin: 18px; border-color: #dfe5ee; } .object.depth-3 { margin: 18px; border-color: #e4e8f0; }
+      .object-head { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid #edf0f5; background: #f8faff; font-size: 14px; font-weight: 600; } .depth-2 > .object-head { background: #fafbfe; } .depth-3 > .object-head { background: #fcfcfe; }
+      .object-toggle, .object-title { display: inline-flex; gap: 8px; align-items: center; margin: 0; color: #303745; font-size: 14px; font-weight: 600; } .object-toggle { cursor: pointer; } .object-toggle input { width: 18px; height: 18px; margin: 0; accent-color: #716cf0; } .object-hint { display: none; color: #778194; font-size: 13px; font-weight: 400; } .object-hint.is-danger { display: inline; color: #e5484d; } .object-collapse { margin-left: auto; padding: 0; color: #716cf0; font: inherit; font-weight: 500; background: transparent; border: 0; cursor: pointer; }
+      .group-fields, .fields { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; padding: 16px; } .group-fields { padding: 18px 0 0; } label { display: block; margin-bottom: 6px; color: #4a5568; font-size: 14px; font-weight: 500; } .input { min-height: 40px; padding: 9px 11px; overflow: hidden; border: 1px solid #dce2eb; border-radius: 6px; color: #a4adba; background: #fff; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; }
+      .object.is-collapsed > .fields, .object.is-collapsed > .object, .business-group.is-collapsed > .group-fields, .business-group.is-collapsed > .object { display: none; }
+      .confirm-mask { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(0, 0, 0, .45); } .confirm-mask[hidden] { display: none; } .confirm-dialog { width: min(360px, calc(100vw - 32px)); padding: 20px; border-radius: 8px; background: #fff; box-shadow: 0 14px 36px rgba(0, 0, 0, .22); } .confirm-title { margin: 0 0 14px; color: #303745; font-size: 16px; font-weight: 600; } .confirm-message { margin: 0 0 20px; color: #303745; font-size: 14px; } .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; } .confirm-actions button { min-width: 64px; height: 32px; border-radius: 6px; font-size: 14px; cursor: pointer; } .confirm-cancel { color: #4a5568; background: #fff; border: 1px solid #dce2eb; } .confirm-ok { color: #fff; background: #716cf0; border: 1px solid #716cf0; }
+      @media (max-width: 1080px) { .fields { grid-template-columns: repeat(3, minmax(0, 1fr)); } } @media (max-width: 680px) { .page { padding: 24px 12px; } .form { padding: 14px; } .business-tip, .object-note { display: none; } .fields { grid-template-columns: 1fr; } .object, .object.depth-2, .object.depth-3 { margin: 12px; } }
+    </style>
+  </head>
+  <body>
+    <main class="page"><h1>新增合作伙伴</h1><p class="intro">一级为 3 个业务分组；每组内依次嵌套对象第 1、2、3 层，每个对象均含 5 个模拟字段。</p><section id="form" class="form"></section></main>
+    <div id="confirm-mask" class="confirm-mask" hidden><section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><h2 id="confirm-title" class="confirm-title">操作确认</h2><p id="confirm-message" class="confirm-message"></p><div class="confirm-actions"><button id="confirm-cancel" class="confirm-cancel" type="button">取消</button><button id="confirm-ok" class="confirm-ok" type="button">确定</button></div></section></div>
+    <script>
+      const groups = [
+        { title: '主体与证照信息', fields: ['合作伙伴简称', '主体名称', '主体类型', '合作类别', '启用状态'], layers: [['主体档案', ['统一社会信用代码', '成立日期', '经营状态', '注册资本', '所属行业']], ['法人身份对象', ['法人姓名', '法人电话', '法人邮箱', '身份证号', '证件类型']], ['法人证件对象', ['证件号码', '签发机关', '签发日期', '有效期至', '证件附件']]] },
+        { title: '联系与邮寄信息', fields: ['联系偏好', '默认联系人', '归属组织', '所属用户', '业务分组'], layers: [['联系档案', ['主联系人', '联系电话', '联系邮箱', '联系人职务', '紧急电话']], ['收件联系人对象', ['收件人姓名', '收件人电话', '收件人邮箱', '收件部门', '收件备注']], ['收件地址对象', ['国家/地区', '省级行政区', '市级行政区', '区县行政区', '详细地址']]] },
+        { title: '结算与业务信息', fields: ['合作等级', '投资关系', '业务负责人', '合作开始日期', '当前状态'], layers: [['结算档案', ['结算主体', '结算币种', '结算周期', '税务类别', '业务备注']], ['开票对象', ['发票抬头', '纳税人识别号', '开票邮箱', '开户地址', '开票电话']], ['银行账户对象', ['开户银行', '银行账号', '账户名称', '联行号', '账户状态']]] },
+      ];
+      const selectWords = new Set(['主体类型', '经营状态', '证件类型', '联系偏好', '国家/地区', '省级行政区', '市级行政区', '区县行政区', '结算币种', '结算周期', '税务类别', '账户状态']);
+      const input = field => `<div><label>${field}</label><div class="input">${selectWords.has(field) ? `请选择${field}　⌄` : `请输入${field}`}</div></div>`;
+      const object = (layers, depth = 0) => { const [title, fields] = layers[depth]; const hint = depth === 0 ? '不勾选则不提交该信息' : '不勾选则清空该信息'; const heading = `<label class="object-toggle"><input class="object-submit-toggle" type="checkbox" checked data-clear-on-uncheck="${depth > 0}" data-title="${title}"><span>${title}</span></label><span class="object-hint">${hint}</span>`; return `<section class="object depth-${depth + 1}"><header class="object-head">${heading}<button class="object-collapse" type="button" aria-expanded="true">⌃　收起</button></header><div class="fields">${fields.map(input).join('')}</div>${layers[depth + 1] ? object(layers, depth + 1) : ''}</section>`; };
+      const showBusinessCollapse = groups.length > 2;
+      document.querySelector('#form').innerHTML = groups.map((group, index) => `<section class="business-group"><header class="business-head"><span class="business-number">${index + 1}</span><span class="business-title">${group.title}</span><span class="business-tip">第一层业务分组</span>${showBusinessCollapse ? '<button class="business-collapse" type="button" aria-expanded="true">⌃　收起</button>' : ''}</header><div class="group-fields">${group.fields.map(input).join('')}</div>${object(group.layers)}</section>`).join('');
+      document.querySelectorAll('.object-collapse').forEach(button => button.addEventListener('click', () => { const object = button.closest('.object'); const collapsed = object.classList.toggle('is-collapsed'); button.setAttribute('aria-expanded', String(!collapsed)); button.textContent = collapsed ? '⌄　展开' : '⌃　收起'; }));
+      document.querySelectorAll('.business-collapse').forEach(button => button.addEventListener('click', () => { const group = button.closest('.business-group'); const collapsed = group.classList.toggle('is-collapsed'); button.setAttribute('aria-expanded', String(!collapsed)); button.textContent = collapsed ? '⌄　展开' : '⌃　收起'; }));
+      const confirmMask = document.querySelector('#confirm-mask');
+      const confirmMessage = document.querySelector('#confirm-message');
+      let pendingToggle;
+      document.querySelectorAll('.object-submit-toggle').forEach(input => input.addEventListener('change', () => { const hint = input.closest('.object-head').querySelector('.object-hint'); if (input.checked) { hint.classList.remove('is-danger'); return; } pendingToggle = input; input.checked = true; confirmMessage.textContent = input.dataset.clearOnUncheck === 'true' ? `取消将清除${input.dataset.title}信息` : `取消将不提交${input.dataset.title}信息`; confirmMask.hidden = false; }));
+      document.querySelector('#confirm-cancel').addEventListener('click', () => { pendingToggle = undefined; confirmMask.hidden = true; });
+      document.querySelector('#confirm-ok').addEventListener('click', () => { if (pendingToggle) { pendingToggle.checked = false; const hint = pendingToggle.closest('.object-head').querySelector('.object-hint'); hint.textContent = pendingToggle.dataset.clearOnUncheck === 'true' ? '当前未勾选将清除该部分信息' : '当前未勾选将不提交该部分信息'; hint.classList.add('is-danger'); } pendingToggle = undefined; confirmMask.hidden = true; });
+    </script>
+  </body>
+</html>

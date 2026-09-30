@@ -29,6 +29,34 @@ const canViewStarted = computed(() =>
 const canRetry = computed(() =>
   hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'retry')),
 );
+const canUploadAttachment = computed(() =>
+  hasPermission(
+    buildApiMethodPermissions(workflowRuntimeService, 'uploadAttachment'),
+  ),
+);
+const canViewAttachments = computed(() =>
+  hasPermission(
+    buildApiMethodPermissions(workflowRuntimeService, 'attachments'),
+  ),
+);
+const canDownloadAttachment = computed(() =>
+  hasPermission(
+    buildApiMethodPermissions(workflowRuntimeService, 'downloadAttachment'),
+  ),
+);
+const canViewPendingAttachments = computed(() =>
+  hasPermission(
+    buildApiMethodPermissions(workflowRuntimeService, 'pendingAttachments'),
+  ),
+);
+const canDeletePendingAttachment = computed(() =>
+  hasPermission(
+    buildApiMethodPermissions(
+      workflowRuntimeService,
+      'deletePendingAttachment',
+    ),
+  ),
+);
 
 // 运行工作台消费当前登录会话，不从路由参数接收用户或租户身份。
 function showError(error: unknown) {
@@ -46,6 +74,11 @@ function showError(error: unknown) {
     :can-view-done="canViewDone"
     :can-view-started="canViewStarted"
     :can-retry="canRetry"
+    :can-upload-attachment="canUploadAttachment && canViewPendingAttachments"
+    :can-view-attachments="canViewAttachments"
+    :can-download-attachment="canDownloadAttachment"
+    :can-view-pending-attachments="canViewPendingAttachments"
+    :can-delete-pending-attachment="canDeletePendingAttachment"
     @error="showError"
   />
 </template>

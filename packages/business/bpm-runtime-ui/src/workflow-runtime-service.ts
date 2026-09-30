@@ -1,4 +1,5 @@
 import type {
+  WorkflowAttachmentMeta,
   WorkflowBusinessReference,
   WorkflowCompleteRequest,
   WorkflowEligibility,
@@ -8,6 +9,7 @@ import type {
 } from './types';
 
 import { RequestService } from '@levin/admin-framework';
+import { requestClient } from '@levin/admin-framework/framework-commons/runtime';
 
 /**
  * 流程执行组件的默认服务端连接器。
@@ -19,12 +21,42 @@ export class WorkflowRuntimeService extends RequestService {
     super(basePath);
   }
 
+  /** 实例附件列表重新授权，只返回已随成功动作绑定的元数据。 */
+  async attachments(instanceId: string) {
+    return this.get<WorkflowAttachmentMeta[]>(
+      'workflow-runtime/attachment/list',
+      { params: { instanceId } },
+    );
+  }
+
   async complete(data: WorkflowCompleteRequest) {
     return this.post<WorkflowTaskView>('workflow-runtime/complete', { data });
   }
 
+  async deletePendingAttachment(taskId: string, id: string) {
+    return this.post<unknown>('workflow-runtime/attachment/deletePending', {
+      data: { taskId, id },
+    });
+  }
+
   async done() {
     return this.get<WorkflowTaskView[]>('workflow-runtime/done');
+  }
+
+  /** 下载响应为私有字节 Blob，不能拼接 FileRes 或公开静态路径。 */
+  async downloadAttachment(id: string) {
+    const result = await this.get<Blob>(
+      'workflow-runtime/attachment/download',
+      {
+        params: { id },
+        responseType: 'blob',
+      },
+    );
+    // 当前后端拒绝可能以 JSON 业务错误体返回 HTTP 200；不得把该响应当文件下载。
+    if (!(result instanceof Blob) || result.type.includes('json')) {
+      throw new Error('私有附件下载未授权或响应格式无效');
+    }
+    return result;
   }
 
   /** 资格只是当前快照；真正发起时服务端再次检查权限、依赖及活动实例互斥。 */
@@ -52,6 +84,14 @@ export class WorkflowRuntimeService extends RequestService {
     },
   ) {
     return this.post<string>('workflow-runtime/business/newRound', { data });
+  }
+
+  /** 仅恢复当前用户该待办尚未绑定的私有附件，不从浏览器本地缓存推断。 */
+  async pendingAttachments(taskId: string) {
+    return this.get<WorkflowAttachmentMeta[]>(
+      'workflow-runtime/attachment/pending',
+      { params: { taskId } },
+    );
   }
 
   async prepareStepUpAuth(
@@ -125,5 +165,16 @@ export class WorkflowRuntimeService extends RequestService {
 
   async todo() {
     return this.get<WorkflowTaskView[]>('workflow-runtime/todo');
+  }
+
+  /** 上传只提交当前任务与文件，后端返回私有 ID 而不是公开 URL。 */
+  async uploadAttachment(taskId: string, file: File) {
+    const upload = requestClient.upload;
+    if (!upload) throw new Error('当前宿主不支持私有附件上传。');
+    return upload<WorkflowAttachmentMeta>(
+      this.buildRequestPath('workflow-runtime/attachment/upload'),
+      { taskId, file },
+      { baseURL: '' },
+    );
   }
 }

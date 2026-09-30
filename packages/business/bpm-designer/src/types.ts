@@ -1,7 +1,4 @@
-/**
- * 与后端受支持低代码流程 JSON 对齐的设计器模型。
- * 画布只产生 start/userTask/end；发布前仍由服务端转换器做最终校验。
- */
+/** v2 平面图仅供显式迁移工具及历史转换测试使用；可编辑 UI 使用 v3 树。 */
 export type WorkflowNodeType =
   | 'end'
   | 'exclusiveGateway'
@@ -60,8 +57,15 @@ export interface WorkflowBusinessAction {
   transaction?: 'external' | 'local';
   writableFields?: string[];
 }
+export interface WorkflowApproverResolver {
+  parameters?: Record<string, WorkflowCapabilityField>;
+  permission?: string;
+  simulation?: unknown;
+  title: string;
+}
 export interface WorkflowBusinessType {
   actions?: Record<string, WorkflowBusinessAction>;
+  approverResolvers?: null | Record<string, WorkflowApproverResolver>;
   businessType: string;
   contractVersion: number | string;
   eventTypes?: string[];
@@ -105,6 +109,10 @@ export interface WorkflowNode {
   actionCandidateUsers?: string[];
   actions?: string[];
   allowSelfApproval?: boolean;
+  approverResolver?: {
+    key: string;
+    parameters?: Record<string, WorkflowOperand>;
+  };
   candidateGroups?: string[];
   candidateUsers?: string[];
   deadlineEscalationUsers?: string[];
@@ -178,7 +186,7 @@ export interface WorkflowDefinitionVersion {
   bpmnXml?: string;
   id: string;
   lifecycle: WorkflowVersionLifecycle;
-  lowflowDefinition?: WorkflowDesignerDefinition;
+  lowflowDefinition?: import('./workflow-tree-version').WorkflowTreeVersion;
   lowflowJson?: string;
   optimisticLock?: number;
   simulationReport?: WorkflowSimulationReport;
@@ -188,6 +196,7 @@ export interface WorkflowDefinitionVersion {
 
 export interface WorkflowSimulationReport {
   coveredBranches?: string[];
+  coveredTaskKeys?: string[];
   finishedAt?: string;
   message?: string;
   runId?: string;

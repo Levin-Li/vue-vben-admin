@@ -2,6 +2,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { partnerService } from '../../api/partner-service';
 import {
+  buildDictOptionsLoader,
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
@@ -34,6 +35,9 @@ const certificationStatusOptionsLoader = buildEnumOptionsLoader(
 );
 const investmentRelationOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.Partner$InvestmentRelation',
+);
+const levelOptionsLoader = buildDictOptionsLoader(
+  'com.levin.oak.base.entities.Partner.level',
 );
 
 const imageField = (
@@ -116,12 +120,10 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       submitKey: 'shippingInfo',
       fieldMappings: {
         shippingAddress: 'address',
-        shippingCityCode: 'cityCode',
+        shippingAreaCode: 'areaCode',
         shippingContactName: 'contactName',
         shippingContactPhone: 'contactPhone',
-        shippingDistrictCode: 'districtCode',
         shippingNationCode: 'nationCode',
-        shippingProvinceCode: 'provinceCode',
         shippingZipCode: 'zipCode',
       },
     },
@@ -245,12 +247,22 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       width: 130,
     },
     {
+      key: 'level',
+      label: '级别',
+      layoutGroup: 'ownership',
+      layoutOrder: 65,
+      loadOptions: levelOptionsLoader,
+      search: true,
+      table: true,
+      type: 'select',
+      width: 120,
+    },
+    {
       key: 'subjectType',
       label: '主体类型',
       layoutGroup: 'basic',
       layoutOrder: 60,
       loadOptions: subjectTypeOptionsLoader,
-      required: true,
       search: true,
       table: true,
       type: 'select',
@@ -301,6 +313,13 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       help: getSubjectIdentityImageHelp,
     },
     {
+      key: 'logo',
+      label: 'Logo',
+      layoutGroup: 'content',
+      layoutOrder: 55,
+      type: 'image',
+    },
+    {
       key: 'businessPremises',
       label: '营业场所照片',
       layoutGroup: 'content',
@@ -325,6 +344,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'extension',
       layoutGroupTitle: '扩展信息',
       layoutOrder: 10,
+      required: true,
       width: 140,
     },
     {
@@ -334,7 +354,17 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'extension',
       layoutGroupTitle: '扩展信息',
       layoutOrder: 20,
+      required: true,
       width: 150,
+    },
+    {
+      key: 'legalEmail',
+      label: '法人邮箱',
+      complexGroupKey: 'legal',
+      layoutGroup: 'extension',
+      layoutGroupTitle: '扩展信息',
+      layoutOrder: 25,
+      width: 180,
     },
     {
       key: 'legalIdNo',
@@ -366,6 +396,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'extension',
       layoutGroupTitle: '扩展信息',
       layoutOrder: 110,
+      required: true,
       table: true,
       width: 120,
     },
@@ -376,6 +407,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'extension',
       layoutGroupTitle: '扩展信息',
       layoutOrder: 120,
+      required: true,
       table: true,
       width: 150,
     },
@@ -419,6 +451,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'business',
       layoutGroupTitle: '业务信息',
       layoutOrder: 10,
+      required: true,
       span: 2,
     },
     {
@@ -428,6 +461,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'business',
       layoutGroupTitle: '业务信息',
       layoutOrder: 20,
+      required: true,
       width: 180,
     },
     {
@@ -437,6 +471,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'business',
       layoutGroupTitle: '业务信息',
       layoutOrder: 30,
+      required: true,
       span: 2,
     },
     {
@@ -446,6 +481,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'business',
       layoutGroupTitle: '业务信息',
       layoutOrder: 40,
+      required: true,
       width: 160,
     },
     {
@@ -455,6 +491,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'business',
       layoutGroupTitle: '业务信息',
       layoutOrder: 50,
+      required: true,
       width: 220,
     },
     {
@@ -464,6 +501,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'business',
       layoutGroupTitle: '业务信息',
       layoutOrder: 60,
+      required: true,
       width: 220,
     },
     {
@@ -482,6 +520,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'extension',
       layoutGroupTitle: '扩展信息',
       layoutOrder: 210,
+      required: true,
       width: 140,
     },
     {
@@ -491,6 +530,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'extension',
       layoutGroupTitle: '扩展信息',
       layoutOrder: 220,
+      required: true,
       width: 150,
     },
     {
@@ -504,44 +544,16 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       width: 120,
     },
     {
-      key: 'shippingProvinceCode',
-      label: '省级行政编码',
+      key: 'shippingAreaCode',
+      label: '省市区编码',
       areaCascader: {
-        selectableLevels: ['province'],
-        valueKey: 'shippingProvinceCode',
+        selectableLevels: ['district'],
+        valueKey: 'shippingAreaCode',
       },
       complexGroupKey: 'shipping',
       layoutGroup: 'extension',
       layoutGroupTitle: '扩展信息',
       layoutOrder: 240,
-      type: 'area-cascader',
-      width: 140,
-    },
-    {
-      key: 'shippingCityCode',
-      label: '市级行政编码',
-      areaCascader: {
-        selectableLevels: ['city'],
-        valueKey: 'shippingCityCode',
-      },
-      complexGroupKey: 'shipping',
-      layoutGroup: 'extension',
-      layoutGroupTitle: '扩展信息',
-      layoutOrder: 250,
-      type: 'area-cascader',
-      width: 140,
-    },
-    {
-      key: 'shippingDistrictCode',
-      label: '区县行政编码',
-      areaCascader: {
-        selectableLevels: ['district'],
-        valueKey: 'shippingDistrictCode',
-      },
-      complexGroupKey: 'shipping',
-      layoutGroup: 'extension',
-      layoutGroupTitle: '扩展信息',
-      layoutOrder: 260,
       type: 'area-cascader',
       width: 140,
     },
@@ -552,6 +564,7 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutGroup: 'extension',
       layoutGroupTitle: '扩展信息',
       layoutOrder: 270,
+      required: true,
       maxLength: 384,
       fullRow: true,
       type: 'textarea',
@@ -579,11 +592,24 @@ export const partnerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       width: 100,
     },
     {
-      key: 'certificationRejectReason',
-      label: '认证拒绝原因',
+      key: 'lastStatusDesc',
+      label: '最后状态描述',
       form: false,
       table: true,
       width: 220,
+    },
+    {
+      key: 'lastStatusTime',
+      label: '最后状态变更时间',
+      form: false,
+      type: 'datetime',
+    },
+    {
+      key: 'editable',
+      label: '是否可编辑',
+      form: false,
+      type: 'switch',
+      valueType: 'boolean',
     },
     {
       key: 'remark',

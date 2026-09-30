@@ -6,6 +6,7 @@ import type { ScriptWorkbenchVariableGroup } from './script-workbench-dialog.vue
 import type { CrudListOperationCandidate } from './crud-list-operations';
 import type {
   CrudFieldConfig,
+  CrudComplexGroupConfig,
   CrudPageDisplayActionCandidate,
   CrudPageDisplayActionConfig,
   CrudPageDisplayConfig,
@@ -52,6 +53,7 @@ import { DEFAULT_LIST_OPERATIONS } from './crud-list-operations';
 import {
   findDisplayRuleCycle,
   getDefaultFieldHidden,
+  getComplexObjectDisplayGroupKey,
   getDefaultVisibleRoleCodes,
   getDisplaySubmitMode,
   initializeFieldHidden,
@@ -91,6 +93,7 @@ const props = defineProps<{
   detailFields?: CrudFieldConfig[];
   domainObject?: boolean;
   fields: CrudFieldConfig[];
+  complexGroups?: CrudComplexGroupConfig[];
   formElements?: CrudFormElementDeclaration[];
   initialScope?: Scope;
   modelValue?: CrudPageDisplayConfig;
@@ -482,6 +485,16 @@ function getAllowedFields(view: Exclude<View, 'list'>) {
   return fields;
 }
 
+// 新增、编辑和详情的复杂对象字段始终归属其对象分组。
+function getComplexObjectGroupKey(view: View, fieldKey: string) {
+  if (view !== 'create' && view !== 'edit' && view !== 'detail')
+    return undefined;
+  const field = props.fields.find((item) => item.key === fieldKey);
+  return field?.complexGroupKey
+    ? getComplexObjectDisplayGroupKey(field.complexGroupKey)
+    : undefined;
+}
+
 function ensureFields(view: Exclude<View, 'list'>) {
   const holder = (draft.value[view] ||= { fields: [] });
   const allowed = getAllowedFields(view);
@@ -523,6 +536,11 @@ function ensureFields(view: Exclude<View, 'list'>) {
     holder.fields = nextFields;
   }
   for (const field of holder.fields) {
+    const objectGroupKey = getComplexObjectGroupKey(view, field.key);
+    if (objectGroupKey) {
+      field.layoutGroup = objectGroupKey;
+      field.layoutGroupExcluded = false;
+    }
     field.hidden = initializeFieldHidden(field, { view });
     field.inputDisplay ??= 'default';
     // 后端已必填字段固定保留必填标记，设置界面不得将其取消。
@@ -571,6 +589,17 @@ function ensureGroups(view: GroupView) {
   const groups = (holder.groups ||= getDevelopmentDefaultGroups(view).map(
     ({ developmentDefault, ...group }) => group,
   ));
+  // 已保存的普通分组仍保留，对象分组按当前静态模型补齐。
+  for (const objectGroup of getDevelopmentDefaultGroups(view).filter((group) =>
+    group.key.startsWith('complex:'),
+  )) {
+    if (groups.some((group) => group.key === objectGroup.key)) continue;
+    groups.push({
+      key: objectGroup.key,
+      title: objectGroup.title,
+      order: Math.max(-1, ...groups.map((group) => group.order ?? -1)) + 1,
+    });
+  }
   for (const [index, group] of groups.entries()) {
     group.defaultExpandedRows ??= group.defaultExpanded === false ? 1 : 'all';
     group.displayStyle = normalizeCrudGroupDisplayStyle(group.displayStyle);
@@ -743,24 +772,29 @@ const previewSignature = computed(() =>
 );
 function getDevelopmentDefaultGroups(view: GroupView): DrawerDisplayGroup[] {
   const fields = getAllowedFields(view);
-  if (fields.length < 7) return [];
   const entries = new Map<string, CrudFieldConfig[]>();
   for (const field of fields) {
-    if (!field.layoutGroup) continue;
-    entries.set(field.layoutGroup, [
-      ...(entries.get(field.layoutGroup) || []),
-      field,
-    ]);
+    const groupKey =
+      getComplexObjectGroupKey(view, field.key) || field.layoutGroup;
+    if (!groupKey) continue;
+    entries.set(groupKey, [...(entries.get(groupKey) || []), field]);
   }
   return [...entries.entries()]
-    .filter(([, groupFields]) => isEligibleStaticDisplayGroup(groupFields))
+    .filter(
+      ([key, groupFields]) =>
+        key.startsWith('complex:') ||
+        (fields.length >= 7 && isEligibleStaticDisplayGroup(groupFields)),
+    )
     .map(([key, groupFields], index) => ({
       developmentDefault: true,
       key,
       order: index,
-      title:
-        groupFields.find((field) => field.layoutGroupTitle)?.layoutGroupTitle ||
-        key,
+      title: key.startsWith('complex:')
+        ? props.complexGroups?.find(
+            (group) => getComplexObjectDisplayGroupKey(group.key) === key,
+          )?.title || key
+        : groupFields.find((field) => field.layoutGroupTitle)
+            ?.layoutGroupTitle || key,
     }));
 }
 
@@ -806,6 +840,11 @@ function isSourceFieldRequired(key: string) {
 
 function getSourceLayoutGroupTitle(key: string) {
   const field = props.fields.find((item) => item.key === key);
+  if (field?.complexGroupKey) {
+    return props.complexGroups?.find(
+      (group) => group.key === field.complexGroupKey,
+    )?.title;
+  }
   if (!field?.layoutGroup || props.fields.length < 7) return undefined;
   const groupFields = props.fields.filter(
     (item) => item.layoutGroup === field.layoutGroup,
@@ -823,6 +862,8 @@ function getRowGroupKey(
   view = activeKey.value,
 ) {
   if (!isGroupableView(view)) return undefined;
+  const objectGroupKey = getComplexObjectGroupKey(view, row.key);
+  if (objectGroupKey) return objectGroupKey;
   const configuredKey = row.layoutGroup;
   if (row.layoutGroupExcluded === true) return undefined;
   if (configuredKey) {
@@ -854,9 +895,14 @@ function getRowGroupsForView(view: View) {
   const displayGroups = resolveGroups(view);
   const displayGroupKeys = new Set(displayGroups.map((group) => group.key));
   const sourceGroupByKey = new Map(
-    getAllowedFields(view).map((field) => [field.key, field.layoutGroup]),
+    getAllowedFields(view).map((field) => [
+      field.key,
+      getComplexObjectGroupKey(view, field.key) || field.layoutGroup,
+    ]),
   );
   const resolveRowGroupKey = (row: CrudPageDisplayFieldConfig) => {
+    const objectGroupKey = getComplexObjectGroupKey(view, row.key);
+    if (objectGroupKey) return objectGroupKey;
     if (row.layoutGroupExcluded === true) return undefined;
     const groupKey = row.layoutGroup || sourceGroupByKey.get(row.key);
     return groupKey && displayGroupKeys.has(groupKey) ? groupKey : undefined;
@@ -938,6 +984,8 @@ function getRowGroupRows(
 
 function assignRowToGroup(row: CrudPageDisplayFieldConfig, value: unknown) {
   if (!isGroupableView(activeKey.value)) return;
+  if (getComplexObjectGroupKey(activeKey.value, row.key)) return;
+  if (typeof value === 'string' && value.startsWith('complex:')) return;
   const groupKey =
     typeof value === 'string' &&
     orderedActiveGroups.value.some((group) => group.key === value)
@@ -1063,11 +1111,22 @@ function dropAt(
     target.key === '__actions'
   )
     return;
+  if (
+    getRowGroupKey(target as CrudPageDisplayFieldConfig) !==
+      getRowGroupKey(source as CrudPageDisplayFieldConfig) &&
+    (getComplexObjectGroupKey(activeKey.value, source.key) ||
+      getComplexObjectGroupKey(activeKey.value, target.key))
+  )
+    return;
   if (isGroupableView(activeKey.value)) {
-    const groupKey = getRowGroupKey(target as CrudPageDisplayFieldConfig);
-    (source as CrudPageDisplayFieldConfig).layoutGroup = groupKey;
-    (source as CrudPageDisplayFieldConfig).layoutGroupExcluded =
-      groupKey === undefined;
+    if (getComplexObjectGroupKey(activeKey.value, source.key)) {
+      // 对象字段只允许在本对象内排序。
+    } else {
+      const groupKey = getRowGroupKey(target as CrudPageDisplayFieldConfig);
+      (source as CrudPageDisplayFieldConfig).layoutGroup = groupKey;
+      (source as CrudPageDisplayFieldConfig).layoutGroupExcluded =
+        groupKey === undefined;
+    }
   }
   const groupRows = getRowGroupRows(target);
   const reordered = groupRows.filter((row) => row !== source);
@@ -1093,9 +1152,10 @@ function restoreDevelopmentDefaultGroups(view: GroupView) {
   for (const [index, field] of fields.entries()) {
     const source = sourceByKey.get(field.key);
     field.layoutGroup =
-      source?.layoutGroup && defaultKeys.has(source.layoutGroup)
+      getComplexObjectGroupKey(view, field.key) ||
+      (source?.layoutGroup && defaultKeys.has(source.layoutGroup)
         ? source.layoutGroup
-        : undefined;
+        : undefined);
     field.layoutGroupExcluded = false;
     field.order = source?.layoutOrder ?? index;
   }
@@ -1135,6 +1195,7 @@ function addGroup() {
 
 function removeGroup(group: CrudPageDisplayGroupConfig) {
   if (!isGroupableView(activeKey.value)) return;
+  if (group.key.startsWith('complex:')) return;
   const view = activeKey.value;
   // 同时解除仅由开发默认值继承的归属，保证移除分组后字段真的回到默认区。
   for (const field of ensureFields(view)) {
@@ -1770,6 +1831,7 @@ function patchSelectedItem(patch: Record<string, unknown>) {
 function removeGroupFromList(group: CrudPageDisplayGroupConfig) {
   const view = activeKey.value;
   if (!isGroupableView(view)) return;
+  if (group.key.startsWith('complex:')) return;
 
   // 删除前只展示确认，不提前移动字段；确认时再次核对视图和分组，避免操作到过期对象。
   Modal.confirm({
@@ -1879,6 +1941,19 @@ watch(activeKey, () => {
   selectedItem.value = undefined;
 });
 
+// 服务端配置和本地开发默认值都先经过同一补齐过程，再建立关闭比较基准。
+function initializeDraftFromProps() {
+  draft.value = resolveCrudPageDisplayDefaults(clone(props.modelValue));
+  scope.value = normalizeScope(props.initialScope);
+  for (const view of ['query', 'create', 'edit', 'detail'] as const) {
+    ensureFields(view);
+    ensureGroups(view);
+  }
+  ensureHeaders();
+  ensureActions();
+  initialSnapshot.value = currentSnapshot();
+}
+
 watch(
   () => props.open,
   (open) => {
@@ -1889,19 +1964,10 @@ watch(
     for (const view of Object.keys(fieldSearchKeywords) as View[]) {
       fieldSearchKeywords[view] = '';
     }
-    draft.value = resolveCrudPageDisplayDefaults(clone(props.modelValue));
-    scope.value = normalizeScope(props.initialScope);
+    initializeDraftFromProps();
     void loadScopeOptions();
     void loadRoleVisibilityOptions();
-    // 一次补齐数据并建立关闭比较基线；复杂 UI 始终只挂载选中项，不因切换视图产生假修改。
-    for (const view of ['query', 'create', 'edit', 'detail'] as const) {
-      ensureFields(view);
-      ensureGroups(view);
-    }
-    ensureHeaders();
-    ensureActions();
     selectedItem.value = undefined;
-    initialSnapshot.value = currentSnapshot();
     previewExpanded.value = false;
     void refreshPreviewOverflow();
   },
@@ -1912,12 +1978,16 @@ watch(
   () => [props.modelValue, props.initialScope] as const,
   ([modelValue]) => {
     if (!props.open) return;
-    const savedSnapshot = JSON.stringify({
-      config: modelValue || { version: 1 },
-      scope: normalizeScope(props.initialScope),
-    });
-    // 保存结果成为新基线，保留上传期间继续编辑的草稿。
-    initialSnapshot.value = savedSnapshot;
+    // 未编辑时接收异步加载结果；上传回显与当前草稿相同则更新基准。
+    if (initialSnapshot.value === currentSnapshot()) {
+      initializeDraftFromProps();
+    } else if (
+      JSON.stringify(modelValue) === JSON.stringify(draft.value) &&
+      JSON.stringify(normalizeScope(props.initialScope)) ===
+        JSON.stringify(normalizeScope(scope.value))
+    ) {
+      initialSnapshot.value = currentSnapshot();
+    }
   },
   { deep: true },
 );
@@ -2322,7 +2392,13 @@ onMounted(() => {
                           <span class="text-muted-foreground"
                             >{{ rowGroup.rows.length }} 项</span
                           >
-                          <Tooltip v-if="rowGroup.group" title="删除分组">
+                          <Tooltip
+                            v-if="
+                              rowGroup.group &&
+                              !rowGroup.key.startsWith('complex:')
+                            "
+                            title="删除分组"
+                          >
                             <button
                               type="button"
                               class="settings-v2-move text-destructive shrink-0"
@@ -2443,6 +2519,9 @@ onMounted(() => {
                         <select
                           v-if="view !== 'list'"
                           class="settings-v2-input"
+                          :disabled="
+                            Boolean(getComplexObjectGroupKey(view, row.key))
+                          "
                           :aria-label="`${row.key}所属分组`"
                           :value="getRowGroupKey(row, view) || ''"
                           @focus="selectItem('field', row.key)"
@@ -2462,6 +2541,7 @@ onMounted(() => {
                             )"
                             :key="group.value"
                             :value="group.value"
+                            :disabled="group.value?.startsWith('complex:')"
                           >
                             {{ group.label }}
                           </option>

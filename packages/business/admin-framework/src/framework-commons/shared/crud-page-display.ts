@@ -19,6 +19,11 @@ export const CRUD_ROW_ACTION_DETAIL_KEY = 'builtin:detail';
 export const CRUD_ROW_ACTION_EDIT_KEY = 'builtin:edit';
 export const CRUD_ROW_ACTION_DELETE_KEY = 'builtin:delete';
 
+/** 复杂对象使用独立展示分组标识，避免与普通业务分组混淆。 */
+export function getComplexObjectDisplayGroupKey(key: string) {
+  return `complex:${key}`;
+}
+
 /** 运行页面和设置面板共用的视图默认值，不修改传入的配置。 */
 export function resolveCrudPageDisplayDefaults(
   config?: CrudPageDisplayConfig,

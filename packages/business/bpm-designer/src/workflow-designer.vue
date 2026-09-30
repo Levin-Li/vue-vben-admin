@@ -1,41 +1,47 @@
 <script setup lang="ts">
 import type {
-  WorkflowDesignerDefinition,
   WorkflowDesignerOptions,
-  WorkflowEdge,
   WorkflowNode,
   WorkflowNodeType,
 } from './types';
+import type { WorkflowTreeVersion } from './workflow-tree-version';
 
 import { computed, ref, watch } from 'vue';
 
-import { addNode, removeNode, validateDefinition } from './definition-model';
+import FlowDesign from '../third-party/lowflow-design/src/views/flowDesign/index.vue';
+import { validateTreeDefinition } from './definition-model';
+import { toLowflowCanvasTree } from './lowflow-model';
 import WorkflowConditionEditor from './workflow-condition-editor.vue';
-import {
-  applyGraphLayout,
-  graphPosition as position,
-  routeGraphEdge,
-} from './workflow-graph-layout';
+import { applyGraphLayout } from './workflow-graph-layout';
+import { workflowVerificationOptions } from './workflow-labels';
 import WorkflowParameterEditor from './workflow-parameter-editor.vue';
+import {
+  insertExclusiveOutcomesOnTreeEdge,
+  insertGatewayOnTreeEdge,
+  insertUserTaskOnTreeEdge,
+  patchWorkflowTreeEdge,
+  patchWorkflowTreeNode,
+  removeTreeUserTask,
+} from './workflow-tree-edit';
+import { projectDraftV3ToV2 } from './workflow-tree-version';
 
 // 所有编辑在独立 JSON 副本上进行，避免修改宿主 props 或 Vue 代理克隆失败。
 const props = withDefaults(
   defineProps<{
-    modelValue: WorkflowDesignerDefinition;
+    modelValue: WorkflowTreeVersion;
     options?: WorkflowDesignerOptions;
     readonly?: boolean;
   }>(),
   { options: () => ({}) },
 );
 const emit = defineEmits<{
-  'update:modelValue': [value: WorkflowDesignerDefinition];
+  'update:modelValue': [value: WorkflowTreeVersion];
   validate: [valid: boolean, messages: string[]];
 }>();
 const activeTab = ref('binding');
 const selectedNodeId = ref('');
 const selectedEdgeId = ref('');
-const edgeSource = ref('');
-const edgeTarget = ref('');
+const graphEditError = ref('');
 const variableName = ref('');
 const variableField = ref('');
 const outcome = ref('Approved');
@@ -67,12 +73,24 @@ const mappingFields = [
   { key: 'applicantField', label: '申请人（可选）' },
   { key: 'summaryField', label: '摘要（可选）' },
 ] as const;
-const nodes = computed(() => props.modelValue.nodes);
+const graph = computed(() => {
+  try {
+    return projectDraftV3ToV2(props.modelValue);
+  } catch {
+    return undefined;
+  }
+});
+const nodes = computed(() => graph.value?.nodes ?? []);
 const selectedNode = computed(() =>
   nodes.value.find((node) => node.id === selectedNodeId.value),
 );
 const selectedEdge = computed(() =>
-  props.modelValue.edges?.find((edge) => edge.id === selectedEdgeId.value),
+  graph.value?.edges?.find((edge) => edge.id === selectedEdgeId.value),
+);
+const selectedEdgeIsExclusive = computed(
+  () =>
+    nodes.value.find((node) => node.id === selectedEdge.value?.source)?.type ===
+    'exclusiveGateway',
 );
 const business = computed(() =>
   props.options.businessTypes?.find(
@@ -94,6 +112,15 @@ const fields = computed(() =>
     key,
   })),
 );
+const approverResolvers = computed(() =>
+  Object.entries(business.value?.approverResolvers ?? {}),
+);
+const selectedApproverResolver = computed(
+  () =>
+    business.value?.approverResolvers?.[
+      selectedNode.value?.approverResolver?.key ?? ''
+    ],
+);
 const conditionFields = computed(() =>
   fields.value.filter(
     (field) => field.condition && field.sensitivity !== 'secret',
@@ -105,7 +132,7 @@ const displayFields = computed(() =>
   ),
 );
 const validationMessages = computed(() =>
-  validateDefinition(props.modelValue, props.options),
+  validateTreeDefinition(props.modelValue, props.options),
 );
 const formActions = computed(() =>
   Object.entries(business.value?.actions ?? {}).filter(
@@ -123,52 +150,46 @@ const editableFields = computed(() => {
       selectedNode.value?.readableFields?.includes(field.key),
   );
 });
-const graphBounds = computed(() => {
-  const positions = nodes.value.map((node, index) => position(node, index));
-  const x = Math.min(0, ...positions.map((point) => point.x - 70));
-  const y = Math.min(0, ...positions.map((point) => point.y - 70));
-  return {
-    x,
-    y,
-    width: Math.max(880, ...positions.map((point) => point.x + 250)) - x,
-    height: Math.max(400, ...positions.map((point) => point.y + 140)) - y,
-  };
-});
-const edgePaths = computed(
-  () =>
-    new Map(
-      (props.modelValue.edges ?? []).map((edge, index) => {
-        const points = routeGraphEdge(nodes.value, edge, index);
-        return [
-          edge.id,
-          points
-            .map(
-              (point, pointIndex) =>
-                `${pointIndex === 0 ? 'M' : 'L'} ${point.x} ${point.y}`,
-            )
-            .join(' '),
-        ];
+// 草稿编辑可展示暂时单入单出的网关；丢节点或丢边时明确报错，不回退旧画布。
+const lowflowGraph = computed(() => {
+  try {
+    if (props.modelValue.schemaVersion !== 3)
+      throw new Error('只接受 schemaVersion=3 的流程定义');
+    return {
+      tree: toLowflowCanvasTree(projectDraftV3ToV2(props.modelValue), {
+        allowDraft: true,
       }),
-    ),
-);
+      error: '',
+    };
+  } catch (error) {
+    return {
+      tree: null,
+      error: error instanceof Error ? error.message : '流程图暂时无法展示',
+    };
+  }
+});
 watch(
   validationMessages,
   (messages) => emit('validate', messages.length === 0, messages),
   { immediate: true },
 );
 
-function updateDefinition(
-  mutator: (draft: WorkflowDesignerDefinition) => void,
-) {
+function updateDefinition(mutator: (draft: WorkflowTreeVersion) => void) {
   if (props.readonly) return;
   // JSON为本接口唯一值域，序列化副本同时剥离嵌套Vue代理并省略未设置配置。
   // eslint-disable-next-line unicorn/prefer-structured-clone
   const draft = JSON.parse(
     JSON.stringify(props.modelValue),
-  ) as WorkflowDesignerDefinition;
+  ) as WorkflowTreeVersion;
   mutator(draft);
-  draft.schemaVersion = 2;
-  emit('update:modelValue', draft);
+  try {
+    projectDraftV3ToV2(draft);
+    graphEditError.value = '';
+    emit('update:modelValue', draft);
+  } catch (error) {
+    graphEditError.value =
+      error instanceof Error ? error.message : '流程树修改失败。';
+  }
 }
 function text(event: Event) {
   return (event.target as HTMLInputElement).value;
@@ -204,7 +225,7 @@ function updateBinding(key: string, value: string) {
   });
 }
 function updatePolicy(
-  patch: Partial<NonNullable<WorkflowDesignerDefinition['startPolicy']>>,
+  patch: Partial<NonNullable<WorkflowTreeVersion['startPolicy']>>,
 ) {
   updateDefinition((draft) => {
     draft.startPolicy = { mode: 'manual', ...draft.startPolicy, ...patch };
@@ -228,55 +249,127 @@ function addVariable() {
   variableField.value = '';
 }
 
-// 图使用显式连线；节点位置只影响展示，不改变执行语义。
+// 结构编辑仅在选中的真实树边执行；不会将投影图写回定义。
 function createNode(type: WorkflowNodeType) {
-  updateDefinition((draft) => {
-    selectedNodeId.value = addNode(draft, type).id;
-  });
-  selectedEdgeId.value = '';
+  // 版本切换或外部更新可能使选择过期；必须明确阻断，不把节点插入另一条分支。
+  if (selectedEdgeId.value && !selectedEdge.value) {
+    graphEditError.value = `选中的连线「${selectedEdgeId.value}」已不存在，请重新选择插入位置。`;
+    selectedEdgeId.value = '';
+    return;
+  }
+
+  if (!selectedEdgeId.value) {
+    graphEditError.value = '请先选择需要插入节点的连线。';
+    return;
+  }
+  if (type === 'end' || type === 'start') {
+    graphEditError.value = '请使用树内原子操作创建开始或结束结构。';
+    return;
+  }
+  try {
+    const result =
+      type === 'userTask'
+        ? insertUserTaskOnTreeEdge(props.modelValue, selectedEdgeId.value)
+        : insertGatewayOnTreeEdge(props.modelValue, selectedEdgeId.value, type);
+    emit('update:modelValue', result.definition);
+    selectedNodeId.value = 'node' in result ? result.node.id : result.fork.id;
+    selectedEdgeId.value = '';
+    graphEditError.value = '';
+  } catch (error) {
+    graphEditError.value =
+      error instanceof Error ? error.message : '无法插入审批节点。';
+  }
+}
+function createOutcomeExit() {
+  if (props.readonly) return;
+  if (!selectedEdgeId.value) {
+    graphEditError.value = '请先选择通向唯一入边结束节点的连线。';
+    return;
+  }
+  try {
+    const result = insertExclusiveOutcomesOnTreeEdge(
+      props.modelValue,
+      selectedEdgeId.value,
+    );
+    emit('update:modelValue', result.definition);
+    selectedNodeId.value = result.rejectedEnd.id;
+    selectedEdgeId.value = '';
+    graphEditError.value = '';
+  } catch (error) {
+    graphEditError.value =
+      error instanceof Error ? error.message : '无法新增不同结果出口。';
+  }
 }
 function deleteSelectedNode() {
-  updateDefinition((draft) => removeNode(draft, selectedNodeId.value));
-  selectedNodeId.value = '';
+  if (props.readonly) return;
+  if (selectedNode.value?.type !== 'userTask') {
+    graphEditError.value =
+      '仅单入单出审批任务可直接删除；网关及结束节点需要成组结构调整。';
+    return;
+  }
+  try {
+    emit(
+      'update:modelValue',
+      removeTreeUserTask(props.modelValue, selectedNode.value.id),
+    );
+    selectedNodeId.value = '';
+    graphEditError.value = '';
+  } catch (error) {
+    graphEditError.value =
+      error instanceof Error ? error.message : '无法删除当前审批节点。';
+  }
 }
 function updateNode(patch: Partial<WorkflowNode>) {
-  updateDefinition((draft) => {
-    const node = draft.nodes.find((item) => item.id === selectedNodeId.value);
-    if (node) Object.assign(node, patch);
-  });
+  if (props.readonly) return;
+  try {
+    emit(
+      'update:modelValue',
+      patchWorkflowTreeNode(props.modelValue, selectedNodeId.value, patch),
+    );
+    graphEditError.value = '';
+  } catch (error) {
+    graphEditError.value =
+      error instanceof Error ? error.message : '节点属性修改失败。';
+  }
 }
-function updateEdge(patch: Partial<WorkflowEdge>) {
-  updateDefinition((draft) => {
-    const edge = draft.edges?.find((item) => item.id === selectedEdgeId.value);
-    if (edge) Object.assign(edge, patch);
-  });
+function selectApproverResolver(key: string) {
+  if (!key) return updateNode({ approverResolver: undefined });
+  if (!business.value?.approverResolvers?.[key]) return;
+  updateNode({ approverResolver: { key, parameters: {} } });
 }
-function addEdge() {
-  if (
-    !edgeSource.value ||
-    !edgeTarget.value ||
-    edgeSource.value === edgeTarget.value
-  )
-    return;
-  updateDefinition((draft) => {
-    draft.edges ??= [];
-    let index = 1;
-    while (draft.edges.some((edge) => edge.id === `flow_${index}`)) index++;
-    const edge = {
-      id: `flow_${index}`,
-      source: edgeSource.value,
-      target: edgeTarget.value,
-    };
-    draft.edges.push(edge);
-    selectedEdgeId.value = edge.id;
-    selectedNodeId.value = '';
-  });
-}
-function edgePath(edge: WorkflowEdge) {
-  return edgePaths.value.get(edge.id) ?? '';
+function updateEdge(patch: {
+  condition?: import('./types').WorkflowCondition | null;
+  default?: boolean;
+}) {
+  if (props.readonly) return;
+  try {
+    emit(
+      'update:modelValue',
+      patchWorkflowTreeEdge(props.modelValue, selectedEdgeId.value, patch),
+    );
+    graphEditError.value = '';
+  } catch (error) {
+    graphEditError.value =
+      error instanceof Error ? error.message : '连线属性修改失败。';
+  }
 }
 function autoLayout() {
-  updateDefinition(applyGraphLayout);
+  if (props.readonly || !graph.value) return;
+  const layout = structuredClone(graph.value);
+  applyGraphLayout(layout);
+  try {
+    let updated = props.modelValue;
+    for (const node of layout.nodes)
+      updated = patchWorkflowTreeNode(updated, node.id, {
+        x: node.x,
+        y: node.y,
+      });
+    emit('update:modelValue', updated);
+    graphEditError.value = '';
+  } catch (error) {
+    graphEditError.value =
+      error instanceof Error ? error.message : '自动排布失败。';
+  }
 }
 
 // 结果动作只可来自已公开的业务目录，参数按目录类型输入。
@@ -610,7 +703,7 @@ function addOutcomeAction() {
       />
     </div>
 
-    <!-- SVG 图与连线编辑共同提供可访问的流程构建能力。 -->
+    <!-- 直接使用适配后的 lowflow-design 画布；发布验证仍以服务端为准。 -->
     <div v-if="activeTab === 'graph'" class="panel">
       <div class="toolbar">
         <button
@@ -634,151 +727,49 @@ function addOutcomeAction() {
         >
           新增并行网关
         </button>
-        <button :disabled="readonly" type="button" @click="createNode('end')">
-          新增结束节点
+        <button :disabled="readonly" type="button" @click="createOutcomeExit">
+          新增不同结果出口
         </button>
         <button :disabled="readonly" type="button" @click="autoLayout">
           自动排布
         </button>
       </div>
+      <p v-if="graphEditError" class="graph-error" role="alert">
+        {{ graphEditError }}
+      </p>
       <div class="graph-layout">
         <div>
           <div class="canvas-scroll">
-            <svg
-              class="workflow-canvas"
-              role="img"
-              aria-label="流程节点与连线图"
-              :viewBox="`${graphBounds.x} ${graphBounds.y} ${graphBounds.width} ${graphBounds.height}`"
-              :style="{
-                minHeight: `${graphBounds.height}px`,
-                minWidth: `${Math.max(680, graphBounds.width * 0.7)}px`,
-              }"
-            >
-              <defs>
-                <marker
-                  id="workflow-arrow"
-                  viewBox="0 0 10 10"
-                  refX="9"
-                  refY="5"
-                  markerWidth="7"
-                  markerHeight="7"
-                  orient="auto-start-reverse"
-                >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
-                </marker>
-              </defs>
-              <g
-                v-for="edge in modelValue.edges"
-                :key="edge.id"
-                role="button"
-                tabindex="0"
-                :aria-label="`连线 ${edge.source} 到 ${edge.target}`"
-                @click="
-                  selectedEdgeId = edge.id;
-                  selectedNodeId = '';
-                "
-                @keydown.enter="
-                  selectedEdgeId = edge.id;
-                  selectedNodeId = '';
-                "
-              >
-                <path :d="edgePath(edge)" class="edge-hit" />
-                <path
-                  :d="edgePath(edge)"
-                  class="edge"
-                  :class="[{ selected: selectedEdgeId === edge.id }]"
-                  marker-end="url(#workflow-arrow)"
-                />
-              </g>
-              <g
-                v-for="(node, index) in nodes"
-                :key="node.id"
-                role="button"
-                tabindex="0"
-                :aria-label="`配置节点 ${node.name}`"
-                :transform="`translate(${position(node, index).x}, ${position(node, index).y})`"
-                class="graph-node"
-                :class="[{ selected: selectedNodeId === node.id }]"
-                @click="
-                  selectedNodeId = node.id;
+            <FlowDesign
+              v-if="lowflowGraph.tree"
+              :process="lowflowGraph.tree"
+              :read-only="readonly"
+              :selected-node-id="selectedNodeId"
+              :selected-edge-id="selectedEdgeId"
+              @node-click="
+                (id) => {
+                  graphEditError = '';
+                  selectedNodeId = id;
                   selectedEdgeId = '';
-                "
-                @keydown.enter="
-                  selectedNodeId = node.id;
-                  selectedEdgeId = '';
-                "
-              >
-                <rect
-                  width="180"
-                  height="64"
-                  :rx="node.type === 'start' || node.type === 'end' ? 30 : 8"
-                />
-                <text x="12" y="25">
-                  {{
-                    node.name.length > 15
-                      ? `${node.name.slice(0, 15)}…`
-                      : node.name
-                  }}
-                </text>
-                <text x="12" y="47" class="node-type">
-                  {{ node.type }}
-                  {{
-                    node.multiApprovalMode === 'ALL'
-                      ? '会签'
-                      : node.multiApprovalMode === 'ANY'
-                        ? '或签'
-                        : ''
-                  }}
-                </text>
-              </g>
-            </svg>
-          </div>
-          <h3>新增连线</h3>
-          <div class="inline-form">
-            <label>
-              起点
-
-              <select v-model="edgeSource" :disabled="readonly">
-                <option value="">选择起点</option>
-
-                <option
-                  v-for="node in nodes.filter((item) => item.type !== 'end')"
-                  :key="node.id"
-                  :value="node.id"
-                >
-                  {{ node.name }}
-                </option>
-              </select>
-            </label>
-            <label>
-              终点
-
-              <select v-model="edgeTarget" :disabled="readonly">
-                <option value="">选择终点</option>
-
-                <option
-                  v-for="node in nodes.filter((item) => item.type !== 'start')"
-                  :key="node.id"
-                  :value="node.id"
-                >
-                  {{ node.name }}
-                </option>
-              </select>
-            </label>
-            <button
-              type="button"
-              :disabled="
-                readonly ||
-                !edgeSource ||
-                !edgeTarget ||
-                edgeSource === edgeTarget
+                }
               "
-              @click="addEdge"
-            >
-              连接节点
-            </button>
+              @edge-click="
+                (id) => {
+                  graphEditError = '';
+                  selectedEdgeId = id;
+                  selectedNodeId = '';
+                }
+              "
+            />
+            <p v-else class="graph-error" role="alert">
+              {{ lowflowGraph.error }}。请检查节点与连线后再模拟或发布。
+            </p>
           </div>
-          <div v-for="edge in modelValue.edges" :key="edge.id" class="list-row">
+          <h3>树内连线</h3>
+          <p class="hint">
+            新增连接须选择现有连线或分支，由树内结构操作原子完成；不允许创建游离边。
+          </p>
+          <div v-for="edge in graph?.edges" :key="edge.id" class="list-row">
             <button
               type="button"
               @click="
@@ -802,18 +793,18 @@ function addOutcomeAction() {
                 edge.default ? '（默认）' : edge.condition ? '（有条件）' : ''
               }}
             </button>
+          </div>
+          <h3>节点清单</h3>
+          <div v-for="node in nodes" :key="node.id" class="list-row">
             <button
               type="button"
-              :disabled="readonly"
+              :aria-label="`配置节点 ${node.name}`"
               @click="
-                updateDefinition((draft) => {
-                  draft.edges = draft.edges?.filter(
-                    (item) => item.id !== edge.id,
-                  );
-                })
+                selectedNodeId = node.id;
+                selectedEdgeId = '';
               "
             >
-              删除连线
+              {{ node.name }} · {{ node.id }}
             </button>
           </div>
         </div>
@@ -896,6 +887,59 @@ function addOutcomeAction() {
                 </select>
               </label>
               <label>
+                动态审批人
+                <select
+                  aria-label="动态审批人解析器"
+                  :disabled="readonly || !business"
+                  :value="selectedNode.approverResolver?.key ?? ''"
+                  @change="selectApproverResolver(text($event))"
+                >
+                  <option value="">不使用动态审批人</option>
+                  <option
+                    v-for="[key, resolver] in approverResolvers"
+                    :key="key"
+                    :value="key"
+                  >
+                    {{ resolver.title }}
+                  </option>
+                </select>
+              </label>
+              <p v-if="approverResolvers.length === 0" class="hint">
+                当前业务契约未公开可用的动态审批人能力。
+              </p>
+              <p
+                v-if="
+                  selectedNode.approverResolver && !selectedApproverResolver
+                "
+                class="hint"
+              >
+                已配置的动态审批人不在当前授权目录中，请重新选择业务契约或解析器。
+              </p>
+              <div
+                v-if="selectedNode.approverResolver && selectedApproverResolver"
+                class="parameter-editor"
+              >
+                <p class="hint">
+                  {{
+                    selectedApproverResolver.title
+                  }}：进入节点时由服务端解析并校验实际候选人。
+                </p>
+                <WorkflowParameterEditor
+                  :readonly="readonly"
+                  :model-value="selectedNode.approverResolver.parameters ?? {}"
+                  :parameters="selectedApproverResolver.parameters ?? {}"
+                  :variables="modelValue.variables ?? {}"
+                  @update:model-value="
+                    updateNode({
+                      approverResolver: {
+                        key: selectedNode!.approverResolver!.key,
+                        parameters: $event,
+                      },
+                    })
+                  "
+                />
+              </div>
+              <label>
                 多人审批方式
 
                 <select
@@ -918,7 +962,8 @@ function addOutcomeAction() {
               </label>
 
               <p class="hint">
-                会签 / 或签需配置至少两名明确用户，不能混用候选组。
+                会签 /
+                或签需配置至少两名明确用户或受控动态审批人，不能混用候选组；进入节点时按实际名单计算席位。
               </p>
 
               <label class="checkbox">
@@ -1121,12 +1166,14 @@ function addOutcomeAction() {
                   @change="updateNode({ stepUpVerifyTypes: values($event) })"
                 >
                   <option
-                    v-for="kind in ['Captcha', 'Hmi', 'Sms', 'Email', 'Mfa']"
-                    :key="kind"
-                    :value="kind"
-                    :selected="selectedNode.stepUpVerifyTypes?.includes(kind)"
+                    v-for="option in workflowVerificationOptions"
+                    :key="option.value"
+                    :value="option.value"
+                    :selected="
+                      selectedNode.stepUpVerifyTypes?.includes(option.value)
+                    "
                   >
-                    {{ kind }}
+                    {{ option.label }}
                   </option>
                 </select>
               </label>
@@ -1206,7 +1253,7 @@ function addOutcomeAction() {
                 >
                   <option value="REJECT">阻断并提示</option>
 
-                  <option value="ESCALATE">升级到指定人员</option>
+                  <option value="ESCALATE">升级到指定人员或组</option>
                 </select>
               </label>
               <label v-if="selectedNode.emptyAssigneePolicy === 'ESCALATE'">
@@ -1230,6 +1277,26 @@ function addOutcomeAction() {
                     :value="user.value ?? user.id"
                   >
                     {{ user.label }}
+                  </option>
+                </select>
+              </label>
+              <label v-if="selectedNode.emptyAssigneePolicy === 'ESCALATE'">
+                升级候选角色 / 组织
+
+                <select
+                  multiple
+                  :disabled="readonly"
+                  :value="selectedNode.escalationCandidateGroups ?? []"
+                  @change="
+                    updateNode({ escalationCandidateGroups: values($event) })
+                  "
+                >
+                  <option
+                    v-for="group in options.groups"
+                    :key="group.id"
+                    :value="group.value ?? group.id"
+                  >
+                    {{ group.label }}
                   </option>
                 </select>
               </label>
@@ -1290,30 +1357,26 @@ function addOutcomeAction() {
           <template v-else-if="selectedEdge">
             <h3>连线条件 · {{ selectedEdge.id }}</h3>
 
-            <label class="checkbox">
+            <label v-if="selectedEdgeIsExclusive" class="checkbox">
               <input
                 type="checkbox"
                 :disabled="readonly"
                 :checked="selectedEdge.default"
-                @change="
-                  updateEdge({
-                    default: checked($event),
-                    condition: checked($event)
-                      ? undefined
-                      : selectedEdge.condition,
-                  })
-                "
+                @change="updateEdge({ default: checked($event) })"
               />
               默认分支
             </label>
             <WorkflowConditionEditor
-              v-if="!selectedEdge.default"
+              v-if="!selectedEdge.default && selectedEdgeIsExclusive"
               :model-value="selectedEdge.condition"
               :validators="business?.validators"
               :variables="modelValue.variables"
               :readonly="readonly"
-              @update:model-value="updateEdge({ condition: $event })"
+              @update:model-value="updateEdge({ condition: $event ?? null })"
             />
+            <p v-if="!selectedEdgeIsExclusive" class="hint">
+              此连线没有可编辑的路由条件；可选中它插入节点。
+            </p>
           </template>
           <p v-else class="hint">
             选择画布节点或连线配置属性。调整位置不会改变流程执行顺序。
@@ -1543,44 +1606,9 @@ h4 {
   border: 1px solid hsl(var(--border));
   border-radius: 0.5rem;
 }
-.workflow-canvas {
-  width: 100%;
-  min-width: 680px;
-  color: hsl(var(--muted-foreground));
-}
-.edge {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-}
-.edge.selected {
-  color: hsl(var(--primary));
-  stroke-width: 3;
-}
-.edge-hit {
-  fill: none;
-  stroke: transparent;
-  stroke-width: 16;
-  cursor: pointer;
-}
-.graph-node {
-  cursor: pointer;
-}
-.graph-node rect {
-  fill: hsl(var(--card));
-  stroke: hsl(var(--border));
-  stroke-width: 2;
-}
-.graph-node.selected rect {
-  stroke: hsl(var(--primary));
-}
-.graph-node text {
-  fill: hsl(var(--foreground));
-  font-size: 14px;
-}
-.graph-node .node-type {
-  fill: hsl(var(--muted-foreground));
-  font-size: 11px;
+.graph-error {
+  color: hsl(var(--destructive));
+  padding: 1rem;
 }
 .node-properties {
   padding: 0.75rem;

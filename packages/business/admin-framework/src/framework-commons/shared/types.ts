@@ -57,6 +57,8 @@ export interface CrudAreaCascaderConfig {
 export interface CrudComplexGroupConfig {
   /** 页面内分组标识。 */
   key: string;
+  /** 父复杂对象分组标识；未声明时为第一层对象。 */
+  parentKey?: string;
   /** 提交到后端的嵌套属性名。 */
   submitKey: string;
   /** 扁平字段到嵌套对象属性的映射。 */
@@ -351,6 +353,8 @@ export interface CrudRowAction {
   opRefTargetType?: string;
   permission?: string | string[];
   reloadAfterAction?: boolean;
+  /** 执行前要求输入非空拒绝原因，并附加到操作载荷的 _operatorAction。 */
+  reasonRequired?: boolean;
   resultActionData?: string;
   successAction?: string;
   successMessage?: false | string;

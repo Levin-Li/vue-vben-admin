@@ -2,8 +2,8 @@
 import type {
   WorkflowBusinessType,
   WorkflowDefinitionVersion,
-  WorkflowDesignerDefinition,
   WorkflowDesignerOptions,
+  WorkflowTreeVersion,
 } from '@levin/bpm-designer';
 
 import type { WorkflowDefinitionRecord } from '../../api/workflow-definition-service';
@@ -13,7 +13,7 @@ import { computed, onMounted, reactive, ref, toRaw } from 'vue';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import {
-  createDefinition,
+  createTreeDefinition,
   WorkflowDefinitionWorkbench,
 } from '@levin/bpm-designer';
 import {
@@ -41,7 +41,7 @@ const versions = ref<WorkflowDefinitionVersion[]>([]);
 const publishedVersions = ref<WorkflowDefinitionVersion[]>([]);
 const currentDefinitionId = ref<string>();
 const currentVersion = ref<WorkflowDefinitionVersion>();
-const design = ref<WorkflowDesignerDefinition>(createDefinition());
+const design = ref<WorkflowTreeVersion>(createTreeDefinition());
 const businessTypes = ref<WorkflowBusinessType[]>([]);
 const candidates = ref<Pick<WorkflowDesignerOptions, 'groups' | 'users'>>({
   users: [],
@@ -93,6 +93,15 @@ const blankForm = () => ({
 const selectedDefinition = computed(() =>
   definitions.value.find((item) => item.id === currentDefinitionId.value),
 );
+// 稳定定义只绑定业务类型；同类型的多个契约版本留在草稿设计器内明确选择。
+const definitionBusinessOptions = computed(() => [
+  ...new Map(
+    businessTypes.value.map((item) => [
+      item.businessType,
+      { label: item.title, value: item.businessType },
+    ]),
+  ).values(),
+]);
 const options = computed<WorkflowDesignerOptions>(() => ({
   ...candidates.value,
   businessTypes: businessTypes.value,
@@ -100,6 +109,7 @@ const options = computed<WorkflowDesignerOptions>(() => ({
   purposeOptions: publishedVersions.value.flatMap((version) => {
     const definition = version.lowflowDefinition;
     if (
+      definition?.schemaVersion !== 3 ||
       !definition?.purposeKey ||
       definition.businessBinding?.businessType !==
         selectedDefinition.value?.businessType
@@ -198,11 +208,18 @@ async function selectDefinition(id: unknown) {
 }
 
 function applyVersion(version: WorkflowDefinitionVersion) {
+  // 已保存正文必须是服务端 v3 树；旧平面图不能在普通读取时暗转或继续编辑。
+  if (
+    version.lowflowDefinition &&
+    (version.lowflowDefinition.schemaVersion !== 3 ||
+      !version.lowflowDefinition.flowTree)
+  )
+    throw new Error('仅支持第三版流程树，旧版本须显式迁移后才能在此设计。');
+
   currentVersion.value = version;
-  // 已保存正文是事实源，不使用新默认值覆盖既有设计。
   design.value = version.lowflowDefinition
     ? structuredClone(toRaw(version.lowflowDefinition))
-    : createDefinition(
+    : createTreeDefinition(
         selectedDefinition.value?.processKey,
         selectedDefinition.value?.name,
       );
@@ -225,13 +242,25 @@ async function selectVersion(id: unknown) {
     const version = await workflowDefinitionVersionService.retrieve({ id });
     if (current === selectionRequest) applyVersion(version);
   } catch (error_) {
-    if (current === selectionRequest) showError(error_);
+    if (current === selectionRequest) {
+      currentVersion.value = undefined;
+      showError(error_);
+    }
   } finally {
     if (current === selectionRequest) loading.value = false;
   }
 }
 
 function refreshed(version: WorkflowDefinitionVersion) {
+  // 保存和模拟回包同样必须保留树格式，异常回包不覆盖当前已授权草稿。
+  if (
+    version.lowflowDefinition &&
+    (version.lowflowDefinition.schemaVersion !== 3 ||
+      !version.lowflowDefinition.flowTree)
+  ) {
+    showError(new Error('仅支持第三版流程树，服务端返回的设计格式无效。'));
+    return;
+  }
   currentVersion.value = version;
   versions.value = versions.value.map((item) =>
     item.id === version.id ? version : item,
@@ -442,12 +471,7 @@ onMounted(() => {
         >
           <Select
             v-model:value="form.businessType"
-            :options="
-              businessTypes.map((item) => ({
-                label: item.title,
-                value: item.businessType,
-              }))
-            "
+            :options="definitionBusinessOptions"
           />
         </Form.Item>
         <Space>

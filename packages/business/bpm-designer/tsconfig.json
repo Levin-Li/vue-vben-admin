@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@vben/tsconfig/library.json",
+  "include": [
+    "src",
+    "third-party/lowflow-design/src/views/flowDesign/index.vue",
+    "third-party/lowflow-design/src/views/flowDesign/index.test.ts",
+    "third-party/lowflow-design/src/views/flowDesign/nodes/TreeNode.vue",
+    "third-party/lowflow-design/src/views/flowDesign/nodes/type.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

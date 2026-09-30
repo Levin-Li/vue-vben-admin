@@ -51,11 +51,11 @@ vi.mock('@levin/bpm-designer', () => ({
     Retired: '已下线',
     Archived: '已归档',
   },
-  createDefinition: (processKey = '', name = '') => ({
+  createTreeDefinition: (processKey = '', name = '') => ({
+    schemaVersion: 3,
     processKey,
     name,
-    nodes: [],
-    edges: [],
+    flowTree: { id: 'start', type: 'start', name: '开始' },
   }),
   WorkflowDefinitionWorkbench: {
     name: 'WorkflowDefinitionWorkbench',
@@ -89,10 +89,10 @@ describe('流程设计宿主的版本恢复', () => {
       lifecycle: 'Testing',
       optimisticLock: 9,
       lowflowDefinition: {
+        schemaVersion: 3,
         name: '审批',
         processKey: 'approval',
-        nodes: [],
-        edges: [],
+        flowTree: { id: 'start', type: 'start', name: '开始' },
       },
       simulationReport: { successful: true, runId: `report-${id}` },
     }));
@@ -145,6 +145,25 @@ describe('流程设计宿主的版本恢复', () => {
         .findComponent({ name: 'WorkflowDefinitionWorkbench' })
         .props('version').simulationReport.runId,
     ).toBe('report-older');
+    wrapper.unmount();
+  });
+
+  it('旧版平面图详情失败关闭，不自动转换或回填为树', async () => {
+    api.retrieve.mockResolvedValueOnce({
+      id: 'latest',
+      lifecycle: 'Testing',
+      lowflowDefinition: { schemaVersion: 2, nodes: [], edges: [] },
+    });
+    const wrapper = mount(WorkflowDefinitionPage);
+    await flushPromises();
+    wrapper.findAllComponents(Select)[0]?.vm.$emit('change', 'definition');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('仅支持第三版流程树');
+    expect(
+      wrapper.findComponent({ name: 'WorkflowDefinitionWorkbench' }).exists(),
+    ).toBe(false);
+    expect(api.saveDraft).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 });

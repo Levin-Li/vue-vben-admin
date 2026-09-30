@@ -1,10 +1,9 @@
-import type {
-  WorkflowBusinessType,
-  WorkflowDefinitionVersion,
-  WorkflowDesignerDefinition,
-} from './types';
+import type { WorkflowBusinessType, WorkflowDefinitionVersion } from './types';
+import type { WorkflowTreeVersion } from './workflow-tree-version';
 
 import { RequestService } from '@levin/admin-framework';
+
+import { projectDraftV3ToV2 } from './workflow-tree-version';
 
 /**
  * 默认设计期 API 连接器。所有生命周期判断仍在服务端完成，UI 仅按当前版本
@@ -29,9 +28,13 @@ export class WorkflowDesignerService extends RequestService {
 
   async saveDraft(
     id: string,
-    lowflowDefinition: WorkflowDesignerDefinition,
+    lowflowDefinition: WorkflowTreeVersion,
     optimisticLock?: number,
   ) {
+    // 客户端只发送树，真实持久化与执行投影仍由服务端重新校验。
+    if (lowflowDefinition.schemaVersion !== 3)
+      throw new Error('只接受 schemaVersion=3 的流程定义');
+    projectDraftV3ToV2(lowflowDefinition);
     return this.post<WorkflowDefinitionVersion>(
       'WorkflowDefinitionVersion/save-design',
       { data: { id, optimisticLock, lowflowDefinition } },

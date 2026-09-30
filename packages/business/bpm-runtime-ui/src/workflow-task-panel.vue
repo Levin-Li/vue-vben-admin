@@ -3,6 +3,7 @@ import type { Component } from 'vue';
 
 import type {
   WorkflowActionInput,
+  WorkflowAttachmentMeta,
   WorkflowFormItem,
   WorkflowTaskAction,
   WorkflowTaskSubmitPayload,
@@ -11,6 +12,7 @@ import type {
 
 import { computed, reactive, ref, watch } from 'vue';
 
+import { workflowVerificationLabel } from '@levin/bpm-designer';
 // 审批表单、动作和轨迹在公共包内显式注册，独立宿主也能直接交互。
 import {
   Alert as AAlert,
@@ -46,12 +48,21 @@ import {
 
 // 任务及服务端动作是唯一授权来源，不补造默认“通过”动作。
 const props = defineProps<{
+  attachments?: WorkflowAttachmentMeta[];
+  canDeletePendingAttachment?: boolean;
+  canDownloadAttachment?: boolean;
+  canUploadAttachment?: boolean;
+  deletingAttachmentId?: string;
   detailComponents?: Record<string, Component>;
+  downloadingAttachmentId?: string;
   submitting?: boolean;
   task: WorkflowTaskView;
+  uploadingAttachment?: boolean;
 }>();
 const emit = defineEmits<{
   action: [action: WorkflowTaskAction];
+  deletePendingAttachment: [attachment: WorkflowAttachmentMeta];
+  downloadAttachment: [attachment: WorkflowAttachmentMeta];
   prepareVerification: [
     payload: WorkflowActionInput & {
       action: WorkflowTaskAction;
@@ -59,6 +70,7 @@ const emit = defineEmits<{
     },
   ];
   submit: [payload: WorkflowTaskSubmitPayload];
+  uploadAttachment: [file: File];
 }>();
 const formData = reactive<Record<string, unknown>>({});
 const comment = ref('');
@@ -96,7 +108,10 @@ const unavailableActions = computed(() =>
     : [],
 );
 const readOnly = computed(
-  () => props.task.status !== 'Todo' || props.submitting,
+  () =>
+    props.task.status !== 'Todo' ||
+    props.submitting ||
+    props.uploadingAttachment,
 );
 const missingRequired = computed(() =>
   displayFormItems.value.some(
@@ -119,6 +134,31 @@ watch(
   },
   { immediate: true },
 );
+
+watch(
+  () => props.attachments?.map((item) => item.id).join('|'),
+  () => {
+    // 文件集合进入动作摘要；上传新文件或切换任务后必须重新准备二次验证。
+    verificationCode.value = '';
+  },
+);
+
+function chooseAttachment(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file || readOnly.value || !props.canUploadAttachment) return;
+  if (
+    file.size === 0 ||
+    file.size > 5 * 1024 * 1024 ||
+    (props.attachments?.filter((item) => !item.attached).length ?? 0) >= 5
+  ) {
+    errors.value = ['附件须非空、单件不超过5 MiB，且同一任务最多五件。'];
+    return;
+  }
+  errors.value = [];
+  emit('uploadAttachment', file);
+}
 
 // 验证挑战绑定表单、意见与动作参数，修改后不能继续使用旧验证码。
 watch(
@@ -202,6 +242,11 @@ function actionInput(): WorkflowActionInput {
     formData: workflowFormData(props.task, formData),
     comment: comment.value.trim() || undefined,
   };
+  const pending =
+    props.attachments
+      ?.filter((item) => !item.attached)
+      .map((item) => item.id) ?? [];
+  if (pending.length > 0) input.attachmentIds = pending;
   if (selectedAction.value?.code === 'return')
     input.targetNodeId = targetNodeId.value;
   if (['delegate', 'transfer'].includes(selectedAction.value?.code ?? ''))
@@ -337,8 +382,11 @@ function submit() {
                 { label: '否', value: 'false' },
               ]"
               @update:value="
-                (value: string) => {
-                  formData[item.key] = value === 'true';
+                (value: unknown) => {
+                  // 清空与否不是同一值；只把明确的两个选项写入业务表单。
+                  if (value === 'true' || value === 'false')
+                    formData[item.key] = value === 'true';
+                  else delete formData[item.key];
                 }
               "
             />
@@ -372,6 +420,63 @@ function submit() {
         :read-only="readOnly"
       ></slot>
 
+      <!-- 私有附件仅保存工作流 ID，不把公开文件 URL 写入表单或历史。 -->
+      <template
+        v-if="
+          attachments?.length || (task.status === 'Todo' && canUploadAttachment)
+        "
+      >
+        <ADivider orientation="left">任务附件</ADivider>
+        <AFormItem
+          v-if="task.status === 'Todo' && canUploadAttachment"
+          label="上传私有附件"
+        >
+          <input
+            type="file"
+            aria-label="上传任务附件"
+            :disabled="readOnly || uploadingAttachment"
+            @change="chooseAttachment"
+          />
+          <p>单件不超过 5 MiB；上传后须随本次办理动作提交才进入历史。</p>
+        </AFormItem>
+        <AList
+          v-if="attachments?.length"
+          :data-source="attachments"
+          size="small"
+        >
+          <template #renderItem="{ item }">
+            <AListItem>
+              <ASpace wrap>
+                <span>{{ item.fileName }}（{{ item.sizeBytes }} 字节）</span>
+                <ATag>{{ item.attached ? '已绑定' : '待随本次办理绑定' }}</ATag>
+                <AButton
+                  v-if="item.attached && canDownloadAttachment"
+                  size="small"
+                  :loading="downloadingAttachmentId === item.id"
+                  @click="emit('downloadAttachment', item)"
+                >
+                  下载附件
+                </AButton>
+                <AButton
+                  v-if="
+                    !item.attached &&
+                    canDeletePendingAttachment &&
+                    task.status === 'Todo'
+                  "
+                  size="small"
+                  danger
+                  :disabled="readOnly || uploadingAttachment || submitting"
+                  :loading="deletingAttachmentId === item.id"
+                  @click="emit('deletePendingAttachment', item)"
+                >
+                  撤销上传
+                </AButton>
+              </ASpace>
+            </AListItem>
+          </template>
+        </AList>
+      </template>
+
       <!-- 动作参数来自任务专属选项，不能输入任意人员或节点。 -->
       <template v-if="task.status === 'Todo'">
         <ADivider orientation="left">审批动作</ADivider>
@@ -380,7 +485,7 @@ function submit() {
             v-for="action in actions"
             :key="action.code"
             :type="selectedAction?.code === action.code ? 'primary' : 'default'"
-            :disabled="submitting"
+            :disabled="readOnly"
             @click="chooseAction(action)"
           >
             {{ action.label }}
@@ -459,7 +564,7 @@ function submit() {
                 v-model:value="verificationType"
                 :options="
                   task.verificationTypes.map((type) => ({
-                    label: type,
+                    label: workflowVerificationLabel(type),
                     value: type,
                   }))
                 "
@@ -492,7 +597,7 @@ function submit() {
           v-if="selectedAction"
           class="mt-4"
           type="primary"
-          :loading="submitting"
+          :loading="submitting || uploadingAttachment"
           @click="submit"
         >
           确认{{ selectedAction.label }}

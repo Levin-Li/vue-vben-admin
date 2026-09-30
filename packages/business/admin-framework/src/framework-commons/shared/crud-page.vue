@@ -150,6 +150,8 @@ import {
 import {
   buildCrudComplexGroupInitialState,
   buildCrudComplexGroupPayload,
+  getCrudComplexGroupFieldValue,
+  isCrudComplexGroupEnabled,
 } from './crud-complex-groups';
 import { buildNoFormFlowConfirmConfig } from './crud-confirm';
 import {
@@ -227,6 +229,7 @@ import {
   DEFAULT_CRUD_OPERATION_COLUMN_WIDTH,
   distributeExtraTableWidth,
   getDefaultFieldHidden,
+  getComplexObjectDisplayGroupKey,
   getCrudRowActionDisplayKey,
   initializeHeaderVisibility,
   isEligibleStaticDisplayGroup,
@@ -300,6 +303,7 @@ import {
 import { evaluateCrudVisibleOn } from './crud-visible-on';
 import {
   buildDetailDisplayEntries,
+  flattenCrudComplexDetailRecord,
   resolveDetailFields,
   type DetailDisplayEntry,
 } from './detail-display';
@@ -1181,6 +1185,11 @@ function applyPageDisplayFields(
   view: 'create' | 'detail' | 'edit' | 'query',
   includeHiddenSubmit = false,
 ): CrudFieldConfig[] {
+  // 复杂对象的实际分组由对象标识决定，避免历史普通分组覆盖其归属。
+  const groupKeyFor = (field: CrudFieldConfig) =>
+    field.complexGroupKey && view !== 'query'
+      ? getComplexObjectDisplayGroupKey(field.complexGroupKey)
+      : getPageDisplayField(view, field.key).layoutGroup || field.layoutGroup;
   const configuredFields = fields.map((field) =>
     getPageDisplayField(view, field.key),
   );
@@ -1222,11 +1231,7 @@ function applyPageDisplayFields(
       .filter((field) => !isPageDisplayRoleVisible(view, field.key))
       .map((field) => field.key),
     ...fields
-      .filter((field) =>
-        unavailableGroupKeys.has(
-          getPageDisplayField(view, field.key).layoutGroup || '',
-        ),
-      )
+      .filter((field) => unavailableGroupKeys.has(groupKeyFor(field) || ''))
       .map((field) => field.key),
   ]);
   const displayStates = resolveDisplayStates(
@@ -1263,12 +1268,12 @@ function applyPageDisplayFields(
       const groupOrder =
         resolveDisplayGroupOrder(
           pageDisplayConfig.value[view]?.groups,
-          leftConfigured?.layoutGroup,
+          groupKeyFor(left),
           pageDisplayConfig.value[view]?.unassignedOrder,
         ) -
         resolveDisplayGroupOrder(
           pageDisplayConfig.value[view]?.groups,
-          rightConfigured?.layoutGroup,
+          groupKeyFor(right),
           pageDisplayConfig.value[view]?.unassignedOrder,
         );
       if (groupOrder) return groupOrder;
@@ -1280,12 +1285,19 @@ function applyPageDisplayFields(
     .map((field) => {
       const configured = getPageDisplayField(view, field.key);
       const groupKey =
-        configured?.layoutGroupExcluded === true
-          ? undefined
-          : configured?.layoutGroup || field.layoutGroup;
+        field.complexGroupKey && view !== 'query'
+          ? getComplexObjectDisplayGroupKey(field.complexGroupKey)
+          : configured?.layoutGroupExcluded === true
+            ? undefined
+            : configured?.layoutGroup || field.layoutGroup;
       const group =
         getPageDisplayGroup(view, groupKey) ||
-        resolveStaticDisplayGroup(fields, groupKey);
+        (field.complexGroupKey && view !== 'query'
+          ? {
+              key: groupKey!,
+              title: getComplexGroup(field.complexGroupKey)?.title,
+            }
+          : resolveStaticDisplayGroup(fields, groupKey));
       return {
         ...field,
         // 页面展示设置只能加严前端校验，原始字段的必填约束始终保留。
@@ -1410,6 +1422,59 @@ const displayedFormFields = computed(() =>
     ? quickFillPlan.value.orderedFields
     : visibleFormFields.value,
 );
+
+// 将连续复杂对象字段收拢为对象区块，普通字段继续参与原有表单网格。
+const displayedFormBlocks = computed(() => {
+  const blocks: Array<{
+    complexGroupKey?: string;
+    depth: number;
+    fields: CrudFieldConfig[];
+  }> = [];
+  const complexBlocks = new Map<
+    string,
+    {
+      complexGroupKey?: string;
+      depth: number;
+      fields: CrudFieldConfig[];
+    }
+  >();
+  const groupsByKey = new Map(
+    (props.config.complexGroups || []).map((group) => [group.key, group]),
+  );
+
+  for (const field of displayedFormFields.value) {
+    const existingBlock = field.complexGroupKey
+      ? complexBlocks.get(field.complexGroupKey)
+      : undefined;
+    if (existingBlock) {
+      existingBlock.fields.push(field);
+      continue;
+    }
+
+    let depth = 0;
+    let group = field.complexGroupKey
+      ? groupsByKey.get(field.complexGroupKey)
+      : undefined;
+    const ancestors = new Set<string>();
+    while (group?.parentKey && !ancestors.has(group.parentKey)) {
+      ancestors.add(group.parentKey);
+      depth++;
+      group = groupsByKey.get(group.parentKey);
+    }
+
+    const block = {
+      complexGroupKey: field.complexGroupKey,
+      depth,
+      fields: [field],
+    };
+    blocks.push(block);
+    if (field.complexGroupKey) {
+      complexBlocks.set(field.complexGroupKey, block);
+    }
+  }
+
+  return blocks;
+});
 watch(quickFillActive, () => {
   quickFillMore.value = false;
 });
@@ -1440,6 +1505,58 @@ function getComplexGroup(key?: string) {
   return props.config.complexGroups?.find((group) => group.key === key);
 }
 
+function getComplexGroupTitle(key: string) {
+  return (
+    getPageDisplayGroup(
+      editingRecord.value ? 'edit' : 'create',
+      getComplexObjectDisplayGroupKey(key),
+    )?.title || getComplexGroup(key)?.title
+  );
+}
+
+function getComplexGroupDepth(key?: string) {
+  const groupsByKey = new Map(
+    (props.config.complexGroups || []).map((group) => [group.key, group]),
+  );
+  let depth = 0;
+  let group = key ? groupsByKey.get(key) : undefined;
+  const ancestors = new Set<string>();
+  while (group?.parentKey && !ancestors.has(group.parentKey)) {
+    ancestors.add(group.parentKey);
+    depth++;
+    group = groupsByKey.get(group.parentKey);
+  }
+  return depth;
+}
+
+function changeComplexGroupEnabled(key: string, checked: boolean) {
+  if (checked) {
+    complexGroupEnabled[key] = true;
+    return;
+  }
+  const group = getComplexGroup(key);
+  const clear = getComplexGroupDepth(key) > 0;
+  Modal.confirm({
+    title: '操作确认',
+    content:
+      '取消将' +
+        (clear ? '清除' : '不提交') +
+        (group?.title || key) +
+        (/信息$/.test(group?.title || key) ? '' : '信息'),
+    onOk: () => {
+      complexGroupEnabled[key] = false;
+    },
+  });
+}
+
+function toggleComplexGroupFromHeader(key: string, event: MouseEvent) {
+  const target = event.target as HTMLElement;
+  if (target.closest('button, input, label')) {
+    return;
+  }
+  toggleComplexGroup(key);
+}
+
 function isComplexGroupFieldVisible(field: CrudFieldConfig) {
   return (
     !field.complexGroupKey || !complexGroupCollapsed[field.complexGroupKey]
@@ -1447,7 +1564,14 @@ function isComplexGroupFieldVisible(field: CrudFieldConfig) {
 }
 
 function isComplexGroupEnabled(field: CrudFieldConfig) {
-  return !field.complexGroupKey || complexGroupEnabled[field.complexGroupKey];
+  return (
+    !field.complexGroupKey ||
+    isCrudComplexGroupEnabled(
+      field.complexGroupKey,
+      props.config.complexGroups,
+      complexGroupEnabled,
+    )
+  );
 }
 
 function isFirstComplexGroupField(field: CrudFieldConfig) {
@@ -3172,6 +3296,20 @@ function initializeFormGroupCollapse() {
   );
   Object.assign(pageDisplayGroupExpandedRows, state.rows);
   Object.assign(complexGroupCollapsed, state.collapsed);
+  // 对象组按页面展示设置的默认展开状态初始化，不覆盖用户随后手动切换。
+  const view = editingRecord.value ? 'edit' : 'create';
+  for (const group of props.config.complexGroups || []) {
+    const configured = getPageDisplayGroup(
+      view,
+      getComplexObjectDisplayGroupKey(group.key),
+    );
+    if (configured?.defaultExpandedRows !== undefined) {
+      complexGroupCollapsed[group.key] =
+        configured.defaultExpandedRows !== 'all';
+    } else if (configured?.defaultExpanded !== undefined) {
+      complexGroupCollapsed[group.key] = configured.defaultExpanded === false;
+    }
+  }
 }
 
 function getFormValidationMessage(field: CrudFieldConfig, reason: string) {
@@ -4784,12 +4922,25 @@ async function handleSubmit() {
 
     const complexValues = { ...formState };
     for (const field of allowedFields) {
-      if (field.complexGroupKey && field.type !== 'area-cascader')
-        complexValues[field.key] = serializeSubmittableFormValue(
+      if (!field.complexGroupKey) continue;
+      if (field.type === 'area-cascader') {
+        const areaValue: GenericRecord = {};
+        applyAreaCascaderValueToRecord(
+          areaValue,
           field,
           formState[field.key],
+          getFieldOptions(field),
           !isCreating,
         );
+        complexValues[field.key] =
+          areaValue[field.areaCascader?.valueKey || field.key];
+        continue;
+      }
+      complexValues[field.key] = serializeSubmittableFormValue(
+        field,
+        formState[field.key],
+        !isCreating,
+      );
     }
     const allowedComplexGroups = (props.config.complexGroups || [])
       .map((group) => ({
@@ -4814,7 +4965,9 @@ async function handleSubmit() {
         (item) => item.key === field.complexGroupKey,
       );
       const nestedKey = group?.fieldMappings[field.key];
-      const target = group ? complexGroupPayload[group.submitKey] : undefined;
+      const target = group
+        ? getRecordValue(complexGroupPayload, group.submitKey)
+        : undefined;
       if (!nestedKey || !target) {
         continue;
       }
@@ -6221,9 +6374,16 @@ function getRecordValue(record: GenericRecord, key: unknown) {
 }
 
 function getTableFieldValue(field: CrudFieldConfig, record: GenericRecord) {
-  return typeof field.tableValue === 'function'
-    ? field.tableValue(record)
-    : getRecordValue(record, field.key);
+  if (typeof field.tableValue === 'function') return field.tableValue(record);
+  const direct = getRecordValue(record, field.key);
+  return direct !== undefined
+    ? direct
+    : getCrudComplexGroupFieldValue(
+        record,
+        field.key,
+        field.complexGroupKey,
+        props.config.complexGroups,
+      );
 }
 
 function getTableCellValue(record: GenericRecord, key: unknown) {
@@ -6585,7 +6745,7 @@ function requestRejectReason(
   action: CrudRowAction,
   record: GenericRecord | GenericRecord[],
 ) {
-  if (!rejectReasonActionNames.has(action.label)) {
+  if (!action.reasonRequired && !rejectReasonActionNames.has(action.label)) {
     return Promise.resolve<null | string>(null);
   }
 
@@ -6616,7 +6776,7 @@ function requestRejectReason(
         }),
       ]),
       okText: '确认拒绝',
-      title: action.confirmTitle || '审核拒绝',
+      title: action.confirmTitle || action.label,
       async onOk() {
         const normalizedReason = reason.trim();
 
@@ -6742,20 +6902,41 @@ function openActionResult(
   actionResultOpen.value = true;
 }
 
-const detailSettingsFields = computed(() =>
-  resolveDetailFields(
+const detailSettingsFields = computed(() => {
+  const record =
     latestDetailRecord.value?.source === pageDisplaySettingCode.value
       ? latestDetailRecord.value.record
-      : dataSource.value[0],
+      : undefined;
+  const fields = resolveDetailFields(
+    flattenCrudComplexDetailRecord(record, props.config.complexGroups),
     effectiveFields.value,
     effectiveDetailFields.value,
+  );
+  const known = new Set(fields.map((field) => field.key));
+  for (const field of effectiveDetailFields.value) {
+    if (
+      field.complexGroupKey &&
+      field.detail !== false &&
+      !known.has(field.key)
+    ) {
+      fields.push(field);
+      known.add(field.key);
+    }
+  }
+  return fields;
+});
+
+const flattenedDetailData = computed(() =>
+  flattenCrudComplexDetailRecord(
+    actionResultData.value,
+    props.config.complexGroups,
   ),
 );
 
 function getDetailDisplayFields() {
   return applyPageDisplayFields(
     resolveDetailFields(
-      actionResultData.value,
+      flattenedDetailData.value,
       effectiveFields.value,
       effectiveDetailFields.value,
     ),
@@ -6764,7 +6945,7 @@ function getDetailDisplayFields() {
 }
 
 const actionResultEntries = computed((): DetailDisplayEntry[] => {
-  const data = actionResultData.value;
+  const data = flattenedDetailData.value;
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     return [];
   }
@@ -6775,7 +6956,7 @@ const actionResultEntries = computed((): DetailDisplayEntry[] => {
     [
       ...effectiveFields.value,
       ...resolveDetailFields(
-        actionResultData.value,
+        flattenedDetailData.value,
         effectiveFields.value,
         effectiveDetailFields.value,
       ),
@@ -6837,7 +7018,7 @@ async function runRowAction(
   }
 
   const rejectReason = await requestRejectReason(action, record);
-  if (rejectReasonActionNames.has(action.label) && !rejectReason) {
+  if ((action.reasonRequired || rejectReasonActionNames.has(action.label)) && !rejectReason) {
     return;
   }
 
@@ -8201,569 +8382,627 @@ watch(canCustomizeTableColumnsLocally, () => {
           class="grid gap-x-4 gap-y-4"
           :style="formGridStyle"
         >
-          <template v-for="field in displayedFormFields" :key="field.key">
+          <div
+            v-for="(block, blockIndex) in displayedFormBlocks"
+            :key="`${block.complexGroupKey || 'field'}-${blockIndex}`"
+            :class="
+              block.complexGroupKey && !quickFillActive
+                ? 'border-border col-span-full overflow-hidden rounded-lg border'
+                : 'contents'
+            "
+            :style="
+              block.complexGroupKey && block.depth > 0 && !quickFillActive
+                ? { marginInlineStart: `${block.depth * 24}px` }
+                : undefined
+            "
+          >
             <div
-              v-if="
-                quickFillActive && field.key === quickFillPlan.firstOptionalKey
+              v-if="block.complexGroupKey && !quickFillActive"
+              class="border-border flex cursor-pointer items-center gap-2 border-b px-4 py-3 text-sm font-semibold"
+              @click="
+                toggleComplexGroupFromHeader(block.complexGroupKey, $event)
               "
-              class="vben-crud-quick-fill-divider"
-            >
-              <Button
-                type="link"
-                :aria-expanded="quickFillMore"
-                @click="quickFillMore = !quickFillMore"
-              >
-                <template #icon>
-                  <ChevronDown
-                    class="vben-crud-toggle-icon"
-                    :class="{ 'is-expanded': quickFillMore }"
-                    aria-hidden="true"
-                  />
-                </template>
-                {{ quickFillMore ? '收起更多' : '更多' }}
-              </Button>
-            </div>
-            <div
-              v-if="
-                !quickFillActive &&
-                field.complexGroupKey &&
-                isFirstComplexGroupField(field)
-              "
-              class="border-border/70 col-span-full mt-2 flex items-center gap-2 border-t pt-4 text-sm font-semibold"
             >
               <Checkbox
-                v-model:checked="complexGroupEnabled[field.complexGroupKey]"
+                :checked="complexGroupEnabled[block.complexGroupKey]"
+                @update:checked="
+                  changeComplexGroupEnabled(block.complexGroupKey, $event)
+                "
               >
-                本次提交{{ getComplexGroup(field.complexGroupKey)?.title }}
+                {{ getComplexGroupTitle(block.complexGroupKey) }}
               </Checkbox>
-              <Tooltip title="未勾选时，本次不变更这部分数据">
-                <span class="text-muted-foreground text-xs"
-                  >不勾选则不变更</span
-                >
-              </Tooltip>
+              <template v-if="!complexGroupEnabled[block.complexGroupKey]">
+                <span class="text-destructive text-xs">
+                  {{
+                    getComplexGroupDepth(block.complexGroupKey) > 0
+                      ? '当前未勾选将清除该部分信息'
+                      : '当前未勾选将不提交该部分信息'
+                  }}
+                </span>
+              </template>
               <Button
+                class="vben-crud-complex-toggle ml-auto"
                 type="link"
                 size="small"
-                :aria-expanded="!complexGroupCollapsed[field.complexGroupKey]"
-                @click="toggleComplexGroup(field.complexGroupKey)"
+                :aria-expanded="!complexGroupCollapsed[block.complexGroupKey]"
+                @click="toggleComplexGroup(block.complexGroupKey)"
               >
                 <template #icon>
                   <ChevronDown
                     class="vben-crud-toggle-icon"
                     :class="{
                       'is-expanded':
-                        !complexGroupCollapsed[field.complexGroupKey],
+                        !complexGroupCollapsed[block.complexGroupKey],
                     }"
                     aria-hidden="true"
                   />
                 </template>
                 {{
-                  complexGroupCollapsed[field.complexGroupKey] ? '展开' : '收起'
+                  complexGroupCollapsed[block.complexGroupKey] ? '展开' : '收起'
                 }}
               </Button>
             </div>
             <div
-              v-if="
-                !quickFillActive &&
-                !field.complexGroupKey &&
-                shouldShowFormGroupTitle(field)
+              :class="
+                block.complexGroupKey && !quickFillActive
+                  ? complexGroupCollapsed[block.complexGroupKey]
+                    ? 'grid'
+                    : 'grid gap-x-4 gap-y-4 p-4'
+                  : 'contents'
               "
-              class="col-span-full mt-3 flex items-center justify-between text-sm font-semibold"
-              :class="getFormGroupTitleClass(field)"
-            >
-              <span class="vben-crud-group-title">
-                {{ field.layoutGroupTitle }}
-              </span>
-              <div v-if="field.displayGroup" class="vben-crud-group-actions">
-                <Checkbox
-                  v-if="field.displayGroup.showSubmitCheckbox === true"
-                  :checked="
-                    groupSubmitChecked[field.displayGroup.key] !== false
-                  "
-                  :disabled="submitting"
-                  :aria-label="`${field.layoutGroupTitle}提交数据`"
-                  @update:checked="changeGroupSubmitChecked(field, $event)"
-                >
-                  提交数据
-                </Checkbox>
-                <Button
-                  type="link"
-                  size="small"
-                  :aria-expanded="
-                    isPageDisplayGroupExpanded(field.displayGroup.key)
-                  "
-                  @click="togglePageDisplayGroup(field.displayGroup.key)"
-                >
-                  <template #icon>
-                    <ChevronDown
-                      class="vben-crud-toggle-icon"
-                      :class="{
-                        'is-expanded': isPageDisplayGroupExpanded(
-                          field.displayGroup.key,
-                        ),
-                      }"
-                      aria-hidden="true"
-                    />
-                  </template>
-                  {{ getPageDisplayGroupToggleLabel(field.displayGroup.key) }}
-                </Button>
-              </div>
-            </div>
-            <Form.Item
-              v-if="
-                quickFillActive ||
-                (isComplexGroupFieldVisible(field) &&
-                  isPageDisplayGroupFieldVisible(field))
-              "
-              v-show="
-                !quickFillActive ||
-                quickFillMore ||
-                quickFillPlan.requiredKeys.has(field.key)
-              "
-              :data-crud-form-field="field.key"
-              :label="getFormFieldLabel(field)"
-              :required="field.required"
-              :extra="getFormFieldHelp(field)"
-              class="mb-0 w-full"
-              :class="{
-                'vben-crud-form-item-new-row':
-                  !quickFillActive && field.layoutNewRow,
-                'col-span-full': shouldFormItemSpanFullRow(field),
-                'md:col-span-2': shouldFormItemSpanTwoColumns(field),
-              }"
               :style="
-                getFormItemStyle(
-                  quickFillActive ? { ...field, layoutNewRow: false } : field,
-                )
+                block.complexGroupKey && !quickFillActive
+                  ? { gridTemplateColumns: formGridStyle.gridTemplateColumns }
+                  : undefined
               "
             >
-              <div
-                v-if="hasFormFieldSlot(field)"
-                :inert="isFormFieldInteractionDisabled(field)"
-              >
-                <slot
-                  :name="resolveFormFieldSlotName(field)"
-                  :editing-record="editingRecord"
-                  :field="field"
-                  :form-state="
-                    isFormFieldInteractionDisabled(field)
-                      ? readonly(formState)
-                      : formState
+              <template v-for="field in block.fields" :key="field.key">
+                <div
+                  v-if="
+                    quickFillActive &&
+                    field.key === quickFillPlan.firstOptionalKey
                   "
-                  :disabled="isFormFieldInteractionDisabled(field)"
-                ></slot>
-              </div>
-              <Input.Password
-                v-else-if="field.type === 'password'"
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                class="w-full"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :maxlength="field.maxLength"
-                :placeholder="getPlaceholder(field)"
-              />
-              <Cascader
-                v-else-if="field.type === 'area-cascader'"
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                :allow-clear="true"
-                :change-on-select="
-                  !isAreaCascaderLevelRestricted(field, formState)
-                "
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :loading="optionLoadingState[field.key]"
-                :options="getFieldOptions(field, formState)"
-                :placeholder="getPlaceholder(field)"
-                class="w-full"
-                show-search
-                @dropdown-visible-change="
-                  (open) =>
-                    handleAreaCascaderDropdownVisibleChange(
-                      field,
-                      open,
-                      formState,
-                    )
-                "
-              />
-              <TreeSelect
-                v-else-if="field.type === 'org-tree-select'"
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                :allow-clear="true"
-                class="w-full"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :loading="optionLoadingState[field.key]"
-                :multiple="Boolean(field.multiple)"
-                :placeholder="getPlaceholder(field)"
-                show-search
-                :tree-checkable="Boolean(field.multiple)"
-                :tree-data="getFieldOptions(field)"
-                tree-default-expand-all
-                tree-node-filter-prop="label"
-                popup-class-name="vben-crud-org-tree-select-dropdown"
-                :dropdown-match-select-width="false"
-                :list-height="640"
-                :virtual="false"
-                @blur="() => restoreRemoteFieldOptions(field)"
-                @dropdown-visible-change="
-                  (open) => handleSelectDropdownVisibleChange(field, open)
-                "
-              />
-              <div
-                v-else-if="isFileUploadField(field)"
-                @mouseleave="handleUploadMouseLeave(field)"
-                @mousemove="
-                  handleUploadAreaMouseMove(field, $event as MouseEvent)
-                "
-              >
-                <Upload
-                  :disabled="isFormFieldInteractionDisabled(field)"
-                  :accept="isImageUploadField(field) ? 'image/*' : undefined"
-                  :custom-request="(options) => uploadCrudFile(field, options)"
-                  :file-list="getUploadFileList(field)"
-                  :item-render="
-                    ({ originNode, file }) =>
-                      renderUploadItem(field, originNode, file)
-                  "
-                  :list-type="
-                    isImageUploadField(field) ? 'picture-card' : 'text'
-                  "
-                  :max-count="getUploadMaxCount(field)"
-                  :multiple="isMultiUploadField(field)"
-                  @preview="handleUploadPreview"
-                  @remove="(file) => removeCrudUploadFile(field, file)"
+                  class="vben-crud-quick-fill-divider"
                 >
                   <Button
-                    v-if="
-                      !isImageUploadField(field) &&
-                      shouldShowUploadTrigger(field)
+                    type="link"
+                    :aria-expanded="quickFillMore"
+                    @click="quickFillMore = !quickFillMore"
+                  >
+                    <template #icon>
+                      <ChevronDown
+                        class="vben-crud-toggle-icon"
+                        :class="{ 'is-expanded': quickFillMore }"
+                        aria-hidden="true"
+                      />
+                    </template>
+                    {{ quickFillMore ? '收起更多' : '更多' }}
+                  </Button>
+                </div>
+                <div
+                  v-if="
+                    !quickFillActive &&
+                    !field.complexGroupKey &&
+                    shouldShowFormGroupTitle(field)
+                  "
+                  class="col-span-full mt-3 flex items-center justify-between text-sm font-semibold"
+                  :class="getFormGroupTitleClass(field)"
+                >
+                  <span class="vben-crud-group-title">
+                    {{ field.layoutGroupTitle }}
+                  </span>
+                  <div
+                    v-if="field.displayGroup"
+                    class="vben-crud-group-actions"
+                  >
+                    <Checkbox
+                      v-if="field.displayGroup.showSubmitCheckbox === true"
+                      :checked="
+                        groupSubmitChecked[field.displayGroup.key] !== false
+                      "
+                      :disabled="submitting"
+                      :aria-label="`${field.layoutGroupTitle}提交数据`"
+                      @update:checked="changeGroupSubmitChecked(field, $event)"
+                    >
+                      提交数据
+                    </Checkbox>
+                    <Button
+                      type="link"
+                      size="small"
+                      :aria-expanded="
+                        isPageDisplayGroupExpanded(field.displayGroup.key)
+                      "
+                      @click="togglePageDisplayGroup(field.displayGroup.key)"
+                    >
+                      <template #icon>
+                        <ChevronDown
+                          class="vben-crud-toggle-icon"
+                          :class="{
+                            'is-expanded': isPageDisplayGroupExpanded(
+                              field.displayGroup.key,
+                            ),
+                          }"
+                          aria-hidden="true"
+                        />
+                      </template>
+                      {{
+                        getPageDisplayGroupToggleLabel(field.displayGroup.key)
+                      }}
+                    </Button>
+                  </div>
+                </div>
+                <Form.Item
+                  v-if="
+                    quickFillActive ||
+                    (isComplexGroupFieldVisible(field) &&
+                      isPageDisplayGroupFieldVisible(field))
+                  "
+                  v-show="
+                    !quickFillActive ||
+                    quickFillMore ||
+                    quickFillPlan.requiredKeys.has(field.key)
+                  "
+                  :data-crud-form-field="field.key"
+                  :label="getFormFieldLabel(field)"
+                  :required="field.required && isComplexGroupEnabled(field)"
+                  :extra="getFormFieldHelp(field)"
+                  class="mb-0 w-full"
+                  :class="{
+                    'vben-crud-form-item-new-row':
+                      !quickFillActive && field.layoutNewRow,
+                    'col-span-full': shouldFormItemSpanFullRow(field),
+                    'md:col-span-2': shouldFormItemSpanTwoColumns(field),
+                  }"
+                  :style="
+                    getFormItemStyle(
+                      quickFillActive
+                        ? { ...field, layoutNewRow: false }
+                        : field,
+                    )
+                  "
+                >
+                  <div
+                    v-if="hasFormFieldSlot(field)"
+                    :inert="isFormFieldInteractionDisabled(field)"
+                  >
+                    <slot
+                      :name="resolveFormFieldSlotName(field)"
+                      :editing-record="editingRecord"
+                      :field="field"
+                      :form-state="
+                        isFormFieldInteractionDisabled(field)
+                          ? readonly(formState)
+                          : formState
+                      "
+                      :disabled="isFormFieldInteractionDisabled(field)"
+                    ></slot>
+                  </div>
+                  <Input.Password
+                    v-else-if="field.type === 'password'"
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    class="w-full"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :maxlength="field.maxLength"
+                    :placeholder="getPlaceholder(field)"
+                  />
+                  <Cascader
+                    v-else-if="field.type === 'area-cascader'"
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    :allow-clear="true"
+                    :change-on-select="
+                      !isAreaCascaderLevelRestricted(field, formState)
+                    "
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :loading="optionLoadingState[field.key]"
+                    :options="getFieldOptions(field, formState)"
+                    :placeholder="getPlaceholder(field)"
+                    class="w-full"
+                    show-search
+                    @dropdown-visible-change="
+                      (open) =>
+                        handleAreaCascaderDropdownVisibleChange(
+                          field,
+                          open,
+                          formState,
+                        )
+                    "
+                  />
+                  <TreeSelect
+                    v-else-if="field.type === 'org-tree-select'"
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    :allow-clear="true"
+                    class="w-full"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :loading="optionLoadingState[field.key]"
+                    :multiple="Boolean(field.multiple)"
+                    :placeholder="getPlaceholder(field)"
+                    show-search
+                    :tree-checkable="Boolean(field.multiple)"
+                    :tree-data="getFieldOptions(field)"
+                    tree-default-expand-all
+                    tree-node-filter-prop="label"
+                    popup-class-name="vben-crud-org-tree-select-dropdown"
+                    :dropdown-match-select-width="false"
+                    :list-height="640"
+                    :virtual="false"
+                    @blur="() => restoreRemoteFieldOptions(field)"
+                    @dropdown-visible-change="
+                      (open) => handleSelectDropdownVisibleChange(field, open)
+                    "
+                  />
+                  <div
+                    v-else-if="isFileUploadField(field)"
+                    @mouseleave="handleUploadMouseLeave(field)"
+                    @mousemove="
+                      handleUploadAreaMouseMove(field, $event as MouseEvent)
                     "
                   >
-                    上传{{ field.label }}
-                  </Button>
-                  <div
-                    v-else-if="shouldShowUploadTrigger(field)"
-                    class="flex h-full w-full items-center justify-center"
-                  >
-                    <Plus class="size-5" />
+                    <Upload
+                      :disabled="isFormFieldInteractionDisabled(field)"
+                      :accept="
+                        isImageUploadField(field) ? 'image/*' : undefined
+                      "
+                      :custom-request="
+                        (options) => uploadCrudFile(field, options)
+                      "
+                      :file-list="getUploadFileList(field)"
+                      :item-render="
+                        ({ originNode, file }) =>
+                          renderUploadItem(field, originNode, file)
+                      "
+                      :list-type="
+                        isImageUploadField(field) ? 'picture-card' : 'text'
+                      "
+                      :max-count="getUploadMaxCount(field)"
+                      :multiple="isMultiUploadField(field)"
+                      @preview="handleUploadPreview"
+                      @remove="(file) => removeCrudUploadFile(field, file)"
+                    >
+                      <Button
+                        v-if="
+                          !isImageUploadField(field) &&
+                          shouldShowUploadTrigger(field)
+                        "
+                      >
+                        上传{{ field.label }}
+                      </Button>
+                      <div
+                        v-else-if="shouldShowUploadTrigger(field)"
+                        class="flex h-full w-full items-center justify-center"
+                      >
+                        <Plus class="size-5" />
+                      </div>
+                    </Upload>
                   </div>
-                </Upload>
-              </div>
-              <JsonEditorField
-                :key="`json-${jsonEditSession}-${field.key}`"
-                @validity="handleJsonEditorValidity(field.key, $event)"
-                :inline="focusedJsonFieldKey === field.key"
-                v-else-if="
-                  field.type === 'json' &&
-                  !shouldUseJsonSchemaEditor(field, formState[field.key])
-                "
-                :model-value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:model-value="updateFormFieldInput(field, $event)"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :modal-style="modalStyle"
-                :modal-width="modalWidth"
-                :title="field.label"
-              />
-              <JsonSchemaEditorField
-                :key="`schema-${jsonEditSession}-${field.key}`"
-                @validity="handleJsonEditorValidity(field.key, $event)"
-                v-else-if="
-                  shouldUseJsonSchemaEditor(field, formState[field.key])
-                "
-                :model-value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:model-value="updateFormFieldInput(field, $event)"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :inline="
-                  focusedJsonFieldKey === field.key ||
-                  isCrudFieldJsonSchemaInline(field)
-                "
-                @ready="handleJsonEditorReady(field.key, $event)"
-                :modal-style="modalStyle"
-                :modal-width="modalWidth"
-                :schema-source="
-                  getFormJsonSchemaSource(field, formState[field.key])
-                "
-                :title="field.label"
-              />
-              <CronExpressionField
-                v-else-if="field.type === 'cron'"
-                :model-value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:model-value="updateFormFieldInput(field, $event)"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :modal-style="modalStyle"
-                :modal-width="modalWidth"
-                :placeholder="getPlaceholder(field)"
-                :title="field.label"
-              />
-              <CodeEditorField
-                v-else-if="
-                  field.type === 'code' ||
-                  field.type === 'css' ||
-                  field.type === 'html'
-                "
-                :model-value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:model-value="updateFormFieldInput(field, $event)"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :language="getCodeEditorLanguage(field)"
-                :modal-style="modalStyle"
-                :modal-width="modalWidth"
-                :title="field.label"
-              />
-              <Input.TextArea
-                v-else-if="
-                  field.type === 'textarea' || field.type === 'string-array'
-                "
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                :auto-size="{ minRows: 3, maxRows: 8 }"
-                class="w-full"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :maxlength="field.maxLength"
-                :placeholder="getPlaceholder(field)"
-              />
-              <DatePicker
-                :disabled="isFormFieldInteractionDisabled(field)"
-                v-else-if="field.type === 'datetime' || field.type === 'date'"
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                class="w-full"
-                :placeholder="getPlaceholder(field)"
-                :show-time="field.type === 'datetime'"
-                :value-format="
-                  field.type === 'datetime'
-                    ? 'YYYY-MM-DDTHH:mm:ss'
-                    : 'YYYY-MM-DD'
-                "
-              />
-              <TimePicker
-                :disabled="isFormFieldInteractionDisabled(field)"
-                v-else-if="field.type === 'time'"
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                class="w-full"
-                :placeholder="getPlaceholder(field)"
-                value-format="HH:mm:ss"
-              />
-              <InputNumber
-                :disabled="isFormFieldInteractionDisabled(field)"
-                v-else-if="field.type === 'number'"
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                class="w-full"
-                :placeholder="getPlaceholder(field)"
-              />
-              <Checkbox.Group
-                v-else-if="
-                  shouldUseInlineChoiceOptions(
-                    field,
-                    editingRecord ? 'edit' : 'create',
-                  ) && field.multiple
-                "
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :options="
-                  getInlineChoiceOptions(
-                    field,
-                    editingRecord ? 'edit' : 'create',
-                  )
-                "
-                class="flex flex-wrap gap-x-3 gap-y-2"
-              />
-              <Radio.Group
-                v-else-if="
-                  shouldUseInlineChoiceOptions(
-                    field,
-                    editingRecord ? 'edit' : 'create',
-                  )
-                "
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :options="
-                  getInlineChoiceOptions(
-                    field,
-                    editingRecord ? 'edit' : 'create',
-                  )
-                "
-                class="flex flex-wrap gap-2"
-                option-type="button"
-              />
-              <AutoComplete
-                v-else-if="
-                  (field.type === 'select' || field.type === 'role-select') &&
-                  field.allowInput &&
-                  !field.multiple
-                "
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                :allow-clear="true"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :options="getFieldOptions(field)"
-                :placeholder="getPlaceholder(field)"
-                :filter-option="
-                  isRemoteSearchField(field) ? false : filterSelectOptionByLabel
-                "
-                :loading="optionLoadingState[field.key]"
-                class="w-full"
-                @blur="() => restoreRemoteFieldOptions(field)"
-                @dropdown-visible-change="
-                  (open) => handleSelectDropdownVisibleChange(field, open)
-                "
-                @search="handleSelectSearch(field, $event)"
-              />
-              <Select
-                v-else-if="
-                  field.type === 'select' || field.type === 'role-select'
-                "
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                :allow-clear="true"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                :mode="field.multiple ? 'multiple' : undefined"
-                :options="getFieldOptions(field)"
-                :placeholder="getPlaceholder(field)"
-                :filter-option="
-                  isRemoteSearchField(field) ? false : filterSelectOptionByLabel
-                "
-                :loading="optionLoadingState[field.key]"
-                class="w-full"
-                show-search
-                @blur="() => restoreRemoteFieldOptions(field)"
-                @change="(value) => handleSelectChange(field, value)"
-                @dropdown-visible-change="
-                  (open) => handleSelectDropdownVisibleChange(field, open)
-                "
-                @search="handleSelectSearch(field, $event)"
-              />
-              <Select
-                :disabled="isFormFieldInteractionDisabled(field)"
-                v-else-if="field.type === 'tags'"
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                :options="getFieldOptions(field)"
-                :placeholder="getPlaceholder(field)"
-                :filter-option="
-                  isRemoteSearchField(field) ? false : filterSelectOptionByLabel
-                "
-                :loading="optionLoadingState[field.key]"
-                class="w-full"
-                mode="tags"
-                show-search
-                @blur="() => restoreRemoteFieldOptions(field)"
-                @dropdown-visible-change="
-                  (open) => handleSelectDropdownVisibleChange(field, open)
-                "
-                @search="handleSelectSearch(field, $event)"
-              />
-              <Switch
-                :disabled="isFormFieldInteractionDisabled(field)"
-                v-else-if="field.type === 'switch'"
-                :checked="formState[field.key]"
-                @update:checked="updateFormFieldInput(field, $event)"
-                :checked-children="
-                  getCrudBooleanDisplayText(field, true) || '是'
-                "
-                :un-checked-children="
-                  getCrudBooleanDisplayText(field, false) || '否'
-                "
-              />
-              <Input
-                v-else
-                :value="
-                  getInteractionModelValue(
-                    formState[field.key],
-                    isFormFieldInteractionDisabled(field),
-                  )
-                "
-                @update:value="updateFormFieldInput(field, $event)"
-                :disabled="isFormFieldInteractionDisabled(field)"
-                class="w-full"
-                :maxlength="field.maxLength"
-                :placeholder="getPlaceholder(field)"
-              />
-            </Form.Item>
-          </template>
+                  <JsonEditorField
+                    :key="`json-${jsonEditSession}-${field.key}`"
+                    @validity="handleJsonEditorValidity(field.key, $event)"
+                    :inline="focusedJsonFieldKey === field.key"
+                    v-else-if="
+                      field.type === 'json' &&
+                      !shouldUseJsonSchemaEditor(field, formState[field.key])
+                    "
+                    :model-value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:model-value="updateFormFieldInput(field, $event)"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :modal-style="modalStyle"
+                    :modal-width="modalWidth"
+                    :title="field.label"
+                  />
+                  <JsonSchemaEditorField
+                    :key="`schema-${jsonEditSession}-${field.key}`"
+                    @validity="handleJsonEditorValidity(field.key, $event)"
+                    v-else-if="
+                      shouldUseJsonSchemaEditor(field, formState[field.key])
+                    "
+                    :model-value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:model-value="updateFormFieldInput(field, $event)"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :inline="
+                      focusedJsonFieldKey === field.key ||
+                      isCrudFieldJsonSchemaInline(field)
+                    "
+                    @ready="handleJsonEditorReady(field.key, $event)"
+                    :modal-style="modalStyle"
+                    :modal-width="modalWidth"
+                    :schema-source="
+                      getFormJsonSchemaSource(field, formState[field.key])
+                    "
+                    :title="field.label"
+                  />
+                  <CronExpressionField
+                    v-else-if="field.type === 'cron'"
+                    :model-value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:model-value="updateFormFieldInput(field, $event)"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :modal-style="modalStyle"
+                    :modal-width="modalWidth"
+                    :placeholder="getPlaceholder(field)"
+                    :title="field.label"
+                  />
+                  <CodeEditorField
+                    v-else-if="
+                      field.type === 'code' ||
+                      field.type === 'css' ||
+                      field.type === 'html'
+                    "
+                    :model-value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:model-value="updateFormFieldInput(field, $event)"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :language="getCodeEditorLanguage(field)"
+                    :modal-style="modalStyle"
+                    :modal-width="modalWidth"
+                    :title="field.label"
+                  />
+                  <Input.TextArea
+                    v-else-if="
+                      field.type === 'textarea' || field.type === 'string-array'
+                    "
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    :auto-size="{ minRows: 3, maxRows: 8 }"
+                    class="w-full"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :maxlength="field.maxLength"
+                    :placeholder="getPlaceholder(field)"
+                  />
+                  <DatePicker
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    v-else-if="
+                      field.type === 'datetime' || field.type === 'date'
+                    "
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    class="w-full"
+                    :placeholder="getPlaceholder(field)"
+                    :show-time="field.type === 'datetime'"
+                    :value-format="
+                      field.type === 'datetime'
+                        ? 'YYYY-MM-DDTHH:mm:ss'
+                        : 'YYYY-MM-DD'
+                    "
+                  />
+                  <TimePicker
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    v-else-if="field.type === 'time'"
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    class="w-full"
+                    :placeholder="getPlaceholder(field)"
+                    value-format="HH:mm:ss"
+                  />
+                  <InputNumber
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    v-else-if="field.type === 'number'"
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    class="w-full"
+                    :placeholder="getPlaceholder(field)"
+                  />
+                  <Checkbox.Group
+                    v-else-if="
+                      shouldUseInlineChoiceOptions(
+                        field,
+                        editingRecord ? 'edit' : 'create',
+                      ) && field.multiple
+                    "
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :options="
+                      getInlineChoiceOptions(
+                        field,
+                        editingRecord ? 'edit' : 'create',
+                      )
+                    "
+                    class="flex flex-wrap gap-x-3 gap-y-2"
+                  />
+                  <Radio.Group
+                    v-else-if="
+                      shouldUseInlineChoiceOptions(
+                        field,
+                        editingRecord ? 'edit' : 'create',
+                      )
+                    "
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :options="
+                      getInlineChoiceOptions(
+                        field,
+                        editingRecord ? 'edit' : 'create',
+                      )
+                    "
+                    class="flex flex-wrap gap-2"
+                    option-type="button"
+                  />
+                  <AutoComplete
+                    v-else-if="
+                      (field.type === 'select' ||
+                        field.type === 'role-select') &&
+                      field.allowInput &&
+                      !field.multiple
+                    "
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    :allow-clear="true"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :options="getFieldOptions(field)"
+                    :placeholder="getPlaceholder(field)"
+                    :filter-option="
+                      isRemoteSearchField(field)
+                        ? false
+                        : filterSelectOptionByLabel
+                    "
+                    :loading="optionLoadingState[field.key]"
+                    class="w-full"
+                    @blur="() => restoreRemoteFieldOptions(field)"
+                    @dropdown-visible-change="
+                      (open) => handleSelectDropdownVisibleChange(field, open)
+                    "
+                    @search="handleSelectSearch(field, $event)"
+                  />
+                  <Select
+                    v-else-if="
+                      field.type === 'select' || field.type === 'role-select'
+                    "
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    :allow-clear="true"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    :mode="field.multiple ? 'multiple' : undefined"
+                    :options="getFieldOptions(field)"
+                    :placeholder="getPlaceholder(field)"
+                    :filter-option="
+                      isRemoteSearchField(field)
+                        ? false
+                        : filterSelectOptionByLabel
+                    "
+                    :loading="optionLoadingState[field.key]"
+                    class="w-full"
+                    show-search
+                    @blur="() => restoreRemoteFieldOptions(field)"
+                    @change="(value) => handleSelectChange(field, value)"
+                    @dropdown-visible-change="
+                      (open) => handleSelectDropdownVisibleChange(field, open)
+                    "
+                    @search="handleSelectSearch(field, $event)"
+                  />
+                  <Select
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    v-else-if="field.type === 'tags'"
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    :options="getFieldOptions(field)"
+                    :placeholder="getPlaceholder(field)"
+                    :filter-option="
+                      isRemoteSearchField(field)
+                        ? false
+                        : filterSelectOptionByLabel
+                    "
+                    :loading="optionLoadingState[field.key]"
+                    class="w-full"
+                    mode="tags"
+                    show-search
+                    @blur="() => restoreRemoteFieldOptions(field)"
+                    @dropdown-visible-change="
+                      (open) => handleSelectDropdownVisibleChange(field, open)
+                    "
+                    @search="handleSelectSearch(field, $event)"
+                  />
+                  <Switch
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    v-else-if="field.type === 'switch'"
+                    :checked="formState[field.key]"
+                    @update:checked="updateFormFieldInput(field, $event)"
+                    :checked-children="
+                      getCrudBooleanDisplayText(field, true) || '是'
+                    "
+                    :un-checked-children="
+                      getCrudBooleanDisplayText(field, false) || '否'
+                    "
+                  />
+                  <Input
+                    v-else
+                    :value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:value="updateFormFieldInput(field, $event)"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                    class="w-full"
+                    :maxlength="field.maxLength"
+                    :placeholder="getPlaceholder(field)"
+                  />
+                </Form.Item>
+              </template>
+            </div>
+          </div>
         </div>
       </Form>
     </Modal>
@@ -8920,6 +9159,7 @@ watch(canCustomizeTableColumnsLocally, () => {
       :code="pageDisplaySettingCode"
       :domain-object="props.config.domainObject"
       :fields="effectiveFields"
+      :complex-groups="props.config.complexGroups"
       :form-elements="formElementRegistry.elements"
       :detail-fields="detailSettingsFields"
       :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
@@ -9098,6 +9338,14 @@ watch(canCustomizeTableColumnsLocally, () => {
 
 .vben-crud-toggle-icon.is-expanded {
   transform: rotate(180deg);
+}
+
+.vben-crud-complex-toggle :deep(.ant-btn-icon) {
+  margin-inline-end: 0;
+}
+
+.vben-crud-complex-toggle .vben-crud-toggle-icon {
+  margin-inline-end: 0;
 }
 
 .vben-crud-search-actions {

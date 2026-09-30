@@ -1246,6 +1246,9 @@ importers:
       '@levin/admin-framework':
         specifier: workspace:*
         version: link:../admin-framework
+      '@levin/bpm-designer':
+        specifier: workspace:*
+        version: link:../bpm-designer
       '@vben/tsconfig':
         specifier: workspace:*
         version: link:../../../internal/tsconfig

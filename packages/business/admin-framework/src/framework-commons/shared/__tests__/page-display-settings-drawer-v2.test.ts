@@ -94,6 +94,115 @@ function upload() {
 }
 
 describe('界面UI设置2', () => {
+  it('首次打开后异步返回未命中配置时可直接关闭', async () => {
+    const wrapper = mountEditor();
+    try {
+      await wrapper.setProps({
+        modelValue: {
+          version: 1,
+          create: { fields: [] },
+          edit: { fields: [] },
+          query: { fields: [] },
+        },
+      });
+      await flushPromises();
+      document.body
+        .querySelector<HTMLButtonElement>('.ant-drawer-close')
+        ?.click();
+      await flushPromises();
+      expect(wrapper.emitted('update:open')?.at(-1)).toEqual([false]);
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('将复杂对象字段固定归入对象组，而非旧扩展信息组', async () => {
+    const fields = [
+      ...['remark', 'tag', 'owner'].map((key) => ({
+        key,
+        label: key,
+        layoutGroup: 'extension',
+        layoutGroupTitle: '扩展信息',
+      })),
+      ...['legalName', 'legalPhone', 'legalIdNo', 'legalIdType'].map((key) => ({
+        key,
+        label: key,
+        complexGroupKey: 'legal',
+        layoutGroup: 'extension',
+        layoutGroupTitle: '扩展信息',
+      })),
+    ];
+    const wrapper = mount(PageDisplaySettingsDrawerV2, {
+      attachTo: document.body,
+      props: {
+        code: '/clob/V1/Partner',
+        complexGroups: [
+          {
+            key: 'legal',
+            title: '法人信息',
+            submitKey: 'legalInfo',
+            fieldMappings: { legalName: 'name' },
+          },
+        ],
+        fields,
+        detailFields: fields,
+        modelValue: {
+          version: 1,
+          create: {
+            fields: [{ key: 'legalName', layoutGroup: 'extension' }],
+            groups: [{ key: 'extension', title: '扩展信息', order: 0 }],
+          },
+          detail: {
+            fields: [{ key: 'legalName', layoutGroup: 'extension' }],
+            groups: [{ key: 'extension', title: '扩展信息', order: 0 }],
+          },
+        },
+        open: true,
+      },
+    });
+    try {
+      await clickTab('新增表单');
+      const legalGroupSelect = fieldRow(
+        'legalName',
+      ).querySelector<HTMLSelectElement>(
+        'select[aria-label="legalName所属分组"]',
+      );
+      expect(legalGroupSelect?.value).toBe('complex:legal');
+      expect(legalGroupSelect?.disabled).toBe(true);
+      expect(document.body.textContent).toContain('法人信息');
+      expect(
+        fieldRow('remark').querySelector<HTMLSelectElement>(
+          'select[aria-label="remark所属分组"]',
+        )?.value,
+      ).toBe('extension');
+      await clickTab('详情表单');
+      expect(
+        fieldRow('legalName').querySelector<HTMLSelectElement>(
+          'select[aria-label="legalName所属分组"]',
+        )?.value,
+      ).toBe('complex:legal');
+      // 旧配置异步返回后，自动补齐对象组不应触发放弃修改提示。
+      await wrapper.setProps({
+        modelValue: {
+          version: 1,
+          create: {
+            fields: [{ key: 'legalName', layoutGroup: 'extension' }],
+            groups: [{ key: 'extension', title: '扩展信息', order: 0 }],
+          },
+        },
+      });
+      await flushPromises();
+      document.body
+        .querySelector<HTMLButtonElement>('.ant-drawer-close')
+        ?.click();
+      await flushPromises();
+      expect(wrapper.emitted('update:open')?.at(-1)).toEqual([false]);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   it('保持打开加载并显示和替换记录标题', async () => {
     const wrapper = mountEditor();
     try {

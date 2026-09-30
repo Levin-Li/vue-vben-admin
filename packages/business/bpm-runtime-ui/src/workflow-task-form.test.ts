@@ -146,5 +146,6 @@ describe('任务动作提交契约', () => {
     expect(workflowStatusLabel('Failed')).toBe('处理失败');
     expect(workflowStatusLabel('PendingEffects')).toBe('等待业务处理');
     expect(workflowStatusLabel('Approved')).toBe('通过');
+    expect(workflowStatusLabel('Cancelled')).toBe('已取消');
   });
 });

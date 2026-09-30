@@ -1,23 +1,216 @@
-import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
+import type {
+  CrudFieldConfig,
+  CrudPageConfig,
+} from '@levin/admin-framework/framework-commons/shared/types';
 
 import { demoService } from '../../api/demo-service';
+import {
+  buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
+  tenantOptionsLoader,
+  userOptionsLoader,
+} from '../api-module';
 
-import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
+// 四级对象只声明字段语义和映射；边框、缩进与请求组装由公共 CRUD 执行。
+const nestedCategoryOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.Demo$NestedCategory',
+);
+const nestedStageOptionsLoader = buildEnumOptionsLoader(
+  'com.levin.oak.base.entities.Demo$NestedStage',
+);
+
+function nestedField(
+  key: string,
+  label: string,
+  complexGroupKey: string,
+  layoutOrder: number,
+  options: Partial<CrudFieldConfig> = {},
+): CrudFieldConfig {
+  return {
+    complexGroupKey,
+    key,
+    label,
+    layoutGroup: 'nested',
+    layoutGroupTitle: '四层嵌套对象',
+    layoutOrder,
+    ...options,
+  };
+}
+
+const nestedObjectFields: CrudFieldConfig[] = [
+  // 第一层：标题必填；整数为可选但必须非负。
+  nestedField('nestedOneTitle', '一级标题', 'nestedOne', 10, {
+    required: true,
+    maxLength: 80,
+  }),
+  nestedField('nestedOneCode', '一级编码', 'nestedOne', 20, { maxLength: 32 }),
+  nestedField('nestedOneDescription', '一级描述', 'nestedOne', 30, {
+    maxLength: 256,
+  }),
+  nestedField('nestedOneContact', '一级联系人', 'nestedOne', 40, {
+    maxLength: 64,
+  }),
+  nestedField('nestedOneRemark', '一级备注', 'nestedOne', 50, {
+    maxLength: 256,
+  }),
+  nestedField('nestedOneSortOrder', '一级排序值', 'nestedOne', 60, {
+    type: 'number',
+    valueType: 'number',
+    validator: (value) =>
+      value === undefined ||
+      value === null ||
+      value === '' ||
+      (Number.isInteger(Number(value)) && Number(value) >= 0)
+        ? undefined
+        : '请输入非负整数',
+  }),
+
+  // 第二层：枚举值来自实体声明，不使用硬编码的英文编码作展示标签。
+  nestedField('nestedTwoName', '二级名称', 'nestedTwo', 10, {
+    required: true,
+    maxLength: 80,
+  }),
+  nestedField('nestedTwoCategory', '二级类别', 'nestedTwo', 20, {
+    loadOptions: nestedCategoryOptionsLoader,
+    required: true,
+    type: 'select',
+    valueType: 'string',
+  }),
+  nestedField('nestedTwoStatus', '二级状态', 'nestedTwo', 30, {
+    maxLength: 32,
+  }),
+  nestedField('nestedTwoReference', '二级关联编号', 'nestedTwo', 40, {
+    maxLength: 64,
+  }),
+  nestedField('nestedTwoNote', '二级说明', 'nestedTwo', 50, { maxLength: 256 }),
+
+  // 第三层：普通枚举与日期时间保留各自的 Java 值类型。
+  nestedField('nestedThreeLabel', '三级标签', 'nestedThree', 10, {
+    required: true,
+    maxLength: 80,
+  }),
+  nestedField('nestedThreeIdentifier', '三级标识', 'nestedThree', 20, {
+    maxLength: 32,
+  }),
+  nestedField('nestedThreeOwner', '三级负责人', 'nestedThree', 30, {
+    maxLength: 64,
+  }),
+  nestedField('nestedThreePhase', '三级阶段', 'nestedThree', 40, {
+    loadOptions: nestedStageOptionsLoader,
+    required: true,
+    type: 'select',
+    valueType: 'string',
+  }),
+  nestedField('nestedThreeDetail', '三级内容', 'nestedThree', 50, {
+    maxLength: 256,
+  }),
+  nestedField('nestedThreeEventTime', '三级事件时间', 'nestedThree', 60, {
+    required: true,
+    type: 'datetime',
+  }),
+
+  // 第四层：false 是有效的必填布尔值，不能被当作空值。
+  nestedField('nestedFourValue', '四级值', 'nestedFour', 10, {
+    required: true,
+    maxLength: 120,
+  }),
+  nestedField('nestedFourUnit', '四级单位', 'nestedFour', 20, {
+    maxLength: 24,
+  }),
+  nestedField('nestedFourSource', '四级来源', 'nestedFour', 30, {
+    maxLength: 64,
+  }),
+  nestedField('nestedFourVersion', '四级版本', 'nestedFour', 40, {
+    maxLength: 32,
+  }),
+  nestedField('nestedFourComment', '四级备注', 'nestedFour', 50, {
+    maxLength: 256,
+  }),
+  nestedField('nestedFourEnabled', '四级启用', 'nestedFour', 60, {
+    required: true,
+    type: 'switch',
+    valueType: 'boolean',
+  }),
+];
 
 export const pageMeta = {
   name: 'Demo',
-  title: '示例管理',
-  description: '维护示例业务数据。',
+  title: 'Demo',
+  description: '维护 Demo 样例数据。',
 } as const;
 
 export const demoPageCrudConfig: CrudPageConfig = {
   apiBase: '/Demo',
   domainObject: true,
   apiService: demoService,
+  defaultFormValues: {
+    editable: false,
+    enable: true,
+    num: 99,
+    orderCode: 1000,
+    orgShared: false,
+    tenantShared: false,
+  },
   defaultQuery: {
     pageIndex: 1,
     pageSize: 10,
   },
+  complexGroups: [
+    {
+      key: 'nestedOne',
+      title: '四层嵌套对象',
+      submitKey: 'nestedObject',
+      fieldMappings: {
+        nestedOneTitle: 'title',
+        nestedOneCode: 'code',
+        nestedOneDescription: 'description',
+        nestedOneContact: 'contact',
+        nestedOneRemark: 'remark',
+        nestedOneSortOrder: 'sortOrder',
+      },
+    },
+    {
+      key: 'nestedTwo',
+      parentKey: 'nestedOne',
+      title: '第二层对象',
+      submitKey: 'nestedObject.levelTwo',
+      fieldMappings: {
+        nestedTwoName: 'name',
+        nestedTwoCategory: 'category',
+        nestedTwoStatus: 'status',
+        nestedTwoReference: 'reference',
+        nestedTwoNote: 'note',
+      },
+    },
+    {
+      key: 'nestedThree',
+      parentKey: 'nestedTwo',
+      title: '第三层对象',
+      submitKey: 'nestedObject.levelTwo.levelThree',
+      fieldMappings: {
+        nestedThreeLabel: 'label',
+        nestedThreeIdentifier: 'identifier',
+        nestedThreeOwner: 'owner',
+        nestedThreePhase: 'phase',
+        nestedThreeDetail: 'detail',
+        nestedThreeEventTime: 'eventTime',
+      },
+    },
+    {
+      key: 'nestedFour',
+      parentKey: 'nestedThree',
+      title: '第四层对象',
+      submitKey: 'nestedObject.levelTwo.levelThree.levelFour',
+      fieldMappings: {
+        nestedFourValue: 'value',
+        nestedFourUnit: 'unit',
+        nestedFourSource: 'source',
+        nestedFourVersion: 'version',
+        nestedFourComment: 'comment',
+        nestedFourEnabled: 'enabled',
+      },
+    },
+  ],
   fields: [
     {
       key: 'tenantId',
@@ -30,6 +223,22 @@ export const demoPageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'select',
       visibleForPlatformUser: true,
+    },
+    {
+      key: 'orgId',
+      label: '所属组织',
+      layoutGroup: 'basic',
+      layoutOrder: 6,
+      type: 'org-tree-select',
+    },
+    {
+      key: 'ownerId',
+      label: '所属用户',
+      layoutGroup: 'basic',
+      layoutOrder: 7,
+      loadOptions: userOptionsLoader,
+      remoteSearch: true,
+      type: 'select',
     },
     {
       key: '__tenant',
@@ -78,7 +287,13 @@ export const demoPageCrudConfig: CrudPageConfig = {
       table: true,
       width: 200,
     },
-    { key: 'qrCode', label: '二维码', layoutGroup: 'basic', layoutOrder: 40 },
+    {
+      key: 'qrCode',
+      label: '二维码',
+      layoutGroup: 'basic',
+      layoutOrder: 40,
+      type: 'qrcode',
+    },
     {
       key: 'location',
       label: '地理位置',
@@ -111,7 +326,9 @@ export const demoPageCrudConfig: CrudPageConfig = {
       label: '树形组织',
       layoutGroup: 'basic',
       layoutOrder: 80,
+      type: 'org-tree-select',
     },
+    ...nestedObjectFields,
     {
       key: 'imageUrl',
       label: '单张图片',
@@ -222,11 +439,120 @@ export const demoPageCrudConfig: CrudPageConfig = {
       type: 'time',
       width: 140,
     },
-    { key: 'jsonData', label: 'JSON数据', type: 'json' },
-    { key: 'htmlData', label: 'HTML', fullRow: true, type: 'html' },
+    // 其余明确属于创建请求的普通字段继续使用现有控件，不从名称推断选项。
+    {
+      key: 'tenantShared',
+      label: '租户间共享',
+      layoutGroup: 'business',
+      layoutOrder: 50,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+    },
+    {
+      key: 'orgShared',
+      label: '组织间共享',
+      layoutGroup: 'business',
+      layoutOrder: 60,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+    },
+    {
+      key: 'orderCode',
+      label: '排序代码',
+      layoutGroup: 'business',
+      layoutOrder: 70,
+      type: 'number',
+      valueType: 'number',
+    },
+    {
+      key: 'enable',
+      label: '是否启用',
+      layoutGroup: 'business',
+      layoutOrder: 80,
+      search: true,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+    },
+    {
+      key: 'editable',
+      label: '是否可编辑',
+      layoutGroup: 'business',
+      layoutOrder: 90,
+      table: true,
+      type: 'switch',
+      valueType: 'boolean',
+    },
+    {
+      key: 'jsonData',
+      label: 'JSON数据',
+      layoutGroup: 'content',
+      layoutGroupTitle: '内容与组件',
+      layoutOrder: 10,
+      type: 'json',
+    },
+    {
+      key: 'htmlData',
+      label: 'HTML',
+      layoutGroup: 'content',
+      layoutOrder: 20,
+      fullRow: true,
+      type: 'html',
+    },
+    {
+      key: 'jsCode',
+      label: 'JavaScript代码',
+      layoutGroup: 'content',
+      layoutOrder: 30,
+      type: 'code',
+    },
+    {
+      key: 'cssCode',
+      label: 'CSS代码',
+      layoutGroup: 'content',
+      layoutOrder: 40,
+      type: 'css',
+    },
+    {
+      key: 'conditionData',
+      label: '逻辑条件编辑',
+      layoutGroup: 'content',
+      layoutOrder: 50,
+      type: 'code',
+    },
+    { key: 'slider', label: '滑块', layoutGroup: 'content', layoutOrder: 60 },
+    {
+      key: 'transfer',
+      label: '穿梭器',
+      layoutGroup: 'content',
+      layoutOrder: 70,
+    },
+    {
+      key: 'multiSelect',
+      label: '多选',
+      layoutGroup: 'content',
+      layoutOrder: 80,
+    },
+    {
+      key: 'singleSelect',
+      label: '单选',
+      layoutGroup: 'content',
+      layoutOrder: 90,
+    },
+    {
+      key: 'remark',
+      label: '备注',
+      layoutGroup: 'content',
+      layoutOrder: 100,
+      fullRow: true,
+      maxLength: 512,
+      type: 'textarea',
+    },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  title: '示例管理',
+  title: 'Demo',
   transformSubmit: (values) => {
     const nextValues = { ...values };
 

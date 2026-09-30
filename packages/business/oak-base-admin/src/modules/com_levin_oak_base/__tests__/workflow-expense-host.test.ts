@@ -28,7 +28,17 @@ vi.mock(
 vi.mock('@levin/bpm-runtime-ui', () => ({
   WorkflowRuntimeWorkbench: {
     name: 'WorkflowRuntimeWorkbench',
-    props: ['detailComponents', 'canViewTodo', 'canViewDone', 'canViewStarted'],
+    props: [
+      'detailComponents',
+      'canViewTodo',
+      'canViewDone',
+      'canViewStarted',
+      'canUploadAttachment',
+      'canViewAttachments',
+      'canDownloadAttachment',
+      'canViewPendingAttachments',
+      'canDeletePendingAttachment',
+    ],
     template:
       "<component :is=\"detailComponents['workflow-expense']\" :business-reference=\"{ businessType: 'workflow-expense', businessId: 'expense-1', tenantId: 't1', orgId: 'o1' }\" :readonly=\"true\" />",
   },
@@ -52,6 +62,26 @@ describe('我的流程本地报销详情登记', () => {
       canViewTodo: true,
       canViewDone: false,
       canViewStarted: false,
+      canUploadAttachment: false,
+      canViewAttachments: false,
+      canDownloadAttachment: false,
+      canViewPendingAttachments: false,
+      canDeletePendingAttachment: false,
+    });
+    wrapper.unmount();
+  });
+
+  it('缺少本人待绑定查询权时不展示会在刷新后丢失选择的上传入口', async () => {
+    permission.has.mockImplementation(
+      ([method]: string[]) => method === 'uploadAttachment',
+    );
+    const wrapper = mount(MyWorkflow);
+    await flushPromises();
+    expect(
+      wrapper.findComponent({ name: 'WorkflowRuntimeWorkbench' }).props(),
+    ).toMatchObject({
+      canUploadAttachment: false,
+      canViewPendingAttachments: false,
     });
     wrapper.unmount();
   });

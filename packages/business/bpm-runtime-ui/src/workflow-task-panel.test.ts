@@ -50,6 +50,46 @@ const actionStubs = {
 };
 
 describe('workflowTaskPanel', () => {
+  it('二次验证展示译名，准备验证仍传服务端枚举值', async () => {
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: {
+        task: {
+          taskId: 't1',
+          status: 'Todo',
+          actions: [{ code: 'approve', label: '通过' }],
+          verificationTypes: ['Sms', 'Email'],
+        },
+      },
+      global: { stubs: actionStubs },
+    });
+
+    // 运行任务只从服务端给定的验证方式选择，不改变动作请求协议。
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '通过')
+      ?.trigger('click');
+    const select = wrapper
+      .findAll('select')
+      .find((item) => item.text().includes('短信验证码'));
+    expect(
+      select
+        ?.findAll('option')
+        .map((option) => [option.text(), option.attributes('value')]),
+    ).toEqual([
+      ['', ''],
+      ['短信验证码', 'Sms'],
+      ['邮箱验证码', 'Email'],
+    ]);
+    await select?.setValue('Sms');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '获取验证码')
+      ?.trigger('click');
+    expect(wrapper.emitted('prepareVerification')?.at(-1)?.[0]).toMatchObject({
+      verificationType: 'Sms',
+    });
+  });
+
   it('没有服务端动作时不补造通过按钮', () => {
     const wrapper = shallowMount(WorkflowTaskPanel, {
       props: { task: { taskId: 't1', status: 'Todo' } },
@@ -57,6 +97,84 @@ describe('workflowTaskPanel', () => {
     });
     expect(wrapper.text()).toContain('当前没有可执行的授权动作');
     expect(wrapper.findAll('button')).toHaveLength(0);
+  });
+
+  it('私有附件上传只提交文件与当前任务，办理及验证均引用待绑定 ID', async () => {
+    const attachment = {
+      id: 'private-1',
+      fileName: '核定依据.txt',
+      mimeType: 'text/plain',
+      sizeBytes: 7,
+      contentSha256: 'digest',
+      attached: false,
+    };
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: {
+        task: {
+          taskId: 'task-1',
+          status: 'Todo',
+          actions: [{ code: 'approve', label: '通过' }],
+        },
+        attachments: [attachment],
+        canUploadAttachment: true,
+      },
+      global: { stubs: actionStubs },
+    });
+    const file = new File(['private'], 'fresh.txt', { type: 'text/plain' });
+    const input = wrapper.find<HTMLInputElement>('input[type="file"]');
+    Object.defineProperty(input.element, 'files', {
+      configurable: true,
+      value: [file],
+    });
+    await input.trigger('change');
+    expect(wrapper.emitted('uploadAttachment')?.[0]).toEqual([file]);
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '通过')
+      ?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '确认通过')
+      ?.trigger('click');
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({
+      attachmentIds: ['private-1'],
+      formData: {},
+    });
+  });
+
+  it('待绑定附件可撤销，已绑定历史附件不可撤销', async () => {
+    const pending = {
+      id: 'pending-1',
+      fileName: '错误文件.txt',
+      mimeType: 'text/plain',
+      sizeBytes: 3,
+      contentSha256: 'digest',
+      attached: false,
+    };
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: {
+        task: { taskId: 'task-1', status: 'Todo' },
+        attachments: [pending, { ...pending, id: 'bound-1', attached: true }],
+        canDeletePendingAttachment: true,
+      },
+      global: {
+        stubs: {
+          ...actionStubs,
+          'a-list': {
+            props: ['dataSource'],
+            template:
+              '<div><slot v-for="item in dataSource" name="renderItem" :item="item" /></div>',
+          },
+        },
+      },
+    });
+    const remove = wrapper
+      .findAll('button')
+      .filter((button) => button.text() === '撤销上传');
+    expect(remove).toHaveLength(1);
+    await remove[0]?.trigger('click');
+    expect(wrapper.emitted('deletePendingAttachment')?.[0]).toEqual([pending]);
   });
 
   it('转办必须选择授权目标并填写意见后才提交独立动作参数', async () => {

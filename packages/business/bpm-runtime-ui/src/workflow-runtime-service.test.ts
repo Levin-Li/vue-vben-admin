@@ -5,6 +5,7 @@ import { WorkflowRuntimeService } from './workflow-runtime-service';
 const requestCalls = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
+  upload: vi.fn(),
 }));
 
 vi.mock('@levin/admin-framework', () => ({
@@ -14,7 +15,15 @@ vi.mock('@levin/admin-framework', () => ({
     post = requestCalls.post;
 
     constructor(readonly basePath: string) {}
+
+    buildRequestPath(path: string) {
+      return `${this.basePath}/${path}`;
+    }
   },
+}));
+
+vi.mock('@levin/admin-framework/framework-commons/runtime', () => ({
+  requestClient: { upload: requestCalls.upload },
 }));
 
 describe('workflowRuntimeService', () => {
@@ -123,8 +132,62 @@ describe('workflowRuntimeService', () => {
   beforeEach(() => {
     requestCalls.get.mockReset();
     requestCalls.post.mockReset();
+    requestCalls.upload.mockReset();
     requestCalls.get.mockResolvedValue([]);
     requestCalls.post.mockResolvedValue({ taskId: 'task-1' });
+    requestCalls.upload.mockResolvedValue({ id: 'private-1', attached: false });
+  });
+
+  it('私有附件只通过任务上传并以 ID 列表和 Blob 下载，不拼公开 URL', async () => {
+    const service = new WorkflowRuntimeService('/workflow-api');
+    const file = new File(['private'], 'evidence.txt', { type: 'text/plain' });
+    requestCalls.get
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(
+        new Blob(['private'], { type: 'application/octet-stream' }),
+      );
+    await service.uploadAttachment('task-1', file);
+    await service.attachments('instance-1');
+    await service.downloadAttachment('private-1');
+    expect(requestCalls.upload).toHaveBeenCalledWith(
+      '/workflow-api/workflow-runtime/attachment/upload',
+      { taskId: 'task-1', file },
+      { baseURL: '' },
+    );
+    expect(requestCalls.get).toHaveBeenNthCalledWith(
+      1,
+      'workflow-runtime/attachment/list',
+      { params: { instanceId: 'instance-1' } },
+    );
+    expect(requestCalls.get).toHaveBeenNthCalledWith(
+      2,
+      'workflow-runtime/attachment/download',
+      { params: { id: 'private-1' }, responseType: 'blob' },
+    );
+  });
+
+  it('拒绝下载接口的 JSON 错误 Blob，不能把无权响应保存成附件', async () => {
+    const service = new WorkflowRuntimeService('/workflow-api');
+    requestCalls.get.mockResolvedValue(
+      new Blob(['{"code":10000}'], { type: 'application/json' }),
+    );
+    await expect(service.downloadAttachment('private-denied')).rejects.toThrow(
+      '下载未授权',
+    );
+  });
+
+  it('待绑定附件的恢复和撤销只提交当前任务与私有附件标识', async () => {
+    const service = new WorkflowRuntimeService('/workflow-api');
+    await service.pendingAttachments('task-1');
+    await service.deletePendingAttachment('task-1', 'private-1');
+    expect(requestCalls.get).toHaveBeenCalledWith(
+      'workflow-runtime/attachment/pending',
+      { params: { taskId: 'task-1' } },
+    );
+    expect(requestCalls.post).toHaveBeenCalledWith(
+      'workflow-runtime/attachment/deletePending',
+      { data: { taskId: 'task-1', id: 'private-1' } },
+    );
   });
 
   it('uses session-derived todo endpoints and never sends a front-end user identity', async () => {

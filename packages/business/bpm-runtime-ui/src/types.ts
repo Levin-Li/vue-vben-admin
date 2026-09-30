@@ -28,6 +28,16 @@ export interface WorkflowBusinessField {
   label: string;
   value?: unknown;
 }
+
+/** 私有附件只暴露最小元数据，原始字节仅经当前授权下载接口获取。 */
+export interface WorkflowAttachmentMeta {
+  attached: boolean;
+  contentSha256: string;
+  fileName: string;
+  id: string;
+  mimeType: string;
+  sizeBytes: number;
+}
 export interface WorkflowBusinessDetail extends WorkflowBusinessReference {
   businessFields?: WorkflowBusinessField[];
   businessTitle?: string;
@@ -122,17 +132,22 @@ export interface WorkflowInstanceView {
   outcome?: string;
   pendingDispatchId?: string;
   processDefinitionId?: string;
+  processDiagramEdges?: WorkflowDiagramEdge[];
+  processDiagramNodes?: WorkflowDiagramNode[];
   purposeKey?: string;
   roundId?: string;
   /** 平台用途运行记录标识，显式重提必须引用它而不是引擎实例标识。 */
   runId?: string;
   status: string;
   tenantId?: string;
+  timeline?: WorkflowTimelineItem[];
+  timelineTruncated?: boolean;
 }
 
 /** 所有动作参数与审批意见均参与二次验证，禁止动作切换后沿用旧凭据。 */
 export interface WorkflowActionInput {
   addSignPosition?: string;
+  attachmentIds?: string[];
   comment?: string;
   formData: Record<string, unknown>;
   targetNodeId?: string;

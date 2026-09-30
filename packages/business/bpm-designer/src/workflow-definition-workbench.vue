@@ -2,9 +2,9 @@
 import type {
   WorkflowBusinessType,
   WorkflowDefinitionVersion,
-  WorkflowDesignerDefinition,
   WorkflowDesignerOptions,
 } from './types';
+import type { WorkflowTreeVersion } from './workflow-tree-version';
 
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
@@ -22,10 +22,11 @@ import { definitionFingerprint } from './definition-model';
 import { WorkflowDesignerService } from './workflow-designer-service';
 import WorkflowDesigner from './workflow-designer.vue';
 import { workflowLifecycleLabels } from './workflow-labels';
+import { projectDraftV3ToV2 } from './workflow-tree-version';
 
 const props = withDefaults(
   defineProps<{
-    definition: WorkflowDesignerDefinition;
+    definition: WorkflowTreeVersion;
     options?: WorkflowDesignerOptions;
     permissions?: { publish?: boolean; save?: boolean; simulate?: boolean };
     service?: WorkflowDesignerService;
@@ -35,7 +36,7 @@ const props = withDefaults(
 );
 const emit = defineEmits<{
   refreshed: [value: WorkflowDefinitionVersion];
-  'update:definition': [value: WorkflowDesignerDefinition];
+  'update:definition': [value: WorkflowTreeVersion];
 }>();
 const service = computed(() => props.service ?? new WorkflowDesignerService());
 const valid = ref(false);
@@ -46,6 +47,22 @@ const actionError = ref<string>();
 const businessTypes = ref<WorkflowBusinessType[]>([]);
 const catalogLoading = ref(false);
 const catalogError = ref<string>();
+const versionError = computed(() => {
+  try {
+    if (
+      props.definition.schemaVersion !== 3 ||
+      (props.version.lowflowDefinition &&
+        props.version.lowflowDefinition.schemaVersion !== 3)
+    )
+      throw new Error('只接受 schemaVersion=3 的流程定义');
+    projectDraftV3ToV2(props.definition);
+    if (props.version.lowflowDefinition)
+      projectDraftV3ToV2(props.version.lowflowDefinition);
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : '版本格式不受支持';
+  }
+});
 let catalogRequest = 0;
 const resolvedOptions = computed(() => ({
   ...props.options,
@@ -59,6 +76,7 @@ const dirty = computed(() => {
 });
 const canEdit = computed(
   () =>
+    !versionError.value &&
     ['Draft', 'Testing'].includes(props.version.lifecycle) &&
     props.permissions?.save !== false,
 );
@@ -66,6 +84,7 @@ const canSimulate = computed(
   () =>
     ['Draft', 'Testing'].includes(props.version.lifecycle) &&
     props.permissions?.simulate !== false &&
+    !versionError.value &&
     valid.value &&
     dirty.value === false,
 );
@@ -73,10 +92,18 @@ const canPublish = computed(
   () =>
     props.version.lifecycle === 'Testing' &&
     props.permissions?.publish !== false &&
+    !versionError.value &&
     props.version.simulationReport?.successful &&
     !dirty.value &&
     valid.value,
 );
+
+// 缺失字段表示旧报告没有这项证据；只有明确返回空数组才可展示为“无”。
+function coverageLabel(values?: null | string[]): string {
+  return values === null || values === undefined
+    ? '未记录'
+    : values.join('、') || '无';
+}
 
 // 显式目录加载失败保留草稿，阻止未经目录验证的模拟和发布。
 async function loadCatalog() {
@@ -120,9 +147,13 @@ async function run(
   actionError.value = undefined;
   try {
     const value = await action();
+    if (!value.lowflowDefinition)
+      throw new Error('服务端未返回固定版本的 v3 流程树。');
+    if (value.lowflowDefinition.schemaVersion !== 3)
+      throw new Error('只接受 schemaVersion=3 的流程定义');
+    projectDraftV3ToV2(value.lowflowDefinition);
     emit('refreshed', value);
-    if (value.lowflowDefinition)
-      emit('update:definition', value.lowflowDefinition);
+    emit('update:definition', value.lowflowDefinition);
     actionMessage.value = message;
   } catch (error) {
     // 失败只呈现错误，不关闭工作台、不清空用户正在编辑的配置。
@@ -133,7 +164,7 @@ async function run(
   }
 }
 function save() {
-  if (canEdit.value && dirty.value)
+  if (canEdit.value && dirty.value && !versionError.value)
     return run(
       () =>
         service.value.saveDraft(
@@ -162,6 +193,13 @@ function publish() {
 
 <template>
   <section class="levin-workflow-definition-workbench">
+    <AAlert
+      v-if="versionError"
+      class="mb-4"
+      :message="`版本格式不受支持：${versionError}`"
+      show-icon
+      type="error"
+    />
     <AAlert
       v-if="actionMessage"
       class="mb-4"
@@ -201,6 +239,7 @@ function publish() {
       </template>
     </AAlert>
     <WorkflowDesigner
+      v-if="!versionError"
       :model-value="definition"
       :options="resolvedOptions"
       :readonly="!canEdit || saving"
@@ -261,11 +300,14 @@ function publish() {
         <ADescriptionsItem label="模拟结果">
           {{ version.simulationReport.successful ? '通过' : '未通过' }}
         </ADescriptionsItem>
+        <ADescriptionsItem label="覆盖审批节点">
+          {{ coverageLabel(version.simulationReport.coveredTaskKeys) }}
+        </ADescriptionsItem>
         <ADescriptionsItem label="覆盖分支">
-          {{ version.simulationReport.coveredBranches?.join('、') || '无' }}
+          {{ coverageLabel(version.simulationReport.coveredBranches) }}
         </ADescriptionsItem>
         <ADescriptionsItem label="未覆盖分支">
-          {{ version.simulationReport.uncoveredBranches?.join('、') || '无' }}
+          {{ coverageLabel(version.simulationReport.uncoveredBranches) }}
         </ADescriptionsItem>
         <ADescriptionsItem v-if="version.simulationReport.message" label="报告">
           {{ version.simulationReport.message }}

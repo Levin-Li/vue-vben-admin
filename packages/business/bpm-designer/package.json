@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node ../../../scripts/sync-framework-package-metadata.mjs --package . && node ../../../scripts/sync-frontend-rule-docs.mjs && pnpm unbuild",
+    "typecheck": "vue-tsc --noEmit",
     "prepublishOnly": "pnpm run build",
     "prepack": "node ../../../scripts/sync-framework-package-metadata.mjs --package ."
   },
@@ -15,6 +16,11 @@
     "docs",
     "dist",
     "src",
+    "third-party/lowflow-design/LICENSE",
+    "third-party/lowflow-design/ORIGIN.md",
+    "third-party/lowflow-design/src/views/flowDesign/index.vue",
+    "third-party/lowflow-design/src/views/flowDesign/nodes/TreeNode.vue",
+    "third-party/lowflow-design/src/views/flowDesign/nodes/type.ts",
     "package-version.mjs",
     "package-version.d.mts"
   ],

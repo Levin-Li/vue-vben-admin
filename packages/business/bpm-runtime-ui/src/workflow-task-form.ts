@@ -119,6 +119,7 @@ export function workflowStatusLabel(value?: string) {
   const labels: Record<string, string> = {
     Todo: '待处理',
     Completed: '已结束',
+    Cancelled: '已取消',
     Running: '运行中',
     Suspended: '已挂起',
     PendingEffects: '等待业务处理',

@@ -1,12 +1,46 @@
 import type {
+  WorkflowCapabilityField,
   WorkflowCondition,
   WorkflowDesignerDefinition,
   WorkflowDesignerOptions,
   WorkflowNode,
   WorkflowNodeType,
 } from './types';
+import type { WorkflowTreeVersion } from './workflow-tree-version';
 
 import { applyGraphLayout, hasAutomaticLayout } from './workflow-graph-layout';
+import { projectV3ToV2 } from './workflow-tree-version';
+
+function validResolverLiteral(
+  value: unknown,
+  field: WorkflowCapabilityField,
+): boolean {
+  if (value === null) return field.nullable === true;
+  switch (field.type) {
+    case 'boolean': {
+      return typeof value === 'boolean';
+    }
+    case 'decimal': {
+      return typeof value === 'number' && Number.isFinite(value);
+    }
+    case 'enum': {
+      return (
+        typeof value === 'string' && field.enumValues?.includes(value) === true
+      );
+    }
+    case 'integer': {
+      return typeof value === 'number' && Number.isSafeInteger(value);
+    }
+    case 'stringSet': {
+      return (
+        Array.isArray(value) && value.every((item) => typeof item === 'string')
+      );
+    }
+    default: {
+      return typeof value === 'string';
+    }
+  }
+}
 
 /** JSON对象键的序列化顺序不影响业务配置，数组顺序仍保留节点与动作语义。 */
 export function definitionFingerprint(value: unknown): string {
@@ -51,11 +85,68 @@ export function createDefinition(
   };
 }
 
+/** 新建版本只持有一棵连通的 lowflow 树，不创建第二份可编辑平面图。 */
+export function createTreeDefinition(
+  processKey = '',
+  name = '',
+): WorkflowTreeVersion {
+  return {
+    schemaVersion: 3,
+    processKey,
+    name,
+    purposeKey: '',
+    variables: {},
+    startPolicy: { mode: 'manual', priority: 0 },
+    outcomeActions: {},
+    flowTree: {
+      id: 'start',
+      name: '开始',
+      type: 'start',
+      nextEdgeId: 'start_end',
+      nextTargetId: 'end',
+      next: {
+        id: 'end',
+        name: '通过结束',
+        type: 'end',
+        outcome: 'Approved',
+      },
+    },
+  };
+}
+
+/** 本地执行门禁；草稿保存由服务端草稿投影独立校验。 */
+export function validateTreeDefinition(
+  definition: WorkflowTreeVersion,
+  options: WorkflowDesignerOptions = {},
+): string[] {
+  try {
+    return validateDefinition(projectV3ToV2(definition), options);
+  } catch (error) {
+    return [error instanceof Error ? error.message : '流程树结构无效。'];
+  }
+}
+
 /** 删除后也通过实际节点集合分配标识，避免计数复用导致覆盖。 */
 export function addNode(
   definition: WorkflowDesignerDefinition,
   type: WorkflowNodeType,
+  selectedEdgeId?: string,
 ): WorkflowNode {
+  // 明确选择连线后只拆该连线；丢失选择不能静默落到其它分支。
+  const selectedEdge = selectedEdgeId
+    ? definition.edges?.find((edge) => edge.id === selectedEdgeId)
+    : undefined;
+  if (selectedEdgeId && !selectedEdge)
+    throw new Error(`选中的连线「${selectedEdgeId}」已不存在。`);
+
+  // 未选线时沿用串行草稿的结束边插入规则，结束节点仍由设计者显式连接。
+  const insertionEdge =
+    selectedEdge ??
+    definition.edges?.find(
+      (edge) =>
+        definition.nodes.find((candidate) => candidate.id === edge.target)
+          ?.type === 'end',
+    );
   const automatic = hasAutomaticLayout(definition);
   let index = 1;
   while (definition.nodes.some((node) => node.id === `${type}_${index}`))
@@ -86,16 +177,17 @@ export function addNode(
   };
   definition.nodes.push(node);
   definition.edges ??= [];
-  const edge = definition.edges.find(
-    (item) =>
-      definition.nodes.find((candidate) => candidate.id === item.target)
-        ?.type === 'end',
-  );
-  if (edge && type !== 'end') {
-    const target = edge.target;
-    edge.target = node.id;
+  if (insertionEdge && type !== 'end') {
+    const target = insertionEdge.target;
+    insertionEdge.target = node.id;
+    let nextId = `${node.id}_${target}`;
+    let suffix = 1;
+    while (definition.edges.some((edge) => edge.id === nextId)) {
+      nextId = `${node.id}_${target}_${suffix}`;
+      suffix++;
+    }
     definition.edges.push({
-      id: `${node.id}_${target}`,
+      id: nextId,
       source: node.id,
       target,
     });
@@ -214,11 +306,24 @@ export function validateDefinition(
       messages.push(`节点「${node.name}」缺少后续连线。`);
     if (
       node.type === 'userTask' &&
-      !(node.candidateUsers?.length || node.candidateGroups?.length)
+      !(
+        node.candidateUsers?.length ||
+        node.candidateGroups?.length ||
+        node.approverResolver
+      )
     )
-      messages.push(`节点「${node.name}」缺少候选用户或候选组。`);
+      messages.push(`节点「${node.name}」缺少候选用户、候选组或动态审批人。`);
     if (node.type === 'userTask' && !node.actions?.length)
       messages.push(`节点「${node.name}」缺少允许动作。`);
+    if (
+      node.type === 'userTask' &&
+      node.emptyAssigneePolicy === 'ESCALATE' &&
+      !(
+        node.escalationCandidateUsers?.length ||
+        node.escalationCandidateGroups?.length
+      )
+    )
+      messages.push(`节点「${node.name}」升级策略必须配置明确升级人员或组。`);
     if (
       node.type === 'exclusiveGateway' &&
       outgoing.length > 1 &&
@@ -228,6 +333,59 @@ export function validateDefinition(
     if (outgoing.filter((edge) => edge.default).length > 1)
       messages.push(`节点「${node.name}」只能有一条默认连线。`);
     if (node.type === 'userTask') {
+      if (node.approverResolver) {
+        const key = node.approverResolver.key;
+        const resolver = business?.approverResolvers?.[key];
+        if (!resolver)
+          messages.push(
+            `节点「${node.name}」动态审批人「${key}」不在当前业务契约的授权目录中。`,
+          );
+        const parameters = node.approverResolver.parameters ?? {};
+        for (const [name, operand] of Object.entries(parameters)) {
+          const field = resolver?.parameters?.[name];
+          if (!field) {
+            messages.push(
+              `节点「${node.name}」动态审批人参数「${name}」不在能力目录中。`,
+            );
+            continue;
+          }
+          if (
+            !operand ||
+            typeof operand !== 'object' ||
+            Object.keys(operand).length !== 1
+          ) {
+            messages.push(
+              `节点「${node.name}」参数「${name}」必须只选择固定值或流程变量。`,
+            );
+            continue;
+          }
+          if ('variable' in operand) {
+            const variable = definition.variables?.[operand.variable ?? ''];
+            if (!variable || variable.type !== field.type)
+              messages.push(
+                `节点「${node.name}」参数「${name}」引用的流程变量不存在或类型不符。`,
+              );
+          } else if ('literal' in operand) {
+            if (!validResolverLiteral(operand.literal, field))
+              messages.push(
+                `节点「${node.name}」参数「${name}」的固定值与能力目录类型不符。`,
+              );
+          } else {
+            messages.push(
+              `节点「${node.name}」参数「${name}」必须只选择固定值或流程变量。`,
+            );
+          }
+        }
+        if (resolver)
+          for (const [name, field] of Object.entries(
+            resolver.parameters ?? {},
+          )) {
+            if (!field.nullable && !Object.hasOwn(parameters, name))
+              messages.push(
+                `节点「${node.name}」动态审批人必填参数「${name}」未配置。`,
+              );
+          }
+      }
       if (
         node.reminderMinutes &&
         (!node.deadlineMinutes || node.reminderMinutes >= node.deadlineMinutes)
@@ -254,10 +412,11 @@ export function validateDefinition(
       if (
         node.multiApprovalMode &&
         node.multiApprovalMode !== 'NONE' &&
-        ((node.candidateUsers?.length ?? 0) < 2 || node.candidateGroups?.length)
+        ((!node.approverResolver && (node.candidateUsers?.length ?? 0) < 2) ||
+          node.candidateGroups?.length)
       )
         messages.push(
-          `节点「${node.name}」多人审批必须至少两名明确用户且不能混用候选组。`,
+          `节点「${node.name}」多人审批必须有至少两名明确用户或受控动态审批人，且不能混用候选组。`,
         );
       if (node.actions?.includes('return') && !node.returnTargets?.length)
         messages.push(`节点「${node.name}」需要配置允许退回的前置节点。`);

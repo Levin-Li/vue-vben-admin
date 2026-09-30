@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createDefinition } from './definition-model';
+import { createTreeDefinition } from './definition-model';
 import { WorkflowDesignerService } from './workflow-designer-service';
 
 const requestCalls = vi.hoisted(() => ({
@@ -29,7 +29,7 @@ describe('workflowDesignerService', () => {
     // 设计期请求只提交服务端版本标识与 lowflow 定义，最终生命周期裁决始终留在后端。
     const service = new WorkflowDesignerService('/workflow-api');
 
-    const definition = createDefinition('review', '审核');
+    const definition = createTreeDefinition('review', '审核');
     await service.saveDraft('version-1', definition, 3);
     await service.startSimulation('version-1');
     await service.publishAfterSimulation('version-1');
@@ -67,5 +67,17 @@ describe('workflowDesignerService', () => {
     expect(requestCalls.get).toHaveBeenCalledWith(
       'workflow-runtime/business-types',
     );
+  });
+
+  it('拒绝将旧 v2 平面图发送到保存接口', async () => {
+    const service = new WorkflowDesignerService('/workflow-api');
+    await expect(
+      service.saveDraft('version-1', {
+        schemaVersion: 2,
+        nodes: [],
+        edges: [],
+      } as never),
+    ).rejects.toThrow('只接受 schemaVersion=3');
+    expect(requestCalls.post).not.toHaveBeenCalled();
   });
 });

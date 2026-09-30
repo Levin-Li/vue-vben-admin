@@ -28,6 +28,17 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   @ResAuthorize({
     domain: 'WorkflowRuntime',
     type: '业务数据-工作流运行时',
+    action: '查询流程私有附件',
+  })
+  override attachments(
+    ...args: Parameters<WorkflowRuntimeService['attachments']>
+  ) {
+    return super.attachments(...args);
+  }
+
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
     action: '查询流程业务能力目录',
   })
   catalog() {
@@ -47,10 +58,32 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   @ResAuthorize({
     domain: 'WorkflowRuntime',
     type: '业务数据-工作流运行时',
+    action: '撤销本人待绑定任务附件',
+  })
+  override deletePendingAttachment(
+    ...args: Parameters<WorkflowRuntimeService['deletePendingAttachment']>
+  ) {
+    return super.deletePendingAttachment(...args);
+  }
+
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
     action: '查询我的工作流已办',
   })
   override done() {
     return super.done();
+  }
+
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
+    action: '下载流程私有附件',
+  })
+  override downloadAttachment(
+    ...args: Parameters<WorkflowRuntimeService['downloadAttachment']>
+  ) {
+    return super.downloadAttachment(...args);
   }
 
   @ResAuthorize({
@@ -81,6 +114,17 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   })
   override newRound(...args: Parameters<WorkflowRuntimeService['newRound']>) {
     return super.newRound(this.businessScope(args[0]));
+  }
+
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
+    action: '查询本人待绑定任务附件',
+  })
+  override pendingAttachments(
+    ...args: Parameters<WorkflowRuntimeService['pendingAttachments']>
+  ) {
+    return super.pendingAttachments(...args);
   }
 
   @CRUD.Op({ label: '二次验证' })
@@ -152,6 +196,17 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   })
   override todo() {
     return super.todo();
+  }
+
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
+    action: '上传私有任务附件',
+  })
+  override uploadAttachment(
+    ...args: Parameters<WorkflowRuntimeService['uploadAttachment']>
+  ) {
+    return super.uploadAttachment(...args);
   }
 
   private businessScope<T extends WorkflowBusinessReference>(input: T) {

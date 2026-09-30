@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node ../../../scripts/sync-framework-package-metadata.mjs --package . && node ../../../scripts/sync-frontend-rule-docs.mjs && pnpm unbuild",
+    "typecheck": "vue-tsc --noEmit",
     "prepublishOnly": "pnpm run build",
     "prepack": "node ../../../scripts/sync-framework-package-metadata.mjs --package ."
   },
@@ -38,11 +39,13 @@
   },
   "peerDependencies": {
     "@levin/admin-framework": "5.6.117",
+    "@levin/bpm-designer": "6.0.0",
     "ant-design-vue": ">=4.0.0",
     "vue": ">=3.5.0"
   },
   "devDependencies": {
     "@levin/admin-framework": "workspace:*",
+    "@levin/bpm-designer": "workspace:*",
     "@vben/tsconfig": "workspace:*",
     "ant-design-vue": "catalog:",
     "vue": "catalog:"

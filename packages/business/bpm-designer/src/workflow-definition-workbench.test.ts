@@ -4,7 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createDefinition } from './definition-model';
+import { createTreeDefinition } from './definition-model';
 import WorkflowDefinitionWorkbench from './workflow-definition-workbench.vue';
 import { WorkflowDesignerService } from './workflow-designer-service';
 
@@ -36,7 +36,7 @@ const global = {
   },
 };
 function setup(lifecycle: WorkflowDefinitionVersion['lifecycle'] = 'Draft') {
-  const definition = createDefinition('review', '审核');
+  const definition = createTreeDefinition('review', '审核');
   definition.purposeKey = 'review';
   definition.businessBinding = {
     businessType: 'request',
@@ -68,11 +68,87 @@ function setup(lifecycle: WorkflowDefinitionVersion['lifecycle'] = 'Draft') {
       optimisticLock: 4,
       lowflowDefinition: structuredClone(definition),
       simulationReport: { successful: true },
-    },
+    } as WorkflowDefinitionVersion,
   };
 }
 
 describe('流程定义工作台', () => {
+  it('旧 v2 响应失败关闭，不开放保存模拟或发布', async () => {
+    const props = setup('Testing');
+    props.version.lowflowDefinition = {
+      schemaVersion: 2,
+      nodes: [],
+      edges: [],
+    } as unknown as NonNullable<WorkflowDefinitionVersion['lowflowDefinition']>;
+    const wrapper = mount(WorkflowDefinitionWorkbench, { props, global });
+    await flushPromises();
+    expect(wrapper.text()).toContain('只接受 schemaVersion=3');
+    expect(
+      wrapper
+        .findAll('button')
+        .find((item) => item.text() === '保存草稿')
+        ?.attributes('disabled'),
+    ).toBeDefined();
+    expect(
+      wrapper
+        .findAll('button')
+        .find((item) => item.text() === '开始自动模拟')
+        ?.attributes('disabled'),
+    ).toBeDefined();
+    expect(
+      wrapper
+        .findAll('button')
+        .find((item) => item.text() === '发布')
+        ?.attributes('disabled'),
+    ).toBeDefined();
+  });
+  it('模拟报告分别显示覆盖任务和真实分支连线', async () => {
+    const props = setup('Testing');
+    props.version.simulationReport = {
+      successful: true,
+      coveredTaskKeys: ['review'],
+      coveredBranches: ['choice_approved', 'choice_rejected'],
+      uncoveredBranches: [],
+    };
+    const wrapper = mount(WorkflowDefinitionWorkbench, {
+      props,
+      global: {
+        stubs: {
+          ...global.stubs,
+          ADescriptionsItem: {
+            props: ['label'],
+            template: '<div>{{ label }}<slot /></div>',
+          },
+        },
+      },
+    });
+    await flushPromises();
+
+    // 分支列表来自引擎实际出口边；串行任务节点另列，不能再冒充分支覆盖。
+    expect(wrapper.text()).toContain('覆盖审批节点review');
+    expect(wrapper.text()).toContain(
+      '覆盖分支choice_approved、choice_rejected',
+    );
+  });
+
+  it('缺少分支覆盖字段的旧报告显示未记录，不冒充无分支', async () => {
+    const wrapper = mount(WorkflowDefinitionWorkbench, {
+      props: setup('Published'),
+      global: {
+        stubs: {
+          ...global.stubs,
+          ADescriptionsItem: {
+            props: ['label'],
+            template: '<div>{{ label }}<slot /></div>',
+          },
+        },
+      },
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain('覆盖分支未记录');
+    expect(wrapper.text()).toContain('未覆盖分支未记录');
+  });
+
   it('已发布版本展示中文生命周期且继续保持只读', async () => {
     const wrapper = mount(WorkflowDefinitionWorkbench, {
       props: setup('Published'),
@@ -123,6 +199,30 @@ describe('流程定义工作台', () => {
     expect((wrapper.get('input').element as HTMLInputElement).value).toBe(
       '尚未保存',
     );
+  });
+
+  it('保存响应若回退为 v2 或缺失固定树，不覆盖当前草稿', async () => {
+    const props = setup();
+    props.definition.name = '尚未保存';
+    vi.spyOn(props.service, 'saveDraft').mockResolvedValue({
+      ...props.version,
+      lowflowDefinition: {
+        schemaVersion: 2,
+        nodes: [],
+        edges: [],
+      } as unknown as NonNullable<
+        WorkflowDefinitionVersion['lowflowDefinition']
+      >,
+    });
+    const wrapper = mount(WorkflowDefinitionWorkbench, { props, global });
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '保存草稿')
+      ?.trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('只接受 schemaVersion=3');
+    expect(wrapper.emitted('refreshed')).toBeUndefined();
+    expect(wrapper.emitted('update:definition')).toBeUndefined();
   });
 
   it('宿主拒绝操作权限时不展示对应动作', async () => {

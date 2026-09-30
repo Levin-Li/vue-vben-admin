@@ -15,6 +15,59 @@ vi.mock('@levin/admin-framework', () => ({
 }));
 
 describe('运行时公开组件独立挂载', () => {
+  it('切换待办后从服务端恢复本人待绑定附件，不沿用上一任务选择', async () => {
+    const tasks = [
+      {
+        taskId: 'task-a',
+        processInstanceId: 'instance-a',
+        taskName: '第一审批',
+        status: 'Todo',
+      },
+      {
+        taskId: 'task-b',
+        processInstanceId: 'instance-b',
+        taskName: '第二审批',
+        status: 'Todo',
+      },
+    ];
+    const api = {
+      todo: vi.fn().mockResolvedValue(tasks),
+      done: vi.fn().mockResolvedValue([]),
+      started: vi.fn().mockResolvedValue([]),
+      attachments: vi.fn().mockResolvedValue([]),
+      pendingAttachments: vi.fn().mockImplementation(async (taskId: string) => [
+        {
+          id: `pending-${taskId}`,
+          fileName: `${taskId}.txt`,
+          sizeBytes: 4,
+          mimeType: 'text/plain',
+          contentSha256: 'digest',
+          attached: false,
+        },
+      ]),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewPendingAttachments: true,
+        canViewAttachments: true,
+      },
+    });
+    await flushPromises();
+    await wrapper.find('[aria-label="查看第一审批"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('task-a.txt');
+    await wrapper.find('[aria-label="查看第二审批"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('task-b.txt');
+    expect(wrapper.text()).not.toContain('task-a.txt');
+    await wrapper.find('[aria-label="查看第一审批"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('task-a.txt');
+    expect(api.pendingAttachments).toHaveBeenCalledTimes(3);
+    wrapper.unmount();
+  });
+
   it('只有待办权限时不请求或展示无权限的已办和我发起', async () => {
     // 最小候选只获待办读取权，其他接口即使返回403也不能阻断已授权任务。
     const task = {
@@ -107,6 +160,68 @@ describe('运行时公开组件独立挂载', () => {
     wrapper.unmount();
   });
 
+  it('无人工任务的我发起实例可查看真实只读图和轨迹，撤权后清空', async () => {
+    const instance = {
+      instanceId: 'exclusive-instance',
+      businessTitle: '资料不齐申请',
+      purposeKey: 'request.review',
+      status: 'Completed',
+      executionStatus: 'Completed',
+      outcome: 'Rejected',
+      effectStatus: 'Applied',
+      timeline: [
+        { id: 'start-event', name: '开始', time: '2026-09-30T01:00:00Z' },
+        { id: 'end-event', name: '拒绝结束', time: '2026-09-30T01:00:01Z' },
+      ],
+      processDiagramNodes: [
+        { id: 'start', name: '开始', type: 'start', status: 'completed' },
+        {
+          id: 'choice',
+          name: '条件',
+          type: 'exclusiveGateway',
+          status: 'completed',
+        },
+        { id: 'approved', name: '通过', type: 'end', status: 'skipped' },
+        { id: 'rejected', name: '拒绝', type: 'end', status: 'completed' },
+      ],
+      processDiagramEdges: [
+        { id: 'start_choice', source: 'start', target: 'choice' },
+        { id: 'choice_approved', source: 'choice', target: 'approved' },
+        { id: 'choice_rejected', source: 'choice', target: 'rejected' },
+      ],
+    };
+    const api = {
+      todo: vi.fn(),
+      done: vi.fn(),
+      started: vi.fn().mockResolvedValue([instance]),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewTodo: false,
+        canViewDone: false,
+        canViewStarted: true,
+      },
+    });
+    await flushPromises();
+
+    // 只使用有权的started响应；实例没有taskId，也不能补造审批按钮。
+    await wrapper
+      .get('[aria-label="查看资料不齐申请实例"]')
+      .trigger('keydown', { key: 'Enter' });
+    await flushPromises();
+    expect(wrapper.text()).toContain('拒绝结束');
+    expect(wrapper.find('[data-node-id="rejected"]').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain('确认通过');
+
+    // 分栏权限撤销后不保留先前读取的实例图和轨迹。
+    await wrapper.setProps({ canViewStarted: false });
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('拒绝结束');
+    expect(wrapper.find('[data-node-id="rejected"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it('待办权限被撤销后丢弃先前在途响应', async () => {
     // 权限变化会启动新一代刷新，旧请求即使稍后成功也不能重新显示任务详情。
     let completeTodo!: (
@@ -166,8 +281,8 @@ describe('运行时公开组件独立挂载', () => {
         },
       ],
       processDiagramNodes: [
-        { id: 'start', name: '开始', status: 'completed' },
-        { id: 'end', name: '结束', status: 'completed' },
+        { id: 'start', name: '开始', status: 'completed', type: 'start' },
+        { id: 'end', name: '结束', status: 'completed', type: 'end' },
       ],
       processDiagramEdges: [{ id: 'e1', source: 'start', target: 'end' }],
     };

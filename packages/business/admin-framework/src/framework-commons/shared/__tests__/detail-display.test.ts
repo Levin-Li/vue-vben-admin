@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildDetailDisplayEntries,
+  flattenCrudComplexDetailRecord,
   formatDetailDisplayValue,
   resolveDetailFields,
   isDetailJsonValue,
@@ -35,6 +36,87 @@ const fields = [
 ] as any[];
 
 describe('detail display rules', () => {
+  it('将已声明的嵌套对象展开为详情子字段，保留其它响应字段', () => {
+    const result = flattenCrudComplexDetailRecord(
+      {
+        id: 'P-1',
+        legalInfo: { name: '张三', mobilePhone: '13800000000' },
+        shippingInfo: null,
+      },
+      [
+        {
+          key: 'legal',
+          title: '法人信息',
+          submitKey: 'legalInfo',
+          fieldMappings: { legalName: 'name', legalPhone: 'mobilePhone' },
+        },
+        {
+          key: 'shipping',
+          title: '邮寄信息',
+          submitKey: 'shippingInfo',
+          fieldMappings: { shippingAddress: 'address' },
+        },
+      ],
+    );
+    expect(result).toEqual({
+      id: 'P-1',
+      legalName: '张三',
+      legalPhone: '13800000000',
+    });
+  });
+
+  it('按完整路径展开四层详情对象而不重复显示原始 JSON', () => {
+    const result = flattenCrudComplexDetailRecord(
+      {
+        id: 'D-1',
+        nestedObject: {
+          title: '一级',
+          levelTwo: {
+            name: '二级',
+            levelThree: { label: '三级', levelFour: { value: '四级' } },
+          },
+        },
+      },
+      [
+        {
+          key: 'one',
+          title: '第一层',
+          submitKey: 'nestedObject',
+          fieldMappings: { oneTitle: 'title' },
+        },
+        {
+          key: 'two',
+          parentKey: 'one',
+          title: '第二层',
+          submitKey: 'nestedObject.levelTwo',
+          fieldMappings: { twoName: 'name' },
+        },
+        {
+          key: 'three',
+          parentKey: 'two',
+          title: '第三层',
+          submitKey: 'nestedObject.levelTwo.levelThree',
+          fieldMappings: { threeLabel: 'label' },
+        },
+        {
+          key: 'four',
+          parentKey: 'three',
+          title: '第四层',
+          submitKey: 'nestedObject.levelTwo.levelThree.levelFour',
+          fieldMappings: { fourValue: 'value' },
+        },
+      ],
+    );
+
+    expect(result).toEqual({
+      id: 'D-1',
+      oneTitle: '一级',
+      twoName: '二级',
+      threeLabel: '三级',
+      fourValue: '四级',
+    });
+  });
+
   it('keeps configured scalar fields and formats enum/dict/fixed option labels', () => {
     const entries = buildDetailDisplayEntries(
       {
@@ -107,11 +189,11 @@ describe('detail display rules', () => {
     );
 
     expect(entries.map((entry) => entry.key)).toEqual([
+      'exInfo',
       'allowedPathPatterns',
       'allowedIpList',
       'orderCode',
       'editable',
-      'exInfo',
     ]);
   });
 
@@ -251,10 +333,9 @@ describe('detail display rules', () => {
         (field) => field.key,
       ),
     ).toEqual(['id', 'name']);
-    expect(resolveDetailFields(undefined, metadata).map((field) => field.key)).toEqual([
-      'name',
-      'id',
-    ]);
+    expect(
+      resolveDetailFields(undefined, metadata).map((field) => field.key),
+    ).toEqual(['name', 'id']);
     expect(resolveDetailFields(undefined, metadata, [metadata[1]])).toEqual([
       metadata[1],
     ]);
@@ -262,9 +343,10 @@ describe('detail display rules', () => {
       { key: 'returnedOnly', label: 'returnedOnly' },
     ]);
     expect(
-      resolveDetailFields({ containsName: '接口确实返回该字段' }, metadata).map(
-        (field) => field.key,
-      ),
-    ).toEqual(['containsName']);
+      resolveDetailFields(
+        { containsName: '接口确实返回该字段', name: '示例' },
+        metadata,
+      ).map((field) => field.key),
+    ).toEqual(['containsName', 'name']);
   });
 });

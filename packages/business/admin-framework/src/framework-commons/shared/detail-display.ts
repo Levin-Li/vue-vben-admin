@@ -1,7 +1,49 @@
-import type { CrudFieldConfig } from './types';
+import type { CrudComplexGroupConfig, CrudFieldConfig } from './types';
 
-import { sortFormLayoutFields } from './crud-form-layout';
 import { formatAdministrativeArea } from './administrative-area-data';
+import { sortFormLayoutFields } from './crud-form-layout';
+
+/** 详情仅将已声明的对象字段映射为只读子字段，不改变原始响应。 */
+export function flattenCrudComplexDetailRecord(
+  record: unknown,
+  groups: CrudComplexGroupConfig[] | undefined,
+) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) {
+    return record;
+  }
+  const source = record as Record<string, any>;
+  const result: Record<string, any> = {};
+  const mappedRootKeys = new Set(
+    (groups || [])
+      .filter((group) => !group.parentKey)
+      .map((group) => group.submitKey),
+  );
+
+  for (const [key, value] of Object.entries(source)) {
+    if (
+      !mappedRootKeys.has(key) ||
+      (value !== null && (typeof value !== 'object' || Array.isArray(value)))
+    ) {
+      result[key] = value;
+      continue;
+    }
+  }
+
+  // 每个对象组独立按完整路径读取，避免只展开根对象而遗漏后续层。
+  for (const group of groups || []) {
+    let value: any = source;
+    for (const segment of group.submitKey.split('.')) value = value?.[segment];
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    for (const [flatKey, nestedKey] of Object.entries(group.fieldMappings)) {
+      let fieldValue: any = value;
+      for (const segment of nestedKey.split('.')) {
+        fieldValue = fieldValue?.[segment];
+      }
+      result[flatKey] = fieldValue;
+    }
+  }
+  return result;
+}
 
 /** 集合只取响应契约或实际记录字段，通用配置仅补充同名展示元数据。 */
 export function resolveDetailFields(
@@ -9,13 +51,15 @@ export function resolveDetailFields(
   metadata: CrudFieldConfig[],
   declared?: CrudFieldConfig[],
 ) {
+  // 无实际响应时，查询专用字段不作为详情契约的默认候选。
+  const isDetailCandidate = (field: CrudFieldConfig) =>
+    field.detail !== false &&
+    !(field.search && field.form === false && field.table !== true);
   const definitions = new Map(
     [...metadata, ...(declared || [])].map((field) => [field.key, field]),
   );
   const fallbackFields = (declared?.length ? declared : metadata).filter(
-    (field) =>
-      field.detail !== false &&
-      !(field.search && field.form === false && field.table !== true),
+    (field) => isDetailCandidate(field),
   );
   const keys =
     record && typeof record === 'object' && !Array.isArray(record)
@@ -260,7 +304,7 @@ export function buildDetailDisplayEntries(
     .filter((entry) =>
       shouldShowDetailValue(entry.field, entry.value, showEmptyValues),
     )
-    .sort((a, b) => a.order - b.order)
+    .toSorted((a, b) => a.order - b.order)
     .map(
       ({ field, key, kind, label, value }) =>
         ({
