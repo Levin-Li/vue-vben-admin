@@ -17,9 +17,7 @@ export function validateInternalPeerVersions(
 
     const expectedVersion =
       selectedPackageVersionByName.get(dependencyName) ||
-      versionConfig.releaseVersion ||
-      versionConfig.packages?.[dependencyName] ||
-      versionConfig.default;
+      versionConfig.packages?.[dependencyName];
 
     if (!expectedVersion) {
       mismatches.push(`${dependencyName}: ${declaredVersion} -> <未配置版本>`);

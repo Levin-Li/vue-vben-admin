@@ -215,6 +215,78 @@ export function verifyTarballDependencyProtocols(
   }
 }
 
+export function verifyTarballManifest(
+  packageInfo,
+  tarballPath,
+  expectedVersions,
+) {
+  const manifest = JSON.parse(
+    execFileSync('tar', ['-xOf', tarballPath, 'package/package.json'], {
+      encoding: 'utf8',
+    }),
+  );
+  const entries = new Set(
+    execFileSync('tar', ['-tzf', tarballPath], { encoding: 'utf8' })
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((entry) => entry.replace(/^package\//, '')),
+  );
+
+  // 实际上传的包名、版本和内部依赖必须与本批候选清单完全一致。
+  if (
+    manifest.name !== packageInfo.name ||
+    manifest.version !== packageInfo.version
+  ) {
+    throw new Error(
+      `${packageInfo.name} tarball 包名或版本不匹配：${manifest.name}@${manifest.version}`,
+    );
+  }
+  for (const section of [
+    'dependencies',
+    'optionalDependencies',
+    'peerDependencies',
+    'devDependencies',
+  ]) {
+    for (const [name, version] of Object.entries(manifest[section] || {})) {
+      if (
+        expectedVersions.has(name) &&
+        version !== expectedVersions.get(name)
+      ) {
+        throw new Error(
+          `${packageInfo.name} ${section}.${name} 内部依赖版本不匹配：${version} != ${expectedVersions.get(name)}`,
+        );
+      }
+    }
+  }
+
+  // 只校验发布态入口；development 条件允许指向随包源码。
+  function checkTarget(target, condition = '') {
+    if (condition === 'development') return;
+    if (typeof target === 'string') {
+      if (!target.startsWith('./')) return;
+      const path = target.slice(2);
+      const wildcard = path.indexOf('*');
+      const present =
+        wildcard === -1
+          ? entries.has(path)
+          : [...entries].some(
+              (entry) =>
+                entry.startsWith(path.slice(0, wildcard)) &&
+                entry.endsWith(path.slice(wildcard + 1)),
+            );
+      if (!present)
+        throw new Error(`${packageInfo.name} tarball 导出文件缺失：${path}`);
+      return;
+    }
+    if (target && typeof target === 'object') {
+      for (const [key, value] of Object.entries(target))
+        checkTarget(value, key);
+    }
+  }
+  for (const field of ['main', 'module', 'types']) checkTarget(manifest[field]);
+  checkTarget(manifest.publishConfig?.exports || manifest.exports);
+}
+
 export function verifyTarballStandaloneInstall(
   packageInfo,
   tarballPath,
@@ -298,7 +370,7 @@ export function verifyTarballStandaloneViteBuild(
       `${JSON.stringify(
         {
           dependencies: {
-            ...(manifest.peerDependencies || {}),
+            ...manifest.peerDependencies,
             ...getBatchTarballDependencies(batchTarballs),
             [packageInfo.name]: `file:${absoluteTarballPath}`,
           },

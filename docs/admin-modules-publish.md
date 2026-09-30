@@ -2,41 +2,23 @@
 
 本前端工程支持把可复用的后台模块发布到 NPM 私服。最终应用安装这些模块包，并显式注册需要启用的模块。
 
-## 强制：统一正式版本发布流程
+## 按需正式版本发布流程
 
-本节是所有前端发布的唯一执行流程，优先于本文其它历史示例。所有内部 npm 构件必须始终使用同一个正式版本号；任一包的源码、构建配置、随包文档、公开 API 或依赖约束变化，均触发整套非私有内部包统一升版本、全量构建和全量发布。npm 制品不可覆盖，因此未变化包也必须发布新的统一版本。
+本节是正式发布的唯一操作入口，优先于本文后续的历史示例。七个包各自维护版本；只发布交付内容或精确内部依赖元数据发生变化的包。`publish:packages` 从待提交的包文件确定候选，并递归纳入依赖声明必须更新的消费者。发布前先看候选清单；没有候选包时不构建、不上传。
 
-唯一版本来源是根目录 `package-versions.json` 的 `releaseVersion`。每次发布只修改这一项为新的补丁版本；不得手工改各包 `package.json.version` 或内部 `peerDependencies`，同步脚本会将全部内部包和内部依赖约束写为这个统一版本。
+发布器先一次性准备候选版本，再按内部依赖图分层构建。无依赖关系的包可有界并行；依赖者必须等待上游成功。每个候选只生成一次 tarball，上传前核对其包名、版本、精确内部依赖、`dist` 导出目标、路由资源及具体文件清单，并逐文件核对随包文档。任一候选失败时不得上传任何包；上传的必须是同一份已校验 tarball。
 
-执行顺序固定为两个阶段，阶段一未完全通过时不得上传任何包：
+全部候选通过本地预检后，按依赖图分层发布；无依赖的节点可并行。`npm publish` 返回成功就是该包的成功判据，不再下载、查询私服或重复构建消费者。某包失败或结果不明时停止调度它的下游，等待已启动的独立包结束，只查询该失败包的精确版本；确认不存在才用同一 tarball 至多重试一次。已存在或查询不明时不盲目重发、不自动删除私服包。若修改已发布构件的内容，必须使用该包的新版本。
 
-1. 只将 `releaseVersion` 升级为新的正式版本，并同步全部内部包版本和精确内部依赖约束。
-2. 扫描全部非私有内部包，按依赖图拓扑排序；被依赖的上游包必须排在消费者之前。
-3. **阶段一：本地全量预检。** 全量构建每个包，并验证 `dist`、本地 tarball、导出、依赖协议、模块开发规范、每个包的独立安装、framework 的稳定公开入口 Vite 构建，以及 `bootstrap-app` 的生产构建。应用构建在本地工作区中使用刚完成构建的全部内部包与本地 Vite 工具链，覆盖 Oak、完整页面、Vue SFC 与运行时依赖图。`bootstrap-app` 仅是构建验证目标，不属于 npm 发布清单、发布顺序、版本同步或 tarball 结果。临时消费者必须显式以 `file:` 引用本批每一个本地 tarball；`pnpm.overrides` 仅可在这些临时目录中将间接内部依赖固定到同一批 `file:` 制品，且不得进入发布构件。不得从 Nexus 下载本批内部构件，也不得依赖 workspace 链接、pnpm peer 提升或历史缓存。构件相关文档必须同步进入包内 `docs/` 与 `docs/project-reference/` 并通过逐文件清单校验。
-4. 阶段一任一包失败时，立即结束本批次且 **不得执行任何 `npm publish`**；修复后从阶段一重新完成所有本地验证。
-5. **阶段二：一次性上传。** 仅当阶段一全部通过后，按依赖顺序串行上传每个包。每个上游包上传后必须通过 Nexus hosted npm registry 查询精确版本、下载 tarball 并完成相同的依赖和文档校验，才能继续消费者。
-6. 网络类失败（连接超时、DNS、连接重置、临时 5xx 或 registry 临时不可达）对当前步骤最多自动重试 10 次；构建、版本、导出、tarball、独立安装或消费者构建失败属于确定性错误，必须立即停止。
-7. 全部包完成后，只核对本批 7 个 npm 构件均已完成 Nexus 回查。`bootstrap-app` 的生产构建只属于阶段一的本地项目正确性验证，不在阶段二重复执行，也不构成发布构件。
+成功后仅在 `npm-packages/` 内清理超过 24 小时的发布器生成临时文件，保留当前批次；失败批次保留用于排障。`packages/**/dist`、`node_modules`、未提交的 BPM 目录和私服历史制品不在清理范围。仅在下一次成功发布时执行这项本地清理，不创建后台定时任务。
 
-### 失败恢复与重试
+标准命令在 `frontend/admin` 根目录执行：
 
-一个 `releaseVersion` 对应一个固定发布批次。失败恢复必须继续该批次，禁止仅因一个模块失败就再次修改 `releaseVersion`、重新发布已验证上游包或重新生成整个版本集合。
+```bash
+pnpm run plan:packages
+```
 
-1. 网络类错误只重试失败的当前步骤，最多 10 次；已成功上传和回取验证的包不重发。
-2. 构建、导出、tarball 或应用认证等确定性错误，修复后只从失败模块重新构建和验证；依赖它的后续消费者按顺序继续。此前已在 Nexus 完成精确版本验证的上游构件必须先重新查询确认存在，但不重新上传。
-3. 只有显式放弃当前批次、或需要改变一个已发布构件的内容时，才创建新的 `releaseVersion`。这时必须重新走完整构件集发布；不能覆盖同名同版本制品。
-4. 发布状态必须持久化记录每个包的 `pending`、`published-and-verified` 或 `failed` 状态，使恢复命令能从失败包继续，不能把“已经发布”误作“尚未发布”或反之。
-
-### 已部分上传批次的强制处理
-
-当阶段二已向 Nexus 上传任一包时，必须先逐个查询本批所有包的精确版本，并将结果记录为 `published-and-verified`、`pending` 或 `failed`。不得依据本地 tarball、缓存或命令输出猜测私服状态。
-
-1. 阶段一失败且尚未上传任何包：修复后保持当前 `releaseVersion`，从阶段一重新完成全量本地预检。
-2. 阶段二仅遇到网络类错误：先反查当前包；确认不存在才最多重试当前上传步骤，确认已存在则执行回查后继续下游包。
-3. 阶段二发现构件、导出、依赖、文档、安装或应用构建等确定性问题：立即停止后续上传。若修复会改变任何已上传构件、版本元数据或统一发布流程，当前版本不可覆盖，必须递增 `releaseVersion` 并让全部非私有内部包重新走阶段一和阶段二；不得把先前已上传的上游包与新版本下游包混成同一批。
-4. 新批次发布完成后，必须在发布报告中同时列出废弃的部分版本、触发新批次的原因和最终完整版本；不删除私服中已存在的历史制品。
-
-标准命令：
+预览命令只显示本次候选与准备后的版本，不构建、不上传。正常发布随后执行：
 
 ```bash
 NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ \
@@ -45,11 +27,19 @@ MAVEN_SERVER_ID=dist-repo \
 pnpm run publish:packages
 ```
 
-`publish:admin-modules` 是完整统一版本发布的兼容别名；正式发布不得传递 `--only`。
+`publish:admin-modules` 是兼容别名。已提交但尚未发布的特殊情况应显式提供基线或候选包，不得因当前工作树干净而默认为已发布。
+
+```bash
+# 已提交但未发布：显式指定比较基线
+pnpm run plan:packages -- --since=<上次发布提交>
+
+# 特殊恢复：显式指定目标包，发布器仍会补全必要消费者
+pnpm run plan:packages -- --only=@levin/oak-base-admin
+```
 
 ## 包说明
 
-合并后公开构件固定为七个：`@vben-core/foundation`、`@vben-core/ui`、`@vben/runtime`、`@vben/common-ui`、`@vben/layouts`、`@levin/admin-framework`、`@levin/oak-base-admin`。源码归属和旧入口映射见 [聚合包使用与迁移指南](frontend-package-consolidation.md)。`pnpm run list:packages` 应仅列出这七个包；发布前先执行完整 `pnpm build`，再执行 `node scripts/verify-consolidated-consumer.mjs` 验证本批候选 tarball。Nexus 上传与回取验证仍按上文逐包执行。
+合并后可发布包固定为七个：`@vben-core/foundation`、`@vben-core/ui`、`@vben/runtime`、`@vben/common-ui`、`@vben/layouts`、`@levin/admin-framework`、`@levin/oak-base-admin`。源码归属和旧入口映射见 [聚合包使用与迁移指南](frontend-package-consolidation.md)。`pnpm run list:packages` 显示可发布包全集；正式发布只处理本次候选，不要求额外执行全仓 `pnpm build` 或独立消费者构建。
 
 - `@levin/admin-framework`：公共后台框架包，提供模块契约、运行时注入、CRUD 辅助能力、页面注册表和可复用后台 UI。
 - `@levin/oak-base-admin`：基础后台模块包，拥有自己的 API 辅助方法、页面源码、路由和国际化资源。
@@ -131,7 +121,7 @@ MAVEN_SERVER_ID=dist-repo \
 pnpm run publish:admin-modules
 ```
 
-批量发布 `packages` 目录下全部可发布包时使用同一套发现和认证规则：
+按需发布 `packages` 中的候选包时使用同一套发现和认证规则：
 
 ```bash
 NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ \
@@ -142,60 +132,55 @@ pnpm run publish:packages
 
 发布脚本只会生成本次命令可用的临时 `.npmrc.publish.tmp`，结束后自动清理；不要把 token、Maven 密码或临时 npmrc 提交到仓库。规则文件只保留“发布前查项目发布文档和本地配置”的原则，具体私服地址和认证复用方式以本文档和本地 `settings.xml` 为准。
 
-## 发布全部 packages 包
+## 查看候选与本地打包
 
-如果要发布 `packages` 目录下的全部前端基础组件、工具包和业务模块，使用统一入口：
+正式上传只使用上文按需入口。调试时可以查看七包全集，或只生成本地 tarball；这些命令不代表已经发布：
 
 ```bash
-# 查看将发布的包和顺序
+# 查看可发布包全集；不是本次候选清单
 pnpm run list:packages
 
 # 只打包到 npm-packages 目录，不上传
 pnpm run pack:packages
-
-# 发布到 NPM 私服；认证信息复用 Maven settings.xml 中的 dist-repo
-NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ \
-NPM_AUTH_FROM_MAVEN=true \
-MAVEN_SERVER_ID=dist-repo \
-pnpm run publish:packages
 ```
 
-`publish:packages` 会自动扫描 `packages/**/package.json`，跳过 `private: true` 的包，按 workspace 依赖顺序构建和发布。已存在的同名同版本是发布错误，必须失败；任何包均不得跳过、覆盖或复用旧制品。
+`publish:packages` 仍扫描 `packages/**/package.json` 并跳过 `private: true`，但只构建、校验和发布待提交交付变更及必要消费者。已存在的同名同版本不可覆盖；未变化包不得仅为凑统一版本而重发。
 
-## 版本统一管理
+## 各包独立版本管理
 
-`packages` 目录下所有可发布子包的版本统一由根目录 `package-versions.json` 管理，不直接手改各子包的 `package.json.version`。
+可发布包版本仍以根目录 `package-versions.json` 为来源，但每个包单独记录。迁移时七包均保持已发布的 `5.6.119`；后续只递增候选及内部依赖声明受影响消费者的版本，不直接手改各包 `package.json.version`。
 
 当前规则：
 
 ```json
 {
-  "releaseVersion": "5.6.105",
-  "default": "5.6.6",
-  "packages": {}
+  "packages": {
+    "@vben-core/foundation": "5.6.119",
+    "@vben-core/ui": "5.6.119",
+    "@vben/runtime": "5.6.119",
+    "@vben/common-ui": "5.6.119",
+    "@vben/layouts": "5.6.119",
+    "@levin/admin-framework": "5.6.119",
+    "@levin/oak-base-admin": "5.6.119"
+  }
 }
 ```
 
-版本调整流程（只修改 `releaseVersion`）：
+版本检查命令：
 
 ```bash
-# 只修改 releaseVersion 后同步所有子包 package.json 和内部 peer 依赖
-pnpm run sync:package-versions
-
-# 校验子包版本是否和统一配置一致
 pnpm run check:package-versions
 ```
 
-所有标准发布入口（`pack:packages`、`publish:packages`、`pack:admin-modules`、`publish:admin-modules`）都会在执行前自动同步版本和内部包引用，避免漏改某个子包。内部普通依赖统一使用 `workspace:*`；对外 `peerDependencies` 中的内部包版本统一同步为 `package-versions.json` 中的精确当前版本，例如 `@vben/request: 5.6.7`。这些包是同一套内部发布物，入口应用应按 peer 声明安装配套版本，不使用宽松范围混装不同补丁版本。发布脚本会在上传前校验内部 peer 是否等于本次发布版本来源中的精确版本，不一致时会中断发布。
+发布入口先从待提交的可交付文件确定候选，计算精确内部依赖闭包并准备各包新版本，再同步内部引用。源码普通依赖可以使用 `workspace:*`，但 tarball 中必须转换为精确版本；内部 peer 也保持精确版本。上传前会检查 tarball 而不是仅信任源码 `package.json`。
 
 ### 内部模块升级的级联发布
 
 当 A 包的版本更新，而 B 包在 `peerDependencies` 中依赖 A 时，必须在一次发布中完成以下动作：
 
-1. 先更新 `package-versions.json` 中 A 的新版本；
-2. 执行 `pnpm run sync:package-versions`，把 B 的 `peerDependencies.A` 更新为 A 的精确新版本；
-3. 因为 B 的已发布元数据变化，递增 B 的自身版本，并把 B 纳入本次发布清单；
-4. 先发布 A，再发布 B。
+1. 发布器递增 A 的独立版本，发现 B 的精确内部依赖声明需要变化；
+2. 同步 B 的依赖声明、递增 B 自身版本并加入候选，直到消费者闭包稳定；
+3. 在上传前检查 A、B 的实际 tarball 版本及依赖，先发布 A，成功后再发布 B。
 
 例如，升级 `@levin/admin-framework` 时，`@levin/oak-base-admin` 的 peer 约束会同步到新版本，且 Oak 包必须使用新自身版本重发。不能只发布框架包，否则私服中已存在的 Oak 包仍会要求旧版本。标准发布器会同步并校验约束；如果约束没有更新，会在上传 tarball 前中断。
 

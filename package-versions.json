@@ -1,3 +1,11 @@
 {
-  "releaseVersion": "5.6.119"
+  "packages": {
+    "@vben-core/foundation": "5.6.119",
+    "@vben-core/ui": "5.6.119",
+    "@vben/runtime": "5.6.119",
+    "@vben/common-ui": "5.6.119",
+    "@vben/layouts": "5.6.119",
+    "@levin/admin-framework": "5.6.119",
+    "@levin/oak-base-admin": "5.6.119"
+  }
 }

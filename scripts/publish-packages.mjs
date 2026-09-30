@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -14,18 +14,27 @@ import { fileURLToPath } from 'node:url';
 
 import { validateInternalPeerVersions } from './internal-peer-dependency-guard.mjs';
 import {
+  publishValidatedBatch,
+  runDependencyLayers,
+} from './on-demand-release-execution.mjs';
+import {
+  collectChangedPackages,
+  expandExactConsumerClosure,
+  preparePackageVersions,
+  topologicalLayers,
+} from './on-demand-release-plan.mjs';
+import {
   acquirePublishLock,
-  packPackage,
-  packWorkspacePackage,
+  parsePackOutput,
   releasePublishLock,
   verifyBuiltRouteAssets,
   verifyPageMetadata,
   verifyTarballDependencyProtocols,
+  verifyTarballManifest,
   verifyTarballModuleDevelopmentStandard,
   verifyTarballRouteAssets,
-  verifyTarballStandaloneInstall,
-  verifyTarballStandaloneViteBuild,
 } from './publish-artifact-gate.mjs';
+import { cleanupOldReleaseArtifacts } from './release-artifact-cleanup.mjs';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const packagesRoot = resolve(frontendRoot, 'packages');
@@ -35,6 +44,10 @@ const args = new Set(rawArgs);
 function getMode() {
   if (args.has('--list')) {
     return 'list';
+  }
+
+  if (args.has('--plan')) {
+    return 'plan';
   }
 
   if (args.has('--publish')) {
@@ -51,8 +64,8 @@ const onlyPackages = rawArgs
   .flatMap((value) => value.split(','))
   .map((value) => value.trim())
   .filter(Boolean);
-const skipExisting = !args.has('--no-skip-existing');
 const skipVersionSync = args.has('--no-version-sync');
+const publishConcurrency = 2;
 
 const tag = process.env.NPM_TAG || undefined;
 const token =
@@ -222,7 +235,80 @@ function run(command, commandArgs, options = {}) {
   return result;
 }
 
-function getAllPackages() {
+function runAsync(command, commandArgs, options = {}) {
+  return new Promise((resolveRun, rejectRun) => {
+    const child = spawn(command, commandArgs, {
+      cwd: options.cwd || frontendRoot,
+      env: { ...process.env, ...options.env },
+      stdio: options.capture ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (data) => {
+      stdout += data;
+    });
+    child.stderr?.on('data', (data) => {
+      stderr += data;
+    });
+    child.on('error', rejectRun);
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolveRun({ stdout, stderr });
+      } else {
+        rejectRun(
+          new Error(
+            `${command} ${commandArgs.join(' ')} 执行失败，退出码 ${code ?? 1}: ${stderr || stdout}`,
+          ),
+        );
+      }
+    });
+  });
+}
+
+function readGitOutput(commandArgs) {
+  const result = spawnSync('git', commandArgs, {
+    cwd: frontendRoot,
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    throw new Error(
+      `无法读取前端 Git 发布基线：${result.stderr || result.stdout}`,
+    );
+  }
+  return result.stdout.trim();
+}
+
+function getPendingPackagePaths(baselineRef) {
+  const committedAndPending = readGitOutput([
+    'diff',
+    '--name-only',
+    baselineRef,
+    '--',
+    'packages',
+  ]);
+  const untracked = readGitOutput([
+    'ls-files',
+    '--others',
+    '--exclude-standard',
+    '--',
+    'packages',
+  ]);
+  return [committedAndPending, untracked].flatMap((value) =>
+    value.split(/\r?\n/).filter(Boolean),
+  );
+}
+
+async function packWorkspacePackageAsync(packageInfo, destination) {
+  mkdirSync(destination, { recursive: true });
+  const result = await runAsync(
+    'pnpm',
+    ['pack', '--json', '--pack-destination', destination],
+    { cwd: packageInfo.dir, capture: true },
+  );
+  return resolve(destination, parsePackOutput(result.stdout).filename);
+}
+
+function getAllPackages(requestedNames = onlyPackages) {
   const packages = findPackageJsonFiles(packagesRoot)
     .map((packageJsonPath) => {
       const packageDir = dirname(packageJsonPath);
@@ -241,18 +327,18 @@ function getAllPackages() {
     .filter((packageInfo) => packageInfo.name && packageInfo.version)
     .filter((packageInfo) => !packageInfo.private);
 
-  if (onlyPackages.length === 0) {
+  if (requestedNames.length === 0) {
     return sortPackages(packages);
   }
 
-  const onlyPackageSet = new Set(onlyPackages);
+  const onlyPackageSet = new Set(requestedNames);
   const selectedPackages = packages.filter((packageInfo) =>
     onlyPackageSet.has(packageInfo.name),
   );
   const foundNames = new Set(
     selectedPackages.map((packageInfo) => packageInfo.name),
   );
-  const missingNames = onlyPackages.filter((name) => !foundNames.has(name));
+  const missingNames = requestedNames.filter((name) => !foundNames.has(name));
 
   if (missingNames.length > 0) {
     throw new Error(`未知包：${missingNames.join(', ')}`);
@@ -262,42 +348,17 @@ function getAllPackages() {
 }
 
 function getPublishablePackages() {
-  return sortPackages(
-    findPackageJsonFiles(packagesRoot)
-      .map((packageJsonPath) => {
-        const packageDir = dirname(packageJsonPath);
-        const packageJson = readJson(packageJsonPath);
-        return { dir: packageDir, name: packageJson.name, packageJson, packageJsonPath, path: relative(frontendRoot, packageDir), private: packageJson.private === true, version: packageJson.version };
-      })
-      .filter((item) => item.name && item.version && !item.private),
-  );
+  return getAllPackages([]);
 }
 
 function assertPublishConfiguration() {
   if (mode !== 'publish') return;
-  if (registry !== hostedRegistry || !authFromMaven || mavenServerId !== 'dist-repo') {
+  if (
+    registry !== hostedRegistry ||
+    !authFromMaven ||
+    mavenServerId !== 'dist-repo'
+  ) {
     throw new Error(`发布必须使用 ${hostedRegistry} 和 Maven dist-repo 凭据`);
-  }
-}
-
-function assertConsumerClosure(selectedPackages) {
-  if (mode !== 'publish') return;
-  const selectedVersions = new Map(selectedPackages.map((item) => [item.name, item.version]));
-  const selectedNames = new Set(selectedVersions.keys());
-  const omittedConsumers = [];
-
-  for (const consumer of getPublishablePackages()) {
-    if (selectedNames.has(consumer.name)) continue;
-    const dependencies = { ...consumer.packageJson.dependencies, ...consumer.packageJson.peerDependencies };
-    for (const [dependencyName, dependencyVersion] of Object.entries(dependencies)) {
-      if (selectedVersions.get(dependencyName) === dependencyVersion) {
-        omittedConsumers.push(`${consumer.name}@${consumer.version} -> ${dependencyName}@${dependencyVersion}`);
-      }
-    }
-  }
-
-  if (omittedConsumers.length > 0) {
-    throw new Error(`发布清单遗漏内部消费者：${omittedConsumers.join('; ')}`);
   }
 }
 
@@ -396,11 +457,7 @@ function validatePackagePublishRules(packageInfo) {
   }
 }
 
-function packageVersionExists(packageInfo, publishEnv) {
-  if (!registry) {
-    return false;
-  }
-
+function packageVersionStatus(packageInfo, publishEnv) {
   const viewArgs = [
     'view',
     `${packageInfo.name}@${packageInfo.version}`,
@@ -417,24 +474,33 @@ function packageVersionExists(packageInfo, publishEnv) {
       ...process.env,
       ...publishEnv,
     },
-    stdio: 'ignore',
+    encoding: 'utf8',
   });
-
-  return result.status === 0;
+  if (result.status === 0) return 'present';
+  if (
+    /\bE404\b|404 No match found/.test(`${result.stderr}\n${result.stdout}`)
+  ) {
+    return 'absent';
+  }
+  return 'unknown';
 }
 
-function buildPackage(packageInfo) {
-  run('node', [resolve(frontendRoot, 'scripts/sync-frontend-rule-docs.mjs')], {
-    cwd: packageInfo.dir,
-  });
+async function buildPackage(packageInfo) {
+  await runAsync(
+    'node',
+    [resolve(frontendRoot, 'scripts/sync-frontend-rule-docs.mjs')],
+    {
+      cwd: packageInfo.dir,
+    },
+  );
   if (!packageInfo.packageJson.scripts?.build) {
     return;
   }
 
-  run('pnpm', ['--filter', packageInfo.name, 'build']);
+  await runAsync('pnpm', ['--filter', packageInfo.name, 'build']);
 }
 
-function publishPackage(tarball, publishEnv) {
+async function publishPackage(tarball, publishEnv) {
   const publishArgs = ['publish', tarball, '--ignore-scripts'];
 
   if (registry) {
@@ -445,25 +511,78 @@ function publishPackage(tarball, publishEnv) {
     publishArgs.push('--tag', tag);
   }
 
-  run('npm', publishArgs, {
+  await runAsync('npm', publishArgs, {
     env: publishEnv,
   });
+}
+
+let selectedNames = onlyPackages;
+if (mode === 'publish' || mode === 'plan') {
+  const baselineRef =
+    rawArgs
+      .find((arg) => arg.startsWith('--since='))
+      ?.slice('--since='.length) || 'HEAD';
+  const availablePackages = getPublishablePackages();
+  const changedPaths = getPendingPackagePaths(baselineRef);
+  const currentConfig = readJson(
+    resolve(frontendRoot, 'package-versions.json'),
+  );
+  const baselineConfig = JSON.parse(
+    readGitOutput(['show', `${baselineRef}:package-versions.json`]),
+  );
+  const versionChangedNames = availablePackages
+    .filter(
+      ({ name }) =>
+        currentConfig.packages?.[name] !==
+        (baselineConfig.packages?.[name] || baselineConfig.releaseVersion),
+    )
+    .map(({ name }) => name);
+  const seeds =
+    onlyPackages.length > 0
+      ? [...new Set([...onlyPackages, ...versionChangedNames])]
+      : [
+          ...new Set([
+            ...collectChangedPackages(availablePackages, changedPaths),
+            ...versionChangedNames,
+          ]),
+        ];
+  selectedNames = expandExactConsumerClosure(availablePackages, seeds);
+
+  if (selectedNames.length === 0) {
+    console.log('没有可发布包的交付变更，本次不构建、不上传。');
+    process.exit(0);
+  }
+
+  // 先一次性准备独立版本；失败重试时已准备的版本保持不变。
+  const nextConfig = preparePackageVersions(
+    currentConfig,
+    baselineConfig,
+    selectedNames,
+  );
+  if (mode === 'plan') {
+    for (const name of selectedNames) {
+      console.log(
+        `${name}: ${currentConfig.packages[name]} -> ${nextConfig.packages[name]}`,
+      );
+    }
+    process.exit(0);
+  }
+  if (JSON.stringify(nextConfig) !== JSON.stringify(currentConfig)) {
+    writeFileSync(
+      resolve(frontendRoot, 'package-versions.json'),
+      `${JSON.stringify(nextConfig, null, 2)}\n`,
+    );
+  }
+  console.log(`本次按需发布候选：${selectedNames.join(', ')}`);
 }
 
 if (!skipVersionSync) {
   run('node', ['./scripts/sync-package-versions.mjs']);
 }
 
-const selectedPackages = getAllPackages();
+const selectedPackages = getAllPackages(selectedNames);
+const allPackages = getAllPackages([]);
 const versionConfig = readJson(resolve(frontendRoot, 'package-versions.json'));
-
-assertPublishConfiguration();
-
-if (mode === 'publish' && onlyPackages.length > 0) {
-  throw new Error(
-    '正式前端发布必须是完整内部包批次，不能使用 --only。请使用 pnpm run publish:packages。',
-  );
-}
 
 if (mode === 'list') {
   for (const packageInfo of selectedPackages) {
@@ -473,222 +592,95 @@ if (mode === 'list') {
   }
   process.exit(0);
 }
-
 if (selectedPackages.length === 0) {
   console.log('没有选中任何包。');
   process.exit(0);
 }
 
-const userConfig = createPublishNpmrc();
+assertPublishConfiguration();
+const userConfig = mode === 'publish' ? createPublishNpmrc() : undefined;
 const publishEnv = userConfig ? { NPM_CONFIG_USERCONFIG: userConfig } : {};
-const remotePackEnv = registry
-  ? {
-      ...publishEnv,
-      NPM_CONFIG_FALLBACK_REGISTRY: fallbackRegistry,
-      NPM_CONFIG_REGISTRY: registry,
-    }
-  : publishEnv;
+if (mode === 'publish') acquirePublishLock(publishLockPath);
 
-if (mode === 'publish') {
-  acquirePublishLock(publishLockPath);
-}
-
+let activeBatchDir;
 try {
-  assertConsumerClosure(selectedPackages);
-  const selectedPackageVersionByName = new Map(
-    selectedPackages.map((packageInfo) => [
-      packageInfo.name,
-      packageInfo.version,
-    ]),
+  const packageByName = new Map(
+    selectedPackages.map((item) => [item.name, item]),
   );
+  const expectedVersions = new Map(
+    allPackages.map((item) => [item.name, item.version]),
+  );
+  const selectedNamesInOrder = selectedPackages.map((item) => item.name);
+  const layers = topologicalLayers(allPackages, selectedNamesInOrder);
+  const tarballs = new Map();
+  const batchDir =
+    mode === 'publish'
+      ? resolve(packageTarballDir, `batch-${Date.now()}-${process.pid}`)
+      : outputDir;
+  if (mode === 'publish') activeBatchDir = batchDir;
 
+  // 上传前完成所有候选包的构建、单次打包和真实 tarball 内容校验。
   for (const packageInfo of selectedPackages) {
     validatePackagePublishRules(packageInfo);
     verifyPageMetadata(packageInfo);
-    validateInternalPeerVersions(
-      packageInfo,
-      selectedPackageVersionByName,
-      versionConfig,
-    );
+    validateInternalPeerVersions(packageInfo, expectedVersions, versionConfig);
   }
-
-  const routeAssetsByPackage = new Map();
-  for (const packageInfo of selectedPackages) {
-    buildPackage(packageInfo);
-    routeAssetsByPackage.set(
-      packageInfo.name,
-      verifyBuiltRouteAssets(packageInfo),
-    );
-  }
-
-  if (mode === 'pack') {
-    mkdirSync(outputDir, { recursive: true });
-
-    for (const packageInfo of selectedPackages) {
-      const tarball = packWorkspacePackage(packageInfo, outputDir);
+  await runDependencyLayers(
+    layers,
+    async (name) => {
+      const packageInfo = packageByName.get(name);
+      await buildPackage(packageInfo);
+      const routeAssets = verifyBuiltRouteAssets(packageInfo);
+      const destination =
+        mode === 'publish'
+          ? resolve(batchDir, name.replaceAll('/', '__'))
+          : outputDir;
+      const tarball = await packWorkspacePackageAsync(packageInfo, destination);
       verifyTarballRouteAssets(
         packageInfo,
         tarball,
-        routeAssetsByPackage.get(packageInfo.name),
+        routeAssets,
         '本地 tarball',
       );
       verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
-
-      // 本地打包也必须验证下游可发现的模块开发规范和 README 入口。
       verifyTarballModuleDevelopmentStandard(
         packageInfo,
         tarball,
         '本地 tarball',
       );
-    }
+      verifyTarballManifest(packageInfo, tarball, expectedVersions);
+      tarballs.set(name, tarball);
+    },
+    publishConcurrency,
+  );
 
-    console.log(`已打包 ${selectedPackages.length} 个包到 ${outputDir}`);
+  if (mode === 'publish') {
+    // 成功的 npm publish 是最终判据；仅失败时查询该包并安全重试一次。
+    await publishValidatedBatch(selectedPackages, layers, tarballs, {
+      publish: (packageInfo, tarball) => publishPackage(tarball, publishEnv),
+      versionStatus: (packageInfo) =>
+        packageVersionStatus(packageInfo, publishEnv),
+      concurrency: publishConcurrency,
+      log: (message) => console.log(message),
+    });
+    const deleted = cleanupOldReleaseArtifacts(outputDir, {
+      protectedPaths: [...tarballs.values()],
+    });
+    console.log(
+      `本批发布完成：${selectedPackages.length} 个包；清理 24 小时前本地暂存文件 ${deleted.length} 个。`,
+    );
   } else {
-    // 阶段一：先为完整批次创建并校验全部本地 tarball；此阶段绝不上传任何制品。
-    rmSync(packageTarballDir, { recursive: true, force: true });
-    mkdirSync(packageTarballDir, { recursive: true });
-    const preflightTarballs = new Map();
-    for (const packageInfo of selectedPackages) {
-      const packageOutputDir = resolve(
-        packageTarballDir,
-        'preflight',
-        packageInfo.name.replaceAll('/', '__'),
-      );
-      const tarball = packWorkspacePackage(packageInfo, packageOutputDir);
-      const routeAssets = routeAssetsByPackage.get(packageInfo.name);
-      verifyTarballRouteAssets(packageInfo, tarball, routeAssets, '本地预检 tarball');
-      verifyTarballDependencyProtocols(packageInfo, tarball, '本地预检 tarball');
-      verifyTarballModuleDevelopmentStandard(packageInfo, tarball, '本地预检 tarball');
-      preflightTarballs.set(packageInfo.name, tarball);
-    }
-
-    // 全批次依赖必须固定为本地 tarball，不能在预检阶段从私服解析尚未上传的新版本。
-    for (const packageInfo of selectedPackages) {
-      verifyTarballStandaloneInstall(
-        packageInfo,
-        preflightTarballs.get(packageInfo.name),
-        remotePackEnv,
-        preflightTarballs,
-      );
-    }
-
-    // framework 的稳定公开入口必须在任何上传动作之前通过；oak 的完整页面图由下方应用构建验证。
-    const frameworkTarball = preflightTarballs.get('@levin/admin-framework');
-    if (frameworkTarball) {
-      verifyTarballStandaloneViteBuild(
-        { name: '@levin/admin-framework' },
-        frameworkTarball,
-        '@levin/admin-framework/framework-commons/module-contract',
-        remotePackEnv,
-        preflightTarballs,
-      );
-    }
-    // APP 仅在第一阶段使用本地工作区依赖进行构建，以验证项目正确性；不参与打包或发布。
-    run('pnpm', ['--filter', '@levin/bootstrap-app', 'build']);
-
-    // 阶段二：仅在上述完整本地预检通过后，才开始上传。
-    rmSync(packageTarballDir, { recursive: true, force: true });
-    mkdirSync(packageTarballDir, { recursive: true });
-
-    for (const packageInfo of selectedPackages) {
-      const routeAssets = routeAssetsByPackage.get(packageInfo.name);
-      const packageOutputDir = resolve(
-        packageTarballDir,
-        packageInfo.name.replaceAll('/', '__'),
-      );
-
-      if (packageVersionExists(packageInfo, publishEnv)) {
-        if (mode === 'publish') {
-          throw new Error(`${packageInfo.name}@${packageInfo.version} 已存在于私服，必须先递增版本`);
-        }
-        const remoteTarball = packPackage(
-          packageInfo,
-          resolve(packageOutputDir, 'remote'),
-          `${packageInfo.name}@${packageInfo.version}`,
-          remotePackEnv,
-          frontendRoot,
-        );
-        verifyTarballRouteAssets(
-          packageInfo,
-          remoteTarball,
-          routeAssets,
-          '私服 tarball',
-        );
-        verifyTarballDependencyProtocols(
-          packageInfo,
-          remoteTarball,
-          '私服 tarball',
-        );
-
-        // 已发布版本被复用前，先确认私服制品仍保留必要的使用规范。
-        verifyTarballModuleDevelopmentStandard(
-          packageInfo,
-          remoteTarball,
-          '私服 tarball',
-        );
-        console.log(
-          `跳过 ${packageInfo.name}@${packageInfo.version}：私服中已存在该版本。`,
-        );
-        continue;
-      }
-
-      const tarball = packWorkspacePackage(packageInfo, packageOutputDir);
-      verifyTarballRouteAssets(
-        packageInfo,
-        tarball,
-        routeAssets,
-        '本地 tarball',
-      );
-      verifyTarballDependencyProtocols(packageInfo, tarball, '本地 tarball');
-
-      // 上传前阻止缺少下游开发规范的制品进入私服。
-      verifyTarballModuleDevelopmentStandard(
-        packageInfo,
-        tarball,
-        '本地 tarball',
-      );
-      verifyTarballStandaloneInstall(packageInfo, tarball, remotePackEnv);
-      publishPackage(tarball, publishEnv);
-
-      const remoteTarball = packPackage(
-        packageInfo,
-        resolve(packageOutputDir, 'remote'),
-        `${packageInfo.name}@${packageInfo.version}`,
-        remotePackEnv,
-        frontendRoot,
-      );
-      verifyTarballRouteAssets(
-        packageInfo,
-        remoteTarball,
-        routeAssets,
-        '私服 tarball',
-      );
-      verifyTarballDependencyProtocols(
-        packageInfo,
-        remoteTarball,
-        '私服 tarball',
-      );
-
-      // 上传成功后从私服回取同一制品，再次确认文档没有丢失。
-      verifyTarballModuleDevelopmentStandard(
-        packageInfo,
-        remoteTarball,
-        '私服 tarball',
-      );
-    }
+    console.log(`已打包 ${selectedPackages.length} 个包到 ${outputDir}`);
   }
 } catch (error) {
   process.exitCode = error.exitCode || 1;
   console.error(error.message);
+  if (mode === 'publish' && activeBatchDir && existsSync(activeBatchDir)) {
+    writeFileSync(resolve(activeBatchDir, '.failed'), '失败批次保留\n');
+  }
 } finally {
-  if (userConfig) {
-    rmSync(userConfig, { force: true });
-  }
-  if (mode === 'publish') {
-    releasePublishLock(publishLockPath);
-  }
+  if (userConfig) rmSync(userConfig, { force: true });
+  if (mode === 'publish') releasePublishLock(publishLockPath);
 }
 
-if (process.exitCode) {
-  process.exit(process.exitCode);
-}
+if (process.exitCode) process.exit(process.exitCode);

@@ -41,14 +41,7 @@ function findPackageJsonFiles(dir) {
 }
 
 function resolvePackageVersion(packageName, versionConfig) {
-  if (versionConfig.releaseVersion) {
-    return versionConfig.releaseVersion;
-  }
-  if (versionConfig.packages?.[packageName]) {
-    return versionConfig.packages[packageName];
-  }
-
-  return versionConfig.default;
+  return versionConfig.packages?.[packageName];
 }
 
 function assertVersion(version, source) {
@@ -58,9 +51,14 @@ function assertVersion(version, source) {
 }
 
 const versionConfig = readJson(versionConfigPath);
-assertVersion(versionConfig.releaseVersion || versionConfig.default, 'package-versions.json releaseVersion');
+if (
+  !versionConfig.packages ||
+  Object.keys(versionConfig.packages).length === 0
+) {
+  throw new Error('package-versions.json 必须为每个可发布包配置独立版本');
+}
 
-const packageFiles = findPackageJsonFiles(packagesRoot).sort();
+const packageFiles = findPackageJsonFiles(packagesRoot).toSorted();
 const changedPackages = [];
 const packageJsonItems = packageFiles.map((packageJsonPath) => ({
   packageJson: readJson(packageJsonPath),
