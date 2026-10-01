@@ -1,3 +1,13 @@
 {
-  "releaseVersion": "6.0.0"
+  "packages": {
+    "@vben-core/foundation": "5.6.117",
+    "@vben-core/ui": "5.6.117",
+    "@levin/admin-framework": "5.6.117",
+    "@levin/bpm-designer": "6.0.0",
+    "@levin/bpm-runtime-ui": "6.0.0",
+    "@levin/oak-base-admin": "5.6.117",
+    "@vben/common-ui": "5.6.117",
+    "@vben/layouts": "5.6.117",
+    "@vben/runtime": "5.6.117"
+  }
 }

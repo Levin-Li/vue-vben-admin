@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   collectReferenceDocuments,
   isReferenceDocument,
+  resolveProjectRoot,
   syncPackageDocuments,
 } from '../sync-frontend-rule-docs.mjs';
 
@@ -53,6 +54,10 @@ function fixture() {
   return { root, adminRoot, packageRoot };
 }
 describe('published reference documents', () => {
+  it('嵌套工程使用默认后端根目录，独立 worktree 使用显式根目录', () => {
+    expect(resolveProjectRoot('/tmp/project/frontend/admin')).toBe('/tmp/project');
+    expect(resolveProjectRoot('/tmp/front-only', '/tmp/root-only')).toBe('/tmp/root-only');
+  });
   it('仅交付允许类别并排除迁移、执行材料及生成副本', () => {
     const { root, adminRoot } = fixture();
     const paths = collectReferenceDocuments(root, adminRoot).map(
@@ -140,5 +145,20 @@ describe('published reference documents', () => {
     const before = readFileSync(file, 'utf8');
     expect(() => syncPackageDocuments(options.packageRoot, { ...options, checkOnly: true })).toThrow('发布文档未同步');
     expect(readFileSync(file, 'utf8')).toBe(before);
+  });
+  it('公共框架包的 Agent 入口保留启动指南链接', () => {
+    const options = fixture();
+    writeFileSync(
+      join(options.packageRoot, 'package.json'),
+      JSON.stringify({ name: '@levin/admin-framework', version: '6.0.0' }),
+    );
+    mkdirSync(join(options.packageRoot, 'docs'), { recursive: true });
+    writeFileSync(join(options.packageRoot, 'docs/admin-bootstrap.md'), '# 公共启动入口');
+
+    syncPackageDocuments(options.packageRoot, options);
+
+    expect(readFileSync(join(options.packageRoot, 'AGENTS.md'), 'utf8')).toContain(
+      '[docs/admin-bootstrap.md](docs/admin-bootstrap.md)',
+    );
   });
 });

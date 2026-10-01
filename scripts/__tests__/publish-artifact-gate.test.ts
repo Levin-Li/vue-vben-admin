@@ -16,6 +16,7 @@ import {
   packWorkspacePackage,
   verifyPageMetadata,
   verifyTarballDependencyProtocols,
+  verifyTarballManifest,
   verifyTarballModuleDevelopmentStandard,
   verifyTarballStandaloneInstall,
   verifyTarballStandaloneViteBuild,
@@ -134,6 +135,46 @@ describe('publish artifact gate', () => {
     ).not.toThrow();
   });
 
+  it('checks the real tarball version, internal versions and export files', () => {
+    const info = {
+      name: '@scope/test-package',
+      version: '1.2.4',
+      dir: createTemporaryDirectory(),
+    };
+    const versions = new Map([['@scope/core', '1.2.3']]);
+    const valid = createTarball(
+      {
+        name: info.name,
+        version: info.version,
+        dependencies: { '@scope/core': '1.2.3' },
+        exports: { '.': './dist/index.mjs' },
+      },
+      { 'dist/index.mjs': 'export const ready = true;\n' },
+    );
+    expect(() => verifyTarballManifest(info, valid, versions)).not.toThrow();
+
+    const wrongVersion = createTarball({ name: info.name, version: '1.2.3' });
+    expect(() => verifyTarballManifest(info, wrongVersion, versions)).toThrow(
+      '版本不匹配',
+    );
+    const wrongDependency = createTarball({
+      name: info.name,
+      version: info.version,
+      dependencies: { '@scope/core': '1.2.2' },
+    });
+    expect(() =>
+      verifyTarballManifest(info, wrongDependency, versions),
+    ).toThrow('内部依赖版本不匹配');
+    const missingExport = createTarball({
+      name: info.name,
+      version: info.version,
+      exports: { '.': './dist/missing.mjs' },
+    });
+    expect(() => verifyTarballManifest(info, missingExport, versions)).toThrow(
+      '导出文件缺失',
+    );
+  });
+
   it('requires the module development standard and a README reference', () => {
     const manifest = { name: '@scope/test-package', version: '1.0.0' };
     const packageInfo = {
@@ -164,8 +205,7 @@ describe('publish artifact gate', () => {
       verifyTarballModuleDevelopmentStandard(
         packageInfo,
         createTarball(manifest, {
-          'README.md':
-            '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n',
+          'README.md': '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n',
           'docs/MODULE-DEVELOPMENT-STANDARD.md': '# 模块规范\n',
         }),
         '本地 tarball',
@@ -188,7 +228,8 @@ describe('publish artifact gate', () => {
       readFileSync(resolve('package-versions.json'), 'utf8'),
     );
     expect(manifest.dependencies).toMatchObject({
-      '@vben-core/foundation': packageVersions.releaseVersion,
+      '@vben-core/foundation':
+        packageVersions.packages['@vben-core/foundation'],
     });
   });
 

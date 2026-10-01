@@ -37,12 +37,12 @@ import { IconifyIcon } from '@vben/runtime/icons';
 import { $t } from '@vben/runtime/locales';
 import { isEmpty } from '@vben/runtime/utils';
 
-import { message, Modal, notification } from 'ant-design-vue';
+// 确认弹窗的操作按钮随应用加载，避免旧页面在服务重启后请求失效的异步分包。
+import { Button, message, Modal, notification } from 'ant-design-vue';
 
 const AutoComplete = defineAsyncComponent(
   () => import('ant-design-vue/es/auto-complete'),
 );
-const Button = defineAsyncComponent(() => import('ant-design-vue/es/button'));
 const Checkbox = defineAsyncComponent(
   () => import('ant-design-vue/es/checkbox'),
 );

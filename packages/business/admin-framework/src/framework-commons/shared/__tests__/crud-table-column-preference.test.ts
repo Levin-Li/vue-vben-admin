@@ -6,7 +6,10 @@ import {
   readTableColumnPreference,
   TABLE_COLUMN_PREFERENCE_VERSION,
 } from '../crud-table-column-preference';
-import { normalizeLeftFixedTableColumns } from '../crud-table-columns';
+import {
+  normalizeLeftFixedTableColumns,
+  resolveCompactTableColumnFixed,
+} from '../crud-table-columns';
 
 describe('crud table column preference', () => {
   it('keeps every left and right fixed column in its fixed group', () => {
@@ -22,6 +25,20 @@ describe('crud table column preference', () => {
         (field) => field.key,
       ),
     ).toEqual({ __actions: 'right', __tenant: 'left', orgName: 'left' });
+  });
+
+  it('窄屏收起时只取消固定，不隐藏左右列', () => {
+    expect(resolveCompactTableColumnFixed('left', true, null)).toBeUndefined();
+    expect(resolveCompactTableColumnFixed('right', true, null)).toBeUndefined();
+    expect(resolveCompactTableColumnFixed('left', true, 'left')).toBe('left');
+    expect(
+      resolveCompactTableColumnFixed('right', true, 'left'),
+    ).toBeUndefined();
+    expect(resolveCompactTableColumnFixed('right', true, 'right')).toBe(
+      'right',
+    );
+    expect(resolveCompactTableColumnFixed('left', false, null)).toBe('left');
+    expect(resolveCompactTableColumnFixed('right', false, null)).toBe('right');
   });
 
   it('persists hidden columns and local column order', () => {

@@ -1,4 +1,16 @@
 export type CrudTableColumnFixed = 'left' | 'right' | undefined;
+export type CompactTableExpandedSide = 'left' | 'right' | null;
+
+/** 紧凑列表仅取消未展开侧的固定定位，所有列仍可横向滚动查看。 */
+export function resolveCompactTableColumnFixed(
+  configuredFixed: CrudTableColumnFixed,
+  compact: boolean,
+  expandedSide: CompactTableExpandedSide,
+): CrudTableColumnFixed {
+  return compact && configuredFixed !== expandedSide
+    ? undefined
+    : configuredFixed;
+}
 
 export function normalizeLeftFixedTableColumns<T>(
   fields: T[],

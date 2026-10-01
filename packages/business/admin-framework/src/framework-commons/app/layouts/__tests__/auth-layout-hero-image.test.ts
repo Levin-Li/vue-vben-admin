@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { flushPromises, mount } from '@vue/test-utils';
 import { nextTick, ref } from 'vue';
 
@@ -50,6 +53,22 @@ vi.mock(
 );
 
 describe('authentication layout login hero image', () => {
+  it('keeps the mobile footer in normal flow and makes the form scrollable', () => {
+    const source = readFileSync(
+      resolve(
+        'packages/business/admin-framework/src/framework-commons/app/layouts/auth.vue',
+      ),
+      'utf8',
+    );
+    const mobileRules = source.split('@media (max-width: 767px)')[1] || '';
+    expect(mobileRules).toMatch(
+      /\.auth-page-footer\s*\{[^}]*position:\s*static/,
+    );
+    expect(mobileRules).toMatch(
+      /\.auth-shell main\s*\{[^}]*overflow-y:\s*auto/,
+    );
+  });
+
   it('shows copyright before technical support and allows the footer to wrap', () => {
     const wrapper = mount(AuthLayout, {
       global: {

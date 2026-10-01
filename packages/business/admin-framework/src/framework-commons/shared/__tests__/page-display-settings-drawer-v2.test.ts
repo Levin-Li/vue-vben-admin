@@ -203,6 +203,50 @@ describe('界面UI设置2', () => {
     }
   });
 
+  it('加载记录后用记录范围整体替换旧范围，未命中时清空', async () => {
+    const wrapper = mountEditor();
+    const savedScope = () =>
+      (
+        wrapper.emitted('save')?.at(-1)?.[0] as
+          | { scope: Record<string, unknown> }
+          | undefined
+      )?.scope;
+    try {
+      await flushPromises();
+      await wrapper.setProps({
+        initialScope: { tenantId: 'old-tenant', domain: 'old.example.com' },
+        scopeLoadVersion: 1,
+      });
+      upload();
+      expect(savedScope()).toMatchObject({
+        tenantId: 'old-tenant',
+        domain: 'old.example.com',
+      });
+      await wrapper.setProps({
+        initialScope: { tenantId: 'saved-tenant' },
+        scopeLoadVersion: 2,
+      });
+      upload();
+      expect(savedScope()).toMatchObject({
+        tenantId: 'saved-tenant',
+        domain: undefined,
+      });
+      await wrapper.setProps({ initialScope: {}, scopeLoadVersion: 3 });
+      upload();
+      expect(savedScope()).toEqual({
+        domain: undefined,
+        orgCategory: undefined,
+        orgType: undefined,
+        tenantId: undefined,
+        userCategory: undefined,
+        userType: undefined,
+      });
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
   it('保持打开加载并显示和替换记录标题', async () => {
     const wrapper = mountEditor();
     try {

@@ -10,6 +10,7 @@ import {
   findUiSettingCandidates,
   saveUiSettingWithCandidates,
 } from './api/ui-setting-candidate-save';
+import { resolveUiSettingRecordScope } from './api/ui-setting-record-scope';
 
 /** 预览与保存共用同一精确范围查询。 */
 export function loadAdminUiPreferencesUploadTargets(
@@ -164,7 +165,7 @@ export async function loadAdminUiPreferencesSetting() {
 export function resolveAdminUiPreferencesUploadScope(
   resolution: UiSettingRuntimeResolution,
 ): AdminUiPreferencesScope {
-  return resolution.setting ? resolution.scope : {};
+  return resolveUiSettingRecordScope(resolution);
 }
 
 export async function saveAdminUiPreferencesSetting(

@@ -12,6 +12,7 @@ export interface BackendMenuInfo {
   alwaysShow?: boolean;
   children?: BackendMenuInfo[] | null;
   enable?: boolean;
+  hidden?: boolean;
   icon?: null | string;
   id?: string;
   label?: null | string;
@@ -22,6 +23,7 @@ export interface BackendMenuInfo {
   params?: MenuFixedQuery | null;
   path?: null | string;
   remark?: null | string;
+  replacePath?: null | string;
   requireAuthorizations?: null | string[];
   viewPath?: null | string;
 }
@@ -155,10 +157,12 @@ function toMeta(
     crudResource: extractResourceFromMenuPath(normalizedPath),
     disabled: item.enable === false,
     icon: resolveBackendMenuIcon(item, normalizedPath, DEFAULT_LEAF_MENU_ICON),
+    hideInMenu: item.hidden === true,
     menuActionType: normalizeActionType(item.actionType),
     pageDescription: item.remark || '',
     pageName: item.name || '',
     pageOperations: item.opButtonList || [],
+    replacePath: item.replacePath || undefined,
     menuPageType: normalizePageType(item.pageType),
     order: item.orderCode,
     title: item.label || item.name || normalizedPath || '未命名页面',
@@ -316,12 +320,14 @@ function convertLeafRoute(
         authority: toAuthority(item),
         disabled: item.enable === false,
         icon: resolveLocalPageIcon(item.icon, mapping.icon),
+        hideInMenu: item.hidden === true,
         menuActionType: actionType,
         menuPageType: pageType,
         order: item.orderCode,
         pageDescription: item.remark || mapping.description,
         pageName: item.name || mapping.name,
         pageOperations: item.opButtonList || mapping.operations || [],
+        replacePath: item.replacePath || undefined,
         title:
           item.label ||
           item.name ||
@@ -385,7 +391,11 @@ export function convertMenuNode(
     ? [
         {
           ...groupPageRoute,
-          meta: { ...groupPageRoute.meta, hideInMenu: true },
+          meta: {
+            ...groupPageRoute.meta,
+            hideInMenu: true,
+            replacePath: undefined,
+          },
           name: toDefaultChildRouteName(groupPageRoute.name),
           path: '',
         },
@@ -409,6 +419,7 @@ export function convertMenuNode(
         authority: toAuthority(item),
         alwaysShow: item.alwaysShow,
         disabled: item.enable === false,
+        hideInMenu: item.hidden === true,
         icon: resolveBackendMenuIcon(
           item,
           normalizedPath,
@@ -419,6 +430,7 @@ export function convertMenuNode(
         navigateOnClick: Boolean(groupPageRoute),
         order: item.orderCode,
         preserveComponentWhenChildren: Boolean(groupPageRoute),
+        replacePath: item.replacePath || undefined,
         title: item.label || item.name || normalizedPath || '未命名分组',
       },
       name: toRouteName(routePath),
@@ -444,13 +456,36 @@ export function buildMenuRoutes(
 
   const existingPaths = collectRoutePaths(routes);
 
+  // 替换入口必须先注册，防止后续缺省禁止路由占用同一个系统路径。
+  collectRouteEntryReplacements(routes).forEach(
+    ({ replacePath, targetPath }) => {
+      if (
+        !replacePath ||
+        replacePath === targetPath ||
+        existingPaths.has(replacePath)
+      ) {
+        return;
+      }
+      routes.push({
+        meta: { hideInMenu: true, title: '菜单路径替换' },
+        name: toRouteName(replacePath),
+        path: replacePath,
+        redirect: targetPath,
+      } as unknown as RouteRecordStringComponent);
+      existingPaths.add(replacePath);
+    },
+  );
+
   routeMappings.forEach((mapping) => {
     if (existingPaths.has(mapping.path)) {
       return;
     }
 
     routes.push({
-      component: mapping.onlyRequireAuthenticated === true ? mapping.viewPath : FORBIDDEN_PAGE_COMPONENT,
+      component:
+        mapping.onlyRequireAuthenticated === true
+          ? mapping.viewPath
+          : FORBIDDEN_PAGE_COMPONENT,
       meta: {
         crudResource: mapping.resource,
         hideInMenu: true,
@@ -465,6 +500,24 @@ export function buildMenuRoutes(
   });
 
   return routes;
+}
+
+function collectRouteEntryReplacements(routes: RouteRecordStringComponent[]) {
+  const replacements: Array<{ replacePath: string; targetPath: string }> = [];
+  routes.forEach((route) => {
+    const replacePath = String((route.meta as any)?.replacePath || '').trim();
+    if (replacePath) {
+      replacements.push({ replacePath, targetPath: route.path });
+    }
+    if (route.children?.length) {
+      replacements.push(
+        ...collectRouteEntryReplacements(
+          route.children as RouteRecordStringComponent[],
+        ),
+      );
+    }
+  });
+  return replacements;
 }
 
 export function convertMenuNodeForTest(

@@ -101,6 +101,7 @@ const oakBaseApiModule = '/com.levin.oak.base/V1/api';
 | `disabled` | `false` | 是否禁用组件。 |
 | `placeholder` | `请选择用户或组织` | 空值提示文案。 |
 | `showSearch` | `true` | 是否支持按节点标题搜索。 |
+| `inline` | `false` | 在手机抽屉等受限空间内直接展示搜索框和可滚动候选树，不打开第二层浮动下拉。候选权限、懒加载与选中事件与默认模式相同。 |
 
 `maxSelectCount=1` 会优先于 `multiple=true`，按单选处理。`onlyLeafNode` 与 `onlyNotLeafNode` 不能同时开启。
 

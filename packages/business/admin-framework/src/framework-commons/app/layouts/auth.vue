@@ -8,6 +8,7 @@ import {
   LanguageToggle,
   ThemeToggle,
 } from '@vben/layouts';
+
 import { preferences, usePreferences } from '@vben-core/foundation/preferences';
 
 import { useAuthBrand } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/auth-brand';
@@ -949,6 +950,32 @@ onMounted(() => {
     animation: none !important;
     opacity: 1 !important;
     stroke-dashoffset: 0 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  /* 手机键盘压缩视口时，让表单自身滚动，避免聚焦字段被裁切。 */
+  .auth-shell {
+    height: 100dvh;
+  }
+
+  .auth-shell main {
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 16px;
+  }
+
+  .auth-shell main > div {
+    height: auto;
+    min-height: 100%;
+  }
+
+  /* 页脚退出固定定位，不能随虚拟键盘上移覆盖账号输入框。 */
+  .auth-page-footer {
+    position: static;
+    width: 100%;
+    flex-shrink: 0;
+    padding: 0 24px max(16px, env(safe-area-inset-bottom));
   }
 }
 </style>

@@ -1,11 +1,13 @@
 export interface TenantCustomMenuItem {
   children?: TenantCustomMenuItem[];
   enable?: boolean;
+  hidden?: boolean;
   icon?: string;
   key: string;
   label: string;
   name?: string;
   path?: string;
+  replacePath?: string;
   sourceIcon?: string;
 }
 
@@ -37,13 +39,19 @@ export function cloneLayoutItems(items: TenantCustomMenuItem[] = []) {
 }
 
 export function toPersistedLayoutItems(items: TenantCustomMenuItem[] = []) {
-  return items.map(({ children, enable, icon, label, path }) => ({
-    ...(children?.length ? { children: toPersistedLayoutItems(children) } : {}),
-    ...(enable === false ? { enable: false } : {}),
-    ...(icon?.trim() ? { icon: icon.trim() } : {}),
-    label,
-    ...(path ? { path } : {}),
-  }));
+  return items.map(
+    ({ children, enable, hidden, icon, label, path, replacePath }) => ({
+      ...(children?.length
+        ? { children: toPersistedLayoutItems(children) }
+        : {}),
+      ...(enable === false ? { enable: false } : {}),
+      ...(hidden ? { hidden: true } : {}),
+      ...(icon?.trim() ? { icon: icon.trim() } : {}),
+      label,
+      ...(path ? { path } : {}),
+      ...(replacePath ? { replacePath } : {}),
+    }),
+  );
 }
 
 export function collectLayoutPaths(items: TenantCustomMenuItem[] = []) {
@@ -80,7 +88,7 @@ export function findLayoutItem(
 export function updateLayoutItemValue(
   items: TenantCustomMenuItem[],
   key: string,
-  field: 'enable' | 'icon' | 'label',
+  field: 'enable' | 'hidden' | 'icon' | 'label' | 'replacePath',
   value: boolean | string,
 ) {
   const item = findLayoutItem(items, key);
@@ -88,8 +96,10 @@ export function updateLayoutItemValue(
     return false;
   }
 
-  if (field === 'enable') {
-    item.enable = Boolean(value);
+  if (field === 'enable' || field === 'hidden') {
+    item[field] = Boolean(value);
+  } else if (field === 'replacePath') {
+    item.replacePath = String(value || '') || undefined;
   } else if (field === 'icon') {
     item.icon = String(value || '').trim() || undefined;
   } else {

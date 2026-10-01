@@ -1,7 +1,11 @@
 import { reactive, watch } from 'vue';
 
 import { addLayoutHeaderExtensionAreaItem } from '@vben/layouts/basic/header-extension-area';
-import { useAccessStore, useTabbarStore, useUserStore } from '@vben/runtime/stores';
+import {
+  useAccessStore,
+  useTabbarStore,
+  useUserStore,
+} from '@vben/runtime/stores';
 
 import { resolveUiSettingRuntime } from './api/ui-setting-runtime';
 import { onGlobalDomainContextChange } from './global-domain-context-state';
@@ -22,7 +26,7 @@ const runtimeState = reactive({
 
 export const globalOrgSelectorRuntimeState = runtimeState;
 
-let headerDisposer: (() => void) | undefined;
+let headerDisposers: Array<() => void> = [];
 let stopUserWatcher: (() => void) | undefined;
 let stopOrgChangeListener: (() => void) | undefined;
 let initializationVersion = 0;
@@ -101,13 +105,23 @@ async function loadRuntimeSetting(userId: string) {
 }
 
 export function registerGlobalOrgSelectorRuntime() {
-  headerDisposer?.();
-  headerDisposer = addLayoutHeaderExtensionAreaItem('center', {
-    class: 'max-w-[360px] shrink-0',
-    component: GlobalOrgSelector,
-    id: 'global-org-selector',
-    order: 20,
-  });
+  for (const dispose of headerDisposers.splice(0)) dispose();
+  // 桌面保留中间长选择器，手机改用右侧紧凑入口，避免中间区域被挤出视口。
+  headerDisposers = [
+    addLayoutHeaderExtensionAreaItem('center', {
+      class: 'hidden max-w-[360px] shrink-0 md:flex',
+      component: GlobalOrgSelector,
+      id: 'global-org-selector-desktop',
+      order: 20,
+    }),
+    addLayoutHeaderExtensionAreaItem('right', {
+      class: 'flex shrink-0 md:hidden',
+      component: GlobalOrgSelector,
+      id: 'global-org-selector-mobile',
+      order: 20,
+      props: { mobileOnly: true },
+    }),
+  ];
 
   stopUserWatcher?.();
   stopUserWatcher = watch(
@@ -133,8 +147,7 @@ export function registerGlobalOrgSelectorRuntime() {
   });
 
   return () => {
-    headerDisposer?.();
-    headerDisposer = undefined;
+    for (const dispose of headerDisposers.splice(0)) dispose();
     stopUserWatcher?.();
     stopUserWatcher = undefined;
     stopOrgChangeListener?.();

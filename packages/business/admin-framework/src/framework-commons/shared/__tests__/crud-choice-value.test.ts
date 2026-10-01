@@ -26,6 +26,20 @@ describe('crud choice form value', () => {
     );
   });
 
+  it('finds an associated object label in nested organization options', () => {
+    const options = [
+      {
+        label: '总部',
+        value: 'root',
+        children: [{ label: '内容团队', value: 'org-2' }],
+      },
+    ];
+
+    expect(
+      findMatchingCrudChoiceOption(gradeField, 'org-2', options)?.label,
+    ).toBe('内容团队');
+  });
+
   it('matches integer record and option values through their string representations', () => {
     expect(
       findMatchingCrudChoiceOption(gradeField, 100, [

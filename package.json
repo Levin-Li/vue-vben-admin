@@ -59,9 +59,8 @@
     "pack:admin-modules": "node ./scripts/publish-packages.mjs --pack --only=@levin/admin-framework,@levin/oak-base-admin",
     "pack:packages": "node ./scripts/publish-packages.mjs --pack",
     "publint": "vsh publint",
-    "prepare:full-frontend-release": "node ./scripts/prepare-full-frontend-release.mjs && node ./scripts/sync-package-versions.mjs",
     "publish:admin-modules": "pnpm run publish:packages",
-    "publish:packages": "node ./scripts/sync-package-versions.mjs && node ./scripts/publish-packages.mjs --publish",
+    "publish:packages": "node ./scripts/publish-packages.mjs --publish",
     "reinstall": "pnpm clean --del-lock && pnpm install",
     "sync:frontend-rules": "node ./scripts/sync-frontend-rule-docs.mjs --all",
     "check:frontend-rules": "node ./scripts/sync-frontend-rule-docs.mjs --all --check",
@@ -70,7 +69,8 @@
     "test:e2e": "turbo run test:e2e",
     "update:deps": "npx taze -r -w",
     "version": "pnpm exec changeset version && pnpm install --no-frozen-lockfile",
-    "catalog": "pnpx codemod pnpm/catalog"
+    "catalog": "pnpx codemod pnpm/catalog",
+    "plan:packages": "node ./scripts/publish-packages.mjs --plan"
   },
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",

@@ -231,22 +231,34 @@ describe('menu route conversion', () => {
   });
 
   it('仅显式登录页面在空授权菜单下可访问，其余页面仍拒绝', () => {
-    const routes = buildMenuRoutes([], [
-      ...testBackendRouteMappings,
-      {
-        description: '登录后测试访问控制。', icon: 'lucide:shield-check', name: 'AclTest',
-        onlyRequireAuthenticated: true, path: '/clob/V1/aclTest', resource: 'AclTest',
-        sourceFilePath: 'modules/com_levin_oak_base/views/acl-test/index.vue',
-        title: '访问控制测试', viewPath: '/system/com_levin_oak_base/acl-test/index.vue',
-      },
-    ]);
+    const routes = buildMenuRoutes(
+      [],
+      [
+        ...testBackendRouteMappings,
+        {
+          description: '登录后测试访问控制。',
+          icon: 'lucide:shield-check',
+          name: 'AclTest',
+          onlyRequireAuthenticated: true,
+          path: '/clob/V1/aclTest',
+          resource: 'AclTest',
+          sourceFilePath: 'modules/com_levin_oak_base/views/acl-test/index.vue',
+          title: '访问控制测试',
+          viewPath: '/system/com_levin_oak_base/acl-test/index.vue',
+        },
+      ],
+    );
     const testPage = routes.find((route) => route.path === '/clob/V1/aclTest');
-    expect(testPage?.component).toBe('/system/com_levin_oak_base/acl-test/index.vue');
+    expect(testPage?.component).toBe(
+      '/system/com_levin_oak_base/acl-test/index.vue',
+    );
     expect(testPage?.meta?.hideInMenu).toBe(true);
     expect(testPage?.meta?.menuRouteForbidden).toBe(false);
     expect(testPage?.meta?.ignoreAccess).toBeUndefined();
     expect(testPage?.name).toBe('_clob_V1_aclTest');
-    expect(routes.find((route) => route.path === '/clob/V1/Role')?.component).toBe('/_core/fallback/forbidden.vue');
+    expect(
+      routes.find((route) => route.path === '/clob/V1/Role')?.component,
+    ).toBe('/_core/fallback/forbidden.vue');
   });
 
   it('routes pages absent from backend menus to the forbidden page', () => {
@@ -760,5 +772,88 @@ describe('复制菜单清除固定条件', () => {
       testBackendRouteMappings,
     );
     expect(route?.path).toBe('/clob/V1/Role');
+  });
+});
+
+describe('自定义菜单入口替换', () => {
+  it('含子菜单的分组也保留隐藏和替换入口设置', () => {
+    const routes = buildMenuRoutes(
+      [
+        {
+          children: [
+            {
+              id: 'custom-role-child',
+              path: '/clob/V1/Role',
+              viewPath: testBackendRouteMappings[0]?.viewPath,
+            },
+          ],
+          hidden: true,
+          id: 'custom-group',
+          path: '/menu/custom-group',
+          replacePath: '/clob/V1/Article',
+        },
+      ],
+      testBackendRouteMappings,
+    );
+
+    expect(
+      routes.find((route) => route.path === '/menu/custom-group')?.meta,
+    ).toMatchObject({ hideInMenu: true, replacePath: '/clob/V1/Article' });
+    expect(
+      routes.find((route) => route.path === '/clob/V1/Article')?.redirect,
+    ).toBe('/menu/custom-group');
+  });
+
+  it('含自身页面的分组替换入口指向分组完整路径', () => {
+    const routes = buildMenuRoutes(
+      [
+        {
+          children: [
+            {
+              id: 'custom-role-child',
+              path: '/clob/V1/Article',
+              viewPath: testBackendRouteMappings[1]?.viewPath,
+            },
+          ],
+          id: 'role-group',
+          path: '/clob/V1/Role',
+          replacePath: '/',
+          viewPath: testBackendRouteMappings[0]?.viewPath,
+        },
+      ],
+      testBackendRouteMappings,
+    );
+
+    expect(routes.find((route) => route.path === '/')?.redirect).toBe(
+      '/clob/V1/Role',
+    );
+    const group = routes.find((route) => route.path === '/clob/V1/Role');
+    expect(group?.children?.[0]?.path).toBe('');
+    expect(group?.children?.[0]?.meta?.replacePath).toBeUndefined();
+  });
+
+  it('保留目标授权路由并为被替换路径生成隐藏重定向', () => {
+    const routes = buildMenuRoutes(
+      [
+        {
+          hidden: true,
+          id: 'custom-role',
+          path: '/menu/custom-role',
+          replacePath: '/clob/V1/Role',
+          viewPath: testBackendRouteMappings[0]?.viewPath,
+        },
+      ],
+      testBackendRouteMappings,
+    );
+    expect(
+      routes.find((route) => route.path === '/menu/custom-role')?.meta
+        ?.hideInMenu,
+    ).toBe(true);
+    expect(
+      routes.find((route) => route.path === '/clob/V1/Role')?.redirect,
+    ).toBe('/menu/custom-role');
+    expect(routes.find((route) => route.path === '/clob/V1/Role')?.name).toBe(
+      '_clob_V1_Role',
+    );
   });
 });

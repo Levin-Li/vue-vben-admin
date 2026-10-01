@@ -124,7 +124,14 @@ describe('全局选择器配置生命周期', () => {
     );
     expect(mocks.addHeader).toHaveBeenCalledWith(
       'center',
-      expect.objectContaining({ class: 'max-w-[360px] shrink-0' }),
+      expect.objectContaining({ class: expect.stringContaining('md:flex') }),
+    );
+    expect(mocks.addHeader).toHaveBeenCalledWith(
+      'right',
+      expect.objectContaining({
+        class: expect.stringContaining('md:hidden'),
+        props: { mobileOnly: true },
+      }),
     );
   });
 

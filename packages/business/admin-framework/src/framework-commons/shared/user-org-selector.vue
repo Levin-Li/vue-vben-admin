@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { PropType } from 'vue';
+
 import type {
+  UserOrgSelectorKind,
   UserOrgSelectorLoadOrgTree,
   UserOrgSelectorLoadUsers,
-  UserOrgSelectorKind,
   UserOrgSelectorModelValue,
   UserOrgSelectorOrgLoadMode,
   UserOrgSelectorRecord,
@@ -12,10 +13,11 @@ import type {
   UserOrgTreeSelectNode,
 } from './user-org-selector-types';
 
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
-import { TreeSelect, message } from 'ant-design-vue';
 import { IconifyIcon } from '@vben/runtime/icons';
+
+import { message, Tree, TreeSelect } from 'ant-design-vue';
 
 import { fetchCrudList } from '../api';
 import { rbacService } from '../app/api/rbac-service';
@@ -46,6 +48,10 @@ const props = defineProps({
     type: Array as PropType<UserOrgSelectorKind[]>,
   },
   disabled: {
+    default: false,
+    type: Boolean,
+  },
+  inline: {
     default: false,
     type: Boolean,
   },
@@ -174,8 +180,9 @@ const normalizedUserTypes = computed(() =>
   normalizeSelectorTypes(props.userTypes),
 );
 const normalizedRootOrgIds = computed(() => props.rootOrgIdList);
-const allowSelectOrgByMode = computed(() => props.selectableTypes.includes('org'));
-const allowSelectUserByMode = computed(() => props.selectableTypes.includes('user'));
+const allowSelectUserByMode = computed(() =>
+  props.selectableTypes.includes('user'),
+);
 const effectiveMultiple = computed(() =>
   props.maxSelectCount === 1 ? false : props.multiple,
 );
@@ -218,6 +225,34 @@ const displayTreeData = computed(() => {
   return selectedGroup
     ? [selectedGroup, ...orgTreeData.value]
     : orgTreeData.value;
+});
+
+const inlineTreeData = computed(() => {
+  const keyword = searchValue.value.trim().toLocaleLowerCase();
+  if (!keyword) return displayTreeData.value;
+
+  // 手机候选树只保留命中节点及其祖先，避免搜索时出现无关长列表。
+  function filterNodes(
+    nodes: UserOrgTreeSelectNode[],
+  ): UserOrgTreeSelectNode[] {
+    return nodes.flatMap((node) => {
+      const children = filterNodes(node.children || []);
+      const matches = String(node.title || '')
+        .toLocaleLowerCase()
+        .includes(keyword);
+      return matches || children.length > 0
+        ? [{ ...node, children: matches ? node.children : children }]
+        : [];
+    });
+  }
+
+  return filterNodes(displayTreeData.value);
+});
+
+onMounted(() => {
+  // 内嵌树随手机抽屉挂载，打开后才读取授权候选，不再依赖第二层下拉事件。
+  if (props.inline)
+    void handleDropdownVisibleChange(true).catch(() => undefined);
 });
 
 watch(
@@ -299,19 +334,29 @@ async function loadOrgTree() {
     });
     // 平台用户才按租户包装组织根；租户名称优先取组织返回值，缺失时使用授权租户候选补齐。
     if (props.showTenantNodes) {
-      const names = new Map(props.tenantOptions.map((item) => [String(item.value), item.label]));
+      const names = new Map(
+        props.tenantOptions.map((item) => [String(item.value), item.label]),
+      );
       const groups = new Map<string, UserOrgTreeSelectNode[]>();
       for (const node of orgNodes) {
         const tenantId = node.tenantId || '__platform__';
         groups.set(tenantId, [...(groups.get(tenantId) || []), node]);
       }
       orgTreeData.value = [...groups.entries()].map(([tenantId, children]) =>
-        toUserOrgTreeSelectNode({
-          id: tenantId,
-          kind: 'tenant',
-          name: tenantId === '__platform__' ? '平台组织' : children.find((node) => node.tenantName)?.tenantName || names.get(tenantId) || `租户 ${tenantId}`,
-          tenantId: tenantId === '__platform__' ? undefined : tenantId,
-        }, { children, selectable: props.selectableTypes.includes('tenant') }),
+        toUserOrgTreeSelectNode(
+          {
+            id: tenantId,
+            kind: 'tenant',
+            name:
+              tenantId === '__platform__'
+                ? '平台组织'
+                : children.find((node) => node.tenantName)?.tenantName ||
+                  names.get(tenantId) ||
+                  `租户 ${tenantId}`,
+            tenantId: tenantId === '__platform__' ? undefined : tenantId,
+          },
+          { children, selectable: props.selectableTypes.includes('tenant') },
+        ),
       );
     } else {
       orgTreeData.value = orgNodes;
@@ -381,7 +426,7 @@ async function handleLoadData(treeNode: Record<string, any>) {
     node.isLeaf = orgChildren.length === 0 && userNodes.length === 0;
     orgTreeData.value = [...orgTreeData.value];
     mergeSelectedRecords(userNodes);
-    loadedOrgNodeKeys.value = new Set([...loadedOrgNodeKeys.value, key]);
+    loadedOrgNodeKeys.value = new Set([key, ...loadedOrgNodeKeys.value]);
   } catch (error) {
     message.error(`加载“${node.name}”下的数据失败`);
     throw error;
@@ -719,9 +764,11 @@ function getSearchExpandedKeys(
       }
     }
 
-    getSearchExpandedKeys(node.children || [], keyword, nextAncestorKeys).forEach(
-      (key) => expandedKeys.add(key),
-    );
+    getSearchExpandedKeys(
+      node.children || [],
+      keyword,
+      nextAncestorKeys,
+    ).forEach((key) => expandedKeys.add(key));
   }
 
   return [...expandedKeys];
@@ -776,10 +823,89 @@ function handleSearch(value: string) {
   searchValue.value = value;
   treeExpandedKeys.value = getSearchExpandedKeys(orgTreeData.value, keyword);
 }
+
+function handleInlineSelect(keys: Array<number | string>) {
+  handleChange(keys.map(String));
+}
+
+function handleInlineCheck(
+  keys: Array<number | string> | { checked: Array<number | string> },
+) {
+  handleChange((Array.isArray(keys) ? keys : keys.checked).map(String));
+}
+
+function handleInlineExpand(keys: Array<number | string>) {
+  treeExpandedKeys.value = keys.map(String);
+}
 </script>
 
 <template>
+  <!-- 手机抽屉直接展示搜索和候选树，避免键盘出现时第二层浮动列表盖住输入框。 -->
+  <div v-if="inline" class="user-org-selector__inline">
+    <input
+      v-if="showSearch"
+      :value="searchValue"
+      aria-label="搜索用户或组织"
+      class="user-org-selector__inline-search"
+      placeholder="搜索用户或组织"
+      type="search"
+      @input="handleSearch(($event.target as HTMLInputElement).value)"
+    />
+    <div
+      class="user-org-selector__inline-tree"
+      data-testid="user-org-selector-inline-tree"
+    >
+      <Tree
+        :checkable="effectiveMultiple"
+        :checked-keys="effectiveMultiple ? selectedKeys : []"
+        :disabled="disabled"
+        :expanded-keys="treeExpandedKeys"
+        :load-data="handleLoadData"
+        :selectable="!effectiveMultiple"
+        :selected-keys="effectiveMultiple ? [] : selectedKeys"
+        :tree-data="inlineTreeData"
+        @check="handleInlineCheck"
+        @expand="handleInlineExpand"
+        @select="handleInlineSelect"
+      >
+        <template #title="node">
+          <span
+            class="user-org-selector__node-title"
+            :class="[
+              {
+                'user-org-selector__disabled-org-title':
+                  node.kind === 'org' && node.disabled,
+              },
+            ]"
+          >
+            <IconifyIcon
+              v-if="showNodeIcons"
+              :icon="getUserOrgSelectorNodeIcon(node)"
+              class="user-org-selector__node-icon"
+            />
+            <span>
+              <template
+                v-for="(part, index) in getNodeTitleParts(
+                  String(node.title || ''),
+                )"
+                :key="`${node.key}-${index}`"
+              >
+                <mark
+                  v-if="part.highlighted"
+                  class="user-org-selector__node-highlight"
+                >
+                  {{ part.text }}
+                </mark>
+                <template v-else>{{ part.text }}</template>
+              </template>
+            </span>
+          </span>
+        </template>
+      </Tree>
+    </div>
+  </div>
   <TreeSelect
+    v-else
     :allow-clear="allowClear"
     :disabled="disabled"
     :load-data="handleLoadData"
@@ -802,8 +928,8 @@ function handleSearch(value: string) {
   >
     <template #title="node">
       <span
+        class="user-org-selector__node-title"
         :class="[
-          'user-org-selector__node-title',
           {
             'user-org-selector__disabled-org-title':
               node.kind === 'org' && node.disabled,
@@ -835,6 +961,43 @@ function handleSearch(value: string) {
 </template>
 
 <style>
+.user-org-selector__inline {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  width: 100%;
+}
+
+.user-org-selector__inline-search {
+  flex: 0 0 auto;
+  min-height: 44px;
+  width: 100%;
+  padding: 0 12px;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  outline: none;
+}
+
+.user-org-selector__inline-search:focus {
+  border-color: hsl(var(--primary));
+}
+
+.user-org-selector__inline-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.user-org-selector__inline .ant-tree-treenode {
+  min-height: 44px;
+  align-items: center;
+}
+
 .user-org-selector__node-title {
   display: inline-flex;
   align-items: center;

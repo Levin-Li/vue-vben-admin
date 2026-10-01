@@ -12,7 +12,11 @@ import { basename, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const projectRoot = resolve(frontendRoot, '..', '..');
+// 独立前端 worktree 可显式指向对应后端根仓库，常规嵌套目录保持原路径。
+export function resolveProjectRoot(frontendDir, override) {
+  return override ? resolve(override) : resolve(frontendDir, '..', '..');
+}
+const projectRoot = resolveProjectRoot(frontendRoot, process.env.LEVIN_PROJECT_ROOT);
 // 生成副本和执行材料永不作为下一次同步输入，避免资料递归复制。
 const excludedDirectory =
   /^(?:node_modules|target|dist|\.git|\.omx|\.cache|cache|logs|screenshots|project-reference|frontend-rules|migrations|release)$/i;
@@ -101,7 +105,7 @@ export function syncPackageDocuments(
   const usageDocuments = {
     '@levin/bpm-designer': '[工作流设计器使用指南](docs/工作流设计器使用指南.md) 说明组件入口、受支持节点、宿主候选数据边界和最小验证。\n\n[流程设计器设计与实现](docs/流程设计器设计与实现.md) 说明版本化配置、组件边界、条件与业务操作参数契约。',
     '@levin/bpm-runtime-ui': '[工作流执行界面使用指南](docs/工作流执行界面使用指南.md) 说明业务面板、办理轮次、节点动作、权限边界与最小验证。',
-    '@levin/admin-framework': '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)。',
+    '@levin/admin-framework': '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)；业务应用公共启动入口及界面偏好加载见 [docs/admin-bootstrap.md](docs/admin-bootstrap.md)。',
     '@levin/oak-base-admin': '工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。',
   };
   const usageDocument = usageDocuments[manifest.name] ?? (

@@ -100,6 +100,7 @@ const props = defineProps<{
   listOperationCandidates?: CrudListOperationCandidate[];
   open: boolean;
   saving?: boolean;
+  scopeLoadVersion?: number;
   settingRecord?: null | UiSettingRuntimeRecord;
   scriptTestContext?: Record<string, any>;
   showOperationColumn?: boolean;
@@ -1972,6 +1973,16 @@ watch(
     void refreshPreviewOverflow();
   },
   { immediate: true },
+);
+
+watch(
+  () => props.scopeLoadVersion,
+  () => {
+    if (!props.open) return;
+    // 加载完成时以记录范围整体替换当前表单，空字段同时清除旧值。
+    scope.value = normalizeScope(props.initialScope);
+    void loadScopeOptions();
+  },
 );
 
 watch(

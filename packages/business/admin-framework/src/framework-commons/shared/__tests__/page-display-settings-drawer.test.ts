@@ -72,6 +72,50 @@ async function searchFields(keyword: string) {
 }
 
 describe('页面展示设置抽屉', () => {
+  it('加载记录后用记录范围整体替换旧范围，未命中时清空', async () => {
+    const wrapper = mountDrawer(false);
+    const savedScope = () =>
+      (
+        wrapper.emitted('save')?.at(-1)?.[0] as
+          | { scope: Record<string, unknown> }
+          | undefined
+      )?.scope;
+    try {
+      await flushPromises();
+      await wrapper.setProps({
+        initialScope: { tenantId: 'old-tenant', domain: 'old.example.com' },
+        scopeLoadVersion: 1,
+      });
+      getUploadButton().click();
+      expect(savedScope()).toMatchObject({
+        tenantId: 'old-tenant',
+        domain: 'old.example.com',
+      });
+      await wrapper.setProps({
+        initialScope: { tenantId: 'saved-tenant' },
+        scopeLoadVersion: 2,
+      });
+      getUploadButton().click();
+      expect(savedScope()).toMatchObject({
+        tenantId: 'saved-tenant',
+        domain: undefined,
+      });
+      await wrapper.setProps({ initialScope: {}, scopeLoadVersion: 3 });
+      getUploadButton().click();
+      expect(savedScope()).toEqual({
+        domain: undefined,
+        orgCategory: undefined,
+        orgType: undefined,
+        tenantId: undefined,
+        userCategory: undefined,
+        userType: undefined,
+      });
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
   it('查询字段配置保留完整状态控件宽度，并让分组随网格横向滚动', async () => {
     const wrapper = mountDrawer(false);
     await flushPromises();

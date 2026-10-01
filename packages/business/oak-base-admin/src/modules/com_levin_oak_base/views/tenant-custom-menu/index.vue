@@ -137,6 +137,14 @@ const sourcePathSet = computed(
         .filter(Boolean),
     ),
 );
+const selectedLayoutPaths = computed(
+  () =>
+    new Set(
+      flattenLayoutItems(layoutItems.value)
+        .map((item) => item.path)
+        .filter(Boolean),
+    ),
+);
 const layoutOptions = computed(() =>
   layoutRecords.value.map((item) => ({
     label: `${item.name}${item.orderCode == null ? '' : `（排序 ${item.orderCode}）`}`,
@@ -297,12 +305,52 @@ function normalizeLayoutItems(
     return {
       children: normalizeLayoutItems(item.children || [], key),
       enable: item.enable !== false,
+      hidden: item.hidden === true,
       icon: item.icon,
       key,
       label: item.label || '未命名分组',
       path,
+      replacePath: item.replacePath,
     };
   });
+}
+
+function flattenLayoutItems(
+  items: TenantCustomMenuItem[],
+): TenantCustomMenuItem[] {
+  return items.flatMap((item) => [
+    item,
+    ...flattenLayoutItems(item.children || []),
+  ]);
+}
+
+function getReplacePathOptions() {
+  return [
+    { label: '不替换', value: '' },
+    ...flattenMenuSources(menuSources.value)
+      .filter((source) => {
+        const path = String(source.path || '').trim();
+        return Boolean(path) && !selectedLayoutPaths.value.has(path);
+      })
+      .map((source) => ({
+        label: `${source.label || source.name || source.path}（${source.path}）`,
+        value: String(source.path),
+      })),
+  ];
+}
+
+function findInvalidReplacePath(
+  items: TenantCustomMenuItem[],
+): string | undefined {
+  const selectedPaths = new Set(
+    flattenLayoutItems(items)
+      .map((item) => String(item.path || '').trim())
+      .filter(Boolean),
+  );
+  return flattenLayoutItems(items).find((item) => {
+    const replacePath = String(item.replacePath || '').trim();
+    return replacePath && selectedPaths.has(replacePath);
+  })?.label;
 }
 
 function getLayoutItemIcon(item: TenantCustomMenuItem) {
@@ -886,10 +934,19 @@ function getLayoutTreeItem(dataRef: DataNode) {
 
 function updateLayoutItem(
   dataRef: DataNode,
-  field: 'enable' | 'icon' | 'label',
+  field: 'enable' | 'hidden' | 'icon' | 'label' | 'replacePath',
   value: boolean | string,
 ) {
   const item = getLayoutTreeItem(dataRef);
+  const replacePath = String(value || '').trim();
+  if (
+    field === 'replacePath' &&
+    replacePath &&
+    selectedLayoutPaths.value.has(replacePath)
+  ) {
+    message.warning('替换路径已加入我的菜单，不能选择');
+    return;
+  }
   if (
     field === 'label' &&
     hasLayoutLabelAtTarget(
@@ -1024,6 +1081,12 @@ async function saveLayout() {
   const duplicateLabel = findDuplicateLayoutLabel(layoutItems.value);
   if (duplicateLabel) {
     message.warning(`同一节点下不能存在同名菜单：${duplicateLabel}`);
+    return;
+  }
+
+  const invalidReplacePath = findInvalidReplacePath(layoutItems.value);
+  if (invalidReplacePath) {
+    message.warning(`菜单“${invalidReplacePath}”不能替换已加入我的菜单的路径`);
     return;
   }
 
@@ -1378,6 +1441,31 @@ function closeLayoutAdjuster() {
                       @mousedown.stop
                       @update:checked="
                         (value) => updateLayoutItem(dataRef, 'enable', value)
+                      "
+                    />
+                    <Switch
+                      :checked="getLayoutTreeItem(dataRef).hidden === true"
+                      checked-children="隐藏"
+                      un-checked-children="显示"
+                      @click.stop
+                      @mousedown.stop
+                      @update:checked="
+                        (value) => updateLayoutItem(dataRef, 'hidden', value)
+                      "
+                    />
+                    <Select
+                      class="w-40 shrink-0"
+                      :options="getReplacePathOptions()"
+                      :value="getLayoutTreeItem(dataRef).replacePath || ''"
+                      @click.stop
+                      @mousedown.stop
+                      @update:value="
+                        (value) =>
+                          updateLayoutItem(
+                            dataRef,
+                            'replacePath',
+                            String(value || ''),
+                          )
                       "
                     />
                   </template>
