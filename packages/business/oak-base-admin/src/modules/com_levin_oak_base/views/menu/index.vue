@@ -365,10 +365,11 @@ function buildMenuOrderUpdates(row: MenuRecord, direction: MenuMoveDirection) {
   }
 
   const nextSiblings = [...siblings];
-  [nextSiblings[currentIndex], nextSiblings[targetIndex]] = [
-    nextSiblings[targetIndex],
-    nextSiblings[currentIndex],
-  ];
+  const current = nextSiblings[currentIndex];
+  const target = nextSiblings[targetIndex];
+  if (!current || !target) return [];
+  nextSiblings[currentIndex] = target;
+  nextSiblings[targetIndex] = current;
 
   const startIndex = Math.min(currentIndex, targetIndex);
   const previousOrderCode = Math.max(

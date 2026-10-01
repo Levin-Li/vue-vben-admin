@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import type { SelectOption } from '@levin/admin-framework/framework-commons/app/api';
 import type { UploadFile } from 'ant-design-vue';
 
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -50,8 +49,8 @@ const emit = defineEmits<{
   'update:items': [PayWayItemValue[]];
 }>();
 
-const payWayOptions = ref<SelectOption[]>([]);
-const currencyCodeOptions = ref<SelectOption[]>([]);
+const payWayOptions = ref<Array<{ label: string; value: string }>>([]);
+const currencyCodeOptions = ref<Array<{ label: string; value: string }>>([]);
 const editorOpen = ref(false);
 const editingIndex = ref(-1);
 const logoPreviewOpen = ref(false);
@@ -83,7 +82,7 @@ const logoFileList = computed<UploadFile[]>(() => {
     : [];
 });
 
-const normalizedItems = computed(() =>
+const normalizedItems = computed<PayWayItemValue[]>(() =>
   Array.isArray(props.items)
     ? props.items
         .filter((item) => item && typeof item === 'object')
@@ -260,8 +259,15 @@ onMounted(async () => {
     buildEnumOptionsLoader('com.levin.oak.base.entities.enums.PayWay')(),
     buildDictOptionsLoader('CurrencyCode')(),
   ]);
-  payWayOptions.value = nextPayWayOptions;
-  currencyCodeOptions.value = nextCurrencyCodeOptions;
+  // Ant Select 的值域是字符串；字典候选在页面边界归一化为同一值域。
+  payWayOptions.value = nextPayWayOptions.map((option) => ({
+    label: String(option.label),
+    value: String(option.value),
+  }));
+  currencyCodeOptions.value = nextCurrencyCodeOptions.map((option) => ({
+    label: String(option.label),
+    value: String(option.value),
+  }));
 });
 </script>
 

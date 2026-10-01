@@ -386,5 +386,6 @@ export const tenantPageCrudConfig: CrudPageConfig = {
   formMaxColumns: 3,
   modalWidth: 1120,
   title: '租户管理',
-  transformSubmit: transformSiteInfoSubmit,
+  transformSubmit: (values, record) =>
+    transformSiteInfoSubmit(values, record ?? undefined),
 };

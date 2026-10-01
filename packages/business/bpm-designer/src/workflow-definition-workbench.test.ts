@@ -1,4 +1,4 @@
-import type { WorkflowDefinitionVersion } from './types';
+import type { WorkflowBusinessType, WorkflowDefinitionVersion } from './types';
 
 import { flushPromises, mount } from '@vue/test-utils';
 
@@ -73,6 +73,81 @@ function setup(lifecycle: WorkflowDefinitionVersion['lifecycle'] = 'Draft') {
 }
 
 describe('流程定义工作台', () => {
+  it('切换目录服务时立即移除旧授权选项，失败后也不回显旧目录', async () => {
+    const props = setup('Testing');
+    const initialCatalog = props.options.businessTypes;
+    vi.spyOn(props.service, 'listBusinessTypes').mockResolvedValue(
+      initialCatalog,
+    );
+    const wrapper = mount(WorkflowDefinitionWorkbench, {
+      props: { ...props, options: {} },
+      global,
+    });
+    await flushPromises();
+    expect(wrapper.find('option[value="request@1"]').exists()).toBe(true);
+
+    let rejectCatalog: (reason?: unknown) => void = () => {};
+    const pendingCatalog = new Promise<WorkflowBusinessType[]>((_, reject) => {
+      rejectCatalog = reject;
+    });
+    const switchedService = new WorkflowDesignerService();
+    vi.spyOn(switchedService, 'listBusinessTypes').mockReturnValue(
+      pendingCatalog,
+    );
+    await wrapper.setProps({ service: switchedService });
+    expect(wrapper.find('option[value="request@1"]').exists()).toBe(false);
+
+    rejectCatalog(new Error('新目录无权限'));
+    await flushPromises();
+    expect(wrapper.find('option[value="request@1"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('新目录无权限');
+  });
+
+  it('目录请求失败时保留草稿并阻断模拟与发布', async () => {
+    const props = setup('Testing');
+    vi.spyOn(props.service, 'listBusinessTypes').mockRejectedValue(
+      new Error('目录暂不可用'),
+    );
+    const wrapper = mount(WorkflowDefinitionWorkbench, {
+      props: { ...props, options: {} },
+      global,
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('目录暂不可用');
+    expect(wrapper.get('input').element.value).toBe('审核');
+    expect(
+      wrapper
+        .findAll('button')
+        .find((item) => item.text() === '发布')
+        ?.attributes('disabled'),
+    ).toBeDefined();
+    expect(
+      wrapper
+        .findAll('button')
+        .find((item) => item.text() === '开始自动模拟')
+        ?.attributes('disabled'),
+    ).toBeDefined();
+  });
+
+  it('草稿引用未授权结果动作时显示问题并阻断发布', async () => {
+    const props = setup('Testing');
+    props.definition.outcomeActions = {
+      Approved: [{ action: 'unlisted' }],
+    };
+    props.version.lowflowDefinition = structuredClone(props.definition);
+    const wrapper = mount(WorkflowDefinitionWorkbench, { props, global });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('操作「unlisted」不在当前业务契约');
+    expect(
+      wrapper
+        .findAll('button')
+        .find((item) => item.text() === '发布')
+        ?.attributes('disabled'),
+    ).toBeDefined();
+  });
+
   it('旧 v2 响应失败关闭，不开放保存模拟或发布', async () => {
     const props = setup('Testing');
     props.version.lowflowDefinition = {

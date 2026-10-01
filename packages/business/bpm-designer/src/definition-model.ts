@@ -11,6 +11,16 @@ import type { WorkflowTreeVersion } from './workflow-tree-version';
 import { applyGraphLayout, hasAutomaticLayout } from './workflow-graph-layout';
 import { projectV3ToV2 } from './workflow-tree-version';
 
+// 仅允许当前办理服务已实现的节点动作；不把任意字符串传给服务端发布入口。
+const supportedNodeActions = new Set([
+  'add-sign',
+  'approve',
+  'delegate',
+  'reject',
+  'return',
+  'transfer',
+]);
+
 function validResolverLiteral(
   value: unknown,
   field: WorkflowCapabilityField,
@@ -226,6 +236,8 @@ export function validateDefinition(
   if (!definition.purposeKey?.trim()) messages.push('请填写业务用途标识。');
   const binding = definition.businessBinding;
   if (!binding) messages.push('请选择业务对象并配置字段映射。');
+  if (binding && !options.businessTypes)
+    messages.push('业务能力目录尚未加载，不能模拟或发布。');
   const business = options.businessTypes?.find(
     (item) =>
       item.businessType === binding?.businessType &&
@@ -263,6 +275,24 @@ export function validateDefinition(
         )
           messages.push(`变量「${name}」来源或类型与业务契约不匹配。`);
       }
+    }
+  }
+
+  // 结果处理只能引用当前业务契约公开的动作；保留草稿中的未知值以便设计者修正。
+  for (const [result, actions] of Object.entries(
+    definition.outcomeActions ?? {},
+  )) {
+    for (const action of actions) {
+      if (!business) continue;
+      const declared = business.actions?.[action.action];
+      if (!declared)
+        messages.push(
+          `结果「${result}」操作「${action.action}」不在当前业务契约的授权目录中。`,
+        );
+      else if (declared.simulation !== true)
+        messages.push(
+          `结果「${result}」操作「${action.action}」缺少隔离模拟能力。`,
+        );
     }
   }
   if (definition.nodes.filter((node) => node.type === 'start').length !== 1)
@@ -315,6 +345,12 @@ export function validateDefinition(
       messages.push(`节点「${node.name}」缺少候选用户、候选组或动态审批人。`);
     if (node.type === 'userTask' && !node.actions?.length)
       messages.push(`节点「${node.name}」缺少允许动作。`);
+    if (node.type === 'userTask') {
+      for (const action of node.actions ?? []) {
+        if (!supportedNodeActions.has(action))
+          messages.push(`节点「${node.name}」包含不支持的动作「${action}」。`);
+      }
+    }
     if (
       node.type === 'userTask' &&
       node.emptyAssigneePolicy === 'ESCALATE' &&
@@ -339,6 +375,10 @@ export function validateDefinition(
         if (!resolver)
           messages.push(
             `节点「${node.name}」动态审批人「${key}」不在当前业务契约的授权目录中。`,
+          );
+        else if (resolver.simulation !== true)
+          messages.push(
+            `节点「${node.name}」动态审批人「${key}」缺少隔离模拟能力。`,
           );
         const parameters = node.approverResolver.parameters ?? {};
         for (const [name, operand] of Object.entries(parameters)) {
@@ -466,8 +506,10 @@ export function validateDefinition(
       return;
     }
     if (rule.validator) {
-      if (!business?.validators?.[rule.validator.key])
-        messages.push('条件引用了不可用的业务校验器。');
+      const validator = business?.validators?.[rule.validator.key];
+      if (!validator) messages.push('条件引用了不可用的业务校验器。');
+      else if (validator.simulation !== true)
+        messages.push('条件引用的业务校验器缺少隔离模拟能力。');
       return;
     }
     const body = (rule as Record<string, unknown>)[operation];

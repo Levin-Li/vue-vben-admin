@@ -1,6 +1,4 @@
 <script lang="ts" setup>
-import type { SelectOption } from '@levin/admin-framework';
-
 import { computed, reactive, ref, watch } from 'vue';
 
 import { message, Modal, Select } from 'ant-design-vue';
@@ -17,13 +15,22 @@ import CrudPage from '../crud-page.vue';
 import { getDataPermissionCount } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from './config';
 
+// 数据权限弹窗只接受字符串 ID，在页面边界规范化公共候选。
+async function loadStringDomainScopeOptions(keyword?: string) {
+  const options = await loadDomainScopeOptions(keyword);
+  return options.map((option) => ({
+    label: String(option.label),
+    value: String(option.value),
+  }));
+}
+
 const pageKey = ref(0);
 const dialogOpen = ref(false);
 const selectedRecord = ref<null | Record<string, any>>(null);
 const roleModalOpen = ref(false);
 const roleSubmitting = ref(false);
 const roleOptionsLoading = ref(false);
-const roleOptions = ref<SelectOption[]>([]);
+const roleOptions = ref<Array<{ label: string; value: string }>>([]);
 const roleFormState = reactive({
   id: '',
   roleList: [] as string[],
@@ -62,7 +69,11 @@ async function loadRoleOptions(keyword = '') {
   roleOptionsLoading.value = true;
 
   try {
-    roleOptions.value = await roleOptionsLoader(keyword);
+    const options = await roleOptionsLoader(keyword);
+    roleOptions.value = options.map((option) => ({
+      label: String(option.label),
+      value: String(option.value),
+    }));
   } finally {
     roleOptionsLoading.value = false;
   }
@@ -116,7 +127,7 @@ watch(dialogOpen, (open) => {
     v-if="selectedRecord"
     v-model:open="dialogOpen"
     :record="selectedRecord"
-    :load-domain-options="loadDomainScopeOptions"
+    :load-domain-options="loadStringDomainScopeOptions"
     subject-type="user"
     @saved="handleSaved"
   />

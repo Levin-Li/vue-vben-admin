@@ -1,3 +1,5 @@
+import type { TenantCustomMenuItem } from '../layout-tree';
+
 import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
@@ -172,7 +174,7 @@ describe('menu display layout tree', () => {
   });
 
   it('filters by name, label, or path while preserving matching ancestors and their expand keys', () => {
-    const items = [
+    const items: TenantCustomMenuItem[] = [
       {
         children: [
           {
@@ -188,7 +190,7 @@ describe('menu display layout tree', () => {
       },
     ];
 
-    const searchableText = (item: (typeof items)[number] | (typeof items)[number]['children'][number]) =>
+    const searchableText = (item: TenantCustomMenuItem) =>
       [item.name, item.label, item.path].filter(Boolean).join(' ');
     const filtered = filterTreeByLabel(items, 'report-center', searchableText);
 
@@ -585,7 +587,7 @@ describe('menu display layout tree', () => {
       'return !draggedSource.value && !draggedLayoutKey.value;',
     );
     expect(adjusterSource).toContain(
-      'v-if="shouldShowAddChildMenuAction(dataRef.key)"',
+      'v-if="shouldShowAddChildMenuAction()"',
     );
     expect(adjusterSource).toContain('function setLayoutDropEffect');
     expect(adjusterSource).toContain("mode === 'child' ? 'copy' : 'move'");

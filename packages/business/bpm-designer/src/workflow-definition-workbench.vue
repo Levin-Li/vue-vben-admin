@@ -68,6 +68,9 @@ const resolvedOptions = computed(() => ({
   ...props.options,
   businessTypes: props.options.businessTypes ?? businessTypes.value,
 }));
+const catalogReady = computed(
+  () => !catalogLoading.value && !catalogError.value,
+);
 const dirty = computed(() => {
   return (
     definitionFingerprint(props.definition) !==
@@ -84,6 +87,7 @@ const canSimulate = computed(
   () =>
     ['Draft', 'Testing'].includes(props.version.lifecycle) &&
     props.permissions?.simulate !== false &&
+    catalogReady.value &&
     !versionError.value &&
     valid.value &&
     dirty.value === false,
@@ -92,6 +96,7 @@ const canPublish = computed(
   () =>
     props.version.lifecycle === 'Testing' &&
     props.permissions?.publish !== false &&
+    catalogReady.value &&
     !versionError.value &&
     props.version.simulationReport?.successful &&
     !dirty.value &&
@@ -108,6 +113,8 @@ function coverageLabel(values?: null | string[]): string {
 // 显式目录加载失败保留草稿，阻止未经目录验证的模拟和发布。
 async function loadCatalog() {
   const request = ++catalogRequest;
+  // 目录来源改变即撤销旧候选，避免请求待决或失败时继续展示前一来源的授权能力。
+  businessTypes.value = [];
   if (props.options.businessTypes) {
     catalogLoading.value = false;
     catalogError.value = undefined;

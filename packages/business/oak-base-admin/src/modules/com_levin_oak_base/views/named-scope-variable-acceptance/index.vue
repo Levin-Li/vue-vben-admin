@@ -9,6 +9,7 @@ type ScopeValues = {
   domainId?: string;
   orgId?: string;
   ownerId?: string;
+  ownerIdList?: string[];
   tenantId?: string;
 };
 
@@ -18,7 +19,9 @@ const loading = ref(false);
 const loadingOptions = ref(false);
 const error = ref('');
 const result = ref('');
-const options = reactive<Record<keyof ScopeValues, ScopeOption[]>>({
+const options = reactive<
+  Record<Exclude<keyof ScopeValues, 'ownerIdList'>, ScopeOption[]>
+>({
   domainId: [],
   orgId: [],
   ownerId: [],

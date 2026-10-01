@@ -98,4 +98,26 @@ describe('copied lowflow FlowDesign canvas', () => {
         .attributes('aria-pressed'),
     ).toBe('true');
   });
+
+  it('在同一画布内承载宿主属性栏并沿用主题布局', () => {
+    const wrapper = mount(FlowDesign, {
+      props: { process },
+      slots: {
+        properties: '<section aria-label="节点属性">受控节点设置</section>',
+      },
+    });
+
+    expect(wrapper.get('[data-flow-design]').classes()).toContain(
+      'with-properties',
+    );
+    expect(
+      wrapper
+        .find('[data-flow-design] > .designer-main .canvas-content')
+        .exists(),
+    ).toBe(true);
+    expect(
+      wrapper.find('[data-flow-design] > .designer-properties').exists(),
+    ).toBe(true);
+    expect(wrapper.get('[aria-label="节点属性"]').text()).toBe('受控节点设置');
+  });
 });

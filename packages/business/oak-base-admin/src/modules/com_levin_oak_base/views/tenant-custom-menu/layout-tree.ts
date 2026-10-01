@@ -27,18 +27,32 @@ export interface MenuDisplaySource {
 
 export type LayoutMoveDirection = 'down' | 'up';
 
+export type PersistedLayoutItem = {
+  children?: PersistedLayoutItem[];
+  enable?: boolean;
+  hidden?: boolean;
+  icon?: string;
+  label: string;
+  path?: string;
+  replacePath?: string;
+};
+
 export function canDragLayoutItem(key: string, virtualRootKey: string) {
   return key !== virtualRootKey;
 }
 
-export function cloneLayoutItems(items: TenantCustomMenuItem[] = []) {
+export function cloneLayoutItems(
+  items: TenantCustomMenuItem[] = [],
+): TenantCustomMenuItem[] {
   return items.map((item) => ({
     ...item,
     children: cloneLayoutItems(item.children),
   }));
 }
 
-export function toPersistedLayoutItems(items: TenantCustomMenuItem[] = []) {
+export function toPersistedLayoutItems(
+  items: TenantCustomMenuItem[] = [],
+): PersistedLayoutItem[] {
   return items.map(
     ({ children, enable, hidden, icon, label, path, replacePath }) => ({
       ...(children?.length

@@ -20,12 +20,13 @@ import {
 import { resolveSettingEditorKind } from '../../setting-for-tenant/setting-for-tenant';
 
 describe('global org selector setting config', () => {
-  it('fixes the UiSetting code and structured editor without page-local forced-field lists', () => {
+  it('fixes the UiSetting code and structured editor without page-local forced-field lists', async () => {
     expect(globalOrgSelectorSettingPageCrudConfig.defaultQuery).toMatchObject({
       code: GLOBAL_ORG_SELECTOR_SETTING_CODE,
     });
 
-    const payload = globalOrgSelectorSettingPageCrudConfig.transformSubmit?.(
+    const payload =
+      await globalOrgSelectorSettingPageCrudConfig.transformSubmit?.(
       { name: '租户经销商组织选择器', valueContent: { orgTypes: ['Dealer'] } },
       null,
     );

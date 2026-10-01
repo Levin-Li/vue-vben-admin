@@ -95,6 +95,10 @@ function createCrudBackendRouteMapping(
     icon: item.icon,
     name: pageMeta.name,
     operations: getPageOperations(item.permissionResource || item.resource),
+    // 个人消息由登录态和服务端精确受众校验；没有菜单时仍允许从通知铃铛进入。
+    ...(item.resource === 'MyMessages'
+      ? { onlyRequireAuthenticated: true }
+      : {}),
     path: `${CRUD_ROUTE_PATH_PREFIX}/${item.routePath || item.resource}`,
     resource: item.permissionResource || item.resource,
     sourceFilePath,

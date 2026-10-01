@@ -101,8 +101,10 @@ async function refresh() {
     [eligibility.value, history.value, roundState.value] = results;
   } catch (error) {
     if (version !== requestVersion) return;
+    // 刷新可能因权限或对象范围变化失败，旧历史不能继续留在当前授权页面。
     loadError.value = true;
     eligibility.value = [];
+    history.value = [];
     roundState.value = undefined;
     emit('error', error);
   } finally {

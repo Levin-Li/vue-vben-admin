@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { DefaultOptionType } from 'ant-design-vue/es/select';
+
 import { computed, ref, watch } from 'vue';
 
 import CodeEditorField from '@levin/admin-framework/framework-commons/shared/code-editor-field.vue';
@@ -177,7 +179,7 @@ function normalizeCandidates(response: any): CandidateOption[] {
     .filter((item: CandidateOption) => item.value && item.label);
 }
 
-function filterOption(input: string, option?: CandidateOption) {
+function filterOption(input: string, option?: DefaultOptionType) {
   const keyword = String(input || '').toLowerCase();
   const label = String(option?.label || '').toLowerCase();
   const value = String(option?.value || '').toLowerCase();

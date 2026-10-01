@@ -113,13 +113,29 @@ const fields = computed(() =>
   })),
 );
 const approverResolvers = computed(() =>
-  Object.entries(business.value?.approverResolvers ?? {}),
+  Object.entries(business.value?.approverResolvers ?? {}).filter(
+    ([, resolver]) => resolver.simulation === true,
+  ),
 );
 const selectedApproverResolver = computed(
   () =>
-    business.value?.approverResolvers?.[
-      selectedNode.value?.approverResolver?.key ?? ''
-    ],
+    approverResolvers.value.find(
+      ([key]) => key === selectedNode.value?.approverResolver?.key,
+    )?.[1],
+);
+const simulatableValidators = computed(() =>
+  Object.fromEntries(
+    Object.entries(business.value?.validators ?? {}).filter(
+      ([, validator]) => validator.simulation === true,
+    ),
+  ),
+);
+const simulatableActions = computed(() =>
+  Object.fromEntries(
+    Object.entries(business.value?.actions ?? {}).filter(
+      ([, action]) => action.simulation === true,
+    ),
+  ),
 );
 const conditionFields = computed(() =>
   fields.value.filter(
@@ -334,7 +350,7 @@ function updateNode(patch: Partial<WorkflowNode>) {
 }
 function selectApproverResolver(key: string) {
   if (!key) return updateNode({ approverResolver: undefined });
-  if (!business.value?.approverResolvers?.[key]) return;
+  if (!approverResolvers.value.some(([candidate]) => candidate === key)) return;
   updateNode({ approverResolver: { key, parameters: {} } });
 }
 function updateEdge(patch: {
@@ -374,7 +390,10 @@ function autoLayout() {
 
 // 结果动作只可来自已公开的业务目录，参数按目录类型输入。
 function addOutcomeAction() {
-  if (!outcomeAction.value || !business.value?.actions?.[outcomeAction.value])
+  if (
+    !outcomeAction.value ||
+    business.value?.actions?.[outcomeAction.value]?.simulation !== true
+  )
     return;
   updateDefinition((draft) => {
     draft.outcomeActions ??= {};
@@ -678,7 +697,7 @@ function addOutcomeAction() {
       <h3>业务启动条件</h3>
       <WorkflowConditionEditor
         :model-value="modelValue.startPolicy?.condition"
-        :validators="business?.validators"
+        :validators="simulatableValidators"
         :variables="modelValue.variables"
         :readonly="readonly"
         allow-dependencies
@@ -690,7 +709,7 @@ function addOutcomeAction() {
       </p>
       <WorkflowConditionEditor
         :model-value="modelValue.dependencies"
-        :validators="business?.validators"
+        :validators="simulatableValidators"
         :variables="modelValue.variables"
         :readonly="readonly"
         :purpose-options="options.purposeOptions"
@@ -760,7 +779,646 @@ function addOutcomeAction() {
                   selectedNodeId = '';
                 }
               "
-            />
+            >
+              <template #properties>
+                <aside class="node-properties" aria-label="节点属性">
+                  <template v-if="selectedNode">
+                    <h3>节点属性 · {{ selectedNode.id }}</h3>
+
+                    <label>
+                      节点名称
+                      <input
+                        :disabled="readonly"
+                        :value="selectedNode.name"
+                        @input="updateNode({ name: text($event) })"
+                      />
+                    </label>
+
+                    <div class="form-grid">
+                      <label>
+                        横向位置
+                        <input
+                          type="number"
+                          :disabled="readonly"
+                          :value="selectedNode.x"
+                          @input="
+                            updateNode({ x: Math.max(0, Number(text($event))) })
+                          "
+                        />
+                      </label>
+                      <label>
+                        纵向位置
+                        <input
+                          type="number"
+                          :disabled="readonly"
+                          :value="selectedNode.y"
+                          @input="
+                            updateNode({ y: Math.max(0, Number(text($event))) })
+                          "
+                        />
+                      </label>
+                    </div>
+                    <template v-if="selectedNode.type === 'userTask'">
+                      <label>
+                        候选用户
+
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          @change="
+                            updateNode({ candidateUsers: values($event) })
+                          "
+                        >
+                          <option
+                            v-for="user in options.users"
+                            :key="user.id"
+                            :selected="
+                              selectedNode.candidateUsers?.includes(
+                                user.value ?? user.id,
+                              )
+                            "
+                            :value="user.value ?? user.id"
+                          >
+                            {{ user.label }}
+                          </option>
+                        </select>
+                      </label>
+                      <label>
+                        候选角色 / 组织
+
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          @change="
+                            updateNode({ candidateGroups: values($event) })
+                          "
+                        >
+                          <option
+                            v-for="group in options.groups"
+                            :key="group.id"
+                            :selected="
+                              selectedNode.candidateGroups?.includes(
+                                group.value ?? group.id,
+                              )
+                            "
+                            :value="group.value ?? group.id"
+                          >
+                            {{ group.label }}
+                          </option>
+                        </select>
+                      </label>
+                      <label>
+                        动态审批人
+                        <select
+                          aria-label="动态审批人解析器"
+                          :disabled="readonly || !business"
+                          :value="selectedNode.approverResolver?.key ?? ''"
+                          @change="selectApproverResolver(text($event))"
+                        >
+                          <option value="">不使用动态审批人</option>
+                          <option
+                            v-for="[key, resolver] in approverResolvers"
+                            :key="key"
+                            :value="key"
+                          >
+                            {{ resolver.title }}
+                          </option>
+                        </select>
+                      </label>
+                      <p v-if="approverResolvers.length === 0" class="hint">
+                        当前业务契约未公开可用的动态审批人能力。
+                      </p>
+                      <p
+                        v-if="
+                          selectedNode.approverResolver &&
+                          !selectedApproverResolver
+                        "
+                        class="hint"
+                      >
+                        已配置的动态审批人不在当前授权目录中或缺少隔离模拟能力，请重新选择解析器。
+                      </p>
+                      <div
+                        v-if="
+                          selectedNode.approverResolver &&
+                          selectedApproverResolver
+                        "
+                        class="parameter-editor"
+                      >
+                        <p class="hint">
+                          {{
+                            selectedApproverResolver.title
+                          }}：进入节点时由服务端解析并校验实际候选人。
+                        </p>
+                        <WorkflowParameterEditor
+                          :readonly="readonly"
+                          :model-value="
+                            selectedNode.approverResolver.parameters ?? {}
+                          "
+                          :parameters="
+                            selectedApproverResolver.parameters ?? {}
+                          "
+                          :variables="modelValue.variables ?? {}"
+                          @update:model-value="
+                            updateNode({
+                              approverResolver: {
+                                key: selectedNode!.approverResolver!.key,
+                                parameters: $event,
+                              },
+                            })
+                          "
+                        />
+                      </div>
+                      <label>
+                        多人审批方式
+
+                        <select
+                          :disabled="readonly"
+                          :value="selectedNode.multiApprovalMode ?? 'NONE'"
+                          @change="
+                            updateNode({
+                              multiApprovalMode: text(
+                                $event,
+                              ) as WorkflowNode['multiApprovalMode'],
+                            })
+                          "
+                        >
+                          <option value="NONE">单人受理</option>
+
+                          <option value="ALL">会签：全部通过</option>
+
+                          <option value="ANY">或签：任一通过</option>
+                        </select>
+                      </label>
+
+                      <p class="hint">
+                        会签 /
+                        或签需配置至少两名明确用户或受控动态审批人，不能混用候选组；进入节点时按实际名单计算席位。
+                      </p>
+
+                      <label class="checkbox">
+                        <input
+                          type="checkbox"
+                          :disabled="readonly"
+                          :checked="selectedNode.allowSelfApproval"
+                          @change="
+                            updateNode({ allowSelfApproval: checked($event) })
+                          "
+                        />
+                        允许申请人自审
+                      </label>
+
+                      <label>
+                        允许动作
+
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          @change="updateNode({ actions: values($event) })"
+                        >
+                          <option
+                            v-for="action in actionOptions"
+                            :key="action.value"
+                            :selected="
+                              selectedNode.actions?.includes(action.value)
+                            "
+                            :value="action.value"
+                          >
+                            {{ action.label }}
+                          </option>
+                        </select>
+                      </label>
+
+                      <template
+                        v-if="
+                          selectedNode.actions?.some((action) =>
+                            ['transfer', 'delegate', 'add-sign'].includes(
+                              action,
+                            ),
+                          )
+                        "
+                      >
+                        <label>
+                          转办 / 委派 / 加签目标用户
+
+                          <select
+                            multiple
+                            :disabled="readonly"
+                            @change="
+                              updateNode({
+                                actionCandidateUsers: values($event),
+                              })
+                            "
+                          >
+                            <option
+                              v-for="user in options.users"
+                              :key="user.id"
+                              :selected="
+                                selectedNode.actionCandidateUsers?.includes(
+                                  user.value ?? user.id,
+                                )
+                              "
+                              :value="user.value ?? user.id"
+                            >
+                              {{ user.label }}
+                            </option>
+                          </select>
+                        </label>
+
+                        <label>
+                          目标人员角色 / 组织
+
+                          <select
+                            multiple
+                            :disabled="readonly"
+                            @change="
+                              updateNode({
+                                actionCandidateGroups: values($event),
+                              })
+                            "
+                          >
+                            <option
+                              v-for="group in options.groups"
+                              :key="group.id"
+                              :selected="
+                                selectedNode.actionCandidateGroups?.includes(
+                                  group.value ?? group.id,
+                                )
+                              "
+                              :value="group.value ?? group.id"
+                            >
+                              {{ group.label }}
+                            </option>
+                          </select>
+                        </label>
+
+                        <p class="hint">
+                          未单独配置时使用节点候选范围；运行时仍须校验目标人员资格。加签前置
+                          / 后置由执行动作选择。
+                        </p>
+                      </template>
+
+                      <label v-if="selectedNode.actions?.includes('return')">
+                        允许退回节点
+
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          @change="
+                            updateNode({ returnTargets: values($event) })
+                          "
+                        >
+                          <option
+                            v-for="node in nodes.filter(
+                              (item) =>
+                                item.type === 'userTask' &&
+                                item.id !== selectedNode!.id,
+                            )"
+                            :key="node.id"
+                            :value="node.id"
+                            :selected="
+                              selectedNode.returnTargets?.includes(node.id)
+                            "
+                          >
+                            {{ node.name }}
+                          </option>
+                        </select>
+                      </label>
+
+                      <label>
+                        可读业务字段
+
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          @change="
+                            updateNode({ readableFields: values($event) })
+                          "
+                        >
+                          <option
+                            v-for="field in displayFields"
+                            :key="field.key"
+                            :selected="
+                              selectedNode.readableFields?.includes(field.key)
+                            "
+                            :value="field.key"
+                          >
+                            {{ field.title }}
+                          </option>
+                        </select>
+                      </label>
+                      <label>
+                        表单保存业务操作
+                        <select
+                          :disabled="readonly"
+                          :value="selectedNode.formAction ?? ''"
+                          @change="
+                            updateNode({
+                              formAction: text($event) || undefined,
+                            })
+                          "
+                        >
+                          <option value="">不写入业务字段</option>
+                          <option
+                            v-for="[key, action] in formActions"
+                            :key="key"
+                            :value="key"
+                          >
+                            {{ action.title }}
+                          </option>
+                        </select>
+                      </label>
+                      <label>
+                        可编辑业务字段
+
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          @change="
+                            updateNode({ editableFields: values($event) })
+                          "
+                        >
+                          <option
+                            v-for="field in editableFields"
+                            :key="field.key"
+                            :selected="
+                              selectedNode.editableFields?.includes(field.key)
+                            "
+                            :value="field.key"
+                          >
+                            {{ field.title }}
+                          </option>
+                        </select>
+                      </label>
+                      <label>
+                        必填业务字段
+
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          @change="
+                            updateNode({ requiredFields: values($event) })
+                          "
+                        >
+                          <option
+                            v-for="field in displayFields.filter((item) =>
+                              selectedNode?.editableFields?.includes(item.key),
+                            )"
+                            :key="field.key"
+                            :value="field.key"
+                            :selected="
+                              selectedNode.requiredFields?.includes(field.key)
+                            "
+                          >
+                            {{ field.title }}
+                          </option>
+                        </select>
+                      </label>
+
+                      <label>
+                        二次验证
+
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          @change="
+                            updateNode({ stepUpVerifyTypes: values($event) })
+                          "
+                        >
+                          <option
+                            v-for="option in workflowVerificationOptions"
+                            :key="option.value"
+                            :value="option.value"
+                            :selected="
+                              selectedNode.stepUpVerifyTypes?.includes(
+                                option.value,
+                              )
+                            "
+                          >
+                            {{ option.label }}
+                          </option>
+                        </select>
+                      </label>
+
+                      <div class="form-grid">
+                        <label>
+                          节点时限（分钟）
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            :disabled="readonly"
+                            :value="selectedNode.deadlineMinutes"
+                            @input="
+                              updateNode({
+                                deadlineMinutes: text($event)
+                                  ? Number(text($event))
+                                  : undefined,
+                              })
+                            "
+                          />
+                        </label>
+                        <label>
+                          提前催办（分钟）
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            :disabled="readonly"
+                            :value="selectedNode.reminderMinutes"
+                            @input="
+                              updateNode({
+                                reminderMinutes: text($event)
+                                  ? Number(text($event))
+                                  : undefined,
+                              })
+                            "
+                          />
+                        </label>
+                      </div>
+                      <label v-if="selectedNode.deadlineMinutes">
+                        超时升级人员
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          @change="
+                            updateNode({
+                              deadlineEscalationUsers: values($event),
+                            })
+                          "
+                        >
+                          <option
+                            v-for="user in options.users"
+                            :key="user.id"
+                            :selected="
+                              selectedNode.deadlineEscalationUsers?.includes(
+                                user.value ?? user.id,
+                              )
+                            "
+                            :value="user.value ?? user.id"
+                          >
+                            {{ user.label }}
+                          </option>
+                        </select>
+                      </label>
+                      <label>
+                        空审批人策略
+
+                        <select
+                          :disabled="readonly"
+                          :value="selectedNode.emptyAssigneePolicy ?? 'REJECT'"
+                          @change="
+                            updateNode({
+                              emptyAssigneePolicy: text($event) as
+                                | 'REJECT'
+                                | 'ESCALATE',
+                            })
+                          "
+                        >
+                          <option value="REJECT">阻断并提示</option>
+
+                          <option value="ESCALATE">升级到指定人员或组</option>
+                        </select>
+                      </label>
+                      <label
+                        v-if="selectedNode.emptyAssigneePolicy === 'ESCALATE'"
+                      >
+                        升级处理人
+
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          @change="
+                            updateNode({
+                              escalationCandidateUsers: values($event),
+                            })
+                          "
+                        >
+                          <option
+                            v-for="user in options.users"
+                            :key="user.id"
+                            :selected="
+                              selectedNode.escalationCandidateUsers?.includes(
+                                user.value ?? user.id,
+                              )
+                            "
+                            :value="user.value ?? user.id"
+                          >
+                            {{ user.label }}
+                          </option>
+                        </select>
+                      </label>
+                      <label
+                        v-if="selectedNode.emptyAssigneePolicy === 'ESCALATE'"
+                      >
+                        升级候选角色 / 组织
+
+                        <select
+                          multiple
+                          :disabled="readonly"
+                          :value="selectedNode.escalationCandidateGroups ?? []"
+                          @change="
+                            updateNode({
+                              escalationCandidateGroups: values($event),
+                            })
+                          "
+                        >
+                          <option
+                            v-for="group in options.groups"
+                            :key="group.id"
+                            :value="group.value ?? group.id"
+                          >
+                            {{ group.label }}
+                          </option>
+                        </select>
+                      </label>
+                    </template>
+
+                    <label v-if="selectedNode.type === 'parallelGateway'">
+                      对应汇聚网关（分叉节点必填）
+
+                      <select
+                        :disabled="readonly"
+                        :value="selectedNode.joinId ?? ''"
+                        @change="
+                          updateNode({ joinId: text($event) || undefined })
+                        "
+                      >
+                        <option value="">此节点为汇聚</option>
+
+                        <option
+                          v-for="node in nodes.filter(
+                            (item) =>
+                              item.type === 'parallelGateway' &&
+                              item.id !== selectedNode!.id,
+                          )"
+                          :key="node.id"
+                          :value="node.id"
+                        >
+                          {{ node.name }}
+                        </option>
+                      </select>
+                    </label>
+
+                    <label v-if="selectedNode.type === 'end'">
+                      流程最终结果
+
+                      <select
+                        :disabled="readonly"
+                        :value="selectedNode.outcome"
+                        @change="updateNode({ outcome: text($event) })"
+                      >
+                        <option
+                          v-for="result in outcomes"
+                          :key="result.value"
+                          :value="result.value"
+                        >
+                          {{ result.label }}
+                        </option>
+                      </select>
+                    </label>
+
+                    <button
+                      v-if="selectedNode.type !== 'start'"
+                      type="button"
+                      :disabled="readonly"
+                      class="danger"
+                      @click="deleteSelectedNode"
+                    >
+                      删除当前节点
+                    </button>
+                  </template>
+                  <template v-else-if="selectedEdge">
+                    <h3>连线条件 · {{ selectedEdge.id }}</h3>
+
+                    <label v-if="selectedEdgeIsExclusive" class="checkbox">
+                      <input
+                        type="checkbox"
+                        :disabled="readonly"
+                        :checked="selectedEdge.default"
+                        @change="updateEdge({ default: checked($event) })"
+                      />
+                      默认分支
+                    </label>
+                    <WorkflowConditionEditor
+                      v-if="!selectedEdge.default && selectedEdgeIsExclusive"
+                      :model-value="selectedEdge.condition"
+                      :validators="simulatableValidators"
+                      :variables="modelValue.variables"
+                      :readonly="readonly"
+                      @update:model-value="
+                        updateEdge({ condition: $event ?? null })
+                      "
+                    />
+                    <p v-if="!selectedEdgeIsExclusive" class="hint">
+                      此连线没有可编辑的路由条件；可选中它插入节点。
+                    </p>
+                  </template>
+                  <p v-else class="hint">
+                    选择画布节点或连线配置属性。调整位置不会改变流程执行顺序。
+                  </p>
+                </aside>
+              </template>
+            </FlowDesign>
             <p v-else class="graph-error" role="alert">
               {{ lowflowGraph.error }}。请检查节点与连线后再模拟或发布。
             </p>
@@ -808,580 +1466,6 @@ function addOutcomeAction() {
             </button>
           </div>
         </div>
-        <aside class="node-properties" aria-label="节点属性">
-          <template v-if="selectedNode">
-            <h3>节点属性 · {{ selectedNode.id }}</h3>
-
-            <label>
-              节点名称
-              <input
-                :disabled="readonly"
-                :value="selectedNode.name"
-                @input="updateNode({ name: text($event) })"
-              />
-            </label>
-
-            <div class="form-grid">
-              <label>
-                横向位置
-                <input
-                  type="number"
-                  :disabled="readonly"
-                  :value="selectedNode.x"
-                  @input="updateNode({ x: Math.max(0, Number(text($event))) })"
-                />
-              </label>
-              <label>
-                纵向位置
-                <input
-                  type="number"
-                  :disabled="readonly"
-                  :value="selectedNode.y"
-                  @input="updateNode({ y: Math.max(0, Number(text($event))) })"
-                />
-              </label>
-            </div>
-            <template v-if="selectedNode.type === 'userTask'">
-              <label>
-                候选用户
-
-                <select
-                  multiple
-                  :disabled="readonly"
-                  @change="updateNode({ candidateUsers: values($event) })"
-                >
-                  <option
-                    v-for="user in options.users"
-                    :key="user.id"
-                    :selected="
-                      selectedNode.candidateUsers?.includes(
-                        user.value ?? user.id,
-                      )
-                    "
-                    :value="user.value ?? user.id"
-                  >
-                    {{ user.label }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                候选角色 / 组织
-
-                <select
-                  multiple
-                  :disabled="readonly"
-                  @change="updateNode({ candidateGroups: values($event) })"
-                >
-                  <option
-                    v-for="group in options.groups"
-                    :key="group.id"
-                    :selected="
-                      selectedNode.candidateGroups?.includes(
-                        group.value ?? group.id,
-                      )
-                    "
-                    :value="group.value ?? group.id"
-                  >
-                    {{ group.label }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                动态审批人
-                <select
-                  aria-label="动态审批人解析器"
-                  :disabled="readonly || !business"
-                  :value="selectedNode.approverResolver?.key ?? ''"
-                  @change="selectApproverResolver(text($event))"
-                >
-                  <option value="">不使用动态审批人</option>
-                  <option
-                    v-for="[key, resolver] in approverResolvers"
-                    :key="key"
-                    :value="key"
-                  >
-                    {{ resolver.title }}
-                  </option>
-                </select>
-              </label>
-              <p v-if="approverResolvers.length === 0" class="hint">
-                当前业务契约未公开可用的动态审批人能力。
-              </p>
-              <p
-                v-if="
-                  selectedNode.approverResolver && !selectedApproverResolver
-                "
-                class="hint"
-              >
-                已配置的动态审批人不在当前授权目录中，请重新选择业务契约或解析器。
-              </p>
-              <div
-                v-if="selectedNode.approverResolver && selectedApproverResolver"
-                class="parameter-editor"
-              >
-                <p class="hint">
-                  {{
-                    selectedApproverResolver.title
-                  }}：进入节点时由服务端解析并校验实际候选人。
-                </p>
-                <WorkflowParameterEditor
-                  :readonly="readonly"
-                  :model-value="selectedNode.approverResolver.parameters ?? {}"
-                  :parameters="selectedApproverResolver.parameters ?? {}"
-                  :variables="modelValue.variables ?? {}"
-                  @update:model-value="
-                    updateNode({
-                      approverResolver: {
-                        key: selectedNode!.approverResolver!.key,
-                        parameters: $event,
-                      },
-                    })
-                  "
-                />
-              </div>
-              <label>
-                多人审批方式
-
-                <select
-                  :disabled="readonly"
-                  :value="selectedNode.multiApprovalMode ?? 'NONE'"
-                  @change="
-                    updateNode({
-                      multiApprovalMode: text(
-                        $event,
-                      ) as WorkflowNode['multiApprovalMode'],
-                    })
-                  "
-                >
-                  <option value="NONE">单人受理</option>
-
-                  <option value="ALL">会签：全部通过</option>
-
-                  <option value="ANY">或签：任一通过</option>
-                </select>
-              </label>
-
-              <p class="hint">
-                会签 /
-                或签需配置至少两名明确用户或受控动态审批人，不能混用候选组；进入节点时按实际名单计算席位。
-              </p>
-
-              <label class="checkbox">
-                <input
-                  type="checkbox"
-                  :disabled="readonly"
-                  :checked="selectedNode.allowSelfApproval"
-                  @change="updateNode({ allowSelfApproval: checked($event) })"
-                />
-                允许申请人自审
-              </label>
-
-              <label>
-                允许动作
-
-                <select
-                  multiple
-                  :disabled="readonly"
-                  @change="updateNode({ actions: values($event) })"
-                >
-                  <option
-                    v-for="action in actionOptions"
-                    :key="action.value"
-                    :selected="selectedNode.actions?.includes(action.value)"
-                    :value="action.value"
-                  >
-                    {{ action.label }}
-                  </option>
-                </select>
-              </label>
-
-              <template
-                v-if="
-                  selectedNode.actions?.some((action) =>
-                    ['transfer', 'delegate', 'add-sign'].includes(action),
-                  )
-                "
-              >
-                <label>
-                  转办 / 委派 / 加签目标用户
-
-                  <select
-                    multiple
-                    :disabled="readonly"
-                    @change="
-                      updateNode({ actionCandidateUsers: values($event) })
-                    "
-                  >
-                    <option
-                      v-for="user in options.users"
-                      :key="user.id"
-                      :selected="
-                        selectedNode.actionCandidateUsers?.includes(
-                          user.value ?? user.id,
-                        )
-                      "
-                      :value="user.value ?? user.id"
-                    >
-                      {{ user.label }}
-                    </option>
-                  </select>
-                </label>
-
-                <label>
-                  目标人员角色 / 组织
-
-                  <select
-                    multiple
-                    :disabled="readonly"
-                    @change="
-                      updateNode({ actionCandidateGroups: values($event) })
-                    "
-                  >
-                    <option
-                      v-for="group in options.groups"
-                      :key="group.id"
-                      :selected="
-                        selectedNode.actionCandidateGroups?.includes(
-                          group.value ?? group.id,
-                        )
-                      "
-                      :value="group.value ?? group.id"
-                    >
-                      {{ group.label }}
-                    </option>
-                  </select>
-                </label>
-
-                <p class="hint">
-                  未单独配置时使用节点候选范围；运行时仍须校验目标人员资格。加签前置
-                  / 后置由执行动作选择。
-                </p>
-              </template>
-
-              <label v-if="selectedNode.actions?.includes('return')">
-                允许退回节点
-
-                <select
-                  multiple
-                  :disabled="readonly"
-                  @change="updateNode({ returnTargets: values($event) })"
-                >
-                  <option
-                    v-for="node in nodes.filter(
-                      (item) =>
-                        item.type === 'userTask' &&
-                        item.id !== selectedNode!.id,
-                    )"
-                    :key="node.id"
-                    :value="node.id"
-                    :selected="selectedNode.returnTargets?.includes(node.id)"
-                  >
-                    {{ node.name }}
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                可读业务字段
-
-                <select
-                  multiple
-                  :disabled="readonly"
-                  @change="updateNode({ readableFields: values($event) })"
-                >
-                  <option
-                    v-for="field in displayFields"
-                    :key="field.key"
-                    :selected="selectedNode.readableFields?.includes(field.key)"
-                    :value="field.key"
-                  >
-                    {{ field.title }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                表单保存业务操作
-                <select
-                  :disabled="readonly"
-                  :value="selectedNode.formAction ?? ''"
-                  @change="
-                    updateNode({ formAction: text($event) || undefined })
-                  "
-                >
-                  <option value="">不写入业务字段</option>
-                  <option
-                    v-for="[key, action] in formActions"
-                    :key="key"
-                    :value="key"
-                  >
-                    {{ action.title }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                可编辑业务字段
-
-                <select
-                  multiple
-                  :disabled="readonly"
-                  @change="updateNode({ editableFields: values($event) })"
-                >
-                  <option
-                    v-for="field in editableFields"
-                    :key="field.key"
-                    :selected="selectedNode.editableFields?.includes(field.key)"
-                    :value="field.key"
-                  >
-                    {{ field.title }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                必填业务字段
-
-                <select
-                  multiple
-                  :disabled="readonly"
-                  @change="updateNode({ requiredFields: values($event) })"
-                >
-                  <option
-                    v-for="field in displayFields.filter((item) =>
-                      selectedNode?.editableFields?.includes(item.key),
-                    )"
-                    :key="field.key"
-                    :value="field.key"
-                    :selected="selectedNode.requiredFields?.includes(field.key)"
-                  >
-                    {{ field.title }}
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                二次验证
-
-                <select
-                  multiple
-                  :disabled="readonly"
-                  @change="updateNode({ stepUpVerifyTypes: values($event) })"
-                >
-                  <option
-                    v-for="option in workflowVerificationOptions"
-                    :key="option.value"
-                    :value="option.value"
-                    :selected="
-                      selectedNode.stepUpVerifyTypes?.includes(option.value)
-                    "
-                  >
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-
-              <div class="form-grid">
-                <label>
-                  节点时限（分钟）
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    :disabled="readonly"
-                    :value="selectedNode.deadlineMinutes"
-                    @input="
-                      updateNode({
-                        deadlineMinutes: text($event)
-                          ? Number(text($event))
-                          : undefined,
-                      })
-                    "
-                  />
-                </label>
-                <label>
-                  提前催办（分钟）
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    :disabled="readonly"
-                    :value="selectedNode.reminderMinutes"
-                    @input="
-                      updateNode({
-                        reminderMinutes: text($event)
-                          ? Number(text($event))
-                          : undefined,
-                      })
-                    "
-                  />
-                </label>
-              </div>
-              <label v-if="selectedNode.deadlineMinutes">
-                超时升级人员
-                <select
-                  multiple
-                  :disabled="readonly"
-                  @change="
-                    updateNode({ deadlineEscalationUsers: values($event) })
-                  "
-                >
-                  <option
-                    v-for="user in options.users"
-                    :key="user.id"
-                    :selected="
-                      selectedNode.deadlineEscalationUsers?.includes(
-                        user.value ?? user.id,
-                      )
-                    "
-                    :value="user.value ?? user.id"
-                  >
-                    {{ user.label }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                空审批人策略
-
-                <select
-                  :disabled="readonly"
-                  :value="selectedNode.emptyAssigneePolicy ?? 'REJECT'"
-                  @change="
-                    updateNode({
-                      emptyAssigneePolicy: text($event) as
-                        | 'REJECT'
-                        | 'ESCALATE',
-                    })
-                  "
-                >
-                  <option value="REJECT">阻断并提示</option>
-
-                  <option value="ESCALATE">升级到指定人员或组</option>
-                </select>
-              </label>
-              <label v-if="selectedNode.emptyAssigneePolicy === 'ESCALATE'">
-                升级处理人
-
-                <select
-                  multiple
-                  :disabled="readonly"
-                  @change="
-                    updateNode({ escalationCandidateUsers: values($event) })
-                  "
-                >
-                  <option
-                    v-for="user in options.users"
-                    :key="user.id"
-                    :selected="
-                      selectedNode.escalationCandidateUsers?.includes(
-                        user.value ?? user.id,
-                      )
-                    "
-                    :value="user.value ?? user.id"
-                  >
-                    {{ user.label }}
-                  </option>
-                </select>
-              </label>
-              <label v-if="selectedNode.emptyAssigneePolicy === 'ESCALATE'">
-                升级候选角色 / 组织
-
-                <select
-                  multiple
-                  :disabled="readonly"
-                  :value="selectedNode.escalationCandidateGroups ?? []"
-                  @change="
-                    updateNode({ escalationCandidateGroups: values($event) })
-                  "
-                >
-                  <option
-                    v-for="group in options.groups"
-                    :key="group.id"
-                    :value="group.value ?? group.id"
-                  >
-                    {{ group.label }}
-                  </option>
-                </select>
-              </label>
-            </template>
-
-            <label v-if="selectedNode.type === 'parallelGateway'">
-              对应汇聚网关（分叉节点必填）
-
-              <select
-                :disabled="readonly"
-                :value="selectedNode.joinId ?? ''"
-                @change="updateNode({ joinId: text($event) || undefined })"
-              >
-                <option value="">此节点为汇聚</option>
-
-                <option
-                  v-for="node in nodes.filter(
-                    (item) =>
-                      item.type === 'parallelGateway' &&
-                      item.id !== selectedNode!.id,
-                  )"
-                  :key="node.id"
-                  :value="node.id"
-                >
-                  {{ node.name }}
-                </option>
-              </select>
-            </label>
-
-            <label v-if="selectedNode.type === 'end'">
-              流程最终结果
-
-              <select
-                :disabled="readonly"
-                :value="selectedNode.outcome"
-                @change="updateNode({ outcome: text($event) })"
-              >
-                <option
-                  v-for="result in outcomes"
-                  :key="result.value"
-                  :value="result.value"
-                >
-                  {{ result.label }}
-                </option>
-              </select>
-            </label>
-
-            <button
-              v-if="selectedNode.type !== 'start'"
-              type="button"
-              :disabled="readonly"
-              class="danger"
-              @click="deleteSelectedNode"
-            >
-              删除当前节点
-            </button>
-          </template>
-          <template v-else-if="selectedEdge">
-            <h3>连线条件 · {{ selectedEdge.id }}</h3>
-
-            <label v-if="selectedEdgeIsExclusive" class="checkbox">
-              <input
-                type="checkbox"
-                :disabled="readonly"
-                :checked="selectedEdge.default"
-                @change="updateEdge({ default: checked($event) })"
-              />
-              默认分支
-            </label>
-            <WorkflowConditionEditor
-              v-if="!selectedEdge.default && selectedEdgeIsExclusive"
-              :model-value="selectedEdge.condition"
-              :validators="business?.validators"
-              :variables="modelValue.variables"
-              :readonly="readonly"
-              @update:model-value="updateEdge({ condition: $event ?? null })"
-            />
-            <p v-if="!selectedEdgeIsExclusive" class="hint">
-              此连线没有可编辑的路由条件；可选中它插入节点。
-            </p>
-          </template>
-          <p v-else class="hint">
-            选择画布节点或连线配置属性。调整位置不会改变流程执行顺序。
-          </p>
-        </aside>
       </div>
     </div>
 
@@ -1412,7 +1496,7 @@ function addOutcomeAction() {
             <option value="">选择公开操作</option>
 
             <option
-              v-for="(action, key) in business?.actions"
+              v-for="(action, key) in simulatableActions"
               :key="key"
               :value="key"
             >
@@ -1597,7 +1681,7 @@ h4 {
 }
 .graph-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
 }
 .canvas-scroll {

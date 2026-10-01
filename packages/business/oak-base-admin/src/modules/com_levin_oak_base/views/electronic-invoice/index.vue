@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import { computed, reactive, ref } from 'vue';
 
+import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
-import { Alert, Form, Input, message, Modal } from 'ant-design-vue';
+import { Alert, Button, Form, Input, message, Modal } from 'ant-design-vue';
 
 import { electronicInvoiceService } from '../../api/electronic-invoice-service';
 import CrudPage from '../crud-page.vue';
@@ -17,29 +18,17 @@ interface InvoiceRecord {
 const redIssueOpen = ref(false);
 const redIssueSubmitting = ref(false);
 const selectedInvoice = ref<InvoiceRecord>();
-const reloadInvoices = ref<(() => Promise<void> | void) | undefined>();
+const reloadInvoices = ref<() => Promise<void> | void>();
 const redIssueForm = reactive({ redRequestNo: '', redReason: '' });
+const { hasPermission } = useRbacAccess();
+const redIssuePermission = buildApiMethodPermissions(
+  electronicInvoiceService,
+  'redIssue',
+);
 
 const pageConfig = computed(() => ({
   ...electronicInvoicePageCrudConfig,
   rowActions: [
-    {
-      handler: (record: InvoiceRecord, reload: () => Promise<void> | void) => {
-        selectedInvoice.value = record;
-        reloadInvoices.value = reload;
-        redIssueForm.redRequestNo = '';
-        redIssueForm.redReason = '';
-        redIssueOpen.value = true;
-      },
-      label: '申请红冲',
-      permission: buildApiMethodPermissions(
-        electronicInvoiceService,
-        'redIssue',
-      ),
-      reloadAfterAction: false as const,
-      successMessage: false as const,
-      visible: (record: InvoiceRecord) => record.status === 'Issued',
-    },
     {
       handler: async (record: InvoiceRecord) => {
         await electronicInvoiceService.reconcile({
@@ -52,11 +41,22 @@ const pageConfig = computed(() => ({
         electronicInvoiceService,
         'reconcile',
       ),
-      visible: (record: InvoiceRecord) =>
-        record.status === 'Processing',
+      visible: (record: InvoiceRecord) => record.status === 'Processing',
     },
   ],
 }));
+
+// 行插槽提供当前表格原位刷新函数，保留用户的查询、分页和排序状态。
+function openRedIssue(
+  record: InvoiceRecord,
+  reload: () => Promise<void> | void,
+) {
+  selectedInvoice.value = record;
+  reloadInvoices.value = reload;
+  redIssueForm.redRequestNo = '';
+  redIssueForm.redReason = '';
+  redIssueOpen.value = true;
+}
 
 async function submitRedIssue() {
   if (!selectedInvoice.value?.id) {
@@ -77,7 +77,11 @@ async function submitRedIssue() {
     });
     message.success('红冲申请已提交');
     redIssueOpen.value = false;
-    await reloadInvoices.value?.();
+    try {
+      await reloadInvoices.value?.();
+    } catch {
+      message.warning('红冲已提交，但列表刷新失败');
+    }
   } catch (error) {
     console.error(error);
     message.error('红冲申请提交失败');
@@ -95,7 +99,18 @@ async function submitRedIssue() {
       show-icon
       type="info"
     />
-    <CrudPage :config="pageConfig" />
+    <CrudPage :config="pageConfig">
+      <template #row-actions="{ record, reload }">
+        <Button
+          v-if="record.status === 'Issued' && hasPermission(redIssuePermission)"
+          size="small"
+          type="link"
+          @click="openRedIssue(record, reload)"
+        >
+          申请红冲
+        </Button>
+      </template>
+    </CrudPage>
   </div>
 
   <Modal
@@ -109,7 +124,7 @@ async function submitRedIssue() {
   >
     <Form layout="vertical">
       <Form.Item label="红冲业务单号" required>
-        <Input v-model:value="redIssueForm.redRequestNo" maxlength="128" />
+        <Input v-model:value="redIssueForm.redRequestNo" :maxlength="128" />
       </Form.Item>
       <Form.Item label="红冲原因" required>
         <Input.TextArea

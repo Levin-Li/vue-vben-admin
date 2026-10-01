@@ -98,6 +98,7 @@ const verificationMessage = ref('');
 let refreshVersion = 0;
 let attachmentVersion = 0;
 let pendingVersion = 0;
+let verificationVersion = 0;
 
 async function loadPendingAttachments(taskId: string) {
   const version = ++pendingVersion;
@@ -149,8 +150,11 @@ watch(
   () => selectedTask.value?.taskId,
   () => {
     ++pendingVersion;
+    ++attachmentVersion;
+    ++verificationVersion;
     pendingFiles.value = [];
     attachedFiles.value = [];
+    verificationMessage.value = '';
     const taskId = selectedTask.value?.taskId;
     if (taskId) void loadPendingAttachments(taskId);
     const instanceId = selectedTask.value?.processInstanceId;
@@ -347,6 +351,7 @@ async function selectInstance(instance: WorkflowInstanceView) {
 
 async function complete(payload: WorkflowTaskSubmitPayload) {
   if (!selectedTask.value || submitting.value) return;
+  const taskId = selectedTask.value.taskId;
   submitting.value = true;
   errorMessage.value = '';
   verificationMessage.value = '';
@@ -356,13 +361,18 @@ async function complete(payload: WorkflowTaskSubmitPayload) {
     const result = await service.value.complete({
       ...input,
       actionCode: action.code,
-      taskId: selectedTask.value.taskId,
+      taskId,
     });
     emit('completed', result);
-    pendingFiles.value = [];
+
+    // 成功命令可能同步取消同一实例的其他任务；旧任务附件读取随后失败不再属于当前选择。
+    if (selectedTask.value?.taskId === taskId) {
+      ++pendingVersion;
+      ++attachmentVersion;
+      selectedTask.value = undefined;
+      pendingFiles.value = [];
+    }
     await refresh();
-    const instanceId = selectedTask.value?.processInstanceId;
-    if (instanceId) await loadAttachments(instanceId, 'task');
   } catch (error) {
     errorMessage.value = '任务处理未成功，输入已保留，请根据错误提示重试。';
     emit('error', error);
@@ -408,21 +418,34 @@ async function prepareVerification(
     verificationType: string;
   },
 ) {
-  if (!selectedTask.value) return;
+  const taskId = selectedTask.value?.taskId;
+  if (!taskId) return;
+  const version = ++verificationVersion;
+  verificationMessage.value = '';
   try {
     // 摘要由服务端规范化计算，不将原始表单伪装成客户端“摘要”。
     const { action, ...input } = payload;
     const challenge = await service.value.prepareStepUpAuth({
       ...input,
       actionCode: action.code,
-      taskId: selectedTask.value.taskId,
+      taskId,
     });
+    if (
+      version !== verificationVersion ||
+      selectedTask.value?.taskId !== taskId
+    )
+      return;
     verificationMessage.value =
       challenge.message ||
       (challenge.successful
         ? '验证请求已发送，请完成验证。'
         : '验证请求未成功。');
   } catch (error) {
+    if (
+      version !== verificationVersion ||
+      selectedTask.value?.taskId !== taskId
+    )
+      return;
     errorMessage.value = '获取验证挑战失败，请重试。';
     emit('error', error);
   }

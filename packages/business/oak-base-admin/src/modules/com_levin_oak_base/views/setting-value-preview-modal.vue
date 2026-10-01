@@ -17,7 +17,7 @@ const emit = defineEmits<{
 
 const modalBodyStyle = {
   maxHeight: 'calc(100vh - 160px)',
-  overflowY: 'auto',
+  overflowY: 'auto' as const,
 };
 
 const displayValue = computed(() => formatSettingValuePreview(props.value));

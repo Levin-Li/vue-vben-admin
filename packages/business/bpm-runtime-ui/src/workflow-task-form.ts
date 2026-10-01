@@ -81,8 +81,29 @@ export function validateWorkflowAction(
     [];
   for (const field of fields) {
     if ('readOnly' in field && field.readOnly) continue;
-    if (field.required && isWorkflowEmpty(input.formData[field.key]))
+    const value = input.formData[field.key];
+    if (field.required && isWorkflowEmpty(value)) {
       errors.push(`请填写${field.label}`);
+      continue;
+    }
+    if (isWorkflowEmpty(value)) continue;
+
+    // 控件值必须符合本次任务公开的字段类型和选项，不在浏览器侧猜测转换业务值。
+    if ('type' in field && field.type === 'number') {
+      if (typeof value !== 'number' || !Number.isFinite(value))
+        errors.push(`${field.label}必须是数字`);
+    } else if ('type' in field && field.type === 'boolean') {
+      if (typeof value !== 'boolean') errors.push(`${field.label}必须是是或否`);
+    } else if ('type' in field && field.type === 'select') {
+      if (!field.options?.some((option) => Object.is(option.value, value)))
+        errors.push(`${field.label}不在可选范围内`);
+    } else if (
+      'type' in field &&
+      ['date', 'text', 'textarea'].includes(field.type ?? '') &&
+      typeof value !== 'string'
+    ) {
+      errors.push(`${field.label}必须是文本`);
+    }
   }
   if (action.requiresComment && !input.comment?.trim())
     errors.push('请填写审批意见');
@@ -104,6 +125,11 @@ export function validateWorkflowAction(
       )
     )
       errors.push('请选择允许的加签人员');
+    if (
+      input.targetUserIds &&
+      new Set(input.targetUserIds).size !== input.targetUserIds.length
+    )
+      errors.push('加签人员不能重复');
     if (
       !action.addSignPositions?.some(
         (item) => item.value === input.addSignPosition,

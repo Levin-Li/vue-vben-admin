@@ -117,7 +117,9 @@ const formCount = computed(() => {
   const known = new Set(items.value.flatMap((item) => queryItemKeys(item)));
   return Object.keys(fixed).filter((key) => known.has(key)).length;
 });
-const extensionCount = computed(() => Math.max(count.value - formCount.value, 0));
+const extensionCount = computed(() =>
+  Math.max(Number(count.value) - formCount.value, 0),
+);
 let session = 0;
 let baseline = '';
 function snapshot() {
@@ -311,7 +313,10 @@ function save() {
       const key = row.key.trim();
       if (!key || Object.hasOwn(merged, key)) continue;
       try {
-        merged[key] = parseMenuFixedQuery({ [key]: JSON.parse(row.value) })[key];
+        const parsedValue = parseMenuFixedQuery({
+          [key]: JSON.parse(row.value),
+        })[key];
+        if (parsedValue !== undefined) merged[key] = parsedValue;
       } catch {
         merged[key] = row.type === 'number' ? Number(row.value) : row.value;
       }

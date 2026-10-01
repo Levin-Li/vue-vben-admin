@@ -494,6 +494,7 @@ describe('oak base admin routes', () => {
       expect.arrayContaining([
         expect.objectContaining({
           path: '/clob/V1/MyMessages',
+          onlyRequireAuthenticated: true,
           sourceFilePath:
             'modules/com_levin_oak_base/views/my-messages/index.vue',
           title: '我的消息',
@@ -501,6 +502,12 @@ describe('oak base admin routes', () => {
         }),
       ]),
     );
+    // 个人消息由登录态和服务端受众过滤保护，其他业务页仍须取得后端菜单授权。
+    expect(
+      oakBaseAdminBackendRouteMappings.find(
+        (item) => item.path === '/clob/V1/WorkflowRequest',
+      )?.onlyRequireAuthenticated,
+    ).not.toBe(true);
   });
 
   it('does not register the removed verify code audit route', () => {

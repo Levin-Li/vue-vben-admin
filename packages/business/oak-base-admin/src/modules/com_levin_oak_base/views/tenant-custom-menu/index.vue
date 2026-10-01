@@ -1,7 +1,13 @@
 <script lang="ts" setup>
 import type { DataNode } from 'ant-design-vue/es/tree';
 
-import { computed, onMounted, reactive, ref } from 'vue';
+import type {
+  MenuDisplaySource,
+  PersistedLayoutItem,
+  TenantCustomMenuItem,
+} from './layout-tree';
+
+import { computed, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/runtime/icons';
@@ -18,7 +24,6 @@ import {
   Select,
   Spin,
   Switch,
-  Tag,
   Tooltip,
   Tree,
 } from 'ant-design-vue';
@@ -51,14 +56,12 @@ import {
   removeLayoutItem,
   toLayoutItem,
   toPersistedLayoutItems,
-  type TenantCustomMenuItem,
-  type MenuDisplaySource,
   updateLayoutItemValue,
 } from './layout-tree';
 
 interface LayoutRecord {
   id: string;
-  itemList?: Array<Omit<TenantCustomMenuItem, 'key'>>;
+  itemList?: PersistedLayoutItem[];
   name: string;
   optimisticLock?: number;
   orderCode?: number;
@@ -111,20 +114,10 @@ const newGroupForm = reactive({
 });
 const { hasPermission } = useRbacAccess();
 
-const createPermission = buildApiMethodPermissions(
-  tenantCustomMenuService,
-  'create',
-);
-const deletePermission = buildApiMethodPermissions(
-  tenantCustomMenuService,
-  'delete',
-);
 const updatePermission = buildApiMethodPermissions(
   tenantCustomMenuService,
   'update',
 );
-const canCreate = computed(() => hasPermission(createPermission));
-const canDelete = computed(() => hasPermission(deletePermission));
 const canUpdate = computed(() => hasPermission(updatePermission));
 const currentLayout = computed(() =>
   layoutRecords.value.find((item) => item.id === selectedLayoutId.value),
@@ -144,12 +137,6 @@ const selectedLayoutPaths = computed(
         .map((item) => item.path)
         .filter(Boolean),
     ),
-);
-const layoutOptions = computed(() =>
-  layoutRecords.value.map((item) => ({
-    label: `${item.name}${item.orderCode == null ? '' : `（排序 ${item.orderCode}）`}`,
-    value: item.id,
-  })),
 );
 const sourceTreeData = computed(() => buildSourceTree(menuSources.value));
 const filteredSourceTreeData = computed(() =>
@@ -210,6 +197,7 @@ const layoutTreeData = computed<DataNode[]>(() => [
     title: MY_MENU_ROOT_LABEL,
   },
 ]);
+// 当前 Tree 运行时支持节点级拖动配置；类型声明仅暴露 boolean，保留原有根节点禁拖行为。
 const layoutTreeDraggable = computed(() =>
   isAdjusting.value
     ? {
@@ -286,15 +274,17 @@ function toLayoutTreeData(
 }
 
 function normalizeLayoutItems(
-  items: Array<Omit<TenantCustomMenuItem, 'key'>> = [],
+  items: PersistedLayoutItem[] = [],
   parentKey = 'root',
 ): TenantCustomMenuItem[] {
+  const firstItem = items[0];
   const sourceItems =
     parentKey === 'root' &&
+    firstItem &&
     items.length === 1 &&
-    !items[0].path &&
-    items[0].label === MY_MENU_ROOT_LABEL
-      ? items[0].children || []
+    !firstItem.path &&
+    firstItem.label === MY_MENU_ROOT_LABEL
+      ? firstItem.children || []
       : items;
 
   return sourceItems.map((item, index) => {
@@ -576,19 +566,6 @@ function addMenusToSelectedTarget(sources: MenuDisplaySource[]) {
   }
 }
 
-function beginAdjusting() {
-  if (!currentLayout.value) {
-    message.warning('请先新增或选择一个菜单展示布局');
-    return;
-  }
-
-  isAdjusting.value = true;
-}
-
-function cancelAdjusting() {
-  selectLayout(selectedLayoutId.value);
-}
-
 function clearLayoutDropTarget() {
   draggedSource.value = undefined;
   draggedLayoutKey.value = undefined;
@@ -657,7 +634,7 @@ function isActiveLayoutDropTarget(key: string, mode?: LayoutDropMode) {
   );
 }
 
-function shouldShowAddChildMenuAction(key: string) {
+function shouldShowAddChildMenuAction() {
   return !draggedSource.value && !draggedLayoutKey.value;
 }
 
@@ -811,15 +788,6 @@ function expandLayoutParent(key: string | undefined) {
     [...layoutExpandedKeys.value, key],
     MY_MENU_ROOT_KEY,
   );
-}
-
-function openNewGroup() {
-  if (!isAdjusting.value) {
-    return;
-  }
-
-  newGroupForm.label = '';
-  newGroupOpen.value = true;
 }
 
 function addGroup() {
@@ -1042,12 +1010,6 @@ function handleLayoutDrop(info: any) {
   }
 }
 
-function openNewLayout() {
-  newLayoutForm.name = '';
-  newLayoutForm.orderCode = 1000;
-  newLayoutOpen.value = true;
-}
-
 async function createLayout() {
   const name = newLayoutForm.name.trim();
   if (!name) {
@@ -1107,23 +1069,6 @@ async function saveLayout() {
       message.warning('菜单已保存，但列表刷新失败');
     }
     message.success('菜单展示布局已保存');
-  } finally {
-    saving.value = false;
-  }
-}
-
-async function deleteLayout() {
-  const layout = currentLayout.value;
-  if (!layout) {
-    return;
-  }
-
-  saving.value = true;
-  try {
-    await tenantCustomMenuService.delete({ id: layout.id });
-    selectedLayoutId.value = undefined;
-    await loadPage();
-    message.success('菜单展示布局已删除');
   } finally {
     saving.value = false;
   }
@@ -1354,7 +1299,7 @@ function closeLayoutAdjuster() {
               checkable
               class="-ml-2 -mt-2 min-h-0"
               :checked-keys="checkedLayoutKeys"
-              :draggable="layoutTreeDraggable"
+              :draggable="layoutTreeDraggable as unknown as boolean"
               :expanded-keys="visibleLayoutExpandedKeys"
               :selected-keys="selectedItemKey ? [selectedItemKey] : []"
               :tree-data="layoutTreeData"
@@ -1364,7 +1309,12 @@ function closeLayoutAdjuster() {
               @drop="handleLayoutDrop"
               @expand="handleLayoutExpand"
               @check="handleLayoutCheck"
-              @select="(keys: string[]) => (selectedItemKey = keys[0])"
+              @select="
+                (keys) => {
+                  selectedItemKey =
+                    keys.length === 0 ? undefined : String(keys[0]);
+                }
+              "
             >
               <template #title="{ dataRef }">
                 <div
@@ -1440,7 +1390,8 @@ function closeLayoutAdjuster() {
                       @click.stop
                       @mousedown.stop
                       @update:checked="
-                        (value) => updateLayoutItem(dataRef, 'enable', value)
+                        (value) =>
+                          updateLayoutItem(dataRef, 'enable', value === true)
                       "
                     />
                     <Switch
@@ -1450,7 +1401,8 @@ function closeLayoutAdjuster() {
                       @click.stop
                       @mousedown.stop
                       @update:checked="
-                        (value) => updateLayoutItem(dataRef, 'hidden', value)
+                        (value) =>
+                          updateLayoutItem(dataRef, 'hidden', value === true)
                       "
                     />
                     <Select
@@ -1518,7 +1470,7 @@ function closeLayoutAdjuster() {
                         </Tooltip>
                       </Popconfirm>
                     </template>
-                    <template v-if="shouldShowAddChildMenuAction(dataRef.key)">
+                    <template v-if="shouldShowAddChildMenuAction()">
                       <Tooltip title="新增子菜单">
                         <Button
                           :class="

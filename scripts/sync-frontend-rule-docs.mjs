@@ -37,7 +37,7 @@ export function isReferenceDocument(path) {
     /(?:验收记录|验证输出|安全审计|测试报告|迁移|发布说明|部署|运维|任务清单|日志|截图)/.test(name)
   ) return false;
   if (/(?:^|\/)openspec\//.test(normalized))
-    return /\/(?:design|proposal|business-binding-design)\.md$/i.test(normalized)
+    return /\/(?:design|proposal|business-binding-design|definition-json-schema)\.md$/i.test(normalized)
       || /\/specs\/.*\.md$/i.test(normalized);
   return /^(?:design|proposal)\.md$/i.test(name)
     || /(?:设计|方案|实现|模块说明|功能说明|使用手册|用户手册|使用指南|开发指南|开发规范|发布包文档分类与交付规范).*\.md$/.test(name);

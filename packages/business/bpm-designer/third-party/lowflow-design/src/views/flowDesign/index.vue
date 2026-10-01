@@ -86,47 +86,67 @@ defineExpose({ validate });
 </script>
 
 <template>
-  <div class="designer-container" :style="canvasStyle" data-flow-design>
-    <!-- 工具槽和缩放按钮使用当前主题，不加载 Element Plus。 -->
-    <div class="tool"><slot></slot></div>
-    <div class="zoom" role="group" aria-label="流程图缩放">
-      <button
-        type="button"
-        aria-label="缩小流程图"
-        :disabled="zoom <= 50"
-        @click="zoom -= 10"
-      >
-        −
-      </button>
-      <span>{{ zoom }}%</span>
-      <button
-        type="button"
-        aria-label="放大流程图"
-        :disabled="zoom >= 170"
-        @click="zoom += 10"
-      >
-        +
-      </button>
-    </div>
+  <div class="flow-design-host">
+    <div
+      class="designer-container"
+      :class="{ 'with-properties': !!$slots.properties }"
+      :style="canvasStyle"
+      data-flow-design
+    >
+      <div class="designer-main">
+        <!-- 工具槽和缩放按钮使用当前主题，不加载 Element Plus。 -->
+        <div class="tool"><slot></slot></div>
+        <div class="zoom" role="group" aria-label="流程图缩放">
+          <button
+            type="button"
+            aria-label="缩小流程图"
+            :disabled="zoom <= 50"
+            @click="zoom -= 10"
+          >
+            −
+          </button>
+          <span>{{ zoom }}%</span>
+          <button
+            type="button"
+            aria-label="放大流程图"
+            :disabled="zoom >= 170"
+            @click="zoom += 10"
+          >
+            +
+          </button>
+        </div>
 
-    <!-- 设计和运行共用同一组件；只读模式关闭选择事件。 -->
-    <div class="canvas-content">
-      <div class="node-container">
-        <TreeNode
-          :node="process"
-          :read-only="readOnly"
-          :selected-edge-id="selectedEdgeId"
-          :selected-node-id="selectedNodeId"
-          :node-statuses="nodeStatuses || {}"
-          @node-click="(id) => emit('nodeClick', id)"
-          @edge-click="(id) => emit('edgeClick', id)"
-        />
+        <!-- 设计和运行共用同一组件；只读模式关闭选择事件。 -->
+        <div class="canvas-content">
+          <div class="node-container">
+            <TreeNode
+              :node="process"
+              :read-only="readOnly"
+              :selected-edge-id="selectedEdgeId"
+              :selected-node-id="selectedNodeId"
+              :node-statuses="nodeStatuses || {}"
+              @node-click="(id) => emit('nodeClick', id)"
+              @edge-click="(id) => emit('edgeClick', id)"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- 属性内容由宿主按授权目录提供，画布负责固定的双栏布局。 -->
+      <div v-if="$slots.properties" class="designer-properties">
+        <slot name="properties"></slot>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
+.flow-design-host {
+  width: 100%;
+  height: 100%;
+  container-type: inline-size;
+}
+
 .designer-container {
   position: relative;
   width: 100%;
@@ -135,6 +155,43 @@ defineExpose({ validate });
   overflow: auto;
   color: hsl(var(--foreground));
   background: var(--flow-canvas-background);
+}
+
+.designer-container.with-properties {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  align-items: start;
+}
+
+.designer-main {
+  min-width: 0;
+}
+
+.designer-properties {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  padding: 12px;
+  border-left: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+}
+
+.designer-container.with-properties .canvas-content {
+  min-width: 0;
+  overflow: auto;
+}
+
+@container (max-width: 800px) {
+  .designer-container.with-properties {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .designer-properties {
+    grid-column: 1;
+    grid-row: auto;
+    border-top: 1px solid hsl(var(--border));
+    border-left: 0;
+  }
 }
 
 .tool {

@@ -44,6 +44,15 @@ import { loadDomainScopeOptions } from '../../domain-scope-options';
 import { getDataPermissionCount } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from '../user/config';
 
+// 数据权限弹窗只接受字符串 ID，在页面边界规范化公共候选。
+async function loadStringDomainScopeOptions(keyword?: string) {
+  const options = await loadDomainScopeOptions(keyword);
+  return options.map((option) => ({
+    label: String(option.label),
+    value: String(option.value),
+  }));
+}
+
 interface OrgTreeNode {
   children?: OrgTreeNode[];
   disabled?: boolean;
@@ -839,7 +848,7 @@ onMounted(async () => {
       v-if="selectedRecord"
       v-model:open="dialogOpen"
       :record="selectedRecord"
-      :load-domain-options="loadDomainScopeOptions"
+      :load-domain-options="loadStringDomainScopeOptions"
       subject-type="user"
       @saved="handleSaved"
     />

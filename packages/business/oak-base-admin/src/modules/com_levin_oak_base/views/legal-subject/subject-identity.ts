@@ -63,11 +63,11 @@ function isValidChineseIdentityCard(value: string) {
   const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
   const checkCodes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
   const sum = value.slice(0, 17).split('').reduce(
-    (total, digit, index) => total + Number(digit) * weights[index],
+      (total, digit, index) => total + Number(digit) * (weights[index] ?? 0),
     0,
   );
 
-  return checkCodes[sum % 11] === value[17].toUpperCase();
+  return checkCodes[sum % 11] === value.charAt(17).toUpperCase();
 }
 
 export function validateSubjectIdentity(

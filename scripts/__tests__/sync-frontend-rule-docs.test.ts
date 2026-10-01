@@ -41,6 +41,7 @@ function fixture() {
   put('docs/release/20260908-results.md', 'run output');
   put('openspec/changes/demo/design.md', '# Proposal');
   put('openspec/changes/demo/business-binding-design.md', '# Binding design');
+  put('openspec/changes/demo/definition-json-schema.md', '# Definition schema');
   put('docs/平台设计安全审计.md', 'internal audit');
   put('frontend/admin/docs/project-reference/docs/旧设计.md', 'generated copy');
   put('openspec/changes/demo/verification.md', 'run output');
@@ -65,6 +66,7 @@ describe('published reference documents', () => {
     );
     expect(paths).toContain('docs/design.md');
     expect(paths).toContain('openspec/changes/demo/business-binding-design.md');
+    expect(paths).toContain('openspec/changes/demo/definition-json-schema.md');
     expect(paths).not.toContain('docs/images/diagram.svg');
     expect(paths).not.toContain('docs/migrations/20260908-change.sql');
     expect(paths).not.toContain('openspec/config.yaml');
@@ -96,6 +98,7 @@ describe('published reference documents', () => {
     const paths = packed[0].files.map(({ path }: { path: string }) => path);
     expect(paths).toContain('docs/project-reference/docs/design.md');
     expect(paths).toContain('docs/project-reference/openspec/changes/demo/business-binding-design.md');
+    expect(paths).toContain('docs/project-reference/openspec/changes/demo/definition-json-schema.md');
     expect(paths).toContain('docs/project-reference/manifest.json');
     expect(paths).toContain('docs/MODULE-DEVELOPMENT-STANDARD.md');
     expect(paths.some((path: string) => path.includes('/migrations/') || path.includes('安全审计'))).toBe(false);

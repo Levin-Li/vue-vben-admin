@@ -13,7 +13,9 @@ describe('email relay route page config', () => {
         { endpoint: ' OPS@example.com ', type: 'email' },
         { endpoint: 'https://hooks.example.com/inbound', type: 'mail-webhook' },
       ],
-    });
+      },
+      null,
+    );
 
     expect(payload).toMatchObject({
       localPart: 'support',
@@ -32,7 +34,9 @@ describe('email relay route page config', () => {
         mailDomain: 'example.com',
         providerCode: 'forward-email',
         targetList: [],
-      }),
+        },
+        null,
+      ),
     ).rejects.toThrow('至少需要一个投递目标');
   });
 

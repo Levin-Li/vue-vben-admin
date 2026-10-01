@@ -30,11 +30,21 @@ const previewPositionsText = ref(
   ),
 );
 const previewError = ref('');
+type ContractSimulationData = {
+  contractNo?: string;
+  id?: string;
+  orgId?: string;
+  ownerId?: string;
+  status?: string;
+  tenantId?: string;
+  url?: string;
+};
+
 const simulationContractId = ref('contract-001');
 const simulationTenantId = ref('');
 const simulationOrgId = ref('');
 const simulationOwnerId = ref('');
-const simulationStatus = ref<'Archived' | 'Canceled' | 'Draft' | 'Expired' | 'Rejected' | 'Signed' | 'Signing'>('Draft');
+const simulationStatus = ref('Draft');
 const simulationMessage = ref('选择草稿合同后，可逐步模拟提交签署、查看日志、复制重签和下载已签文件。');
 const simulationMessageType = ref<'info' | 'success' | 'warning'>('info');
 
@@ -68,11 +78,20 @@ async function loadSimulationContract() {
       ownerId: simulationOwnerId.value || undefined,
       tenantId: simulationTenantId.value || undefined,
     });
-    const data = response?.data ?? response;
+    // 同时识别服务返回的实体与标准 data 包装，字段访问保持在已知合同摘要内。
+    const payload: unknown =
+      response && typeof response === 'object' && 'data' in response
+        ? response.data
+        : response;
+    const data =
+      payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? (payload as ContractSimulationData)
+        : {};
     simulationTenantId.value = data?.tenantId || simulationTenantId.value;
     simulationOrgId.value = data?.orgId || simulationOrgId.value;
     simulationOwnerId.value = data?.ownerId || simulationOwnerId.value;
-    simulationStatus.value = data?.status || 'Draft';
+    // 服务端返回未知非空状态时保留原值；所有动作仅对明确的已知状态开放。
+    simulationStatus.value = data?.status?.trim() || 'Draft';
     simulationMessage.value = `合同 ${data?.contractNo || simulationContractId.value} 已加载，当前状态：${simulationStatus.value}。`;
     simulationMessageType.value = 'success';
   } catch (error) {
@@ -96,12 +115,19 @@ async function runSimulationAction(
     const response = action === 'providerCallback'
       ? await electronicContractSimulationService.complete(request)
       : await electronicContractService[action](request);
-    const data = response?.data ?? response;
-    if (data?.status) {
-      simulationStatus.value = data.status;
+    const payload: unknown =
+      response && typeof response === 'object' && 'data' in response
+        ? response.data
+        : response;
+    const data =
+      payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? (payload as ContractSimulationData)
+        : {};
+    if (data?.status?.trim()) {
+      simulationStatus.value = data.status.trim();
     }
     if (action === 'signingLog') {
-      simulationMessage.value = `签署日志读取成功，共 ${Array.isArray(data) ? data.length : 0} 条。`;
+      simulationMessage.value = `签署日志读取成功，共 ${Array.isArray(payload) ? payload.length : 0} 条。`;
     } else if (action === 'downloadSignedFile') {
       simulationMessage.value = `已签文件下载地址：${data?.url || '模拟文件已就绪'}`;
     } else {
@@ -109,7 +135,7 @@ async function runSimulationAction(
     }
     if (action === 'copyForResign' && data?.id) {
       simulationContractId.value = data.id;
-      simulationStatus.value = 'Draft';
+      simulationStatus.value = data.status?.trim() || 'Draft';
       simulationMessage.value += ` 已自动切换到重签草稿：${data.id}。`;
     }
     simulationMessageType.value = 'success';

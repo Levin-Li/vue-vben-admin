@@ -130,6 +130,94 @@ describe('流程设计结构', () => {
     expect(messages.join(',')).toContain('secret');
   });
 
+  it('能力目录缺失或结果操作不在授权目录时阻断模拟与发布', () => {
+    const value = createDefinition('review', '审核');
+    value.purposeKey = 'review';
+    value.businessBinding = {
+      businessType: 'request',
+      contractVersion: 2,
+      identityField: 'id',
+      titleField: 'title',
+    };
+    value.outcomeActions = {
+      Approved: [{ action: 'unlisted', parameters: {} }],
+    };
+
+    expect(validateDefinition(value).join(',')).toContain('能力目录尚未加载');
+    expect(
+      validateDefinition(value, {
+        businessTypes: [
+          {
+            businessType: 'request',
+            contractVersion: 2,
+            title: '申请',
+            fields: {
+              id: { title: '标识', type: 'string' },
+              title: { title: '标题', type: 'string' },
+            },
+            actions: {},
+          },
+        ],
+      }).join(','),
+    ).toContain('结果「Approved」操作「unlisted」不在当前业务契约的授权目录中');
+  });
+
+  it('结果动作和动态审批人必须声明隔离模拟能力', () => {
+    const value = createDefinition('review', '审核');
+    value.purposeKey = 'review';
+    value.businessBinding = {
+      businessType: 'request',
+      contractVersion: 2,
+      identityField: 'id',
+      titleField: 'title',
+    };
+    value.outcomeActions = { Approved: [{ action: 'apply' }] };
+    value.startPolicy = {
+      mode: 'manual',
+      condition: { validator: { key: 'ready' } },
+    };
+    const task = addNode(value, 'userTask');
+    task.candidateUsers = ['user:reviewer'];
+    task.approverResolver = { key: 'lead' };
+    const businessType = {
+      businessType: 'request',
+      contractVersion: 2,
+      title: '申请',
+      fields: {
+        id: { title: '标识', type: 'string' as const },
+        title: { title: '标题', type: 'string' as const },
+      },
+      actions: { apply: { title: '回写', simulation: false } },
+      approverResolvers: { lead: { title: '负责人', simulation: false } },
+      validators: { ready: { title: '资料完整', simulation: false } },
+    };
+
+    const invalid = validateDefinition(value, {
+      businessTypes: [businessType],
+    });
+    expect(invalid.join(',')).toContain(
+      '结果「Approved」操作「apply」缺少隔离模拟能力',
+    );
+    expect(invalid.join(',')).toContain('动态审批人「lead」缺少隔离模拟能力');
+    expect(invalid.join(',')).toContain('业务校验器缺少隔离模拟能力');
+    businessType.actions.apply.simulation = true;
+    businessType.approverResolvers.lead.simulation = true;
+    businessType.validators.ready.simulation = true;
+    const valid = validateDefinition(value, { businessTypes: [businessType] });
+    expect(valid.join(',')).not.toContain('隔离模拟能力');
+  });
+
+  it('不允许用未知节点动作绕过发布前校验', () => {
+    const value = createDefinition('review', '审批');
+    const task = addNode(value, 'userTask');
+    task.candidateUsers = ['user:reviewer'];
+    task.actions = ['approve', 'run-script'];
+
+    expect(validateDefinition(value).join(',')).toContain(
+      '节点「审批 1」包含不支持的动作「run-script」',
+    );
+  });
+
   it('组合依赖可以使用OR但不能隐藏自依赖或未知变量', () => {
     const value = createDefinition('sign', '签署');
     value.purposeKey = 'sign';
@@ -200,6 +288,7 @@ describe('流程设计结构', () => {
           approverResolvers: {
             departmentLead: {
               title: '部门负责人',
+              simulation: true,
               parameters: {
                 level: { title: '层级', type: 'integer' as const },
               },

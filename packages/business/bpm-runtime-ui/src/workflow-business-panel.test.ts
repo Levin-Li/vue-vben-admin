@@ -63,12 +63,30 @@ function setup(
 }
 
 describe('业务流程资格与发起', () => {
+  it('业务历史刷新失败后不继续显示上一次授权取得的记录', async () => {
+    const { api, wrapper } = setup();
+    api.history.mockResolvedValueOnce([
+      { instanceId: 'previous-run', status: 'PendingEffects' },
+    ]);
+    await wrapper.vm.refresh();
+    await flushPromises();
+    expect(wrapper.text()).toContain('previous-run');
+
+    api.history.mockRejectedValueOnce(new Error('access revoked'));
+    await wrapper.vm.refresh();
+    await flushPromises();
+    expect(wrapper.text()).toContain('流程信息加载失败');
+    expect(wrapper.text()).not.toContain('previous-run');
+  });
+
   it('事件启动用途仅展示状态，不作为普通手动发起按钮', async () => {
     const { api, wrapper } = setup([
       { purposeKey: 'auto-review', eligible: true, startMode: 'event' },
     ]);
     await flushPromises();
-    const button = wrapper.findAll('button').find((item) => item.text() === '由事件触发');
+    const button = wrapper
+      .findAll('button')
+      .find((item) => item.text() === '由事件触发');
     expect(button?.attributes('disabled')).toBeDefined();
     await button?.trigger('click');
     expect(api.start).not.toHaveBeenCalled();

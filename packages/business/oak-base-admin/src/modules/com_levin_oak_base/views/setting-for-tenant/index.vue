@@ -97,7 +97,7 @@ const editValueTitle = computed(() => {
 
 const editValueModalBodyStyle = {
   maxHeight: 'calc(100vh - 160px)',
-  overflowY: 'auto',
+  overflowY: 'auto' as const,
 };
 const editValueModalWidth = computed(() => {
   const item = editValueItem.value;

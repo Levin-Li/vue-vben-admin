@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import WorkflowBusinessDetail from './workflow-business-detail.vue';
 import WorkflowProcessDiagram from './workflow-process-diagram.vue';
 import WorkflowRuntimeWorkbench from './workflow-runtime-workbench.vue';
+import WorkflowTaskPanel from './workflow-task-panel.vue';
 
 vi.mock('@levin/admin-framework', () => ({
   RequestService: class {
@@ -368,6 +369,241 @@ describe('运行时公开组件独立挂载', () => {
       }),
     );
     expect(wrapper.emitted('completed')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('拒绝成功后旧任务附件请求失败不能覆盖完成结果', async () => {
+    // 并行支路被拒绝时旧引擎任务立即消失，先锁定成功命令与迟到附件失败的竞态。
+    const task = {
+      taskId: 'cancelled-task',
+      processInstanceId: 'cancelled-instance',
+      taskName: '并行支路审批',
+      status: 'Todo',
+      actions: [{ code: 'reject', label: '拒绝' }],
+    };
+    let rejectAttachments!: (error: Error) => void;
+    let rejectPending!: (error: Error) => void;
+    let finishRefresh!: (tasks: (typeof task)[]) => void;
+    const api = {
+      todo: vi
+        .fn()
+        .mockResolvedValueOnce([task])
+        .mockImplementationOnce(
+          () =>
+            new Promise<(typeof task)[]>((resolve) => {
+              finishRefresh = resolve;
+            }),
+        ),
+      done: vi.fn().mockResolvedValue([]),
+      started: vi.fn().mockResolvedValue([]),
+      attachments: vi.fn().mockReturnValue(
+        new Promise((_, reject) => {
+          rejectAttachments = reject;
+        }),
+      ),
+      pendingAttachments: vi.fn().mockReturnValue(
+        new Promise((_, reject) => {
+          rejectPending = reject;
+        }),
+      ),
+      complete: vi.fn().mockResolvedValue({ ...task, status: 'Completed' }),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewAttachments: true,
+        canViewPendingAttachments: true,
+      },
+    });
+    await flushPromises();
+    await wrapper.get('[aria-label="查看并行支路审批"]').trigger('click');
+    await flushPromises();
+
+    const button = (label: string) =>
+      wrapper
+        .findAll('button')
+        .find((item) => item.text().replaceAll(/\s/g, '') === label);
+    await button('拒绝')?.trigger('click');
+    await button('确认拒绝')?.trigger('click');
+    await flushPromises();
+    expect(api.complete).toHaveBeenCalledTimes(1);
+    expect(wrapper.emitted('completed')).toHaveLength(1);
+
+    // 旧任务的两个附件读均按服务端消失返回失败，不能再对新列表弹全局错误。
+    rejectAttachments(new Error('已取消任务附件 HTTP 500'));
+    rejectPending(new Error('已取消待上传附件 HTTP 500'));
+    await flushPromises();
+    expect(wrapper.emitted('error')).toBeUndefined();
+    expect(wrapper.text()).not.toContain('任务处理未成功');
+
+    finishRefresh([]);
+    await flushPromises();
+    expect(wrapper.find('.levin-workflow-task-panel').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('切换到无实例任务后旧附件失败不覆盖当前任务', async () => {
+    // 第二个任务没有实例附件入口，仍须废弃第一个任务的在途读取。
+    const tasks = [
+      {
+        taskId: 'old-task',
+        processInstanceId: 'old-instance',
+        taskName: '旧任务',
+        status: 'Todo',
+      },
+      { taskId: 'new-task', taskName: '新任务', status: 'Todo' },
+    ];
+    let rejectOldAttachments!: (error: Error) => void;
+    const api = {
+      todo: vi.fn().mockResolvedValue(tasks),
+      done: vi.fn().mockResolvedValue([]),
+      started: vi.fn().mockResolvedValue([]),
+      attachments: vi.fn().mockReturnValue(
+        new Promise((_, reject) => {
+          rejectOldAttachments = reject;
+        }),
+      ),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewAttachments: true,
+      },
+    });
+    await flushPromises();
+    await wrapper.get('[aria-label="查看旧任务"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[aria-label="查看新任务"]').trigger('click');
+    rejectOldAttachments(new Error('旧任务附件不可读取'));
+    await flushPromises();
+
+    expect(wrapper.find('.levin-workflow-task-panel').text()).toContain(
+      '新任务',
+    );
+    expect(wrapper.emitted('error')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('二次验证准备从任务A切到B后不展示迟到提示并清除旧提示', async () => {
+    // 服务端挑战绑定原任务，响应迟到后不得误告知另一任务可以继续验证。
+    const tasks = [
+      { taskId: 'task-a', taskName: '任务A', status: 'Todo' },
+      { taskId: 'task-b', taskName: '任务B', status: 'Todo' },
+    ];
+    let finishOld!: (result: { message: string; successful: boolean }) => void;
+    let rejectOld!: (error: Error) => void;
+    const api = {
+      todo: vi.fn().mockResolvedValue(tasks),
+      done: vi.fn().mockResolvedValue([]),
+      started: vi.fn().mockResolvedValue([]),
+      prepareStepUpAuth: vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishOld = resolve;
+            }),
+        )
+        .mockResolvedValueOnce({
+          successful: true,
+          message: '任务A的新验证提示',
+        })
+        .mockImplementationOnce(
+          () =>
+            new Promise((_, reject) => {
+              rejectOld = reject;
+            }),
+        ),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: { service: api as unknown as WorkflowRuntimeService },
+    });
+    await flushPromises();
+    await wrapper.get('[aria-label="查看任务A"]').trigger('click');
+    await flushPromises();
+    wrapper.findComponent(WorkflowTaskPanel).vm.$emit('prepareVerification', {
+      action: { code: 'approve' },
+      formData: {},
+      verificationType: 'Sms',
+    });
+    await flushPromises();
+    expect(api.prepareStepUpAuth).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 'task-a' }),
+    );
+
+    await wrapper.get('[aria-label="查看任务B"]').trigger('click');
+    finishOld({ successful: true, message: '任务A的迟到验证提示' });
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('任务A的迟到验证提示');
+
+    await wrapper.get('[aria-label="查看任务A"]').trigger('click');
+    wrapper.findComponent(WorkflowTaskPanel).vm.$emit('prepareVerification', {
+      action: { code: 'approve' },
+      formData: {},
+      verificationType: 'Sms',
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain('任务A的新验证提示');
+    await wrapper.get('[aria-label="查看任务B"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('任务A的新验证提示');
+
+    // 迟到失败也不能把任务B覆盖成任务A的挑战错误。
+    await wrapper.get('[aria-label="查看任务A"]').trigger('click');
+    wrapper.findComponent(WorkflowTaskPanel).vm.$emit('prepareVerification', {
+      action: { code: 'approve' },
+      formData: {},
+      verificationType: 'Sms',
+    });
+    await flushPromises();
+    await wrapper.get('[aria-label="查看任务B"]').trigger('click');
+    rejectOld(new Error('任务A挑战失败'));
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('获取验证挑战失败');
+    expect(wrapper.emitted('error')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('同一任务的新验证请求优先于旧请求的迟到响应', async () => {
+    const task = { taskId: 'task-a', taskName: '任务A', status: 'Todo' };
+    let finishOld!: (result: { message: string; successful: boolean }) => void;
+    const api = {
+      todo: vi.fn().mockResolvedValue([task]),
+      done: vi.fn().mockResolvedValue([]),
+      started: vi.fn().mockResolvedValue([]),
+      prepareStepUpAuth: vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishOld = resolve;
+            }),
+        )
+        .mockResolvedValueOnce({ successful: true, message: '本次验证提示' }),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: { service: api as unknown as WorkflowRuntimeService },
+    });
+    await flushPromises();
+    await wrapper.get('[aria-label="查看任务A"]').trigger('click');
+    const payload = {
+      action: { code: 'approve' },
+      formData: {},
+      verificationType: 'Sms',
+    };
+    wrapper
+      .findComponent(WorkflowTaskPanel)
+      .vm.$emit('prepareVerification', payload);
+    wrapper
+      .findComponent(WorkflowTaskPanel)
+      .vm.$emit('prepareVerification', payload);
+    await flushPromises();
+    expect(wrapper.text()).toContain('本次验证提示');
+
+    finishOld({ successful: true, message: '过期验证提示' });
+    await flushPromises();
+    expect(wrapper.text()).toContain('本次验证提示');
+    expect(wrapper.text()).not.toContain('过期验证提示');
     wrapper.unmount();
   });
 

@@ -38,7 +38,7 @@ function transformClientAppSubmit(
   values: Record<string, any>,
   editingRecord: null | Record<string, any>,
 ) {
-  const payload = {
+  const payload: Record<string, unknown> = {
     ...values,
     allowedIpList: normalizePatternListValue(values.allowedIpList),
     allowedPathPatterns: normalizePatternListValue(values.allowedPathPatterns),
@@ -212,15 +212,6 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       type: 'tags',
     },
     {
-      key: 'exInfo',
-      label: '扩展信息',
-      layoutGroup: 'extension',
-      layoutGroupTitle: '扩展信息',
-      layoutNewRow: true,
-      layoutOrder: 10,
-      type: 'json',
-    },
-    {
       key: 'orderCode',
       label: '排序代码',
       layoutGroup: 'business',
@@ -249,6 +240,15 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       type: 'switch',
       valueType: 'boolean',
       width: 110,
+    },
+    {
+      key: 'exInfo',
+      label: '扩展信息',
+      layoutGroup: 'extension',
+      layoutGroupTitle: '扩展信息',
+      layoutNewRow: true,
+      layoutOrder: 10,
+      type: 'json',
     },
     // 备注固定置于表单末尾，作为与访问白名单独立的补充说明区。
     {

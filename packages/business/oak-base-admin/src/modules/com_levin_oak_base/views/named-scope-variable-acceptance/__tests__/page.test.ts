@@ -24,7 +24,9 @@ describe('具名数据范围变量验收页', () => {
   it('提交后展示后端的原始参数、Header 与最终解析结果', async () => {
     const wrapper = mount(AcceptancePage);
     await flushPromises();
-    await wrapper.findAll('button')[2].trigger('click');
+    const submitButton = wrapper.findAll('button')[2];
+    if (!submitButton) throw new Error('缺少提交按钮');
+    await submitButton.trigger('click');
     await flushPromises();
 
     expect(api.oakBasePost).toHaveBeenCalledWith('/namedScopeVariableAcceptance/echo', expect.any(Object));

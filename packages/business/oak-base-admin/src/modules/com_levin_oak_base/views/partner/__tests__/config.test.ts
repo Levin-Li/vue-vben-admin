@@ -61,13 +61,17 @@ describe('partner page config', () => {
     const imageField = partnerPageCrudConfig.fields.find(
       (field) => field.key === 'identityImg',
     );
+    const formLabel = identityField?.formLabel;
+    const maxUploadCount = imageField?.maxUploadCount;
+    if (
+      typeof formLabel !== 'function' ||
+      typeof maxUploadCount !== 'function'
+    ) {
+      throw new TypeError('主体类型联动配置缺失');
+    }
 
-    expect(identityField?.formLabel?.({ subjectType: 'Person' })).toBe(
-      '身份证号',
-    );
-    expect(identityField?.formLabel?.({ subjectType: 'Legal' })).toBe(
-      '统一社会信用码',
-    );
+    expect(formLabel({ subjectType: 'Person' })).toBe('身份证号');
+    expect(formLabel({ subjectType: 'Legal' })).toBe('统一社会信用码');
     expect(
       identityField?.validator?.('11010519491231002X', {
         subjectType: 'Person',
@@ -84,8 +88,8 @@ describe('partner page config', () => {
       }),
     ).toBeUndefined();
     expect(imageField?.multiple).toBe(true);
-    expect(imageField?.maxUploadCount?.({ subjectType: 'Person' })).toBe(2);
-    expect(imageField?.maxUploadCount?.({ subjectType: 'Legal' })).toBe(1);
+    expect(maxUploadCount({ subjectType: 'Person' })).toBe(2);
+    expect(maxUploadCount({ subjectType: 'Legal' })).toBe(1);
   });
 
   it('按后端字段注解语义限制城市及收货地址行政编码层级', () => {

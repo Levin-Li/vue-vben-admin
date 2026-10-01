@@ -167,12 +167,6 @@ function showEmailReceivingResult(result?: DomainEmailReceivingStatus) {
   else message.warning(details.join('；') || '邮件接收 DNS 尚未就绪');
 }
 
-function canUseDomainProviderActions(record: Record<string, any>) {
-  return Boolean(
-    record?.id && hasDomainProvider(record) && isRealDomainName(record?.name),
-  );
-}
-
 function operationVisible(record: DomainRecord, operation: string) {
   const id = String(record?.id || '');
   if (!id) return false;
@@ -205,71 +199,6 @@ async function ensureOperationEnabled(record: DomainRecord, operation: string) {
     return false;
   }
   return true;
-}
-
-function hasDomainProvider(record: Record<string, any>) {
-  return Boolean(String(record?.providerName || '').trim());
-}
-
-function isRealDomainName(domain: unknown) {
-  const host = normalizeDomainHost(domain);
-
-  if (!host || host === 'localhost' || host.endsWith('.localhost')) {
-    return false;
-  }
-
-  if (isIpAddress(host)) {
-    return false;
-  }
-
-  if (host.length > 253 || host.startsWith('.') || host.endsWith('.')) {
-    return false;
-  }
-
-  const labels = host.split('.');
-  if (labels.length < 2) {
-    return false;
-  }
-
-  return (
-    /^[a-z]{2,63}$/.test(labels[labels.length - 1] || '') &&
-    labels.every((label) =>
-      /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label),
-    )
-  );
-}
-
-function normalizeDomainHost(domain: unknown) {
-  let host = String(domain || '')
-    .trim()
-    .toLowerCase();
-
-  try {
-    host = new URL(host.includes('://') ? host : `http://${host}`).hostname;
-  } catch {
-    host = host.split('/')[0] || '';
-  }
-
-  host = host.replace(/^\[(.*)\]$/, '$1');
-  return host.replace(/\.$/, '');
-}
-
-function isIpAddress(host: string) {
-  return isIpv4Address(host) || host.includes(':');
-}
-
-function isIpv4Address(host: string) {
-  const parts = host.split('.');
-  return (
-    parts.length === 4 &&
-    parts.every((part) => {
-      if (!/^\d{1,3}$/.test(part)) {
-        return false;
-      }
-      const value = Number(part);
-      return value >= 0 && value <= 255;
-    })
-  );
 }
 
 function filterSelectOption(input: string, option: any) {
@@ -374,17 +303,6 @@ function isDomainRenewDue(record: Record<string, any>) {
       getRenewBeforeMs(
         getTenantSiteVendorDomainRenewBeforeDays(record?.providerName),
       )
-  );
-}
-
-function canShowRenewDomain(record: Record<string, any>) {
-  return Boolean(
-    record?.id &&
-    hasDomainProvider(record) &&
-    isRealDomainName(record?.name) &&
-    isDomainRenewDue(record) &&
-    record.domainApplyStatus !== 'Applying' &&
-    record.domainApplyStatus !== 'Renewing',
   );
 }
 

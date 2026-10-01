@@ -91,6 +91,9 @@ describe('v3 树单源设计器', () => {
       props: { modelValue: definition },
     });
     await openGraph(wrapper);
+    expect(
+      wrapper.find('[data-flow-design] [aria-label="节点属性"]').exists(),
+    ).toBe(true);
     await wrapper.get('[data-node-id="userTask_1"]').trigger('click');
     await wrapper
       .findAll('label')
@@ -146,8 +149,13 @@ describe('v3 树单源设计器', () => {
               approverResolvers: {
                 departmentLead: {
                   title: '部门负责人',
+                  simulation: true,
                   permission: 'workflow:approver:resolve',
                   parameters: { level: { title: '层级', type: 'integer' } },
+                },
+                unsafeLead: {
+                  title: '未隔离负责人',
+                  simulation: false,
                 },
               },
             },
@@ -213,6 +221,67 @@ describe('v3 树单源设计器', () => {
     expect(
       (select?.element as HTMLSelectElement).selectedOptions[0]?.value,
     ).toBe('Sms');
+  });
+
+  it('结果动作下拉只展示当前契约可隔离模拟的操作', async () => {
+    const definition = createTreeDefinition('review', '审核');
+    definition.businessBinding = {
+      businessType: 'request',
+      contractVersion: 2,
+      identityField: 'id',
+      titleField: 'title',
+    };
+    definition.startPolicy = {
+      mode: 'manual',
+      condition: { validator: { key: 'ready' } },
+    };
+    const wrapper = mount(WorkflowDesigner, {
+      props: {
+        modelValue: definition,
+        options: {
+          businessTypes: [
+            {
+              businessType: 'request',
+              contractVersion: 2,
+              title: '申请',
+              fields: {},
+              actions: {
+                apply: { title: '回写结果', simulation: true },
+                unsafe: { title: '未隔离操作', simulation: false },
+              },
+              validators: {
+                ready: { title: '资料完整', simulation: true },
+                unsafe: { title: '未隔离校验', simulation: false },
+              },
+            },
+          ],
+        },
+      },
+    });
+    await wrapper
+      .findAll('nav button')
+      .find((item) => item.text() === '结果处理')
+      ?.trigger('click');
+
+    const select = wrapper
+      .findAll('label')
+      .find((item) => item.text().startsWith('业务操作'))
+      ?.get('select');
+    expect(select?.findAll('option').map((option) => option.text())).toEqual([
+      '选择公开操作',
+      '回写结果',
+    ]);
+
+    await wrapper
+      .findAll('nav button')
+      .find((item) => item.text() === '启动与依赖')
+      ?.trigger('click');
+    expect(
+      wrapper
+        .get('[aria-label="业务校验器"]')
+        .findAll('option')
+        .map((option) => option.text()),
+    ).toEqual(['选择只读校验器', '资料完整']);
   });
 
   it('升级候选组使用授权目录展示名，树中仅保存受控组值', async () => {

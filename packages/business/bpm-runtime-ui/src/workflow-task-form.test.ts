@@ -68,6 +68,34 @@ describe('任务动作提交契约', () => {
     expect(validateWorkflowAction(current, approve, values)).toEqual([]);
   });
 
+  it('按服务端声明的类型与选项值校验局部表单，不把非法值送入办理命令', () => {
+    const current = task();
+    current.formItems?.push({
+      key: 'decision',
+      label: '处理方式',
+      type: 'select',
+      options: [
+        { label: '同意', value: 'yes' },
+        { label: '拒绝', value: 'no' },
+      ],
+      required: true,
+    });
+    expect(
+      validateWorkflowAction(current, approve, {
+        formData: { amount: '0', confirmed: 'false', decision: 'other' },
+      }),
+    ).toEqual([
+      '金额必须是数字',
+      '是否确认必须是是或否',
+      '处理方式不在可选范围内',
+    ]);
+    expect(
+      validateWorkflowAction(current, approve, {
+        formData: { amount: 0, confirmed: false, decision: 'yes' },
+      }),
+    ).toEqual([]);
+  });
+
   it('拒绝需要意见，退回仅允许服务端列出的目标', () => {
     const reject = { code: 'reject', label: '拒绝', requiresComment: true };
     expect(validateWorkflowAction(task(reject), reject, values)).toContain(
@@ -133,6 +161,13 @@ describe('任务动作提交契约', () => {
         addSignPosition: 'before',
       }),
     ).toEqual([]);
+    expect(
+      validateWorkflowAction(task(action), action, {
+        ...values,
+        targetUserIds: ['u1', 'u1'],
+        addSignPosition: 'before',
+      }),
+    ).toContain('加签人员不能重复');
     expect(workflowActionUnavailable({ code: 'transfer', label: '转办' })).toBe(
       '服务端未提供可选处理人',
     );

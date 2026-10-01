@@ -21,7 +21,9 @@ describe('electronicInvoicePageCrudConfig', () => {
         amountWithoutTax: 100,
         amountWithTax: 107,
         taxAmount: 6,
-      }),
+        },
+        null,
+      ),
     ).rejects.toThrow('不含税金额与税额之和必须等于价税合计');
   });
 
@@ -34,7 +36,7 @@ describe('electronicInvoicePageCrudConfig', () => {
     };
 
     await expect(
-      electronicInvoicePageCrudConfig.transformSubmit?.(values),
+      electronicInvoicePageCrudConfig.transformSubmit?.(values, null),
     ).resolves.toEqual(values);
   });
 

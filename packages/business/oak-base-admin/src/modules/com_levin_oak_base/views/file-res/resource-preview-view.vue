@@ -331,7 +331,7 @@ function getEditorTitle() {
 
 function buildEditorPayload() {
   const tagList = normalizeTagInput(editorForm.tagListInput);
-  const payload: FileResourceRecord = {
+  const payload: FileResourceRecord & { autoForceUpdateField?: boolean } = {
     category: editorForm.category || undefined,
     coverUrl: editorForm.coverUrl || undefined,
     mimeType: editorForm.mimeType || undefined,

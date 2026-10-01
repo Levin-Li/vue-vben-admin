@@ -222,7 +222,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
   modalWidth: 1000,
   title: '租户站点管理',
   transformSubmit: async (values, record) => {
-    const nextValues = transformSiteInfoSubmit(values, record);
+    const nextValues = transformSiteInfoSubmit(values, record ?? undefined);
     nextValues.domain = String(nextValues.domain || '').trim();
 
     if (!nextValues.domain) {

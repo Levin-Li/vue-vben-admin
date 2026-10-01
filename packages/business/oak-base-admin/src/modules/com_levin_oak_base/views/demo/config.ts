@@ -139,7 +139,16 @@ export const pageMeta = {
   description: '维护 Demo 样例数据。',
 } as const;
 
-export const demoPageCrudConfig: CrudPageConfig = {
+// 四级示例显式记录父组；公共表单仍按 CrudPageConfig 消费这些配置。
+type NestedDemoPageConfig = Omit<CrudPageConfig, 'complexGroups'> & {
+  complexGroups: Array<
+    NonNullable<CrudPageConfig['complexGroups']>[number] & {
+      parentKey?: string;
+    }
+  >;
+};
+
+export const demoPageCrudConfig: NestedDemoPageConfig = {
   apiBase: '/Demo',
   domainObject: true,
   apiService: demoService,

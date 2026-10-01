@@ -36,8 +36,11 @@ describe('菜单参数编辑器回退', () => {
     });
     const buttons = wrapper.findAllComponents(Button);
 
-    expect(buttons[0].props('disabled')).toBe(true);
-    buttons[1].vm.$emit('click');
+    const formButton = buttons[0];
+    const extensionButton = buttons[1];
+    if (!formButton || !extensionButton) throw new Error('缺少查询编辑按钮');
+    expect(formButton.props('disabled')).toBe(true);
+    extensionButton.vm.$emit('click');
     await flushPromises();
 
     expect(wrapper.findComponent(Modal).props('title')).toBe('扩展查询条件');
