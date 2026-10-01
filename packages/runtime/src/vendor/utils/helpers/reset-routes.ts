@@ -42,4 +42,18 @@ export function resetStaticRoutes(
       removeRoute(name);
     }
   });
+
+  // Vue Router 删除匹配器记录后仍保留父路由 children 中的原始配置。
+  // 后续重新注册根路由会把这些旧配置带回，必须同步清除动态子项。
+  getRoutes().forEach((route) => {
+    if (
+      route.name &&
+      staticRouteNames.includes(route.name) &&
+      route.children?.length
+    ) {
+      route.children = route.children.filter(
+        (child) => child.name && staticRouteNames.includes(child.name),
+      );
+    }
+  });
 }

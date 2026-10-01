@@ -25,20 +25,26 @@ export function findMatchingCrudChoiceOption(
   value: unknown,
   options: readonly SelectOption[],
 ) {
-  const exactMatch = options.find((option) => option.value === value);
-  if (exactMatch) {
-    return exactMatch;
+  // 关联组织等树形选项需要递归查找，列表中的 ID 可能位于任意子层级。
+  const normalizedValue = String(value);
+  const pending = [...options];
+
+  for (let index = 0; index < pending.length; index++) {
+    const option = pending[index];
+    if (!option) continue;
+    if (option.children?.length) pending.push(...option.children);
   }
 
-  const normalizedValue = String(value);
-
-  return options.find((option) => {
-    const enumCode = option.ordinal ?? option.code;
-    return (
-      String(option.value) === normalizedValue ||
-      (enumCode !== undefined && String(enumCode) === normalizedValue)
-    );
-  });
+  return (
+    pending.find((option) => option.value === value) ||
+    pending.find((option) => {
+      const enumCode = option.ordinal ?? option.code;
+      return (
+        String(option.value) === normalizedValue ||
+        (enumCode !== undefined && String(enumCode) === normalizedValue)
+      );
+    })
+  );
 }
 
 function isSameCrudChoiceValue(left: unknown, right: unknown): boolean {

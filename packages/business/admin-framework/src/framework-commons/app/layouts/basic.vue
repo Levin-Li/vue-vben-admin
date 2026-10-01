@@ -510,7 +510,7 @@ async function handleLoadAdminUiPreferences() {
   loadedAdminUiSetting.value = null;
   try {
     const resolution = await loadAdminUiPreferencesSetting();
-    // 加载设置仅使用服务端返回的匹配范围，空字段不得沿用打开弹窗前的页面上下文。
+    // 加载设置仅回填命中记录保存的范围，空字段不得取响应头的运行时上下文。
     Object.keys(adminUiPreferencesScope).forEach((key) => {
       delete adminUiPreferencesScope[key as keyof AdminUiPreferencesScope];
     });
@@ -519,7 +519,7 @@ async function handleLoadAdminUiPreferences() {
       resolveAdminUiPreferencesUploadScope(resolution),
     );
     const options = await loadAdminUiPreferencesScopeOptions(
-      resolution.setting ? resolution.scope.tenantId : undefined,
+      resolution.setting?.tenantId,
     );
     Object.assign(adminUiPreferencesScopeOptions, options);
     if (resolution.setting) {

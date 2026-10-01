@@ -96,6 +96,7 @@ const props = defineProps<{
   modelValue?: CrudPageDisplayConfig;
   open: boolean;
   saving?: boolean;
+  scopeLoadVersion?: number;
   settingRecord?: null | UiSettingRuntimeRecord;
   showOperationColumn?: boolean;
   scriptTestContext?: Record<string, any>;
@@ -1665,6 +1666,16 @@ watch(
     initialSnapshot.value = currentSnapshot();
     previewExpanded.value = false;
     void refreshPreviewOverflow();
+  },
+);
+
+watch(
+  () => props.scopeLoadVersion,
+  () => {
+    if (!props.open) return;
+    // 加载完成时以记录范围整体替换当前表单，空字段同时清除旧值。
+    scope.value = normalizeScope(props.initialScope);
+    void loadScopeOptions();
   },
 );
 

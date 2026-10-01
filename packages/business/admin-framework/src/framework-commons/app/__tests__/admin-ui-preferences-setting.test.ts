@@ -88,7 +88,7 @@ describe('界面偏好设置上传', () => {
     });
   });
 
-  it('仅在命中设置记录时回填上传范围', async () => {
+  it('仅回填命中记录实际保存的上传范围', async () => {
     const { resolveAdminUiPreferencesUploadScope } =
       await import('../admin-ui-preferences-setting');
 
@@ -103,7 +103,7 @@ describe('界面偏好设置上传', () => {
         scope: { domain: '127.0.0.1', tenantId: 'tenant-1' },
         setting: { code: '界面偏好设置' },
       }),
-    ).toEqual({ domain: '127.0.0.1', tenantId: 'tenant-1' });
+    ).toEqual({});
   });
 
   it('唯一精确候选只更新 ID、乐观锁和配置内容', async () => {

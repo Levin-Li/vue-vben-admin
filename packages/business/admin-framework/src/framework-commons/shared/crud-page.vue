@@ -101,6 +101,7 @@ import {
   type UiSettingRuntimeRecord,
 } from '../app/api/ui-setting-runtime';
 import { saveUiSettingWithCandidates } from '../app/api/ui-setting-candidate-save';
+import { resolveUiSettingRecordScope } from '../app/api/ui-setting-record-scope';
 import { getCurrentTenantSiteInfo } from '../app/tenant-site-admin-ui-base-setting';
 import { mergeFixedQuery, parseMenuFixedQuery } from '../menu-fixed-query';
 import { useRbacAccess } from '../rbac-access';
@@ -500,6 +501,10 @@ const uploadPreviewUrl = ref('');
 const optionState = reactive<Record<string, any[]>>({});
 const optionLoadingState = reactive<Record<string, boolean>>({});
 const optionLoadedState = reactive<Record<string, boolean>>({});
+const tableDisplayOptionState = reactive<Record<string, any[]>>({});
+const tableDisplayOptionLoadingState = reactive<Record<string, boolean>>({});
+const tableDisplayOptionLoadedState = reactive<Record<string, boolean>>({});
+const tableDisplayOptionsReady = ref(false);
 const areaCascaderRestrictedOptions = reactive<Record<string, any[]>>({});
 const optionRequestVersions = reactive<Record<string, number>>({});
 const quickSwitchLoadingState = reactive<Record<string, boolean>>({});
@@ -563,6 +568,7 @@ const pageDisplayHeaderMap = computed(
 );
 const autoSearchReady = ref(false);
 const pageDisplaySettingRecord = ref<null | UiSettingRuntimeRecord>(null);
+const pageDisplayScopeLoadVersion = ref(0);
 // 抽屉记录独立于运行时匹配结果，避免上传到其它范围后展示错误目标。
 const pageDisplayTitleRecord = ref<null | UiSettingRuntimeRecord>(null);
 type PageDisplaySettingCandidate = UiSettingRuntimeRecord;
@@ -573,21 +579,7 @@ const pageDisplayScope = ref<{
   tenantId?: string;
   userCategory?: string;
   userType?: string;
-}>({
-  domain: typeof window === 'undefined' ? undefined : window.location.hostname,
-  tenantId: (userStore.userInfo as Record<string, any> | undefined)?.tenantId,
-});
-const pageDisplayInitialScope = computed(() => {
-  const setting = pageDisplaySettingRecord.value;
-  return {
-    domain: setting?.domain || undefined,
-    orgCategory: setting?.orgCategory || undefined,
-    orgType: setting?.orgType || undefined,
-    tenantId: setting?.tenantId || undefined,
-    userCategory: setting?.userCategory || undefined,
-    userType: setting?.userType || undefined,
-  };
-});
+}>({});
 const pageDisplayContextKey = computed(() => {
   const userInfo = userStore.userInfo as Record<string, any> | undefined;
   return resolvePageDisplayContextKey(
@@ -601,6 +593,8 @@ async function loadPageDisplaySettings(force = false, updateTitle = false) {
   const code = pageDisplaySettingCode.value;
   if (!code) {
     pageDisplaySettingRecord.value = null;
+    pageDisplayScope.value = {};
+    pageDisplayScopeLoadVersion.value += 1;
     return;
   }
 
@@ -613,8 +607,10 @@ async function loadPageDisplaySettings(force = false, updateTitle = false) {
     const setting = resolution.setting;
     pageDisplaySettingRecord.value = setting;
     if (updateTitle) pageDisplayTitleRecord.value = setting;
-    // 未命中时不将运行时上下文伪装成可保存的设置范围。
-    pageDisplayScope.value = setting ? { ...resolution.scope } : {};
+    // 保存范围只使用命中记录字段；响应头里的租户和域名仅用于运行时解析。
+    pageDisplayScope.value = resolveUiSettingRecordScope(resolution);
+    // 通知已打开的两套设置抽屉用本次记录范围整体替换旧表单值。
+    pageDisplayScopeLoadVersion.value += 1;
     pageDisplayConfig.value = resolveCrudPageDisplayDefaults(
       setting?.valueContent?.pageDisplay as CrudPageDisplayConfig | undefined,
     );
@@ -622,6 +618,12 @@ async function loadPageDisplaySettings(force = false, updateTitle = false) {
       message.warning('无适配设置');
     }
   } catch (error) {
+    if (force) {
+      // 手动加载失败不保留上一次可上传的范围。
+      pageDisplaySettingRecord.value = null;
+      pageDisplayScope.value = {};
+      pageDisplayScopeLoadVersion.value += 1;
+    }
     console.warn('加载页面展示设置失败，将使用页面默认配置。', error);
   }
 }
@@ -3397,6 +3399,34 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
   }
 }
 
+async function loadTableDisplayOptions(field: CrudFieldConfig) {
+  // 仅为当前展示的列加载一次选项；表格缓存独立于下拉搜索结果。
+  const loader = field.loadOptions || getDefaultOptionsLoader(field);
+  if (
+    !loader ||
+    tableDisplayOptionLoadedState[field.key] ||
+    tableDisplayOptionLoadingState[field.key]
+  ) {
+    return;
+  }
+
+  tableDisplayOptionLoadingState[field.key] = true;
+
+  try {
+    const options = await loader('');
+    tableDisplayOptionState[field.key] = normalizeCrudChoiceOptions(
+      field,
+      options,
+    );
+    tableDisplayOptionLoadedState[field.key] = true;
+  } catch (error) {
+    console.error(error);
+    message.warning(`${field.label}选项加载失败`);
+  } finally {
+    tableDisplayOptionLoadingState[field.key] = false;
+  }
+}
+
 function buildSortParams() {
   if (!tableSorterState.field || !tableSorterState.order) {
     return {};
@@ -5431,6 +5461,17 @@ function getFieldOptions(
   );
 }
 
+function getTableDisplayFieldOptions(field: CrudFieldConfig) {
+  return tableDisplayOptionState[field.key] || getFieldOptions(field);
+}
+
+function isTableDisplayOptionLoading(field: CrudFieldConfig) {
+  return (
+    tableDisplayOptionLoadingState[field.key] &&
+    !tableDisplayOptionLoadedState[field.key]
+  );
+}
+
 function isAreaCascaderLevelRestricted(
   field: CrudFieldConfig,
   state: GenericRecord,
@@ -6026,7 +6067,9 @@ function formatCellValue(field: CrudFieldConfig, value: any) {
     }
   }
 
-  const options = getFieldOptions(field);
+  if (isTableDisplayOptionLoading(field)) return '加载中…';
+
+  const options = getTableDisplayFieldOptions(field);
   const matched = findMatchingCrudChoiceOption(field, value, options);
 
   if (matched) {
@@ -6087,11 +6130,13 @@ function formatNumericValue(field: CrudFieldConfig | undefined, value: any) {
     return '-';
   }
 
+  if (field && isTableDisplayOptionLoading(field)) return '加载中…';
+
   if (field) {
     const matched = findMatchingCrudChoiceOption(
       field,
       value,
-      getFieldOptions(field),
+      getTableDisplayFieldOptions(field),
     );
     if (matched) {
       return String(matched.label);
@@ -6273,14 +6318,16 @@ function getTagValues(value: any) {
 
 function getDisplayTagValues(field: CrudFieldConfig | undefined, value: any) {
   const values = getTagValues(value);
-  if (!field) {
+  if (!field || values.length === 0) {
     return values;
   }
 
-  const options = getFieldOptions(field);
+  if (isTableDisplayOptionLoading(field)) return ['加载中…'];
+
+  const options = getTableDisplayFieldOptions(field);
   return values.map(
     (value) =>
-      options.find((option) => String(option.value) === value)?.label || value,
+      findMatchingCrudChoiceOption(field, value, options)?.label || value,
   );
 }
 
@@ -6915,6 +6962,7 @@ onMounted(async () => {
   await loadPageDisplaySettings();
   loadTableColumnPreference();
   applyPageDisplayQueryDefaults();
+  tableDisplayOptionsReady.value = true;
   await loadList();
   autoSearchReady.value = true;
   await nextTick();
@@ -7006,6 +7054,17 @@ watch(canCustomizeTableColumnsLocally, () => {
   loadTableColumnPreference();
   updateTableScrollY();
 });
+
+watch(
+  [tableDisplayOptionsReady, visibleTableFields],
+  ([ready, fields]) => {
+    if (!ready) return;
+
+    // 只在列实际展示时请求其选项；隐藏列与本次列表请求互不等待。
+    for (const field of fields) void loadTableDisplayOptions(field);
+  },
+  { flush: 'sync' },
+);
 </script>
 
 <template>
@@ -8903,7 +8962,8 @@ watch(canCustomizeTableColumnsLocally, () => {
       :fields="effectiveFields"
       :form-elements="formElementRegistry.elements"
       :detail-fields="detailSettingsFields"
-      :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
+      :initial-scope="pageDisplayScope"
+      :scope-load-version="pageDisplayScopeLoadVersion"
       :model-value="pageDisplayConfig"
       :saving="pageDisplaySettingSaving"
       :setting-record="pageDisplayTitleRecord"
@@ -8922,7 +8982,8 @@ watch(canCustomizeTableColumnsLocally, () => {
       :fields="effectiveFields"
       :form-elements="formElementRegistry.elements"
       :detail-fields="detailSettingsFields"
-      :initial-scope="pageDisplaySettingRecord || pageDisplayInitialScope"
+      :initial-scope="pageDisplayScope"
+      :scope-load-version="pageDisplayScopeLoadVersion"
       :model-value="pageDisplayConfig"
       :saving="pageDisplaySettingSaving"
       :setting-record="pageDisplayTitleRecord"
