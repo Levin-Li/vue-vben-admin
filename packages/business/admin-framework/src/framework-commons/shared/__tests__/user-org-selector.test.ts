@@ -1,5 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { encodeUserOrgSelectorKey } from '../user-org-selector-utils';
+import UserOrgSelector from '../user-org-selector.vue';
 
 const { fetchCrudList } = vi.hoisted(() => ({
   fetchCrudList: vi.fn(),
@@ -31,6 +35,19 @@ vi.mock('ant-design-vue', () => ({
     ],
     template: '<div data-test="tree-select"></div>',
   },
+  Tree: {
+    name: 'Tree',
+    props: [
+      'treeData',
+      'selectedKeys',
+      'checkedKeys',
+      'expandedKeys',
+      'checkable',
+      'loadData',
+    ],
+    template:
+      '<div data-test="inline-tree"><slot name="title" v-bind="treeData[0] || {}" /></div>',
+  },
 }));
 
 vi.mock('../../api', () => ({
@@ -42,9 +59,6 @@ vi.mock('../../app/api/rbac-service', () => ({
     fetchAuthorizedOrgTree: vi.fn(async () => []),
   },
 }));
-
-import UserOrgSelector from '../user-org-selector.vue';
-import { encodeUserOrgSelectorKey } from '../user-org-selector-utils';
 
 const treeSelectStub = {
   name: 'TreeSelect',
@@ -75,12 +89,27 @@ const iconifyIconStub = {
   template: '<i :data-icon="icon" data-test="node-icon"></i>',
 };
 
+const treeStub = {
+  name: 'Tree',
+  props: [
+    'treeData',
+    'selectedKeys',
+    'checkedKeys',
+    'expandedKeys',
+    'checkable',
+    'loadData',
+  ],
+  template:
+    '<div data-test="inline-tree"><slot name="title" v-bind="treeData[0] || {}" /></div>',
+};
+
 function mountSelector(props: Record<string, unknown>) {
   return mount(UserOrgSelector, {
     global: {
       stubs: {
         IconifyIcon: iconifyIconStub,
         TreeSelect: treeSelectStub,
+        Tree: treeStub,
       },
     },
     props,
@@ -88,11 +117,13 @@ function mountSelector(props: Record<string, unknown>) {
 }
 
 async function openSelector(wrapper: ReturnType<typeof mountSelector>) {
-  wrapper.findComponent(treeSelectStub).vm.$emit('dropdown-visible-change', true);
+  wrapper
+    .findComponent(treeSelectStub)
+    .vm.$emit('dropdown-visible-change', true);
   await flushPromises();
 }
 
-describe('UserOrgSelector', () => {
+describe('userOrgSelector', () => {
   beforeEach(() => {
     fetchCrudList.mockReset();
     fetchCrudList.mockResolvedValue({ items: [] });
@@ -110,6 +141,58 @@ describe('UserOrgSelector', () => {
 
     await openSelector(wrapper);
     expect(orgLoadApi).toHaveBeenCalledTimes(1);
+  });
+
+  it('手机内嵌模式直接显示搜索与候选树，并沿用原有选中记录', async () => {
+    const orgLoadApi = vi.fn(async () => [{ id: 'org-1', name: '总部' }]);
+    const wrapper = mountSelector({ inline: true, orgLoadApi });
+
+    await flushPromises();
+
+    expect(orgLoadApi).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('[data-test="tree-select"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="inline-tree"]').exists()).toBe(true);
+
+    const search = wrapper.get('input[type="search"]');
+    await search.setValue('总部');
+    expect(wrapper.findComponent(treeStub).props('treeData')).toEqual([
+      expect.objectContaining({ id: 'org-1' }),
+    ]);
+
+    wrapper
+      .findComponent(treeStub)
+      .vm.$emit('select', [encodeUserOrgSelectorKey('org', 'org-1')]);
+    await flushPromises();
+    expect(wrapper.emitted('update:selectedRecords')?.at(-1)?.[0]).toEqual([
+      expect.objectContaining({ id: 'org-1', kind: 'org' }),
+    ]);
+  });
+
+  it('手机内嵌多选仍遵守选择数量上限', async () => {
+    const wrapper = mountSelector({
+      inline: true,
+      maxSelectCount: 2,
+      multiple: true,
+      orgLoadApi: vi.fn(async () => [
+        { id: 'org-1', name: '组织一' },
+        { id: 'org-2', name: '组织二' },
+        { id: 'org-3', name: '组织三' },
+      ]),
+    });
+    await flushPromises();
+
+    wrapper
+      .findComponent(treeStub)
+      .vm.$emit('check', [
+        encodeUserOrgSelectorKey('org', 'org-1'),
+        encodeUserOrgSelectorKey('org', 'org-2'),
+        encodeUserOrgSelectorKey('org', 'org-3'),
+      ]);
+    await flushPromises();
+
+    expect(wrapper.emitted('update:selectedRecords')?.at(-1)?.[0]).toHaveLength(
+      2,
+    );
   });
 
   it('keeps unloaded lazy org nodes expandable and marks empty nodes as leaf after load attempt', async () => {

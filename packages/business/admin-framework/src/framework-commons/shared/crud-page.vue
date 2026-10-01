@@ -3,6 +3,7 @@ import type { TableColumnsType, UploadFile } from 'ant-design-vue';
 
 import type { NormalizedCrudAction } from './crud-action-model';
 import type { SearchFieldItem } from './crud-query-items';
+import type { CompactTableExpandedSide } from './crud-table-columns';
 import type {
   CrudExportTemplateConfig,
   CrudExportTemplateContext,
@@ -274,7 +275,10 @@ import {
   getTableColumnPreferenceStorageKey,
   readTableColumnPreference,
 } from './crud-table-column-preference';
-import { normalizeLeftFixedTableColumns } from './crud-table-columns';
+import {
+  normalizeLeftFixedTableColumns,
+  resolveCompactTableColumnFixed,
+} from './crud-table-columns';
 import {
   buildCrudTemplateScopePayload,
   canShowCrudTemplateDelete,
@@ -523,6 +527,10 @@ const listSectionRef = ref<HTMLElement | null>(null);
 const listToolbarRef = ref<HTMLElement | null>(null);
 const tableScrollY = ref(360);
 const tableAvailableWidth = ref(0);
+const compactExpandedFixedSide = ref<CompactTableExpandedSide>(null);
+const isCompactTable = computed(
+  () => tableAvailableWidth.value > 0 && tableAvailableWidth.value < 640,
+);
 const tableFullscreen = ref(false);
 const activeListTableKey = ref('');
 const listTableTabsCollapsed = ref(true);
@@ -1612,6 +1620,22 @@ const orderedVisibleTableFields = computed(() => {
   return [...leftFixedFields, ...normalFields, ...rightFixedFields];
 });
 
+const hasLeftFixedGroup = computed(() =>
+  orderedVisibleTableFields.value.some(
+    (field) => getEffectiveTableColumnFixed(field) === 'left',
+  ),
+);
+
+watch(isCompactTable, (compact) => {
+  // 离开紧凑布局时清除临时收展状态，不改用户保存的固定列配置。
+  if (!compact) compactExpandedFixedSide.value = null;
+});
+
+function toggleCompactFixedSide(side: Exclude<CompactTableExpandedSide, null>) {
+  compactExpandedFixedSide.value =
+    compactExpandedFixedSide.value === side ? null : side;
+}
+
 function isExportableField(field: CrudFieldConfig) {
   return (
     isFieldVisible(field) &&
@@ -1939,11 +1963,19 @@ const hasAvailableOperationColumn = computed(() =>
     ),
   }),
 );
-const showActionColumn = computed(
+const hasConfiguredActionColumn = computed(
   () =>
     hasAvailableOperationColumn.value &&
     isPageDisplayHeaderVisible(CRUD_OPERATION_COLUMN_KEY),
 );
+const hasRightFixedGroup = computed(
+  () =>
+    hasConfiguredActionColumn.value ||
+    orderedVisibleTableFields.value.some(
+      (field) => getEffectiveTableColumnFixed(field) === 'right',
+    ),
+);
+const showActionColumn = computed(() => hasConfiguredActionColumn.value);
 
 const tableColumns = computed<TableColumnsType>(() => {
   const defaultMaxColumnWidth = Number(
@@ -1988,7 +2020,11 @@ const tableColumns = computed<TableColumnsType>(() => {
     (field, index) => ({
       align: isNumericField(field) ? 'right' : undefined,
       dataIndex: field.key,
-      fixed: getEffectiveTableColumnFixed(field),
+      fixed: resolveCompactTableColumnFixed(
+        getEffectiveTableColumnFixed(field),
+        isCompactTable.value,
+        compactExpandedFixedSide.value,
+      ),
       key: field.key,
       sorter: isTableFieldSortable(field),
       sortField: getTableSortField(field),
@@ -2027,7 +2063,11 @@ const tableColumns = computed<TableColumnsType>(() => {
   if (showActionColumn.value) {
     columns.push({
       // 操作入口始终贴靠列表右侧，避免多列左固定调整后操作列落入普通滚动区。
-      fixed: 'right',
+      fixed: resolveCompactTableColumnFixed(
+        'right',
+        isCompactTable.value,
+        compactExpandedFixedSide.value,
+      ),
       key: CRUD_OPERATION_COLUMN_KEY,
       title: actionHeader?.title || '操作',
       width: actionWidth,
@@ -2559,8 +2599,12 @@ function updateTableScrollY() {
     }
 
     const table = section.querySelector('.vben-crud-table');
+    // 表格 max-content 可能把容器撑出视口，紧凑判断仍以实际可见宽度为准。
+    const viewportWidth =
+      window.innerWidth - Math.max(0, section.getBoundingClientRect().left);
     tableAvailableWidth.value = Math.max(
-      section.clientWidth - TABLE_SECTION_HORIZONTAL_PADDING,
+      Math.min(section.clientWidth, viewportWidth) -
+        TABLE_SECTION_HORIZONTAL_PADDING,
       0,
     );
     if (listHeightPolicy.value.showAllPageRows) {
@@ -7490,6 +7534,41 @@ watch(
               <Plus class="size-4" />
               新增
             </Button>
+            <!-- 紧凑宽度下用可见文字切换临时固定状态。 -->
+            <Button
+              v-if="isCompactTable && hasLeftFixedGroup"
+              :aria-label="
+                compactExpandedFixedSide === 'left'
+                  ? '收起左固定列'
+                  : '展开左固定列'
+              "
+              :aria-pressed="compactExpandedFixedSide === 'left'"
+              data-testid="compact-left-fixed-toggle"
+              size="small"
+              :type="
+                compactExpandedFixedSide === 'left' ? 'primary' : 'default'
+              "
+              @click="toggleCompactFixedSide('left')"
+            >
+              左固定
+            </Button>
+            <Button
+              v-if="isCompactTable && hasRightFixedGroup"
+              :aria-label="
+                compactExpandedFixedSide === 'right'
+                  ? '收起右固定列'
+                  : '展开右固定列'
+              "
+              :aria-pressed="compactExpandedFixedSide === 'right'"
+              data-testid="compact-right-fixed-toggle"
+              size="small"
+              :type="
+                compactExpandedFixedSide === 'right' ? 'primary' : 'default'
+              "
+              @click="toggleCompactFixedSide('right')"
+            >
+              右固定
+            </Button>
             <slot
               name="toolbar-extra"
               :is-list-operation-visible="isListOperationVisible"
@@ -9007,6 +9086,14 @@ watch(
   min-width: 0;
   min-height: 0;
   height: 100%;
+}
+
+@media (max-width: 640px) {
+  .vben-crud-page {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
 }
 
 .vben-crud-page--all-page-rows {
