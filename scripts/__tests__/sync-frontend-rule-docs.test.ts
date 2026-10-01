@@ -116,4 +116,22 @@ describe('published reference documents', () => {
       }),
     ).toThrow('发布文档未同步');
   });
+  it('keeps the shared bootstrap guide discoverable in the published framework package', () => {
+    const options = fixture();
+    writeFileSync(
+      join(options.packageRoot, 'package.json'),
+      JSON.stringify({ name: '@levin/admin-framework', version: '1.0.0' }),
+    );
+    mkdirSync(join(options.packageRoot, 'docs'), { recursive: true });
+    writeFileSync(
+      join(options.packageRoot, 'docs/admin-bootstrap.md'),
+      '# 公共启动入口',
+    );
+
+    syncPackageDocuments(options.packageRoot, options);
+
+    expect(
+      readFileSync(join(options.packageRoot, 'AGENTS.md'), 'utf8'),
+    ).toContain('[docs/admin-bootstrap.md](docs/admin-bootstrap.md)');
+  });
 });

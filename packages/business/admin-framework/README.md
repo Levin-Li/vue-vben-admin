@@ -37,6 +37,8 @@ configureAdminApplication({
 
 完整第三方使用手册见 `src/framework-commons/docs/第三方用户手册.md`。发布包会携带 `src`，构建后的 `dist/framework-commons/docs/第三方用户手册.md` 也会包含同一份手册，第三方项目可在安装后的 `node_modules/@levin/admin-framework` 下查看。
 
+业务入口应用应通过公共入口启动，步骤与验证方法见[管理端公共启动入口](docs/admin-bootstrap.md)。
+
 组件专用文档位于包根 `docs/components/`，例如 [UserOrgSelector 用户与组织选择器](docs/components/user-org-selector.md)。该目录随 npm tarball 发布，适合第三方项目直接阅读，无需依赖 `src` 或 `dist` 的构建布局。
 
 全局选中记录、组织 ID、用户 ID 和变化监听的用法见[全局组织与用户选择器：选中状态使用说明](docs/global-user-org-context.md)；请求 Header、显式参数优先和后端授权边界见[全局选择器 Header 与授权契约](docs/global-selector-header-contract.md)。

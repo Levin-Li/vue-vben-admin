@@ -113,7 +113,7 @@ export function syncPackageDocuments(
     resolve(root, 'docs/release/MODULE-DEVELOPMENT-STANDARD.md'),
   );
   const usageDocument = manifest.name === '@levin/admin-framework'
-    ? '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)。'
+    ? '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)；业务应用公共启动入口及界面偏好加载见 [docs/admin-bootstrap.md](docs/admin-bootstrap.md)。'
     : manifest.name === '@levin/oak-base-admin'
       ? '具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。'
       : existsSync(resolve(docs, '聚合包使用与迁移指南.md'))
