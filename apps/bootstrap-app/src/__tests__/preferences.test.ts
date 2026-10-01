@@ -7,7 +7,7 @@ describe('bootstrap application preferences', () => {
     expect(overridesPreferences.app?.defaultHomePath).toBe('/clob/V1/index');
   });
 
-  it('uses the light theme by default', () => {
-    expect(overridesPreferences.theme?.mode).toBe('light');
+  it('主题模式使用公共偏好默认值，不在启动应用重复覆盖', () => {
+    expect(overridesPreferences.theme).toBeUndefined();
   });
 });
