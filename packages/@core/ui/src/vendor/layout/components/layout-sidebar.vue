@@ -377,15 +377,7 @@ const collapseStyle = computed((): CSSProperties => {
 });
 
 function calcMenuWidthStyle(isHiddenDom: boolean): CSSProperties {
-  const {
-    extraWidth,
-    extraGap,
-    isSidebarMixed,
-    marginLeft,
-    marginRight,
-    show,
-    width,
-  } = props;
+  const { extraWidth, extraGap, marginLeft, marginRight, show, width } = props;
 
   let widthValue = width === 0 ? '0px' : `${width}px`;
 
@@ -495,7 +487,7 @@ function handleMouseleave() {
     ref="asideRef"
     :class="[theme]"
     :style="extraStyle"
-    class="layout-sidebar-extra fixed top-0 overflow-hidden bg-sidebar transition-all duration-200"
+    class="layout-sidebar-extra bg-sidebar fixed top-0 overflow-hidden transition-all duration-200"
   >
     <SidebarCollapseButton
       v-if="isSidebarMixed && expandOnHover"

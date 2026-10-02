@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { SupportedLanguagesType } from '@vben/runtime/locales';
-
 import { SUPPORT_LANGUAGES } from '@vben/runtime/constants';
 import { Languages } from '@vben/runtime/icons';
 import { loadLocaleMessages } from '@vben/runtime/locales';
-import { preferences, updatePreferences } from '@vben-core/foundation/preferences';
 
+import {
+  preferences,
+  updatePreferences,
+} from '@vben-core/foundation/preferences';
 import { VbenDropdownRadioMenu, VbenIconButton } from '@vben-core/ui/shadcn';
 
 defineOptions({
@@ -13,8 +14,9 @@ defineOptions({
 });
 
 async function handleUpdate(value: string | undefined) {
-  if (!value) return;
-  const locale = value as SupportedLanguagesType;
+  // 只接受已声明的语言，避免把任意字符串写入全局偏好。
+  if (value !== 'zh-CN' && value !== 'en-US') return;
+  const locale = value;
   updatePreferences({
     app: {
       locale,

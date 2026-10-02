@@ -117,26 +117,25 @@ watchEffect(() => {
   }
 });
 
-// 注入上下文
-createMenuContext(
-  reactive({
-    activePath,
-    addMenuItem,
-    addSubMenu,
-    closeMenu,
-    handleMenuItemClick,
-    handleSubMenuClick,
-    isMenuPopup,
-    openedMenus,
-    openMenu,
-    props,
-    removeMenuItem,
-    removeSubMenu,
-    subMenus,
-    theme: toRef(props, 'theme'),
-    items,
-  }),
-);
+// 将响应式菜单状态先独立构造，避免在注入调用处递归展开完整组件类型。
+const menuContext = reactive({
+  activePath,
+  addMenuItem,
+  addSubMenu,
+  closeMenu,
+  handleMenuItemClick,
+  handleSubMenuClick,
+  isMenuPopup,
+  openedMenus,
+  openMenu,
+  props,
+  removeMenuItem,
+  removeSubMenu,
+  subMenus,
+  theme: toRef(props, 'theme'),
+  items,
+});
+createMenuContext(menuContext as unknown as MenuProvider);
 
 createSubMenuContext({
   addSubMenu,

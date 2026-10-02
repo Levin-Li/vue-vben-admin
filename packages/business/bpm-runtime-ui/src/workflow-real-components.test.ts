@@ -554,9 +554,13 @@ describe('运行时公开组件独立挂载', () => {
       todo: vi.fn().mockResolvedValue([]),
       done: vi.fn().mockResolvedValue([first, second]),
       started: vi.fn().mockResolvedValue([]),
+      pendingAttachments: vi.fn().mockRejectedValue(new Error('已办没有待绑定附件')),
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
-      props: { service: pagedApi(api) as unknown as WorkflowRuntimeService },
+      props: {
+        service: pagedApi(api) as unknown as WorkflowRuntimeService,
+        canViewPendingAttachments: true,
+      },
     });
     await flushPromises();
     await wrapper
@@ -579,6 +583,7 @@ describe('运行时公开组件独立挂载', () => {
     expect(wrapper.find('.ant-timeline').text()).toContain('资料已核验');
     expect(wrapper.text()).toContain('仅展示最近1000条记录');
     expect(wrapper.find('[data-edge-id="e1"]').exists()).toBe(true);
+    expect(api.pendingAttachments).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 

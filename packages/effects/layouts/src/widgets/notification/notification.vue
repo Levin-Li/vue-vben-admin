@@ -107,12 +107,7 @@ function navigateTo(
 <template>
   <VbenPopover
     v-model:open="open"
-    content-class="relative right-2 w-[360px] p-0"
-    :content-props="{
-      style: {
-        backgroundColor: 'hsl(var(--header-menu-background, var(--popover)))',
-      },
-    }"
+    content-class="notification-popover-content relative right-2 w-[360px] p-0"
   >
     <template #trigger>
       <div class="flex-center mr-2 h-full" @click.stop="toggle()">
@@ -287,5 +282,12 @@ function navigateTo(
   75% {
     transform: rotateZ(2deg);
   }
+}
+</style>
+
+<style>
+/* 弹层传送到 body 后，背景色由实际内容节点承载。 */
+.notification-popover-content {
+  background-color: hsl(var(--header-menu-background, var(--popover)));
 }
 </style>

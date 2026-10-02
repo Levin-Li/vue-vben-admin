@@ -175,7 +175,13 @@ watch(activeKey, () => {
 
 async function loadPendingAttachments(taskId: string) {
   const version = ++pendingVersion;
-  if (!props.canViewPendingAttachments) return;
+  // 待绑定附件只属于当前活动待办，已办详情不能再调用任务专用接口。
+  if (
+    !props.canViewPendingAttachments ||
+    activeKey.value !== 'todo' ||
+    selectedTask.value?.status !== 'Todo'
+  )
+    return;
   try {
     const result = await service.value.pendingAttachments(taskId);
     if (version === pendingVersion && selectedTask.value?.taskId === taskId)
@@ -914,7 +920,8 @@ defineExpose({ refresh });
       class="mt-4"
       :gutter="16"
     >
-      <ACol :lg="15" :span="24">
+      <!-- 办理面板先占完整宽度，避免并行流程图被固定侧栏裁掉。 -->
+      <ACol :span="24">
         <WorkflowTaskPanel
           :task="selectedTask"
           :submitting="submitting"
@@ -935,7 +942,7 @@ defineExpose({ refresh });
           @delete-pending-attachment="deletePendingAttachment"
         />
       </ACol>
-      <ACol :lg="9" :span="24">
+      <ACol :span="24" class="mt-4">
         <ACard size="small" title="流程图">
           <WorkflowProcessDiagram :task="selectedTask" />
         </ACard>

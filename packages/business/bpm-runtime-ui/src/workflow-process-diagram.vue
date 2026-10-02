@@ -89,6 +89,9 @@ const diagram = computed(() => {
         tabindex="0"
         aria-label="流程图，可横向滚动查看所有分支"
       >
+        <p class="workflow-diagram-hint">
+          流程图较宽时，可横向滚动查看全部分支。
+        </p>
         <LowflowFlowDesign
           :process="diagram.tree"
           :node-statuses="nodeStatuses"
@@ -122,6 +125,12 @@ const diagram = computed(() => {
 .workflow-diagram-scroll {
   max-width: 100%;
   overflow: auto;
+}
+
+.workflow-diagram-hint {
+  margin-bottom: 4px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
 }
 
 .workflow-legend {

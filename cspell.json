@@ -12,6 +12,7 @@
     "axios",
     "brotli",
     "cascader",
+    "clob",
     "clsx",
     "defu",
     "demi",
