@@ -194,26 +194,30 @@ describe('workflowRuntimeService', () => {
     // 待办、已办和我发起均由后端会话识别当前用户，前端不能通过请求参数指定其它主体。
     const service = new WorkflowRuntimeService('/workflow-api');
 
-    await service.todo();
-    await service.done();
-    await service.started();
-    await service.copied();
+    await service.todo({ size: 20 });
+    await service.done({ cursor: 'done-cursor', size: 20 });
+    await service.started({ size: 20 });
+    await service.copied({ size: 20 });
 
     expect(requestCalls.get).toHaveBeenNthCalledWith(
       1,
       'workflow-runtime/todo',
+      { params: { size: 20 } },
     );
     expect(requestCalls.get).toHaveBeenNthCalledWith(
       2,
       'workflow-runtime/done',
+      { params: { cursor: 'done-cursor', size: 20 } },
     );
     expect(requestCalls.get).toHaveBeenNthCalledWith(
       3,
       'workflow-runtime/started',
+      { params: { size: 20 } },
     );
     expect(requestCalls.get).toHaveBeenNthCalledWith(
       4,
       'workflow-runtime/copied',
+      { params: { size: 20 } },
     );
   });
 

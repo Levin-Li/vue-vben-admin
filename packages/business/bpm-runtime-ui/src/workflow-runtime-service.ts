@@ -5,6 +5,8 @@ import type {
   WorkflowEligibility,
   WorkflowInstanceView,
   WorkflowRoundState,
+  WorkflowRuntimePage,
+  WorkflowRuntimePageQuery,
   WorkflowTaskView,
 } from './types';
 
@@ -34,8 +36,11 @@ export class WorkflowRuntimeService extends RequestService {
   }
 
   /** 抄送接收列表由当前会话及服务端数据范围决定。 */
-  async copied() {
-    return this.get<WorkflowInstanceView[]>('workflow-runtime/copied');
+  async copied(query: WorkflowRuntimePageQuery = {}) {
+    return this.get<WorkflowRuntimePage<WorkflowInstanceView>>(
+      'workflow-runtime/copied',
+      { params: query },
+    );
   }
 
   /** 发起人显式抄送运行实例；服务端重新校验实例和每位接收人。 */
@@ -57,8 +62,11 @@ export class WorkflowRuntimeService extends RequestService {
     });
   }
 
-  async done() {
-    return this.get<WorkflowTaskView[]>('workflow-runtime/done');
+  async done(query: WorkflowRuntimePageQuery = {}) {
+    return this.get<WorkflowRuntimePage<WorkflowTaskView>>(
+      'workflow-runtime/done',
+      { params: query },
+    );
   }
 
   /** 下载响应为私有字节 Blob，不能拼接 FileRes 或公开静态路径。 */
@@ -177,12 +185,18 @@ export class WorkflowRuntimeService extends RequestService {
     });
   }
 
-  async started() {
-    return this.get<WorkflowInstanceView[]>('workflow-runtime/started');
+  async started(query: WorkflowRuntimePageQuery = {}) {
+    return this.get<WorkflowRuntimePage<WorkflowInstanceView>>(
+      'workflow-runtime/started',
+      { params: query },
+    );
   }
 
-  async todo() {
-    return this.get<WorkflowTaskView[]>('workflow-runtime/todo');
+  async todo(query: WorkflowRuntimePageQuery = {}) {
+    return this.get<WorkflowRuntimePage<WorkflowTaskView>>(
+      'workflow-runtime/todo',
+      { params: query },
+    );
   }
 
   /** 上传只提交当前任务与文件，后端返回私有 ID 而不是公开 URL。 */

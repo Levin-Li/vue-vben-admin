@@ -60,8 +60,8 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
     type: '业务数据-工作流运行时',
     action: '查询我收到的流程抄送',
   })
-  override copied() {
-    return super.copied();
+  override copied(...args: Parameters<WorkflowRuntimeService['copied']>) {
+    return super.copied(...args);
   }
 
   @CRUD.Op({ label: '发送抄送' })
@@ -101,8 +101,8 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
     type: '业务数据-工作流运行时',
     action: '查询我的工作流已办',
   })
-  override done() {
-    return super.done();
+  override done(...args: Parameters<WorkflowRuntimeService['done']>) {
+    return super.done(...args);
   }
 
   @ResAuthorize({
@@ -215,8 +215,8 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
     type: '业务数据-工作流运行时',
     action: '查询我发起的工作流',
   })
-  override started() {
-    return super.started();
+  override started(...args: Parameters<WorkflowRuntimeService['started']>) {
+    return super.started(...args);
   }
 
   @ResAuthorize({
@@ -224,8 +224,8 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
     type: '业务数据-工作流运行时',
     action: '查询我的工作流待办',
   })
-  override todo() {
-    return super.todo();
+  override todo(...args: Parameters<WorkflowRuntimeService['todo']>) {
+    return super.todo(...args);
   }
 
   @ResAuthorize({

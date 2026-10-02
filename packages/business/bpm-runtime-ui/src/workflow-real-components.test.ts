@@ -9,6 +9,26 @@ import WorkflowProcessDiagram from './workflow-process-diagram.vue';
 import WorkflowRuntimeWorkbench from './workflow-runtime-workbench.vue';
 import WorkflowTaskPanel from './workflow-task-panel.vue';
 
+// 旧场景只关心当前页内容；统一适配分页响应，保留原有权限与动作断言。
+function pagedApi<T extends object>(api: T): T {
+  return new Proxy(api, {
+    get(target, key) {
+      const value = Reflect.get(target, key) as unknown;
+      if (
+        !['copied', 'done', 'started', 'todo'].includes(String(key)) ||
+        typeof value !== 'function'
+      )
+        return value;
+      return (...args: unknown[]) =>
+        Promise.resolve(
+          (value as (...params: unknown[]) => unknown)(...args),
+        ).then((result) =>
+          Array.isArray(result) ? { items: result, hasMore: false } : result,
+        );
+    },
+  });
+}
+
 vi.mock('@levin/admin-framework', () => ({
   RequestService: class {
     basePath = '';
@@ -16,6 +36,149 @@ vi.mock('@levin/admin-framework', () => ({
 }));
 
 describe('运行时公开组件独立挂载', () => {
+  it('空的过滤页仍可沿游标继续读取，并能返回前页', async () => {
+    const api = {
+      todo: vi
+        .fn()
+        .mockResolvedValueOnce({
+          items: [],
+          hasMore: true,
+          nextCursor: 'next-1',
+        })
+        .mockResolvedValueOnce({
+          items: [{ taskId: 'later', taskName: '后续任务' }],
+          hasMore: false,
+        })
+        .mockResolvedValueOnce({
+          items: [],
+          hasMore: true,
+          nextCursor: 'next-1',
+        }),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewDone: false,
+        canViewStarted: false,
+        canViewCopied: false,
+      },
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain('第 1 页 · 本页 0 条');
+    await wrapper.get('.ant-space-item:last-child button').trigger('click');
+    await flushPromises();
+    expect(api.todo).toHaveBeenNthCalledWith(2, {
+      cursor: 'next-1',
+      size: 20,
+    });
+    expect(wrapper.text()).toContain('后续任务');
+    await wrapper.get('.ant-space-item:nth-child(2) button').trigger('click');
+    await flushPromises();
+    expect(api.todo).toHaveBeenNthCalledWith(3, {
+      cursor: undefined,
+      size: 20,
+    });
+    expect(wrapper.text()).toContain('第 1 页 · 本页 0 条');
+    wrapper.unmount();
+  });
+
+  it('分栏游标互不混用，刷新后回到第一页并清除详情', async () => {
+    const api = {
+      todo: vi
+        .fn()
+        .mockResolvedValueOnce({
+          items: [{ taskId: 'old', taskName: '旧任务' }],
+          hasMore: true,
+          nextCursor: 'todo-2',
+        })
+        .mockResolvedValueOnce({
+          items: [{ taskId: 'next', taskName: '第二页任务' }],
+          hasMore: false,
+        })
+        .mockResolvedValueOnce({
+          items: [{ taskId: 'fresh', taskName: '重访任务' }],
+          hasMore: false,
+        })
+        .mockResolvedValueOnce({
+          items: [{ taskId: 'refresh', taskName: '刷新任务' }],
+          hasMore: false,
+        }),
+      done: vi.fn().mockResolvedValue({ items: [], hasMore: false }),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewStarted: false,
+        canViewCopied: false,
+      },
+    });
+    await flushPromises();
+    await wrapper.get('[aria-label="查看旧任务"]').trigger('click');
+    expect(wrapper.findComponent(WorkflowTaskPanel).exists()).toBe(true);
+    await wrapper.get('.ant-space-item:last-child button').trigger('click');
+    await flushPromises();
+    expect(wrapper.findComponent(WorkflowTaskPanel).exists()).toBe(false);
+    await wrapper.findAll('[role="tab"]')[1]?.trigger('click');
+    await flushPromises();
+    expect(api.done).toHaveBeenCalledWith({ cursor: undefined, size: 20 });
+    await wrapper.findAll('[role="tab"]')[0]?.trigger('click');
+    await flushPromises();
+    expect(api.todo).toHaveBeenNthCalledWith(3, {
+      cursor: 'todo-2',
+      size: 20,
+    });
+    await wrapper.get('.ant-card-extra button').trigger('click');
+    await flushPromises();
+    expect(api.todo).toHaveBeenNthCalledWith(4, {
+      cursor: undefined,
+      size: 20,
+    });
+    expect(wrapper.text()).toContain('第 1 页');
+    expect(wrapper.text()).not.toContain('第二页任务');
+    wrapper.unmount();
+  });
+
+  it('刷新后丢弃迟到的旧页响应', async () => {
+    let finishOld!: (value: unknown) => void;
+    const api = {
+      todo: vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishOld = resolve;
+            }),
+        )
+        .mockResolvedValueOnce({
+          items: [{ taskId: 'fresh', taskName: '新任务' }],
+          hasMore: false,
+        }),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewDone: false,
+        canViewStarted: false,
+        canViewCopied: false,
+      },
+    });
+    await flushPromises();
+    wrapper.vm.refresh();
+    await flushPromises();
+    finishOld({
+      items: [{ taskId: 'old', taskName: '过期任务' }],
+      hasMore: true,
+      nextCursor: 'old-2',
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain('新任务');
+    expect(wrapper.text()).not.toContain('过期任务');
+    expect(
+      wrapper.get('.ant-space-item:last-child button').attributes('disabled'),
+    ).toBeDefined();
+    wrapper.unmount();
+  });
+
   it('接收人查询权限独立于发送权限，撤销后移除选择入口', async () => {
     const api = {
       todo: vi.fn(),
@@ -34,7 +197,7 @@ describe('运行时公开组件独立挂载', () => {
       .mockResolvedValue([{ label: '接收人', value: 'user-1' }]);
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: {
-        service: api as unknown as WorkflowRuntimeService,
+        service: pagedApi(api) as unknown as WorkflowRuntimeService,
         canViewTodo: false,
         canViewDone: false,
         canViewStarted: true,
@@ -84,7 +247,7 @@ describe('运行时公开组件独立挂载', () => {
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: {
-        service: api as unknown as WorkflowRuntimeService,
+        service: pagedApi(api) as unknown as WorkflowRuntimeService,
         canViewTodo: false,
         canViewDone: false,
         canViewStarted: false,
@@ -142,7 +305,7 @@ describe('运行时公开组件独立挂载', () => {
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: {
-        service: api as unknown as WorkflowRuntimeService,
+        service: pagedApi(api) as unknown as WorkflowRuntimeService,
         canViewPendingAttachments: true,
         canViewAttachments: true,
       },
@@ -178,7 +341,7 @@ describe('运行时公开组件独立挂载', () => {
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: {
-        service: api as unknown as WorkflowRuntimeService,
+        service: pagedApi(api) as unknown as WorkflowRuntimeService,
         canViewTodo: true,
         canViewDone: false,
         canViewStarted: false,
@@ -198,8 +361,8 @@ describe('运行时公开组件独立挂载', () => {
     wrapper.unmount();
   });
 
-  it('列表权限在请求期间失效时仍保留成功加载的待办', async () => {
-    // 后端撤权拒绝某个分栏后，不能把另一项合法待办一并清空或误报全局空列表。
+  it('只请求当前分栏，其他分栏拒绝不会影响待办', async () => {
+    // 后端撤权拒绝未打开的分栏，不能阻断当前合法待办。
     const api = {
       copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn().mockResolvedValue([
@@ -213,13 +376,14 @@ describe('运行时公开组件独立挂载', () => {
       started: vi.fn().mockResolvedValue([]),
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
-      props: { service: api as unknown as WorkflowRuntimeService },
+      props: { service: pagedApi(api) as unknown as WorkflowRuntimeService },
     });
     await flushPromises();
 
     expect(wrapper.text()).toContain('待核定报销');
-    expect(wrapper.text()).toContain('部分流程列表加载失败');
-    expect(wrapper.emitted('error')).toHaveLength(1);
+    expect(api.done).not.toHaveBeenCalled();
+    expect(api.started).not.toHaveBeenCalled();
+    expect(wrapper.emitted('error')).toBeUndefined();
     wrapper.unmount();
   });
 
@@ -239,7 +403,7 @@ describe('运行时公开组件独立挂载', () => {
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: {
-        service: api as unknown as WorkflowRuntimeService,
+        service: pagedApi(api) as unknown as WorkflowRuntimeService,
         canViewTodo: false,
         canViewDone: false,
         canViewStarted: true,
@@ -295,7 +459,7 @@ describe('运行时公开组件独立挂载', () => {
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: {
-        service: api as unknown as WorkflowRuntimeService,
+        service: pagedApi(api) as unknown as WorkflowRuntimeService,
         canViewTodo: false,
         canViewDone: false,
         canViewStarted: true,
@@ -337,7 +501,7 @@ describe('运行时公开组件独立挂载', () => {
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: {
-        service: api as unknown as WorkflowRuntimeService,
+        service: pagedApi(api) as unknown as WorkflowRuntimeService,
         canViewTodo: true,
         canViewDone: false,
         canViewStarted: false,
@@ -392,7 +556,7 @@ describe('运行时公开组件独立挂载', () => {
       started: vi.fn().mockResolvedValue([]),
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
-      props: { service: api as unknown as WorkflowRuntimeService },
+      props: { service: pagedApi(api) as unknown as WorkflowRuntimeService },
     });
     await flushPromises();
     await wrapper
@@ -440,7 +604,7 @@ describe('运行时公开组件独立挂载', () => {
       complete: vi.fn().mockResolvedValue({ ...task, status: 'Completed' }),
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
-      props: { service: api as unknown as WorkflowRuntimeService },
+      props: { service: pagedApi(api) as unknown as WorkflowRuntimeService },
     });
     await flushPromises();
     expect(wrapper.text()).toContain('业务审核节点');
@@ -511,7 +675,7 @@ describe('运行时公开组件独立挂载', () => {
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: {
-        service: api as unknown as WorkflowRuntimeService,
+        service: pagedApi(api) as unknown as WorkflowRuntimeService,
         canViewAttachments: true,
         canViewPendingAttachments: true,
       },
@@ -568,7 +732,7 @@ describe('运行时公开组件独立挂载', () => {
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: {
-        service: api as unknown as WorkflowRuntimeService,
+        service: pagedApi(api) as unknown as WorkflowRuntimeService,
         canViewAttachments: true,
       },
     });
@@ -620,7 +784,7 @@ describe('运行时公开组件独立挂载', () => {
         ),
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
-      props: { service: api as unknown as WorkflowRuntimeService },
+      props: { service: pagedApi(api) as unknown as WorkflowRuntimeService },
     });
     await flushPromises();
     await wrapper.get('[aria-label="查看任务A"]').trigger('click');
@@ -691,7 +855,7 @@ describe('运行时公开组件独立挂载', () => {
         }),
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
-      props: { service: api as unknown as WorkflowRuntimeService },
+      props: { service: pagedApi(api) as unknown as WorkflowRuntimeService },
     });
     await flushPromises();
     await wrapper.get('[aria-label="查看任务A"]').trigger('click');

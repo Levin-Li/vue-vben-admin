@@ -117,6 +117,18 @@ export interface WorkflowTaskView {
   verificationTypes?: string[];
 }
 
+/** 运行四分栏由服务端授权并按游标分页；不提供推测出的总数。 */
+export interface WorkflowRuntimePage<T> {
+  hasMore: boolean;
+  items: T[];
+  nextCursor?: string;
+}
+
+export interface WorkflowRuntimePageQuery {
+  cursor?: string;
+  size?: number;
+}
+
 export interface WorkflowInstanceView {
   attemptNo?: number;
   businessContractVersion?: string;

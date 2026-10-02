@@ -6,6 +6,7 @@ import type {
   WorkflowAttachmentMeta,
   WorkflowInstanceView,
   WorkflowOption,
+  WorkflowRuntimePage,
   WorkflowTaskSubmitPayload,
   WorkflowTaskView,
   WorkflowVerificationChallenge,
@@ -95,6 +96,49 @@ const todo = ref<WorkflowTaskView[]>([]);
 const done = ref<WorkflowTaskView[]>([]);
 const copied = ref<WorkflowInstanceView[]>([]);
 const started = ref<WorkflowInstanceView[]>([]);
+type TabKey = 'copied' | 'done' | 'started' | 'todo';
+type PageState = {
+  cursors: (string | undefined)[];
+  hasMore: boolean;
+  index: number;
+  nextCursor?: string;
+};
+const makePageState = (): PageState => ({
+  cursors: [undefined],
+  hasMore: false,
+  index: 0,
+});
+const pages = ref<Record<TabKey, PageState>>({
+  todo: makePageState(),
+  done: makePageState(),
+  started: makePageState(),
+  copied: makePageState(),
+});
+const currentPage = computed(() => pages.value[activeKey.value as TabKey]);
+const currentPageCount = computed(() => {
+  switch (activeKey.value) {
+    case 'copied': {
+      return copied.value.length;
+    }
+    case 'done': {
+      return done.value.length;
+    }
+    case 'started': {
+      return started.value.length;
+    }
+    case 'todo': {
+      return todo.value.length;
+    }
+    default: {
+      return 0;
+    }
+  }
+});
+const pageSummary = computed(() =>
+  currentPage.value
+    ? `第 ${currentPage.value.index + 1} 页 · 本页 ${currentPageCount.value} 条`
+    : '',
+);
 const selectedTask = ref<WorkflowTaskView>();
 const selectedInstance = ref<WorkflowInstanceView>();
 const attachedFiles = ref<WorkflowAttachmentMeta[]>([]);
@@ -126,6 +170,7 @@ watch(activeKey, () => {
   copyRecipients.value = [];
   copyOptions.value = [];
   ++copyOptionsVersion;
+  void loadPage();
 });
 
 async function loadPendingAttachments(taskId: string) {
@@ -307,57 +352,115 @@ function attachmentLabel(item: WorkflowAttachmentMeta) {
   return `${item.fileName}（${item.sizeBytes} 字节）`;
 }
 
-async function refresh() {
+function clearSelection() {
+  selectedTask.value = undefined;
+  selectedInstance.value = undefined;
+  attachedFiles.value = [];
+  pendingFiles.value = [];
+  instanceFiles.value = [];
+  copyRecipients.value = [];
+  copyOptions.value = [];
+  verificationMessage.value = '';
+  verificationChallenge.value = undefined;
+  ++attachmentVersion;
+  ++pendingVersion;
+  ++verificationVersion;
+  ++copyOptionsVersion;
+}
+
+function clearPages() {
+  pages.value = {
+    todo: makePageState(),
+    done: makePageState(),
+    started: makePageState(),
+    copied: makePageState(),
+  };
+  todo.value = [];
+  done.value = [];
+  started.value = [];
+  copied.value = [];
+}
+
+async function loadPage() {
+  const key = activeKey.value as TabKey;
+  const allowed = () => ({
+    todo: canViewTodo.value,
+    done: canViewDone.value,
+    started: canViewStarted.value,
+    copied: canViewCopied.value,
+  });
   const version = ++refreshVersion;
+  if (!allowed()[key]) {
+    loading.value = false;
+    return;
+  }
+  const page = pages.value[key];
+  const query = { cursor: page.cursors[page.index], size: 20 };
   loading.value = true;
+  errorMessage.value = '';
+  clearSelection();
+  // 请求期间不呈现旧页或另一用户的结果。
+  switch (key) {
+    case 'done': {
+      done.value = [];
+      break;
+    }
+    case 'started': {
+      started.value = [];
+      break;
+    }
+    case 'todo': {
+      todo.value = [];
+      break;
+    }
+    default: {
+      copied.value = [];
+    }
+  }
   try {
-    // 权限变化后切换到仍可读取的分栏；不让无权请求的403吞掉合法待办。
-    const visibleKeys = [
-      canViewTodo.value && 'todo',
-      canViewDone.value && 'done',
-      canViewStarted.value && 'started',
-      canViewCopied.value && 'copied',
-    ].filter(Boolean) as string[];
-    if (!visibleKeys.includes(activeKey.value))
-      activeKey.value = visibleKeys[0] || '';
-
-    const [todoResult, doneResult, startedResult, copiedResult] =
-      await Promise.allSettled([
-        canViewTodo.value ? service.value.todo() : Promise.resolve([]),
-        canViewDone.value ? service.value.done() : Promise.resolve([]),
-        canViewStarted.value ? service.value.started() : Promise.resolve([]),
-        canViewCopied.value ? service.value.copied() : Promise.resolve([]),
-      ]);
-    if (version !== refreshVersion) return;
-
-    // 某分栏在请求期间撤权或故障时只丢弃该分栏结果，保留其它已授权列表。
-    const results = [todoResult, doneResult, startedResult, copiedResult];
-    const firstFailure = results.find(
-      (result): result is PromiseRejectedResult => result.status === 'rejected',
-    );
-    todo.value = todoResult.status === 'fulfilled' ? todoResult.value : [];
-    done.value = doneResult.status === 'fulfilled' ? doneResult.value : [];
-    started.value =
-      startedResult.status === 'fulfilled' ? startedResult.value : [];
-    copied.value =
-      canViewCopied.value && copiedResult.status === 'fulfilled'
-        ? copiedResult.value
-        : [];
-    errorMessage.value = firstFailure
-      ? '部分流程列表加载失败，请检查权限或稍后重试。'
-      : '';
-    if (firstFailure) emit('error', firstFailure.reason);
-    if (selectedTask.value)
-      selectedTask.value = [...todo.value, ...done.value].find(
-        (task) => task.taskId === selectedTask.value?.taskId,
-      );
-    if (selectedInstance.value)
-      selectedInstance.value = (
-        activeKey.value === 'copied' ? copied.value : started.value
-      ).find(
-        (instance) =>
-          instance.instanceId === selectedInstance.value?.instanceId,
-      );
+    let result: WorkflowRuntimePage<WorkflowInstanceView | WorkflowTaskView>;
+    switch (key) {
+      case 'done': {
+        result = await service.value.done(query);
+        break;
+      }
+      case 'started': {
+        result = await service.value.started(query);
+        break;
+      }
+      case 'todo': {
+        result = await service.value.todo(query);
+        break;
+      }
+      default: {
+        result = await service.value.copied(query);
+      }
+    }
+    if (
+      version !== refreshVersion ||
+      activeKey.value !== key ||
+      !allowed()[key]
+    )
+      return;
+    page.hasMore = result.hasMore;
+    page.nextCursor = result.nextCursor;
+    switch (key) {
+      case 'done': {
+        done.value = result.items as WorkflowTaskView[];
+        break;
+      }
+      case 'started': {
+        started.value = result.items as WorkflowInstanceView[];
+        break;
+      }
+      case 'todo': {
+        todo.value = result.items as WorkflowTaskView[];
+        break;
+      }
+      default: {
+        copied.value = result.items as WorkflowInstanceView[];
+      }
+    }
   } catch (error) {
     if (version !== refreshVersion) return;
     errorMessage.value = '流程列表加载失败，请重试。';
@@ -367,15 +470,46 @@ async function refresh() {
   }
 }
 
+function refresh() {
+  ++refreshVersion;
+  clearSelection();
+  clearPages();
+  // 当前分栏撤权后只进入仍获授权的第一个分栏。
+  const visibleKeys: TabKey[] = [
+    ...(canViewTodo.value ? ['todo' as const] : []),
+    ...(canViewDone.value ? ['done' as const] : []),
+    ...(canViewStarted.value ? ['started' as const] : []),
+    ...(canViewCopied.value ? ['copied' as const] : []),
+  ];
+  const nextKey = visibleKeys.includes(activeKey.value as TabKey)
+    ? activeKey.value
+    : (visibleKeys[0] ?? '');
+  if (nextKey === activeKey.value) {
+    void loadPage();
+  } else {
+    activeKey.value = nextKey;
+  }
+}
+
+function nextPage() {
+  const page = currentPage.value;
+  if (!page || loading.value || !page.hasMore || !page.nextCursor) return;
+  page.cursors[page.index + 1] = page.nextCursor;
+  page.cursors.length = page.index + 2;
+  ++page.index;
+  void loadPage();
+}
+
+function previousPage() {
+  const page = currentPage.value;
+  if (!page || loading.value || page.index === 0) return;
+  --page.index;
+  void loadPage();
+}
+
 // 当前用户权限重新载入或撤销时丢弃旧详情，并重新按最新授权加载列表。
 watch([canViewTodo, canViewDone, canViewStarted, canViewCopied], () => {
-  selectedTask.value = undefined;
-  selectedInstance.value = undefined;
-  copied.value = [];
-  copyRecipients.value = [];
-  copyOptions.value = [];
-  ++copyOptionsVersion;
-  void refresh();
+  refresh();
 });
 
 // 候选查询或发送权限撤销时立即清空选择，不保留可再次提交的旧命令。
@@ -629,7 +763,7 @@ defineExpose({ refresh });
         <AButton :loading="loading" @click="refresh">刷新</AButton>
       </template>
       <ATabs v-model:active-key="activeKey">
-        <ATabPane v-if="canViewTodo" key="todo" :tab="`待办 ${todo.length}`">
+        <ATabPane v-if="canViewTodo" key="todo" tab="待办">
           <AList :data-source="todo" item-layout="horizontal">
             <template #renderItem="{ item }">
               <AListItem
@@ -653,7 +787,7 @@ defineExpose({ refresh });
             </template>
           </AList>
         </ATabPane>
-        <ATabPane v-if="canViewDone" key="done" :tab="`已办 ${done.length}`">
+        <ATabPane v-if="canViewDone" key="done" tab="已办">
           <AList :data-source="done">
             <template #renderItem="{ item }">
               <AListItem
@@ -680,11 +814,7 @@ defineExpose({ refresh });
             </template>
           </AList>
         </ATabPane>
-        <ATabPane
-          v-if="canViewStarted"
-          key="started"
-          :tab="`我发起 ${started.length}`"
-        >
+        <ATabPane v-if="canViewStarted" key="started" tab="我发起">
           <AList :data-source="started">
             <template #renderItem="{ item }">
               <AListItem
@@ -737,11 +867,7 @@ defineExpose({ refresh });
             </template>
           </AList>
         </ATabPane>
-        <ATabPane
-          v-if="canViewCopied"
-          key="copied"
-          :tab="`抄送 ${copied.length}`"
-        >
+        <ATabPane v-if="canViewCopied" key="copied" tab="抄送">
           <AEmpty v-if="copied.length === 0" description="暂无抄送记录" />
           <AList v-else :data-source="copied">
             <template #renderItem="{ item }">
@@ -766,6 +892,22 @@ defineExpose({ refresh });
           </AList>
         </ATabPane>
       </ATabs>
+      <!-- 游标页只有继续读取信号，不推断全局条数或最后页码。 -->
+      <ASpace v-if="currentPage" class="mt-3" wrap>
+        <span>{{ pageSummary }}</span>
+        <AButton
+          :disabled="loading || currentPage.index === 0"
+          @click="previousPage"
+        >
+          上一页
+        </AButton>
+        <AButton
+          :disabled="loading || !currentPage.hasMore || !currentPage.nextCursor"
+          @click="nextPage"
+        >
+          下一页
+        </AButton>
+      </ASpace>
     </ACard>
     <ARow
       v-if="selectedTask && (activeKey === 'todo' || activeKey === 'done')"
