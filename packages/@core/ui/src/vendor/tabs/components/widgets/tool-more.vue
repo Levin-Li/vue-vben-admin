@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { DropdownMenuProps } from '@vben-core/ui/shadcn';
+import type { DropdownMenuProps } from '../../../shadcn/components/dropdown-menu/interface';
 
 import { LayoutGrid } from '@vben-core/foundation/icons';
 import { VbenDropdownMenu } from '@vben-core/ui/shadcn';
@@ -10,7 +10,7 @@ defineProps<DropdownMenuProps>();
 <template>
   <VbenDropdownMenu :menus="menus" :modal="false">
     <div
-      class="flex-center h-full cursor-pointer border-l border-border px-2 text-lg font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+      class="flex-center border-border text-muted-foreground hover:bg-muted hover:text-foreground h-full cursor-pointer border-l px-2 text-lg font-semibold"
     >
       <LayoutGrid class="size-4" />
     </div>

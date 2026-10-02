@@ -1,6 +1,25 @@
 import type { Component, Ref, StyleValue } from 'vue';
 
-import type { MenuRecordBadgeRaw, ThemeModeType } from '@vben-core/foundation/typings';
+import type {
+  MenuRecordBadgeRaw,
+  ThemeModeType,
+} from '@vben-core/foundation/typings';
+
+// 发布后的 Vue SFC 编译器需要可在本包解析的徽标属性结构。
+interface MenuBadgeProps {
+  badge?: string;
+  badgeType?: 'dot' | 'normal';
+  badgeVariants?: 'destructive' | 'primary' | string;
+}
+
+// 检查本地声明与基础包公开类型的双向兼容性。
+type MenuBadgePropsCompatibility = MenuBadgeProps extends MenuRecordBadgeRaw
+  ? MenuRecordBadgeRaw extends MenuBadgeProps
+    ? true
+    : never
+  : never;
+const menuBadgePropsCompatible: MenuBadgePropsCompatibility = true;
+void menuBadgePropsCompatible;
 
 interface MenuProps {
   /**
@@ -37,6 +56,11 @@ interface MenuProps {
   mode?: 'horizontal' | 'vertical';
 
   /**
+   * @zh_CN 折叠菜单弹窗样式
+   */
+  popupStyle?: StyleValue;
+
+  /**
    * @zh_CN 是否圆润风格
    * @default true
    */
@@ -53,14 +77,9 @@ interface MenuProps {
    * @default dark
    */
   theme?: ThemeModeType;
-
-  /**
-   * @zh_CN 折叠菜单弹窗样式
-   */
-  popupStyle?: StyleValue;
 }
 
-interface SubMenuProps extends MenuRecordBadgeRaw {
+interface SubMenuProps extends MenuBadgeProps {
   /**
    * @zh_CN 激活图标
    */
@@ -74,16 +93,16 @@ interface SubMenuProps extends MenuRecordBadgeRaw {
    */
   icon?: Component | string;
   /**
-   * @zh_CN submenu 名称
-   */
-  path: string;
-  /**
    * @zh_CN 点击分组标题时是否同时触发菜单选择
    */
   navigateOnClick?: boolean;
+  /**
+   * @zh_CN submenu 名称
+   */
+  path: string;
 }
 
-interface MenuItemProps extends MenuRecordBadgeRaw {
+interface MenuItemProps extends MenuBadgeProps {
   /**
    * @zh_CN 图标
    */
@@ -144,6 +163,7 @@ interface SubMenuProvider {
 }
 
 export type {
+  MenuBadgeProps,
   MenuItemClicked,
   MenuItemProps,
   MenuItemRegistered,

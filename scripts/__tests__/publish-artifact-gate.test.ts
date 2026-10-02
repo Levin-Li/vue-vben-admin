@@ -10,10 +10,11 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   packWorkspacePackage,
+  publishAfterStandaloneConsumerGate,
   verifyPageMetadata,
   verifyTarballDependencyProtocols,
   verifyTarballManifest,
@@ -28,6 +29,90 @@ afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true });
   }
+});
+
+describe('发布前独立消费者门禁', () => {
+  const packages = [
+    { name: '@levin/bpm-designer' },
+    { name: '@levin/bpm-runtime-ui' },
+    { name: '@levin/oak-base-admin' },
+  ];
+  const tarballs = new Map(
+    packages.map(({ name }) => [name, `/tmp/${name.slice(7)}.tgz`]),
+  );
+
+  it('把本批 tarball 传给各公开入口验证后才上传', async () => {
+    const calls: string[] = [];
+    const install = vi.fn((info: { name: string }) =>
+      calls.push(`安装 ${info.name}`),
+    );
+    const build = vi.fn((info: { name: string }) =>
+      calls.push(`构建 ${info.name}`),
+    );
+    const publish = vi.fn(() => calls.push('上传'));
+
+    await publishAfterStandaloneConsumerGate(packages, tarballs, {}, publish, {
+      install,
+      build,
+    });
+
+    expect(calls).toEqual([
+      '安装 @levin/bpm-designer',
+      '构建 @levin/bpm-designer',
+      '安装 @levin/bpm-runtime-ui',
+      '构建 @levin/bpm-runtime-ui',
+      '安装 @levin/oak-base-admin',
+      '构建 @levin/oak-base-admin',
+      '上传',
+    ]);
+    expect(install).toHaveBeenCalledWith(
+      packages[0],
+      tarballs.get(packages[0].name),
+      {},
+      tarballs,
+    );
+    expect(build).toHaveBeenCalledWith(
+      packages[2],
+      tarballs.get(packages[2].name),
+      packages[2].name,
+      {},
+      tarballs,
+    );
+  });
+
+  it('消费者构建失败时本批零上传', async () => {
+    const publish = vi.fn();
+    const build = vi.fn((info: { name: string }) => {
+      if (info.name === '@levin/bpm-runtime-ui')
+        throw new Error('公开入口缺失');
+    });
+
+    await expect(
+      publishAfterStandaloneConsumerGate(packages, tarballs, {}, publish, {
+        install: vi.fn(),
+        build,
+      }),
+    ).rejects.toThrow('公开入口缺失');
+    expect(publish).not.toHaveBeenCalled();
+    expect(build).not.toHaveBeenCalledWith(
+      packages[2],
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('本批缺少所选 tarball 时零上传', async () => {
+    const publish = vi.fn();
+    await expect(
+      publishAfterStandaloneConsumerGate(packages, new Map(), {}, publish, {
+        install: vi.fn(),
+        build: vi.fn(),
+      }),
+    ).rejects.toThrow('缺少本批 tarball');
+    expect(publish).not.toHaveBeenCalled();
+  });
 });
 
 function createTemporaryDirectory() {
@@ -243,6 +328,31 @@ describe('publish artifact gate', () => {
       verifyTarballStandaloneInstall(
         { name: '@scope/test-package' },
         tarballPath,
+      ),
+    ).not.toThrow();
+  }, 30_000);
+
+  it('installs exact internal peers from same-batch tarballs without a published version', () => {
+    const dependency = createTarball({
+      name: '@scope/local-peer',
+      version: '9.8.7',
+    });
+    const consumer = createTarball({
+      name: '@scope/local-consumer',
+      peerDependencies: { '@scope/local-peer': '9.8.7' },
+      version: '1.0.0',
+    });
+    const batchTarballs = new Map([
+      ['@scope/local-consumer', consumer],
+      ['@scope/local-peer', dependency],
+    ]);
+
+    expect(() =>
+      verifyTarballStandaloneInstall(
+        { name: '@scope/local-consumer' },
+        consumer,
+        {},
+        batchTarballs,
       ),
     ).not.toThrow();
   }, 30_000);

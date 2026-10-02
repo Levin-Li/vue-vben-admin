@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MenuRecordBadgeRaw } from '@vben-core/foundation/typings';
+import type { MenuBadgeProps } from '../types';
 
 import { computed } from 'vue';
 
@@ -7,7 +7,7 @@ import { isValidColor } from '@vben-core/foundation/shared/color';
 
 import BadgeDot from './menu-badge-dot.vue';
 
-interface Props extends MenuRecordBadgeRaw {
+interface Props extends MenuBadgeProps {
   hasChildren?: boolean;
 }
 
@@ -49,7 +49,7 @@ const badgeStyle = computed(() => {
       v-else
       :class="badgeClass"
       :style="badgeStyle"
-      class="flex-center rounded-xl px-1.5 py-0.5 text-[10px] text-primary-foreground"
+      class="flex-center text-primary-foreground rounded-xl px-1.5 py-0.5 text-[10px]"
     >
       {{ badge }}
     </div>

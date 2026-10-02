@@ -436,6 +436,48 @@ export function verifyTarballStandaloneViteBuild(
   }
 }
 
+const standalonePublicEntries = new Map([
+  [
+    '@levin/admin-framework',
+    [
+      '@levin/admin-framework',
+      '@levin/admin-framework/framework-commons/app/layouts/basic.vue',
+    ],
+  ],
+  ['@levin/bpm-designer', ['@levin/bpm-designer']],
+  ['@levin/bpm-runtime-ui', ['@levin/bpm-runtime-ui']],
+  ['@levin/oak-base-admin', ['@levin/oak-base-admin']],
+]);
+
+/** 所有本批 tarball 就绪后，先验证 BPM 与宿主包，再允许一次上传。 */
+export async function publishAfterStandaloneConsumerGate(
+  selectedPackages,
+  batchTarballs,
+  consumerEnv,
+  publishBatch,
+  verifiers,
+) {
+  const install = verifiers?.install || verifyTarballStandaloneInstall;
+  const build = verifiers?.build || verifyTarballStandaloneViteBuild;
+
+  for (const packageInfo of selectedPackages) {
+    const entries = standalonePublicEntries.get(packageInfo.name);
+    if (!entries) continue;
+
+    const tarball = batchTarballs.get(packageInfo.name);
+    if (!tarball) {
+      throw new Error(`${packageInfo.name} 缺少本批 tarball，禁止上传`);
+    }
+
+    install(packageInfo, tarball, consumerEnv, batchTarballs);
+    for (const entry of entries) {
+      build(packageInfo, tarball, entry, consumerEnv, batchTarballs);
+    }
+  }
+
+  return publishBatch();
+}
+
 /**
  * 将同一发布批次的内部依赖固定为本地 tarball，避免预检意外解析私服中的旧版本。
  */

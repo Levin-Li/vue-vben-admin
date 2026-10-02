@@ -26,6 +26,7 @@ import {
 import {
   acquirePublishLock,
   parsePackOutput,
+  publishAfterStandaloneConsumerGate,
   releasePublishLock,
   verifyBuiltRouteAssets,
   verifyPageMetadata,
@@ -682,14 +683,25 @@ async function main() {
     );
 
     if (mode === 'publish') {
-      // 成功的 npm publish 是最终判据；仅失败时查询该包并安全重试一次。
-      await publishValidatedBatch(selectedPackages, layers, tarballs, {
-        publish: (packageInfo, tarball) => publishPackage(tarball, publishEnv),
-        versionStatus: (packageInfo) =>
-          packageVersionStatus(packageInfo, publishEnv),
-        concurrency: publishConcurrency,
-        log: (message) => console.log(message),
-      });
+      // 所有候选包先以本批真实 tarball 完成独立消费，任一失败时零上传。
+      await publishAfterStandaloneConsumerGate(
+        selectedPackages,
+        tarballs,
+        {
+          ...publishEnv,
+          NPM_CONFIG_REGISTRY: registry,
+          NPM_CONFIG_FALLBACK_REGISTRY: 'https://registry.npmjs.org/',
+        },
+        () =>
+          publishValidatedBatch(selectedPackages, layers, tarballs, {
+            publish: (packageInfo, tarball) =>
+              publishPackage(tarball, publishEnv),
+            versionStatus: (packageInfo) =>
+              packageVersionStatus(packageInfo, publishEnv),
+            concurrency: publishConcurrency,
+            log: (message) => console.log(message),
+          }),
+      );
       const deleted = cleanupOldReleaseArtifacts(outputDir, {
         protectedPaths: [...tarballs.values()],
       });
