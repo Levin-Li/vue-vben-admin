@@ -33,6 +33,24 @@ export class WorkflowRuntimeService extends RequestService {
     return this.post<WorkflowTaskView>('workflow-runtime/complete', { data });
   }
 
+  /** 抄送接收列表由当前会话及服务端数据范围决定。 */
+  async copied() {
+    return this.get<WorkflowInstanceView[]>('workflow-runtime/copied');
+  }
+
+  /** 发起人显式抄送运行实例；服务端重新校验实例和每位接收人。 */
+  async copy(data: { instanceId: string; recipientUserIds: string[] }) {
+    return this.post<unknown>('workflow-runtime/copy', { data });
+  }
+
+  /** 候选按当前实例和会话授权读取，不能使用全局用户目录代替。 */
+  async copyRecipients(instanceId: string, keyword: string) {
+    return this.get<{ label: string; value: string }[]>(
+      'workflow-runtime/copy-recipients',
+      { params: { instanceId, keyword } },
+    );
+  }
+
   async deletePendingAttachment(taskId: string, id: string) {
     return this.post<unknown>('workflow-runtime/attachment/deletePending', {
       data: { taskId, id },

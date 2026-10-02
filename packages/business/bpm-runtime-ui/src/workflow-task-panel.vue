@@ -8,10 +8,15 @@ import type {
   WorkflowTaskAction,
   WorkflowTaskSubmitPayload,
   WorkflowTaskView,
+  WorkflowVerificationChallenge,
 } from './types';
 
 import { computed, reactive, ref, watch } from 'vue';
 
+import {
+  BehaviorCaptcha,
+  normalizeBehaviorCaptchaChallenge,
+} from '@levin/admin-framework';
 import { workflowVerificationLabel } from '@levin/bpm-designer';
 // 审批表单、动作和轨迹在公共包内显式注册，独立宿主也能直接交互。
 import {
@@ -58,6 +63,7 @@ const props = defineProps<{
   submitting?: boolean;
   task: WorkflowTaskView;
   uploadingAttachment?: boolean;
+  verificationChallenge?: WorkflowVerificationChallenge;
 }>();
 const emit = defineEmits<{
   action: [action: WorkflowTaskAction];
@@ -66,11 +72,13 @@ const emit = defineEmits<{
   prepareVerification: [
     payload: WorkflowActionInput & {
       action: WorkflowTaskAction;
+      contextVersion: number;
       verificationType: string;
     },
   ];
   submit: [payload: WorkflowTaskSubmitPayload];
   uploadAttachment: [file: File];
+  verificationInvalidated: [];
 }>();
 const formData = reactive<Record<string, unknown>>({});
 const comment = ref('');
@@ -80,6 +88,7 @@ const targetUserIds = ref<string[]>([]);
 const addSignPosition = ref<string>();
 const verificationCode = ref('');
 const verificationType = ref<string>();
+const contextVersion = ref(0);
 const selectedAction = ref<WorkflowTaskAction>();
 const errors = ref<string[]>([]);
 const displayFormItems = computed<WorkflowFormItem[]>(
@@ -120,6 +129,67 @@ const missingRequired = computed(() =>
   ),
 );
 
+// 挑战只有在任务、类型和输入代际都匹配时才能进入当前办理表单。
+const currentChallenge = computed(() => {
+  const challenge = props.verificationChallenge;
+  return challenge?.successful &&
+    challenge.taskId === props.task.taskId &&
+    challenge.contextVersion === contextVersion.value &&
+    challenge.verificationType === verificationType.value
+    ? challenge
+    : undefined;
+});
+const captchaImage = computed(() => {
+  if (verificationType.value !== 'Captcha') return undefined;
+  const data = currentChallenge.value?.interactionData;
+  return typeof data === 'string' &&
+    /^[A-Z0-9+/]+={0,2}$/i.test(data) &&
+    data.length <= 2_800_000
+    ? `data:image/gif;base64,${data}`
+    : undefined;
+});
+function safePuzzleImage(value: unknown, raw = false) {
+  if (typeof value !== 'string' || value.length > 2_800_040) return false;
+  // 公共题面会把裸 base64 规范化为 PNG；正式服务也可直接返回 JPEG/PNG data URI。
+  if (raw && (value === '' || /^[A-Z0-9+/]+={0,2}$/i.test(value))) return true;
+  return /^data:image\/(?:jpeg|png);base64,[A-Z0-9+/]+={0,2}$/i.test(value);
+}
+const behaviorChallenge = computed(() => {
+  if (verificationType.value !== 'Hmi') return null;
+  const data = currentChallenge.value?.interactionData;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  const puzzle = (data as Record<string, unknown>).puzzle;
+  if (!puzzle || typeof puzzle !== 'object' || Array.isArray(puzzle))
+    return null;
+  for (const key of [
+    'image',
+    'masterImage',
+    'backgroundImage',
+    'sceneImage',
+    'thumb',
+    'thumbImage',
+  ]) {
+    const value = (puzzle as Record<string, unknown>)[key];
+    if (value !== undefined && !safePuzzleImage(value, true)) return null;
+  }
+  const challenge = normalizeBehaviorCaptchaChallenge(data);
+  if (!challenge || !safePuzzleImage(challenge.payload.image)) return null;
+  if (
+    challenge.mode !== 'IDIOM_CLICK' &&
+    challenge.mode !== 'OBSTACLE_AVOIDANCE' &&
+    (!('thumb' in challenge.payload) ||
+      !safePuzzleImage(challenge.payload.thumb))
+  )
+    return null;
+  return challenge;
+});
+const challengeReady = computed(() => {
+  if (!currentChallenge.value) return false;
+  if (verificationType.value === 'Captcha') return Boolean(captchaImage.value);
+  if (verificationType.value === 'Hmi') return Boolean(behaviorChallenge.value);
+  return true;
+});
+
 // 换任务时清除上一对象输入和凭据；同任务失败后保留用户输入。
 watch(
   () => props.task.taskId,
@@ -139,7 +209,7 @@ watch(
   () => props.attachments?.map((item) => item.id).join('|'),
   () => {
     // 文件集合进入动作摘要；上传新文件或切换任务后必须重新准备二次验证。
-    verificationCode.value = '';
+    invalidateVerification();
   },
 );
 
@@ -172,7 +242,7 @@ watch(
     verificationType,
   ],
   () => {
-    verificationCode.value = '';
+    invalidateVerification();
   },
   { deep: true, flush: 'sync' },
 );
@@ -182,9 +252,22 @@ function resetActionParameters() {
   targetUserId.value = undefined;
   targetUserIds.value = [];
   addSignPosition.value = undefined;
-  verificationCode.value = '';
+  invalidateVerification();
   verificationType.value = undefined;
 }
+
+function invalidateVerification() {
+  ++contextVersion.value;
+  verificationCode.value = '';
+  emit('verificationInvalidated');
+}
+
+watch(
+  () => props.verificationChallenge,
+  (challenge) => {
+    if (!challenge || !challenge.successful) verificationCode.value = '';
+  },
+);
 
 // 控件仅接收其声明支持的标量，提交模型仍保留原始业务类型。
 function inputValue(value: unknown): number | string | undefined {
@@ -268,10 +351,12 @@ function prepareVerification() {
     input,
   );
   if (errors.value.length > 0) return;
+  invalidateVerification();
   emit('prepareVerification', {
     ...input,
     action: selectedAction.value,
     verificationType: verificationType.value,
+    contextVersion: contextVersion.value,
   });
 }
 
@@ -285,7 +370,9 @@ function submit() {
   );
   if (
     props.task.verificationTypes?.length &&
-    (!verificationType.value || !verificationCode.value.trim())
+    (!verificationType.value ||
+      !challengeReady.value ||
+      !verificationCode.value.trim())
   )
     errors.value.push('请完成二次验证');
   if (errors.value.length > 0) return;
@@ -571,18 +658,39 @@ function submit() {
                 :disabled="submitting"
               />
             </AFormItem>
-            <AFormItem label="验证码" required>
+            <img
+              v-if="captchaImage"
+              :src="captchaImage"
+              alt="图形验证码"
+              class="mb-2 max-w-full"
+            />
+            <BehaviorCaptcha
+              v-if="behaviorChallenge"
+              :challenge="behaviorChallenge"
+              @refresh="prepareVerification"
+              @complete="(code: string) => (verificationCode = code)"
+            />
+            <AAlert
+              v-if="currentChallenge && !challengeReady"
+              type="error"
+              message="验证挑战格式不受支持，请重新获取。"
+            />
+            <AFormItem
+              v-if="verificationType !== 'Hmi'"
+              label="验证码"
+              required
+            >
               <AInput
                 v-model:value="verificationCode"
                 autocomplete="one-time-code"
-                :disabled="submitting"
+                :disabled="submitting || !challengeReady"
               />
             </AFormItem>
             <AButton
               :disabled="!verificationType || submitting"
               @click="prepareVerification"
             >
-              获取验证码
+              {{ verificationType === 'Hmi' ? '获取人机挑战' : '获取验证码' }}
             </AButton>
           </template>
         </AForm>

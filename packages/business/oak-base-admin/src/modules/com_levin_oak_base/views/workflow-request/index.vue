@@ -23,6 +23,7 @@ import {
   Space,
 } from 'ant-design-vue';
 
+import { workflowDefinitionVersionService } from '../../api/workflow-definition-version-service';
 import {
   loadWorkflowRequestOrgTree,
   WorkflowRequestService,
@@ -87,7 +88,53 @@ const detailPermission = buildApiMethodPermissions(
 );
 const selected = ref<WorkflowRequestRecord>();
 const opening = ref(false);
+const globalPanel = ref<InstanceType<typeof WorkflowBusinessPanel>>();
+const versionPanel = ref<InstanceType<typeof WorkflowBusinessPanel>>();
+const contractVersions = ref<string[]>([]);
+const selectedContractVersion = ref<string>();
+const catalogLoading = ref(false);
+const catalogError = ref(false);
+let catalogRequestVersion = 0;
 let reloadList: (() => Promise<unknown> | unknown) | undefined;
+
+// 能力目录按当前所选租户读取；其内容只控制入口展示，操作权限仍由服务端复核。
+async function loadContractVersions() {
+  const tenantId = selectedScope.value?.tenantId;
+  const businessId = selected.value?.id;
+  if (!tenantId || !businessId) return;
+  const version = ++catalogRequestVersion;
+  catalogLoading.value = true;
+  catalogError.value = false;
+  contractVersions.value = [];
+  try {
+    const catalog =
+      await workflowDefinitionVersionService.listBusinessTypes(tenantId);
+    if (version !== catalogRequestVersion || selected.value?.id !== businessId)
+      return;
+    contractVersions.value = [
+      ...new Set(
+        catalog
+          .filter((item) => item.businessType === 'workflow-request')
+          .map((item) => String(item.contractVersion)),
+      ),
+    ].toSorted((left, right) =>
+      left.localeCompare(right, undefined, { numeric: true }),
+    );
+    const currentVersion = selectedContractVersion.value;
+    if (!currentVersion || !contractVersions.value.includes(currentVersion)) {
+      selectedContractVersion.value = contractVersions.value.includes('1')
+        ? '1'
+        : contractVersions.value[0];
+    }
+  } catch (error) {
+    if (version !== catalogRequestVersion) return;
+    catalogError.value = true;
+    selectedContractVersion.value = undefined;
+    showError(error);
+  } finally {
+    if (version === catalogRequestVersion) catalogLoading.value = false;
+  }
+}
 
 async function openWorkflow(
   record: WorkflowRequestRecord,
@@ -101,6 +148,7 @@ async function openWorkflow(
     if (scopeKey.value !== requestedScope) return;
     selected.value = result;
     reloadList = reload;
+    await loadContractVersions();
   } catch (error) {
     showError(error);
   } finally {
@@ -125,6 +173,17 @@ async function refreshRecord() {
   await reloadList?.();
 }
 
+// 两个面板各自刷新自身；动作成功时补刷新另一面板的资格或历史。
+async function afterGlobalStart() {
+  await refreshRecord();
+  await versionPanel.value?.refresh?.();
+}
+
+async function afterVersionAction() {
+  await refreshRecord();
+  await globalPanel.value?.refresh?.();
+}
+
 function changeOrganization(records: UserOrgSelectorRecord[]) {
   const next = records[0];
   if (next && (next.kind !== 'org' || !next.tenantId)) {
@@ -138,6 +197,9 @@ function changeOrganization(records: UserOrgSelectorRecord[]) {
     return;
   const apply = () => {
     // 范围变化后卸载旧业务表单和流程抽屉，避免沿用另一组织的记录。
+    catalogRequestVersion++;
+    contractVersions.value = [];
+    selectedContractVersion.value = undefined;
     selected.value = undefined;
     reloadList = undefined;
     selectedOrg.value = next;
@@ -221,25 +283,71 @@ function changeOrganization(records: UserOrgSelectorRecord[]) {
         </Descriptions>
         <Space class="mb-4">
           <Button @click="refreshRecord">刷新业务结果</Button>
+          <Button :loading="catalogLoading" @click="loadContractVersions">
+            刷新契约版本
+          </Button>
           <Button @click="router.push('/clob/V1/MyWorkflow')">
             前往我的流程办理
           </Button>
         </Space>
+        <!-- 只从当前租户授权目录选择契约；一次仅展示一个版本的轮次和历史。 -->
+        <Alert
+          v-if="catalogError"
+          type="error"
+          show-icon
+          message="契约版本加载失败，请刷新后重试。"
+          class="mb-4"
+        />
+        <Alert
+          v-else-if="!catalogLoading && contractVersions.length === 0"
+          type="info"
+          show-icon
+          message="当前没有可用的申请流程契约版本。"
+          class="mb-4"
+        />
+        <Space v-if="contractVersions.length > 1" class="mb-4">
+          <Button
+            v-for="version in contractVersions"
+            :key="version"
+            :type="selectedContractVersion === version ? 'primary' : 'default'"
+            @click="selectedContractVersion = version"
+          >
+            申请契约 @{{ version }}
+          </Button>
+        </Space>
         <WorkflowBusinessPanel
+          ref="versionPanel"
+          v-if="selectedContractVersion && !catalogLoading"
+          :key="selectedContractVersion"
           :business-reference="{
             businessType: 'workflow-request',
             businessId: selected.id,
             ...selectedScope,
           }"
           :service="workflowRuntimeService"
+          :show-eligibility="false"
           :can-retry="canRetry"
           :can-new-round="canNewRound"
           :can-resubmit="canResubmit"
-          contract-version="1"
+          :contract-version="selectedContractVersion"
           @error="showError"
-          @started="refreshRecord"
-          @retried="refreshRecord"
-          @round-changed="refreshRecord"
+          @started="afterVersionAction"
+          @retried="afterVersionAction"
+          @round-changed="afterVersionAction"
+        />
+        <WorkflowBusinessPanel
+          ref="globalPanel"
+          :key="selected.id"
+          class="mt-4"
+          :business-reference="{
+            businessType: 'workflow-request',
+            businessId: selected.id,
+            ...selectedScope,
+          }"
+          :service="workflowRuntimeService"
+          :show-history="false"
+          @error="showError"
+          @started="afterGlobalStart"
         />
       </template>
     </Drawer>

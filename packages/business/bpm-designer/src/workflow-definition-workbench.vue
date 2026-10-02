@@ -3,6 +3,7 @@ import type {
   WorkflowBusinessType,
   WorkflowDefinitionVersion,
   WorkflowDesignerOptions,
+  WorkflowSimulationHistory,
 } from './types';
 import type { WorkflowTreeVersion } from './workflow-tree-version';
 
@@ -28,7 +29,13 @@ const props = withDefaults(
   defineProps<{
     definition: WorkflowTreeVersion;
     options?: WorkflowDesignerOptions;
-    permissions?: { publish?: boolean; save?: boolean; simulate?: boolean };
+    permissions?: {
+      deleteSimulation?: boolean;
+      publish?: boolean;
+      save?: boolean;
+      simulate?: boolean;
+      viewSimulation?: boolean;
+    };
     service?: WorkflowDesignerService;
     version: WorkflowDefinitionVersion;
   }>(),
@@ -47,6 +54,74 @@ const actionError = ref<string>();
 const businessTypes = ref<WorkflowBusinessType[]>([]);
 const catalogLoading = ref(false);
 const catalogError = ref<string>();
+const history = ref<WorkflowSimulationHistory[]>([]);
+const historyPage = ref(1);
+const historyTotal = ref(0);
+const selectedRun = ref<WorkflowSimulationHistory>();
+const historyError = ref<string>();
+const historyLoading = ref(false);
+let historyRequest = 0;
+
+async function loadHistory(pageIndex = 1) {
+  const request = ++historyRequest;
+  history.value = [];
+  selectedRun.value = undefined;
+  historyError.value = undefined;
+  if (props.permissions?.viewSimulation === false) return;
+  historyLoading.value = true;
+  try {
+    const result = await service.value.simulationRuns(
+      props.version.id,
+      pageIndex,
+    );
+    if (request !== historyRequest) return;
+    history.value = result.items;
+    historyTotal.value = result.totals;
+    historyPage.value = pageIndex;
+  } catch (error) {
+    if (request === historyRequest)
+      historyError.value =
+        error instanceof Error ? error.message : '模拟历史加载失败';
+  } finally {
+    if (request === historyRequest) historyLoading.value = false;
+  }
+}
+
+async function viewRun(runId: string) {
+  const request = historyRequest;
+  historyError.value = undefined;
+  try {
+    const result = await service.value.simulationRun(props.version.id, runId);
+    if (request === historyRequest) selectedRun.value = result;
+  } catch (error) {
+    if (request === historyRequest)
+      historyError.value =
+        error instanceof Error ? error.message : '模拟报告加载失败';
+  }
+}
+
+async function deleteRun(runId: string) {
+  historyError.value = undefined;
+  try {
+    await service.value.deleteSimulationRun(props.version.id, runId);
+    await loadHistory(historyPage.value);
+    // 删除当前证明后，刷新版本门禁；旧摘要不再允许发布。
+    if (props.version.simulationReport?.runId === runId)
+      emit('refreshed', {
+        ...props.version,
+        simulationReport: undefined,
+      });
+  } catch (error) {
+    historyError.value =
+      error instanceof Error ? error.message : '删除模拟报告失败';
+  }
+}
+
+watch(
+  () => [props.version.id, props.permissions?.viewSimulation, service.value],
+  () => void loadHistory(),
+  { immediate: true },
+);
 const versionError = computed(() => {
   try {
     if (
@@ -110,6 +185,15 @@ function coverageLabel(values?: null | string[]): string {
     : values.join('、') || '无';
 }
 
+function simulationStatusLabel(status: WorkflowSimulationHistory['status']) {
+  return {
+    Deleted: '已删除',
+    Failed: '未通过',
+    Passed: '通过',
+    Running: '运行中',
+  }[status];
+}
+
 // 显式目录加载失败保留草稿，阻止未经目录验证的模拟和发布。
 async function loadCatalog() {
   const request = ++catalogRequest;
@@ -142,6 +226,7 @@ watch(
 );
 onBeforeUnmount(() => {
   catalogRequest++;
+  historyRequest++;
 });
 
 async function run(
@@ -161,6 +246,7 @@ async function run(
     projectDraftV3ToV2(value.lowflowDefinition);
     emit('refreshed', value);
     emit('update:definition', value.lowflowDefinition);
+    void loadHistory();
     actionMessage.value = message;
   } catch (error) {
     // 失败只呈现错误，不关闭工作台、不清空用户正在编辑的配置。
@@ -320,6 +406,69 @@ function publish() {
           {{ version.simulationReport.message }}
         </ADescriptionsItem>
       </ADescriptions>
+      <div v-if="permissions?.viewSimulation !== false" class="mt-4">
+        <h3>模拟历史</h3>
+        <AAlert
+          v-if="historyError"
+          :message="historyError"
+          type="error"
+          show-icon
+        />
+        <p v-if="historyLoading">正在加载模拟历史…</p>
+        <p v-else-if="history.length === 0">暂无模拟记录</p>
+        <div
+          v-for="item in history"
+          :key="item.id"
+          class="mb-2 flex items-center gap-2"
+        >
+          <span>{{ item.finishedTime || item.startedTime || '—' }}</span>
+          <span>{{ simulationStatusLabel(item.status) }}</span>
+          <AButton size="small" @click="viewRun(item.id)">
+            查看报告与轨迹
+          </AButton>
+          <APopconfirm
+            v-if="
+              permissions?.deleteSimulation !== false &&
+              item.status !== 'Deleted'
+            "
+            title="删除这条模拟报告及轨迹？删除当前证明后必须重新模拟才能发布。"
+            @confirm="deleteRun(item.id)"
+          >
+            <AButton size="small" danger>删除</AButton>
+          </APopconfirm>
+        </div>
+        <ASpace v-if="historyTotal > 10">
+          <AButton
+            :disabled="historyPage <= 1"
+            @click="loadHistory(historyPage - 1)"
+          >
+            上一页
+          </AButton>
+          <span>第 {{ historyPage }} 页，共 {{ historyTotal }} 条</span>
+          <AButton
+            :disabled="historyPage * 10 >= historyTotal"
+            @click="loadHistory(historyPage + 1)"
+          >
+            下一页
+          </AButton>
+        </ASpace>
+        <div v-if="selectedRun" class="mt-3">
+          <h4>模拟报告与轨迹</h4>
+          <p v-if="selectedRun.failureMessage">
+            {{ selectedRun.failureMessage }}
+          </p>
+          <pre class="max-h-80 overflow-auto whitespace-pre-wrap">{{
+            JSON.stringify(
+              {
+                coverageReport: selectedRun.coverageReport,
+                executionTrace: selectedRun.executionTrace,
+              },
+              null,
+              2,
+            )
+          }}</pre>
+        </div>
+      </div>
     </ACard>
   </section>
 </template>

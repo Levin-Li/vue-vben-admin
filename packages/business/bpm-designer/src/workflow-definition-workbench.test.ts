@@ -314,4 +314,87 @@ describe('流程定义工作台', () => {
     expect(labels).not.toContain('开始自动模拟');
     expect(labels).not.toContain('发布');
   });
+
+  it('按当前版本显示历史报告与轨迹，禁止无权请求', async () => {
+    const props = setup('Testing');
+    const history = vi
+      .spyOn(props.service, 'simulationRuns')
+      .mockResolvedValue({
+        items: [
+          {
+            id: 'run-1',
+            status: 'Passed',
+            finishedTime: '2026-10-02T10:00:00',
+          },
+        ],
+        totals: 1,
+      });
+    const detail = vi.spyOn(props.service, 'simulationRun').mockResolvedValue({
+      id: 'run-1',
+      status: 'Passed',
+      coverageReport: { coveredTaskKeys: ['approve'] },
+      executionTrace: { mode: 'TEST', visitedNodes: ['approve'] },
+    });
+    const wrapper = mount(WorkflowDefinitionWorkbench, { props, global });
+    await flushPromises();
+    expect(history).toHaveBeenCalledWith('v1', 1);
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '查看报告与轨迹')
+      ?.trigger('click');
+    await flushPromises();
+    expect(detail).toHaveBeenCalledWith('v1', 'run-1');
+    expect(wrapper.text()).toContain('visitedNodes');
+    await wrapper.setProps({ permissions: { viewSimulation: false } });
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('visitedNodes');
+    expect(history).toHaveBeenCalledTimes(1);
+  });
+
+  it('删除当前模拟证明后立即关闭发布，并刷新历史', async () => {
+    const props = setup('Testing');
+    props.version.simulationReport = { runId: 'run-current', successful: true };
+    const history = vi
+      .spyOn(props.service, 'simulationRuns')
+      .mockResolvedValueOnce({
+        items: [{ id: 'run-current', status: 'Passed' }],
+        totals: 1,
+      })
+      .mockResolvedValue({ items: [], totals: 0 });
+    const deletion = vi
+      .spyOn(props.service, 'deleteSimulationRun')
+      .mockResolvedValue(undefined);
+    const wrapper = mount(WorkflowDefinitionWorkbench, {
+      props,
+      global: {
+        ...global,
+        stubs: {
+          ...global.stubs,
+          APopconfirm: {
+            emits: ['confirm'],
+            template:
+              '<div><slot /><button @click="$emit(\'confirm\')">确认删除</button></div>',
+          },
+        },
+      },
+    });
+    await flushPromises();
+    expect(
+      wrapper
+        .findAll('button')
+        .find((item) => item.text() === '发布')
+        ?.attributes('disabled'),
+    ).toBeUndefined();
+    await wrapper
+      .findAll('button')
+      .findLast((item) => item.text() === '确认删除')
+      ?.trigger('click');
+    await flushPromises();
+    expect(deletion).toHaveBeenCalledWith('v1', 'run-current');
+    expect(history).toHaveBeenCalledTimes(2);
+    expect(wrapper.emitted('refreshed')?.[0]?.[0]).toMatchObject({
+      id: 'v1',
+      simulationReport: undefined,
+    });
+  });
 });

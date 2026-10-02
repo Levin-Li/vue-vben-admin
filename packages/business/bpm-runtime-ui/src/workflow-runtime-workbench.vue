@@ -5,8 +5,10 @@ import type {
   WorkflowActionInput,
   WorkflowAttachmentMeta,
   WorkflowInstanceView,
+  WorkflowOption,
   WorkflowTaskSubmitPayload,
   WorkflowTaskView,
+  WorkflowVerificationChallenge,
 } from './types';
 
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
@@ -22,6 +24,7 @@ import {
   ListItem as AListItem,
   ListItemMeta as AListItemMeta,
   Row as ARow,
+  Select as ASelect,
   Space as ASpace,
   TabPane as ATabPane,
   Tabs as ATabs,
@@ -39,15 +42,21 @@ const props = withDefaults(
   defineProps<{
     canDeletePendingAttachment?: boolean;
     canDownloadAttachment?: boolean;
+    canLoadCopyRecipients?: boolean;
     canRetry?: boolean;
+    canSendCopy?: boolean;
     canUploadAttachment?: boolean;
     canViewAttachments?: boolean;
+    canViewCopied?: boolean;
     canViewDone?: boolean;
     canViewPendingAttachments?: boolean;
     canViewStarted?: boolean;
     canViewTodo?: boolean;
     detailComponents?: Record<string, Component>;
-    loadCopied?: () => Promise<WorkflowTaskView[]>;
+    loadCopyRecipients?: (
+      instanceId: string,
+      keyword: string,
+    ) => Promise<WorkflowOption[]>;
     service?: WorkflowRuntimeService;
   }>(),
   {
@@ -60,7 +69,10 @@ const props = withDefaults(
     canViewStarted: true,
     canViewTodo: true,
     detailComponents: undefined,
-    loadCopied: undefined,
+    canViewCopied: true,
+    canSendCopy: false,
+    canLoadCopyRecipients: false,
+    loadCopyRecipients: undefined,
     service: undefined,
   },
 );
@@ -76,11 +88,12 @@ const service = computed(() => props.service ?? defaultService);
 const canViewTodo = computed(() => props.canViewTodo !== false);
 const canViewDone = computed(() => props.canViewDone !== false);
 const canViewStarted = computed(() => props.canViewStarted !== false);
+const canViewCopied = computed(() => props.canViewCopied !== false);
 const activeKey = ref('todo');
 const loading = ref(false);
 const todo = ref<WorkflowTaskView[]>([]);
 const done = ref<WorkflowTaskView[]>([]);
-const copied = ref<WorkflowTaskView[]>([]);
+const copied = ref<WorkflowInstanceView[]>([]);
 const started = ref<WorkflowInstanceView[]>([]);
 const selectedTask = ref<WorkflowTaskView>();
 const selectedInstance = ref<WorkflowInstanceView>();
@@ -93,12 +106,27 @@ const deletingFile = ref<string>();
 const instanceDetail = ref<HTMLElement>();
 const submitting = ref(false);
 const retrying = ref<string>();
+const sendingCopy = ref(false);
+const copyRecipients = ref<string[]>([]);
+const copyOptions = ref<WorkflowOption[]>([]);
+const loadingCopyOptions = ref(false);
+let copyOptionsVersion = 0;
 const errorMessage = ref('');
 const verificationMessage = ref('');
+const verificationChallenge = ref<WorkflowVerificationChallenge>();
 let refreshVersion = 0;
 let attachmentVersion = 0;
 let pendingVersion = 0;
 let verificationVersion = 0;
+
+// 分栏切换后移除旧分栏详情，防止我发起实例在抄送分栏继续展示。
+watch(activeKey, () => {
+  selectedTask.value = undefined;
+  selectedInstance.value = undefined;
+  copyRecipients.value = [];
+  copyOptions.value = [];
+  ++copyOptionsVersion;
+});
 
 async function loadPendingAttachments(taskId: string) {
   const version = ++pendingVersion;
@@ -155,6 +183,7 @@ watch(
     pendingFiles.value = [];
     attachedFiles.value = [];
     verificationMessage.value = '';
+    verificationChallenge.value = undefined;
     const taskId = selectedTask.value?.taskId;
     if (taskId) void loadPendingAttachments(taskId);
     const instanceId = selectedTask.value?.processInstanceId;
@@ -175,7 +204,8 @@ watch(
   () => {
     instanceFiles.value = [];
     const instanceId = selectedInstance.value?.instanceId;
-    if (instanceId) void loadAttachments(instanceId, 'instance');
+    if (instanceId && activeKey.value === 'started')
+      void loadAttachments(instanceId, 'instance');
   },
 );
 
@@ -187,7 +217,8 @@ watch(
     const taskInstance = selectedTask.value?.processInstanceId;
     const startedInstance = selectedInstance.value?.instanceId;
     if (taskInstance) void loadAttachments(taskInstance, 'task');
-    else if (startedInstance) void loadAttachments(startedInstance, 'instance');
+    else if (startedInstance && activeKey.value === 'started')
+      void loadAttachments(startedInstance, 'instance');
   },
 );
 
@@ -285,17 +316,17 @@ async function refresh() {
       canViewTodo.value && 'todo',
       canViewDone.value && 'done',
       canViewStarted.value && 'started',
-      'copied',
+      canViewCopied.value && 'copied',
     ].filter(Boolean) as string[];
     if (!visibleKeys.includes(activeKey.value))
-      activeKey.value = visibleKeys[0] || 'copied';
+      activeKey.value = visibleKeys[0] || '';
 
     const [todoResult, doneResult, startedResult, copiedResult] =
       await Promise.allSettled([
         canViewTodo.value ? service.value.todo() : Promise.resolve([]),
         canViewDone.value ? service.value.done() : Promise.resolve([]),
         canViewStarted.value ? service.value.started() : Promise.resolve([]),
-        props.loadCopied?.() ?? Promise.resolve([]),
+        canViewCopied.value ? service.value.copied() : Promise.resolve([]),
       ]);
     if (version !== refreshVersion) return;
 
@@ -309,17 +340,21 @@ async function refresh() {
     started.value =
       startedResult.status === 'fulfilled' ? startedResult.value : [];
     copied.value =
-      copiedResult.status === 'fulfilled' ? copiedResult.value : [];
+      canViewCopied.value && copiedResult.status === 'fulfilled'
+        ? copiedResult.value
+        : [];
     errorMessage.value = firstFailure
       ? '部分流程列表加载失败，请检查权限或稍后重试。'
       : '';
     if (firstFailure) emit('error', firstFailure.reason);
     if (selectedTask.value)
-      selectedTask.value = [...todo.value, ...done.value, ...copied.value].find(
+      selectedTask.value = [...todo.value, ...done.value].find(
         (task) => task.taskId === selectedTask.value?.taskId,
       );
     if (selectedInstance.value)
-      selectedInstance.value = started.value.find(
+      selectedInstance.value = (
+        activeKey.value === 'copied' ? copied.value : started.value
+      ).find(
         (instance) =>
           instance.instanceId === selectedInstance.value?.instanceId,
       );
@@ -333,20 +368,120 @@ async function refresh() {
 }
 
 // 当前用户权限重新载入或撤销时丢弃旧详情，并重新按最新授权加载列表。
-watch([canViewTodo, canViewDone, canViewStarted], () => {
+watch([canViewTodo, canViewDone, canViewStarted, canViewCopied], () => {
   selectedTask.value = undefined;
   selectedInstance.value = undefined;
+  copied.value = [];
+  copyRecipients.value = [];
+  copyOptions.value = [];
+  ++copyOptionsVersion;
   void refresh();
 });
+
+// 候选查询或发送权限撤销时立即清空选择，不保留可再次提交的旧命令。
+watch(
+  () => [props.canSendCopy, props.canLoadCopyRecipients],
+  () => {
+    if (props.canSendCopy && props.canLoadCopyRecipients) return;
+    copyRecipients.value = [];
+    copyOptions.value = [];
+    ++copyOptionsVersion;
+  },
+);
 
 async function selectInstance(instance: WorkflowInstanceView) {
   // 只从当前已授权列表选取实例，避免把旧任务详情与实例详情同时保留。
   selectedTask.value = undefined;
   selectedInstance.value = instance;
+  copyRecipients.value = [];
+  copyOptions.value = [];
 
   // 列表可能很长，详情挂载后将其带入视口，避免点击后看起来没有反应。
   await nextTick();
   instanceDetail.value?.scrollIntoView?.({ block: 'start' });
+}
+
+async function searchCopyRecipients(keyword = '') {
+  const instanceId = selectedInstance.value?.instanceId;
+  if (
+    !props.canSendCopy ||
+    !props.canLoadCopyRecipients ||
+    !props.loadCopyRecipients ||
+    !instanceId ||
+    activeKey.value !== 'started'
+  )
+    return;
+  const version = ++copyOptionsVersion;
+  const searchText = keyword.trim();
+  // 服务端只接受2至32字符的姓名片段；短词不发请求，也不清除已选人员。
+  if (searchText.length < 2 || searchText.length > 32) {
+    copyOptions.value = copyOptions.value.filter((item) =>
+      copyRecipients.value.includes(item.value),
+    );
+    loadingCopyOptions.value = false;
+    return;
+  }
+  loadingCopyOptions.value = true;
+  try {
+    const options = await props.loadCopyRecipients(instanceId, searchText);
+    if (
+      version === copyOptionsVersion &&
+      props.canSendCopy &&
+      props.canLoadCopyRecipients &&
+      selectedInstance.value?.instanceId === instanceId
+    ) {
+      const selectedOptions = copyOptions.value.filter((item) =>
+        copyRecipients.value.includes(item.value),
+      );
+      copyOptions.value = [
+        ...new Map(
+          [...selectedOptions, ...options].map((item) => [item.value, item]),
+        ).values(),
+      ];
+    }
+  } catch (error) {
+    if (version !== copyOptionsVersion) return;
+    copyOptions.value = [];
+    emit('error', error);
+  } finally {
+    if (version === copyOptionsVersion) loadingCopyOptions.value = false;
+  }
+}
+
+async function sendCopy() {
+  const instance = selectedInstance.value;
+  if (
+    !props.canSendCopy ||
+    !props.canLoadCopyRecipients ||
+    !instance ||
+    activeKey.value !== 'started' ||
+    instance.status !== 'Running' ||
+    sendingCopy.value
+  )
+    return;
+  // 只提交当前授权目录给出的选项；不可由自由文本制造用户标识。
+  const allowedIds = new Set(copyOptions.value.map((item) => item.value));
+  const recipientUserIds = [...new Set(copyRecipients.value)];
+  if (
+    recipientUserIds.length === 0 ||
+    recipientUserIds.some((id) => !allowedIds.has(id))
+  )
+    return;
+  sendingCopy.value = true;
+  errorMessage.value = '';
+  try {
+    await service.value.copy({
+      instanceId: instance.instanceId,
+      recipientUserIds,
+    });
+    copyRecipients.value = [];
+    await refresh();
+  } catch (error) {
+    errorMessage.value = '发送抄送失败，请检查当前实例及接收人权限。';
+    emit('error', error);
+  } finally {
+    sendingCopy.value = false;
+  }
 }
 
 async function complete(payload: WorkflowTaskSubmitPayload) {
@@ -355,6 +490,7 @@ async function complete(payload: WorkflowTaskSubmitPayload) {
   submitting.value = true;
   errorMessage.value = '';
   verificationMessage.value = '';
+  verificationChallenge.value = undefined;
   try {
     // 移除仅供界面展示的action对象，完整传递意见及动作专属参数。
     const { action, ...input } = payload;
@@ -415,6 +551,7 @@ async function retry(item: WorkflowInstanceView) {
 async function prepareVerification(
   payload: WorkflowActionInput & {
     action: { code: string };
+    contextVersion?: number;
     verificationType: string;
   },
 ) {
@@ -422,6 +559,7 @@ async function prepareVerification(
   if (!taskId) return;
   const version = ++verificationVersion;
   verificationMessage.value = '';
+  verificationChallenge.value = undefined;
   try {
     // 摘要由服务端规范化计算，不将原始表单伪装成客户端“摘要”。
     const { action, ...input } = payload;
@@ -435,6 +573,19 @@ async function prepareVerification(
       selectedTask.value?.taskId !== taskId
     )
       return;
+    if (challenge.verificationType !== payload.verificationType) {
+      verificationMessage.value = '验证类型不匹配，请重新获取挑战。';
+      return;
+    }
+    if (challenge.successful && payload.contextVersion !== undefined) {
+      verificationChallenge.value = {
+        contextVersion: payload.contextVersion,
+        interactionData: challenge.interactionData,
+        successful: true,
+        taskId,
+        verificationType: challenge.verificationType,
+      };
+    }
     verificationMessage.value =
       challenge.message ||
       (challenge.successful
@@ -449,6 +600,11 @@ async function prepareVerification(
     errorMessage.value = '获取验证挑战失败，请重试。';
     emit('error', error);
   }
+}
+function invalidateVerification() {
+  ++verificationVersion;
+  verificationMessage.value = '';
+  verificationChallenge.value = undefined;
 }
 onMounted(refresh);
 defineExpose({ refresh });
@@ -581,32 +737,41 @@ defineExpose({ refresh });
             </template>
           </AList>
         </ATabPane>
-        <ATabPane key="copied" :tab="`抄送 ${copied.length}`">
-          <AEmpty
-            v-if="!loadCopied"
-            description="宿主未提供抄送数据连接器"
-          /><AList v-else :data-source="copied">
+        <ATabPane
+          v-if="canViewCopied"
+          key="copied"
+          :tab="`抄送 ${copied.length}`"
+        >
+          <AEmpty v-if="copied.length === 0" description="暂无抄送记录" />
+          <AList v-else :data-source="copied">
             <template #renderItem="{ item }">
               <AListItem
                 class="cursor-pointer"
                 role="button"
                 tabindex="0"
-                :aria-label="`查看${item.businessTitle || item.taskName || item.taskId}`"
-                @click="selectedTask = item"
-                @keydown.enter.prevent="selectedTask = item"
-                @keydown.space.prevent="selectedTask = item"
+                :aria-label="`查看${item.businessTitle || item.purposeKey || '流程'}抄送实例`"
+                @click="selectInstance(item)"
+                @keydown.enter.prevent="selectInstance(item)"
+                @keydown.space.prevent="selectInstance(item)"
               >
                 <AListItemMeta
-                  :title="item.businessTitle || item.taskName || item.taskId"
-                  :description="`${item.taskName || item.taskId} · ${item.processInstanceId || '—'}`"
+                  :title="item.businessTitle || item.purposeKey || '流程实例'"
+                  :description="item.instanceId"
                 />
+                <ATag>
+                  {{ workflowStatusLabel(item.executionStatus || item.status) }}
+                </ATag>
               </AListItem>
             </template>
           </AList>
         </ATabPane>
       </ATabs>
     </ACard>
-    <ARow v-if="selectedTask" class="mt-4" :gutter="16">
+    <ARow
+      v-if="selectedTask && (activeKey === 'todo' || activeKey === 'done')"
+      class="mt-4"
+      :gutter="16"
+    >
       <ACol :lg="15" :span="24">
         <WorkflowTaskPanel
           :task="selectedTask"
@@ -619,7 +784,9 @@ defineExpose({ refresh });
           :uploading-attachment="uploadingFile"
           :downloading-attachment-id="downloadingFile"
           :deleting-attachment-id="deletingFile"
+          :verification-challenge="verificationChallenge"
           @prepare-verification="prepareVerification"
+          @verification-invalidated="invalidateVerification"
           @submit="complete"
           @upload-attachment="uploadAttachment"
           @download-attachment="downloadAttachment"
@@ -633,7 +800,9 @@ defineExpose({ refresh });
       </ACol>
     </ARow>
     <div
-      v-if="selectedInstance && activeKey === 'started'"
+      v-if="
+        selectedInstance && (activeKey === 'started' || activeKey === 'copied')
+      "
       ref="instanceDetail"
       class="levin-workflow-instance-detail mt-4"
     >
@@ -644,7 +813,10 @@ defineExpose({ refresh });
           </ACard>
         </ACol>
         <ACol :span="24" class="mt-4">
-          <ACard size="small" title="流程实例详情">
+          <ACard
+            size="small"
+            :title="activeKey === 'copied' ? '抄送实例详情' : '流程实例详情'"
+          >
             <!-- 实例只读详情只呈现服务端授权的固定事实，不补造任务动作。 -->
             <h3>
               {{
@@ -665,8 +837,47 @@ defineExpose({ refresh });
             <p v-if="selectedInstance.effectStatus">
               业务处理：{{ workflowStatusLabel(selectedInstance.effectStatus) }}
             </p>
+            <!-- 仅发起人可在运行实例上明确发送抄送，候选由当前实例的服务端授权接口返回。 -->
+            <div
+              v-if="
+                activeKey === 'started' &&
+                canSendCopy &&
+                canLoadCopyRecipients &&
+                loadCopyRecipients &&
+                selectedInstance.status === 'Running'
+              "
+              class="mb-4"
+            >
+              <h4>发送抄送</h4>
+              <ASpace wrap>
+                <ASelect
+                  v-model:value="copyRecipients"
+                  mode="multiple"
+                  show-search
+                  :filter-option="false"
+                  :options="copyOptions"
+                  :loading="loadingCopyOptions"
+                  style="min-width: 240px"
+                  placeholder="输入至少2字搜索接收人"
+                  @search="searchCopyRecipients"
+                />
+                <AButton
+                  :loading="sendingCopy"
+                  :disabled="copyRecipients.length === 0"
+                  @click="sendCopy"
+                >
+                  发送抄送
+                </AButton>
+              </ASpace>
+            </div>
             <!-- 实例附件只来自当前授权的最小元数据，下载再次调用独立鉴权入口。 -->
-            <template v-if="canViewAttachments && instanceFiles.length > 0">
+            <template
+              v-if="
+                activeKey === 'started' &&
+                canViewAttachments &&
+                instanceFiles.length > 0
+              "
+            >
               <h4>流程附件</h4>
               <AList :data-source="instanceFiles" size="small">
                 <template #renderItem="{ item }">

@@ -23,6 +23,17 @@ export class WorkflowDefinitionVersionService extends WorkflowDesignerService {
     return this.post<string>('WorkflowDefinitionVersion/create', { data });
   }
 
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '平台数据-工作流定义版本',
+    action: '删除模拟报告',
+  })
+  override deleteSimulationRun(
+    ...args: Parameters<WorkflowDesignerService['deleteSimulationRun']>
+  ) {
+    return super.deleteSimulationRun(...args);
+  }
+
   @CRUD.ListTable({
     refEntityClass: 'com.levin.oak.base.entities.WorkflowDefinitionVersion',
   })
@@ -41,7 +52,6 @@ export class WorkflowDefinitionVersionService extends WorkflowDesignerService {
       { params },
     );
   }
-
   @CRUD.Op({ label: '发布' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
@@ -78,6 +88,28 @@ export class WorkflowDefinitionVersionService extends WorkflowDesignerService {
     ...args: Parameters<WorkflowDesignerService['saveDraft']>
   ) {
     return super.saveDraft(...args);
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '平台数据-工作流定义版本',
+    action: '查看模拟报告',
+  })
+  override simulationRun(
+    ...args: Parameters<WorkflowDesignerService['simulationRun']>
+  ) {
+    return super.simulationRun(...args);
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '平台数据-工作流定义版本',
+    action: '查看模拟历史',
+  })
+  override simulationRuns(
+    ...args: Parameters<WorkflowDesignerService['simulationRuns']>
+  ) {
+    return super.simulationRuns(...args);
   }
 
   @CRUD.Op({ label: '开始模拟测试' })

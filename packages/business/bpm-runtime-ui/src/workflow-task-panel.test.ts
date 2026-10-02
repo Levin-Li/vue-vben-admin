@@ -1,5 +1,6 @@
 import { shallowMount } from '@vue/test-utils';
 
+import { BehaviorCaptcha } from '@levin/admin-framework';
 import { describe, expect, it } from 'vitest';
 
 import WorkflowTaskPanel from './workflow-task-panel.vue';
@@ -50,6 +51,202 @@ const actionStubs = {
 };
 
 describe('workflowTaskPanel', () => {
+  it('人机挑战复用公共控件并透传其验证结果', async () => {
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: {
+        task: {
+          taskId: 'hmi-task',
+          status: 'Todo',
+          actions: [{ code: 'approve', label: '通过' }],
+          verificationTypes: ['Hmi'],
+        },
+      },
+      global: { stubs: actionStubs },
+    });
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '通过')
+      ?.trigger('click');
+    await wrapper.find('select').setValue('Hmi');
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '获取人机挑战')
+      ?.trigger('click');
+    const contextVersion = (
+      wrapper.emitted('prepareVerification')?.at(-1)?.[0] as {
+        contextVersion: number;
+      }
+    ).contextVersion;
+    await wrapper.setProps({
+      verificationChallenge: {
+        taskId: 'hmi-task',
+        contextVersion,
+        verificationType: 'Hmi',
+        successful: true,
+        interactionData: {
+          mode: 'click',
+          challengeId: 'h1',
+          instruction: '点击目标',
+          puzzle: {
+            width: 427,
+            height: 240,
+            image: 'data:image/jpeg;base64,/9j/AA==',
+            thumb: 'data:image/png;base64,iVBORw0KGgo=',
+            requiredClicks: 1,
+          },
+        },
+      },
+    });
+    const captcha = wrapper.findComponent(BehaviorCaptcha);
+    expect(captcha.exists()).toBe(true);
+    captcha.vm.$emit('complete', '{"challengeId":"h1"}');
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '确认通过')
+      ?.trigger('click');
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({
+      verificationCode: '{"challengeId":"h1"}',
+      verificationType: 'Hmi',
+    });
+    await wrapper.setProps({
+      verificationChallenge: {
+        taskId: 'hmi-task',
+        contextVersion,
+        verificationType: 'Hmi',
+        successful: true,
+        interactionData: {
+          mode: 'click',
+          challengeId: 'h2',
+          puzzle: { image: 'https://invalid.test/pixel', thumb: 'AA==' },
+        },
+      },
+    });
+    expect(wrapper.findComponent(BehaviorCaptcha).exists()).toBe(false);
+    await wrapper.setProps({
+      verificationChallenge: {
+        taskId: 'hmi-task',
+        contextVersion,
+        verificationType: 'Hmi',
+        successful: true,
+        interactionData: {
+          mode: 'idiomClick',
+          challengeId: 'h3',
+          puzzle: { image: 'data:image/jpeg;base64,/9j/AA==', thumb: '' },
+        },
+      },
+    });
+    expect(wrapper.findComponent(BehaviorCaptcha).exists()).toBe(true);
+  });
+
+  it('图形挑战只显示本地 GIF，输入改变后旧码不能提交', async () => {
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: {
+        task: {
+          taskId: 't1',
+          status: 'Todo',
+          actions: [{ code: 'approve', label: '通过' }],
+          verificationTypes: ['Captcha'],
+        },
+      },
+      global: { stubs: actionStubs },
+    });
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '通过')
+      ?.trigger('click');
+    await wrapper.find('select').setValue('Captcha');
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '获取验证码')
+      ?.trigger('click');
+    const contextVersion = (
+      wrapper.emitted('prepareVerification')?.at(-1)?.[0] as {
+        contextVersion: number;
+      }
+    ).contextVersion;
+    await wrapper.setProps({
+      verificationChallenge: {
+        taskId: 't1',
+        contextVersion,
+        verificationType: 'Captcha',
+        successful: true,
+        interactionData: 'R0lGODlhAQABAIAAAAUEBA==',
+      },
+    });
+    expect(wrapper.get('img[alt="图形验证码"]').attributes('src')).toBe(
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBA==',
+    );
+    await wrapper
+      .findAll('input')
+      .find((item) => item.attributes('autocomplete') === 'one-time-code')
+      ?.setValue('1234');
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '确认通过')
+      ?.trigger('click');
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({
+      verificationCode: '1234',
+      verificationType: 'Captcha',
+    });
+    const submitCount = wrapper.emitted('submit')?.length;
+    await wrapper.find('textarea').setValue('改动意见');
+    expect(wrapper.find('img[alt="图形验证码"]').exists()).toBe(false);
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '确认通过')
+      ?.trigger('click');
+    expect(wrapper.emitted('submit')).toHaveLength(submitCount ?? 0);
+  });
+
+  it('拒绝远程图片和不匹配类型的挑战', async () => {
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: {
+        task: {
+          taskId: 't1',
+          status: 'Todo',
+          actions: [{ code: 'approve', label: '通过' }],
+          verificationTypes: ['Captcha'],
+        },
+      },
+      global: { stubs: actionStubs },
+    });
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '通过')
+      ?.trigger('click');
+    await wrapper.find('select').setValue('Captcha');
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '获取验证码')
+      ?.trigger('click');
+    const contextVersion = (
+      wrapper.emitted('prepareVerification')?.at(-1)?.[0] as {
+        contextVersion: number;
+      }
+    ).contextVersion;
+    await wrapper.setProps({
+      verificationChallenge: {
+        taskId: 't1',
+        contextVersion,
+        verificationType: 'Captcha',
+        successful: true,
+        interactionData: 'https://invalid.test/pixel',
+      },
+    });
+    expect(wrapper.find('img[alt="图形验证码"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('验证挑战格式不受支持');
+    await wrapper.setProps({
+      verificationChallenge: {
+        taskId: 't1',
+        contextVersion,
+        verificationType: 'Hmi',
+        successful: true,
+        interactionData: {},
+      },
+    });
+    expect(wrapper.text()).not.toContain('验证挑战格式不受支持');
+  });
+
   it('二次验证展示译名，准备验证仍传服务端枚举值', async () => {
     const wrapper = shallowMount(WorkflowTaskPanel, {
       props: {

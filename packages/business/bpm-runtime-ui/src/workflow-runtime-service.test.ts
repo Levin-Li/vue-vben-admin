@@ -197,6 +197,7 @@ describe('workflowRuntimeService', () => {
     await service.todo();
     await service.done();
     await service.started();
+    await service.copied();
 
     expect(requestCalls.get).toHaveBeenNthCalledWith(
       1,
@@ -209,6 +210,27 @@ describe('workflowRuntimeService', () => {
     expect(requestCalls.get).toHaveBeenNthCalledWith(
       3,
       'workflow-runtime/started',
+    );
+    expect(requestCalls.get).toHaveBeenNthCalledWith(
+      4,
+      'workflow-runtime/copied',
+    );
+  });
+
+  it('显式抄送只提交实例和接收人标识', async () => {
+    const service = new WorkflowRuntimeService();
+    await service.copy({ instanceId: 'i1', recipientUserIds: ['u1'] });
+    expect(requestCalls.post).toHaveBeenCalledWith('workflow-runtime/copy', {
+      data: { instanceId: 'i1', recipientUserIds: ['u1'] },
+    });
+  });
+
+  it('抄送候选由当前实例专用接口查询，不访问全局用户列表', async () => {
+    const service = new WorkflowRuntimeService();
+    await service.copyRecipients('instance-1', '小王');
+    expect(requestCalls.get).toHaveBeenCalledWith(
+      'workflow-runtime/copy-recipients',
+      { params: { instanceId: 'instance-1', keyword: '小王' } },
     );
   });
 

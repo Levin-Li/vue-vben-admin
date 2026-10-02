@@ -52,7 +52,7 @@ const failedRun: WorkflowInstanceView = {
   executionStatus: 'Completed',
   outcome: 'Rejected',
   effectStatus: 'Applied',
-  businessContractVersion: 'old-contract',
+  businessContractVersion: '1',
   attemptNo: 2,
 };
 const state: WorkflowRoundState = {
@@ -117,6 +117,33 @@ function setup(
 }
 
 describe('业务轮次与显式重提交互', () => {
+  it('拆分面板时全局资格只读取用途，契约历史只读取历史和轮次', async () => {
+    const global = setup({ contractVersion: undefined });
+    await global.wrapper.setProps({ showHistory: false });
+    await flushPromises();
+    global.api.eligibility.mockClear();
+    global.api.history.mockClear();
+    await global.wrapper.vm.refresh();
+    await flushPromises();
+    expect(global.api.eligibility).toHaveBeenCalledTimes(1);
+    expect(global.api.history).not.toHaveBeenCalled();
+    expect(global.button('重新提交')).toBeUndefined();
+    global.wrapper.unmount();
+
+    const version = setup({ contractVersion: '1' });
+    await version.wrapper.setProps({ showEligibility: false });
+    await flushPromises();
+    version.api.eligibility.mockClear();
+    version.api.history.mockClear();
+    await version.wrapper.vm.refresh();
+    await flushPromises();
+    expect(version.api.eligibility).not.toHaveBeenCalled();
+    expect(version.api.history).toHaveBeenCalledTimes(1);
+    expect(version.button('发起流程')).toBeUndefined();
+    expect(version.button('重新提交')).toBeDefined();
+    version.wrapper.unmount();
+  });
+
   it('缺少明确契约或独立写权限时不猜历史契约、不开放命令', async () => {
     const noContract = setup({ contractVersion: undefined });
     await flushPromises();
@@ -133,12 +160,31 @@ describe('业务轮次与显式重提交互', () => {
     noPermission.wrapper.unmount();
   });
 
+  it('异步授予轮次权限后重新读取服务端资格，撤销后清除旧按钮', async () => {
+    const { api, wrapper, button } = setup({
+      canNewRound: false,
+      canResubmit: false,
+    });
+    await flushPromises();
+    expect(api.roundState).not.toHaveBeenCalled();
+    await wrapper.setProps({ canResubmit: true });
+    await flushPromises();
+    expect(api.roundState).toHaveBeenCalledWith(
+      expect.objectContaining({ contractVersion: '1' }),
+    );
+    expect(button('重新提交')).toBeDefined();
+    await wrapper.setProps({ canResubmit: false });
+    expect(button('重新提交')).toBeUndefined();
+    wrapper.unmount();
+  });
+
   it('只展示服务端许可的同轮已完成已应用失败来源，任意失败历史不能重提', async () => {
     const { api, wrapper } = setup();
     api.history.mockResolvedValue([
       failedRun,
       { ...failedRun, runId: 'old-run', attemptNo: 1 },
       { ...failedRun, runId: 'old-round', roundId: 'round-old' },
+      { ...failedRun, runId: 'other-version', businessContractVersion: '2' },
       { ...failedRun, runId: 'approved', outcome: 'Approved' },
       {
         ...failedRun,
@@ -153,6 +199,41 @@ describe('业务轮次与显式重提交互', () => {
     expect(
       wrapper.findAll('button').filter((item) => item.text() === '重新提交'),
     ).toHaveLength(1);
+    expect(wrapper.text()).not.toContain('other-version');
+    wrapper.unmount();
+  });
+
+  it('契约2只读取自身轮次并按冻结版本重提，契约1来源不可借用资格', async () => {
+    const { api, wrapper, click } = setup({ contractVersion: '2' });
+    api.history.mockResolvedValue([
+      failedRun,
+      {
+        ...failedRun,
+        instanceId: 'instance-2',
+        runId: 'run-2',
+        businessContractVersion: '2',
+      },
+    ]);
+    api.roundState.mockResolvedValue({
+      ...state,
+      contractVersion: '2',
+      resubmittableRunIds: ['run-1', 'run-2'],
+    });
+    await wrapper.vm.refresh();
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('instance-1');
+    expect(wrapper.text()).toContain('instance-2');
+    expect(api.roundState).toHaveBeenCalledWith(
+      expect.objectContaining({ contractVersion: '2' }),
+    );
+    await click('重新提交');
+    await click('确认');
+    expect(api.resubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contractVersion: '2',
+        sourceRunId: 'run-2',
+      }),
+    );
     wrapper.unmount();
   });
 

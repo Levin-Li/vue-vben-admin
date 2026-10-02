@@ -203,3 +203,19 @@ export interface WorkflowSimulationReport {
   successful: boolean;
   uncoveredBranches?: string[];
 }
+
+/** 仅来自已授权固定版本的模拟历史；轨迹由服务端在详情接口返回。 */
+export interface WorkflowSimulationHistory {
+  coverageReport?: Record<string, unknown>;
+  executionTrace?: Record<string, unknown>;
+  failureMessage?: string;
+  finishedTime?: string;
+  id: string;
+  startedTime?: string;
+  status: 'Deleted' | 'Failed' | 'Passed' | 'Running';
+}
+
+export interface WorkflowSimulationHistoryPage {
+  items: WorkflowSimulationHistory[];
+  totals: number;
+}

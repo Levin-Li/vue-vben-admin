@@ -16,6 +16,98 @@ vi.mock('@levin/admin-framework', () => ({
 }));
 
 describe('运行时公开组件独立挂载', () => {
+  it('接收人查询权限独立于发送权限，撤销后移除选择入口', async () => {
+    const api = {
+      todo: vi.fn(),
+      done: vi.fn(),
+      started: vi.fn().mockResolvedValue([
+        {
+          instanceId: 'running-1',
+          businessTitle: '本人申请',
+          status: 'Running',
+        },
+      ]),
+      copied: vi.fn(),
+    };
+    const loadCopyRecipients = vi
+      .fn()
+      .mockResolvedValue([{ label: '接收人', value: 'user-1' }]);
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewTodo: false,
+        canViewDone: false,
+        canViewStarted: true,
+        canViewCopied: false,
+        canSendCopy: true,
+        canLoadCopyRecipients: false,
+        loadCopyRecipients,
+      },
+    });
+    await flushPromises();
+    await wrapper.get('[aria-label="查看本人申请实例"]').trigger('click');
+    expect(wrapper.text()).not.toContain('发送抄送');
+    expect(loadCopyRecipients).not.toHaveBeenCalled();
+
+    await wrapper.setProps({ canLoadCopyRecipients: true });
+    await flushPromises();
+    expect(wrapper.text()).toContain('发送抄送');
+    const search = wrapper.get('.ant-select-selection-search-input');
+    await search.setValue('王');
+    await flushPromises();
+    expect(loadCopyRecipients).not.toHaveBeenCalled();
+    await search.setValue('小王');
+    await flushPromises();
+    expect(loadCopyRecipients).toHaveBeenCalledWith('running-1', '小王');
+    await wrapper.setProps({ canLoadCopyRecipients: false });
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('发送抄送');
+    wrapper.unmount();
+  });
+
+  it('抄送实例只显示只读图和轨迹，撤销查询权限后清除内容', async () => {
+    const api = {
+      todo: vi.fn(),
+      done: vi.fn(),
+      started: vi.fn(),
+      copied: vi.fn().mockResolvedValue([
+        {
+          instanceId: 'copied-1',
+          businessTitle: '抄送的申请',
+          status: 'Running',
+          timeline: [{ id: 'event-1', name: '已提交', time: '2026-10-02' }],
+          processDiagramNodes: [
+            { id: 'start', name: '开始', status: 'completed' },
+          ],
+        },
+      ]),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewTodo: false,
+        canViewDone: false,
+        canViewStarted: false,
+        canViewCopied: true,
+      },
+    });
+    await flushPromises();
+    expect(api.copied).toHaveBeenCalledTimes(1);
+    await wrapper.get('[aria-label="查看抄送的申请抄送实例"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('已提交');
+    expect(wrapper.find('[data-node-id="start"]').exists()).toBe(true);
+    expect(wrapper.findComponent(WorkflowTaskPanel).exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('发送抄送');
+
+    await wrapper.setProps({ canViewCopied: false });
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('抄送的申请');
+    expect(wrapper.text()).not.toContain('已提交');
+    expect(wrapper.find('[data-node-id="start"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it('切换待办后从服务端恢复本人待绑定附件，不沿用上一任务选择', async () => {
     const tasks = [
       {
@@ -32,6 +124,7 @@ describe('运行时公开组件独立挂载', () => {
       },
     ];
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn().mockResolvedValue(tasks),
       done: vi.fn().mockResolvedValue([]),
       started: vi.fn().mockResolvedValue([]),
@@ -78,6 +171,7 @@ describe('运行时公开组件独立挂载', () => {
       businessTitle: '普通候选的报销',
     };
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn().mockResolvedValue([task]),
       done: vi.fn().mockRejectedValue(new Error('403')),
       started: vi.fn().mockRejectedValue(new Error('403')),
@@ -107,6 +201,7 @@ describe('运行时公开组件独立挂载', () => {
   it('列表权限在请求期间失效时仍保留成功加载的待办', async () => {
     // 后端撤权拒绝某个分栏后，不能把另一项合法待办一并清空或误报全局空列表。
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn().mockResolvedValue([
         {
           taskId: 'allowed-task',
@@ -131,6 +226,7 @@ describe('运行时公开组件独立挂载', () => {
   it('没有待办权限但有我发起权限时进入可见分栏', async () => {
     // 工作台不能停留在已隐藏的默认待办页，也不能为此试探无权接口。
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn(),
       done: vi.fn(),
       started: vi.fn().mockResolvedValue([
@@ -192,6 +288,7 @@ describe('运行时公开组件独立挂载', () => {
       ],
     };
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn(),
       done: vi.fn(),
       started: vi.fn().mockResolvedValue([instance]),
@@ -229,6 +326,7 @@ describe('运行时公开组件独立挂载', () => {
       items: Array<{ taskId: string; taskName: string }>,
     ) => void;
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn().mockReturnValue(
         new Promise((resolve) => {
           completeTodo = resolve;
@@ -288,6 +386,7 @@ describe('运行时公开组件独立挂载', () => {
       processDiagramEdges: [{ id: 'e1', source: 'start', target: 'end' }],
     };
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn().mockResolvedValue([]),
       done: vi.fn().mockResolvedValue([first, second]),
       started: vi.fn().mockResolvedValue([]),
@@ -334,6 +433,7 @@ describe('运行时公开组件独立挂载', () => {
       ],
     };
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn().mockResolvedValue([task]),
       done: vi.fn().mockResolvedValue([]),
       started: vi.fn().mockResolvedValue([]),
@@ -385,6 +485,7 @@ describe('运行时公开组件独立挂载', () => {
     let rejectPending!: (error: Error) => void;
     let finishRefresh!: (tasks: (typeof task)[]) => void;
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi
         .fn()
         .mockResolvedValueOnce([task])
@@ -455,6 +556,7 @@ describe('运行时公开组件独立挂载', () => {
     ];
     let rejectOldAttachments!: (error: Error) => void;
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn().mockResolvedValue(tasks),
       done: vi.fn().mockResolvedValue([]),
       started: vi.fn().mockResolvedValue([]),
@@ -493,6 +595,7 @@ describe('运行时公开组件独立挂载', () => {
     let finishOld!: (result: { message: string; successful: boolean }) => void;
     let rejectOld!: (error: Error) => void;
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn().mockResolvedValue(tasks),
       done: vi.fn().mockResolvedValue([]),
       started: vi.fn().mockResolvedValue([]),
@@ -506,6 +609,7 @@ describe('运行时公开组件独立挂载', () => {
         )
         .mockResolvedValueOnce({
           successful: true,
+          verificationType: 'Sms',
           message: '任务A的新验证提示',
         })
         .mockImplementationOnce(
@@ -568,6 +672,7 @@ describe('运行时公开组件独立挂载', () => {
     const task = { taskId: 'task-a', taskName: '任务A', status: 'Todo' };
     let finishOld!: (result: { message: string; successful: boolean }) => void;
     const api = {
+      copied: vi.fn().mockResolvedValue([]),
       todo: vi.fn().mockResolvedValue([task]),
       done: vi.fn().mockResolvedValue([]),
       started: vi.fn().mockResolvedValue([]),
@@ -579,7 +684,11 @@ describe('运行时公开组件独立挂载', () => {
               finishOld = resolve;
             }),
         )
-        .mockResolvedValueOnce({ successful: true, message: '本次验证提示' }),
+        .mockResolvedValueOnce({
+          successful: true,
+          verificationType: 'Sms',
+          message: '本次验证提示',
+        }),
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: { service: api as unknown as WorkflowRuntimeService },
@@ -604,6 +713,11 @@ describe('运行时公开组件独立挂载', () => {
     await flushPromises();
     expect(wrapper.text()).toContain('本次验证提示');
     expect(wrapper.text()).not.toContain('过期验证提示');
+    wrapper
+      .findComponent(WorkflowTaskPanel)
+      .vm.$emit('verificationInvalidated');
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('本次验证提示');
     wrapper.unmount();
   });
 

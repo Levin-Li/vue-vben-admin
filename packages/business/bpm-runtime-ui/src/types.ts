@@ -161,6 +161,15 @@ export interface WorkflowTaskSubmitPayload extends WorkflowActionInput {
   verificationType?: string;
 }
 
+/** 挑战只可交付给发起准备请求时的任务及输入代际。 */
+export interface WorkflowVerificationChallenge {
+  contextVersion: number;
+  interactionData?: unknown;
+  successful: boolean;
+  taskId: string;
+  verificationType: string;
+}
+
 export interface WorkflowCompleteRequest extends WorkflowActionInput {
   actionCode: string;
   formSummary?: string;

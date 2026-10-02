@@ -64,6 +64,25 @@ const canCreateVersion = computed(() =>
   ),
 );
 const designPermissions = computed(() => ({
+  viewSimulation:
+    hasPermission(
+      buildApiMethodPermissions(
+        workflowDefinitionVersionService,
+        'simulationRuns',
+      ),
+    ) &&
+    hasPermission(
+      buildApiMethodPermissions(
+        workflowDefinitionVersionService,
+        'simulationRun',
+      ),
+    ),
+  deleteSimulation: hasPermission(
+    buildApiMethodPermissions(
+      workflowDefinitionVersionService,
+      'deleteSimulationRun',
+    ),
+  ),
   save: hasPermission(
     buildApiMethodPermissions(workflowDefinitionVersionService, 'saveDraft'),
   ),

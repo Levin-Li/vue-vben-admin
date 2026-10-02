@@ -1,4 +1,9 @@
-import type { WorkflowBusinessType, WorkflowDefinitionVersion } from './types';
+import type {
+  WorkflowBusinessType,
+  WorkflowDefinitionVersion,
+  WorkflowSimulationHistory,
+  WorkflowSimulationHistoryPage,
+} from './types';
 import type { WorkflowTreeVersion } from './workflow-tree-version';
 
 import { RequestService } from '@levin/admin-framework';
@@ -14,9 +19,22 @@ export class WorkflowDesignerService extends RequestService {
     super(basePath);
   }
 
+  async deleteSimulationRun(versionId: string, runId: string) {
+    return this.post<unknown>(
+      'WorkflowDefinitionVersion/delete-simulation-run',
+      {
+        data: { versionId, runId },
+      },
+    );
+  }
+
   /** 目录只包含当前主体可用的业务能力，不读取任何真实业务记录。 */
-  async listBusinessTypes() {
-    return this.get<WorkflowBusinessType[]>('workflow-runtime/business-types');
+  async listBusinessTypes(tenantId?: string) {
+    return tenantId
+      ? this.get<WorkflowBusinessType[]>('workflow-runtime/business-types', {
+          params: { tenantId },
+        })
+      : this.get<WorkflowBusinessType[]>('workflow-runtime/business-types');
   }
 
   async publishAfterSimulation(id: string) {
@@ -38,6 +56,20 @@ export class WorkflowDesignerService extends RequestService {
     return this.post<WorkflowDefinitionVersion>(
       'WorkflowDefinitionVersion/save-design',
       { data: { id, optimisticLock, lowflowDefinition } },
+    );
+  }
+
+  async simulationRun(versionId: string, runId: string) {
+    return this.get<WorkflowSimulationHistory>(
+      'WorkflowDefinitionVersion/simulation-run',
+      { params: { versionId, runId } },
+    );
+  }
+
+  async simulationRuns(versionId: string, pageIndex = 1, pageSize = 10) {
+    return this.get<WorkflowSimulationHistoryPage>(
+      'WorkflowDefinitionVersion/simulation-runs',
+      { params: { versionId, pageIndex, pageSize } },
     );
   }
 

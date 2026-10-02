@@ -69,6 +69,36 @@ describe('workflowDesignerService', () => {
     );
   });
 
+  it('按显式选择的租户请求授权能力目录', async () => {
+    const service = new WorkflowDesignerService('/workflow-api');
+    await service.listBusinessTypes('tenant-a');
+    expect(requestCalls.get).toHaveBeenCalledWith(
+      'workflow-runtime/business-types',
+      { params: { tenantId: 'tenant-a' } },
+    );
+  });
+
+  it('模拟历史、详情和删除始终携带固定版本与记录标识', async () => {
+    const service = new WorkflowDesignerService('/workflow-api');
+    await service.simulationRuns('v1', 2, 10);
+    await service.simulationRun('v1', 'run-1');
+    await service.deleteSimulationRun('v1', 'run-1');
+    expect(requestCalls.get).toHaveBeenNthCalledWith(
+      1,
+      'WorkflowDefinitionVersion/simulation-runs',
+      { params: { versionId: 'v1', pageIndex: 2, pageSize: 10 } },
+    );
+    expect(requestCalls.get).toHaveBeenNthCalledWith(
+      2,
+      'WorkflowDefinitionVersion/simulation-run',
+      { params: { versionId: 'v1', runId: 'run-1' } },
+    );
+    expect(requestCalls.post).toHaveBeenCalledWith(
+      'WorkflowDefinitionVersion/delete-simulation-run',
+      { data: { versionId: 'v1', runId: 'run-1' } },
+    );
+  });
+
   it('拒绝将旧 v2 平面图发送到保存接口', async () => {
     const service = new WorkflowDesignerService('/workflow-api');
     await expect(

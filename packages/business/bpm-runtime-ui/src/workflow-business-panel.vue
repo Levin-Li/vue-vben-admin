@@ -27,15 +27,26 @@ import { WorkflowRuntimeService } from './workflow-runtime-service';
 import { workflowStatusLabel } from './workflow-task-form';
 
 // 宿主传入当前业务引用；身份、轮次与匹配结果始终由后端决定。
-const props = defineProps<{
-  businessReference: WorkflowBusinessReference;
-  canNewRound?: boolean;
-  canResubmit?: boolean;
-  canRetry?: boolean;
-  /** 宿主明确声明的能力契约；缺省时不开放轮次命令。 */
-  contractVersion?: string;
-  service?: WorkflowRuntimeService;
-}>();
+const props = withDefaults(
+  defineProps<{
+    businessReference: WorkflowBusinessReference;
+    canNewRound?: boolean;
+    canResubmit?: boolean;
+    canRetry?: boolean;
+    /** 宿主明确声明的能力契约；缺省时不开放轮次命令。 */
+    contractVersion?: string;
+    service?: WorkflowRuntimeService;
+    /** 可分别嵌入全局发起入口与按契约展示的历史；缺省时保留完整面板。 */
+    showEligibility?: boolean;
+    showHistory?: boolean;
+  }>(),
+  {
+    contractVersion: undefined,
+    service: undefined,
+    showEligibility: true,
+    showHistory: true,
+  },
+);
 const emit = defineEmits<{
   error: [error: unknown];
   retried: [instanceId: string];
@@ -46,6 +57,14 @@ const defaultService = new WorkflowRuntimeService();
 const service = computed(() => props.service ?? defaultService);
 const eligibility = ref<WorkflowEligibility[]>([]);
 const history = ref<WorkflowInstanceView[]>([]);
+// 版本页仅展示属于该冻结契约的历史，避免跨版本误导或重复显示。
+const visibleHistory = computed(() =>
+  props.contractVersion
+    ? history.value.filter(
+        (item) => item.businessContractVersion === props.contractVersion,
+      )
+    : history.value,
+);
 const loading = ref(false);
 const starting = ref<string>();
 const loadError = ref(false);
@@ -88,9 +107,15 @@ async function refresh() {
   const reference = { ...props.businessReference };
   try {
     const results = await Promise.all([
-      service.value.eligibility(reference),
-      service.value.history(reference),
-      props.contractVersion && (props.canNewRound || props.canResubmit)
+      props.showEligibility === false
+        ? Promise.resolve([])
+        : service.value.eligibility(reference),
+      props.showHistory === false
+        ? Promise.resolve([])
+        : service.value.history(reference),
+      props.showHistory !== false &&
+      props.contractVersion &&
+      (props.canNewRound || props.canResubmit)
         ? service.value.roundState({
             ...reference,
             contractVersion: props.contractVersion,
@@ -114,6 +139,7 @@ async function refresh() {
 
 async function start(item: WorkflowEligibility) {
   if (
+    props.showEligibility === false ||
     !item.eligible ||
     item.startMode === 'event' ||
     roundInteraction.value ||
@@ -160,12 +186,17 @@ function resubmittableAttempt(
   item: WorkflowInstanceView,
   state = roundState.value,
 ) {
+  if (
+    props.showHistory === false ||
+    !props.contractVersion ||
+    item.businessContractVersion !== props.contractVersion
+  )
+    return false;
   // 未确认响应的原请求可以技术重放；服务端会先重验访问权限再返回原结果。
   if (props.canResubmit && roundCommands.has(roundCommandKey('resubmit', item)))
     return true;
   return (
     props.canResubmit &&
-    !!props.contractVersion &&
     !!item.runId &&
     !!item.purposeKey &&
     item.roundId === state?.currentRoundId &&
@@ -211,6 +242,7 @@ async function prepareRoundAction(
   // 契约来自宿主；独立权限、服务端来源许可和当前请求世代共同约束入口。
   const contractVersion = props.contractVersion;
   if (
+    props.showHistory === false ||
     !contractVersion ||
     roundInteraction.value ||
     loading.value ||
@@ -332,6 +364,7 @@ async function confirmRoundAction() {
 async function retry(item: WorkflowInstanceView) {
   // 权限和服务端返回的可重试交付标识缺一不可，点击时再次检查。
   if (
+    props.showHistory === false ||
     !props.canRetry ||
     roundInteraction.value ||
     !item.pendingDispatchId ||
@@ -371,6 +404,8 @@ watch(
     props.businessReference.businessId,
     props.contractVersion,
     props.service,
+    props.showEligibility,
+    props.showHistory,
   ],
   () => {
     // 作用域切换创建新的请求世代；旧成功、失败及finally均不能影响当前对象。
@@ -405,6 +440,9 @@ watch(
         : confirming.value === 'resubmit' && !props.canResubmit
     )
       cancelRoundAction();
+    // 异步权限变化需重新取得当前许可；旧响应不能恢复已撤销的轮次入口。
+    roundState.value = undefined;
+    if (!roundBusy.value && props.showHistory !== false) void refresh();
   },
 );
 
@@ -418,7 +456,11 @@ defineExpose({ refresh });
 </script>
 
 <template>
-  <ACard title="业务流程" size="small" class="levin-workflow-business-panel">
+  <ACard
+    :title="showHistory === false ? '流程发起资格（全部契约版本）' : '业务流程'"
+    size="small"
+    class="levin-workflow-business-panel"
+  >
     <template #extra>
       <AButton
         :loading="loading"
@@ -436,25 +478,25 @@ defineExpose({ refresh });
       message="流程信息加载失败，请重试。"
     />
     <AAlert
-      v-if="startError"
+      v-if="showEligibility !== false && startError"
       class="mb-3"
       type="error"
       message="发起未成功，请根据错误提示修正后重试；重试将复用本次请求标识。"
     />
     <AAlert
-      v-if="roundError"
+      v-if="showHistory !== false && roundError"
       class="mb-3"
       type="error"
       message="轮次操作未成功。可再次确认以重试原请求；重试保留原轮次、修订和请求标识。"
     />
     <ASpin :spinning="loading">
       <AAlert
-        v-if="retryError"
+        v-if="showHistory !== false && retryError"
         class="mb-3"
         type="error"
         message="业务处理重试未成功，请根据错误提示处理后重试。"
       />
-      <AList :data-source="eligibility">
+      <AList v-if="showEligibility !== false" :data-source="eligibility">
         <template #renderItem="{ item }">
           <AListItem>
             <AListItemMeta
@@ -484,14 +526,21 @@ defineExpose({ refresh });
         </template>
       </AList>
       <AEmpty
-        v-if="eligibility.length === 0 && !loading && !loadError"
+        v-if="
+          showEligibility !== false &&
+          eligibility.length === 0 &&
+          !loading &&
+          !loadError
+        "
         description="暂无可查看的流程用途，请确认已发布对应业务流程。"
       />
 
       <!-- 三个状态维度分开显示，业务处理失败不能显示为已成功。 -->
-      <ADivider orientation="left">办理历史</ADivider>
+      <ADivider v-if="showHistory !== false" orientation="left">
+        办理历史
+      </ADivider>
       <AAlert
-        v-if="confirming"
+        v-if="showHistory !== false && confirming"
         class="mb-3"
         type="warning"
         :message="
@@ -519,25 +568,27 @@ defineExpose({ refresh });
         </template>
       </AAlert>
       <AAlert
-        v-if="roundPreparing"
+        v-if="showHistory !== false && roundPreparing"
         class="mb-3"
         type="info"
         message="正在核验当前业务修订和办理资格…"
       />
       <AAlert
-        v-if="roundBlockReason"
+        v-if="showHistory !== false && roundBlockReason"
         class="mb-3"
         type="warning"
         :message="roundBlockReason"
       />
       <AAlert
-        v-if="roundState?.reasons?.length && !confirming"
+        v-if="
+          showHistory !== false && roundState?.reasons?.length && !confirming
+        "
         class="mb-3"
         type="info"
         :message="roundState.reasons.join('；')"
       />
       <AButton
-        v-if="contractVersion && canNewRound"
+        v-if="showHistory !== false && contractVersion && canNewRound"
         class="mb-3"
         :disabled="
           loading || loadError || !!starting || !!retrying || roundInteraction
@@ -546,7 +597,7 @@ defineExpose({ refresh });
       >
         开启新办理轮次
       </AButton>
-      <AList :data-source="history">
+      <AList v-if="showHistory !== false" :data-source="visibleHistory">
         <template #renderItem="{ item }">
           <AListItem>
             <AListItemMeta
@@ -613,7 +664,12 @@ defineExpose({ refresh });
         </template>
       </AList>
       <AEmpty
-        v-if="history.length === 0 && !loading && !loadError"
+        v-if="
+          showHistory !== false &&
+          visibleHistory.length === 0 &&
+          !loading &&
+          !loadError
+        "
         description="暂无办理历史"
       />
     </ASpin>

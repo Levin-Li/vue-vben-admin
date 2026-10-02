@@ -58,6 +58,36 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   @ResAuthorize({
     domain: 'WorkflowRuntime',
     type: '业务数据-工作流运行时',
+    action: '查询我收到的流程抄送',
+  })
+  override copied() {
+    return super.copied();
+  }
+
+  @CRUD.Op({ label: '发送抄送' })
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
+    action: '发送流程抄送',
+  })
+  override copy(...args: Parameters<WorkflowRuntimeService['copy']>) {
+    return super.copy(...args);
+  }
+
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
+    action: '查询流程抄送接收人',
+  })
+  override copyRecipients(
+    ...args: Parameters<WorkflowRuntimeService['copyRecipients']>
+  ) {
+    return super.copyRecipients(...args);
+  }
+
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
     action: '撤销本人待绑定任务附件',
   })
   override deletePendingAttachment(

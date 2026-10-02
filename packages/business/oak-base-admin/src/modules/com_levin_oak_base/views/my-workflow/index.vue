@@ -26,6 +26,17 @@ const canViewDone = computed(() =>
 const canViewStarted = computed(() =>
   hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'started')),
 );
+const canViewCopied = computed(() =>
+  hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'copied')),
+);
+const canSendCopy = computed(() =>
+  hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'copy')),
+);
+const canLoadCopyRecipients = computed(() =>
+  hasPermission(
+    buildApiMethodPermissions(workflowRuntimeService, 'copyRecipients'),
+  ),
+);
 const canRetry = computed(() =>
   hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'retry')),
 );
@@ -64,6 +75,10 @@ function showError(error: unknown) {
     error instanceof Error ? error.message : '流程信息加载或办理失败，请重试。',
   );
 }
+
+// 接收人候选按所选实例由工作流专用接口授权，不依赖系统用户管理权限。
+const loadCopyRecipients = (instanceId: string, keyword: string) =>
+  workflowRuntimeService.copyRecipients(instanceId, keyword);
 </script>
 
 <template>
@@ -73,6 +88,10 @@ function showError(error: unknown) {
     :can-view-todo="canViewTodo"
     :can-view-done="canViewDone"
     :can-view-started="canViewStarted"
+    :can-view-copied="canViewCopied"
+    :can-send-copy="canSendCopy"
+    :can-load-copy-recipients="canLoadCopyRecipients"
+    :load-copy-recipients="loadCopyRecipients"
     :can-retry="canRetry"
     :can-upload-attachment="canUploadAttachment && canViewPendingAttachments"
     :can-view-attachments="canViewAttachments"
