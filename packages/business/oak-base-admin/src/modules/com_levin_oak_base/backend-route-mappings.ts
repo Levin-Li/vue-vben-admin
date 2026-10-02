@@ -63,6 +63,14 @@ function getPageOperations(resource: string) {
         .map((operation) => operation.opName === 'create' ? { ...operation, opName: 'createVersion' } : operation),
     ];
   }
+  if (resource === 'WorkflowStart') {
+    return buildAdminPageOperations(oakBaseApi.workflowRuntimeService).filter(
+      (operation) =>
+        ['businessRecords', 'eligibility', 'manualStarts', 'start'].includes(
+          operation.opName,
+        ),
+    );
+  }
   if (resource === 'MyWorkflow') return buildAdminPageOperations(oakBaseApi.workflowRuntimeService);
   if (resource === 'WorkflowRequest') {
     return [
@@ -93,7 +101,7 @@ function createCrudBackendRouteMapping(
   return {
     description: pageMeta.description,
     icon: item.icon,
-    name: pageMeta.name,
+    ...(item.resource === 'WorkflowStart' ? {} : { name: pageMeta.name }),
     operations: getPageOperations(item.permissionResource || item.resource),
     // 个人消息由登录态和服务端精确受众校验；没有菜单时仍允许从通知铃铛进入。
     ...(item.resource === 'MyMessages'

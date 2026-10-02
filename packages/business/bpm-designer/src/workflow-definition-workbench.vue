@@ -178,11 +178,11 @@ const canPublish = computed(
     valid.value,
 );
 
-// 缺失字段表示旧报告没有这项证据；只有明确返回空数组才可展示为“无”。
-function coverageLabel(values?: null | string[]): string {
+// 主界面只展示覆盖数量；原始节点键留在实施者展开的诊断资料里。
+function coverageCount(values?: null | string[]): string {
   return values === null || values === undefined
     ? '未记录'
-    : values.join('、') || '无';
+    : `${values.length} 个`;
 }
 
 function simulationStatusLabel(status: WorkflowSimulationHistory['status']) {
@@ -316,7 +316,7 @@ function publish() {
     >
       <template #description>
         <AButton :loading="catalogLoading" @click="loadCatalog">
-          重新加载业务能力目录
+          重新加载业务对象资料
         </AButton>
       </template>
     </AAlert>
@@ -328,7 +328,7 @@ function publish() {
       type="info"
     >
       <template #description>
-        当前生命周期或操作权限不允许编辑；状态迁移以服务端生命周期规则为准。
+        此版本暂不能修改。如需调整已发布流程，请新建草稿并完成检查后发布。
       </template>
     </AAlert>
     <WorkflowDesigner
@@ -344,13 +344,25 @@ function publish() {
         }
       "
     />
-    <ACard class="mt-4" size="small" title="验证、模拟与发布">
+    <ACard class="mt-4" size="small" title="检查与发布">
       <AAlert
         v-if="validationMessages.length > 0"
         class="mb-3"
         :message="validationMessages.join('；')"
         type="warning"
       />
+      <p v-if="canEdit && dirty" class="mb-3">
+        请先保存草稿，再执行流程检查。修改设置后需要重新检查。
+      </p>
+      <p v-else-if="canEdit && !valid" class="mb-3">
+        请完善上方提示的设置，再执行流程检查。
+      </p>
+      <p
+        v-else-if="canEdit && !version.simulationReport?.successful"
+        class="mb-3"
+      >
+        请执行流程检查；检查通过后才能发布。
+      </p>
       <ASpace wrap>
         <AButton
           v-if="permissions?.save !== false"
@@ -367,7 +379,7 @@ function publish() {
           type="primary"
           @click="simulate"
         >
-          开始自动模拟
+          执行检查
         </AButton>
         <APopconfirm
           v-if="permissions?.publish !== false"
@@ -390,24 +402,24 @@ function publish() {
         :column="1"
         size="small"
       >
-        <ADescriptionsItem label="模拟结果">
+        <ADescriptionsItem label="检查结果">
           {{ version.simulationReport.successful ? '通过' : '未通过' }}
         </ADescriptionsItem>
-        <ADescriptionsItem label="覆盖审批节点">
-          {{ coverageLabel(version.simulationReport.coveredTaskKeys) }}
+        <ADescriptionsItem label="已检查审批步骤">
+          {{ coverageCount(version.simulationReport.coveredTaskKeys) }}
         </ADescriptionsItem>
-        <ADescriptionsItem label="覆盖分支">
-          {{ coverageLabel(version.simulationReport.coveredBranches) }}
+        <ADescriptionsItem label="已检查路线">
+          {{ coverageCount(version.simulationReport.coveredBranches) }}
         </ADescriptionsItem>
-        <ADescriptionsItem label="未覆盖分支">
-          {{ coverageLabel(version.simulationReport.uncoveredBranches) }}
+        <ADescriptionsItem label="待检查路线">
+          {{ coverageCount(version.simulationReport.uncoveredBranches) }}
         </ADescriptionsItem>
         <ADescriptionsItem v-if="version.simulationReport.message" label="报告">
           {{ version.simulationReport.message }}
         </ADescriptionsItem>
       </ADescriptions>
       <div v-if="permissions?.viewSimulation !== false" class="mt-4">
-        <h3>模拟历史</h3>
+        <h3>检查记录</h3>
         <AAlert
           v-if="historyError"
           :message="historyError"
@@ -415,7 +427,7 @@ function publish() {
           show-icon
         />
         <p v-if="historyLoading">正在加载模拟历史…</p>
-        <p v-else-if="history.length === 0">暂无模拟记录</p>
+        <p v-else-if="history.length === 0">暂无检查记录</p>
         <div
           v-for="item in history"
           :key="item.id"
@@ -424,7 +436,7 @@ function publish() {
           <span>{{ item.finishedTime || item.startedTime || '—' }}</span>
           <span>{{ simulationStatusLabel(item.status) }}</span>
           <AButton size="small" @click="viewRun(item.id)">
-            查看报告与轨迹
+            查看检查结果
           </AButton>
           <APopconfirm
             v-if="
@@ -453,20 +465,24 @@ function publish() {
           </AButton>
         </ASpace>
         <div v-if="selectedRun" class="mt-3">
-          <h4>模拟报告与轨迹</h4>
+          <h4>流程检查结果</h4>
+          <p>{{ simulationStatusLabel(selectedRun.status) }}</p>
           <p v-if="selectedRun.failureMessage">
             {{ selectedRun.failureMessage }}
           </p>
-          <pre class="max-h-80 overflow-auto whitespace-pre-wrap">{{
-            JSON.stringify(
-              {
-                coverageReport: selectedRun.coverageReport,
-                executionTrace: selectedRun.executionTrace,
-              },
-              null,
-              2,
-            )
-          }}</pre>
+          <details>
+            <summary>实施者查看原始执行轨迹</summary>
+            <pre class="max-h-80 overflow-auto whitespace-pre-wrap">{{
+              JSON.stringify(
+                {
+                  coverageReport: selectedRun.coverageReport,
+                  executionTrace: selectedRun.executionTrace,
+                },
+                null,
+                2,
+              )
+            }}</pre>
+          </details>
         </div>
       </div>
     </ACard>

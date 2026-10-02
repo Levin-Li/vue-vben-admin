@@ -68,6 +68,12 @@ export interface WorkflowBusinessType {
   approverResolvers?: null | Record<string, WorkflowApproverResolver>;
   businessType: string;
   contractVersion: number | string;
+  defaultBinding?: {
+    applicantField?: string;
+    identityField?: string;
+    summaryField?: string;
+    titleField?: string;
+  };
   eventTypes?: string[];
   fields: Record<string, WorkflowCapabilityField>;
   title: string;

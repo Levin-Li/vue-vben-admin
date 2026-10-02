@@ -20,10 +20,14 @@ const props = withDefaults(
     purposeOptions?: { label: string; value: string }[];
     readonly?: boolean;
     validators?: Record<string, WorkflowBusinessAction>;
+    variableLabels?: Record<string, string>;
+    variableOptions?: Record<string, string[]>;
     variables?: Record<string, WorkflowVariable>;
   }>(),
   {
     depth: 0,
+    variableLabels: () => ({}),
+    variableOptions: () => ({}),
     variables: () => ({}),
     modelValue: undefined,
     purposeOptions: () => [],
@@ -34,9 +38,9 @@ const emit = defineEmits<{
   'update:modelValue': [value: undefined | WorkflowCondition];
 }>();
 const operators = computed(() => [
-  { key: 'all', label: '全部满足 AND' },
-  { key: 'any', label: '任一满足 OR' },
-  { key: 'not', label: '不满足 NOT' },
+  { key: 'all', label: '同时满足以下条件' },
+  { key: 'any', label: '满足其中任一条件' },
+  { key: 'not', label: '以下条件不成立' },
   { key: 'eq', label: '等于' },
   { key: 'ne', label: '不等于' },
   { key: 'gt', label: '大于' },
@@ -47,10 +51,10 @@ const operators = computed(() => [
   { key: 'isNull', label: '为空' },
   { key: 'exists', label: '存在' },
   ...(Object.keys(props.validators ?? {}).length > 0
-    ? [{ key: 'validator', label: '业务校验器' }]
+    ? [{ key: 'validator', label: '业务判断' }]
     : []),
   ...(props.allowDependencies
-    ? [{ key: 'dependency', label: '前置用途结果' }]
+    ? [{ key: 'dependency', label: '前置流程结果' }]
     : []),
 ]);
 const operator = computed(() => Object.keys(props.modelValue ?? {})[0] ?? '');
@@ -78,6 +82,7 @@ const literal = computed(() =>
 const variableType = computed(
   () => props.variables[variable.value]?.type ?? 'string',
 );
+const enumOptions = computed(() => props.variableOptions[variable.value] ?? []);
 
 // 修改运算符时新建符合形状的节点；比较值保持声明类型，布尔 false 不视作空值。
 function changeOperator(value: string) {
@@ -151,6 +156,15 @@ function updateCollection(event: Event) {
   });
   updateLeaf(variable.value, values);
 }
+function updateEnumCollection(event: Event) {
+  updateLeaf(
+    variable.value,
+    Array.from(
+      (event.target as HTMLSelectElement).selectedOptions,
+      (option) => option.value,
+    ),
+  );
+}
 function updateChild(index: number, value?: WorkflowCondition) {
   const next = [...children.value];
   if (value) next[index] = value;
@@ -205,17 +219,25 @@ function updateDependency(patch: { outcome?: string; purposeKey?: string }) {
         </option>
       </select>
       <template v-if="operator === 'dependency'">
-        <input
-          aria-label="前置用途标识"
+        <select
+          aria-label="前置流程"
           :disabled="readonly"
           :value="modelValue?.dependency?.purposeKey"
-          placeholder="前置用途标识"
-          @input="
+          @change="
             updateDependency({
-              purposeKey: ($event.target as HTMLInputElement).value,
+              purposeKey: ($event.target as HTMLSelectElement).value,
             })
           "
-        />
+        >
+          <option value="">选择前置流程</option>
+          <option
+            v-for="purpose in purposeOptions"
+            :key="purpose.value"
+            :value="purpose.value"
+          >
+            {{ purpose.label }}
+          </option>
+        </select>
         <select
           aria-label="前置流程所需结果"
           :disabled="readonly"
@@ -237,7 +259,7 @@ function updateDependency(patch: { outcome?: string; purposeKey?: string }) {
       </template>
       <select
         v-if="operator === 'validator'"
-        aria-label="业务校验器"
+        aria-label="业务判断"
         :disabled="readonly"
         :value="modelValue?.validator?.key"
         @change="
@@ -249,7 +271,7 @@ function updateDependency(patch: { outcome?: string; purposeKey?: string }) {
           })
         "
       >
-        <option value="">选择只读校验器</option>
+        <option value="">选择业务判断</option>
 
         <option v-for="(validator, key) in validators" :key="key" :value="key">
           {{ validator.title }}
@@ -262,22 +284,36 @@ function updateDependency(patch: { outcome?: string; purposeKey?: string }) {
         "
       >
         <select
-          aria-label="条件变量"
+          aria-label="判断字段"
           :disabled="readonly"
           :value="variable"
           @change="updateVariable(($event.target as HTMLSelectElement).value)"
         >
-          <option value="">选择变量</option>
+          <option value="">选择业务字段</option>
 
-          <option v-for="(item, key) in variables" :key="key" :value="key">
-            {{ key }}
-            ·
-            {{ item.type }}
+          <option v-for="(_, key) in variables" :key="key" :value="key">
+            {{ variableLabels[key] || '业务字段' }}
           </option>
         </select>
         <template v-if="!['exists', 'isNull'].includes(operator)">
+          <select
+            v-if="operator === 'in' && enumOptions.length > 0"
+            aria-label="条件集合值"
+            :disabled="readonly"
+            multiple
+            @change="updateEnumCollection"
+          >
+            <option
+              v-for="value in enumOptions"
+              :key="value"
+              :selected="Array.isArray(literal) && literal.includes(value)"
+              :value="value"
+            >
+              {{ value }}
+            </option>
+          </select>
           <textarea
-            v-if="operator === 'in' || variableType === 'stringSet'"
+            v-else-if="operator === 'in' || variableType === 'stringSet'"
             aria-label="条件集合值"
             :disabled="readonly"
             :value="Array.isArray(literal) ? literal.join('\n') : ''"
@@ -294,6 +330,18 @@ function updateDependency(patch: { outcome?: string; purposeKey?: string }) {
             <option value="true">是</option>
 
             <option value="false">否</option>
+          </select>
+          <select
+            v-else-if="enumOptions.length > 0"
+            aria-label="条件比较值"
+            :disabled="readonly"
+            :value="String(literal ?? '')"
+            @change="updateLiteral"
+          >
+            <option value="">选择业务取值</option>
+            <option v-for="value in enumOptions" :key="value" :value="value">
+              {{ value }}
+            </option>
           </select>
           <input
             v-else
@@ -327,6 +375,8 @@ function updateDependency(patch: { outcome?: string; purposeKey?: string }) {
         :key="index"
         :model-value="child"
         :variables="variables"
+        :variable-labels="variableLabels"
+        :variable-options="variableOptions"
         :readonly="readonly"
         :depth="depth + 1"
         :allow-dependencies="allowDependencies"
@@ -340,6 +390,7 @@ function updateDependency(patch: { outcome?: string; purposeKey?: string }) {
       :model-value="modelValue.validator.parameters"
       :parameters="validators?.[modelValue.validator.key]?.parameters"
       :variables="variables"
+      :variable-labels="variableLabels"
       :readonly="readonly"
       @update:model-value="
         emit('update:modelValue', {

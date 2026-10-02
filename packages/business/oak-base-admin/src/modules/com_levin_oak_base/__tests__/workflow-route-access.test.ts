@@ -54,3 +54,18 @@ describe('工作流页面严格消费后端授权菜单', () => {
     }
   });
 });
+
+// 映射契约允许省略 name，运行时仍按最终路径生成唯一名称并保持菜单鉴权。
+describe('独立发起流程路由名称', () => {
+  it('不在本地映射定义 name 且实际路由严格由 path 生成', () => {
+    const mapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.resource === 'WorkflowStart',
+    );
+    expect(mapping).toBeDefined();
+    expect(mapping).not.toHaveProperty('name');
+    const routes = buildMenuRoutes([], mapping ? [mapping] : []);
+    expect(routes).toHaveLength(1);
+    expect(routes[0]?.name).toBe('/clob/V1/WorkflowStart'.replaceAll('/', '_'));
+    expect(routes[0]?.meta?.menuRouteForbidden).toBe(true);
+  });
+});

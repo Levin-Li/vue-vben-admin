@@ -59,7 +59,7 @@ vi.mock('@levin/bpm-designer', () => ({
   }),
   WorkflowDefinitionWorkbench: {
     name: 'WorkflowDefinitionWorkbench',
-    props: ['version', 'definition'],
+    props: ['version', 'definition', 'options'],
     template: '<div />',
   },
 }));
@@ -98,18 +98,44 @@ describe('流程设计宿主的版本恢复', () => {
     }));
   });
 
-  it('稳定定义新增表单不再要求或伪保存版本用途', async () => {
+  it('业务设计者新建流程只填写名称和业务对象', async () => {
     const wrapper = mount(WorkflowDefinitionPage);
     await flushPromises();
     await wrapper
       .findAll('button')
-      .find((button) => button.text() === '新建流程定义')
+      .find((button) => button.text() === '新建流程')
       ?.trigger('click');
     await flushPromises();
     expect(wrapper.findComponent(Form).props('model')).toEqual({
       name: '',
-      processKey: '',
       businessType: '',
+    });
+    expect(wrapper.text()).not.toContain('流程标识');
+    wrapper.unmount();
+  });
+
+  it('保存新流程时由系统生成稳定键，不从表单索取技术标识', async () => {
+    api.create.mockResolvedValue('new-definition');
+    const wrapper = mount(WorkflowDefinitionPage);
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '新建流程')
+      ?.trigger('click');
+    const form = wrapper.findComponent(Form);
+    const formModel = form.props('model');
+    if (!formModel) throw new Error('缺少新建流程表单');
+    Object.assign(formModel, {
+      name: '请假审批',
+      businessType: 'workflow-request',
+    });
+    form.vm.$emit('finish', formModel);
+    await flushPromises();
+
+    expect(api.create).toHaveBeenCalledWith({
+      name: '请假审批',
+      businessType: 'workflow-request',
+      processKey: expect.stringMatching(/^workflow-[\da-f-]+$/),
     });
     wrapper.unmount();
   });
@@ -129,6 +155,125 @@ describe('流程设计宿主的版本恢复', () => {
       optimisticLock: 9,
       simulationReport: { successful: true, runId: 'report-latest' },
     });
+    wrapper.unmount();
+  });
+
+  it('首次草稿继承业务对象并自动预填用途与字段角色', async () => {
+    api.catalog.mockResolvedValue([
+      {
+        businessType: 'workflow-request',
+        contractVersion: '2',
+        title: '业务申请',
+        fields: {},
+        defaultBinding: {
+          identityField: 'id',
+          titleField: 'title',
+          applicantField: 'ownerId',
+        },
+      },
+    ]);
+    api.retrieve.mockResolvedValueOnce({
+      id: 'latest',
+      lifecycle: 'Draft',
+      optimisticLock: 1,
+    });
+    const wrapper = mount(WorkflowDefinitionPage);
+    await flushPromises();
+    wrapper.findAllComponents(Select)[0]?.vm.$emit('change', 'definition');
+    await flushPromises();
+    expect(
+      wrapper
+        .findComponent({ name: 'WorkflowDefinitionWorkbench' })
+        .props('definition'),
+    ).toMatchObject({
+      purposeKey: 'approval',
+      businessBinding: {
+        businessType: 'workflow-request',
+        contractVersion: '2',
+        identityField: 'id',
+        titleField: 'title',
+        applicantField: 'ownerId',
+      },
+    });
+    wrapper.unmount();
+  });
+
+  it('同一对象多个业务方案时不自动绑定最高契约', async () => {
+    api.catalog.mockResolvedValue(
+      [1, 2].map((contractVersion) => ({
+        businessType: 'workflow-request',
+        contractVersion,
+        title: '业务申请',
+        fields: {},
+        defaultBinding: { identityField: 'id', titleField: 'title' },
+      })),
+    );
+    api.retrieve.mockResolvedValueOnce({
+      id: 'latest',
+      lifecycle: 'Draft',
+      optimisticLock: 1,
+    });
+    const wrapper = mount(WorkflowDefinitionPage);
+    await flushPromises();
+    wrapper.findAllComponents(Select)[0]?.vm.$emit('change', 'definition');
+    await flushPromises();
+    expect(
+      wrapper
+        .findComponent({ name: 'WorkflowDefinitionWorkbench' })
+        .props('definition').businessBinding,
+    ).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('当前流程用途不进入自己的前置流程候选', async () => {
+    api.versions.mockImplementation(async (query) =>
+      query.lifecycle === 'Published'
+        ? {
+            items: [
+              {
+                id: 'current-published',
+                lowflowDefinition: {
+                  schemaVersion: 3,
+                  purposeKey: 'approval',
+                  name: '当前审核',
+                  businessBinding: { businessType: 'workflow-request' },
+                },
+              },
+              {
+                id: 'prior-published',
+                lowflowDefinition: {
+                  schemaVersion: 3,
+                  purposeKey: 'prior-review',
+                  name: '资料复核',
+                  businessBinding: { businessType: 'workflow-request' },
+                },
+              },
+            ],
+          }
+        : { items: [{ id: 'draft', versionNo: 3, lifecycle: 'Draft' }] },
+    );
+    api.retrieve.mockResolvedValueOnce({
+      id: 'draft',
+      lifecycle: 'Draft',
+      optimisticLock: 1,
+      lowflowDefinition: {
+        schemaVersion: 3,
+        name: '当前审核',
+        processKey: 'approval',
+        purposeKey: 'approval',
+        flowTree: { id: 'start', type: 'start', name: '开始' },
+      },
+    });
+    const wrapper = mount(WorkflowDefinitionPage);
+    await flushPromises();
+    wrapper.findAllComponents(Select)[0]?.vm.$emit('change', 'definition');
+    await flushPromises();
+
+    expect(
+      wrapper
+        .findComponent({ name: 'WorkflowDefinitionWorkbench' })
+        .props('options').purposeOptions,
+    ).toEqual([{ label: '资料复核', value: 'prior-review' }]);
     wrapper.unmount();
   });
 

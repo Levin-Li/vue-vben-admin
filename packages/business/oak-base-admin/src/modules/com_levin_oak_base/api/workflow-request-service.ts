@@ -30,7 +30,10 @@ export interface WorkflowRequestScope {
 
 export interface WorkflowRequestActor {
   isPlatformAdmin?: boolean;
+  isPlatformUser?: boolean;
+  isSuperAdmin?: boolean;
   platformAdmin?: boolean;
+  platformUser?: boolean;
   superAdmin?: boolean;
   tenantId?: null | string;
 }
@@ -43,6 +46,9 @@ export function prepareWorkflowRequestScope(
   const tenantId = scope.tenantId?.trim();
   if (!tenantId) return scope.orgId ? { orgId: scope.orgId } : {};
   if (
+    actor.platformUser === true ||
+    actor.isPlatformUser === true ||
+    actor.isSuperAdmin === true ||
     actor.superAdmin === true ||
     actor.platformAdmin === true ||
     actor.isPlatformAdmin === true

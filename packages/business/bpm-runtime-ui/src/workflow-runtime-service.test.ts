@@ -312,3 +312,37 @@ describe('workflowRuntimeService', () => {
     );
   });
 });
+
+// 发起目录与记录独立有界读取，但实际发起仍使用原 start 接口。
+describe('手动流程授权选择服务', () => {
+  it('按正式控制器路径传递分页和显式契约，不提交用户身份', async () => {
+    requestCalls.get.mockClear();
+    const service = new WorkflowRuntimeService();
+    await service.manualStarts({ tenantId: 't1', pageIndex: 2, pageSize: 20 });
+    await service.businessRecords({
+      tenantId: 't1',
+      businessType: 'request',
+      contractVersion: '2',
+      pageIndex: 3,
+      pageSize: 20,
+    });
+    expect(requestCalls.get).toHaveBeenNthCalledWith(
+      1,
+      'workflow-runtime/manualStarts',
+      { params: { tenantId: 't1', pageIndex: 2, pageSize: 20 } },
+    );
+    expect(requestCalls.get).toHaveBeenNthCalledWith(
+      2,
+      'workflow-runtime/businessRecords',
+      {
+        params: {
+          tenantId: 't1',
+          businessType: 'request',
+          contractVersion: '2',
+          pageIndex: 3,
+          pageSize: 20,
+        },
+      },
+    );
+  });
+});

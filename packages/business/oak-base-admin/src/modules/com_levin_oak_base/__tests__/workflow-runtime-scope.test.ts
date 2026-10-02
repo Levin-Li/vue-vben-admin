@@ -167,3 +167,104 @@ describe('oak运行时业务范围连接器', () => {
     expect(calls.post).toHaveBeenCalledTimes(2);
   });
 });
+
+// 新目录和记录选择器延续当前租户的受保护参数处理，不能把外租户选择静默删除。
+describe('发起页选择器范围', () => {
+  it('普通租户省略tenantId但保留分页和技术契约，平台保留明确选择', async () => {
+    calls.get.mockClear();
+    const service = new OakWorkflowRuntimeService(undefined, () => ({
+      tenantId: 'tenant-a',
+    }));
+    await service.manualStarts({
+      tenantId: 'tenant-a',
+      pageIndex: 2,
+      pageSize: 20,
+    });
+    await service.businessRecords({
+      tenantId: 'tenant-a',
+      businessType: 'request',
+      contractVersion: '2',
+      pageIndex: 3,
+      pageSize: 20,
+    });
+    expect(calls.get).toHaveBeenNthCalledWith(
+      1,
+      'workflow-runtime/manualStarts',
+      { params: { pageIndex: 2, pageSize: 20 } },
+    );
+    expect(calls.get).toHaveBeenNthCalledWith(
+      2,
+      'workflow-runtime/businessRecords',
+      {
+        params: {
+          businessType: 'request',
+          contractVersion: '2',
+          pageIndex: 3,
+          pageSize: 20,
+        },
+      },
+    );
+    const platform = new OakWorkflowRuntimeService(undefined, () => ({
+      superAdmin: true,
+    }));
+    await platform.manualStarts({
+      tenantId: 'tenant-a',
+      pageIndex: 1,
+      pageSize: 20,
+    });
+    expect(calls.get).toHaveBeenLastCalledWith(
+      'workflow-runtime/manualStarts',
+      { params: { tenantId: 'tenant-a', pageIndex: 1, pageSize: 20 } },
+    );
+  });
+  it('跨租户选择器请求被拦截且不发送网络请求', () => {
+    calls.get.mockClear();
+    const service = new OakWorkflowRuntimeService(undefined, () => ({
+      tenantId: 'tenant-b',
+    }));
+    expect(() => service.manualStarts({ tenantId: 'tenant-a' })).toThrow(
+      '不属于当前会话租户',
+    );
+    expect(() =>
+      service.businessRecords({
+        tenantId: 'tenant-a',
+        businessType: 'request',
+        contractVersion: '2',
+      }),
+    ).toThrow('不属于当前会话租户');
+    expect(calls.get).not.toHaveBeenCalled();
+  });
+});
+
+// 已有平台身份字段只表达明确范围意图，网络接口仍执行最终租户与对象授权。
+describe('平台身份标记范围传递', () => {
+  it.each(['platformUser', 'isPlatformUser', 'isSuperAdmin'])(
+    '%s保留明确租户选择及完整选择/发起命令',
+    async (flag) => {
+      calls.get.mockClear();
+      calls.post.mockClear();
+      const service = new OakWorkflowRuntimeService(undefined, () => ({
+        [flag]: true,
+      }));
+      await service.manualStarts({
+        tenantId: 'tenant-a',
+        pageIndex: 1,
+        pageSize: 20,
+      });
+      expect(calls.get).toHaveBeenCalledWith('workflow-runtime/manualStarts', {
+        params: { tenantId: 'tenant-a', pageIndex: 1, pageSize: 20 },
+      });
+      const command = {
+        ...reference,
+        contractVersion: '2',
+        purposeKey: 'review',
+        idempotencyKey: 'selected-contract',
+      };
+      await service.start(command);
+      expect(calls.post).toHaveBeenCalledWith(
+        'workflow-runtime/business/start',
+        { data: command },
+      );
+    },
+  );
+});

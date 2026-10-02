@@ -30,6 +30,12 @@ export interface CreateOakBaseAdminCrudRoutesOptions {
 export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   { icon: 'lucide:git-branch', name: 'WorkflowDefinition', resource: 'WorkflowDefinition', title: '流程设计' },
   { icon: 'lucide:clipboard-check', name: 'WorkflowRequest', resource: 'WorkflowRequest', title: '流程申请样例' },
+  {
+    icon: 'lucide:play',
+    name: 'WorkflowStart',
+    resource: 'WorkflowStart',
+    title: '发起流程',
+  },
   { icon: 'lucide:list-checks', name: 'MyWorkflow', resource: 'MyWorkflow', title: '我的流程' },
   {
     icon: 'lucide:clipboard-check',
@@ -425,6 +431,7 @@ export const oakBaseAdminResourceViewMap: Record<
 > = {
   WorkflowDefinition: () => import('./views/workflow-definition/index.vue'),
   WorkflowRequest: () => import('./views/workflow-request/index.vue'),
+  WorkflowStart: () => import('./views/workflow-start/index.vue'),
   MyWorkflow: () => import('./views/my-workflow/index.vue'),
   AccessLog: () => import('./views/access-log/index.vue'),
   AuditReport: () => import('./views/audit-report/index.vue'),
@@ -580,7 +587,7 @@ const menuGroups = [
       'I18nRes',
     ],
   ],
-  ['个人&中心', 'lucide:circle-user-round', ['MySetting', 'MyMessages', 'MyWorkflow']],
+  ['个人&中心', 'lucide:circle-user-round', ['MySetting', 'MyMessages', 'WorkflowStart', 'MyWorkflow']],
   [
     '运维&审计',
     'lucide:clipboard-check',

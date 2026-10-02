@@ -11,9 +11,15 @@ const props = withDefaults(
     modelValue?: Record<string, WorkflowOperand>;
     parameters?: Record<string, WorkflowCapabilityField>;
     readonly?: boolean;
+    variableLabels?: Record<string, string>;
     variables?: Record<string, WorkflowVariable>;
   }>(),
-  { modelValue: () => ({}), parameters: () => ({}), variables: () => ({}) },
+  {
+    modelValue: () => ({}),
+    parameters: () => ({}),
+    variableLabels: () => ({}),
+    variables: () => ({}),
+  },
 );
 const emit = defineEmits<{
   'update:modelValue': [value: Record<string, WorkflowOperand>];
@@ -65,13 +71,13 @@ function changeLiteral(key: string, value: string) {
         >
           <option value="">未设置</option>
 
-          <option value="literal">固定值</option>
+          <option value="literal">填写固定值</option>
 
-          <option value="variable">流程变量</option>
+          <option value="variable">使用业务字段</option>
         </select>
       </label>
       <label v-if="mode(key) === 'variable'">
-        变量
+        业务字段
         <select
           :disabled="readonly"
           :value="modelValue[key]?.variable"
@@ -80,7 +86,7 @@ function changeLiteral(key: string, value: string) {
             set(key, { variable: ($event.target as HTMLSelectElement).value })
           "
         >
-          <option value="">请选择变量</option>
+          <option value="">请选择业务字段</option>
 
           <option
             v-for="(variable, name) in variables"
@@ -88,9 +94,7 @@ function changeLiteral(key: string, value: string) {
             :value="name"
             :disabled="variable.type !== parameter.type"
           >
-            {{ name }}
-            ·
-            {{ variable.type }}
+            {{ variableLabels[name] || '已配置业务字段' }}
           </option>
         </select>
       </label>

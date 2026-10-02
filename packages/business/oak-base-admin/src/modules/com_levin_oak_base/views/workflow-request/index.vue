@@ -59,6 +59,14 @@ const isPlatformUser = computed(() => {
   );
 });
 const { hasPermission } = useRbacAccess();
+const canReadEligibility = computed(() =>
+  hasPermission(
+    buildApiMethodPermissions(workflowRuntimeService, 'eligibility'),
+  ),
+);
+const canStart = computed(() =>
+  hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'start')),
+);
 const canRetry = computed(() =>
   hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'retry')),
 );
@@ -337,6 +345,8 @@ function changeOrganization(records: UserOrgSelectorRecord[]) {
         />
         <WorkflowBusinessPanel
           ref="globalPanel"
+          :show-eligibility="canReadEligibility"
+          :can-start="canStart"
           :key="selected.id"
           class="mt-4"
           :business-reference="{

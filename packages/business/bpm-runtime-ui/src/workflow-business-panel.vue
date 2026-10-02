@@ -33,14 +33,20 @@ const props = withDefaults(
     canNewRound?: boolean;
     canResubmit?: boolean;
     canRetry?: boolean;
+    /** 宿主按实际启动方法权限传入；资格快照不代替动作授权。 */
+    canStart?: boolean;
     /** 宿主明确声明的能力契约；缺省时不开放轮次命令。 */
     contractVersion?: string;
+    /** 独立发起页只展示当前目录用途，业务对象入口缺省展示全部。 */
+    purposeKey?: string;
     service?: WorkflowRuntimeService;
     /** 可分别嵌入全局发起入口与按契约展示的历史；缺省时保留完整面板。 */
     showEligibility?: boolean;
     showHistory?: boolean;
   }>(),
   {
+    canStart: true,
+    purposeKey: undefined,
     contractVersion: undefined,
     service: undefined,
     showEligibility: true,
@@ -57,6 +63,12 @@ const defaultService = new WorkflowRuntimeService();
 const service = computed(() => props.service ?? defaultService);
 const eligibility = ref<WorkflowEligibility[]>([]);
 const history = ref<WorkflowInstanceView[]>([]);
+// 目录用途筛选不改变服务端资格判定，自动用途仍不得执行手动命令。
+const visibleEligibility = computed(() =>
+  eligibility.value.filter(
+    (item) => !props.purposeKey || item.purposeKey === props.purposeKey,
+  ),
+);
 // 版本页仅展示属于该冻结契约的历史，避免跨版本误导或重复显示。
 const visibleHistory = computed(() =>
   props.contractVersion
@@ -140,6 +152,8 @@ async function refresh() {
 async function start(item: WorkflowEligibility) {
   if (
     props.showEligibility === false ||
+    !props.canStart ||
+    (props.purposeKey && item.purposeKey !== props.purposeKey) ||
     !item.eligible ||
     item.startMode === 'event' ||
     roundInteraction.value ||
@@ -158,6 +172,7 @@ async function start(item: WorkflowEligibility) {
     reference.orgId,
     reference.businessType,
     reference.businessId,
+    reference.contractVersion,
     item.purposeKey,
   ]);
   // 网络失败保留同一幂等键，只有明确成功后下一次命令才使用新键。
@@ -217,6 +232,7 @@ function roundCommandKey(
     props.businessReference.orgId,
     props.businessReference.businessType,
     props.businessReference.businessId,
+    props.businessReference.contractVersion,
     props.contractVersion,
     action,
     item?.runId,
@@ -402,10 +418,13 @@ watch(
     props.businessReference.orgId,
     props.businessReference.businessType,
     props.businessReference.businessId,
+    props.businessReference.contractVersion,
     props.contractVersion,
     props.service,
     props.showEligibility,
     props.showHistory,
+    props.canStart,
+    props.purposeKey,
   ],
   () => {
     // 作用域切换创建新的请求世代；旧成功、失败及finally均不能影响当前对象。
@@ -457,7 +476,13 @@ defineExpose({ refresh });
 
 <template>
   <ACard
-    :title="showHistory === false ? '流程发起资格（全部契约版本）' : '业务流程'"
+    :title="
+      showHistory === false
+        ? purposeKey
+          ? '流程发起资格'
+          : '流程发起资格（全部契约版本）'
+        : '业务流程'
+    "
     size="small"
     class="levin-workflow-business-panel"
   >
@@ -496,7 +521,7 @@ defineExpose({ refresh });
         type="error"
         message="业务处理重试未成功，请根据错误提示处理后重试。"
       />
-      <AList v-if="showEligibility !== false" :data-source="eligibility">
+      <AList v-if="showEligibility !== false" :data-source="visibleEligibility">
         <template #renderItem="{ item }">
           <AListItem>
             <AListItemMeta
@@ -507,6 +532,7 @@ defineExpose({ refresh });
               "
             />
             <AButton
+              v-if="canStart && item.startMode !== 'event'"
               type="primary"
               :loading="starting === item.purposeKey"
               :disabled="
@@ -520,15 +546,16 @@ defineExpose({ refresh });
               "
               @click="start(item)"
             >
-              {{ item.startMode === 'event' ? '由事件触发' : '发起流程' }}
+              发起流程
             </AButton>
+            <ATag v-else-if="item.startMode === 'event'">由事件触发</ATag>
           </AListItem>
         </template>
       </AList>
       <AEmpty
         v-if="
           showEligibility !== false &&
-          eligibility.length === 0 &&
+          visibleEligibility.length === 0 &&
           !loading &&
           !loadError
         "

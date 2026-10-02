@@ -84,7 +84,7 @@ describe('流程定义工作台', () => {
       global,
     });
     await flushPromises();
-    expect(wrapper.find('option[value="request@1"]').exists()).toBe(true);
+    expect(wrapper.find('option[value="request"]').exists()).toBe(true);
 
     let rejectCatalog: (reason?: unknown) => void = () => {};
     const pendingCatalog = new Promise<WorkflowBusinessType[]>((_, reject) => {
@@ -95,11 +95,11 @@ describe('流程定义工作台', () => {
       pendingCatalog,
     );
     await wrapper.setProps({ service: switchedService });
-    expect(wrapper.find('option[value="request@1"]').exists()).toBe(false);
+    expect(wrapper.find('option[value="request"]').exists()).toBe(false);
 
     rejectCatalog(new Error('新目录无权限'));
     await flushPromises();
-    expect(wrapper.find('option[value="request@1"]').exists()).toBe(false);
+    expect(wrapper.find('option[value="request"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('新目录无权限');
   });
 
@@ -125,7 +125,7 @@ describe('流程定义工作台', () => {
     expect(
       wrapper
         .findAll('button')
-        .find((item) => item.text() === '开始自动模拟')
+        .find((item) => item.text() === '执行检查')
         ?.attributes('disabled'),
     ).toBeDefined();
   });
@@ -139,7 +139,7 @@ describe('流程定义工作台', () => {
     const wrapper = mount(WorkflowDefinitionWorkbench, { props, global });
     await flushPromises();
 
-    expect(wrapper.text()).toContain('操作「unlisted」不在当前业务契约');
+    expect(wrapper.text()).toContain('操作「已配置项」不在当前业务方案');
     expect(
       wrapper
         .findAll('button')
@@ -167,7 +167,7 @@ describe('流程定义工作台', () => {
     expect(
       wrapper
         .findAll('button')
-        .find((item) => item.text() === '开始自动模拟')
+        .find((item) => item.text() === '执行检查')
         ?.attributes('disabled'),
     ).toBeDefined();
     expect(
@@ -200,10 +200,10 @@ describe('流程定义工作台', () => {
     await flushPromises();
 
     // 分支列表来自引擎实际出口边；串行任务节点另列，不能再冒充分支覆盖。
-    expect(wrapper.text()).toContain('覆盖审批节点review');
-    expect(wrapper.text()).toContain(
-      '覆盖分支choice_approved、choice_rejected',
-    );
+    expect(wrapper.text()).toContain('已检查审批步骤1 个');
+    expect(wrapper.text()).toContain('已检查路线2 个');
+    expect(wrapper.text()).not.toContain('choice_approved');
+    expect(wrapper.text()).not.toContain('choice_rejected');
   });
 
   it('缺少分支覆盖字段的旧报告显示未记录，不冒充无分支', async () => {
@@ -220,8 +220,8 @@ describe('流程定义工作台', () => {
       },
     });
     await flushPromises();
-    expect(wrapper.text()).toContain('覆盖分支未记录');
-    expect(wrapper.text()).toContain('未覆盖分支未记录');
+    expect(wrapper.text()).toContain('已检查路线未记录');
+    expect(wrapper.text()).toContain('待检查路线未记录');
   });
 
   it('已发布版本展示中文生命周期且继续保持只读', async () => {
@@ -311,7 +311,7 @@ describe('流程定义工作台', () => {
     await flushPromises();
     const labels = wrapper.findAll('button').map((item) => item.text());
     expect(labels).not.toContain('保存草稿');
-    expect(labels).not.toContain('开始自动模拟');
+    expect(labels).not.toContain('执行检查');
     expect(labels).not.toContain('发布');
   });
 
@@ -340,7 +340,7 @@ describe('流程定义工作台', () => {
     expect(history).toHaveBeenCalledWith('v1', 1);
     await wrapper
       .findAll('button')
-      .find((item) => item.text() === '查看报告与轨迹')
+      .find((item) => item.text() === '查看检查结果')
       ?.trigger('click');
     await flushPromises();
     expect(detail).toHaveBeenCalledWith('v1', 'run-1');

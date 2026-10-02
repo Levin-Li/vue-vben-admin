@@ -4,9 +4,13 @@ import type {
   WorkflowCompleteRequest,
   WorkflowEligibility,
   WorkflowInstanceView,
+  WorkflowManualStart,
   WorkflowRoundState,
   WorkflowRuntimePage,
   WorkflowRuntimePageQuery,
+  WorkflowStartPage,
+  WorkflowStartPageQuery,
+  WorkflowStartRecord,
   WorkflowTaskView,
 } from './types';
 
@@ -28,6 +32,19 @@ export class WorkflowRuntimeService extends RequestService {
     return this.get<WorkflowAttachmentMeta[]>(
       'workflow-runtime/attachment/list',
       { params: { instanceId } },
+    );
+  }
+
+  /** 按显式契约分页读取已授权业务引用，绝不使用裸 ID 查询替代记录权限。 */
+  async businessRecords(
+    query: WorkflowStartPageQuery & {
+      businessType: string;
+      contractVersion: string;
+    },
+  ) {
+    return this.get<WorkflowStartPage<WorkflowStartRecord>>(
+      'workflow-runtime/businessRecords',
+      { params: query },
     );
   }
 
@@ -97,6 +114,14 @@ export class WorkflowRuntimeService extends RequestService {
     return this.get<WorkflowInstanceView[]>(
       'workflow-runtime/business/history',
       { params: reference },
+    );
+  }
+
+  /** 当前手动用途目录经过业务读取与发起权限过滤，不列自动用途。 */
+  async manualStarts(query: WorkflowStartPageQuery = {}) {
+    return this.get<WorkflowStartPage<WorkflowManualStart>>(
+      'workflow-runtime/manualStarts',
+      { params: query },
     );
   }
 

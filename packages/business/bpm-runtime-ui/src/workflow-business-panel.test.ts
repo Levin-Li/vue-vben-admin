@@ -87,8 +87,8 @@ describe('业务流程资格与发起', () => {
     const button = wrapper
       .findAll('button')
       .find((item) => item.text() === '由事件触发');
-    expect(button?.attributes('disabled')).toBeDefined();
-    await button?.trigger('click');
+    expect(button).toBeUndefined();
+    expect(wrapper.text()).toContain('由事件触发');
     expect(api.start).not.toHaveBeenCalled();
   });
 
@@ -442,5 +442,20 @@ describe('业务流程资格与发起', () => {
     expect(wrapper.text()).toContain('等待业务处理');
     expect(wrapper.text()).toContain('结果：通过');
     expect(wrapper.text()).toContain('业务处理：处理失败');
+  });
+});
+
+// API 启动权须与资格分别校验，服务端 eligible 不会恢复被宿主撤销的启动按钮。
+describe('业务对象发起权限', () => {
+  it('撤销启动权后继续只读展示资格且没有可调用的启动按钮', async () => {
+    const { api, wrapper } = setup();
+    await flushPromises();
+    await wrapper.setProps({ canStart: false });
+    await flushPromises();
+    expect(
+      wrapper.findAll('button').some((button) => button.text() === '发起流程'),
+    ).toBe(false);
+    expect(api.start).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 });

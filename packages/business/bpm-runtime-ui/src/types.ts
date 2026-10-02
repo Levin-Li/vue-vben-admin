@@ -19,6 +19,8 @@ export interface WorkflowOption {
 export interface WorkflowBusinessReference {
   businessId: string;
   businessType: string;
+  /** 手动目录选择的契约约束；对象入口缺省由服务端匹配全部授权版本。 */
+  contractVersion?: string;
   orgId?: string;
   /** 用户明确选择的候选作用域，服务端仍须校验实际对象归属与访问权限。 */
   tenantId?: string;
@@ -208,4 +210,30 @@ export interface WorkflowRoundState {
   /** 服务端完整校验同轮最新失败来源后返回；不能从截断历史猜测。 */
   resubmittableRunIds?: string[];
   revision: string;
+}
+
+/** 手动发起目录只包含后端按当前业务读取权限过滤的已发布用途。 */
+export interface WorkflowManualStart {
+  businessType: string;
+  contractVersion: string;
+  definitionName: string;
+  purposeKey: string;
+  purposeName: string;
+}
+
+/** 记录选择器只投影当前主体有权读取的最小业务引用。 */
+export interface WorkflowStartRecord extends WorkflowBusinessReference {
+  businessTitle?: string;
+}
+
+/** 发起目录与业务记录按页授权，不提供未经授权统计的总数。 */
+export interface WorkflowStartPage<T> {
+  hasMore: boolean;
+  items: T[];
+  pageIndex: number;
+}
+export interface WorkflowStartPageQuery {
+  pageIndex?: number;
+  pageSize?: number;
+  tenantId?: string;
 }

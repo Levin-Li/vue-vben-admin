@@ -36,6 +36,7 @@ describe('oak base admin routes', () => {
       ['WorkflowDefinition', 'workflow-definition', '开发&工具'],
       ['WorkflowRequest', 'workflow-request', '开发&工具'],
       ['MyWorkflow', 'my-workflow', '个人&中心'],
+      ['WorkflowStart', 'workflow-start', '个人&中心'],
     ]) {
       const group = root?.children?.find((item) => item.meta?.title === groupName);
       const route = group?.children?.find((item) => item.path === `/clob/V1/${resource}`);

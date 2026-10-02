@@ -23,11 +23,318 @@ function latest(wrapper: ReturnType<typeof mount>): WorkflowTreeVersion {
 async function openGraph(wrapper: ReturnType<typeof mount>) {
   await wrapper
     .findAll('nav button')
-    .find((item) => item.text() === '节点与流转')
+    .find((item) => item.text() === '审批步骤')
     ?.trigger('click');
 }
 
 describe('v3 树单源设计器', () => {
+  it('枚举条件使用受控选项选择比较值和集合值', async () => {
+    const variables = {
+      category: {
+        source: 'business.category',
+        type: 'enum' as const,
+        readAt: 'start' as const,
+      },
+    };
+    const options = { category: ['Customer', 'Channel'] };
+    const editor = mount(WorkflowConditionEditor, {
+      props: {
+        modelValue: { eq: [{ variable: 'category' }, { literal: '' }] },
+        variables,
+        variableOptions: options,
+      },
+    });
+    expect(editor.find('input[aria-label="条件比较值"]').exists()).toBe(false);
+    await editor.get('select[aria-label="条件比较值"]').setValue('Customer');
+    expect(editor.emitted('update:modelValue')?.at(-1)?.[0]).toEqual({
+      eq: [{ variable: 'category' }, { literal: 'Customer' }],
+    });
+    await editor.setProps({
+      modelValue: { in: [{ variable: 'category' }, { literal: [] }] },
+    });
+    expect(
+      editor.get('select[aria-label="条件集合值"]').findAll('option'),
+    ).toHaveLength(2);
+    expect(editor.find('textarea[aria-label="条件集合值"]').exists()).toBe(
+      false,
+    );
+  });
+
+  it('选择业务对象时自动使用目录声明的字段角色，不要求业务设计者猜字段键', async () => {
+    const wrapper = mount(WorkflowDesigner, {
+      props: {
+        modelValue: createTreeDefinition('review', '审核'),
+        options: {
+          businessTypes: [
+            {
+              businessType: 'request',
+              contractVersion: 2,
+              title: '业务申请',
+              fields: {
+                id: { title: '申请标识', type: 'string' },
+                title: { title: '申请标题', type: 'string' },
+                ownerId: { title: '申请人', type: 'string' },
+              },
+              defaultBinding: {
+                identityField: 'id',
+                titleField: 'title',
+                applicantField: 'ownerId',
+              },
+            },
+          ],
+        },
+      },
+    });
+    await wrapper.get('[aria-label="选择业务对象"]').setValue('request');
+    expect(latest(wrapper).businessBinding).toMatchObject({
+      businessType: 'request',
+      contractVersion: 2,
+      identityField: 'id',
+      titleField: 'title',
+      applicantField: 'ownerId',
+    });
+  });
+
+  it('清空可选申请人字段时不把 undefined 写入业务绑定', async () => {
+    const definition = createTreeDefinition('review', '审核');
+    definition.businessBinding = {
+      businessType: 'request',
+      contractVersion: 1,
+      identityField: 'id',
+      titleField: 'title',
+      applicantField: 'ownerId',
+    };
+    const wrapper = mount(WorkflowDesigner, {
+      props: {
+        modelValue: definition,
+        options: {
+          businessTypes: [
+            {
+              businessType: 'request',
+              contractVersion: 1,
+              title: '业务申请',
+              fields: {
+                id: { title: '申请标识', type: 'string' },
+                title: { title: '申请标题', type: 'string' },
+                ownerId: { title: '申请人', type: 'string' },
+              },
+            },
+          ],
+        },
+      },
+    });
+    const applicant = wrapper
+      .findAll('label')
+      .find((item) => item.text().startsWith('申请人（可选）'));
+    if (!applicant) throw new Error('缺少可选申请人字段');
+    await applicant.get('select').setValue('');
+    expect(latest(wrapper).businessBinding).not.toHaveProperty(
+      'applicantField',
+    );
+    expect(wrapper.text()).not.toContain('流程配置只能包含 JSON 值');
+    wrapper.unmount();
+  });
+
+  it('同一业务对象有多个方案时必须明确选择，不自动选择最高版本', async () => {
+    const wrapper = mount(WorkflowDesigner, {
+      props: {
+        modelValue: createTreeDefinition('review', '审核'),
+        options: {
+          businessTypes: [1, 2].map((contractVersion) => ({
+            businessType: 'request',
+            contractVersion,
+            title: '业务申请',
+            fields: {},
+            defaultBinding: { identityField: 'id', titleField: 'title' },
+          })),
+        },
+      },
+    });
+    const objectOptions = wrapper
+      .get('[aria-label="选择业务对象"]')
+      .findAll('option');
+    expect(objectOptions.map((item) => item.text())).toEqual([
+      '请选择业务对象',
+      '业务申请',
+    ]);
+    expect(wrapper.get('[aria-label="业务方案"]').element).toHaveProperty(
+      'value',
+      '',
+    );
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    expect(wrapper.text()).not.toContain('request@');
+    await wrapper.get('[aria-label="业务方案"]').setValue('request@1');
+    expect(latest(wrapper).businessBinding?.contractVersion).toBe(1);
+    await wrapper.setProps({ modelValue: latest(wrapper) });
+    expect(wrapper.get('[aria-label="业务方案"]').element).toHaveProperty(
+      'value',
+      'request@1',
+    );
+  });
+
+  it('缺少明确字段角色时保留空映射，不按 id 或 title 猜测', async () => {
+    const wrapper = mount(WorkflowDesigner, {
+      props: {
+        modelValue: createTreeDefinition('review', '审核'),
+        options: {
+          businessTypes: [
+            {
+              businessType: 'request',
+              contractVersion: 1,
+              title: '业务申请',
+              fields: {
+                id: { title: '编号', type: 'string' },
+                title: { title: '标题', type: 'string' },
+              },
+            },
+          ],
+        },
+      },
+    });
+    await wrapper.get('[aria-label="选择业务对象"]').setValue('request');
+    expect(latest(wrapper).businessBinding).toMatchObject({
+      identityField: '',
+      titleField: '',
+    });
+    await wrapper.setProps({ modelValue: latest(wrapper) });
+    expect(wrapper.text()).toContain('请联系管理员补齐后再发布');
+    expect(wrapper.emitted('validate')?.at(-1)?.[0]).toBe(false);
+  });
+
+  it('选择中文业务字段即可配置发起条件，内部引用由系统保存', async () => {
+    const definition = createTreeDefinition('review', '审核');
+    definition.businessBinding = {
+      businessType: 'request',
+      contractVersion: 1,
+      identityField: 'id',
+      titleField: 'title',
+    };
+    const wrapper = mount(WorkflowDesigner, {
+      props: {
+        modelValue: definition,
+        options: {
+          businessTypes: [
+            {
+              businessType: 'request',
+              contractVersion: 1,
+              title: '业务申请',
+              fields: {
+                amount: { title: '申请金额', type: 'decimal', condition: true },
+                secret: {
+                  title: '保密信息',
+                  type: 'string',
+                  condition: true,
+                  sensitivity: 'secret',
+                },
+              },
+            },
+          ],
+        },
+      },
+    });
+    const fieldLabel = wrapper
+      .findAll('label')
+      .find((item) => item.text().startsWith('业务字段'));
+    if (!fieldLabel) throw new Error('未显示业务字段选择器');
+    const field = fieldLabel.get('select');
+    expect(field.findAll('option').map((item) => item.text())).toEqual([
+      '选择可判断字段',
+      '申请金额',
+    ]);
+    await field.setValue('amount');
+    const addField = wrapper
+      .findAll('button')
+      .find((item) => item.text() === '添加判断字段');
+    if (!addField) throw new Error('未显示添加判断字段按钮');
+    await addField.trigger('click');
+    expect(latest(wrapper).variables).toEqual({
+      field_1: { type: 'decimal', source: 'business.amount', readAt: 'start' },
+    });
+    await wrapper.setProps({ modelValue: latest(wrapper) });
+    const startTab = wrapper
+      .findAll('nav button')
+      .find((item) => item.text() === '发起规则');
+    if (!startTab) throw new Error('未显示发起规则步骤');
+    await startTab.trigger('click');
+    const editor = wrapper.findAllComponents(WorkflowConditionEditor)[0];
+    if (!editor) throw new Error('未显示条件编辑器');
+    await editor.get('[aria-label="条件运算符"]').setValue('gt');
+    await wrapper.setProps({ modelValue: latest(wrapper) });
+    expect(
+      editor
+        .get('[aria-label="判断字段"]')
+        .findAll('option')
+        .map((item) => item.text()),
+    ).toEqual(['选择业务字段', '申请金额']);
+    await editor.get('[aria-label="判断字段"]').setValue('field_1');
+    await wrapper.setProps({ modelValue: latest(wrapper) });
+    await editor.get('[aria-label="条件比较值"]').setValue('1000');
+    expect(latest(wrapper).startPolicy?.condition).toEqual({
+      gt: [{ variable: 'field_1' }, { literal: 1000 }],
+    });
+  });
+
+  it('清空发起条件或前置流程时删除可选 JSON 节点', async () => {
+    const definition = createTreeDefinition('review', '审核');
+    definition.variables = {
+      field_1: { source: 'business.category', type: 'string', readAt: 'start' },
+    };
+    definition.startPolicy = {
+      mode: 'manual',
+      condition: { eq: [{ variable: 'field_1' }, { literal: 'News' }] },
+    };
+    definition.dependencies = {
+      dependency: {
+        purposeKey: 'prior-review',
+        outcome: 'Approved',
+        round: 'current',
+        effects: 'Applied',
+      },
+    };
+    const wrapper = mount(WorkflowDesigner, {
+      props: { modelValue: definition },
+    });
+    await wrapper
+      .findAll('nav button')
+      .find((item) => item.text() === '发起规则')
+      ?.trigger('click');
+
+    const dependencies = wrapper.findAllComponents(WorkflowConditionEditor)[1];
+    if (!dependencies) throw new Error('缺少前置流程编辑器');
+    expect(
+      wrapper
+        .findAllComponents(WorkflowConditionEditor)[0]
+        ?.get('[aria-label="条件运算符"]')
+        .findAll('option')
+        .map((item) => item.attributes('value')),
+    ).not.toContain('dependency');
+    expect(
+      dependencies
+        .get('[aria-label="条件运算符"]')
+        .findAll('option')
+        .map((item) => item.attributes('value')),
+    ).toContain('dependency');
+    await dependencies.get('[aria-label="条件运算符"]').setValue('');
+    expect(latest(wrapper)).not.toHaveProperty('dependencies');
+    wrapper.unmount();
+
+    const startWrapper = mount(WorkflowDesigner, {
+      props: { modelValue: definition },
+    });
+    await startWrapper
+      .findAll('nav button')
+      .find((item) => item.text() === '发起规则')
+      ?.trigger('click');
+    const condition = startWrapper.findAllComponents(
+      WorkflowConditionEditor,
+    )[0];
+    if (!condition) throw new Error('缺少发起条件编辑器');
+    await condition.get('[aria-label="条件运算符"]').setValue('');
+    expect(latest(startWrapper).startPolicy).not.toHaveProperty('condition');
+    expect(startWrapper.text()).not.toContain('流程配置只能包含 JSON 值');
+    startWrapper.unmount();
+  });
+
   it('新建树修改名称后仅提交 v3 flowTree，不提交平面图', async () => {
     const definition = createTreeDefinition('review', '审核');
     const wrapper = mount(WorkflowDesigner, {
@@ -50,7 +357,7 @@ describe('v3 树单源设计器', () => {
     await wrapper.get('[data-edge-id="start_end"]').trigger('click');
     await wrapper
       .findAll('button')
-      .find((item) => item.text() === '新增审批节点')
+      .find((item) => item.text() === '添加审批步骤')
       ?.trigger('click');
     const edited = latest(wrapper);
     expect(projectDraftV3ToV2(edited).edges).toMatchObject([
@@ -69,7 +376,7 @@ describe('v3 树单源设计器', () => {
     await wrapper.get('[data-edge-id="start_end"]').trigger('click');
     await wrapper
       .findAll('button')
-      .find((item) => item.text() === '新增条件分支')
+      .find((item) => item.text() === '按条件分支')
       ?.trigger('click');
     const edited = latest(wrapper);
     expect(edited.schemaVersion).toBe(3);
@@ -82,7 +389,7 @@ describe('v3 树单源设计器', () => {
     expect(wrapper.emitted('validate')?.at(-1)?.[0]).toBe(false);
   });
 
-  it('节点属性通过稳定 ID 写回树，已发布只读仍可查看属性', async () => {
+  it('步骤设置通过稳定 ID 写回树，已发布只读仍可查看属性', async () => {
     const definition = insertUserTaskOnTreeEdge(
       createTreeDefinition('review', '审核'),
       'start_end',
@@ -92,12 +399,12 @@ describe('v3 树单源设计器', () => {
     });
     await openGraph(wrapper);
     expect(
-      wrapper.find('[data-flow-design] [aria-label="节点属性"]').exists(),
+      wrapper.find('[data-flow-design] [aria-label="步骤设置"]').exists(),
     ).toBe(true);
     await wrapper.get('[data-node-id="userTask_1"]').trigger('click');
     await wrapper
       .findAll('label')
-      .find((item) => item.text().startsWith('节点名称'))
+      .find((item) => item.text().startsWith('步骤名称'))
       ?.find('input')
       .setValue('部门审批');
     const edited = latest(wrapper);
@@ -114,7 +421,7 @@ describe('v3 树单源设计器', () => {
     expect(
       readonlyWrapper
         .findAll('label')
-        .find((item) => item.text().startsWith('节点名称'))
+        .find((item) => item.text().startsWith('步骤名称'))
         ?.find('input')
         .attributes('disabled'),
     ).toBeDefined();
@@ -260,7 +567,7 @@ describe('v3 树单源设计器', () => {
     });
     await wrapper
       .findAll('nav button')
-      .find((item) => item.text() === '结果处理')
+      .find((item) => item.text() === '完成后处理')
       ?.trigger('click');
 
     const select = wrapper
@@ -274,14 +581,14 @@ describe('v3 树单源设计器', () => {
 
     await wrapper
       .findAll('nav button')
-      .find((item) => item.text() === '启动与依赖')
+      .find((item) => item.text() === '发起规则')
       ?.trigger('click');
     expect(
       wrapper
-        .get('[aria-label="业务校验器"]')
+        .get('[aria-label="业务判断"]')
         .findAll('option')
         .map((option) => option.text()),
-    ).toEqual(['选择只读校验器', '资料完整']);
+    ).toEqual(['选择业务判断', '资料完整']);
   });
 
   it('升级候选组使用授权目录展示名，树中仅保存受控组值', async () => {
@@ -318,7 +625,7 @@ describe('v3 树单源设计器', () => {
     await wrapper.get('[data-node-id="userTask_1"]').trigger('click');
     const select = wrapper
       .findAll('label')
-      .find((item) => item.text().startsWith('升级候选角色 / 组织'))
+      .find((item) => item.text().startsWith('升级由哪个角色或组织办理'))
       ?.get('select');
     expect(
       select
@@ -346,12 +653,12 @@ describe('v3 树单源设计器', () => {
     await openGraph(wrapper);
     await wrapper
       .findAll('button')
-      .find((item) => item.text() === '新增审批节点')
+      .find((item) => item.text() === '添加审批步骤')
       ?.trigger('click');
     expect(wrapper.get('[role="alert"]').text()).toContain('请先选择');
     await wrapper
       .findAll('button')
-      .find((item) => item.text() === '新增不同结果出口')
+      .find((item) => item.text() === '添加结束结果')
       ?.trigger('click');
     expect(wrapper.get('[role="alert"]').text()).toContain('唯一入边结束节点');
     expect(wrapper.emitted('update:modelValue')).toBeUndefined();
@@ -365,7 +672,7 @@ describe('v3 树单源设计器', () => {
     await wrapper.get('[data-edge-id="start_end"]').trigger('click');
     await wrapper
       .findAll('button')
-      .find((item) => item.text() === '新增不同结果出口')
+      .find((item) => item.text() === '添加结束结果')
       ?.trigger('click');
     const edited = latest(wrapper);
     const graph = projectDraftV3ToV2(edited);
@@ -396,7 +703,7 @@ describe('v3 树单源设计器', () => {
     await wrapper.get('[data-edge-id="start_end"]').trigger('click');
     await wrapper
       .findAll('button')
-      .find((item) => item.text() === '新增不同结果出口')
+      .find((item) => item.text() === '添加结束结果')
       ?.trigger('click');
     expect(wrapper.get('[role="alert"]').text()).toContain(
       '必须指向唯一入边的结束节点',
@@ -416,7 +723,7 @@ describe('v3 树单源设计器', () => {
     await wrapper.get('[data-node-id="userTask_1"]').trigger('click');
     await wrapper
       .findAll('button')
-      .find((item) => item.text() === '删除当前节点')
+      .find((item) => item.text() === '删除当前步骤')
       ?.trigger('click');
     const edited = latest(wrapper);
     expect(projectDraftV3ToV2(edited).edges).toMatchObject([
@@ -440,7 +747,7 @@ describe('v3 树单源设计器', () => {
       .trigger('click');
     await gatewayWrapper
       .findAll('button')
-      .find((item) => item.text() === '删除当前节点')
+      .find((item) => item.text() === '删除当前步骤')
       ?.trigger('click');
     expect(gatewayWrapper.get('[role="alert"]').text()).toContain(
       '网关及结束节点需要成组结构调整',

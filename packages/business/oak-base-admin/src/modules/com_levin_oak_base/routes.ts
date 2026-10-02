@@ -45,6 +45,12 @@ export const oakBaseAdminRoutes: RouteRecordRaw[] = [
     name: toPathRouteName('/clob/V1/MyWorkflow'),
     path: '/clob/V1/MyWorkflow',
   },
+  {
+    component: () => import('./views/workflow-start/index.vue'),
+    meta: { title: '发起流程', icon: 'lucide:play' },
+    name: toPathRouteName('/clob/V1/WorkflowStart'),
+    path: '/clob/V1/WorkflowStart',
+  },
   aclTestRoute,
   namedScopeVariableAcceptanceRoute,
   {

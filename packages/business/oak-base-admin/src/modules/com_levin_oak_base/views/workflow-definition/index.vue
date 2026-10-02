@@ -101,12 +101,10 @@ const designPermissions = computed(() => ({
 }));
 const form = reactive({
   name: '',
-  processKey: '',
   businessType: '',
 });
 const blankForm = () => ({
   name: '',
-  processKey: '',
   businessType: '',
 });
 const selectedDefinition = computed(() =>
@@ -123,20 +121,25 @@ const definitionBusinessOptions = computed(() => [
 ]);
 const options = computed<WorkflowDesignerOptions>(() => ({
   ...candidates.value,
-  businessTypes: businessTypes.value,
-  // 用途属于已发布版本正文，不从稳定定义的不存在字段读取。
+  businessTypes: selectedDefinition.value
+    ? businessTypes.value.filter(
+        (item) => item.businessType === selectedDefinition.value?.businessType,
+      )
+    : businessTypes.value,
+  // 用途来自已发布版本正文；当前用途不可作为自身前置，避免设计者选择必定成环的依赖。
   purposeOptions: publishedVersions.value.flatMap((version) => {
     const definition = version.lowflowDefinition;
     if (
       definition?.schemaVersion !== 3 ||
       !definition?.purposeKey ||
+      definition.purposeKey === design.value.purposeKey ||
       definition.businessBinding?.businessType !==
         selectedDefinition.value?.businessType
     )
       return [];
     return [
       {
-        label: `${definition.name}（${definition.purposeKey}）`,
+        label: definition.name,
         value: definition.purposeKey,
       },
     ];
@@ -243,11 +246,33 @@ function applyVersion(version: WorkflowDefinitionVersion) {
         selectedDefinition.value?.name,
       );
   if (!version.lowflowDefinition) {
-    // 新版本延续该流程首次发布的用途；首次设计仍由设计者在版本编辑器明确填写。
+    // 新版本延续已发布用途；首次设计以稳定定义键作为内部用途，不要求业务人员填写。
     const published = publishedVersions.value.find(
       (item) => item.workflowDefinitionId === selectedDefinition.value?.id,
     );
-    design.value.purposeKey = published?.lowflowDefinition?.purposeKey ?? '';
+    design.value.purposeKey =
+      published?.lowflowDefinition?.purposeKey ??
+      selectedDefinition.value?.processKey ??
+      '';
+
+    // 单一受控方案可以预填；多个方案必须在设计器中由用户明确选择。
+    const available = businessTypes.value.filter(
+      (item) => item.businessType === selectedDefinition.value?.businessType,
+    );
+    const preferred = available.length === 1 ? available[0] : undefined;
+    if (preferred)
+      design.value.businessBinding = {
+        businessType: preferred.businessType,
+        contractVersion: preferred.contractVersion,
+        identityField: preferred.defaultBinding?.identityField ?? '',
+        titleField: preferred.defaultBinding?.titleField ?? '',
+        ...(preferred.defaultBinding?.applicantField
+          ? { applicantField: preferred.defaultBinding.applicantField }
+          : {}),
+        ...(preferred.defaultBinding?.summaryField
+          ? { summaryField: preferred.defaultBinding.summaryField }
+          : {}),
+      };
   }
 }
 
@@ -330,7 +355,14 @@ async function create() {
   busy.value = true;
   error.value = '';
   try {
-    const id = await workflowDefinitionService.create({ ...form });
+    // 内部稳定键由系统生成，业务设计者只填写名称并选择业务对象。
+    const suffix =
+      globalThis.crypto?.randomUUID?.() ??
+      `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    const id = await workflowDefinitionService.create({
+      ...form,
+      processKey: `workflow-${suffix}`,
+    });
     createOpen.value = false;
     Object.assign(form, blankForm());
     await loadDefinitions();
@@ -403,7 +435,7 @@ onMounted(() => {
           @change="selectVersion"
         />
         <Button v-if="canCreate" type="primary" @click="createOpen = true">
-          新建流程定义
+          新建流程
         </Button>
         <Button
           v-if="canCreateVersion"
@@ -448,7 +480,7 @@ onMounted(() => {
     <!-- 新增表单以显式字段定义实现，不接受归属、运行状态或引擎内部标识。 -->
     <Modal
       :open="createOpen"
-      title="新增流程定义"
+      title="新建流程"
       :footer="null"
       :mask-closable="false"
       :width="640"
@@ -475,13 +507,6 @@ onMounted(() => {
           :rules="[{ required: true, message: '请输入流程名称。' }]"
         >
           <Input v-model:value="form.name" />
-        </Form.Item>
-        <Form.Item
-          label="流程标识"
-          name="processKey"
-          :rules="[{ required: true, message: '请输入流程标识。' }]"
-        >
-          <Input v-model:value="form.processKey" />
         </Form.Item>
         <Form.Item
           label="业务对象"

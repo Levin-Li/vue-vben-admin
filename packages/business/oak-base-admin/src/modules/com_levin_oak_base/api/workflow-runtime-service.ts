@@ -39,6 +39,17 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   @ResAuthorize({
     domain: 'WorkflowRuntime',
     type: '业务数据-工作流运行时',
+    action: '发起业务流程',
+  })
+  override businessRecords(
+    ...args: Parameters<WorkflowRuntimeService['businessRecords']>
+  ) {
+    return super.businessRecords(this.selectionScope(args[0]));
+  }
+
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
     action: '查询流程业务能力目录',
   })
   catalog() {
@@ -134,6 +145,17 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   })
   override history(...args: Parameters<WorkflowRuntimeService['history']>) {
     return super.history(this.businessScope(args[0]));
+  }
+
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
+    action: '发起业务流程',
+  })
+  override manualStarts(
+    ...args: Parameters<WorkflowRuntimeService['manualStarts']>
+  ) {
+    return super.manualStarts(this.selectionScope(args[0] ?? {}));
   }
 
   @CRUD.Op({ label: '开启新办理轮次' })
@@ -248,6 +270,18 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
       tenantId ? this.currentActor() : {},
     );
     return { ...command, ...scope };
+  }
+
+  private selectionScope<T extends { tenantId?: string }>(input: T) {
+    // 目录/选择器请求沿用普通租户受保护参数规则，保留显式分页与契约。
+    const { tenantId, ...query } = input;
+    return {
+      ...query,
+      ...prepareWorkflowRequestScope(
+        { tenantId },
+        tenantId ? this.currentActor() : {},
+      ),
+    };
   }
 }
 
