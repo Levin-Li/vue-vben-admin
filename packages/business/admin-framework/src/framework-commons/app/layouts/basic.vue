@@ -2,6 +2,7 @@
 import type { NotificationItem } from '@vben/layouts';
 
 import type { FrameworkEventListenerInfo } from '../../event-bus';
+import type { AdminUserMessage } from '../../runtime';
 import type { AdminUiPreferencesScope } from '../admin-ui-preferences-setting';
 
 import {
@@ -18,7 +19,6 @@ import {
 import { useRouter } from 'vue-router';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
-import { useWatermark } from '@vben/runtime/hooks';
 import {
   BasicLayout,
   LockScreen,
@@ -26,12 +26,13 @@ import {
   registerPreferencesUploadAction,
   UserDropdown,
 } from '@vben/layouts';
-import { preferences } from '@vben-core/foundation/preferences';
+import { useWatermark } from '@vben/runtime/hooks';
 import { useAccessStore, useUserStore } from '@vben/runtime/stores';
+
+import { preferences } from '@vben-core/foundation/preferences';
 
 import {
   getAdminMenuSyncService,
-  getAdminNoticeService,
   getAdminRequestClient,
 } from '@levin/admin-framework';
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
@@ -51,68 +52,39 @@ import {
 
 import {
   getFrameworkEventListeners,
+  onFrameworkEvent,
   removeFrameworkEventListener,
   setFrameworkEventListenerEnabled,
 } from '../../event-bus';
-import { getAdminI18nLabelSyncService } from '../../runtime';
+import {
+  getAdminI18nLabelSyncService,
+  getAdminUserMessageService,
+} from '../../runtime';
 import { getAdministrativeAreaOptions } from '../../shared/administrative-area-data';
+import { resolvePersonalMessageSourceRoute } from '../../shared/user-message-target';
 import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-service';
-import { getFrontendBuildInfo } from '../frontend-build-versions';
 import {
   ADMIN_UI_PREFERENCES_SETTING_CODE,
+  loadAdminUiPreferencesScopeOptions,
   loadAdminUiPreferencesSetting,
   loadAdminUiPreferencesUploadTargets,
-  loadAdminUiPreferencesScopeOptions,
   resolveAdminUiPreferencesUploadScope,
   saveAdminUiPreferencesSetting,
 } from '../admin-ui-preferences-setting';
+import { getFrontendBuildInfo } from '../frontend-build-versions';
+import {
+  clearPendingBindCallback,
+  hasPendingBindCallback,
+} from '../views/_core/profile/oauth-bind-callback';
 import { getNavigationVisualThemeClass } from './navigation-visual-theme';
 import SyncI18nLabelsModal from './sync-i18n-labels-modal.vue';
 import SyncMenuRoutesModal from './sync-menu-routes-modal.vue';
 
-type NoticeProcessStatus = 'Finished' | 'Processing' | 'Rejected';
-
-interface NoticeRecord {
-  category?: string;
-  content?: string;
-  createTime?: string;
-  expiredTime?: string;
-  id?: number | string;
-  lastUpdateTime?: string;
-  level?: string;
-  name?: string;
-  noticeId?: number | string;
-  processLogId?: number | string;
-  processRemark?: string;
-  processStatus?: NoticeProcessStatus;
-  processTime?: string;
-  publishTime?: string;
-  subtitle?: string;
-  title?: string;
-}
-
-interface NoticeProcessLogRecord {
-  createTime?: string;
-  id?: number | string;
-  noticeId?: number | string;
-  remark?: string;
-  status?: NoticeProcessStatus;
-}
-
-interface NoticeNotificationState extends Record<string, any> {
-  logId?: string;
-  logStatus?: NoticeProcessStatus;
-  noticeId: string;
-}
-
 const notifications = ref<NotificationItem[]>([]);
-const notificationUnreadItems = ref<NotificationItem[]>([]);
-const noticeUnreadCount = ref(0);
-const noticeProcessLogMap = ref(new Map<string, NoticeProcessLogRecord>());
+const userMessageUnreadCount = ref(0);
 const NOTIFICATION_PREVIEW_LIMIT = 7;
-const NOTIFICATION_QUERY_LIMIT = 200;
 const NOTIFICATION_SYNC_INTERVAL = 3 * 60 * 1000;
-const noticeLevelLabelMap: Record<string, string> = {
+const messagePriorityLabelMap: Record<string, string> = {
   Important: '重要',
   Normal: '普通',
   Urgent: '紧急',
@@ -138,6 +110,7 @@ const ProfileCenter = defineAsyncComponent(
   resolveAdminPage('/_core/profile/index.vue'),
 );
 const profileModalOpen = ref(false);
+const profileInitialTab = ref<'basic' | 'social-account'>('basic');
 const syncMenuRoutesModalOpen = ref(false);
 const syncI18nLabelsModalOpen = ref(false);
 const adminUiPreferencesUploadLoading = ref(false);
@@ -146,8 +119,8 @@ const adminUiPreferencesUploadModalOpen = ref(false);
 // 仅展示本次加载命中的记录，不将展示信息作为保存目标。
 const loadedAdminUiSetting = ref<null | {
   id?: string;
-  name?: string;
   lastUpdateTime?: string;
+  name?: string;
 }>(null);
 const syncNationalAdministrativeAreasModalOpen = ref(false);
 const syncNationalAdministrativeAreasLoading = ref(false);
@@ -156,7 +129,7 @@ const frontendVersionModalOpen = ref(false);
 const eventListeners = ref<FrameworkEventListenerInfo[]>([]);
 const adminUiPreferencesScope = reactive<AdminUiPreferencesScope>({});
 const uploadTargetRecords = ref<
-  Array<{ id?: string; name?: string; lastUpdateTime?: string }>
+  Array<{ id?: string; lastUpdateTime?: string; name?: string }>
 >([]);
 const uploadTargetStatus = ref('');
 // 范围变更时清除旧目标，并忽略已经过期的查询响应。
@@ -200,7 +173,7 @@ const eventListenerManagerModalStyle = {
   maxWidth: eventListenerManagerModalMaxWidth,
 };
 const { destroyWatermark, updateWatermark } = useWatermark();
-const showDot = computed(() => noticeUnreadCount.value > 0);
+const showDot = computed(() => userMessageUnreadCount.value > 0);
 const extensionUserDropdownMenus = getUserDropdownMenuItems();
 
 const canUploadPageRoutes = computed(() => {
@@ -227,6 +200,9 @@ const canUploadI18nLabels = computed(() => {
 
 const fixedProfileUserDropdownMenu = computed(() => ({
   handler: () => {
+    profileInitialTab.value = hasPendingBindCallback()
+      ? 'social-account'
+      : 'basic';
     profileModalOpen.value = true;
   },
   icon: 'lucide:user',
@@ -477,6 +453,8 @@ onBeforeUnmount(() => {
   // 组件卸载时释放全局扩展与通知轮询，避免离开布局后继续发起请求。
   unregisterPreferencesUploadAction?.();
   stopNotificationSync();
+  stopMessageReadListener();
+  notificationRequestVersion += 1;
 });
 
 async function handleSaveAdminUiPreferences() {
@@ -588,25 +566,6 @@ function handleSetEventListenerEnabled(id: string, enabled: boolean) {
   refreshEventListeners();
 }
 
-function normalizeListItems<T>(data: any): T[] {
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  return data?.items || data?.records || data?.list || [];
-}
-
-function getNoticeState(item: NotificationItem) {
-  return item.state as NoticeNotificationState | undefined;
-}
-
-function stripContent(content?: string) {
-  return String(content || '')
-    .replaceAll(/<[^>]*>/g, ' ')
-    .replaceAll(/\s+/g, ' ')
-    .trim();
-}
-
 function formatNoticeDate(value?: string) {
   if (!value) {
     return '';
@@ -640,126 +599,73 @@ function formatNoticeDate(value?: string) {
   return value.slice(0, 10);
 }
 
-function getNoticeTitle(notice: NoticeRecord) {
-  return String(notice.title || notice.name || '通知').trim();
-}
-
-function getNoticeMessage(notice: NoticeRecord) {
-  const message = String(
-    notice.subtitle || stripContent(notice.content) || notice.category || '',
-  ).trim();
-
-  return message || '请查看通知详情';
-}
-
-function getNoticeLevelLabel(notice: NoticeRecord) {
-  const level = String(notice.level || '').trim();
-  return noticeLevelLabelMap[level] || level;
-}
-
-function getNoticeAvatar(notice: NoticeRecord) {
-  const title = getNoticeTitle(notice);
-  const text = encodeURIComponent(title.slice(0, 2) || '通知');
-  const seed = encodeURIComponent(String(notice.id || title));
-  return `https://avatar.vercel.sh/${seed}.svg?text=${text}`;
-}
-
-function isNoticeExpired(notice: NoticeRecord) {
-  if (!notice.expiredTime) {
-    return false;
-  }
-
-  const expiredAt = new Date(notice.expiredTime).getTime();
-  return Number.isFinite(expiredAt) && expiredAt < Date.now();
-}
-
+// 来源导航统一使用受控业务目标解析器，不保留旧公告管理页回退。
 function toNotificationItem(
-  notice: NoticeRecord,
-  log?: NoticeProcessLogRecord,
+  record: AdminUserMessage,
 ): NotificationItem | undefined {
-  const noticeId = String(notice.id || '').trim();
-  const processStatus = log?.status || notice.processStatus;
-  if (!noticeId || isNoticeExpired(notice) || processStatus === 'Rejected') {
-    return undefined;
-  }
+  const id = String(record.id || '').trim();
+  if (!id) return undefined;
+  const title = String(record.title || '消息').trim();
+  const sourceRoute = resolvePersonalMessageSourceRoute(record);
+  const link = sourceRoute?.path;
 
   return {
-    id: noticeId,
-    avatar: getNoticeAvatar(notice),
-    date: formatNoticeDate(
-      notice.publishTime || notice.createTime || notice.lastUpdateTime,
-    ),
-    isRead: processStatus === 'Finished',
-    level: getNoticeLevelLabel(notice),
-    link: '/clob/V1/MyMessages',
-    message: getNoticeMessage(notice),
-    state: {
-      logId: log?.id ? String(log.id) : undefined,
-      logStatus: processStatus,
-      noticeId,
-    },
-    title: getNoticeTitle(notice),
+    id,
+    avatar:
+      'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22%3E%3Crect width=%2240%22 height=%2240%22 rx=%2220%22 fill=%22%23e2e8f0%22/%3E%3Cpath d=%22M10 14h20v13H10zM10 14l10 8 10-8%22 fill=%22none%22 stroke=%22%23475569%22 stroke-width=%222%22/%3E%3C/svg%3E',
+    date: formatNoticeDate(record.createTime),
+    isRead: Boolean(record.readTime),
+    level: messagePriorityLabelMap[String(record.priority || '')] || '',
+    message: String(record.summary || '请查看消息详情'),
+    title,
+    ...(link ? { link } : {}),
+    ...(sourceRoute ? { query: sourceRoute.query } : {}),
   };
 }
 
-function buildNoticeProcessLogMap(logs: NoticeProcessLogRecord[]) {
-  const logMap = new Map<string, NoticeProcessLogRecord>();
-
-  logs.forEach((log) => {
-    const noticeId = String(log.noticeId || '').trim();
-    if (!noticeId) {
-      return;
-    }
-
-    const current = logMap.get(noticeId);
-    if (
-      !current ||
-      String(log.createTime || '') > String(current.createTime || '')
-    ) {
-      logMap.set(noticeId, log);
-    }
-  });
-
-  return logMap;
-}
+// 任意个人消息入口成功标记已读后同步顶部计数。
+const stopMessageReadListener = onFrameworkEvent(
+  'personal-message',
+  'read.changed',
+  syncNotifications,
+  '刷新个人消息未读数',
+);
+let notificationRequestVersion = 0;
 
 async function loadNotifications() {
-  const noticeService = getAdminNoticeService();
-  if (!accessStore.accessToken || !noticeService) {
+  const service = getAdminUserMessageService();
+  const version = ++notificationRequestVersion;
+  const token = accessStore.accessToken;
+  const userId = userStore.userInfo?.id;
+  if (!token || !service) {
     notifications.value = [];
-    notificationUnreadItems.value = [];
-    noticeUnreadCount.value = 0;
-    noticeProcessLogMap.value = new Map();
+    userMessageUnreadCount.value = 0;
     return;
   }
 
-  const noticeData = await noticeService.myMessages({
-    pageIndex: 1,
-    pageSize: NOTIFICATION_QUERY_LIMIT,
-  });
+  // 未读总数由专门接口返回，不从七条预览或分页总量推算。
+  const [count, page] = await Promise.all([
+    service.unreadCount(),
+    service.list({
+      unreadOnly: true,
+      pageIndex: 1,
+      pageSize: NOTIFICATION_PREVIEW_LIMIT,
+    }),
+  ]);
+  if (
+    version !== notificationRequestVersion ||
+    token !== accessStore.accessToken ||
+    userId !== userStore.userInfo?.id
+  )
+    return;
 
-  const notices = normalizeListItems<NoticeRecord>(noticeData);
-  const logs = notices.map((notice) => ({
-    createTime: notice.processTime,
-    id: notice.processLogId,
-    noticeId: notice.noticeId || notice.id,
-    remark: notice.processRemark,
-    status: notice.processStatus,
-  }));
-
-  const logMap = buildNoticeProcessLogMap(logs);
-  noticeProcessLogMap.value = logMap;
-
-  const visibleItems = notices
-    .map((notice) =>
-      toNotificationItem(notice, logMap.get(String(notice.id || ''))),
-    )
-    .filter(Boolean);
-  const unreadItems = visibleItems.filter((item) => !item.isRead);
-
-  notificationUnreadItems.value = unreadItems;
-  noticeUnreadCount.value = unreadItems.length;
-  notifications.value = unreadItems.slice(0, NOTIFICATION_PREVIEW_LIMIT);
+  userMessageUnreadCount.value = Number.isFinite(Number(count))
+    ? Math.max(0, Number(count))
+    : 0;
+  notifications.value = (page.items || [])
+    .slice(0, NOTIFICATION_PREVIEW_LIMIT)
+    .map((item: AdminUserMessage) => toNotificationItem(item))
+    .filter((item): item is NotificationItem => item !== undefined);
 }
 
 function syncNotifications() {
@@ -790,95 +696,60 @@ function startNotificationSync() {
   );
 }
 
-async function saveNoticeProcessLog(
-  item: NotificationItem,
-  status: NoticeProcessStatus,
-  remark: string,
-) {
-  const noticeService = getAdminNoticeService();
-  const state = getNoticeState(item);
-  const noticeId = state?.noticeId;
-  if (!noticeId || !noticeService) {
-    return;
-  }
+async function markNotificationItemsRead(items: NotificationItem[]) {
+  const ids = items
+    .filter((item) => !item.isRead)
+    .map((item) => String(item.id));
+  if (ids.length === 0) return;
 
-  const result = (await noticeService.processMyMessage({
-    noticeId,
-    remark,
-    status,
-  })) as NoticeRecord | undefined;
-
-  noticeProcessLogMap.value.set(noticeId, {
-    id: result?.processLogId || state?.logId,
-    noticeId,
-    remark,
-    status,
-  });
-
-  if (status === 'Finished' || status === 'Rejected') {
-    noticeUnreadCount.value = Math.max(0, noticeUnreadCount.value - 1);
-  }
-}
-
-function removeNotificationItems(ids: Set<string>) {
-  notificationUnreadItems.value = notificationUnreadItems.value.filter(
-    (item) => !ids.has(String(item.id || '')),
-  );
-  notifications.value = notificationUnreadItems.value.slice(
-    0,
-    NOTIFICATION_PREVIEW_LIMIT,
-  );
-  noticeUnreadCount.value = notificationUnreadItems.value.length;
-}
-
-async function markNotificationItemsRead(
-  items: NotificationItem[],
-  remark: string,
-) {
-  const unreadItems = items.filter((item) => !item.isRead);
-  if (unreadItems.length === 0) {
-    return;
-  }
-
-  for (const item of unreadItems) {
-    await saveNoticeProcessLog(item, 'Finished', remark);
-  }
-  removeNotificationItems(
-    new Set(unreadItems.map((item) => String(item.id || ''))),
-  );
+  const service = getAdminUserMessageService();
+  if (!service) return;
+  await service.markRead({ ids: ids.slice(0, NOTIFICATION_PREVIEW_LIMIT) });
+  syncNotifications();
 }
 
 async function handleNoticeClear() {
-  await markNotificationItemsRead(
-    [...notificationUnreadItems.value],
-    '用户清空通知并标记已读',
-  );
+  await markAllNotificationsRead();
 }
 
 async function markRead(id: number | string) {
-  const item = notificationUnreadItems.value.find((item) => item.id === id);
-  if (!item || item.isRead) {
-    return;
-  }
-
-  await markNotificationItemsRead([item], '用户已读通知');
+  const item = notifications.value.find(
+    (entry) => String(entry.id) === String(id),
+  );
+  if (item) await markNotificationItemsRead([item]);
 }
 
 async function remove(id: number | string) {
-  const item = notificationUnreadItems.value.find((item) => item.id === id);
-  if (!item) {
-    return;
-  }
-
-  await saveNoticeProcessLog(item, 'Rejected', '用户清除通知');
-  removeNotificationItems(new Set([String(item.id || '')]));
+  await markRead(id);
 }
 
 async function handleMakeAll() {
-  await markNotificationItemsRead(
-    [...notificationUnreadItems.value],
-    '用户全部已读通知',
-  );
+  await markAllNotificationsRead();
+}
+
+async function markAllNotificationsRead() {
+  const service = getAdminUserMessageService();
+  const token = accessStore.accessToken;
+  const userId = userStore.userInfo?.id;
+  if (!service || !token) return;
+
+  // 每次只读一页并在已读后重取第一页，直至没有未读消息。
+  while (
+    token === accessStore.accessToken &&
+    userId === userStore.userInfo?.id
+  ) {
+    const page = await service.list({
+      pageIndex: 1,
+      pageSize: 100,
+      unreadOnly: true,
+    });
+    const ids = (page.items || [])
+      .map((item) => String(item.id))
+      .filter(Boolean);
+    if (ids.length === 0) break;
+    await service.markRead({ ids });
+  }
+  syncNotifications();
 }
 
 function handleViewAllNotifications() {
@@ -892,6 +763,15 @@ function handleClickLogo() {
 }
 
 onMounted(() => {
+  // 保留原业务路由，在既有个人中心弹窗恢复主动绑定回调；独立个人页自行恢复。
+  if (
+    accessStore.accessToken &&
+    hasPendingBindCallback() &&
+    router.currentRoute.value.path !== '/profile'
+  ) {
+    profileInitialTab.value = 'social-account';
+    profileModalOpen.value = true;
+  }
   loadAuthBrand().catch((error) => {
     console.warn('加载租户站点品牌信息失败', error);
   });
@@ -975,8 +855,12 @@ watch(
         :title="$t('page.auth.profile')"
         :width="960"
         destroy-on-close
+        @cancel="clearPendingBindCallback"
       >
-        <ProfileCenter class="max-h-[72vh] overflow-y-auto" />
+        <ProfileCenter
+          :initial-tab="profileInitialTab"
+          class="max-h-[72vh] overflow-y-auto"
+        />
       </Modal>
       <SyncMenuRoutesModal v-model:open="syncMenuRoutesModalOpen" />
       <SyncI18nLabelsModal v-model:open="syncI18nLabelsModalOpen" />
@@ -1136,9 +1020,9 @@ watch(
           >
             加载设置
           </Button>
-          <Button @click="adminUiPreferencesUploadModalOpen = false"
-            >取消</Button
-          >
+          <Button @click="adminUiPreferencesUploadModalOpen = false">
+            取消
+          </Button>
           <Button
             :loading="adminUiPreferencesUploadLoading"
             type="primary"
@@ -1247,7 +1131,7 @@ watch(
     <template #notification>
       <Notification
         :dot="showDot"
-        :count="noticeUnreadCount"
+        :count="userMessageUnreadCount"
         :notifications="notifications"
         @clear="handleNoticeClear"
         @read="(item) => item.id && markRead(item.id)"

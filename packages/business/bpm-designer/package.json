@@ -43,7 +43,7 @@
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": "5.6.117",
+    "@levin/admin-framework": "6.0.0",
     "ant-design-vue": ">=4.0.0",
     "vue": ">=3.5.0"
   },

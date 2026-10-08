@@ -147,6 +147,12 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
     return super.history(this.businessScope(args[0]));
   }
 
+  // 链接读取不要求列表资源动作，服务端重新校验实例参与和业务读取范围。
+  @ResAuthorize({ onlyRequireAuthenticated: true })
+  override instance(...args: Parameters<WorkflowRuntimeService['instance']>) {
+    return super.instance(...args);
+  }
+
   @ResAuthorize({
     domain: 'WorkflowRuntime',
     type: '业务数据-工作流运行时',
@@ -239,6 +245,12 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   })
   override started(...args: Parameters<WorkflowRuntimeService['started']>) {
     return super.started(...args);
+  }
+
+  // 查看我的工作流任务只依赖认证会话，任务资格和业务权限由详情接口判定。
+  @ResAuthorize({ onlyRequireAuthenticated: true })
+  override task(...args: Parameters<WorkflowRuntimeService['task']>) {
+    return super.task(...args);
   }
 
   @ResAuthorize({

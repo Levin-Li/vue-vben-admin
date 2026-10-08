@@ -1,490 +1,274 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import type { NoticeSourceInfo } from '../../api/notice-service';
+import type { MyMessageInfo } from '../../api/user-message-service';
+
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
-import { IconifyIcon } from '@vben/runtime/icons';
+import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
+import { resolvePersonalMessageSourceRoute } from '@levin/admin-framework';
+import { globalDomainContextRevision } from '@levin/admin-framework/framework-commons/app/global-domain-context-state';
+import { globalOrgContextRevision } from '@levin/admin-framework/framework-commons/app/global-org-context-state';
 import {
   Alert,
   Button,
   Checkbox,
   Empty,
+  message,
   Modal,
+  Pagination,
   Spin,
   Tag,
-  Tooltip,
-  message,
 } from 'ant-design-vue';
 
-import { noticeService } from '../../api/index';
+import { noticeService } from '../../api/notice-service';
+import { userMessageService } from '../../api/user-message-service';
 import NoticeContentViewer from './notice-content-viewer.vue';
 
-type NoticeProcessStatus = 'Finished' | 'Processing' | 'Rejected';
-type MessageFilter = 'all' | 'read' | 'unread';
-
-interface MyNoticeMessage {
-  category?: string;
-  content?: string;
-  contentType?: string;
-  createTime?: string;
-  expiredTime?: string;
-  id?: number | string;
-  lastUpdateTime?: string;
-  level?: string;
-  name?: string;
-  noticeId?: number | string;
-  processLogId?: number | string;
-  processRemark?: string;
-  processStatus?: NoticeProcessStatus;
-  processTime?: string;
-  publishTime?: string;
-  subtitle?: string;
-  title?: string;
-}
-
+type MessageFilter = 'all' | 'unread';
+const router = useRouter();
+const route = useRoute();
+const accessStore = useAccessStore();
+const userStore = useUserStore();
 const loading = ref(false);
-const loadingMore = ref(false);
+const submitting = ref(false);
 const errorMessage = ref('');
-const messages = ref<MyNoticeMessage[]>([]);
+const messages = ref<MyMessageInfo[]>([]);
+const selectedIds = ref(new Set<string>());
 const activeFilter = ref<MessageFilter>('unread');
 const detailOpen = ref(false);
-const activeMessage = ref<MyNoticeMessage | null>(null);
-const processingIds = ref(new Set<string>());
-const selectedIds = ref(new Set<string>());
-const pageIndex = ref(0);
+const activeMessage = ref<MyMessageInfo | null>(null);
+const pageIndex = ref(1);
 const totalCount = ref(0);
-const hasMore = ref(true);
-const MESSAGE_PAGE_SIZE = 7;
-const noticeLevelLabelMap: Record<string, string> = {
-  Important: '重要',
-  Normal: '普通',
-  Urgent: '紧急',
-  VeryUrgent: '非常紧急',
-  VeryVeryUrgent: '非常非常紧急',
+const unreadCount = ref(0);
+const PAGE_SIZE = 20;
+let listRequestVersion = 0;
+let detailRequestVersion = 0;
+let noticeRequestVersion = 0;
+const noticeSource = ref<NoticeSourceInfo>();
+const noticeSourceOpen = ref(false);
+const noticeSourceLoading = ref(false);
+const noticeSourceError = ref('');
+
+// 来源类型标签与跳转解析分离，正文和外部URL不能成为页面地址。
+const sourceLabels: Record<string, string> = {
+  Inbox: '收件箱',
+  Notice: '通知公告',
+  Ticket: '工单',
+  Workflow: '工作流',
 };
-const noticeLevelColorMap: Record<string, string> = {
-  Important: 'orange',
-  Normal: 'default',
-  Urgent: 'red',
-  VeryUrgent: 'magenta',
-  VeryVeryUrgent: 'volcano',
-};
-
-const unreadCount = computed(
+const selectedUnreadIds = computed(() =>
+  messages.value
+    .filter((item) => !item.readTime && selectedIds.value.has(item.id))
+    .map((item) => item.id),
+);
+const allSelected = computed(
   () =>
-    messages.value.filter((item) => item.processStatus !== 'Finished').length,
+    messages.value.length > 0 &&
+    messages.value.every((item) => selectedIds.value.has(item.id)),
 );
-const loadedCountText = computed(() => {
-  if (totalCount.value <= 0) {
-    return String(messages.value.length);
-  }
-
-  return `${messages.value.length}/${totalCount.value}`;
-});
-
-const filteredMessages = computed(() => {
-  if (activeFilter.value === 'read') {
-    return messages.value.filter((item) => item.processStatus === 'Finished');
-  }
-
-  if (activeFilter.value === 'unread') {
-    return messages.value.filter((item) => item.processStatus !== 'Finished');
-  }
-
-  return messages.value;
-});
-
-const selectedMessages = computed(() =>
-  messages.value.filter((item) => selectedIds.value.has(getMessageId(item))),
+const partiallySelected = computed(
+  () => selectedIds.value.size > 0 && !allSelected.value,
 );
 
-const selectedUnreadMessages = computed(() =>
-  selectedMessages.value.filter((item) => item.processStatus !== 'Finished'),
-);
-
-const filteredSelectedCount = computed(
-  () =>
-    filteredMessages.value.filter((item) =>
-      selectedIds.value.has(getMessageId(item)),
-    ).length,
-);
-
-const allFilteredSelected = computed(
-  () =>
-    filteredMessages.value.length > 0 &&
-    filteredSelectedCount.value === filteredMessages.value.length,
-);
-
-const filteredSelectionIndeterminate = computed(
-  () =>
-    filteredSelectedCount.value > 0 &&
-    filteredSelectedCount.value < filteredMessages.value.length,
-);
-
-function normalizeListItems<T>(data: any): T[] {
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  return data?.items || data?.records || data?.list || [];
+function formatDate(value?: null | string) {
+  return value ? value.replace('T', ' ').slice(0, 19) : '-';
 }
 
-function getPagingTotal(data: any) {
-  const total = Number(data?.totals ?? data?.total ?? data?.totalCount ?? 0);
-  return Number.isFinite(total) && total > 0 ? total : 0;
+function sourceLabel(sourceType?: string) {
+  return sourceLabels[sourceType || ''] || '业务消息';
 }
 
-function getMessageId(item: MyNoticeMessage) {
-  return String(item.noticeId || item.id || '').trim();
-}
-
-function getMessageTitle(item: MyNoticeMessage) {
-  return String(item.title || item.name || '通知').trim();
-}
-
-function getNoticeLevelValue(item?: MyNoticeMessage | null) {
-  return String(item?.level || '').trim();
-}
-
-function getNoticeLevelLabel(item?: MyNoticeMessage | null) {
-  const level = getNoticeLevelValue(item);
-  return noticeLevelLabelMap[level] || level;
-}
-
-function getNoticeLevelColor(item?: MyNoticeMessage | null) {
-  return noticeLevelColorMap[getNoticeLevelValue(item)] || 'default';
-}
-
-function stripContent(content?: string) {
-  return String(content || '')
-    .replaceAll(/<[^>]*>/g, ' ')
-    .replaceAll(/\s+/g, ' ')
-    .trim();
-}
-
-function getMessageSummary(item: MyNoticeMessage) {
-  return String(item.subtitle || stripContent(item.content) || '请查看通知详情')
-    .trim()
-    .slice(0, 160);
-}
-
-function formatDate(value?: string) {
-  if (!value) {
-    return '-';
-  }
-
-  const time = new Date(value).getTime();
-  if (!Number.isFinite(time)) {
-    return value;
-  }
-
-  return value.replace('T', ' ').slice(0, 19);
-}
-
-function getStatusLabel(item: MyNoticeMessage) {
-  return item.processStatus === 'Finished' ? '已读' : '未读';
-}
-
-function getStatusColor(item: MyNoticeMessage) {
-  return item.processStatus === 'Finished' ? 'default' : 'processing';
-}
-
-function isProcessing(item: MyNoticeMessage) {
-  return processingIds.value.has(getMessageId(item));
-}
-
-function isSelected(item: MyNoticeMessage) {
-  return selectedIds.value.has(getMessageId(item));
-}
-
-function setProcessing(item: MyNoticeMessage, value: boolean) {
-  const next = new Set(processingIds.value);
-  const id = getMessageId(item);
-
-  if (value) {
-    next.add(id);
-  } else {
-    next.delete(id);
-  }
-
-  processingIds.value = next;
-}
-
-function setSelected(item: MyNoticeMessage, value: boolean) {
+function selectItem(id: string, checked: boolean) {
   const next = new Set(selectedIds.value);
-  const id = getMessageId(item);
-
-  if (!id) {
-    return;
-  }
-
-  if (value) {
-    next.add(id);
-  } else {
-    next.delete(id);
-  }
-
+  if (checked) next.add(id);
+  else next.delete(id);
   selectedIds.value = next;
 }
 
-function handleSelectChange(
-  item: MyNoticeMessage,
-  event: { target: { checked: boolean } },
-) {
-  setSelected(item, event.target.checked);
+function selectAll(checked: boolean) {
+  selectedIds.value = checked
+    ? new Set(messages.value.map((item) => item.id))
+    : new Set();
 }
 
-function handleSelectAllChange(event: { target: { checked: boolean } }) {
-  const next = new Set(selectedIds.value);
-
-  filteredMessages.value.forEach((item) => {
-    const id = getMessageId(item);
-    if (!id) {
-      return;
-    }
-
-    if (event.target.checked) {
-      next.add(id);
-    } else {
-      next.delete(id);
-    }
-  });
-
-  selectedIds.value = next;
-}
-
-function clearSelectedItems(items: MyNoticeMessage[]) {
-  const removeIds = new Set(items.map((item) => getMessageId(item)));
-  selectedIds.value = new Set(
-    [...selectedIds.value].filter((id) => !removeIds.has(id)),
-  );
-}
-
-function mergeMessages(
-  currentMessages: MyNoticeMessage[],
-  nextMessages: MyNoticeMessage[],
-) {
-  const messageMap = new Map<string, MyNoticeMessage>();
-  [...currentMessages, ...nextMessages].forEach((item) => {
-    const id = getMessageId(item);
-    if (id) {
-      messageMap.set(id, item);
-    }
-  });
-  return [...messageMap.values()];
-}
-
-async function loadMessages(reset = true) {
-  if (!reset && (loading.value || loadingMore.value || !hasMore.value)) {
-    return;
-  }
-
-  if (reset) {
-    loading.value = true;
-    pageIndex.value = 0;
-    totalCount.value = 0;
-    hasMore.value = true;
-    selectedIds.value = new Set();
-  } else {
-    loadingMore.value = true;
-  }
-
-  errorMessage.value = '';
-
+async function refreshUnreadCount() {
   try {
-    const nextPageIndex = reset ? 1 : pageIndex.value + 1;
-    const result = await noticeService.myMessages({
-      pageIndex: nextPageIndex,
-      pageSize: MESSAGE_PAGE_SIZE,
-    });
-    const pagingResult = (result || {}) as Record<string, any>;
-    const nextItems = normalizeListItems<MyNoticeMessage>(pagingResult);
-    const total = getPagingTotal(pagingResult);
-
-    messages.value = reset
-      ? nextItems
-      : mergeMessages(messages.value, nextItems);
-    pageIndex.value = nextPageIndex;
-    totalCount.value = total || messages.value.length;
-    hasMore.value =
-      typeof pagingResult.hasMore === 'boolean'
-        ? pagingResult.hasMore
-        : nextItems.length >= MESSAGE_PAGE_SIZE &&
-          messages.value.length < totalCount.value;
+    unreadCount.value = Number(await userMessageService.unreadCount()) || 0;
   } catch (error) {
     console.error(error);
-    errorMessage.value = '我的消息加载失败';
+  }
+}
+
+// 每次筛选或换页重新向服务端查询，不过滤已加载页来冒充完整结果。
+async function loadMessages(nextPage = pageIndex.value) {
+  const version = ++listRequestVersion;
+  loading.value = true;
+  errorMessage.value = '';
+  try {
+    const result = await userMessageService.list({
+      pageIndex: nextPage,
+      pageSize: PAGE_SIZE,
+      unreadOnly: activeFilter.value === 'unread',
+    });
+    if (version !== listRequestVersion) return;
+    messages.value = result.items || [];
+    pageIndex.value = result.pageIndex || nextPage;
+    totalCount.value = Number(result.totals) || 0;
+    selectedIds.value = new Set();
+  } catch (error) {
+    console.error(error);
+    if (version === listRequestVersion) {
+      errorMessage.value = '我的消息加载失败，请重试';
+    }
   } finally {
-    loading.value = false;
-    loadingMore.value = false;
+    if (version === listRequestVersion) loading.value = false;
+  }
+  if (version === listRequestVersion) await refreshUnreadCount();
+}
+
+async function setFilter(filter: MessageFilter) {
+  activeFilter.value = filter;
+  await loadMessages(1);
+}
+
+// 详情通过本人专用接口重新授权；打开详情不隐式标记已读。
+async function openMessage(item: MyMessageInfo) {
+  const version = ++detailRequestVersion;
+  try {
+    const detail = await userMessageService.retrieve(item.id);
+    if (version !== detailRequestVersion) return;
+    activeMessage.value = detail;
+    detailOpen.value = true;
+  } catch (error) {
+    console.error(error);
+    message.error('消息详情不可访问或已失效');
   }
 }
 
-async function loadNextPage() {
-  await loadMessages(false);
-}
-
-async function ensureCurrentFilterPageFilled() {
-  while (
-    !loading.value &&
-    !loadingMore.value &&
-    hasMore.value &&
-    filteredMessages.value.length < MESSAGE_PAGE_SIZE
-  ) {
-    await loadMessages(false);
-  }
-}
-
-function handleMessagesScroll(event: Event) {
-  const target = event.currentTarget as HTMLElement | null;
-  if (!target) {
+async function markRead(ids: string[]) {
+  if (ids.length === 0) return;
+  if (ids.length > 100) {
+    message.error('每次最多标记 100 条消息');
     return;
   }
-
-  const distanceToBottom =
-    target.scrollHeight - target.scrollTop - target.clientHeight;
-  if (distanceToBottom <= 96) {
-    loadNextPage();
+  submitting.value = true;
+  try {
+    await userMessageService.markRead({ ids });
+    message.success(`已标记 ${ids.length} 条消息为已读`);
+    if (activeMessage.value && ids.includes(activeMessage.value.id)) {
+      activeMessage.value = await userMessageService.retrieve(
+        activeMessage.value.id,
+      );
+    }
+    await loadMessages(pageIndex.value);
+    if (messages.value.length === 0 && pageIndex.value > 1) {
+      await loadMessages(pageIndex.value - 1);
+    }
+  } catch (error) {
+    console.error(error);
+    message.error('标记已读失败，请重试');
+  } finally {
+    submitting.value = false;
   }
 }
 
-async function processMessage(
-  item: MyNoticeMessage,
-  status: NoticeProcessStatus,
-  remark: string,
-) {
-  setProcessing(item, true);
+function sourceRoute(item: MyMessageInfo) {
+  return resolvePersonalMessageSourceRoute(item);
+}
 
+async function openSource(item: MyMessageInfo) {
+  // 目标页面通过自己的详情接口再次授权；此处不传未授权的正文或路径。
+  const source = sourceRoute(item);
+  if (!source) {
+    message.info('来源暂不可打开');
+    return;
+  }
+  await router.push(source.query ? source : source.path);
+}
+
+// 公告定位参数不携带身份或租户；每次由专用来源接口重验快照与当前资格。
+async function loadNoticeSource(value: unknown) {
+  const version = ++noticeRequestVersion;
+  noticeSource.value = undefined;
+  noticeSourceError.value = '';
+  noticeSourceLoading.value = false;
+  noticeSourceOpen.value = value !== undefined;
+  if (value === undefined) return;
+  if (typeof value !== 'string' || !/^[A-Z0-9][\w.:-]{0,63}$/i.test(value)) {
+    noticeSourceError.value = '公告来源定位参数无效';
+    return;
+  }
+  if (!accessStore.accessToken || !userStore.userInfo?.id) {
+    noticeSourceError.value = '公告来源不可访问或已失效';
+    return;
+  }
+  noticeSourceLoading.value = true;
   try {
-    const result = (await noticeService.processMyMessage({
-      noticeId: getMessageId(item),
-      remark,
-      status,
-    })) as MyNoticeMessage | undefined;
-
-    if (status === 'Rejected') {
-      messages.value = messages.value.filter(
-        (messageItem) => getMessageId(messageItem) !== getMessageId(item),
-      );
-      totalCount.value = Math.max(0, totalCount.value - 1);
-      if (
-        activeMessage.value &&
-        getMessageId(activeMessage.value) === getMessageId(item)
-      ) {
-        detailOpen.value = false;
-        activeMessage.value = null;
-      }
+    const result = await noticeService.myDetail(value);
+    if (version !== noticeRequestVersion) return;
+    if (!result || result.id !== value) {
+      noticeSourceError.value = '公告来源不可访问或已失效';
       return;
     }
-
-    const updated: MyNoticeMessage = {
-      ...item,
-      ...(result && typeof result === 'object' ? result : {}),
-      processStatus: status,
-      processRemark: remark,
-    };
-    messages.value = messages.value.map((messageItem) =>
-      getMessageId(messageItem) === getMessageId(item) ? updated : messageItem,
-    );
-
-    if (
-      activeMessage.value &&
-      getMessageId(activeMessage.value) === getMessageId(item)
-    ) {
-      activeMessage.value = updated;
-    }
+    noticeSource.value = result;
+  } catch {
+    if (version === noticeRequestVersion)
+      noticeSourceError.value = '公告来源不可访问或已失效';
   } finally {
-    setProcessing(item, false);
+    if (version === noticeRequestVersion) noticeSourceLoading.value = false;
   }
 }
-
-async function openMessage(item: MyNoticeMessage) {
-  activeMessage.value = item;
-  detailOpen.value = true;
-
-  if (item.processStatus !== 'Finished') {
-    await processMessage(item, 'Finished', '用户查看消息');
+function dismissNoticeSource() {
+  closeNoticeSource();
+  if (route.query.noticeId !== undefined) {
+    const query = { ...route.query };
+    delete query.noticeId;
+    void router.replace({ path: '/clob/V1/MyMessages', query });
   }
 }
-
-async function markRead(item: MyNoticeMessage) {
-  await processMessage(item, 'Finished', '用户标记已读');
-  message.success('已标记为已读');
+function closeNoticeSource() {
+  noticeRequestVersion += 1;
+  noticeSource.value = undefined;
+  noticeSourceOpen.value = false;
+  noticeSourceLoading.value = false;
 }
-
-async function markSelectedRead() {
-  const targets = [...selectedUnreadMessages.value];
-
-  if (targets.length === 0) {
-    message.info('请选择未读消息');
-    return;
-  }
-
-  for (const item of targets) {
-    await processMessage(item, 'Finished', '用户批量标记已读');
-  }
-
-  clearSelectedItems(targets);
-  message.success(`已标记 ${targets.length} 条为已读`);
-}
-
-function rejectMessage(item: MyNoticeMessage) {
-  Modal.confirm({
-    content: `拒绝后，该消息将从我的消息中移除。`,
-    okButtonProps: { danger: true },
-    okText: '拒绝',
-    title: `拒绝「${getMessageTitle(item)}」`,
-    async onOk() {
-      await processMessage(item, 'Rejected', '用户拒绝消息');
-      message.success('消息已拒绝');
-    },
-  });
-}
-
-function rejectSelectedMessages() {
-  const targets = [...selectedMessages.value];
-
-  if (targets.length === 0) {
-    message.info('请选择消息');
-    return;
-  }
-
-  Modal.confirm({
-    content: `拒绝后，选中的 ${targets.length} 条消息将从我的消息中移除。`,
-    okButtonProps: { danger: true },
-    okText: '拒绝',
-    title: '批量拒绝消息',
-    async onOk() {
-      for (const item of targets) {
-        await processMessage(item, 'Rejected', '用户批量拒绝消息');
-      }
-      clearSelectedItems(targets);
-      message.success(`已拒绝 ${targets.length} 条消息`);
-    },
-  });
-}
-
+onMounted(() => {
+  void loadMessages(1);
+  void loadNoticeSource(route.query.noticeId);
+});
+watch(() => route.query.noticeId, loadNoticeSource);
 watch(
-  activeFilter,
+  () => [
+    accessStore.accessToken,
+    userStore.userInfo?.id,
+    userStore.userInfo?.tenantId,
+    globalOrgContextRevision.value,
+    globalDomainContextRevision.value,
+  ],
   () => {
-    ensureCurrentFilterPageFilled();
+    listRequestVersion += 1;
+    detailRequestVersion += 1;
+    messages.value = [];
+    selectedIds.value = new Set();
+    activeMessage.value = null;
+    detailOpen.value = false;
+    totalCount.value = 0;
+    unreadCount.value = 0;
+    closeNoticeSource();
+    if (accessStore.accessToken && userStore.userInfo?.id) {
+      void loadMessages(1);
+      void loadNoticeSource(route.query.noticeId);
+    }
   },
-  { flush: 'post' },
 );
-
-watch(
-  messages,
-  (items) => {
-    const validIds = new Set(items.map((item) => getMessageId(item)));
-    selectedIds.value = new Set(
-      [...selectedIds.value].filter((id) => validIds.has(id)),
-    );
-    ensureCurrentFilterPageFilled();
-  },
-  { deep: true },
-);
-
-onMounted(loadMessages);
+onBeforeUnmount(() => {
+  listRequestVersion += 1;
+  detailRequestVersion += 1;
+  closeNoticeSource();
+});
 </script>
 
 <template>
@@ -493,81 +277,55 @@ onMounted(loadMessages);
     content-class="!bg-card !m-4 min-w-0 !overflow-hidden rounded-lg"
   >
     <div class="my-messages-page flex h-full min-h-0 flex-col">
+      <!-- 工具栏只提供服务端支持的筛选条件及当前页批量操作。 -->
       <div
-        class="my-messages-toolbar bg-card flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
+        class="bg-card flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
       >
-        <div class="flex min-w-0 flex-wrap items-center gap-2">
-          <div class="text-foreground text-base font-semibold">我的消息</div>
-          <Tag color="blue">已加载 {{ loadedCountText }}</Tag>
+        <div class="flex flex-wrap items-center gap-2">
+          <strong class="text-base">我的消息</strong>
+          <Tag color="blue">共 {{ totalCount }} 条</Tag>
           <Tag v-if="unreadCount > 0" color="processing">
             未读 {{ unreadCount }}
           </Tag>
-          <Tag v-if="selectedMessages.length > 0" color="purple">
-            已选 {{ selectedMessages.length }}
-          </Tag>
         </div>
-
-        <div class="flex flex-wrap items-center justify-end gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <Checkbox
-            :checked="allFilteredSelected"
-            :indeterminate="filteredSelectionIndeterminate"
-            @change="handleSelectAllChange"
+            :checked="allSelected"
+            :indeterminate="partiallySelected"
+            @change="selectAll($event.target.checked)"
           >
-            全选
+            当前页全选
           </Checkbox>
           <Button
-            :disabled="selectedUnreadMessages.length === 0"
+            :disabled="selectedUnreadIds.length === 0"
+            :loading="submitting"
             size="small"
-            @click="markSelectedRead"
+            @click="markRead(selectedUnreadIds)"
           >
-            <IconifyIcon class="size-4" icon="lucide:check-check" />
             批量已读
           </Button>
           <Button
-            :disabled="selectedMessages.length === 0"
-            danger
+            :type="activeFilter === 'all' ? 'primary' : 'default'"
             size="small"
-            @click="rejectSelectedMessages"
+            @click="setFilter('all')"
           >
-            <IconifyIcon class="size-4" icon="lucide:bell-off" />
-            批量拒绝
+            全部
           </Button>
-          <div class="bg-background flex rounded-md border p-0.5">
-            <Button
-              :type="activeFilter === 'all' ? 'primary' : 'text'"
-              size="small"
-              @click="activeFilter = 'all'"
-            >
-              全部
-            </Button>
-            <Button
-              :type="activeFilter === 'unread' ? 'primary' : 'text'"
-              size="small"
-              @click="activeFilter = 'unread'"
-            >
-              未读
-            </Button>
-            <Button
-              :type="activeFilter === 'read' ? 'primary' : 'text'"
-              size="small"
-              @click="activeFilter = 'read'"
-            >
-              已读
-            </Button>
-          </div>
-          <Tooltip title="刷新">
-            <Button
-              :loading="loading"
-              aria-label="刷新"
-              shape="circle"
-              type="text"
-              @click="() => loadMessages()"
-            >
-              <template #icon>
-                <IconifyIcon class="size-4" icon="lucide:refresh-cw" />
-              </template>
-            </Button>
-          </Tooltip>
+          <Button
+            :type="activeFilter === 'unread' ? 'primary' : 'default'"
+            size="small"
+            @click="setFilter('unread')"
+          >
+            未读
+          </Button>
+          <Button
+            aria-label="刷新"
+            :loading="loading"
+            size="small"
+            @click="loadMessages(pageIndex)"
+          >
+            刷新
+          </Button>
         </div>
       </div>
 
@@ -579,158 +337,143 @@ onMounted(loadMessages);
         type="error"
       />
 
-      <Spin :spinning="loading" class="min-h-0 flex-1 overflow-hidden">
-        <div
-          class="h-full overflow-auto px-4 py-3"
-          @scroll="handleMessagesScroll"
-        >
+      <!-- 列表只展示个人消息安全摘要；不渲染来源正文或富文本。 -->
+      <Spin :spinning="loading" class="min-h-0 flex-1 overflow-auto">
+        <div class="h-full overflow-auto px-4 py-3">
           <Empty
-            v-if="!loading && filteredMessages.length === 0 && !hasMore"
+            v-if="!loading && messages.length === 0"
             class="mt-20"
             description="暂无消息"
           />
-
-          <div v-else class="grid gap-2">
-            <div
-              v-for="item in filteredMessages"
-              :key="getMessageId(item)"
-              class="message-row bg-card grid min-w-0 gap-3 border-b px-4 py-3 md:grid-cols-[auto_1fr_auto]"
+          <div
+            v-for="item in messages"
+            :key="item.id"
+            class="message-row grid min-w-0 gap-3 border-b px-4 py-3 md:grid-cols-[auto_1fr_auto]"
+          >
+            <Checkbox
+              :checked="selectedIds.has(item.id)"
+              class="mt-1"
+              @change="selectItem(item.id, $event.target.checked)"
+            />
+            <button
+              class="min-w-0 border-0 bg-transparent p-0 text-left"
+              type="button"
+              @click="openMessage(item)"
             >
-              <Checkbox
-                :checked="isSelected(item)"
-                class="mt-1"
-                @change="handleSelectChange(item, $event)"
-                @click.stop
-              />
-              <button
-                class="min-w-0 cursor-pointer border-0 bg-transparent p-0 text-left"
-                type="button"
-                @click="openMessage(item)"
-              >
-                <div class="mb-2 flex min-w-0 flex-wrap items-center gap-2">
-                  <Tag :color="getStatusColor(item)">
-                    {{ getStatusLabel(item) }}
-                  </Tag>
-                  <Tag
-                    v-if="getNoticeLevelValue(item)"
-                    :color="getNoticeLevelColor(item)"
-                  >
-                    {{ getNoticeLevelLabel(item) }}
-                  </Tag>
-                  <Tag v-if="item.category">{{ item.category }}</Tag>
-                  <span class="text-foreground truncate text-sm font-semibold">
-                    {{ getMessageTitle(item) }}
-                  </span>
-                </div>
-                <div class="text-muted-foreground line-clamp-2 text-sm">
-                  {{ getMessageSummary(item) }}
-                </div>
-                <div
-                  class="text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs"
-                >
-                  <span
-                    >发布：{{
-                      formatDate(item.publishTime || item.createTime)
-                    }}</span
-                  >
-                  <span>过期：{{ formatDate(item.expiredTime) }}</span>
-                </div>
-              </button>
-
-              <div class="flex items-center justify-end gap-2">
-                <Button size="small" type="link" @click="openMessage(item)">
-                  <IconifyIcon class="size-4" icon="lucide:eye" />
-                  查看
-                </Button>
-                <Button
-                  v-if="item.processStatus !== 'Finished'"
-                  :loading="isProcessing(item)"
-                  size="small"
-                  type="link"
-                  @click="markRead(item)"
-                >
-                  <template #icon>
-                    <IconifyIcon class="size-4" icon="lucide:check-check" />
-                  </template>
-                  已读
-                </Button>
-                <Button
-                  :loading="isProcessing(item)"
-                  danger
-                  size="small"
-                  type="link"
-                  @click="rejectMessage(item)"
-                >
-                  <template #icon>
-                    <IconifyIcon class="size-4" icon="lucide:bell-off" />
-                  </template>
-                  拒绝
-                </Button>
+              <div class="mb-2 flex flex-wrap items-center gap-2">
+                <Tag :color="item.readTime ? 'default' : 'processing'">
+                  {{ item.readTime ? '已读' : '未读' }}
+                </Tag>
+                <Tag>{{ sourceLabel(item.sourceType) }}</Tag>
+                <span class="text-foreground truncate text-sm font-semibold">{{
+                  item.title || '业务消息'
+                }}</span>
               </div>
-            </div>
-
-            <div
-              v-if="messages.length > 0 || loadingMore || hasMore"
-              class="flex-center text-muted-foreground py-4 text-xs"
-            >
-              <template v-if="loadingMore">加载中...</template>
-              <template v-else-if="hasMore">继续下滑加载更多</template>
-              <template v-else>没有更多消息</template>
+              <div class="text-muted-foreground line-clamp-2 text-sm">
+                {{ item.summary || '暂无摘要' }}
+              </div>
+              <div class="text-muted-foreground mt-2 text-xs">
+                {{ formatDate(item.createTime) }}
+              </div>
+            </button>
+            <div class="flex items-center justify-end gap-2">
+              <Button size="small" type="link" @click="openMessage(item)">
+                查看
+              </Button>
+              <Button
+                v-if="!item.readTime"
+                :loading="submitting"
+                size="small"
+                type="link"
+                @click="markRead([item.id])"
+              >
+                标记已读
+              </Button>
             </div>
           </div>
         </div>
       </Spin>
 
+      <div class="flex justify-end border-t px-4 py-3">
+        <Pagination
+          :current="pageIndex"
+          :page-size="PAGE_SIZE"
+          :total="totalCount"
+          :show-size-changer="false"
+          @change="loadMessages"
+        />
+      </div>
+
+      <!-- 来源跳转只指向显式白名单中的既有页面。 -->
       <Modal
         v-model:open="detailOpen"
         :footer="null"
-        :title="activeMessage ? getMessageTitle(activeMessage) : '消息详情'"
-        width="720px"
+        :title="activeMessage?.title || '消息详情'"
+        width="640px"
       >
         <div v-if="activeMessage" class="grid gap-4">
-          <div class="flex flex-wrap items-center gap-2">
-            <Tag :color="getStatusColor(activeMessage)">
-              {{ getStatusLabel(activeMessage) }}
+          <div class="flex flex-wrap gap-2">
+            <Tag :color="activeMessage.readTime ? 'default' : 'processing'">
+              {{ activeMessage.readTime ? '已读' : '未读' }}
             </Tag>
-            <Tag
-              v-if="getNoticeLevelValue(activeMessage)"
-              :color="getNoticeLevelColor(activeMessage)"
-            >
-              {{ getNoticeLevelLabel(activeMessage) }}
-            </Tag>
-            <Tag v-if="activeMessage.category">{{
-              activeMessage.category
-            }}</Tag>
-            <span class="text-muted-foreground text-xs">
-              {{
-                formatDate(
-                  activeMessage.publishTime || activeMessage.createTime,
-                )
-              }}
-            </span>
+            <Tag>{{ sourceLabel(activeMessage.sourceType) }}</Tag>
+            <span class="text-muted-foreground text-xs">{{
+              formatDate(activeMessage.createTime)
+            }}</span>
           </div>
-
-          <div
-            v-if="activeMessage.subtitle"
-            class="text-muted-foreground text-sm"
-          >
-            {{ activeMessage.subtitle }}
-          </div>
-
-          <!-- 详情按公告内容类型只读展示，避免把管理员配置当作宿主页面脚本执行。 -->
-          <NoticeContentViewer
-            :content="activeMessage.content"
-            :content-type="activeMessage.contentType"
-          />
-
+          <p class="whitespace-pre-wrap text-sm">
+            {{ activeMessage.summary || '暂无摘要' }}
+          </p>
           <div class="flex justify-end gap-2">
             <Button @click="detailOpen = false">关闭</Button>
-            <Button danger @click="rejectMessage(activeMessage)">
-              <IconifyIcon class="size-4" icon="lucide:bell-off" />
-              拒绝消息
+            <Button
+              v-if="!activeMessage.readTime"
+              :loading="submitting"
+              @click="markRead([activeMessage.id])"
+            >
+              标记已读
+            </Button>
+            <Button
+              :disabled="!sourceRoute(activeMessage)"
+              @click="openSource(activeMessage)"
+            >
+              查看来源
             </Button>
           </div>
+          <p
+            v-if="!sourceRoute(activeMessage)"
+            class="text-muted-foreground text-xs"
+          >
+            来源暂不可打开
+          </p>
         </div>
+      </Modal>
+      <!-- 本人公告使用受众快照来源接口；管理正文与受众配置不参与该入口。 -->
+      <Modal
+        :open="noticeSourceOpen"
+        :footer="null"
+        :title="noticeSource?.title || '公告来源'"
+        width="960px"
+        @cancel="dismissNoticeSource"
+      >
+        <Spin :spinning="noticeSourceLoading">
+          <Alert
+            v-if="noticeSourceError"
+            :message="noticeSourceError"
+            type="warning"
+            show-icon
+          />
+          <section v-if="noticeSource">
+            <p v-if="noticeSource.subtitle">{{ noticeSource.subtitle }}</p>
+            <p class="text-muted-foreground text-xs">
+              发布时间：{{ formatDate(noticeSource.publishTime) }}
+            </p>
+            <NoticeContentViewer
+              :content="noticeSource.content"
+              :content-type="noticeSource.contentType"
+            />
+          </section>
+        </Spin>
       </Modal>
     </div>
   </Page>
@@ -742,7 +485,6 @@ onMounted(loadMessages);
   height: 100%;
   min-height: 0;
 }
-
 .message-row {
   border-color: hsl(var(--border));
 }

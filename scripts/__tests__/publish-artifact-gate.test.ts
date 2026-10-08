@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  copyFileSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -328,6 +329,29 @@ describe('publish artifact gate', () => {
       verifyTarballStandaloneInstall(
         { name: '@scope/test-package' },
         tarballPath,
+      ),
+    ).not.toThrow();
+  }, 30_000);
+
+  it('installs the same tarball from a deep workspace path', () => {
+    const tarballPath = createTarball({
+      name: '@scope/deep-package',
+      version: '1.0.0',
+    });
+    const root = mkdtempSync(join(tmpdir(), 'deep-release-'));
+    temporaryDirectories.push(root);
+    const deepDirectory = join(
+      root,
+      ...Array(5).fill('nested-workspace-directory'),
+    );
+    mkdirSync(deepDirectory, { recursive: true });
+    const deepTarball = join(deepDirectory, 'deep-package.tgz');
+    copyFileSync(tarballPath, deepTarball);
+
+    expect(() =>
+      verifyTarballStandaloneInstall(
+        { name: '@scope/deep-package' },
+        deepTarball,
       ),
     ).not.toThrow();
   }, 30_000);

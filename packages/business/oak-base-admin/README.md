@@ -35,3 +35,7 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 ## 模块开发与设计资料
 
 使用本模块的子项目必须遵循 [模块开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。[项目设计和开发参考资料](docs/project-reference/INDEX.md) 提供发布方的设计、需求及规则背景，不构成下游强制约束。
+
+邮件、个人消息、支持邮箱配置、工单与投递审计：[工作台使用指南](docs/communication-workbench.md)。
+
+企业平台登录与组织同步配置：[插件配置指导](docs/enterprise-login-guidance.md)。

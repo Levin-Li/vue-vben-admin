@@ -5,7 +5,7 @@ export type OAuthTransactionPurpose = 'BIND' | 'LOGIN';
 
 export interface OAuthSupportedPlatform {
   authType?: null | string;
-  capabilities?: null | string[];
+  capabilities?: null | string[] | { inAppLogin?: boolean; oauth?: boolean };
   capability?: null | string[];
   code?: null | string;
   description?: null | string;
@@ -29,8 +29,8 @@ export interface CreateOAuthTransactionParams {
 }
 
 export interface OAuthTransaction {
-  authUrl?: null | string;
   authorizeUrl?: null | string;
+  authUrl?: null | string;
   errorCode?: null | string;
   errorMessage?: null | string;
   id: string;
@@ -53,6 +53,23 @@ export interface OAuthTransaction {
   transactionId?: null | string;
 }
 
+// 仅接受 OAuth 协议的公开回调字段，不接收本地访问令牌或用户资料。
+export interface OAuthCallbackParams {
+  auth_code?: string;
+  authorization_code?: string;
+  code?: string;
+  oauth_token?: string;
+  oauth_verifier?: string;
+  state: string;
+}
+
+// App 内上下文只包含公开应用标识，授权码仅在本次请求中使用。
+export interface InAppOAuthTransaction extends OAuthTransaction {
+  clientId?: string;
+  corpId?: string;
+  state: string;
+}
+
 export interface OAuthBinding {
   avatar?: null | string;
   boundAt?: null | string;
@@ -65,6 +82,8 @@ export interface OAuthBinding {
   nickname?: null | string;
   platform?: null | string;
   platformName?: null | string;
+  // 当前SocialUserInfo返回的实际平台来源字段。
+  sourcePlatform?: null | string;
   title?: null | string;
 }
 
@@ -93,6 +112,43 @@ export interface OAuthExchangeResult {
   type: '公共接口-OAuth认证服务',
 })
 export class OAuthService extends RequestService {
+  @ResAuthorize({ ignored: true })
+  async authorizeInAppTransaction(
+    id: string,
+    data: { code: string; state: string },
+    options?: any,
+  ) {
+    return this.post<OAuthTransaction>(
+      `inApp/transactions/${encodeURIComponent(id)}/authorize`,
+      { ...options, data },
+    );
+  }
+
+  // 绑定回调由已恢复本地会话的网页携带 Authorization 提交。
+  @ResAuthorize({ ignored: true })
+  async authorizeTransaction(
+    id: string,
+    data: OAuthCallbackParams,
+    options?: any,
+  ) {
+    return this.post<OAuthTransaction>(
+      `transactions/${encodeURIComponent(id)}/authorize`,
+      { ...options, data },
+    );
+  }
+
+  // 控制器创建受浏览器、用途与 state 约束的企业 App 内授权事务。
+  @ResAuthorize({ ignored: true })
+  async createInAppTransaction(
+    data: CreateOAuthTransactionParams,
+    options?: any,
+  ) {
+    return this.post<InAppOAuthTransaction>('inApp/transactions', {
+      ...options,
+      data,
+    });
+  }
+
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共接口-OAuth认证服务',

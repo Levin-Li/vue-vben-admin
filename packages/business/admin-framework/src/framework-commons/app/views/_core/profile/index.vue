@@ -7,13 +7,19 @@ import { useUserStore } from '@vben/runtime/stores';
 import ProfileAvatarUpload from './avatar-upload.vue';
 import ProfileBase from './base-setting.vue';
 import ProfileNotificationSetting from './notification-setting.vue';
+import { hasPendingBindCallback } from './oauth-bind-callback';
 import ProfilePasswordSetting from './password-setting.vue';
 import ProfileSecuritySetting from './security-setting.vue';
 import ProfileSocialAccountSetting from './social-account-setting.vue';
 
+// 全局弹窗与独立个人页均在合法回调到达时挂载绑定面板。
+const props = defineProps<{ initialTab?: 'basic' | 'social-account' }>();
+
 const userStore = useUserStore();
 
-const tabsValue = ref<string>('basic');
+const tabsValue = ref<string>(
+  props.initialTab || (hasPendingBindCallback() ? 'social-account' : 'basic'),
+);
 
 const tabs = ref([
   {

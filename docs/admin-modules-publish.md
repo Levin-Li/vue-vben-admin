@@ -27,6 +27,16 @@ MAVEN_SERVER_ID=dist-repo \
 pnpm run publish:packages
 ```
 
+6.0 分支九包首次统一发布 `6.0.0` 时，先在 `package-versions.json` 明确准备九个版本并同步元数据，再对同一标准入口加 `--initial-release`。该参数只允许全部候选为 `6.0.0`，保留首发版本；tarball、精确依赖与独立消费者门禁仍完整执行。
+
+```bash
+pnpm run plan:packages -- --initial-release
+NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ \
+NPM_AUTH_FROM_MAVEN=true \
+MAVEN_SERVER_ID=dist-repo \
+pnpm run publish:packages -- --initial-release
+```
+
 `publish:admin-modules` 是兼容别名。已提交但尚未发布的特殊情况应显式提供基线或候选包，不得因当前工作树干净而默认为已发布。
 
 ```bash
@@ -150,22 +160,22 @@ pnpm run pack:packages
 
 ## 各包独立版本管理
 
-可发布包版本仍以根目录 `package-versions.json` 为来源，但每个包单独记录。同步到 6.0 时，原有七包保留当前工作区的 `5.6.117`，新增两个 BPM 包保留 `6.0.0`；后续只递增候选及内部依赖声明受影响消费者的版本，不直接手改各包 `package.json.version`。具体版本以版本清单为准。
+可发布包版本仍以根目录 `package-versions.json` 为来源，但每个包单独记录。6.0 分支九个可发布包的初始版本统一为 `6.0.0`；后续只递增候选及内部依赖声明受影响消费者的版本，不直接手改各包 `package.json.version`。具体版本以版本清单为准。
 
 当前规则：
 
 ```json
 {
   "packages": {
-    "@vben-core/foundation": "5.6.117",
-    "@vben-core/ui": "5.6.117",
-    "@vben/runtime": "5.6.117",
-    "@vben/common-ui": "5.6.117",
-    "@vben/layouts": "5.6.117",
-    "@levin/admin-framework": "5.6.117",
+    "@vben-core/foundation": "6.0.0",
+    "@vben-core/ui": "6.0.0",
+    "@vben/runtime": "6.0.0",
+    "@vben/common-ui": "6.0.0",
+    "@vben/layouts": "6.0.0",
+    "@levin/admin-framework": "6.0.0",
     "@levin/bpm-designer": "6.0.0",
     "@levin/bpm-runtime-ui": "6.0.0",
-    "@levin/oak-base-admin": "5.6.117"
+    "@levin/oak-base-admin": "6.0.0"
   }
 }
 ```
@@ -197,7 +207,7 @@ pnpm run check:package-versions
 入口应用从私服安装已发布的包：
 
 ```bash
-pnpm add @levin/admin-framework@5.6.117 @levin/oak-base-admin@5.6.117
+pnpm add @levin/admin-framework@6.0.0 @levin/oak-base-admin@6.0.0
 ```
 
 入口应用需要提供兼容的运行时 peer 依赖：

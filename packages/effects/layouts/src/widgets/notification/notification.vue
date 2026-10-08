@@ -76,11 +76,7 @@ function handleClear() {
 }
 
 function handleClick(item: NotificationItem) {
-  if (!item.isRead) {
-    emit('read', item);
-  }
-
-  // 如果通知项有链接，点击时跳转
+  // 点击来源仅导航；个人已读状态必须由独立的显式按钮改变。
   if (item.link) {
     navigateTo(item.link, item.query, item.state);
   }

@@ -1,11 +1,18 @@
 <script lang="ts" setup>
+import type { ProviderOnboardingGuidance } from '../provider-onboarding-guidance';
+
 import { computed, onMounted, reactive, ref } from 'vue';
 
+import { useUserStore } from '@vben/runtime/stores';
+
+import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { Alert, Button, message, Modal, Select } from 'ant-design-vue';
 
 import { servicePluginService } from '../../api/service-plugin-service';
 import { servicePluginSettingService } from '../../api/service-plugin-setting-service';
 import CrudPage from '../crud-page.vue';
+import { buildProviderConfigurationUpdate } from '../provider-configuration-update';
+import ProviderGuidance from '../provider-onboarding-guidance.vue';
 import SettingValueContentField from '../setting-value-content-field.vue';
 import { servicePluginSettingPageCrudConfig } from './config';
 import { filterServicePluginOption } from './plugin-option-search';
@@ -15,6 +22,7 @@ interface ServicePluginProvider {
   configEditor?: string;
   disabled?: boolean;
   name?: string;
+  onboardingGuidance?: ProviderOnboardingGuidance;
 }
 
 interface ServicePluginRecord {
@@ -32,6 +40,7 @@ interface ServicePluginSettingRecord {
   servicePlugin?: ServicePluginRecord;
   servicePluginId?: string;
   servicePluginProviderCode?: string;
+  tenantId?: null | string;
   value?: Record<string, any>;
 }
 
@@ -45,7 +54,7 @@ const providerConfigFormState = reactive<Record<string, any>>({
   valueContent: {},
   valueType: 'Json',
 });
-const reloadSettings = ref<undefined | (() => Promise<void> | void)>();
+const reloadSettings = ref<(() => Promise<void> | void) | undefined>();
 
 function normalizeText(value: unknown) {
   return String(value ?? '').trim();
@@ -151,7 +160,9 @@ const providerConfigTitle = computed(() => {
     : '配置编辑';
 });
 const providerConfigHelpText = computed(() => {
-  const providerCode = normalizeText(editingSetting.value?.servicePluginProviderCode);
+  const providerCode = normalizeText(
+    editingSetting.value?.servicePluginProviderCode,
+  );
 
   return providerCode
     ? `当前保存会写入同一条服务插件设置的 value.${providerCode}，不会覆盖其它供应商配置。`
@@ -203,16 +214,15 @@ async function saveProviderConfig() {
   providerConfigSaving.value = true;
 
   try {
-    await servicePluginSettingService.update({
-      autoForceUpdateField: false,
-      forceUpdateFields: ['value'],
-      id: record.id,
-      optimisticLock: record.optimisticLock,
-      value: {
-        ...(record.value || {}),
-        [providerCode]: cloneJsonValue(providerConfigFormState.valueContent),
-      },
-    });
+    // 平台主体携带记录实际租户，租户主体由服务端注入范围。
+    await servicePluginSettingService.update(
+      buildProviderConfigurationUpdate(
+        record,
+        providerCode,
+        cloneJsonValue(providerConfigFormState.valueContent),
+        isPlatformUser(useUserStore().userInfo),
+      ),
+    );
     message.success('供应商配置已保存');
     providerConfigOpen.value = false;
     await reloadSettings.value?.();
@@ -350,8 +360,10 @@ onMounted(() => {
 
   <Modal
     v-model:open="providerConfigOpen"
+    :body-style="{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }"
     :confirm-loading="providerConfigSaving"
     :mask-closable="false"
+    centered
     destroy-on-close
     ok-text="保存"
     :title="providerConfigTitle"
@@ -365,6 +377,13 @@ onMounted(() => {
       message="OAuth 当前供应商配置说明"
       show-icon
       type="info"
+    />
+    <!-- 当前供应商指导与回调地址随编辑配置联动。 -->
+    <ProviderGuidance
+      :configuration="providerConfigFormState.valueContent"
+      :guidance="editingProvider?.onboardingGuidance"
+      :login-provider="editingOauthProvider"
+      :provider-code="editingSetting?.servicePluginProviderCode"
     />
     <SettingValueContentField
       :key="`${editingSetting?.id}:${editingSetting?.servicePluginProviderCode}`"

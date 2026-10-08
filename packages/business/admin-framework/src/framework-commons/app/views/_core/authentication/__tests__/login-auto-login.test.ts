@@ -4,6 +4,9 @@ import { defineComponent } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
+  accessSession,
+  routeState,
+  routerReplace,
   authLogin,
   authLoginWithAccessToken,
   authLoginWithPasswordChallenge,
@@ -14,6 +17,9 @@ const {
   startPasswordLoginApi,
 } = vi.hoisted(() => {
   return {
+    accessSession: { accessToken: '' },
+    routeState: { query: {} as Record<string, string> },
+    routerReplace: vi.fn(),
     authLogin: vi.fn(),
     authLoginWithAccessToken: vi.fn(),
     authLoginWithPasswordChallenge: vi.fn(),
@@ -21,7 +27,10 @@ const {
     getVerifyCodeApi: vi.fn(),
     messageWarning: vi.fn(),
     oauthService: {
+      cancelTransaction: vi.fn(),
       createTransaction: vi.fn(),
+      createInAppTransaction: vi.fn(),
+      authorizeInAppTransaction: vi.fn(),
       exchangeTransaction: vi.fn(),
       getSupportedPlatforms: vi.fn(),
       getTransaction: vi.fn(),
@@ -29,6 +38,15 @@ const {
     startPasswordLoginApi: vi.fn(),
   };
 });
+
+vi.mock('vue-router', () => ({
+  useRoute: () => routeState,
+  useRouter: () => ({ replace: routerReplace }),
+}));
+
+vi.mock('@vben/runtime/stores', () => ({
+  useAccessStore: () => accessSession,
+}));
 
 vi.mock('@vben/runtime/locales', () => ({
   $t: (key: string) =>
@@ -119,13 +137,13 @@ vi.mock('ant-design-vue', () => {
     },
     Modal: defineComponent({
       emits: ['cancel', 'ok', 'update:open'],
-      props: ['confirmLoading', 'open', 'title', 'width'],
+      props: ['confirmLoading', 'okButtonProps', 'open', 'title', 'width'],
       template: `
         <div v-if="open" :data-width="width" role="dialog">
           <h2>{{ title }}</h2>
           <slot />
           <button data-test="dialog-cancel" type="button" @click="$emit('cancel')">取消</button>
-          <button :disabled="confirmLoading" data-test="dialog-login" type="button" @click="$emit('ok')">登录</button>
+          <button :disabled="confirmLoading || okButtonProps?.disabled" :style="okButtonProps?.style" data-test="dialog-login" type="button" @click="$emit('ok')">登录</button>
         </div>
       `,
     }),
@@ -153,8 +171,14 @@ vi.mock('ant-design-vue', () => {
 
 describe('login auto-login prompt', () => {
   beforeEach(() => {
+    sessionStorage.clear();
     const storage = new Map<string, string>();
-    vi.stubGlobal('location', { hostname: 'example.test' });
+    vi.stubGlobal('location', {
+      hostname: 'example.test',
+      href: 'https://example.test/',
+      origin: 'https://example.test',
+      pathname: '/',
+    });
     vi.stubGlobal('localStorage', {
       clear: vi.fn(() => {
         storage.clear();
@@ -171,6 +195,11 @@ describe('login auto-login prompt', () => {
         storage.set(key, String(value));
       }),
     });
+    accessSession.accessToken = '';
+    routeState.query = {};
+    routerReplace.mockReset();
+    oauthService.createInAppTransaction.mockReset();
+    oauthService.authorizeInAppTransaction.mockReset();
     authLogin.mockReset();
     authLoginWithAccessToken.mockReset();
     authLoginWithPasswordChallenge.mockReset();
@@ -183,6 +212,7 @@ describe('login auto-login prompt', () => {
     });
     messageWarning.mockReset();
     oauthService.createTransaction.mockReset();
+    oauthService.cancelTransaction.mockReset();
     oauthService.exchangeTransaction.mockReset();
     oauthService.getSupportedPlatforms.mockReset();
     oauthService.getTransaction.mockReset();
@@ -342,6 +372,177 @@ describe('login auto-login prompt', () => {
     wrapper.unmount();
   });
 
+  it('企业授权回调错误不再自动授权并提供主动绑定指引', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'Feishu' });
+    vi.stubGlobal('location', {
+      hostname: 'example.test',
+      href: 'https://example.test/?redirect=%2Forders%2F42&oauthError=unbound',
+      origin: 'https://example.test',
+      pathname: '/',
+    });
+    const replaceState = vi
+      .spyOn(window.history, 'replaceState')
+      .mockImplementation(() => {});
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      { code: 'FEISHU', capabilities: { oauth: true, inAppLogin: true } },
+    ]);
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+    await flushPromises();
+    expect(oauthService.createInAppTransaction).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('个人中心主动绑定企业账号');
+    replaceState.mockRestore();
+    wrapper.unmount();
+  });
+
+  it.each([false, true])(
+    '端内兑换等待期间本地登录或离页后丢弃迟到令牌：离页=%s',
+    async (leavePage) => {
+      vi.stubGlobal('navigator', { userAgent: 'DingTalk' });
+      (window as Window & { dd?: unknown }).dd = {
+        ready: (callback: () => void) => callback(),
+        runtime: {
+          permission: {
+            requestAuthCode: ({
+              onSuccess,
+            }: {
+              onSuccess: (result: { code: string }) => void;
+            }) => onSuccess({ code: 'code' }),
+          },
+        },
+      };
+      oauthService.getSupportedPlatforms.mockResolvedValue([
+        {
+          code: 'DINGTALK_V2',
+          capabilities: { oauth: true, inAppLogin: true },
+        },
+      ]);
+      oauthService.createInAppTransaction.mockResolvedValue({
+        id: 'late-inapp',
+        state: 'state',
+        corpId: 'corp',
+      });
+      oauthService.authorizeInAppTransaction.mockResolvedValue({
+        status: 'COMPLETED',
+      });
+      oauthService.getTransaction.mockResolvedValue({ status: 'COMPLETED' });
+      let completeExchange: (result: {
+        accessToken: string;
+      }) => void = () => {};
+      oauthService.exchangeTransaction.mockReturnValue(
+        new Promise((resolve) => {
+          completeExchange = resolve;
+        }),
+      );
+      const Login = (await import('../login.vue')).default;
+      const wrapper = mount(Login);
+      await flushPromises();
+      expect(oauthService.exchangeTransaction).toHaveBeenCalledWith(
+        'late-inapp',
+      );
+      if (leavePage) wrapper.unmount();
+      else accessSession.accessToken = 'password-login-session';
+      completeExchange({ accessToken: 'late-enterprise-token' });
+      await flushPromises();
+      expect(authLoginWithAccessToken).not.toHaveBeenCalled();
+      expect(oauthService.cancelTransaction).toHaveBeenCalledWith(
+        'late-inapp',
+        {
+          __silentError: true,
+        },
+      );
+      delete (window as Window & { dd?: unknown }).dd;
+      if (!leavePage) wrapper.unmount();
+    },
+  );
+
+  it('App 内授权失败停止重试并保留普通登录提示', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'DingTalk' });
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      { code: 'DINGTALK_V2', capabilities: { oauth: true, inAppLogin: true } },
+    ]);
+    oauthService.createInAppTransaction.mockRejectedValue(
+      new Error('企业配置错误'),
+    );
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+    await flushPromises();
+    expect(oauthService.createInAppTransaction).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain('个人中心主动绑定企业账号');
+    wrapper.unmount();
+    const again = mount(Login);
+    await flushPromises();
+    expect(oauthService.createInAppTransaction).toHaveBeenCalledTimes(1);
+    again.unmount();
+  });
+
+  it('已有本地会话不自动获取企业身份', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'DingTalk' });
+    accessSession.accessToken = 'existing-session';
+    sessionStorage.setItem(
+      'LOGIN_OAUTH_TRANSACTION_/',
+      JSON.stringify({
+        transactionId: 'old-session-tx',
+        platformCode: 'DINGTALK_V2',
+      }),
+    );
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      { code: 'DINGTALK_V2', capabilities: { oauth: true, inAppLogin: true } },
+    ]);
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+    await flushPromises();
+    expect(oauthService.createInAppTransaction).not.toHaveBeenCalled();
+    expect(oauthService.getTransaction).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('企业 App 优先恢复已有事务而不新建事务', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'DingTalk' });
+    sessionStorage.setItem(
+      'LOGIN_OAUTH_TRANSACTION_/',
+      JSON.stringify({
+        transactionId: 'restored',
+        platformCode: 'DINGTALK_V2',
+      }),
+    );
+    oauthService.getTransaction.mockResolvedValue({ status: 'FAILED' });
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      { code: 'DINGTALK_V2', capabilities: { oauth: true, inAppLogin: true } },
+    ]);
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+    await flushPromises();
+    expect(oauthService.getTransaction).toHaveBeenCalledWith('restored');
+    expect(oauthService.createInAppTransaction).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('授权成功显式恢复包含查询参数的安全业务路径', async () => {
+    routeState.query = { redirect: '/orders/42?tab=details&a=1' };
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      { code: 'GITHUB', name: 'GitHub' },
+    ]);
+    oauthService.createTransaction.mockResolvedValue({
+      id: 'redirect-tx',
+      authorizeUrl: 'https://github.com/login/oauth/authorize',
+    });
+    oauthService.getTransaction.mockResolvedValue({ status: 'COMPLETED' });
+    oauthService.exchangeTransaction.mockResolvedValue({
+      accessToken: 'oauth-token',
+    });
+    authLoginWithAccessToken.mockImplementation(async (_token, onSuccess) => {
+      await onSuccess?.();
+    });
+    const Login = (await import('../login.vue')).default;
+    const wrapper = mount(Login);
+    await flushPromises();
+    await wrapper.find('[aria-label="GitHub"]').trigger('click');
+    await flushPromises();
+    expect(routerReplace).toHaveBeenCalledWith('/orders/42?tab=details&a=1');
+    wrapper.unmount();
+  });
+
   it('creates an OAuth transaction and exchanges the token after polling completes', async () => {
     oauthService.getSupportedPlatforms.mockResolvedValue([
       {
@@ -377,13 +578,16 @@ describe('login auto-login prompt', () => {
     await flushPromises();
 
     expect(oauthService.createTransaction).toHaveBeenCalledWith({
-      callbackUrl: 'https://example.test/',
+      returnUrl: 'https://example.test/',
       platform: 'WECHAT_OPEN',
       purpose: 'LOGIN',
     });
     expect(oauthService.getTransaction).toHaveBeenCalledWith('tx-login-1');
     expect(oauthService.exchangeTransaction).toHaveBeenCalledWith('tx-login-1');
-    expect(authLoginWithAccessToken).toHaveBeenCalledWith('oauth-access-token');
+    expect(authLoginWithAccessToken).toHaveBeenCalledWith(
+      'oauth-access-token',
+      undefined,
+    );
 
     wrapper.unmount();
   });
@@ -871,6 +1075,12 @@ describe('login auto-login prompt', () => {
     expect(wrapper.find('[role="dialog"]').attributes('data-width')).toBe(
       '700',
     );
+    expect(
+      wrapper.find('[data-test="dialog-login"]').attributes('style'),
+    ).toContain('display: none');
+    expect(
+      wrapper.find('[data-test="dialog-login"]').attributes('disabled'),
+    ).toBeDefined();
     wrapper.unmount();
   });
 

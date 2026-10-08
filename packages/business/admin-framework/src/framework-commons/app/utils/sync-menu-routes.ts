@@ -78,13 +78,13 @@ function createRouteMappingLookup(
   routeMappings.forEach((mapping) => {
     if (
       !hasText(mapping.description) ||
-      !hasText(mapping.name) ||
+      !hasText(mapping.path) ||
       !hasText(mapping.sourceFilePath) ||
       !hasText(mapping.title) ||
       !hasText(mapping.viewPath)
     ) {
       throw new Error(
-        `页面映射不完整：${mapping.path}。必须同时提供 name、title、description、viewPath 和 sourceFilePath。`,
+        `页面映射不完整：${mapping.path}。必须同时提供 path、title、description、viewPath 和 sourceFilePath。`,
       );
     }
   });
@@ -121,7 +121,7 @@ function applyRouteMapping(
     ...(mapping.operations
       ? { opButtonList: toSyncMenuOperations(mapping.operations) }
       : {}),
-    name: mapping.name,
+    name: toPathRouteName(mapping.path),
     remark: truncateMenuRemark(mapping.description),
     sourceFilePath: mapping.sourceFilePath,
     viewPath: mapping.viewPath,
@@ -168,7 +168,7 @@ function toSyncMenuItems(
     const mapping = routeMappingLookup.get(path);
     if (requirePageMapping && children.length === 0 && !mapping) {
       throw new Error(
-        `页面路由缺少完整映射：${path}。请在 backendRouteMappings 中提供 name、title、description、viewPath 和 sourceFilePath。`,
+        `页面路由缺少完整映射：${path}。请在 backendRouteMappings 中提供 path、title、description、viewPath 和 sourceFilePath。`,
       );
     }
 
@@ -179,7 +179,7 @@ function toSyncMenuItems(
           icon: getRouteIcon(route),
           label,
           moduleId,
-          name: mapping?.name || label,
+          name: toPathRouteName(path),
           path,
           remark: mapping?.description
             ? truncateMenuRemark(mapping.description)
@@ -234,7 +234,7 @@ function toSyncMenuItemFromMapping(
       ? { opButtonList: toSyncMenuOperations(mapping.operations) }
       : {}),
     path: mapping.path,
-    name: mapping.name,
+    name: toPathRouteName(mapping.path),
     remark: truncateMenuRemark(mapping.description),
     sourceFilePath: mapping.sourceFilePath,
     viewPath: mapping.viewPath,

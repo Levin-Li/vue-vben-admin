@@ -4,10 +4,24 @@ import { flushPromises, mount } from '@vue/test-utils';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import Basic from '../basic.vue';
+import {
+  captureBindCallbackBeforeStartup,
+  clearPendingBindCallback,
+  hasPendingBindCallback,
+} from '../../views/_core/profile/oauth-bind-callback';
+
 const mocks = vi.hoisted(() => ({
   adminMenuSyncService: null as null | Record<string, never>,
-  adminNoticeService: null as null | { myMessages: ReturnType<typeof vi.fn> },
+  adminUserMessageService: null as null | {
+    list: ReturnType<typeof vi.fn>;
+    markRead: ReturnType<typeof vi.fn>;
+    unreadCount: ReturnType<typeof vi.fn>;
+  },
+  messageReadListener: undefined as (() => void) | undefined,
+  stopMessageReadListener: vi.fn(),
   accessToken: '',
+  routePath: '/index',
   destroyWatermark: vi.fn(),
   loadAuthBrand: vi.fn().mockResolvedValue(undefined),
   refreshAuthBrand: vi.fn().mockResolvedValue(undefined),
@@ -85,7 +99,12 @@ vi.mock('@vben/layouts', () => ({
     template: '<div />',
   },
   Notification: {
-    template: '<div />',
+    props: ['count', 'notifications'],
+    emits: ['read', 'clear', 'makeAll'],
+    template: `<div data-testid="notification" :data-count="count">
+      <button v-for="item in notifications" :key="item.id" :data-testid="'message-' + item.id" :data-link="item.link" :data-query="JSON.stringify(item.query)" @click="$emit('read', item)">{{ item.title }}</button>
+      <button data-testid="clear-messages" @click="$emit('clear')">清空预览</button>
+    </div>`,
   },
   registerPreferencesUploadAction: mocks.registerPreferencesUploadAction,
   UserDropdown: {
@@ -120,12 +139,13 @@ vi.mock('@vben/runtime/stores', () => ({
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: mocks.push,
+    currentRoute: { value: { path: mocks.routePath } },
   }),
 }));
 
 vi.mock('@levin/admin-framework', () => ({
   getAdminMenuSyncService: () => mocks.adminMenuSyncService,
-  getAdminNoticeService: () => mocks.adminNoticeService,
+  getAdminUserMessageService: () => mocks.adminUserMessageService,
 }));
 
 vi.mock('@levin/admin-framework/framework-commons/app/locales', () => ({
@@ -144,12 +164,17 @@ vi.mock('@levin/admin-framework/framework-commons/app/store', () => ({
 
 vi.mock('../../../event-bus', () => ({
   getFrameworkEventListeners: () => [],
+  onFrameworkEvent: (_type: string, _topic: string, listener: () => void) => {
+    mocks.messageReadListener = listener;
+    return mocks.stopMessageReadListener;
+  },
   removeFrameworkEventListener: vi.fn(),
   setFrameworkEventListenerEnabled: vi.fn(),
 }));
 
 vi.mock('../../../runtime', () => ({
   getAdminI18nLabelSyncService: () => null,
+  getAdminUserMessageService: () => mocks.adminUserMessageService,
 }));
 
 vi.mock('../../../shared/user-dropdown-menu-service', () => ({
@@ -176,27 +201,70 @@ vi.mock('../admin-ui-preferences-setting', () => ({
   saveAdminUiPreferencesSetting: vi.fn(),
 }));
 
-import Basic from '../basic.vue';
-
 describe('basic layout tenant site brand', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    clearPendingBindCallback();
+    mocks.routePath = '/index';
     mocks.loadAuthBrand.mockClear();
+    mocks.stopMessageReadListener.mockClear();
     mocks.registerPreferencesUploadAction.mockClear();
     mocks.adminMenuSyncService = null;
-    mocks.adminNoticeService = null;
+    mocks.adminUserMessageService = null;
     mocks.accessToken = '';
     mocks.userInfo.superAdmin = false;
   });
 
   afterEach(() => {
+    clearPendingBindCallback();
     vi.useRealTimers();
   });
 
+  it.each(['/index', '/profile'])(
+    '绑定回跳 %s 保留业务路由并只恢复相应个人中心入口',
+    async (path) => {
+      mocks.accessToken = 'valid-session';
+      mocks.routePath = path;
+      captureBindCallbackBeforeStartup(
+        `https://example.test${path}?from=group&oauthTransaction=tx&oauthInAppCode=code&oauthInAppState=state`,
+        vi.fn(),
+      );
+      const wrapper = mount(Basic, {
+        global: {
+          stubs: {
+            Button: true,
+            Empty: true,
+            Popconfirm: true,
+            Tag: true,
+            AModal: {
+              props: ['open', 'title'],
+              template:
+                '<section :data-title="title" :data-open="open"><slot /></section>',
+            },
+          },
+        },
+      });
+      await flushPromises();
+      const modal = wrapper.find('[data-title="page.auth.profile"]');
+      expect(modal.attributes('data-open')).toBe(
+        path === '/index' ? 'true' : 'false',
+      );
+      expect(mocks.push).not.toHaveBeenCalled();
+      expect(hasPendingBindCallback()).toBe(true);
+      if (path === '/index')
+        expect(wrapper.find('[initial-tab="social-account"]').exists()).toBe(
+          true,
+        );
+      wrapper.unmount();
+    },
+  );
+
   it('登录后每三分钟同步一次通知，并在布局卸载后停止同步', async () => {
     mocks.accessToken = 'access-token';
-    mocks.adminNoticeService = {
-      myMessages: vi.fn().mockResolvedValue([]),
+    mocks.adminUserMessageService = {
+      list: vi.fn().mockResolvedValue({ items: [], totals: 0 }),
+      unreadCount: vi.fn().mockResolvedValue(0),
+      markRead: vi.fn().mockResolvedValue(undefined),
     };
 
     const wrapper = mount(Basic, {
@@ -213,13 +281,162 @@ describe('basic layout tenant site brand', () => {
     });
     await flushPromises();
 
-    expect(mocks.adminNoticeService.myMessages).toHaveBeenCalledTimes(1);
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
-    expect(mocks.adminNoticeService.myMessages).toHaveBeenCalledTimes(2);
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(2);
 
     wrapper.unmount();
     await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
-    expect(mocks.adminNoticeService.myMessages).toHaveBeenCalledTimes(2);
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(2);
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledWith({
+      unreadOnly: true,
+      pageIndex: 1,
+      pageSize: 7,
+    });
+  });
+
+  it('计数取独立接口，预览只显示七条且已读只提交当前消息', async () => {
+    mocks.accessToken = 'access-token';
+    mocks.adminUserMessageService = {
+      list: vi.fn().mockResolvedValue({
+        items: Array.from({ length: 8 }, (_, index) => ({
+          id: String(index + 1),
+          title: `消息${index + 1}`,
+          sourceType: index === 0 ? 'https://evil.example' : 'Notice',
+          sourceId: `notice-${index + 1}`,
+        })),
+        totals: 52,
+      }),
+      unreadCount: vi.fn().mockResolvedValue(52),
+      markRead: vi.fn().mockResolvedValue(undefined),
+    };
+    const wrapper = mount(Basic);
+    await flushPromises();
+    expect(
+      wrapper.get('[data-testid="notification"]').attributes('data-count'),
+    ).toBe('52');
+    expect(wrapper.findAll('[data-testid^="message-"]')).toHaveLength(7);
+    expect(
+      wrapper.get('[data-testid="message-1"]').attributes('data-link'),
+    ).toBeUndefined();
+    expect(
+      wrapper.get('[data-testid="message-2"]').attributes('data-link'),
+    ).toBe('/clob/V1/MyMessages');
+    expect(
+      wrapper.get('[data-testid="message-2"]').attributes('data-query'),
+    ).toBe(JSON.stringify({ noticeId: 'notice-2' }));
+    await wrapper.get('[data-testid="message-1"]').trigger('click');
+    await flushPromises();
+    expect(mocks.adminUserMessageService.markRead).toHaveBeenCalledWith({
+      ids: ['1'],
+    });
+    expect(mocks.push).not.toHaveBeenCalled();
+    const previousCalls =
+      mocks.adminUserMessageService.unreadCount.mock.calls.length;
+    mocks.messageReadListener?.();
+    await flushPromises();
+    expect(mocks.adminUserMessageService.unreadCount).toHaveBeenCalledTimes(
+      previousCalls + 1,
+    );
+    wrapper.unmount();
+    expect(mocks.stopMessageReadListener).toHaveBeenCalledOnce();
+  });
+
+  it('工作流铃铛只使用可信动作目标，缺失目标不推断任务', async () => {
+    mocks.accessToken = 'access-token';
+    mocks.adminUserMessageService = {
+      list: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: 'task-message',
+            sourceType: 'Workflow',
+            sourceId: 'instance-1',
+            actionTarget: { kind: 'WorkflowTask', id: 'task+1' },
+          },
+          {
+            id: 'instance-message',
+            sourceType: 'Workflow',
+            actionTarget: { kind: 'WorkflowInstance', id: 'instance-2' },
+          },
+          {
+            id: 'missing-message',
+            sourceType: 'Workflow',
+            sourceId: 'not-a-task',
+          },
+          {
+            id: 'bad-message',
+            sourceType: 'Workflow',
+            actionTarget: { kind: 'Url', id: 'https://evil.example' },
+          },
+        ],
+        totals: 4,
+      }),
+      unreadCount: vi.fn().mockResolvedValue(4),
+      markRead: vi.fn(),
+    };
+    const wrapper = mount(Basic);
+    await flushPromises();
+    expect(
+      wrapper
+        .get('[data-testid="message-task-message"]')
+        .attributes('data-link'),
+    ).toBe('/clob/V1/MyWorkflow');
+    expect(
+      wrapper
+        .get('[data-testid="message-task-message"]')
+        .attributes('data-query'),
+    ).toBe(JSON.stringify({ taskId: 'task+1' }));
+    expect(
+      wrapper
+        .get('[data-testid="message-instance-message"]')
+        .attributes('data-query'),
+    ).toBe(JSON.stringify({ instanceId: 'instance-2' }));
+    expect(
+      wrapper
+        .get('[data-testid="message-missing-message"]')
+        .attributes('data-link'),
+    ).toBeUndefined();
+    expect(
+      wrapper
+        .get('[data-testid="message-bad-message"]')
+        .attributes('data-link'),
+    ).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('全部已读按服务端未读第一页分批，不把七条预览当成全部', async () => {
+    mocks.accessToken = 'access-token';
+    const records = Array.from({ length: 102 }, (_, index) => ({
+      id: String(index + 1),
+      title: '个人消息',
+    }));
+    mocks.adminUserMessageService = {
+      list: vi
+        .fn()
+        .mockResolvedValueOnce({ items: records.slice(0, 7), totals: 102 })
+        .mockResolvedValueOnce({ items: records.slice(0, 100), totals: 102 })
+        .mockResolvedValueOnce({ items: records.slice(100), totals: 2 })
+        .mockResolvedValue({ items: [], totals: 0 }),
+      unreadCount: vi.fn().mockResolvedValue(102),
+      markRead: vi.fn().mockResolvedValue(undefined),
+    };
+    const wrapper = mount(Basic);
+    await flushPromises();
+    await wrapper.get('[data-testid="clear-messages"]').trigger('click');
+    await flushPromises();
+    expect(mocks.adminUserMessageService.markRead).toHaveBeenCalledTimes(2);
+    expect(mocks.adminUserMessageService.markRead).toHaveBeenNthCalledWith(1, {
+      ids: records.slice(0, 100).map((item) => item.id),
+    });
+    expect(mocks.adminUserMessageService.markRead).toHaveBeenNthCalledWith(2, {
+      ids: ['101', '102'],
+    });
+    expect(mocks.adminUserMessageService.list).toHaveBeenNthCalledWith(3, {
+      pageIndex: 1,
+      pageSize: 100,
+      unreadOnly: true,
+    });
+    wrapper.unmount();
   });
 
   it('仅为超级管理员向偏好设置注册上传入口，并从用户菜单移除入口', async () => {
@@ -309,7 +526,7 @@ describe('basic layout tenant site brand', () => {
       .trigger('click');
     const panel = wrapper.get('[aria-label="前端组件版本"]');
     expect(panel.text()).toContain('@levin/admin-framework');
-    expect(panel.text()).toContain('@vben/runtime/stores');
+    expect(panel.text()).toContain('@vben/runtime');
     expect(panel.text()).toContain('打包时间：');
     expect(panel.text()).not.toContain('Invalid Date');
     expect(panel.text()).not.toContain('版本不匹配');

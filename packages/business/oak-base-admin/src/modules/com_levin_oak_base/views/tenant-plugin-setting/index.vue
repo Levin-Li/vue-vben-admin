@@ -1,13 +1,18 @@
 <script lang="ts" setup>
-import type { TenantSettingItem } from '../setting-for-tenant/setting-for-tenant';
 import type { CSSProperties } from 'vue';
+
+import type { ProviderOnboardingGuidance } from '../provider-onboarding-guidance';
+import type { TenantSettingItem } from '../setting-for-tenant/setting-for-tenant';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
-import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
-import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/runtime/icons';
+import { useUserStore } from '@vben/runtime/stores';
+
+import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
   Alert,
   Button,
@@ -23,14 +28,16 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { servicePluginSettingService } from '../../api/service-plugin-setting-service';
 import { servicePluginService } from '../../api/service-plugin-service';
-import SettingValueContentField from '../setting-value-content-field.vue';
+import { servicePluginSettingService } from '../../api/service-plugin-setting-service';
+import { buildProviderConfigurationUpdate } from '../provider-configuration-update';
+import ProviderGuidance from '../provider-onboarding-guidance.vue';
 import {
   buildTenantSettingCategories,
   getSettingKey,
   resolveSettingEditorKind,
 } from '../setting-for-tenant/setting-for-tenant';
+import SettingValueContentField from '../setting-value-content-field.vue';
 
 interface ServicePluginProvider {
   code?: string;
@@ -38,13 +45,6 @@ interface ServicePluginProvider {
   disabled?: boolean;
   name?: string;
   onboardingGuidance?: ProviderOnboardingGuidance;
-}
-
-interface ProviderOnboardingGuidance {
-  applicationUrl?: string;
-  documentationUrl?: string;
-  prerequisites?: string[];
-  steps?: string[];
 }
 
 interface ServicePluginRecord {
@@ -68,14 +68,15 @@ interface ServicePluginSettingRecord {
   servicePlugin?: ServicePluginRecord;
   servicePluginId?: string;
   servicePluginProviderCode?: string;
+  tenantId?: null | string;
   value?: Record<string, any>;
 }
 
 interface TenantPluginSettingItem extends TenantSettingItem {
   domain?: string;
+  providerName: string;
   record: ServicePluginSettingRecord;
   servicePluginName: string;
-  providerName: string;
 }
 
 const loading = ref(false);
@@ -151,7 +152,7 @@ const basicProviderPlaceholder = computed(() => {
   if (!basicFormState.servicePluginId) {
     return '请先选择服务插件';
   }
-  return basicProviderOptions.value.length
+  return basicProviderOptions.value.length > 0
     ? '请选择供应商'
     : '暂无可选供应商，请先在服务插件管理中启用';
 });
@@ -163,6 +164,14 @@ const currentProviderGuidance = computed(
     editValueItem.value &&
     getProvider(editValueItem.value.record)?.onboardingGuidance,
 );
+// 登录指导显示当前公开回调，通讯录指导保留独立权限步骤。
+const currentProviderIsOauth = computed(() => {
+  const plugin = editValueItem.value?.record.servicePlugin;
+  return (
+    plugin?.pluginTypeName === '第三方登录' ||
+    /oauth/i.test(`${plugin?.name || ''} ${plugin?.groupName || ''}`)
+  );
+});
 const editValueTitle = computed(() => {
   const item = editValueItem.value;
   const action = editValueReadonly.value ? '查看配置' : '编辑配置';
@@ -171,7 +180,7 @@ const editValueTitle = computed(() => {
     : action;
 });
 const editValueModalBodyStyle: CSSProperties = {
-  maxHeight: 'calc(100vh - 160px)',
+  maxHeight: 'calc(100vh - 180px)',
   overflowY: 'auto',
 };
 const editValueModalWidth = computed(() => {
@@ -202,14 +211,6 @@ function cloneJsonValue(value: any) {
     return {};
   }
   return JSON.parse(JSON.stringify(value));
-}
-
-function isSafeExternalUrl(url?: string) {
-  try {
-    return new URL(String(url || '')).protocol === 'https:';
-  } catch {
-    return false;
-  }
 }
 
 function getProvider(record: ServicePluginSettingRecord) {
@@ -510,16 +511,15 @@ async function saveEditValue() {
   }
   editValueSubmitting.value = true;
   try {
-    await servicePluginSettingService.update({
-      autoForceUpdateField: false,
-      forceUpdateFields: ['value'],
-      id: item.id,
-      optimisticLock: item.optimisticLock,
-      value: {
-        ...(item.record.value || {}),
-        [providerCode]: cloneJsonValue(editValueFormState.valueContent),
-      },
-    });
+    // 平台主体携带记录实际租户，租户主体由服务端注入范围。
+    await servicePluginSettingService.update(
+      buildProviderConfigurationUpdate(
+        item.record,
+        providerCode,
+        cloneJsonValue(editValueFormState.valueContent),
+        isPlatformUser(useUserStore().userInfo),
+      ),
+    );
     message.success(`${item.name}保存成功`);
     editValueModalOpen.value = false;
     await loadSettings();
@@ -778,6 +778,7 @@ onMounted(() => {
       :body-style="editValueModalBodyStyle"
       :confirm-loading="editValueSubmitting"
       :footer="editValueReadonly ? null : undefined"
+      centered
       destroy-on-close
       :mask-closable="false"
       :ok-text="editValueReadonly ? undefined : '保存'"
@@ -789,57 +790,13 @@ onMounted(() => {
         <div class="text-foreground text-sm font-medium">
           匹配域名：{{ editValueItem ? getMatchingDomain(editValueItem) : '-' }}
         </div>
-        <Alert
-          v-if="currentProviderGuidance"
-          class="mt-3"
-          message="供应商申请与配置准备"
-          show-icon
-          type="info"
-        >
-          <template #description>
-            <div class="space-y-3 pt-2">
-              <div v-if="currentProviderGuidance.prerequisites?.length">
-                <div class="text-foreground font-medium">前置条件</div>
-                <ul class="mb-0 mt-1 list-disc pl-5">
-                  <li
-                    v-for="item in currentProviderGuidance.prerequisites"
-                    :key="item"
-                  >
-                    {{ item }}
-                  </li>
-                </ul>
-              </div>
-              <div v-if="currentProviderGuidance.steps?.length">
-                <div class="text-foreground font-medium">简要步骤</div>
-                <ol class="mb-0 mt-1 list-decimal pl-5">
-                  <li v-for="item in currentProviderGuidance.steps" :key="item">
-                    {{ item }}
-                  </li>
-                </ol>
-              </div>
-              <div class="flex flex-wrap gap-3">
-                <a
-                  v-if="
-                    isSafeExternalUrl(currentProviderGuidance.applicationUrl)
-                  "
-                  :href="currentProviderGuidance.applicationUrl"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  >前往申请/注册</a
-                >
-                <a
-                  v-if="
-                    isSafeExternalUrl(currentProviderGuidance.documentationUrl)
-                  "
-                  :href="currentProviderGuidance.documentationUrl"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  >查看官方配置文档</a
-                >
-              </div>
-            </div>
-          </template>
-        </Alert>
+        <!-- 租户和平台入口共享供应商配置指导。 -->
+        <ProviderGuidance
+          :configuration="editValueFormState.valueContent"
+          :guidance="currentProviderGuidance || undefined"
+          :login-provider="currentProviderIsOauth"
+          :provider-code="currentProviderCode"
+        />
         <SettingValueContentField
           :disabled="editValueReadonly"
           :form-state="editValueFormState"

@@ -5,5 +5,7 @@
 
 工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。
 
+邮件、个人消息、支持邮箱、工单与通知投递：[工作台使用指南](docs/communication-workbench.md)。
+
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。
 </INSTRUCTIONS>

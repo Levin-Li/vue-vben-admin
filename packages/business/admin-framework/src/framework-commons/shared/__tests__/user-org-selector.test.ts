@@ -242,6 +242,68 @@ describe('userOrgSelector', () => {
     expect(treeData[0].children).toEqual([]);
   });
 
+  it('preserves assembled OrgInfo descendants when expanding existing organizations', async () => {
+    const tenantId = 'tenant-1';
+    const orgLoadApi = vi.fn(async () => [
+      {
+        id: 'root',
+        name: 'Default department',
+        tenantId,
+        nodeData: null,
+        children: [
+          {
+            id: 'child',
+            name: 'Department',
+            tenantId,
+            nodeData: null,
+            children: [{ id: 'team', name: 'Team', tenantId, children: [] }],
+          },
+        ],
+      },
+    ]);
+    const wrapper = mountSelector({
+      orgLoadApi,
+      orgLoadMode: 'all',
+      selectableTypes: ['org'],
+      showTenantNodes: true,
+      valueMode: 'record',
+    });
+    await openSelector(wrapper);
+    const tree = wrapper.findComponent(treeSelectStub);
+    for (const id of ['root', 'child']) {
+      await tree.props('loadData')({
+        key: encodeUserOrgSelectorKey('org', id),
+      });
+      await flushPromises();
+    }
+    const tenant = (tree.props('treeData') as any[])[0];
+    const root = tenant.children[0];
+    const child = root.children[0];
+    expect(tenant).toMatchObject({ kind: 'tenant', selectable: false });
+    expect(root).toMatchObject({
+      id: 'root',
+      hasChildren: true,
+      isLeaf: false,
+    });
+    expect(child).toMatchObject({
+      id: 'child',
+      hasChildren: true,
+      isLeaf: false,
+    });
+    expect(child.children[0]).toMatchObject({
+      id: 'team',
+      tenantId,
+      selectable: true,
+    });
+    expect(orgLoadApi).toHaveBeenCalledTimes(1);
+    expect(fetchCrudList).not.toHaveBeenCalled();
+    tree.vm.$emit('change', encodeUserOrgSelectorKey('org', 'team'));
+    await flushPromises();
+    expect(wrapper.emitted('update:selectedRecords')?.at(-1)?.[0]).toEqual([
+      expect.objectContaining({ id: 'team', tenantId, kind: 'org' }),
+    ]);
+  });
+
   it('loads lazy organization children once and records parent context', async () => {
     const orgLoadApi = vi.fn(async ({ parentOrgId }) => {
       if (!parentOrgId) {

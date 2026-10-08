@@ -27,6 +27,19 @@ vi.mock('@levin/admin-framework/framework-commons/runtime', () => ({
 }));
 
 describe('workflowRuntimeService', () => {
+  it('邮件定位只发送实例或任务ID，不发送身份且不触发命令', async () => {
+    requestCalls.get.mockClear();
+    requestCalls.post.mockClear();
+    const service = new WorkflowRuntimeService();
+    await service.task('task-1');
+    await service.instance('instance-1');
+    expect(requestCalls.get.mock.calls).toEqual([
+      ['workflow-runtime/task', { params: { taskId: 'task-1' } }],
+      ['workflow-runtime/instance', { params: { instanceId: 'instance-1' } }],
+    ]);
+    expect(requestCalls.post).not.toHaveBeenCalled();
+  });
+
   it('显式作用域通过查询参数和请求正文传递，不依赖自定义Header', async () => {
     const service = new WorkflowRuntimeService();
     const reference = {

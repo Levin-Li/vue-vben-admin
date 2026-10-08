@@ -12,6 +12,10 @@ const tenantPluginSettingSource = readFileSync(
   'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/tenant-plugin-setting/index.vue',
   'utf8',
 );
+const sharedGuidanceSource = readFileSync(
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/provider-onboarding-guidance.vue',
+  'utf8',
+);
 
 describe('供应商申请引导', () => {
   it('按供应商保存并返回接入引导', () => {
@@ -44,8 +48,9 @@ describe('供应商申请引导', () => {
 
   it('在租户插件配置弹窗展示同一份引导', () => {
     expect(tenantPluginSettingSource).toContain('currentProviderGuidance');
-    expect(tenantPluginSettingSource).toContain('供应商申请与配置准备');
-    expect(tenantPluginSettingSource).toContain('target="_blank"');
-    expect(tenantPluginSettingSource).toContain('rel="noopener noreferrer"');
+    expect(tenantPluginSettingSource).toContain('<ProviderGuidance');
+    expect(sharedGuidanceSource).toContain('供应商申请与配置准备');
+    expect(sharedGuidanceSource).toContain('target="_blank"');
+    expect(sharedGuidanceSource).toContain('rel="noopener noreferrer"');
   });
 });

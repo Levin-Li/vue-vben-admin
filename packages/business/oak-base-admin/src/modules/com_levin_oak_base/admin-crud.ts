@@ -28,6 +28,11 @@ export interface CreateOakBaseAdminCrudRoutesOptions {
 }
 
 export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
+  { icon: 'lucide:bell-ring', name: 'WorkflowNotificationRoute', resource: 'WorkflowNotificationRoute', title: '工作流通知路由' },
+  { icon: 'lucide:ticket', name: 'Ticket', resource: 'Ticket', title: '客服工单' },
+  { icon: 'lucide:users-round', name: 'TicketQueue', resource: 'TicketQueue', title: '工单受理队列' },
+  { icon: 'lucide:mail-check', name: 'SupportMailboxRule', resource: 'SupportMailboxRule', title: '支持邮箱受理规则' },
+  { icon: 'lucide:send', name: 'NotificationAudit', resource: 'NotificationAudit', title: '通知投递' },
   { icon: 'lucide:git-branch', name: 'WorkflowDefinition', resource: 'WorkflowDefinition', title: '流程设计' },
   { icon: 'lucide:clipboard-check', name: 'WorkflowRequest', resource: 'WorkflowRequest', title: '流程申请样例' },
   {
@@ -429,6 +434,7 @@ export const oakBaseAdminResourceViewMap: Record<
   string,
   NonNullable<RouteRecordRaw['component']>
 > = {
+  WorkflowNotificationRoute: () => import('./views/workflow-notification-route/index.vue'),
   WorkflowDefinition: () => import('./views/workflow-definition/index.vue'),
   WorkflowRequest: () => import('./views/workflow-request/index.vue'),
   WorkflowStart: () => import('./views/workflow-start/index.vue'),
@@ -459,6 +465,10 @@ export const oakBaseAdminResourceViewMap: Record<
   DomainSslCert: () => import('./views/domain-ssl-cert/index.vue'),
   EmailRelayRoute: () => import('./views/email-relay-route/index.vue'),
   Inbox: () => import('./views/inbox/index.vue'),
+  Ticket: () => import('./views/ticket/index.vue'),
+  TicketQueue: () => import('./views/ticket-queue/index.vue'),
+  SupportMailboxRule: () => import('./views/support-mailbox-rule/index.vue'),
+  NotificationAudit: () => import('./views/notification-audit/index.vue'),
   FileRes: () => import('./views/file-res/index.vue'),
   FundAccount: () => import('./views/fund-account/index.vue'),
   FundAccountLog: () => import('./views/fund-account-log/index.vue'),
@@ -537,7 +547,7 @@ const menuGroups = [
       'TenantCustomMenu',
     ],
   ],
-  ['应用&接入', 'lucide:app-window', ['ClientApp', 'EmailRelayRoute', 'Inbox']],
+  ['应用&接入', 'lucide:app-window', ['ClientApp', 'EmailRelayRoute', 'Inbox', 'SupportMailboxRule']],
   [
     '支付&交易',
     'lucide:wallet-cards',
@@ -555,7 +565,7 @@ const menuGroups = [
       'EInvoiceProviderConnection',
     ],
   ],
-  ['客户&伙伴', 'lucide:handshake', ['Customer', 'Partner', 'LegalSubject']],
+  ['客户&伙伴', 'lucide:handshake', ['Customer', 'Partner', 'LegalSubject', 'TicketQueue', 'Ticket']],
   ['内容&资源', 'lucide:folder-open', ['Article', 'ArticleChannel', 'Brand', 'FileRes', 'Notice']],
   [
     '基础&设置',
@@ -567,6 +577,7 @@ const menuGroups = [
     'lucide:code-2',
     [
       'OnlineCodeGen',
+      'WorkflowNotificationRoute',
       'WorkflowDefinition',
       'WorkflowRequest',
       'SimpleForm',
@@ -592,6 +603,7 @@ const menuGroups = [
     '运维&审计',
     'lucide:clipboard-check',
     [
+      'NotificationAudit',
       'AccessLog',
       'AuditReport',
       'BackendFixedJob',

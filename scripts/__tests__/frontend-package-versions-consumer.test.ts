@@ -62,7 +62,7 @@ describe('普通子项目消费已构建框架包', () => {
         'export const getEnabledFrontendModules = () => [];',
       );
       for (const name of Object.keys(framework.peerDependencies).filter(
-        (name) => name.startsWith('@vben/'),
+        (name) => name.startsWith('@vben/') || name.startsWith('@vben-core/'),
       )) {
         const packageRoot = join(frameworkRoot, 'node_modules', name);
         const metadata = JSON.parse(
@@ -108,26 +108,28 @@ describe('普通子项目消费已构建框架包', () => {
         return runInNewContext(`${code}; VersionReport.result;`);
       }
       const normal = await readResult();
-      expect(normal.versions).toHaveLength(15);
+      expect(normal.versions).toHaveLength(6);
       expect(
         normal.versions.find(
           (item: any) => item.id === '@levin/admin-framework',
         ).version,
       ).toBe(framework.version);
-      const stores = normal.versions.find(
-        (item: any) => item.id === '@vben/stores',
+      const foundation = normal.versions.find(
+        (item: any) => item.id === '@vben-core/foundation',
       );
-      expect(Number.isFinite(Date.parse(stores.buildTime))).toBe(true);
+      expect(Number.isFinite(Date.parse(foundation.buildTime))).toBe(true);
       write(
-        'node_modules/@vben/stores/package-version.mjs',
-        `export const packageVersion = ${JSON.stringify({ name: '@vben/stores', version: '0.0.1', buildTime: stores.buildTime })};`,
+        'node_modules/@vben-core/foundation/package-version.mjs',
+        `export const packageVersion = ${JSON.stringify({ name: '@vben-core/foundation', version: '0.0.1', buildTime: foundation.buildTime })};`,
       );
       const changed = await readResult();
       expect(
-        changed.versions.find((item: any) => item.id === '@vben/stores'),
+        changed.versions.find(
+          (item: any) => item.id === '@vben-core/foundation',
+        ),
       ).toMatchObject({
         version: '0.0.1',
-        buildTime: stores.buildTime,
+        buildTime: foundation.buildTime,
       });
       expect(changed.versions[0]).not.toHaveProperty('status');
     } finally {

@@ -1,7 +1,8 @@
 import type { AdminPageMap } from '@levin/admin-framework';
 
-import { initPreferences } from '@vben-core/foundation/preferences';
 import { unmountGlobalLoading } from '@vben/runtime/utils';
+
+import { initPreferences } from '@vben-core/foundation/preferences';
 
 import {
   configureAdminApplication,
@@ -10,7 +11,7 @@ import {
 import {
   i18nResService,
   menuService,
-  noticeService,
+  userMessageService,
   userService,
 } from '@levin/oak-base-admin/modules/com_levin_oak_base/api/index';
 
@@ -27,7 +28,7 @@ configureAdminApplication({
   i18nLabelSyncService: i18nResService,
   menuSyncService: menuService,
   modules: enabledFrontendModules,
-  noticeService,
+  userMessageService,
   pageOverrides,
   userSecurityService: userService,
 });

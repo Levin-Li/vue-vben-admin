@@ -117,6 +117,13 @@ export class WorkflowRuntimeService extends RequestService {
     );
   }
 
+  /** 邮件链接只定位实例，参与资格和业务读取范围由当前会话重新授权。 */
+  async instance(instanceId: string) {
+    return this.get<WorkflowInstanceView>('workflow-runtime/instance', {
+      params: { instanceId },
+    });
+  }
+
   /** 当前手动用途目录经过业务读取与发起权限过滤，不列自动用途。 */
   async manualStarts(query: WorkflowStartPageQuery = {}) {
     return this.get<WorkflowStartPage<WorkflowManualStart>>(
@@ -215,6 +222,13 @@ export class WorkflowRuntimeService extends RequestService {
       'workflow-runtime/started',
       { params: query },
     );
+  }
+
+  /** 直接读取当前授权任务详情，已结束任务由服务端返回只读快照。 */
+  async task(taskId: string) {
+    return this.get<WorkflowTaskView>('workflow-runtime/task', {
+      params: { taskId },
+    });
   }
 
   async todo(query: WorkflowRuntimePageQuery = {}) {

@@ -1,6 +1,24 @@
-import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
-import { RequestService } from '@levin/admin-framework';
+import {
+  CRUD,
+  RequestService,
+  ResAuthorize,
+  Service,
+} from '@levin/admin-framework';
+
 import { OAK_BASE_API_MODULE } from './_module';
+
+/** 本人公告来源不返回受众配置、审核意见、日志或管理状态。 */
+export interface NoticeSourceInfo {
+  category?: string;
+  content: string;
+  contentType: string;
+  expiredTime?: string;
+  id: string;
+  level?: string;
+  publishTime?: string;
+  subtitle?: string;
+  title: string;
+}
 
 @Service({
   basePath: '/Notice',
@@ -14,13 +32,13 @@ export class NoticeService extends RequestService {
     super(OAK_BASE_API_MODULE);
   }
 
+  @CRUD.Op({
+    visibleOn: "status == 'Offline'",
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '存档',
-  })
-  @CRUD.Op({
-    visibleOn: "status == 'Offline'",
   })
   async archived(params?: any, options?: any) {
     return this.post('archived', {
@@ -29,13 +47,13 @@ export class NoticeService extends RequestService {
     });
   }
 
+  @CRUD.Op({
+    visibleOn: "status == 'AuditPending'",
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '审核通过',
-  })
-  @CRUD.Op({
-    visibleOn: "status == 'AuditPending'",
   })
   async auditApproved(params?: any, options?: any) {
     return this.post('auditApproved', {
@@ -44,13 +62,13 @@ export class NoticeService extends RequestService {
     });
   }
 
+  @CRUD.Op({
+    visibleOn: "(status == 'Draft' || status == 'AuditRejected')",
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '提交审核',
-  })
-  @CRUD.Op({
-    visibleOn: "(status == 'Draft' || status == 'AuditRejected')",
   })
   async auditCommit(params?: any, options?: any) {
     return this.post('auditCommit', {
@@ -59,13 +77,13 @@ export class NoticeService extends RequestService {
     });
   }
 
+  @CRUD.Op({
+    visibleOn: "status == 'AuditPending'",
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '审核拒绝',
-  })
-  @CRUD.Op({
-    visibleOn: "status == 'AuditPending'",
   })
   async auditReject(params?: any, options?: any) {
     return this.post('auditReject', {
@@ -86,13 +104,13 @@ export class NoticeService extends RequestService {
     });
   }
 
+  @CRUD.Op({
+    opRefTargetType: 'None',
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '新增',
-  })
-  @CRUD.Op({
-    opRefTargetType: 'None',
   })
   async create(data?: any, options?: any) {
     return this.post('create', {
@@ -101,12 +119,12 @@ export class NoticeService extends RequestService {
     });
   }
 
+  @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '删除',
   })
-  @CRUD.Op()
   async delete(params?: any, options?: any) {
     return this.deleteRequest('delete', {
       ...options,
@@ -114,14 +132,13 @@ export class NoticeService extends RequestService {
     });
   }
 
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '通用数据-通知',
-    action: '查询列表',
-    onlyRequireAuthenticated: true,
-  })
   @CRUD.ListTable({
     refEntityClass: 'com.levin.oak.base.entities.Notice',
+  })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-通知',
+    action: '查询列表',
   })
   async list(params?: any, options?: any) {
     return this.get('list', {
@@ -133,23 +150,20 @@ export class NoticeService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '通用数据-通知',
-    action: '查询我的消息',
+    action: '查看本人公告',
     onlyRequireAuthenticated: true,
   })
-  async myMessages(params?: any, options?: any) {
-    return this.get('myMessages', {
-      ...options,
-      params,
-    });
+  async myDetail(noticeId: string): Promise<NoticeSourceInfo> {
+    return this.get('myDetail', { params: { noticeId } });
   }
 
+  @CRUD.Op({
+    visibleOn: "status == 'Published'",
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '下架',
-  })
-  @CRUD.Op({
-    visibleOn: "status == 'Published'",
   })
   async offline(params?: any, options?: any) {
     return this.post('offline', {
@@ -158,26 +172,13 @@ export class NoticeService extends RequestService {
     });
   }
 
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '通用数据-通知',
-    action: '处理我的消息',
-    onlyRequireAuthenticated: true,
+  @CRUD.Op({
+    visibleOn: "(status == 'Approved' || status == 'Offline')",
   })
-  async processMyMessage(data?: any, options?: any) {
-    return this.post('processMyMessage', {
-      ...options,
-      data,
-    });
-  }
-
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '发布上线',
-  })
-  @CRUD.Op({
-    visibleOn: "(status == 'Approved' || status == 'Offline')",
   })
   async publish(params?: any, options?: any) {
     return this.post('publish', {
@@ -186,13 +187,13 @@ export class NoticeService extends RequestService {
     });
   }
 
+  @CRUD.Op({
+    confirmText: 'None',
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '查看详情',
-  })
-  @CRUD.Op({
-    confirmText: 'None',
   })
   async retrieve(params?: any, options?: any) {
     return this.get('retrieve', {
@@ -213,12 +214,12 @@ export class NoticeService extends RequestService {
     });
   }
 
+  @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-通知',
     action: '更新',
   })
-  @CRUD.Op()
   async update(data?: any, options?: any) {
     return this.put('update', {
       ...options,

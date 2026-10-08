@@ -1,3 +1,5 @@
+import type { WorkflowMessageActionTarget } from './shared/user-message-target';
+
 export interface AdminRequestClient {
   delete<T = any>(url: string, config?: Record<string, any>): Promise<T>;
   get<T = any>(url: string, config?: Record<string, any>): Promise<T>;
@@ -12,7 +14,7 @@ export interface AdminRequestClient {
     config?: Record<string, any>,
   ): Promise<T>;
   request<T = any>(
-    urlOrConfig: string | Record<string, any>,
+    urlOrConfig: Record<string, any> | string,
     config?: Record<string, any>,
   ): Promise<T>;
   upload?<T = any>(
@@ -22,9 +24,29 @@ export interface AdminRequestClient {
   ): Promise<T>;
 }
 
-export interface AdminNoticeService {
-  myMessages(params?: any, options?: any): Promise<any>;
-  processMyMessage(data?: any, options?: any): Promise<any>;
+export interface AdminUserMessage {
+  actionTarget?: null | WorkflowMessageActionTarget;
+  createTime?: string;
+  id: string;
+  priority?: string;
+  readTime?: null | string;
+  sourceId?: string;
+  sourceType?: string;
+  summary?: string;
+  title?: string;
+}
+
+export interface AdminUserMessageService {
+  list(params: {
+    pageIndex: number;
+    pageSize: number;
+    unreadOnly: boolean;
+  }): Promise<{
+    items: AdminUserMessage[];
+    totals: number;
+  }>;
+  markRead(data: { ids: string[] }): Promise<unknown>;
+  unreadCount(): Promise<number>;
 }
 
 export interface AdminMenuSyncService {
@@ -46,8 +68,8 @@ export interface AdminUserSecurityService {
 export interface AdminFrameworkRuntime {
   i18nLabelSyncService?: AdminI18nLabelSyncService;
   menuSyncService?: AdminMenuSyncService;
-  noticeService?: AdminNoticeService;
   requestClient: AdminRequestClient;
+  userMessageService?: AdminUserMessageService;
   userSecurityService?: AdminUserSecurityService;
 }
 
@@ -83,8 +105,8 @@ export function getAdminI18nLabelSyncService() {
   return runtime?.i18nLabelSyncService;
 }
 
-export function getAdminNoticeService() {
-  return runtime?.noticeService;
+export function getAdminUserMessageService() {
+  return runtime?.userMessageService;
 }
 
 export function getAdminUserSecurityService() {

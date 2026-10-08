@@ -1,9 +1,14 @@
 import type { Router } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/runtime/constants';
-import { preferences } from '@vben-core/foundation/preferences';
-import { useAccessStore, useTabbarStore, useUserStore } from '@vben/runtime/stores';
+import {
+  useAccessStore,
+  useTabbarStore,
+  useUserStore,
+} from '@vben/runtime/stores';
 import { startProgress, stopProgress } from '@vben/runtime/utils';
+
+import { preferences } from '@vben-core/foundation/preferences';
 
 import {
   accessRoutes,
@@ -15,20 +20,8 @@ import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store
 import { clearPreviousUserAccessState } from '@levin/admin-framework/framework-commons/app/store/user-access-session';
 
 import { generateAccess } from './access';
+import { resolveLoginRedirect } from './login-redirect';
 import { keepSessionWithoutMenus } from './menu-load-failure';
-
-function decodeRedirectPath(redirectPath: unknown) {
-  const rawPath = Array.isArray(redirectPath) ? redirectPath[0] : redirectPath;
-  if (typeof rawPath !== 'string') {
-    return '';
-  }
-
-  try {
-    return decodeURIComponent(rawPath);
-  } catch {
-    return rawPath;
-  }
-}
 
 /**
  * 通用守卫配置
@@ -73,11 +66,13 @@ function setupAccessGuard(router: Router, resetRoutes: () => void) {
     const authStore = useAuthStore();
 
     // 基本路由，这些路由不需要进入权限拦截
-    if (coreRouteNames.includes(to.name as string)) {
+    if (to.path === LOGIN_PATH || coreRouteNames.includes(to.name as string)) {
       // 到达登录页即结束当前账号会话；即使旧令牌仍在，也不得跳过清理并重定向。
       if (to.path === LOGIN_PATH) {
-        clearPreviousUserAccessState(accessStore, resetRoutes, () =>
-          tabbarStore.$reset(),
+        clearPreviousUserAccessState(
+          accessStore,
+          resetRoutes,
+          () => tabbarStore.$reset(),
           { clearCredentials: false },
         );
         userStore.setUserInfo(null);
@@ -101,7 +96,7 @@ function setupAccessGuard(router: Router, resetRoutes: () => void) {
           query:
             to.fullPath === preferences.app.defaultHomePath
               ? {}
-              : { redirect: encodeURIComponent(to.fullPath) },
+              : { redirect: to.fullPath },
           // 携带当前跳转的页面，登录后重新跳转该页面
           replace: true,
         };
@@ -135,7 +130,7 @@ function setupAccessGuard(router: Router, resetRoutes: () => void) {
       accessStore.setAccessRoutes(accessibleRoutes);
       accessStore.setIsAccessChecked(true);
       const redirectPath = resolveRestorablePath(
-        decodeRedirectPath(
+        resolveLoginRedirect(
           from.query.redirect ??
             (to.path === preferences.app.defaultHomePath
               ? userInfo.homePath || preferences.app.defaultHomePath

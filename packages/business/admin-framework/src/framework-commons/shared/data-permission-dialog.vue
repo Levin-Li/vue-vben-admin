@@ -31,7 +31,11 @@ import {
 import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
 import { tenantDataScopeOptionsLoader } from './config-helpers';
-import { isPlatformUser, isTenantAdminUser } from './user-identity';
+import {
+  isPlatformUser,
+  isSuperAdminUser,
+  isTenantAdminUser,
+} from './user-identity';
 
 type ScopeField =
   | 'deniedDomainScopeList'
@@ -125,7 +129,11 @@ const modalTitle = computed(() =>
   isUser.value ? '用户数据权限分配' : '角色数据权限分配',
 );
 const isPlatformOperator = computed(() => isPlatformUser(userStore.userInfo));
-const canConfigureDomainScope = computed(() => isPlatformOperator.value || isTenantAdminUser(userStore.userInfo));
+// 全域预设和脚本规则沿用超级管理员专属边界，平台普通用户只获得平台页可见性。
+const isSuperAdmin = computed(() => isSuperAdminUser(userStore.userInfo));
+const canConfigureDomainScope = computed(
+  () => isPlatformOperator.value || isTenantAdminUser(userStore.userInfo),
+);
 const hasGroovyOrgRule = computed(() =>
   [
     ...(scopeValues.value.orgScopeList || []),

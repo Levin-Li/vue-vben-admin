@@ -66,6 +66,7 @@ const onlyPackages = rawArgs
   .map((value) => value.trim())
   .filter(Boolean);
 const skipVersionSync = args.has('--no-version-sync');
+const initialRelease = args.has('--initial-release');
 const publishConcurrency = 2;
 
 const tag = process.env.NPM_TAG || undefined;
@@ -582,6 +583,15 @@ async function main() {
         baselineConfig,
         selectedNames,
       );
+      if (initialRelease) {
+        // 首次 6.0.0 发布只保留用户已准备的精确版本，后续制品门禁与上传流程不变。
+        for (const name of selectedNames) {
+          if (currentConfig.packages[name] !== '6.0.0') {
+            throw new Error(`${name} 首发版本必须明确准备为 6.0.0`);
+          }
+          nextConfig.packages[name] = '6.0.0';
+        }
+      }
       if (mode === 'plan') {
         for (const name of selectedNames) {
           console.log(

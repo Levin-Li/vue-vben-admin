@@ -30,8 +30,7 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
-  description:
-    '租户创建仍走后端初始化流程，前端这里只接常用字段，默认交给业务服务完成初始化。',
+  description: '创建租户时设置管理员初始口令，并通过受控渠道交付给管理员。',
   fields: [
     {
       key: 'id',
@@ -127,6 +126,17 @@ export const tenantPageCrudConfig: CrudPageConfig = {
       layoutOrder: 70,
       table: true,
       width: 150,
+    },
+    {
+      key: 'adminInitialPassword',
+      label: '管理员初始口令',
+      layoutGroup: 'basic',
+      layoutOrder: 75,
+      formCreate: true,
+      formEdit: false,
+      detail: false,
+      required: true,
+      type: 'password',
     },
     {
       key: 'inNationCode',

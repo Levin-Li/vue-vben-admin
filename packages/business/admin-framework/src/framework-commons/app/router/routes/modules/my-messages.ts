@@ -2,6 +2,9 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
 
+import { toPathRouteName } from '../../../../page-registry';
+
+const path = '/clob/V1/MyMessages';
 const routes: RouteRecordRaw[] = [
   {
     component: resolveAdminPage(
@@ -12,8 +15,8 @@ const routes: RouteRecordRaw[] = [
       icon: 'lucide:bell',
       title: '我的消息',
     },
-    name: 'MyMessages',
-    path: '/clob/V1/MyMessages',
+    name: toPathRouteName(path),
+    path,
   },
 ];
 

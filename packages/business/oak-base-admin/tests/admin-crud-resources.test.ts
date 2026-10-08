@@ -39,7 +39,7 @@ describe('oak base admin crud resources', () => {
     expect(
       oakBaseAdminBackendRouteMappings.every(
         (mapping) =>
-          Boolean(mapping.name) &&
+          !Object.hasOwn(mapping, 'name') &&
           Boolean(mapping.title) &&
           Boolean(mapping.description),
       ),
@@ -63,7 +63,7 @@ describe('oak base admin crud resources', () => {
     expect(roleMenu).toEqual(
       expect.objectContaining({
         label: '角色管理',
-        name: 'Role',
+        name: '_clob_V1_Role',
         remark: '维护角色、资源权限和组织数据权限。',
       }),
     );

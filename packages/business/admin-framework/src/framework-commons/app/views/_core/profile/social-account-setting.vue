@@ -6,6 +6,14 @@ import { Alert, Button, Card, Modal, message } from 'ant-design-vue';
 import { oauthService } from '@levin/admin-framework/framework-commons/app/api';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
+import {
+  authorizeInAppContext,
+  buildInAppReturnUrl,
+  detectEnterpriseContainer,
+} from '../authentication/enterprise-inapp';
+import { resolveOAuthPlatformName } from '../authentication/oauth-platform-name';
+import { recoverBindCallbackForPage } from './oauth-bind-callback';
+
 type OAuthBindingPurpose = 'BIND';
 
 const OAUTH_BIND_TRANSACTION_STORAGE_KEY = `SECURITY_OAUTH_BIND_TRANSACTION_${location.pathname}`;
@@ -26,6 +34,7 @@ interface SocialPlatformItem {
   description: string;
   displayName: string;
   iconUrl: string;
+  inAppLogin?: boolean;
 }
 
 const authStore = useAuthStore();
@@ -41,6 +50,7 @@ const socialBindAuthorizeUrl = ref('');
 const socialBindSubmitting = ref(false);
 const socialBindExchanging = ref(false);
 
+let socialBindingPageActive = true;
 let socialBindPollingTimer: null | ReturnType<typeof setInterval> = null;
 let socialBindPollingInFlight = false;
 let socialBindPopupWindow: null | Window = null;
@@ -102,17 +112,6 @@ function resolvePlatformCode(platform: Record<string, any>) {
     .toUpperCase();
 }
 
-function resolvePlatformDisplayName(platform: Record<string, any>) {
-  return String(
-    platform.title ||
-      platform.name ||
-      platform.platformName ||
-      platform.platform ||
-      platform.code ||
-      '第三方平台',
-  ).trim();
-}
-
 function supportsOauthLogin(platform: Record<string, any>) {
   if (typeof platform.capabilities?.oauth === 'boolean') {
     return platform.capabilities.oauth;
@@ -134,14 +133,16 @@ function supportsOauthLogin(platform: Record<string, any>) {
   return (
     capabilities.length === 0 ||
     capabilities.some((item) =>
-      ['oauth', 'authorization', 'auth', 'qr_login', 'qr-login'].some((keyword) =>
-        item.includes(keyword),
+      ['oauth', 'authorization', 'auth', 'qr_login', 'qr-login'].some(
+        (keyword) => item.includes(keyword),
       ),
     )
   );
 }
 
-function normalizeSocialPlatform(platform: Record<string, any>) {
+function normalizeSocialPlatform(
+  platform: Record<string, any>,
+): null | SocialPlatformItem {
   const code = resolvePlatformCode(platform);
   if (!code || !supportsOauthLogin(platform)) {
     return null;
@@ -152,8 +153,9 @@ function normalizeSocialPlatform(platform: Record<string, any>) {
       platform.authorizeUrl || platform.authUrl || platform.loginUrl || '',
     ).trim(),
     code,
+    inAppLogin: platform.capabilities?.inAppLogin === true,
     description: String(platform.description || '').trim(),
-    displayName: resolvePlatformDisplayName(platform),
+    displayName: resolveOAuthPlatformName(platform),
     iconUrl: String(platform.iconUrl || platform.icon || '').trim(),
   };
 }
@@ -178,7 +180,7 @@ function normalizeSocialBinding(
     canUnbind: binding.canUnbind !== false,
     id,
     lastLoginAt: String(binding.lastLoginAt || '').trim(),
-    platformName: resolvePlatformDisplayName(binding),
+    platformName: resolveOAuthPlatformName(binding),
   };
 }
 
@@ -310,7 +312,8 @@ function openSocialBindAuthorizeWindow(authorizeUrl: string) {
   );
   if (popup) {
     socialBindPopupWindow = popup;
-    socialBindStatusMessage.value = '已打开第三方授权窗口，请在新窗口完成账号绑定授权。';
+    socialBindStatusMessage.value =
+      '已打开第三方授权窗口，请在新窗口完成账号绑定授权。';
     return;
   }
 
@@ -403,12 +406,21 @@ async function startSocialBinding(platform: SocialPlatformItem) {
     socialBindErrorMessage.value = '';
     socialBindStatusMessage.value = '正在创建第三方账号绑定事务...';
     socialBindActivePlatform.value = platform;
+    // 绑定必须由已登录用户点击；容器内使用相同的服务端用途校验。
+    const container = detectEnterpriseContainer(navigator.userAgent);
+    const useInApp = container === platform.code && platform.inAppLogin;
     const transaction = resolveOAuthTransaction(
-      await oauthService.createTransaction({
-        callbackUrl: location.href,
-        platform: platform.code,
-        purpose: 'BIND' as OAuthBindingPurpose,
-      }),
+      useInApp
+        ? await oauthService.createInAppTransaction({
+            platform: platform.code,
+            purpose: 'BIND',
+            returnUrl: buildInAppReturnUrl(location.href),
+          })
+        : await oauthService.createTransaction({
+            returnUrl: buildInAppReturnUrl(location.href),
+            platform: platform.code,
+            purpose: 'BIND' as OAuthBindingPurpose,
+          }),
     );
     const transactionId = String(
       transaction.transactionId || transaction.id || '',
@@ -418,14 +430,25 @@ async function startSocialBinding(platform: SocialPlatformItem) {
     if (!transactionId) {
       throw new Error('创建第三方账号绑定事务失败：缺少事务编号');
     }
-    if (!authorizeUrl) {
+    if (!authorizeUrl && !(useInApp && container === 'DINGTALK_V2')) {
       throw new Error('创建第三方账号绑定事务失败：缺少授权地址');
     }
     socialBindAuthorizeUrl.value = authorizeUrl;
     saveSocialBindResumeTransaction(transactionId, platform.code, authorizeUrl);
-    beginSocialBindPolling(transactionId);
-    openSocialBindAuthorizeWindow(authorizeUrl);
+    if (useInApp && container) {
+      const navigating = await authorizeInAppContext(
+        container,
+        transaction,
+        (id, data) => oauthService.authorizeInAppTransaction(id, data),
+      );
+      if (!navigating) beginSocialBindPolling(transactionId);
+    } else {
+      beginSocialBindPolling(transactionId);
+      openSocialBindAuthorizeWindow(authorizeUrl);
+    }
   } catch (error: any) {
+    clearSocialBindResumeTransaction();
+    clearSocialBindPolling();
     socialBindErrorMessage.value =
       error?.message || '发起第三方账号绑定失败，请稍后重试';
     socialBindStatusMessage.value = socialBindErrorMessage.value;
@@ -501,15 +524,76 @@ function confirmUnbindSocialBinding(binding: SocialBindingItem) {
   });
 }
 
-onMounted(() => {
-  void Promise.all([loadSocialBindings(), loadSocialPlatforms()]).finally(
-    () => {
-      resumeSocialBindingFromStorage();
-    },
+// 回调 URL 不携带本地令牌，取得 code 后先恢复真实会话再向后端提交。
+async function initializeSocialBinding() {
+  socialBindingPageActive = true;
+  const callback = recoverBindCallbackForPage(location.href, (url) =>
+    window.history.replaceState(window.history.state, '', url),
   );
+  if (callback) {
+    // 等待本地会话时也受同一内存期限约束；超时立即抹去短期授权材料。
+    const expiresAt = callback.expiresAt || Date.now() + 3 * 60 * 1000;
+    const codeExpiryTimer = setTimeout(
+      () => {
+        callback.params = { state: '' };
+        callback.error = true;
+      },
+      Math.max(0, expiresAt - Date.now()),
+    );
+    try {
+      if (callback.error) throw new Error('绑定授权已失效，请重新发起');
+      const pending = readSocialBindResumeTransaction();
+      if (pending && pending.transactionId !== callback.transactionId)
+        throw new Error('绑定事务不匹配，请重新发起');
+      const userInfo = await authStore.fetchUserInfo();
+      if (!socialBindingPageActive) return;
+      if (callback.error || Date.now() >= expiresAt)
+        throw new Error('绑定授权已过期，请重新发起');
+      if (!userInfo) throw new Error('当前会话已失效，请登录后重新发起绑定');
+      await (callback.inApp
+        ? oauthService.authorizeInAppTransaction(callback.transactionId, {
+            code: callback.params.code || '',
+            state: callback.params.state,
+          })
+        : oauthService.authorizeTransaction(
+            callback.transactionId,
+            callback.params,
+          ));
+      if (!socialBindingPageActive) return;
+      await Promise.all([loadSocialBindings(), loadSocialPlatforms()]);
+      if (socialBindingPageActive) {
+        socialBindDialogOpen.value = true;
+        socialBindStatusMessage.value = '正在完成第三方账号绑定...';
+        socialBindActivePlatform.value =
+          socialPlatforms.value.find(
+            (platform) => platform.code === pending?.platformCode,
+          ) || null;
+        beginSocialBindPolling(callback.transactionId);
+      }
+    } catch {
+      clearSocialBindResumeTransaction();
+      clearSocialBindPolling();
+      socialBindErrorMessage.value =
+        '绑定授权或当前会话已失效，请确认已登录并重新发起账号绑定。';
+      message.warning(socialBindErrorMessage.value);
+      if (socialBindingPageActive)
+        await Promise.all([loadSocialBindings(), loadSocialPlatforms()]);
+    } finally {
+      clearTimeout(codeExpiryTimer);
+      callback.params = { state: '' };
+    }
+    return;
+  }
+  await Promise.all([loadSocialBindings(), loadSocialPlatforms()]);
+  if (socialBindingPageActive) resumeSocialBindingFromStorage();
+}
+
+onMounted(() => {
+  void initializeSocialBinding();
 });
 
 onBeforeUnmount(() => {
+  socialBindingPageActive = false;
   resetSocialBindState({ keepDialog: true });
 });
 </script>
@@ -522,6 +606,14 @@ onBeforeUnmount(() => {
           show-icon
           type="info"
           message="绑定和解绑第三方账号前，请先完成近期密码或 MFA 二次验证。若后端判定当前账号缺少可用登录或恢复方式，会拒绝解绑。"
+        />
+
+        <!-- 回调授权失败保留重新登录或重新绑定的提示。 -->
+        <Alert
+          v-if="socialBindErrorMessage && !socialBindDialogOpen"
+          :message="socialBindErrorMessage"
+          show-icon
+          type="warning"
         />
 
         <div v-if="hasSocialPlatforms" class="space-y-2">

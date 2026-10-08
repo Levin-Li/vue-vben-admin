@@ -1,5 +1,10 @@
-import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
-import { RequestService } from '@levin/admin-framework';
+import {
+  CRUD,
+  RequestService,
+  ResAuthorize,
+  Service,
+} from '@levin/admin-framework';
+
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
@@ -84,7 +89,7 @@ export class TenantService extends RequestService {
     opRefTargetType: 'None',
   })
   async create(data?: any, options?: any) {
-    return this.post('create', {
+    return this.post('createWithAdmin', {
       ...options,
       data,
     });

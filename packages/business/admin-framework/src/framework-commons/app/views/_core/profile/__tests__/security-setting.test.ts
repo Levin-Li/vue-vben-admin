@@ -3,6 +3,12 @@ import { computed, defineComponent, reactive } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  captureBindCallbackBeforeStartup,
+  clearPendingBindCallback,
+  hasPendingBindCallback,
+} from '../oauth-bind-callback';
+
 const currentUser = reactive({
   email: 'demo@example.com',
   id: 'user-1',
@@ -22,6 +28,9 @@ const {
     getVerifyCodeApi: vi.fn(),
     oauthService: {
       createTransaction: vi.fn(),
+      createInAppTransaction: vi.fn(),
+      authorizeInAppTransaction: vi.fn(),
+      authorizeTransaction: vi.fn(),
       exchangeTransaction: vi.fn(),
       getMyBindings: vi.fn(),
       getSupportedPlatforms: vi.fn(),
@@ -178,6 +187,8 @@ vi.mock('ant-design-vue', () => {
 
 describe('social-account-setting', () => {
   beforeEach(() => {
+    sessionStorage.clear();
+    clearPendingBindCallback();
     // 恢复测试账号资料，避免联系方式刷新用例污染其它个人中心测试。
     currentUser.email = 'demo@example.com';
     currentUser.mobile = '13800000000';
@@ -187,6 +198,9 @@ describe('social-account-setting', () => {
     getVerifyCodeApi.mockReset();
     modalConfirm.mockClear();
     oauthService.createTransaction.mockReset();
+    oauthService.createInAppTransaction.mockReset();
+    oauthService.authorizeInAppTransaction.mockReset();
+    oauthService.authorizeTransaction.mockReset();
     oauthService.exchangeTransaction.mockReset();
     oauthService.getMyBindings.mockReset();
     oauthService.getSupportedPlatforms.mockReset();
@@ -228,6 +242,36 @@ describe('social-account-setting', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('真实sourcePlatform绑定卡片和编码目录显示中文名称，请求保留编码', async () => {
+    // 使用实际API字段，避免旧平台name模拟值掩盖绑定来源缺失。
+    const platforms = ['FEISHU', 'WECHAT_ENTERPRISE_V2', 'DINGTALK_V2'];
+    oauthService.getSupportedPlatforms.mockResolvedValue(platforms.map((code) => ({ code, name: code })));
+    oauthService.getMyBindings.mockResolvedValue(platforms.map((sourcePlatform) => ({ id: sourcePlatform, sourcePlatform, nickname: '测试成员' })));
+    oauthService.createTransaction.mockResolvedValue({ transactionId: 'name-tx', authorizeUrl: 'https://example.test/authorize' });
+    const component = (await import('../social-account-setting.vue')).default;
+    const wrapper = mount(component);
+    await flushPromises();
+    expect(wrapper.findAll('.font-medium').map((heading) => heading.text())).toEqual(['可绑定平台', '已绑定账号', '飞书', '企业微信', '钉钉']);
+    const button = wrapper.findAll('button').find((item) => item.text() === '飞书');
+    expect(button).toBeDefined();
+    await button?.trigger('click');
+    await flushPromises();
+    expect(oauthService.createTransaction.mock.calls[0]?.[0]).toMatchObject({ platform: 'FEISHU', purpose: 'BIND' });
+    wrapper.unmount();
+  });
+
+  it('未知平台的显式名称按文本渲染', async () => {
+    // 平台名称不是HTML，外部文字不能插入可执行图片节点。
+    const label = '<img src=x onerror="window.injected=true">';
+    oauthService.getMyBindings.mockResolvedValue([{ id: 'custom', sourcePlatform: 'CUSTOM', platformName: label, nickname: '成员昵称' }]);
+    const component = (await import('../social-account-setting.vue')).default;
+    const wrapper = mount(component);
+    await flushPromises();
+    expect(wrapper.text()).toContain(label);
+    expect(wrapper.find('img').exists()).toBe(false);
+    wrapper.unmount();
   });
 
   it('renders social bindings and available bind platforms', async () => {
@@ -382,6 +426,51 @@ describe('social-account-setting', () => {
     wrapper.unmount();
   });
 
+  it('取出回调后等待本地用户超过内存期限也不能提交 code', async () => {
+    vi.useFakeTimers();
+    captureBindCallbackBeforeStartup(
+      'https://example.test/profile/security?oauthTransaction=expired-tx&oauthInAppCode=code&oauthInAppState=state',
+      vi.fn(),
+    );
+    let finishUser: (value: object) => void = () => {};
+    fetchUserInfo.mockReturnValue(
+      new Promise((resolve) => {
+        finishUser = resolve;
+      }),
+    );
+    const SocialAccountSetting = (await import('../social-account-setting.vue'))
+      .default;
+    const wrapper = mount(SocialAccountSetting);
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(180_000);
+    finishUser({ id: 'user-1' });
+    await flushPromises();
+    expect(oauthService.authorizeInAppTransaction).not.toHaveBeenCalled();
+    expect(oauthService.authorizeTransaction).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('重新发起账号绑定');
+    wrapper.unmount();
+  });
+
+  it('独立个人页在回调到达后自动进入绑定面板并消费内存 code', async () => {
+    captureBindCallbackBeforeStartup(
+      'https://example.test/profile/security?oauthTransaction=profile-tx&oauthInAppCode=code&oauthInAppState=state',
+      vi.fn(),
+    );
+    fetchUserInfo.mockResolvedValue({ id: 'user-1' });
+    oauthService.authorizeInAppTransaction.mockResolvedValue({});
+    oauthService.getTransaction.mockResolvedValue({ status: 'COMPLETED' });
+    oauthService.exchangeTransaction.mockResolvedValue({});
+    const ProfileIndex = (await import('../index.vue')).default;
+    const wrapper = mount(ProfileIndex);
+    await flushPromises();
+    expect(oauthService.authorizeInAppTransaction).toHaveBeenCalledWith(
+      'profile-tx',
+      { code: 'code', state: 'state' },
+    );
+    expect(hasPendingBindCallback()).toBe(false);
+    wrapper.unmount();
+  });
+
   it('opens third-party account binding from the profile navigation', async () => {
     const ProfileIndex = (await import('../index.vue')).default;
     const wrapper = mount(ProfileIndex);
@@ -397,6 +486,204 @@ describe('social-account-setting', () => {
       wrapper.findComponent({ name: 'SocialAccountSetting' }).exists(),
     ).toBe(true);
 
+    wrapper.unmount();
+  });
+
+  it.each([
+    [true, true],
+    [false, true],
+    [true, false],
+    [false, false],
+  ])(
+    '绑定回调立即清理 URL，等待真实会话后 POST：端内=%s，存在原事务=%s',
+    async (inApp, hasResume) => {
+      if (hasResume)
+        sessionStorage.setItem(
+          'SECURITY_OAUTH_BIND_TRANSACTION_/profile/security',
+          JSON.stringify({
+            transactionId: 'callback-tx',
+            platformCode: 'FEISHU',
+          }),
+        );
+      const params = new URLSearchParams({ oauthTransaction: 'callback-tx' });
+      if (inApp) {
+        params.set('oauthInAppCode', 'temporary-code');
+        params.set('oauthInAppState', 'state');
+      } else
+        params.set(
+          'oauthBindCallback',
+          JSON.stringify({
+            state: 'state',
+            code: 'temporary-code',
+            accessToken: 'must-not-submit',
+          }),
+        );
+      vi.stubGlobal('location', {
+        href: `https://example.test/profile/security?${params}`,
+        pathname: '/profile/security',
+      });
+      const replaceState = vi
+        .spyOn(window.history, 'replaceState')
+        .mockImplementation(() => {});
+      let finishUser: (value: object) => void = () => {};
+      fetchUserInfo.mockReturnValue(
+        new Promise((resolve) => {
+          finishUser = resolve;
+        }),
+      );
+      oauthService.authorizeInAppTransaction.mockResolvedValue({});
+      oauthService.authorizeTransaction.mockResolvedValue({});
+      oauthService.getTransaction.mockResolvedValue({ status: 'COMPLETED' });
+      oauthService.exchangeTransaction.mockResolvedValue({});
+      const SocialAccountSetting = (
+        await import('../social-account-setting.vue')
+      ).default;
+      const wrapper = mount(SocialAccountSetting);
+      await flushPromises();
+      expect(replaceState).toHaveBeenCalledWith(
+        window.history.state,
+        '',
+        'https://example.test/profile/security',
+      );
+      expect(oauthService.authorizeInAppTransaction).not.toHaveBeenCalled();
+      expect(oauthService.authorizeTransaction).not.toHaveBeenCalled();
+      expect(fetchUserInfo).toHaveBeenCalledTimes(1);
+      finishUser({ userId: 'user-1' });
+      await flushPromises();
+      const authorize = inApp
+        ? oauthService.authorizeInAppTransaction
+        : oauthService.authorizeTransaction;
+      expect(authorize).toHaveBeenCalledWith('callback-tx', {
+        code: 'temporary-code',
+        state: 'state',
+      });
+      expect(oauthService.exchangeTransaction).toHaveBeenCalledWith(
+        'callback-tx',
+      );
+      for (let index = 0; index < sessionStorage.length; index++)
+        expect(
+          sessionStorage.getItem(sessionStorage.key(index) || ''),
+        ).not.toContain('temporary-code');
+      replaceState.mockRestore();
+      wrapper.unmount();
+    },
+  );
+
+  it('存在另一个绑定事务时拒绝回调而不提交授权码', async () => {
+    sessionStorage.setItem(
+      'SECURITY_OAUTH_BIND_TRANSACTION_/profile/security',
+      JSON.stringify({ transactionId: 'different-tx', platformCode: 'FEISHU' }),
+    );
+    vi.stubGlobal('location', {
+      href: 'https://example.test/profile/security?oauthTransaction=callback-tx&oauthInAppCode=temporary-code&oauthInAppState=state',
+      pathname: '/profile/security',
+    });
+    const replaceState = vi
+      .spyOn(window.history, 'replaceState')
+      .mockImplementation(() => {});
+    const SocialAccountSetting = (await import('../social-account-setting.vue'))
+      .default;
+    const wrapper = mount(SocialAccountSetting);
+    await flushPromises();
+    expect(oauthService.authorizeInAppTransaction).not.toHaveBeenCalled();
+    expect(fetchUserInfo).not.toHaveBeenCalled();
+    expect(
+      sessionStorage.getItem(
+        'SECURITY_OAUTH_BIND_TRANSACTION_/profile/security',
+      ),
+    ).toBeNull();
+    replaceState.mockRestore();
+    wrapper.unmount();
+  });
+
+  it('绑定回调遇到失效本地会话清除 URL 且不提交 code', async () => {
+    sessionStorage.setItem(
+      'SECURITY_OAUTH_BIND_TRANSACTION_/profile/security',
+      JSON.stringify({ transactionId: 'callback-tx', platformCode: 'FEISHU' }),
+    );
+    vi.stubGlobal('location', {
+      href: 'https://example.test/profile/security?oauthTransaction=callback-tx&oauthInAppCode=temporary-code&oauthInAppState=state',
+      pathname: '/profile/security',
+    });
+    const replaceState = vi
+      .spyOn(window.history, 'replaceState')
+      .mockImplementation(() => {});
+    fetchUserInfo.mockRejectedValue(new Error('会话失效'));
+    const SocialAccountSetting = (await import('../social-account-setting.vue'))
+      .default;
+    const wrapper = mount(SocialAccountSetting);
+    await flushPromises();
+    expect(replaceState).toHaveBeenCalledWith(
+      window.history.state,
+      '',
+      'https://example.test/profile/security',
+    );
+    expect(oauthService.authorizeInAppTransaction).not.toHaveBeenCalled();
+    expect(oauthService.getTransaction).not.toHaveBeenCalled();
+    expect(
+      sessionStorage.getItem(
+        'SECURITY_OAUTH_BIND_TRANSACTION_/profile/security',
+      ),
+    ).toBeNull();
+    expect(wrapper.text()).toContain('重新发起账号绑定');
+    replaceState.mockRestore();
+    wrapper.unmount();
+  });
+
+  it('企业 App 内绑定仅在用户确认后调用当前身份授权', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'DingTalk' });
+    (window as Window & { dd?: unknown }).dd = {
+      ready: (callback: () => void) => callback(),
+      runtime: {
+        permission: {
+          requestAuthCode: ({
+            onSuccess,
+          }: {
+            onSuccess: (result: { code: string }) => void;
+          }) => onSuccess({ code: 'bind-code' }),
+        },
+      },
+    };
+    oauthService.getSupportedPlatforms.mockResolvedValue([
+      {
+        code: 'DINGTALK_V2',
+        name: '钉钉',
+        capabilities: { oauth: true, inAppLogin: true },
+      },
+    ]);
+    oauthService.createInAppTransaction.mockResolvedValue({
+      id: 'bind-inapp',
+      state: 'state',
+      corpId: 'corp',
+    });
+    oauthService.authorizeInAppTransaction.mockResolvedValue({
+      status: 'COMPLETED',
+    });
+    oauthService.getTransaction.mockResolvedValue({ status: 'COMPLETED' });
+    oauthService.exchangeTransaction.mockResolvedValue({});
+    const SocialAccountSetting = (await import('../social-account-setting.vue'))
+      .default;
+    const wrapper = mount(SocialAccountSetting);
+    await flushPromises();
+    expect(oauthService.createInAppTransaction).not.toHaveBeenCalled();
+    const button = wrapper
+      .findAll('button')
+      .find((item) => item.text().includes('钉钉'));
+    await button?.trigger('click');
+    await flushPromises();
+    expect(modalConfirm).toHaveBeenCalledTimes(1);
+    expect(oauthService.createInAppTransaction).toHaveBeenCalledWith({
+      platform: 'DINGTALK_V2',
+      purpose: 'BIND',
+      returnUrl: 'https://example.test/profile/security',
+    });
+    expect(oauthService.authorizeInAppTransaction).toHaveBeenCalledWith(
+      'bind-inapp',
+      { code: 'bind-code', state: 'state' },
+    );
+    expect(oauthService.createTransaction).not.toHaveBeenCalled();
+    expect(oauthService.exchangeTransaction).toHaveBeenCalledWith('bind-inapp');
+    delete (window as Window & { dd?: unknown }).dd;
     wrapper.unmount();
   });
 
@@ -431,7 +718,7 @@ describe('social-account-setting', () => {
 
     expect(modalConfirm).toHaveBeenCalledTimes(1);
     expect(oauthService.createTransaction).toHaveBeenCalledWith({
-      callbackUrl: 'https://example.test/profile/security',
+      returnUrl: 'https://example.test/profile/security',
       platform: 'WECHAT_OPEN',
       purpose: 'BIND',
     });

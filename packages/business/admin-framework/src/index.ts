@@ -23,6 +23,7 @@ export * from './framework-commons/shared/crud-list-operations';
 export * from './framework-commons/shared/crud-form-elements';
 export * from './framework-commons/shared/user-dropdown-menu-service';
 export * from './framework-commons/shared/user-org-selector-types';
+export * from './framework-commons/shared/user-message-target';
 
 export {
   addLayoutHeaderExtensionAreaItem,

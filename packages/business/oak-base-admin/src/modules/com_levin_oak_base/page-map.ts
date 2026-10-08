@@ -2,11 +2,24 @@ import type { AdminPageMap } from '@levin/admin-framework';
 
 const viewModules = import.meta.glob('./views/**/*.vue') as AdminPageMap;
 
-const pageMap: AdminPageMap = Object.fromEntries(
+const discoveredPageMap: AdminPageMap = Object.fromEntries(
   Object.entries(viewModules).map(([path, loader]) => [
     path.replace(/^\.\/views/, '/system/com_levin_oak_base'),
     loader,
   ]),
 );
 
-export const oakBaseAdminPageMap: AdminPageMap = pageMap;
+// 新增业务页面显式注册真实lazy loader，避免开发服务器旧glob缓存漏掉组件。
+export const oakBaseAdminPageMap: AdminPageMap = {
+  ...discoveredPageMap,
+  '/system/com_levin_oak_base/notification-audit/index.vue': () =>
+    import('./views/notification-audit/index.vue'),
+  '/system/com_levin_oak_base/support-mailbox-rule/index.vue': () =>
+    import('./views/support-mailbox-rule/index.vue'),
+  '/system/com_levin_oak_base/ticket-queue/index.vue': () =>
+    import('./views/ticket-queue/index.vue'),
+  '/system/com_levin_oak_base/ticket/index.vue': () =>
+    import('./views/ticket/index.vue'),
+  '/system/com_levin_oak_base/workflow-notification-route/index.vue': () =>
+    import('./views/workflow-notification-route/index.vue'),
+};

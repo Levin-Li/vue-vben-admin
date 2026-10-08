@@ -13,9 +13,11 @@ import {
   ref,
   watch,
 } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/runtime/icons';
 import { $t } from '@vben/runtime/locales';
+import { useAccessStore } from '@vben/runtime/stores';
 
 import {
   getLoginOptionsApi,
@@ -35,15 +37,23 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
+import { resolveLoginRedirect } from '../../../router/login-redirect';
 import {
   isSupportedBehaviorCaptchaMode,
   normalizeBehaviorCaptchaChallenge,
 } from './behavior-captcha';
 import BehaviorCaptcha from './behavior-captcha.vue';
 import {
+  authorizeInAppContext,
+  buildInAppReturnUrl,
+  claimInAppAttempt,
+  detectEnterpriseContainer,
+} from './enterprise-inapp';
+import {
   extractReturnedVerifyCode,
   resolveContactVerifyCodeType,
 } from './login-verify-type';
+import { resolveOAuthPlatformName } from './oauth-platform-name';
 import { resolveDefaultOAuthProviderIcon } from './oauth-provider-icons';
 
 defineOptions({ name: 'Login' });
@@ -75,6 +85,7 @@ interface OAuthLoginPlatform {
   displayName: string;
   icon: string;
   iconUrl: string;
+  inAppLogin?: boolean;
 }
 
 const verifyTabs: VerifyCodeTabOption[] = [
@@ -93,6 +104,9 @@ const verifyTabs: VerifyCodeTabOption[] = [
 const defaultVerifyTab: VerifyCodeTabOption = verifyTabs[0]!;
 
 const authStore = useAuthStore();
+const accessStore = useAccessStore();
+const route = useRoute();
+const router = useRouter();
 const rememberedAccount = localStorage.getItem(REMEMBER_ME_KEY) || '';
 const isLoopbackBrowserHost = ['127.0.0.1', 'localhost'].includes(
   location.hostname,
@@ -122,11 +136,13 @@ const oauthPlatformsLoading = ref(false);
 const loginOptions = ref<AuthApi.LoginOptions>();
 let loginOptionsVersion = 0;
 const oauthPlatforms = ref<OAuthLoginPlatform[]>([]);
+const inAppLoginFailure = ref('');
 const oauthLoginModalOpen = ref(false);
 const oauthLoginErrorMessage = ref('');
 const oauthLoginStatusMessage = ref('');
 const oauthLoginActivePlatform = ref<null | OAuthLoginPlatform>(null);
 const oauthLoginActiveTransactionId = ref('');
+const oauthLoginInApp = ref(false);
 const oauthLoginAuthorizeUrl = ref('');
 const oauthTransactionSubmitting = ref(false);
 const oauthTransactionExchanging = ref(false);
@@ -178,6 +194,12 @@ const isPasswordHmiMode = computed(
 const isPasswordInteractiveVerifyMode = computed(
   () => isPasswordCaptchaMode.value || isPasswordHmiMode.value,
 );
+// 按钮设置通过计算值传入，保留 HMI 隐藏确认按钮的运行时样式。
+const passwordVerifyOkButtonProps = computed(() => ({
+  disabled: isPasswordHmiMode.value,
+  style: isPasswordHmiMode.value ? { display: 'none' } : undefined,
+}));
+
 const resolvedVerifyCodeType = computed(() =>
   isContactTab.value
     ? resolveContactVerifyCodeType(normalizeAccount())
@@ -279,17 +301,6 @@ function resolvePlatformCode(platform: Record<string, any>) {
     .toUpperCase();
 }
 
-function resolvePlatformDisplayName(platform: Record<string, any>) {
-  return String(
-    platform.title ||
-      platform.name ||
-      platform.platformName ||
-      platform.platform ||
-      platform.code ||
-      '第三方平台',
-  ).trim();
-}
-
 function supportsOauthLogin(platform: Record<string, any>) {
   if (typeof platform.capabilities?.oauth === 'boolean') {
     return platform.capabilities.oauth;
@@ -332,8 +343,9 @@ function normalizeOAuthPlatform(
       platform.authorizeUrl || platform.authUrl || platform.loginUrl || '',
     ).trim(),
     code,
+    inAppLogin: platform.capabilities?.inAppLogin === true,
     description: String(platform.description || '').trim(),
-    displayName: resolvePlatformDisplayName(platform),
+    displayName: resolveOAuthPlatformName(platform),
     icon: resolveDefaultOAuthProviderIcon(code),
     iconUrl: String(platform.iconUrl || platform.icon || '').trim(),
   };
@@ -386,11 +398,13 @@ function saveOAuthResumeTransaction(
   transactionId: string,
   platformCode: string,
   authorizeUrl: string,
+  inAppLogin = false,
 ) {
   sessionStorage.setItem(
     OAUTH_LOGIN_TRANSACTION_STORAGE_KEY,
     JSON.stringify({
       authorizeUrl,
+      inAppLogin,
       platformCode,
       transactionId,
     }),
@@ -414,6 +428,7 @@ function readOAuthResumeTransaction() {
 
     return {
       authorizeUrl: String(parsedValue?.authorizeUrl || '').trim(),
+      inAppLogin: parsedValue?.inAppLogin === true,
       platformCode: platformCode.toUpperCase(),
       transactionId,
     };
@@ -440,6 +455,10 @@ function consumeOAuthCallbackError() {
   clearOAuthResumeTransaction();
   callbackUrl.searchParams.delete('oauthError');
   window.history.replaceState({}, '', callbackUrl.toString());
+  if (detectEnterpriseContainer(navigator.userAgent)) {
+    inAppLoginFailure.value =
+      '企业授权未完成或当前身份尚未绑定。请使用普通登录，登录后到个人中心主动绑定企业账号。';
+  }
   message.error(errorMessage);
   return true;
 }
@@ -477,6 +496,7 @@ function resetOAuthLoginState(options: { keepDialog?: boolean } = {}) {
   oauthTransactionSubmitting.value = false;
   oauthLoginActivePlatform.value = null;
   oauthLoginActiveTransactionId.value = '';
+  oauthLoginInApp.value = false;
   oauthLoginAuthorizeUrl.value = '';
   oauthLoginStatusMessage.value = '';
   oauthLoginErrorMessage.value = '';
@@ -867,9 +887,9 @@ async function completePasswordLogin(verifyCodeValue?: unknown) {
     message.warning(
       isPasswordMfaMode.value
         ? '请输入 MFA 验证码'
-        : (isPasswordHmiMode.value
+        : isPasswordHmiMode.value
           ? '请先完成行为验证码'
-          : '请输入验证码'),
+          : '请输入验证码',
     );
     return;
   }
@@ -1015,7 +1035,7 @@ async function loadOAuthPlatforms() {
 
     if (!loginPageActive || version !== loginOptionsVersion) return;
     oauthPlatforms.value = rawPlatforms
-      .map((platform) => normalizeOAuthPlatform(platform))
+      .map((platform: Record<string, any>) => normalizeOAuthPlatform(platform))
       .filter(Boolean);
   } catch (error: any) {
     if (!loginPageActive || version !== loginOptionsVersion) return;
@@ -1056,17 +1076,39 @@ function openOAuthAuthorizeWindow(authorizeUrl: string) {
   oauthLoginStatusMessage.value = '';
 }
 
+// 自动免登的迟到结果不能替换本地登录或离页后的身份。
+async function abandonStaleInAppTransaction(transactionId: string) {
+  clearOAuthResumeTransaction();
+  resetOAuthLoginState();
+  try {
+    await oauthService.cancelTransaction(transactionId, {
+      __silentError: true,
+    });
+  } catch {
+    /* 服务端可能已完成兑换，前端仍丢弃迟到结果。 */
+  }
+}
+
 async function finishOAuthLoginTransaction(transactionId: string) {
   if (oauthTransactionExchanging.value) {
     return;
   }
 
+  const inAppLogin = oauthLoginInApp.value;
+  if (inAppLogin && (!loginPageActive || accessStore.accessToken)) {
+    await abandonStaleInAppTransaction(transactionId);
+    return;
+  }
   oauthTransactionExchanging.value = true;
 
   try {
     const exchangeResult = resolveOAuthExchangeResult(
       await oauthService.exchangeTransaction(transactionId),
     );
+    if (inAppLogin && (!loginPageActive || accessStore.accessToken)) {
+      await abandonStaleInAppTransaction(transactionId);
+      return;
+    }
     const accessToken = resolveOAuthAccessToken(exchangeResult);
 
     if (!accessToken) {
@@ -1075,7 +1117,16 @@ async function finishOAuthLoginTransaction(transactionId: string) {
 
     clearOAuthResumeTransaction();
     resetOAuthLoginState();
-    await authStore.authLoginWithAccessToken(accessToken);
+    // 企业群消息深链完成授权后恢复经过验证的原业务路径。
+    const redirect = resolveLoginRedirect(route?.query.redirect);
+    await authStore.authLoginWithAccessToken(
+      accessToken,
+      redirect
+        ? async () => {
+            await router.replace(redirect);
+          }
+        : undefined,
+    );
   } catch (error: any) {
     oauthLoginErrorMessage.value =
       error?.message || '兑换第三方授权结果失败，请稍后重试';
@@ -1115,7 +1166,9 @@ async function pollOAuthLoginTransaction(transactionId: string) {
     if (['CANCELLED', 'EXPIRED', 'FAILED'].includes(status)) {
       clearOAuthPolling();
       clearOAuthResumeTransaction();
-      message.warning(transactionMessage || '第三方授权未完成');
+      inAppLoginFailure.value =
+        '企业授权未完成或当前身份尚未绑定。请先使用本地账号登录，再到个人中心主动绑定企业账号。';
+      message.warning(transactionMessage || inAppLoginFailure.value);
       oauthLoginErrorMessage.value = '';
       oauthLoginStatusMessage.value = '';
       oauthLoginModalOpen.value = false;
@@ -1209,7 +1262,7 @@ async function startOAuthLogin(platform: OAuthLoginPlatform) {
 
     const transaction = resolveOAuthTransaction(
       await oauthService.createTransaction({
-        callbackUrl: buildOAuthLoginCallbackUrl(),
+        returnUrl: buildOAuthLoginCallbackUrl(),
         platform: platform.code,
         purpose: 'LOGIN',
       }),
@@ -1242,23 +1295,76 @@ async function startOAuthLogin(platform: OAuthLoginPlatform) {
   }
 }
 
+// 当前 App 自动授权只尝试一次；已有会话及已恢复事务不再次换号。
+async function startInAppLoginIfAvailable() {
+  if (
+    !loginPageActive ||
+    accessStore.accessToken ||
+    oauthLoginActiveTransactionId.value ||
+    readOAuthResumeTransaction()
+  )
+    return;
+  const container = detectEnterpriseContainer(navigator.userAgent);
+  const platform = oauthPlatforms.value.find(
+    (item) => item.code === container && item.inAppLogin,
+  );
+  if (!container || !platform || loginOptions.value?.enableThirdLogin !== true)
+    return;
+  const returnUrl = buildInAppReturnUrl(location.href);
+  if (!claimInAppAttempt(sessionStorage, container, location.origin, returnUrl))
+    return;
+  try {
+    oauthTransactionSubmitting.value = true;
+    oauthLoginModalOpen.value = true;
+    oauthLoginActivePlatform.value = platform;
+    oauthLoginInApp.value = true;
+    oauthLoginStatusMessage.value = '正在获取当前企业 App 的授权身份...';
+    const transaction = resolveOAuthTransaction(
+      await oauthService.createInAppTransaction({
+        platform: container,
+        purpose: 'LOGIN',
+        returnUrl,
+      }),
+    );
+    if (!loginPageActive || accessStore.accessToken) return;
+    const id = transaction.transactionId || transaction.id;
+    if (!id) throw new Error('企业授权事务缺少编号');
+    saveOAuthResumeTransaction(
+      id,
+      container,
+      transaction.authorizeUrl || '',
+      true,
+    );
+    const navigating = await authorizeInAppContext(
+      container,
+      transaction,
+      (transactionId, data) => {
+        if (!loginPageActive || accessStore.accessToken)
+          throw new Error('登录上下文已经变化');
+        return oauthService.authorizeInAppTransaction(transactionId, data);
+      },
+    );
+    if (!navigating && loginPageActive) beginOAuthLoginPolling(id);
+  } catch {
+    clearOAuthPolling();
+    clearOAuthResumeTransaction();
+    oauthLoginModalOpen.value = false;
+    inAppLoginFailure.value =
+      '当前企业 App 授权失败或身份尚未绑定。请使用普通登录，登录后到个人中心主动绑定企业账号。';
+    message.warning(inAppLoginFailure.value);
+  } finally {
+    oauthTransactionSubmitting.value = false;
+  }
+}
+
 function cancelOAuthLogin() {
   clearOAuthResumeTransaction();
   resetOAuthLoginState();
 }
 
-function reopenOAuthLoginWindow() {
-  const platform = oauthLoginActivePlatform.value;
-  if (!platform) {
-    return;
-  }
-
-  clearOAuthResumeTransaction();
-  resetOAuthLoginState({ keepDialog: true });
-  void startOAuthLogin(platform);
-}
-
 function resumeOAuthLoginFromStorage() {
+  // 已有本地会话时不恢复旧授权，避免替换当前用户身份。
+  if (accessStore.accessToken) return;
   const pendingTransaction = readOAuthResumeTransaction();
   if (!pendingTransaction) {
     return;
@@ -1266,6 +1372,7 @@ function resumeOAuthLoginFromStorage() {
 
   oauthLoginModalOpen.value = true;
   oauthLoginErrorMessage.value = '';
+  oauthLoginInApp.value = pendingTransaction.inAppLogin;
   oauthLoginStatusMessage.value = '正在恢复第三方授权状态...';
   oauthLoginAuthorizeUrl.value = pendingTransaction.authorizeUrl;
   oauthLoginActivePlatform.value = findOAuthPlatform(
@@ -1296,6 +1403,7 @@ onMounted(() => {
       loginOptions.value?.enableThirdLogin === true
     ) {
       resumeOAuthLoginFromStorage();
+      void startInAppLoginIfAvailable();
     }
   });
 });
@@ -1310,6 +1418,7 @@ onActivated(() => {
         !oauthLoginActiveTransactionId.value
       )
         resumeOAuthLoginFromStorage();
+      void startInAppLoginIfAvailable();
     });
   }
 });
@@ -1330,6 +1439,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="w-full">
+    <!-- App 授权失败后保留普通登录与主动绑定指引。 -->
+    <Alert
+      v-if="inAppLoginFailure"
+      :message="inAppLoginFailure"
+      show-icon
+      type="warning"
+      class="mb-4"
+    />
     <div class="mb-6">
       <h1 class="text-foreground text-2xl font-semibold">
         {{ $t('authentication.welcomeBack') }}
@@ -1556,10 +1673,7 @@ onBeforeUnmount(() => {
       cancel-text="取消"
       :closable="!authStore.loginLoading"
       :confirm-loading="authStore.loginLoading"
-      :ok-button-props="{
-        disabled: isPasswordHmiMode,
-        style: isPasswordHmiMode ? { display: 'none' } : undefined,
-      }"
+      :ok-button-props="passwordVerifyOkButtonProps"
       :mask-closable="!authStore.loginLoading"
       :ok-text="isPasswordHmiMode ? '完成验证后自动登录' : $t('common.login')"
       :open="passwordVerifyDialogOpen"

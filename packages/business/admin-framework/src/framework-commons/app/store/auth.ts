@@ -4,13 +4,14 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/runtime/constants';
-import { preferences } from '@vben-core/foundation/preferences';
 import {
   resetAllStores,
   useAccessStore,
   useTabbarStore,
   useUserStore,
 } from '@vben/runtime/stores';
+
+import { preferences } from '@vben-core/foundation/preferences';
 
 import {
   completePasswordLoginApi,
@@ -24,6 +25,7 @@ import { shouldRefreshAuthorizedPermissions } from '@levin/admin-framework/frame
 import { notification } from 'ant-design-vue';
 import { defineStore } from 'pinia';
 
+import { resolveLoginRedirect } from '../router/login-redirect';
 import { clearPreviousUserAccessState } from './user-access-session';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -33,6 +35,7 @@ export const useAuthStore = defineStore('auth', () => {
   const router = useRouter();
 
   const loginLoading = ref(false);
+  let logoutInFlight: Promise<void> | undefined;
 
   /**
    * 异步处理登录操作
@@ -95,30 +98,45 @@ export const useAuthStore = defineStore('auth', () => {
     };
   }
 
-  async function logout(redirect: boolean = true) {
-    try {
-      await logoutApi();
-    } catch {
-      // 不做任何处理
-    }
-    // 无论登出接口是否成功，先撤销当前账号动态路由与页面缓存。
-    const { resetRoutes } = await import('../router');
-    clearPreviousUserAccessState(accessStore, resetRoutes, () =>
-      tabbarStore.$reset(),
-    );
-    userStore.setUserInfo(null);
-    resetAllStores();
-    accessStore.setLoginExpired(false);
-
-    // 回登录页带上当前路由地址
-    await router.replace({
-      path: LOGIN_PATH,
-      query: redirect
-        ? {
-            redirect: encodeURIComponent(router.currentRoute.value.fullPath),
+  async function logout(
+    redirect: boolean = true,
+    remoteLogout: boolean = true,
+  ) {
+    // A logout endpoint's own 401 must not await the operation that is awaiting it.
+    if (logoutInFlight) return remoteLogout ? logoutInFlight : undefined;
+    const route = router.currentRoute.value;
+    const target = redirect
+      ? resolveLoginRedirect(
+          route.path === LOGIN_PATH ? route.query.redirect : route.fullPath,
+        )
+      : '';
+    const hadAccessToken = remoteLogout && Boolean(accessStore.accessToken);
+    // Assign before invoking the endpoint: another expired response shares this transition.
+    logoutInFlight = Promise.resolve()
+      .then(async () => {
+        if (hadAccessToken) {
+          try {
+            await logoutApi();
+          } catch {
+            // Local session teardown must also complete when the token has expired.
           }
-        : {},
-    });
+        }
+        const { resetRoutes } = await import('../router');
+        clearPreviousUserAccessState(accessStore, resetRoutes, () =>
+          tabbarStore.$reset(),
+        );
+        userStore.setUserInfo(null);
+        resetAllStores();
+        accessStore.setLoginExpired(false);
+        await router.replace({
+          path: LOGIN_PATH,
+          query: target ? { redirect: target } : {},
+        });
+      })
+      .finally(() => {
+        logoutInFlight = undefined;
+      });
+    return logoutInFlight;
   }
 
   async function fetchUserInfo() {

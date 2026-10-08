@@ -4,13 +4,14 @@
 import type { RequestClientOptions } from '@vben/runtime/request';
 
 import { useAppConfig } from '@vben/runtime/hooks';
-import { preferences } from '@vben-core/foundation/preferences';
 import {
   authenticateResponseInterceptor,
   errorMessageResponseInterceptor,
   RequestClient,
 } from '@vben/runtime/request';
 import { useAccessStore } from '@vben/runtime/stores';
+
+import { preferences } from '@vben-core/foundation/preferences';
 
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
@@ -121,12 +122,10 @@ function resolveClientCryptoSource(forceAnonymous = false) {
   return useAccessStore().accessToken || navigator.userAgent;
 }
 
-/** 公共策略：认证页的加密请求必须按未登录材料派生；其它请求优先使用当前 token。 */
+/** 仅精确匿名接口使用未登录材料；登录页的后续本人接口必须携带新签发的 token。 */
 function isAnonymousCryptoContext(config: any) {
   return (
-    isClientCryptoRequest(config) &&
-    (window.location.pathname.startsWith('/auth/') ||
-      isAnonymousRbacCryptoPath(config?.url))
+    isClientCryptoRequest(config) && isAnonymousRbacCryptoPath(config?.url)
   );
 }
 
@@ -497,7 +496,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     ) {
       accessStore.setLoginExpired(true);
     } else {
-      await authStore.logout();
+      await authStore.logout(true, false);
     }
   }
 

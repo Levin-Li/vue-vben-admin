@@ -15,6 +15,13 @@ vi.mock('../api/workflow-request-service', () => ({
 vi.mock('../api/workflow-runtime-service', () => ({
   workflowRuntimeService: { retry: vi.fn() },
 }));
+// 页面在真实宿主中由认证 Store 与路由提供当前上下文，测试固定这两个边界。
+vi.mock('@vben/runtime/stores', () => ({
+  useUserStore: () => ({ userInfo: { id: 'user-1' } }),
+}));
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+}));
 vi.mock('@levin/admin-framework/framework-commons/rbac-access', () => ({
   useRbacAccess: () => ({ hasPermission: permission.has }),
 }));

@@ -5,5 +5,7 @@
 
 全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)；业务应用公共启动入口及界面偏好加载见 [docs/admin-bootstrap.md](docs/admin-bootstrap.md)。
 
+个人消息服务与可信来源导航：[接入指南](docs/personal-message-integration.md)。
+
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。
 </INSTRUCTIONS>

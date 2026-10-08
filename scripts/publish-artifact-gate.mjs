@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -293,21 +294,26 @@ export function verifyTarballStandaloneInstall(
   extraEnv = {},
   batchTarballs = new Map(),
 ) {
-  const consumerDir = mkdtempSync(
-    join(tmpdir(), 'levin-package-install-smoke-'),
-  );
+  const consumerDir = mkdtempSync(join(tmpdir(), 'lpc-'));
 
   try {
+    // 将同批制品复制到消费者短路径，避免 pnpm 用深层绝对路径生成超长缓存键。
+    const localTarballs = stageConsumerTarballs(
+      consumerDir,
+      packageInfo,
+      tarballPath,
+      batchTarballs,
+    );
     writeFileSync(
       resolve(consumerDir, 'package.json'),
       `${JSON.stringify(
         {
           dependencies: {
-            ...getBatchTarballDependencies(batchTarballs),
-            [packageInfo.name]: `file:${tarballPath}`,
+            ...getBatchTarballDependencies(localTarballs),
+            [packageInfo.name]: `file:${localTarballs.get(packageInfo.name)}`,
           },
           name: 'levin-package-install-smoke',
-          pnpm: getBatchTarballPnpmConfig(batchTarballs),
+          pnpm: getBatchTarballPnpmConfig(localTarballs),
           private: true,
           version: '0.0.0',
         },
@@ -362,17 +368,24 @@ export function verifyTarballStandaloneViteBuild(
       encoding: 'utf8',
     }),
   );
-  const consumerDir = mkdtempSync(join(tmpdir(), 'levin-package-build-smoke-'));
+  const consumerDir = mkdtempSync(join(tmpdir(), 'lbc-'));
 
   try {
+    // 构建消费者使用同字节短路径副本，公开入口仍由待上传 tarball 解析。
+    const localTarballs = stageConsumerTarballs(
+      consumerDir,
+      packageInfo,
+      absoluteTarballPath,
+      batchTarballs,
+    );
     writeFileSync(
       resolve(consumerDir, 'package.json'),
       `${JSON.stringify(
         {
           dependencies: {
             ...manifest.peerDependencies,
-            ...getBatchTarballDependencies(batchTarballs),
-            [packageInfo.name]: `file:${absoluteTarballPath}`,
+            ...getBatchTarballDependencies(localTarballs),
+            [packageInfo.name]: `file:${localTarballs.get(packageInfo.name)}`,
           },
           devDependencies: {
             '@vitejs/plugin-vue': '^6.0.4',
@@ -381,7 +394,7 @@ export function verifyTarballStandaloneViteBuild(
             vite: '^7.3.1',
           },
           name: 'levin-package-build-smoke',
-          pnpm: getBatchTarballPnpmConfig(batchTarballs),
+          pnpm: getBatchTarballPnpmConfig(localTarballs),
           private: true,
           scripts: { build: 'vite build' },
           version: '0.0.0',
@@ -488,6 +501,37 @@ function getBatchTarballDependencies(batchTarballs) {
       `file:${resolve(tarballPath)}`,
     ]),
   );
+}
+
+function stageConsumerTarballs(
+  consumerDir,
+  packageInfo,
+  tarballPath,
+  batchTarballs,
+) {
+  const sourceTarballs = new Map(batchTarballs);
+  sourceTarballs.set(packageInfo.name, tarballPath);
+  const localTarballs = new Map();
+
+  for (const [name, sourcePath] of sourceTarballs) {
+    const originalPath = resolve(sourcePath);
+    const localPath = resolve(consumerDir, `${localTarballs.size}.tgz`);
+    copyFileSync(originalPath, localPath);
+
+    // 短路径只能改变本地安装位置，不能改变本批待上传构件的字节。
+    const originalHash = createHash('sha256')
+      .update(readFileSync(originalPath))
+      .digest('hex');
+    const localHash = createHash('sha256')
+      .update(readFileSync(localPath))
+      .digest('hex');
+    if (originalHash !== localHash) {
+      throw new Error(`${name} 独立消费者临时制品与待上传 tarball 不一致`);
+    }
+    localTarballs.set(name, localPath);
+  }
+
+  return localTarballs;
 }
 
 /** pnpm 的解析图也必须指向本地制品，确保间接精确依赖不会回退查询 Nexus。 */

@@ -1,3 +1,4 @@
+import { noticeService } from '../api/notice-service';
 import { describe, expect, it } from 'vitest';
 import { getServiceMeta, getResAuthorizeMeta } from '@levin/admin-framework';
 import { workflowRuntimeService } from '../api/workflow-runtime-service';
@@ -21,6 +22,15 @@ function flattenCrudRoutes(children: any[] | undefined): any[] {
 }
 
 describe('oak base admin routes', () => {
+  it('本人公告只读来源仅需登录，管理列表保留业务权限', () => {
+    const source = getResAuthorizeMeta(noticeService.myDetail as Parameters<typeof getResAuthorizeMeta>[0]);
+    const management = getResAuthorizeMeta(noticeService.list as Parameters<typeof getResAuthorizeMeta>[0]);
+    expect(source.onlyRequireAuthenticated).toBe(true);
+    expect(source.action).toBe('查看本人公告');
+    expect(management.onlyRequireAuthenticated).not.toBe(true);
+    expect(management.type).toBe('业务数据-通知');
+  });
+
   it('工作流办理采用业务数据权限域，不误用平台设计权限', () => {
     expect(getServiceMeta(workflowRuntimeService).type).toBe('业务数据-工作流运行时');
     for (const key of ['catalog', 'todo', 'done', 'started', 'complete', 'prepareStepUpAuth', 'eligibility', 'history', 'start', 'retry'] as const) {
@@ -34,6 +44,7 @@ describe('oak base admin routes', () => {
     const root = createOakBaseAdminModule().routes?.[0];
     for (const [resource, directory, groupName] of [
       ['WorkflowDefinition', 'workflow-definition', '开发&工具'],
+      ['WorkflowNotificationRoute', 'workflow-notification-route', '开发&工具'],
       ['WorkflowRequest', 'workflow-request', '开发&工具'],
       ['MyWorkflow', 'my-workflow', '个人&中心'],
       ['WorkflowStart', 'workflow-start', '个人&中心'],
@@ -52,6 +63,25 @@ describe('oak base admin routes', () => {
     const design = oakBaseAdminBackendRouteMappings.find((item) => item.resource === 'WorkflowDefinition');
     expect(design?.operations?.map((item) => item.opName)).toEqual(expect.arrayContaining(['create', 'createVersion', 'saveDraft', 'startSimulation', 'publishAfterSimulation']));
   });
+  it('邮件工单独立控制页归入已确定分组并登记真实动作', () => {
+    const root = createOakBaseAdminModule().routes?.[0];
+    for (const [resource, directory, groupName, actions] of [
+      ['Ticket', 'ticket', '客户&伙伴', ['list', 'retrieve', 'messages', 'assign', 'start', 'resolve', 'reopen', 'close', 'confirmContact', 'reply', 'outbound', 'retryOutbound', 'resolveOutboundUnsent', 'attachmentDownload']],
+      ['TicketQueue', 'ticket-queue', '客户&伙伴', ['list', 'retrieve', 'save', 'setEnabled']],
+      ['SupportMailboxRule', 'support-mailbox-rule', '应用&接入', ['list', 'retrieve', 'create', 'update', 'enable', 'disable']],
+      ['NotificationAudit', 'notification-audit', '运维&审计', ['list', 'retrieve', 'retry', 'resolveUnsent']],
+    ] as const) {
+      const group = root?.children?.find((item) => item.meta?.title === groupName);
+      const route = group?.children?.find((item) => item.path === `/clob/V1/${resource}`);
+      expect(route?.name).toBe(`/clob/V1/${resource}`.replaceAll('/', '_'));
+      const mapping = oakBaseAdminBackendRouteMappings.find((item) => item.path === route?.path);
+      expect(mapping?.viewPath).toBe(`/system/com_levin_oak_base/${directory}/index.vue`);
+      expect(mapping?.sourceFilePath).toBe(`modules/com_levin_oak_base/views/${directory}/index.vue`);
+      expect(mapping?.operations?.map((item) => item.opName)).toEqual(expect.arrayContaining([...actions]));
+    }
+    expect(oakBaseAdminCrudResources.some((item) => ['MailBlob', 'NotificationEvent', 'NotificationDelivery', 'NotificationDeliveryAttempt', 'UserMessage', 'TicketMessage'].includes(item.resource))).toBe(false);
+  });
+
   it('默认将所有可生成 CRUD 页面唯一归入十个带语义图标的业务分组', () => {
     const module = createOakBaseAdminModule();
     const root = module.routes?.[0];

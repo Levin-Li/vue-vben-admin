@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { tenantPageCrudConfig } from '../config';
+
 vi.mock('../../../api/tenant-service', () => ({
   tenantService: {},
 }));
@@ -12,8 +14,6 @@ vi.mock('../../api-module', () => ({
   tenantLevelOptionsLoader: async () => [],
   tenantTypeOptionsLoader: async () => [],
 }));
-
-import { tenantPageCrudConfig } from '../config';
 
 describe('tenant page configuration', () => {
   it('covers every tenant field added to the generated request model', () => {
@@ -60,6 +60,21 @@ describe('tenant page configuration', () => {
           search: true,
           table: true,
           type: 'area-cascader',
+        }),
+      ]),
+    );
+  });
+
+  it('asks for an initial administrator secret only when creating a tenant', () => {
+    expect(tenantPageCrudConfig.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'adminInitialPassword',
+          formCreate: true,
+          formEdit: false,
+          detail: false,
+          required: true,
+          type: 'password',
         }),
       ]),
     );

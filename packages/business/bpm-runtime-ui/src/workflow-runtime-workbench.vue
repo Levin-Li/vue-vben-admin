@@ -52,13 +52,19 @@ const props = withDefaults(
     canViewDone?: boolean;
     canViewPendingAttachments?: boolean;
     canViewStarted?: boolean;
+    canViewTargetInstance?: boolean;
+    canViewTargetTask?: boolean;
     canViewTodo?: boolean;
     detailComponents?: Record<string, Component>;
     loadCopyRecipients?: (
       instanceId: string,
       keyword: string,
     ) => Promise<WorkflowOption[]>;
+    loadTargetInstance?: (instanceId: string) => Promise<WorkflowInstanceView>;
+    loadTargetTask?: (taskId: string) => Promise<WorkflowTaskView>;
     service?: WorkflowRuntimeService;
+    targetInstanceId?: string;
+    targetTaskId?: string;
   }>(),
   {
     canDownloadAttachment: false,
@@ -69,6 +75,12 @@ const props = withDefaults(
     canViewDone: true,
     canViewStarted: true,
     canViewTodo: true,
+    canViewTargetTask: false,
+    canViewTargetInstance: false,
+    targetTaskId: undefined,
+    targetInstanceId: undefined,
+    loadTargetTask: undefined,
+    loadTargetInstance: undefined,
     detailComponents: undefined,
     canViewCopied: true,
     canSendCopy: false,
@@ -156,6 +168,10 @@ const copyOptions = ref<WorkflowOption[]>([]);
 const loadingCopyOptions = ref(false);
 let copyOptionsVersion = 0;
 const errorMessage = ref('');
+// 邮件链接只定位授权详情；链接本身不包含身份或办理命令。
+const targetMessage = ref('');
+const targetSelected = ref(false);
+let targetVersion = 0;
 const verificationMessage = ref('');
 const verificationChallenge = ref<WorkflowVerificationChallenge>();
 let refreshVersion = 0;
@@ -178,7 +194,7 @@ async function loadPendingAttachments(taskId: string) {
   // 待绑定附件只属于当前活动待办，已办详情不能再调用任务专用接口。
   if (
     !props.canViewPendingAttachments ||
-    activeKey.value !== 'todo' ||
+    (activeKey.value !== 'todo' && !targetSelected.value) ||
     selectedTask.value?.status !== 'Todo'
   )
     return;
@@ -255,7 +271,7 @@ watch(
   () => {
     instanceFiles.value = [];
     const instanceId = selectedInstance.value?.instanceId;
-    if (instanceId && activeKey.value === 'started')
+    if (instanceId && (activeKey.value === 'started' || targetSelected.value))
       void loadAttachments(instanceId, 'instance');
   },
 );
@@ -268,7 +284,10 @@ watch(
     const taskInstance = selectedTask.value?.processInstanceId;
     const startedInstance = selectedInstance.value?.instanceId;
     if (taskInstance) void loadAttachments(taskInstance, 'task');
-    else if (startedInstance && activeKey.value === 'started')
+    else if (
+      startedInstance &&
+      (activeKey.value === 'started' || targetSelected.value)
+    )
       void loadAttachments(startedInstance, 'instance');
   },
 );
@@ -359,6 +378,9 @@ function attachmentLabel(item: WorkflowAttachmentMeta) {
 }
 
 function clearSelection() {
+  ++targetVersion;
+  targetSelected.value = false;
+  targetMessage.value = '';
   selectedTask.value = undefined;
   selectedInstance.value = undefined;
   attachedFiles.value = [];
@@ -398,6 +420,8 @@ async function loadPage() {
   const version = ++refreshVersion;
   if (!allowed()[key]) {
     loading.value = false;
+    clearSelection();
+    await loadTarget();
     return;
   }
   const page = pages.value[key];
@@ -472,9 +496,71 @@ async function loadPage() {
     errorMessage.value = '流程列表加载失败，请重试。';
     emit('error', error);
   } finally {
-    if (version === refreshVersion) loading.value = false;
+    if (version === refreshVersion) {
+      loading.value = false;
+      await loadTarget();
+    }
   }
 }
+
+// 链接目标通过当前会话的专用读取接口重新授权，不扫描或扩大列表数据范围。
+async function loadTarget() {
+  const version = ++targetVersion;
+  const taskId = props.targetTaskId;
+  const instanceId = props.targetInstanceId;
+  if (!taskId && !instanceId) return;
+  targetMessage.value = '正在加载邮件关联的流程信息……';
+  try {
+    if (taskId && props.canViewTargetTask && props.loadTargetTask) {
+      const task = await props.loadTargetTask(taskId);
+      if (version !== targetVersion) return;
+      if (task.taskId !== taskId) throw new Error('流程任务定位结果不一致');
+      selectedTask.value = task;
+      targetSelected.value = true;
+      if (task.status === 'Todo') {
+        targetMessage.value = task.actions?.length
+          ? '已定位邮件关联任务，请核对内容后办理。'
+          : '已定位邮件关联任务，当前无可用办理动作。';
+      } else {
+        targetMessage.value = '该任务已结束，当前显示只读详情。';
+      }
+    } else if (
+      !taskId &&
+      instanceId &&
+      props.canViewTargetInstance &&
+      props.loadTargetInstance
+    ) {
+      const instance = await props.loadTargetInstance(instanceId);
+      if (version !== targetVersion) return;
+      if (instance.instanceId !== instanceId)
+        throw new Error('流程实例定位结果不一致');
+      selectedInstance.value = instance;
+      targetSelected.value = true;
+      targetMessage.value = '已定位邮件关联流程，当前显示只读详情。';
+    } else {
+      targetMessage.value =
+        '该流程信息不可用或当前账号无权查看，请确认登录账号。';
+    }
+  } catch {
+    if (version !== targetVersion) return;
+    selectedTask.value = undefined;
+    selectedInstance.value = undefined;
+    targetSelected.value = false;
+    targetMessage.value =
+      '该流程信息不可用或当前账号无权查看，请确认登录账号。';
+  }
+}
+
+// 同一路由的目标改变或读取权限撤销时，丢弃旧详情并重新授权。
+watch(
+  () => [
+    props.targetTaskId,
+    props.targetInstanceId,
+    props.canViewTargetTask,
+    props.canViewTargetInstance,
+  ],
+  () => refresh(),
+);
 
 function refresh() {
   ++refreshVersion;
@@ -529,7 +615,17 @@ watch(
   },
 );
 
+function selectTask(task: WorkflowTaskView) {
+  ++targetVersion;
+  targetSelected.value = false;
+  targetMessage.value = '';
+  selectedTask.value = task;
+}
+
 async function selectInstance(instance: WorkflowInstanceView) {
+  ++targetVersion;
+  targetSelected.value = false;
+  targetMessage.value = '';
   // 只从当前已授权列表选取实例，避免把旧任务详情与实例详情同时保留。
   selectedTask.value = undefined;
   selectedInstance.value = instance;
@@ -759,6 +855,12 @@ defineExpose({ refresh });
       :message="errorMessage"
     />
     <AAlert
+      v-if="targetMessage"
+      class="mb-3"
+      type="info"
+      :message="targetMessage"
+    />
+    <AAlert
       v-if="verificationMessage"
       class="mb-3"
       type="info"
@@ -777,9 +879,9 @@ defineExpose({ refresh });
                 role="button"
                 tabindex="0"
                 :aria-label="`查看${item.businessTitle || item.taskName || item.taskId}`"
-                @click="selectedTask = item"
-                @keydown.enter.prevent="selectedTask = item"
-                @keydown.space.prevent="selectedTask = item"
+                @click="selectTask(item)"
+                @keydown.enter.prevent="selectTask(item)"
+                @keydown.space.prevent="selectTask(item)"
               >
                 <AListItemMeta
                   :description="`${item.taskName || item.taskId} · ${item.processInstanceId || '—'}`"
@@ -801,9 +903,9 @@ defineExpose({ refresh });
                 role="button"
                 tabindex="0"
                 :aria-label="`查看${item.businessTitle || item.taskName || item.taskId}`"
-                @click="selectedTask = item"
-                @keydown.enter.prevent="selectedTask = item"
-                @keydown.space.prevent="selectedTask = item"
+                @click="selectTask(item)"
+                @keydown.enter.prevent="selectTask(item)"
+                @keydown.space.prevent="selectTask(item)"
               >
                 <AListItemMeta
                   :title="item.businessTitle || item.taskName || item.taskId"
@@ -916,7 +1018,10 @@ defineExpose({ refresh });
       </ASpace>
     </ACard>
     <ARow
-      v-if="selectedTask && (activeKey === 'todo' || activeKey === 'done')"
+      v-if="
+        selectedTask &&
+        (targetSelected || activeKey === 'todo' || activeKey === 'done')
+      "
       class="mt-4"
       :gutter="16"
     >
@@ -950,7 +1055,8 @@ defineExpose({ refresh });
     </ARow>
     <div
       v-if="
-        selectedInstance && (activeKey === 'started' || activeKey === 'copied')
+        selectedInstance &&
+        (targetSelected || activeKey === 'started' || activeKey === 'copied')
       "
       ref="instanceDetail"
       class="levin-workflow-instance-detail mt-4"
@@ -989,6 +1095,7 @@ defineExpose({ refresh });
             <!-- 仅发起人可在运行实例上明确发送抄送，候选由当前实例的服务端授权接口返回。 -->
             <div
               v-if="
+                !targetSelected &&
                 activeKey === 'started' &&
                 canSendCopy &&
                 canLoadCopyRecipients &&
@@ -1022,7 +1129,7 @@ defineExpose({ refresh });
             <!-- 实例附件只来自当前授权的最小元数据，下载再次调用独立鉴权入口。 -->
             <template
               v-if="
-                activeKey === 'started' &&
+                (targetSelected || activeKey === 'started') &&
                 canViewAttachments &&
                 instanceFiles.length > 0
               "

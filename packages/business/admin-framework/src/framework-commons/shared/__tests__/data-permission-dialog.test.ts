@@ -8,12 +8,16 @@ import DataPermissionDialog from '../data-permission-dialog.vue';
 const mocks = vi.hoisted(() => ({
   domainOptions: vi.fn().mockResolvedValue([]),
   get: vi.fn(),
+  platformUser: false,
   put: vi.fn(),
   superAdmin: true,
 }));
-vi.mock('@vben/runtime/stores', () => ({ useUserStore: () => ({ userInfo: {} }) }));
+vi.mock('@vben/runtime/stores', () => ({
+  useUserStore: () => ({ userInfo: {} }),
+}));
 vi.mock('../user-identity', () => ({
-  isPlatformUser: () => mocks.superAdmin,
+  isPlatformUser: () => mocks.superAdmin || mocks.platformUser,
+  isSuperAdminUser: () => mocks.superAdmin,
   isTenantAdminUser: () => mocks.superAdmin,
 }));
 vi.mock('../../runtime', () => ({
@@ -95,6 +99,7 @@ vi.mock('ant-design-vue', () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.platformUser = false;
   mocks.superAdmin = true;
   mocks.put.mockResolvedValue({});
 });
@@ -153,7 +158,9 @@ describe('数据权限列表管理', () => {
       const wrapper = await openDialog(subjectType);
       const editButtons = wrapper
         .findAll('button')
-        .filter((button) => button.attributes('aria-label')?.startsWith('编辑'));
+        .filter((button) =>
+          button.attributes('aria-label')?.startsWith('编辑'),
+        );
 
       expect(editButtons).toHaveLength(6);
       await editButtons[0]?.trigger('click');
@@ -211,6 +218,15 @@ describe('数据权限列表管理', () => {
     mocks.superAdmin = false;
     const wrapper = await openDialog('role');
     expect(wrapper.text()).not.toContain('租户');
+    wrapper.unmount();
+  });
+
+  it('平台普通用户可见租户范围但不能选择超级管理员专属规则', async () => {
+    mocks.platformUser = true;
+    mocks.superAdmin = false;
+    const wrapper = await openDialog('role');
+    expect(wrapper.text()).toContain('租户');
+    expect(wrapper.text()).not.toContain('Groovy 表达式');
     wrapper.unmount();
   });
 

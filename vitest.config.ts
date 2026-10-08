@@ -11,6 +11,8 @@ export default defineConfig({
       ...configDefaults.exclude,
       '**/e2e/**',
       '**/dist/**',
+      // 部署配置协议测试使用 Node 原生 test 运行器，避免 Vitest 改写 import.meta.url。
+      'scripts/deploy/*.test.mjs',
       '**/.{idea,git,cache,output,temp}/**',
       '**/node_modules/**',
       '**/{stylelint,eslint}.config.*',

@@ -1,11 +1,17 @@
+import type { AdminBackendRouteMapping } from '@levin/admin-framework';
+
 import {
   buildAdminPageOperations,
   getServiceMeta,
-  type AdminBackendRouteMapping,
 } from '@levin/admin-framework';
 
 import { oakBaseAdminCrudResources } from './admin-crud';
 import * as oakBaseApi from './api';
+import { pageMeta as notificationAuditPageMeta } from './views/notification-audit/config';
+import { pageMeta as supportMailboxRulePageMeta } from './views/support-mailbox-rule/config';
+import { pageMeta as ticketQueuePageMeta } from './views/ticket-queue/config';
+import { pageMeta as ticketPageMeta } from './views/ticket/config';
+import { pageMeta as workflowNotificationRoutePageMeta } from './views/workflow-notification-route/config';
 
 const MODULE_VIEW_PREFIX = '/system/com_levin_oak_base';
 const MODULE_SOURCE_PREFIX = 'modules/com_levin_oak_base/views';
@@ -16,10 +22,29 @@ interface PageMeta {
   title: string;
 }
 
-const pageMetaModules = import.meta.glob('./views/**/config.ts', {
-  eager: true,
-  import: 'pageMeta',
-}) as Record<string, PageMeta>;
+// 新业务页的元数据显式 eager 注册，服务运行期间新增文件也不会依赖旧 glob 缓存。
+// 源码与构建包分别使用 ts/mjs，索引键统一为同一个逻辑页面位置。
+const discoveredPageMeta = import.meta.glob(
+  ['./views/**/config.ts', './views/**/config.mjs'],
+  {
+    eager: true,
+    import: 'pageMeta',
+  },
+) as Record<string, PageMeta>;
+const pageMetaModules: Record<string, PageMeta> = {
+  ...Object.fromEntries(
+    Object.entries(discoveredPageMeta).map(([path, metadata]) => [
+      path.replace(/\.mjs$/, '.ts'),
+      metadata,
+    ]),
+  ),
+  './views/notification-audit/config.ts': notificationAuditPageMeta,
+  './views/support-mailbox-rule/config.ts': supportMailboxRulePageMeta,
+  './views/ticket-queue/config.ts': ticketQueuePageMeta,
+  './views/ticket/config.ts': ticketPageMeta,
+  './views/workflow-notification-route/config.ts':
+    workflowNotificationRoutePageMeta,
+};
 
 function getPageMeta(sourceFilePath: string): PageMeta {
   const relativePagePath = sourceFilePath
@@ -55,12 +80,25 @@ function toKebabCase(value: string) {
 }
 
 function getPageOperations(resource: string) {
+  if (resource === 'Ticket')
+    return buildAdminPageOperations(oakBaseApi.ticketService);
+  if (resource === 'TicketQueue')
+    return buildAdminPageOperations(oakBaseApi.ticketQueueService);
+  if (resource === 'SupportMailboxRule')
+    return buildAdminPageOperations(oakBaseApi.supportMailboxRuleService);
+  if (resource === 'NotificationAudit')
+    return buildAdminPageOperations(oakBaseApi.notificationAuditService);
   // 工作流宿主页组合两个明确控制器的操作；运行页复用公共服务但仍上传真实操作权限。
   if (resource === 'WorkflowDefinition') {
     return [
       ...buildAdminPageOperations(oakBaseApi.workflowDefinitionService),
-      ...buildAdminPageOperations(oakBaseApi.workflowDefinitionVersionService)
-        .map((operation) => operation.opName === 'create' ? { ...operation, opName: 'createVersion' } : operation),
+      ...buildAdminPageOperations(
+        oakBaseApi.workflowDefinitionVersionService,
+      ).map((operation) =>
+        operation.opName === 'create'
+          ? { ...operation, opName: 'createVersion' }
+          : operation,
+      ),
     ];
   }
   if (resource === 'WorkflowStart') {
@@ -71,11 +109,14 @@ function getPageOperations(resource: string) {
         ),
     );
   }
-  if (resource === 'MyWorkflow') return buildAdminPageOperations(oakBaseApi.workflowRuntimeService);
+  if (resource === 'MyWorkflow')
+    return buildAdminPageOperations(oakBaseApi.workflowRuntimeService);
   if (resource === 'WorkflowRequest') {
     return [
       ...buildAdminPageOperations(oakBaseApi.workflowRequestService),
-      ...buildAdminPageOperations(oakBaseApi.workflowRuntimeService).filter((operation) => ['start', 'retry'].includes(operation.opName)),
+      ...buildAdminPageOperations(oakBaseApi.workflowRuntimeService).filter(
+        (operation) => ['retry', 'start'].includes(operation.opName),
+      ),
     ];
   }
   const expectedBasePath = `/${resource}`;
@@ -101,7 +142,6 @@ function createCrudBackendRouteMapping(
   return {
     description: pageMeta.description,
     icon: item.icon,
-    ...(item.resource === 'WorkflowStart' ? {} : { name: pageMeta.name }),
     operations: getPageOperations(item.permissionResource || item.resource),
     // 个人消息由登录态和服务端精确受众校验；没有菜单时仍允许从通知铃铛进入。
     ...(item.resource === 'MyMessages'
@@ -118,9 +158,9 @@ function createCrudBackendRouteMapping(
 
 export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
   {
-    ...getPageMeta(
+    description: getPageMeta(
       `${MODULE_SOURCE_PREFIX}/named-scope-variable-acceptance/index.vue`,
-    ),
+    ).description,
     icon: 'lucide:scan-search',
     operations: [],
     onlyRequireAuthenticated: true,
@@ -133,7 +173,9 @@ export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
     viewPath: `${MODULE_VIEW_PREFIX}/named-scope-variable-acceptance/index.vue`,
   },
   {
-    ...getPageMeta(`${MODULE_SOURCE_PREFIX}/acl-test/index.vue`),
+    description: getPageMeta(`${MODULE_SOURCE_PREFIX}/acl-test/index.vue`)
+      .description,
+    title: getPageMeta(`${MODULE_SOURCE_PREFIX}/acl-test/index.vue`).title,
     icon: 'lucide:shield-check',
     operations: buildAdminPageOperations(oakBaseApi.aclTestService),
     onlyRequireAuthenticated: true,
@@ -146,7 +188,6 @@ export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
     description: getPageMeta(`${MODULE_SOURCE_PREFIX}/home/index.vue`)
       .description,
     icon: 'lucide:house',
-    name: getPageMeta(`${MODULE_SOURCE_PREFIX}/home/index.vue`).name,
     path: '/clob/V1/index',
     resource: 'AdminHome',
     sourceFilePath: `${MODULE_SOURCE_PREFIX}/home/index.vue`,
@@ -158,8 +199,6 @@ export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
       `${MODULE_SOURCE_PREFIX}/setting-for-tenant/index.vue`,
     ).description,
     icon: 'lucide:building',
-    name: getPageMeta(`${MODULE_SOURCE_PREFIX}/setting-for-tenant/index.vue`)
-      .name,
     path: '/clob/V1/SettingForTenant',
     resource: 'SettingForTenant',
     sourceFilePath: `${MODULE_SOURCE_PREFIX}/setting-for-tenant/index.vue`,
@@ -172,8 +211,6 @@ export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
       `${MODULE_SOURCE_PREFIX}/tenant-plugin-setting/index.vue`,
     ).description,
     icon: 'lucide:plug-zap',
-    name: getPageMeta(`${MODULE_SOURCE_PREFIX}/tenant-plugin-setting/index.vue`)
-      .name,
     path: '/clob/V1/TenantPluginSetting',
     resource: 'TenantPluginSetting',
     sourceFilePath: `${MODULE_SOURCE_PREFIX}/tenant-plugin-setting/index.vue`,

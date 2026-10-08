@@ -9,13 +9,18 @@ import {
 import { baseRequestClient, requestClient } from '../request';
 
 const mocks = vi.hoisted(() => ({
+  token: 'token',
   user: { superAdmin: false },
   get: vi.fn().mockResolvedValue({ items: [] }),
 }));
-vi.mock('@vben/runtime/hooks', () => ({ useAppConfig: () => ({ apiURL: '/api' }) }));
-vi.mock('@vben-core/foundation/preferences', () => ({ preferences: { app: {} } }));
+vi.mock('@vben/runtime/hooks', () => ({
+  useAppConfig: () => ({ apiURL: '/api' }),
+}));
+vi.mock('@vben-core/foundation/preferences', () => ({
+  preferences: { app: {} },
+}));
 vi.mock('@vben/runtime/stores', () => ({
-  useAccessStore: () => ({ accessToken: 'token' }),
+  useAccessStore: () => ({ accessToken: mocks.token }),
   useUserStore: () => ({ userInfo: mocks.user }),
 }));
 vi.mock('@vben/runtime/request', () => ({
@@ -44,6 +49,7 @@ const intercept = (config: any) =>
 
 describe('全局注入请求配置', () => {
   beforeEach(() => {
+    mocks.token = 'token';
     setGlobalUserOrgContextEnabled(true);
     mocks.user.superAdmin = false;
     mocks.get.mockClear();
@@ -55,6 +61,23 @@ describe('全局注入请求配置', () => {
     });
   });
 
+  it('登录页已签发令牌后只对匿名接口清除请求头', async () => {
+    window.history.replaceState({}, '', '/auth/login');
+    mocks.token = 'issued-token';
+    try {
+      const userInfo = await intercept({ url: '/Rbac/userInfo', headers: {} });
+      expect(userInfo.headers.Authorization).toBe('issued-token');
+
+      const challenge = await intercept({
+        url: '/Rbac/loginVerifyChallenge',
+        headers: { Authorization: 'old-token' },
+      });
+      expect(challenge.headers.Authorization).toBeUndefined();
+    } finally {
+      window.history.replaceState({}, '', '/');
+    }
+  });
+
   it('仅按所选组织或用户的唯一所属租户注入租户 Header', async () => {
     setCurrentGlobalUserOrgRecord({
       id: 'org-a',
@@ -62,12 +85,14 @@ describe('全局注入请求配置', () => {
       name: '组织A',
       tenantId: 'tenant-a',
     });
-    expect((await intercept({ headers: {} })).headers).toMatchObject({
+    const selected = await intercept({ headers: {} });
+    expect(selected.headers).toMatchObject({
       'X-Oak-Tenant-Id': 'tenant-a',
     });
 
     setCurrentGlobalUserOrgRecords([], false);
-    expect((await intercept({ headers: {} })).headers['X-Oak-Tenant-Id']).toBeUndefined();
+    const cleared = await intercept({ headers: {} });
+    expect(cleared.headers['X-Oak-Tenant-Id']).toBeUndefined();
 
     setCurrentGlobalUserOrgRecords(
       [
@@ -76,7 +101,8 @@ describe('全局注入请求配置', () => {
       ],
       true,
     );
-    expect((await intercept({ headers: {} })).headers['X-Oak-Tenant-Id']).toBeUndefined();
+    const mixed = await intercept({ headers: {} });
+    expect(mixed.headers['X-Oak-Tenant-Id']).toBeUndefined();
   });
 
   it('选择租户节点时只注入租户 Header', async () => {

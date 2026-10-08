@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useRoute } from 'vue-router';
+
+import { useUserStore } from '@vben/runtime/stores';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { WorkflowRuntimeWorkbench } from '@levin/bpm-runtime-ui';
-import { message } from 'ant-design-vue';
+import { Alert, message } from 'ant-design-vue';
 
 import { workflowRuntimeService } from '../../api/workflow-runtime-service';
 import WorkflowRequestDetail from '../workflow-request/detail.vue';
@@ -16,6 +19,49 @@ const detailComponents = {
   'workflow-expense': WorkflowExpenseDetail,
 };
 const { hasPermission } = useRbacAccess();
+const userStore = useUserStore();
+
+// 仅消费单个有界定位符，身份、租户和令牌始终取当前登录会话。
+const route = useRoute();
+function locator(value: unknown) {
+  return typeof value === 'string' && /^[A-Z0-9][\w.:-]{0,127}$/i.test(value)
+    ? value
+    : undefined;
+}
+const targetTaskId = computed(() =>
+  route.query.instanceId === undefined
+    ? locator(route.query.taskId)
+    : undefined,
+);
+const targetInstanceId = computed(() =>
+  route.query.taskId === undefined
+    ? locator(route.query.instanceId)
+    : undefined,
+);
+const invalidTarget = computed(
+  () =>
+    (route.query.taskId !== undefined ||
+      route.query.instanceId !== undefined) &&
+    !targetTaskId.value &&
+    !targetInstanceId.value,
+);
+// 邮件目标只要求当前登录；任务资格、实例参与和业务读取权限由详情接口核验。
+const canViewTargetTask = computed(
+  () =>
+    Boolean(userStore.userInfo?.id) &&
+    hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'task')),
+);
+const canViewTargetInstance = computed(
+  () =>
+    Boolean(userStore.userInfo?.id) &&
+    hasPermission(
+      buildApiMethodPermissions(workflowRuntimeService, 'instance'),
+    ),
+);
+const loadTargetTask = (taskId: string) => workflowRuntimeService.task(taskId);
+const loadTargetInstance = (instanceId: string) =>
+  workflowRuntimeService.instance(instanceId);
+
 // 每个列表只消费对应控制器方法的当前权限，菜单展示权不替代 API 授权。
 const canViewTodo = computed(() =>
   hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'todo')),
@@ -82,7 +128,19 @@ const loadCopyRecipients = (instanceId: string, keyword: string) =>
 </script>
 
 <template>
+  <Alert
+    v-if="invalidTarget"
+    class="mb-3"
+    type="warning"
+    message="邮件中的流程链接无效，请从工作流列表查找或联系发送方。"
+  />
   <WorkflowRuntimeWorkbench
+    :load-target-task="loadTargetTask"
+    :load-target-instance="loadTargetInstance"
+    :can-view-target-task="canViewTargetTask"
+    :can-view-target-instance="canViewTargetInstance"
+    :target-task-id="targetTaskId"
+    :target-instance-id="targetInstanceId"
     :detail-components="detailComponents"
     :service="workflowRuntimeService"
     :can-view-todo="canViewTodo"

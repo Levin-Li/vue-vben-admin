@@ -32,10 +32,16 @@ import { router } from './router';
 import { resetAccessStateForApplicationStart } from './store/user-access-session';
 import { registerTenantSiteAdminUiBaseSettingListener } from './tenant-site-admin-ui-base-setting';
 import { useAuthBrand } from './views/_core/authentication/auth-brand';
+import {
+  captureBindCallbackBeforeStartup,
+  stripBindCallbackQuery,
+} from './views/_core/profile/oauth-bind-callback';
 
 import './styles/antd-message.css';
 
 async function bootstrap(namespace: string) {
+  // 任何站点/用户初始化请求前清掉短期授权码，随后由已认证的个人中心一次性恢复。
+  const capturedBindCallback = captureBindCallbackBeforeStartup();
   setAdminFrameworkRuntime({
     ...getAdminApplicationServices(),
     requestClient,
@@ -118,6 +124,17 @@ async function bootstrap(namespace: string) {
     request: requestClient,
     router,
   });
+
+  // 路由可能缓存清理前的首个 URL；绑定恢复时等待稳定后同步剔除，保留业务路径和片段。
+  if (capturedBindCallback) {
+    await router.isReady();
+    const route = router.currentRoute.value;
+    await router.replace({
+      path: route.path,
+      query: stripBindCallbackQuery(route.query),
+      hash: route.hash,
+    });
+  }
 
   // 配置Motion插件
   const { MotionPlugin } = await import('@vben/runtime/plugins/motion');

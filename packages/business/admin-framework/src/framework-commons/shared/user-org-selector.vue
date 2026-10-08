@@ -422,8 +422,8 @@ async function handleLoadData(treeNode: Record<string, any>) {
       ...userNodes,
     ]);
     node.loadAttempted = true;
-    node.hasChildren = orgChildren.length > 0;
-    node.isLeaf = orgChildren.length === 0 && userNodes.length === 0;
+    node.hasChildren = node.children.length > 0;
+    node.isLeaf = node.children.length === 0;
     orgTreeData.value = [...orgTreeData.value];
     mergeSelectedRecords(userNodes);
     loadedOrgNodeKeys.value = new Set([key, ...loadedOrgNodeKeys.value]);

@@ -58,6 +58,7 @@ export * from './url-ex-acl-service';
 export * from './user-service';
 export * from './user-setting-service';
 export * from './ui-setting-service';
+export * from './user-message-service';
 
 export * from './audit-report-service';
 export * from './backend-fixed-job-service';
@@ -68,3 +69,12 @@ export * from './workflow-definition-version-service';
 export * from './workflow-expense-service';
 export * from './workflow-request-service';
 export * from './workflow-runtime-service';
+
+export * from './ticket-queue-service';
+export * from './support-mailbox-rule-service';
+export * from './notification-audit-service';
+export * from './support-workbench-types';
+
+export * from './ticket-service';
+
+export * from './workflow-notification-route-service';

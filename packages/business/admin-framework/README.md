@@ -54,3 +54,7 @@ configureAdminApplication({
 公共组件：[通用行为验证码组件](docs/behavior-captcha.md)，登录与 API 二次验证共用，包含操作指引、题面刷新和验证结果事件。
 
 业务应用公共启动入口及界面偏好加载见[管理端公共启动入口](docs/admin-bootstrap.md)。
+
+个人消息服务与可信工作流目标：[接入指南](docs/personal-message-integration.md)。
+
+企业 App 内网页授权及会话边界：[免登集成指南](docs/enterprise-inapp-login.md)。
