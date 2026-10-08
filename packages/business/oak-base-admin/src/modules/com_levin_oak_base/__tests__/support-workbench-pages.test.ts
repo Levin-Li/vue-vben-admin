@@ -84,6 +84,12 @@ vi.mock('../api/notification-audit-service', () => ({
   notificationAuditService: mocks.audit,
 }));
 vi.mock('../api/inbox-service', () => ({ inboxService: mocks.inbox }));
+vi.mock('../views/crud-page.vue', () => ({
+  default: {
+    props: ['config'],
+    template: '<main><slot name="toolbar-extra" /></main>',
+  },
+}));
 vi.mock('../api/user-service', () => ({ userService: { list: mocks.users } }));
 vi.mock('../api/role-service', () => ({ roleService: { list: mocks.roles } }));
 vi.mock('@vben/runtime/stores', () => ({

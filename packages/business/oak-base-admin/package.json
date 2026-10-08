@@ -1,6 +1,6 @@
 {
   "name": "@levin/oak-base-admin",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "description": "Levin Oak base admin frontend module.",
   "license": "MIT",
   "type": "module",

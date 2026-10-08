@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
 import type { InboxRecord } from '../../api/inbox-service';
@@ -7,24 +8,22 @@ import type { SupportScope } from '../../api/support-workbench-types';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Page } from '@vben/common-ui';
-
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import {
   Alert,
   Button,
   Descriptions,
-  Input,
   message,
   Modal,
   Select,
-  Table,
 } from 'ant-design-vue';
 
 import { inboxService } from '../../api/inbox-service';
 import { supportMailboxRuleService } from '../../api/support-mailbox-rule-service';
+import CrudPage from '../crud-page.vue';
 import SupportScopeSelector from '../support-scope-selector.vue';
+import { inboxPageCrudConfig } from './config';
 
 // 邮件正文与会话头只按授权详情读取，HTML 作为文本展示，不执行外部内容。
 const { hasPermission } = useRbacAccess();
@@ -32,12 +31,9 @@ const route = useRoute();
 const router = useRouter();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(inboxService, method));
+const selectedScopeRecord = ref<UserOrgSelectorRecord>();
 const scope = ref<SupportScope>();
-const rows = ref<InboxRecord[]>([]);
-const subject = ref('');
-const pageIndex = ref(1);
-const total = ref(0);
-const loading = ref(false);
+const scopeVersion = ref(0);
 const error = ref('');
 const detail = ref<InboxRecord>();
 const opened = ref(false);
@@ -53,39 +49,16 @@ const ruleOptions = ref<{ label: string; value: string }[]>([]);
 const canIntake = computed(
   () => allowed('intake') && Boolean(scope.value) && Boolean(detail.value),
 );
-const columns = [
-  { title: '主题', dataIndex: 'subject' },
-  { title: '发件人', dataIndex: 'fromEmail' },
-  { title: '收件人', dataIndex: 'recipientEmail' },
-  { title: '接收时间', dataIndex: 'receivedTime' },
-  { title: '解析状态', dataIndex: 'parseStatus' },
-  { title: '操作', key: 'actions' },
-];
-let listVersion = 0;
+// 标准 CRUD 负责只读查询、分页、详情及表格工具；选择组织后重建其查询状态。
+const pageConfig = computed<CrudPageConfig>(() => ({
+  ...inboxPageCrudConfig,
+  defaultQuery: {
+    ...inboxPageCrudConfig.defaultQuery,
+    ...scope.value,
+  },
+}));
+
 let detailVersion = 0;
-async function load(page = pageIndex.value) {
-  const current = ++listVersion;
-  rows.value = [];
-  error.value = '';
-  if (!allowed('list')) return;
-  loading.value = true;
-  try {
-    const result = await inboxService.list({
-      ...scope.value,
-      subject: subject.value || undefined,
-      pageIndex: page,
-      pageSize: 20,
-    });
-    if (current !== listVersion) return;
-    rows.value = result.items || [];
-    total.value = result.totals || 0;
-    pageIndex.value = page;
-  } catch {
-    if (current === listVersion) error.value = '收件箱不可访问，请重试';
-  } finally {
-    if (current === listVersion) loading.value = false;
-  }
-}
 async function open(id: string) {
   const current = ++detailVersion;
   detail.value = undefined;
@@ -106,6 +79,7 @@ async function open(id: string) {
   }
 }
 function changeScope(record?: UserOrgSelectorRecord) {
+  selectedScopeRecord.value = record;
   scope.value =
     record?.kind === 'org' && record.tenantId
       ? { tenantId: record.tenantId, orgId: record.id }
@@ -113,12 +87,20 @@ function changeScope(record?: UserOrgSelectorRecord) {
   detailVersion += 1;
   detail.value = undefined;
   opened.value = false;
+  mime.value = '';
   mimeOpen.value = false;
   intakeOpen.value = false;
-  total.value = 0;
-  void load(1);
+  error.value = '';
+  scopeVersion.value += 1;
 }
 async function loadDeepLink(value: unknown) {
+  // 定位参数变化先丢弃旧邮件内容，再按当前身份与组织范围重新授权读取。
+  detailVersion += 1;
+  detail.value = undefined;
+  opened.value = false;
+  mime.value = '';
+  mimeOpen.value = false;
+  error.value = '';
   if (value === undefined) return;
   if (typeof value !== 'string' || !/^[A-Z0-9][\w.:-]{0,63}$/i.test(value)) {
     error.value = '邮件定位参数无效';
@@ -209,147 +191,135 @@ async function intake() {
     pending.value = false;
   }
 }
-onMounted(async () => {
-  await load(1);
-  await loadDeepLink(route.query.id);
+onMounted(() => {
+  void loadDeepLink(route.query.id);
 });
-watch(() => route.query.id, loadDeepLink);
+watch(
+  () => route.query.id,
+  (id) => {
+    void loadDeepLink(id);
+  },
+);
 </script>
 <template>
-  <Page title="收件箱">
-    <div class="bg-card grid gap-4 rounded-lg p-4">
-      <SupportScopeSelector @change="changeScope" />
+  <CrudPage :key="scopeVersion" :config="pageConfig">
+    <template #toolbar-extra>
+      <SupportScopeSelector
+        :model-value="selectedScopeRecord"
+        @change="changeScope"
+      />
       <Alert v-if="error" type="error" :message="error" />
-      <div class="flex gap-2">
-        <Input
-          v-model:value="subject"
-          placeholder="主题精确查询"
-          :maxlength="512"
-        />
-        <Button v-if="allowed('list')" @click="load(1)">查询</Button>
+    </template>
+    <template #row-actions="{ record }">
+      <Button v-if="allowed('retrieve')" type="link" @click="open(record.id)">
+        原文与受理
+      </Button>
+    </template>
+  </CrudPage>
+
+  <Modal
+    v-model:open="opened"
+    :title="detail?.subject || '邮件详情'"
+    width="960px"
+    :footer="null"
+  >
+    <template v-if="detail">
+      <Descriptions :column="1">
+        <Descriptions.Item label="发件人">
+          {{ detail.fromEmail }}
+        </Descriptions.Item>
+        <Descriptions.Item label="收件人">
+          {{ detail.recipientEmail }}
+        </Descriptions.Item>
+        <Descriptions.Item label="Message-ID">
+          {{ detail.messageIdHeader || '-' }}
+        </Descriptions.Item>
+        <Descriptions.Item label="In-Reply-To">
+          {{ detail.inReplyToHeader || '-' }}
+        </Descriptions.Item>
+        <Descriptions.Item label="References">
+          {{ detail.referencesHeader || '-' }}
+        </Descriptions.Item>
+      </Descriptions>
+      <Alert
+        v-if="detail.processError"
+        type="warning"
+        :message="detail.processError"
+      />
+      <h3>邮件正文</h3>
+      <Button
+        v-if="detail.htmlContent"
+        @click="showHtmlSource = !showHtmlSource"
+      >
+        {{ showHtmlSource ? '显示纯文本' : '显示 HTML 源文本' }}
+      </Button>
+      <pre class="max-h-96 overflow-auto whitespace-pre-wrap">{{
+        (showHtmlSource ? detail.htmlContent : detail.textContent) ||
+        detail.textContent ||
+        detail.htmlContent ||
+        '暂无正文'
+      }}</pre>
+      <h3>私有附件</h3>
+      <div class="flex flex-wrap gap-2">
+        <Button
+          v-for="(id, index) in detail.attachmentFileIds || []"
+          :key="id"
+          :disabled="!allowed('download')"
+          :loading="pending"
+          @click="download(id)"
+        >
+          下载附件 {{ index + 1 }}
+        </Button>
       </div>
-      <Table
-        row-key="id"
-        :columns="columns"
-        :data-source="rows"
-        :loading="loading"
-        :pagination="{ current: pageIndex, pageSize: 20, total }"
-        @change="load($event.current)"
+      <div class="mt-4 flex gap-2">
+        <Button
+          v-if="detail.rawMimeFileId && allowed('download')"
+          :loading="pending"
+          @click="download(detail.rawMimeFileId, true)"
+        >
+          查看原始 MIME
+        </Button>
+        <Button
+          v-if="detail.rawMimeFileId && allowed('download')"
+          :loading="pending"
+          @click="download(detail.rawMimeFileId)"
+        >
+          下载原始 MIME
+        </Button>
+        <Button v-if="canIntake" @click="beginIntake">收件转工单</Button>
+      </div>
+    </template>
+  </Modal>
+  <Modal
+    v-model:open="mimeOpen"
+    title="原始 MIME 文本预览"
+    width="960px"
+    :footer="null"
+  >
+    <pre class="max-h-[70vh] overflow-auto whitespace-pre-wrap">{{ mime }}</pre>
+  </Modal>
+  <Modal
+    v-model:open="intakeOpen"
+    title="选择支持邮箱受理规则"
+    :confirm-loading="pending"
+    @ok="intake"
+  >
+    <Select
+      v-model:value="ruleId"
+      :options="ruleOptions"
+      class="w-full"
+      placeholder="匹配当前收件地址的启用规则"
+    />
+    <div class="mt-4 flex gap-2">
+      <Button :disabled="rulePage <= 1" @click="loadRules(rulePage - 1)">
+        上一页
+      </Button>
+      <Button
+        :disabled="rulePage * 20 >= ruleTotal"
+        @click="loadRules(rulePage + 1)"
       >
-        <template #bodyCell="{ column, record }">
-          <Button
-            v-if="column.key === 'actions' && allowed('retrieve')"
-            type="link"
-            @click="open(record.id)"
-          >
-            查看邮件
-          </Button>
-        </template>
-      </Table>
-      <Modal
-        v-model:open="opened"
-        :title="detail?.subject || '邮件详情'"
-        width="960px"
-        :footer="null"
-      >
-        <template v-if="detail">
-          <Descriptions :column="1">
-            <Descriptions.Item label="发件人">
-              {{ detail.fromEmail }}
-            </Descriptions.Item>
-            <Descriptions.Item label="收件人">
-              {{ detail.recipientEmail }}
-            </Descriptions.Item>
-            <Descriptions.Item label="Message-ID">
-              {{ detail.messageIdHeader || '-' }}
-            </Descriptions.Item>
-            <Descriptions.Item label="In-Reply-To">
-              {{ detail.inReplyToHeader || '-' }}
-            </Descriptions.Item>
-            <Descriptions.Item label="References">
-              {{ detail.referencesHeader || '-' }}
-            </Descriptions.Item>
-          </Descriptions>
-          <Alert
-            v-if="detail.processError"
-            type="warning"
-            :message="detail.processError"
-          />
-          <h3>邮件正文</h3>
-          <Button
-            v-if="detail.htmlContent"
-            @click="showHtmlSource = !showHtmlSource"
-          >
-            {{ showHtmlSource ? '显示纯文本' : '显示 HTML 源文本' }}
-          </Button>
-          <pre class="max-h-96 overflow-auto whitespace-pre-wrap">{{
-            detail.textContent || detail.htmlContent || '暂无正文'
-          }}</pre>
-          <h3>私有附件</h3>
-          <div class="flex flex-wrap gap-2">
-            <Button
-              v-for="(id, index) in detail.attachmentFileIds || []"
-              :key="id"
-              :disabled="!allowed('download')"
-              :loading="pending"
-              @click="download(id)"
-            >
-              下载附件 {{ index + 1 }}
-            </Button>
-          </div>
-          <div class="mt-4 flex gap-2">
-            <Button
-              v-if="detail.rawMimeFileId && allowed('download')"
-              :loading="pending"
-              @click="download(detail.rawMimeFileId, true)"
-            >
-              查看原始 MIME
-            </Button>
-            <Button
-              v-if="detail.rawMimeFileId && allowed('download')"
-              :loading="pending"
-              @click="download(detail.rawMimeFileId)"
-            >
-              下载原始 MIME
-            </Button>
-            <Button v-if="canIntake" @click="beginIntake">收件转工单</Button>
-          </div>
-        </template>
-      </Modal>
-      <Modal
-        v-model:open="mimeOpen"
-        title="原始 MIME 文本预览"
-        width="960px"
-        :footer="null"
-      >
-        <pre class="max-h-[70vh] overflow-auto whitespace-pre-wrap">{{
-          mime
-        }}</pre>
-      </Modal>
-      <Modal
-        v-model:open="intakeOpen"
-        title="选择支持邮箱受理规则"
-        :confirm-loading="pending"
-        @ok="intake"
-      >
-        <Select
-          v-model:value="ruleId"
-          :options="ruleOptions"
-          class="w-full"
-          placeholder="匹配当前收件地址的启用规则"
-        />
-        <div class="mt-4 flex gap-2">
-          <Button :disabled="rulePage <= 1" @click="loadRules(rulePage - 1)">
-            上一页
-          </Button>
-          <Button
-            :disabled="rulePage * 20 >= ruleTotal"
-            @click="loadRules(rulePage + 1)"
-          >
-            下一页
-          </Button>
-        </div>
-      </Modal>
+        下一页
+      </Button>
     </div>
-  </Page>
+  </Modal>
 </template>

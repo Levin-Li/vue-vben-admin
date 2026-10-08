@@ -29,6 +29,33 @@ vi.mock('../api/inbox-service', () => ({ inboxService: mocks.inbox }));
 vi.mock('../api/support-mailbox-rule-service', () => ({
   supportMailboxRuleService: mocks.rules,
 }));
+// 标准 CRUD 在公共包已有独立测试；这里保留真实页面对列表作用域和扩展动作的组合契约。
+vi.mock('../views/crud-page.vue', () => ({
+  default: {
+    name: 'CrudPageStub',
+    props: ['config'],
+    data: () => ({ rows: [] as Array<{ id: string }> }),
+    async mounted() {
+      const page = this as unknown as {
+        config: {
+          apiService: {
+            list: (params: Record<string, unknown>) => Promise<{
+              items?: Array<{ id: string }>;
+            }>;
+          };
+          defaultQuery: Record<string, unknown>;
+        };
+        rows: Array<{ id: string }>;
+      };
+      const result = await page.config.apiService.list(
+        page.config.defaultQuery,
+      );
+      page.rows = result.items || [];
+    },
+    template:
+      '<main><slot name="toolbar-extra" /><div v-for="record in rows" :key="record.id"><slot name="row-actions" :record="record" /></div></main>',
+  },
+}));
 vi.mock('@vben/common-ui', () => ({
   Page: { template: '<main><slot /></main>' },
 }));
@@ -47,7 +74,8 @@ vi.mock(
 vi.mock('../views/support-scope-selector.vue', () => ({
   default: {
     emits: ['change'],
-    template: `<div><button @click="$emit('change', { kind: 'org', id: 'org-a', tenantId: 'tenant-a' })">Scope A</button><button @click="$emit('change', { kind: 'org', id: 'org-b', tenantId: 'tenant-a' })">Scope B</button></div>`,
+    props: ['modelValue'],
+    template: `<div><span v-if="modelValue">Current {{ modelValue.id }}</span><button @click="$emit('change', { kind: 'org', id: 'org-a', tenantId: 'tenant-a' })">Scope A</button><button @click="$emit('change', { kind: 'org', id: 'org-b', tenantId: 'tenant-a' })">Scope B</button></div>`,
   },
 }));
 vi.mock('ant-design-vue', () => {
@@ -122,7 +150,7 @@ async function openMail() {
   await flushPromises();
   await button(wrapper, 'Scope A').trigger('click');
   await flushPromises();
-  await button(wrapper, '查看邮件').trigger('click');
+  await button(wrapper, '原文与受理').trigger('click');
   await flushPromises();
   return wrapper;
 }
@@ -159,6 +187,28 @@ describe('inbox positive component contracts', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it('uses the standard read-only CRUD list with the selected organization scope', async () => {
+    const wrapper = mount(InboxPage);
+    await flushPromises();
+    const config = wrapper
+      .getComponent({ name: 'CrudPageStub' })
+      .props('config');
+    expect(config).toMatchObject({
+      allowCreate: false,
+      allowDelete: false,
+      allowEdit: false,
+      allowRetrieve: true,
+    });
+    await button(wrapper, 'Scope A').trigger('click');
+    await flushPromises();
+    expect(mocks.inbox.list).toHaveBeenLastCalledWith({
+      pageIndex: 1,
+      pageSize: 20,
+      ...scope,
+    });
+    expect(wrapper.text()).toContain('Current org-a');
   });
 
   it('shows conversation headers and previews MIME through the authorized binary service without making a download URL', async () => {
