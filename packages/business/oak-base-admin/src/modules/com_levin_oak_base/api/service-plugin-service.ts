@@ -1,5 +1,10 @@
-import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
-import { RequestService } from '@levin/admin-framework';
+import {
+  CRUD,
+  RequestService,
+  ResAuthorize,
+  Service,
+} from '@levin/admin-framework';
+
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
@@ -106,6 +111,15 @@ export class ServicePluginService extends RequestService {
       ...options,
       params,
     });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '专家数据-服务插件',
+    action: '查询列表',
+  })
+  async providerSelectionModes(options?: any) {
+    return this.get('providerSelectionModes', options);
   }
 
   @ResAuthorize({

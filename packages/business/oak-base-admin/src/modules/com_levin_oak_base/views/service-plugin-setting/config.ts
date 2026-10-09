@@ -11,10 +11,11 @@ export const pageMeta = {
 
 export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/ServicePluginSetting',
+  createSubmitKeys: ['value'],
   domainObject: true,
   apiService: servicePluginSettingService,
   defaultFormValues: {
-    enable: true,
+    enable: false,
     orderCode: 1000,
     value: {},
   },

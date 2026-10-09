@@ -4,8 +4,24 @@ import { omitNonPlatformTenantId } from '@levin/admin-framework/framework-common
 export interface ProviderConfigurationRecord {
   id?: string;
   optimisticLock?: number;
+  servicePluginProviderCode?: string;
   tenantId?: null | string;
   value?: Record<string, unknown>;
+}
+
+// 新增设置只初始化自身供应商；更新基本信息时供应商编码保持不可变。
+export function prepareProviderSettingSubmit(
+  values: Record<string, unknown>,
+  editing: boolean,
+) {
+  if (editing) {
+    const { servicePluginProviderCode: _providerCode, ...editableValues } =
+      values;
+    return editableValues;
+  }
+  const providerCode = String(values.servicePluginProviderCode || '').trim();
+  if (!providerCode) throw new Error('请选择供应商');
+  return { ...values, value: { [providerCode]: {} } };
 }
 
 export function buildProviderConfigurationUpdate(
@@ -14,6 +30,9 @@ export function buildProviderConfigurationUpdate(
   configuration: unknown,
   platformActor: boolean,
 ) {
+  if (!providerCode || record.servicePluginProviderCode !== providerCode) {
+    throw new Error('供应商编码与当前设置记录不一致');
+  }
   return omitNonPlatformTenantId(
     {
       autoForceUpdateField: false,
@@ -21,7 +40,7 @@ export function buildProviderConfigurationUpdate(
       id: record.id,
       optimisticLock: record.optimisticLock,
       tenantId: record.tenantId,
-      value: { ...record.value, [providerCode]: configuration },
+      value: { [providerCode]: configuration },
     },
     platformActor,
   );

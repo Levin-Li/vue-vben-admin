@@ -46,11 +46,11 @@ describe('供应商申请引导', () => {
     expect(domainPageSource).toContain('rel="noopener noreferrer"');
   });
 
-  it('在租户插件配置弹窗展示同一份引导', () => {
+  it('在租户插件配置弹窗提供右侧 Markdown 指南', () => {
     expect(tenantPluginSettingSource).toContain('currentProviderGuidance');
     expect(tenantPluginSettingSource).toContain('<ProviderGuidance');
-    expect(sharedGuidanceSource).toContain('供应商申请与配置准备');
-    expect(sharedGuidanceSource).toContain('target="_blank"');
-    expect(sharedGuidanceSource).toContain('rel="noopener noreferrer"');
+    expect(sharedGuidanceSource).toContain('placement="right"');
+    expect(sharedGuidanceSource).toContain('renderSafeMarkdown');
+    expect(sharedGuidanceSource).toContain('配置指南');
   });
 });

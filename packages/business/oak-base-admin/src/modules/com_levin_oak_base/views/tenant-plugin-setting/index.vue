@@ -2,6 +2,7 @@
 import type { CSSProperties } from 'vue';
 
 import type { ProviderOnboardingGuidance } from '../provider-onboarding-guidance';
+import type { ProviderSelectionModes } from '../provider-selection-mode';
 import type { TenantSettingItem } from '../setting-for-tenant/setting-for-tenant';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -32,6 +33,15 @@ import { servicePluginService } from '../../api/service-plugin-service';
 import { servicePluginSettingService } from '../../api/service-plugin-setting-service';
 import { buildProviderConfigurationUpdate } from '../provider-configuration-update';
 import ProviderGuidance from '../provider-onboarding-guidance.vue';
+import {
+  describeProviderConfiguration,
+  getProviderSelectionMode,
+  parseProviderSelectionModesResponse,
+} from '../provider-selection-mode';
+import {
+  filterServiceProviderOption,
+  resolveServiceProviderName,
+} from '../service-provider-display-name';
 import {
   buildTenantSettingCategories,
   getSettingKey,
@@ -91,12 +101,15 @@ const editValueSubmitting = ref(false);
 const editValueReadonly = ref(false);
 const plugins = ref<ServicePluginRecord[]>([]);
 const pluginsLoading = ref(false);
+const providerSelectionModes = ref<ProviderSelectionModes>({});
+const modesReady = ref(false);
+const editValueProviderCode = ref<string>();
 const basicModalOpen = ref(false);
 const basicSubmitting = ref(false);
 const editingBasicItem = ref<TenantPluginSettingItem>();
 const basicFormState = reactive<Record<string, any>>({
   domain: '',
-  enable: true,
+  enable: false,
   orderCode: 1000,
   remark: '',
   servicePluginId: undefined,
@@ -124,6 +137,13 @@ const hasSettings = computed(() => settings.value.length > 0);
 const canCreate = computed(() => hasPermission(createPermission));
 const canUpdate = computed(() => hasPermission(updatePermission));
 const canDelete = computed(() => hasPermission(deletePermission));
+function getMode(pluginId?: string) {
+  return getProviderSelectionMode(providerSelectionModes.value, pluginId);
+}
+
+function isMultiChoice(item?: TenantPluginSettingItem) {
+  return getMode(item?.record.servicePluginId) === 'MULTI_CHOICE';
+}
 function getPluginOptionLabel(plugin: ServicePluginRecord) {
   const name = normalizeText(plugin.name) || normalizeText(plugin.id);
   const pluginTypeName = normalizeText(plugin.pluginTypeName);
@@ -144,7 +164,7 @@ const basicProviderOptions = computed(
       .find((plugin) => plugin.id === basicFormState.servicePluginId)
       ?.providerList?.filter((provider) => provider.code && !provider.disabled)
       .map((provider) => ({
-        label: provider.name || provider.code,
+        label: resolveServiceProviderName(provider),
         value: provider.code,
       })) || [],
 );
@@ -156,27 +176,19 @@ const basicProviderPlaceholder = computed(() => {
     ? '请选择供应商'
     : '暂无可选供应商，请先在服务插件管理中启用';
 });
-const currentProviderCode = computed(
-  () => editValueItem.value?.record.servicePluginProviderCode,
-);
+const currentProviderCode = computed(() => editValueProviderCode.value);
 const currentProviderGuidance = computed(
   () =>
     editValueItem.value &&
-    getProvider(editValueItem.value.record)?.onboardingGuidance,
+    getProvider(editValueItem.value.record, currentProviderCode.value)
+      ?.onboardingGuidance,
 );
-// 登录指导显示当前公开回调，通讯录指导保留独立权限步骤。
-const currentProviderIsOauth = computed(() => {
-  const plugin = editValueItem.value?.record.servicePlugin;
-  return (
-    plugin?.pluginTypeName === '第三方登录' ||
-    /oauth/i.test(`${plugin?.name || ''} ${plugin?.groupName || ''}`)
-  );
-});
 const editValueTitle = computed(() => {
   const item = editValueItem.value;
   const action = editValueReadonly.value ? '查看配置' : '编辑配置';
+  const provider = item && getProvider(item.record, currentProviderCode.value);
   return item
-    ? `${action} - ${item.servicePluginName} / ${item.providerName}`
+    ? `${action} - ${item.servicePluginName} / ${provider ? resolveServiceProviderName(provider) : item.providerName}`
     : action;
 });
 const editValueModalBodyStyle: CSSProperties = {
@@ -210,13 +222,16 @@ function cloneJsonValue(value: any) {
   if (value === undefined || value === null || value === '') {
     return {};
   }
+  // 配置表单可持有 Vue reactive proxy，按 JSON 请求语义克隆。
+  // eslint-disable-next-line unicorn/prefer-structured-clone
   return JSON.parse(JSON.stringify(value));
 }
 
-function getProvider(record: ServicePluginSettingRecord) {
-  return record.servicePlugin?.providerList?.find(
-    (item) => item.code === record.servicePluginProviderCode,
-  );
+function getProvider(
+  record: ServicePluginSettingRecord,
+  code = record.servicePluginProviderCode,
+) {
+  return record.servicePlugin?.providerList?.find((item) => item.code === code);
 }
 
 function getMatchingDomain(item: TenantPluginSettingItem) {
@@ -227,8 +242,8 @@ function toTenantPluginSettingItem(
   record: ServicePluginSettingRecord,
 ): TenantPluginSettingItem | undefined {
   const plugin = record.servicePlugin;
-  const provider = getProvider(record);
-  const providerCode = normalizeText(record.servicePluginProviderCode);
+  const providerCode = record.servicePluginProviderCode;
+  const provider = getProvider(record, providerCode);
 
   if (!record.id || !plugin || !providerCode || !provider) {
     return undefined;
@@ -236,7 +251,7 @@ function toTenantPluginSettingItem(
 
   const servicePluginName =
     normalizeText(plugin.name) || record.servicePluginId || '未命名插件';
-  const providerName = normalizeText(provider.name) || providerCode;
+  const providerName = resolveServiceProviderName(provider);
   return {
     categoryName: normalizeText(plugin.categoryName) || '服务插件',
     code: providerCode,
@@ -292,7 +307,9 @@ async function loadSettings() {
       pageSize: 2000,
     });
     settings.value = getListItems<ServicePluginSettingRecord>(result)
-      .map(toTenantPluginSettingItem)
+      .map((record) => toTenantPluginSettingItem(record))
+      // 保留 TS 的类型收窄；Boolean 本身不提供类型谓词。
+      // eslint-disable-next-line unicorn/prefer-native-coercion-functions
       .filter((item): item is TenantPluginSettingItem => Boolean(item));
     ensureActiveTabs();
   } catch (error) {
@@ -305,15 +322,20 @@ async function loadSettings() {
 
 async function loadPlugins() {
   pluginsLoading.value = true;
+  modesReady.value = false;
   try {
-    const result = await servicePluginService.list({
-      pageIndex: 1,
-      pageSize: 500,
-    });
+    const [result, modesResult] = await Promise.all([
+      servicePluginService.list({ pageIndex: 1, pageSize: 500 }),
+      servicePluginService.providerSelectionModes(),
+    ]);
     plugins.value = getListItems<ServicePluginRecord>(result);
+    providerSelectionModes.value =
+      parseProviderSelectionModesResponse(modesResult);
+    modesReady.value = true;
   } catch (error) {
     console.error(error);
-    message.error('服务插件列表加载失败');
+    providerSelectionModes.value = {};
+    message.error('服务插件或供应商选择模式加载失败，配置写入已禁用');
   } finally {
     pluginsLoading.value = false;
   }
@@ -327,10 +349,18 @@ function getProviderDisplayName(item: TenantPluginSettingItem) {
   return item.providerName || item.code || '-';
 }
 
+function getProviderConfigurationStatus(item: TenantPluginSettingItem) {
+  const providerCode = item.record.servicePluginProviderCode;
+  return describeProviderConfiguration(
+    Boolean(getProvider(item.record)?.disabled),
+    providerCode ? item.record.value?.[providerCode] : undefined,
+  );
+}
+
 function resetBasicForm() {
   Object.assign(basicFormState, {
     domain: '',
-    enable: true,
+    enable: false,
     orderCode: 1000,
     remark: '',
     servicePluginId: undefined,
@@ -339,7 +369,7 @@ function resetBasicForm() {
 }
 
 function openCreate() {
-  if (!canCreate.value || basicSubmitting.value) {
+  if (!canCreate.value || !modesReady.value || basicSubmitting.value) {
     return;
   }
   editingBasicItem.value = undefined;
@@ -348,7 +378,12 @@ function openCreate() {
 }
 
 function openBasicEditor(item: TenantPluginSettingItem) {
-  if (!canUpdate.value || basicSubmitting.value) {
+  if (
+    !canUpdate.value ||
+    !modesReady.value ||
+    !getMode(item.record.servicePluginId) ||
+    basicSubmitting.value
+  ) {
     return;
   }
   editingBasicItem.value = item;
@@ -378,6 +413,10 @@ async function saveBasicSetting() {
   const item = editingBasicItem.value;
   const servicePluginId = normalizeText(basicFormState.servicePluginId);
   const providerCode = normalizeText(basicFormState.servicePluginProviderCode);
+  if (!modesReady.value || !getMode(servicePluginId)) {
+    message.warning('供应商选择模式未加载，不能保存');
+    return;
+  }
   if (!item && (!servicePluginId || !providerCode)) {
     message.warning('请选择服务插件和供应商');
     return;
@@ -426,8 +465,28 @@ async function saveBasicSetting() {
 }
 
 async function updateEnable(item: TenantPluginSettingItem, enable: boolean) {
-  if (!item.id || !canUpdate.value || enableUpdatingIds[item.id]) {
+  if (
+    !item.id ||
+    !canUpdate.value ||
+    !modesReady.value ||
+    !getMode(item.record.servicePluginId) ||
+    enableUpdatingIds[item.id]
+  ) {
     return;
+  }
+  if (enable && getMode(item.record.servicePluginId) === 'SINGLE_ACTIVE') {
+    const alreadyEnabled = settings.value.some(
+      (other) =>
+        other.id !== item.id &&
+        other.record.servicePluginId === item.record.servicePluginId &&
+        other.record.tenantId === item.record.tenantId &&
+        normalizeText(other.domain) === normalizeText(item.domain) &&
+        other.enable !== false,
+    );
+    if (alreadyEnabled) {
+      message.warning('单选插件同一范围只能启用一家，请先停用已启用的供应商');
+      return;
+    }
   }
   enableUpdatingIds[item.id] = true;
   try {
@@ -449,7 +508,12 @@ async function updateEnable(item: TenantPluginSettingItem, enable: boolean) {
 }
 
 function deleteSetting(item: TenantPluginSettingItem) {
-  if (!item.id || !canDelete.value) {
+  if (
+    !item.id ||
+    !canDelete.value ||
+    !modesReady.value ||
+    !getMode(item.record.servicePluginId)
+  ) {
     return;
   }
   Modal.confirm({
@@ -473,6 +537,8 @@ function deleteSetting(item: TenantPluginSettingItem) {
 function openItemEditor(item: TenantPluginSettingItem) {
   if (
     !canUpdate.value ||
+    !modesReady.value ||
+    !getMode(item.record.servicePluginId) ||
     item.editable === false ||
     editValueSubmitting.value
   ) {
@@ -480,6 +546,7 @@ function openItemEditor(item: TenantPluginSettingItem) {
   }
   editValueReadonly.value = false;
   editValueItem.value = item;
+  editValueProviderCode.value = item.code || undefined;
   Object.assign(editValueFormState, {
     ...item,
     valueContent: cloneJsonValue(item.valueContent),
@@ -490,6 +557,7 @@ function openItemEditor(item: TenantPluginSettingItem) {
 function openItemPreview(item: TenantPluginSettingItem) {
   editValueReadonly.value = true;
   editValueItem.value = item;
+  editValueProviderCode.value = item.code || undefined;
   Object.assign(editValueFormState, {
     ...item,
     valueContent: cloneJsonValue(item.valueContent),
@@ -503,6 +571,8 @@ async function saveEditValue() {
   if (
     !item?.id ||
     !providerCode ||
+    !modesReady.value ||
+    !getMode(item.record.servicePluginId) ||
     !canUpdate.value ||
     item.editable === false ||
     editValueReadonly.value
@@ -534,8 +604,7 @@ async function saveEditValue() {
 watch(categories, ensureActiveTabs, { immediate: true });
 
 onMounted(() => {
-  void loadSettings();
-  void loadPlugins();
+  void loadPlugins().then(loadSettings);
 });
 </script>
 
@@ -549,7 +618,12 @@ onMounted(() => {
         class="bg-card flex flex-wrap items-center justify-start gap-3 rounded-lg px-4 py-3"
       >
         <div class="flex items-center gap-3">
-          <Button v-if="canCreate" type="primary" @click="openCreate">
+          <Button
+            v-if="canCreate"
+            :disabled="!modesReady"
+            type="primary"
+            @click="openCreate"
+          >
             <IconifyIcon class="size-4" icon="lucide:plus" />
             新增配置
           </Button>
@@ -622,12 +696,23 @@ onMounted(() => {
                         <div class="tenant-plugin-item-meta">
                           供应商编码：{{ item.code }}
                         </div>
+                        <div
+                          v-if="isMultiChoice(item as TenantPluginSettingItem)"
+                          class="tenant-plugin-item-meta"
+                        >
+                          {{
+                            getProviderConfigurationStatus(
+                              item as TenantPluginSettingItem,
+                            )
+                          }}
+                        </div>
                       </div>
                       <div class="tenant-plugin-item-header-actions">
                         <Switch
                           :checked="item.enable !== false"
                           :disabled="
                             !canUpdate ||
+                            !modesReady ||
                             Boolean(item.id && enableUpdatingIds[item.id])
                           "
                           :loading="
@@ -672,7 +757,7 @@ onMounted(() => {
                         查看
                       </Button>
                       <Button
-                        :disabled="!canUpdate || basicSubmitting"
+                        :disabled="!canUpdate || !modesReady || basicSubmitting"
                         @click="
                           openBasicEditor(item as TenantPluginSettingItem)
                         "
@@ -683,6 +768,7 @@ onMounted(() => {
                       <Button
                         :disabled="
                           !canUpdate ||
+                          !modesReady ||
                           item.editable === false ||
                           editValueSubmitting
                         "
@@ -733,6 +819,7 @@ onMounted(() => {
           <Select
             v-if="!editingBasicItem"
             :disabled="!basicFormState.servicePluginId"
+            :filter-option="filterServiceProviderOption"
             :options="basicProviderOptions"
             :value="basicFormState.servicePluginProviderCode"
             :placeholder="basicProviderPlaceholder"
@@ -745,6 +832,15 @@ onMounted(() => {
             disabled
           />
         </Form.Item>
+        <Alert
+          v-if="getMode(basicFormState.servicePluginId) === 'SINGLE_ACTIVE'"
+          message="单选插件可保存多家供应商设置，同一范围只能启用一家。"
+          show-icon
+          type="info"
+        />
+        <p v-if="!editingBasicItem" class="text-muted-foreground text-xs">
+          新增默认停用；请完成当前供应商配置后再启用。
+        </p>
         <Form.Item label="匹配域名" extra="留空表示匹配所有域名">
           <Input
             v-model:value="basicFormState.domain"
@@ -782,22 +878,44 @@ onMounted(() => {
       destroy-on-close
       :mask-closable="false"
       :ok-text="editValueReadonly ? undefined : '保存'"
-      :title="editValueTitle"
       :width="editValueModalWidth"
       @ok="saveEditValue"
     >
+      <!-- 租户设置与服务插件设置使用相同的 Markdown 指南入口。 -->
+      <template #title>
+        <div class="flex items-center justify-between gap-4 pr-8">
+          <span>{{ editValueTitle }}</span>
+          <ProviderGuidance
+            :guidance="currentProviderGuidance || undefined"
+            :provider-code="currentProviderCode"
+          />
+        </div>
+      </template>
       <div class="tenant-plugin-edit-form">
         <div class="text-foreground text-sm font-medium">
           匹配域名：{{ editValueItem ? getMatchingDomain(editValueItem) : '-' }}
         </div>
-        <!-- 租户和平台入口共享供应商配置指导。 -->
-        <ProviderGuidance
-          :configuration="editValueFormState.valueContent"
-          :guidance="currentProviderGuidance || undefined"
-          :login-provider="currentProviderIsOauth"
-          :provider-code="currentProviderCode"
-        />
+        <div v-if="isMultiChoice(editValueItem)" class="space-y-3">
+          <div class="flex items-center gap-2">
+            <Switch
+              v-model:checked="editValueFormState.valueContent.enable"
+              :disabled="
+                editValueReadonly ||
+                Boolean(
+                  getProvider(editValueItem!.record, currentProviderCode)
+                    ?.disabled,
+                )
+              "
+            />
+            <span>{{
+              getProvider(editValueItem!.record, currentProviderCode)?.disabled
+                ? '目录禁用：当前供应商不可运行'
+                : '启用当前供应商的登录与绑定'
+            }}</span>
+          </div>
+        </div>
         <SettingValueContentField
+          :key="`${editValueItem?.id}:${currentProviderCode}`"
           :disabled="editValueReadonly"
           :form-state="editValueFormState"
           inline

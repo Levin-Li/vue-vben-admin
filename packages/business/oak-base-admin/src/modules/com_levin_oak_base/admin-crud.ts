@@ -554,8 +554,6 @@ const menuGroups = [
     [
       'PayOrder',
       'PayChannel',
-      'CryptoPayOrder',
-      'CryptoSettlementEvent',
       'FundAccount',
       'FundAccountLog',
       'FundExchangeRule',
@@ -607,7 +605,6 @@ const menuGroups = [
       'AccessLog',
       'AuditReport',
       'BackendFixedJob',
-      'AiModelCallAudit',
       'TrafficControlRule',
       'UrlExAcl',
       'ScheduledTask',

@@ -4,18 +4,16 @@ import { buildProviderConfigurationUpdate } from '../../provider-configuration-u
 
 // 请求只携带记录真实范围，切换登录主体不会扩展租户权限。
 describe('供应商配置更新范围', () => {
-  const existing = {
-    FEISHU: { clientId: 'old' },
-    DINGTALK_V2: { enable: false },
-  };
+  const existing = { FEISHU: { clientId: 'old' } };
   const record = {
     id: 'setting-id',
     optimisticLock: 4,
+    servicePluginProviderCode: 'FEISHU',
     tenantId: 'tenant-a',
     value: existing,
   };
 
-  it('平台主体编辑租户记录时携带实际租户并保留其它供应商', () => {
+  it('平台主体编辑租户记录时携带实际租户且只更新本行供应商', () => {
     const update = buildProviderConfigurationUpdate(
       record,
       'FEISHU',
@@ -28,7 +26,7 @@ describe('供应商配置更新范围', () => {
       id: 'setting-id',
       optimisticLock: 4,
       tenantId: 'tenant-a',
-      value: { FEISHU: { clientId: 'new' }, DINGTALK_V2: { enable: false } },
+      value: { FEISHU: { clientId: 'new' } },
     });
     expect(record.value).toEqual(existing);
   });
@@ -43,7 +41,7 @@ describe('供应商配置更新范围', () => {
     expect(Object.hasOwn(update, 'tenantId')).toBe(false);
     expect(update.id).toBe('setting-id');
     expect(update.optimisticLock).toBe(4);
-    expect(update.value.DINGTALK_V2).toEqual(existing.DINGTALK_V2);
+    expect(update.value).toEqual({ FEISHU: {} });
   });
 
   it('平台主体编辑全局记录时保留实际空租户，不能借用当前租户', () => {
@@ -55,7 +53,7 @@ describe('供应商配置更新范围', () => {
     );
     expect(update.tenantId).toBeNull();
     const noTenant = buildProviderConfigurationUpdate(
-      { id: 'global-id' },
+      { id: 'global-id', servicePluginProviderCode: 'FEISHU' },
       'FEISHU',
       {},
       true,

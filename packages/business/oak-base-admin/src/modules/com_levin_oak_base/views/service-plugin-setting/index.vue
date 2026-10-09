@@ -1,18 +1,31 @@
 <script lang="ts" setup>
 import type { ProviderOnboardingGuidance } from '../provider-onboarding-guidance';
+import type { ProviderSelectionModes } from '../provider-selection-mode';
 
 import { computed, onMounted, reactive, ref } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
 import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
-import { Alert, Button, message, Modal, Select } from 'ant-design-vue';
+import { Button, message, Modal, Select, Switch } from 'ant-design-vue';
 
 import { servicePluginService } from '../../api/service-plugin-service';
 import { servicePluginSettingService } from '../../api/service-plugin-setting-service';
 import CrudPage from '../crud-page.vue';
-import { buildProviderConfigurationUpdate } from '../provider-configuration-update';
+import {
+  buildProviderConfigurationUpdate,
+  prepareProviderSettingSubmit,
+} from '../provider-configuration-update';
 import ProviderGuidance from '../provider-onboarding-guidance.vue';
+import {
+  describeProviderConfiguration,
+  getProviderSelectionMode,
+  parseProviderSelectionModesResponse,
+} from '../provider-selection-mode';
+import {
+  filterServiceProviderOption,
+  resolveServiceProviderName,
+} from '../service-provider-display-name';
 import SettingValueContentField from '../setting-value-content-field.vue';
 import { servicePluginSettingPageCrudConfig } from './config';
 import { filterServicePluginOption } from './plugin-option-search';
@@ -46,9 +59,12 @@ interface ServicePluginSettingRecord {
 
 const plugins = ref<ServicePluginRecord[]>([]);
 const pluginsLoading = ref(false);
+const providerSelectionModes = ref<ProviderSelectionModes>({});
+const modesReady = ref(false);
 const providerConfigOpen = ref(false);
 const providerConfigSaving = ref(false);
 const editingSetting = ref<ServicePluginSettingRecord>();
+const editingProviderCode = ref<string>();
 const providerConfigFormState = reactive<Record<string, any>>({
   editor: 'json',
   valueContent: {},
@@ -58,18 +74,6 @@ const reloadSettings = ref<(() => Promise<void> | void) | undefined>();
 
 function normalizeText(value: unknown) {
   return String(value ?? '').trim();
-}
-
-function isOauthPlugin(plugin?: ServicePluginRecord) {
-  const pluginTypeName = normalizeText(plugin?.pluginTypeName);
-  const groupName = normalizeText(plugin?.groupName);
-  const name = normalizeText(plugin?.name);
-
-  return (
-    pluginTypeName === '第三方登录' ||
-    groupName.includes('OAuth') ||
-    /oauth/i.test(name)
-  );
 }
 
 function getPluginOptionLabel(plugin: ServicePluginRecord) {
@@ -102,7 +106,7 @@ function getProviders(formState: Record<string, any>) {
 
 function getProviderOptions(formState: Record<string, any>) {
   return getProviders(formState).map((provider) => ({
-    label: provider.name || provider.code,
+    label: resolveServiceProviderName(provider),
     value: provider.code!,
   }));
 }
@@ -119,22 +123,50 @@ function getPluginName(record: ServicePluginSettingRecord) {
   return plugin?.name || record.servicePluginId || '-';
 }
 
+function getMode(pluginId?: string) {
+  return getProviderSelectionMode(providerSelectionModes.value, pluginId);
+}
+
+function isMultiChoice(record?: ServicePluginSettingRecord) {
+  return getMode(record?.servicePluginId) === 'MULTI_CHOICE';
+}
+
+const guardedCrudConfig = computed(() => ({
+  ...servicePluginSettingPageCrudConfig,
+  allowCreate: modesReady.value,
+  allowEdit: modesReady.value,
+  transformSubmit: (
+    values: Record<string, any>,
+    editingRecord: null | Record<string, any>,
+  ) => {
+    if (
+      !modesReady.value ||
+      !getMode(values.servicePluginId || editingRecord?.servicePluginId)
+    ) {
+      throw new Error('供应商选择模式未加载，无法保存插件设置');
+    }
+    return prepareProviderSettingSubmit(values, Boolean(editingRecord));
+  },
+}));
+
 function getProviderName(record: ServicePluginSettingRecord) {
   const plugin = getPlugin(record);
   const provider = plugin?.providerList?.find(
     (item) => item.code === record.servicePluginProviderCode,
   );
-  return provider?.name || record.servicePluginProviderCode || '-';
+  return provider
+    ? resolveServiceProviderName(provider)
+    : record.servicePluginProviderCode || '-';
 }
 
-function isSelectedProviderEnabled(record: ServicePluginSettingRecord) {
-  const plugin = getPlugin(record);
-  return Boolean(
-    plugin?.providerList?.some(
-      (provider) =>
-        provider.code === record.servicePluginProviderCode &&
-        !provider.disabled,
-    ),
+function getProviderConfigurationStatus(record: ServicePluginSettingRecord) {
+  const code = record.servicePluginProviderCode;
+  const provider = getPlugin(record)?.providerList?.find(
+    (item) => item.code === code,
+  );
+  return describeProviderConfiguration(
+    Boolean(provider?.disabled),
+    code ? record.value?.[code] : undefined,
   );
 }
 
@@ -145,35 +177,22 @@ const editingProvider = computed(() => {
   }
 
   return getPlugin(record)?.providerList?.find(
-    (provider) => provider.code === record.servicePluginProviderCode,
+    (provider) => provider.code === editingProviderCode.value,
   );
 });
-const editingOauthProvider = computed(() => {
-  const record = editingSetting.value;
-  return record ? isOauthPlugin(getPlugin(record)) : false;
-});
-
 const providerConfigTitle = computed(() => {
   const record = editingSetting.value;
   return record
-    ? `配置编辑 - ${getPluginName(record)} / ${getProviderName(record)}`
+    ? `配置编辑 - ${getPluginName(record)} / ${editingProvider.value ? resolveServiceProviderName(editingProvider.value) : editingProviderCode.value || '-'}`
     : '配置编辑';
 });
-const providerConfigHelpText = computed(() => {
-  const providerCode = normalizeText(
-    editingSetting.value?.servicePluginProviderCode,
-  );
-
-  return providerCode
-    ? `当前保存会写入同一条服务插件设置的 value.${providerCode}，不会覆盖其它供应商配置。`
-    : '当前保存只会更新所选供应商配置。';
-});
-
 function cloneJsonValue(value: any): Record<string, any> {
   if (value === undefined || value === null || value === '') {
     return {};
   }
 
+  // 配置表单可持有 Vue reactive proxy，按 JSON 请求语义克隆。
+  // eslint-disable-next-line unicorn/prefer-structured-clone
   return JSON.parse(JSON.stringify(value));
 }
 
@@ -181,17 +200,18 @@ function openProviderConfig(
   record: ServicePluginSettingRecord,
   reload?: () => Promise<void> | void,
 ) {
+  const mode = getMode(record.servicePluginId);
+  if (!modesReady.value || !mode) {
+    message.warning('供应商选择模式未加载，暂不能编辑配置');
+    return;
+  }
   const providerCode = record.servicePluginProviderCode;
   if (!providerCode) {
     message.warning('请先在设置中选择供应商');
     return;
   }
-  if (!isSelectedProviderEnabled(record)) {
-    message.warning('当前供应商已禁用，不能编辑配置');
-    return;
-  }
-
   editingSetting.value = record;
+  editingProviderCode.value = providerCode;
   providerConfigFormState.editor =
     editingProvider.value?.configEditor?.trim() || 'json';
   providerConfigFormState.id = `${record.id}:${providerCode}`;
@@ -205,9 +225,14 @@ function openProviderConfig(
 
 async function saveProviderConfig() {
   const record = editingSetting.value;
-  const providerCode = record?.servicePluginProviderCode;
+  const providerCode = editingProviderCode.value;
 
-  if (!record?.id || !providerCode) {
+  if (
+    !record?.id ||
+    !providerCode ||
+    !modesReady.value ||
+    !getMode(record.servicePluginId)
+  ) {
     return;
   }
 
@@ -246,16 +271,20 @@ function handlePluginChange(formState: Record<string, any>, pluginId?: string) {
 
 async function loadPlugins() {
   pluginsLoading.value = true;
+  modesReady.value = false;
   try {
-    const result = await servicePluginService.list({
-      enable: true,
-      pageIndex: 1,
-      pageSize: 500,
-    });
+    const [result, modesResult] = await Promise.all([
+      servicePluginService.list({ enable: true, pageIndex: 1, pageSize: 500 }),
+      servicePluginService.providerSelectionModes(),
+    ]);
     plugins.value = getListItems<ServicePluginRecord>(result);
+    providerSelectionModes.value =
+      parseProviderSelectionModesResponse(modesResult);
+    modesReady.value = true;
   } catch (error) {
     console.error(error);
-    message.error('加载服务插件失败');
+    providerSelectionModes.value = {};
+    message.error('加载服务插件或供应商选择模式失败，配置写入已禁用');
   } finally {
     pluginsLoading.value = false;
   }
@@ -268,7 +297,7 @@ onMounted(() => {
 
 <template>
   <div class="service-plugin-setting-page">
-    <CrudPage :config="servicePluginSettingPageCrudConfig">
+    <CrudPage :config="guardedCrudConfig">
       <template #search-field-servicePluginId="{ searchState }">
         <Select
           :filter-option="filterServicePluginOption"
@@ -311,6 +340,7 @@ onMounted(() => {
       <template #search-field-servicePluginProviderCode="{ searchState }">
         <Select
           :disabled="!searchState.servicePluginId"
+          :filter-option="filterServiceProviderOption"
           :options="getProviderOptions(searchState)"
           :value="searchState.servicePluginProviderCode"
           allow-clear
@@ -321,17 +351,29 @@ onMounted(() => {
         />
       </template>
 
-      <template #form-field-servicePluginProviderCode="{ formState }">
-        <Select
-          :disabled="!formState.servicePluginId"
-          :options="getProviderOptions(formState)"
-          :value="formState.servicePluginProviderCode"
-          allow-clear
-          class="w-full"
-          placeholder="请先选择服务插件"
-          show-search
-          @update:value="formState.servicePluginProviderCode = $event"
-        />
+      <template
+        #form-field-servicePluginProviderCode="{ editingRecord, formState }"
+      >
+        <div class="space-y-1">
+          <Select
+            :disabled="
+              Boolean(editingRecord?.id) ||
+              !modesReady ||
+              !formState.servicePluginId
+            "
+            :filter-option="filterServiceProviderOption"
+            :options="getProviderOptions(formState)"
+            :value="formState.servicePluginProviderCode"
+            allow-clear
+            class="w-full"
+            placeholder="请先选择服务插件"
+            show-search
+            @update:value="formState.servicePluginProviderCode = $event"
+          />
+          <p class="text-muted-foreground text-xs">
+            每个供应商单独创建一条设置；新增默认停用，完成配置后再启用。
+          </p>
+        </div>
       </template>
 
       <template #table-cell-servicePluginId="{ record }">
@@ -339,14 +381,18 @@ onMounted(() => {
       </template>
 
       <template #table-cell-servicePluginProviderCode="{ record }">
-        {{ getProviderName(record) }}
+        <div>{{ getProviderName(record) }}</div>
+        <div v-if="isMultiChoice(record)" class="text-muted-foreground text-xs">
+          {{ getProviderConfigurationStatus(record) }}
+        </div>
       </template>
 
       <template #row-actions="{ record, reload }">
         <Button
           :disabled="
-            !record.servicePluginProviderCode ||
-            !isSelectedProviderEnabled(record)
+            !modesReady ||
+            !getMode(record.servicePluginId) ||
+            !record.servicePluginProviderCode
           "
           size="small"
           type="link"
@@ -366,27 +412,37 @@ onMounted(() => {
     centered
     destroy-on-close
     ok-text="保存"
-    :title="providerConfigTitle"
     width="min(80vw, 1120px)"
     @ok="saveProviderConfig"
   >
-    <Alert
-      v-if="editingOauthProvider"
-      class="mb-4"
-      :description="providerConfigHelpText"
-      message="OAuth 当前供应商配置说明"
-      show-icon
-      type="info"
-    />
-    <!-- 当前供应商指导与回调地址随编辑配置联动。 -->
-    <ProviderGuidance
-      :configuration="providerConfigFormState.valueContent"
-      :guidance="editingProvider?.onboardingGuidance"
-      :login-provider="editingOauthProvider"
-      :provider-code="editingSetting?.servicePluginProviderCode"
-    />
+    <!-- 弹窗标题中的通用入口仅在供应商提供 Markdown 指南时显示。 -->
+    <template #title>
+      <div class="flex items-center justify-between gap-4 pr-8">
+        <span>{{ providerConfigTitle }}</span>
+        <ProviderGuidance
+          :guidance="editingProvider?.onboardingGuidance"
+          :provider-code="editingProviderCode"
+        />
+      </div>
+    </template>
+    <div v-if="isMultiChoice(editingSetting)" class="mb-4 space-y-3">
+      <div class="flex items-center gap-2">
+        <Switch
+          v-model:checked="providerConfigFormState.valueContent.enable"
+          :disabled="editingProvider?.disabled"
+        />
+        <span>{{
+          editingProvider?.disabled
+            ? '目录禁用：当前供应商不可运行'
+            : '启用当前供应商的登录与绑定'
+        }}</span>
+      </div>
+    </div>
+    <p v-else-if="editingSetting" class="mb-4 text-sm">
+      单选插件同一范围最多启用一个供应商设置。
+    </p>
     <SettingValueContentField
-      :key="`${editingSetting?.id}:${editingSetting?.servicePluginProviderCode}`"
+      :key="`${editingSetting?.id}:${editingProviderCode}`"
       inline
       :form-state="providerConfigFormState"
     />

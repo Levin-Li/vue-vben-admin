@@ -127,11 +127,11 @@ export function syncPackageDocuments(
     '@levin/bpm-runtime-ui':
       '[工作流执行界面使用指南](docs/工作流执行界面使用指南.md) 说明业务面板、办理轮次、节点动作、权限边界与最小验证。',
     '@levin/admin-framework':
-      '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)；业务应用公共启动入口及界面偏好加载见 [docs/admin-bootstrap.md](docs/admin-bootstrap.md)。\n\n个人消息服务与可信来源导航：[接入指南](docs/personal-message-integration.md)。',
+      '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)；业务应用公共启动入口及界面偏好加载见 [docs/admin-bootstrap.md](docs/admin-bootstrap.md)。\n\n个人消息服务与可信来源导航：[接入指南](docs/personal-message-integration.md)。\n\n公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。',
     '@vben/layouts':
       '顶部通知计数、来源导航与显式已读事件：[通知组件使用说明](docs/notification.md)。',
     '@levin/oak-base-admin':
-      '工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。\n\n邮件、个人消息、支持邮箱、工单与通知投递：[工作台使用指南](docs/communication-workbench.md)。',
+      '工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。\n\n邮件、个人消息、支持邮箱、工单与通知投递：[工作台使用指南](docs/communication-workbench.md)。\n\n服务插件的单选/多选供应商配置与 OAuth 登录、绑定入口见 [供应商选择模式接入指南](docs/provider-selection-modes.md)。',
   };
   const usageDocument =
     usageDocuments[manifest.name] ??

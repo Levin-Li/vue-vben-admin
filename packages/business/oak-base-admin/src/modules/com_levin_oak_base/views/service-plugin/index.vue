@@ -1,18 +1,26 @@
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import type { ProviderSelectionModes } from '../provider-selection-mode';
+
+import { computed, onMounted, ref } from 'vue';
 
 import {
+  Alert,
   Button,
   Input,
+  message,
   Modal,
   Switch,
   Table,
   Tooltip,
-  message,
 } from 'ant-design-vue';
 
-import CrudPage from '../crud-page.vue';
 import { servicePluginService } from '../../api/service-plugin-service';
+import CrudPage from '../crud-page.vue';
+import {
+  getProviderSelectionMode,
+  parseProviderSelectionModesResponse,
+} from '../provider-selection-mode';
+import { resolveServiceProviderName } from '../service-provider-display-name';
 import SettingValueContentField from '../setting-value-content-field.vue';
 import { servicePluginPageCrudConfig } from './config';
 
@@ -25,12 +33,12 @@ interface ServicePluginProvider {
 }
 
 interface ServicePluginRecord {
+  baseConfig?: Record<string, any>;
+  configEditor?: string;
   enable?: boolean;
   id?: string;
   name?: string;
   optimisticLock?: number;
-  baseConfig?: Record<string, any>;
-  configEditor?: string;
   pluginImplType?: string;
   pluginType?: string;
   providerList?: ServicePluginProvider[];
@@ -40,6 +48,8 @@ const providerListOpen = ref(false);
 const selectedPlugin = ref<ServicePluginRecord>();
 const editingProviders = ref<ServicePluginProvider[]>([]);
 const providerListSaving = ref(false);
+const providerSelectionModes = ref<ProviderSelectionModes>({});
+const modesReady = ref(false);
 const baseConfigOpen = ref(false);
 const baseConfigSaving = ref(false);
 const baseConfigPlugin = ref<ServicePluginRecord>();
@@ -52,6 +62,26 @@ const baseConfigFormState = ref<Record<string, any>>({
 const providerListTitle = computed(() => {
   const pluginName = selectedPlugin.value?.name;
   return pluginName ? `供应商列表 - ${pluginName}` : '供应商列表';
+});
+const selectedModeLabel = computed(() => {
+  const mode = getProviderSelectionMode(
+    providerSelectionModes.value,
+    selectedPlugin.value?.id,
+  );
+  if (mode === 'MULTI_CHOICE') return '多供应商可同时启用，由每次操作选择';
+  if (mode === 'SINGLE_ACTIVE') return '同一作用域只使用一个当前供应商';
+  return '模式目录未加载';
+});
+
+onMounted(async () => {
+  try {
+    const result = await servicePluginService.providerSelectionModes();
+    providerSelectionModes.value = parseProviderSelectionModesResponse(result);
+    modesReady.value = true;
+  } catch (error) {
+    console.error(error);
+    message.error('供应商选择模式加载失败，目录编辑已禁用');
+  }
 });
 
 const providerColumns = [
@@ -79,6 +109,8 @@ function cloneJsonValue(value: any): Record<string, any> {
   if (value === undefined || value === null || value === '') {
     return {};
   }
+  // 配置表单可持有 Vue reactive proxy，按 JSON 请求语义克隆。
+  // eslint-disable-next-line unicorn/prefer-structured-clone
   return JSON.parse(JSON.stringify(value));
 }
 
@@ -124,7 +156,12 @@ async function saveBaseConfig() {
 
 async function saveProviders() {
   const plugin = selectedPlugin.value;
-  if (!plugin?.id || providerListSaving.value) {
+  if (
+    !plugin?.id ||
+    !modesReady.value ||
+    !getProviderSelectionMode(providerSelectionModes.value, plugin.id) ||
+    providerListSaving.value
+  ) {
     return;
   }
 
@@ -174,7 +211,15 @@ async function saveProviders() {
       <Button size="small" type="link" @click="openBaseConfig(record)">
         基本配置
       </Button>
-      <Button size="small" type="link" @click="openProviderList(record)">
+      <Button
+        :disabled="
+          !modesReady ||
+          !getProviderSelectionMode(providerSelectionModes, record.id)
+        "
+        size="small"
+        type="link"
+        @click="openProviderList(record)"
+      >
         供应商
       </Button>
     </template>
@@ -189,6 +234,7 @@ async function saveProviders() {
     width="min(80vw, 1120px)"
     @ok="saveProviders"
   >
+    <Alert :message="selectedModeLabel" show-icon type="info" class="mb-3" />
     <Table
       :columns="providerColumns"
       :data-source="editingProviders"
@@ -199,7 +245,11 @@ async function saveProviders() {
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'name'">
-          <Input v-model:value="record.name" placeholder="请输入供应商名称" />
+          <Input
+            :value="resolveServiceProviderName(record)"
+            placeholder="请输入供应商名称"
+            @update:value="record.name = $event"
+          />
         </template>
         <template v-else-if="column.key === 'remark'">
           <Input v-model:value="record.remark" placeholder="请输入备注" />

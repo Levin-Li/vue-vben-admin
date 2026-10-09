@@ -42,6 +42,27 @@ describe('最终提交范围复核', () => {
     });
     expect(payload.hidden).toBe('补回');
   });
+  it('新增页仅保留显式指定的隐藏必需字段', () => {
+    const payload = {
+      value: { FEISHU: {} },
+      hidden: '不应提交',
+      servicePluginProviderCode: 'FEISHU',
+    };
+    expect(
+      omitExcludedCrudFields(
+        payload,
+        [
+          { key: 'value', label: '供应商配置' },
+          { key: 'hidden', label: '其它隐藏字段' },
+        ],
+        [],
+        ['value'],
+      ),
+    ).toEqual({
+      value: { FEISHU: {} },
+      servicePluginProviderCode: 'FEISHU',
+    });
+  });
   it('复杂映射只移除被排除子属性，不修改原值', () => {
     const payload = {
       secret: '扁平补回',

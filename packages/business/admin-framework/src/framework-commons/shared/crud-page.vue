@@ -47,6 +47,8 @@ import {
   CRUD_FORM_ELEMENT_REGISTRY_KEY,
   createCrudFormElementRegistry,
 } from './crud-form-elements';
+import { nestCrudFormBlocks } from './crud-form-block-tree';
+import CrudFormBlockTree from './crud-form-block-tree.vue';
 import { useRoute } from 'vue-router';
 
 import { Page, VCropper } from '@vben/common-ui';
@@ -121,6 +123,7 @@ import {
   getAreaCascaderValueFromRecord,
 } from './area-cascader';
 import CodeEditorField from './code-editor-field.vue';
+import RichTextEditorField from './rich-text-editor-field.vue';
 import {
   DEFAULT_CONTENT_MODAL_BODY_STYLE,
   DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
@@ -1437,20 +1440,15 @@ const displayedFormFields = computed(() =>
 const displayedFormBlocks = computed(() => {
   const blocks: Array<{
     complexGroupKey?: string;
-    depth: number;
     fields: CrudFieldConfig[];
   }> = [];
   const complexBlocks = new Map<
     string,
     {
       complexGroupKey?: string;
-      depth: number;
       fields: CrudFieldConfig[];
     }
   >();
-  const groupsByKey = new Map(
-    (props.config.complexGroups || []).map((group) => [group.key, group]),
-  );
 
   for (const field of displayedFormFields.value) {
     const existingBlock = field.complexGroupKey
@@ -1461,20 +1459,8 @@ const displayedFormBlocks = computed(() => {
       continue;
     }
 
-    let depth = 0;
-    let group = field.complexGroupKey
-      ? groupsByKey.get(field.complexGroupKey)
-      : undefined;
-    const ancestors = new Set<string>();
-    while (group?.parentKey && !ancestors.has(group.parentKey)) {
-      ancestors.add(group.parentKey);
-      depth++;
-      group = groupsByKey.get(group.parentKey);
-    }
-
     const block = {
       complexGroupKey: field.complexGroupKey,
-      depth,
       fields: [field],
     };
     blocks.push(block);
@@ -1483,7 +1469,7 @@ const displayedFormBlocks = computed(() => {
     }
   }
 
-  return blocks;
+  return nestCrudFormBlocks(blocks, props.config.complexGroups || []);
 });
 watch(quickFillActive, () => {
   quickFillMore.value = false;
@@ -5074,7 +5060,9 @@ async function handleSubmit() {
       omitNonPlatformTenantId(transformedPayload, isPlatformUser.value),
       excludedFields,
       props.config.complexGroups,
-      isCreating ? [] : [recordKey.value, 'optimisticLock'],
+      isCreating
+        ? (props.config.createSubmitKeys ?? [])
+        : [recordKey.value, 'optimisticLock'],
     );
 
     // 展示配置隐藏的新增默认字段仍是服务端契约的一部分，不能被白名单剔除。
@@ -6298,10 +6286,6 @@ function getCellDisplayText(field: CrudFieldConfig | undefined, value: any) {
 function getCodeEditorLanguage(field: CrudFieldConfig) {
   if (field.type === 'css') {
     return 'css';
-  }
-
-  if (field.type === 'html') {
-    return 'html';
   }
 
   return 'text';
@@ -8520,80 +8504,62 @@ watch(
           class="grid gap-x-4 gap-y-4"
           :style="formGridStyle"
         >
-          <div
-            v-for="(block, blockIndex) in displayedFormBlocks"
-            :key="`${block.complexGroupKey || 'field'}-${blockIndex}`"
-            :class="
-              block.complexGroupKey && !quickFillActive
-                ? 'border-border col-span-full overflow-hidden rounded-lg border'
-                : 'contents'
-            "
-            :style="
-              block.complexGroupKey && block.depth > 0 && !quickFillActive
-                ? { marginInlineStart: `${block.depth * 24}px` }
-                : undefined
-            "
+          <CrudFormBlockTree
+            :blocks="displayedFormBlocks"
+            :collapsed="complexGroupCollapsed"
+            :grid-template-columns="formGridStyle.gridTemplateColumns"
+            :quick-fill-active="quickFillActive"
           >
-            <div
-              v-if="block.complexGroupKey && !quickFillActive"
-              class="border-border flex cursor-pointer items-center gap-2 border-b px-4 py-3 text-sm font-semibold"
-              @click="
-                toggleComplexGroupFromHeader(block.complexGroupKey, $event)
-              "
-            >
-              <Checkbox
-                :checked="complexGroupEnabled[block.complexGroupKey]"
-                @update:checked="
-                  changeComplexGroupEnabled(block.complexGroupKey, $event)
+            <template #header="{ block }">
+              <div
+                class="border-border flex cursor-pointer items-center gap-2 border-b px-4 py-3 text-sm font-semibold"
+                @click="
+                  toggleComplexGroupFromHeader(block.complexGroupKey, $event)
                 "
               >
-                {{ getComplexGroupTitle(block.complexGroupKey) }}
-              </Checkbox>
-              <template v-if="!complexGroupEnabled[block.complexGroupKey]">
-                <span class="text-destructive text-xs">
-                  {{
-                    getComplexGroupDepth(block.complexGroupKey) > 0
-                      ? '当前未勾选将清除该部分信息'
-                      : '当前未勾选将不提交该部分信息'
-                  }}
-                </span>
-              </template>
-              <Button
-                class="vben-crud-complex-toggle ml-auto"
-                type="link"
-                size="small"
-                :aria-expanded="!complexGroupCollapsed[block.complexGroupKey]"
-                @click="toggleComplexGroup(block.complexGroupKey)"
-              >
-                <template #icon>
-                  <ChevronDown
-                    class="vben-crud-toggle-icon"
-                    :class="{
-                      'is-expanded':
-                        !complexGroupCollapsed[block.complexGroupKey],
-                    }"
-                    aria-hidden="true"
-                  />
+                <Checkbox
+                  :checked="complexGroupEnabled[block.complexGroupKey]"
+                  @update:checked="
+                    changeComplexGroupEnabled(block.complexGroupKey, $event)
+                  "
+                >
+                  {{ getComplexGroupTitle(block.complexGroupKey) }}
+                </Checkbox>
+                <template v-if="!complexGroupEnabled[block.complexGroupKey]">
+                  <span class="text-destructive text-xs">
+                    {{
+                      getComplexGroupDepth(block.complexGroupKey) > 0
+                        ? '当前未勾选将清除该部分信息'
+                        : '当前未勾选将不提交该部分信息'
+                    }}
+                  </span>
                 </template>
-                {{
-                  complexGroupCollapsed[block.complexGroupKey] ? '展开' : '收起'
-                }}
-              </Button>
-            </div>
-            <div
-              :class="
-                block.complexGroupKey && !quickFillActive
-                  ? complexGroupCollapsed[block.complexGroupKey]
-                    ? 'grid'
-                    : 'grid gap-x-4 gap-y-4 p-4'
-                  : 'contents'
-              "
-              :style="
-                block.complexGroupKey && !quickFillActive
-                  ? { gridTemplateColumns: formGridStyle.gridTemplateColumns }
-                  : undefined
-              "
-            >
+                <Button
+                  class="vben-crud-complex-toggle ml-auto"
+                  type="link"
+                  size="small"
+                  :aria-expanded="!complexGroupCollapsed[block.complexGroupKey]"
+                  @click="toggleComplexGroup(block.complexGroupKey)"
+                >
+                  <template #icon>
+                    <ChevronDown
+                      class="vben-crud-toggle-icon"
+                      :class="{
+                        'is-expanded':
+                          !complexGroupCollapsed[block.complexGroupKey],
+                      }"
+                      aria-hidden="true"
+                    />
+                  </template>
+                  {{
+                    complexGroupCollapsed[block.complexGroupKey]
+                      ? '展开'
+                      : '收起'
+                  }}
+                </Button>
+              </div>
+            </template>
+            <template #fields="{ block }">
               <template v-for="field in block.fields" :key="field.key">
                 <div
                   v-if="
@@ -8891,11 +8857,20 @@ watch(
                     :placeholder="getPlaceholder(field)"
                     :title="field.label"
                   />
+                  <RichTextEditorField
+                    v-else-if="field.type === 'html'"
+                    :model-value="
+                      getInteractionModelValue(
+                        formState[field.key],
+                        isFormFieldInteractionDisabled(field),
+                      )
+                    "
+                    @update:model-value="updateFormFieldInput(field, $event)"
+                    :disabled="isFormFieldInteractionDisabled(field)"
+                  />
                   <CodeEditorField
                     v-else-if="
-                      field.type === 'code' ||
-                      field.type === 'css' ||
-                      field.type === 'html'
+                      field.type === 'code' || field.type === 'css'
                     "
                     :model-value="
                       getInteractionModelValue(
@@ -9139,8 +9114,8 @@ watch(
                   />
                 </Form.Item>
               </template>
-            </div>
-          </div>
+            </template>
+          </CrudFormBlockTree>
         </div>
       </Form>
     </Modal>

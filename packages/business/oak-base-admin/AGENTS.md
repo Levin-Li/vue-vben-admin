@@ -7,5 +7,7 @@
 
 邮件、个人消息、支持邮箱、工单与通知投递：[工作台使用指南](docs/communication-workbench.md)。
 
+服务插件的单选/多选供应商配置与 OAuth 登录、绑定入口见 [供应商选择模式接入指南](docs/provider-selection-modes.md)。
+
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。
 </INSTRUCTIONS>

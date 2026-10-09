@@ -22,6 +22,28 @@ function flattenCrudRoutes(children: any[] | undefined): any[] {
 }
 
 describe('oak base admin routes', () => {
+  it('不注册没有独立前端页面的后台资源', () => {
+    const unsupported = [
+      'AiModelCallAudit',
+      'CryptoPayOrder',
+      'CryptoSettlementEvent',
+      'DataMigrationTask',
+      'TenantApp',
+      'WorkflowDefinitionVersion',
+      'WorkflowNotificationDelivery',
+      'WorkflowSimulationRun',
+    ];
+    const root = createOakBaseAdminModule().routes?.[0];
+    const routes = flattenCrudRoutes(root?.children);
+
+    for (const resource of unsupported) {
+      expect(oakBaseAdminCrudResources.some((item) => item.resource === resource)).toBe(false);
+      expect(oakBaseAdminResourceViewMap[resource]).toBeUndefined();
+      expect(routes.some((route) => route.path === `/clob/V1/${resource}`)).toBe(false);
+      expect(oakBaseAdminBackendRouteMappings.some((item) => item.path === `/clob/V1/${resource}`)).toBe(false);
+    }
+  });
+
   it('本人公告只读来源仅需登录，管理列表保留业务权限', () => {
     const source = getResAuthorizeMeta(noticeService.myDetail as Parameters<typeof getResAuthorizeMeta>[0]);
     const management = getResAuthorizeMeta(noticeService.list as Parameters<typeof getResAuthorizeMeta>[0]);

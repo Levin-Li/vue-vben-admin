@@ -467,9 +467,11 @@ export interface CrudPageConfig {
   allowDelete?: boolean;
   allowEdit?: boolean;
   allowRetrieve?: boolean;
+  complexGroups?: CrudComplexGroupConfig[];
   createPath?: CrudPathConfig;
   createPermission?: string | string[];
-  complexGroups?: CrudComplexGroupConfig[];
+  /** 新增时允许页面转换器补入的隐藏必需字段；未列出的隐藏字段仍被最终提交白名单排除。 */
+  createSubmitKeys?: string[];
   defaultFormValues?: Record<string, any>;
   defaultQuery?: Record<string, any>;
   deletePath?: string;
