@@ -6,9 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const currentUser = reactive({
   email: 'demo@example.com',
   mobile: '13800000000',
+  mustChangeInitialPassword: false,
 });
-const { getVerifyCodeApi, updateLoginInfoApi } = vi.hoisted(() => ({
+const {
+  completeInitialPasswordChangeApi,
+  getVerifyCodeApi,
+  logout,
+  updateLoginInfoApi,
+} = vi.hoisted(() => ({
+  completeInitialPasswordChangeApi: vi.fn(),
   getVerifyCodeApi: vi.fn(),
+  logout: vi.fn(),
   updateLoginInfoApi: vi.fn(),
 }));
 
@@ -16,9 +24,14 @@ vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({ userInfo: currentUser }),
 }));
 
-vi.mock('@levin/admin-framework/framework-commons/app/api', () => ({
+vi.mock('../../../../api', () => ({
+  completeInitialPasswordChangeApi,
   getVerifyCodeApi,
   updateLoginInfoApi,
+}));
+
+vi.mock('@levin/admin-framework/framework-commons/app/store', () => ({
+  useAuthStore: () => ({ logout }),
 }));
 
 vi.mock('../../authentication/login-verify-type', () => ({
@@ -27,8 +40,8 @@ vi.mock('../../authentication/login-verify-type', () => ({
 
 vi.mock('ant-design-vue', () => {
   const Input = defineComponent({
-    emits: ['update:value'],
     props: ['placeholder', 'value'],
+    emits: ['update:value'],
     template:
       '<input :placeholder="placeholder" :value="value" @input="$emit(\'update:value\', $event.target.value)" />',
   });
@@ -39,8 +52,8 @@ vi.mock('ant-design-vue', () => {
       template: '<div>{{ message }}</div>',
     }),
     Button: defineComponent({
-      emits: ['click'],
       props: ['disabled', 'loading'],
+      emits: ['click'],
       template:
         '<button :disabled="disabled || loading" type="button" @click="$emit(\'click\')"><slot /></button>',
     }),
@@ -84,7 +97,10 @@ describe('password-setting', () => {
   beforeEach(() => {
     currentUser.email = 'demo@example.com';
     currentUser.mobile = '13800000000';
+    currentUser.mustChangeInitialPassword = false;
+    completeInitialPasswordChangeApi.mockReset();
     getVerifyCodeApi.mockReset();
+    logout.mockReset();
     updateLoginInfoApi.mockReset();
   });
 
@@ -97,7 +113,8 @@ describe('password-setting', () => {
     vi.useFakeTimers();
     getVerifyCodeApi.mockResolvedValue({});
 
-    const PasswordSetting = (await import('../password-setting.vue')).default;
+    const passwordModule = await import('../password-setting.vue');
+    const PasswordSetting = passwordModule.default;
     const wrapper = mount(PasswordSetting);
     const findButton = (text: string) =>
       wrapper.findAll('button').find((button) => button.text() === text);
@@ -126,6 +143,43 @@ describe('password-setting', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(findButton('59s 后重试')).toBeTruthy();
 
+    wrapper.unmount();
+  });
+
+  it('forces the dedicated old-password flow and clears the session after success', async () => {
+    // 初始口令会话只能走专用接口，不能切换到短信或邮箱模式绕过后端门禁。
+    currentUser.mustChangeInitialPassword = true;
+    completeInitialPasswordChangeApi.mockResolvedValue(null);
+    logout.mockResolvedValue(undefined);
+    const passwordModule = await import('../password-setting.vue');
+    const PasswordSetting = passwordModule.default;
+    const wrapper = mount(PasswordSetting);
+
+    expect(wrapper.text()).toContain('请先修改密码');
+    expect(
+      wrapper
+        .findAll('button')
+        .some((button) => button.text() === '短信验证码修改'),
+    ).toBe(false);
+    await wrapper.find('input[placeholder="请输入原密码"]').setValue('123456');
+    await wrapper
+      .find('input[placeholder="请输入新密码"]')
+      .setValue('Strong-First-Password-2026!');
+    await wrapper
+      .find('input[placeholder="请再次输入新密码"]')
+      .setValue('Strong-First-Password-2026!');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '更新密码')
+      ?.trigger('click');
+    await flushPromises();
+
+    expect(completeInitialPasswordChangeApi).toHaveBeenCalledWith({
+      oldPwd: '123456',
+      newPwd: 'Strong-First-Password-2026!',
+    });
+    expect(updateLoginInfoApi).not.toHaveBeenCalled();
+    expect(logout).toHaveBeenCalledWith(false, false);
     wrapper.unmount();
   });
 });

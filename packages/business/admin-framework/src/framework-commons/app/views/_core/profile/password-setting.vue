@@ -3,22 +3,24 @@ import { computed, onUnmounted, reactive, ref } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
+import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 import {
   Alert,
   Button,
   Form,
   Input,
+  message,
   Space,
   Tabs,
   Typography,
-  message,
 } from 'ant-design-vue';
 
 import {
+  completeInitialPasswordChangeApi,
   getVerifyCodeApi,
   updateLoginInfoApi,
-} from '@levin/admin-framework/framework-commons/app/api';
-
+} from '../../../api';
+import { mustChangeInitialPassword } from '../../../initial-password';
 import { extractReturnedVerifyCode } from '../authentication/login-verify-type';
 
 type PasswordMode = 'email' | 'oldPwd' | 'sms';
@@ -26,6 +28,10 @@ type VerifyCodeType = 'Email' | 'Sms';
 const VERIFY_CODE_COOLDOWN_SECONDS = 60;
 
 const userStore = useUserStore();
+const authStore = useAuthStore();
+const initialPasswordRequired = computed(() =>
+  mustChangeInitialPassword(userStore.userInfo),
+);
 
 const mode = ref<PasswordMode>('oldPwd');
 const saving = ref(false);
@@ -172,6 +178,11 @@ function validateForm() {
     return false;
   }
 
+  if (initialPasswordRequired.value && form.newPwd.trim().length < 16) {
+    message.warning('首次修改密码至少需要16位');
+    return false;
+  }
+
   if (form.confirmPassword !== form.newPwd) {
     message.warning('两次输入的新密码不一致');
     return false;
@@ -224,6 +235,18 @@ async function handleSubmit() {
 
   try {
     saving.value = true;
+    if (initialPasswordRequired.value) {
+      // 服务端已撤销该账号全部会话；本机清理令牌后用新密码重新登录。
+      await completeInitialPasswordChangeApi({
+        oldPwd: form.oldPwd,
+        newPwd: form.newPwd.trim(),
+      });
+      message.success('初始密码修改成功，请使用新密码重新登录');
+      resetForm();
+      await authStore.logout(false, false);
+      return;
+    }
+
     const payload: Parameters<typeof updateLoginInfoApi>[0] = {
       newPwd: form.newPwd.trim(),
     };
@@ -245,13 +268,17 @@ async function handleSubmit() {
 
 onUnmounted(() => {
   // 离开个人中心后清理短信和邮箱倒计时，避免无效计时器遗留。
-  Array.from(cooldownTimers.keys()).forEach(clearVerifyCodeCooldown);
+  [...cooldownTimers.keys()].forEach((type) => clearVerifyCodeCooldown(type));
 });
 </script>
 
 <template>
   <div class="w-full max-w-3xl">
-    <Tabs v-model:active-key="mode" @change="resetModeFields">
+    <Tabs
+      v-if="!initialPasswordRequired"
+      v-model:active-key="mode"
+      @change="resetModeFields"
+    >
       <Tabs.TabPane key="oldPwd" tab="原密码修改" />
       <Tabs.TabPane key="sms" tab="短信验证码修改" />
       <Tabs.TabPane key="email" tab="邮箱验证码修改" />
@@ -260,13 +287,15 @@ onUnmounted(() => {
     <Alert
       class="mb-4"
       show-icon
-      type="info"
+      :type="initialPasswordRequired ? 'warning' : 'info'"
       :message="
-        mode === 'oldPwd'
-          ? '通过当前登录密码验证后修改密码。'
-          : mode === 'sms'
-            ? '通过当前绑定的手机号验证码验证后修改密码。'
-            : '通过当前绑定的邮箱验证码验证后修改密码。'
+        initialPasswordRequired
+          ? '当前账号使用公开初始密码，请先修改密码；完成前无法访问其它功能。'
+          : mode === 'oldPwd'
+            ? '通过当前登录密码验证后修改密码。'
+            : mode === 'sms'
+              ? '通过当前绑定的手机号验证码验证后修改密码。'
+              : '通过当前绑定的邮箱验证码验证后修改密码。'
       "
     />
 

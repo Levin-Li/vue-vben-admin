@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { Profile } from '@vben/common-ui';
 import { useUserStore } from '@vben/runtime/stores';
 
+import { mustChangeInitialPassword } from '../../../initial-password';
 import ProfileAvatarUpload from './avatar-upload.vue';
 import ProfileBase from './base-setting.vue';
 import ProfileNotificationSetting from './notification-setting.vue';
@@ -13,15 +15,24 @@ import ProfileSecuritySetting from './security-setting.vue';
 import ProfileSocialAccountSetting from './social-account-setting.vue';
 
 // 全局弹窗与独立个人页均在合法回调到达时挂载绑定面板。
-const props = defineProps<{ initialTab?: 'basic' | 'social-account' }>();
+const props = defineProps<{
+  initialTab?: 'basic' | 'password' | 'social-account';
+}>();
 
 const userStore = useUserStore();
-
-const tabsValue = ref<string>(
-  props.initialTab || (hasPendingBindCallback() ? 'social-account' : 'basic'),
+const route = useRoute();
+const initialPasswordRequired = computed(() =>
+  mustChangeInitialPassword(userStore.userInfo),
 );
 
-const tabs = ref([
+const tabsValue = ref<string>(
+  initialPasswordRequired.value || route.query.tab === 'password'
+    ? 'password'
+    : props.initialTab ||
+        (hasPendingBindCallback() ? 'social-account' : 'basic'),
+);
+
+const normalTabs = [
   {
     label: '基本设置',
     value: 'basic',
@@ -42,7 +53,12 @@ const tabs = ref([
     label: '新消息提醒',
     value: 'notice',
   },
-]);
+];
+const tabs = computed(() =>
+  initialPasswordRequired.value
+    ? normalTabs.filter((item) => item.value === 'password')
+    : normalTabs,
+);
 </script>
 <template>
   <Profile

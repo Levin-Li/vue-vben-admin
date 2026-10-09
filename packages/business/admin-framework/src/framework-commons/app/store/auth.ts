@@ -25,6 +25,10 @@ import { shouldRefreshAuthorizedPermissions } from '@levin/admin-framework/frame
 import { notification } from 'ant-design-vue';
 import { defineStore } from 'pinia';
 
+import {
+  INITIAL_PASSWORD_CHANGE_PATH,
+  mustChangeInitialPassword,
+} from '../initial-password';
 import { resolveLoginRedirect } from '../router/login-redirect';
 import { clearPreviousUserAccessState } from './user-access-session';
 
@@ -170,12 +174,24 @@ export const useAuthStore = defineStore('auth', () => {
     userStore.setUserInfo(null);
     accessStore.setAccessToken(accessToken);
 
-    const [userInfo, accessCodes] = await Promise.all([
-      fetchUserInfo(),
-      ensureAccessCodesLoaded(true),
-    ]);
-
+    // 先读取服务端首次改密状态；待改密会话不得请求权限和菜单。
+    const userInfo = await fetchUserInfo();
+    if (!userInfo) {
+      throw new Error('无法读取当前登录用户信息');
+    }
     userStore.setUserInfo(userInfo);
+    if (mustChangeInitialPassword(userInfo)) {
+      accessStore.setAccessCodes([]);
+      accessStore.setIsAccessChecked(false);
+      accessStore.setLoginExpired(false);
+      await router.replace({
+        path: INITIAL_PASSWORD_CHANGE_PATH,
+        query: { tab: 'password' },
+      });
+      return userInfo;
+    }
+
+    const accessCodes = await ensureAccessCodesLoaded(true);
     accessStore.setAccessCodes(accessCodes);
 
     // 用户信息和权限码到位后再次撤销路由检查状态，避免旧账号未完成的异步路由生成回写其结果。

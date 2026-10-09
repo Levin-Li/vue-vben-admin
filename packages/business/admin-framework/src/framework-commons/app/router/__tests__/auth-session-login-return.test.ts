@@ -11,7 +11,11 @@ const state = vi.hoisted(() => ({
   router: undefined as ReturnType<typeof createRouter> | undefined,
   accessToken: '',
   isAccessChecked: false,
-  userInfo: null as null | { homePath: string; roles: string[] },
+  userInfo: null as null | {
+    homePath: string;
+    mustChangeInitialPassword?: boolean;
+    roles: string[];
+  },
 }));
 vi.mock('vue-router', async () => ({
   ...(await vi.importActual('vue-router')),
@@ -19,15 +23,17 @@ vi.mock('vue-router', async () => ({
 }));
 vi.mock('../../router', () => ({ resetRoutes: vi.fn() }));
 const api = vi.hoisted(() => ({
+  accessCodes: vi.fn(),
   logout: vi.fn(),
   complete: vi.fn(),
+  userInfo: vi.fn(),
 }));
 vi.mock('@levin/admin-framework/framework-commons/app/api', () => ({
   logoutApi: api.logout,
   completePasswordLoginApi: api.complete,
   loginApi: vi.fn(),
-  getUserInfoApi: async () => ({ roles: [], homePath: '/index' }),
-  getAccessCodesApi: async () => [],
+  getUserInfoApi: api.userInfo,
+  getAccessCodesApi: api.accessCodes,
 }));
 vi.mock('@levin/admin-framework/framework-commons/app/locales', () => ({
   $t: (key: string) => key,
@@ -130,6 +136,7 @@ function buildRouter() {
     routes: [
       { name: 'Login', path: '/auth/login', component },
       { name: '_index', path: '/index', component },
+      { name: '_profile', path: '/profile', component },
       { name: 'FallbackNotFound', path: '/:pathMatch(.*)*', component },
     ],
   });
@@ -142,12 +149,36 @@ describe('工作流邮件链接普通登录回跳', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     api.logout.mockReset().mockResolvedValue(undefined);
+    api.userInfo
+      .mockReset()
+      .mockResolvedValue({ roles: [], homePath: '/index' });
+    api.accessCodes.mockReset().mockResolvedValue([]);
     api.complete
       .mockReset()
       .mockResolvedValue({ accessToken: 'current-login-token' });
     state.accessToken = '';
     state.isAccessChecked = false;
     state.userInfo = null;
+  });
+
+  it('routes a first-login account to password change without loading permissions', async () => {
+    // 后端用户信息是唯一状态来源；登录后和直接导航均不能进入业务路由。
+    const router = buildRouter();
+    api.userInfo.mockResolvedValue({
+      roles: [],
+      homePath: '/index',
+      mustChangeInitialPassword: true,
+    });
+    await router.push('/auth/login');
+    await useAuthStore().authLoginWithPasswordChallenge({
+      loginVerifyChallengeId: 'challenge',
+    });
+
+    expect(router.currentRoute.value.path).toBe('/profile');
+    expect(router.currentRoute.value.query.tab).toBe('password');
+    expect(api.accessCodes).not.toHaveBeenCalled();
+    await router.push('/index');
+    expect(router.currentRoute.value.path).toBe('/profile');
   });
 
   it.each([

@@ -1,11 +1,13 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/runtime/constants';
+
 import { preferences } from '@vben-core/foundation/preferences';
 
 import { $t } from '@levin/admin-framework/framework-commons/app/locales';
 import { resolveAdminPage } from '@levin/admin-framework/framework-commons/app/pages';
 
+import { toPathRouteName } from '../../../page-registry';
 import homeRoutes from './modules/home';
 import { resolveRootRedirectPath } from './root-redirect';
 
@@ -51,6 +53,17 @@ const coreRoutes: RouteRecordRaw[] = [
           requiresAccess: true,
         },
       })),
+      {
+        name: toPathRouteName('/profile'),
+        path: '/profile',
+        component: resolveAdminPage('/_core/profile/index.vue'),
+        meta: {
+          hideInMenu: true,
+          hideInTab: true,
+          requiresAccess: true,
+          title: '个人中心',
+        },
+      },
       {
         name: 'PublicComponentDemosDirect',
         path: '/demos/public-components',

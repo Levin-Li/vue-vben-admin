@@ -74,6 +74,7 @@ export namespace RbacApi {
     email?: string;
     id?: string;
     loginName?: string;
+    mustChangeInitialPassword?: boolean;
     name?: string;
     nickname?: string;
     roleList?: string[];
@@ -138,6 +139,11 @@ export namespace RbacApi {
     verifyCodeType?: 'Bio' | 'Captcha' | 'Email' | 'Hmi' | 'Mfa' | 'Sms';
   }
 
+  export interface CompleteInitialPasswordChangeParams {
+    newPwd: string;
+    oldPwd: string;
+  }
+
   export interface AuthorizedOrgListParams {
     assembleTree?: boolean;
     rootOrgIdList?: string[];
@@ -174,7 +180,6 @@ export namespace RbacApi {
   export interface AuthorizedControllerPathListParams {
     keyword?: string;
   }
-
 }
 
 type BackendUserInfo = RbacApi.BackendUserInfo;
@@ -240,6 +245,21 @@ export class RbacService extends RequestService {
       {
         params,
       },
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
+    action: '完成初始密码修改',
+    onlyRequireAuthenticated: true,
+  })
+  async completeInitialPasswordChange(
+    data: RbacApi.CompleteInitialPasswordChangeParams,
+  ) {
+    return requestClient.post<null>(
+      this.buildRequestPath('completeInitialPasswordChange'),
+      data,
     );
   }
 

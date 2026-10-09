@@ -1,7 +1,8 @@
-import type { RbacApi } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
+import type { RbacApi } from '../rbac-service';
 
-import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { baseRequestClient } from '@levin/admin-framework/framework-commons/app/api/request';
+
+import { rbacService } from '../rbac-service';
 
 export namespace AuthApi {
   export type LoginParams = RbacApi.LoginParams;
@@ -12,6 +13,8 @@ export namespace AuthApi {
     | string
     | { accessToken?: string; data?: string };
   export type UpdateLoginInfoParams = RbacApi.UpdateLoginInfoParams;
+  export type CompleteInitialPasswordChangeParams =
+    RbacApi.CompleteInitialPasswordChangeParams;
   export type VerifyCodeParams = RbacApi.VerifyCodeParams;
   export type VerifyCodeResult = RbacApi.VerifyCodeResult;
 }
@@ -47,6 +50,12 @@ export async function getVerifyCodeApi(params: AuthApi.VerifyCodeParams) {
 
 export async function updateLoginInfoApi(data: AuthApi.UpdateLoginInfoParams) {
   return rbacService.updateLoginInfo(data);
+}
+
+export async function completeInitialPasswordChangeApi(
+  data: AuthApi.CompleteInitialPasswordChangeParams,
+) {
+  return rbacService.completeInitialPasswordChange(data);
 }
 
 export async function logoutApi() {

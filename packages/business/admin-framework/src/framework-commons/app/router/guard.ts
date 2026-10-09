@@ -19,6 +19,10 @@ import {
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 import { clearPreviousUserAccessState } from '@levin/admin-framework/framework-commons/app/store/user-access-session';
 
+import {
+  INITIAL_PASSWORD_CHANGE_PATH,
+  mustChangeInitialPassword,
+} from '../initial-password';
 import { generateAccess } from './access';
 import { resolveLoginRedirect } from './login-redirect';
 import { keepSessionWithoutMenus } from './menu-load-failure';
@@ -76,6 +80,16 @@ function setupAccessGuard(router: Router, resetRoutes: () => void) {
           { clearCredentials: false },
         );
         userStore.setUserInfo(null);
+      } else if (
+        accessStore.accessToken &&
+        mustChangeInitialPassword(userStore.userInfo)
+      ) {
+        // 已确认待改密时，核心演示路由也不得让用户离开改密页。
+        return {
+          path: INITIAL_PASSWORD_CHANGE_PATH,
+          query: { tab: 'password' },
+          replace: true,
+        };
       }
 
       return true;
@@ -104,17 +118,28 @@ function setupAccessGuard(router: Router, resetRoutes: () => void) {
       return to;
     }
 
-    // 是否已经生成过动态路由
-    if (accessStore.isAccessChecked) {
-      return true;
-    }
-
     try {
+      // 首先读取服务端首次改密事实；待改密会话不能进入权限/菜单请求。
+      const userInfo = userStore.userInfo || (await authStore.fetchUserInfo());
+      if (mustChangeInitialPassword(userInfo)) {
+        return to.path === INITIAL_PASSWORD_CHANGE_PATH &&
+          to.query.tab === 'password'
+          ? true
+          : {
+              path: INITIAL_PASSWORD_CHANGE_PATH,
+              query: { tab: 'password' },
+              replace: true,
+            };
+      }
+
+      // 正常账号沿用既有访问码与动态路由加载流程。
+      if (accessStore.isAccessChecked) {
+        return true;
+      }
       await authStore.ensureAccessCodesLoaded();
 
       // 生成路由表
       // 当前登录用户拥有的角色标识列表
-      const userInfo = userStore.userInfo || (await authStore.fetchUserInfo());
       const userRoles = userInfo.roles ?? [];
 
       // 生成菜单和路由
