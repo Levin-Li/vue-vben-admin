@@ -127,7 +127,7 @@ export function syncPackageDocuments(
     '@levin/bpm-runtime-ui':
       '[工作流执行界面使用指南](docs/工作流执行界面使用指南.md) 说明业务面板、办理轮次、节点动作、权限边界与最小验证。',
     '@levin/admin-framework':
-      '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)；业务应用公共启动入口及界面偏好加载见 [docs/admin-bootstrap.md](docs/admin-bootstrap.md)。\n\n个人消息服务与可信来源导航：[接入指南](docs/personal-message-integration.md)。\n\n公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。',
+      '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)；业务应用公共启动入口及界面偏好加载见 [docs/admin-bootstrap.md](docs/admin-bootstrap.md)。\n\n个人消息服务与可信来源导航：[接入指南](docs/personal-message-integration.md)。\n\n公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。\n\n紧凑列表的表头固定列图标与临时收展见 [紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。',
     '@vben/layouts':
       '顶部通知计数、来源导航与显式已读事件：[通知组件使用说明](docs/notification.md)。',
     '@levin/oak-base-admin':
