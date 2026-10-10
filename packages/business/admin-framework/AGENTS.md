@@ -7,7 +7,7 @@
 
 个人消息服务与可信来源导航：[接入指南](docs/personal-message-integration.md)。
 
-默认管理员仍使用公开初始密码时的弹窗引导与强制改密：[接入指南](docs/initial-password-change.md)。
+默认管理员强制改密：[接入指南](docs/initial-password-change.md)。
 
 公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。
 

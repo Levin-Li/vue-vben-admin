@@ -86,6 +86,7 @@ describe('published reference documents', () => {
   });
   it.each([
     ['@levin/admin-framework', 'personal-message-integration.md'],
+    ['@levin/admin-framework', 'initial-password-change.md'],
     ['@levin/oak-base-admin', 'communication-workbench.md'],
     ['@vben/layouts', 'notification.md'],
   ])('构建重新同步后%s仍直接索引其功能使用指南', (name, guide) => {
