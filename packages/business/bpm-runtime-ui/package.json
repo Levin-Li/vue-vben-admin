@@ -1,6 +1,6 @@
 {
   "name": "@levin/bpm-runtime-ui",
-  "version": "6.0.5",
+  "version": "6.0.6",
   "description": "Levin workflow runtime and approval UI package.",
   "license": "MIT",
   "type": "module",
@@ -38,8 +38,8 @@
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": "6.0.5",
-    "@levin/bpm-designer": "6.0.5",
+    "@levin/admin-framework": "6.0.6",
+    "@levin/bpm-designer": "6.0.6",
     "ant-design-vue": ">=4.0.0",
     "vue": ">=3.5.0"
   },
