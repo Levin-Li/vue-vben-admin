@@ -12,11 +12,13 @@ const {
   completeInitialPasswordChangeApi,
   getVerifyCodeApi,
   logout,
+  modalConfirm,
   updateLoginInfoApi,
 } = vi.hoisted(() => ({
   completeInitialPasswordChangeApi: vi.fn(),
   getVerifyCodeApi: vi.fn(),
   logout: vi.fn(),
+  modalConfirm: vi.fn(),
   updateLoginInfoApi: vi.fn(),
 }));
 
@@ -67,6 +69,7 @@ vi.mock('ant-design-vue', () => {
       },
     ),
     Input: Object.assign(Input, { Password: Input }),
+    Modal: { confirm: modalConfirm },
     Space: Object.assign(defineComponent({ template: '<div><slot /></div>' }), {
       Compact: defineComponent({ template: '<div><slot /></div>' }),
     }),
@@ -101,6 +104,7 @@ describe('password-setting', () => {
     completeInitialPasswordChangeApi.mockReset();
     getVerifyCodeApi.mockReset();
     logout.mockReset();
+    modalConfirm.mockReset();
     updateLoginInfoApi.mockReset();
   });
 
@@ -116,6 +120,7 @@ describe('password-setting', () => {
     const passwordModule = await import('../password-setting.vue');
     const PasswordSetting = passwordModule.default;
     const wrapper = mount(PasswordSetting);
+    expect(modalConfirm).not.toHaveBeenCalled();
     const findButton = (text: string) =>
       wrapper.findAll('button').find((button) => button.text() === text);
 
@@ -156,6 +161,16 @@ describe('password-setting', () => {
     const wrapper = mount(PasswordSetting);
 
     expect(wrapper.text()).toContain('请先修改密码');
+    expect(modalConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        closable: false,
+        content: '密码过于简单，必须修改密码才能继续使用',
+        keyboard: false,
+        maskClosable: false,
+        okCancel: false,
+        okText: '立即修改',
+      }),
+    );
     expect(
       wrapper
         .findAll('button')

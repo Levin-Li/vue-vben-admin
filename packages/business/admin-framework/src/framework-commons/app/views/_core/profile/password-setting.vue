@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
@@ -10,6 +10,7 @@ import {
   Form,
   Input,
   message,
+  Modal,
   Space,
   Tabs,
   Typography,
@@ -32,6 +33,7 @@ const authStore = useAuthStore();
 const initialPasswordRequired = computed(() =>
   mustChangeInitialPassword(userStore.userInfo),
 );
+let initialPasswordDialog: ReturnType<typeof Modal.confirm> | undefined;
 
 const mode = ref<PasswordMode>('oldPwd');
 const saving = ref(false);
@@ -261,7 +263,23 @@ async function handleSubmit() {
   }
 }
 
+onMounted(() => {
+  // 仅对服务端标记的初始密码会话提示；确认提示不会解除改密门禁。
+  if (initialPasswordRequired.value) {
+    initialPasswordDialog = Modal.confirm({
+      closable: false,
+      content: '密码过于简单，必须修改密码才能继续使用',
+      keyboard: false,
+      maskClosable: false,
+      okCancel: false,
+      okText: '立即修改',
+      title: '密码安全提示',
+    });
+  }
+});
+
 onUnmounted(() => {
+  initialPasswordDialog?.destroy();
   // 离开个人中心后清理短信和邮箱倒计时，避免无效计时器遗留。
   [...cooldownTimers.keys()].forEach((type) => clearVerifyCodeCooldown(type));
 });
