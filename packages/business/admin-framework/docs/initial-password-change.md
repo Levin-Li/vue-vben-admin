@@ -2,7 +2,7 @@
 
 管理端首次登录后先调用 `RbacController.userInfo`。当响应的 `mustChangeInitialPassword` 为 `true` 时，框架跳过权限与菜单加载，进入 `/profile?tab=password`；即使用户刷新或直接输入业务 URL，也会返回改密页。该页只提供原密码改密方式，不显示短信或邮箱改密选项。
 
-提交时调用 `POST /com.levin.oak.base/V1/api/rbac/completeInitialPasswordChange`，请求体只有 `oldPwd` 和 `newPwd`。新密码至少 16 字符，须包含大写字母、小写字母和数字。成功后服务端撤销该账号全部设备令牌，浏览器清除当前令牌并要求重新登录。失败时保留表单，不能将失败当作已解除门禁。
+提交时调用 `POST /com.levin.oak.base/V1/api/rbac/completeInitialPasswordChange`，请求体只有 `oldPwd` 和 `newPwd`。新密码遵循个人中心普通改密规则：至少 6 字符，包含大写字母、小写字母和数字。成功后服务端撤销该账号全部设备令牌，浏览器清除当前令牌并要求重新登录。失败时保留表单，不能将失败当作已解除门禁。
 
 页面只负责引导。服务端拦截器会拒绝待改密会话对业务 API、普通账号更新、权限和菜单接口的直接请求；下游应用不得依赖隐藏页面或路由守卫替代后端限制。`userInfo` 仅返回改密状态，不返回密码或摘要。生产环境固定初始口令 `123456` 的首登抢先风险仍存在，首次登录入口应由部署网络限制访问。
 

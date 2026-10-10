@@ -178,11 +178,6 @@ function validateForm() {
     return false;
   }
 
-  if (initialPasswordRequired.value && form.newPwd.trim().length < 16) {
-    message.warning('首次修改密码至少需要16位');
-    return false;
-  }
-
   if (form.confirmPassword !== form.newPwd) {
     message.warning('两次输入的新密码不一致');
     return false;

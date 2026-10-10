@@ -162,12 +162,10 @@ describe('password-setting', () => {
         .some((button) => button.text() === '短信验证码修改'),
     ).toBe(false);
     await wrapper.find('input[placeholder="请输入原密码"]').setValue('123456');
-    await wrapper
-      .find('input[placeholder="请输入新密码"]')
-      .setValue('Strong-First-Password-2026!');
+    await wrapper.find('input[placeholder="请输入新密码"]').setValue('Aa1234');
     await wrapper
       .find('input[placeholder="请再次输入新密码"]')
-      .setValue('Strong-First-Password-2026!');
+      .setValue('Aa1234');
     await wrapper
       .findAll('button')
       .find((button) => button.text() === '更新密码')
@@ -176,7 +174,7 @@ describe('password-setting', () => {
 
     expect(completeInitialPasswordChangeApi).toHaveBeenCalledWith({
       oldPwd: '123456',
-      newPwd: 'Strong-First-Password-2026!',
+      newPwd: 'Aa1234',
     });
     expect(updateLoginInfoApi).not.toHaveBeenCalled();
     expect(logout).toHaveBeenCalledWith(false, false);
