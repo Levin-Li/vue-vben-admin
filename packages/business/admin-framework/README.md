@@ -40,6 +40,7 @@ configureAdminApplication({
 组件专用文档位于包根 `docs/components/`，例如 [UserOrgSelector 用户与组织选择器](docs/components/user-org-selector.md)。该目录随 npm tarball 发布，适合第三方项目直接阅读，无需依赖 `src` 或 `dist` 的构建布局。
 
 公共 CRUD 的复杂对象归属、页面展示设置和验证方法见[复杂对象分组使用指南](docs/complex-object-groups.md)。
+紧凑列表的表头固定列图标、临时状态和列配置入口见[紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。
 默认管理员首次登录后的强制改密接入与验证见[默认管理员首次改密指南](docs/initial-password-change.md)。
 新增时由页面生成的隐藏必需字段见[CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。
 HTML 字段与独立页面的安全富文本编辑接入见[公共富文本编辑器使用指南](docs/rich-text-editor.md)。

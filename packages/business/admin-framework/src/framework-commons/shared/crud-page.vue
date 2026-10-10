@@ -1746,6 +1746,40 @@ function toggleCompactFixedSide(side: Exclude<CompactTableExpandedSide, null>) {
     compactExpandedFixedSide.value === side ? null : side;
 }
 
+function renderCompactFixedHeaderToggle(
+  side: Exclude<CompactTableExpandedSide, null>,
+) {
+  const expanded = compactExpandedFixedSide.value === side;
+  const label = `${expanded ? '收起' : '展开'}${side === 'left' ? '左' : '右'}固定列`;
+
+  return h(
+    Tooltip,
+    { title: label },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': label,
+            'aria-pressed': expanded,
+            class: 'vben-crud-table-header-fixed-toggle',
+            'data-testid': `compact-${side}-fixed-toggle`,
+            size: 'small',
+            type: 'text',
+            onClick: (event: MouseEvent) => {
+              event.stopPropagation();
+              toggleCompactFixedSide(side);
+            },
+          },
+          {
+            default: () =>
+              h(IconifyIcon, { class: 'size-4', icon: 'lucide:pin' }),
+          },
+        ),
+    },
+  );
+}
+
 function isExportableField(field: CrudFieldConfig) {
   return (
     isFieldVisible(field) &&
@@ -2088,6 +2122,30 @@ const hasRightFixedGroup = computed(
 const showActionColumn = computed(() => hasConfiguredActionColumn.value);
 
 const tableColumns = computed<TableColumnsType>(() => {
+  const leftFixedHeaderKey =
+    isCompactTable.value && hasLeftFixedGroup.value
+      ? getTableFieldKey(
+          orderedVisibleTableFields.value.find(
+            (field) => getEffectiveTableColumnFixed(field) === 'left',
+          )!,
+        )
+      : undefined;
+  const rightFixedHeaderKey =
+    isCompactTable.value && hasRightFixedGroup.value && !showActionColumn.value
+      ? getTableFieldKey(
+          orderedVisibleTableFields.value.findLast(
+            (field) => getEffectiveTableColumnFixed(field) === 'right',
+          )!,
+        )
+      : undefined;
+  const renderFieldFixedToggle = (field: CrudFieldConfig) => {
+    const key = getTableFieldKey(field);
+    if (key === leftFixedHeaderKey)
+      return renderCompactFixedHeaderToggle('left');
+    if (key === rightFixedHeaderKey)
+      return renderCompactFixedHeaderToggle('right');
+    return null;
+  };
   const defaultMaxColumnWidth = Number(
     pageDisplayConfig.value.list?.defaultMaxColumnWidth,
   );
@@ -2143,22 +2201,25 @@ const tableColumns = computed<TableColumnsType>(() => {
           ? tableSorterState.order
           : undefined,
       title: () =>
-        h(
-          Tooltip,
-          { title: field.label },
-          {
-            default: () =>
-              h(
-                'span',
-                {
-                  'aria-label': field.label,
-                  class: 'vben-crud-table-header-title',
-                  title: field.label,
-                },
-                getPageDisplayHeader(field.key)?.title || field.label,
-              ),
-          },
-        ),
+        h('span', { class: 'vben-crud-table-header-content' }, [
+          h(
+            Tooltip,
+            { title: field.label },
+            {
+              default: () =>
+                h(
+                  'span',
+                  {
+                    'aria-label': field.label,
+                    class: 'vben-crud-table-header-title',
+                    title: field.label,
+                  },
+                  getPageDisplayHeader(field.key)?.title || field.label,
+                ),
+            },
+          ),
+          renderFieldFixedToggle(field),
+        ]),
       width: Math.min(
         distributedWidths[index] ?? resolveDefaultTableColumnWidth(field),
         field.tableMaxWidth ||
@@ -2179,7 +2240,14 @@ const tableColumns = computed<TableColumnsType>(() => {
         compactExpandedFixedSide.value,
       ),
       key: CRUD_OPERATION_COLUMN_KEY,
-      title: actionHeader?.title || '操作',
+      title:
+        isCompactTable.value && hasRightFixedGroup.value
+          ? () =>
+              h('span', { class: 'vben-crud-table-header-content' }, [
+                h('span', actionHeader?.title || '操作'),
+                renderCompactFixedHeaderToggle('right'),
+              ])
+          : actionHeader?.title || '操作',
       width: actionWidth,
     });
   }
@@ -7699,41 +7767,6 @@ watch(
               <Plus class="size-4" />
               新增
             </Button>
-            <!-- 紧凑宽度下用可见文字切换临时固定状态。 -->
-            <Button
-              v-if="isCompactTable && hasLeftFixedGroup"
-              :aria-label="
-                compactExpandedFixedSide === 'left'
-                  ? '收起左固定列'
-                  : '展开左固定列'
-              "
-              :aria-pressed="compactExpandedFixedSide === 'left'"
-              data-testid="compact-left-fixed-toggle"
-              size="small"
-              :type="
-                compactExpandedFixedSide === 'left' ? 'primary' : 'default'
-              "
-              @click="toggleCompactFixedSide('left')"
-            >
-              左固定
-            </Button>
-            <Button
-              v-if="isCompactTable && hasRightFixedGroup"
-              :aria-label="
-                compactExpandedFixedSide === 'right'
-                  ? '收起右固定列'
-                  : '展开右固定列'
-              "
-              :aria-pressed="compactExpandedFixedSide === 'right'"
-              data-testid="compact-right-fixed-toggle"
-              size="small"
-              :type="
-                compactExpandedFixedSide === 'right' ? 'primary' : 'default'
-              "
-              @click="toggleCompactFixedSide('right')"
-            >
-              右固定
-            </Button>
             <slot
               name="toolbar-extra"
               :is-list-operation-visible="isListOperationVisible"
@@ -9530,6 +9563,26 @@ watch(
 .vben-crud-table :deep(.ant-table-column-title) {
   min-width: 0;
   overflow: hidden;
+}
+
+.vben-crud-table :deep(.vben-crud-table-header-content) {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.vben-crud-table :deep(.vben-crud-table-header-fixed-toggle) {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.vben-crud-table
+  :deep(.vben-crud-table-header-fixed-toggle[aria-pressed='true']) {
+  color: hsl(var(--primary));
 }
 
 .vben-crud-table :deep(.vben-crud-table-header-title) {

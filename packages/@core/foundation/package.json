@@ -1,6 +1,6 @@
 {
   "name": "@vben-core/foundation",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -16,7 +16,9 @@
     "package-version.d.mts"
   ],
   "sideEffects": [
-    "**/*.css"
+    "**/*.css",
+    "**/design/index.*",
+    "**/design-tokens/index.*"
   ],
   "exports": {
     "./shared/*": {
