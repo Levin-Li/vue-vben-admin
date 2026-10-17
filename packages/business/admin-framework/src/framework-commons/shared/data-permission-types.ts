@@ -5,8 +5,17 @@ export interface OrgTreeNode {
   title?: string;
 }
 
+export interface RbacDataAttrGroup {
+  attributes: string[];
+  entityName?: string;
+  name: string;
+  permissionExpr: string;
+  remark?: string;
+}
+
 export interface RbacActionNode {
   action?: string;
+  attrGroups?: RbacDataAttrGroup[];
   id?: null | string;
   label?: null | string;
   name?: null | string;
@@ -44,6 +53,7 @@ export enum PermissionTreeNodeType {
 }
 
 export interface PermissionTreeNode {
+  attrGroups?: RbacDataAttrGroup[];
   children?: PermissionTreeNode[];
   id: string;
   label?: null | string;

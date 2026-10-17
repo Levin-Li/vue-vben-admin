@@ -2,16 +2,54 @@
 import type {
   DataPermissionPreviewPayload,
   DataPermissionSubjectType,
+  PermissionTreeNode,
 } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 
 import { computed, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
+import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
+import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
 import { Button, Card, Radio, Space } from 'ant-design-vue';
 
-import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
-
+const attrGroupPermissions = ref<string[]>(['preview:合同::试算']);
+// 仅用于界面演示，实际属性组及权限表达式由后端提供。
+const attrGroupTree: PermissionTreeNode[] = [
+  {
+    id: 'attr-demo',
+    name: '属性组示例',
+    nodeType: 'Module',
+    children: [
+      {
+        id: 'attr-contract',
+        name: '合同',
+        nodeType: 'Resource',
+        children: [
+          {
+            id: 'attr-calculate',
+            name: '试算',
+            nodeType: 'Action',
+            permissionExpr: 'preview:合同::试算',
+            attrGroups: [
+              {
+                name: '财务信息',
+                permissionExpr: 'preview:属性组:合同财务:试算',
+                attributes: ['合同金额', '税率', '结算账号'],
+              },
+            ],
+          },
+          {
+            id: 'attr-normal',
+            name: '普通查询（无属性组）',
+            nodeType: 'Action',
+            permissionExpr: 'preview:合同::查询',
+          },
+        ],
+      },
+    ],
+  },
+];
 const open = ref(false);
 const subjectType = ref<DataPermissionSubjectType>('role');
 
@@ -180,6 +218,13 @@ const cardTitle = computed(() =>
           <Button type="primary" @click="open = true">打开预览弹窗</Button>
         </Space>
       </div>
+    </Card>
+
+    <Card class="mt-4" title="属性组授权示例">
+      <ResourcePermissionTreeEditor
+        v-model:value="attrGroupPermissions"
+        :permission-tree="attrGroupTree"
+      />
     </Card>
 
     <DataPermissionDialog

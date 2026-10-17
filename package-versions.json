@@ -2,10 +2,10 @@
   "packages": {
     "@vben-core/foundation": "6.0.1",
     "@vben-core/ui": "6.0.1",
-    "@levin/admin-framework": "6.0.7",
-    "@levin/bpm-designer": "6.0.7",
-    "@levin/bpm-runtime-ui": "6.0.7",
-    "@levin/oak-base-admin": "6.0.8",
+    "@levin/admin-framework": "6.0.8",
+    "@levin/bpm-designer": "6.0.8",
+    "@levin/bpm-runtime-ui": "6.0.8",
+    "@levin/oak-base-admin": "6.0.9",
     "@vben/common-ui": "6.0.1",
     "@vben/layouts": "6.0.1",
     "@vben/runtime": "6.0.1"

@@ -9,6 +9,8 @@
 
 默认管理员强制改密：[接入指南](docs/initial-password-change.md)。
 
+API 属性组权限的轻量分配、后端元数据契约与保存语义见 [属性组授权接入指南](docs/api-attribute-group-permissions.md)。
+
 公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。
 
 紧凑列表的表头固定列图标与临时收展见 [紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。

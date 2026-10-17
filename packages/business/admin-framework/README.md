@@ -62,3 +62,5 @@ HTML 字段与独立页面的安全富文本编辑接入见[公共富文本编�
 个人消息服务与可信工作流目标：[接入指南](docs/personal-message-integration.md)。
 
 企业 App 内网页授权及会话边界：[免登集成指南](docs/enterprise-inapp-login.md)。
+
+API 属性组权限的轻量分配、后端元数据契约与保存语义见 [属性组授权接入指南](docs/api-attribute-group-permissions.md)。

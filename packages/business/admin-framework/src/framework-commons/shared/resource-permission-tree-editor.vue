@@ -2,6 +2,7 @@
 import type {
   PermissionTreeNode,
   PermissionTreeNodeType,
+  RbacDataAttrGroup,
   RbacMenuNode,
   RbacModuleNode,
   RbacResourceNode,
@@ -16,6 +17,7 @@ import { Checkbox, Modal, Radio, Tooltip } from 'ant-design-vue';
 
 import { RbacPermissionMatchUtils } from '../rbac-permission-match';
 import { PermissionTreeNodeType as PermissionTreeNodeTypeEnum } from './data-permission-types';
+import AttrGroupPermissions from './resource-attr-group-permissions.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -258,6 +260,71 @@ const operationResources = computed(() => {
   return operations;
 });
 
+// 按操作表达式合并静态元数据，让权限树中的重复入口共享状态。
+const operationAttrGroups = computed(() => {
+  const operations = new Map<string, Map<string, RbacDataAttrGroup>>();
+  function add(expression: string, groups: RbacDataAttrGroup[] = []) {
+    if (!expression || groups.length === 0) return;
+    const merged = operations.get(expression) || new Map();
+    for (const group of groups) {
+      if (group.permissionExpr) {
+        const previous = merged.get(group.permissionExpr);
+        merged.set(group.permissionExpr, {
+          ...group,
+          attributes: [
+            ...new Set([...(previous?.attributes || []), ...group.attributes]),
+          ],
+        });
+      }
+    }
+    operations.set(expression, merged);
+  }
+  function visit(nodes: PermissionTreeNode[]) {
+    for (const node of nodes) {
+      add(normalizePermissionExpr(node.permissionExpr || ''), node.attrGroups);
+      visit([...(node.children || []), ...(node.resourcePermissions || [])]);
+    }
+  }
+  visit(props.permissionTree);
+  for (const module of props.modules) {
+    for (const type of module.typeList || []) {
+      for (const resource of type.resList || []) {
+        for (const action of resource.actionList || [])
+          add(action.permissionExpr, action.attrGroups);
+      }
+    }
+  }
+  return operations;
+});
+
+function attrGroups(expression: string) {
+  return [
+    ...(operationAttrGroups.value
+      .get(normalizePermissionExpr(expression))
+      ?.values() || []),
+  ];
+}
+
+function toggleAttrGroup(
+  expression: string,
+  groupExpression: string,
+  checked: boolean,
+) {
+  if (
+    !isActionSelected(expression) ||
+    !attrGroups(expression).some(
+      (group) => group.permissionExpr === groupExpression,
+    )
+  )
+    return;
+  emit(
+    'update:value',
+    checked
+      ? [...new Set(props.value).add(groupExpression)]
+      : removeSelectedPermissions([groupExpression]),
+  );
+}
+
 function linkedResources(expression: string) {
   return (
     operationResources.value.get(normalizePermissionExpr(expression)) || []
@@ -454,6 +521,19 @@ SharedPermissionBadge.props = ['permissionExpr'];
 
 // 解除覆盖目标的通配授权，并保留当前可选范围内其余已选权限。
 function removeSelectedPermissions(permissions: string[]) {
+  permissions = [
+    ...new Set([
+      ...[...operationAttrGroups.value.entries()].flatMap(
+        ([expression, groups]) =>
+          permissions.some((permission) =>
+            RbacPermissionMatchUtils.simpleMatchList(expression, [permission]),
+          )
+            ? [...groups.keys()]
+            : [],
+      ),
+      ...permissions,
+    ]),
+  ];
   const current = [
     ...new Set(
       props.value
@@ -468,6 +548,9 @@ function removeSelectedPermissions(permissions: string[]) {
   const covering = current.filter((permission) => coversRemoved(permission));
   const remaining = current.filter((expression) => !coversRemoved(expression));
   for (const expression of new Set([
+    ...[...operationAttrGroups.value.values()].flatMap((groups) => [
+      ...groups.keys(),
+    ]),
     ...[...operationResources.value.values()].flatMap((resources) =>
       resources.map((resource) => resource.expression),
     ),
@@ -1076,7 +1159,6 @@ function buildMenuOperationNodes(
     .filter(Boolean) as MenuPermissionNode[];
 }
 
-
 function buildMenuPermissionTree(
   menuItems: RbacMenuNode[],
   parentModuleId = DEFAULT_MENU_MODULE_ID,
@@ -1656,6 +1738,23 @@ function getPermissionCountText(permissions: string[]) {
               <SharedPermissionBadge
                 :permission-expr="inlineNode.permissionExpr"
               />
+              <AttrGroupPermissions
+                v-if="
+                  !isSingleSelection &&
+                  attrGroups(inlineNode.permissionExpr).length > 0
+                "
+                :groups="attrGroups(inlineNode.permissionExpr)"
+                :enabled="isActionSelected(inlineNode.permissionExpr)"
+                :selected="value"
+                @toggle="
+                  (groupExpression, checked) =>
+                    toggleAttrGroup(
+                      inlineNode.permissionExpr,
+                      groupExpression,
+                      checked,
+                    )
+                "
+              />
             </component>
           </div>
         </div>
@@ -1756,6 +1855,23 @@ function getPermissionCountText(permissions: string[]) {
                   {{ node.title }}
                 </span>
                 <SharedPermissionBadge :permission-expr="node.permissionExpr" />
+                <AttrGroupPermissions
+                  v-if="
+                    !isSingleSelection &&
+                    attrGroups(node.permissionExpr).length > 0
+                  "
+                  :groups="attrGroups(node.permissionExpr)"
+                  :enabled="isActionSelected(node.permissionExpr)"
+                  :selected="value"
+                  @toggle="
+                    (groupExpression, checked) =>
+                      toggleAttrGroup(
+                        node.permissionExpr,
+                        groupExpression,
+                        checked,
+                      )
+                  "
+                />
                 <span
                   v-if="node.permissions.length > 0"
                   class="text-muted-foreground ml-2 text-xs leading-5"
@@ -1781,6 +1897,23 @@ function getPermissionCountText(permissions: string[]) {
                   {{ node.title }}
                 </span>
                 <SharedPermissionBadge :permission-expr="node.permissionExpr" />
+                <AttrGroupPermissions
+                  v-if="
+                    !isSingleSelection &&
+                    attrGroups(node.permissionExpr).length > 0
+                  "
+                  :groups="attrGroups(node.permissionExpr)"
+                  :enabled="isActionSelected(node.permissionExpr)"
+                  :selected="value"
+                  @toggle="
+                    (groupExpression, checked) =>
+                      toggleAttrGroup(
+                        node.permissionExpr,
+                        groupExpression,
+                        checked,
+                      )
+                  "
+                />
               </component>
               <span
                 v-else
@@ -1840,6 +1973,23 @@ function getPermissionCountText(permissions: string[]) {
                     />
                     <SharedPermissionBadge
                       :permission-expr="inlineNode.permissionExpr"
+                    />
+                    <AttrGroupPermissions
+                      v-if="
+                        !isSingleSelection &&
+                        attrGroups(inlineNode.permissionExpr).length > 0
+                      "
+                      :groups="attrGroups(inlineNode.permissionExpr)"
+                      :enabled="isActionSelected(inlineNode.permissionExpr)"
+                      :selected="value"
+                      @toggle="
+                        (groupExpression, checked) =>
+                          toggleAttrGroup(
+                            inlineNode.permissionExpr,
+                            groupExpression,
+                            checked,
+                          )
+                      "
                     />
                   </component>
                 </div>
@@ -1901,9 +2051,7 @@ function getPermissionCountText(permissions: string[]) {
 
             <div class="min-w-0 flex-1">
               <Checkbox
-              :checked="
-                  isActionSelected(node.selfPermission)
-              "
+                :checked="isActionSelected(node.selfPermission)"
                 :data-test="`permission-${node.permissionExpr}`"
                 @change="
                   handleToggle(
@@ -1938,6 +2086,23 @@ function getPermissionCountText(permissions: string[]) {
                   {{ node.title }}
                 </span>
                 <SharedPermissionBadge :permission-expr="node.permissionExpr" />
+                <AttrGroupPermissions
+                  v-if="
+                    !isSingleSelection &&
+                    attrGroups(node.permissionExpr).length > 0
+                  "
+                  :groups="attrGroups(node.permissionExpr)"
+                  :enabled="isActionSelected(node.permissionExpr)"
+                  :selected="value"
+                  @toggle="
+                    (groupExpression, checked) =>
+                      toggleAttrGroup(
+                        node.permissionExpr,
+                        groupExpression,
+                        checked,
+                      )
+                  "
+                />
                 <span
                   v-if="node.permissions.length > 0"
                   class="text-muted-foreground ml-2 text-xs"
@@ -1984,6 +2149,23 @@ function getPermissionCountText(permissions: string[]) {
                     />
                     <SharedPermissionBadge
                       :permission-expr="operationNode.permissionExpr"
+                    />
+                    <AttrGroupPermissions
+                      v-if="
+                        !isSingleSelection &&
+                        attrGroups(operationNode.permissionExpr).length > 0
+                      "
+                      :groups="attrGroups(operationNode.permissionExpr)"
+                      :enabled="isActionSelected(operationNode.permissionExpr)"
+                      :selected="value"
+                      @toggle="
+                        (groupExpression, checked) =>
+                          toggleAttrGroup(
+                            operationNode.permissionExpr,
+                            groupExpression,
+                            checked,
+                          )
+                      "
                     />
                   </Checkbox>
                 </div>
@@ -2086,6 +2268,23 @@ function getPermissionCountText(permissions: string[]) {
                   </span>
                   <SharedPermissionBadge
                     :permission-expr="actionItem.permissionExpr"
+                  />
+                  <AttrGroupPermissions
+                    v-if="
+                      !isSingleSelection &&
+                      attrGroups(actionItem.permissionExpr).length > 0
+                    "
+                    :groups="attrGroups(actionItem.permissionExpr)"
+                    :enabled="isActionSelected(actionItem.permissionExpr)"
+                    :selected="value"
+                    @toggle="
+                      (groupExpression, checked) =>
+                        toggleAttrGroup(
+                          actionItem.permissionExpr,
+                          groupExpression,
+                          checked,
+                        )
+                    "
                   />
                 </component>
               </div>

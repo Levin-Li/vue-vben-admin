@@ -30,6 +30,9 @@ export function collectKnownPermissionValues(modules: RbacModuleNode[]) {
       for (const resourceItem of typeItem.resList || []) {
         for (const actionItem of resourceItem.actionList || []) {
           if (actionItem.permissionExpr) values.add(actionItem.permissionExpr);
+          for (const group of actionItem.attrGroups || []) {
+            if (group.permissionExpr) values.add(group.permissionExpr);
+          }
         }
       }
     }
@@ -41,6 +44,9 @@ export function collectKnownPermissionTreeValues(nodes: PermissionTreeNode[]) {
   const values = new Set<string>();
   for (const node of nodes) {
     if (node.permissionExpr) values.add(node.permissionExpr);
+    for (const group of node.attrGroups || []) {
+      if (group.permissionExpr) values.add(group.permissionExpr);
+    }
     for (const childValue of collectKnownPermissionTreeValues([
       ...(node.children || []),
       ...(node.resourcePermissions || []),
