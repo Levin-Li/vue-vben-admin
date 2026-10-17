@@ -6,6 +6,7 @@ import type {
 } from '../../api/domain-service';
 
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
@@ -22,6 +23,7 @@ import {
 } from 'ant-design-vue';
 
 import { domainService } from '../../api/domain-service';
+import { helpDocumentUrl } from '../../help-center';
 import {
   getTenantSiteSuffixApplyApi,
   getTenantSiteVendorApplyApi,
@@ -36,6 +38,7 @@ import { domainPageCrudConfig } from './config';
 import DnsRecordManager from './dns-record-manager.vue';
 
 const dnsManagerOpen = ref(false);
+const router = useRouter();
 const selectedDomain = ref<DomainRecord | null>(null);
 const domainApplyOpen = ref(false);
 const domainApplying = ref(false);
@@ -456,6 +459,9 @@ onMounted(async () => {
 <template>
   <CrudPage :config="pageConfig">
     <template #toolbar-extra="{ isListOperationVisible }">
+      <Button @click="router.push(helpDocumentUrl('mail-receiving-admin'))">
+        帮助
+      </Button>
       <Button
         v-if="isListOperationVisible('domain:apply', true)"
         type="primary"
@@ -549,8 +555,9 @@ onMounted(async () => {
                     :href="selectedProviderGuidance.applicationUrl"
                     rel="noopener noreferrer"
                     target="_blank"
-                    >前往申请/注册</a
                   >
+                    前往申请/注册
+                  </a>
                   <a
                     v-if="
                       isSafeExternalUrl(
@@ -560,8 +567,9 @@ onMounted(async () => {
                     :href="selectedProviderGuidance.documentationUrl"
                     rel="noopener noreferrer"
                     target="_blank"
-                    >查看官方配置文档</a
                   >
+                    查看官方配置文档
+                  </a>
                 </div>
               </div>
             </template>

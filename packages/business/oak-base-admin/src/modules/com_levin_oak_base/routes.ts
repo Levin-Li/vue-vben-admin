@@ -25,6 +25,18 @@ export const namedScopeVariableAcceptanceRoute: RouteRecordRaw = {
   path: '/clob/V1/namedScopeVariableAcceptance',
 };
 
+export const helpCenterRoute: RouteRecordRaw = {
+  component: () => import('./views/help-center/index.vue'),
+  meta: {
+    hideInMenu: true,
+    icon: 'lucide:book-open',
+    requiresAccess: true,
+    title: '文档中心',
+  },
+  name: toPathRouteName('/clob/V1/HelpCenter'),
+  path: '/clob/V1/HelpCenter',
+};
+
 export const oakBaseAdminRoutes: RouteRecordRaw[] = [
   // 关闭自动 CRUD 注册的宿主仍可显式访问同一套独立工作流页面。
   {
@@ -53,6 +65,7 @@ export const oakBaseAdminRoutes: RouteRecordRaw[] = [
   },
   aclTestRoute,
   namedScopeVariableAcceptanceRoute,
+  helpCenterRoute,
   {
     component: () => import('./views/setting-for-tenant/index.vue'),
     meta: {

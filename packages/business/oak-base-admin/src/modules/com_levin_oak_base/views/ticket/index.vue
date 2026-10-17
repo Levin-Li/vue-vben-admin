@@ -35,6 +35,7 @@ import {
 
 import { ticketService } from '../../api/ticket-service';
 import { userService } from '../../api/user-service';
+import { helpDocumentUrl } from '../../help-center';
 import { moduleFetchEnumOptions } from '../api-module';
 import { buildSupportUserQuery } from '../support-options';
 import SupportScopeSelector from '../support-scope-selector.vue';
@@ -595,6 +596,12 @@ watch(() => route.query.id, deepLink);
           @change="load(1)"
         />
         <Button v-if="allowed('list')" @click="load()">刷新</Button>
+        <Button
+          class="ml-auto"
+          @click="router.push(helpDocumentUrl('mail-ticket-guide'))"
+        >
+          帮助
+        </Button>
       </div>
       <Table
         row-key="id"

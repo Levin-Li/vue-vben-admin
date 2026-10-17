@@ -1,0 +1,84 @@
+[
+  {
+    "id": "system-user-manual",
+    "title": "系统使用手册",
+    "module": "系统基础",
+    "audience": "用户",
+    "type": "使用手册",
+    "source": "docs/使用手册.md"
+  },
+  {
+    "id": "mail-ticket-guide",
+    "title": "邮件与工单操作手册",
+    "module": "邮件与工单",
+    "audience": "用户",
+    "type": "使用手册",
+    "source": "docs/统一消息与邮件工单使用指南.md",
+    "pages": [{ "path": "/clob/V1/Ticket", "view": "ticket" }, { "path": "/clob/V1/SupportMailboxRule", "view": "support-mailbox-rule" }]
+  },
+  {
+    "id": "mail-receiving-admin",
+    "title": "邮件收件配置手册",
+    "module": "邮件与工单",
+    "audience": "管理员",
+    "type": "使用指南",
+    "source": "docs/邮件收件模块功能与使用手册.md",
+    "pages": [{ "path": "/clob/V1/Domain", "view": "domain" }]
+  },
+  {
+    "id": "local-smtp-admin",
+    "title": "本地 SMTP 收件指南",
+    "module": "邮件与工单",
+    "audience": "管理员",
+    "type": "使用指南",
+    "source": "docs/本地SMTP入站收件使用指南.md"
+  },
+  {
+    "id": "mail-relay-admin",
+    "title": "邮件中转路由指南",
+    "module": "邮件与工单",
+    "audience": "管理员",
+    "type": "使用指南",
+    "source": "docs/邮件中转路由使用指南.md"
+  },
+  {
+    "id": "mail-ticket-design",
+    "title": "统一消息与工单实现说明",
+    "module": "邮件与工单",
+    "audience": "开发者",
+    "type": "实现说明",
+    "source": "docs/统一消息与邮件工单实现说明.md"
+  },
+  {
+    "id": "workflow-email-guide",
+    "title": "工作流通知邮件指南",
+    "module": "工作流",
+    "audience": "管理员",
+    "type": "使用指南",
+    "source": "docs/工作流通知邮件使用指南.md"
+  },
+  {
+    "id": "workflow-platform-guide",
+    "title": "工作流平台使用指南",
+    "module": "工作流",
+    "audience": "用户",
+    "type": "使用手册",
+    "source": "docs/工作流平台使用指南.md"
+  },
+  {
+    "id": "domain-provider-guide",
+    "title": "域名与验证码插件指南",
+    "module": "域名与插件",
+    "audience": "管理员",
+    "type": "使用指南",
+    "source": "docs/12-域名与验证码插件设计使用指南.md"
+  },
+  {
+    "id": "communication-workbench-dev",
+    "title": "邮件工单工作台开发指南",
+    "module": "邮件与工单",
+    "audience": "开发者",
+    "type": "开发指南",
+    "source": "frontend/admin/packages/business/oak-base-admin/docs/communication-workbench.md"
+  }
+]

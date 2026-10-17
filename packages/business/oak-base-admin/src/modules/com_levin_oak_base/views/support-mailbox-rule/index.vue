@@ -8,6 +8,7 @@ import type {
 } from '../../api/support-workbench-types';
 
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
@@ -28,6 +29,7 @@ import {
 import { supportMailboxRuleService } from '../../api/support-mailbox-rule-service';
 import { ticketQueueService } from '../../api/ticket-queue-service';
 import { userService } from '../../api/user-service';
+import { helpDocumentUrl } from '../../help-center';
 import { moduleFetchEnumOptions, moduleFetchOptions } from '../api-module';
 import {
   buildMailboxSourceQuery,
@@ -38,6 +40,7 @@ import SupportScopeSelector from '../support-scope-selector.vue';
 
 // 保存只提交受控配置对象；启停使用独立命令与读取时的版本。
 const { hasPermission } = useRbacAccess();
+const router = useRouter();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(supportMailboxRuleService, method));
 const scope = ref<SupportScope>();
@@ -307,6 +310,12 @@ onMounted(async () => {
         </Button>
         <Button v-if="allowed('list')" :disabled="!scope" @click="load()">
           刷新
+        </Button>
+        <Button
+          class="ml-auto"
+          @click="router.push(helpDocumentUrl('mail-ticket-guide'))"
+        >
+          帮助
         </Button>
       </div>
       <Table

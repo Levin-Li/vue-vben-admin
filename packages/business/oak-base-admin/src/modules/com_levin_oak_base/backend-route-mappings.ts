@@ -158,6 +158,18 @@ function createCrudBackendRouteMapping(
 
 export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
   {
+    description: getPageMeta(`${MODULE_SOURCE_PREFIX}/help-center/index.vue`)
+      .description,
+    icon: 'lucide:book-open',
+    operations: [],
+    onlyRequireAuthenticated: true,
+    path: '/clob/V1/HelpCenter',
+    resource: 'HelpCenter',
+    sourceFilePath: `${MODULE_SOURCE_PREFIX}/help-center/index.vue`,
+    title: getPageMeta(`${MODULE_SOURCE_PREFIX}/help-center/index.vue`).title,
+    viewPath: `${MODULE_VIEW_PREFIX}/help-center/index.vue`,
+  },
+  {
     description: getPageMeta(
       `${MODULE_SOURCE_PREFIX}/named-scope-variable-acceptance/index.vue`,
     ).description,

@@ -1,0 +1,119 @@
+{
+  "version": "6.0.9",
+  "documents": [
+    {
+      "id": "system-user-manual",
+      "title": "系统使用手册",
+      "module": "系统基础",
+      "audience": "用户",
+      "type": "使用手册",
+      "source": "docs/使用手册.md",
+      "pages": [],
+      "sha256": "e2dc81a634d12daeab82c8e8a25e2bf87855f8ae671acba52c036f66bc35310e"
+    },
+    {
+      "id": "mail-ticket-guide",
+      "title": "邮件与工单操作手册",
+      "module": "邮件与工单",
+      "audience": "用户",
+      "type": "使用手册",
+      "source": "docs/统一消息与邮件工单使用指南.md",
+      "pages": [
+        {
+          "path": "/clob/V1/Ticket",
+          "view": "ticket"
+        },
+        {
+          "path": "/clob/V1/SupportMailboxRule",
+          "view": "support-mailbox-rule"
+        }
+      ],
+      "sha256": "66a39fd1f06e2dc643758f3893432eb4f85e5148d6c2892e2d8edb0b9e33c74b"
+    },
+    {
+      "id": "mail-receiving-admin",
+      "title": "邮件收件配置手册",
+      "module": "邮件与工单",
+      "audience": "管理员",
+      "type": "使用指南",
+      "source": "docs/邮件收件模块功能与使用手册.md",
+      "pages": [
+        {
+          "path": "/clob/V1/Domain",
+          "view": "domain"
+        }
+      ],
+      "sha256": "64a36df6d355b0805ebb54c313d80e8e4d317933aba6710ba98a9a5b934987c6"
+    },
+    {
+      "id": "local-smtp-admin",
+      "title": "本地 SMTP 收件指南",
+      "module": "邮件与工单",
+      "audience": "管理员",
+      "type": "使用指南",
+      "source": "docs/本地SMTP入站收件使用指南.md",
+      "pages": [],
+      "sha256": "70607a8ee69bfa8262ea2c9bd4b9e21f13c784cc32dd1fac7d898c8ec8bd7a2c"
+    },
+    {
+      "id": "mail-relay-admin",
+      "title": "邮件中转路由指南",
+      "module": "邮件与工单",
+      "audience": "管理员",
+      "type": "使用指南",
+      "source": "docs/邮件中转路由使用指南.md",
+      "pages": [],
+      "sha256": "dd210de12141948fcb891fc285b9a864dd8df2c663292367064850d8ea3ca3ac"
+    },
+    {
+      "id": "mail-ticket-design",
+      "title": "统一消息与工单实现说明",
+      "module": "邮件与工单",
+      "audience": "开发者",
+      "type": "实现说明",
+      "source": "docs/统一消息与邮件工单实现说明.md",
+      "pages": [],
+      "sha256": "0e12006609e527fc942d76d126fc0fb17f693172f4f36849b538ce869c8ebda8"
+    },
+    {
+      "id": "workflow-email-guide",
+      "title": "工作流通知邮件指南",
+      "module": "工作流",
+      "audience": "管理员",
+      "type": "使用指南",
+      "source": "docs/工作流通知邮件使用指南.md",
+      "pages": [],
+      "sha256": "2612a74e25daec75cc3a4c1838cf686400dddc94a7e38554a867367c362bb429"
+    },
+    {
+      "id": "workflow-platform-guide",
+      "title": "工作流平台使用指南",
+      "module": "工作流",
+      "audience": "用户",
+      "type": "使用手册",
+      "source": "docs/工作流平台使用指南.md",
+      "pages": [],
+      "sha256": "dfe54907ed8e7d4d6eb8fa1cc73323644d368a7595ad1d9fa4416206b01f515d"
+    },
+    {
+      "id": "domain-provider-guide",
+      "title": "域名与验证码插件指南",
+      "module": "域名与插件",
+      "audience": "管理员",
+      "type": "使用指南",
+      "source": "docs/12-域名与验证码插件设计使用指南.md",
+      "pages": [],
+      "sha256": "efa7ad0cc512fc9d7165d90d4e1ee98e81948ba54cd9d101423d9dd4186e294b"
+    },
+    {
+      "id": "communication-workbench-dev",
+      "title": "邮件工单工作台开发指南",
+      "module": "邮件与工单",
+      "audience": "开发者",
+      "type": "开发指南",
+      "source": "frontend/admin/packages/business/oak-base-admin/docs/communication-workbench.md",
+      "pages": [],
+      "sha256": "313b3189c5131c1c3b11bc817575a63216757e6d65407c6049be3fa1223da065"
+    }
+  ]
+}
