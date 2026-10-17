@@ -54,3 +54,5 @@ export const PatternListEditor = defineAsyncComponent(
 export const UserOrgSelector = defineAsyncComponent(
   () => import('./framework-commons/shared/user-org-selector.vue'),
 );
+
+export * from './framework-commons/data-attr-policy';

@@ -1,6 +1,3 @@
-/**
- * 该文件可自行根据业务逻辑进行调整
- */
 import type { RequestClientOptions } from '@vben/runtime/request';
 
 import { useAppConfig } from '@vben/runtime/hooks';
@@ -15,6 +12,17 @@ import { preferences } from '@vben-core/foundation/preferences';
 
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
+/**
+ * 该文件可自行根据业务逻辑进行调整
+ */
+import {
+  clearDataAttrPolicies,
+  DATA_ATTR_POLICY_PATH,
+  dataAttrRequestPath,
+  guardDataAttrRequest,
+  isDataAttrPolicyReady,
+  shouldInvalidateDataAttrPolicy,
+} from '../../data-attr-policy';
 import {
   currentGlobalDomainIds,
   globalDomainContextMultiple,
@@ -251,6 +259,27 @@ async function signClientRequest(config: any) {
 
 /** 加密完成后再按原始明文体签名，两个协商路径始终复用这一个公共入口。 */
 async function secureClientRequest(config: any) {
+  // 策略查询使用固定入口避免递归；其余已登录业务请求在加密前检查明文参数。
+  const path = String(config.url || '');
+  const route = dataAttrRequestPath(path, config.baseURL).split('?')[0] || '';
+  const bootstrap =
+    !isDataAttrPolicyReady() &&
+    [
+      'userInfo',
+      'authorizedPermissionList',
+      'logout',
+      'completeInitialPasswordChange',
+    ].some((name) => route === `/com.levin.oak.base/V1/api/rbac/${name}`);
+  if (
+    !bootstrap &&
+    !isAnonymousCryptoContext(config) &&
+    !(
+      String(config.method || 'GET').toUpperCase() === 'POST' &&
+      route === DATA_ATTR_POLICY_PATH
+    )
+  ) {
+    await guardDataAttrRequest(String(config.method || 'GET'), path, config);
+  }
   return signClientRequest(await encryptClientRequest(config));
 }
 
@@ -455,6 +484,8 @@ function applyCommonInterceptors(client: RequestClient) {
       });
     },
     rejected: (error: any) => {
+      // 后端拒绝权限时撤销当前策略，保留错误提示且不重放写请求。
+      if (shouldInvalidateDataAttrPolicy(error)) clearDataAttrPolicies();
       emitApiRequestEvent({
         config: error?.config ?? error?.response?.config,
         error,

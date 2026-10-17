@@ -56,3 +56,5 @@ export {
   removeLayoutHeaderExtensionAreaItem,
   useLayoutHeaderExtensionArea,
 } from '@vben/layouts/basic/header-extension-area';
+
+export * from './data-attr-policy';

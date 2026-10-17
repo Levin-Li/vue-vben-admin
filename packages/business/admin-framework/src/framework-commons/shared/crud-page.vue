@@ -54,7 +54,7 @@ import { useRoute } from 'vue-router';
 import { Page, VCropper } from '@vben/common-ui';
 import { ChevronDown, IconifyIcon, Plus } from '@vben/runtime/icons';
 import { preferences } from '@vben-core/foundation/preferences';
-import { useUserStore } from '@vben/runtime/stores';
+import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
 import {
   AutoComplete,
@@ -159,6 +159,7 @@ import {
   isCrudComplexGroupEnabled,
 } from './crud-complex-groups';
 import { buildNoFormFlowConfirmConfig } from './crud-confirm';
+import { useCrudDataAttrAccess } from './crud-data-attr-access';
 import {
   canMutateCrudRecord as canMutateEditableCrudRecord,
   shouldApplyEditableSearchDefault,
@@ -404,6 +405,7 @@ const LIST_TABLE_TABS_EDGE_PADDING = 8;
 
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
+const accessStore = useAccessStore();
 const route = useRoute();
 const pageEntryPath = route.path;
 // 固定条件属于当前页面实例，避免缓存页面读取后来激活的另一菜单条件。
@@ -478,6 +480,7 @@ const actionResultOpen = ref(false);
 const actionResultTitle = ref('');
 const actionResultHideEmptyValues = ref(false);
 const actionResultData = ref<any>(null);
+const actionResultUsesRetrievePolicy = ref(false);
 const latestDetailRecord = ref<{
   source: string | undefined;
   record: GenericRecord;
@@ -789,6 +792,19 @@ const activeListPath = computed(
     props.config.listPath ||
     `${props.config.apiBase}/list`,
 );
+const dataAttrAccess = useCrudDataAttrAccess(
+  () => props.config,
+  () => activeListPath.value,
+  () => JSON.stringify([userStore.userInfo, accessStore.accessCodes]),
+);
+const visibleDataSource = computed(
+  () => dataAttrAccess.viewOutput('list', dataSource.value) || [],
+);
+const visibleActionResultData = computed(() =>
+  actionResultUsesRetrievePolicy.value
+    ? dataAttrAccess.viewOutput('retrieve', actionResultData.value)
+    : actionResultData.value,
+);
 const activeListTableName = computed(() => {
   const tableName =
     activeListTable.value?.tableName || props.config.tableName || 'default';
@@ -967,6 +983,7 @@ function getRowJsonSchemaFields(record: GenericRecord) {
     recordKey: recordKey.value,
     userInfo: userStore.userInfo,
     canEditField: (field) =>
+      dataAttrAccess.allowed('update', 'input', field) &&
       isFieldVisible(field) &&
       shouldShowCrudFormField(field, 'edit', userStore.userInfo) &&
       shouldSubmitCrudFormField(field, 'edit') &&
@@ -1208,7 +1225,7 @@ function applyPageDisplayFields(
   );
   let values = formState;
   if (view === 'query') values = searchState;
-  else if (view === 'detail') values = actionResultData.value ?? {};
+  else if (view === 'detail') values = visibleActionResultData.value ?? {};
   const expressionResults: Record<string, boolean> = {};
   for (const item of configuredFields) {
     if (!item.visibility?.expression?.trim()) {
@@ -1350,7 +1367,9 @@ const submittableSearchFields = computed(() =>
 
 const searchFields = computed(() =>
   submittableSearchFields.value.filter(
-    (field) => !getPageDisplayField('query', field.key).hidden,
+    (field) =>
+      !getPageDisplayField('query', field.key).hidden &&
+      dataAttrAccess.allowed('list', 'input', field),
   ),
 );
 
@@ -1363,6 +1382,11 @@ const formFields = computed(() =>
     (field) =>
       field.form !== false &&
       isFieldVisible(field) &&
+      dataAttrAccess.allowed(
+        editingRecord.value ? 'update' : 'create',
+        'input',
+        field,
+      ) &&
       (!focusedJsonFieldKey.value || field.key === focusedJsonFieldKey.value),
   ),
 );
@@ -1674,6 +1698,7 @@ const tableFields = computed(() =>
     .filter((field) => field.table && isFieldVisible(field))
     .filter((field) => isPageDisplayHeaderVisible(field.key))
     .concat(virtualTableFields.value)
+    .filter((field) => dataAttrAccess.allowed('list', 'output', field))
     .sort(
       (left, right) =>
         (getPageDisplayHeader(left.key)?.order ?? Number.MAX_SAFE_INTEGER) -
@@ -1783,6 +1808,7 @@ function renderCompactFixedHeaderToggle(
 function isExportableField(field: CrudFieldConfig) {
   return (
     isFieldVisible(field) &&
+    dataAttrAccess.allowed('list', 'output', field) &&
     field.type !== 'password' &&
     field.export !== false &&
     (field.table || field.export === true)
@@ -1940,6 +1966,7 @@ const importableFields = computed(() =>
       field.key &&
       field.form !== false &&
       field.formCreate !== false &&
+      dataAttrAccess.allowed('batchCreate', 'input', field) &&
       field.allowInput !== false &&
       field.type !== 'image' &&
       field.type !== 'file' &&
@@ -2482,7 +2509,12 @@ function getTableSortField(field: CrudFieldConfig) {
 }
 
 function isTableFieldSortable(field: CrudFieldConfig) {
-  if (field.sortable === false || field.key === '__tenant') return false;
+  if (
+    field.sortable === false ||
+    field.key === '__tenant' ||
+    !dataAttrAccess.allowed('list', 'input', getTableSortField(field))
+  )
+    return false;
 
   // 页面展示设置只能关闭静态字段已支持的排序，不能为虚拟或后端不支持的字段新增排序请求。
   return getPageDisplayHeader(field.key)?.sortable !== false;
@@ -3347,6 +3379,42 @@ function buildSearchParams() {
     params[field.key] = value;
   }
 
+  for (const item of buildCrudQueryItems(submittableSearchFields.value)) {
+    if (item.kind === 'range') {
+      const values = searchState[item.key];
+      if (!Array.isArray(values)) continue;
+      for (const [index, key] of [item.startKey, item.endKey].entries()) {
+        if (
+          !dataAttrAccess.allowed('list', 'input', key) &&
+          values[index] !== undefined &&
+          values[index] !== null &&
+          values[index] !== ''
+        )
+          params[key] = values[index];
+      }
+    } else if (!dataAttrAccess.allowed('list', 'input', item.field)) {
+      const value = searchState[item.field.key];
+      if (
+        value !== undefined &&
+        value !== null &&
+        value !== '' &&
+        (!Array.isArray(value) || value.length > 0)
+      ) {
+        if (item.field.type === 'area-cascader') {
+          applyAreaCascaderValueToRecord(
+            params,
+            item.field,
+            value,
+            getFieldOptions(item.field),
+          );
+        } else {
+          params[item.field.key] = serializeCrudFieldValue(item.field, value);
+        }
+      }
+    }
+  }
+
+  dataAttrAccess.assertInput('list', params);
   const eligible = new Set(
     submittableSearchFields.value.map((field) => field.key),
   );
@@ -4310,7 +4378,7 @@ function formatExportCellValue(field: CrudFieldConfig, record: GenericRecord) {
 }
 
 function buildListQueryParams(pageIndex: number, pageSize: number) {
-  return mergeFixedQuery(
+  const params = mergeFixedQuery(
     {
       ...buildSearchParams(),
       ...buildSortParams(),
@@ -4319,6 +4387,8 @@ function buildListQueryParams(pageIndex: number, pageSize: number) {
     },
     menuFixedQuery,
   );
+  dataAttrAccess.assertInput('list', params);
+  return params;
 }
 
 function showExportLimitWarning() {
@@ -4326,6 +4396,7 @@ function showExportLimitWarning() {
 }
 
 async function checkExportRecordLimit() {
+  await dataAttrAccess.ensure('list');
   const result = await fetchCrudList<GenericRecord>(
     activeListPath.value,
     buildListQueryParams(1, 1),
@@ -4667,6 +4738,12 @@ async function copyImportConsole() {
 }
 
 async function handleImportConfirm() {
+  try {
+    await dataAttrAccess.ensure('batchCreate');
+  } catch (error) {
+    message.error(getCrudErrorMessage(error, '属性权限加载失败'));
+    return;
+  }
   const apiService = props.config.apiService;
 
   if (!apiService?.batchCreate || !importSheet.value) {
@@ -4694,6 +4771,8 @@ async function handleImportConfirm() {
     return;
   }
 
+  dataAttrAccess.assertInput('batchCreate', records);
+  const importCheckpoint = dataAttrAccess.checkpoint();
   importing.value = true;
   importStopRequested.value = false;
   importConsoleOpen.value = true;
@@ -4720,17 +4799,19 @@ async function handleImportConfirm() {
       appendImportConsole(`提交第 ${index + 1}/${chunks.length} 批`, {
         count: chunk.length,
       });
+      dataAttrAccess.assertCheckpoint(importCheckpoint);
+      dataAttrAccess.assertInput('batchCreate', chunk);
       const result = await apiService.batchCreate(chunk);
 
       successCount += chunk.length;
       appendImportConsole(`第 ${index + 1} 批导入成功`, result);
     }
 
-    if (!stopped) {
+    if (stopped) {
+      message.warning(`导入已停止，成功 ${successCount} 条`);
+    } else {
       appendImportConsole(`导入完成，成功 ${successCount} 条`);
       message.success(`导入完成，成功 ${successCount} 条`);
-    } else {
-      message.warning(`导入已停止，成功 ${successCount} 条`);
     }
 
     if (successCount > 0) {
@@ -4749,6 +4830,8 @@ async function handleImportConfirm() {
 }
 
 async function fetchExportRecords() {
+  await dataAttrAccess.ensure('list');
+  const exportCheckpoint = dataAttrAccess.checkpoint();
   const records: GenericRecord[] = [];
   let pageIndex = 1;
 
@@ -4764,7 +4847,8 @@ async function fetchExportRecords() {
       break;
     }
 
-    records.push(...items);
+    dataAttrAccess.assertCheckpoint(exportCheckpoint);
+    records.push(...dataAttrAccess.pruneOutput('list', items));
 
     if (records.length > EXPORT_MAX_RECORDS) {
       showExportLimitWarning();
@@ -4839,6 +4923,7 @@ async function loadList() {
   loading.value = true;
 
   try {
+    await dataAttrAccess.ensure('list');
     const listParams = buildListQueryParams(
       pagination.current,
       pagination.pageSize,
@@ -4856,7 +4941,7 @@ async function loadList() {
             props.config.apiModuleBase,
           );
 
-    dataSource.value = result.items || [];
+    dataSource.value = dataAttrAccess.pruneOutput('list', result.items || []);
     pagination.total = result.totals || 0;
     captureListTableState();
   } finally {
@@ -4864,7 +4949,13 @@ async function loadList() {
   }
 }
 
-function handleCreate() {
+async function handleCreate() {
+  try {
+    await dataAttrAccess.ensure('create');
+  } catch (error) {
+    message.error(getCrudErrorMessage(error, '属性权限加载失败'));
+    return;
+  }
   jsonEditSession.value++;
   focusedJsonFieldKey.value = undefined;
   editingRecord.value = null;
@@ -4872,7 +4963,13 @@ function handleCreate() {
   modalOpen.value = true;
 }
 
-function handleEdit(record: GenericRecord) {
+async function handleEdit(record: GenericRecord) {
+  try {
+    await dataAttrAccess.ensure('update');
+  } catch (error) {
+    message.error(getCrudErrorMessage(error, '属性权限加载失败'));
+    return;
+  }
   jsonEditSession.value++;
   focusedJsonFieldKey.value = undefined;
   editingRecord.value = record;
@@ -4880,7 +4977,16 @@ function handleEdit(record: GenericRecord) {
   modalOpen.value = true;
 }
 
-function handleJsonFieldEdit(record: GenericRecord, field: CrudFieldConfig) {
+async function handleJsonFieldEdit(
+  record: GenericRecord,
+  field: CrudFieldConfig,
+) {
+  try {
+    await dataAttrAccess.ensure('update');
+  } catch (error) {
+    message.error(getCrudErrorMessage(error, '属性权限加载失败'));
+    return;
+  }
   if (!getRowJsonSchemaFields(record).some((item) => item.key === field.key))
     return;
   jsonEditSession.value++;
@@ -4896,9 +5002,11 @@ function handleJsonFieldEdit(record: GenericRecord, field: CrudFieldConfig) {
 }
 
 async function handleRetrieve(record: GenericRecord) {
+  await dataAttrAccess.ensure('retrieve');
   const params = buildCrudRetrieveParams(record, recordKey.value);
 
-  const response =
+  dataAttrAccess.assertInput('retrieve', params);
+  const rawResponse =
     props.config.apiService?.retrieve && !props.config.detailPath
       ? await props.config.apiService.retrieve(params)
       : await requestClient.get(
@@ -4912,6 +5020,7 @@ async function handleRetrieve(record: GenericRecord) {
           },
         );
 
+  const response = dataAttrAccess.pruneOutput('retrieve', rawResponse);
   if (response && typeof response === 'object' && !Array.isArray(response)) {
     latestDetailRecord.value = {
       source: pageDisplaySettingCode.value,
@@ -4922,29 +5031,40 @@ async function handleRetrieve(record: GenericRecord) {
     `${getBusinessTitle(props.config.title)}详情`,
     'showForm',
     response,
+    true,
   );
 }
 
 async function handleDelete(record: GenericRecord) {
+  await dataAttrAccess.ensure('delete');
   const deleteParams = buildCrudDeleteParams(record, recordKey.value);
+  dataAttrAccess.assertInput('delete', deleteParams);
   const recordId = deleteParams[recordKey.value];
 
-  if (props.config.apiService?.delete && !props.config.deletePath) {
-    await props.config.apiService.delete(deleteParams);
-  } else {
-    await deleteCrudRecord(
-      props.config.deletePath || `${props.config.apiBase}/delete`,
-      recordId,
-      recordKey.value,
-      props.config.apiModuleBase,
-    );
-  }
+  await (props.config.apiService?.delete && !props.config.deletePath
+    ? props.config.apiService.delete(deleteParams)
+    : deleteCrudRecord(
+        props.config.deletePath || `${props.config.apiBase}/delete`,
+        recordId,
+        recordKey.value,
+        props.config.apiModuleBase,
+      ));
   message.success('删除成功');
   await loadList();
 }
 
 async function handleSubmit() {
   if (submitting.value) return;
+  submitting.value = true;
+  try {
+    await dataAttrAccess.ensure(editingRecord.value ? 'update' : 'create');
+  } catch (error) {
+    message.error(getCrudErrorMessage(error, '属性权限加载失败'));
+    return;
+  } finally {
+    submitting.value = false;
+  }
+  const assignmentCheckpoint = dataAttrAccess.checkpoint();
   if (focusedJsonFieldKey.value) {
     if (
       !editingRecord.value ||
@@ -5161,27 +5281,42 @@ async function handleSubmit() {
       );
     }
 
+    dataAttrAccess.assertCheckpoint(assignmentCheckpoint);
+    finalPayload = dataAttrAccess.prepareAssignment(
+      isCreating ? 'create' : 'update',
+      finalPayload,
+      effectiveFields.value.filter(
+        (field) =>
+          field.form !== false &&
+          !field.readOnly &&
+          isFieldVisible(field) &&
+          shouldShowCrudFormField(
+            field,
+            isCreating ? 'create' : 'edit',
+            userStore.userInfo,
+          ) &&
+          shouldSubmitCrudFormField(field, isCreating ? 'create' : 'edit') &&
+          !isFieldDisabledOnEdit(field),
+      ),
+      Object.keys(menuFixedQuery),
+    );
     if (isCreating) {
-      if (props.config.apiService?.create && !props.config.createPath) {
-        await props.config.apiService.create(finalPayload);
-      } else {
-        await createCrudRecord(
-          createPath,
-          finalPayload,
-          props.config.apiModuleBase,
-        );
-      }
+      await (props.config.apiService?.create && !props.config.createPath
+        ? props.config.apiService.create(finalPayload)
+        : createCrudRecord(
+            createPath,
+            finalPayload,
+            props.config.apiModuleBase,
+          ));
       message.success('创建成功');
     } else {
-      if (props.config.apiService?.update && !props.config.updatePath) {
-        await props.config.apiService.update(finalPayload);
-      } else {
-        await updateCrudRecord(
-          props.config.updatePath || `${props.config.apiBase}/update`,
-          finalPayload,
-          props.config.apiModuleBase,
-        );
-      }
+      await (props.config.apiService?.update && !props.config.updatePath
+        ? props.config.apiService.update(finalPayload)
+        : updateCrudRecord(
+            props.config.updatePath || `${props.config.apiBase}/update`,
+            finalPayload,
+            props.config.apiModuleBase,
+          ));
       message.success('更新成功');
     }
 
@@ -6423,7 +6558,12 @@ function canQuickUpdateBooleanEnableField(
   field: CrudFieldConfig | undefined,
   record: GenericRecord,
 ) {
-  return isBooleanEnableField(field) && canShowBuiltinEdit(record);
+  return Boolean(
+    field &&
+      isBooleanEnableField(field) &&
+      dataAttrAccess.allowed('update', 'input', field) &&
+      canShowBuiltinEdit(record),
+  );
 }
 
 function getStatusTagColor(field: CrudFieldConfig | undefined, value: any) {
@@ -6979,6 +7119,7 @@ async function updateBooleanEnableField(
   record[fieldKey] = checked;
 
   try {
+    await dataAttrAccess.ensure('update');
     const payload = {
       autoForceUpdateField: false,
       [recordKey.value]: getRecordValue(record, recordKey.value),
@@ -6986,15 +7127,14 @@ async function updateBooleanEnableField(
       [fieldKey]: checked,
     };
 
-    if (props.config.apiService?.update && !props.config.updatePath) {
-      await props.config.apiService.update(payload);
-    } else {
-      await updateCrudRecord(
-        props.config.updatePath || `${props.config.apiBase}/update`,
-        payload,
-        props.config.apiModuleBase,
-      );
-    }
+    dataAttrAccess.assertInput('update', payload);
+    await (props.config.apiService?.update && !props.config.updatePath
+      ? props.config.apiService.update(payload)
+      : updateCrudRecord(
+          props.config.updatePath || `${props.config.apiBase}/update`,
+          payload,
+          props.config.apiModuleBase,
+        ));
     message.success('更新成功');
     await loadList();
   } catch (error) {
@@ -7038,7 +7178,9 @@ function openActionResult(
   title: string,
   mode: NormalizedCrudAction,
   data: any,
+  usesRetrievePolicy = false,
 ) {
+  actionResultUsesRetrievePolicy.value = usesRetrievePolicy;
   actionResultMode.value = mode;
   actionResultTitle.value = title;
   actionResultData.value = data;
@@ -7066,12 +7208,14 @@ const detailSettingsFields = computed(() => {
       known.add(field.key);
     }
   }
-  return fields;
+  return fields.filter((field) =>
+    dataAttrAccess.allowed('retrieve', 'output', field),
+  );
 });
 
 const flattenedDetailData = computed(() =>
   flattenCrudComplexDetailRecord(
-    actionResultData.value,
+    visibleActionResultData.value,
     props.config.complexGroups,
   ),
 );
@@ -7084,7 +7228,13 @@ function getDetailDisplayFields() {
       effectiveDetailFields.value,
     ),
     'detail',
-  ).map((field) => ({ ...field, options: getFieldOptions(field) }));
+  )
+    .filter(
+      (field) =>
+        !actionResultUsesRetrievePolicy.value ||
+        dataAttrAccess.allowed('retrieve', 'output', field),
+    )
+    .map((field) => ({ ...field, options: getFieldOptions(field) }));
 }
 
 const actionResultEntries = computed((): DetailDisplayEntry[] => {
@@ -7109,7 +7259,7 @@ const actionResultEntries = computed((): DetailDisplayEntry[] => {
 });
 
 const actionResultQrValue = computed(() => {
-  const data = actionResultData.value;
+  const data = visibleActionResultData.value;
   if (typeof data === 'string') {
     return data;
   }
@@ -7122,7 +7272,7 @@ const actionResultQrValue = computed(() => {
 });
 
 const actionResultMediaUrl = computed(() => {
-  const data = actionResultData.value;
+  const data = visibleActionResultData.value;
 
   if (typeof data === 'string') {
     return data;
@@ -8013,7 +8163,7 @@ watch(
 
         <Table
           :columns="tableColumns"
-          :data-source="dataSource"
+          :data-source="visibleDataSource"
           :loading="loading"
           :pagination="{
             current: pagination.current,
@@ -9229,8 +9379,8 @@ watch(
       <DetailDisplayPanel
         v-else-if="
           actionResultMode === 'showForm' &&
-          typeof actionResultData === 'object' &&
-          !Array.isArray(actionResultData)
+          typeof visibleActionResultData === 'object' &&
+          !Array.isArray(visibleActionResultData)
         "
         :entries="actionResultEntries"
         v-model:hide-empty-values="actionResultHideEmptyValues"
@@ -9240,9 +9390,9 @@ watch(
         class="bg-muted max-h-[60vh] overflow-auto rounded p-3 text-sm"
       >
         <pre>{{
-          typeof actionResultData === 'string'
-            ? actionResultData
-            : JSON.stringify(actionResultData, null, 2)
+          typeof visibleActionResultData === 'string'
+            ? visibleActionResultData
+            : JSON.stringify(visibleActionResultData, null, 2)
         }}</pre>
       </div>
     </Modal>

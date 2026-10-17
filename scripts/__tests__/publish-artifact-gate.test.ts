@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   copyFileSync,
   mkdirSync,
   mkdtempSync,
@@ -27,6 +28,7 @@ import {
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true });
   }
@@ -318,6 +320,83 @@ describe('publish artifact gate', () => {
         packageVersions.packages['@vben-core/foundation'],
     });
   });
+
+  it.each(['install', 'vite'])(
+    '清理继承的大小写registry覆盖并保留私服npmrc：%s',
+    (mode) => {
+      // 使用真实子进程读取其环境和消费者配置，不模拟spawnSync参数。
+      const directory = createTemporaryDirectory();
+      const bin = join(directory, 'bin');
+      const captures = join(directory, 'captured.jsonl');
+      const auth = join(directory, 'auth.npmrc');
+      mkdirSync(bin);
+      writeFileSync(
+        auth,
+        '//private.example/repository/npm/:_authToken=fixture-token\n',
+      );
+      const executable = join(bin, 'pnpm');
+      writeFileSync(
+        executable,
+        String.raw`#!/usr/bin/env node
+const fs = require('node:fs');
+fs.appendFileSync(process.env.CAPTURE_CONSUMER_ENV, JSON.stringify({
+ args: process.argv.slice(2),
+ overrides: Object.keys(process.env).filter(key => /^npm_config_(registry|userconfig|fallback_registry)$/i.test(key)),
+ npmrc: fs.readFileSync('.npmrc', 'utf8'),
+}) + '\n');
+`,
+      );
+      chmodSync(executable, 0o755);
+      vi.stubEnv('npm_config_registry', 'https://registry.npmmirror.com/');
+      vi.stubEnv('npm_config_userconfig', '/inherited/user.npmrc');
+      vi.stubEnv('npm_config_fallback_registry', 'https://inherited.invalid/');
+      const tarball = createTarball({
+        name: '@scope/environment-test',
+        version: '1.0.0',
+      });
+      const env = {
+        PATH: `${bin}:${process.env.PATH}`,
+        CAPTURE_CONSUMER_ENV: captures,
+        NPM_CONFIG_REGISTRY: 'https://private.example/repository/npm/',
+        NPM_CONFIG_FALLBACK_REGISTRY: 'https://registry.npmjs.org/',
+        NPM_CONFIG_USERCONFIG: auth,
+      };
+      if (mode === 'install')
+        verifyTarballStandaloneInstall(
+          { name: '@scope/environment-test' },
+          tarball,
+          env,
+        );
+      else
+        verifyTarballStandaloneViteBuild(
+          { name: '@scope/environment-test' },
+          tarball,
+          '@scope/environment-test',
+          env,
+        );
+      const records = readFileSync(captures, 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(records).toHaveLength(mode === 'install' ? 1 : 2);
+      for (const record of records) {
+        expect(record.overrides).toEqual([]);
+        expect(record.npmrc).toContain('registry=https://registry.npmjs.org/');
+        expect(record.npmrc).toContain(
+          '@levin:registry=https://private.example/repository/npm/',
+        );
+        expect(record.npmrc).toContain(
+          '@vben:registry=https://private.example/repository/npm/',
+        );
+        expect(record.npmrc).toContain(
+          '@vben-core:registry=https://private.example/repository/npm/',
+        );
+        expect(record.npmrc).toContain(
+          '//private.example/repository/npm/:_authToken=fixture-token',
+        );
+      }
+    },
+  );
 
   it('installs a tarball in a temporary standalone consumer', () => {
     const tarballPath = createTarball({

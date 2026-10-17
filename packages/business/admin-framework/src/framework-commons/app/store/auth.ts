@@ -1,6 +1,6 @@
 import type { Recordable, UserInfo } from '@vben/runtime/types';
 
-import { ref } from 'vue';
+import { onScopeDispose, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/runtime/constants';
@@ -26,6 +26,14 @@ import { notification } from 'ant-design-vue';
 import { defineStore } from 'pinia';
 
 import {
+  clearDataAttrPolicies,
+  configureDataAttrPolicyLoader,
+  isDataAttrPolicyReady,
+  suspendDataAttrPolicies,
+} from '../../data-attr-policy';
+import { onGlobalDomainContextChange } from '../global-domain-context-state';
+import { onGlobalUserOrgContextChange } from '../global-org-context-state';
+import {
   INITIAL_PASSWORD_CHANGE_PATH,
   mustChangeInitialPassword,
 } from '../initial-password';
@@ -40,6 +48,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   const loginLoading = ref(false);
   let logoutInFlight: Promise<void> | undefined;
+
+  // 领域、组织和租户切换可能改变有效角色与等级，同步撤销旧的属性组结论。
+  const stopDomain = onGlobalDomainContextChange(clearDataAttrPolicies);
+  const stopOrg = onGlobalUserOrgContextChange(clearDataAttrPolicies);
+  onScopeDispose(() => {
+    stopDomain();
+    stopOrg();
+  });
 
   /**
    * 异步处理登录操作
@@ -108,6 +124,7 @@ export const useAuthStore = defineStore('auth', () => {
   ) {
     // A logout endpoint's own 401 must not await the operation that is awaiting it.
     if (logoutInFlight) return remoteLogout ? logoutInFlight : undefined;
+    suspendDataAttrPolicies();
     const route = router.currentRoute.value;
     const target = redirect
       ? resolveLoginRedirect(
@@ -155,10 +172,25 @@ export const useAuthStore = defineStore('auth', () => {
       !force &&
       !shouldRefreshAuthorizedPermissions(accessStore.accessCodes)
     ) {
+      // 路由命中已有权限时保留正负策略缓存，只补齐尚未初始化的加载器。
+      if (!isDataAttrPolicyReady()) {
+        configureDataAttrPolicyLoader(async (query) => {
+          const { dataAttrPolicyService } =
+            await import('../api/data-attr-policy-service');
+          return dataAttrPolicyService.resolve(query);
+        });
+      }
       return accessStore.accessCodes;
     }
 
+    // 刷新期间暂停策略读取，失败时保持关闭，避免活跃页面复用旧授权加载器。
+    suspendDataAttrPolicies();
     const accessCodes = await getAccessCodesApi();
+    configureDataAttrPolicyLoader(async (query) => {
+      const { dataAttrPolicyService } =
+        await import('../api/data-attr-policy-service');
+      return dataAttrPolicyService.resolve(query);
+    });
     accessStore.setAccessCodes(accessCodes || []);
     return accessCodes || [];
   }
@@ -167,6 +199,7 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken: string,
     onSuccess?: () => Promise<void> | void,
   ) {
+    suspendDataAttrPolicies();
     const { resetRoutes } = await import('../router');
     clearPreviousUserAccessState(accessStore, resetRoutes, () =>
       tabbarStore.$reset(),

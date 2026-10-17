@@ -324,9 +324,12 @@ export function verifyTarballStandaloneInstall(
     writeStandaloneConsumerNpmrc(consumerDir, extraEnv);
 
     const installEnv = { ...process.env, ...extraEnv };
-    delete installEnv.NPM_CONFIG_FALLBACK_REGISTRY;
-    delete installEnv.NPM_CONFIG_REGISTRY;
-    delete installEnv.NPM_CONFIG_USERCONFIG;
+    // pnpm run会注入小写配置；两种大小写均清理，让消费者.npmrc保留私服scope并使用指定公共源。
+    for (const key of Object.keys(installEnv)) {
+      if (/^NPM_CONFIG_(FALLBACK_REGISTRY|REGISTRY|USERCONFIG)$/i.test(key)) {
+        delete installEnv[key];
+      }
+    }
 
     const result = spawnSync(
       'pnpm',
@@ -419,9 +422,12 @@ export function verifyTarballStandaloneViteBuild(
     writeStandaloneConsumerNpmrc(consumerDir, extraEnv);
 
     const installEnv = { ...process.env, ...extraEnv };
-    delete installEnv.NPM_CONFIG_FALLBACK_REGISTRY;
-    delete installEnv.NPM_CONFIG_REGISTRY;
-    delete installEnv.NPM_CONFIG_USERCONFIG;
+    // pnpm run会注入小写配置；两种大小写均清理，让消费者.npmrc保留私服scope并使用指定公共源。
+    for (const key of Object.keys(installEnv)) {
+      if (/^NPM_CONFIG_(FALLBACK_REGISTRY|REGISTRY|USERCONFIG)$/i.test(key)) {
+        delete installEnv[key];
+      }
+    }
 
     const install = spawnSync(
       'pnpm',

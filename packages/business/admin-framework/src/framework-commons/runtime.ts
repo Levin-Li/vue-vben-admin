@@ -1,5 +1,7 @@
 import type { WorkflowMessageActionTarget } from './shared/user-message-target';
 
+import { guardDataAttrRequest } from './data-attr-policy';
+
 export interface AdminRequestClient {
   delete<T = any>(url: string, config?: Record<string, any>): Promise<T>;
   get<T = any>(url: string, config?: Record<string, any>): Promise<T>;
@@ -114,22 +116,32 @@ export function getAdminUserSecurityService() {
 }
 
 export const requestClient: AdminRequestClient = {
-  delete(url, config) {
+  async delete(url, config) {
+    await guardDataAttrRequest('DELETE', url, config);
     return getAdminRequestClient().delete(url, config);
   },
-  get(url, config) {
+  async get(url, config) {
+    await guardDataAttrRequest('GET', url, config);
     return getAdminRequestClient().get(url, config);
   },
-  post(url, data, config) {
+  async post(url, data, config) {
+    await guardDataAttrRequest('POST', url, { ...config, data });
     return getAdminRequestClient().post(url, data, config);
   },
-  put(url, data, config) {
+  async put(url, data, config) {
+    await guardDataAttrRequest('PUT', url, { ...config, data });
     return getAdminRequestClient().put(url, data, config);
   },
-  request(urlOrConfig, config) {
+  async request(urlOrConfig, config) {
+    const options =
+      typeof urlOrConfig === 'string' ? config || {} : urlOrConfig;
+    const path =
+      typeof urlOrConfig === 'string' ? urlOrConfig : String(options.url || '');
+    await guardDataAttrRequest(String(options.method || 'GET'), path, options);
     return getAdminRequestClient().request(urlOrConfig, config);
   },
-  upload(url, data, config) {
+  async upload(url, data, config) {
+    await guardDataAttrRequest('POST', url, { ...config, data });
     const upload = getAdminRequestClient().upload;
     if (!upload) {
       throw new Error('The host requestClient does not support upload().');

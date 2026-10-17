@@ -463,6 +463,13 @@ export interface CrudPageConfig {
   apiBase: string;
   apiModuleBase?: string;
   apiService?: CrudApiService;
+  /** 显式声明需原样保留并校验的范围/定位参数，禁止当作赋值字段裁剪。 */
+  dataAttrConditionKeys?: string[];
+  /** 同一资源操作对应多个实际处理器时，显式指定字段策略目标；不从服务方法名称猜路径。 */
+  dataAttrTargets?: Partial<Record<
+    'batchCreate' | 'create' | 'delete' | 'list' | 'retrieve' | 'update',
+    { contentType?: string; method: string; path: string }
+  >>;
   allowCreate?: boolean;
   allowDelete?: boolean;
   allowEdit?: boolean;

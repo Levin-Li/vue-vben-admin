@@ -1,6 +1,7 @@
 export * from './api-doc-service';
 export * from './cache-service';
 export * from './core';
+export * from './data-attr-policy-service';
 export * from './dummy-service';
 export * from './enum-service';
 export * from './file-storage-service';
