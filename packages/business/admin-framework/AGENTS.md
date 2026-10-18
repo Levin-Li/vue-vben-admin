@@ -13,6 +13,12 @@ API 属性组权限的轻量分配、后端元数据契约与保存语义见 [�
 
 公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。
 
+标准 CRUD 标签缓存接入与失效边界见 [标签缓存接入指南](docs/crud-tab-cache.md)。
+
+标准 CRUD 金额字段的四位分组、默认单位和页面覆盖见 [金额展示使用说明](docs/crud-money-display.md)。
+
+实现 EditableObject 的实体在标准 CRUD 中的超管可见性与编辑规则见 [EditableObject 标准 CRUD 使用说明](docs/crud-editableobject-access.md)。
+
 紧凑列表的表头固定列图标与临时收展见 [紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。
 
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。

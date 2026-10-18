@@ -1,15 +1,19 @@
 <script lang="ts" setup>
+import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
+
 import { computed, reactive, ref, watch } from 'vue';
 
-import { message, Modal, Select } from 'ant-design-vue';
+import { useUserStore } from '@vben/runtime/stores';
 
+import { rbacService, UserOrgSelector } from '@levin/admin-framework';
 import {
   buildApiMethodPermissions,
   buildCrudOperationPermissions,
 } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
+import { Card, message, Modal, Select } from 'ant-design-vue';
 
-import { userService } from '../../api/user-service';
+import { UserService, userService } from '../../api/user-service';
 import { loadDomainScopeOptions } from '../../domain-scope-options';
 import CrudPage from '../crud-page.vue';
 import { getDataPermissionCount } from '../permission-action-counts';
@@ -25,6 +29,22 @@ async function loadStringDomainScopeOptions(keyword?: string) {
 }
 
 const pageKey = ref(0);
+const currentUser = useUserStore();
+const selectedOrg = ref<UserOrgSelectorRecord>();
+const selectedScope = computed(() =>
+  selectedOrg.value?.tenantId
+    ? { orgId: selectedOrg.value.id, tenantId: selectedOrg.value.tenantId }
+    : undefined,
+);
+const scopedUserService = new UserService(() => selectedScope.value);
+const scopeKey = computed(() =>
+  JSON.stringify([
+    currentUser.userInfo?.id,
+    selectedScope.value,
+    pageKey.value,
+  ]),
+);
+let scopeGeneration = 0;
 const dialogOpen = ref(false);
 const selectedRecord = ref<null | Record<string, any>>(null);
 const roleModalOpen = ref(false);
@@ -38,6 +58,7 @@ const roleFormState = reactive({
 
 const userListConfig = computed(() => ({
   ...userPageCrudConfig,
+  apiService: scopedUserService,
   rowActions: [
     ...(userPageCrudConfig.rowActions || []),
     {
@@ -66,23 +87,25 @@ const userListConfig = computed(() => ({
 }));
 
 async function loadRoleOptions(keyword = '') {
+  const generation = scopeGeneration;
   roleOptionsLoading.value = true;
 
   try {
     const options = await roleOptionsLoader(keyword);
+    if (generation !== scopeGeneration) return;
     roleOptions.value = options.map((option) => ({
       label: String(option.label),
       value: String(option.value),
     }));
   } finally {
-    roleOptionsLoading.value = false;
+    if (generation === scopeGeneration) roleOptionsLoading.value = false;
   }
 }
 
 async function openRoleModal(record: Record<string, any>) {
   roleFormState.id = String(record.id || '');
   roleFormState.roleList = Array.isArray(record.roleList)
-    ? record.roleList.map((role) => String(role))
+    ? record.roleList.map(String)
     : [];
   roleModalOpen.value = true;
   await loadRoleOptions();
@@ -95,23 +118,58 @@ async function submitRoleForm() {
   }
 
   roleSubmitting.value = true;
+  const generation = scopeGeneration;
 
   try {
-    await userService.assignRoles({
+    await scopedUserService.assignRoles({
       id: roleFormState.id,
       roleList: roleFormState.roleList,
     });
+    if (generation !== scopeGeneration) return;
     message.success('角色已分配');
     roleModalOpen.value = false;
     pageKey.value += 1;
   } finally {
-    roleSubmitting.value = false;
+    if (generation === scopeGeneration) roleSubmitting.value = false;
   }
 }
 
 function handleSaved() {
   pageKey.value += 1;
 }
+
+function changeOrganization(
+  value: undefined | UserOrgSelectorRecord | UserOrgSelectorRecord[],
+  reset = false,
+) {
+  const record = Array.isArray(value) ? value[0] : value;
+  if (record && (record.kind !== 'org' || !record.tenantId)) {
+    message.error('请选择带有租户归属的已授权组织。');
+    return;
+  }
+  if (
+    !reset &&
+    record?.id === selectedOrg.value?.id &&
+    record?.tenantId === selectedOrg.value?.tenantId
+  )
+    return;
+  // 切换组织重新挂载CRUD及其流程抽屉，不保留旧记录表单或旧异步响应。
+  scopeGeneration++;
+  selectedRecord.value = null;
+  dialogOpen.value = false;
+  roleModalOpen.value = false;
+  roleSubmitting.value = false;
+  roleOptionsLoading.value = false;
+  roleOptions.value = [];
+  selectedOrg.value = record;
+}
+const loadAuthorizedOrganizations = () =>
+  rbacService.fetchAuthorizedOrgTree({ assembleTree: true });
+watch(
+  () => JSON.stringify(currentUser.userInfo),
+  () => changeOrganization(undefined, true),
+  { flush: 'sync' },
+);
 
 watch(dialogOpen, (open) => {
   if (!open) {
@@ -121,7 +179,19 @@ watch(dialogOpen, (open) => {
 </script>
 
 <template>
-  <CrudPage :key="pageKey" :config="userListConfig" />
+  <Card size="small" title="用户查询组织" class="mb-4">
+    <UserOrgSelector
+      :model-value="selectedOrg"
+      :selectable-types="['org']"
+      :multiple="false"
+      value-mode="record"
+      :load-org-tree="loadAuthorizedOrganizations"
+      placeholder="当前默认组织，可选择一个已授权组织"
+      class="w-full max-w-md"
+      @update:selected-records="changeOrganization"
+    />
+  </Card>
+  <CrudPage :key="scopeKey" :config="userListConfig" />
 
   <DataPermissionDialog
     v-if="selectedRecord"

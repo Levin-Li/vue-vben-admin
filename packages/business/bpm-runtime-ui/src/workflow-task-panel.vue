@@ -52,19 +52,30 @@ import {
 } from './workflow-task-form';
 
 // 任务及服务端动作是唯一授权来源，不补造默认“通过”动作。
-const props = defineProps<{
-  attachments?: WorkflowAttachmentMeta[];
-  canDeletePendingAttachment?: boolean;
-  canDownloadAttachment?: boolean;
-  canUploadAttachment?: boolean;
-  deletingAttachmentId?: string;
-  detailComponents?: Record<string, Component>;
-  downloadingAttachmentId?: string;
-  submitting?: boolean;
-  task: WorkflowTaskView;
-  uploadingAttachment?: boolean;
-  verificationChallenge?: WorkflowVerificationChallenge;
-}>();
+const props = withDefaults(
+  defineProps<{
+    attachments?: WorkflowAttachmentMeta[];
+    canComplete?: boolean;
+    canDeletePendingAttachment?: boolean;
+    canDownloadAttachment?: boolean;
+    canUploadAttachment?: boolean;
+    deletingAttachmentId?: string;
+    detailComponents?: Record<string, Component>;
+    downloadingAttachmentId?: string;
+    submitting?: boolean;
+    task: WorkflowTaskView;
+    uploadingAttachment?: boolean;
+    verificationChallenge?: WorkflowVerificationChallenge;
+  }>(),
+  {
+    canComplete: true,
+    attachments: undefined,
+    deletingAttachmentId: undefined,
+    detailComponents: undefined,
+    downloadingAttachmentId: undefined,
+    verificationChallenge: undefined,
+  },
+);
 const emit = defineEmits<{
   action: [action: WorkflowTaskAction];
   deletePendingAttachment: [attachment: WorkflowAttachmentMeta];
@@ -103,14 +114,18 @@ const displayFormItems = computed<WorkflowFormItem[]>(
     [],
 );
 const actions = computed(() =>
-  props.task.status === 'Todo'
+  props.task.status === 'Todo' &&
+  props.canComplete !== false &&
+  !props.task.businessBasisChanged
     ? (props.task.actions ?? []).filter(
         (action) => !workflowActionUnavailable(action),
       )
     : [],
 );
 const unavailableActions = computed(() =>
-  props.task.status === 'Todo'
+  props.task.status === 'Todo' &&
+  props.canComplete !== false &&
+  !props.task.businessBasisChanged
     ? (props.task.actions ?? []).filter((action) =>
         workflowActionUnavailable(action),
       )
@@ -119,6 +134,8 @@ const unavailableActions = computed(() =>
 const readOnly = computed(
   () =>
     props.task.status !== 'Todo' ||
+    props.canComplete === false ||
+    props.task.businessBasisChanged === true ||
     props.submitting ||
     props.uploadingAttachment,
 );
@@ -414,6 +431,19 @@ function submit() {
         v-else
         type="info"
         message="此任务尚未提供可授权查看的业务引用。"
+      />
+      <AAlert
+        v-if="task.operationBlockedReason"
+        class="mt-3"
+        type="warning"
+        :message="task.operationBlockedReason"
+        show-icon
+      />
+      <AAlert
+        v-if="task.status === 'Todo' && canComplete === false"
+        class="mt-3"
+        type="warning"
+        message="当前账号没有办理此任务的API权限；查看业务数据与办理流程分别授权，请联系业务管理员。"
       />
       <ADescriptions class="mt-3" :column="1" size="small">
         <ADescriptionsItem label="流程实例">

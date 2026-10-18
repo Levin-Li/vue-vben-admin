@@ -8,7 +8,10 @@ import { useRoute, useRouter } from 'vue-router';
 import { Page } from '@vben/common-ui';
 import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
-import { resolvePersonalMessageSourceRoute } from '@levin/admin-framework';
+import {
+  formatPersonalMessageSummary,
+  resolvePersonalMessageSourceRoute,
+} from '@levin/admin-framework';
 import { globalDomainContextRevision } from '@levin/admin-framework/framework-commons/app/global-domain-context-state';
 import { globalOrgContextRevision } from '@levin/admin-framework/framework-commons/app/global-org-context-state';
 import {
@@ -370,7 +373,7 @@ onBeforeUnmount(() => {
                 }}</span>
               </div>
               <div class="text-muted-foreground line-clamp-2 text-sm">
-                {{ item.summary || '暂无摘要' }}
+                {{ formatPersonalMessageSummary(item) }}
               </div>
               <div class="text-muted-foreground mt-2 text-xs">
                 {{ formatDate(item.createTime) }}
@@ -421,7 +424,13 @@ onBeforeUnmount(() => {
               formatDate(activeMessage.createTime)
             }}</span>
           </div>
-          <p class="whitespace-pre-wrap text-sm">
+          <!-- 工作流通知正文保存在本人消息摘要中，详情须经安全 Markdown 阅读器展示。 -->
+          <NoticeContentViewer
+            v-if="activeMessage.sourceType === 'Workflow'"
+            :content="activeMessage.summary || '暂无摘要'"
+            content-type="Markdown"
+          />
+          <p v-else class="whitespace-pre-wrap text-sm">
             {{ activeMessage.summary || '暂无摘要' }}
           </p>
           <div class="flex justify-end gap-2">

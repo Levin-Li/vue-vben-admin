@@ -9,14 +9,19 @@ import { buildApiMethodPermissions } from '@levin/admin-framework/framework-comm
 import { WorkflowRuntimeWorkbench } from '@levin/bpm-runtime-ui';
 import { Alert, message } from 'ant-design-vue';
 
-import { workflowRuntimeService } from '../../api/workflow-runtime-service';
+import {
+  workflowOperationPermissions,
+  workflowRuntimeService,
+} from '../../api/workflow-runtime-service';
 import WorkflowRequestDetail from '../workflow-request/detail.vue';
+import WorkflowContractDetail from './workflow-contract-detail.vue';
 import WorkflowExpenseDetail from './workflow-expense-detail.vue';
 
 // 仅注册明确业务组件，不根据服务器字符串动态 import 任意路径。
 const detailComponents = {
   'workflow-request': WorkflowRequestDetail,
   'workflow-expense': WorkflowExpenseDetail,
+  'electronic-contract': WorkflowContractDetail,
 };
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
@@ -63,6 +68,20 @@ const loadTargetInstance = (instanceId: string) =>
   workflowRuntimeService.instance(instanceId);
 
 // 每个列表只消费对应控制器方法的当前权限，菜单展示权不替代 API 授权。
+const canComplete = computed(() =>
+  hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'complete')),
+);
+const canWithdraw = computed(
+  () =>
+    Boolean(userStore.userInfo?.id) &&
+    hasPermission(workflowOperationPermissions.withdraw),
+);
+const canTerminate = computed(() =>
+  hasPermission(workflowOperationPermissions.terminate),
+);
+const canRecover = computed(() =>
+  hasPermission(workflowOperationPermissions.recover),
+);
 const canViewTodo = computed(() =>
   hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'todo')),
 );
@@ -135,6 +154,11 @@ const loadCopyRecipients = (instanceId: string, keyword: string) =>
     message="邮件中的流程链接无效，请从工作流列表查找或联系发送方。"
   />
   <WorkflowRuntimeWorkbench
+    :key="userStore.userInfo?.id"
+    :can-complete="canComplete"
+    :can-withdraw="canWithdraw"
+    :can-terminate="canTerminate"
+    :can-recover="canRecover"
     :load-target-task="loadTargetTask"
     :load-target-instance="loadTargetInstance"
     :can-view-target-task="canViewTargetTask"

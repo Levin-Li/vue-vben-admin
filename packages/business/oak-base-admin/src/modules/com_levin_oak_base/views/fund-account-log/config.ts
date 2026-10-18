@@ -161,6 +161,7 @@ export const fundAccountLogPageCrudConfig: CrudPageConfig = {
     {
       key: 'tradeAmount',
       label: '交易金额',
+      moneyDisplay: { unit: '' },
       table: true,
       type: 'number',
       width: 120,

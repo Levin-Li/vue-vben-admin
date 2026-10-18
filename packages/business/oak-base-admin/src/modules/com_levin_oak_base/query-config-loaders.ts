@@ -32,9 +32,9 @@ export const oakBaseQueryConfigLoaders: NonNullable<
     import('./views/client-app/config').then(
       (module) => module.clientAppPageCrudConfig,
     ),
-  '/system/com_levin_oak_base/customer/index.vue': () =>
-    import('./views/customer/config').then(
-      (module) => module.customerPageCrudConfig,
+  '/system/com_levin_oak_base/member-user/index.vue': () =>
+    import('./views/member-user/config').then(
+      (module) => module.memberUserPageCrudConfig,
     ),
   '/system/com_levin_oak_base/demo/index.vue': () =>
     import('./views/demo/config').then((module) => module.demoPageCrudConfig),
@@ -129,10 +129,19 @@ export const oakBaseQueryConfigLoaders: NonNullable<
     ),
   '/system/com_levin_oak_base/org/index.vue': () =>
     import('./views/org/config').then((module) => module.orgPageCrudConfig),
-  '/system/com_levin_oak_base/partner/index.vue': () =>
-    import('./views/partner/config').then(
-      (module) => module.partnerPageCrudConfig,
+  '/system/com_levin_oak_base/settlement-statement/index.vue': () =>
+    import('./views/settlement-statement/config').then(
+      (module) => module.settlementStatementPageCrudConfig,
     ),
+  '/system/com_levin_oak_base/supplier-partner/index.vue': () =>
+    import('./views/supplier-partner/config').then(
+      (module) => module.supplierPartnerPageCrudConfig,
+    ),
+  '/system/com_levin_oak_base/channel-partner/index.vue': () =>
+    import('./views/channel-partner/config').then(
+      (module) => module.channelPartnerPageCrudConfig,
+    ),
+
   '/system/com_levin_oak_base/pay-channel/index.vue': () =>
     import('./views/pay-channel/config').then(
       (module) => module.payChannelPageCrudConfig,

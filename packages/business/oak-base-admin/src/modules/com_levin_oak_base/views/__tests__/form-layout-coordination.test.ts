@@ -1,15 +1,15 @@
+import type { CrudFieldConfig } from '@levin/admin-framework/framework-commons/shared/types';
+
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-
-import ts from 'typescript';
-import { describe, expect, it } from 'vitest';
 
 import {
   getFormFieldColumnSpan,
   resolveFormColumnCount,
   sortFormLayoutFields,
 } from '@levin/admin-framework/framework-commons/shared/crud-form-layout';
-import type { CrudFieldConfig } from '@levin/admin-framework/framework-commons/shared/types';
+import ts from 'typescript';
+import { describe, expect, it } from 'vitest';
 
 const viewsDir =
   'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views';
@@ -256,10 +256,16 @@ function collectCoordinationIssues(
     const key = field.layoutGroup || '';
     groups.set(key, [...(groups.get(key) || []), field]);
   }
-  return [...groups.values()].flatMap((group) => collectGroupCoordinationIssues(file, mode, group));
+  return [...groups.values()].flatMap((group) =>
+    collectGroupCoordinationIssues(file, mode, group),
+  );
 }
 
-function collectGroupCoordinationIssues(file: string, mode: 'create' | 'edit', fields: CrudFieldConfig[]) {
+function collectGroupCoordinationIssues(
+  file: string,
+  mode: 'create' | 'edit',
+  fields: CrudFieldConfig[],
+) {
   const rows = buildFormRows(fields);
   const issues: string[] = [];
 
@@ -291,13 +297,9 @@ function collectGroupCoordinationIssues(file: string, mode: 'create' | 'edit', f
 }
 
 function isCompactHighComponent(field: CrudFieldConfig) {
-  return [
-    'file',
-    'image',
-    'json',
-    'string-array',
-    'tags',
-  ].includes(String(field.type || ''));
+  return ['file', 'image', 'json', 'string-array', 'tags'].includes(
+    String(field.type || ''),
+  );
 }
 
 function isAllowedFullRowHighComponent(file: string, field: CrudFieldConfig) {
@@ -306,13 +308,19 @@ function isAllowedFullRowHighComponent(file: string, field: CrudFieldConfig) {
     domain: ['nameservers', 'exInfo'],
     menu: ['params'],
     'service-plugin': ['baseConfig'],
+    'settlement-statement': ['settlementContent'],
   };
-  if (Object.entries(reviewedWideJsonFields).some(([page, keys]) => file.endsWith(`${page}/config.ts`) && keys.includes(field.key))) return true;
+  if (
+    Object.entries(reviewedWideJsonFields).some(
+      ([page, keys]) =>
+        file.endsWith(`${page}/config.ts`) && keys.includes(field.key),
+    )
+  )
+    return true;
   return (
-    file.endsWith('client-app/config.ts') &&
-    ['allowedIpList', 'allowedPathPatterns'].includes(field.key)
-  ) || (
-    file.endsWith('email-relay-route/config.ts') && field.key === 'targetList'
+    (file.endsWith('client-app/config.ts') &&
+      ['allowedIpList', 'allowedPathPatterns'].includes(field.key)) ||
+    (file.endsWith('email-relay-route/config.ts') && field.key === 'targetList')
   );
 }
 

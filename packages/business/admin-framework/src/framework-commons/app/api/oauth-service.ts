@@ -1,7 +1,8 @@
 import { ResAuthorize, Service } from '../../api-authorize';
 import { RequestService } from '../../request-service';
+import { baseRequestClient } from './request';
 
-export type OAuthTransactionPurpose = 'BIND' | 'LOGIN';
+export type OAuthTransactionPurpose = 'BIND' | 'INVITE' | 'LOGIN';
 
 export interface OAuthSupportedPlatform {
   authType?: null | string;
@@ -23,9 +24,22 @@ export interface OAuthSupportedPlatform {
 export interface CreateOAuthTransactionParams {
   callbackUrl?: null | string;
   fallbackUrl?: null | string;
+  invitationToken?: string;
   platform: string;
   purpose: OAuthTransactionPurpose;
   returnUrl?: null | string;
+}
+
+export interface OAuthInvitationRedeemParams {
+  account?: string;
+  legalSubjectName?: string;
+  organizationName?: string;
+  password?: string;
+  token: string;
+  transactionId: string;
+  unifiedCreditNo?: string;
+  verificationCode?: string;
+  verifyCodeType?: 'Email' | 'Sms';
 }
 
 export interface OAuthTransaction {
@@ -112,6 +126,18 @@ export interface OAuthExchangeResult {
   type: '公共接口-OAuth认证服务',
 })
 export class OAuthService extends RequestService {
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共接口-OAuth认证服务',
+    action: '第3方平台授权',
+    ignored: true,
+  })
+  async authorize(platform: string, params?: any, options?: any) {
+    return this.get(`authorize/${platform}`, {
+      ...options,
+      params,
+    });
+  }
   @ResAuthorize({ ignored: true })
   async authorizeInAppTransaction(
     id: string,
@@ -137,44 +163,6 @@ export class OAuthService extends RequestService {
     );
   }
 
-  // 控制器创建受浏览器、用途与 state 约束的企业 App 内授权事务。
-  @ResAuthorize({ ignored: true })
-  async createInAppTransaction(
-    data: CreateOAuthTransactionParams,
-    options?: any,
-  ) {
-    return this.post<InAppOAuthTransaction>('inApp/transactions', {
-      ...options,
-      data,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共接口-OAuth认证服务',
-    action: '获取支持的第3方平台登录列表',
-    ignored: true,
-  })
-  async getSupportedPlatforms(params?: any, options?: any) {
-    return this.get('getSupportedPlatforms', {
-      ...options,
-      params,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共接口-OAuth认证服务',
-    action: '第3方平台授权',
-    ignored: true,
-  })
-  async authorize(platform: string, params?: any, options?: any) {
-    return this.get(`authorize/${platform}`, {
-      ...options,
-      params,
-    });
-  }
-
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共接口-OAuth认证服务',
@@ -185,6 +173,30 @@ export class OAuthService extends RequestService {
     return this.get(`callback/${platform}`, {
       ...options,
       params,
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共接口-OAuth认证服务',
+    action: '取消OAuth授权事务',
+    ignored: true,
+  })
+  async cancelTransaction(id: string, options?: any) {
+    return this.post(`transactions/${id}/cancel`, {
+      ...options,
+    });
+  }
+
+  // 控制器创建受浏览器、用途与 state 约束的企业 App 内授权事务。
+  @ResAuthorize({ ignored: true })
+  async createInAppTransaction(
+    data: CreateOAuthTransactionParams,
+    options?: any,
+  ) {
+    return this.post<InAppOAuthTransaction>('inApp/transactions', {
+      ...options,
+      data,
     });
   }
 
@@ -204,18 +216,6 @@ export class OAuthService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共接口-OAuth认证服务',
-    action: '查询OAuth授权事务状态',
-    ignored: true,
-  })
-  async getTransaction(id: string, options?: any) {
-    return this.get<OAuthTransaction>(`transactions/${id}`, {
-      ...options,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共接口-OAuth认证服务',
     action: '兑换OAuth授权事务结果',
     ignored: true,
   })
@@ -229,18 +229,6 @@ export class OAuthService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共接口-OAuth认证服务',
-    action: '取消OAuth授权事务',
-    ignored: true,
-  })
-  async cancelTransaction(id: string, options?: any) {
-    return this.post(`transactions/${id}/cancel`, {
-      ...options,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '公共接口-OAuth认证服务',
     action: '查询当前用户第三方绑定列表',
     ignored: true,
   })
@@ -248,6 +236,45 @@ export class OAuthService extends RequestService {
     return this.get<OAuthBindingListResult>('bindings/me', {
       ...options,
     });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共接口-OAuth认证服务',
+    action: '获取支持的第3方平台登录列表',
+    ignored: true,
+  })
+  async getSupportedPlatforms(params?: any, options?: any) {
+    // 公开登录目录不依赖上一会话的业务策略。
+    return baseRequestClient.get(
+      this.buildRequestPath('getSupportedPlatforms'),
+      {
+        ...options,
+        baseURL: '',
+        params,
+      },
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共接口-OAuth认证服务',
+    action: '查询OAuth授权事务状态',
+    ignored: true,
+  })
+  async getTransaction(id: string, options?: any) {
+    return this.get<OAuthTransaction>(`transactions/${id}`, {
+      ...options,
+    });
+  }
+
+  @ResAuthorize({ ignored: true })
+  async redeemInvitation(data: OAuthInvitationRedeemParams, options?: any) {
+    return this.post<{
+      accountId: string;
+      businessId?: string;
+      organizationId?: string;
+    }>('invitationRedeemOAuth', { ...options, data });
   }
 
   @ResAuthorize({

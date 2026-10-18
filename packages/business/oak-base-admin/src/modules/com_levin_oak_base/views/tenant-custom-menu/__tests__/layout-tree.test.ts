@@ -6,13 +6,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   appendLayoutItem,
-  appendLayoutItemsAtTarget,
   appendLayoutItemAtTarget,
+  appendLayoutItemsAtTarget,
   canDragLayoutItem,
   collectExpandedTreeKeys,
   collectLayoutPaths,
-  findDuplicateLayoutLabel,
   filterTreeByLabel,
+  findDuplicateLayoutLabel,
   findLayoutItem,
   flattenMenuSources,
   hasLayoutLabelAtTarget,
@@ -21,8 +21,8 @@ import {
   keepLayoutRootExpanded,
   moveLayoutItem,
   removeLayoutItem,
-  toPersistedLayoutItems,
   toLayoutItem,
+  toPersistedLayoutItems,
   updateLayoutItemValue,
 } from '../layout-tree';
 
@@ -33,7 +33,7 @@ const adjusterSource = readFileSync(
 
 function getAdjusterFunctionSource(name: string) {
   const start = adjusterSource.indexOf(`function ${name}`);
-  if (start < 0) {
+  if (start === -1) {
     return '';
   }
 
@@ -160,16 +160,19 @@ describe('menu display layout tree', () => {
   it('persists disabled display items as enable false', () => {
     expect(
       toPersistedLayoutItems([
-        { enable: false, key: 'menu:theater', label: '剧场号', path: '/theater' },
+        {
+          enable: false,
+          key: 'menu:theater',
+          label: '剧场号',
+          path: '/theater',
+        },
       ]),
     ).toEqual([{ enable: false, label: '剧场号', path: '/theater' }]);
   });
 
   it('ignores malformed child collections while flattening source menus', () => {
     expect(
-      flattenMenuSources([
-        { children: {} as any, label: '后台管理' },
-      ]),
+      flattenMenuSources([{ children: {} as any, label: '后台管理' }]),
     ).toEqual([{ children: {}, label: '后台管理' }]);
   });
 
@@ -287,7 +290,9 @@ describe('menu display layout tree', () => {
         label: '分组 A',
       },
       {
-        children: [{ key: 'menu:b:report', label: 'Report', path: '/b/report' }],
+        children: [
+          { key: 'menu:b:report', label: 'Report', path: '/b/report' },
+        ],
         key: 'group:b',
         label: '分组 B',
       },
@@ -337,7 +342,9 @@ describe('menu display layout tree', () => {
   it('skips a batch menu whose label duplicates a sibling with another path', () => {
     const items = [
       {
-        children: [{ key: 'menu:group:report', label: '报表', path: '/report' }],
+        children: [
+          { key: 'menu:group:report', label: '报表', path: '/report' },
+        ],
         key: 'group:reports',
         label: '报表分组',
       },
@@ -363,8 +370,12 @@ describe('menu display layout tree', () => {
       'layout.optimisticLock = (layout.optimisticLock ?? 0) + 1;',
     );
     expect(saveLayoutSource).toContain('await layoutListReload.value?.();');
-    expect(adjusterSource).toContain('<template #row-actions="{ record, reload }">');
-    expect(adjusterSource).toContain('@click="openLayoutAdjuster(record, reload)"');
+    expect(adjusterSource).toContain(
+      '<template #row-actions="{ record, reload }">',
+    );
+    expect(adjusterSource).toContain(
+      '@click="openLayoutAdjuster(record, reload)"',
+    );
   });
 
   it('switches the source-menu action between select-all and clear-selected', () => {
@@ -378,8 +389,12 @@ describe('menu display layout tree', () => {
   it('toggles source-menu checks from the node content with parent-child cascade', () => {
     expect(adjusterSource).toContain('function toggleSourceMenuCheck');
     expect(adjusterSource).toContain('function syncSourceAncestorChecks');
-    expect(adjusterSource).toContain('const subtreeKeys = flattenMenuSources([source])');
-    expect(adjusterSource).toContain('syncSourceAncestorChecks(sourceTreeData.value, checkedKeys);');
+    expect(adjusterSource).toContain(
+      'const subtreeKeys = flattenMenuSources([source])',
+    );
+    expect(adjusterSource).toContain(
+      'syncSourceAncestorChecks(sourceTreeData.value, checkedKeys);',
+    );
     expect(adjusterSource).toContain('@click="toggleSourceMenuCheck(dataRef)"');
     expect(adjusterSource).toContain('@click.stop="addMenu(dataRef)"');
   });
@@ -388,8 +403,12 @@ describe('menu display layout tree', () => {
     expect(adjusterSource).toContain('function toggleLayoutItemCheck');
     expect(adjusterSource).toContain('function syncLayoutAncestorChecks');
     expect(adjusterSource).toContain('function collectLayoutItemKeys');
-    expect(adjusterSource).toContain('syncLayoutAncestorChecks(layoutItems.value, checkedKeys);');
-    expect(adjusterSource).toContain('@click.stop="toggleLayoutItemCheck(dataRef)"');
+    expect(adjusterSource).toContain(
+      'syncLayoutAncestorChecks(layoutItems.value, checkedKeys);',
+    );
+    expect(adjusterSource).toContain(
+      '@click.stop="toggleLayoutItemCheck(dataRef)"',
+    );
     const toggleSource = getAdjusterFunctionSource('toggleLayoutItemCheck');
     expect(toggleSource).toMatch(
       /const item = getLayoutTreeItem\(dataRef\);\s+selectedItemKey\.value = item\.key;/,
@@ -471,7 +490,9 @@ describe('menu display layout tree', () => {
     expect(adjusterSource).toMatch(
       /<Tooltip\s+:title="getLayoutTreeItem\(dataRef\)\.path \|\| undefined"/,
     );
-    expect(adjusterSource).not.toContain('{{ getLayoutTreeItem(dataRef).path }}');
+    expect(adjusterSource).not.toContain(
+      '{{ getLayoutTreeItem(dataRef).path }}',
+    );
   });
 
   it('allows dragging layout items but not the virtual root', () => {
@@ -481,22 +502,21 @@ describe('menu display layout tree', () => {
 
   it('requires confirmation before removing a layout node', () => {
     expect(adjusterSource).toMatch(
-      /<Popconfirm\s+title="确认删除当前菜单及其子菜单？"\s+@confirm="removeLayoutItemByKey\(dataRef\.key\)"[\s\S]*?@open-change/,
+      /<Popconfirm\s+v-if="dataRef\.key !== MY_MENU_ROOT_KEY"\s+title="确认删除当前菜单及其子菜单？"\s+@confirm="removeLayoutItemByKey\(dataRef\.key\)"/,
     );
   });
 
-  it('keeps the delete action mounted while its confirmation is open', () => {
-    expect(adjusterSource).toContain('const deleteConfirmKey = ref<string>();');
-    expect(adjusterSource).toContain('function handleDeleteConfirmOpenChange');
-    expect(adjusterSource).toContain('deleteConfirmKey === dataRef.key');
-    expect(adjusterSource).toContain(
-      'handleDeleteConfirmOpenChange(dataRef.key, open)',
-    );
+  it('keeps row actions mounted without hover state', () => {
+    expect(adjusterSource).not.toContain('hoveredLayoutKey');
+    expect(adjusterSource).not.toContain('deleteConfirmKey');
+    expect(adjusterSource).toContain('class="layout-menu-row-actions');
   });
 
   it('uses menu terminology for child-menu create and delete operations', () => {
     expect(adjusterSource).toContain('<Tooltip title="删除菜单">');
-    expect(adjusterSource).toContain('<Tooltip title="新增子菜单">');
+    expect(adjusterSource).toMatch(
+      /<Tooltip\s+v-if="shouldShowAddChildMenuAction\(\)"\s+title="新增子菜单"\s*>/,
+    );
     expect(adjusterSource).not.toContain('<Tooltip title="删除节点">');
     expect(adjusterSource).not.toContain('<Tooltip title="新增子节点">');
   });
@@ -526,20 +546,26 @@ describe('menu display layout tree', () => {
   it('uses the layout drag handle for both reordering and moving into another node', () => {
     expect(adjusterSource).toContain('const draggedLayoutKey = ref<string>();');
     expect(adjusterSource).toContain('@dragstart="handleLayoutDragStart"');
-    expect(adjusterSource).not.toContain('@dragstart="beginLayoutItemDrag(dataRef.key)"');
+    expect(adjusterSource).not.toContain(
+      '@dragstart="beginLayoutItemDrag(dataRef.key)"',
+    );
     expect(adjusterSource).toContain('@drop="handleLayoutDrop"');
-    expect(adjusterSource).toContain("const movedAsChild = dropMode ? dropMode === 'child' : !info.dropToGap;");
+    expect(adjusterSource).toContain(
+      "const movedAsChild = dropMode ? dropMode === 'child' : !info.dropToGap;",
+    );
     expect(adjusterSource).toContain('insertLayoutItemBeside(');
   });
 
   it('highlights an internal drop target and its add-child action with the theme color', () => {
     expect(adjusterSource).toContain('function isActiveLayoutDropTarget');
-    expect(adjusterSource).not.toContain("'!border-primary': isActiveLayoutDropTarget");
+    expect(adjusterSource).not.toContain(
+      "'!border-primary': isActiveLayoutDropTarget",
+    );
     expect(adjusterSource).not.toContain('bg-primary/5');
-    expect(adjusterSource).toContain("? '!border-primary text-primary'");
+    expect(adjusterSource).toContain("? '!text-primary'");
     expect(adjusterSource).not.toContain('松开后作为该节点的子菜单加入');
-    expect(adjusterSource).toMatch(
-      /hoveredLayoutKey === dataRef\.key \|\|[\s\S]*?isActiveLayoutDropTarget\(dataRef\.key, 'child'\)/,
+    expect(adjusterSource).toContain(
+      "isActiveLayoutDropTarget(dataRef.key, 'child')",
     );
   });
 
@@ -547,31 +573,49 @@ describe('menu display layout tree', () => {
     expect(adjusterSource).toContain(
       "type LayoutDropMode = 'after' | 'before' | 'child';",
     );
-    expect(adjusterSource).toContain('const dropTargetMode = ref<LayoutDropMode>();');
-    expect(adjusterSource).toContain('function updateLayoutDropTargetFromPointer');
-    expect(adjusterSource).toContain("isActiveLayoutDropTarget(dataRef.key, 'before')");
-    expect(adjusterSource).toContain("isActiveLayoutDropTarget(dataRef.key, 'after')");
+    expect(adjusterSource).toContain(
+      'const dropTargetMode = ref<LayoutDropMode>();',
+    );
+    expect(adjusterSource).toContain(
+      'function updateLayoutDropTargetFromPointer',
+    );
+    expect(adjusterSource).toContain(
+      "isActiveLayoutDropTarget(dataRef.key, 'before')",
+    );
+    expect(adjusterSource).toContain(
+      "isActiveLayoutDropTarget(dataRef.key, 'after')",
+    );
     expect(adjusterSource).toContain('absolute -top-1 left-0 right-0');
     expect(adjusterSource).toContain('absolute -bottom-1 left-0 right-0');
-    expect(adjusterSource).toContain("isActiveLayoutDropTarget(dataRef.key, 'child')");
+    expect(adjusterSource).toContain(
+      "isActiveLayoutDropTarget(dataRef.key, 'child')",
+    );
   });
 
   it('uses the pointer position for drop mode and inserts before the first root menu', () => {
     expect(adjusterSource).toContain('function getLayoutDropModeFromPointer');
-    expect(adjusterSource).toContain("pointerTarget?.closest('.layout-menu-label-drop-zone')");
-    expect(adjusterSource).toContain("return relativeY < rect.height / 2 ? 'before' : 'after';");
-    expect(adjusterSource).toContain('class="layout-menu-label-drop-zone relative min-w-0 flex-1"');
+    expect(adjusterSource).toContain(
+      "pointerTarget?.closest('.layout-menu-label-drop-zone')",
+    );
+    expect(adjusterSource).toContain(
+      "return relativeY < rect.height / 2 ? 'before' : 'after';",
+    );
+    expect(adjusterSource).toContain(
+      'class="layout-menu-label-drop-zone relative min-w-28 flex-1"',
+    );
     expect(adjusterSource).toContain('class="layout-menu-label-input w-full"');
-    expect(adjusterSource).toContain('updateLayoutDropTargetFromPointer(event, dataRef.key)');
+    expect(adjusterSource).toContain(
+      'updateLayoutDropTargetFromPointer(event, dataRef.key)',
+    );
     expect(getAdjusterFunctionSource('handleLayoutDrop')).toContain(
       'next.unshift(moved)',
     );
   });
 
   it('applies the same pointer-derived child-or-sort mode when dragging from system menus', () => {
-    expect(getAdjusterFunctionSource('getLayoutDropModeFromPointer')).not.toContain(
-      'draggedSource.value ||',
-    );
+    expect(
+      getAdjusterFunctionSource('getLayoutDropModeFromPointer'),
+    ).not.toContain('draggedSource.value ||');
     expect(adjusterSource).toContain('function findLayoutParentKey');
     expect(getAdjusterFunctionSource('appendSourceAtTarget')).toContain(
       "dropMode: LayoutDropMode = 'child'",
@@ -586,9 +630,7 @@ describe('menu display layout tree', () => {
     expect(getAdjusterFunctionSource('shouldShowAddChildMenuAction')).toContain(
       'return !draggedSource.value && !draggedLayoutKey.value;',
     );
-    expect(adjusterSource).toContain(
-      'v-if="shouldShowAddChildMenuAction()"',
-    );
+    expect(adjusterSource).toContain('v-if="shouldShowAddChildMenuAction()"');
     expect(adjusterSource).toContain('function setLayoutDropEffect');
     expect(adjusterSource).toContain("mode === 'child' ? 'copy' : 'move'");
     expect(adjusterSource).not.toContain('rounded-full bg-success text-white');
@@ -613,7 +655,9 @@ describe('menu display layout tree', () => {
   });
 
   it('supports checked layout items for clear-or-delete batch actions without checking the virtual root', () => {
-    expect(adjusterSource).toContain('const checkedLayoutKeys = ref<string[]>([]);');
+    expect(adjusterSource).toContain(
+      'const checkedLayoutKeys = ref<string[]>([]);',
+    );
     expect(adjusterSource).toContain('const hasCheckedLayoutItems = computed(');
     expect(adjusterSource).toContain('disableCheckbox: true');
     expect(adjusterSource).toMatch(
@@ -630,30 +674,53 @@ describe('menu display layout tree', () => {
     expect(adjusterSource).toMatch(
       /我的菜单[\s\S]*?@click="toggleAllLayoutItemChecks"[\s\S]*?hasCheckedLayoutItems \? '清空选中' : '全部选中'/,
     );
-    expect(adjusterSource.match(/:disabled="!hasCheckedLayoutItems"/g)).toHaveLength(1);
+    expect(
+      adjusterSource.match(/:disabled="!hasCheckedLayoutItems"/g),
+    ).toHaveLength(1);
   });
 
   it('reveals the one-click transfer action on source-node hover and delegates missing-target feedback to the click handler', () => {
     expect(adjusterSource).not.toContain(
       'const hasSelectedLayoutTarget = computed(',
     );
-    expect(adjusterSource).toContain(
-      'sourceAddActionHoverKey === dataRef.key',
-    );
+    expect(adjusterSource).toContain('sourceAddActionHoverKey === dataRef.key');
     expect(adjusterSource).toMatch(
       /<Tooltip title="点击添加到右侧选中的节点">[\s\S]*?@click\.stop="addMenu\(dataRef\)"/,
     );
-    expect(adjusterSource).toMatch(
-      /hidden[^"\n]*group-hover:inline-flex/,
-    );
+    expect(adjusterSource).toMatch(/hidden[^"\n]*group-hover:inline-flex/);
     expect(adjusterSource).toContain(
       '!size-7 shrink-0 -translate-y-1/2 items-center justify-center !p-0',
     );
     expect(adjusterSource).toContain('sourceAddActionHoverKey');
-    expect(adjusterSource).toContain(
-      '点击添加到右侧选中的节点',
-    );
+    expect(adjusterSource).toContain('点击添加到右侧选中的节点');
     expect(adjusterSource).toContain('请先在我的菜单中选择目标节点');
+  });
+
+  it('keeps two compact vertical action stacks at the front of each layout row', () => {
+    expect(adjusterSource).toContain(
+      'xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,2fr)]',
+    );
+    const rightTitleIndex = adjusterSource.indexOf('<span>我的菜单</span>');
+    const rightPanel = adjusterSource.slice(
+      adjusterSource.lastIndexOf('<Card', rightTitleIndex),
+      rightTitleIndex,
+    );
+    expect(rightPanel).toContain("overflowX: 'auto'");
+    expect(adjusterSource.slice(rightTitleIndex)).toContain('min-w-[820px]');
+    expect(adjusterSource).toContain('class="layout-menu-row-actions');
+    expect(adjusterSource).toContain('class="layout-menu-action-stack');
+    expect(adjusterSource).toContain('gap-3');
+    expect(adjusterSource).toContain('flex-col gap-0.5');
+    expect(adjusterSource).not.toContain('hoveredLayoutKey');
+    expect(adjusterSource).not.toContain('deleteConfirmKey');
+    expect(adjusterSource).toContain('v-if="dataRef.key !== MY_MENU_ROOT_KEY"');
+    const rowActions = adjusterSource.slice(
+      adjusterSource.indexOf('class="layout-menu-row-actions'),
+      adjusterSource.indexOf('class="layout-menu-label-drop-zone'),
+    );
+    expect(rowActions).toMatch(
+      /上移[\s\S]*下移[\s\S]*新增子菜单[\s\S]*删除菜单/,
+    );
   });
 
   it('selects the permanent virtual root when opening the layout adjuster', () => {

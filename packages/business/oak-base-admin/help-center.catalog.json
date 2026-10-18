@@ -14,7 +14,16 @@
     "audience": "用户",
     "type": "使用手册",
     "source": "docs/统一消息与邮件工单使用指南.md",
-    "pages": [{ "path": "/clob/V1/Ticket", "view": "ticket" }, { "path": "/clob/V1/SupportMailboxRule", "view": "support-mailbox-rule" }]
+    "pages": [
+      {
+        "path": "/clob/V1/Ticket",
+        "view": "ticket"
+      },
+      {
+        "path": "/clob/V1/SupportMailboxRule",
+        "view": "support-mailbox-rule"
+      }
+    ]
   },
   {
     "id": "mail-receiving-admin",
@@ -23,7 +32,12 @@
     "audience": "管理员",
     "type": "使用指南",
     "source": "docs/邮件收件模块功能与使用手册.md",
-    "pages": [{ "path": "/clob/V1/Domain", "view": "domain" }]
+    "pages": [
+      {
+        "path": "/clob/V1/Domain",
+        "view": "domain"
+      }
+    ]
   },
   {
     "id": "local-smtp-admin",
@@ -63,7 +77,25 @@
     "module": "工作流",
     "audience": "用户",
     "type": "使用手册",
-    "source": "docs/工作流平台使用指南.md"
+    "source": "docs/工作流平台使用指南.md",
+    "pages": [
+      {
+        "path": "/clob/V1/WorkflowDefinition",
+        "view": "workflow-definition"
+      },
+      {
+        "path": "/clob/V1/WorkflowInstance",
+        "view": "workflow-instance"
+      },
+      {
+        "path": "/clob/V1/WorkflowStart",
+        "view": "workflow-start"
+      },
+      {
+        "path": "/clob/V1/MyWorkflow",
+        "view": "my-workflow"
+      }
+    ]
   },
   {
     "id": "domain-provider-guide",
@@ -80,5 +112,19 @@
     "audience": "开发者",
     "type": "开发指南",
     "source": "frontend/admin/packages/business/oak-base-admin/docs/communication-workbench.md"
+  },
+  {
+    "id": "invitation-registration-admin",
+    "title": "邀请注册链接使用指南",
+    "module": "用户与权限",
+    "audience": "管理员",
+    "type": "使用指南",
+    "source": "frontend/admin/packages/business/oak-base-admin/docs/invitation-registration.md",
+    "pages": [
+      {
+        "path": "/clob/V1/RecommendationLink",
+        "view": "recommendation-link"
+      }
+    ]
   }
 ]

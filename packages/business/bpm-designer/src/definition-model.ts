@@ -1,4 +1,5 @@
 import type {
+  WorkflowBusinessType,
   WorkflowCapabilityField,
   WorkflowCondition,
   WorkflowDesignerDefinition,
@@ -9,6 +10,7 @@ import type {
 import type { WorkflowTreeVersion } from './workflow-tree-version';
 
 import { applyGraphLayout, hasAutomaticLayout } from './workflow-graph-layout';
+import { notificationErrors } from './workflow-notification';
 import { projectV3ToV2 } from './workflow-tree-version';
 
 // 仅允许当前办理服务已实现的节点动作；不把任意字符串传给服务端发布入口。
@@ -50,6 +52,22 @@ function validResolverLiteral(
       return typeof value === 'string';
     }
   }
+}
+
+/** 新建时使用目录中该业务对象的最新方案，既有绑定由调用方保持不变。 */
+export function getLatestWorkflowBusinessType(
+  directory: readonly WorkflowBusinessType[],
+  businessType: string,
+): undefined | WorkflowBusinessType {
+  return directory
+    .filter((item) => item.businessType === businessType)
+    .toSorted((left, right) =>
+      String(right.contractVersion).localeCompare(
+        String(left.contractVersion),
+        'en',
+        { numeric: true },
+      ),
+    )[0];
 }
 
 /** JSON对象键的序列化顺序不影响业务配置，数组顺序仍保留节点与动作语义。 */
@@ -326,6 +344,7 @@ export function validateDefinition(
     }
   }
   for (const node of definition.nodes) {
+    messages.push(...notificationErrors(node));
     if (!/^[A-Z_]\w{0,63}$/i.test(node.id))
       messages.push(`节点「${node.name}」标识格式非法。`);
     if (!reached.has(node.id))

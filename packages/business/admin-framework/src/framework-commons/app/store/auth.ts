@@ -162,12 +162,19 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchUserInfo() {
     let userInfo: null | UserInfo = null;
+    const accessToken = accessStore.accessToken;
     userInfo = await getUserInfoApi();
+    if (logoutInFlight || accessToken !== accessStore.accessToken) {
+      throw new Error('登录身份已变化，请重新登录');
+    }
     userStore.setUserInfo(userInfo);
     return userInfo;
   }
 
   async function ensureAccessCodesLoaded(force = false) {
+    if (logoutInFlight || !accessStore.accessToken) {
+      throw new Error('登录会话尚未就绪，请重新登录');
+    }
     if (
       !force &&
       !shouldRefreshAuthorizedPermissions(accessStore.accessCodes)
@@ -185,13 +192,18 @@ export const useAuthStore = defineStore('auth', () => {
 
     // 刷新期间暂停策略读取，失败时保持关闭，避免活跃页面复用旧授权加载器。
     suspendDataAttrPolicies();
+    const accessToken = accessStore.accessToken;
     const accessCodes = await getAccessCodesApi();
+    // 退出或账号切换后的迟到响应不能恢复旧账号权限及策略加载器。
+    if (logoutInFlight || accessToken !== accessStore.accessToken) {
+      throw new Error('登录身份已变化，请重新登录');
+    }
+    accessStore.setAccessCodes(accessCodes || []);
     configureDataAttrPolicyLoader(async (query) => {
       const { dataAttrPolicyService } =
         await import('../api/data-attr-policy-service');
       return dataAttrPolicyService.resolve(query);
     });
-    accessStore.setAccessCodes(accessCodes || []);
     return accessCodes || [];
   }
 
@@ -209,6 +221,9 @@ export const useAuthStore = defineStore('auth', () => {
 
     // 先读取服务端首次改密状态；待改密会话不得请求权限和菜单。
     const userInfo = await fetchUserInfo();
+    if (logoutInFlight || accessStore.accessToken !== accessToken) {
+      throw new Error('登录身份已变化，请重新登录');
+    }
     if (!userInfo) {
       throw new Error('无法读取当前登录用户信息');
     }
@@ -225,6 +240,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     const accessCodes = await ensureAccessCodesLoaded(true);
+    if (logoutInFlight || accessStore.accessToken !== accessToken) {
+      throw new Error('登录身份已变化，请重新登录');
+    }
     accessStore.setAccessCodes(accessCodes);
 
     // 用户信息和权限码到位后再次撤销路由检查状态，避免旧账号未完成的异步路由生成回写其结果。

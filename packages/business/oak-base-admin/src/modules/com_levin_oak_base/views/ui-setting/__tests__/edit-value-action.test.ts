@@ -11,12 +11,15 @@ const sharedPageSource = readFileSync(
   'utf8',
 );
 
-describe('UiSetting 编辑值操作', () => {
+describe('uiSetting 编辑值操作', () => {
   it('always exposes independent value editing and keeps the JSON fallback', () => {
     expect(pageSource).toContain('always-allow-value-edit');
     expect(pageSource).toContain('force-json-value-editor');
     expect(sharedPageSource).toContain('function canEditValue');
-    expect(sharedPageSource).toContain('props.alwaysAllowValueEdit || isSettingEditable(record)');
-    expect(sharedPageSource).toContain('@click="openEditValue(record, reload)"');
+    expect(sharedPageSource).toContain('isSuperAdminUser(userStore.userInfo)');
+    expect(sharedPageSource).toContain('isSettingEditable(record)');
+    expect(sharedPageSource).toContain(
+      '@click="openEditValue(record, reload)"',
+    );
   });
 });

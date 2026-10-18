@@ -118,6 +118,10 @@ export class ServicePluginService extends RequestService {
     type: '专家数据-服务插件',
     action: '查询列表',
   })
+  async providerSelectionModeOptions(options?: any) {
+    return this.get('providerSelectionModeOptions', options);
+  }
+
   async providerSelectionModes(options?: any) {
     return this.get('providerSelectionModes', options);
   }

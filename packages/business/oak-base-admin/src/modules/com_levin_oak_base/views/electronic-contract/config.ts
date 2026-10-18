@@ -110,8 +110,10 @@ export const electronicContractPageCrudConfig: CrudPageConfig =
     apiBase: '/EContract',
     domainObject: true,
     apiService: electronicContractService,
+    allowCreate: false,
     createPath: '/EContract/saveDraft',
     updatePath: '/EContract/updateDraft',
+    editVisibleOn: "status == 'Draft' && !__record.templateId",
     fields: [
       {
         key: 'tenantId',

@@ -65,6 +65,7 @@ const NODE_PATCH_KEYS = new Set([
   'formAction',
   'multiApprovalMode',
   'name',
+  'notifications',
   'outcome',
   'readableFields',
   'reminderMinutes',

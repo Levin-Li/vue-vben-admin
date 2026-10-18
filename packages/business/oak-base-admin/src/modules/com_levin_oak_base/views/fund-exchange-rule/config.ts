@@ -159,6 +159,7 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'sourceCurrencyAmount',
       label: '原货币数量',
+      moneyDisplay: { money: true, unit: '' },
       layoutGroup: 'business',
       layoutOrder: 30,
       required: true,
@@ -199,6 +200,7 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
     {
       key: 'targetCurrencyAmount',
       label: '目标货币数量',
+      moneyDisplay: { money: true, unit: '' },
       layoutGroup: 'business',
       layoutOrder: 60,
       required: true,

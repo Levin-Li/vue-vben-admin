@@ -51,6 +51,46 @@ const actionStubs = {
 };
 
 describe('workflowTaskPanel', () => {
+  it('关键业务依据变化时显示服务端原因并拒绝审批动作', () => {
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: {
+        task: {
+          taskId: 'critical',
+          status: 'Todo',
+          businessBasisChanged: true,
+          operationBlockedReason: '业务关键依据已经改变，请撤回后重新发起。',
+          allowedOperations: ['withdraw'],
+          actions: [{ code: 'approve', label: '通过' }],
+        },
+      },
+      global: { stubs: actionStubs },
+    });
+    expect(wrapper.text()).toContain('业务关键依据已经改变');
+    expect(
+      wrapper.findAll('button').some((item) => item.text() === '通过'),
+    ).toBe(false);
+    expect(wrapper.emitted('submit')).toBeUndefined();
+    wrapper.unmount();
+  });
+  it('实际办理API权限关闭时不显示节点可写动作', () => {
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: {
+        canComplete: false,
+        task: {
+          taskId: 'denied',
+          status: 'Todo',
+          actions: [{ code: 'approve', label: '通过' }],
+        },
+      },
+      global: { stubs: actionStubs },
+    });
+    expect(wrapper.text()).toContain('没有办理此任务的API权限');
+    expect(
+      wrapper.findAll('button').some((item) => item.text() === '通过'),
+    ).toBe(false);
+    wrapper.unmount();
+  });
+
   it('人机挑战复用公共控件并透传其验证结果', async () => {
     const wrapper = shallowMount(WorkflowTaskPanel, {
       props: {

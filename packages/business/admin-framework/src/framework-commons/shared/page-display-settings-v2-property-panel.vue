@@ -21,6 +21,7 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
+import CrudDefaultValueEditor from './crud-default-value-editor.vue';
 import {
   getDisplaySubmitMode,
   setDisplaySubmitMode,
@@ -268,11 +269,9 @@ function scriptLabel(expression?: string) {
           </Radio.Group>
         </Form.Item>
         <Form.Item label="默认值">
-          <InputNumber
+          <CrudDefaultValueEditor
             :value="field.defaultValue?.value"
-            class="w-full"
-            placeholder="默认值"
-            aria-label="默认值"
+            :field="sourceField"
             @update:value="updateDefaultValue"
           />
         </Form.Item>

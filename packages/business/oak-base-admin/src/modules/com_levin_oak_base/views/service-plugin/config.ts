@@ -165,6 +165,13 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       jsonSchema: ':configEditor',
     },
     {
+      key: 'providerSelectionMode',
+      label: '供应商选择模式',
+      form: false,
+      table: true,
+      width: 180,
+    },
+    {
       key: 'exInfo',
       label: '扩展信息',
       form: false,

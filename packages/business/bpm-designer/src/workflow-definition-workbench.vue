@@ -343,7 +343,14 @@ function publish() {
           validationMessages = messages;
         }
       "
-    />
+    >
+      <template
+        v-if="$slots['notification-preview']"
+        #notification-preview="preview"
+      >
+        <slot name="notification-preview" v-bind="preview"></slot>
+      </template>
+    </WorkflowDesigner>
     <ACard class="mt-4" size="small" title="检查与发布">
       <AAlert
         v-if="validationMessages.length > 0"

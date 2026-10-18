@@ -20,7 +20,11 @@ import {
   pruneDataAttrOutput,
   subscribeDataAttrPolicyInvalidation,
 } from '../data-attr-policy';
-import { resolvePermissionType } from './crud-permissions';
+import {
+  buildApiMethodPermissions,
+  buildCrudOperationPermissions,
+  resolvePermissionType,
+} from './crud-permissions';
 import { omitExcludedCrudFields } from './crud-submit-fields';
 
 export type CrudDataAttrOperation =
@@ -51,6 +55,55 @@ const operations: CrudDataAttrOperation[] = [
   'delete',
   'batchCreate',
 ];
+
+/** 属性策略只服务当前真实可见且获授权的操作，不能因预取隐藏写操作阻断合法列表。 */
+export function isCrudDataAttrOperationEnabled(
+  config: CrudPageConfig,
+  operation: CrudDataAttrOperation,
+  hasPermission: (permission: string | string[] | undefined) => boolean,
+  visible: (
+    action: 'create' | 'delete' | 'edit' | 'retrieve',
+  ) => boolean = () => true,
+) {
+  if (operation === 'batchCreate')
+    return (
+      typeof config.apiService?.batchCreate === 'function' &&
+      hasPermission(buildApiMethodPermissions(config.apiService, operation))
+    );
+  if (operation === 'list')
+    return hasPermission(
+      config.queryPermission ||
+        buildCrudOperationPermissions(config, operation),
+    );
+  const action = operation === 'update' ? 'edit' : operation;
+  const flag = {
+    create: config.allowCreate,
+    update: config.allowEdit,
+    delete: config.allowDelete,
+    retrieve: config.allowRetrieve,
+  }[operation];
+  const override = {
+    create: config.createPermission,
+    update: config.editPermission,
+    delete: config.deletePermission,
+    retrieve: config.detailPermission,
+  }[operation];
+  const path = {
+    create: config.createPath,
+    update: config.updatePath,
+    delete: config.deletePath,
+    retrieve: config.detailPath,
+  }[operation];
+  const candidates = buildCrudOperationPermissions(config, operation);
+  return (
+    flag !== false &&
+    visible(action) &&
+    hasPermission(
+      override ||
+        (typeof path === 'string' ? [path, ...candidates] : candidates),
+    )
+  );
+}
 
 /** 展示字段可能是复杂对象的扁平别名，权限始终检查真实传输路径。 */
 export function resolveCrudDataAttrPath(
@@ -150,6 +203,7 @@ export function useCrudDataAttrAccess(
   config: () => CrudPageConfig,
   listPath: () => string,
   identity: () => unknown,
+  operationEnabled: (operation: CrudDataAttrOperation) => boolean = () => true,
 ) {
   const policies = reactive<
     Partial<Record<CrudDataAttrOperation, DataAttrPolicy>>
@@ -158,6 +212,10 @@ export function useCrudDataAttrAccess(
   let generation = 0;
 
   function ensure(operation: CrudDataAttrOperation) {
+    if (!operationEnabled(operation))
+      return Promise.reject(
+        new Error('当前操作未显示或没有权限，不能读取字段策略'),
+      );
     if (!isDataAttrPolicyEnabled()) {
       policies[operation] = legacyPolicy;
       return Promise.resolve(legacyPolicy);
@@ -207,6 +265,8 @@ export function useCrudDataAttrAccess(
     for (const operation of operations)
       Reflect.deleteProperty(policies, operation);
     for (const operation of operations) {
+      if (!operationEnabled(operation)) continue;
+      if (operation === 'delete' && config().allowDelete === false) continue;
       if (
         operation === 'batchCreate' &&
         typeof config().apiService?.batchCreate !== 'function'
@@ -217,7 +277,15 @@ export function useCrudDataAttrAccess(
       });
     }
   }
-  watch(() => [config(), listPath()], refresh, { immediate: true });
+  watch(
+    () => [
+      config(),
+      listPath(),
+      operations.map((operation) => operationEnabled(operation)),
+    ],
+    refresh,
+    { immediate: true },
+  );
   watch(identity, (current, previous) => {
     if (current !== previous) clearDataAttrPolicies();
   });

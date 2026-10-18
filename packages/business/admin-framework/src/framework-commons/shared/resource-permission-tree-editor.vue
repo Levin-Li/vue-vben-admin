@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type {
+  DataAttrValuePermission,
   PermissionTreeNode,
   PermissionTreeNodeType,
   RbacDataAttrGroup,
@@ -18,6 +19,9 @@ import { Checkbox, Modal, Radio, Tooltip } from 'ant-design-vue';
 import { RbacPermissionMatchUtils } from '../rbac-permission-match';
 import { PermissionTreeNodeType as PermissionTreeNodeTypeEnum } from './data-permission-types';
 import AttrGroupPermissions from './resource-attr-group-permissions.vue';
+import DataAttrPermissions, {
+  mergeDataAttrs,
+} from './resource-data-attr-permissions.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -76,6 +80,7 @@ interface VisibleMenuPermissionNode extends MenuPermissionNode {
 
 interface PermissionViewNode {
   children: PermissionViewNode[];
+  dataAttrs: DataAttrValuePermission[];
   depth: number;
   id: string;
   isOperation?: boolean;
@@ -296,6 +301,48 @@ const operationAttrGroups = computed(() => {
   }
   return operations;
 });
+
+// 资源级范围由各操作共享；重复投影合并元数据，操作勾选不自动扩大枚举范围。
+const resourceDataAttrs = computed(() => {
+  const resources = new Map<string, DataAttrValuePermission[]>();
+  function visit(nodes: PermissionTreeNode[]) {
+    for (const node of nodes) {
+      if (node.nodeType === PermissionTreeNodeTypeEnum.Resource) {
+        const key = node.permissionExpr || node.id;
+        resources.set(
+          key,
+          mergeDataAttrs([
+            ...(resources.get(key) || []),
+            ...(node.dataAttrs || []),
+          ]),
+        );
+      }
+      visit([...(node.children || []), ...(node.resourcePermissions || [])]);
+    }
+  }
+  visit(props.permissionTree);
+  return resources;
+});
+
+function toggleDataAttrs(
+  node: PermissionViewNode,
+  expressions: string[],
+  checked: boolean,
+) {
+  if (isSingleSelection.value) return;
+  const known = new Set(
+    node.dataAttrs.flatMap((item) =>
+      item.values.map((value) => value.permissionExpr),
+    ),
+  );
+  const valid = expressions.filter((expression) => known.has(expression));
+  emit(
+    'update:value',
+    checked
+      ? [...new Set([...props.value, ...valid])]
+      : removeSelectedPermissions(valid),
+  );
+}
 
 function attrGroups(expression: string) {
   return [
@@ -521,6 +568,40 @@ SharedPermissionBadge.props = ['permissionExpr'];
 
 // 解除覆盖目标的通配授权，并保留当前可选范围内其余已选权限。
 function removeSelectedPermissions(permissions: string[]) {
+  // 取消完整资源或其父节点时清理范围；取消单个操作仍保留共享范围。
+  function removedResourceRanges(nodes: PermissionTreeNode[]): string[] {
+    return nodes.flatMap((node) => {
+      function collectDescendantPermissions(
+        children: PermissionTreeNode[],
+      ): string[] {
+        return children.flatMap((child) => [
+          ...(child.permissionExpr ? [child.permissionExpr] : []),
+          ...collectDescendantPermissions(child.children || []),
+        ]);
+      }
+      const operations = collectDescendantPermissions(node.children || []);
+      const allRemoved =
+        operations.length > 0 &&
+        operations.every((operation) =>
+          permissions.some((permission) =>
+            RbacPermissionMatchUtils.simpleMatchList(operation, [permission]),
+          ),
+        );
+      return [
+        ...(node.nodeType === PermissionTreeNodeTypeEnum.Resource && allRemoved
+          ? (
+              resourceDataAttrs.value.get(node.permissionExpr || node.id) || []
+            ).flatMap((item) =>
+              item.values.map((value) => value.permissionExpr),
+            )
+          : []),
+        ...removedResourceRanges([
+          ...(node.children || []),
+          ...(node.resourcePermissions || []),
+        ]),
+      ];
+    });
+  }
   permissions = [
     ...new Set([
       ...[...operationAttrGroups.value.entries()].flatMap(
@@ -532,6 +613,7 @@ function removeSelectedPermissions(permissions: string[]) {
             : [],
       ),
       ...permissions,
+      ...removedResourceRanges(props.permissionTree),
     ]),
   ];
   const current = [
@@ -553,6 +635,11 @@ function removeSelectedPermissions(permissions: string[]) {
     ]),
     ...[...operationResources.value.values()].flatMap((resources) =>
       resources.map((resource) => resource.expression),
+    ),
+    ...[...resourceDataAttrs.value.values()].flatMap((attributes) =>
+      attributes.flatMap((item) =>
+        item.values.map((value) => value.permissionExpr),
+      ),
     ),
     ...permissionLocations.value.keys(),
   ])) {
@@ -778,7 +865,16 @@ function handlePermissionNodeToggle(
     return;
   }
 
-  handleTogglePermissions(node.permissions, checked);
+  const ranges =
+    node.nodeType === PermissionTreeNodeTypeEnum.Resource
+      ? node.dataAttrs.flatMap((item) =>
+          item.values.map((value) => value.permissionExpr),
+        )
+      : [];
+  handleTogglePermissions(
+    checked ? node.permissions : [...node.permissions, ...ranges],
+    checked,
+  );
 }
 
 function handleTogglePermissions(permissions: string[], checked: boolean) {
@@ -847,6 +943,10 @@ function buildPermissionViewTree(
     return [
       {
         children,
+        dataAttrs:
+          nodeType === PermissionTreeNodeTypeEnum.Resource
+            ? resourceDataAttrs.value.get(permissionExpr || node.id) || []
+            : [],
         depth,
         id: String(node.id || `${parentPath || 'permission'}-${index}`),
         label,
@@ -1218,6 +1318,7 @@ function convertMenuPermissionTreeToViewTree(
 
     return {
       children,
+      dataAttrs: [],
       depth: node.depth + 1,
       id: node.id,
       label: node.title,
@@ -1925,6 +2026,16 @@ function getPermissionCountText(permissions: string[]) {
                 />
                 {{ node.title }}
               </span>
+
+              <DataAttrPermissions
+                v-if="!isSingleSelection && node.dataAttrs.length > 0"
+                :attributes="node.dataAttrs"
+                :selected="value"
+                @toggle="
+                  (expressions, checked) =>
+                    toggleDataAttrs(node, expressions, checked)
+                "
+              />
 
               <div
                 v-if="getPermissionInlineChildren(node).length > 0"

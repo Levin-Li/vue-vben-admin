@@ -27,6 +27,46 @@ vi.mock('@levin/admin-framework/framework-commons/runtime', () => ({
 }));
 
 describe('workflowRuntimeService', () => {
+  it('撤回终止和显式接管保留去重命令且仅传各自允许定位符', async () => {
+    requestCalls.post.mockClear();
+    const service = new WorkflowRuntimeService();
+    const command = {
+      businessType: 'expense',
+      businessId: 'b1',
+      tenantId: 't1',
+      orgId: 'o1',
+      instanceId: 'i1',
+      dispatchId: 'd1',
+      requestId: 'request1',
+      reason: '明确的业务操作原因',
+    };
+    await service.withdraw(command);
+    await service.terminate(command);
+    await service.recover(command);
+    const expected = {
+      businessType: 'expense',
+      businessId: 'b1',
+      tenantId: 't1',
+      orgId: 'o1',
+      requestId: 'request1',
+      reason: '明确的业务操作原因',
+    };
+    expect(requestCalls.post.mock.calls).toEqual([
+      [
+        'workflow-runtime/business/withdraw',
+        { data: { ...expected, instanceId: 'i1' } },
+      ],
+      [
+        'workflow-runtime/business/terminate',
+        { data: { ...expected, instanceId: 'i1' } },
+      ],
+      [
+        'workflow-runtime/business/recover',
+        { data: { ...expected, dispatchId: 'd1' } },
+      ],
+    ]);
+  });
+
   it('邮件定位只发送实例或任务ID，不发送身份且不触发命令', async () => {
     requestCalls.get.mockClear();
     requestCalls.post.mockClear();

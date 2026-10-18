@@ -5,6 +5,8 @@ import {
   prepareProviderSettingSubmit,
 } from '../../provider-configuration-update';
 import {
+  allowsMultipleActiveProviders,
+  allowsMultipleProviderInstances,
   describeProviderConfiguration,
   getProviderSelectionMode,
   parseProviderSelectionModes,
@@ -21,6 +23,8 @@ describe('插件供应商选择模式', () => {
         {
           enable: false,
           servicePluginProviderCode: 'FEISHU',
+          servicePluginProviderInstanceCode: 'account-a',
+          usageWeight: 3,
           value: { DINGTALK_V2: { enable: true } },
         },
         false,
@@ -28,23 +32,32 @@ describe('插件供应商选择模式', () => {
     ).toEqual({
       enable: false,
       servicePluginProviderCode: 'FEISHU',
+      servicePluginProviderInstanceCode: 'account-a',
+      usageCount: 0,
+      usageWeight: 3,
       value: { FEISHU: {} },
     });
     expect(
       prepareProviderSettingSubmit(
-        { enable: true, servicePluginProviderCode: 'DINGTALK_V2' },
+        { enable: true, usageCount: 4, usageWeight: 2 },
         true,
       ),
-    ).toEqual({ enable: true });
+    ).toEqual({ enable: true, usageWeight: 2 });
   });
 
   it('只接受后端声明的模式，不从名称或供应商数量推断', () => {
     const modes = parseProviderSelectionModes({
       oauth: 'MULTI_CHOICE',
       sms: 'SINGLE_ACTIVE',
+      smsBalanced: 'MULTI_ACTIVE_BALANCED',
     });
     expect(getProviderSelectionMode(modes, 'oauth')).toBe('MULTI_CHOICE');
     expect(getProviderSelectionMode(modes, 'sms')).toBe('SINGLE_ACTIVE');
+    expect(getProviderSelectionMode(modes, 'smsBalanced')).toBe(
+      'MULTI_ACTIVE_BALANCED',
+    );
+    expect(allowsMultipleActiveProviders('MULTI_ACTIVE_BALANCED')).toBe(true);
+    expect(allowsMultipleProviderInstances('MULTI_ACTIVE_BALANCED')).toBe(true);
     expect(getProviderSelectionMode(modes, 'unknown')).toBeUndefined();
     expect(() => parseProviderSelectionModes({ oauth: 'OTHER' })).toThrow();
   });

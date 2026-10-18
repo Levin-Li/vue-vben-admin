@@ -29,6 +29,24 @@ vi.mock('@vben/common-ui', () => ({
 }));
 
 describe('公共详情展示', () => {
+  it('金额详情显示四位分组和默认元单位，并提供中文数量级提示', () => {
+    const wrapper = mount(DetailDisplayPanel, {
+      props: {
+        entries: buildDetailDisplayEntries({ amount: '1234567890.12' }, [
+          { key: 'amount', label: '金额', type: 'number' },
+        ]),
+      },
+    });
+
+    expect(wrapper.get('[data-test="detail-display-value"]').text()).toBe(
+      '12,3456,7890.12元',
+    );
+    expect(wrapper.getComponent(Tooltip).props('title')).toBe(
+      '12亿3456万7890.12元',
+    );
+    wrapper.unmount();
+  });
+
   it('由标题栏开关隐藏空值时保留零和false', async () => {
     const entries = Array.from({ length: 11 }, (_, index) => ({
       key: `k${index}`,

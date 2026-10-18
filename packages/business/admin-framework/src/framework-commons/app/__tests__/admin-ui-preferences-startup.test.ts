@@ -32,13 +32,15 @@ describe('界面偏好启动加载', () => {
 
   it('超时后继续启动，并在迟到请求返回时应用偏好', async () => {
     let resolvePreferences:
-      | ((value: { scope: {}; setting: null }) => void)
+      | ((value: { scope: Record<string, never>; setting: null }) => void)
       | undefined;
     const loadPreferences = vi.fn(
       () =>
-        new Promise<{ scope: {}; setting: null }>((resolve) => {
-          resolvePreferences = resolve;
-        }),
+        new Promise<{ scope: Record<string, never>; setting: null }>(
+          (resolve) => {
+            resolvePreferences = resolve;
+          },
+        ),
     );
     const applyPreferences = vi.fn();
     const lifecycle = createAdminUiPreferencesStartupLoader(
@@ -56,11 +58,17 @@ describe('界面偏好启动加载', () => {
 
   it('登录请求先返回时，迟到的启动请求不能覆盖它', async () => {
     const pending: Array<
-      (value: { scope: {}; setting: { code: string } }) => void
+      (value: {
+        scope: Record<string, never>;
+        setting: { code: string };
+      }) => void
     > = [];
     const loadPreferences = vi.fn(
       () =>
-        new Promise<{ scope: {}; setting: { code: string } }>((resolve) => {
+        new Promise<{
+          scope: Record<string, never>;
+          setting: { code: string };
+        }>((resolve) => {
           pending.push(resolve);
         }),
     );
@@ -86,6 +94,34 @@ describe('界面偏好启动加载', () => {
       scope: {},
       setting: { code: 'login' },
     });
+  });
+
+  it('退出后迟到的用户偏好不能应用，也不额外请求匿名偏好', async () => {
+    let complete!: (value: {
+      scope: Record<string, never>;
+      setting: null;
+    }) => void;
+    const loadPreferences = vi.fn(
+      () =>
+        new Promise<{ scope: Record<string, never>; setting: null }>(
+          (resolve) => {
+            complete = resolve;
+          },
+        ),
+    );
+    const applyPreferences = vi.fn();
+    const lifecycle = createAdminUiPreferencesStartupLoader(
+      loadPreferences,
+      applyPreferences,
+      1,
+    );
+    await lifecycle.prepareForMount();
+    lifecycle.onApplicationMounted();
+    lifecycle.onAccessTokenChanged(undefined, 'old-token');
+    complete({ scope: {}, setting: null });
+    await Promise.resolve();
+    expect(applyPreferences).not.toHaveBeenCalled();
+    expect(loadPreferences).toHaveBeenCalledTimes(1);
   });
 
   it('偏好接口失败不会抛出或阻断登录后的加载流程', async () => {

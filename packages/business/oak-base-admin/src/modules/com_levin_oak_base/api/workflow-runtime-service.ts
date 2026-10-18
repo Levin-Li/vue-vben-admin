@@ -10,6 +10,13 @@ import { WorkflowRuntimeService } from '@levin/bpm-runtime-ui';
 
 import { prepareWorkflowRequestScope } from './workflow-request-service';
 
+/** 对应业务命令服务实际校验的独立授权；HTTP入口本身仅要求登录。 */
+export const workflowOperationPermissions = {
+  withdraw: [] as string[],
+  terminate: ['workflow.runtime.terminate'],
+  recover: ['workflow.runtime.recover'],
+};
+
 /** 公共连接器维护地址，宿主按实际控制器声明登记页面操作与权限。 */
 @Service({
   controllerClass: 'com.levin.oak.base.controller.BizWorkflowRuntimeController',
@@ -35,7 +42,6 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   ) {
     return super.attachments(...args);
   }
-
   @ResAuthorize({
     domain: 'WorkflowRuntime',
     type: '业务数据-工作流运行时',
@@ -46,7 +52,6 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   ) {
     return super.businessRecords(this.selectionScope(args[0]));
   }
-
   @ResAuthorize({
     domain: 'WorkflowRuntime',
     type: '业务数据-工作流运行时',
@@ -197,6 +202,11 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
     return super.prepareStepUpAuth(...args);
   }
 
+  @ResAuthorize({ onlyRequireAuthenticated: true })
+  override recover(command: Parameters<WorkflowRuntimeService['recover']>[0]) {
+    return super.recover(this.businessScope(command));
+  }
+
   @CRUD.Op({ label: '重新提交流程' })
   @ResAuthorize({
     domain: 'WorkflowRuntime',
@@ -253,6 +263,13 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
     return super.task(...args);
   }
 
+  @ResAuthorize({ onlyRequireAuthenticated: true })
+  override terminate(
+    command: Parameters<WorkflowRuntimeService['terminate']>[0],
+  ) {
+    return super.terminate(this.businessScope(command));
+  }
+
   @ResAuthorize({
     domain: 'WorkflowRuntime',
     type: '业务数据-工作流运行时',
@@ -271,6 +288,13 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
     ...args: Parameters<WorkflowRuntimeService['uploadAttachment']>
   ) {
     return super.uploadAttachment(...args);
+  }
+
+  @ResAuthorize({ onlyRequireAuthenticated: true })
+  override withdraw(
+    command: Parameters<WorkflowRuntimeService['withdraw']>[0],
+  ) {
+    return super.withdraw(this.businessScope(command));
   }
 
   private businessScope<T extends WorkflowBusinessReference>(input: T) {

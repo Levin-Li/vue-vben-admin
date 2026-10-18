@@ -4,6 +4,10 @@ import { reactive } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  configureDataAttrPolicyLoader,
+  suspendDataAttrPolicies,
+} from '../../data-attr-policy';
+import {
   applyCurrentGlobalUserOrgContextToParams,
   getCurrentGlobalOrgId,
   setCurrentGlobalOrgId,
@@ -45,9 +49,26 @@ describe('全局选择器配置生命周期', () => {
     mocks.resolve.mockReset();
     mocks.addHeader.mockClear();
     mocks.user = reactive({ id: 'user-a' });
+    configureDataAttrPolicyLoader(async () => ({ version: 1, policies: [] }));
   });
   afterEach(() => {
     dispose?.();
+  });
+
+  it('本人信息已到但权限未就绪时不读取配置，退出暂停后不重新读取', async () => {
+    suspendDataAttrPolicies();
+    mocks.resolve.mockResolvedValue(enabled);
+    dispose = registerGlobalOrgSelectorRuntime();
+    await flushPromises();
+    expect(mocks.resolve).not.toHaveBeenCalled();
+    configureDataAttrPolicyLoader(async () => ({ version: 1, policies: [] }));
+    await flushPromises();
+    expect(mocks.resolve).toHaveBeenCalledTimes(1);
+    suspendDataAttrPolicies();
+    expect(state.enabled).toBe(false);
+    mocks.user.id = 'next-user-before-permissions';
+    await flushPromises();
+    expect(mocks.resolve).toHaveBeenCalledTimes(1);
   });
 
   it('配置返回前保持关闭，有效配置后才能注入，注销时立即关闭', async () => {

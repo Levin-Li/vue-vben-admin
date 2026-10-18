@@ -2,6 +2,7 @@ import type { CrudComplexGroupConfig, CrudFieldConfig } from './types';
 
 import { formatAdministrativeArea } from './administrative-area-data';
 import { sortFormLayoutFields } from './crud-form-layout';
+import { formatCrudMoneyValue, isCrudMoneyField } from './crud-money-display';
 
 /** 详情仅将已声明的对象字段映射为只读子字段，不改变原始响应。 */
 export function flattenCrudComplexDetailRecord(
@@ -147,7 +148,10 @@ function getEntryLabel(key: string, field?: CrudFieldConfig) {
     .replace(/^./, (value) => value.toUpperCase());
 }
 
-function getEntryKind(field: CrudFieldConfig | undefined, value: any) {
+function getEntryKind(
+  field: CrudFieldConfig | undefined,
+  value: any,
+): DetailDisplayEntryKind {
   if (field?.type === 'qrcode') {
     return 'qrcode';
   }
@@ -235,6 +239,11 @@ function formatScalarValue(field: CrudFieldConfig | undefined, value: any) {
 
   if (isDateLikeText(value)) {
     return formatDateLikeValue(value);
+  }
+
+  // 金额详情与列表共用四位分组规则，保留原始十进制精度。
+  if (isCrudMoneyField(field)) {
+    return formatCrudMoneyValue(field, value);
   }
 
   return String(value);

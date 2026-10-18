@@ -1,12 +1,15 @@
-import { describe, expect, it } from 'vitest';
-
 import type { BackendMenuInfo } from '../menu-route';
+
+import { describe, expect, it } from 'vitest';
 
 import { buildMenuRoutes, convertMenuNodeForTest } from '../menu-route';
 
 const testBackendRouteMappings = [
   {
     icon: 'lucide:shield-check',
+    keepAlive: true,
+    description: '角色管理',
+    sourceFilePath: 'modules/com_levin_oak_base/views/role/index.vue',
     resource: 'Role',
     path: '/clob/V1/Role',
     title: '角色管理',
@@ -14,6 +17,8 @@ const testBackendRouteMappings = [
   },
   {
     icon: 'lucide:file-text',
+    description: '文章管理',
+    sourceFilePath: 'modules/com_levin_oak_base/views/article/index.vue',
     resource: 'Article',
     path: '/clob/V1/Article',
     title: '文章管理',
@@ -21,6 +26,9 @@ const testBackendRouteMappings = [
   },
   {
     icon: 'lucide:shield',
+    description: '权限项定义',
+    sourceFilePath:
+      'modules/com_levin_oak_base/views/rbac-permission-item/index.vue',
     resource: 'RbacPermissionItem',
     path: '/clob/V1/RbacPermissionItem',
     title: '权限项定义',
@@ -28,6 +36,9 @@ const testBackendRouteMappings = [
   },
   {
     icon: 'lucide:settings',
+    description: '租户系统设置',
+    sourceFilePath:
+      'modules/com_levin_oak_base/views/setting-for-tenant/index.vue',
     resource: 'SettingForTenant',
     path: '/clob/V1/SettingForTenant',
     title: '租户系统设置',
@@ -36,6 +47,40 @@ const testBackendRouteMappings = [
 ];
 
 describe('menu route conversion', () => {
+  it('preserves declared CRUD tab caching without enabling it for other pages', () => {
+    const role = convertMenuNodeForTest(
+      { pageType: 'LocalPage', path: '/clob/V1/Role' },
+      testBackendRouteMappings,
+    );
+    const article = convertMenuNodeForTest(
+      { pageType: 'LocalPage', path: '/clob/V1/Article' },
+      testBackendRouteMappings,
+    );
+
+    expect(role?.meta?.keepAlive).toBe(true);
+    expect(article?.meta?.keepAlive).toBeUndefined();
+  });
+
+  it('caches the parent RouteView of a cached CRUD page', () => {
+    const root = convertMenuNodeForTest(
+      {
+        children: [
+          {
+            children: [{ pageType: 'LocalPage', path: '/clob/V1/Role' }],
+            path: '/clob/V1/index',
+          },
+        ],
+        path: '/',
+      },
+      testBackendRouteMappings,
+    );
+    const parent = root?.children?.[0];
+
+    expect(parent?.component).toBe('RouteView');
+    expect(parent?.meta?.keepAlive).toBe(true);
+    expect(parent?.children?.[0]?.meta?.keepAlive).toBe(true);
+  });
+
   it('routes LocalPage to local Vue mapping when available', () => {
     expect(
       convertMenuNodeForTest(

@@ -4,12 +4,16 @@ import { flushPromises, mount } from '@vue/test-utils';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import Basic from '../basic.vue';
+import {
+  configureDataAttrPolicyLoader,
+  suspendDataAttrPolicies,
+} from '../../../data-attr-policy';
 import {
   captureBindCallbackBeforeStartup,
   clearPendingBindCallback,
   hasPendingBindCallback,
 } from '../../views/_core/profile/oauth-bind-callback';
+import Basic from '../basic.vue';
 
 const mocks = vi.hoisted(() => ({
   adminMenuSyncService: null as null | Record<string, never>,
@@ -102,7 +106,7 @@ vi.mock('@vben/layouts', () => ({
     props: ['count', 'notifications'],
     emits: ['read', 'clear', 'makeAll'],
     template: `<div data-testid="notification" :data-count="count">
-      <button v-for="item in notifications" :key="item.id" :data-testid="'message-' + item.id" :data-link="item.link" :data-query="JSON.stringify(item.query)" @click="$emit('read', item)">{{ item.title }}</button>
+      <button v-for="item in notifications" :key="item.id" :data-testid="'message-' + item.id" :data-link="item.link" :data-query="JSON.stringify(item.query)" :data-message="item.message" @click="$emit('read', item)">{{ item.title }}</button>
       <button data-testid="clear-messages" @click="$emit('clear')">清空预览</button>
     </div>`,
   },
@@ -205,6 +209,7 @@ describe('basic layout tenant site brand', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     clearPendingBindCallback();
+    configureDataAttrPolicyLoader(async () => ({ version: 1, policies: [] }));
     mocks.routePath = '/index';
     mocks.loadAuthBrand.mockClear();
     mocks.stopMessageReadListener.mockClear();
@@ -258,6 +263,26 @@ describe('basic layout tenant site brand', () => {
       wrapper.unmount();
     },
   );
+
+  it('退出暂停后即使布局和旧令牌仍存在也不再读取通知', async () => {
+    mocks.accessToken = 'old-access-token';
+    mocks.adminUserMessageService = {
+      list: vi.fn().mockResolvedValue({ items: [] }),
+      unreadCount: vi.fn().mockResolvedValue(0),
+      markRead: vi.fn(),
+    };
+    const wrapper = mount(Basic);
+    await flushPromises();
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(1);
+    suspendDataAttrPolicies();
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+    mocks.messageReadListener?.();
+    await flushPromises();
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(1);
+    expect(mocks.adminUserMessageService.unreadCount).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
 
   it('登录后每三分钟同步一次通知，并在布局卸载后停止同步', async () => {
     mocks.accessToken = 'access-token';
@@ -350,6 +375,7 @@ describe('basic layout tenant site brand', () => {
           {
             id: 'task-message',
             sourceType: 'Workflow',
+            summary: '# 流程通知\n- **待办**\nA&B \\[业务名称\\]',
             sourceId: 'instance-1',
             actionTarget: { kind: 'WorkflowTask', id: 'task+1' },
           },
@@ -376,6 +402,11 @@ describe('basic layout tenant site brand', () => {
     };
     const wrapper = mount(Basic);
     await flushPromises();
+    expect(
+      wrapper
+        .get('[data-testid="message-task-message"]')
+        .attributes('data-message'),
+    ).toBe('流程通知\n待办\nA&B [业务名称]');
     expect(
       wrapper
         .get('[data-testid="message-task-message"]')

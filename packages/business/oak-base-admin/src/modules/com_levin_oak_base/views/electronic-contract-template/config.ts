@@ -16,6 +16,26 @@ const electronicContractTemplateStatusOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.EContractTemplate$Status',
 );
 
+// 模板变量仅为文本占位符，禁止页面配置任意表达式或脚本。
+const templateFieldSchema = {
+  type: 'array',
+  title: '模板变量',
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['key', 'title'],
+    properties: {
+      key: {
+        type: 'string',
+        title: '变量名',
+        description: '对应 Word 中的 {{变量名}}',
+      },
+      title: { type: 'string', title: '填写提示' },
+      required: { type: 'boolean', title: '必填' },
+    },
+  },
+} as const;
+
 export const pageMeta = {
   name: 'ElectronicContractTemplate',
   title: '电子合同模板',
@@ -27,6 +47,8 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
     apiBase: '/EContractTemplate',
     domainObject: true,
     apiService: electronicContractTemplateService,
+    allowCreate: false,
+    allowDelete: false,
     defaultFormValues: {
       status: 'Draft',
     },
@@ -117,8 +139,22 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
         table: true,
         width: 140,
       },
-      { key: 'contractCategory', label: '合同类别', layoutGroup: 'basic', layoutOrder: 40, table: true, width: 140 },
-      { key: 'contractType', label: '合同类型', layoutGroup: 'basic', layoutOrder: 50, table: true, width: 160 },
+      {
+        key: 'contractCategory',
+        label: '合同类别',
+        layoutGroup: 'basic',
+        layoutOrder: 40,
+        table: true,
+        width: 140,
+      },
+      {
+        key: 'contractType',
+        label: '合同类型',
+        layoutGroup: 'basic',
+        layoutOrder: 50,
+        table: true,
+        width: 160,
+      },
       {
         key: 'confidentialLevel',
         label: '机密等级',
@@ -130,19 +166,33 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
         width: 130,
       },
       {
-        key: 'fileName',
-        label: '模板文件名',
+        key: 'fileResId',
+        label: '受控模板文件',
+        help: '使用上方专用上传入口创建受控文件；模板文件创建后保持冻结。',
         layoutGroup: 'media',
         layoutGroupTitle: '模板文件',
         layoutOrder: 10,
-        required: true,
+        form: false,
+        table: true,
+      },
+      {
+        key: 'fileName',
+        label: '模板文件名',
+        form: false,
         table: true,
         width: 220,
       },
-      { key: 'fileUrl', label: '模板文件链接', layoutGroup: 'media', layoutOrder: 20, required: true, span: 2 },
-      { key: 'fileHash', label: '模板文件哈希', layoutGroup: 'media', layoutOrder: 30, width: 180 },
-      { key: 'mimeType', label: '模板文件类型', layoutGroup: 'media', layoutOrder: 40, width: 180 },
-      { key: 'signerRoleDefinition', label: '签署角色定义', layoutGroup: 'extension', layoutGroupTitle: '签署与字段配置', layoutOrder: 10, type: 'json' },
+      { key: 'fileUrl', label: '受控模板文件路径', form: false, detail: true },
+      { key: 'fileHash', label: '模板文件哈希', form: false, width: 180 },
+      { key: 'mimeType', label: '模板文件类型', form: false, width: 180 },
+      {
+        key: 'signerRoleDefinition',
+        label: '签署角色定义',
+        layoutGroup: 'extension',
+        layoutGroupTitle: '签署与字段配置',
+        layoutOrder: 10,
+        type: 'json',
+      },
       {
         key: 'defaultSealPositionRules',
         label: '默认签章位置规则',
@@ -150,8 +200,24 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
         layoutOrder: 20,
         type: 'json',
       },
-      { key: 'templateFieldSchema', label: '模板字段定义', layoutGroup: 'extension', layoutOrder: 30, type: 'json' },
-      { key: 'description', label: '模板描述', fullRow: true, layoutGroup: 'content', layoutGroupTitle: '模板说明', layoutOrder: 10, type: 'textarea' },
+      {
+        key: 'templateFieldSchema',
+        label: '模板变量定义',
+        layoutGroup: 'extension',
+        layoutOrder: 30,
+        type: 'json',
+        jsonSchema: templateFieldSchema,
+        jsonSchemaMode: 'popup',
+      },
+      {
+        key: 'description',
+        label: '模板描述',
+        fullRow: true,
+        layoutGroup: 'content',
+        layoutGroupTitle: '模板说明',
+        layoutOrder: 10,
+        type: 'textarea',
+      },
       {
         key: 'status',
         label: '模板状态',
@@ -164,7 +230,14 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
         type: 'select',
         width: 120,
       },
-      { key: 'versionNo', label: '版本号', layoutGroup: 'business', layoutOrder: 20, table: true, width: 100 },
+      {
+        key: 'versionNo',
+        label: '版本号',
+        layoutGroup: 'business',
+        layoutOrder: 20,
+        table: true,
+        width: 100,
+      },
       {
         key: 'createTime',
         label: '创建时间',

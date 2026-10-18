@@ -92,8 +92,19 @@ export interface WorkflowFormItem {
   value?: unknown;
 }
 
+/** 运行命令绑定业务引用与去重标识，身份始终由服务端会话决定。 */
+export type WorkflowInstanceOperation = 'recover' | 'terminate' | 'withdraw';
+export interface WorkflowInstanceOperationCommand extends WorkflowBusinessReference {
+  dispatchId?: string;
+  instanceId: string;
+  reason: string;
+  requestId: string;
+}
+
 export interface WorkflowTaskView {
   actions?: WorkflowTaskAction[];
+  allowedOperations?: string[];
+  businessBasisChanged?: boolean;
   businessFields?: WorkflowBusinessField[];
   businessId?: string;
   businessTitle?: string;
@@ -103,8 +114,10 @@ export interface WorkflowTaskView {
   executionStatus?: string;
   formItems?: WorkflowFormItem[];
   notifications?: WorkflowNotification[];
+  operationBlockedReason?: string;
   orgId?: string;
   outcome?: string;
+  pendingDispatchId?: string;
   processDiagramEdges?: WorkflowDiagramEdge[];
   processDiagramNodes?: WorkflowDiagramNode[];
   processInstanceId?: string;
@@ -132,7 +145,9 @@ export interface WorkflowRuntimePageQuery {
 }
 
 export interface WorkflowInstanceView {
+  allowedOperations?: string[];
   attemptNo?: number;
+  businessBasisChanged?: boolean;
   businessContractVersion?: string;
   businessId?: string;
   businessTitle?: string;
@@ -142,6 +157,7 @@ export interface WorkflowInstanceView {
   executionStatus?: string;
   instanceId: string;
   lastError?: string;
+  operationBlockedReason?: string;
   orgId?: string;
   outcome?: string;
   pendingDispatchId?: string;

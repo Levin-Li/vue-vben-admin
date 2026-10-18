@@ -28,20 +28,72 @@ export interface CreateOakBaseAdminCrudRoutesOptions {
 }
 
 export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
-  { icon: 'lucide:bell-ring', name: 'WorkflowNotificationRoute', resource: 'WorkflowNotificationRoute', title: '工作流通知路由' },
-  { icon: 'lucide:ticket', name: 'Ticket', resource: 'Ticket', title: '客服工单' },
-  { icon: 'lucide:users-round', name: 'TicketQueue', resource: 'TicketQueue', title: '工单受理队列' },
-  { icon: 'lucide:mail-check', name: 'SupportMailboxRule', resource: 'SupportMailboxRule', title: '支持邮箱受理规则' },
-  { icon: 'lucide:send', name: 'NotificationAudit', resource: 'NotificationAudit', title: '通知投递' },
-  { icon: 'lucide:git-branch', name: 'WorkflowDefinition', resource: 'WorkflowDefinition', title: '流程设计' },
-  { icon: 'lucide:clipboard-check', name: 'WorkflowRequest', resource: 'WorkflowRequest', title: '流程申请样例' },
+  {
+    icon: 'lucide:bot-message-square',
+    name: 'RobotNotifyGroup',
+    resource: 'RobotNotifyGroup',
+    title: '机器人通知群',
+  },
+  {
+    icon: 'lucide:bell-ring',
+    name: 'WorkflowNotificationRoute',
+    resource: 'WorkflowNotificationRoute',
+    title: '工作流通知路由',
+  },
+  {
+    icon: 'lucide:ticket',
+    name: 'Ticket',
+    resource: 'Ticket',
+    title: '客服工单',
+  },
+  {
+    icon: 'lucide:users-round',
+    name: 'TicketQueue',
+    resource: 'TicketQueue',
+    title: '工单受理队列',
+  },
+  {
+    icon: 'lucide:mail-check',
+    name: 'SupportMailboxRule',
+    resource: 'SupportMailboxRule',
+    title: '支持邮箱受理规则',
+  },
+  {
+    icon: 'lucide:send',
+    name: 'NotificationAudit',
+    resource: 'NotificationAudit',
+    title: '通知投递',
+  },
+  {
+    icon: 'lucide:git-branch',
+    name: 'WorkflowDefinition',
+    resource: 'WorkflowDefinition',
+    title: '流程设计',
+  },
+  {
+    icon: 'lucide:activity',
+    name: 'WorkflowInstance',
+    resource: 'WorkflowInstance',
+    title: '工作流实例管理',
+  },
+  {
+    icon: 'lucide:clipboard-check',
+    name: 'WorkflowRequest',
+    resource: 'WorkflowRequest',
+    title: '流程申请样例',
+  },
   {
     icon: 'lucide:play',
     name: 'WorkflowStart',
     resource: 'WorkflowStart',
     title: '发起流程',
   },
-  { icon: 'lucide:list-checks', name: 'MyWorkflow', resource: 'MyWorkflow', title: '我的流程' },
+  {
+    icon: 'lucide:list-checks',
+    name: 'MyWorkflow',
+    resource: 'MyWorkflow',
+    title: '我的流程',
+  },
   {
     icon: 'lucide:clipboard-check',
     name: 'AuditReport',
@@ -100,9 +152,15 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   { icon: 'lucide:badge', name: 'Brand', resource: 'Brand', title: '品牌管理' },
   {
     icon: 'lucide:users',
+    name: 'MemberUser',
+    resource: 'MemberUser',
+    title: '会员用户管理',
+  },
+  {
+    icon: 'lucide:contact-round',
     name: 'Customer',
     resource: 'Customer',
-    title: '客户管理',
+    title: '客户',
   },
   {
     icon: 'lucide:flask-conical',
@@ -126,7 +184,8 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     permissionResource: 'Demo',
     resource: 'RuntimeSchemaFormDemo',
     routePath: 'dev/RuntimeSchemaFormDemo',
-    sourceFilePath: 'modules/com_levin_oak_base/views/dev/RuntimeSchemaFormDemo.vue',
+    sourceFilePath:
+      'modules/com_levin_oak_base/views/dev/RuntimeSchemaFormDemo.vue',
     title: '动态表单测试',
     viewPath: '/system/com_levin_oak_base/dev/RuntimeSchemaFormDemo.vue',
   },
@@ -276,10 +335,22 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '支付模拟工作台',
   },
   {
+    icon: 'lucide:receipt-text',
+    name: 'SettlementStatement',
+    resource: 'SettlementStatement',
+    title: '结算单',
+  },
+  {
     icon: 'lucide:handshake',
-    name: 'Partner',
-    resource: 'Partner',
-    title: '合作伙伴',
+    name: 'SupplierPartner',
+    resource: 'SupplierPartner',
+    title: '供应伙伴',
+  },
+  {
+    icon: 'lucide:network',
+    name: 'ChannelPartner',
+    resource: 'ChannelPartner',
+    title: '渠道伙伴',
   },
   {
     icon: 'lucide:key-round',
@@ -423,6 +494,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   },
   { icon: 'lucide:user', name: 'User', resource: 'User', title: '用户管理' },
   {
+    icon: 'lucide:link-2',
+    name: 'RecommendationLink',
+    resource: 'RecommendationLink',
+    title: '邀请注册链接',
+  },
+  {
     icon: 'lucide:user-cog',
     name: 'UserSetting',
     resource: 'UserSetting',
@@ -434,8 +511,11 @@ export const oakBaseAdminResourceViewMap: Record<
   string,
   NonNullable<RouteRecordRaw['component']>
 > = {
-  WorkflowNotificationRoute: () => import('./views/workflow-notification-route/index.vue'),
+  RobotNotifyGroup: () => import('./views/robot-notify-group/index.vue'),
+  WorkflowNotificationRoute: () =>
+    import('./views/workflow-notification-route/index.vue'),
   WorkflowDefinition: () => import('./views/workflow-definition/index.vue'),
+  WorkflowInstance: () => import('./views/workflow-instance/index.vue'),
   WorkflowRequest: () => import('./views/workflow-request/index.vue'),
   WorkflowStart: () => import('./views/workflow-start/index.vue'),
   MyWorkflow: () => import('./views/my-workflow/index.vue'),
@@ -449,6 +529,7 @@ export const oakBaseAdminResourceViewMap: Record<
   Article: () => import('./views/article/index.vue'),
   ArticleChannel: () => import('./views/article-channel/index.vue'),
   Brand: () => import('./views/brand/index.vue'),
+  MemberUser: () => import('./views/member-user/index.vue'),
   Customer: () => import('./views/customer/index.vue'),
   AdministrativeAreaDemo: () => import('./views/dev/TestDemo.vue'),
   RuntimeSchemaFormDemo: () => import('./views/dev/RuntimeSchemaFormDemo.vue'),
@@ -490,7 +571,9 @@ export const oakBaseAdminResourceViewMap: Record<
   PayOrder: () => import('./views/pay-order/index.vue'),
   PaymentSimulationWorkbench: () =>
     import('./views/payment-simulation-workbench/index.vue'),
-  Partner: () => import('./views/partner/index.vue'),
+  SettlementStatement: () => import('./views/settlement-statement/index.vue'),
+  SupplierPartner: () => import('./views/supplier-partner/index.vue'),
+  ChannelPartner: () => import('./views/channel-partner/index.vue'),
   RbacPermissionItem: () => import('./views/rbac-permission-item/index.vue'),
   Role: () => import('./views/role/index.vue'),
   ScheduledLog: () => import('./views/scheduled-log/index.vue'),
@@ -516,6 +599,7 @@ export const oakBaseAdminResourceViewMap: Record<
   TrafficControlRule: () => import('./views/traffic-control-rule/index.vue'),
   UrlExAcl: () => import('./views/url-ex-acl/index.vue'),
   User: () => import('./views/user/index.vue'),
+  RecommendationLink: () => import('./views/recommendation-link/index.vue'),
   UserSetting: () => import('./views/user-setting/index.vue'),
 };
 
@@ -525,6 +609,7 @@ const menuGroups = [
     'lucide:shield-check',
     [
       'User',
+      'RecommendationLink',
       'Role',
       'Org',
       'OrgUser',
@@ -547,11 +632,16 @@ const menuGroups = [
       'TenantCustomMenu',
     ],
   ],
-  ['应用&接入', 'lucide:app-window', ['ClientApp', 'EmailRelayRoute', 'Inbox', 'SupportMailboxRule']],
+  [
+    '应用&接入',
+    'lucide:app-window',
+    ['ClientApp', 'EmailRelayRoute', 'Inbox', 'SupportMailboxRule'],
+  ],
   [
     '支付&交易',
     'lucide:wallet-cards',
     [
+      'SettlementStatement',
       'PayOrder',
       'PayChannel',
       'FundAccount',
@@ -563,12 +653,36 @@ const menuGroups = [
       'EInvoiceProviderConnection',
     ],
   ],
-  ['客户&伙伴', 'lucide:handshake', ['Customer', 'Partner', 'LegalSubject', 'TicketQueue', 'Ticket']],
-  ['内容&资源', 'lucide:folder-open', ['Article', 'ArticleChannel', 'Brand', 'FileRes', 'Notice']],
+  [
+    '客户&伙伴',
+    'lucide:handshake',
+    [
+      'Customer',
+      'MemberUser',
+      'SupplierPartner',
+      'ChannelPartner',
+      'LegalSubject',
+      'TicketQueue',
+      'Ticket',
+    ],
+  ],
+  [
+    '内容&资源',
+    'lucide:folder-open',
+    ['Article', 'ArticleChannel', 'Brand', 'FileRes', 'Notice'],
+  ],
   [
     '基础&设置',
     'lucide:settings-2',
-    ['Address', 'OpenArea', 'Dict', 'Setting', 'JobPost', 'PlatformDomain'],
+    [
+      'Address',
+      'OpenArea',
+      'Dict',
+      'Setting',
+      'RobotNotifyGroup',
+      'JobPost',
+      'PlatformDomain',
+    ],
   ],
   [
     '开发&工具',
@@ -577,6 +691,7 @@ const menuGroups = [
       'OnlineCodeGen',
       'WorkflowNotificationRoute',
       'WorkflowDefinition',
+      'WorkflowInstance',
       'WorkflowRequest',
       'SimpleForm',
       'SimpleApi',
@@ -596,7 +711,11 @@ const menuGroups = [
       'I18nRes',
     ],
   ],
-  ['个人&中心', 'lucide:circle-user-round', ['MySetting', 'MyMessages', 'WorkflowStart', 'MyWorkflow']],
+  [
+    '个人&中心',
+    'lucide:circle-user-round',
+    ['MySetting', 'MyMessages', 'WorkflowStart', 'MyWorkflow'],
+  ],
   [
     '运维&审计',
     'lucide:clipboard-check',
@@ -630,6 +749,7 @@ export function createOakBaseAdminCrudRoutes(
     {
       meta: {
         icon,
+        keepAlive: true,
         order,
         title,
       },
@@ -659,13 +779,14 @@ export function createOakBaseAdminCrudRoutes(
             meta: {
               crudResource: item.permissionResource || item.resource,
               icon: item.icon,
+              keepAlive: true,
               title: item.title,
             },
             name: toPathRouteName(path),
             path,
           };
         }),
-        meta: { icon, title },
+        meta: { icon, keepAlive: true, title },
         name: toPathRouteName(`${rootPath}/groups/${title}`),
         path: `groups/${title}`,
       })),

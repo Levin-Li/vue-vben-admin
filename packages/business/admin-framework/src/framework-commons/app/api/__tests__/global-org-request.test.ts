@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { fetchCrudList } from '../../../api';
 import {
+  configureDataAttrPolicyLoader,
+  suspendDataAttrPolicies,
+} from '../../../data-attr-policy';
+import {
   setCurrentGlobalUserOrgRecord,
   setCurrentGlobalUserOrgRecords,
   setGlobalUserOrgContextEnabled,
@@ -23,7 +27,8 @@ vi.mock('@vben/runtime/stores', () => ({
   useAccessStore: () => ({ accessToken: mocks.token }),
   useUserStore: () => ({ userInfo: mocks.user }),
 }));
-vi.mock('@vben/runtime/request', () => ({
+vi.mock('@vben/runtime/request', async () => ({
+  ...(await vi.importActual('@vben/runtime/request')),
   RequestClient: class {
     interceptors: any[] = [];
     addRequestInterceptor(value: any) {
@@ -251,5 +256,40 @@ describe('全局注入请求配置', () => {
         requireTotals: true,
       },
     });
+  });
+});
+
+describe('公开登录目录精确边界', () => {
+  const secure = (config: any) =>
+    (baseRequestClient as any).interceptors[0].fulfilled(config);
+
+  it('暂停时只允许GET公开目录，其他方法和相邻路径继续拒绝', async () => {
+    const policy = vi.fn();
+    configureDataAttrPolicyLoader(policy);
+    suspendDataAttrPolicies();
+    const config = {
+      method: 'GET',
+      url: '/oauth/getSupportedPlatforms',
+      baseURL: '',
+      headers: {},
+    };
+    await expect(secure(config)).resolves.toMatchObject(config);
+    await expect(
+      secure({ ...config, url: '/oauth/getSupportedPlatforms?tenantId=qa' }),
+    ).resolves.toHaveProperty(
+      'url',
+      '/oauth/getSupportedPlatforms?tenantId=qa',
+    );
+    for (const [method, url] of [
+      ['POST', '/oauth/getSupportedPlatforms'],
+      ['GET', '/oauth/getSupportedPlatforms/extra'],
+      ['GET', '/oauth/bindings'],
+      ['GET', '/other?next=/oauth/getSupportedPlatforms'],
+    ]) {
+      await expect(secure({ ...config, method, url })).rejects.toThrow(
+        '登录会话尚未就绪',
+      );
+    }
+    expect(policy).not.toHaveBeenCalled();
   });
 });

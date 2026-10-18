@@ -3,6 +3,9 @@ import { defineComponent } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// 在用例计时前加载页面，避免首次 SFC 转换挤占交互测试超时。
+import Login from '../login.vue';
+
 const {
   accessSession,
   routeState,
@@ -75,18 +78,19 @@ vi.mock('@levin/admin-framework/framework-commons/app/store', () => ({
 vi.mock('ant-design-vue', () => {
   const Input = Object.assign(
     defineComponent({
+      props: ['autocomplete', 'placeholder', 'size', 'value'],
       emits: ['blur', 'update:value'],
       methods: {
         updateValue(event: Event) {
           this.$emit('update:value', (event.target as HTMLInputElement).value);
         },
       },
-      props: ['autocomplete', 'placeholder', 'size', 'value'],
       template:
         '<input :autocomplete="autocomplete" :placeholder="placeholder" :value="value" @blur="$emit(\'blur\', $event)" @input="updateValue" />',
     }),
     {
       Password: defineComponent({
+        props: ['autocomplete', 'placeholder', 'size', 'value'],
         emits: ['update:value'],
         methods: {
           updateValue(event: Event) {
@@ -96,7 +100,6 @@ vi.mock('ant-design-vue', () => {
             );
           },
         },
-        props: ['autocomplete', 'placeholder', 'size', 'value'],
         template:
           '<input :autocomplete="autocomplete" :placeholder="placeholder" type="password" :value="value" @input="updateValue" />',
       }),
@@ -109,12 +112,13 @@ vi.mock('ant-design-vue', () => {
       template: '<div>{{ message }}</div>',
     }),
     Button: defineComponent({
-      emits: ['click'],
       props: ['disabled', 'loading', 'type'],
+      emits: ['click'],
       template:
         '<button :disabled="disabled || loading" :type="type || \'button\'" @click="$emit(\'click\', $event)"><slot /></button>',
     }),
     Checkbox: defineComponent({
+      props: ['checked'],
       emits: ['update:checked'],
       methods: {
         updateChecked(event: Event) {
@@ -124,7 +128,6 @@ vi.mock('ant-design-vue', () => {
           );
         },
       },
-      props: ['checked'],
       template:
         '<label><input type="checkbox" :checked="checked" @change="updateChecked" /><slot /></label>',
     }),
@@ -136,8 +139,8 @@ vi.mock('ant-design-vue', () => {
       warning: messageWarning,
     },
     Modal: defineComponent({
-      emits: ['cancel', 'ok', 'update:open'],
       props: ['confirmLoading', 'okButtonProps', 'open', 'title', 'width'],
+      emits: ['cancel', 'ok', 'update:open'],
       template: `
         <div v-if="open" :data-width="width" role="dialog">
           <h2>{{ title }}</h2>
@@ -246,7 +249,7 @@ describe('login auto-login prompt', () => {
       enableThirdLogin: true,
       enableThirdRegister: true,
     });
-    const { default: Login } = await import('../login.vue');
+
     const wrapper = mount(Login);
     await flushPromises();
     expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(false);
@@ -254,7 +257,6 @@ describe('login auto-login prompt', () => {
   });
 
   it('普通注册开启时展示注册链接', async () => {
-    const { default: Login } = await import('../login.vue');
     const wrapper = mount(Login);
     await flushPromises();
     expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(true);
@@ -267,7 +269,7 @@ describe('login auto-login prompt', () => {
       enableThirdLogin: false,
       enableThirdRegister: true,
     });
-    const { default: Login } = await import('../login.vue');
+
     const wrapper = mount(Login);
     await flushPromises();
     expect(oauthService.getSupportedPlatforms).not.toHaveBeenCalled();
@@ -286,10 +288,10 @@ describe('login auto-login prompt', () => {
     oauthService.getSupportedPlatforms.mockResolvedValue([
       { code: 'WECHAT_OPEN', name: '微信', supports: ['qr_login'] },
     ]);
-    const { default: Login } = await import('../login.vue');
+
     const wrapper = mount(Login);
     await flushPromises();
-    expect(wrapper.find('[aria-label="微信"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="微信开放平台"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('已有绑定');
     expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(false);
     wrapper.unmount();
@@ -309,12 +311,12 @@ describe('login auto-login prompt', () => {
         supports: ['oauth'],
       },
     ]);
-    const { default: Login } = await import('../login.vue');
+
     const wrapper = mount(Login);
 
     await flushPromises();
 
-    expect(wrapper.find('img[alt="微信 图标"]').attributes('src')).toBe(
+    expect(wrapper.find('img[alt="微信开放平台 图标"]').attributes('src')).toBe(
       '/tenant-wechat.svg',
     );
     wrapper.unmount();
@@ -327,7 +329,7 @@ describe('login auto-login prompt', () => {
         resolveOptions = resolve;
       }),
     );
-    const { default: Login } = await import('../login.vue');
+
     const wrapper = mount(Login);
     await flushPromises();
     expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(false);
@@ -347,7 +349,7 @@ describe('login auto-login prompt', () => {
 
   it('登录选项加载失败时不开放注册和第三方入口', async () => {
     getLoginOptionsApi.mockRejectedValueOnce(new Error('登录选项加载失败'));
-    const { default: Login } = await import('../login.vue');
+
     const wrapper = mount(Login);
     await flushPromises();
     expect(wrapper.find('a[href="/auth/register"]').exists()).toBe(false);
@@ -359,7 +361,6 @@ describe('login auto-login prompt', () => {
   });
 
   it('hides the OAuth login section when the tenant has no scan platforms', async () => {
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
@@ -386,7 +387,7 @@ describe('login auto-login prompt', () => {
     oauthService.getSupportedPlatforms.mockResolvedValue([
       { code: 'FEISHU', capabilities: { oauth: true, inAppLogin: true } },
     ]);
-    const Login = (await import('../login.vue')).default;
+
     const wrapper = mount(Login);
     await flushPromises();
     expect(oauthService.createInAppTransaction).not.toHaveBeenCalled();
@@ -434,7 +435,7 @@ describe('login auto-login prompt', () => {
           completeExchange = resolve;
         }),
       );
-      const Login = (await import('../login.vue')).default;
+
       const wrapper = mount(Login);
       await flushPromises();
       expect(oauthService.exchangeTransaction).toHaveBeenCalledWith(
@@ -456,7 +457,7 @@ describe('login auto-login prompt', () => {
     },
   );
 
-  it('App 内授权失败停止重试并保留普通登录提示', async () => {
+  it('app 内授权失败停止重试并保留普通登录提示', async () => {
     vi.stubGlobal('navigator', { userAgent: 'DingTalk' });
     oauthService.getSupportedPlatforms.mockResolvedValue([
       { code: 'DINGTALK_V2', capabilities: { oauth: true, inAppLogin: true } },
@@ -464,7 +465,7 @@ describe('login auto-login prompt', () => {
     oauthService.createInAppTransaction.mockRejectedValue(
       new Error('企业配置错误'),
     );
-    const Login = (await import('../login.vue')).default;
+
     const wrapper = mount(Login);
     await flushPromises();
     expect(oauthService.createInAppTransaction).toHaveBeenCalledTimes(1);
@@ -489,7 +490,7 @@ describe('login auto-login prompt', () => {
     oauthService.getSupportedPlatforms.mockResolvedValue([
       { code: 'DINGTALK_V2', capabilities: { oauth: true, inAppLogin: true } },
     ]);
-    const Login = (await import('../login.vue')).default;
+
     const wrapper = mount(Login);
     await flushPromises();
     expect(oauthService.createInAppTransaction).not.toHaveBeenCalled();
@@ -510,7 +511,7 @@ describe('login auto-login prompt', () => {
     oauthService.getSupportedPlatforms.mockResolvedValue([
       { code: 'DINGTALK_V2', capabilities: { oauth: true, inAppLogin: true } },
     ]);
-    const Login = (await import('../login.vue')).default;
+
     const wrapper = mount(Login);
     await flushPromises();
     expect(oauthService.getTransaction).toHaveBeenCalledWith('restored');
@@ -534,7 +535,7 @@ describe('login auto-login prompt', () => {
     authLoginWithAccessToken.mockImplementation(async (_token, onSuccess) => {
       await onSuccess?.();
     });
-    const Login = (await import('../login.vue')).default;
+
     const wrapper = mount(Login);
     await flushPromises();
     await wrapper.find('[aria-label="GitHub"]').trigger('click');
@@ -563,15 +564,14 @@ describe('login auto-login prompt', () => {
       accessToken: 'oauth-access-token',
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
-    const oauthButton = wrapper.find('[aria-label="微信"]');
+    const oauthButton = wrapper.find('[aria-label="微信开放平台"]');
     expect(oauthButton.exists()).toBe(true);
     expect(oauthButton.text()).toBe('');
     expect(oauthButton.element.parentElement?.getAttribute('title')).toBe(
-      '微信',
+      '微信开放平台',
     );
 
     await oauthButton.trigger('click');
@@ -610,11 +610,10 @@ describe('login auto-login prompt', () => {
       status: 'FAILED',
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
-    await wrapper.find('[aria-label="微信"]').trigger('click');
+    await wrapper.find('[aria-label="微信开放平台"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.text()).not.toContain('等待第三方授权登录');
@@ -641,13 +640,12 @@ describe('login auto-login prompt', () => {
       status: 'PENDING',
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
-    await wrapper.find('[aria-label="微信"]').trigger('click');
+    await wrapper.find('[aria-label="微信开放平台"]').trigger('click');
     await flushPromises();
-    expect(wrapper.text()).toContain('等待【微信】授权登录');
+    expect(wrapper.text()).toContain('等待【微信开放平台】授权登录');
 
     await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
     await flushPromises();
@@ -659,7 +657,6 @@ describe('login auto-login prompt', () => {
   });
 
   it('does not prefill credentials on non-loopback hosts when no account was remembered', async () => {
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
@@ -680,7 +677,6 @@ describe('login auto-login prompt', () => {
   });
 
   it('requires an account before requesting a contact verify code', async () => {
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
@@ -710,7 +706,6 @@ describe('login auto-login prompt', () => {
   it('prefills local development credentials on 127.0.0.1', async () => {
     vi.stubGlobal('location', { hostname: '127.0.0.1' });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
@@ -728,7 +723,6 @@ describe('login auto-login prompt', () => {
   it('prefills local development credentials on localhost', async () => {
     vi.stubGlobal('location', { hostname: 'localhost' });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
@@ -750,7 +744,6 @@ describe('login auto-login prompt', () => {
       interactionDataType: '',
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
@@ -788,7 +781,6 @@ describe('login auto-login prompt', () => {
       interactionDataType: '',
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await wrapper
@@ -825,7 +817,6 @@ describe('login auto-login prompt', () => {
       },
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
@@ -852,7 +843,6 @@ describe('login auto-login prompt', () => {
       interactionDataType: '',
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await flushPromises();
@@ -878,7 +868,6 @@ describe('login auto-login prompt', () => {
       verifyCodeType: 'Mfa',
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await wrapper
@@ -941,7 +930,6 @@ describe('login auto-login prompt', () => {
       new Error('验证码错误'),
     );
 
-    const { default: Login } = await import('../login.vue');
     const wrapper = mount(Login);
 
     await wrapper
@@ -990,7 +978,6 @@ describe('login auto-login prompt', () => {
       },
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await wrapper
@@ -1060,7 +1047,6 @@ describe('login auto-login prompt', () => {
       },
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await wrapper
@@ -1102,7 +1088,6 @@ describe('login auto-login prompt', () => {
       },
     });
 
-    const Login = (await import('../login.vue')).default;
     const wrapper = mount(Login);
 
     await wrapper

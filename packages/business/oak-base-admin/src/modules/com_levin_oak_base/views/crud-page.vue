@@ -1,11 +1,13 @@
 <script lang="ts" setup>
-import { computed } from 'vue';
-
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { computed } from 'vue';
+
 import SharedCrudPage from '@levin/admin-framework/framework-commons/shared/crud-page.vue';
+import { Button } from 'ant-design-vue';
 
 import { moduleExportTemplateService, OAK_BASE_API_MODULE } from './api-module';
+import WorkflowCrudEntry from './workflow-crud-entry.vue';
 
 const props = defineProps<{
   config: CrudPageConfig;
@@ -22,13 +24,31 @@ const mergedConfig = computed<CrudPageConfig>(() => ({
 </script>
 
 <template>
-  <SharedCrudPage :config="mergedConfig">
-    <template
-      v-for="(_, slotName) in $slots"
-      :key="slotName"
-      #[slotName]="slotProps"
-    >
-      <slot :name="slotName" v-bind="slotProps || {}" />
-    </template>
-  </SharedCrudPage>
+  <WorkflowCrudEntry :config="mergedConfig" v-slot="workflow">
+    <SharedCrudPage :config="mergedConfig">
+      <template
+        v-for="slotName in Object.keys($slots).filter(
+          (name) => name !== 'row-actions',
+        )"
+        :key="slotName"
+        #[slotName]="slotProps"
+      >
+        <slot :name="slotName" v-bind="slotProps || {}"></slot>
+      </template>
+      <template
+        v-if="workflow.supported || $slots['row-actions']"
+        #row-actions="{ record, reload }"
+      >
+        <slot name="row-actions" :record="record" :reload="reload"></slot>
+        <Button
+          v-if="workflow.canOpen(record)"
+          type="link"
+          size="small"
+          @click="workflow.open(record, reload)"
+        >
+          业务流程
+        </Button>
+      </template>
+    </SharedCrudPage>
+  </WorkflowCrudEntry>
 </template>

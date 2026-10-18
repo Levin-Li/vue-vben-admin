@@ -9,6 +9,7 @@ import {
   orgStateOptionsLoader,
   orgTypeOptionsLoader,
   tenantOptionsLoader,
+  userOptionsLoader,
 } from '../api-module';
 
 export const pageMeta = {
@@ -51,7 +52,7 @@ export const orgPageCrudConfig: CrudPageConfig = {
     },
   ],
   description:
-    '组织保留自身的联系人、地址和银行资料；仅外部法律主体组织关联外部主体，内部部门或分支使用组织自身资料。',
+    '组织保留自身的联系人、地址和银行资料；各类组织均可关联法律主体及设置组织负责人。',
   fields: [
     {
       key: 'tenantId',
@@ -83,10 +84,10 @@ export const orgPageCrudConfig: CrudPageConfig = {
       table: true,
       width: 180,
     },
-    { key: 'containsName', label: '机构名称', form: false, search: true },
+    { key: 'containsName', label: '名称', form: false, search: true },
     {
       key: 'name',
-      label: '机构名称',
+      label: '名称',
       layoutGroup: 'basic',
       layoutGroupTitle: '组织信息',
       layoutOrder: 10,
@@ -94,10 +95,10 @@ export const orgPageCrudConfig: CrudPageConfig = {
       table: true,
       width: 150,
     },
-    { key: 'containsCode', label: '机构编码', form: false, search: true },
+    { key: 'containsCode', label: '编码', form: false, search: true },
     {
       key: 'code',
-      label: '机构编码',
+      label: '编码',
       layoutGroup: 'basic',
       layoutOrder: 20,
       table: true,
@@ -105,7 +106,7 @@ export const orgPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'parentId',
-      label: '上级机构',
+      label: '上级组织',
       layoutGroup: 'basic',
       layoutOrder: 30,
       search: true,
@@ -113,14 +114,14 @@ export const orgPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'parent.name',
-      label: '上级机构',
+      label: '上级组织',
       form: false,
       table: true,
       width: 150,
     },
     {
       key: 'inType',
-      label: '机构类型',
+      label: '组织类型',
       form: false,
       loadOptions: orgTypeOptionsLoader,
       multiple: true,
@@ -129,7 +130,7 @@ export const orgPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'type',
-      label: '机构类型',
+      label: '组织类型',
       layoutGroup: 'basic',
       layoutOrder: 40,
       loadOptions: orgTypeOptionsLoader,
@@ -159,14 +160,24 @@ export const orgPageCrudConfig: CrudPageConfig = {
       width: 110,
     },
     {
-      key: 'externalLegalSubjectId',
-      label: '外部法律主体',
+      key: 'legalSubjectId',
+      label: '关联法律主体',
       layoutOrder: 20,
       search: true,
       loadOptions: legalSubjectOptionsLoader,
       remoteSearch: true,
       type: 'select',
       width: 220,
+    },
+    {
+      key: 'responsibleUserId',
+      label: '组织负责人',
+      layoutOrder: 30,
+      search: true,
+      loadOptions: userOptionsLoader,
+      remoteSearch: true,
+      type: 'select',
+      width: 180,
     },
     {
       key: 'inLevel',
@@ -202,22 +213,6 @@ export const orgPageCrudConfig: CrudPageConfig = {
       loadOptions: orgCategoryOptionsLoader,
       required: true,
       type: 'select',
-    },
-    // 精确匹配例外：行政区划级联组件提交选中节点编码，必须保持与目标区域编码完全一致。
-    {
-      key: 'areaCode',
-      label: '区域编码',
-      areaCascader: {
-        selectableLevels: ['district'],
-        valueKey: 'areaCode',
-      },
-      layoutGroup: 'contact',
-      layoutGroupTitle: '联系信息',
-      layoutOrder: 40,
-      search: true,
-      table: true,
-      type: 'area-cascader',
-      width: 180,
     },
     {
       key: 'contractPerson',

@@ -13,12 +13,12 @@ const editableField = {
 };
 
 describe('crud form field visibility', () => {
-  it('shows editable in create forms for normal users', () => {
+  it('hides editable in create forms for normal users', () => {
     expect(
       shouldShowCrudFormField(editableField, 'create', {
         username: 'normal-user',
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('hides editable in edit forms for non-super admins', () => {
@@ -35,6 +35,12 @@ describe('crud form field visibility', () => {
         superAdmin: true,
       }),
     ).toBe(true);
+  });
+
+  it('shows editable in create forms for super admins', () => {
+    expect(shouldShowCrudFormField(editableField, 'create', { sa: true })).toBe(
+      true,
+    );
   });
 
   it('hides super-admin-only form fields in create forms for normal users', () => {

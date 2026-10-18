@@ -3,9 +3,10 @@ import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-com
 
 import { computed, ref } from 'vue';
 
-import { useUserStore } from '@vben/runtime/stores';
+import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
 import { UserOrgSelector } from '@levin/admin-framework';
+import { isDataAttrPolicyReady } from '@levin/admin-framework/framework-commons/data-attr-policy';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { WorkflowStartWorkbench } from '@levin/bpm-runtime-ui';
@@ -17,6 +18,10 @@ import { workflowRuntimeService } from '../../api/workflow-runtime-service';
 // 各实际 API 权限独立判断，菜单存在不代表可查询对象或发起流程。
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
+const accessStore = useAccessStore();
+const workflowReady = computed(
+  () => !!accessStore.accessToken && isDataAttrPolicyReady(),
+);
 const selectedOrg = ref<UserOrgSelectorRecord>();
 // 普通主体使用会话租户；平台主体从已授权组织继承租户，不接收任意 ID 输入。
 const isPlatformActor = computed(() => {
@@ -88,7 +93,7 @@ function showError(error: unknown) {
       message="请先确认当前业务租户范围，再选择手动流程。"
     />
     <WorkflowStartWorkbench
-      v-else
+      v-else-if="workflowReady"
       :tenant-id="tenantId"
       :key="actorKey"
       :service="workflowRuntimeService"

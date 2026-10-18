@@ -72,7 +72,7 @@ const ROOT_KEYS = [
   'simulationPolicy',
   'metadata',
 ];
-const NODE_KEYS = ['id', 'type', 'name', 'x', 'y', 'metadata'];
+const NODE_KEYS = ['id', 'type', 'name', 'x', 'y', 'metadata', 'notifications'];
 const TASK_KEYS = [
   'approverResolver',
   'candidateUsers',
@@ -374,6 +374,18 @@ function checkNode(value: JsonObject, tree: boolean): void {
     [...NODE_KEYS, ...additional, ...(tree ? TREE_KEYS : [])],
     `节点「${String(value.id)}」`,
   );
+  // 草稿保留尚未填写完的模板；这里只封闭形状，发布校验另行检查语义。
+  if (value.notifications !== undefined) {
+    if (!Array.isArray(value.notifications) || value.notifications.length > 4)
+      fail('每个步骤最多配置四条通知。');
+    for (const notification of value.notifications) {
+      checkKeys(
+        record(notification, '通知配置'),
+        ['event', 'recipient', 'channels', 'title', 'content'],
+        '通知配置',
+      );
+    }
+  }
   if (type === 'userTask' && value.approverResolver !== undefined) {
     const resolver = record(
       value.approverResolver,

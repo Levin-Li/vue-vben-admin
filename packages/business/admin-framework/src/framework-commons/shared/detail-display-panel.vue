@@ -27,6 +27,7 @@ import {
 
 import { DEFAULT_CONTENT_MODAL_BODY_STYLE } from './config-helpers';
 import { getCrudGroupTitleClass } from './crud-group-display';
+import { getCrudMoneyUnitHint } from './crud-money-display';
 import { CRUD_TOOLTIP_MOUSE_ENTER_DELAY } from './crud-tooltip-preview';
 import {
   formatDetailDisplayValue,
@@ -271,9 +272,10 @@ function formatArrayItem(entry: DetailDisplayEntry, value: unknown) {
                 :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
                 overlay-class-name="crud-detail-display-tooltip"
                 :title="
-                  overflowingEntries[entry.key]
+                  getCrudMoneyUnitHint(entry.field, entry.value) ||
+                  (overflowingEntries[entry.key]
                     ? '点击展开全文查看完整内容'
-                    : undefined
+                    : undefined)
                 "
               >
                 <div

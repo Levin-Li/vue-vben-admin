@@ -20,6 +20,7 @@ import {
   Empty,
   Form,
   Input,
+  InputNumber,
   message,
   Modal,
   Select,
@@ -34,6 +35,8 @@ import { servicePluginSettingService } from '../../api/service-plugin-setting-se
 import { buildProviderConfigurationUpdate } from '../provider-configuration-update';
 import ProviderGuidance from '../provider-onboarding-guidance.vue';
 import {
+  allowsMultipleActiveProviders,
+  allowsMultipleProviderInstances,
   describeProviderConfiguration,
   getProviderSelectionMode,
   parseProviderSelectionModesResponse,
@@ -78,7 +81,10 @@ interface ServicePluginSettingRecord {
   servicePlugin?: ServicePluginRecord;
   servicePluginId?: string;
   servicePluginProviderCode?: string;
+  servicePluginProviderInstanceCode?: string;
   tenantId?: null | string;
+  usageCount?: number;
+  usageWeight?: number;
   value?: Record<string, any>;
 }
 
@@ -114,6 +120,8 @@ const basicFormState = reactive<Record<string, any>>({
   remark: '',
   servicePluginId: undefined,
   servicePluginProviderCode: undefined,
+  servicePluginProviderInstanceCode: 'default',
+  usageWeight: 1,
 });
 const enableUpdatingIds = reactive<Record<string, boolean>>({});
 const { hasPermission } = useRbacAccess();
@@ -142,7 +150,11 @@ function getMode(pluginId?: string) {
 }
 
 function isMultiChoice(item?: TenantPluginSettingItem) {
-  return getMode(item?.record.servicePluginId) === 'MULTI_CHOICE';
+  return allowsMultipleActiveProviders(getMode(item?.record.servicePluginId));
+}
+
+function allowsProviderInstances(pluginId?: string) {
+  return allowsMultipleProviderInstances(getMode(pluginId));
 }
 function getPluginOptionLabel(plugin: ServicePluginRecord) {
   const name = normalizeText(plugin.name) || normalizeText(plugin.id);
@@ -365,6 +377,8 @@ function resetBasicForm() {
     remark: '',
     servicePluginId: undefined,
     servicePluginProviderCode: undefined,
+    servicePluginProviderInstanceCode: 'default',
+    usageWeight: 1,
   });
 }
 
@@ -394,6 +408,9 @@ function openBasicEditor(item: TenantPluginSettingItem) {
     remark: item.record.remark || '',
     servicePluginId: item.record.servicePluginId,
     servicePluginProviderCode: item.record.servicePluginProviderCode,
+    servicePluginProviderInstanceCode:
+      item.record.servicePluginProviderInstanceCode || 'default',
+    usageWeight: item.record.usageWeight || 1,
   });
   basicModalOpen.value = true;
 }
@@ -407,18 +424,32 @@ function handleBasicPluginChange(pluginId?: string) {
   ) {
     basicFormState.servicePluginProviderCode = undefined;
   }
+  basicFormState.servicePluginProviderInstanceCode = 'default';
+  basicFormState.usageWeight = 1;
 }
 
 async function saveBasicSetting() {
   const item = editingBasicItem.value;
   const servicePluginId = normalizeText(basicFormState.servicePluginId);
   const providerCode = normalizeText(basicFormState.servicePluginProviderCode);
+  const providerInstanceCode = normalizeText(
+    basicFormState.servicePluginProviderInstanceCode || 'default',
+  );
+  const usageWeight = Number(basicFormState.usageWeight || 1);
   if (!modesReady.value || !getMode(servicePluginId)) {
     message.warning('供应商选择模式未加载，不能保存');
     return;
   }
   if (!item && (!servicePluginId || !providerCode)) {
     message.warning('请选择服务插件和供应商');
+    return;
+  }
+  if (
+    !providerInstanceCode ||
+    !Number.isInteger(usageWeight) ||
+    usageWeight < 1
+  ) {
+    message.warning('请填写正整数使用权重和配置实例编码');
     return;
   }
   if (item && !canUpdate.value) {
@@ -435,11 +466,18 @@ async function saveBasicSetting() {
         autoForceUpdateField: false,
         domain: normalizeText(basicFormState.domain) || undefined,
         enable: basicFormState.enable !== false,
-        forceUpdateFields: ['domain', 'enable', 'orderCode', 'remark'],
+        forceUpdateFields: [
+          'domain',
+          'enable',
+          'orderCode',
+          'remark',
+          'usageWeight',
+        ],
         id: item.id,
         optimisticLock: item.optimisticLock,
         orderCode: Number(basicFormState.orderCode || 0),
         remark: normalizeText(basicFormState.remark) || undefined,
+        usageWeight,
       });
       message.success('基本信息已保存');
     } else {
@@ -450,6 +488,9 @@ async function saveBasicSetting() {
         remark: normalizeText(basicFormState.remark) || undefined,
         servicePluginId,
         servicePluginProviderCode: providerCode,
+        servicePluginProviderInstanceCode: providerInstanceCode,
+        usageCount: 0,
+        usageWeight,
         value: { [providerCode]: {} },
       });
       message.success('插件配置已新增');
@@ -697,6 +738,28 @@ onMounted(() => {
                           供应商编码：{{ item.code }}
                         </div>
                         <div
+                          v-if="
+                            allowsProviderInstances(
+                              (item as TenantPluginSettingItem).record
+                                .servicePluginId,
+                            )
+                          "
+                          class="tenant-plugin-item-meta"
+                        >
+                          配置实例：{{
+                            (item as TenantPluginSettingItem).record
+                              .servicePluginProviderInstanceCode || 'default'
+                          }}
+                          · 权重：{{
+                            (item as TenantPluginSettingItem).record
+                              .usageWeight || 1
+                          }}
+                          · 累计使用：{{
+                            (item as TenantPluginSettingItem).record
+                              .usageCount || 0
+                          }}
+                        </div>
+                        <div
                           v-if="isMultiChoice(item as TenantPluginSettingItem)"
                           class="tenant-plugin-item-meta"
                         >
@@ -832,9 +895,43 @@ onMounted(() => {
             disabled
           />
         </Form.Item>
+        <Form.Item label="配置实例编码" required>
+          <Input
+            v-if="
+              editingBasicItem ||
+              !allowsProviderInstances(basicFormState.servicePluginId)
+            "
+            :value="
+              basicFormState.servicePluginProviderInstanceCode || 'default'
+            "
+            disabled
+          />
+          <Input
+            v-else
+            v-model:value="basicFormState.servicePluginProviderInstanceCode"
+            placeholder="例如 account-a"
+          />
+        </Form.Item>
+        <Form.Item label="使用权重" required>
+          <InputNumber
+            v-model:value="basicFormState.usageWeight"
+            :disabled="!allowsProviderInstances(basicFormState.servicePluginId)"
+            :min="1"
+            :precision="0"
+            class="w-full"
+          />
+        </Form.Item>
         <Alert
           v-if="getMode(basicFormState.servicePluginId) === 'SINGLE_ACTIVE'"
           message="单选插件可保存多家供应商设置，同一范围只能启用一家。"
+          show-icon
+          type="info"
+        />
+        <Alert
+          v-if="
+            getMode(basicFormState.servicePluginId) === 'MULTI_ACTIVE_BALANCED'
+          "
+          message="均衡模式允许多家供应商及同一供应商多套配置共同启用，按使用次数与权重自动分配。"
           show-icon
           type="info"
         />

@@ -262,6 +262,10 @@ async function secureClientRequest(config: any) {
   // 策略查询使用固定入口避免递归；其余已登录业务请求在加密前检查明文参数。
   const path = String(config.url || '');
   const route = dataAttrRequestPath(path, config.baseURL).split('?')[0] || '';
+  // 只开放后端明确公开的登录目录，其他 OAuth 接口仍检查会话策略。
+  const publicLoginCatalog =
+    String(config.method || 'GET').toUpperCase() === 'GET' &&
+    route === '/oauth/getSupportedPlatforms';
   const bootstrap =
     !isDataAttrPolicyReady() &&
     [
@@ -272,6 +276,7 @@ async function secureClientRequest(config: any) {
     ].some((name) => route === `/com.levin.oak.base/V1/api/rbac/${name}`);
   if (
     !bootstrap &&
+    !publicLoginCatalog &&
     !isAnonymousCryptoContext(config) &&
     !(
       String(config.method || 'GET').toUpperCase() === 'POST' &&

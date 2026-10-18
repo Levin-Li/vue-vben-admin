@@ -1,12 +1,9 @@
 import type { CrudFieldConfig } from './types';
 
+import { isEditableCrudFieldVisible } from './crud-editable-access';
 import { isSuperAdminUser } from './user-identity';
 
 export type CrudFormMode = 'create' | 'edit';
-
-export function isEditableControlField(field: Pick<CrudFieldConfig, 'key'>) {
-  return field.key === 'editable';
-}
 
 export function shouldShowCrudFormField(
   field: CrudFieldConfig,
@@ -17,15 +14,13 @@ export function shouldShowCrudFormField(
     return false;
   }
 
-  if (
-    mode === 'edit' &&
-    isEditableControlField(field) &&
-    !isSuperAdminUser(userInfo)
-  ) {
+  if (!isEditableCrudFieldVisible(field, userInfo)) {
     return false;
   }
 
-  return mode === 'edit' ? field.formEdit !== false : field.formCreate !== false;
+  return mode === 'edit'
+    ? field.formEdit !== false
+    : field.formCreate !== false;
 }
 
 export function shouldSubmitCrudFormField(

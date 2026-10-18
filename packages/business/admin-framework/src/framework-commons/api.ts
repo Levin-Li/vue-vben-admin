@@ -36,10 +36,6 @@ interface EnumInfo {
 }
 
 const enumInfoCacheMap = new Map<string, Record<string, EnumInfo>>();
-const enumInfoCachePromiseMap = new Map<
-  string,
-  Promise<Record<string, EnumInfo>>
->();
 const dictOptionCacheMap = new Map<
   string,
   { eTag?: string; options: SelectOption[]; request?: Promise<SelectOption[]> }
@@ -285,46 +281,11 @@ export async function fetchTreeOptions(
   return normalizeTreeOptions(data?.items || data, labelKey, valueKey);
 }
 
-async function fetchAllEnumInfo(moduleBase?: string) {
-  const cacheKey = getEnumCacheKey(moduleBase);
-  const cachedEnumInfo = enumInfoCacheMap.get(cacheKey);
-
-  if (cachedEnumInfo) {
-    return cachedEnumInfo;
-  }
-
-  if (!enumInfoCachePromiseMap.has(cacheKey)) {
-    enumInfoCachePromiseMap.set(
-      cacheKey,
-      requestClient
-        .get<Record<string, EnumInfo>>(
-          buildModuleRequestPath('/enums', moduleBase),
-          {
-            baseURL: '',
-            __silentError: true,
-          } as any,
-        )
-        .then((data) => {
-          const nextCache = data || {};
-          enumInfoCacheMap.set(cacheKey, nextCache);
-          return nextCache;
-        })
-        .catch(() => {
-          enumInfoCachePromiseMap.delete(cacheKey);
-          enumInfoCacheMap.set(cacheKey, {});
-          return {};
-        }),
-    );
-  }
-
-  return enumInfoCachePromiseMap.get(cacheKey) || {};
-}
-
 async function fetchSingleEnumInfo(enumName: string, moduleBase?: string) {
   const cacheKey = getEnumCacheKey(moduleBase);
   const data = await requestClient.get<EnumInfo>(
     buildModuleRequestPath(
-      `/enums?enumName=${encodeUrlParamValue(enumName)}`,
+      `/enums/${encodeUrlParamValue(enumName)}`,
       moduleBase,
     ),
     {
@@ -348,7 +309,7 @@ async function fetchSingleEnumInfo(enumName: string, moduleBase?: string) {
  * 对应 Java 控制器: com.levin.oak.base.web.controller.commons.EnumController
  */
 export async function fetchEnumOptions(enumName: string, moduleBase?: string) {
-  const enumInfoMap = await fetchAllEnumInfo(moduleBase);
+  const enumInfoMap = enumInfoCacheMap.get(getEnumCacheKey(moduleBase)) || {};
   const cachedEnumInfo =
     enumInfoMap[enumName] ||
     Object.values(enumInfoMap).find((item) => item.fullName === enumName);

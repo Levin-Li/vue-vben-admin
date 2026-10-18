@@ -11,6 +11,29 @@ export function hasCrudEditableField(fields: CrudFieldConfig[]) {
   return fields.some((field) => field.key === 'editable');
 }
 
+export function resolveEditableCrudFields(fields: CrudFieldConfig[]) {
+  return fields.map((field) =>
+    field.key === 'editable'
+      ? {
+          ...field,
+          allowInput: true,
+          form: true,
+          formCreate: true,
+          formEdit: true,
+          search: true,
+          table: true,
+        }
+      : field,
+  );
+}
+
+export function isEditableCrudFieldVisible(
+  field: Pick<CrudFieldConfig, 'key'>,
+  userInfo: unknown,
+) {
+  return field.key !== 'editable' || isSuperAdminUser(userInfo);
+}
+
 export function hasRenderedEditableSearchControl(
   searchFieldItems: CrudSearchFieldItem[],
 ) {

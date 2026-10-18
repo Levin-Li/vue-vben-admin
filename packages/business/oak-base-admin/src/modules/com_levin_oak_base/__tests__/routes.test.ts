@@ -1,12 +1,12 @@
-import { noticeService } from '../api/notice-service';
+import { getResAuthorizeMeta, getServiceMeta } from '@levin/admin-framework';
 import { describe, expect, it } from 'vitest';
-import { getServiceMeta, getResAuthorizeMeta } from '@levin/admin-framework';
-import { workflowRuntimeService } from '../api/workflow-runtime-service';
 
 import {
   oakBaseAdminCrudResources,
   oakBaseAdminResourceViewMap,
 } from '../admin-crud';
+import { noticeService } from '../api/notice-service';
+import { workflowRuntimeService } from '../api/workflow-runtime-service';
 import { oakBaseAdminBackendRouteMappings } from '../backend-route-mappings';
 import { createOakBaseAdminModule } from '../module';
 import { oakBaseAdminRoutes } from '../routes';
@@ -22,6 +22,112 @@ function flattenCrudRoutes(children: any[] | undefined): any[] {
 }
 
 describe('oak base admin routes', () => {
+  it('keeps standard CRUD tabs mounted across tab switches', () => {
+    const root = createOakBaseAdminModule().routes?.[0];
+    const setting = flattenCrudRoutes(root?.children).find(
+      (route) => route.path === '/clob/V1/Setting',
+    );
+    const mapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === '/clob/V1/Setting',
+    );
+    const tenantSetting = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === '/clob/V1/SettingForTenant',
+    );
+
+    expect(setting?.meta?.keepAlive).toBe(true);
+    expect(mapping?.keepAlive).toBe(true);
+    expect(tenantSetting?.keepAlive).toBeUndefined();
+  });
+
+  it('结算单页面归入支付与交易并上传完整本地页面映射', () => {
+    const root = createOakBaseAdminModule().routes?.[0];
+    const group = root?.children?.find(
+      (route) => route.meta?.title === '支付&交易',
+    );
+    const path = '/clob/V1/SettlementStatement';
+    expect(group?.children?.find((route) => route.path === path)?.name).toBe(
+      path.replaceAll('/', '_'),
+    );
+    const mapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === path,
+    );
+    expect(mapping).toMatchObject({
+      resource: 'SettlementStatement',
+      viewPath: '/system/com_levin_oak_base/settlement-statement/index.vue',
+      sourceFilePath:
+        'modules/com_levin_oak_base/views/settlement-statement/index.vue',
+    });
+    expect(mapping).not.toHaveProperty('name');
+    expect(mapping?.operations?.map((item) => item.opName)).toEqual(
+      expect.arrayContaining([
+        'create',
+        'update',
+        'confirm',
+        'invoice',
+        'registerPayment',
+        'adjustAmount',
+        'readFinancialDetails',
+      ]),
+    );
+    expect(mapping?.operations?.some((item) => item.opName === 'delete')).toBe(
+      false,
+    );
+    expect(
+      mapping?.operations?.find(
+        (item) => item.opName === 'readFinancialDetails',
+      )?.requireAuthorizations,
+    ).toEqual(['com.levin.oak.base:业务数据:结算单:查看结算资料']);
+  });
+
+  it('供应商与渠道页归入既有客户与伙伴分组且不再注册混合页', () => {
+    const root = createOakBaseAdminModule().routes?.[0];
+    const group = root?.children?.find(
+      (route) => route.meta?.title === '客户&伙伴',
+    );
+    for (const resource of ['SupplierPartner', 'ChannelPartner']) {
+      const path = `/clob/V1/${resource}`;
+      const page = group?.children?.find((route) => route.path === path);
+      expect(page?.name).toBe(path.replaceAll('/', '_'));
+      expect(
+        oakBaseAdminBackendRouteMappings.find((item) => item.path === path)
+          ?.resource,
+      ).toBe(resource);
+    }
+    expect(oakBaseAdminResourceViewMap.Partner).toBeUndefined();
+    expect(
+      oakBaseAdminBackendRouteMappings.some(
+        (item) => item.resource === 'Partner',
+      ),
+    ).toBe(false);
+  });
+
+  it('客户独立于会员和合作伙伴，归入客户与伙伴分组并上传标准操作', () => {
+    const root = createOakBaseAdminModule().routes?.[0];
+    const group = root?.children?.find(
+      (route) => route.meta?.title === '客户&伙伴',
+    );
+    const page = group?.children?.find(
+      (route) => route.path === '/clob/V1/Customer',
+    );
+    const mapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === '/clob/V1/Customer',
+    );
+
+    expect(page?.name).toBe('_clob_V1_Customer');
+    expect(page?.meta?.crudResource).toBe('Customer');
+    expect(mapping).toMatchObject({
+      resource: 'Customer',
+      sourceFilePath: 'modules/com_levin_oak_base/views/customer/index.vue',
+      viewPath: '/system/com_levin_oak_base/customer/index.vue',
+    });
+    expect(mapping?.operations?.map((operation) => operation.opName)).toEqual(
+      expect.arrayContaining(['create', 'retrieve', 'update']),
+    );
+    expect(
+      mapping?.operations?.some((operation) => operation.opName === 'delete'),
+    ).toBe(false);
+  });
+
   it('不注册没有独立前端页面的后台资源', () => {
     const unsupported = [
       'AiModelCallAudit',
@@ -37,16 +143,28 @@ describe('oak base admin routes', () => {
     const routes = flattenCrudRoutes(root?.children);
 
     for (const resource of unsupported) {
-      expect(oakBaseAdminCrudResources.some((item) => item.resource === resource)).toBe(false);
+      expect(
+        oakBaseAdminCrudResources.some((item) => item.resource === resource),
+      ).toBe(false);
       expect(oakBaseAdminResourceViewMap[resource]).toBeUndefined();
-      expect(routes.some((route) => route.path === `/clob/V1/${resource}`)).toBe(false);
-      expect(oakBaseAdminBackendRouteMappings.some((item) => item.path === `/clob/V1/${resource}`)).toBe(false);
+      expect(
+        routes.some((route) => route.path === `/clob/V1/${resource}`),
+      ).toBe(false);
+      expect(
+        oakBaseAdminBackendRouteMappings.some(
+          (item) => item.path === `/clob/V1/${resource}`,
+        ),
+      ).toBe(false);
     }
   });
 
   it('本人公告只读来源仅需登录，管理列表保留业务权限', () => {
-    const source = getResAuthorizeMeta(noticeService.myDetail as Parameters<typeof getResAuthorizeMeta>[0]);
-    const management = getResAuthorizeMeta(noticeService.list as Parameters<typeof getResAuthorizeMeta>[0]);
+    const source = getResAuthorizeMeta(
+      noticeService.myDetail as Parameters<typeof getResAuthorizeMeta>[0],
+    );
+    const management = getResAuthorizeMeta(
+      noticeService.list as Parameters<typeof getResAuthorizeMeta>[0],
+    );
     expect(source.onlyRequireAuthenticated).toBe(true);
     expect(source.action).toBe('查看本人公告');
     expect(management.onlyRequireAuthenticated).not.toBe(true);
@@ -54,10 +172,27 @@ describe('oak base admin routes', () => {
   });
 
   it('工作流办理采用业务数据权限域，不误用平台设计权限', () => {
-    expect(getServiceMeta(workflowRuntimeService).type).toBe('业务数据-工作流运行时');
-    for (const key of ['catalog', 'todo', 'done', 'started', 'complete', 'prepareStepUpAuth', 'eligibility', 'history', 'start', 'retry'] as const) {
+    expect(getServiceMeta(workflowRuntimeService).type).toBe(
+      '业务数据-工作流运行时',
+    );
+    for (const key of [
+      'catalog',
+      'todo',
+      'done',
+      'started',
+      'complete',
+      'prepareStepUpAuth',
+      'eligibility',
+      'history',
+      'start',
+      'retry',
+    ] as const) {
       // 装饰器在运行时附加符号元数据，静态方法签名不会体现该属性。
-      const metadata = getResAuthorizeMeta(workflowRuntimeService[key] as Parameters<typeof getResAuthorizeMeta>[0]);
+      const metadata = getResAuthorizeMeta(
+        workflowRuntimeService[key] as Parameters<
+          typeof getResAuthorizeMeta
+        >[0],
+      );
       expect(metadata.domain).toBe('WorkflowRuntime');
       expect(metadata.type).toBe('业务数据-工作流运行时');
     }
@@ -66,42 +201,120 @@ describe('oak base admin routes', () => {
     const root = createOakBaseAdminModule().routes?.[0];
     for (const [resource, directory, groupName] of [
       ['WorkflowDefinition', 'workflow-definition', '开发&工具'],
+      ['WorkflowInstance', 'workflow-instance', '开发&工具'],
       ['WorkflowNotificationRoute', 'workflow-notification-route', '开发&工具'],
+      ['RobotNotifyGroup', 'robot-notify-group', '基础&设置'],
       ['WorkflowRequest', 'workflow-request', '开发&工具'],
       ['MyWorkflow', 'my-workflow', '个人&中心'],
       ['WorkflowStart', 'workflow-start', '个人&中心'],
     ]) {
-      const group = root?.children?.find((item) => item.meta?.title === groupName);
-      const route = group?.children?.find((item) => item.path === `/clob/V1/${resource}`);
+      const group = root?.children?.find(
+        (item) => item.meta?.title === groupName,
+      );
+      const route = group?.children?.find(
+        (item) => item.path === `/clob/V1/${resource}`,
+      );
       expect(route?.name).toBe(route?.path.replaceAll('/', '_'));
       expect(route?.component).toBeTypeOf('function');
-      expect(oakBaseAdminBackendRouteMappings.filter((item) => item.path === route?.path)).toEqual([
+      expect(
+        oakBaseAdminBackendRouteMappings.filter(
+          (item) => item.path === route?.path,
+        ),
+      ).toEqual([
         expect.objectContaining({
           sourceFilePath: `modules/com_levin_oak_base/views/${directory}/index.vue`,
           viewPath: `/system/com_levin_oak_base/${directory}/index.vue`,
         }),
       ]);
     }
-    const design = oakBaseAdminBackendRouteMappings.find((item) => item.resource === 'WorkflowDefinition');
-    expect(design?.operations?.map((item) => item.opName)).toEqual(expect.arrayContaining(['create', 'createVersion', 'saveDraft', 'startSimulation', 'publishAfterSimulation']));
+    const design = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.resource === 'WorkflowDefinition',
+    );
+    expect(design?.operations?.map((item) => item.opName)).toEqual(
+      expect.arrayContaining([
+        'create',
+        'createVersion',
+        'saveDraft',
+        'startSimulation',
+        'publishAfterSimulation',
+      ]),
+    );
   });
   it('邮件工单独立控制页归入已确定分组并登记真实动作', () => {
     const root = createOakBaseAdminModule().routes?.[0];
     for (const [resource, directory, groupName, actions] of [
-      ['Ticket', 'ticket', '客户&伙伴', ['list', 'retrieve', 'messages', 'assign', 'start', 'resolve', 'reopen', 'close', 'confirmContact', 'reply', 'outbound', 'retryOutbound', 'resolveOutboundUnsent', 'attachmentDownload']],
-      ['TicketQueue', 'ticket-queue', '客户&伙伴', ['list', 'retrieve', 'save', 'setEnabled']],
-      ['SupportMailboxRule', 'support-mailbox-rule', '应用&接入', ['list', 'retrieve', 'create', 'update', 'enable', 'disable']],
-      ['NotificationAudit', 'notification-audit', '运维&审计', ['list', 'retrieve', 'retry', 'resolveUnsent']],
+      [
+        'Ticket',
+        'ticket',
+        '客户&伙伴',
+        [
+          'list',
+          'retrieve',
+          'messages',
+          'assign',
+          'start',
+          'resolve',
+          'reopen',
+          'close',
+          'confirmContact',
+          'reply',
+          'outbound',
+          'retryOutbound',
+          'resolveOutboundUnsent',
+          'attachmentDownload',
+        ],
+      ],
+      [
+        'TicketQueue',
+        'ticket-queue',
+        '客户&伙伴',
+        ['list', 'retrieve', 'save', 'setEnabled'],
+      ],
+      [
+        'SupportMailboxRule',
+        'support-mailbox-rule',
+        '应用&接入',
+        ['list', 'retrieve', 'create', 'update', 'enable', 'disable'],
+      ],
+      [
+        'NotificationAudit',
+        'notification-audit',
+        '运维&审计',
+        ['list', 'retrieve', 'retry', 'resolveUnsent'],
+      ],
     ] as const) {
-      const group = root?.children?.find((item) => item.meta?.title === groupName);
-      const route = group?.children?.find((item) => item.path === `/clob/V1/${resource}`);
+      const group = root?.children?.find(
+        (item) => item.meta?.title === groupName,
+      );
+      const route = group?.children?.find(
+        (item) => item.path === `/clob/V1/${resource}`,
+      );
       expect(route?.name).toBe(`/clob/V1/${resource}`.replaceAll('/', '_'));
-      const mapping = oakBaseAdminBackendRouteMappings.find((item) => item.path === route?.path);
-      expect(mapping?.viewPath).toBe(`/system/com_levin_oak_base/${directory}/index.vue`);
-      expect(mapping?.sourceFilePath).toBe(`modules/com_levin_oak_base/views/${directory}/index.vue`);
-      expect(mapping?.operations?.map((item) => item.opName)).toEqual(expect.arrayContaining([...actions]));
+      const mapping = oakBaseAdminBackendRouteMappings.find(
+        (item) => item.path === route?.path,
+      );
+      expect(mapping?.viewPath).toBe(
+        `/system/com_levin_oak_base/${directory}/index.vue`,
+      );
+      expect(mapping?.sourceFilePath).toBe(
+        `modules/com_levin_oak_base/views/${directory}/index.vue`,
+      );
+      expect(mapping?.operations?.map((item) => item.opName)).toEqual(
+        expect.arrayContaining([...actions]),
+      );
     }
-    expect(oakBaseAdminCrudResources.some((item) => ['MailBlob', 'NotificationEvent', 'NotificationDelivery', 'NotificationDeliveryAttempt', 'UserMessage', 'TicketMessage'].includes(item.resource))).toBe(false);
+    expect(
+      oakBaseAdminCrudResources.some((item) =>
+        [
+          'MailBlob',
+          'NotificationDelivery',
+          'NotificationDeliveryAttempt',
+          'NotificationEvent',
+          'TicketMessage',
+          'UserMessage',
+        ].includes(item.resource),
+      ),
+    ).toBe(false);
   });
 
   it('默认将所有可生成 CRUD 页面唯一归入十个带语义图标的业务分组', () => {
@@ -135,7 +348,9 @@ describe('oak base admin routes', () => {
     ).toHaveLength(0);
 
     for (const [title, icon] of Object.entries(expectedGroupIcons)) {
-      const group = root?.children?.find((route) => route.meta?.title === title);
+      const group = root?.children?.find(
+        (route) => route.meta?.title === title,
+      );
       expect(group?.meta?.icon).toBe(icon);
       expect(group?.children).toBeTruthy();
     }
@@ -144,7 +359,9 @@ describe('oak base admin routes', () => {
   it('平台领域页面位于基础设置二级分组且保留稳定路由地址', () => {
     const module = createOakBaseAdminModule();
     const root = module.routes?.[0];
-    const group = root?.children?.find((route) => route.meta?.title === '基础&设置');
+    const group = root?.children?.find(
+      (route) => route.meta?.title === '基础&设置',
+    );
     const page = group?.children?.find(
       (route) => route.meta?.crudResource === 'PlatformDomain',
     );
@@ -152,7 +369,9 @@ describe('oak base admin routes', () => {
     expect(page?.path).toBe('/clob/V1/PlatformDomain');
     expect(page?.name).toBe('_clob_V1_PlatformDomain');
     expect(page?.component).toBeTypeOf('function');
-    expect(root?.children?.filter((route) => route.meta?.title === '基础&设置')).toHaveLength(1);
+    expect(
+      root?.children?.filter((route) => route.meta?.title === '基础&设置'),
+    ).toHaveLength(1);
   });
 
   it('访问控制测试页可独立直达且有完整页面映射', () => {
@@ -167,27 +386,43 @@ describe('oak base admin routes', () => {
       expect(route?.meta?.crudResource).toBeUndefined();
       expect(route?.component).toBeTypeOf('function');
     }
-    expect(oakBaseAdminBackendRouteMappings).toContainEqual(expect.objectContaining({
-      path: '/clob/V1/aclTest',
-      onlyRequireAuthenticated: true,
-      sourceFilePath: 'modules/com_levin_oak_base/views/acl-test/index.vue',
-      viewPath: '/system/com_levin_oak_base/acl-test/index.vue',
-    }));
+    expect(oakBaseAdminBackendRouteMappings).toContainEqual(
+      expect.objectContaining({
+        path: '/clob/V1/aclTest',
+        onlyRequireAuthenticated: true,
+        sourceFilePath: 'modules/com_levin_oak_base/views/acl-test/index.vue',
+        viewPath: '/system/com_levin_oak_base/acl-test/index.vue',
+      }),
+    );
   });
   it('审计管理页面位于基础模块运维分组且具有可用本地映射', () => {
     const module = createOakBaseAdminModule();
     const root = module.routes?.[0];
-    const group = root?.children?.find((route) => route.meta?.title === '运维&审计');
+    const group = root?.children?.find(
+      (route) => route.meta?.title === '运维&审计',
+    );
     for (const resource of ['AuditReport', 'BackendFixedJob']) {
-      const page = group?.children?.find((route) => route.meta?.crudResource === resource);
+      const page = group?.children?.find(
+        (route) => route.meta?.crudResource === resource,
+      );
       expect(page?.path).toBe(`/clob/V1/${resource}`);
       expect(page?.name).toBe(`/clob/V1/${resource}`.replaceAll('/', '_'));
       expect(page?.component).toBeTypeOf('function');
-      expect(module.routes?.some((route) => route.path === page?.path)).toBe(false);
-      const mapping = oakBaseAdminBackendRouteMappings.find((item) => item.resource === resource);
-      expect(mapping?.sourceFilePath).toMatch(/views\/(audit-report|backend-fixed-job)\/index.vue$/);
-      expect(mapping?.viewPath).toMatch(/\/(audit-report|backend-fixed-job)\/index.vue$/);
-      expect(mapping?.operations?.some((op) => op.opName === 'retrieve')).toBe(true);
+      expect(module.routes?.some((route) => route.path === page?.path)).toBe(
+        false,
+      );
+      const mapping = oakBaseAdminBackendRouteMappings.find(
+        (item) => item.resource === resource,
+      );
+      expect(mapping?.sourceFilePath).toMatch(
+        /views\/(audit-report|backend-fixed-job)\/index.vue$/,
+      );
+      expect(mapping?.viewPath).toMatch(
+        /\/(audit-report|backend-fixed-job)\/index.vue$/,
+      );
+      expect(mapping?.operations?.some((op) => op.opName === 'retrieve')).toBe(
+        true,
+      );
     }
   });
 

@@ -135,6 +135,8 @@ boolean verify(VerifyCodeType type, String tenantId, String appId, String accoun
 
 短信验证码由 `DefaultSmsVerifyServicePlugin` 生成，再通过 `PluginRegistry<SmsSendServicePlugin, String>` 按手机号选择发送通道。
 
+服务插件设置中，“默认短信验证码插件”只有一个默认逻辑供应商，它负责验证码生成、缓存与核验，不是短信云厂商清单。阿里云、腾讯云等实际发送供应商应在“默认短信发送插件”（`Sms4JSmsSendServicePlugin`）中选择，其候选按当前安装的 Sms4J 供应商工厂动态列出；未来无线使用独立的 `WlwxSmsSendServicePlugin`。只更改验证码插件的默认供应商项不会切换短信发送通道。
+
 现有短信发送插件：
 
 | 插件 | 配置 code | 说明 |
@@ -368,6 +370,8 @@ GET /api/TenantSite/availableSuffixes
 
 返回的 `DomainVendor` 会包含供应商名称、API 地址、支持后缀和能力信息。申请域名时前端应把选中的 `apiUrl` 带回，业务层用它辅助匹配供应商。
 
+“申请域名”的供应商下拉框从后端当前插件注册表动态读取，只列具备免费子域名申请、域名申请或域名注册能力的插件；当前可看到 Cloudflare、DNSHe、deSEC、Dynadot、Spaceship。GoDaddy、Gname、Namecheap 当前仅实现域名查询或 DNS 操作，不提供注册能力，因此不出现在申请下拉框。选择供应商后，后缀下拉框只展示该供应商声明的后缀；例如选择 DNSHe 时，不会显示其它供应商的后缀。候选目录保留尚待配置的供应商及其接入指引，实际提交仍要求该插件已启用、配置可用并支持选中的后缀。
+
 ### 9.2 申请或登记域名
 
 业务入口：
@@ -390,6 +394,8 @@ POST /api/TenantSite/applyExistingDomain
 2. 如果请求指定 `domainApplyApi`，优先匹配 `getApiUrl()` 相同的插件。
 3. 再判断插件能力是否包含 `FreeSubdomain`、`DomainApply` 或 `DomainRegister`。
 4. 插件返回结果后，业务层把供应商状态映射回 `Domain` 或 `TenantSite`。
+
+若插件配置不可用、供应商明确拒绝或未返回结果，管理端会显示不包含原始供应商响应的业务提示。供应商注册调用发生异常时，外部操作结果可能未知；应先在供应商后台核对该域名的实际状态，再决定是否重试，系统不会自动重新发起注册。
 
 ### 9.3 DNS 解析记录
 

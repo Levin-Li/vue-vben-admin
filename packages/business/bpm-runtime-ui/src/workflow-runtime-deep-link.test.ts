@@ -50,6 +50,30 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('工作流邮件链接定位', () => {
+  it('关键依据变化阻断审批但保留服务端授权的撤回入口', async () => {
+    const { wrapper, api } = setup({
+      canWithdraw: true,
+      loadTargetTask: vi.fn().mockResolvedValue({
+        ...task,
+        processInstanceId: 'instance-one',
+        businessType: 'expense',
+        businessId: 'b1',
+        businessBasisChanged: true,
+        operationBlockedReason: '业务依据已变化，请安全退出后重发。',
+        allowedOperations: ['withdraw'],
+      }),
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain('业务依据已变化');
+    expect(
+      wrapper.findAll('button').some((item) => item.text() === '通过'),
+    ).toBe(false);
+    expect(
+      wrapper.findAll('button').some((item) => item.text() === '撤回流程'),
+    ).toBe(true);
+    expect(api.complete).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
   it('列表无权限时仍按独立详情权限定位，打开链接不会自动审批', async () => {
     const { wrapper, api, loadTargetTask } = setup();
     await flushPromises();

@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => ({
   warning: vi.fn(),
   route: { path: '/contracts', meta: {} as Record<string, any>, query: {} },
   user: { userInfo: { id: 'tester' } },
-  access: { accessCodes: [] },
+  access: { accessCodes: [] as string[] },
 }));
 vi.mock('../../app/api/request', () => ({
   requestClient: {
@@ -153,6 +153,40 @@ beforeEach(() => {
 });
 
 describe('标准 crud 的属性组策略', () => {
+  it('辅助选项失败在当前授权上下文只尝试一次，权限变化允许重试且停用页不加载', async () => {
+    const loader = vi
+      .fn()
+      .mockRejectedValue(new Error('Unauthorized operation'));
+    const field = {
+      key: 'level',
+      label: '用户等级',
+      table: false,
+      loadOptions: loader,
+    };
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: { config: config({ fields: [field] }) },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    await vm.loadTableDisplayOptions(field);
+    clearDataAttrPolicies();
+    await flushPromises();
+    await vm.loadTableDisplayOptions(field);
+    expect(loader).toHaveBeenCalledOnce();
+    expect(mocks.warning).toHaveBeenCalledWith(
+      expect.stringContaining('暂显示原始值'),
+    );
+    vm.pageActive = false;
+    mocks.access.accessCodes = ['new-grant'];
+    await vm.loadTableDisplayOptions(field);
+    expect(loader).toHaveBeenCalledOnce();
+    vm.pageActive = true;
+    loader.mockResolvedValue([{ label: '普通', value: 'Normal' }]);
+    await vm.loadTableDisplayOptions(field);
+    expect(loader).toHaveBeenCalledTimes(2);
+    mocks.access.accessCodes = [];
+  });
   it('真实组件排除无权必填字段，并在默认值和转换器回填之后裁剪最终创建载荷', async () => {
     const wrapper = shallowMount(CrudPage, {
       global: { config: { errorHandler: () => {} } },

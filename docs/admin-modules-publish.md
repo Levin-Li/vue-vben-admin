@@ -381,3 +381,7 @@ export default {
   },
 };
 ```
+
+## 批次发布记录
+
+- [2026-10-19 全部变更发布与验证记录](releases/20261019-all-changes.md)

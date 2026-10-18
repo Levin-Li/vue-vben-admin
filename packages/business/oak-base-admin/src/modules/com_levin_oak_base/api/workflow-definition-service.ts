@@ -12,6 +12,8 @@ export interface WorkflowDefinitionRecord {
   id: string;
   name: string;
   processKey: string;
+  tenantId?: string;
+  tenantName?: string;
 }
 
 export interface WorkflowPage<T> {
@@ -38,7 +40,12 @@ export class WorkflowDefinitionService extends RequestService {
     type: '平台数据-工作流定义',
     action: '新增',
   })
-  create(data: Omit<WorkflowDefinitionRecord, 'id'>) {
+  create(
+    data: Pick<
+      WorkflowDefinitionRecord,
+      'businessType' | 'name' | 'processKey'
+    >,
+  ) {
     // 用途只属于版本设计，稳定定义请求不发送用途或页面残留字段。
     return this.post<string>('create', {
       data: {
@@ -57,7 +64,14 @@ export class WorkflowDefinitionService extends RequestService {
     type: '平台数据-工作流定义',
     action: '查询列表',
   })
-  list(params: { pageIndex?: number; pageSize?: number } = {}) {
+  list(
+    params: {
+      businessType?: string;
+      containsName?: string;
+      pageIndex?: number;
+      pageSize?: number;
+    } = {},
+  ) {
     return this.get<WorkflowPage<WorkflowDefinitionRecord>>('list', { params });
   }
 }

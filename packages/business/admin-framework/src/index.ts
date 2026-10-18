@@ -2,10 +2,27 @@ import { defineAsyncComponent } from 'vue';
 
 export * from './framework-commons/api';
 export * from './framework-commons/api-authorize';
+export {
+  type AgentAvailableProvider,
+  type AgentModelTransport,
+  registerAdminAgentModelTransport,
+} from './framework-commons/app/ai-agent/chat';
+export {
+  agentExactKeys,
+  agentId,
+  agentLimit,
+  type AgentSkill,
+  registerAdminAgentSkills,
+} from './framework-commons/app/ai-agent/skills';
 export { rbacService } from './framework-commons/app/api/rbac-service';
 export * from './framework-commons/app/global-domain-context-state';
+export {
+  currentGlobalOrgId,
+  currentGlobalTenantId,
+} from './framework-commons/app/global-org-context-state';
 export * from './framework-commons/app/options';
 export * from './framework-commons/app/views/_core/authentication/behavior-captcha';
+export * from './framework-commons/data-attr-policy';
 export * from './framework-commons/event-bus';
 export * from './framework-commons/locale-utils';
 export * from './framework-commons/menu-fixed-query';
@@ -17,23 +34,15 @@ export { default as RbacPermissionMatchUtils } from './framework-commons/rbac-pe
 export * from './framework-commons/request-service';
 export * from './framework-commons/runtime';
 export * from './framework-commons/shared/administrative-area-data';
+export * from './framework-commons/shared/crud-form-elements';
+export * from './framework-commons/shared/crud-list-operations';
 export * from './framework-commons/shared/draggable-floating-panel-service';
 export * from './framework-commons/shared/pattern-list-utils';
-export * from './framework-commons/shared/crud-list-operations';
-export * from './framework-commons/shared/crud-form-elements';
 export * from './framework-commons/shared/user-dropdown-menu-service';
-export * from './framework-commons/shared/user-org-selector-types';
+export * from './framework-commons/shared/user-message-summary';
 export * from './framework-commons/shared/user-message-target';
 
-export {
-  addLayoutHeaderExtensionAreaItem,
-  clearLayoutHeaderExtensionArea,
-  getLayoutHeaderExtensionAreaItems,
-  type LayoutHeaderExtensionAreaItem,
-  type LayoutHeaderExtensionAreaName,
-  removeLayoutHeaderExtensionAreaItem,
-  useLayoutHeaderExtensionArea,
-} from '@vben/layouts/basic/header-extension-area';
+export * from './framework-commons/shared/user-org-selector-types';
 
 export const DraggableFloatingPanel = defineAsyncComponent(
   () => import('./framework-commons/shared/draggable-floating-panel.vue'),
@@ -55,4 +64,12 @@ export const UserOrgSelector = defineAsyncComponent(
   () => import('./framework-commons/shared/user-org-selector.vue'),
 );
 
-export * from './framework-commons/data-attr-policy';
+export {
+  addLayoutHeaderExtensionAreaItem,
+  clearLayoutHeaderExtensionArea,
+  getLayoutHeaderExtensionAreaItems,
+  type LayoutHeaderExtensionAreaItem,
+  type LayoutHeaderExtensionAreaName,
+  removeLayoutHeaderExtensionAreaItem,
+  useLayoutHeaderExtensionArea,
+} from '@vben/layouts/basic/header-extension-area';

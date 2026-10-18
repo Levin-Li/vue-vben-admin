@@ -21,7 +21,7 @@ describe('user-org-selector-utils', () => {
       'lucide:building-2',
     );
     expect(
-      getUserOrgSelectorNodeIcon({ kind: 'org', type: 'ExternalLegalSubject' }),
+      getUserOrgSelectorNodeIcon({ kind: 'org', type: 'ExternalOrg' }),
     ).toBe('lucide:handshake');
     expect(getUserOrgSelectorNodeIcon({ kind: 'org', type: 'Unknown' })).toBe(
       'lucide:network',

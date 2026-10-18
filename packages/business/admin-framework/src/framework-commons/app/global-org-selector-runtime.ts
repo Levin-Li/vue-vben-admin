@@ -7,6 +7,7 @@ import {
   useUserStore,
 } from '@vben/runtime/stores';
 
+import { isDataAttrPolicyReady } from '../data-attr-policy';
 import { resolveUiSettingRuntime } from './api/ui-setting-runtime';
 import { onGlobalDomainContextChange } from './global-domain-context-state';
 import {
@@ -33,6 +34,7 @@ let initializationVersion = 0;
 let contextRefreshVersion = 0;
 
 async function refreshMenusAndActivePage() {
+  if (!isDataAttrPolicyReady()) return;
   const version = ++contextRefreshVersion;
   // 重新进入路由守卫以按最新 Header 拉取授权菜单，再重建活动页。
   useAccessStore().setIsAccessChecked(false);
@@ -52,6 +54,7 @@ function isNonEmptyRecord(value: unknown): value is Record<string, any> {
 }
 
 function getUserIdentity() {
+  if (!isDataAttrPolicyReady()) return '';
   const user = (useUserStore().userInfo || {}) as Record<string, any>;
   return String(user.userId || user.id || '').trim();
 }

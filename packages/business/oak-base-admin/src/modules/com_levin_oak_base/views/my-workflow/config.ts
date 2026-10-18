@@ -10,8 +10,12 @@ export const pageMeta = {
 export const pageOperations = [
   { opName: 'todo', apiMethods: [workflowRuntimeService.todo] },
   { opName: 'done', apiMethods: [workflowRuntimeService.done] },
+  { opName: 'copied', apiMethods: [workflowRuntimeService.copied] },
   { opName: 'started', apiMethods: [workflowRuntimeService.started] },
   { opName: 'complete', apiMethods: [workflowRuntimeService.complete] },
+  { opName: 'withdraw', apiMethods: [workflowRuntimeService.withdraw] },
+  { opName: 'terminate', apiMethods: [workflowRuntimeService.terminate] },
+  { opName: 'recover', apiMethods: [workflowRuntimeService.recover] },
   { opName: 'retry', apiMethods: [workflowRuntimeService.retry] },
   {
     opName: 'viewExpenseDetail',

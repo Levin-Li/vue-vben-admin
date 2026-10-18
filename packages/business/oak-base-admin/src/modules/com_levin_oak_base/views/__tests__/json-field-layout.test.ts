@@ -67,6 +67,7 @@ const compactJsonFields = [
 ];
 
 const wideJsonFields = [
+  'settlement-statement/config.ts:settlementContent',
   'audit-report/config.ts:content',
   'backend-fixed-job/config.ts:configData',
   'domain/config.ts:nameservers',
@@ -81,9 +82,9 @@ const wideJsonFields = [
 ];
 
 function getJsonFieldSource(source: string, key: string) {
-  const escapedKey = key.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedKey = key.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
   const objectPattern = new RegExp(
-    `\\{[^{}]*key:\\s*['"]${escapedKey}['"][^{}]*type:\\s*['"]json['"][^{}]*\\}`,
+    String.raw`\{[^{}]*key:\s*['"]${escapedKey}['"][^{}]*type:\s*['"]json['"][^{}]*\}`,
     's',
   );
 
@@ -103,8 +104,10 @@ function hasExplicitWideJsonLayout(source: string, key: string) {
 }
 
 function fieldIndex(source: string, key: string) {
-  const escapedKey = key.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = source.match(new RegExp(`key:\\s*['"]${escapedKey}['"]`));
+  const escapedKey = key.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  const match = source.match(
+    new RegExp(String.raw`key:\s*['"]${escapedKey}['"]`),
+  );
 
   return match?.index ?? -1;
 }
@@ -119,9 +122,9 @@ describe('json field layout rules', () => {
       const relativeFile = file.replace(`${viewsDir}/`, '');
       const source = readFileSync(file, 'utf8');
       const fieldPattern =
-        /\{[^{}]*key:\s*['"]([^'"]+)['"][^{}]*type:\s*['"]json['"][^{}]*\}/gs;
+        /\{[^{}]*key:\s*['"]([^'"]+)['"][^{}]*type:\s*['"]json['"][^{}]*\}/g;
       const fields: string[] = [];
-      let match: RegExpExecArray | null;
+      let match: null | RegExpExecArray;
 
       while ((match = fieldPattern.exec(source))) {
         const key = match[1];

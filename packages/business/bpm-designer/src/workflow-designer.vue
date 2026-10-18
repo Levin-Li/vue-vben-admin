@@ -10,11 +10,15 @@ import type { WorkflowTreeVersion } from './workflow-tree-version';
 import { computed, ref, watch } from 'vue';
 
 import FlowDesign from '../third-party/lowflow-design/src/views/flowDesign/index.vue';
-import { validateTreeDefinition } from './definition-model';
+import {
+  getLatestWorkflowBusinessType,
+  validateTreeDefinition,
+} from './definition-model';
 import { toLowflowCanvasTree } from './lowflow-model';
 import WorkflowConditionEditor from './workflow-condition-editor.vue';
 import { applyGraphLayout } from './workflow-graph-layout';
 import { workflowVerificationOptions } from './workflow-labels';
+import WorkflowNotificationEditor from './workflow-notification-editor.vue';
 import WorkflowParameterEditor from './workflow-parameter-editor.vue';
 import {
   insertExclusiveOutcomesOnTreeEdge,
@@ -100,7 +104,7 @@ const business = computed(() =>
         String(props.modelValue.businessBinding?.contractVersion),
   ),
 );
-// 同一对象的多个受控方案由设计者明确选择，不按版本号替用户选择。
+// 新建选择业务对象时预填最新方案；持久化绑定始终保留，仅显式操作可切换。
 const selectedBusinessType = ref('');
 const businessChoices = computed(() => [
   ...new Map(
@@ -122,6 +126,12 @@ const selectedObject = computed(
 const businessSchemes = computed(() =>
   (props.options.businessTypes ?? []).filter(
     (item) => item.businessType === selectedObject.value,
+  ),
+);
+const latestBusinessScheme = computed(() =>
+  getLatestWorkflowBusinessType(
+    props.options.businessTypes ?? [],
+    selectedObject.value,
   ),
 );
 watch(
@@ -314,12 +324,12 @@ function values(event: Event) {
 function selectObject(value: string) {
   if (props.readonly) return;
   selectedBusinessType.value = value;
-  const schemes =
-    props.options.businessTypes?.filter(
-      (item) => item.businessType === value,
-    ) ?? [];
-  if (schemes.length === 1) {
-    const scheme = schemes[0]!;
+  if (props.modelValue.businessBinding?.businessType === value) return;
+  const scheme = getLatestWorkflowBusinessType(
+    props.options.businessTypes ?? [],
+    value,
+  );
+  if (scheme) {
     selectBusiness(`${scheme.businessType}@${scheme.contractVersion}`);
   } else {
     updateDefinition((draft) => {
@@ -613,12 +623,20 @@ function addOutcomeAction() {
             :value="`${item.businessType}@${item.contractVersion}`"
           >
             {{ item.title }} · 方案 {{ index + 1
-            }}{{ item === business ? '（当前流程）' : '' }}
+            }}{{ item === business ? '（当前流程）' : ''
+            }}{{ item === latestBusinessScheme ? '（最新）' : '' }}
           </option>
         </select>
       </label>
-      <p v-if="businessSchemes.length > 1 && !business" class="hint">
-        此对象有多套业务方案，请选择适用方案；不能由系统替您决定。
+      <p v-if="businessSchemes.length > 1" class="hint">
+        新建流程默认使用当前最新业务方案；已保存流程保留原方案，需要更换时在此明确选择。
+      </p>
+      <p
+        v-if="business && Object.keys(business.actions ?? {}).length === 0"
+        class="hint"
+        role="note"
+      >
+        此业务方案只记录审批过程和结果，不会自动修改业务状态。需要回写时，业务模块须先公开受控业务操作。
       </p>
       <p v-if="!options.businessTypes?.length" class="hint">
         暂无可配置的业务对象，请联系管理员开通。
@@ -858,6 +876,9 @@ function addOutcomeAction() {
 
     <!-- 直接使用适配后的 lowflow-design 画布；发布验证仍以服务端为准。 -->
     <div v-if="activeTab === 'graph'" class="panel">
+      <p class="hint" role="note">
+        条件分支选择一条满足条件的路线；同时办理会展开全部支路，并在汇聚处等待全部完成。设计器按树形结构成组建立分支与汇聚，不支持任意交叉连线；退回仅可指向允许的前置步骤，不能自由跨越并行分支。
+      </p>
       <div class="toolbar">
         <button
           :disabled="readonly"
@@ -960,6 +981,9 @@ function addOutcomeAction() {
                       </div>
                     </details>
                     <template v-if="selectedNode.type === 'userTask'">
+                      <p class="hint" role="note">
+                        审批人还须拥有当前业务记录的数据访问权限。选择人员只设置办理资格，不会授予业务查看权；请先确认其租户、组织和业务权限已就绪。
+                      </p>
                       <label>
                         谁来审批
 
@@ -1530,6 +1554,24 @@ function addOutcomeAction() {
                         </option>
                       </select>
                     </label>
+
+                    <WorkflowNotificationEditor
+                      :key="selectedNode.id"
+                      :node="selectedNode"
+                      :process-name="modelValue.name"
+                      :readonly="readonly"
+                      @change="updateNode({ notifications: $event })"
+                    >
+                      <template
+                        v-if="$slots['notification-preview']"
+                        #preview="preview"
+                      >
+                        <slot
+                          name="notification-preview"
+                          v-bind="preview"
+                        ></slot>
+                      </template>
+                    </WorkflowNotificationEditor>
 
                     <button
                       v-if="selectedNode.type !== 'start'"

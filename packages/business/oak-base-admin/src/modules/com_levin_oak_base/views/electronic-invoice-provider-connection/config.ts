@@ -2,17 +2,10 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { electronicInvoiceProviderConnectionService } from '../../api/electronic-invoice-provider-connection-service';
 import {
-  buildModuleOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
   withModuleCrudConfig,
 } from '../api-module';
-
-const partnerOptions = buildModuleOptionsLoader(
-  '/Partner/list',
-  'subjectName',
-  'id',
-);
 
 export type ElectronicInvoiceProviderCode =
   | 'fapiaotong'
@@ -221,8 +214,6 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
         key: 'partnerId',
         label: '开票合作伙伴',
         required: true,
-        loadOptions: partnerOptions,
-        remoteSearch: true,
         search: true,
         table: true,
         type: 'select',

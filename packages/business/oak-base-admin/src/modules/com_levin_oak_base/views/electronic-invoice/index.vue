@@ -7,6 +7,7 @@ import { Alert, Button, Form, Input, message, Modal } from 'ant-design-vue';
 
 import { electronicInvoiceService } from '../../api/electronic-invoice-service';
 import CrudPage from '../crud-page.vue';
+import IssuerPartnerPicker from '../partner/issuer-partner-picker.vue';
 import { electronicInvoicePageCrudConfig } from './config';
 
 interface InvoiceRecord {
@@ -100,6 +101,18 @@ async function submitRedIssue() {
       type="info"
     />
     <CrudPage :config="pageConfig">
+      <template #search-field-partnerId="{ searchState }">
+        <IssuerPartnerPicker
+          v-model="searchState.partnerId"
+          :tenant-id="searchState.tenantId"
+        />
+      </template>
+      <template #form-field-partnerId="{ formState }">
+        <IssuerPartnerPicker
+          v-model="formState.partnerId"
+          :tenant-id="formState.tenantId"
+        />
+      </template>
       <template #row-actions="{ record, reload }">
         <Button
           v-if="record.status === 'Issued' && hasPermission(redIssuePermission)"

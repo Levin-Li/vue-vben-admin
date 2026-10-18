@@ -135,7 +135,7 @@ describe('v3 树单源设计器', () => {
     wrapper.unmount();
   });
 
-  it('同一业务对象有多个方案时必须明确选择，不自动选择最高版本', async () => {
+  it('新建选择业务对象默认最新方案，历史方案不会随目录静默升级', async () => {
     const wrapper = mount(WorkflowDesigner, {
       props: {
         modelValue: createTreeDefinition('review', '审核'),
@@ -163,9 +163,29 @@ describe('v3 树单源设计器', () => {
     );
     expect(wrapper.emitted('update:modelValue')).toBeUndefined();
     expect(wrapper.text()).not.toContain('request@');
+    await wrapper.get('[aria-label="选择业务对象"]').setValue('request');
+    expect(latest(wrapper).businessBinding?.contractVersion).toBe(2);
+    await wrapper.setProps({ modelValue: latest(wrapper) });
     await wrapper.get('[aria-label="业务方案"]').setValue('request@1');
     expect(latest(wrapper).businessBinding?.contractVersion).toBe(1);
     await wrapper.setProps({ modelValue: latest(wrapper) });
+    expect(wrapper.get('[aria-label="业务方案"]').element).toHaveProperty(
+      'value',
+      'request@1',
+    );
+    const changes = wrapper.emitted('update:modelValue')?.length;
+    await wrapper.setProps({
+      options: {
+        businessTypes: [1, 2, 10].map((contractVersion) => ({
+          businessType: 'request',
+          contractVersion,
+          title: '业务申请',
+          fields: {},
+        })),
+      },
+    });
+    await wrapper.get('[aria-label="选择业务对象"]').setValue('request');
+    expect(wrapper.emitted('update:modelValue')?.length).toBe(changes);
     expect(wrapper.get('[aria-label="业务方案"]').element).toHaveProperty(
       'value',
       'request@1',
@@ -427,6 +447,68 @@ describe('v3 树单源设计器', () => {
     ).toBeDefined();
     await readonlyWrapper.get('input').trigger('input');
     expect(readonlyWrapper.emitted('update:modelValue')).toBeUndefined();
+  });
+
+  it('就近说明数据权限、只读结果和树形边界，不自动改变人员或业务动作', async () => {
+    const definition = insertUserTaskOnTreeEdge(
+      createTreeDefinition('review', '审核'),
+      'start_end',
+    ).definition;
+    definition.businessBinding = {
+      businessType: 'readonly-record',
+      contractVersion: '1',
+      identityField: 'id',
+      titleField: 'title',
+    };
+    const wrapper = mount(WorkflowDesigner, {
+      props: {
+        modelValue: definition,
+        options: {
+          businessTypes: [
+            {
+              businessType: 'readonly-record',
+              contractVersion: '1',
+              title: '只读业务对象',
+              fields: {},
+              actions: {},
+            },
+          ],
+        },
+      },
+    });
+    expect(wrapper.text()).toContain(
+      '只记录审批过程和结果，不会自动修改业务状态',
+    );
+    await openGraph(wrapper);
+    expect(wrapper.text()).toContain('不支持任意交叉连线');
+    expect(wrapper.text()).toContain('不能自由跨越并行分支');
+    await wrapper.get('[data-node-id="userTask_1"]').trigger('click');
+    expect(wrapper.text()).toContain(
+      '选择人员只设置办理资格，不会授予业务查看权',
+    );
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    expect(definition.outcomeActions).toEqual({});
+  });
+
+  it('节点通知编辑通过原树保存，并由宿主插槽安全预览', async () => {
+    const definition = createTreeDefinition('review', '审核');
+    const wrapper = mount(WorkflowDesigner, {
+      props: { modelValue: definition },
+      slots: { 'notification-preview': '<div data-preview>安全预览</div>' },
+    });
+    await openGraph(wrapper);
+    await wrapper.get('[data-node-id="start"]').trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '添加步骤通知')
+      ?.trigger('click');
+    const edited = latest(wrapper);
+    expect(edited.flowTree.notifications?.[0]?.event).toBe('NodeEntered');
+    await wrapper.setProps({ modelValue: edited });
+    expect(wrapper.get('[data-preview]').text()).toBe('安全预览');
+    expect(
+      wrapper.get('textarea[aria-label="通知正文"]').element,
+    ).toBeDefined();
   });
 
   it('从当前授权目录选择动态审批人并编辑类型化参数，保持树节点与连线 ID', async () => {

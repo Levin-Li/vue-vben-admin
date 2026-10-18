@@ -9,6 +9,10 @@
 
 服务插件的单选/多选供应商配置与 OAuth 登录、绑定入口见 [供应商选择模式接入指南](docs/provider-selection-modes.md)。
 
+标准 CRUD 标签状态保留见 [标签状态使用说明](docs/crud-tab-state.md)。
+
+法律主体、合作伙伴一对多关系和电子发票合作关系选择见 [法律主体与合作伙伴页面接入指南](docs/partner-legal-subject-relations.md)。
+
 右上角在线文档入口、文档命名和构建登记见 [文档中心使用指南](docs/文档中心使用指南.md)。
 
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。

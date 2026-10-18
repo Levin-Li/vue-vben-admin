@@ -20,6 +20,7 @@ import {
 } from '@levin/admin-framework/framework-commons/app/options';
 import { useTitle } from '@vueuse/core';
 
+import { isDataAttrPolicyReady } from '../data-attr-policy';
 import { setupAdminModules } from '../module-contract';
 import { loadAdministrativeAreaOverride } from '../shared/administrative-area-data';
 import { initComponentAdapter } from './adapter/component';
@@ -84,21 +85,24 @@ async function bootstrap(namespace: string) {
     adminUiPreferencesStartupLoader.prepareForMount();
   let hasLoadedAdministrativeAreaOverride = false;
   watch(
-    () => useAccessStore().accessToken,
+    // 令牌签发时本人信息和权限尚未齐备，必须等待正式授权初始化完成。
+    () => (isDataAttrPolicyReady() ? useAccessStore().accessToken : null),
     (accessToken, previousAccessToken) => {
+      // 暂停会话时先废弃旧身份的偏好响应，避免退出后迟到回写。
+      adminUiPreferencesStartupLoader.onAccessTokenChanged(
+        accessToken || undefined,
+        previousAccessToken || undefined,
+      );
       if (!accessToken) {
         hasLoadedAdministrativeAreaOverride = false;
         return;
       }
       if (!hasLoadedAdministrativeAreaOverride) {
         hasLoadedAdministrativeAreaOverride = true;
-        void loadAdministrativeAreaOverride();
+        void loadAdministrativeAreaOverride().catch((error) => {
+          console.warn('加载行政区划覆盖配置失败，继续使用内置数据', error);
+        });
       }
-      // 登录成功后重新从独立 UI 设置记录加载界面偏好。
-      adminUiPreferencesStartupLoader.onAccessTokenChanged(
-        accessToken,
-        previousAccessToken,
-      );
     },
     { immediate: true },
   );

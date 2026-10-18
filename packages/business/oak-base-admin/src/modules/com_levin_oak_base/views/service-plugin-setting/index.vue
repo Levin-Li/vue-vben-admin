@@ -7,7 +7,15 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useUserStore } from '@vben/runtime/stores';
 
 import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
-import { Button, message, Modal, Select, Switch } from 'ant-design-vue';
+import {
+  Button,
+  Input,
+  InputNumber,
+  message,
+  Modal,
+  Select,
+  Switch,
+} from 'ant-design-vue';
 
 import { servicePluginService } from '../../api/service-plugin-service';
 import { servicePluginSettingService } from '../../api/service-plugin-setting-service';
@@ -18,6 +26,8 @@ import {
 } from '../provider-configuration-update';
 import ProviderGuidance from '../provider-onboarding-guidance.vue';
 import {
+  allowsMultipleActiveProviders,
+  allowsMultipleProviderInstances,
   describeProviderConfiguration,
   getProviderSelectionMode,
   parseProviderSelectionModesResponse,
@@ -53,7 +63,10 @@ interface ServicePluginSettingRecord {
   servicePlugin?: ServicePluginRecord;
   servicePluginId?: string;
   servicePluginProviderCode?: string;
+  servicePluginProviderInstanceCode?: string;
   tenantId?: null | string;
+  usageCount?: number;
+  usageWeight?: number;
   value?: Record<string, any>;
 }
 
@@ -127,8 +140,12 @@ function getMode(pluginId?: string) {
   return getProviderSelectionMode(providerSelectionModes.value, pluginId);
 }
 
+function allowsProviderInstances(pluginId?: string) {
+  return allowsMultipleProviderInstances(getMode(pluginId));
+}
+
 function isMultiChoice(record?: ServicePluginSettingRecord) {
-  return getMode(record?.servicePluginId) === 'MULTI_CHOICE';
+  return allowsMultipleActiveProviders(getMode(record?.servicePluginId));
 }
 
 const guardedCrudConfig = computed(() => ({
@@ -267,6 +284,8 @@ function handlePluginChange(formState: Record<string, any>, pluginId?: string) {
   if (!providerCodes.has(formState.servicePluginProviderCode)) {
     formState.servicePluginProviderCode = undefined;
   }
+  formState.servicePluginProviderInstanceCode = 'default';
+  formState.usageWeight = 1;
 }
 
 async function loadPlugins() {
@@ -372,6 +391,42 @@ onMounted(() => {
           />
           <p class="text-muted-foreground text-xs">
             每个供应商单独创建一条设置；新增默认停用，完成配置后再启用。
+          </p>
+        </div>
+      </template>
+
+      <template
+        #form-field-servicePluginProviderInstanceCode="{
+          editingRecord,
+          formState,
+        }"
+      >
+        <Input
+          v-if="
+            editingRecord?.id ||
+            !allowsProviderInstances(formState.servicePluginId)
+          "
+          :value="formState.servicePluginProviderInstanceCode || 'default'"
+          disabled
+        />
+        <Input
+          v-else
+          v-model:value="formState.servicePluginProviderInstanceCode"
+          placeholder="例如 account-a"
+        />
+      </template>
+
+      <template #form-field-usageWeight="{ formState }">
+        <div class="space-y-1">
+          <InputNumber
+            v-model:value="formState.usageWeight"
+            :disabled="!allowsProviderInstances(formState.servicePluginId)"
+            :min="1"
+            :precision="0"
+            class="w-full"
+          />
+          <p class="text-muted-foreground text-xs">
+            权重为相对值，默认 1；均衡模式按使用次数与权重自动分配。
           </p>
         </div>
       </template>

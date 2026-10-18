@@ -50,6 +50,7 @@ import {
   Tag,
 } from 'ant-design-vue';
 
+import { isDataAttrPolicyReady } from '../../data-attr-policy';
 import {
   getFrameworkEventListeners,
   onFrameworkEvent,
@@ -61,8 +62,9 @@ import {
   getAdminUserMessageService,
 } from '../../runtime';
 import { getAdministrativeAreaOptions } from '../../shared/administrative-area-data';
-import { resolvePersonalMessageSourceRoute } from '../../shared/user-message-target';
 import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-service';
+import { formatPersonalMessageSummary } from '../../shared/user-message-summary';
+import { resolvePersonalMessageSourceRoute } from '../../shared/user-message-target';
 import {
   ADMIN_UI_PREFERENCES_SETTING_CODE,
   loadAdminUiPreferencesScopeOptions,
@@ -71,7 +73,13 @@ import {
   resolveAdminUiPreferencesUploadScope,
   saveAdminUiPreferencesSetting,
 } from '../admin-ui-preferences-setting';
+import AgentPanel from '../ai-agent/agent-panel.vue';
 import { getFrontendBuildInfo } from '../frontend-build-versions';
+import { currentGlobalDomainIds } from '../global-domain-context-state';
+import {
+  currentGlobalOrgId,
+  currentGlobalTenantId,
+} from '../global-org-context-state';
 import {
   clearPendingBindCallback,
   hasPendingBindCallback,
@@ -102,6 +110,7 @@ const headerTopSlots = computed(() => {
 });
 const accessStore = useAccessStore();
 const router = useRouter();
+const agentPanel = ref<InstanceType<typeof AgentPanel> | null>(null);
 const { appName, copyright, loadAuthBrand, logo } = useAuthBrand();
 const LoginForm = defineAsyncComponent(
   resolveAdminPage('/_core/authentication/login.vue'),
@@ -368,6 +377,7 @@ const navigationGradientStyle = computed(() => {
 });
 
 async function handleLogout() {
+  agentPanel.value?.clearConversation();
   await authStore.logout(false);
 }
 
@@ -616,7 +626,7 @@ function toNotificationItem(
     date: formatNoticeDate(record.createTime),
     isRead: Boolean(record.readTime),
     level: messagePriorityLabelMap[String(record.priority || '')] || '',
-    message: String(record.summary || '请查看消息详情'),
+    message: formatPersonalMessageSummary(record, '请查看消息详情'),
     title,
     ...(link ? { link } : {}),
     ...(sourceRoute ? { query: sourceRoute.query } : {}),
@@ -637,7 +647,7 @@ async function loadNotifications() {
   const version = ++notificationRequestVersion;
   const token = accessStore.accessToken;
   const userId = userStore.userInfo?.id;
-  if (!token || !service) {
+  if (!isDataAttrPolicyReady() || !token || !service) {
     notifications.value = [];
     userMessageUnreadCount.value = 0;
     return;
@@ -655,7 +665,8 @@ async function loadNotifications() {
   if (
     version !== notificationRequestVersion ||
     token !== accessStore.accessToken ||
-    userId !== userStore.userInfo?.id
+    userId !== userStore.userInfo?.id ||
+    !isDataAttrPolicyReady()
   )
     return;
 
@@ -686,7 +697,7 @@ function stopNotificationSync() {
 function startNotificationSync() {
   // 仅在当前存在登录令牌时轮询，并在重新启动前清理旧计时器。
   stopNotificationSync();
-  if (!accessStore.accessToken) {
+  if (!isDataAttrPolicyReady() || !accessStore.accessToken) {
     return;
   }
 
@@ -791,7 +802,11 @@ watch(
 );
 
 watch(
-  () => [accessStore.accessToken, userStore.userInfo?.id],
+  () => [
+    isDataAttrPolicyReady(),
+    accessStore.accessToken,
+    userStore.userInfo?.id,
+  ],
   () => {
     // 登录身份变化时立即同步，并按最新登录态更新定时器。
     syncNotifications();
@@ -1155,6 +1170,21 @@ watch(
       <LockScreen :avatar @to-login="handleLogout" />
     </template>
   </BasicLayout>
+  <!-- 全局 AI 助手跟随布局挂载，在业务页面切换期间保留会话。 -->
+  <AgentPanel
+    ref="agentPanel"
+    :access-token="accessStore.accessToken"
+    :current-path="router.currentRoute.value.path"
+    :scope-key="
+      JSON.stringify([
+        currentGlobalTenantId,
+        currentGlobalOrgId,
+        currentGlobalDomainIds,
+      ])
+    "
+    :user-id="userStore.userInfo?.id"
+    :super-admin="userStore.userInfo?.superAdmin === true"
+  />
 </template>
 
 <style scoped>

@@ -1,13 +1,14 @@
+import type { UiSettingRuntimeResolution } from './api/ui-setting-runtime';
+
 import {
   applyAdminUiPreferencesSetting,
   resolveAdminUiPreferencesSetting,
 } from './admin-ui-preferences-setting';
-import type { UiSettingRuntimeResolution } from './api/ui-setting-runtime';
 
 type PreferencesLoader = () => Promise<UiSettingRuntimeResolution>;
 type PreferencesApplier = (resolution: UiSettingRuntimeResolution) => void;
 
-export const ADMIN_UI_PREFERENCES_STARTUP_TIMEOUT = 3_000;
+export const ADMIN_UI_PREFERENCES_STARTUP_TIMEOUT = 3000;
 
 /**
  * 管理界面偏好在启动预加载和登录成功两个时点分别向服务端加载。
@@ -59,9 +60,13 @@ export function createAdminUiPreferencesStartupLoader(
     prepareForMount,
 
     /**
-     * 应用已挂载时，令牌变更代表登录成功或账号切换，重新获取偏好。
+     * 授权初始化完成后重取当前用户偏好；退出或暂停时废弃旧身份的在途结果。
      */
     onAccessTokenChanged(accessToken?: string, previousAccessToken?: string) {
+      if (!accessToken) {
+        latestRequestId += 1;
+        return;
+      }
       if (
         applicationMounted &&
         accessToken &&

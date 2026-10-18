@@ -1,5 +1,8 @@
 <script lang="ts" setup>
-import type { ProviderSelectionModes } from '../provider-selection-mode';
+import type {
+  ProviderSelectionMode,
+  ProviderSelectionModes,
+} from '../provider-selection-mode';
 
 import { computed, onMounted, ref } from 'vue';
 
@@ -9,6 +12,7 @@ import {
   Input,
   message,
   Modal,
+  Select,
   Switch,
   Table,
   Tooltip,
@@ -42,6 +46,10 @@ interface ServicePluginRecord {
   pluginImplType?: string;
   pluginType?: string;
   providerList?: ServicePluginProvider[];
+  providerSelectionMode?:
+    | 'MULTI_ACTIVE_BALANCED'
+    | 'MULTI_CHOICE'
+    | 'SINGLE_ACTIVE';
 }
 
 const providerListOpen = ref(false);
@@ -49,11 +57,16 @@ const selectedPlugin = ref<ServicePluginRecord>();
 const editingProviders = ref<ServicePluginProvider[]>([]);
 const providerListSaving = ref(false);
 const providerSelectionModes = ref<ProviderSelectionModes>({});
+const providerSelectionModeOptions = ref<Record<string, string[]>>({});
 const modesReady = ref(false);
 const baseConfigOpen = ref(false);
 const baseConfigSaving = ref(false);
 const baseConfigPlugin = ref<ServicePluginRecord>();
-const baseConfigFormState = ref<Record<string, any>>({
+// 打开基本配置时统一设置模式；表单保留同一单选默认值和明确类型。
+const baseConfigFormState = ref<
+  Record<string, any> & { providerSelectionMode: ProviderSelectionMode }
+>({
+  providerSelectionMode: 'SINGLE_ACTIVE',
   editor: 'json',
   valueContent: {},
   valueType: 'Json',
@@ -63,20 +76,32 @@ const providerListTitle = computed(() => {
   const pluginName = selectedPlugin.value?.name;
   return pluginName ? `供应商列表 - ${pluginName}` : '供应商列表';
 });
+const baseConfigModeOptions = computed(() => {
+  const pluginId = baseConfigPlugin.value?.id;
+  return pluginId ? providerSelectionModeOptions.value[pluginId] || [] : [];
+});
 const selectedModeLabel = computed(() => {
   const mode = getProviderSelectionMode(
     providerSelectionModes.value,
     selectedPlugin.value?.id,
   );
   if (mode === 'MULTI_CHOICE') return '多供应商可同时启用，由每次操作选择';
+  if (mode === 'MULTI_ACTIVE_BALANCED')
+    return '多供应商及多配置实例可同时启用，按权重自动均衡使用';
   if (mode === 'SINGLE_ACTIVE') return '同一作用域只使用一个当前供应商';
   return '模式目录未加载';
 });
 
 onMounted(async () => {
   try {
-    const result = await servicePluginService.providerSelectionModes();
-    providerSelectionModes.value = parseProviderSelectionModesResponse(result);
+    const [modes, options] = await Promise.all([
+      servicePluginService.providerSelectionModes(),
+      servicePluginService.providerSelectionModeOptions(),
+    ]);
+    providerSelectionModes.value = parseProviderSelectionModesResponse(modes);
+    providerSelectionModeOptions.value =
+      (options as { data?: Record<string, string[]> }).data ||
+      (options as Record<string, string[]>);
     modesReady.value = true;
   } catch (error) {
     console.error(error);
@@ -120,6 +145,10 @@ function openBaseConfig(record: ServicePluginRecord) {
     editor: record.configEditor?.trim() || 'json',
     id: record.id,
     name: `${record.name || record.id || '服务插件'} - 基本配置`,
+    providerSelectionMode:
+      record.providerSelectionMode ||
+      getProviderSelectionMode(providerSelectionModes.value, record.id) ||
+      'SINGLE_ACTIVE',
     valueContent: cloneJsonValue(record.baseConfig),
     valueType: 'Json',
   };
@@ -137,12 +166,16 @@ async function saveBaseConfig() {
     const baseConfig = cloneJsonValue(baseConfigFormState.value.valueContent);
     await servicePluginService.update({
       autoForceUpdateField: false,
-      forceUpdateFields: ['baseConfig'],
+      forceUpdateFields: ['baseConfig', 'providerSelectionMode'],
       baseConfig,
       id: plugin.id,
       optimisticLock: plugin.optimisticLock,
+      providerSelectionMode: baseConfigFormState.value.providerSelectionMode,
     });
     plugin.baseConfig = baseConfig;
+    plugin.providerSelectionMode =
+      baseConfigFormState.value.providerSelectionMode;
+    providerSelectionModes.value[plugin.id] = plugin.providerSelectionMode;
     plugin.optimisticLock = Number(plugin.optimisticLock || 0) + 1;
     message.success('基本配置已保存');
     baseConfigOpen.value = false;
@@ -275,6 +308,27 @@ async function saveProviders() {
     width="min(80vw, 1120px)"
     @ok="saveBaseConfig"
   >
+    <div class="mb-3 flex items-center gap-3">
+      <span class="shrink-0">供应商选择模式</span>
+      <Select
+        v-model:value="baseConfigFormState.providerSelectionMode"
+        class="flex-1"
+      >
+        <Select.Option
+          v-for="mode in baseConfigModeOptions"
+          :key="mode"
+          :value="mode"
+        >
+          {{
+            mode === 'SINGLE_ACTIVE'
+              ? '单活'
+              : mode === 'MULTI_CHOICE'
+                ? '多供应商手动选择'
+                : '多供应商加权均衡'
+          }}
+        </Select.Option>
+      </Select>
+    </div>
     <SettingValueContentField
       :key="baseConfigFormState.id"
       inline

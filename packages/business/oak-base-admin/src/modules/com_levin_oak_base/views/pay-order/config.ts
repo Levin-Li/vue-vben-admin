@@ -108,6 +108,7 @@ export const payOrderPageCrudConfig: CrudPageConfig = {
     {
       key: 'amount',
       label: '支付金额',
+      moneyDisplay: { unit: '' },
       layoutGroup: 'amount',
       layoutOrder: 10,
       layoutGroupTitle: '金额与币种',
@@ -118,6 +119,7 @@ export const payOrderPageCrudConfig: CrudPageConfig = {
     {
       key: 'discountAmount',
       label: '优惠金额',
+      moneyDisplay: { unit: '' },
       layoutGroup: 'amount',
       layoutOrder: 20,
       table: true,

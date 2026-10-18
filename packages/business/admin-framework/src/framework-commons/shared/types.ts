@@ -132,6 +132,14 @@ export interface CrudFieldConfig {
   layoutOrder?: number;
   loadOptions?: CrudOptionLoader;
   maxLength?: number;
+  /** 金额展示覆盖；money 可显式指定或排除金额语义，未配置时按字段名与标题识别。 */
+  moneyDisplay?: {
+    chineseUnitTooltip?: boolean;
+    grouping?: 'four' | 'none' | 'three';
+    money?: boolean;
+    /** 金额单位；未指定时为“元”，显式空字符串可隐藏单位。 */
+    unit?: string;
+  };
   multiple?: boolean | ((formState: Record<string, any>) => boolean);
   maxUploadCount?: number | ((formState: Record<string, any>) => number);
   options?: SelectOption[];
@@ -466,10 +474,12 @@ export interface CrudPageConfig {
   /** 显式声明需原样保留并校验的范围/定位参数，禁止当作赋值字段裁剪。 */
   dataAttrConditionKeys?: string[];
   /** 同一资源操作对应多个实际处理器时，显式指定字段策略目标；不从服务方法名称猜路径。 */
-  dataAttrTargets?: Partial<Record<
-    'batchCreate' | 'create' | 'delete' | 'list' | 'retrieve' | 'update',
-    { contentType?: string; method: string; path: string }
-  >>;
+  dataAttrTargets?: Partial<
+    Record<
+      'batchCreate' | 'create' | 'delete' | 'list' | 'retrieve' | 'update',
+      { contentType?: string; method: string; path: string }
+    >
+  >;
   allowCreate?: boolean;
   allowDelete?: boolean;
   allowEdit?: boolean;

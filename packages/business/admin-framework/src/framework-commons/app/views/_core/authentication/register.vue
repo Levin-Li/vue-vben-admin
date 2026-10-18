@@ -19,7 +19,7 @@ import {
 
 defineOptions({ name: 'Register' });
 
-type VerifyType = 'Captcha' | 'Email' | 'Sms';
+type VerifyType = 'Email' | 'Sms';
 
 const authStore = useAuthStore();
 const registrationEnabled = ref(false);
@@ -52,19 +52,15 @@ const account = computed(() => form.account.replaceAll(/\s/g, ''));
 const loading = ref(false);
 const codeLoading = ref(false);
 const errorMessage = ref('');
-const captchaImage = ref('');
 const codeAccount = ref('');
 const verifyType = ref<VerifyType>();
 const mockCodeFilled = ref(false);
 const countdown = ref(0);
-const autoCaptchaDelayMs = 350;
-const autoCaptchaFailed = ref(false);
 // 注册成功后只允许重试登录收尾，不能再次提交创建请求。
 const registrationToken = ref('');
 let requestVersion = 0;
 let active = true;
 let countdownTimer: ReturnType<typeof setInterval> | undefined;
-let autoCaptchaTimer: ReturnType<typeof setTimeout> | undefined;
 
 function isContactAccount(value: string) {
   if (/^1\d{10}$/.test(value)) return true;
@@ -74,10 +70,6 @@ function isContactAccount(value: string) {
   );
 }
 
-const isLikelyRegularAccount = computed(
-  () => !!account.value && !isContactAccount(account.value),
-);
-
 const codeButtonText = computed(() =>
   countdown.value > 0 ? `${countdown.value}s 后重试` : '获取验证码',
 );
@@ -86,7 +78,7 @@ const codeHint = computed(() => {
   if (mockCodeFilled.value) return '测试验证码已填入';
   if (verifyType.value === 'Sms') return '短信验证码已发送，请查收。';
   if (verifyType.value === 'Email') return '邮箱验证码已发送，请查收。';
-  return '普通账号使用图片验证码，手机号或邮箱使用对应验证码。';
+  return '手机号或邮箱使用对应验证码。';
 });
 
 function failureMessage(error: unknown, fallback: string) {
@@ -101,29 +93,18 @@ function failureMessage(error: unknown, fallback: string) {
 
 function resetVerification() {
   requestVersion += 1;
-  clearTimeout(autoCaptchaTimer);
   codeLoading.value = false;
   codeAccount.value = '';
   verifyType.value = undefined;
   form.verifyCode = '';
-  captchaImage.value = '';
   mockCodeFilled.value = false;
-  autoCaptchaFailed.value = false;
   countdown.value = 0;
   clearInterval(countdownTimer);
 }
 
-function scheduleAutoCaptcha(currentAccount = account.value) {
-  if (!currentAccount || isContactAccount(currentAccount)) return;
-  autoCaptchaTimer = setTimeout(() => {
-    void requestCode();
-  }, autoCaptchaDelayMs);
-}
-
-watch(account, (currentAccount) => {
+watch(account, () => {
   resetVerification();
   errorMessage.value = '';
-  scheduleAutoCaptcha(currentAccount);
 });
 
 async function requestCode() {
@@ -138,6 +119,10 @@ async function requestCode() {
   const requestedAccount = account.value;
   if (!requestedAccount) {
     errorMessage.value = '请先填写注册账号';
+    return;
+  }
+  if (!isContactAccount(requestedAccount)) {
+    errorMessage.value = '请填写有效的手机号或邮箱';
     return;
   }
   resetVerification();
@@ -155,39 +140,22 @@ async function requestCode() {
       requestedAccount !== account.value
     )
       return;
-    if (!['Captcha', 'Email', 'Sms'].includes(result.type || '')) {
+    if (!['Email', 'Sms'].includes(result.type || '')) {
       throw new Error('当前验证码类型不支持注册');
-    }
-    const mime = result.interactionDataType || 'image/png';
-    if (
-      typeof result.interactionData === 'string' &&
-      /^image\/(?:gif|jpeg|png|webp)$/.test(mime)
-    ) {
-      captchaImage.value = `data:${mime};base64,${result.interactionData}`;
     }
     if (result.mock === true && result.code) {
       form.verifyCode = result.code;
       mockCodeFilled.value = true;
     }
-    if (
-      result.type === 'Captcha' &&
-      !captchaImage.value &&
-      !mockCodeFilled.value
-    ) {
-      throw new Error('未获取到验证码图片，请重试');
-    }
     codeAccount.value = requestedAccount;
     verifyType.value = result.type as VerifyType;
-    if (result.type !== 'Captcha') {
-      countdown.value = 60;
-      countdownTimer = setInterval(() => {
-        countdown.value -= 1;
-        if (countdown.value <= 0) clearInterval(countdownTimer);
-      }, 1000);
-    }
+    countdown.value = 60;
+    countdownTimer = setInterval(() => {
+      countdown.value -= 1;
+      if (countdown.value <= 0) clearInterval(countdownTimer);
+    }, 1000);
   } catch (error) {
     if (active && version === requestVersion) {
-      autoCaptchaFailed.value = isLikelyRegularAccount.value;
       errorMessage.value = failureMessage(error, '获取验证码失败，请重试');
     }
   } finally {
@@ -206,6 +174,10 @@ async function handleSubmit() {
   if (!registrationToken.value) {
     if (!account.value || !form.password || !form.confirmPassword) {
       errorMessage.value = '请填写账号、密码和确认密码';
+      return;
+    }
+    if (!isContactAccount(account.value)) {
+      errorMessage.value = '请填写有效的手机号或邮箱';
       return;
     }
     if (form.password !== form.confirmPassword) {
@@ -245,7 +217,6 @@ async function handleSubmit() {
       errorMessage.value = failureMessage(error, '注册或登录失败，请重试');
       if (!registrationToken.value) {
         resetVerification();
-        scheduleAutoCaptcha();
       }
     }
   } finally {
@@ -298,7 +269,7 @@ onBeforeUnmount(() => {
           v-model:value="form.account"
           :disabled="loading || !!registrationToken"
           autocomplete="username"
-          placeholder="登录名、手机号或邮箱"
+          placeholder="手机号或邮箱"
           size="large"
         />
       </div>
@@ -346,8 +317,12 @@ onBeforeUnmount(() => {
               size="large"
             />
             <Button
-              v-if="!isLikelyRegularAccount || autoCaptchaFailed"
-              :disabled="loading || codeLoading || countdown > 0 || !account"
+              :disabled="
+                loading ||
+                codeLoading ||
+                countdown > 0 ||
+                !isContactAccount(account)
+              "
               :loading="codeLoading"
               class="shrink-0"
               html-type="button"
@@ -357,15 +332,6 @@ onBeforeUnmount(() => {
               {{ codeButtonText }}
             </Button>
           </div>
-          <button
-            v-if="captchaImage"
-            type="button"
-            :disabled="codeLoading || loading"
-            aria-label="刷新验证码图片"
-            @click="requestCode"
-          >
-            <img :src="captchaImage" alt="注册验证码" class="h-12 rounded" />
-          </button>
           <p class="text-muted-foreground text-xs">{{ codeHint }}</p>
         </div>
       </template>

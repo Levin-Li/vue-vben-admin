@@ -24,6 +24,14 @@ class DemoService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
+    type: '业务数据',
+    res: '结算单',
+    action: '查看结算资料',
+  })
+  financialDetails() {}
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
     type: '专家数据-',
     action: '查询列表',
   })
@@ -56,6 +64,11 @@ class DemoService {
 const demoService = new DemoService();
 
 describe('crud permission metadata', () => {
+  it('财务独立权限使用无尾横线的类型，保留显式资源段', () => {
+    expect(buildApiMethodPermissions(demoService, 'financialDetails')).toEqual([
+      'com.levin.oak.base:业务数据:结算单:查看结算资料',
+    ]);
+  });
   it('appends Service.title as @Tag.name when ResAuthorize.type ends with dash', () => {
     expect(buildApiMethodPermissions(demoService, 'list')).toContain(
       'com.levin.oak.base:专家数据-Demo::查询列表',

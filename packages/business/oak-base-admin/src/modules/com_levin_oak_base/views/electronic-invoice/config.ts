@@ -3,17 +3,11 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { electronicInvoiceService } from '../../api/electronic-invoice-service';
 import {
   buildEnumOptionsLoader,
-  buildModuleOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
   withModuleCrudConfig,
 } from '../api-module';
 
-const partnerOptions = buildModuleOptionsLoader(
-  '/Partner/list',
-  'subjectName',
-  'id',
-);
 const electronicInvoiceStatusOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.EInvoice$Status',
 );
@@ -86,8 +80,6 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
         label: '销方合作伙伴',
         help: '请选择已完成开票资料维护并已开通供应商连接的商户主体；提交后系统会冻结该主体的票面快照。',
         required: true,
-        loadOptions: partnerOptions,
-        remoteSearch: true,
         search: true,
         table: true,
         type: 'select',

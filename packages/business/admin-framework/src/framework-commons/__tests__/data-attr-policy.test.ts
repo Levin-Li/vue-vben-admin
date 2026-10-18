@@ -1,19 +1,27 @@
+import type { DataAttrPolicy } from '../data-attr-policy';
+
+import {
+  errorMessageResponseInterceptor,
+  isCancel,
+} from '@vben/runtime/request';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   assertDataAttrInput,
   clearDataAttrPolicies,
   configureDataAttrPolicyLoader,
+  DATA_ATTR_POLICY_PATH,
   fieldAllowed,
+  getDataAttrPolicyEpoch,
   guardDataAttrRequest,
   loadDataAttrPolicy,
   loadDataAttrPolicyByOperation,
   pruneDataAttrInput,
   pruneDataAttrOutput,
-  subscribeDataAttrPolicyInvalidation,
   shouldInvalidateDataAttrPolicy,
-  DATA_ATTR_POLICY_PATH,
-  getDataAttrPolicyEpoch,
-  type DataAttrPolicy,
+  subscribeDataAttrPolicyInvalidation,
+  suspendDataAttrPolicies,
 } from '../data-attr-policy';
 
 function policy(allowed = false): DataAttrPolicy {
@@ -61,7 +69,7 @@ function policy(allowed = false): DataAttrPolicy {
 
 beforeEach(() => clearDataAttrPolicies());
 
-describe('API属性组通用策略', () => {
+describe('aPI属性组通用策略', () => {
   it('无权值包含null、空集合和别名时均拒绝', () => {
     for (const payload of [{ amount: null }, { total: [] }, { funds: 'x' }]) {
       expect(() => assertDataAttrInput(policy(), payload)).toThrow('未授予');
@@ -86,7 +94,7 @@ describe('API属性组通用策略', () => {
     expect(() => assertDataAttrInput(p, { FUNDS: 1 })).toThrow('未授予');
     expect(fieldAllowed(p, 'input', 'TOTAL')).toBe(false);
   });
-  it('ROOT及土耳其locale折叠的碰撞字段必须全部通过', () => {
+  it('rOOT及土耳其locale折叠的碰撞字段必须全部通过', () => {
     const p = policy();
     p.nodes.model!.caseInsensitive = true;
     p.nodes.model!.locale = 'tr';
@@ -186,7 +194,7 @@ describe('API属性组通用策略', () => {
       expect(JSON.stringify(payload)).toBe(before);
     }
   });
-  it('CRUD明确赋值可以投影并同步收紧forceUpdateFields', () => {
+  it('cRUD明确赋值可以投影并同步收紧forceUpdateFields', () => {
     const payload = {
       title: '公开标题',
       total: null,
@@ -250,7 +258,14 @@ describe('API属性组通用策略', () => {
     clearDataAttrPolicies();
     expect(notify).toHaveBeenCalledOnce();
     resolve({ version: 1, policies: [policy(true)] });
-    await expect(old).rejects.toThrow('身份或权限');
+    const canceled = await old.catch((error) => error);
+    expect(canceled.message).toContain('身份或权限');
+    expect(isCancel(canceled)).toBe(true);
+    const showError = vi.fn();
+    await expect(
+      errorMessageResponseInterceptor(showError).rejected?.(canceled),
+    ).rejects.toBe(canceled);
+    expect(showError).not.toHaveBeenCalled();
     unsubscribe();
   });
   it('失败不会缓存为无组或放行下一次调用', async () => {
@@ -265,8 +280,35 @@ describe('API属性组通用策略', () => {
     await expect(
       guardDataAttrRequest('PUT', '/contract', { data: { total: null } }),
     ).rejects.toThrow('未授予');
+    expect(isCancel(new Error('未授予该字段权限'))).toBe(false);
     expect(load).toHaveBeenCalledTimes(2);
   });
+  it('暂停策略读取按取消拒绝，而真实字段授权拒绝仍进入错误提示', async () => {
+    configureDataAttrPolicyLoader(async () => ({
+      version: 1,
+      policies: [policy()],
+    }));
+    const denied = await guardDataAttrRequest('PUT', '/contract', {
+      data: { total: null },
+    }).catch((error) => error);
+    expect(denied.message).toContain('未授予');
+    expect(isCancel(denied)).toBe(false);
+    const showError = vi.fn();
+    await expect(
+      errorMessageResponseInterceptor(showError).rejected?.(denied),
+    ).rejects.toBe(denied);
+    expect(showError).toHaveBeenCalledTimes(1);
+    suspendDataAttrPolicies();
+    const canceled = await loadDataAttrPolicy('GET', '/contract').catch(
+      (error) => error,
+    );
+    expect(isCancel(canceled)).toBe(true);
+    await expect(
+      errorMessageResponseInterceptor(showError).rejected?.(canceled),
+    ).rejects.toBe(canceled);
+    expect(showError).toHaveBeenCalledTimes(1);
+  });
+
   it('策略自身403不广播失效或自动重读，业务403仍撤销缓存', async () => {
     const metadataError = {
       response: {
@@ -332,7 +374,7 @@ describe('API属性组通用策略', () => {
 });
 
 describe('通用网络出口', () => {
-  it('RequestService、CRUD helper和公共客户端在无权时均不发写请求', async () => {
+  it('requestService、CRUD helper和公共客户端在无权时均不发写请求', async () => {
     const { setAdminFrameworkRuntime, requestClient } =
       await import('../runtime');
     const { RequestService } = await import('../request-service');

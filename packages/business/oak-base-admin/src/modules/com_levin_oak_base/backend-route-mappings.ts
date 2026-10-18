@@ -8,6 +8,7 @@ import {
 import { oakBaseAdminCrudResources } from './admin-crud';
 import * as oakBaseApi from './api';
 import { pageMeta as notificationAuditPageMeta } from './views/notification-audit/config';
+import { pageMeta as robotNotifyGroupPageMeta } from './views/robot-notify-group/config';
 import { pageMeta as supportMailboxRulePageMeta } from './views/support-mailbox-rule/config';
 import { pageMeta as ticketQueuePageMeta } from './views/ticket-queue/config';
 import { pageMeta as ticketPageMeta } from './views/ticket/config';
@@ -39,6 +40,7 @@ const pageMetaModules: Record<string, PageMeta> = {
     ]),
   ),
   './views/notification-audit/config.ts': notificationAuditPageMeta,
+  './views/robot-notify-group/config.ts': robotNotifyGroupPageMeta,
   './views/support-mailbox-rule/config.ts': supportMailboxRulePageMeta,
   './views/ticket-queue/config.ts': ticketQueuePageMeta,
   './views/ticket/config.ts': ticketPageMeta,
@@ -111,6 +113,8 @@ function getPageOperations(resource: string) {
   }
   if (resource === 'MyWorkflow')
     return buildAdminPageOperations(oakBaseApi.workflowRuntimeService);
+  if (resource === 'WorkflowInstance')
+    return buildAdminPageOperations(oakBaseApi.workflowManagementService);
   if (resource === 'WorkflowRequest') {
     return [
       ...buildAdminPageOperations(oakBaseApi.workflowRequestService),
@@ -127,7 +131,40 @@ function getPageOperations(resource: string) {
       getServiceMeta(candidate).basePath === expectedBasePath,
   );
 
-  return buildAdminPageOperations(service);
+  const operations = buildAdminPageOperations(service);
+  // 原业务页的通用流程抽屉复用公开运行接口；登记权限仅用于分配，不会自动授予。
+  if (
+    [
+      'Address',
+      'Article',
+      'ChannelPartner',
+      'EContract',
+      'SupplierPartner',
+      'User',
+    ].includes(resource)
+  ) {
+    return [
+      ...operations,
+      ...buildAdminPageOperations(oakBaseApi.workflowRuntimeService)
+        .filter((operation) =>
+          [
+            'catalog',
+            'eligibility',
+            'history',
+            'newRound',
+            'resubmit',
+            'retry',
+            'roundState',
+            'start',
+          ].includes(operation.opName),
+        )
+        .map((operation) => ({
+          ...operation,
+          opName: `workflow${operation.opName.charAt(0).toUpperCase()}${operation.opName.slice(1)}`,
+        })),
+    ];
+  }
+  return operations;
 }
 
 function createCrudBackendRouteMapping(
@@ -142,6 +179,7 @@ function createCrudBackendRouteMapping(
   return {
     description: pageMeta.description,
     icon: item.icon,
+    keepAlive: true,
     operations: getPageOperations(item.permissionResource || item.resource),
     // 个人消息由登录态和服务端精确受众校验；没有菜单时仍允许从通知铃铛进入。
     ...(item.resource === 'MyMessages'

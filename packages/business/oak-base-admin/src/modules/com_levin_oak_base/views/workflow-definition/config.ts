@@ -1,5 +1,6 @@
 import { workflowDefinitionService } from '../../api/workflow-definition-service';
 import { workflowDefinitionVersionService } from '../../api/workflow-definition-version-service';
+import { workflowManagementService } from '../../api/workflow-management-service';
 
 export const pageMeta = {
   name: 'WorkflowDefinition',
@@ -9,6 +10,13 @@ export const pageMeta = {
 } as const;
 
 export const pageOperations = [
+  { opName: 'instances', apiMethods: [workflowManagementService.instances] },
+  ...(['retire', 'restore', 'finishRetire', 'archive'] as const).map(
+    (method) => ({
+      opName: method,
+      apiMethods: [workflowDefinitionVersionService[method]],
+    }),
+  ),
   { opName: 'create', apiMethods: [workflowDefinitionService.create] },
   {
     opName: 'createVersion',

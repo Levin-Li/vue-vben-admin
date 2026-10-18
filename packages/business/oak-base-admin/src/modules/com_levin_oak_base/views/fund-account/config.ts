@@ -140,6 +140,7 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'balance',
       label: '可用余额',
+      moneyDisplay: { unit: '' },
       layoutGroup: 'business',
       layoutGroupTitle: '资金信息',
       layoutOrder: 10,
@@ -150,6 +151,7 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'freezeBalance',
       label: '冻结余额',
+      moneyDisplay: { unit: '' },
       layoutGroup: 'business',
       layoutOrder: 20,
       table: true,
@@ -159,6 +161,7 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'creditLimit',
       label: '授信额度',
+      moneyDisplay: { unit: '' },
       layoutGroup: 'business',
       layoutOrder: 30,
       table: true,
@@ -168,6 +171,7 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'creditBalance',
       label: '授信余额',
+      moneyDisplay: { unit: '' },
       layoutGroup: 'business',
       layoutOrder: 40,
       table: true,

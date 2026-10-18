@@ -40,6 +40,12 @@ export const helpCenterRoute: RouteRecordRaw = {
 export const oakBaseAdminRoutes: RouteRecordRaw[] = [
   // 关闭自动 CRUD 注册的宿主仍可显式访问同一套独立工作流页面。
   {
+    component: () => import('./views/workflow-instance/index.vue'),
+    meta: { title: '工作流实例管理', icon: 'lucide:activity' },
+    name: toPathRouteName('/clob/V1/WorkflowInstance'),
+    path: '/clob/V1/WorkflowInstance',
+  },
+  {
     component: () => import('./views/workflow-definition/index.vue'),
     meta: { title: '流程设计', icon: 'lucide:git-branch' },
     name: toPathRouteName('/clob/V1/WorkflowDefinition'),

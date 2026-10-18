@@ -63,6 +63,122 @@ function setup(
 }
 
 describe('业务流程资格与发起', () => {
+  it('未就绪不读取，恢复后读取；退出清除旧结果且权限撤销不追加请求', async () => {
+    const { api, wrapper } = setup();
+    await flushPromises();
+    api.history.mockResolvedValue([
+      { instanceId: 'old-run', status: 'Running' },
+    ]);
+    await wrapper.vm.refresh();
+    expect(wrapper.text()).toContain('old-run');
+    const count = api.history.mock.calls.length;
+
+    // 与退出同步撤销动作许可相同，组件不能由权限watch触发额外请求。
+    await wrapper.setProps({
+      ready: false,
+      canStart: false,
+      canResubmit: false,
+    });
+    await wrapper.vm.refresh();
+    await flushPromises();
+    expect(api.history).toHaveBeenCalledTimes(count);
+    expect(wrapper.text()).not.toContain('old-run');
+    expect(wrapper.text()).not.toContain('发起流程');
+    expect(wrapper.emitted('error')).toBeUndefined();
+
+    api.history.mockResolvedValue([
+      { instanceId: 'new-run', status: 'Running' },
+    ]);
+    await wrapper.setProps({ ready: true });
+    await flushPromises();
+    expect(api.history).toHaveBeenCalledTimes(count + 1);
+    expect(wrapper.text()).toContain('new-run');
+    expect(wrapper.text()).not.toContain('发起流程');
+    wrapper.unmount();
+  });
+
+  it('初次未就绪不发读取请求，暂停后迟到失败不产生错误提示', async () => {
+    const api = {
+      eligibility: vi.fn().mockResolvedValue([]),
+      history: vi.fn().mockResolvedValue([]),
+    };
+    const wrapper = shallowMount(WorkflowBusinessPanel, {
+      props: {
+        businessReference: { businessType: 'request', businessId: '1' },
+        service: api as unknown as WorkflowRuntimeService,
+        ready: false,
+      },
+      global: { stubs },
+    });
+    await wrapper.vm.refresh();
+    expect(api.history).not.toHaveBeenCalled();
+    expect(api.eligibility).not.toHaveBeenCalled();
+    let rejectHistory: (error: Error) => void = () => {};
+    api.history.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectHistory = reject;
+        }),
+    );
+    await wrapper.setProps({ ready: true });
+    await wrapper.setProps({ ready: false });
+    rejectHistory(new Error('session no longer ready'));
+    await flushPromises();
+    expect(wrapper.emitted('error')).toBeUndefined();
+    expect(wrapper.text()).not.toContain('流程信息加载失败');
+    wrapper.unmount();
+  });
+
+  it('暂停后迟到启动不发出旧事件，重新登录使用新的命令标识', async () => {
+    const { api, wrapper } = setup();
+    await flushPromises();
+    let resolveStart: (value: unknown) => void = () => {};
+    api.start.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveStart = resolve;
+        }),
+    );
+    const clickStart = () =>
+      wrapper
+        .findAll('button')
+        .find((button) => button.text() === '发起流程')
+        ?.trigger('click');
+    await clickStart();
+    await wrapper.setProps({ ready: false });
+    await wrapper.setProps({ ready: true });
+    await flushPromises();
+    let rejectCurrentStart: (error: Error) => void = () => {};
+    api.start.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectCurrentStart = reject;
+        }),
+    );
+    await clickStart();
+    const count = api.history.mock.calls.length;
+    // 新会话已经发起同一业务命令后，旧成功不能清除新请求的幂等键。
+    resolveStart({ instanceId: 'old-session-run', status: 'Running' });
+    await flushPromises();
+    expect(wrapper.emitted('started')).toBeUndefined();
+    expect(api.history).toHaveBeenCalledTimes(count);
+    rejectCurrentStart(new Error('new-session network failure'));
+    await flushPromises();
+    await clickStart();
+    await flushPromises();
+    expect(api.start).toHaveBeenCalledTimes(3);
+    expect(api.start.mock.calls[1]?.[0].idempotencyKey).not.toBe(
+      api.start.mock.calls[0]?.[0].idempotencyKey,
+    );
+    expect(api.start.mock.calls[2]?.[0].idempotencyKey).toBe(
+      api.start.mock.calls[1]?.[0].idempotencyKey,
+    );
+    expect(wrapper.emitted('started')).toEqual([
+      [{ instanceId: 'p1', status: 'Running' }],
+    ]);
+    wrapper.unmount();
+  });
+
   it('业务历史刷新失败后不继续显示上一次授权取得的记录', async () => {
     const { api, wrapper } = setup();
     api.history.mockResolvedValueOnce([

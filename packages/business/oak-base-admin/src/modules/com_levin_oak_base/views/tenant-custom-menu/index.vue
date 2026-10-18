@@ -100,8 +100,6 @@ const draggedSource = ref<MenuDisplaySource>();
 const draggedLayoutKey = ref<string>();
 const dropTargetKey = ref<string>();
 const dropTargetMode = ref<LayoutDropMode>();
-const hoveredLayoutKey = ref<string>();
-const deleteConfirmKey = ref<string>();
 const sourceAddActionHoverKey = ref<string>();
 const newLayoutOpen = ref(false);
 const newGroupOpen = ref(false);
@@ -836,12 +834,7 @@ function removeLayoutItemByKey(key: string) {
   }
   removeLayoutItem(layoutItems.value, key);
   layoutItems.value = cloneLayoutItems(layoutItems.value);
-  deleteConfirmKey.value = undefined;
   selectedItemKey.value = undefined;
-}
-
-function handleDeleteConfirmOpenChange(key: string, open: boolean) {
-  deleteConfirmKey.value = open ? key : undefined;
 }
 
 function clearLayoutItemChecks() {
@@ -1151,7 +1144,7 @@ function closeLayoutAdjuster() {
 
       <Spin :spinning="loading" class="min-h-0 flex-1">
         <div
-          class="grid h-[calc(80vh-230px)] min-h-[320px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]"
+          class="grid h-[calc(80vh-230px)] min-h-[320px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,2fr)]"
         >
           <Card
             :body-style="{ height: 'calc(80vh - 300px)', overflowY: 'auto' }"
@@ -1259,7 +1252,11 @@ function closeLayoutAdjuster() {
           </div>
 
           <Card
-            :body-style="{ height: 'calc(80vh - 300px)', overflowY: 'auto' }"
+            :body-style="{
+              height: 'calc(80vh - 300px)',
+              overflowX: 'auto',
+              overflowY: 'auto',
+            }"
             :bordered="false"
             class="min-h-0"
           >
@@ -1297,7 +1294,7 @@ function closeLayoutAdjuster() {
             <Tree
               v-else
               checkable
-              class="-ml-2 -mt-2 min-h-0"
+              class="-ml-2 -mt-2 min-h-0 min-w-[820px]"
               :checked-keys="checkedLayoutKeys"
               :draggable="layoutTreeDraggable as unknown as boolean"
               :expanded-keys="visibleLayoutExpandedKeys"
@@ -1329,8 +1326,6 @@ function closeLayoutAdjuster() {
                       updateLayoutDropTargetFromPointer(event, dataRef.key)
                   "
                   @drop="(event) => handleLayoutSourceDrop(event, dataRef.key)"
-                  @mouseenter="hoveredLayoutKey = dataRef.key"
-                  @mouseleave="hoveredLayoutKey = undefined"
                 >
                   <span
                     v-if="isActiveLayoutDropTarget(dataRef.key, 'before')"
@@ -1340,6 +1335,90 @@ function closeLayoutAdjuster() {
                     v-if="isActiveLayoutDropTarget(dataRef.key, 'after')"
                     class="bg-primary pointer-events-none absolute -bottom-1 left-0 right-0 z-10 h-0.5"
                   />
+                  <!-- 固定行首操作，两个竖向色块相距 12px，空间不足时由右栏滚动。 -->
+                  <div
+                    v-if="
+                      dataRef.key !== MY_MENU_ROOT_KEY ||
+                      shouldShowAddChildMenuAction()
+                    "
+                    class="layout-menu-row-actions flex shrink-0 items-center gap-3"
+                    @click.stop
+                    @mousedown.stop
+                  >
+                    <div
+                      v-if="dataRef.key !== MY_MENU_ROOT_KEY"
+                      class="layout-menu-action-stack border-border bg-muted/50 flex shrink-0 flex-col gap-0.5 rounded-md border p-0.5"
+                    >
+                      <Tooltip title="上移">
+                        <Button
+                          aria-label="上移"
+                          :disabled="
+                            !canMoveLayoutItem(layoutItems, dataRef.key, 'up')
+                          "
+                          class="!h-5 !w-6 !border-0 !bg-transparent !p-0 !shadow-none"
+                          size="small"
+                          @click.stop="moveLayoutItemByKey(dataRef.key, 'up')"
+                        >
+                          <IconifyIcon class="size-3" icon="lucide:arrow-up" />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="下移">
+                        <Button
+                          aria-label="下移"
+                          :disabled="
+                            !canMoveLayoutItem(layoutItems, dataRef.key, 'down')
+                          "
+                          class="!h-5 !w-6 !border-0 !bg-transparent !p-0 !shadow-none"
+                          size="small"
+                          @click.stop="moveLayoutItemByKey(dataRef.key, 'down')"
+                        >
+                          <IconifyIcon
+                            class="size-3"
+                            icon="lucide:arrow-down"
+                          />
+                        </Button>
+                      </Tooltip>
+                    </div>
+                    <div
+                      class="layout-menu-action-stack border-border bg-muted/50 flex shrink-0 flex-col gap-0.5 rounded-md border p-0.5"
+                    >
+                      <Tooltip
+                        v-if="shouldShowAddChildMenuAction()"
+                        title="新增子菜单"
+                      >
+                        <Button
+                          aria-label="新增子菜单"
+                          :class="
+                            isActiveLayoutDropTarget(dataRef.key, 'child')
+                              ? '!text-primary'
+                              : undefined
+                          "
+                          class="!h-5 !w-6 !border-0 !bg-transparent !p-0 !shadow-none"
+                          size="small"
+                          @click.stop="addChildLayoutItem(dataRef)"
+                        >
+                          <IconifyIcon class="size-3" icon="lucide:plus" />
+                        </Button>
+                      </Tooltip>
+                      <Popconfirm
+                        v-if="dataRef.key !== MY_MENU_ROOT_KEY"
+                        title="确认删除当前菜单及其子菜单？"
+                        @confirm="removeLayoutItemByKey(dataRef.key)"
+                      >
+                        <Tooltip title="删除菜单">
+                          <Button
+                            aria-label="删除菜单"
+                            class="!h-5 !w-6 !border-0 !bg-transparent !p-0 !shadow-none"
+                            danger
+                            size="small"
+                            @click.stop
+                          >
+                            <IconifyIcon class="size-3" icon="lucide:minus" />
+                          </Button>
+                        </Tooltip>
+                      </Popconfirm>
+                    </div>
+                  </div>
                   <span
                     v-if="dataRef.key === MY_MENU_ROOT_KEY"
                     class="min-w-28 flex-1"
@@ -1353,7 +1432,7 @@ function closeLayoutAdjuster() {
                       icon="lucide:grip-vertical"
                     />
                     <div
-                      class="layout-menu-label-drop-zone relative min-w-0 flex-1"
+                      class="layout-menu-label-drop-zone relative min-w-28 flex-1"
                     >
                       <Tooltip
                         :title="getLayoutTreeItem(dataRef).path || undefined"
@@ -1420,71 +1499,6 @@ function closeLayoutAdjuster() {
                           )
                       "
                     />
-                  </template>
-                  <template
-                    v-if="
-                      hoveredLayoutKey === dataRef.key ||
-                      deleteConfirmKey === dataRef.key ||
-                      isActiveLayoutDropTarget(dataRef.key, 'child')
-                    "
-                  >
-                    <template v-if="dataRef.key !== MY_MENU_ROOT_KEY">
-                      <Tooltip title="上移">
-                        <Button
-                          :disabled="
-                            !canMoveLayoutItem(layoutItems, dataRef.key, 'up')
-                          "
-                          size="small"
-                          @click.stop="moveLayoutItemByKey(dataRef.key, 'up')"
-                        >
-                          <IconifyIcon
-                            class="size-3.5"
-                            icon="lucide:arrow-up"
-                          />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip title="下移">
-                        <Button
-                          :disabled="
-                            !canMoveLayoutItem(layoutItems, dataRef.key, 'down')
-                          "
-                          size="small"
-                          @click.stop="moveLayoutItemByKey(dataRef.key, 'down')"
-                        >
-                          <IconifyIcon
-                            class="size-3.5"
-                            icon="lucide:arrow-down"
-                          />
-                        </Button>
-                      </Tooltip>
-                      <Popconfirm
-                        title="确认删除当前菜单及其子菜单？"
-                        @confirm="removeLayoutItemByKey(dataRef.key)"
-                        @open-change="
-                          (open) =>
-                            handleDeleteConfirmOpenChange(dataRef.key, open)
-                        "
-                      >
-                        <Tooltip title="删除菜单">
-                          <Button danger size="small" @click.stop> － </Button>
-                        </Tooltip>
-                      </Popconfirm>
-                    </template>
-                    <template v-if="shouldShowAddChildMenuAction()">
-                      <Tooltip title="新增子菜单">
-                        <Button
-                          :class="
-                            isActiveLayoutDropTarget(dataRef.key, 'child')
-                              ? '!border-primary text-primary'
-                              : undefined
-                          "
-                          size="small"
-                          @click.stop="addChildLayoutItem(dataRef)"
-                        >
-                          ＋
-                        </Button>
-                      </Tooltip>
-                    </template>
                   </template>
                 </div>
               </template>

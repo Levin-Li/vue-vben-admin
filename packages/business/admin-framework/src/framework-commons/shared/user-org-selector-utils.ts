@@ -11,7 +11,7 @@ const ORG_TYPE_ICON_MAP: Record<string, string> = {
   Branch: 'lucide:building',
   Company: 'lucide:building-2',
   Department: 'lucide:git-fork',
-  ExternalLegalSubject: 'lucide:handshake',
+  ExternalOrg: 'lucide:handshake',
   Group: 'lucide:users',
   Team: 'lucide:users-round',
   TempOrg: 'lucide:calendar-clock',
@@ -132,7 +132,8 @@ export function normalizeOrgSelectorRecord(
     name,
     raw: item,
     tenantId: String(item.tenantId ?? '').trim() || undefined,
-    tenantName: String(item.tenantName ?? item.tenant?.name ?? '').trim() || undefined,
+    tenantName:
+      String(item.tenantName ?? item.tenant?.name ?? '').trim() || undefined,
     type: getRawOrgType(item),
   };
 }
@@ -158,8 +159,7 @@ export function normalizeUserSelectorRecord(
     orgId: String(item.orgId ?? org?.id ?? ''),
     orgName: String(item.orgName ?? org?.name ?? ''),
     raw: item,
-    tenantId:
-      String(item.tenantId ?? org?.tenantId ?? '').trim() || undefined,
+    tenantId: String(item.tenantId ?? org?.tenantId ?? '').trim() || undefined,
     type: item.type ?? item.userType ?? item.typeCode,
   };
 }
@@ -236,7 +236,8 @@ export function buildUserOrgSelectorOrgTree(
     }
 
     const hasChildren = getRawHasChildren(item, rawChildren.length);
-    const allowSelectOrg = options.allowSelectOrg ?? canSelectKind(options.selectableTypes, 'org');
+    const allowSelectOrg =
+      options.allowSelectOrg ?? canSelectKind(options.selectableTypes, 'org');
     const allowSelectUser =
       options.allowSelectUser ?? canSelectKind(options.selectableTypes, 'user');
     const canAttemptLazyLoad =

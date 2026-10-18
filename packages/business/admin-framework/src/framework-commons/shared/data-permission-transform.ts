@@ -44,6 +44,11 @@ export function collectKnownPermissionTreeValues(nodes: PermissionTreeNode[]) {
   const values = new Set<string>();
   for (const node of nodes) {
     if (node.permissionExpr) values.add(node.permissionExpr);
+    for (const attribute of node.dataAttrs || []) {
+      for (const value of attribute.values || []) {
+        if (value.permissionExpr) values.add(value.permissionExpr);
+      }
+    }
     for (const group of node.attrGroups || []) {
       if (group.permissionExpr) values.add(group.permissionExpr);
     }

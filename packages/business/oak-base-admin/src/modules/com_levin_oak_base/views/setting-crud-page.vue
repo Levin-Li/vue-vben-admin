@@ -3,6 +3,9 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { computed, ref } from 'vue';
 
+import { useUserStore } from '@vben/runtime/stores';
+
+import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { Button, message, Modal } from 'ant-design-vue';
 
 import { moduleUpdateCrudRecord } from './api-module';
@@ -16,9 +19,9 @@ import SettingHistoryDialog from './setting-history-dialog.vue';
 import SettingValueContentField from './setting-value-content-field.vue';
 
 const props = defineProps<{
-  config: CrudPageConfig;
   /** 页面可将内容值编辑与记录自身 editable 标记分离。 */
   alwaysAllowValueEdit?: boolean;
+  config: CrudPageConfig;
   forceJsonValueEditor?: boolean;
   historyBizType?: string;
   serializeValueContent?: (
@@ -26,6 +29,7 @@ const props = defineProps<{
     value: unknown,
   ) => unknown;
 }>();
+const userStore = useUserStore();
 
 const editValueModalOpen = ref(false);
 const editValueRecord = ref<null | Record<string, any>>(null);
@@ -55,7 +59,11 @@ const editValueModalBodyStyle = {
 };
 
 function canEditValue(record: Record<string, any>) {
-  return props.alwaysAllowValueEdit || isSettingEditable(record);
+  return (
+    props.alwaysAllowValueEdit ||
+    isSuperAdminUser(userStore.userInfo) ||
+    isSettingEditable(record)
+  );
 }
 
 function openPreviewValue(record: Record<string, any>) {

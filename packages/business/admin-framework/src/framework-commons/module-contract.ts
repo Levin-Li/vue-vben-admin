@@ -36,6 +36,8 @@ export interface AdminModuleContext<
 export interface AdminBackendRouteMapping {
   description: string;
   icon: string;
+  /** 后端菜单映射后的本地页面是否保留标签实例状态。 */
+  keepAlive?: boolean;
   /** 映射不声明路由名称；运行时始终从最终 path 生成。 */
   name?: string;
   /** 显式声明页面仅要求登录，不依赖后端菜单授权；默认仍要求菜单授权。 */

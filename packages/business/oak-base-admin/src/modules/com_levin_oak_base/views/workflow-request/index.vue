@@ -6,9 +6,10 @@ import type { WorkflowRequestRecord } from '../../api/workflow-request-service';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { useUserStore } from '@vben/runtime/stores';
+import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
 import { UserOrgSelector } from '@levin/admin-framework';
+import { isDataAttrPolicyReady } from '@levin/admin-framework/framework-commons/data-attr-policy';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { WorkflowBusinessPanel } from '@levin/bpm-runtime-ui';
@@ -35,6 +36,10 @@ import { workflowRequestPageConfig } from './config';
 // 保留原有业务 CRUD；平台关联及办理历史通过公开运行组件独立展示。
 const router = useRouter();
 const userStore = useUserStore();
+const accessStore = useAccessStore();
+const workflowReady = computed(
+  () => !!accessStore.accessToken && isDataAttrPolicyReady(),
+);
 const selectedOrg = ref<UserOrgSelectorRecord>();
 const selectedScope = computed(() =>
   selectedOrg.value?.tenantId
@@ -325,6 +330,7 @@ function changeOrganization(records: UserOrgSelectorRecord[]) {
         </Space>
         <WorkflowBusinessPanel
           ref="versionPanel"
+          :ready="workflowReady"
           v-if="selectedContractVersion && !catalogLoading"
           :key="selectedContractVersion"
           :business-reference="{
@@ -345,6 +351,7 @@ function changeOrganization(records: UserOrgSelectorRecord[]) {
         />
         <WorkflowBusinessPanel
           ref="globalPanel"
+          :ready="workflowReady"
           :show-eligibility="canReadEligibility"
           :can-start="canStart"
           :key="selected.id"

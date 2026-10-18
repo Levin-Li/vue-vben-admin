@@ -37,7 +37,7 @@ describe('界面 UI 设置 2 单项属性面板', () => {
     }
     await wrapper.setProps({ view: 'list' });
     expect(wrapper.find('.ant-form-item-label').text()).toBe('列宽');
-    expect(wrapper.findComponent(Switch).exists()).toBe(false);
+    expect(wrapper.find('[aria-label="是否展示"]').exists()).toBe(false);
     expect(wrapper.emitted('patch')).toBeUndefined();
     wrapper.unmount();
   });
@@ -106,7 +106,13 @@ describe('界面 UI 设置 2 单项属性面板', () => {
       visibility: { expression: 'true', exclusiveWith: { fieldKeys: ['id'] } },
     };
     const wrapper = mount(PageDisplaySettingsV2PropertyPanel, {
-      props: { ...commonProps, item, kind: 'field', view: 'query' },
+      props: {
+        ...commonProps,
+        item,
+        kind: 'field',
+        sourceField: { key: 'count', label: '数量', type: 'number' },
+        view: 'query',
+      },
     });
     expect(wrapper.emitted('patch')).toBeUndefined();
     wrapper.findComponent(InputNumber).vm.$emit('update:value', 5);

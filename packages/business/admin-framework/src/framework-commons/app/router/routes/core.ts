@@ -145,6 +145,16 @@ const coreRoutes: RouteRecordRaw[] = [
           title: $t('page.auth.register'),
         },
       },
+      {
+        name: toPathRouteName('/auth/invitation-register'),
+        path: 'invitation-register',
+        component: resolveAdminPage(
+          '/_core/authentication/invitation-register.vue',
+        ),
+        meta: {
+          title: '邀请注册',
+        },
+      },
     ],
   },
 ];

@@ -1,3 +1,7 @@
+import { shallowRef } from 'vue';
+
+import { CanceledError } from '@vben/runtime/request';
+
 export const DATA_ATTR_POLICY_PATH =
   '/com.levin.oak.base/V1/api/rbac/apiDataAttrPolicies';
 /** API 属性组策略由后端计算；前端只消费当前主体的 allowed 结论。 */
@@ -47,13 +51,15 @@ type PolicyQuery = DataAttrTarget | { operation: string };
 type Loader = (query: PolicyQuery) => Promise<DataAttrPolicies>;
 let loader: Loader | undefined;
 let enabled = false;
+// 就绪状态与策略加载器同步变化，供启动与退出阶段延后附属业务请求。
+const policyReady = shallowRef(false);
 let generation = 0;
 const listeners = new Set<() => void>();
 export function isDataAttrPolicyEnabled() {
   return enabled;
 }
 export function isDataAttrPolicyReady() {
-  return Boolean(loader);
+  return policyReady.value;
 }
 export function getDataAttrPolicyEpoch() {
   return generation;
@@ -74,23 +80,33 @@ export function clearDataAttrPolicies() {
 }
 export function suspendDataAttrPolicies() {
   loader = undefined;
+  policyReady.value = false;
   clearDataAttrPolicies();
 }
 export function configureDataAttrPolicyLoader(next: Loader) {
   enabled = true;
+  policyReady.value = false;
   loader = next;
   clearDataAttrPolicies();
+  policyReady.value = true;
 }
 function fetchPolicy(query: PolicyQuery): Promise<DataAttrPolicy> {
-  if (!loader) return Promise.reject(new Error('API属性组策略尚未初始化'));
+  if (!loader) {
+    return Promise.reject(
+      enabled
+        ? new CanceledError('登录会话尚未就绪，不能读取业务策略')
+        : new Error('API属性组策略尚未初始化'),
+    );
+  }
   const key = JSON.stringify(query);
   const present = cache.get(key);
   if (present) return present;
   const epoch = generation;
   const promise = loader(query)
     .then((result) => {
+      // 旧会话请求必须终止；使用请求层标准取消类型，避免将正常上下文切换误报服务器故障。
       if (generation !== epoch)
-        throw new Error('登录身份或权限已变化，请重新操作');
+        throw new CanceledError('登录身份或权限已变化，请重新操作');
       if (
         result.version !== 1 ||
         !Array.isArray(result.policies) ||
@@ -466,7 +482,7 @@ export async function guardDataAttrRequest(
   config: Record<string, any> = {},
 ) {
   if (!loader) {
-    if (enabled) throw new Error('登录会话尚未就绪，不能提交业务请求');
+    if (enabled) throw new CanceledError('登录会话尚未就绪，不能提交业务请求');
     return;
   }
   path = dataAttrRequestPath(path, config.baseURL);

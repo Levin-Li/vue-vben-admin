@@ -5,6 +5,7 @@ export interface ProviderConfigurationRecord {
   id?: string;
   optimisticLock?: number;
   servicePluginProviderCode?: string;
+  servicePluginProviderInstanceCode?: string;
   tenantId?: null | string;
   value?: Record<string, unknown>;
 }
@@ -15,13 +16,27 @@ export function prepareProviderSettingSubmit(
   editing: boolean,
 ) {
   if (editing) {
-    const { servicePluginProviderCode: _providerCode, ...editableValues } =
-      values;
+    const {
+      servicePluginProviderCode: _providerCode,
+      servicePluginProviderInstanceCode: _providerInstanceCode,
+      usageCount: _usageCount,
+      ...editableValues
+    } = values;
     return editableValues;
   }
   const providerCode = String(values.servicePluginProviderCode || '').trim();
+  const providerInstanceCode = String(
+    values.servicePluginProviderInstanceCode || 'default',
+  ).trim();
   if (!providerCode) throw new Error('请选择供应商');
-  return { ...values, value: { [providerCode]: {} } };
+  if (!providerInstanceCode) throw new Error('请输入配置实例编码');
+  return {
+    ...values,
+    servicePluginProviderInstanceCode: providerInstanceCode,
+    usageCount: 0,
+    usageWeight: Number(values.usageWeight || 1),
+    value: { [providerCode]: {} },
+  };
 }
 
 export function buildProviderConfigurationUpdate(

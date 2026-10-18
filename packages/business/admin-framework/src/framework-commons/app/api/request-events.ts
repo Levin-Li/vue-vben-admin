@@ -1,8 +1,6 @@
-import {
-  emitFrameworkEvent,
-  onFrameworkEvent,
-  type FrameworkEvent,
-} from '../../event-bus';
+import type { FrameworkEvent } from '../../event-bus';
+
+import { emitFrameworkEvent, onFrameworkEvent } from '../../event-bus';
 
 export const API_REQUEST_EVENT_TYPE = 'api.request';
 
@@ -25,6 +23,16 @@ export function getApiRequestEventTopic(payload: ApiRequestEventPayload) {
 export function emitApiRequestEvent<Data = any>(
   payload: ApiRequestEventPayload<Data>,
 ) {
+  // 专用凭据接口由调用方标记；成功和失败都不向通用事件总线广播敏感响应。
+  if (
+    payload.config?.__sensitiveResponse === true ||
+    payload.response?.config?.__sensitiveResponse === true ||
+    payload.error?.config?.__sensitiveResponse === true ||
+    payload.error?.response?.config?.__sensitiveResponse === true
+  ) {
+    return;
+  }
+
   return emitFrameworkEvent(
     API_REQUEST_EVENT_TYPE,
     getApiRequestEventTopic(payload),

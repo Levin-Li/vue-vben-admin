@@ -13,6 +13,11 @@ vi.mock('../api/workflow-request-service', () => ({
   workflowRequestService: { retrieve: vi.fn() },
 }));
 vi.mock('../api/workflow-runtime-service', () => ({
+  workflowOperationPermissions: {
+    withdraw: [],
+    terminate: ['workflow.runtime.terminate'],
+    recover: ['workflow.runtime.recover'],
+  },
   workflowRuntimeService: { retry: vi.fn() },
 }));
 // 页面在真实宿主中由认证 Store 与路由提供当前上下文，测试固定这两个边界。

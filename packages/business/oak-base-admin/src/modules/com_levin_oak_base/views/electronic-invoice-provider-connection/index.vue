@@ -17,6 +17,7 @@ import {
 
 import { electronicInvoiceProviderConnectionService } from '../../api/electronic-invoice-provider-connection-service';
 import CrudPage from '../crud-page.vue';
+import IssuerPartnerPicker from '../partner/issuer-partner-picker.vue';
 import {
   electronicInvoiceProviderConnectionPageCrudConfig,
   electronicInvoiceProviderOptions,
@@ -177,6 +178,18 @@ async function submitAuthorization() {
     </Card>
 
     <CrudPage :config="pageConfig">
+      <template #search-field-partnerId="{ searchState }">
+        <IssuerPartnerPicker
+          v-model="searchState.partnerId"
+          :tenant-id="searchState.tenantId"
+        />
+      </template>
+      <template #form-field-partnerId="{ formState }">
+        <IssuerPartnerPicker
+          v-model="formState.partnerId"
+          :tenant-id="formState.tenantId"
+        />
+      </template>
       <template #row-actions="{ record, reload }">
         <Button
           v-if="

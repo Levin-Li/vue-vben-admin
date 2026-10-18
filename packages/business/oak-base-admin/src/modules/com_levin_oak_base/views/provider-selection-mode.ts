@@ -1,4 +1,7 @@
-export type ProviderSelectionMode = 'MULTI_CHOICE' | 'SINGLE_ACTIVE';
+export type ProviderSelectionMode =
+  | 'MULTI_ACTIVE_BALANCED'
+  | 'MULTI_CHOICE'
+  | 'SINGLE_ACTIVE';
 
 export type ProviderSelectionModes = Record<string, ProviderSelectionMode>;
 
@@ -17,12 +20,28 @@ export function parseProviderSelectionModes(
   }
   const modes: ProviderSelectionModes = {};
   for (const [pluginId, mode] of Object.entries(value)) {
-    if (mode !== 'SINGLE_ACTIVE' && mode !== 'MULTI_CHOICE') {
+    if (
+      mode !== 'SINGLE_ACTIVE' &&
+      mode !== 'MULTI_CHOICE' &&
+      mode !== 'MULTI_ACTIVE_BALANCED'
+    ) {
       throw new Error(`服务插件 ${pluginId} 的供应商选择模式未知`);
     }
     modes[pluginId] = mode;
   }
   return modes;
+}
+
+export function allowsMultipleProviderInstances(
+  mode: ProviderSelectionMode | undefined,
+): boolean {
+  return mode === 'MULTI_ACTIVE_BALANCED';
+}
+
+export function allowsMultipleActiveProviders(
+  mode: ProviderSelectionMode | undefined,
+): boolean {
+  return mode === 'MULTI_CHOICE' || mode === 'MULTI_ACTIVE_BALANCED';
 }
 
 export function getProviderSelectionMode(

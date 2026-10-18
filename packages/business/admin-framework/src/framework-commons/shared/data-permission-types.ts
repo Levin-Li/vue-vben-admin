@@ -13,6 +13,16 @@ export interface RbacDataAttrGroup {
   remark?: string;
 }
 
+/** 后端提供的枚举记录范围；许可表达式必须原样保存。 */
+export interface DataAttrValuePermission {
+  attribute: string;
+  entityClass: string;
+  entityName?: string;
+  name: string;
+  remark?: string;
+  values: { label: string; name: string; permissionExpr: string }[];
+}
+
 export interface RbacActionNode {
   action?: string;
   attrGroups?: RbacDataAttrGroup[];
@@ -55,6 +65,7 @@ export enum PermissionTreeNodeType {
 export interface PermissionTreeNode {
   attrGroups?: RbacDataAttrGroup[];
   children?: PermissionTreeNode[];
+  dataAttrs?: DataAttrValuePermission[];
   id: string;
   label?: null | string;
   name: string;

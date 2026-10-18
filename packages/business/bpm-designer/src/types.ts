@@ -110,6 +110,29 @@ export interface WorkflowVariable {
   source: string;
   type: WorkflowValueType;
 }
+/** 通知只使用固定版本中的平台模板；外部联系方式由服务端解析。 */
+export interface WorkflowNotification {
+  channels: WorkflowNotificationChannel[];
+  content: string;
+  event: WorkflowNotificationEvent;
+  recipient: 'applicant' | 'initiator' | 'taskCandidates';
+  title: string;
+}
+export type WorkflowNotificationChannel =
+  | 'DingTalkWebhook'
+  | 'Email'
+  | 'FeishuWebhook'
+  | 'Sms'
+  | 'Station'
+  | 'WeComWebhook';
+export type WorkflowNotificationEvent =
+  | 'NodeCompleted'
+  | 'NodeEntered'
+  | 'TaskCreated'
+  | 'TaskDeadline'
+  | 'TaskProcessed'
+  | 'TaskReminder';
+
 export interface WorkflowNode {
   actionCandidateGroups?: string[];
   actionCandidateUsers?: string[];
@@ -132,6 +155,7 @@ export interface WorkflowNode {
   joinId?: string;
   multiApprovalMode?: 'ALL' | 'ANY' | 'NONE';
   name: string;
+  notifications?: WorkflowNotification[];
   outcome?: string;
   readableFields?: string[];
   reminderMinutes?: number;

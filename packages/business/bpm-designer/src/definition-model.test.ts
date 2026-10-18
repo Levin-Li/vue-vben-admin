@@ -5,12 +5,38 @@ import {
   createDefinition,
   createTreeDefinition,
   definitionFingerprint,
+  getLatestWorkflowBusinessType,
   removeNode,
   validateDefinition,
   validateTreeDefinition,
 } from './definition-model';
 
 describe('流程设计结构', () => {
+  it('新建方案按版本自然顺序取最新，不受目录返回顺序或其他对象影响', () => {
+    const directory = [2, 10, 1].map((contractVersion) => ({
+      businessType: 'request',
+      contractVersion: String(contractVersion),
+      title: '申请',
+      fields: {},
+    }));
+    directory.push({
+      businessType: 'other',
+      contractVersion: '99',
+      title: '其他',
+      fields: {},
+    });
+    expect(
+      getLatestWorkflowBusinessType(directory, 'request')?.contractVersion,
+    ).toBe('10');
+    expect(getLatestWorkflowBusinessType(directory, 'missing')).toBeUndefined();
+    expect(directory.map((item) => item.contractVersion)).toEqual([
+      '2',
+      '10',
+      '1',
+      '99',
+    ]);
+  });
+
   it('新建 v3 草稿仅持有一棵连通树，严格执行门禁另行判断业务绑定', () => {
     const tree = createTreeDefinition('review', '审核');
     expect(tree.schemaVersion).toBe(3);

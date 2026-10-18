@@ -1,10 +1,16 @@
-import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
-import { RequestService } from '@levin/admin-framework';
+import {
+  CRUD,
+  RequestService,
+  ResAuthorize,
+  Service,
+} from '@levin/admin-framework';
+
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
   basePath: '/EContractTemplate',
-  controllerClass: 'com.levin.oak.base.controller.BizEContractTemplateController',
+  controllerClass:
+    'com.levin.oak.base.controller.BizEContractTemplateController',
   description: '电子合同模板管理',
   title: '电子合同模板',
   type: '系统数据-电子合同模板',
@@ -14,34 +20,80 @@ export class ElectronicContractTemplateService extends RequestService {
     super(OAK_BASE_API_MODULE);
   }
 
-  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-电子合同模板', action: '查询列表' })
-  @CRUD.ListTable({ refEntityClass: 'com.levin.oak.base.entities.EContractTemplate' })
-  async list(params?: any, options?: any) {
-    return this.get('list', { ...options, params });
-  }
-
-  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-电子合同模板', action: '查看详情' })
-  @CRUD.Op({ confirmText: 'None' })
-  async retrieve(params?: any, options?: any) {
-    return this.get('retrieve', { ...options, params });
-  }
-
-  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-电子合同模板', action: '新增' })
   @CRUD.Op({ opRefTargetType: 'None' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-电子合同模板',
+    action: '新增',
+  })
   async create(data?: any, options?: any) {
     return this.post('create', { ...options, data });
   }
 
-  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-电子合同模板', action: '更新' })
   @CRUD.Op()
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-电子合同模板',
+    action: '删除',
+  })
+  async delete(params?: any, options?: any) {
+    return this.deleteRequest('delete', { ...options, params });
+  }
+
+  @CRUD.ListTable({
+    refEntityClass: 'com.levin.oak.base.entities.EContractTemplate',
+  })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-电子合同模板',
+    action: '查询列表',
+  })
+  async list(params?: any, options?: any) {
+    return this.get('list', { ...options, params });
+  }
+
+  @CRUD.Op({ confirmText: 'None' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-电子合同模板',
+    action: '查看详情',
+  })
+  async retrieve(params?: any, options?: any) {
+    return this.get('retrieve', { ...options, params });
+  }
+
+  @CRUD.Op()
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-电子合同模板',
+    action: '更新',
+  })
   async update(data?: any, options?: any) {
     return this.put('update', { ...options, data });
   }
 
-  @ResAuthorize({ domain: 'com.levin.oak.base', type: '系统数据-电子合同模板', action: '删除' })
-  @CRUD.Op()
-  async delete(params?: any, options?: any) {
-    return this.deleteRequest('delete', { ...options, params });
+  // 专用上传一次性登记受控 FileRes，模板只引用返回的资源元数据。
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-电子合同模板',
+    action: '新增',
+  })
+  async uploadTemplateDocx(
+    file: File,
+    scope: { orgId?: string; ownerId?: string; tenantId?: string } = {},
+  ) {
+    const data = new FormData();
+    data.append('file', file);
+    for (const [key, value] of Object.entries(scope)) {
+      if (value) data.append(key, value);
+    }
+    return this.post<{
+      fileHash?: string;
+      fileName: string;
+      fileResId: string;
+      fileUrl: string;
+      mimeType: string;
+    }>('uploadTemplateDocx', { data });
   }
 }
 

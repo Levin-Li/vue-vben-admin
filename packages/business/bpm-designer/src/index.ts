@@ -2,6 +2,7 @@ export { default as LowflowFlowDesign } from '../third-party/lowflow-design/src/
 export {
   createDefinition,
   createTreeDefinition,
+  getLatestWorkflowBusinessType,
   validateDefinition,
   validateTreeDefinition,
 } from './definition-model';

@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
+import { ref } from 'vue';
 
 import { Modal } from 'ant-design-vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,6 +12,8 @@ const calls = vi.hoisted(() => ({
   post: vi.fn(),
   put: vi.fn(),
   permission: vi.fn(),
+  ready: { value: true },
+  token: { value: 'qa-session' },
 }));
 
 vi.mock('@levin/admin-framework', () => ({
@@ -41,6 +44,14 @@ vi.mock(
 );
 vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({ userInfo: { superAdmin: true } }),
+  useAccessStore: () => ({
+    get accessToken() {
+      return calls.token.value;
+    },
+  }),
+}));
+vi.mock('@levin/admin-framework/framework-commons/data-attr-policy', () => ({
+  isDataAttrPolicyReady: () => calls.ready.value,
 }));
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@levin/bpm-runtime-ui', () => ({
@@ -53,6 +64,7 @@ vi.mock('@levin/bpm-runtime-ui', () => ({
       'canRetry',
       'showEligibility',
       'showHistory',
+      'ready',
     ],
     template: '<div />',
   },
@@ -83,10 +95,49 @@ vi.mock('../views/crud-page.vue', () => ({
 describe('流程申请宿主的显式组织选择', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    calls.ready = ref(true);
+    calls.token = ref('qa-session');
     calls.permission.mockReturnValue(true);
     calls.catalog.mockResolvedValue([
       { businessType: 'workflow-request', contractVersion: '1' },
     ]);
+  });
+
+  it('会话或授权未就绪时同步暂停两个业务面板，恢复后重新开放读取', async () => {
+    calls.get.mockResolvedValue({ id: 'request-1', title: '申请' });
+    const wrapper = mount(WorkflowRequestPage, {
+      global: { stubs: { Drawer: { template: '<section><slot/></section>' } } },
+    });
+    wrapper
+      .findComponent({ name: 'UserOrgSelector' })
+      .vm.$emit('update:selected-records', [
+        { id: 'org-a', kind: 'org', name: '研发', tenantId: 'tenant-a' },
+      ]);
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '业务流程')
+      ?.trigger('click');
+    await flushPromises();
+    const panels = () =>
+      wrapper.findAllComponents({ name: 'WorkflowBusinessPanel' });
+    expect(panels()).toHaveLength(2);
+    expect(panels().every((panel) => panel.props('ready'))).toBe(true);
+    calls.ready.value = false;
+    await flushPromises();
+    expect(panels().every((panel) => panel.props('ready') === false)).toBe(
+      true,
+    );
+    calls.ready.value = true;
+    calls.token.value = '';
+    await flushPromises();
+    expect(panels().every((panel) => panel.props('ready') === false)).toBe(
+      true,
+    );
+    calls.token.value = 'next-session';
+    await flushPromises();
+    expect(panels().every((panel) => panel.props('ready'))).toBe(true);
+    wrapper.unmount();
   });
 
   it('宿主显式提供契约1，各轮次动作按实际API方法权限独立传入', async () => {

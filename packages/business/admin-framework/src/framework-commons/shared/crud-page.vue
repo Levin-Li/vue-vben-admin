@@ -1,14 +1,21 @@
 <script lang="ts" setup>
 import type { TableColumnsType, UploadFile } from 'ant-design-vue';
 
+import type { VNode } from 'vue';
+
+import type { UiSettingRuntimeRecord } from '../app/api/ui-setting-runtime';
 import type { NormalizedCrudAction } from './crud-action-model';
+import type { CrudImportMapping, ParsedImportSheet } from './crud-import';
 import type { SearchFieldItem } from './crud-query-items';
 import type { CompactTableExpandedSide } from './crud-table-columns';
+import type { CrudTemplateSaveScope } from './crud-template-service';
+import type { CrudExportConverter } from './crud-value-converter';
+import type { DetailDisplayEntry } from './detail-display';
 import type {
+  CrudDynamicText,
   CrudExportTemplateConfig,
   CrudExportTemplateContext,
   CrudExportTemplateRecord,
-  CrudDynamicText,
   CrudFieldConfig,
   CrudListTableConfig,
   CrudPageConfig,
@@ -22,39 +29,30 @@ import type {
 } from './types';
 
 import {
-  resolveActionButtonLabel,
-  resolveActionButtonStyle,
-} from './crud-action-display';
-
-import {
   cloneVNode,
   computed,
   defineAsyncComponent,
   h,
   nextTick,
+  onActivated,
+  onDeactivated,
   onMounted,
   onUnmounted,
+  provide,
   reactive,
   readonly,
   ref,
   render,
-  provide,
   useSlots,
-  type VNode,
   watch,
 } from 'vue';
-import {
-  CRUD_FORM_ELEMENT_REGISTRY_KEY,
-  createCrudFormElementRegistry,
-} from './crud-form-elements';
-import { nestCrudFormBlocks } from './crud-form-block-tree';
-import CrudFormBlockTree from './crud-form-block-tree.vue';
 import { useRoute } from 'vue-router';
 
 import { Page, VCropper } from '@vben/common-ui';
 import { ChevronDown, IconifyIcon, Plus } from '@vben/runtime/icons';
-import { preferences } from '@vben-core/foundation/preferences';
 import { useAccessStore, useUserStore } from '@vben/runtime/stores';
+
+import { preferences } from '@vben-core/foundation/preferences';
 
 import {
   AutoComplete,
@@ -98,38 +96,40 @@ import {
   uploadFileByFileStorageController,
 } from '../app/api/file-storage-service';
 import { rbacService } from '../app/api/rbac-service';
+import { saveUiSettingWithCandidates } from '../app/api/ui-setting-candidate-save';
+import { resolveUiSettingRecordScope } from '../app/api/ui-setting-record-scope';
 import {
   resolveUiSettingRuntimeWithScope,
   UI_SETTING_RETRIEVE_PATH,
-  type UiSettingRuntimeRecord,
 } from '../app/api/ui-setting-runtime';
-import { saveUiSettingWithCandidates } from '../app/api/ui-setting-candidate-save';
-import { resolveUiSettingRecordScope } from '../app/api/ui-setting-record-scope';
 import { getCurrentTenantSiteInfo } from '../app/tenant-site-admin-ui-base-setting';
 import { mergeFixedQuery, parseMenuFixedQuery } from '../menu-fixed-query';
 import { useRbacAccess } from '../rbac-access';
 import { requestClient } from '../runtime';
 import {
-  formatAdministrativeArea,
   filterAdministrativeAreaOptions,
+  formatAdministrativeArea,
   getAdministrativeAreaCascaderOptions,
   getCurrentOpenAreaCodes,
   hasOpenAreaContext,
-  restrictAdministrativeAreaOptionsByLevels,
   resolveAdministrativeAreaSelectableLevels,
+  restrictAdministrativeAreaOptionsByLevels,
 } from './administrative-area-data';
 import {
   applyAreaCascaderValueToRecord,
   getAreaCascaderValueFromRecord,
 } from './area-cascader';
 import CodeEditorField from './code-editor-field.vue';
-import RichTextEditorField from './rich-text-editor-field.vue';
 import {
   DEFAULT_CONTENT_MODAL_BODY_STYLE,
   DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
   DEFAULT_DETAIL_MODAL_WIDTH,
 } from './config-helpers';
 import CronExpressionField from './cron-expression-field.vue';
+import {
+  resolveActionButtonLabel,
+  resolveActionButtonStyle,
+} from './crud-action-display';
 import {
   buildActionLogTooltipItems,
   formatWorkflowStatusLabel,
@@ -159,9 +159,14 @@ import {
   isCrudComplexGroupEnabled,
 } from './crud-complex-groups';
 import { buildNoFormFlowConfirmConfig } from './crud-confirm';
-import { useCrudDataAttrAccess } from './crud-data-attr-access';
+import {
+  isCrudDataAttrOperationEnabled,
+  useCrudDataAttrAccess,
+} from './crud-data-attr-access';
 import {
   canMutateCrudRecord as canMutateEditableCrudRecord,
+  isEditableCrudFieldVisible,
+  resolveEditableCrudFields,
   shouldApplyEditableSearchDefault,
 } from './crud-editable-access';
 import CrudExportPanel from './crud-export-panel.vue';
@@ -178,6 +183,12 @@ import {
   isFixedCrudFormField,
   isFixedCrudQueryField,
 } from './crud-fixed-query';
+import { nestCrudFormBlocks } from './crud-form-block-tree';
+import CrudFormBlockTree from './crud-form-block-tree.vue';
+import {
+  createCrudFormElementRegistry,
+  CRUD_FORM_ELEMENT_REGISTRY_KEY,
+} from './crud-form-elements';
 import {
   shouldShowCrudFormField,
   shouldSubmitCrudFormField,
@@ -209,56 +220,64 @@ import {
   getMissingRequiredImportMappings,
   normalizeImportTemplateConfig,
   parseImportFile,
-  type CrudImportMapping,
-  type ParsedImportSheet,
 } from './crud-import';
 import CrudImportPanel from './crud-import-panel.vue';
-import { getCrudListScroll, resolveCrudListHeight } from './crud-list-height';
 import {
   buildCrudJsonFieldUpdatePayload,
   getCrudJsonSchemaEditFields,
 } from './crud-json-schema-actions';
+import { getCrudListScroll, resolveCrudListHeight } from './crud-list-height';
+import {
+  buildListOperationCandidates,
+  getListOperationKey,
+  isListOperationVisible as resolveListOperationVisible,
+} from './crud-list-operations';
+import {
+  formatCrudMoneyValue,
+  getCrudMoneyUnitHint,
+  isCrudMoneyField,
+} from './crud-money-display';
 import { shouldShowCrudOperationColumn } from './crud-operation-column-visibility';
 import {
   filterCrudOperationsByListTable,
   groupCrudOperationsByRecordRef,
 } from './crud-operation-placement';
-import { resolvePageDisplayContextKey } from './crud-page-display';
 import {
   buildOrganizationScriptContext,
   buildTenantScriptContext,
   canUseLocalTableColumnSettings,
+  CRUD_OPERATION_COLUMN_KEY,
   CRUD_ROW_ACTION_DELETE_KEY,
   CRUD_ROW_ACTION_DETAIL_KEY,
   CRUD_ROW_ACTION_EDIT_KEY,
-  CRUD_OPERATION_COLUMN_KEY,
   DEFAULT_CRUD_OPERATION_COLUMN_WIDTH,
   distributeExtraTableWidth,
-  getDefaultFieldHidden,
   getComplexObjectDisplayGroupKey,
   getCrudRowActionDisplayKey,
+  getDefaultFieldHidden,
   initializeHeaderVisibility,
-  isEligibleStaticDisplayGroup,
   isDisplayGroupVisible,
+  isEligibleStaticDisplayGroup,
   isRoleVisibilitySatisfied,
   resolveCrudPageDisplayDefaults,
   resolveDefaultTableColumnWidth,
+  resolveDisplayGroupExpandedFieldCount,
   resolveDisplayGroupOrder,
-  resolveStaticDisplayGroup,
   resolveDisplayStates,
   resolveDisplaySubmitKeys,
+  resolvePageDisplayContextKey,
+  resolvePageDisplaySettingCode,
   resolvePageDisplayViewTitle,
+  resolveQueryCollapsedFieldCount,
+  resolveQueryCollapsedRows,
   resolveRuntimeDisplayField,
   resolveRuntimeDisplayHeader,
-  resolvePageDisplaySettingCode,
-  resolveQueryCollapsedRows,
-  resolveQueryCollapsedFieldCount,
-  resolveDisplayGroupExpandedFieldCount,
-  shouldAutoQuery,
+  resolveStaticDisplayGroup,
   shouldAutoForceUpdateField,
-  shouldUseSingleTextQueryAutoSearch,
-  shouldStartQueryGroupOnNewLine,
+  shouldAutoQuery,
   shouldShowManualQueryButton,
+  shouldStartQueryGroupOnNewLine,
+  shouldUseSingleTextQueryAutoSearch,
   supportsInlineChoiceOptions,
 } from './crud-page-display';
 import {
@@ -298,23 +317,18 @@ import {
   normalizeCrudTemplateConfig,
   normalizeCrudTemplateList,
   removeCrudTemplateFromList,
-  type CrudTemplateSaveScope,
 } from './crud-template-service';
 import {
   buildCrudCollectionTooltipText,
   buildCrudTooltipText,
   CRUD_TOOLTIP_MOUSE_ENTER_DELAY,
 } from './crud-tooltip-preview';
-import {
-  formatCrudExportValue,
-  type CrudExportConverter,
-} from './crud-value-converter';
+import { formatCrudExportValue } from './crud-value-converter';
 import { evaluateCrudVisibleOn } from './crud-visible-on';
 import {
   buildDetailDisplayEntries,
   flattenCrudComplexDetailRecord,
   resolveDetailFields,
-  type DetailDisplayEntry,
 } from './detail-display';
 import DetailDisplayPanel from './detail-display-panel.vue';
 import { evaluateJavaScriptExpression } from './javascript-expression';
@@ -326,11 +340,7 @@ import {
   isCrudFieldJsonSchemaInline,
 } from './json-schema-source';
 import PageDisplaySettingsDrawer from './page-display-settings-drawer.vue';
-import {
-  buildListOperationCandidates,
-  getListOperationKey,
-  isListOperationVisible as resolveListOperationVisible,
-} from './crud-list-operations';
+import RichTextEditorField from './rich-text-editor-field.vue';
 import {
   collectUserRoleIdentityValues,
   isSuperAdminUser,
@@ -404,6 +414,14 @@ const LIST_TABLE_TABS_DRAG_THRESHOLD = 4;
 const LIST_TABLE_TABS_EDGE_PADDING = 8;
 
 const { hasPermission } = useRbacAccess();
+// 缓存页离开前台后停止策略预取和辅助元数据加载，避免后台错误持续扰动当前页。
+const pageActive = ref(true);
+onActivated(() => {
+  pageActive.value = true;
+});
+onDeactivated(() => {
+  pageActive.value = false;
+});
 const userStore = useUserStore();
 const accessStore = useAccessStore();
 const route = useRoute();
@@ -411,7 +429,9 @@ const pageEntryPath = route.path;
 // 固定条件属于当前页面实例，避免缓存页面读取后来激活的另一菜单条件。
 const menuFixedQuery = parseMenuFixedQuery(route.meta.fixedQuery);
 
-const effectiveFields = computed(() => props.config.fields);
+const effectiveFields = computed(() =>
+  resolveEditableCrudFields(props.config.fields),
+);
 
 watch(
   effectiveFields,
@@ -482,8 +502,8 @@ const actionResultHideEmptyValues = ref(false);
 const actionResultData = ref<any>(null);
 const actionResultUsesRetrievePolicy = ref(false);
 const latestDetailRecord = ref<{
-  source: string | undefined;
   record: GenericRecord;
+  source: string | undefined;
 }>();
 const actionResultMode = ref<NormalizedCrudAction>('showSchema');
 const exportModalOpen = ref(false);
@@ -506,7 +526,7 @@ const importTemplateLoading = ref(false);
 const importTemplateSaving = ref(false);
 const importTemplates = ref<CrudExportTemplateRecord[]>([]);
 const selectedImportTemplateId = ref<string | undefined>();
-const importSheet = ref<ParsedImportSheet | null>(null);
+const importSheet = ref<null | ParsedImportSheet>(null);
 const importMappings = ref<CrudImportMapping[]>([]);
 const importFileName = ref('');
 const importConsoleLines = ref<string[]>([]);
@@ -518,6 +538,7 @@ const optionLoadedState = reactive<Record<string, boolean>>({});
 const tableDisplayOptionState = reactive<Record<string, any[]>>({});
 const tableDisplayOptionLoadingState = reactive<Record<string, boolean>>({});
 const tableDisplayOptionLoadedState = reactive<Record<string, boolean>>({});
+const tableDisplayOptionContexts = reactive<Record<string, string>>({});
 const tableDisplayOptionsReady = ref(false);
 const areaCascaderRestrictedOptions = reactive<Record<string, any[]>>({});
 const optionRequestVersions = reactive<Record<string, number>>({});
@@ -796,6 +817,14 @@ const dataAttrAccess = useCrudDataAttrAccess(
   () => props.config,
   () => activeListPath.value,
   () => JSON.stringify([userStore.userInfo, accessStore.accessCodes]),
+  (operation) =>
+    pageActive.value &&
+    isCrudDataAttrOperationEnabled(
+      props.config,
+      operation,
+      hasPermission,
+      canShowActiveBuiltinAction,
+    ),
 );
 const visibleDataSource = computed(
   () => dataAttrAccess.viewOutput('list', dataSource.value) || [],
@@ -870,6 +899,9 @@ const isPlatformUser = computed(() => {
 });
 
 function isFieldVisible(field: CrudFieldConfig) {
+  if (field.key === 'editable') {
+    return isEditableCrudFieldVisible(field, userStore.userInfo);
+  }
   if (field.visibleForPlatformUser) {
     return isPlatformUser.value;
   }
@@ -879,6 +911,9 @@ function isFieldVisible(field: CrudFieldConfig) {
 
 function isFieldDisabledOnEdit(field: CrudFieldConfig) {
   if (!editingRecord.value) {
+    return false;
+  }
+  if (field.key === 'editable' && isSuperAdminUser(userStore.userInfo)) {
     return false;
   }
 
@@ -1001,6 +1036,19 @@ function getPageDisplayField(
     (item) => item.key === key,
   );
   const sourceField = effectiveFields.value.find((item) => item.key === key);
+  if (key === 'editable' && sourceField && view !== 'detail') {
+    const resolved = resolveRuntimeDisplayField(
+      { ...configured, hidden: false, key },
+      { view },
+    );
+    return {
+      ...resolved,
+      disabled: false,
+      hidden: !isSuperAdminUser(userStore.userInfo),
+      visibility: undefined,
+      visibleRoleCodes: [],
+    };
+  }
   if (view === 'detail' && sourceField?.hasBackingField === false) {
     return resolveRuntimeDisplayField(
       { ...configured, hidden: true, inputDisplay: 'default', key },
@@ -1084,6 +1132,19 @@ function getPageDisplayHeader(
   key: string,
 ): CrudPageDisplayHeaderConfig | undefined {
   const configured = pageDisplayHeaderMap.value.get(key);
+  if (
+    key === 'editable' &&
+    effectiveFields.value.some((field) => field.key === key)
+  ) {
+    return resolveRuntimeDisplayHeader({
+      ...configured,
+      key,
+      visible: {
+        mode: isSuperAdminUser(userStore.userInfo) ? 'always' : 'hidden',
+      },
+      visibleRoleCodes: [],
+    });
+  }
   if (configured) {
     return resolveRuntimeDisplayHeader(configured);
   }
@@ -1261,7 +1322,11 @@ function applyPageDisplayFields(
       .filter((field) => !isPageDisplayRoleVisible(view, field.key))
       .map((field) => field.key),
     ...fields
-      .filter((field) => unavailableGroupKeys.has(groupKeyFor(field) || ''))
+      .filter(
+        (field) =>
+          field.key !== 'editable' &&
+          unavailableGroupKeys.has(groupKeyFor(field) || ''),
+      )
       .map((field) => field.key),
   ]);
   const displayStates = resolveDisplayStates(
@@ -1558,11 +1623,9 @@ function changeComplexGroupEnabled(key: string, checked: boolean) {
   const clear = getComplexGroupDepth(key) > 0;
   Modal.confirm({
     title: '操作确认',
-    content:
-      '取消将' +
-        (clear ? '清除' : '不提交') +
-        (group?.title || key) +
-        (/信息$/.test(group?.title || key) ? '' : '信息'),
+    content: `取消将${clear ? '清除' : '不提交'}${
+      group?.title || key
+    }${(group?.title || key).endsWith('信息') ? '' : '信息'}`,
     onOk: () => {
       complexGroupEnabled[key] = false;
     },
@@ -1621,7 +1684,7 @@ function isPageDisplayGroupFieldVisible(field: CrudFieldConfig) {
   const index = groupFields.indexOf(field as (typeof groupFields)[number]);
   const expandedRows = pageDisplayGroupExpandedRows[key] ?? 'all';
   return (
-    index >= 0 &&
+    index !== -1 &&
     index <
       resolveDisplayGroupExpandedFieldCount(
         groupFields.length,
@@ -1719,7 +1782,9 @@ const orderedTableFields = computed(() => {
 
 const visibleTableFields = computed(() =>
   orderedTableFields.value.filter(
-    (field) => !hiddenTableColumnKeys.value.includes(String(field.key)),
+    (field) =>
+      (field.key === 'editable' && isSuperAdminUser(userStore.userInfo)) ||
+      !hiddenTableColumnKeys.value.includes(String(field.key)),
   ),
 );
 
@@ -2089,7 +2154,7 @@ const draftTableColumnFields = computed(() => {
       : tableFields.value.map((field) => getTableFieldKey(field));
   return keys
     .map((key) => fieldsByKey.get(key))
-    .filter((field): field is CrudFieldConfig => Boolean(field));
+    .filter((field): field is CrudFieldConfig => field !== undefined);
 });
 
 const canCustomizeTableColumnsLocally = computed(() =>
@@ -2324,7 +2389,7 @@ function isListOperationVisible(key: string, baseVisible = true) {
 
 function isCustomListOperationVisible(
   action: CrudRowAction,
-  kind: 'toolbar' | 'batch',
+  kind: 'batch' | 'toolbar',
 ) {
   const key = getListOperationKey(action, kind);
   return !key || isListOperationVisible(key);
@@ -3217,8 +3282,7 @@ function normalizeFormValue(field: CrudFieldConfig, value: any) {
   }
 
   if (field.type === 'area-cascader') {
-    if (Array.isArray(value))
-      return value.map((item) => String(item)).filter(Boolean);
+    if (Array.isArray(value)) return value.map(String).filter(Boolean);
     return getAreaCascaderValueFromRecord(
       {
         ...field,
@@ -3706,28 +3770,50 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
 async function loadTableDisplayOptions(field: CrudFieldConfig) {
   // 仅为当前展示的列加载一次选项；表格缓存独立于下拉搜索结果。
   const loader = field.loadOptions || getDefaultOptionsLoader(field);
+  const contextKey = JSON.stringify([
+    userStore.userInfo,
+    accessStore.accessCodes,
+  ]);
   if (
+    !pageActive.value ||
     !loader ||
-    tableDisplayOptionLoadedState[field.key] ||
-    tableDisplayOptionLoadingState[field.key]
+    (tableDisplayOptionContexts[field.key] === contextKey &&
+      (tableDisplayOptionLoadedState[field.key] ||
+        tableDisplayOptionLoadingState[field.key]))
   ) {
     return;
   }
 
+  if (tableDisplayOptionContexts[field.key] !== contextKey) {
+    tableDisplayOptionState[field.key] = [];
+    tableDisplayOptionLoadedState[field.key] = false;
+  }
   tableDisplayOptionLoadingState[field.key] = true;
+  tableDisplayOptionContexts[field.key] = contextKey;
+  const isCurrent = () =>
+    tableDisplayOptionContexts[field.key] === contextKey &&
+    contextKey ===
+      JSON.stringify([userStore.userInfo, accessStore.accessCodes]);
 
   try {
     const options = await loader('');
+    if (!isCurrent() || !pageActive.value) return;
     tableDisplayOptionState[field.key] = normalizeCrudChoiceOptions(
       field,
       options,
     );
     tableDisplayOptionLoadedState[field.key] = true;
   } catch (error) {
+    if (!isCurrent()) return;
+    // 当前授权上下文失败只提示一次；字段策略失效不能自动重试同一个无权字典形成循环。
+    tableDisplayOptionLoadedState[field.key] = true;
     console.error(error);
-    message.warning(`${field.label}选项加载失败`);
+    if (pageActive.value)
+      message.warning(
+        `${field.label}选项加载失败，暂显示原始值；请检查选项读取权限`,
+      );
   } finally {
-    tableDisplayOptionLoadingState[field.key] = false;
+    if (isCurrent()) tableDisplayOptionLoadingState[field.key] = false;
   }
 }
 
@@ -3782,7 +3868,7 @@ function upsertExportTemplate(template: CrudExportTemplateRecord) {
     isSameCrudTemplate(item, template),
   );
 
-  if (existingIndex >= 0) {
+  if (existingIndex !== -1) {
     exportTemplates.value.splice(existingIndex, 1, {
       ...exportTemplates.value[existingIndex],
       ...template,
@@ -3870,7 +3956,7 @@ function applyExportTemplateConfig(config: CrudExportTemplateConfig) {
   );
   const aliases = {
     ...fieldAliases,
-    ...(config.fieldAliases || {}),
+    ...config.fieldAliases,
   };
   const converters = templateFields.reduce<Record<string, CrudExportConverter>>(
     (result, field) => {
@@ -3917,9 +4003,8 @@ function applyExportTemplateConfig(config: CrudExportTemplateConfig) {
     }
   }
 
-  exportFieldOrderKeys.value = orderKeys.length
-    ? orderKeys
-    : getDefaultExportFieldOrder();
+  exportFieldOrderKeys.value =
+    orderKeys.length > 0 ? orderKeys : getDefaultExportFieldOrder();
   exportSelectedFieldKeys.value = selectedKeys;
   exportFieldAliases.value = Object.fromEntries(
     Object.entries(aliases)
@@ -4309,7 +4394,7 @@ function getExportFieldHeader(field: CrudFieldConfig) {
 
 function getDefaultExportFieldWidth(field: CrudFieldConfig) {
   // 默认列宽以最终导出表头为准，中文和英文字符均按一个字符计算。
-  const headerLength = Array.from(String(getExportFieldHeader(field))).length;
+  const headerLength = [...String(getExportFieldHeader(field))].length;
 
   return Math.min(Math.max(headerLength * 2 + 6, 1), 255);
 }
@@ -6499,17 +6584,18 @@ function isNumericField(field: CrudFieldConfig | undefined) {
 }
 
 function isMoneyLikeField(field: CrudFieldConfig | undefined) {
-  if (!isNumericField(field)) {
-    return false;
-  }
-
+  if (!isNumericField(field)) return false;
   return (
     /amount|balance|price|fee|rate|limit/i.test(field?.key || '') ||
     /金额|余额|价格|费率|额度|汇率/.test(field?.label || '')
   );
 }
 
-function formatNumericValue(field: CrudFieldConfig | undefined, value: any) {
+function formatNumericValue(
+  field: CrudFieldConfig | undefined,
+  value: any,
+  display: 'export' | 'list' = 'export',
+) {
   if (value === null || value === undefined || value === '') {
     return '-';
   }
@@ -6525,6 +6611,11 @@ function formatNumericValue(field: CrudFieldConfig | undefined, value: any) {
     if (matched) {
       return String(matched.label);
     }
+  }
+
+  // 列表金额只处理展示文本；导出沿用现有格式与转换器。
+  if (display === 'list' && isCrudMoneyField(field)) {
+    return formatCrudMoneyValue(field, value);
   }
 
   const numberValue = Number(value);
@@ -6560,9 +6651,9 @@ function canQuickUpdateBooleanEnableField(
 ) {
   return Boolean(
     field &&
-      isBooleanEnableField(field) &&
-      dataAttrAccess.allowed('update', 'input', field) &&
-      canShowBuiltinEdit(record),
+    isBooleanEnableField(field) &&
+    dataAttrAccess.allowed('update', 'input', field) &&
+    canShowBuiltinEdit(record),
   );
 }
 
@@ -6657,14 +6748,14 @@ function getRecordValue(record: GenericRecord, key: unknown) {
 function getTableFieldValue(field: CrudFieldConfig, record: GenericRecord) {
   if (typeof field.tableValue === 'function') return field.tableValue(record);
   const direct = getRecordValue(record, field.key);
-  return direct !== undefined
-    ? direct
-    : getCrudComplexGroupFieldValue(
+  return direct === undefined
+    ? getCrudComplexGroupFieldValue(
         record,
         field.key,
         field.complexGroupKey,
         props.config.complexGroups,
-      );
+      )
+    : direct;
 }
 
 function getTableCellValue(record: GenericRecord, key: unknown) {
@@ -6817,14 +6908,14 @@ function getSupportEventsByCurrentStatus(record: GenericRecord) {
 }
 
 const flowEventNames = new Set([
-  '编辑',
-  '提交审核',
+  '下线',
+  '删除',
+  '发布',
+  '存档',
   '审核拒绝',
   '审核通过',
-  '发布',
-  '下线',
-  '存档',
-  '删除',
+  '提交审核',
+  '编辑',
 ]);
 const rejectReasonActionNames = new Set(['审核拒绝']);
 
@@ -6898,11 +6989,11 @@ function getPageDisplayActionLabel(
 // 所有可配置按钮共用渲染入口，保留各自已有的权限、确认和点击行为。
 function getDisplayRowButtons(record: GenericRecord) {
   const buttons: Array<{
+    badge?: number;
+    confirm?: { enabled: boolean; text?: string; title?: string };
+    danger?: boolean;
     key: string;
     label: string;
-    danger?: boolean;
-    badge?: number;
-    confirm?: { enabled: boolean; title?: string; text?: string };
     run: () => unknown;
   }> = [];
   if (canShowBuiltinDetail(record))
@@ -7065,7 +7156,7 @@ function requestRejectReason(
 
         if (!normalizedReason) {
           message.warning('请输入拒绝原因');
-          return Promise.reject(new Error('REJECT_REASON_REQUIRED'));
+          throw new Error('REJECT_REASON_REQUIRED');
         }
 
         resolve(normalizedReason);
@@ -7311,7 +7402,10 @@ async function runRowAction(
   }
 
   const rejectReason = await requestRejectReason(action, record);
-  if ((action.reasonRequired || rejectReasonActionNames.has(action.label)) && !rejectReason) {
+  if (
+    (action.reasonRequired || rejectReasonActionNames.has(action.label)) &&
+    !rejectReason
+  ) {
     return;
   }
 
@@ -8258,8 +8352,9 @@ watch(
                   size="small"
                   type="link"
                   @click="handleJsonFieldEdit(record, field)"
-                  >编辑{{ field.label }}</Button
                 >
+                  编辑{{ field.label }}
+                </Button>
                 <slot
                   name="row-actions"
                   :record="record"
@@ -8436,6 +8531,32 @@ watch(
                   {{ getTenantDisplay(record).id }}
                 </div>
               </div>
+              <Tooltip
+                v-else-if="
+                  isNumericField(getTableField(column.key)) &&
+                  getCrudMoneyUnitHint(
+                    getTableField(column.key),
+                    getTableCellValue(record, column.key),
+                  )
+                "
+                :mouse-enter-delay="CRUD_TOOLTIP_MOUSE_ENTER_DELAY"
+                :title="
+                  getCrudMoneyUnitHint(
+                    getTableField(column.key),
+                    getTableCellValue(record, column.key),
+                  )
+                "
+              >
+                <span class="inline-block min-w-[96px] text-right tabular-nums">
+                  {{
+                    formatNumericValue(
+                      getTableField(column.key),
+                      getTableCellValue(record, column.key),
+                      'list',
+                    )
+                  }}
+                </span>
+              </Tooltip>
               <span
                 v-else-if="isNumericField(getTableField(column.key))"
                 class="inline-block min-w-[96px] text-right tabular-nums"
@@ -8444,6 +8565,7 @@ watch(
                   formatNumericValue(
                     getTableField(column.key),
                     getTableCellValue(record, column.key),
+                    'list',
                   )
                 }}
               </span>
@@ -9052,9 +9174,7 @@ watch(
                     :disabled="isFormFieldInteractionDisabled(field)"
                   />
                   <CodeEditorField
-                    v-else-if="
-                      field.type === 'code' || field.type === 'css'
-                    "
+                    v-else-if="field.type === 'code' || field.type === 'css'"
                     :model-value="
                       getInteractionModelValue(
                         formState[field.key],
@@ -9338,8 +9458,9 @@ watch(
               actionResultMode === 'showForm' && actionResultEntries.length > 10
             "
             v-model:checked="actionResultHideEmptyValues"
-            >不展示空值</Checkbox
           >
+            不展示空值
+          </Checkbox>
         </div>
       </template>
       <div

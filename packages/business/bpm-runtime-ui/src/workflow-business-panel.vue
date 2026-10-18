@@ -39,6 +39,8 @@ const props = withDefaults(
     contractVersion?: string;
     /** 独立发起页只展示当前目录用途，业务对象入口缺省展示全部。 */
     purposeKey?: string;
+    /** 宿主会话和授权初始化完成后读取；退出时同步撤销并清除旧数据。 */
+    ready?: boolean;
     service?: WorkflowRuntimeService;
     /** 可分别嵌入全局发起入口与按契约展示的历史；缺省时保留完整面板。 */
     showEligibility?: boolean;
@@ -46,6 +48,7 @@ const props = withDefaults(
   }>(),
   {
     canStart: true,
+    ready: true,
     purposeKey: undefined,
     contractVersion: undefined,
     service: undefined,
@@ -111,7 +114,7 @@ let referenceVersion = 0;
 let roundVersion = 0;
 
 async function refresh() {
-  if (roundInteraction.value) return;
+  if (!props.ready || roundInteraction.value) return;
   // 防止切换业务对象后的迟到响应覆盖当前对象，也不把失败当成空列表。
   const version = ++requestVersion;
   loading.value = true;
@@ -151,6 +154,7 @@ async function refresh() {
 
 async function start(item: WorkflowEligibility) {
   if (
+    !props.ready ||
     props.showEligibility === false ||
     !props.canStart ||
     (props.purposeKey && item.purposeKey !== props.purposeKey) ||
@@ -184,8 +188,8 @@ async function start(item: WorkflowEligibility) {
       purposeKey: item.purposeKey,
       idempotencyKey,
     });
-    requestKeys.delete(key);
     if (version !== referenceVersion) return;
+    requestKeys.delete(key);
     emit('started', instance);
     await refresh();
   } catch (error) {
@@ -202,6 +206,7 @@ function resubmittableAttempt(
   state = roundState.value,
 ) {
   if (
+    !props.ready ||
     props.showHistory === false ||
     !props.contractVersion ||
     item.businessContractVersion !== props.contractVersion
@@ -258,6 +263,7 @@ async function prepareRoundAction(
   // 契约来自宿主；独立权限、服务端来源许可和当前请求世代共同约束入口。
   const contractVersion = props.contractVersion;
   if (
+    !props.ready ||
     props.showHistory === false ||
     !contractVersion ||
     roundInteraction.value ||
@@ -338,6 +344,7 @@ async function confirmRoundAction() {
   const command = preparedCommand.value;
   const attempt = selectedAttempt.value;
   if (
+    !props.ready ||
     !action ||
     !command ||
     roundBusy.value ||
@@ -380,6 +387,7 @@ async function confirmRoundAction() {
 async function retry(item: WorkflowInstanceView) {
   // 权限和服务端返回的可重试交付标识缺一不可，点击时再次检查。
   if (
+    !props.ready ||
     props.showHistory === false ||
     !props.canRetry ||
     roundInteraction.value ||
@@ -423,12 +431,13 @@ watch(
     props.service,
     props.showEligibility,
     props.showHistory,
-    props.canStart,
+    props.ready,
     props.purposeKey,
   ],
   () => {
     // 作用域切换创建新的请求世代；旧成功、失败及finally均不能影响当前对象。
     referenceVersion++;
+    requestVersion++;
     roundVersion++;
     roundPreparing.value = false;
     roundBusy.value = false;
@@ -444,14 +453,36 @@ watch(
     selectedAttempt.value = undefined;
     starting.value = undefined;
     retrying.value = undefined;
+    loading.value = false;
+    loadError.value = false;
+    if (!props.ready) {
+      requestKeys.clear();
+      roundCommands.clear();
+      return;
+    }
     void refresh();
   },
   { immediate: true, flush: 'sync' },
 );
 
+// 撤销启动权仍保留只读结果，但旧启动响应不能向宿主发出成功事件。
+watch(
+  () => props.canStart,
+  (allowed) => {
+    if (allowed) return;
+    referenceVersion++;
+    starting.value = undefined;
+    retrying.value = undefined;
+    startError.value = false;
+    retryError.value = false;
+    requestKeys.clear();
+  },
+  { flush: 'sync' },
+);
+
 // 权限变更立即撤销未提交确认；已发送命令的服务端鉴权仍是最终安全边界。
 watch(
-  () => [props.canNewRound, props.canResubmit],
+  () => [props.canNewRound, props.canResubmit, props.canStart],
   () => {
     if (
       confirming.value === 'newRound'
@@ -489,7 +520,7 @@ defineExpose({ refresh });
     <template #extra>
       <AButton
         :loading="loading"
-        :disabled="!!starting || !!retrying || roundInteraction"
+        :disabled="!ready || !!starting || !!retrying || roundInteraction"
         @click="refresh"
       >
         刷新
@@ -532,7 +563,7 @@ defineExpose({ refresh });
               "
             />
             <AButton
-              v-if="canStart && item.startMode !== 'event'"
+              v-if="ready && canStart && item.startMode !== 'event'"
               type="primary"
               :loading="starting === item.purposeKey"
               :disabled="
@@ -615,7 +646,7 @@ defineExpose({ refresh });
         :message="roundState.reasons.join('；')"
       />
       <AButton
-        v-if="showHistory !== false && contractVersion && canNewRound"
+        v-if="ready && showHistory !== false && contractVersion && canNewRound"
         class="mb-3"
         :disabled="
           loading || loadError || !!starting || !!retrying || roundInteraction

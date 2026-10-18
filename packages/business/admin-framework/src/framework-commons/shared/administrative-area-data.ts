@@ -265,10 +265,11 @@ export function resolveAdministrativeAreaCodeLevel(
 }
 
 export async function loadAdministrativeAreaOverride() {
-  const setting = await requestClient.get<any>(
-    '/Setting/use/areaCodes',
-    { __silentError: true },
-  );
+  const setting = await requestClient.get<any>('/Setting/use/areaCodes', {
+    // 通用代理也执行字段策略检查，必须显式给出所属模块以形成同一完整目标。
+    baseURL: '/com.levin.oak.base/V1/api',
+    __silentError: true,
+  });
   const content = String(setting?.valueContent || '').trim();
   if (!content) {
     return false;

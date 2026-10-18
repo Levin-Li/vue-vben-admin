@@ -4,6 +4,8 @@ import type { Component } from 'vue';
 import type {
   WorkflowActionInput,
   WorkflowAttachmentMeta,
+  WorkflowInstanceOperation,
+  WorkflowInstanceOperationCommand,
   WorkflowInstanceView,
   WorkflowOption,
   WorkflowRuntimePage,
@@ -34,6 +36,7 @@ import {
   TimelineItem as ATimelineItem,
 } from 'ant-design-vue';
 
+import WorkflowInstanceOperations from './workflow-instance-operations.vue';
 import WorkflowProcessDiagram from './workflow-process-diagram.vue';
 import { WorkflowRuntimeService } from './workflow-runtime-service';
 import { workflowStatusLabel } from './workflow-task-form';
@@ -41,11 +44,14 @@ import WorkflowTaskPanel from './workflow-task-panel.vue';
 
 const props = withDefaults(
   defineProps<{
+    canComplete?: boolean;
     canDeletePendingAttachment?: boolean;
     canDownloadAttachment?: boolean;
     canLoadCopyRecipients?: boolean;
+    canRecover?: boolean;
     canRetry?: boolean;
     canSendCopy?: boolean;
+    canTerminate?: boolean;
     canUploadAttachment?: boolean;
     canViewAttachments?: boolean;
     canViewCopied?: boolean;
@@ -55,6 +61,7 @@ const props = withDefaults(
     canViewTargetInstance?: boolean;
     canViewTargetTask?: boolean;
     canViewTodo?: boolean;
+    canWithdraw?: boolean;
     detailComponents?: Record<string, Component>;
     loadCopyRecipients?: (
       instanceId: string,
@@ -67,6 +74,10 @@ const props = withDefaults(
     targetTaskId?: string;
   }>(),
   {
+    canComplete: true,
+    canWithdraw: false,
+    canTerminate: false,
+    canRecover: false,
     canDownloadAttachment: false,
     canDeletePendingAttachment: false,
     canUploadAttachment: false,
@@ -721,7 +732,13 @@ async function sendCopy() {
 }
 
 async function complete(payload: WorkflowTaskSubmitPayload) {
-  if (!selectedTask.value || submitting.value) return;
+  if (
+    !selectedTask.value ||
+    submitting.value ||
+    !props.canComplete ||
+    selectedTask.value.businessBasisChanged
+  )
+    return;
   const taskId = selectedTask.value.taskId;
   submitting.value = true;
   errorMessage.value = '';
@@ -751,6 +768,19 @@ async function complete(payload: WorkflowTaskSubmitPayload) {
   } finally {
     submitting.value = false;
   }
+}
+
+// 安全退出与显式接管不从任务审批动作推导，服务端分别复核当前运行与业务范围。
+async function executeOperation(
+  action: WorkflowInstanceOperation,
+  command: WorkflowInstanceOperationCommand,
+) {
+  return service.value[action](command);
+}
+async function operationCompleted() {
+  selectedTask.value = undefined;
+  selectedInstance.value = undefined;
+  await refresh();
 }
 
 async function retry(item: WorkflowInstanceView) {
@@ -792,7 +822,8 @@ async function prepareVerification(
   },
 ) {
   const taskId = selectedTask.value?.taskId;
-  if (!taskId) return;
+  if (!taskId || !props.canComplete || selectedTask.value?.businessBasisChanged)
+    return;
   const version = ++verificationVersion;
   verificationMessage.value = '';
   verificationChallenge.value = undefined;
@@ -1029,6 +1060,7 @@ defineExpose({ refresh });
       <ACol :span="24">
         <WorkflowTaskPanel
           :task="selectedTask"
+          :can-complete="canComplete"
           :submitting="submitting"
           :detail-components="detailComponents"
           :attachments="[...attachedFiles, ...pendingFiles]"
@@ -1045,6 +1077,35 @@ defineExpose({ refresh });
           @upload-attachment="uploadAttachment"
           @download-attachment="downloadAttachment"
           @delete-pending-attachment="deletePendingAttachment"
+        />
+      </ACol>
+      <ACol
+        v-if="
+          selectedTask.processInstanceId &&
+          selectedTask.businessType &&
+          selectedTask.businessId
+        "
+        :span="24"
+        class="mt-4"
+      >
+        <WorkflowInstanceOperations
+          :instance-id="selectedTask.processInstanceId"
+          :business-reference="{
+            businessType: selectedTask.businessType,
+            businessId: selectedTask.businessId,
+            tenantId: selectedTask.tenantId,
+            orgId: selectedTask.orgId,
+          }"
+          :dispatch-id="selectedTask.pendingDispatchId"
+          :allowed-actions="selectedTask.allowedOperations"
+          :permissions="{
+            withdraw: canWithdraw,
+            terminate: canTerminate,
+            recover: canRecover,
+          }"
+          :execute="executeOperation"
+          @completed="operationCompleted"
+          @error="emit('error', $event)"
         />
       </ACol>
       <ACol :span="24" class="mt-4">
@@ -1078,6 +1139,35 @@ defineExpose({ refresh });
                 selectedInstance.businessTitle || selectedInstance.purposeKey
               }}
             </h3>
+            <AAlert
+              v-if="selectedInstance.operationBlockedReason"
+              class="my-3"
+              type="warning"
+              :message="selectedInstance.operationBlockedReason"
+              show-icon
+            />
+            <WorkflowInstanceOperations
+              v-if="
+                selectedInstance.businessType && selectedInstance.businessId
+              "
+              :instance-id="selectedInstance.instanceId"
+              :business-reference="{
+                businessType: selectedInstance.businessType,
+                businessId: selectedInstance.businessId,
+                tenantId: selectedInstance.tenantId,
+                orgId: selectedInstance.orgId,
+              }"
+              :dispatch-id="selectedInstance.pendingDispatchId"
+              :allowed-actions="selectedInstance.allowedOperations"
+              :permissions="{
+                withdraw: canWithdraw,
+                terminate: canTerminate,
+                recover: canRecover,
+              }"
+              :execute="executeOperation"
+              @completed="operationCompleted"
+              @error="emit('error', $event)"
+            />
             <p>实例：{{ selectedInstance.instanceId }}</p>
             <p>
               执行：{{

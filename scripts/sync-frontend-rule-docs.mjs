@@ -127,20 +127,21 @@ export function syncPackageDocuments(
     '@levin/bpm-runtime-ui':
       '[工作流执行界面使用指南](docs/工作流执行界面使用指南.md) 说明业务面板、办理轮次、节点动作、权限边界与最小验证。',
     '@levin/admin-framework':
-      '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)；业务应用公共启动入口及界面偏好加载见 [docs/admin-bootstrap.md](docs/admin-bootstrap.md)。\n\n个人消息服务与可信来源导航：[接入指南](docs/personal-message-integration.md)。\n\n默认管理员强制改密：[接入指南](docs/initial-password-change.md)。\n\nAPI 属性组权限的轻量分配、后端元数据契约与保存语义见 [属性组授权接入指南](docs/api-attribute-group-permissions.md)。\n\n公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。\n\n紧凑列表的表头固定列图标与临时收展见 [紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。',
+      '全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)；业务应用公共启动入口及界面偏好加载见 [docs/admin-bootstrap.md](docs/admin-bootstrap.md)。\n\n个人消息服务与可信来源导航：[接入指南](docs/personal-message-integration.md)。\n\n默认管理员强制改密：[接入指南](docs/initial-password-change.md)。\n\nAPI 属性组权限的轻量分配、后端元数据契约与保存语义见 [属性组授权接入指南](docs/api-attribute-group-permissions.md)。\n\n公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。\n\n标准 CRUD 标签缓存接入与失效边界见 [标签缓存接入指南](docs/crud-tab-cache.md)。\n\n标准 CRUD 金额字段的四位分组、默认单位和页面覆盖见 [金额展示使用说明](docs/crud-money-display.md)。\n\n实现 EditableObject 的实体在标准 CRUD 中的超管可见性与编辑规则见 [EditableObject 标准 CRUD 使用说明](docs/crud-editableobject-access.md)。\n\n紧凑列表的表头固定列图标与临时收展见 [紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。',
     '@vben/layouts':
       '顶部通知计数、来源导航与显式已读事件：[通知组件使用说明](docs/notification.md)。',
     '@levin/oak-base-admin':
-      '工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。\n\n邮件、个人消息、支持邮箱、工单与通知投递：[工作台使用指南](docs/communication-workbench.md)。\n\n服务插件的单选/多选供应商配置与 OAuth 登录、绑定入口见 [供应商选择模式接入指南](docs/provider-selection-modes.md)。',
+      '工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。\n\n邮件、个人消息、支持邮箱、工单与通知投递：[工作台使用指南](docs/communication-workbench.md)。\n\n服务插件的单选/多选供应商配置与 OAuth 登录、绑定入口见 [供应商选择模式接入指南](docs/provider-selection-modes.md)。\n\n标准 CRUD 标签状态保留见 [标签状态使用说明](docs/crud-tab-state.md)。\n\n法律主体、合作伙伴一对多关系和电子发票合作关系选择见 [法律主体与合作伙伴页面接入指南](docs/partner-legal-subject-relations.md)。',
   };
   const usageDocument =
     usageDocuments[manifest.name] ??
     (existsSync(resolve(docs, '聚合包使用与迁移指南.md'))
       ? '聚合包公开入口与升级步骤见 [使用与迁移指南](docs/聚合包使用与迁移指南.md)。'
       : '');
-  const helpCenterDocument = manifest.name === '@levin/oak-base-admin'
-    ? '\n\n右上角在线文档入口、文档命名和构建登记见 [文档中心使用指南](docs/文档中心使用指南.md)。'
-    : '';
+  const helpCenterDocument =
+    manifest.name === '@levin/oak-base-admin'
+      ? '\n\n右上角在线文档入口、文档命名和构建登记见 [文档中心使用指南](docs/文档中心使用指南.md)。'
+      : '';
   function output(path, content) {
     const expected = Buffer.isBuffer(content) ? content : Buffer.from(content);
     if (checkOnly) {

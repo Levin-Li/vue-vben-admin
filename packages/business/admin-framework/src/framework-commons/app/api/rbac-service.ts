@@ -23,6 +23,7 @@ export namespace RbacApi {
   }
 
   export interface LoginOptions {
+    enableInvitationRegister?: boolean;
     enableThirdLogin: boolean;
     enableThirdRegister: boolean;
     enableUserRegister: boolean;

@@ -75,7 +75,7 @@ async function mountRegister() {
 async function renderRegister() {
   const wrapper = await mountRegister();
   await flushPromises();
-  await wrapper.get('#register-account').setValue('new-user');
+  await wrapper.get('#register-account').setValue('user@example.com');
   await wrapper.get('#register-password').setValue('test-password');
   await wrapper.get('#register-confirm-password').setValue('test-password');
   return wrapper;
@@ -110,9 +110,7 @@ describe('注册页面', () => {
       enableThirdRegister: true,
     });
     getVerifyCode.mockResolvedValue({
-      type: 'Captcha',
-      interactionData: 'aW1hZ2U=',
-      interactionDataType: 'image/png',
+      type: 'Email',
     });
     register.mockResolvedValue({ accessToken: 'new-account-token' });
     authLoginWithAccessToken.mockResolvedValue(undefined);
@@ -123,20 +121,17 @@ describe('注册页面', () => {
     vi.useRealTimers();
   });
 
-  it('普通账号输入稳定后自动加载图片验证码，不显示重复获取按钮', async () => {
-    vi.useFakeTimers();
+  it('普通用户名不能请求验证码或提交注册', async () => {
     const wrapper = await mountRegister();
     await flushPromises();
-
     await wrapper.get('#register-account').setValue('ordinary-user');
-    await vi.advanceTimersByTimeAsync(350);
-    await flushPromises();
-
-    expect(getVerifyCode).toHaveBeenCalledWith({ account: 'ordinary-user' });
-    expect(wrapper.get('img[alt="注册验证码"]').exists()).toBe(true);
-    expect(
-      wrapper.findAll('button').some((item) => item.text() === '获取验证码'),
-    ).toBe(false);
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined();
+    await wrapper.get('#register-password').setValue('test-password');
+    await wrapper.get('#register-confirm-password').setValue('test-password');
+    await wrapper.get('form').trigger('submit');
+    expect(getVerifyCode).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('手机号或邮箱');
   });
 
   it.each(['13800138000', 'user@example.com'])(
@@ -209,13 +204,13 @@ describe('注册页面', () => {
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
-    expect(getVerifyCode).toHaveBeenCalledWith({ account: 'new-user' });
+    expect(getVerifyCode).toHaveBeenCalledWith({ account: 'user@example.com' });
     expect(register).toHaveBeenCalledWith({
-      account: 'new-user',
-      name: 'new-user',
+      account: 'user@example.com',
+      name: 'user@example.com',
       password: 'test-password',
       verifyCode: '123456',
-      verifyCodeType: 'Captcha',
+      verifyCodeType: 'Email',
     });
     expect(authLoginWithAccessToken).toHaveBeenCalledWith('new-account-token');
     expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false);
@@ -229,7 +224,7 @@ describe('注册页面', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('账号已存在');
-    expect(inputValue(wrapper, '#register-account')).toBe('new-user');
+    expect(inputValue(wrapper, '#register-account')).toBe('user@example.com');
     expect(authLoginWithAccessToken).not.toHaveBeenCalled();
   });
 
@@ -288,7 +283,7 @@ describe('注册页面', () => {
   it('更换账号清除旧验证码并阻止沿用旧挑战注册', async () => {
     const wrapper = await renderRegister();
     await prepareRegistration(wrapper);
-    await wrapper.get('#register-account').setValue('other-user');
+    await wrapper.get('#register-account').setValue('other@example.com');
     expect(inputValue(wrapper, '#register-code')).toBe('');
     await wrapper.get('#register-code').setValue('123456');
     await wrapper.get('form').trigger('submit');
@@ -301,9 +296,9 @@ describe('注册页面', () => {
     getVerifyCode.mockReturnValueOnce(pending.promise);
     const wrapper = await renderRegister();
     await requestCode(wrapper);
-    await wrapper.get('#register-account').setValue('other-user');
+    await wrapper.get('#register-account').setValue('other@example.com');
     pending.resolve({
-      type: 'Captcha',
+      type: 'Email',
       mock: true,
       code: 'OLD123',
       interactionData: 'b2xk',
@@ -350,28 +345,22 @@ describe('注册页面', () => {
     '未明确标记 mock=true 时不自动填入返回码（%s）',
     async (mock) => {
       getVerifyCode.mockResolvedValue({
-        type: 'Captcha',
+        type: 'Email',
         mock,
         code: '654321',
-        interactionData: 'aW1hZ2U=',
-        interactionDataType: 'image/png',
       });
       const wrapper = await renderRegister();
       await requestCode(wrapper);
       expect(inputValue(wrapper, '#register-code')).toBe('');
-      expect(wrapper.get('img').attributes('src')).toBe(
-        'data:image/png;base64,aW1hZ2U=',
-      );
+      expect(wrapper.find('img').exists()).toBe(false);
     },
   );
 
   it('仅含 isMock 字段不自动填入验证码', async () => {
     getVerifyCode.mockResolvedValue({
-      type: 'Captcha',
+      type: 'Email',
       isMock: true,
       code: '654321',
-      interactionData: 'aW1hZ2U=',
-      interactionDataType: 'image/png',
     });
     const wrapper = await renderRegister();
     await requestCode(wrapper);

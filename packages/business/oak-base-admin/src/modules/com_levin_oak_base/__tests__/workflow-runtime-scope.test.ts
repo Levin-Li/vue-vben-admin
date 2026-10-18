@@ -75,6 +75,35 @@ describe('oak运行时业务范围连接器', () => {
     calls.store.mockReturnValue({ userInfo: { tenantId: 'tenant-a' } });
   });
 
+  it('撤回终止和接管按当前租户正规化且不丢原因与去重命令', async () => {
+    const service = new OakWorkflowRuntimeService(undefined, () => ({
+      tenantId: 'tenant-a',
+    }));
+    const command = {
+      ...reference,
+      instanceId: 'instance-1',
+      dispatchId: 'dispatch-1',
+      requestId: 'request-1',
+      reason: '业务人员明确确认操作',
+    };
+    await service.withdraw(command);
+    await service.terminate(command);
+    await service.recover(command);
+    expect(calls.post).toHaveBeenCalledTimes(3);
+    for (const [, payload] of calls.post.mock.calls) {
+      expect(payload.data.tenantId).toBeUndefined();
+      expect(payload.data).toMatchObject({
+        businessType: 'workflow-request',
+        businessId: 'r1',
+        orgId: 'org-a',
+        requestId: 'request-1',
+        reason: '业务人员明确确认操作',
+      });
+    }
+    expect(calls.post.mock.calls[2]?.[1].data.instanceId).toBeUndefined();
+    expect(calls.post.mock.calls[2]?.[1].data.dispatchId).toBe('dispatch-1');
+  });
+
   it('单例构造不读取用户，实际请求每次读取当前会话', async () => {
     expect(importTimeStoreReads).toBe(0);
     await workflowRuntimeService.roundState({

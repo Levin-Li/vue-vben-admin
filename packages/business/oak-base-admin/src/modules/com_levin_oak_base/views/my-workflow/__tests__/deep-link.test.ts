@@ -21,9 +21,17 @@ vi.mock(
   () => ({ buildApiMethodPermissions: () => [] }),
 );
 vi.mock('../../../api/workflow-runtime-service', () => ({
+  workflowOperationPermissions: {
+    withdraw: [],
+    terminate: ['workflow.runtime.terminate'],
+    recover: ['workflow.runtime.recover'],
+  },
   workflowRuntimeService: { copyRecipients: vi.fn(), task, instance },
 }));
 vi.mock('../../workflow-request/detail.vue', () => ({
+  default: { template: '<div />' },
+}));
+vi.mock('../workflow-contract-detail.vue', () => ({
   default: { template: '<div />' },
 }));
 vi.mock('../workflow-expense-detail.vue', () => ({

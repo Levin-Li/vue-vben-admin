@@ -17,6 +17,8 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
   defaultFormValues: {
     enable: false,
     orderCode: 1000,
+    servicePluginProviderInstanceCode: 'default',
+    usageWeight: 1,
     value: {},
   },
   defaultQuery: {
@@ -76,6 +78,32 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'select',
       width: 160,
+    },
+    {
+      key: 'servicePluginProviderInstanceCode',
+      label: '配置实例编码',
+      layoutGroup: 'basic',
+      layoutOrder: 25,
+      required: true,
+      table: true,
+      width: 150,
+    },
+    {
+      key: 'usageWeight',
+      label: '使用权重',
+      layoutGroup: 'basic',
+      layoutOrder: 26,
+      required: true,
+      table: true,
+      type: 'number',
+      width: 110,
+    },
+    {
+      key: 'usageCount',
+      label: '累计使用次数',
+      form: false,
+      table: true,
+      width: 130,
     },
     {
       key: 'domain',

@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { computed, defineComponent, reactive } from 'vue';
+import { defineComponent, reactive } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -41,6 +41,11 @@ const {
   };
 });
 
+// 独立个人页与真实路由一致地提供查询上下文。
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+}));
+
 const modalConfirm = vi.fn(async (options?: any) => {
   await options?.onOk?.();
 });
@@ -53,8 +58,8 @@ vi.mock('@vben/runtime/stores', () => ({
 
 vi.mock('@vben/common-ui', () => ({
   Profile: defineComponent({
-    emits: ['update:modelValue'],
     props: ['tabs'],
+    emits: ['update:modelValue'],
     template: `
       <section>
         <button
@@ -113,13 +118,13 @@ vi.mock(
 
 vi.mock('ant-design-vue', () => {
   const Input = defineComponent({
+    props: ['placeholder', 'value'],
     emits: ['update:value'],
     methods: {
       updateValue(event: Event) {
         this.$emit('update:value', (event.target as HTMLInputElement).value);
       },
     },
-    props: ['placeholder', 'value'],
     template:
       '<input :placeholder="placeholder" :value="value" @input="updateValue" />',
   });
@@ -130,8 +135,8 @@ vi.mock('ant-design-vue', () => {
       template: '<div>{{ message }}</div>',
     }),
     Button: defineComponent({
-      emits: ['click'],
       props: ['danger', 'disabled', 'loading'],
+      emits: ['click'],
       template:
         '<button :disabled="disabled || loading" type="button" @click="$emit(\'click\', $event)"><slot /></button>',
     }),
@@ -153,8 +158,8 @@ vi.mock('ant-design-vue', () => {
     Input,
     Modal: Object.assign(
       defineComponent({
-        emits: ['cancel', 'ok', 'update:open'],
         props: ['open', 'title'],
+        emits: ['cancel', 'ok', 'update:open'],
         template:
           '<div v-if="open" role="dialog"><h3>{{ title }}</h3><slot /></div>',
       }),
@@ -247,25 +252,50 @@ describe('social-account-setting', () => {
   it('真实sourcePlatform绑定卡片和编码目录显示中文名称，请求保留编码', async () => {
     // 使用实际API字段，避免旧平台name模拟值掩盖绑定来源缺失。
     const platforms = ['FEISHU', 'WECHAT_ENTERPRISE_V2', 'DINGTALK_V2'];
-    oauthService.getSupportedPlatforms.mockResolvedValue(platforms.map((code) => ({ code, name: code })));
-    oauthService.getMyBindings.mockResolvedValue(platforms.map((sourcePlatform) => ({ id: sourcePlatform, sourcePlatform, nickname: '测试成员' })));
-    oauthService.createTransaction.mockResolvedValue({ transactionId: 'name-tx', authorizeUrl: 'https://example.test/authorize' });
+    oauthService.getSupportedPlatforms.mockResolvedValue(
+      platforms.map((code) => ({ code, name: code })),
+    );
+    oauthService.getMyBindings.mockResolvedValue(
+      platforms.map((sourcePlatform) => ({
+        id: sourcePlatform,
+        sourcePlatform,
+        nickname: '测试成员',
+      })),
+    );
+    oauthService.createTransaction.mockResolvedValue({
+      transactionId: 'name-tx',
+      authorizeUrl: 'https://example.test/authorize',
+    });
     const component = (await import('../social-account-setting.vue')).default;
     const wrapper = mount(component);
     await flushPromises();
-    expect(wrapper.findAll('.font-medium').map((heading) => heading.text())).toEqual(['可绑定平台', '已绑定账号', '飞书', '企业微信', '钉钉']);
-    const button = wrapper.findAll('button').find((item) => item.text() === '飞书');
+    expect(
+      wrapper.findAll('.font-medium').map((heading) => heading.text()),
+    ).toEqual(['可绑定平台', '已绑定账号', '飞书', '企业微信', '钉钉']);
+    const button = wrapper
+      .findAll('button')
+      .find((item) => item.text() === '飞书');
     expect(button).toBeDefined();
     await button?.trigger('click');
     await flushPromises();
-    expect(oauthService.createTransaction.mock.calls[0]?.[0]).toMatchObject({ platform: 'FEISHU', purpose: 'BIND' });
+    expect(oauthService.createTransaction.mock.calls[0]?.[0]).toMatchObject({
+      platform: 'FEISHU',
+      purpose: 'BIND',
+    });
     wrapper.unmount();
   });
 
   it('未知平台的显式名称按文本渲染', async () => {
     // 平台名称不是HTML，外部文字不能插入可执行图片节点。
     const label = '<img src=x onerror="window.injected=true">';
-    oauthService.getMyBindings.mockResolvedValue([{ id: 'custom', sourcePlatform: 'CUSTOM', platformName: label, nickname: '成员昵称' }]);
+    oauthService.getMyBindings.mockResolvedValue([
+      {
+        id: 'custom',
+        sourcePlatform: 'CUSTOM',
+        platformName: label,
+        nickname: '成员昵称',
+      },
+    ]);
     const component = (await import('../social-account-setting.vue')).default;
     const wrapper = mount(component);
     await flushPromises();

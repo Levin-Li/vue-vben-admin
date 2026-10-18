@@ -32,6 +32,7 @@ import {
 } from 'vue';
 
 import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
+import CrudDefaultValueEditor from './crud-default-value-editor.vue';
 import ScriptWorkbenchDialog, {
   type ScriptWorkbenchVariableGroup,
 } from './script-workbench-dialog.vue';
@@ -790,6 +791,12 @@ function getSourceFieldTitle(key: string) {
     virtual?.label ||
     props.fields.find((field) => field.key === key)?.label ||
     key
+  );
+}
+
+function getSourceField(key: string, view: View) {
+  return (view === 'detail' ? props.detailFields : props.fields)?.find(
+    (field) => field.key === key,
   );
 }
 
@@ -2378,17 +2385,10 @@ onMounted(() => {
                     v-model:value="row.label"
                     :placeholder="getSourceFieldTitle(row.key)"
                   />
-                  <InputNumber
-                    v-if="view === 'detail'"
+                  <CrudDefaultValueEditor
+                    v-if="view !== 'list'"
                     v-model:value="ensureDefaultValue(row).value"
-                    placeholder="默认值"
-                    class="w-full"
-                  />
-                  <InputNumber
-                    v-if="view !== 'list' && view !== 'detail'"
-                    v-model:value="ensureDefaultValue(row).value"
-                    placeholder="默认值"
-                    class="w-full"
+                    :field="getSourceField(row.key, view)"
                   />
                   <Select
                     v-if="view !== 'list' && isGroupableView(view)"

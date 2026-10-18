@@ -7,6 +7,7 @@ import { oakBaseAdminBackendRouteMappings } from '../backend-route-mappings';
 import { createOakBaseAdminModule } from '../module';
 import { oakBaseAdminPageMap } from '../page-map';
 import { pageMeta as auditMeta } from '../views/notification-audit/config';
+import { pageMeta as robotNotifyGroupMeta } from '../views/robot-notify-group/config';
 import { pageMeta as mailboxMeta } from '../views/support-mailbox-rule/config';
 import { pageMeta as queueMeta } from '../views/ticket-queue/config';
 import { pageMeta as ticketMeta } from '../views/ticket/config';
@@ -36,6 +37,7 @@ describe('新增业务页真实eager元数据注册', () => {
       'TicketQueue',
       'SupportMailboxRule',
       'NotificationAudit',
+      'RobotNotifyGroup',
     ]) {
       expect(
         items.filter((item) => item.path === `/clob/V1/${resource}`),
@@ -45,6 +47,7 @@ describe('新增业务页真实eager元数据注册', () => {
 
   it.each([
     'notification-audit',
+    'robot-notify-group',
     'support-mailbox-rule',
     'ticket-queue',
     'ticket',
@@ -90,6 +93,7 @@ describe('新增业务页真实eager元数据注册', () => {
 
   it.each([
     ['NotificationAudit', 'notification-audit', auditMeta],
+    ['RobotNotifyGroup', 'robot-notify-group', robotNotifyGroupMeta],
     ['SupportMailboxRule', 'support-mailbox-rule', mailboxMeta],
     ['TicketQueue', 'ticket-queue', queueMeta],
     ['Ticket', 'ticket', ticketMeta],

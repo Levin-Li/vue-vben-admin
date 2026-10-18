@@ -1,9 +1,16 @@
-import type { WorkflowDefinitionVersion } from '@levin/bpm-designer';
+import type {
+  WorkflowDefinitionVersion,
+  WorkflowTreeVersion,
+} from '@levin/bpm-designer';
 
 import type { WorkflowPage } from './workflow-definition-service';
 
 import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
 import { WorkflowDesignerService } from '@levin/bpm-designer';
+
+export type ManagedWorkflowVersion = WorkflowDefinitionVersion & {
+  supportEventsByCurrentStatus?: string[];
+};
 
 /** 版本列表与草稿创建归属业务 API；保存、模拟和发布复用设计器的公开连接器。 */
 @Service({
@@ -13,13 +20,30 @@ import { WorkflowDesignerService } from '@levin/bpm-designer';
   type: '平台数据-工作流定义版本',
 })
 export class WorkflowDefinitionVersionService extends WorkflowDesignerService {
+  @CRUD.Op({ label: '归档', visibleOn: "lifecycle == 'Retired'" })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '平台数据-工作流定义版本',
+    action: '归档流程版本',
+  })
+  archive(params: { id: string; optimisticLock?: number }) {
+    return this.post<ManagedWorkflowVersion>(
+      'WorkflowDefinitionVersion/archive',
+      { params },
+    );
+  }
+
   @CRUD.Op({ opRefTargetType: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '平台数据-工作流定义版本',
     action: '新增',
   })
-  create(data: { versionNo: number; workflowDefinitionId: string }) {
+  create(data: {
+    lowflowDefinition?: WorkflowTreeVersion;
+    versionNo: number;
+    workflowDefinitionId: string;
+  }) {
     return this.post<string>('WorkflowDefinitionVersion/create', { data });
   }
 
@@ -34,6 +58,19 @@ export class WorkflowDefinitionVersionService extends WorkflowDesignerService {
     return super.deleteSimulationRun(...args);
   }
 
+  @CRUD.Op({ label: '完成下线', visibleOn: "lifecycle == 'Retiring'" })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '平台数据-工作流定义版本',
+    action: '完成流程版本下线',
+  })
+  finishRetire(params: { id: string; optimisticLock?: number }) {
+    return this.post<ManagedWorkflowVersion>(
+      'WorkflowDefinitionVersion/finish-retire',
+      { params },
+    );
+  }
+
   @CRUD.ListTable({
     refEntityClass: 'com.levin.oak.base.entities.WorkflowDefinitionVersion',
   })
@@ -44,14 +81,16 @@ export class WorkflowDefinitionVersionService extends WorkflowDesignerService {
   })
   list(params: {
     lifecycle?: string;
+    pageIndex?: number;
     pageSize?: number;
     workflowDefinitionId?: string;
   }) {
-    return this.get<WorkflowPage<WorkflowDefinitionVersion>>(
+    return this.get<WorkflowPage<ManagedWorkflowVersion>>(
       'WorkflowDefinitionVersion/list',
       { params },
     );
   }
+
   @CRUD.Op({ label: '发布' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
@@ -64,6 +103,31 @@ export class WorkflowDefinitionVersionService extends WorkflowDesignerService {
     return super.publishAfterSimulation(...args);
   }
 
+  @CRUD.Op({ label: '恢复上线', visibleOn: "lifecycle == 'Retiring'" })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '平台数据-工作流定义版本',
+    action: '恢复流程版本上线',
+  })
+  restore(params: { id: string; optimisticLock?: number }) {
+    return this.post<ManagedWorkflowVersion>(
+      'WorkflowDefinitionVersion/restore',
+      { params },
+    );
+  }
+  @CRUD.Op({ label: '开始下线', visibleOn: "lifecycle == 'Published'" })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '平台数据-工作流定义版本',
+    action: '开始下线流程版本',
+  })
+  retire(params: { id: string; optimisticLock?: number }) {
+    return this.post<ManagedWorkflowVersion>(
+      'WorkflowDefinitionVersion/retire',
+      { params },
+    );
+  }
+
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '平台数据-工作流定义版本',
@@ -71,7 +135,7 @@ export class WorkflowDefinitionVersionService extends WorkflowDesignerService {
   })
   retrieve(params: { id: string }) {
     // 列表仅用于版本选择，完整设计视图附带本版本的真实模拟报告。
-    return this.get<WorkflowDefinitionVersion>(
+    return this.get<ManagedWorkflowVersion>(
       'WorkflowDefinitionVersion/retrieve',
       { params },
     );

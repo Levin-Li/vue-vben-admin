@@ -168,6 +168,58 @@ describe('我的消息页面', () => {
     expect(wrapper.text()).not.toContain('mail-1');
   });
 
+  it('工作流真实摘要在列表为纯文本，在消息详情安全展示Markdown', async () => {
+    const workflowMessage = {
+      ...firstMessage,
+      sourceType: 'Workflow',
+      title: '采购审批通知',
+      summary:
+        '# 采购审批\n- **财务复核完成**\n\\[业务名称\\]\\(https://evil\\.example\\) A&B\n[查看说明](https://example.com/detail)\n<script>alert(1)</script>\n![跟踪](https://example.com/pixel)',
+    };
+    list.mockResolvedValue({
+      items: [workflowMessage],
+      totals: 1,
+      pageIndex: 1,
+    });
+    retrieve.mockResolvedValue(workflowMessage);
+    const wrapper = mountPage();
+    await flushPromises();
+    expect(wrapper.text()).toContain('财务复核完成');
+    expect(wrapper.text()).not.toContain('# 采购审批');
+    expect(wrapper.text()).not.toContain('**财务复核完成**');
+    await getButton(wrapper, '查看').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('h1').text()).toBe('采购审批');
+    expect(wrapper.get('li strong').text()).toBe('财务复核完成');
+    expect(wrapper.findAll('a')).toHaveLength(2);
+    // 图片语法只变为安全链接文字，不加载远程资源；变量中的地址不可链接化。
+    expect(wrapper.find('a[href="https://evil.example"]').exists()).toBe(false);
+    expect(wrapper.find('a[href="https://example.com/detail"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('script').exists()).toBe(false);
+    expect(wrapper.find('img').exists()).toBe(false);
+    expect(wrapper.text()).toContain('[业务名称](https://evil.example) A&B');
+    expect(wrapper.text()).not.toContain('&amp;');
+  });
+
+  it('普通消息摘要保持纯文本，不把Markdown样式作为可执行内容', async () => {
+    const plain = { ...firstMessage, summary: '# **普通文本** A&B' };
+    list.mockResolvedValue({ items: [plain], totals: 1, pageIndex: 1 });
+    retrieve.mockResolvedValue(plain);
+    const wrapper = mountPage();
+    await flushPromises();
+    await getButton(wrapper, '查看').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('h1').exists()).toBe(false);
+    expect(wrapper.get('p.whitespace-pre-wrap').find('strong').exists()).toBe(
+      false,
+    );
+    expect(wrapper.get('p.whitespace-pre-wrap').text()).toBe(
+      '# **普通文本** A&B',
+    );
+  });
+
   it('当前页选中后一次提交批量已读，不调用旧公告处理接口', async () => {
     const wrapper = mountPage();
     await flushPromises();

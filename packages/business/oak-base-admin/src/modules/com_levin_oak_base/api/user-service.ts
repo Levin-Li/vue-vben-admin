@@ -1,6 +1,18 @@
-import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
-import { RequestService } from '@levin/admin-framework';
+import type { RequestOptions } from '@levin/admin-framework';
+
+import type { UserPageOrgScope } from './user-page-scope';
+
+import { useUserStore } from '@vben/runtime/stores';
+
+import {
+  CRUD,
+  RequestService,
+  ResAuthorize,
+  Service,
+} from '@levin/admin-framework';
+
 import { OAK_BASE_API_MODULE } from './_module';
+import { withUserPageScope } from './user-page-scope';
 
 @Service({
   basePath: '/User',
@@ -10,49 +22,28 @@ import { OAK_BASE_API_MODULE } from './_module';
   type: '系统数据-用户',
 })
 export class UserService extends RequestService {
-  constructor() {
+  constructor(
+    private readonly pageScope?: () => undefined | UserPageOrgScope,
+    private readonly actor: () => Record<string, unknown> = () =>
+      (useUserStore().userInfo ?? {}) as Record<string, unknown>,
+  ) {
     super(OAK_BASE_API_MODULE);
   }
 
+  @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
-    action: '批量新增',
+    action: '分配角色',
   })
-  async batchCreate(data?: any, options?: any) {
-    return this.post('batchCreate', {
+  async assignRoles(data?: any, options?: any) {
+    return this.put('assignRoles', {
       ...options,
       data,
     });
   }
 
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-用户',
-    action: '批量删除',
-  })
-  @CRUD.Op({
-    opRefTargetType: 'MultipleRow',
-  })
-  async batchDelete(params?: any, options?: any) {
-    return this.deleteRequest('batchDelete', {
-      ...options,
-      params,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-用户',
-    action: '批量更新',
-  })
-  async batchUpdate(data?: any, options?: any) {
-    return this.put('batchUpdate', {
-      ...options,
-      data,
-    });
-  }
-
+  // 后端禁用全部批量入口，不登记不可调用的CRUD方法或字段策略。
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
@@ -65,13 +56,13 @@ export class UserService extends RequestService {
     });
   }
 
+  @CRUD.Op({
+    opRefTargetType: 'None',
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
     action: '新增',
-  })
-  @CRUD.Op({
-    opRefTargetType: 'None',
   })
   async create(data?: any, options?: any) {
     return this.post('create', {
@@ -80,12 +71,12 @@ export class UserService extends RequestService {
     });
   }
 
+  @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
     action: '删除',
   })
-  @CRUD.Op()
   async delete(params?: any, options?: any) {
     return this.deleteRequest('delete', {
       ...options,
@@ -93,13 +84,13 @@ export class UserService extends RequestService {
     });
   }
 
+  @CRUD.ListTable({
+    refEntityClass: 'com.levin.oak.base.entities.User',
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
     action: '查询列表',
-  })
-  @CRUD.ListTable({
-    refEntityClass: 'com.levin.oak.base.entities.User',
   })
   async list(params?: any, options?: any) {
     return this.get('list', {
@@ -108,14 +99,14 @@ export class UserService extends RequestService {
     });
   }
 
+  @CRUD.Op({
+    level: 'Danger',
+    successAction: 'ShowQrCode',
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
     action: '重置MFA密钥',
-  })
-  @CRUD.Op({
-    level: 'Danger',
-    successAction: 'ShowQrCode',
   })
   async resetMfaSecretKey(params?: any, options?: any) {
     return this.put('resetMfaSecretKey', {
@@ -124,13 +115,13 @@ export class UserService extends RequestService {
     });
   }
 
+  @CRUD.Op({
+    confirmText: 'None',
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
     action: '查看详情',
-  })
-  @CRUD.Op({
-    confirmText: 'None',
   })
   async retrieve(params?: any, options?: any) {
     return this.get('retrieve', {
@@ -139,12 +130,12 @@ export class UserService extends RequestService {
     });
   }
 
+  @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
     action: '更新',
   })
-  @CRUD.Op()
   async update(data?: any, options?: any) {
     return this.put('update', {
       ...options,
@@ -152,26 +143,13 @@ export class UserService extends RequestService {
     });
   }
 
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-用户',
-    action: '分配角色',
+  @CRUD.Op({
+    successAction: 'ShowForm',
   })
-  @CRUD.Op()
-  async assignRoles(data?: any, options?: any) {
-    return this.put('assignRoles', {
-      ...options,
-      data,
-    });
-  }
-
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
     action: 'MFA二维码',
-  })
-  @CRUD.Op({
-    successAction: 'ShowForm',
   })
   async viewMfaQrCode(params?: any, options?: any) {
     return this.get('viewMfaQrCode', {
@@ -180,21 +158,29 @@ export class UserService extends RequestService {
     });
   }
 
+  @CRUD.Op({
+    opRefTargetListName: '',
+    successAction: 'ShowForm',
+  })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-用户',
     action: '查看我的MFA二维码',
     onlyRequireAuthenticated: true,
   })
-  @CRUD.Op({
-    opRefTargetListName: '',
-    successAction: 'ShowForm',
-  })
   async viewMyMfaQrCode(params?: any, options?: any) {
     return this.get('viewMyMfaQrCode', {
       ...options,
       params,
     });
+  }
+
+  // 同一个服务类型保留原方法授权/字段策略元数据，只在传输前绑定本页选中的范围。
+  protected override request<T>(options: RequestOptions) {
+    const scope = this.pageScope?.();
+    return super.request<T>(
+      withUserPageScope(options, scope, scope ? this.actor() : {}),
+    );
   }
 }
 

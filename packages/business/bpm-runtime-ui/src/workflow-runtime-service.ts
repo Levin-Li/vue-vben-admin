@@ -3,6 +3,7 @@ import type {
   WorkflowBusinessReference,
   WorkflowCompleteRequest,
   WorkflowEligibility,
+  WorkflowInstanceOperationCommand,
   WorkflowInstanceView,
   WorkflowManualStart,
   WorkflowRoundState,
@@ -34,7 +35,6 @@ export class WorkflowRuntimeService extends RequestService {
       { params: { instanceId } },
     );
   }
-
   /** 按显式契约分页读取已授权业务引用，绝不使用裸 ID 查询替代记录权限。 */
   async businessRecords(
     query: WorkflowStartPageQuery & {
@@ -47,7 +47,6 @@ export class WorkflowRuntimeService extends RequestService {
       { params: query },
     );
   }
-
   async complete(data: WorkflowCompleteRequest) {
     return this.post<WorkflowTaskView>('workflow-runtime/complete', { data });
   }
@@ -167,6 +166,33 @@ export class WorkflowRuntimeService extends RequestService {
     }>('workflow-runtime/step-up-auth/prepare', { data });
   }
 
+  async recover(command: WorkflowInstanceOperationCommand) {
+    const {
+      businessType,
+      businessId,
+      tenantId,
+      orgId,
+      dispatchId,
+      requestId,
+      reason,
+    } = command;
+    if (!dispatchId) throw new Error('当前实例没有可接管的失败处理。');
+    return this.post<WorkflowInstanceView>(
+      'workflow-runtime/business/recover',
+      {
+        data: {
+          businessType,
+          businessId,
+          tenantId,
+          orgId,
+          dispatchId,
+          requestId,
+          reason,
+        },
+      },
+    );
+  }
+
   /** 仅重提当前轮次最新且已应用的失败终态，服务端重新匹配当前发布定义。 */
   async resubmit(
     data: WorkflowBusinessReference & {
@@ -231,6 +257,32 @@ export class WorkflowRuntimeService extends RequestService {
     });
   }
 
+  async terminate(command: WorkflowInstanceOperationCommand) {
+    const {
+      businessType,
+      businessId,
+      tenantId,
+      orgId,
+      instanceId,
+      requestId,
+      reason,
+    } = command;
+    return this.post<WorkflowInstanceView>(
+      'workflow-runtime/business/terminate',
+      {
+        data: {
+          businessType,
+          businessId,
+          tenantId,
+          orgId,
+          instanceId,
+          requestId,
+          reason,
+        },
+      },
+    );
+  }
+
   async todo(query: WorkflowRuntimePageQuery = {}) {
     return this.get<WorkflowRuntimePage<WorkflowTaskView>>(
       'workflow-runtime/todo',
@@ -246,6 +298,33 @@ export class WorkflowRuntimeService extends RequestService {
       this.buildRequestPath('workflow-runtime/attachment/upload'),
       { taskId, file },
       { baseURL: '' },
+    );
+  }
+
+  /** 撤回、终止与接管仅提交固定业务引用；每次由服务端复核动作与主体。 */
+  async withdraw(command: WorkflowInstanceOperationCommand) {
+    const {
+      businessType,
+      businessId,
+      tenantId,
+      orgId,
+      instanceId,
+      requestId,
+      reason,
+    } = command;
+    return this.post<WorkflowInstanceView>(
+      'workflow-runtime/business/withdraw',
+      {
+        data: {
+          businessType,
+          businessId,
+          tenantId,
+          orgId,
+          instanceId,
+          requestId,
+          reason,
+        },
+      },
     );
   }
 }

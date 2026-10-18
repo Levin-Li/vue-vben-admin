@@ -8,30 +8,42 @@ function escapeHtml(value: string) {
     .replaceAll("'", '&#39;');
 }
 
+// 与模板服务一致：反斜杠转义的 Markdown 标点是字面文本，不能再变成链接或格式。
+function literalText(value: string) {
+  return value.replaceAll(/\\([\\`*_{}[\]()#+\-.!<>|~])/g, '$1');
+}
+
 function renderInline(value: string) {
+  // 优先消费转义序列，避免变量中的「\[标签\]\(地址\)」被后续链接分支重新识别。
   const token =
-    /`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+    /\\([\\`*_{}[\]()#+\-.!<>|~])|`((?:\\.|[^`\\])+)`|\[((?:\\.|[^\]\\])+)\]\(((?:\\.|[^)\\])+)\)|\*\*((?:\\.|[^*\\])+)\*\*|\*((?:\\.|[^*\\])+)\*/g;
   let html = '';
   let cursor = 0;
   for (const match of value.matchAll(token)) {
     const index = match.index ?? 0;
     html += escapeHtml(value.slice(cursor, index));
     if (match[1]) {
-      html += `<code>${escapeHtml(match[1])}</code>`;
-    } else if (match[2] && match[3]) {
+      html += escapeHtml(match[1]);
+    } else if (match[2]) {
+      html += `<code>${escapeHtml(literalText(match[2]))}</code>`;
+    } else if (match[3] && match[4]) {
+      const label = escapeHtml(literalText(match[3]));
       try {
-        const url = new URL(match[3]);
+        const url = new URL(literalText(match[4]));
         html +=
-          url.protocol === 'https:' && !url.username && !url.password
-            ? `<a href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(match[2])}</a>`
-            : escapeHtml(match[2]);
+          url.protocol === 'https:' &&
+          !url.username &&
+          !url.password &&
+          !match[4].includes('\\')
+            ? `<a href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer">${label}</a>`
+            : label;
       } catch {
-        html += escapeHtml(match[2]);
+        html += label;
       }
-    } else if (match[4]) {
-      html += `<strong>${escapeHtml(match[4])}</strong>`;
     } else if (match[5]) {
-      html += `<em>${escapeHtml(match[5])}</em>`;
+      html += `<strong>${escapeHtml(literalText(match[5]))}</strong>`;
+    } else if (match[6]) {
+      html += `<em>${escapeHtml(literalText(match[6]))}</em>`;
     }
     cursor = index + match[0].length;
   }
@@ -54,7 +66,9 @@ export function renderSafeMarkdown(markdown: string) {
     if (line.trim().startsWith('```')) {
       closeList();
       if (code) {
-        output.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+        output.push(
+          `<pre><code>${escapeHtml(literalText(code.join('\n')))}</code></pre>`,
+        );
         code = undefined;
       } else {
         code = [];
@@ -98,6 +112,8 @@ export function renderSafeMarkdown(markdown: string) {
   }
   closeList();
   if (code)
-    output.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+    output.push(
+      `<pre><code>${escapeHtml(literalText(code.join('\n')))}</code></pre>`,
+    );
   return output.join('\n');
 }

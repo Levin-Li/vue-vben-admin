@@ -1,7 +1,13 @@
+import type { UserDropdownMenuRecord } from '@levin/admin-framework';
+
+import { createApp } from 'vue';
+import { createMemoryHistory, createRouter } from 'vue-router';
+
 import {
   getUserDropdownMenuItems,
   removeUserDropdownMenuItem,
 } from '@levin/admin-framework';
+import { createPinia } from 'pinia';
 import { describe, expect, it, vi } from 'vitest';
 
 import { oakBaseAdminBackendRouteMappings } from '../backend-route-mappings';
@@ -36,12 +42,17 @@ describe('随包文档中心', () => {
     const mapping = oakBaseAdminBackendRouteMappings.find(
       (route) => route.path === page?.path,
     );
-    const push = vi.fn();
-    await module.setup?.({ router: { push } } as Parameters<
-      NonNullable<typeof module.setup>
-    >[0]);
+    // 使用完整模块上下文夹具，路由跳转单独受控模拟。
+    const router = createRouter({ history: createMemoryHistory(), routes: [] });
+    const push = vi.spyOn(router, 'push').mockResolvedValue(undefined);
+    await module.setup?.({
+      app: createApp({}),
+      pinia: createPinia(),
+      request: {},
+      router,
+    });
     const menu = getUserDropdownMenuItems().value.find(
-      (item) => item.id === 'help-center',
+      (item: UserDropdownMenuRecord) => item.id === 'help-center',
     );
 
     expect(page?.name).toBe('_clob_V1_HelpCenter');

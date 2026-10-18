@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
+import { ref } from 'vue';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,9 +9,19 @@ import WorkflowStart from '../views/workflow-start/index.vue';
 const state = vi.hoisted(() => ({
   actor: {} as Record<string, unknown>,
   has: vi.fn(),
+  ready: { value: true },
+  token: { value: 'qa-session' },
 }));
 vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({ userInfo: state.actor }),
+  useAccessStore: () => ({
+    get accessToken() {
+      return state.token.value;
+    },
+  }),
+}));
+vi.mock('@levin/admin-framework/framework-commons/data-attr-policy', () => ({
+  isDataAttrPolicyReady: () => state.ready.value,
 }));
 vi.mock('@levin/admin-framework', () => ({
   UserOrgSelector: {
@@ -52,6 +63,26 @@ vi.mock('../api/workflow-request-service', () => ({
 describe('发起流程宿主范围与权限', () => {
   beforeEach(() => {
     state.has.mockReturnValue(true);
+    state.ready = ref(true);
+    state.token = ref('qa-session');
+  });
+  it('会话及授权均就绪才挂载发起组件，退出立即卸载并丢弃旧组件状态', async () => {
+    state.actor = { tenantId: 'own-tenant' };
+    state.ready.value = false;
+    const wrapper = mount(WorkflowStart);
+    const exists = () =>
+      wrapper.findComponent({ name: 'WorkflowStartWorkbench' }).exists();
+    expect(exists()).toBe(false);
+    state.ready.value = true;
+    await flushPromises();
+    expect(exists()).toBe(true);
+    state.token.value = '';
+    await flushPromises();
+    expect(exists()).toBe(false);
+    state.token.value = 'next-session';
+    await flushPromises();
+    expect(exists()).toBe(true);
+    wrapper.unmount();
   });
   it.each([
     'platformUser',

@@ -1,5 +1,10 @@
-import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
-import { RequestService } from '@levin/admin-framework';
+import {
+  CRUD,
+  RequestService,
+  ResAuthorize,
+  Service,
+} from '@levin/admin-framework';
+
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
@@ -14,138 +19,44 @@ export class CustomerService extends RequestService {
     super(OAK_BASE_API_MODULE);
   }
 
+  @CRUD.Op({ label: '保存客户', opRefTargetType: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-客户',
-    action: '批量新增',
-  })
-  async batchCreate(data?: any, options?: any) {
-    return this.post('batchCreate', {
-      ...options,
-      data,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-客户',
-    action: '批量删除',
-  })
-  @CRUD.Op({
-    opRefTargetType: 'MultipleRow',
-  })
-  async batchDelete(params?: any, options?: any) {
-    return this.deleteRequest('batchDelete', {
-      ...options,
-      params,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-客户',
-    action: '批量更新',
-  })
-  async batchUpdate(data?: any, options?: any) {
-    return this.put('batchUpdate', {
-      ...options,
-      data,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-客户',
-    action: '清除缓存',
-  })
-  async clearCache(params?: any, options?: any) {
-    return this.get('clearCache', {
-      ...options,
-      params,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-客户',
-    action: '新增',
-  })
-  @CRUD.Op({
-    opRefTargetType: 'None',
+    action: '保存客户',
   })
   async create(data?: any, options?: any) {
-    return this.post('create', {
-      ...options,
-      data,
-    });
+    return this.post('saveCustomer', { ...options, data });
   }
 
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-客户',
-    action: '删除',
-  })
-  @CRUD.Op()
-  async delete(params?: any, options?: any) {
-    return this.deleteRequest('delete', {
-      ...options,
-      params,
-    });
-  }
-
+  @CRUD.ListTable({ refEntityClass: 'com.levin.oak.base.entities.Customer' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-客户',
     action: '查询列表',
   })
-  @CRUD.ListTable({
-    refEntityClass: 'com.levin.oak.base.entities.Customer',
-  })
   async list(params?: any, options?: any) {
-    return this.get('list', {
-      ...options,
-      params,
-    });
+    return this.get('list', { ...options, params });
   }
 
+  @CRUD.Op({ confirmText: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-客户',
     action: '查看详情',
   })
-  @CRUD.Op({
-    confirmText: 'None',
-  })
   async retrieve(params?: any, options?: any) {
-    return this.get('retrieve', {
-      ...options,
-      params,
-    });
+    return this.get('retrieve', { ...options, params });
   }
 
+  @CRUD.Op({ label: '更新客户' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-客户',
-    action: '统计',
+    action: '更新客户',
   })
-  async stat(params?: any, options?: any) {
-    return this.get('stat', {
-      ...options,
-      params,
-    });
-  }
-
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-客户',
-    action: '更新',
-  })
-  @CRUD.Op()
   async update(data?: any, options?: any) {
-    return this.put('update', {
-      ...options,
-      data,
-    });
+    return this.put('updateCustomer', { ...options, data });
   }
 }
 

@@ -8,8 +8,22 @@ describe('orgPageCrudConfig', () => {
     expect(orgPageCrudConfig.fields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          key: 'externalLegalSubjectId',
+          key: 'legalSubjectId',
           loadOptions: legalSubjectOptionsLoader,
+          remoteSearch: true,
+          search: true,
+          type: 'select',
+        }),
+      ]),
+    );
+  });
+
+  it('exposes a responsible user selector for every organization node', () => {
+    expect(orgPageCrudConfig.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'responsibleUserId',
+          label: '组织负责人',
           remoteSearch: true,
           search: true,
           type: 'select',
@@ -38,7 +52,7 @@ describe('orgPageCrudConfig', () => {
     expect(orgPageCrudConfig.sortFieldPrefix).toBe('_org.');
   });
 
-  it('supports contact information and district-level area selection', () => {
+  it('supports organization contact information', () => {
     expect(orgPageCrudConfig.fields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -57,17 +71,13 @@ describe('orgPageCrudConfig', () => {
           layoutGroup: 'contact',
           table: true,
         }),
-        expect.objectContaining({
-          areaCascader: {
-            selectableLevels: ['district'],
-            valueKey: 'areaCode',
-          },
-          key: 'areaCode',
-          search: true,
-          table: true,
-          type: 'area-cascader',
-        }),
       ]),
     );
+  });
+
+  it('does not expose the removed organization area code', () => {
+    expect(
+      orgPageCrudConfig.fields.some((field) => field.key === 'areaCode'),
+    ).toBe(false);
   });
 });

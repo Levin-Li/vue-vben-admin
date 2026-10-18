@@ -321,6 +321,7 @@ function convertLeafRoute(
         disabled: item.enable === false,
         icon: resolveLocalPageIcon(item.icon, mapping.icon),
         hideInMenu: item.hidden === true,
+        ...(mapping.keepAlive ? { keepAlive: true } : {}),
         menuActionType: actionType,
         menuPageType: pageType,
         order: item.orderCode,
@@ -395,8 +396,16 @@ export function convertMenuNode(
             ...groupPageRoute.meta,
             hideInMenu: true,
             replacePath: undefined,
+            title:
+              groupPageRoute.meta?.title ||
+              item.label ||
+              item.name ||
+              normalizedPath ||
+              '未命名页面',
           },
-          name: toDefaultChildRouteName(groupPageRoute.name),
+          name: toDefaultChildRouteName(
+            String(groupPageRoute.name || normalizedPath),
+          ),
           path: '',
         },
         ...children,
@@ -411,15 +420,20 @@ export function convertMenuNode(
     const routePath = groupPageRoute?.meta?.fixedQuery
       ? groupPageRoute.path
       : groupPath;
+    const component = groupPageRoute || depth > 0 ? 'RouteView' : 'BasicLayout';
 
     return {
       children: groupChildren,
-      component: groupPageRoute || depth > 0 ? 'RouteView' : 'BasicLayout',
+      component,
       meta: {
         authority: toAuthority(item),
         alwaysShow: item.alwaysShow,
         disabled: item.enable === false,
         hideInMenu: item.hidden === true,
+        ...(component === 'RouteView' &&
+        groupChildren.some((child) => child.meta?.keepAlive === true)
+          ? { keepAlive: true }
+          : {}),
         icon: resolveBackendMenuIcon(
           item,
           normalizedPath,

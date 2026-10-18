@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { electronicContractPageCrudConfig } from '../config';
+
 vi.mock('../../../api/electronic-contract-service', () => ({
   electronicContractService: {},
 }));
@@ -12,9 +14,13 @@ vi.mock('../../api-module', () => ({
   withModuleCrudConfig: (config: any) => config,
 }));
 
-import { electronicContractPageCrudConfig } from '../config';
-
 describe('electronic contract page config', () => {
+  it('hides the legacy edit action for template-generated contracts', () => {
+    expect(electronicContractPageCrudConfig.editVisibleOn).toContain(
+      '!__record.templateId',
+    );
+  });
+
   it('uses only fields that exist in the current electronic contract model', () => {
     const fieldKeys = electronicContractPageCrudConfig.fields.map(
       (field) => field.key,
