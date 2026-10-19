@@ -385,3 +385,9 @@ export default {
 ## 批次发布记录
 
 - [2026-10-19 全部变更发布与验证记录](releases/20261019-all-changes.md)
+
+## AI浏览器运行时兼容门禁
+
+修改Oak网页模型依赖、构建或入口时，先构建实际tarball，再运行 `node scripts/ai-browser-consumer-gate.mjs --tarball <oak.tgz> --serve`。脚本从同字节tarball创建独立消费者，检查自包含ESM入口并安装、生产构建；开发5797及预览5798仅绑定本机。使用浏览器分别验证冷启动ready、刷新、点击实际SDK后passed，检查Node全局未注入、请求仅到同源协议模拟器且无Vercel/OIDC网络。模拟仅测试凭据，不使用实际供应商密钥。基础页面正常不能代替首次模型调用验收。每次Oak构建亦自动执行浏览器产物AST检查，阻止残留裸导入、CommonJS require及源码条件入口。
+
+本次修复及验证结果见 [2026-10-19 AI浏览器兼容修复发布](releases/20261019-ai-browser-esm.md)。

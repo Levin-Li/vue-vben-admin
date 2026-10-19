@@ -1,8 +1,5 @@
 import type { AgentModelTransport } from '@levin/admin-framework';
 
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { generateText, wrapLanguageModel } from 'ai';
-
 import { oakBaseGet } from './_module';
 
 interface BrowserProviderConfig {
@@ -18,6 +15,24 @@ interface BrowserProviderConfig {
 const PROVIDERS = new Set(['deepseek', 'glm', 'kimi', 'minimax', 'openai']);
 const MAX_REQUEST_BYTES = 128_000;
 const MAX_RESPONSE_BYTES = 128_000;
+
+// 动态模块下载本身不可取消；等待须受会话取消和总超时约束，迟到的模块不得继续请求。
+async function loadBrowserRuntime(signal: AbortSignal) {
+  signal.throwIfAborted();
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+  try {
+    return await Promise.race([
+      import('@levin/oak-base-admin/ai-sdk-browser'),
+      aborted,
+    ]);
+  } finally {
+    if (onAbort) signal.removeEventListener('abort', onAbort);
+  }
+}
 
 // 配置只在当前调用栈内使用；不写入状态、存储、日志或模型消息。
 // 对应后端 com.levin.oak.base.ai.web.AiBrowserConfigController。
@@ -123,6 +138,10 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
     try {
       signal?.throwIfAborted();
       const url = completionUrl(config.baseUrl);
+      // 仅在合法模型调用时加载包内浏览器产物，目录读取和模块初始化不加载 SDK。
+      const { createOpenAICompatible, generateText, wrapLanguageModel } =
+        await loadBrowserRuntime(controller.signal);
+      controller.signal.throwIfAborted();
       // 模型与供应商均显式指定，SDK 只负责协议生成和解析，不启用 Gateway。
       const provider = createOpenAICompatible({
         name: providerCode,
