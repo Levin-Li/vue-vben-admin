@@ -6,7 +6,6 @@ import {
   confidentialLevelOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
-  userOptionsLoader,
   withModuleCrudConfig,
 } from '../api-module';
 import {
@@ -140,21 +139,11 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     },
     {
       key: 'orgId',
-      label: '所属组织',
+      label: '添加/管理组织',
       layoutGroup: 'ownership',
       layoutGroupTitle: '归属信息',
       layoutOrder: 15,
       type: 'org-tree-select',
-    },
-    {
-      key: 'ownerId',
-      label: '所属用户',
-      layoutGroup: 'ownership',
-      layoutGroupTitle: '归属信息',
-      layoutOrder: 16,
-      loadOptions: userOptionsLoader,
-      remoteSearch: true,
-      type: 'select',
     },
     {
       key: 'containsSubjectName',

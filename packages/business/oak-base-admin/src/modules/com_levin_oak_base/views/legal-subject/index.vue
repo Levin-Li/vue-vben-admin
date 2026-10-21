@@ -3,6 +3,7 @@ import { buildApiMethodPermissions } from '@levin/admin-framework/framework-comm
 
 import { legalSubjectService } from '../../api/legal-subject-service';
 import CrudPage from '../crud-page.vue';
+import { buildCertificationActionPayload } from './certification-payload';
 import { legalSubjectPageCrudConfig } from './config';
 
 type LegalSubjectRecord = Record<string, any>;
@@ -13,18 +14,6 @@ function canFireCertificationEvent(record: LegalSubjectRecord, event: string) {
     Array.isArray(record.supportCertificationEventsByCurrentStatus) &&
     record.supportCertificationEventsByCurrentStatus.includes(event)
   );
-}
-
-function buildCertificationActionPayload(record: LegalSubjectRecord) {
-  return {
-    id: record.id,
-    _operatorAction: record._operatorAction,
-    remark: record._operatorAction,
-    optimisticLock: record.optimisticLock,
-    orgId: record.orgId,
-    ownerId: record.ownerId,
-    tenantId: record.tenantId,
-  };
 }
 
 const pageConfig = {

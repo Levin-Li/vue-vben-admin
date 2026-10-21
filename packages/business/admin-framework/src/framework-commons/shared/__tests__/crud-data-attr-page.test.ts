@@ -15,6 +15,7 @@ import {
   configureDataAttrPolicyLoader,
 } from '../../data-attr-policy';
 import CrudPage from '../crud-page.vue';
+import UserOrgSelector from '../user-org-selector.vue';
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -24,7 +25,13 @@ const mocks = vi.hoisted(() => ({
   delete: vi.fn(),
   error: vi.fn(),
   warning: vi.fn(),
-  route: { path: '/contracts', meta: {} as Record<string, any>, query: {} },
+  setPageKeepAlive: vi.fn(),
+  route: {
+    path: '/contracts',
+    matched: [],
+    meta: {} as Record<string, any>,
+    query: {},
+  },
   user: { userInfo: { id: 'tester' } },
   access: { accessCodes: [] as string[] },
 }));
@@ -51,8 +58,11 @@ vi.mock('../../rbac-access', () => ({
   useRbacAccess: () => ({ hasPermission: () => true }),
 }));
 vi.mock('@vben/runtime/stores', () => ({
+  getTabKey: (route: { fullPath?: string; path: string }) =>
+    route.fullPath || route.path,
   useUserStore: () => mocks.user,
   useAccessStore: () => mocks.access,
+  useTabbarStore: () => ({ setPageKeepAlive: mocks.setPageKeepAlive }),
 }));
 vi.mock('vue-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('vue-router')>()),
@@ -136,6 +146,7 @@ function setupState(wrapper: ReturnType<typeof shallowMount>) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.user.userInfo = { id: 'tester' };
   mocks.route.meta = {};
   mocks.get.mockImplementation(async (path: string) =>
     path.includes('/list')
@@ -153,6 +164,67 @@ beforeEach(() => {
 });
 
 describe('标准 crud 的属性组策略', () => {
+  it('查询组织字段通过通用选择器回填组织 ID', async () => {
+    Object.assign(mocks.user.userInfo, { admin: true, roleList: ['R_ADMIN'] });
+    configureDataAttrPolicyLoader(async (query) => {
+      const result = policy(
+        'operation' in query ? query.operation : 'contract:合同::操作',
+      );
+      result.restricted = false;
+      result.groups = [];
+      result.nodes = {};
+      result.requestRoots = [];
+      result.viewRoots = { request: [], response: [] };
+      result.responseRoot = null;
+      return { version: 1, policies: [result] };
+    });
+    const wrapper = shallowMount(CrudPage, {
+      global: {
+        config: { errorHandler: () => {} },
+        renderStubDefaultSlot: true,
+      },
+      props: {
+        config: config({
+          fields: [
+            {
+              key: 'orgId',
+              label: '所属组织',
+              type: 'org-tree-select',
+              search: true,
+              form: true,
+            },
+          ],
+        }),
+      },
+    });
+    await flushPromises();
+
+    expect(
+      setupState(wrapper).searchFields.map(
+        (field: { key: string }) => field.key,
+      ),
+    ).toContain('orgId');
+    const selector = wrapper.findComponent(UserOrgSelector);
+    expect(selector.exists()).toBe(true);
+    expect(selector.props('selectableTypes')).toEqual(['org']);
+    expect(selector.props('valueMode')).toBe('id');
+    selector.vm.$emit('update:modelValue', 'org-2');
+    const state = setupState(wrapper);
+    expect(state.searchState.orgId).toBe('org-2');
+
+    await state.handleCreate();
+    await flushPromises();
+    expect(
+      state.visibleFormFields.map((field: { key: string }) => field.key),
+    ).toContain('orgId');
+    state.updateFormFieldInput(state.visibleFormFields[0], 'org-3');
+    expect(state.formState.orgId).toBe('org-3');
+
+    await state.handleEdit({ id: 'record-1', orgId: 'org-1' });
+    await flushPromises();
+    expect(state.formState.orgId).toBe('org-1');
+  });
+
   it('辅助选项失败在当前授权上下文只尝试一次，权限变化允许重试且停用页不加载', async () => {
     const loader = vi
       .fn()

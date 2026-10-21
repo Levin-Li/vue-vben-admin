@@ -38,6 +38,7 @@ export function resolveCrudPageDisplayDefaults(
     detail: { fields: [], ...config?.detail },
     list: { actions: [], headers: [], ...config?.list },
   } satisfies CrudPageDisplayConfig;
+  if (typeof resolved.keepAlive !== 'boolean') delete resolved.keepAlive;
   resolved.query.autoSearch ??= false;
   resolved.edit.autoForceUpdateField ??= true;
   resolved.detail.showEmptyValues ??= true;

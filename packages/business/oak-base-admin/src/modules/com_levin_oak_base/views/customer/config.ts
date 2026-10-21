@@ -8,7 +8,6 @@ import {
   confidentialLevelOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
-  userOptionsLoader,
   withModuleCrudConfig,
 } from '../api-module';
 
@@ -28,6 +27,14 @@ const investmentRelationOptionsLoader = buildEnumOptionsLoader(
 );
 const levelOptionsLoader = buildDictOptionsLoader(
   'com.levin.oak.base.entities.Customer.level',
+);
+// 客户主档只能选择有权访问的客户组织节点。
+const customerOrgOptionsLoader = buildModuleOptionsLoader(
+  '/Org/list',
+  'name',
+  'id',
+  { pageIndex: 1, pageSize: 500, type: 'Customer' },
+  'containsName',
 );
 
 export const pageMeta = {
@@ -135,20 +142,13 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     {
       key: 'orgId',
       disabledOnEdit: true,
-      label: '管理组织',
+      label: '客户组织节点',
+      help: '请选择该客户自己的客户类型组织节点，保存后不可修改。',
       layoutGroup: 'ownership',
       layoutOrder: 20,
-      required: true,
-      type: 'org-tree-select',
-    },
-    {
-      key: 'ownerId',
-      disabledOnEdit: true,
-      label: '所有者',
-      layoutGroup: 'ownership',
-      layoutOrder: 30,
-      loadOptions: userOptionsLoader,
+      loadOptions: customerOrgOptionsLoader,
       remoteSearch: true,
+      required: true,
       type: 'select',
     },
     {

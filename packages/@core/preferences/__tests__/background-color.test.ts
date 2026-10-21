@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveBackgroundColor } from '../src/background-color';
-import { defaultPreferences } from '../src/config';
+import { resolveBackgroundColor } from '../../foundation/src/vendor/preferences/background-color';
+import { defaultPreferences } from '../../foundation/src/vendor/preferences/config';
 
 describe('resolveBackgroundColor', () => {
   it('maps transparency to the inverse background alpha without container opacity', () => {

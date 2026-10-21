@@ -65,7 +65,7 @@ export function registerAdminAgentModelTransport(
 }
 
 function requireTransport() {
-  if (!modelTransport) throw new Error('系统 AI 模型接口尚未注册');
+  if (!modelTransport) throw new Error('AI助手 模型接口尚未注册');
   return modelTransport;
 }
 

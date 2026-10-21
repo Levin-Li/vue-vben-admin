@@ -50,7 +50,9 @@ describe('crud export template flow', () => {
     expect(openExportBlock).toContain('resetExportFieldConfig();');
     expect(source).toContain('getDefaultSelectedExportFieldKeys()');
     expect(source).toContain('orderedVisibleTableFields.value');
-    expect(source).toContain('const headerLength = Array.from(');
+    expect(source).toContain(
+      'const headerLength = [...String(getExportFieldHeader(field))].length;',
+    );
     expect(source).toContain(
       'return Math.min(Math.max(headerLength * 2 + 6, 1), 255);',
     );

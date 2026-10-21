@@ -12,7 +12,7 @@ import { OAK_BASE_API_MODULE } from './_module';
   controllerClass: 'com.levin.oak.base.controller.BizCustomerController',
   description: '客户管理',
   title: '客户',
-  type: '系统数据-客户',
+  type: '业务数据-客户',
 })
 export class CustomerService extends RequestService {
   constructor() {
@@ -22,7 +22,7 @@ export class CustomerService extends RequestService {
   @CRUD.Op({ label: '保存客户', opRefTargetType: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-客户',
+    type: '业务数据-客户',
     action: '保存客户',
   })
   async create(data?: any, options?: any) {
@@ -32,7 +32,7 @@ export class CustomerService extends RequestService {
   @CRUD.ListTable({ refEntityClass: 'com.levin.oak.base.entities.Customer' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-客户',
+    type: '业务数据-客户',
     action: '查询列表',
   })
   async list(params?: any, options?: any) {
@@ -42,7 +42,7 @@ export class CustomerService extends RequestService {
   @CRUD.Op({ confirmText: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-客户',
+    type: '业务数据-客户',
     action: '查看详情',
   })
   async retrieve(params?: any, options?: any) {
@@ -52,7 +52,7 @@ export class CustomerService extends RequestService {
   @CRUD.Op({ label: '更新客户' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-客户',
+    type: '业务数据-客户',
     action: '更新客户',
   })
   async update(data?: any, options?: any) {

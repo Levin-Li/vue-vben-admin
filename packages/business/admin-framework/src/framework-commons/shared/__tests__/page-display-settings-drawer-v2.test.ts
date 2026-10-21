@@ -94,6 +94,39 @@ function upload() {
 }
 
 describe('界面UI设置2', () => {
+  it('在整页设置中覆盖标签缓存并可恢复路由默认', async () => {
+    const wrapper = mountEditor();
+    try {
+      await wrapper.setProps({ defaultKeepAlive: true });
+      await flushPromises();
+      const switchButton = document.body.querySelector<HTMLButtonElement>(
+        '[data-test="page-display-v2-keep-alive"]',
+      );
+      expect(switchButton?.getAttribute('aria-checked')).toBe('true');
+      switchButton?.click();
+      await flushPromises();
+      upload();
+      const disabled = wrapper.emitted('save')?.at(-1)?.[0] as {
+        config: CrudPageDisplayConfig;
+      };
+      expect(disabled.config.keepAlive).toBe(false);
+
+      const restore = [...document.body.querySelectorAll('button')].find(
+        (button) => button.textContent?.includes('恢复路由默认'),
+      );
+      restore?.click();
+      await flushPromises();
+      upload();
+      const inherited = wrapper.emitted('save')?.at(-1)?.[0] as {
+        config: CrudPageDisplayConfig;
+      };
+      expect(inherited.config.keepAlive).toBeUndefined();
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
   it('首次打开后异步返回未命中配置时可直接关闭', async () => {
     const wrapper = mountEditor();
     try {

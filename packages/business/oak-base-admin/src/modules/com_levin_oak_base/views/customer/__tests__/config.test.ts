@@ -2,11 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { customerPageCrudConfig } from '../config';
 
+const { optionLoaderCalls } = vi.hoisted(() => ({
+  optionLoaderCalls: [] as any[],
+}));
+
 vi.mock('../../../api/customer-service', () => ({ customerService: {} }));
 vi.mock('../../api-module', () => ({
   buildDictOptionsLoader: () => async () => [],
   buildEnumOptionsLoader: () => async () => [],
-  buildModuleOptionsLoader: () => async () => [],
+  buildModuleOptionsLoader: (...args: any[]) => {
+    optionLoaderCalls.push(args);
+    return async () => [];
+  },
   confidentialLevelOptionsLoader: async () => [],
   DEFAULT_CRUD_MODAL_WIDTH: 960,
   tenantOptionsLoader: async () => [],
@@ -32,9 +39,22 @@ describe('独立客户页面', () => {
       form: false,
       table: true,
     });
-    for (const key of ['type', 'orgId', 'ownerId']) {
+    for (const key of ['type', 'orgId']) {
       expect(field(key), key).toMatchObject({ disabledOnEdit: true });
     }
+    expect(field('orgId')).toMatchObject({
+      label: '客户组织节点',
+      required: true,
+      type: 'select',
+    });
+    expect(field('ownerId')).toBeUndefined();
+    expect(optionLoaderCalls).toContainEqual([
+      '/Org/list',
+      'name',
+      'id',
+      { pageIndex: 1, pageSize: 500, type: 'Customer' },
+      'containsName',
+    ]);
     expect(field('channelPartnerId')).toMatchObject({ disabledOnEdit: true });
     expect(field('channelPartnerName')).toMatchObject({
       form: false,

@@ -143,6 +143,50 @@ describe('userOrgSelector', () => {
     expect(orgLoadApi).toHaveBeenCalledTimes(1);
   });
 
+  it('only loads an initial organization ID when explicitly requested', async () => {
+    const orgLoadApi = vi.fn(async () => [{ id: 'org-1', name: '总部' }]);
+    const wrapper = mountSelector({
+      loadOnInitialValue: true,
+      modelValue: 'org-1',
+      orgLoadApi,
+      selectableTypes: ['org'],
+      valueMode: 'id',
+    });
+
+    await flushPromises();
+    expect(orgLoadApi).toHaveBeenCalledTimes(1);
+    expect(wrapper.findComponent(treeSelectStub).props('treeData')).toEqual([
+      expect.objectContaining({ id: 'org-1', title: '总部' }),
+    ]);
+    expect(wrapper.findComponent(treeSelectStub).props('value')).toBe(
+      encodeUserOrgSelectorKey('org', 'org-1'),
+    );
+    await openSelector(wrapper);
+    expect(orgLoadApi).toHaveBeenCalledTimes(1);
+    wrapper
+      .findComponent(treeSelectStub)
+      .vm.$emit('change', encodeUserOrgSelectorKey('org', 'org-1'));
+    expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toBe('org-1');
+  });
+
+  it('loads when a query default organization arrives after mount', async () => {
+    const orgLoadApi = vi.fn(async () => [{ id: 'org-1', name: '总部' }]);
+    const wrapper = mountSelector({
+      loadOnInitialValue: true,
+      orgLoadApi,
+      selectableTypes: ['org'],
+    });
+    await flushPromises();
+    expect(orgLoadApi).not.toHaveBeenCalled();
+
+    await wrapper.setProps({ modelValue: 'org-1' });
+    await flushPromises();
+    expect(orgLoadApi).toHaveBeenCalledTimes(1);
+    expect(wrapper.findComponent(treeSelectStub).props('treeData')).toEqual([
+      expect.objectContaining({ id: 'org-1', title: '总部' }),
+    ]);
+  });
+
   it('手机内嵌模式直接显示搜索与候选树，并沿用原有选中记录', async () => {
     const orgLoadApi = vi.fn(async () => [{ id: 'org-1', name: '总部' }]);
     const wrapper = mountSelector({ inline: true, orgLoadApi });

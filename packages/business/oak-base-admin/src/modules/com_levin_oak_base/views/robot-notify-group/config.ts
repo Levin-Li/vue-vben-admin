@@ -42,13 +42,15 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
   defaultQuery: { pageIndex: 1, pageSize: 10 },
   description:
     '同一租户、组织和业务类型只配置一个通知群；精确配置优先，公共配置作为发送回退。',
+  // 识别信息在前、接入凭据居中、维护开关与描述在后；布局仅是开发默认，用户UI设置优先。
+  formMaxColumns: 2,
   fields: [
     {
       key: 'tenantId',
       label: '所属租户',
-      layoutGroup: 'scope',
-      layoutGroupTitle: '归属与覆盖范围',
-      layoutOrder: 10,
+      layoutGroup: 'basic',
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 30,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -69,8 +71,9 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgId',
       label: '所属组织',
-      layoutGroup: 'scope',
-      layoutOrder: 20,
+      layoutGroup: 'basic',
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 40,
       search: true,
       table: true,
       type: 'org-tree-select',
@@ -83,12 +86,19 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       label: '通知群 ID',
       table: false,
     },
+    {
+      key: 'optimisticLock',
+      label: '版本号',
+      detail: false,
+      form: false,
+      table: false,
+    },
     // 查询 DTO 仅提供精确 name/bizType 条件，页面不能假造 containsName 参数。
     {
       key: 'name',
       label: '名称',
       layoutGroup: 'basic',
-      layoutGroupTitle: '通知群配置',
+      layoutGroupTitle: '基础信息',
       layoutOrder: 10,
       maxLength: 128,
       required: true,
@@ -100,6 +110,7 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       key: 'bizType',
       label: '业务类型',
       layoutGroup: 'basic',
+      layoutGroupTitle: '基础信息',
       layoutOrder: 20,
       maxLength: 384,
       required: true,
@@ -118,10 +129,12 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'platformType',
-      help: '待配置记录可暂不选择；启用前须选择机器人平台。',
+      help: '文本发送无需选择；发送卡片时必须选择与 Webhook 地址一致的机器人平台。',
       label: '平台类型',
-      layoutGroup: 'basic',
-      layoutOrder: 30,
+      layoutGroup: 'connection',
+      layoutGroupTitle: '机器人接入',
+      layoutGroupForceDisplay: true,
+      layoutOrder: 10,
       loadOptions: platformOptionsLoader,
       required: false,
       table: true,
@@ -132,8 +145,9 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       key: 'description',
       fullRow: true,
       label: '描述',
-      layoutGroup: 'basic',
-      layoutOrder: 40,
+      layoutGroup: 'maintenance',
+      layoutGroupTitle: '补充维护',
+      layoutOrder: 30,
       maxLength: 1024,
       table: false,
       type: 'textarea',
@@ -145,8 +159,10 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       fullRow: true,
       help: '待配置记录可暂为空；启用前必须填写。地址包含发送凭据，仅平台或租户管理员可编辑，列表和详情不展示完整地址。',
       label: 'Webhook 地址',
-      layoutGroup: 'basic',
-      layoutOrder: 50,
+      layoutGroup: 'connection',
+      layoutGroupTitle: '机器人接入',
+      layoutGroupForceDisplay: true,
+      layoutOrder: 20,
       maxLength: 768,
       required: false,
       search: false,
@@ -156,8 +172,9 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgShared',
       label: '组织共享',
-      layoutGroup: 'scope',
-      layoutOrder: 30,
+      layoutGroup: 'maintenance',
+      layoutGroupTitle: '补充维护',
+      layoutOrder: 10,
       table: true,
       type: 'switch',
       valueType: 'boolean',
@@ -166,8 +183,9 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
-      layoutGroup: 'scope',
-      layoutOrder: 40,
+      layoutGroup: 'maintenance',
+      layoutGroupTitle: '补充维护',
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'switch',
@@ -175,7 +193,7 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       width: 110,
     },
   ],
-  modalWidth: 720,
+  modalWidth: 960,
   title: '机器人通知群',
   transformSubmit: (values, editingRecord) => {
     const next = { ...values };
@@ -191,11 +209,8 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
         throw new TypeError('Webhook 地址不能超过 768 字符');
       }
     }
-    if (next.enable !== false && (!next.platformType || !next.webhookUrl)) {
-      throw new TypeError('启用通知群前须填写平台类型和 Webhook 地址');
-    }
-    if (next.webhookUrl && !next.platformType) {
-      throw new TypeError('填写 Webhook 地址时须选择平台类型');
+    if (next.enable !== false && !next.webhookUrl) {
+      throw new TypeError('启用通知群前须填写 Webhook 地址');
     }
     if (next.webhookUrl) {
       let url: URL;
@@ -204,19 +219,22 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       } catch {
         throw new TypeError('Webhook 地址格式无效');
       }
-      const hosts: Record<string, string> = {
-        DingTalkWebhook: 'oapi.dingtalk.com',
-        FeishuWebhook: 'open.feishu.cn',
-        WeComWebhook: 'qyapi.weixin.qq.com',
-      };
+      // 文本发送由地址识别平台，不能因未选择或历史平台值阻止保存。
+      const hosts = new Set([
+        'oapi.dingtalk.com',
+        'open.feishu.cn',
+        'qyapi.weixin.qq.com',
+      ]);
       if (
         url.protocol !== 'https:' ||
-        url.host !== hosts[String(next.platformType)] ||
+        !hosts.has(url.host) ||
         url.username ||
         url.password ||
         url.hash
       ) {
-        throw new TypeError('Webhook 必须使用所选平台的官方 HTTPS 地址');
+        throw new TypeError(
+          'Webhook 必须使用飞书、企业微信或钉钉的官方 HTTPS 地址',
+        );
       }
     }
     return next;

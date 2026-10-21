@@ -122,8 +122,17 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
   },
   async chat(messages, providerCode, signal) {
     const configs = await loadConfigs(signal);
-    const config = configs.find((item) => item.providerCode === providerCode);
-    if (!config) throw new Error('当前范围未启用该网页模型');
+    // “系统默认”只在当前授权目录中选择首项，显式失效的供应商不能自动替换。
+    const config = providerCode
+      ? configs.find((item) => item.providerCode === providerCode)
+      : configs[0];
+    if (!config) {
+      throw new Error(
+        configs.length === 0
+          ? '当前租户或域名没有可用的网页模型，请管理员在服务插件设置管理中启用 AI 插件并配置网页直连'
+          : '所选网页模型在当前范围未启用，请刷新模型列表后重试',
+      );
+    }
     const model = config.modelAliases.find(
       ({ alias }) => alias === config.defaultModelAlias,
     )?.providerModelId;
@@ -144,7 +153,7 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
       controller.signal.throwIfAborted();
       // 模型与供应商均显式指定，SDK 只负责协议生成和解析，不启用 Gateway。
       const provider = createOpenAICompatible({
-        name: providerCode,
+        name: config.providerCode,
         baseURL: url.slice(0, -'/chat/completions'.length),
         apiKey: config.apiKey,
         transformRequestBody: (body) => {
@@ -153,7 +162,7 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
           return {
             ...rest,
             stream: false,
-            ...(providerCode === 'deepseek'
+            ...(config.providerCode === 'deepseek'
               ? { max_tokens: maxTokens, reasoning_effort: 'none' }
               : { max_completion_tokens: maxTokens }),
           };

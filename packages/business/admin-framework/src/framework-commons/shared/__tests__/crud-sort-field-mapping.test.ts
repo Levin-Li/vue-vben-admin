@@ -13,6 +13,6 @@ describe('CRUD 排序字段映射', () => {
     expect(source).toContain('sortField: getTableSortField(field)');
     expect(source).toContain('sorterItem?.column?.sortField');
     expect(source).toContain('props.config.sortFieldPrefix');
-    expect(source).toContain("!field.key.includes('.')");
+    expect(source).toContain('return field.sortField ||');
   });
 });

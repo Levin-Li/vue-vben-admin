@@ -47,6 +47,33 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('网页 Agent 直连模型', () => {
+  it('系统默认选用当前范围首项并保留对应供应商参数', async () => {
+    expect(await oakBrowserAgentTransport.chat(messages, '')).toBe('测试回复');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api.deepseek.com/v1/chat/completions',
+    );
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body || '{}')).toMatchObject(
+      {
+        model: 'deepseek-flash',
+        max_tokens: 4096,
+        reasoning_effort: 'none',
+      },
+    );
+  });
+  it('没有网页配置时说明配置入口且不请求供应商', async () => {
+    mocks.get.mockResolvedValue([]);
+    await expect(oakBrowserAgentTransport.chat(messages, '')).rejects.toThrow(
+      '服务插件设置管理',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('所选供应商失效时拒绝且不回退其他已配置供应商', async () => {
+    await expect(
+      oakBrowserAgentTransport.chat(messages, 'openai'),
+    ).rejects.toThrow('请刷新模型列表');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it('模型直接请求供应商并隔离业务身份和敏感配置事件', async () => {
     expect(await oakBrowserAgentTransport.chat(messages, 'deepseek')).toBe(
       '测试回复',

@@ -124,7 +124,8 @@ describe('crud form layout', () => {
     expect(source).toContain('viewportWidth.value * 0.8');
     expect(source).toContain('DEFAULT_CONTENT_MODAL_MAX_HEIGHT');
     expect(source).toContain('DEFAULT_CONTENT_MODAL_BODY_STYLE');
-    expect(source).toContain(':body-style="modalBodyStyle"');
+    expect(source).toContain(':body-style="formModalBodyStyle"');
+    expect(source).toContain(':body-style="detailModalBodyStyle"');
     expect(source).toContain(':mask-closable="false"');
     expect(source).not.toContain('min(70vw');
     expect(source).not.toContain('max-w-[480px]');
@@ -133,19 +134,26 @@ describe('crud form layout', () => {
     expect(source).toContain('class="w-full"');
   });
 
-  it('uses one bounded scrolling popup policy for query and form organization trees', () => {
-    const source = readFileSync(
+  it('uses the shared organization selector and its bounded popup for query and form fields', () => {
+    const crudSource = readFileSync(
       'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
       'utf8',
     );
+    const selectorSource = readFileSync(
+      'packages/business/admin-framework/src/framework-commons/shared/user-org-selector.vue',
+      'utf8',
+    );
 
-    expect(
-      source.match(/popup-class-name="vben-crud-org-tree-select-dropdown"/g),
-    ).toHaveLength(2);
-    expect(source.match(/:list-height="640"/g)).toHaveLength(2);
-    expect(source.match(/:virtual="false"/g)).toHaveLength(2);
-    expect(source).toContain('max-width: min(480px, calc(100vw - 32px));');
-    expect(source).toContain('white-space: nowrap;');
+    expect(crudSource.match(/<UserOrgSelector/g)).toHaveLength(2);
+    expect(crudSource.match(/load-on-initial-value/g)).toHaveLength(2);
+    expect(crudSource.match(/:selectable-types="\['org'\]"/g)).toHaveLength(2);
+    expect(selectorSource).toContain(
+      'popup-class-name="user-org-selector__dropdown"',
+    );
+    expect(selectorSource).toContain(
+      'max-width: min(640px, calc(100vw - 32px));',
+    );
+    expect(selectorSource).toContain('white-space: nowrap;');
   });
 
   it('caps the default detail modal while preserving an explicit page override', () => {
@@ -177,7 +185,7 @@ describe('crud form layout', () => {
     );
 
     expect(detailTitle).toContain('class="vben-crud-modal-title"');
-    expect(detailTitle).toContain('>不展示空值</Checkbox');
+    expect(detailTitle).toMatch(/>\s*不展示空值\s*<\/Checkbox>/);
   });
 
   it('shows concise group-toggle labels from the actual default expansion state', () => {

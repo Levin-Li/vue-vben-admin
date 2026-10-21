@@ -1,14 +1,17 @@
-/* eslint-disable test/no-import-node-test -- 构建脚本测试直接使用 node --test 执行。 */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { test } from 'node:test';
 
 import {
   generateHelpCenter,
   rewriteLinks,
   validateCatalog,
 } from './generate-help-center.mjs';
+
+// 构建脚本测试兼容独立 Node 运行与项目 Vitest 全量门禁。
+const { test } = process.env.VITEST
+  ? await import('vitest')
+  : await import('node:test');
 
 const root = resolve(import.meta.dirname, '../../..');
 const catalog = JSON.parse(

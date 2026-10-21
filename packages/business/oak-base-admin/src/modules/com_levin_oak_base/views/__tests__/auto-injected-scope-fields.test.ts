@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 
+// Test-only AST inspection uses the workspace's TypeScript installation.
+// eslint-disable-next-line n/no-extraneous-import
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
@@ -14,7 +16,7 @@ const autoInjectedScopeFields = {
   'file-res': ['orgId', 'ownerId'],
   'legal-subject': ['orgId', 'ownerId'],
   'notice-process-log': ['orgId', 'ownerId'],
-  partner: ['orgId', 'ownerId'],
+  partner: ['ownerId'],
   'tenant-site': ['orgId'],
   'user-setting': ['ownerId'],
 } as const;
@@ -39,8 +41,11 @@ function readRequiredScopeFields(configPath: string) {
     if (ts.isObjectLiteralExpression(node)) {
       const properties = new Map(
         node.properties
-          .filter(ts.isPropertyAssignment)
-          .map((property) => [getPropertyName(property.name), property.initializer]),
+          .filter((property) => ts.isPropertyAssignment(property))
+          .map((property) => [
+            getPropertyName(property.name),
+            property.initializer,
+          ]),
       );
       const key = properties.get('key');
       const required = properties.get('required');
@@ -72,6 +77,15 @@ describe('auto-injected ownership fields', () => {
       for (const field of fields) {
         expect(requiredFields, `${page}.${field}`).not.toContain(field);
       }
+    }
+  });
+
+  it('requires the external organization node on customer and partner forms', () => {
+    for (const page of ['customer', 'partner']) {
+      const requiredFields = readRequiredScopeFields(
+        `${viewsDir}/${page}/config.ts`,
+      );
+      expect(requiredFields, `${page}.orgId`).toContain('orgId');
     }
   });
 });

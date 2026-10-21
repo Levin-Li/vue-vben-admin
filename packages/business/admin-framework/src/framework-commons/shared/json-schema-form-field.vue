@@ -73,6 +73,7 @@ const open = ref(false);
 const draftValue = ref<Record<string, any>>({});
 const complexTextValues = reactive<Record<string, string>>({});
 const complexErrors = reactive<Record<string, string>>({});
+const runtimeValid = ref(true);
 const viewportWidth = ref(0);
 const viewportHeight = ref(0);
 
@@ -153,7 +154,9 @@ const fieldErrors = computed(() =>
       .filter(([, error]) => !!error),
   ),
 );
-const formValid = computed(() => Object.keys(fieldErrors.value).length === 0);
+const formValid = computed(
+  () => runtimeValid.value && Object.keys(fieldErrors.value).length === 0,
+);
 watch(formValid, (valid) => emit('validity', valid), { immediate: true });
 const modalAvailableWidth = computed(() => {
   const configuredWidth = getConfiguredModalMaxWidthPx(props.modalWidth);
@@ -365,6 +368,7 @@ onBeforeUnmount(() => {
       :disabled="disabled"
       :model-value="draftValue"
       :schema="schema"
+      @validity="runtimeValid = $event"
       @update:model-value="draftValue = $event; emitInlineValue()"
     />
 

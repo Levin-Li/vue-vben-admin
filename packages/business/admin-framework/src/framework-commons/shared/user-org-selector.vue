@@ -72,6 +72,10 @@ const props = defineProps({
   loadOrgTree: {
     type: Function as PropType<UserOrgSelectorLoadOrgTree>,
   },
+  loadOnInitialValue: {
+    default: false,
+    type: Boolean,
+  },
   orgLoadApi: {
     type: Function as PropType<UserOrgSelectorLoadOrgTree>,
   },
@@ -267,8 +271,21 @@ watch(
 );
 
 watch(
-  () => props.modelValue,
+  () => [props.modelValue, props.loadOnInitialValue] as const,
   async () => {
+    if (
+      props.loadOnInitialValue &&
+      toModelValueList(props.modelValue).length > 0 &&
+      !hasLoadedOrgTree.value &&
+      !loading.value
+    ) {
+      try {
+        await loadOrgTree();
+      } catch {
+        // 加载器已提示错误；下次展开仍允许重试，原始 ID 保留。
+      }
+      return;
+    }
     await resolveMissingSelectedRecords();
   },
   {

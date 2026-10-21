@@ -23,11 +23,16 @@ const props = withDefaults(defineProps<{
   schema: () => ({}),
 });
 
-const emit = defineEmits<{ 'update:modelValue': [value: Record<string, any>] }>();
+const emit = defineEmits<{
+  'update:modelValue': [value: Record<string, any>];
+  validity: [valid: boolean];
+}>();
 
 const nodes = computed(() => buildJsonSchemaFormNodes(props.schema));
 const columnCount = computed(() => planJsonSchemaColumns(nodes.value));
 const branchSelections = reactive<Record<string, number>>({});
+const jsonDrafts = reactive<Record<string, string>>({});
+const jsonErrors = reactive<Record<string, string>>({});
 
 function valueAt(path: string[]) {
   return getJsonSchemaPathValue(props.modelValue, path);
@@ -35,6 +40,36 @@ function valueAt(path: string[]) {
 
 function updateAt(path: string[], value: any) {
   emit('update:modelValue', setJsonSchemaPathValue(props.modelValue || {}, path, value));
+}
+
+function updateJsonAt(node: JsonSchemaFormNode, text: string) {
+  jsonDrafts[node.pathKey] = text;
+  // JSON 草稿解析失败时保留输入，不把原值伪装成一次成功编辑。
+  if (!text.trim()) {
+    delete jsonErrors[node.pathKey];
+    emit('validity', Object.keys(jsonErrors).length === 0);
+    updateAt(node.path, undefined);
+    return;
+  }
+  try {
+    const parsed = JSON.parse(text);
+    const expectedType = node.schema.type;
+    if (
+      (expectedType === 'array' && !Array.isArray(parsed)) ||
+      (expectedType === 'object' &&
+        (parsed === null ||
+          Array.isArray(parsed) ||
+          typeof parsed !== 'object'))
+    ) {
+      throw new TypeError('JSON 类型与字段定义不一致');
+    }
+    delete jsonErrors[node.pathKey];
+    emit('validity', Object.keys(jsonErrors).length === 0);
+    updateAt(node.path, parsed);
+  } catch {
+    jsonErrors[node.pathKey] = 'JSON格式不正确，请完成输入后再保存';
+    emit('validity', false);
+  }
 }
 
 function isFullWidth(node: JsonSchemaFormNode) {
@@ -116,7 +151,8 @@ function activeBranchSchema(node: Extract<JsonSchemaFormNode, { kind: 'branch' }
           <Select v-if="node.kind === 'select'" :disabled="disabled || node.readOnly" :options="node.options" :value="valueAt(node.path)" allow-clear @update:value="updateAt(node.path, $event)" />
           <Switch v-else-if="node.kind === 'boolean'" :checked="!!valueAt(node.path)" :disabled="disabled || node.readOnly" @update:checked="updateAt(node.path, $event)" />
           <InputNumber v-else-if="node.kind === 'number'" :disabled="disabled || node.readOnly" :value="valueAt(node.path)" class="w-full" @update:value="updateAt(node.path, $event)" />
-          <Input.TextArea v-else-if="node.kind === 'json' || node.kind === 'textarea'" :disabled="disabled || node.readOnly" :value="typeof valueAt(node.path) === 'string' ? valueAt(node.path) : JSON.stringify(valueAt(node.path) ?? {}, null, 2)" :auto-size="{ minRows: 3, maxRows: 8 }" @update:value="updateAt(node.path, $event)" />
+          <Input.TextArea v-else-if="node.kind === 'json'" :disabled="disabled || node.readOnly" :value="jsonDrafts[node.pathKey] ?? JSON.stringify(valueAt(node.path) ?? {}, null, 2)" :auto-size="{ minRows: 3, maxRows: 8 }" @update:value="updateJsonAt(node, $event)" />
+          <Input.TextArea v-else-if="node.kind === 'textarea'" :disabled="disabled || node.readOnly" :value="valueAt(node.path)" :auto-size="{ minRows: 3, maxRows: 8 }" @update:value="updateAt(node.path, $event)" />
           <Input.Password v-else-if="node.kind === 'password'" :disabled="disabled || node.readOnly" :value="valueAt(node.path)" @update:value="updateAt(node.path, $event)" />
           <Input v-else :disabled="disabled || node.readOnly" :value="valueAt(node.path)" @update:value="updateAt(node.path, $event)" />
         </Form.Item>

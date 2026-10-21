@@ -322,6 +322,8 @@ export type CrudPageDisplayQueryCollapsedRows =
   | 'all';
 
 export interface CrudPageDisplayConfig {
+  /** 标签切换时是否保留页面实例；缺省沿用路由声明。 */
+  keepAlive?: boolean;
   /** 左右工具栏的附加显示表达式，只能收紧原有可见条件。 */
   listOperations?: CrudListOperationConfig;
   create?: CrudPageDisplayFormViewConfig;

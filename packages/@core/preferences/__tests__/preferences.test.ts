@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { defaultPreferences } from '../../foundation/src/vendor/preferences/config';
+import { PreferenceManager } from '../../foundation/src/vendor/preferences/preferences';
+import {
+  isDarkTheme,
+  updateCSSVariables,
+} from '../../foundation/src/vendor/preferences/update-css-variables';
+
 vi.hoisted(() => {
   function createMemoryStorage(): Storage {
     const storage = new Map<string, string>();
@@ -28,10 +35,6 @@ vi.hoisted(() => {
     value: sessionStorage,
   });
 });
-
-import { defaultPreferences } from '../src/config';
-import { PreferenceManager } from '../src/preferences';
-import { isDarkTheme, updateCSSVariables } from '../src/update-css-variables';
 
 describe('preferences', () => {
   let preferenceManager: PreferenceManager;

@@ -12,7 +12,7 @@ import { OAK_BASE_API_MODULE } from './_module';
   controllerClass: 'com.levin.oak.base.controller.BizLegalSubjectController',
   description: '法律主体管理',
   title: '法律主体',
-  type: '系统数据-法律主体',
+  type: '业务数据-法律主体',
 })
 export class LegalSubjectService extends RequestService {
   constructor() {
@@ -22,7 +22,7 @@ export class LegalSubjectService extends RequestService {
   @CRUD.Op({ label: '认证通过' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-法律主体',
+    type: '业务数据-法律主体',
     action: '认证通过',
   })
   async approveCertification(data?: any, options?: any) {
@@ -32,7 +32,7 @@ export class LegalSubjectService extends RequestService {
   @CRUD.Op({ opRefTargetType: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-法律主体',
+    type: '业务数据-法律主体',
     action: '新增',
   })
   async create(data?: any, options?: any) {
@@ -42,7 +42,7 @@ export class LegalSubjectService extends RequestService {
   @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-法律主体',
+    type: '业务数据-法律主体',
     action: '删除',
   })
   async delete(params?: any, options?: any) {
@@ -54,7 +54,7 @@ export class LegalSubjectService extends RequestService {
   })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-法律主体',
+    type: '业务数据-法律主体',
     action: '查询列表',
   })
   async list(params?: any, options?: any) {
@@ -64,7 +64,7 @@ export class LegalSubjectService extends RequestService {
   @CRUD.Op({ label: '认证拒绝' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-法律主体',
+    type: '业务数据-法律主体',
     action: '认证拒绝',
   })
   async rejectCertification(data?: any, options?: any) {
@@ -74,7 +74,7 @@ export class LegalSubjectService extends RequestService {
   @CRUD.Op({ confirmText: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-法律主体',
+    type: '业务数据-法律主体',
     action: '查看详情',
   })
   async retrieve(params?: any, options?: any) {
@@ -84,7 +84,7 @@ export class LegalSubjectService extends RequestService {
   @CRUD.Op({ label: '撤销认证' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-法律主体',
+    type: '业务数据-法律主体',
     action: '撤销认证',
   })
   async revokeCertification(data?: any, options?: any) {
@@ -94,7 +94,7 @@ export class LegalSubjectService extends RequestService {
   @CRUD.Op({ label: '提交认证' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-法律主体',
+    type: '业务数据-法律主体',
     action: '提交认证',
   })
   async submitCertification(data?: any, options?: any) {
@@ -104,7 +104,7 @@ export class LegalSubjectService extends RequestService {
   @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-法律主体',
+    type: '业务数据-法律主体',
     action: '更新',
   })
   async update(data?: any, options?: any) {

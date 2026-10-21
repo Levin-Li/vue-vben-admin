@@ -32,6 +32,7 @@ const draft = ref('');
 const providerCode = ref('');
 const availableProviders = ref<AgentAvailableProvider[]>([]);
 const providerStatus = ref('');
+const providersLoading = ref(false);
 const busy = ref(false);
 const progress = ref('');
 const messages = ref<AgentMessage[]>([]);
@@ -69,6 +70,7 @@ function clearConversation() {
   availableProviders.value = [];
   providerCode.value = '';
   providerStatus.value = '';
+  providersLoading.value = false;
   progress.value = '';
   busy.value = false;
   open.value = false;
@@ -76,6 +78,7 @@ function clearConversation() {
 
 async function refreshProviders() {
   const identity = activeContextKey();
+  providersLoading.value = true;
   providerStatus.value = '正在读取可用模型…';
   try {
     const providers = await loadAgentProviders(contextController.signal);
@@ -84,7 +87,7 @@ async function refreshProviders() {
     providerStatus.value =
       availableProviders.value.length > 0
         ? ''
-        : '当前租户没有可用的网页直连配置';
+        : '当前租户或域名没有可用的网页模型，请管理员在服务插件设置管理中启用 AI 插件并配置网页直连';
     if (
       !availableProviders.value.some(
         (item) => item.providerCode === providerCode.value,
@@ -96,7 +99,16 @@ async function refreshProviders() {
     if (identity !== activeContextKey()) return;
     availableProviders.value = [];
     providerCode.value = '';
-    providerStatus.value = '网页直连配置查询失败';
+    providerStatus.value = '网页直连配置查询失败，请重新打开AI助手后重试';
+  } finally {
+    if (identity === activeContextKey()) providersLoading.value = false;
+  }
+}
+
+function openPanel() {
+  open.value = true;
+  if (!providersLoading.value && availableProviders.value.length === 0) {
+    void refreshProviders();
   }
 }
 
@@ -134,6 +146,12 @@ async function scrollToLatest() {
 async function send() {
   const content = draft.value.trim();
   if (!content || busy.value || content.length > 4000) return;
+  // 未取得可用配置时保留输入，避免发送空供应商并产生误导性的聊天错误。
+  if (
+    !pendingWrite.value &&
+    (providersLoading.value || availableProviders.value.length === 0)
+  )
+    return;
   draft.value = '';
   messages.value.push({ content, role: 'User' });
   busy.value = true;
@@ -303,23 +321,19 @@ async function send() {
       v-if="!open"
       class="agent-launcher"
       type="button"
-      aria-label="展开系统 AI 助手"
-      @click="open = true"
+      aria-label="展开AI助手"
+      @click="openPanel"
     >
-      系统 AI
+      AI助手
     </button>
 
-    <section v-else class="agent-panel" aria-label="系统 AI 助手">
+    <section v-else class="agent-panel" aria-label="AI助手">
       <header class="agent-header">
         <div>
-          <strong>系统 AI 助手</strong>
+          <strong>AI助手</strong>
           <small>业务处理与故障诊断</small>
         </div>
-        <button
-          type="button"
-          aria-label="收起系统 AI 助手"
-          @click="open = false"
-        >
+        <button type="button" aria-label="收起AI助手" @click="open = false">
           收起
         </button>
       </header>
@@ -329,7 +343,9 @@ async function send() {
         模型接入
         <select
           v-model="providerCode"
-          :disabled="busy"
+          :disabled="
+            busy || providersLoading || availableProviders.length === 0
+          "
           aria-label="选择模型接入"
         >
           <option value="">系统默认</option>
@@ -360,7 +376,7 @@ async function send() {
           :class="item.role === 'User' ? 'from-user' : 'from-agent'"
         >
           <span class="agent-speaker">{{
-            item.role === 'User' ? '你' : '系统 AI'
+            item.role === 'User' ? '你' : 'AI助手'
           }}</span>
           <p>{{ item.content }}</p>
           <small v-if="item.source">数据来源：{{ item.source }}</small>
@@ -402,7 +418,17 @@ async function send() {
           rows="3"
           @keydown.enter.exact.prevent="send"
         ></textarea>
-        <button type="submit" :disabled="busy || !draft.trim()">发送</button>
+        <button
+          type="submit"
+          :disabled="
+            busy ||
+            !draft.trim() ||
+            (!pendingWrite &&
+              (providersLoading || availableProviders.length === 0))
+          "
+        >
+          发送
+        </button>
       </form>
     </section>
   </div>

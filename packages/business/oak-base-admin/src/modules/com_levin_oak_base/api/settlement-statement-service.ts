@@ -217,7 +217,11 @@ export class SettlementStatementService extends RequestService {
     payload: Pick<SettlementCommand, 'id'>,
     options?: any,
   ): Promise<SettlementRecord> {
-    return this.get('readFinancialDetails', { ...options, params: payload });
+    // 财务范围由服务端会话判定，查询参数只提交单据 ID。
+    return this.get('readFinancialDetails', {
+      ...options,
+      params: { id: payload.id },
+    });
   }
   @CRUD.Op({
     label: '登记打款',

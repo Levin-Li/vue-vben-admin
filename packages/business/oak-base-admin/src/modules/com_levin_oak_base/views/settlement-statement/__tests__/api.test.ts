@@ -57,7 +57,11 @@ describe('结算动作请求契约', () => {
     const get = vi
       .spyOn(settlementStatementService as any, 'get')
       .mockResolvedValue({ id: 's1' });
-    await settlementStatementService.readFinancialDetails({ id: 's1' });
+    await settlementStatementService.readFinancialDetails({
+      id: 's1',
+      tenantId: '伪造租户',
+      orgId: '伪造组织',
+    } as Parameters<typeof settlementStatementService.readFinancialDetails>[0]);
     await settlementStatementService.retrieve({ id: 's1' });
     expect(get).toHaveBeenNthCalledWith(1, 'readFinancialDetails', {
       params: { id: 's1' },

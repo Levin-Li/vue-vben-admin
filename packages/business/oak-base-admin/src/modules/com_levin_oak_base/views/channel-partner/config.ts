@@ -3,6 +3,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { channelPartnerService } from '../../api/channel-partner-service';
 import {
   buildEnumOptionsLoader,
+  buildModuleOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   withModuleCrudConfig,
 } from '../api-module';
@@ -12,6 +13,14 @@ import {
 } from '../partner/config';
 
 // 独立子类型入口承载本类合作关系的权限与业务字段。
+const channelOrgOptionsLoader = buildModuleOptionsLoader(
+  '/Org/list',
+  'name',
+  'id',
+  { pageIndex: 1, pageSize: 500, type: 'ChannelPartner' },
+  'containsName',
+);
+
 export const pageMeta = {
   name: 'ChannelPartner',
   title: '渠道伙伴',
@@ -32,7 +41,16 @@ export const channelPartnerPageCrudConfig: CrudPageConfig =
     modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
     title: '渠道伙伴',
     fields: [
-      ...partnerCommonFields,
+      ...partnerCommonFields.map((field) =>
+        field.key === 'orgId'
+          ? {
+              ...field,
+              label: '渠道伙伴组织节点',
+              loadOptions: channelOrgOptionsLoader,
+              remoteSearch: true,
+            }
+          : field,
+      ),
       {
         key: 'type',
         label: '渠道类型',

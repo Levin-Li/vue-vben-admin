@@ -2,7 +2,7 @@
 
 ## 入口与前置条件
 
-登录管理后台后，从页面右下角“系统 AI”打开聊天窗。需要启用基础业务模块和一个 AI 服务插件，并由管理员在“服务插件设置管理”保存当前租户/域名的网页配置。网页 Agent 仅通过 `GET /com.levin.oak.base/V1/api/client/ai/chat/browser-config` 读取已保存设置，然后由 AI SDK 模型客户端通过受控原生 fetch 直接请求供应商，不使用后台聊天中转。ChatGPT 对应 OpenAI API 模型，API 计费与 ChatGPT 网页订阅分开。网页接入包括 OpenAI、DeepSeek、GLM、Kimi、MiniMax；Claude Code 是 CLI 运行时，不能在纯网页运行，已有后端适配不属于本网页能力。
+登录管理后台后，从页面右下角“AI助手”打开聊天窗。需要启用基础业务模块和一个 AI 服务插件，并由管理员在“服务插件设置管理”保存当前租户/域名的网页配置。网页 Agent 仅通过 `GET /com.levin.oak.base/V1/api/client/ai/chat/browser-config` 读取已保存设置，然后由 AI SDK 模型客户端通过受控原生 fetch 直接请求供应商，不使用后台聊天中转。ChatGPT 对应 OpenAI API 模型，API 计费与 ChatGPT 网页订阅分开。网页接入包括 OpenAI、DeepSeek、GLM、Kimi、MiniMax；Claude Code 是 CLI 运行时，不能在纯网页运行，已有后端适配不属于本网页能力。
 
 管理员须显式开启默认关闭的 `browserDirectEnabled`，提供独立 `browserApiKey`，并按需设置 `browserBaseUrl`；为空时使用供应商 Base URL，最终必须为 HTTPS。后端代码继续使用独立 `apiKey`，其值不会由网页配置接口发放。模型列表只显示当前作用域完整且启用网页直连的设置，默认选中首个可用项；多选模式可切换本次供应商。旧单选配置切换模式前须由管理员逐条重存，使 `enable` 和 `enabled` 都为 `true`，系统不会自动迁移。
 
@@ -67,3 +67,7 @@ AI SDK 依赖固定在兼容项目现有 Node >=20.19 基线的稳定版本，�
 最低验证：独立项目安装实际发布包，开发模式冷启动和刷新后基础入口可用，首次调用才加载SDK；生产构建/预览也可调用。模型CORS或认证错误仍需按供应商网页配置处理，不能用后端中转掩盖。
 
 本包内联浏览器SDK依赖的许可证与声明随包保留在 [THIRD-PARTY-LICENSES.txt](../THIRD-PARTY-LICENSES.txt)，升级SDK时须同步核对。
+
+### 网页模型未启用的排查
+
+管理员在“服务插件设置管理”选择当前租户/域名的 AI 供应商设置，启用插件及供应商，开启“启用网页直连”，填写“网页专用 API Key”、有效 HTTPS 端点及启用的模型别名，并选择有效默认模型别名。网页密钥独立于后端 API Key，不自动复用。没有可用配置时，AI助手保留输入并显示配置提示，不请求模型；配置保存后收起并重新打开助手可刷新空目录。选择“系统默认”会使用当前授权目录首项；显式选择的模型失效时提示刷新，不静默切换供应商。

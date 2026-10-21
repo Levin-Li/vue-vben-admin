@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
@@ -11,6 +11,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -26,6 +28,7 @@ import {
 } from '../publish-artifact-gate.mjs';
 
 const temporaryDirectories: string[] = [];
+const execFileAsync = promisify(execFile);
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -421,7 +424,7 @@ fs.appendFileSync(process.env.CAPTURE_CONSUMER_ENV, JSON.stringify({
     temporaryDirectories.push(root);
     const deepDirectory = join(
       root,
-      ...Array(5).fill('nested-workspace-directory'),
+      ...Array.from({ length: 5 }, () => 'nested-workspace-directory'),
     );
     mkdirSync(deepDirectory, { recursive: true });
     const deepTarball = join(deepDirectory, 'deep-package.tgz');
@@ -460,20 +463,30 @@ fs.appendFileSync(process.env.CAPTURE_CONSUMER_ENV, JSON.stringify({
     ).not.toThrow();
   }, 30_000);
 
-  it('fails registry-consumer production certification when an entry cannot be resolved', () => {
+  it('fails registry-consumer production certification when an entry cannot be resolved', async () => {
     const tarballPath = createTarball({
       exports: { '.': './index.js' },
       name: '@scope/test-package',
       version: '1.0.0',
     });
 
-    expect(() =>
-      verifyTarballStandaloneViteBuild(
-        { name: '@scope/test-package' },
-        tarballPath,
-        '@scope/test-package/missing.vue',
-      ),
-    ).toThrow('registry 消费者生产构建失败');
+    // 独立消费者安装可能耗时较长；放在子进程执行，避免阻塞 Vitest worker 通信。
+    const moduleUrl = pathToFileURL(
+      resolve('scripts/publish-artifact-gate.mjs'),
+    );
+    const script = `import { verifyTarballStandaloneViteBuild } from ${JSON.stringify(moduleUrl.href)};
+verifyTarballStandaloneViteBuild({ name: '@scope/test-package' }, process.argv[1], '@scope/test-package/missing.vue');`;
+    let stderr = '';
+    try {
+      await execFileAsync(
+        process.execPath,
+        ['--input-type=module', '-e', script, tarballPath],
+        { maxBuffer: 10 * 1024 * 1024, timeout: 115_000 },
+      );
+    } catch (error) {
+      stderr = String((error as { stderr?: string }).stderr || error);
+    }
+    expect(stderr).toContain('registry 消费者生产构建失败');
   }, 120_000);
 });
 

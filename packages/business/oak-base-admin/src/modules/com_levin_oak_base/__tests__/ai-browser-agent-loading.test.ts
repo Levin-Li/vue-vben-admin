@@ -14,7 +14,7 @@ it('基础入口、供应商目录和无效配置不加载模型SDK', async () =
   state.get.mockResolvedValue([]);
   expect(await oakBrowserAgentTransport.listProviders()).toEqual([]);
   await expect(oakBrowserAgentTransport.chat([], 'deepseek')).rejects.toThrow(
-    '未启用',
+    '服务插件设置管理',
   );
   expect(state.loaded).toBe(0);
 });

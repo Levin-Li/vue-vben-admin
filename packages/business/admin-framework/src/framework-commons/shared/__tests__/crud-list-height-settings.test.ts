@@ -55,7 +55,7 @@ async function openListTab() {
 
 async function upload() {
   const button = [...document.body.querySelectorAll('button')].find((item) =>
-    item.textContent?.includes('上传当前配置'),
+    item.textContent?.includes('上传设置'),
   );
   if (!button) throw new Error('缺少上传按钮');
   button.click();

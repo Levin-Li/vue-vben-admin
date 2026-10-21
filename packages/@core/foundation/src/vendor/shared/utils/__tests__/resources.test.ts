@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { loadScript } from '../resources';
 
-const testJsPath =
-  'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js';
+// 只验证脚本元素的事件行为，不向外部 CDN 发起真实请求。
+const testJsPath = 'data:text/javascript,void%200';
 
 describe('loadScript', () => {
   beforeEach(() => {

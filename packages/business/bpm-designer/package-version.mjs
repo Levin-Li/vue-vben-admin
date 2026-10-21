@@ -1,6 +1,6 @@
 // 由框架包元数据生成脚本生成，记录此包本次构建或打包时间。
 export const packageVersion = {
-  buildTime: '2026-10-18T17:09:48.450Z',
+  buildTime: '2026-10-21T05:18:32.952Z',
   name: '@levin/bpm-designer',
-  version: '6.0.9',
+  version: '6.0.10',
 };

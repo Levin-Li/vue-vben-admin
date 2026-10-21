@@ -1,3 +1,5 @@
+import type { CrudPageDisplayConfig } from '../types';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -990,14 +992,11 @@ describe('id新增录入与列表展示隔离', () => {
 });
 
 describe('showIdOnCreate仅影响新增场景', () => {
-  it.each(['list', 'edit', 'query'] as const)(
-    '%s场景仍默认隐藏ID',
-    (view) => {
-      expect(
-        getDefaultFieldHidden({ key: 'id', showIdOnCreate: true }, { view }),
-      ).toBe(true);
-    },
-  );
+  it.each(['list', 'edit', 'query'] as const)('%s场景仍默认隐藏ID', (view) => {
+    expect(
+      getDefaultFieldHidden({ key: 'id', showIdOnCreate: true }, { view }),
+    ).toBe(true);
+  });
   it('新增场景按录入开关控制默认显示', () => {
     expect(
       getDefaultFieldHidden(
@@ -1029,6 +1028,7 @@ describe('运行与设置面板共用默认配置', () => {
     expect(defaults.query?.autoSearch).toBe(false);
     expect(defaults.edit?.autoForceUpdateField).toBe(true);
     expect(defaults.detail?.showEmptyValues).toBe(true);
+    expect(defaults.keepAlive).toBeUndefined();
   });
   it('保留显式值，补齐缺项且不修改原配置', () => {
     const config = {
@@ -1049,5 +1049,20 @@ describe('运行与设置面板共用默认配置', () => {
     expect(resolved.list?.headers[0]?.visible?.mode).toBe('always');
     expect(config).toEqual(before);
     expect(resolveCrudPageDisplayDefaults(resolved)).toEqual(resolved);
+  });
+  it('保留显式的标签缓存开关', () => {
+    expect(
+      resolveCrudPageDisplayDefaults({ version: 1, keepAlive: true }).keepAlive,
+    ).toBe(true);
+    expect(
+      resolveCrudPageDisplayDefaults({ version: 1, keepAlive: false })
+        .keepAlive,
+    ).toBe(false);
+    expect(
+      resolveCrudPageDisplayDefaults({
+        version: 1,
+        keepAlive: 'false',
+      } as unknown as CrudPageDisplayConfig).keepAlive,
+    ).toBeUndefined();
   });
 });

@@ -61,6 +61,52 @@ describe('useAccessStore', () => {
     expect(store.tabs[0]?.query).toEqual({ id: '1' });
   });
 
+  it('uses a page setting to cache a tab and preserves it when the route is re-added', () => {
+    const store = useTabbarStore();
+    const tab: any = {
+      fullPath: '/drama',
+      matched: [
+        { meta: {}, name: 'BasicLayout', path: '/' },
+        { meta: {}, name: 'DramaGroup', path: '/group' },
+        { meta: {}, name: 'Drama', path: '/drama' },
+      ],
+      meta: {},
+      name: 'Drama',
+      path: '/drama',
+    };
+    store.addTab(tab);
+
+    store.setPageKeepAlive('/drama', true, false);
+    expect(store.cachedTabs).toEqual(new Set(['Drama', 'DramaGroup']));
+
+    store.addTab(tab);
+    expect(store.tabs[0]?.meta.keepAlive).toBe(true);
+    expect(store.cachedTabs).toEqual(new Set(['Drama', 'DramaGroup']));
+
+    store.setPageKeepAlive('/drama', false, false);
+    expect(store.cachedTabs.size).toBe(0);
+  });
+
+  it('can override a cached route and restore its route default', () => {
+    const store = useTabbarStore();
+    const tab: any = {
+      fullPath: '/article',
+      meta: { keepAlive: true },
+      name: 'Article',
+      path: '/article',
+    };
+    store.addTab(tab);
+
+    store.setPageKeepAlive('/article', false, true);
+    store.addTab(tab);
+    expect(store.tabs[0]?.meta.keepAlive).toBe(false);
+    expect(store.cachedTabs.size).toBe(0);
+
+    store.setPageKeepAlive('/article', undefined, true);
+    expect(store.tabs[0]?.meta.keepAlive).toBe(true);
+    expect(store.cachedTabs).toEqual(new Set(['Article']));
+  });
+
   it('closes all tabs', async () => {
     const store = useTabbarStore();
     store.addTab({

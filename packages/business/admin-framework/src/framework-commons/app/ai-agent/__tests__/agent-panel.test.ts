@@ -17,7 +17,13 @@ vi.mock('../chat', () => ({
 beforeEach(() => {
   mocks.loadProviders.mockReset();
   mocks.runTurn.mockReset();
-  mocks.loadProviders.mockResolvedValue([]);
+  mocks.loadProviders.mockResolvedValue([
+    {
+      providerCode: 'deepseek',
+      providerName: 'DeepSeek',
+      modelAliases: ['default'],
+    },
+  ]);
   HTMLElement.prototype.scrollTo = vi.fn();
 });
 
@@ -27,7 +33,44 @@ async function submit(wrapper: ReturnType<typeof mount>, content: string) {
   await flushPromises();
 }
 
-describe('系统 AI 助手状态', () => {
+describe('网页AI助手状态', () => {
+  it('无可用网页模型时提示配置入口并保留未发送草稿', async () => {
+    mocks.loadProviders.mockResolvedValue([]);
+    const wrapper = mount(AgentPanel, {
+      props: { accessToken: 'token-a', userId: 'user-a' },
+    });
+    await flushPromises();
+    await wrapper.find('.agent-launcher').trigger('click');
+    await flushPromises();
+    await submit(wrapper, '你好');
+    expect(wrapper.text()).toContain('服务插件设置管理');
+    expect(
+      wrapper.find('button[type="submit"]').attributes('disabled'),
+    ).toBeDefined();
+    expect(
+      (wrapper.find('textarea').element as HTMLTextAreaElement).value,
+    ).toBe('你好');
+    expect(mocks.runTurn).not.toHaveBeenCalled();
+  });
+  it('入口、标题、助手发言和无障碍标签统一为AI助手', async () => {
+    mocks.runTurn.mockResolvedValue({
+      message: { role: 'Assistant', content: '测试回复' },
+    });
+    const wrapper = mount(AgentPanel, {
+      props: { accessToken: 'token-a', userId: 'user-a' },
+    });
+    await flushPromises();
+    expect(wrapper.find('.agent-launcher').text()).toBe('AI助手');
+    expect(wrapper.find('.agent-launcher').attributes('aria-label')).toBe(
+      '展开AI助手',
+    );
+    await wrapper.find('.agent-launcher').trigger('click');
+    expect(wrapper.find('section').attributes('aria-label')).toBe('AI助手');
+    expect(wrapper.find('strong').text()).toBe('AI助手');
+    await submit(wrapper, '你好');
+    expect(wrapper.find('.from-agent .agent-speaker').text()).toBe('AI助手');
+    expect(wrapper.text()).not.toContain('系统 AI');
+  });
   it('写入结果不确定时保留复查状态且绝不重复提交', async () => {
     const execute = vi.fn().mockRejectedValue(new Error('核验连接中断'));
     const recheck = vi

@@ -30,6 +30,42 @@ function route(name: string) {
 }
 
 describe('routeViewRenderer', () => {
+  it('keeps a named leaf page whose component name differs from its route', async () => {
+    const mounted = vi.fn();
+    const active = ref<'CrudPage' | 'OtherPage'>('CrudPage');
+    const CrudPage = defineComponent({
+      name: 'ReusablePage',
+      setup() {
+        const page = ref(1);
+        onMounted(mounted);
+        return () =>
+          h('button', { onClick: () => page.value++ }, `第 ${page.value} 页`);
+      },
+    });
+    const OtherPage = defineComponent({
+      name: 'OtherPage',
+      setup: () => () => h('div', '其它页面'),
+    });
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(RouteViewRenderer, {
+            component: h(active.value === 'CrudPage' ? CrudPage : OtherPage),
+            route: route(active.value),
+          }),
+      }),
+    );
+
+    await wrapper.find('button').trigger('click');
+    active.value = 'OtherPage';
+    await nextTick();
+    active.value = 'CrudPage';
+    await nextTick();
+
+    expect(wrapper.find('button').text()).toBe('第 2 页');
+    expect(mounted).toHaveBeenCalledTimes(1);
+  });
+
   it('retains CRUD pagination state when a cached tab is revisited', async () => {
     const mounted = vi.fn();
     const active = ref<'CrudPage' | 'OtherPage' | undefined>('CrudPage');

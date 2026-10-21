@@ -51,6 +51,10 @@ interface TabbarState {
   visitHistory: Stack<string>;
 }
 
+type PageCacheTabMeta = TabDefinition['meta'] & {
+  pageKeepAlive?: boolean;
+};
+
 /**
  * @zh_CN 访问历史记录最大数量
  */
@@ -158,6 +162,11 @@ export const useTabbarStore = defineStore('core-tabbar', {
         };
         if (currentTab) {
           const curMeta = currentTab.meta;
+          const pageKeepAlive = (curMeta as PageCacheTabMeta).pageKeepAlive;
+          if (typeof pageKeepAlive === 'boolean') {
+            mergedTab.meta.keepAlive = pageKeepAlive;
+            (mergedTab.meta as PageCacheTabMeta).pageKeepAlive = pageKeepAlive;
+          }
           if (Reflect.has(curMeta, 'affixTab')) {
             mergedTab.meta.affixTab = curMeta.affixTab;
           }
@@ -174,6 +183,26 @@ export const useTabbarStore = defineStore('core-tabbar', {
         this.visitHistory.push(tab.key as string);
       }
       return tab;
+    },
+    /** 页面展示设置只覆盖当前标签，重新加入路由时仍保留显式选择。 */
+    setPageKeepAlive(
+      tabKey: string,
+      keepAlive: boolean | undefined,
+      routeDefault: boolean,
+    ) {
+      const index = this.tabs.findIndex(
+        (tab) => getTabKeyFromTab(tab) === tabKey,
+      );
+      if (index === -1) return;
+
+      const tab = this.tabs[index];
+      if (!tab) return;
+      const meta: PageCacheTabMeta = { ...tab.meta };
+      if (keepAlive === undefined) delete meta.pageKeepAlive;
+      else meta.pageKeepAlive = keepAlive;
+      meta.keepAlive = keepAlive ?? routeDefault;
+      this.tabs.splice(index, 1, { ...tab, meta });
+      void this.updateCacheTabs();
     },
     /**
      * @zh_CN 关闭所有标签页

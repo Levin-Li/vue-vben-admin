@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  reconcileInitialChoiceValue,
   shouldApplyFieldOptionsRequest,
   shouldLoadFieldOptions,
   shouldReloadRemoteOptionsOnDropdownOpen,
@@ -37,5 +38,14 @@ describe('crud select options', () => {
   it('does not load options for a field hidden from the current user', () => {
     expect(shouldLoadFieldOptions(true, false)).toBe(false);
     expect(shouldLoadFieldOptions(true, true)).toBe(true);
+  });
+
+  it('converts an unchanged initial value after remote options arrive', () => {
+    const field = { key: 'channel', label: '频道', type: 'select' } as const;
+    const options = [{ label: '频道一', value: '1' }];
+
+    expect(reconcileInitialChoiceValue(field, 1, 1, options)).toBe('1');
+    expect(reconcileInitialChoiceValue(field, 1, 2, options)).toBe(2);
+    expect(reconcileInitialChoiceValue(field, 3, 3, options)).toBe(3);
   });
 });

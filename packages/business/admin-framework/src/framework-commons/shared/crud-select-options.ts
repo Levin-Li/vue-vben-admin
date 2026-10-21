@@ -1,5 +1,7 @@
 import type { CrudFieldConfig } from './types';
 
+import { normalizeCrudChoiceFormValue } from './crud-choice-value';
+
 export function shouldReloadRemoteOptionsOnDropdownOpen(
   field: CrudFieldConfig,
 ) {
@@ -19,4 +21,15 @@ export function shouldLoadFieldOptions(
   isFieldVisible: boolean,
 ) {
   return hasOptionsLoader && isFieldVisible;
+}
+
+export function reconcileInitialChoiceValue(
+  field: CrudFieldConfig,
+  initialValue: unknown,
+  currentValue: unknown,
+  options: Parameters<typeof normalizeCrudChoiceFormValue>[2],
+) {
+  return currentValue === initialValue
+    ? normalizeCrudChoiceFormValue(field, initialValue, options)
+    : currentValue;
 }

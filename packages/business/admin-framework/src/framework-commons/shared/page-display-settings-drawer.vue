@@ -1639,12 +1639,20 @@ const uploadTooltip = computed(() => {
 });
 
 function save() {
-  const validationError = validateDisplayConfig(changedViews());
+  // 当前页签即使未编辑，也不能上传已加载的无效配置。
+  const viewsToValidate = [...new Set([...changedViews(), activeKey.value])];
+  const validationError = validateDisplayConfig(viewsToValidate);
   if (validationError) {
     activeKey.value = validationError.view;
     message.error(validationError.message);
     return;
   }
+  // 其余页签按需加载；提交时补齐默认字段，避免遗漏其状态。
+  for (const view of ['query', 'create', 'edit', 'detail'] as const) {
+    ensureFields(view);
+  }
+  ensureHeaders();
+  ensureActions();
   emit('save', { config: clone(draft.value), scope: { ...scope.value } });
 }
 
@@ -1707,9 +1715,21 @@ watch([activeKey, previewSignature], () => {
 });
 
 watch(activeKey, () => {
+  // 首次切换页签会惰性补齐默认字段；这些默认值不是用户修改。
+  const unchangedBeforeSwitch = !hasUnuploadedChanges.value;
+  if (props.open && unchangedBeforeSwitch) {
+    if (activeKey.value === 'list') {
+      ensureHeaders();
+      ensureActions();
+    } else {
+      ensureFields(activeKey.value);
+      ensureGroups(activeKey.value);
+    }
+    initialSnapshot.value = currentSnapshot();
+  }
   // 更新活动视图前恢复滚动起点，沿用原先重建容器时的行为，避免旧滚动位置触发批量加载。
   if (fieldScrollRef.value) fieldScrollRef.value.scrollTop = 0;
-});
+}, { flush: 'sync' });
 
 watch(normalizedFieldSearch, () => {
   // 搜索先覆盖全部候选，再从结果首批展示；清空后不会遗留旧滚动位置或加载额度。

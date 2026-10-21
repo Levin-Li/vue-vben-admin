@@ -47,6 +47,7 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 服务插件按模式选择供应商：[供应商选择模式接入指南](docs/provider-selection-modes.md)。
 法律主体与合作伙伴一对多页面：[接入与使用指南](docs/partner-legal-subject-relations.md)。
 独立客户管理：[客户页面使用指南](docs/customer-page.md)。
+外部组织主档归属：[管理页面使用指南](docs/external-org-master-ownership.md)。
 
 企业平台登录与组织同步配置：[插件配置指导](docs/enterprise-login-guidance.md)。
 

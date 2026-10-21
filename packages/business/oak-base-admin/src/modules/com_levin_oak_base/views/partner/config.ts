@@ -5,7 +5,6 @@ import {
   buildEnumOptionsLoader,
   buildModuleOptionsLoader,
   tenantOptionsLoader,
-  userOptionsLoader,
 } from '../api-module';
 
 // 路由同步仍读取页面元数据；合作关系字段拆分不改变该页面的稳定标识。
@@ -139,21 +138,11 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
   {
     key: 'orgId',
     disabledOnEdit: true,
-    label: '管理组织',
-    help: '此组织管理本条合作关系，不改变法律主体的归属。',
+    label: '伙伴组织节点',
+    help: '请选择该伙伴自己的外部组织节点，保存后不可修改。',
     layoutGroup: 'ownership',
     layoutOrder: 20,
-    // 管理组织允许由服务端可信上下文补值，不额外强制手工选择。
-    type: 'org-tree-select',
-  },
-  {
-    key: 'ownerId',
-    disabledOnEdit: true,
-    label: '负责人',
-    layoutGroup: 'ownership',
-    layoutOrder: 30,
-    loadOptions: userOptionsLoader,
-    remoteSearch: true,
+    required: true,
     type: 'select',
   },
   {

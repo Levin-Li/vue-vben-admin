@@ -23,7 +23,7 @@ import {
 
 ## 默认数据与交互
 
-组件初始化时默认请求当前登录用户有权限访问的组织树，调用 `rbacService.fetchAuthorizedOrgTree()`，接口语义为 `/rbac/authorizedOrgList`，默认携带 `assembleTree=true`。
+组件首次展开时默认请求当前登录用户有权限访问的组织树，调用 `rbacService.fetchAuthorizedOrgTree()`，接口语义为 `/rbac/authorizedOrgList`，默认携带 `assembleTree=true`。设置 `loadOnInitialValue` 后，已有选择值会触发一次预加载以完成名称回显。
 
 - 默认一次性加载授权组织树（`orgLoadMode="all"`）。
 - 允许选择用户时，用户不会预加载；用户展开某个组织后才加载该组织下的用户。
@@ -50,7 +50,7 @@ const currentOrganization = ref<UserOrgSelectorRecord | null>(null);
   <UserOrgSelector
     v-model="currentOrganization"
     :max-select-count="1"
-    mode="org"
+    :selectable-types="['org']"
     placeholder="请选择组织"
     value-mode="record"
   />
@@ -79,7 +79,7 @@ const oakBaseApiModule = '/com.levin.oak.base/V1/api';
     v-model:selected-records="selectedRecords"
     :org-types="['Department']"
     :user-types="['Internal']"
-    mode="both"
+    :selectable-types="['org', 'user']"
     :user-api-module-base="oakBaseApiModule"
     value-mode="record"
   />
@@ -92,15 +92,14 @@ const oakBaseApiModule = '/com.levin.oak.base/V1/api';
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
-| `mode` | `'both'` | `'org'` 只允许组织，`'user'` 只允许用户，`'both'` 两者均可。 |
-| `allowSelectOrg` | `true` | 是否允许选择组织；仍受 `mode`、`orgTypes` 和叶子规则限制。 |
-| `allowSelectUser` | `true` | 是否允许选择用户；仍受 `mode`、`userTypes` 和组织类型限制。 |
+| `selectableTypes` | `['org', 'user']` | 候选节点类型；传 `['org']` 时仅输出组织，也可选择用户或租户节点。 |
 | `multiple` | `false` | 是否多选；多选时启用树形勾选。 |
 | `maxSelectCount` | `0` | 最大选择数；`0` 不限制，`1` 强制单选，其他正数超限时提示。 |
 | `allowClear` | `true` | 是否允许清空。 |
 | `disabled` | `false` | 是否禁用组件。 |
 | `placeholder` | `请选择用户或组织` | 空值提示文案。 |
 | `showSearch` | `true` | 是否支持按节点标题搜索。 |
+| `loadOnInitialValue` | `false` | 已有 ID 时提前加载当前组织树完成名称回显；默认仍在首次展开时加载。 |
 | `inline` | `false` | 在手机抽屉等受限空间内直接展示搜索框和可滚动候选树，不打开第二层浮动下拉。候选权限、懒加载与选中事件与默认模式相同。 |
 
 `maxSelectCount=1` 会优先于 `multiple=true`，按单选处理。`onlyLeafNode` 与 `onlyNotLeafNode` 不能同时开启。
@@ -138,7 +137,6 @@ interface UserOrgSelectorRecord {
 | `orgTypes` | `[]` | 可选择组织、以及可加载用户的组织类型白名单；空数组不限制。 |
 | `userTypes` | `[]` | 用户类型白名单；默认用户请求会传为 `inType`，组件还会二次过滤。 |
 | `rootOrgIdList` | `[]` | 限定授权组织树根节点；空数组使用默认授权根。 |
-| `orgRootIds` | `[]` | `rootOrgIdList` 的兼容旧参数；只有前者为空时才使用它。 |
 | `onlyLeafNode` | `false` | 仅叶子组织可选，树形路径仍可展示。 |
 | `onlyNotLeafNode` | `false` | 仅非叶子组织可选，树形路径仍可展示。 |
 | `onlyShowTypeMatchNode` | `false` | 是否隐藏类型不匹配的组织并压缩可见层级。 |
@@ -183,11 +181,9 @@ interface UserOrgSelectorRecord {
 
 ```ts
 const orgLoadApi = async ({
-  allowSelectOrg,
-  allowSelectUser,
   depth,
   maxLoadDeep,
-  mode,
+  selectableTypes,
   onlyLeafNode,
   onlyNotLeafNode,
   onlyShowTypeMatchNode,
@@ -224,7 +220,13 @@ const userLoadApi = async ({ org, orgId, userTypes }) => {
 
 框架已提供“全局组织与用户选择器”，由运行时读取同名配置编码并维护共享选中记录。业务页面应复用既有状态，导入、空值处理、监听和解除订阅见[全局选中状态使用说明](../global-user-org-context.md)。
 
-独立 `UserOrgSelector` 仍只负责自身选择；单独放置组件不会自动接入全局状态。框架顶部选择器会按其既有规则向业务请求的 URL 参数注入组织和用户上下文，具体覆盖规则见上述说明。
+独立 `UserOrgSelector` 仍只负责自身选择；单独放置组件不会自动接入全局状态。框架顶部选择器会按其既有规则通过请求 Header 传递组织和用户上下文，具体边界见上述说明。
+
+## 公共 CRUD 组织字段
+
+公共 CRUD 将 `type: 'org-tree-select'` 字段接入本组件，固定使用 `selectableTypes=['org']`、`valueMode='id'`。单选字段只写入组织 ID，多选字段写入 ID 数组；字段被禁用时不得通过选择器修改。查询、新增和编辑中若已有 ID，使用 `loadOnInitialValue` 完成名称回显，未匹配 ID 保留原值。
+
+字段未声明候选来源时读取当前授权组织树；显式 `loadOptions` 或固定 `options` 则覆盖默认来源。这里选择的是业务字段值，不会改变顶部全局组织上下文；提交时仍由后端校验组织范围和权限。
 
 ## 维护说明
 

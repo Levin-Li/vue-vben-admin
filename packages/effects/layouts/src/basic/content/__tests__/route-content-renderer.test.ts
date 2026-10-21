@@ -2,7 +2,7 @@ import type { RouteLocationNormalizedLoadedGeneric } from 'vue-router';
 
 import { mount } from '@vue/test-utils';
 /* eslint-disable vue/one-component-per-file */
-import { defineComponent, h, nextTick } from 'vue';
+import { defineComponent, h, nextTick, ref } from 'vue';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -51,6 +51,48 @@ describe('routeContentRenderer', () => {
     expect(wrapper.find('[data-testid="healthy-page"]').text()).toBe(
       '正常页面',
     );
+  });
+
+  it('caches a named page when its component name differs from the route name', async () => {
+    const mounted = vi.fn();
+    const Page = defineComponent({
+      name: 'ReusablePage',
+      setup() {
+        const page = ref(1);
+        mounted();
+        return () =>
+          h('button', { onClick: () => page.value++ }, `第 ${page.value} 页`);
+      },
+    });
+    const Other = defineComponent({
+      name: 'OtherPage',
+      setup: () => () => h('div', '其它页面'),
+    });
+    const wrapper = mount(RouteContentRenderer, {
+      props: {
+        component: h(Page),
+        include: [],
+        keepAlive: true,
+        route: createRoute('Drama'),
+        routeKey: '/Drama',
+      },
+    });
+
+    await wrapper.find('button').trigger('click');
+    await wrapper.setProps({ include: ['Drama', 'OtherPage'] });
+    await wrapper.setProps({
+      component: h(Other),
+      route: createRoute('OtherPage'),
+      routeKey: '/OtherPage',
+    });
+    await wrapper.setProps({
+      component: h(Page),
+      route: createRoute('Drama'),
+      routeKey: '/Drama',
+    });
+
+    expect(wrapper.find('button').text()).toBe('第 2 页');
+    expect(mounted).toHaveBeenCalledTimes(1);
   });
 
   it('keeps rendering when route component metadata cannot be extended', () => {

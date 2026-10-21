@@ -50,7 +50,12 @@ import { useRoute } from 'vue-router';
 
 import { Page, VCropper } from '@vben/common-ui';
 import { ChevronDown, IconifyIcon, Plus } from '@vben/runtime/icons';
-import { useAccessStore, useUserStore } from '@vben/runtime/stores';
+import {
+  getTabKey,
+  useAccessStore,
+  useTabbarStore,
+  useUserStore,
+} from '@vben/runtime/stores';
 
 import { preferences } from '@vben-core/foundation/preferences';
 
@@ -78,7 +83,6 @@ import {
   Tag,
   TimePicker,
   Tooltip,
-  TreeSelect,
   Upload,
 } from 'ant-design-vue';
 
@@ -206,6 +210,7 @@ import {
   shouldFormFieldSpanFullRow,
   sortFormLayoutFields,
 } from './crud-form-layout';
+import { snapshotCrudFormValues } from './crud-form-snapshot';
 import { getCrudGroupTitleClass } from './crud-group-display';
 import {
   buildGroupSubmitConfirmation,
@@ -238,6 +243,7 @@ import {
   isCrudMoneyField,
 } from './crud-money-display';
 import { shouldShowCrudOperationColumn } from './crud-operation-column-visibility';
+import { getCrudOrgLoadApi } from './crud-org-selector';
 import {
   filterCrudOperationsByListTable,
   groupCrudOperationsByRecordRef,
@@ -292,10 +298,12 @@ import {
   omitNonPlatformTenantId,
 } from './crud-retrieve-context';
 import {
+  reconcileInitialChoiceValue,
   shouldApplyFieldOptionsRequest,
   shouldReloadRemoteOptionsOnDropdownOpen,
 } from './crud-select-options';
 import { omitExcludedCrudFields } from './crud-submit-fields';
+import UserOrgSelector from './user-org-selector.vue';
 import {
   buildTableColumnPreference,
   getTableColumnPreferenceStorageKey,
@@ -425,6 +433,12 @@ onDeactivated(() => {
 const userStore = useUserStore();
 const accessStore = useAccessStore();
 const route = useRoute();
+const tabbarStore = useTabbarStore();
+const tabKey = getTabKey(route);
+const routeDefaultKeepAlive =
+  route.matched.length > 0
+    ? route.matched[route.matched.length - 1]?.meta.keepAlive === true
+    : route.meta.keepAlive === true;
 const pageEntryPath = route.path;
 // 固定条件属于当前页面实例，避免缓存页面读取后来激活的另一菜单条件。
 const menuFixedQuery = parseMenuFixedQuery(route.meta.fixedQuery);
@@ -493,6 +507,11 @@ const focusedJsonValid = ref(true);
 const jsonEditSession = ref(0);
 const loading = ref(false);
 const modalOpen = ref(false);
+// 每次打开独立保存初始化后的业务值，展示模式和折叠状态不参与比较。
+let initialFormSnapshot = '';
+let formSnapshotKeys: string[] = [];
+let formSnapshotJsonKeys = new Set<string>();
+let closeConfirmationOpen = false;
 const searchExpanded = ref(false);
 const selectedRowKeys = ref<Array<number | string>>([]);
 const selectedRows = ref<GenericRecord[]>([]);
@@ -579,6 +598,13 @@ const pageDisplaySettingsV2Open = ref(false);
 const pageDisplaySettingSaving = ref(false);
 const pageDisplayConfig = ref<CrudPageDisplayConfig>(
   resolveCrudPageDisplayDefaults(),
+);
+// 服务端页面设置覆盖当前标签的缓存资格；缺省仍沿用路由开发时声明。
+watch(
+  () => pageDisplayConfig.value.keepAlive,
+  (keepAlive) => {
+    tabbarStore.setPageKeepAlive(tabKey, keepAlive, routeDefaultKeepAlive);
+  },
 );
 const listHeightPolicy = computed(() =>
   resolveCrudListHeight(pageDisplayConfig.value.list, tableFullscreen.value),
@@ -1404,7 +1430,11 @@ function applyPageDisplayFields(
           configured?.layoutGroupExcluded === true
             ? undefined
             : group?.title || resolveStaticLayoutGroupTitle(field),
-        layoutOrder: configured?.order ?? field.layoutOrder,
+        // 仅保存过的UI顺序才能覆盖开发默认，解析器的缺省字段索引不是用户设置。
+        layoutOrder:
+          pageDisplayConfig.value[view]?.fields.find(
+            (item) => item.key === field.key,
+          )?.order ?? field.layoutOrder,
       };
     });
 }
@@ -2727,6 +2757,8 @@ const modalMaxWidth = computed(() => {
 });
 
 const modalStyle = computed(() => ({
+  // 避免 Ant 默认 100px 顶距叠加 90vh 内容后将窄屏底部按钮推到视口外。
+  top: 'min(100px, 5vh)',
   maxHeight:
     activeFormModalConfig.value?.modalMaxHeight ||
     DEFAULT_CONTENT_MODAL_MAX_HEIGHT,
@@ -3733,7 +3765,7 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
   const loader = field.loadOptions || getDefaultOptionsLoader(field);
 
   if (!loader) {
-    return;
+    return undefined;
   }
 
   const requestVersion = (optionRequestVersions[field.key] || 0) + 1;
@@ -3751,6 +3783,7 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
     ) {
       optionState[field.key] = normalizeCrudChoiceOptions(field, options);
       if (!keyword.trim()) optionLoadedState[field.key] = true;
+      return optionState[field.key];
     }
   } catch (error) {
     console.error(error);
@@ -3765,6 +3798,49 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
       optionLoadingState[field.key] = false;
     }
   }
+}
+
+// 仅为已有初始值加载候选；响应回来前用户修改字段时不覆盖其输入。
+async function hydrateInitialChoiceValue(
+  field: CrudFieldConfig,
+  state: GenericRecord,
+  isCurrent: () => boolean = () => true,
+) {
+  if (
+    field.type === 'org-tree-select' ||
+    !isChoiceFormField(field) ||
+    isEmptyChoiceValue(state[field.key]) ||
+    !(field.loadOptions || getDefaultOptionsLoader(field))
+  )
+    return;
+
+  const initialValue = state[field.key];
+  const cachedOptions = getFieldOptions(field, state);
+  const options =
+    optionLoadedState[field.key] &&
+    findMatchingCrudChoiceOption(field, initialValue, cachedOptions)
+      ? cachedOptions
+      : await loadFieldOptions(field);
+  if (!options || !isCurrent()) return;
+
+  const nextValue = reconcileInitialChoiceValue(
+    field,
+    initialValue,
+    state[field.key],
+    options,
+  );
+  if (nextValue === state[field.key]) return;
+
+  const unchangedSnapshot =
+    state === formState && initialFormSnapshot === currentFormSnapshot();
+  const isSearchState = state === searchState;
+  if (isSearchState) initialChoiceValueChange = true;
+  state[field.key] = nextValue;
+  if (unchangedSnapshot) captureFormSnapshot();
+  if (isSearchState)
+    void nextTick(() => {
+      initialChoiceValueChange = false;
+    });
 }
 
 async function loadTableDisplayOptions(field: CrudFieldConfig) {
@@ -5034,6 +5110,49 @@ async function loadList() {
   }
 }
 
+// 初始化完成后固定本次字段集合，后续 UI 显隐变化不重置用户修改基准。
+function captureFormSnapshot() {
+  const fields = focusedJsonFieldKey.value
+    ? initialFormFields.value.filter(
+        (field) => field.key === focusedJsonFieldKey.value,
+      )
+    : initialFormFields.value;
+  formSnapshotKeys = fields.map((field) => field.key);
+  formSnapshotJsonKeys = new Set(
+    fields.filter((field) => field.type === 'json').map((field) => field.key),
+  );
+  initialFormSnapshot = currentFormSnapshot();
+}
+
+function currentFormSnapshot() {
+  return snapshotCrudFormValues(
+    Object.fromEntries(formSnapshotKeys.map((key) => [key, formState[key]])),
+    formSnapshotJsonKeys,
+  );
+}
+
+function requestFormClose() {
+  if (submitting.value || closeConfirmationOpen) return;
+  if (initialFormSnapshot === currentFormSnapshot()) {
+    modalOpen.value = false;
+    return;
+  }
+  closeConfirmationOpen = true;
+  Modal.confirm({
+    cancelText: '继续编辑',
+    content: '关闭将放弃本次未保存的修改。',
+    okText: '放弃修改并关闭',
+    okType: 'danger',
+    title: '确认关闭表单？',
+    onOk() {
+      if (!submitting.value) modalOpen.value = false;
+    },
+    afterClose() {
+      closeConfirmationOpen = false;
+    },
+  });
+}
+
 async function handleCreate() {
   try {
     await dataAttrAccess.ensure('create');
@@ -5045,7 +5164,15 @@ async function handleCreate() {
   focusedJsonFieldKey.value = undefined;
   editingRecord.value = null;
   resetForm();
+  captureFormSnapshot();
   modalOpen.value = true;
+  const session = jsonEditSession.value;
+  for (const field of visibleFormFields.value)
+    void hydrateInitialChoiceValue(
+      field,
+      formState,
+      () => modalOpen.value && jsonEditSession.value === session,
+    );
 }
 
 async function handleEdit(record: GenericRecord) {
@@ -5059,7 +5186,15 @@ async function handleEdit(record: GenericRecord) {
   focusedJsonFieldKey.value = undefined;
   editingRecord.value = record;
   resetForm(record);
+  captureFormSnapshot();
   modalOpen.value = true;
+  const session = jsonEditSession.value;
+  for (const field of visibleFormFields.value)
+    void hydrateInitialChoiceValue(
+      field,
+      formState,
+      () => modalOpen.value && jsonEditSession.value === session,
+    );
 }
 
 async function handleJsonFieldEdit(
@@ -5083,6 +5218,7 @@ async function handleJsonFieldEdit(
     field,
     formState[field.key],
   );
+  captureFormSnapshot();
   modalOpen.value = true;
 }
 
@@ -5117,6 +5253,10 @@ async function handleRetrieve(record: GenericRecord) {
     'showForm',
     response,
     true,
+  );
+  // 详情首次打开也加载当前有权展示的字典，复用只读展示缓存，不依赖先打开编辑下拉。
+  await Promise.all(
+    getDetailDisplayFields().map((field) => loadTableDisplayOptions(field)),
   );
 }
 
@@ -5430,6 +5570,8 @@ function resetSearch() {
 
   applyEditableSearchDefault();
   applyPageDisplayQueryDefaults();
+  for (const field of searchFields.value)
+    void hydrateInitialChoiceValue(field, searchState);
 
   pagination.current = 1;
   loadList();
@@ -5447,10 +5589,9 @@ function applyPageDisplayQueryDefaults() {
       field.key,
     )?.defaultValue;
     if (configuredDefault && 'value' in configuredDefault) {
-      searchState[field.key] =
-        field.type === 'area-cascader'
-          ? normalizeFormValue(field, configuredDefault.value)
-          : configuredDefault.value;
+      searchState[field.key] = isChoiceFormField(field)
+        ? normalizeFormValue(field, configuredDefault.value)
+        : configuredDefault.value;
     }
   }
   for (const item of searchFieldItems.value) {
@@ -5527,6 +5668,7 @@ function toggleSearchExpanded() {
 }
 
 let suppressAutoSearch = false;
+let initialChoiceValueChange = false;
 const SINGLE_TEXT_QUERY_AUTOSEARCH_DELAY = 1000;
 let singleTextQueryAutoSearchTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -5550,7 +5692,7 @@ function scheduleSingleTextQueryAutoSearch() {
       !shouldAutoQuery(
         singleTextQueryAutoSearchEnabled.value,
         autoSearchReady.value,
-        suppressAutoSearch,
+        suppressAutoSearch || initialChoiceValueChange,
       )
     ) {
       return;
@@ -5571,7 +5713,7 @@ watch(
       shouldAutoQuery(
         autoSearchEnabled.value,
         autoSearchReady.value,
-        suppressAutoSearch,
+        suppressAutoSearch || initialChoiceValueChange,
       )
     ) {
       clearSingleTextQueryAutoSearchTimer();
@@ -6464,7 +6606,10 @@ function handleSearchSelectSearch(field: CrudFieldConfig, keyword: string) {
 }
 
 function restoreRemoteFieldOptions(field: CrudFieldConfig) {
-  if (!shouldReloadRemoteOptionsOnDropdownOpen(field)) {
+  if (
+    !shouldReloadRemoteOptionsOnDropdownOpen(field) &&
+    !getDefaultOptionsLoader(field)
+  ) {
     return;
   }
 
@@ -7325,7 +7470,10 @@ function getDetailDisplayFields() {
         !actionResultUsesRetrievePolicy.value ||
         dataAttrAccess.allowed('retrieve', 'output', field),
     )
-    .map((field) => ({ ...field, options: getFieldOptions(field) }));
+    .map((field) => ({
+      ...field,
+      options: getTableDisplayFieldOptions(field),
+    }));
 }
 
 const actionResultEntries = computed((): DetailDisplayEntry[] => {
@@ -7483,6 +7631,8 @@ onMounted(async () => {
   await loadPageDisplaySettings();
   loadTableColumnPreference();
   applyPageDisplayQueryDefaults();
+  for (const field of searchFields.value)
+    void hydrateInitialChoiceValue(field, searchState);
   tableDisplayOptionsReady.value = true;
   await loadList();
   autoSearchReady.value = true;
@@ -7766,34 +7916,25 @@ watch(
                     )
                 "
               />
-              <TreeSelect
+              <UserOrgSelector
                 v-else-if="item.field.type === 'org-tree-select'"
-                :value="
+                :model-value="
                   getInteractionModelValue(
                     searchState[item.field.key],
                     isSearchFieldInteractionDisabled(item.field),
                   )
                 "
                 :disabled="isSearchFieldInteractionDisabled(item.field)"
-                @update:value="updateSearchFieldInput(item.field, $event)"
+                @update:model-value="updateSearchFieldInput(item.field, $event)"
                 :allow-clear="true"
                 class="w-full"
-                :loading="optionLoadingState[item.field.key]"
                 :multiple="Boolean(item.field.multiple)"
+                load-on-initial-value
+                :max-select-count="item.field.multiple ? 0 : 1"
+                :org-load-api="getCrudOrgLoadApi(item.field)"
                 :placeholder="getPlaceholder(item.field)"
-                show-search
-                :tree-checkable="Boolean(item.field.multiple)"
-                :tree-data="getFieldOptions(item.field)"
-                tree-default-expand-all
-                tree-node-filter-prop="label"
-                popup-class-name="vben-crud-org-tree-select-dropdown"
-                :dropdown-match-select-width="false"
-                :list-height="640"
-                :virtual="false"
-                @blur="() => restoreRemoteFieldOptions(item.field)"
-                @dropdown-visible-change="
-                  (open) => handleSelectDropdownVisibleChange(item.field, open)
-                "
+                :selectable-types="['org']"
+                value-mode="id"
               />
               <AutoComplete
                 v-else-if="
@@ -8763,6 +8904,9 @@ watch(
       :body-style="formModalBodyStyle"
       :class="formModalWrapClass"
       :confirm-loading="submitting"
+      :cancel-button-props="{ disabled: submitting }"
+      :closable="!submitting"
+      :keyboard="!submitting"
       :ok-button-props="{
         disabled:
           !!focusedJsonFieldKey && (!focusedSchemaReady || !focusedJsonValid),
@@ -8774,7 +8918,7 @@ watch(
       :wrap-class-name="formModalWrapClass"
       :width="modalWidth"
       destroy-on-close
-      @cancel="modalOpen = false"
+      @cancel="requestFormClose"
       @ok="handleSubmit"
     >
       <template #title>
@@ -9028,34 +9172,25 @@ watch(
                         )
                     "
                   />
-                  <TreeSelect
+                  <UserOrgSelector
                     v-else-if="field.type === 'org-tree-select'"
-                    :value="
+                    :model-value="
                       getInteractionModelValue(
                         formState[field.key],
                         isFormFieldInteractionDisabled(field),
                       )
                     "
-                    @update:value="updateFormFieldInput(field, $event)"
+                    @update:model-value="updateFormFieldInput(field, $event)"
                     :allow-clear="true"
                     class="w-full"
                     :disabled="isFormFieldInteractionDisabled(field)"
-                    :loading="optionLoadingState[field.key]"
                     :multiple="Boolean(field.multiple)"
+                    load-on-initial-value
+                    :max-select-count="field.multiple ? 0 : 1"
+                    :org-load-api="getCrudOrgLoadApi(field)"
                     :placeholder="getPlaceholder(field)"
-                    show-search
-                    :tree-checkable="Boolean(field.multiple)"
-                    :tree-data="getFieldOptions(field)"
-                    tree-default-expand-all
-                    tree-node-filter-prop="label"
-                    popup-class-name="vben-crud-org-tree-select-dropdown"
-                    :dropdown-match-select-width="false"
-                    :list-height="640"
-                    :virtual="false"
-                    @blur="() => restoreRemoteFieldOptions(field)"
-                    @dropdown-visible-change="
-                      (open) => handleSelectDropdownVisibleChange(field, open)
-                    "
+                    :selectable-types="['org']"
+                    value-mode="id"
                   />
                   <div
                     v-else-if="isFileUploadField(field)"
@@ -9575,6 +9710,7 @@ watch(
       :action-candidates="actionDisplayCandidates"
       :list-operation-candidates="listOperationCandidates"
       :code="pageDisplaySettingCode"
+      :default-keep-alive="routeDefaultKeepAlive"
       :domain-object="props.config.domainObject"
       :fields="effectiveFields"
       :complex-groups="props.config.complexGroups"
@@ -9946,31 +10082,6 @@ watch(
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
-}
-
-/* 通用组织树选择器：长组织名称保持单行，弹层达到视口边界后由候选区承担滚动。 */
-:global(.vben-crud-org-tree-select-dropdown) {
-  width: max-content !important;
-  max-width: min(480px, calc(100vw - 32px));
-}
-
-:global(.vben-crud-org-tree-select-dropdown .ant-select-tree-list-holder) {
-  max-height: min(640px, calc(100vh - 32px));
-  overflow: auto !important;
-}
-
-:global(
-  .vben-crud-org-tree-select-dropdown .ant-select-tree-list-holder-inner
-) {
-  display: inline-block;
-  min-width: 100%;
-  width: max-content;
-}
-
-:global(
-  .vben-crud-org-tree-select-dropdown .ant-select-tree-node-content-wrapper
-) {
-  white-space: nowrap;
 }
 
 .vben-crud-action-log-tooltip-content {

@@ -40,6 +40,7 @@ configureAdminApplication({
 组件专用文档位于包根 `docs/components/`，例如 [UserOrgSelector 用户与组织选择器](docs/components/user-org-selector.md)。该目录随 npm tarball 发布，适合第三方项目直接阅读，无需依赖 `src` 或 `dist` 的构建布局。
 
 公共 CRUD 的复杂对象归属、页面展示设置和验证方法见[复杂对象分组使用指南](docs/complex-object-groups.md)。
+本地长期与临时上传方法及公开临时 URL 的边界见[本地文件上传 API 使用指南](docs/local-file-storage-upload.md)。
 标准 CRUD 的标签缓存接入与失效边界见[标签缓存接入指南](docs/crud-tab-cache.md)。
 系统原生网页 Agent 的聊天入口和技能登记见[网页 Agent 使用与扩展指南](docs/ai-agent.md)。
 标准 CRUD 金额字段的四位分组、默认单位与页面覆盖见[金额展示使用说明](docs/crud-money-display.md)。
@@ -71,3 +72,9 @@ HTML 字段与独立页面的安全富文本编辑接入见[公共富文本编�
 API 属性组权限的轻量分配、后端元数据契约与保存语义见 [属性组授权接入指南](docs/api-attribute-group-permissions.md)。
 
 枚举字段对应记录的访问范围授权见[枚举记录范围授权接入指南](docs/enum-record-scope-permissions.md)。
+
+## CRUD 表单编辑与关闭
+
+公共 CRUD 的新增、编辑和单 JSON 字段编辑在业务值有修改时，取消、关闭或 Escape 会先询问继续编辑或放弃修改；取消确认保留输入，恢复原值后不再提示。保存失败保留输入及原始比较基准，保存中禁用关闭。分组折叠和快捷填写不视为业务修改。普通表单沿用用户展示设置的宽高上限，并限制顶部偏移以保持窄屏操作按钮可达。
+
+详情首次打开会为当前权限与UI设置允许的选择字段读取既有只读选项标签；组织选择器沿用原有授权接口。该行为不会增加业务字段、改变提交范围或扩大凭据权限。最小验证：打开标准CRUD编辑记录，修改后模拟保存失败，点击取消并选择继续编辑应保留输入；还原原值后取消可直接关闭。

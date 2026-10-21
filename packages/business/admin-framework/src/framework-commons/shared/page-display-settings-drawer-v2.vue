@@ -90,6 +90,7 @@ type Scope = {
 const props = defineProps<{
   actionCandidates?: CrudPageDisplayActionCandidate[];
   code: string;
+  defaultKeepAlive?: boolean;
   detailFields?: CrudFieldConfig[];
   domainObject?: boolean;
   fields: CrudFieldConfig[];
@@ -2114,6 +2115,25 @@ onMounted(() => {
           </Button>
         </Tooltip>
       </div>
+    </div>
+    <!-- 标签缓存属于整页设置，放在各表单与列表页签之外。 -->
+    <div class="mb-2 flex flex-wrap items-center gap-3 px-1 text-sm">
+      <Switch
+        data-test="page-display-v2-keep-alive"
+        :checked="draft.keepAlive ?? Boolean(defaultKeepAlive)"
+        @update:checked="draft.keepAlive = Boolean($event)"
+      />
+      <span>切换标签时保留页面</span>
+      <Button
+        v-if="draft.keepAlive !== undefined"
+        size="small"
+        type="link"
+        @click="draft.keepAlive = undefined"
+        >恢复路由默认</Button
+      >
+      <span class="text-muted-foreground"
+        >保留查询、分页和列表状态；全局标签缓存关闭时不生效。</span
+      >
     </div>
     <Tabs v-model:active-key="activeKey">
       <Tabs.TabPane key="query" tab="查询表单" />

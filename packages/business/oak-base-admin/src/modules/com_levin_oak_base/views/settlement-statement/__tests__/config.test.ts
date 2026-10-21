@@ -36,7 +36,13 @@ describe('结算单标准 CRUD', () => {
       settlementStatementPageCrudConfig.fields.find(
         (field) => field.key === 'settlementContent',
       ),
-    ).toMatchObject({ table: false, export: false, detail: false });
+    ).toMatchObject({
+      complexValue: true,
+      fullRow: true,
+      table: false,
+      export: false,
+      detail: false,
+    });
   });
   it('财务权限来自实际 API 注解，保留显式资源段', () => {
     expect(
