@@ -1,12 +1,8 @@
-import type { DataAttrPolicies, DataAttrTarget } from '../../data-attr-policy';
+import type { DataAttrTarget } from '../../data-attr-policy';
 
 import { ResAuthorize, Service } from '../../api-authorize';
-import {
-  DATA_ATTR_POLICY_PATH,
-  DATA_ATTR_POLICY_SNAPSHOT_PATH,
-} from '../../data-attr-policy';
+import { readDataAttrLocalPolicies } from '../../data-attr-policy';
 import { RequestService } from '../../request-service';
-import { requestClient } from './request';
 
 @Service({
   basePath: '/com.levin.oak.base/V1/api/rbac',
@@ -15,6 +11,7 @@ import { requestClient } from './request';
   title: 'API字段策略',
   type: 'API字段策略',
 })
+/** @deprecated 使用 API 静态契约与登录许可；旧方法仅提供本地读取兼容。 */
 export class DataAttrPolicyService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
@@ -23,10 +20,7 @@ export class DataAttrPolicyService extends RequestService {
     onlyRequireAuthenticated: true,
   })
   async resolve(query: DataAttrTarget | { operation: string }) {
-    // 只由固定策略入口读取，不递归经过业务代理；底层安全链仍负责签名与加密。
-    return requestClient.post<DataAttrPolicies>(DATA_ATTR_POLICY_PATH, query, {
-      baseURL: '',
-    });
+    return readDataAttrLocalPolicies(query);
   }
 
   @ResAuthorize({
@@ -36,9 +30,7 @@ export class DataAttrPolicyService extends RequestService {
     onlyRequireAuthenticated: true,
   })
   async snapshot() {
-    return requestClient.get<DataAttrPolicies>(DATA_ATTR_POLICY_SNAPSHOT_PATH, {
-      baseURL: '',
-    });
+    return readDataAttrLocalPolicies();
   }
 }
 export const dataAttrPolicyService = new DataAttrPolicyService();

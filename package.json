@@ -42,6 +42,7 @@
     "check:crud-page-layout": "node ./scripts/check-crud-page-layout.mjs",
     "check:admin-page-inventory": "node ./scripts/check-admin-page-inventory.mjs",
     "check:api-resource-types": "node ./scripts/check-api-resource-types.mjs",
+    "check:static-field-contract": "node ./scripts/check-static-data-attr-contract.mjs",
     "check:package-versions": "node ./scripts/sync-package-versions.mjs --check",
     "check:consolidated-package-imports": "node ./scripts/check-consolidated-package-imports.mjs",
     "check:route-transition": "node ./scripts/check-route-transition-guard.mjs",

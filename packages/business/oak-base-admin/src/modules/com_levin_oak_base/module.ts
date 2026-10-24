@@ -22,6 +22,7 @@ import { oakBaseAgentSkills } from './agent-skills';
 import { workflowAgentSkills } from './agent-workflow-skills';
 import { OAK_BASE_API_MODULE, OAK_BASE_MODULE_NAME } from './api-module';
 import { oakBrowserAgentTransport } from './api/ai-browser-agent-service';
+import { registerOakDataAttrContract } from './api/register-data-attr-contract';
 import { registerOakSessionDirectories } from './api/session-directories';
 import { oakBaseAdminBackendRouteMappings } from './backend-route-mappings';
 import GlobalPlatformDomainSelector from './global-platform-domain-selector.vue';
@@ -61,6 +62,8 @@ export function createOakBaseAdminModule(
     queryConfigLoaders: oakBaseQueryConfigLoaders,
     routes,
     setup: (context) => {
+      // 字段结构在开发阶段确定，页面与子组件共同消费本地契约。
+      registerOakDataAttrContract();
       // 会话统一加载目录，业务页面只消费内存结果。
       registerOakSessionDirectories();
       // 仅将本模块审核过的业务接口登记为 Agent 技能。

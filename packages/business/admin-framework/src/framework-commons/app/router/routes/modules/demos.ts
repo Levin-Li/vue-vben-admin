@@ -24,6 +24,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         meta: {
+          requiresAccess: true,
           title: $t('demos.publicComponents'),
         },
         name: 'PublicComponentDemos',
@@ -32,6 +33,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             meta: {
+              requiresAccess: true,
               title: $t('demos.userOrgSelector'),
             },
             name: 'UserOrgSelectorDemos',
@@ -40,11 +42,14 @@ const routes: RouteRecordRaw[] = [
           },
           {
             meta: {
+              requiresAccess: true,
               title: $t('demos.permissions'),
             },
             name: 'PermissionDemos',
             path: '/demos/public-components/permissions',
-            component: resolveAdminPage('/demos/public-components/permissions.vue'),
+            component: resolveAdminPage(
+              '/demos/public-components/permissions.vue',
+            ),
           },
         ],
       },

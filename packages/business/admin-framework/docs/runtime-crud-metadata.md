@@ -2,7 +2,7 @@
 
 ## 入口与前置条件
 
-独立路由页可以先读取服务端授权元数据，再构建 `CrudPageConfig` 并渲染公共组件：
+静态 API 页面在开发期注册接口字段契约，运行时模型页面可读取模型专属的服务端授权元数据；两者都构建 `CrudPageConfig` 并渲染公共组件：
 
 ```ts
 import DynamicCrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
@@ -28,13 +28,17 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 - 准备过程可更新配置字段与策略上下文。公共页在准备后重新取得对应操作策略，再初始化表单；真实主体、权限、页面或归属变化使旧异步结果失效。
 - 组件公开 `reload()` 与 `openCreate()`。对象级自定义动作可复用标准新增表单，但宿主必须先确定该动作的字段和权限。`createButtonVisible: false` 只收紧内置新增按钮显示，不授予表单或接口权限。
 
-## 服务端字段策略
+## 静态 API 与运行时模型字段策略
+
+普通 API 不通过 HTTP 查询字段策略或全量快照。所属模块注册 `registerDataAttrStaticContract({ version: 1, policies: [...] })`，认证流程用既有 `userInfo` 中的有效许可执行 `initializeDataAttrFieldGrants({ version: 1, allowed: [{ operation, groupKeys }] })`。公共 CRUD 按实际方法/路径定位接口，再本地合并许可；具体开发接入见[API 属性组授权接入指南](api-attribute-group-permissions.md#api-开发期静态声明)。
+
+身份就绪但缺少静态声明时，前端默认不限制字段，仅在控制台按会话和接口去重警告；后端仍重新检查实际请求。已声明无许可的受控组必须拒绝，非法或歧义声明和未就绪身份不能套用缺失默认。页面调用其它实体接口时使用其独立声明，表单视觉分组不等于权限分组。
 
 `dataAttrPolicyProvider(operation)` 是可选的运行时策略来源，返回合法的 `DataAttrPolicy`。显式配置后，提供者失败即拒绝，不会回退到旧宿主模式或关闭属性策略。
 
 提供者应消费服务端按模型、动作和当前主体裁剪的字段契约。编译策略时，应对配置字段全集的请求与响应分别明确允许/拒绝；不能只列允许字段并假定未知路径会拒绝。服务端未授权字段不得进入客户端字段配置或记录缓存。共享 HTTP 网关路径不能代替模型专属字段组身份。后端仍须逐次校验动作、字段组、可信记录范围和版本。
 
-模型标识、主体、有效权限或归属变化后，宿主应更新配置/策略身份并重新读取元数据。旧在途策略和导出结果不能跨上下文回填。
+模型标识、主体、有效权限或归属变化后，宿主应更新配置/策略身份并重新读取该模型元数据；这不允许重新引入通用 API 字段策略或快照 HTTP 查询。旧在途策略和导出结果不能跨上下文回填。
 
 ## 展示设置与默认值
 

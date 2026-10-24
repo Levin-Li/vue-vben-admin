@@ -70,6 +70,7 @@ const coreRoutes: RouteRecordRaw[] = [
         redirect: '/demos/public-components/user-org-selector',
         meta: {
           hideInMenu: true,
+          requiresAccess: true,
           title: $t('demos.publicComponents'),
         },
       },
@@ -79,6 +80,7 @@ const coreRoutes: RouteRecordRaw[] = [
         component: resolveAdminPage('/demos/public-components/index.vue'),
         meta: {
           hideInMenu: true,
+          requiresAccess: true,
           title: $t('demos.userOrgSelector'),
         },
       },
@@ -88,6 +90,7 @@ const coreRoutes: RouteRecordRaw[] = [
         component: resolveAdminPage('/demos/public-components/permissions.vue'),
         meta: {
           hideInMenu: true,
+          requiresAccess: true,
           title: $t('demos.permissions'),
         },
       },

@@ -16,3 +16,6 @@ CODEOWNERS
 public
 .npmrc
 *-lock.yaml
+
+# 后端独立工具生成并校验字节一致性的静态字段契约。
+packages/business/oak-base-admin/src/modules/com_levin_oak_base/api/data-attr-contract.json

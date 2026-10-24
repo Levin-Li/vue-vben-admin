@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildCoreRouteNames } from '../../access-route-names';
+import { coreRoutes } from '../../core';
+import demosRoutes from '../demos';
+
 vi.mock('@levin/admin-framework/framework-commons/app/pages', () => ({
   resolveAdminPage: (pagePath: string) => async () => pagePath,
 }));
@@ -24,10 +28,6 @@ vi.mock('@vben-core/foundation/preferences', () => ({
   },
 }));
 
-import { buildCoreRouteNames } from '../../access-route-names';
-import { coreRoutes } from '../../core';
-import demosRoutes from '../demos';
-
 describe('demos routes', () => {
   it('registers focused public component child pages under demos', () => {
     const demosRoot = demosRoutes.find((route) => route.path === '/demos');
@@ -50,6 +50,9 @@ describe('demos routes', () => {
     expect(permissionRoute?.name).toBe('PermissionDemos');
     expect(permissionRoute?.component).toBeTypeOf('function');
     expect(permissionRoute?.meta?.title).toBe('权限分配');
+    for (const entry of [route, selectorRoute, permissionRoute]) {
+      expect(entry?.meta?.requiresAccess).toBe(true);
+    }
   });
 
   it('keeps public component child pages directly reachable in backend menu mode', () => {
@@ -65,17 +68,18 @@ describe('demos routes', () => {
     );
 
     expect(groupRoute?.name).toBe('PublicComponentDemosDirect');
-    expect(groupRoute?.redirect).toBe('/demos/public-components/user-org-selector');
+    expect(groupRoute?.redirect).toBe(
+      '/demos/public-components/user-org-selector',
+    );
     expect(selectorRoute?.name).toBe('UserOrgSelectorDemosDirect');
     expect(selectorRoute?.meta?.hideInMenu).toBe(true);
     expect(permissionRoute?.name).toBe('PermissionDemosDirect');
     expect(permissionRoute?.meta?.hideInMenu).toBe(true);
-    expect(buildCoreRouteNames(coreRoutes)).toEqual(
-      expect.arrayContaining([
-        'PublicComponentDemosDirect',
-        'UserOrgSelectorDemosDirect',
-        'PermissionDemosDirect',
-      ]),
-    );
+    const names = buildCoreRouteNames(coreRoutes);
+    for (const entry of [groupRoute, selectorRoute, permissionRoute]) {
+      // 冷启动直达入口必须等待本人信息、许可和共享目录初始化；匿名不能跳过登录。
+      expect(entry?.meta?.requiresAccess).toBe(true);
+      expect(names).not.toContain(entry?.name);
+    }
   });
 });

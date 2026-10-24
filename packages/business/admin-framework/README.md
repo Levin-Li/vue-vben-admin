@@ -78,7 +78,7 @@ HTML 字段与独立页面的安全富文本编辑接入见[公共富文本编�
 
 企业 App 内网页授权及会话边界：[免登集成指南](docs/enterprise-inapp-login.md)。
 
-API 属性组权限的轻量分配、后端元数据契约与保存语义见 [属性组授权接入指南](docs/api-attribute-group-permissions.md)。
+API 字段分组的开发期静态声明、登录有效许可、本地合并及缺失默认见 [属性组授权接入指南](docs/api-attribute-group-permissions.md)；运行时模型专属契约见[运行时元数据接入指南](docs/runtime-crud-metadata.md)。
 
 枚举字段对应记录的访问范围授权见[枚举记录范围授权接入指南](docs/enum-record-scope-permissions.md)。
 

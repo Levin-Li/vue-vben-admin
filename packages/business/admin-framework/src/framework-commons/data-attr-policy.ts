@@ -6,7 +6,7 @@ export const DATA_ATTR_POLICY_PATH =
   '/com.levin.oak.base/V1/api/rbac/apiDataAttrPolicies';
 export const DATA_ATTR_POLICY_SNAPSHOT_PATH =
   '/com.levin.oak.base/V1/api/rbac/apiDataAttrPolicySnapshot';
-/** API 属性组策略由后端计算；前端只消费当前主体的 allowed 结论。 */
+/** API 方法与路径对应开发期声明，授权结论来自既有登录响应。 */
 export interface DataAttrTarget {
   contentType?: string;
   method: string;
@@ -49,6 +49,33 @@ export interface DataAttrPolicies {
   policies: DataAttrPolicy[];
   version: number;
 }
+export interface DataAttrStaticGroup {
+  authorizable: boolean;
+  confidentialLevel?: number;
+  entityPermission?: null | string;
+  id: string;
+  name: string;
+  permission?: null | string;
+}
+export interface DataAttrStaticPolicy extends Omit<
+  DataAttrPolicy,
+  'groups' | 'operation'
+> {
+  groups: DataAttrStaticGroup[];
+  operation: null | string;
+}
+export interface DataAttrStaticContract {
+  policies: DataAttrStaticPolicy[];
+  version: number;
+}
+export interface DataAttrFieldGrants {
+  allowed: { groupKeys: string[]; operation: string }[];
+  version: number;
+}
+const staticPolicies = new Map<string, DataAttrStaticPolicy>();
+const fieldGrants = new Map<string, Set<string>>();
+const missingWarnings = new Set<string>();
+let staticMode = false;
 type PolicyQuery = DataAttrTarget | { operation: string };
 type Loader = (query: PolicyQuery) => Promise<DataAttrPolicies>;
 let loader: Loader | undefined;
@@ -82,10 +109,12 @@ const cache = new Map<string, Promise<DataAttrPolicy>>();
 export function clearDataAttrPolicies() {
   generation++;
   cache.clear();
+  fieldGrants.clear();
+  missingWarnings.clear();
   snapshot = undefined;
   snapshotLoading = undefined;
   snapshotTargets.clear();
-  if (snapshotMode) policyReady.value = false;
+  if (snapshotMode || staticMode) policyReady.value = false;
   listeners.forEach((listener) => listener());
 }
 export function suspendDataAttrPolicies() {
@@ -95,6 +124,7 @@ export function suspendDataAttrPolicies() {
 }
 export function configureDataAttrPolicyLoader(next: Loader) {
   enabled = true;
+  staticMode = false;
   snapshotMode = false;
   policyReady.value = false;
   loader = next;
@@ -102,12 +132,229 @@ export function configureDataAttrPolicyLoader(next: Loader) {
   policyReady.value = true;
 }
 
-/** 登录时一次取得当前主体的完整快照，页面和请求不再查询单接口策略。 */
+/** 注册开发期生成的 API 契约。声明属于模块，不随账号退出而丢失。 */
+export function registerDataAttrStaticContract(
+  contract: DataAttrStaticContract,
+) {
+  if (contract.version !== 1 || !Array.isArray(contract.policies))
+    throw new Error('API字段静态契约无效');
+  // 先完整校验，再原子注册，避免半份契约进入页面。
+  const pending = new Map(staticPolicies);
+  const definitions = contract.policies.map((policy) => {
+    if (
+      !policy.id ||
+      (policy.operation !== null && typeof policy.operation !== 'string') ||
+      !Array.isArray(policy.groups) ||
+      policy.groups.some((group) => typeof group.authorizable !== 'boolean')
+    )
+      throw new Error('API字段静态契约无效');
+    validatePolicy({
+      ...policy,
+      operation: policy.operation || '',
+      groups: policy.groups.map((group) => ({ ...group, allowed: false })),
+    });
+    policy.pathPatterns.forEach((pattern) => pathSpecificity(pattern, ''));
+    const existing = pending.get(policy.id);
+    if (existing && JSON.stringify(existing) !== JSON.stringify(policy))
+      throw new Error(`API字段静态契约标识冲突: ${policy.id}`);
+    const copy = structuredClone(policy);
+    pending.set(policy.id, copy);
+    return copy;
+  });
+  definitions.forEach((policy) => staticPolicies.set(policy.id, policy));
+  enabled = true;
+  staticMode = true;
+  snapshotMode = false;
+  loader = undefined;
+  cache.clear();
+  listeners.forEach((listener) => listener());
+}
+
+/** 只接受既有登录响应中的后端有效授权结论；这里不重新解释角色权限。 */
+export function initializeDataAttrFieldGrants(grants: DataAttrFieldGrants) {
+  if (
+    grants?.version !== 1 ||
+    !Array.isArray(grants.allowed) ||
+    grants.allowed.some(
+      (grant) =>
+        typeof grant.operation !== 'string' ||
+        !Array.isArray(grant.groupKeys) ||
+        grant.groupKeys.some((key) => typeof key !== 'string'),
+    )
+  )
+    throw new Error('登录字段授权数据无效');
+  enabled = true;
+  staticMode = true;
+  snapshotMode = false;
+  loader = undefined;
+  clearDataAttrPolicies();
+  for (const grant of grants.allowed) {
+    const keys = fieldGrants.get(grant.operation) || new Set<string>();
+    grant.groupKeys.forEach((key) => keys.add(key));
+    fieldGrants.set(grant.operation, keys);
+  }
+  policyReady.value = true;
+  listeners.forEach((listener) => listener());
+}
+
+function mergeStaticPolicy(policy: DataAttrStaticPolicy): DataAttrPolicy {
+  return {
+    ...structuredClone(policy),
+    operation: policy.operation || '',
+    groups: policy.groups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      allowed:
+        group.authorizable &&
+        policy.operation !== null &&
+        !!fieldGrants.get(policy.operation)?.has(group.id),
+    })),
+  };
+}
+
+function pathSpecificity(pattern: string, path: string): number | undefined {
+  if (pattern === path) return Number.MAX_SAFE_INTEGER;
+  let score = 1_000_000_000;
+  let expression = '';
+  const escape = (char: string) =>
+    char.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  for (let index = 0; index < pattern.length; index++) {
+    const char = pattern[index] as string;
+    if (char === '{') {
+      let depth = 1;
+      let end = index + 1;
+      for (; end < pattern.length && depth; end++) {
+        if (pattern[end] === '\\') {
+          end++;
+          continue;
+        }
+        if (pattern[end] === '{') depth++;
+        if (pattern[end] === '}') depth--;
+      }
+      if (depth) throw new Error(`API字段静态契约路径无效: ${pattern}`);
+      const variable = pattern.slice(index + 1, end - 1);
+      if (variable.startsWith('*')) {
+        score -= 2_000_000_000;
+        expression += '.*';
+      } else {
+        score -= 10_000;
+        const colon = variable.indexOf(':');
+        expression +=
+          colon === -1 ? '[^/]+' : `(?:${variable.slice(colon + 1)})`;
+      }
+      index = end - 1;
+    } else if (char === '*' && pattern[index + 1] === '*') {
+      score -= 2_000_000_000;
+      expression += '.*';
+      index++;
+    } else if (char === '*' || char === '?') {
+      score -= 1_000_000;
+      expression += char === '*' ? '[^/]*' : '[^/]';
+    } else {
+      score++;
+      expression += escape(char);
+    }
+  }
+  // Spring 尾部 catch-all 同时匹配父路径本身。
+  if (pattern.endsWith('/**') || /\/\{\*[^}]+\}$/.test(pattern))
+    expression = `${expression.slice(0, -3)}(?:/.*)?`;
+  try {
+    return new RegExp(`^${expression}$`).test(path) ? score : undefined;
+  } catch {
+    throw new Error(`API字段静态契约路径无效: ${pattern}`);
+  }
+}
+
+/** 兼容旧服务入口的纯本地读取；不会调用加载器或任何 HTTP 接口。 */
+export function readDataAttrLocalPolicies(
+  query?: PolicyQuery,
+): DataAttrPolicies {
+  if (!policyReady.value || !staticMode)
+    throw new CanceledError('字段权限尚未就绪，请完成登录');
+  if (query && !('operation' in query))
+    query = {
+      ...query,
+      method: query.method.toUpperCase(),
+      path: query.path.split('?')[0] || '',
+    };
+  const policies = [...staticPolicies.values()];
+  if (!query)
+    return {
+      version: 1,
+      policies: policies.map((policy) => mergeStaticPolicy(policy)),
+    };
+  let matches: DataAttrStaticPolicy[];
+  if ('operation' in query)
+    matches = policies.filter((policy) => policy.operation === query.operation);
+  else {
+    let best = -Infinity;
+    matches = [];
+    for (const policy of policies) {
+      if (
+        policy.methods.length > 0 &&
+        !policy.methods.some(
+          (method) =>
+            method === '*' ||
+            method.toUpperCase() === query.method.toUpperCase(),
+        )
+      )
+        continue;
+      for (const pattern of policy.pathPatterns) {
+        const score = pathSpecificity(pattern, query.path);
+        if (score === undefined || score < best) continue;
+        if (score > best) {
+          best = score;
+          matches = [];
+        }
+        if (!matches.includes(policy)) matches.push(policy);
+      }
+    }
+  }
+  if (
+    matches.length > 1 &&
+    !matches.every(
+      (policy) => policy.restricted === false && policy.groups.length === 0,
+    )
+  )
+    throw new Error('API字段静态契约匹配不唯一');
+  if (matches.length > 0)
+    return {
+      version: 1,
+      policies: [mergeStaticPolicy(matches[0] as DataAttrStaticPolicy)],
+    };
+  const key =
+    'operation' in query
+      ? query.operation
+      : `${query.method.toUpperCase()} ${query.path}`;
+  if (!missingWarnings.has(key)) {
+    missingWarnings.add(key);
+    console.warn(`[字段权限] API 未声明静态字段分组，前端按无限制处理: ${key}`);
+  }
+  return {
+    version: 1,
+    policies: [
+      {
+        id: key,
+        operation: 'operation' in query ? query.operation : '',
+        methods: 'operation' in query ? [] : [query.method],
+        pathPatterns: 'operation' in query ? [] : [query.path],
+        restricted: false,
+        groups: [],
+        nodes: {},
+        requestRoots: [],
+        viewRoots: { request: [], response: [] },
+      },
+    ],
+  };
+}
+
+/** 旧宿主显式注入快照的兼容入口；标准登录流程使用本地契约和字段授权。 */
 export function initializeDataAttrPolicySnapshot(
   load: () => Promise<DataAttrPolicies>,
 ) {
   if (snapshotMode && snapshotLoading) return snapshotLoading;
   enabled = true;
+  staticMode = false;
   snapshotMode = true;
   loader = undefined;
   policyReady.value = false;
@@ -147,6 +394,15 @@ export function assertDataAttrSessionReady() {
 }
 
 function fetchPolicy(query: PolicyQuery): Promise<DataAttrPolicy> {
+  if (staticMode) {
+    const epoch = generation;
+    return Promise.resolve().then(() => {
+      if (generation !== epoch)
+        throw new CanceledError('登录身份或权限已变化，请重新操作');
+      return readDataAttrLocalPolicies(query).policies[0] as DataAttrPolicy;
+    });
+  }
+
   if (snapshotMode) {
     if (!snapshot || !policyReady.value)
       return Promise.reject(

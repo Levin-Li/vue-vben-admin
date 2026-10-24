@@ -39,6 +39,17 @@ describe('RbacService user info', () => {
     });
   });
 
+  it('preserves effective field grants from the existing userInfo response', async () => {
+    const fieldGroupGrants = {
+      version: 1,
+      allowed: [{ operation: 'order:read', groupKeys: ['finance'] }],
+    };
+    mocks.requestGet.mockResolvedValueOnce({ id: 'u1', fieldGroupGrants });
+    const user = await new RbacService().getUserInfo();
+    expect(user.fieldGroupGrants).toEqual(fieldGroupGrants);
+    expect(mocks.requestGet).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to root when backend homePath is blank', async () => {
     mocks.requestGet.mockResolvedValueOnce({
       homePath: '  ',
@@ -64,11 +75,14 @@ describe('RbacService user info', () => {
       excludeRootNodeTypes: ['Menu'],
     });
 
-    expect(mocks.requestGet).toHaveBeenCalledWith('/rbac/authorizedPermissionTree', {
-      params: {
-        excludeRootNodeTypes: ['Menu'],
+    expect(mocks.requestGet).toHaveBeenCalledWith(
+      '/rbac/authorizedPermissionTree',
+      {
+        params: {
+          excludeRootNodeTypes: ['Menu'],
+        },
       },
-    });
+    );
   });
 
   it('queries authorized controller paths with optional keyword', async () => {

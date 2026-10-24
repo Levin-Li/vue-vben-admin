@@ -17,8 +17,6 @@ import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store
  */
 import {
   assertDataAttrSessionReady,
-  DATA_ATTR_POLICY_PATH,
-  DATA_ATTR_POLICY_SNAPSHOT_PATH,
   dataAttrRequestPath,
   isDataAttrPolicyReady,
 } from '../../data-attr-policy';
@@ -273,17 +271,7 @@ async function secureClientRequest(config: any) {
       'logout',
       'completeInitialPasswordChange',
     ].some((name) => route === `/com.levin.oak.base/V1/api/rbac/${name}`);
-  if (
-    !bootstrap &&
-    !publicLoginCatalog &&
-    !isAnonymousCryptoContext(config) &&
-    !(
-      (String(config.method || 'GET').toUpperCase() === 'POST' &&
-        route === DATA_ATTR_POLICY_PATH) ||
-      (String(config.method || 'GET').toUpperCase() === 'GET' &&
-        route === DATA_ATTR_POLICY_SNAPSHOT_PATH)
-    )
-  ) {
+  if (!bootstrap && !publicLoginCatalog && !isAnonymousCryptoContext(config)) {
     assertDataAttrSessionReady();
   }
   return signClientRequest(await encryptClientRequest(config));

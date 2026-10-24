@@ -26,7 +26,7 @@ import { notification } from 'ant-design-vue';
 import { defineStore } from 'pinia';
 
 import {
-  initializeDataAttrPolicySnapshot,
+  initializeDataAttrFieldGrants,
   suspendDataAttrPolicies,
 } from '../../data-attr-policy';
 import {
@@ -187,7 +187,7 @@ export const useAuthStore = defineStore('auth', () => {
       return accessInitialization;
     }
 
-    // 每个身份只安装一次快照与共享目录；失败保留，不由路由循环重试。
+    // 每个身份只安装一次登录许可与共享目录；失败保留，不由路由循环重试。
     const tokenChanged =
       Boolean(initializationToken) && initializationToken !== accessToken;
     resetSessionInitialization();
@@ -211,14 +211,11 @@ export const useAuthStore = defineStore('auth', () => {
           : accessStore.accessCodes;
       assertCurrentSession();
       accessStore.setAccessCodes(accessCodes);
-      await initializeDataAttrPolicySnapshot(async () => {
-        const { dataAttrPolicyService } =
-          await import('../api/data-attr-policy-service');
-        const snapshot = await dataAttrPolicyService.snapshot();
-        // 快照安装前检查身份，迟到响应不能短暂恢复旧账号策略。
-        assertCurrentSession();
-        return snapshot;
-      });
+      // 字段结构来自 API 静态契约，许可已包含在本人信息中。
+      // 旧服务器未提供许可时保持受控字段 deny，不补发字段策略请求。
+      initializeDataAttrFieldGrants(
+        userStore.userInfo?.fieldGroupGrants ?? { version: 1, allowed: [] },
+      );
       assertCurrentSession();
       await initializeAdminSession();
       assertCurrentSession();

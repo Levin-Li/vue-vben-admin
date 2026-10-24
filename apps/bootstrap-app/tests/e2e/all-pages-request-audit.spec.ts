@@ -6,6 +6,10 @@ import process from 'node:process';
 import { expect, test } from '@playwright/test';
 
 import { loginViaCurrentPasswordChallenge } from './support/crud-acceptance';
+import {
+  captureFieldPolicyRequests,
+  isFieldPolicyRequest,
+} from './support/field-policy-requests';
 
 const output = process.env.PAGE_AUDIT_OUTPUT || '/tmp/levin-all-pages-audit';
 
@@ -24,11 +28,21 @@ async function expandMenus(page: Page) {
 
 test('逐页点击并记录超过五个请求的页面', async ({ page }) => {
   test.setTimeout(900_000);
+  page.setDefaultTimeout(30_000);
   mkdirSync(output, { recursive: true });
   const requests: any[] = [];
+  const allRequests: any[] = [];
+  const policyRequests = captureFieldPolicyRequests(page.context());
   const consoleErrors: string[] = [];
   const active = new Set<any>();
   page.on('request', (request) => {
+    const recorded = {
+      resourceType: request.resourceType(),
+      method: request.method(),
+      url: request.url(),
+      at: Date.now(),
+    };
+    allRequests.push(recorded);
     if (!['fetch', 'xhr'].includes(request.resourceType())) return;
     active.add(request);
     requests.push({
@@ -40,6 +54,11 @@ test('逐页点击并记录超过五个请求的页面', async ({ page }) => {
   page.on('requestfinished', (request) => active.delete(request));
   page.on('requestfailed', (request) => active.delete(request));
   page.on('response', (response) => {
+    const recorded = allRequests.findLast(
+      (request) =>
+        request.url === response.url() && request.status === undefined,
+    );
+    if (recorded) recorded.status = response.status();
     const item = requests.findLast(
       (request) =>
         request.url === response.url() && request.status === undefined,
@@ -80,6 +99,15 @@ test('逐页点击并记录超过五个请求的页面', async ({ page }) => {
     `${output}/inventory.json`,
     JSON.stringify({ routes, menu, startupRequests: requests }, null, 2),
   );
+  writeFileSync(
+    `${output}/all-requests.json`,
+    JSON.stringify(allRequests, null, 2),
+  );
+  writeFileSync(
+    `${output}/policy-requests.json`,
+    JSON.stringify(policyRequests, null, 2),
+  );
+  expect(policyRequests, '登录及菜单初始化字段策略 HTTP 必须为零').toEqual([]);
   if (process.env.PAGE_AUDIT_INVENTORY_ONLY === '1') return;
   const pages = routes.filter(
     (route: any) =>
@@ -158,17 +186,37 @@ test('逐页点击并记录超过五个请求的页面', async ({ page }) => {
     row.apiRequests = row.requests.filter((request: any) =>
       new URL(request.url).pathname.includes('/api/'),
     );
+    row.policyRequests = row.requests.filter((request: any) =>
+      isFieldPolicyRequest(request.url),
+    );
     row.apiCount = row.apiRequests.length;
     row.count = row.requests.length;
     row.overBudget = row.count > 5;
     row.consoleErrors = consoleErrors.slice(errorStart);
     if (
+      row.policyRequests.length > 0 ||
       row.consoleErrors.length > 0 ||
       row.apiRequests.some((request: any) => request.status >= 400)
     )
       row.status = 'error';
     report.push(row);
     writeFileSync(`${output}/report.json`, JSON.stringify(report, null, 2));
+    writeFileSync(
+      `${output}/all-requests.json`,
+      JSON.stringify(allRequests, null, 2),
+    );
+    writeFileSync(
+      `${output}/policy-requests.json`,
+      JSON.stringify(policyRequests, null, 2),
+    );
+    writeFileSync(
+      `${output}/over-five.json`,
+      JSON.stringify(
+        report.filter((item) => item.overBudget),
+        null,
+        2,
+      ),
+    );
     console.log(
       JSON.stringify({
         page: report.length,
@@ -179,6 +227,7 @@ test('逐页点击并记录超过五个请求的页面', async ({ page }) => {
       }),
     );
   }
+  expect(policyRequests, '整个逐页审计字段策略 HTTP 必须为零').toEqual([]);
   expect(report.length).toBe(pages.length);
   expect(report.filter((row) => row.status === 'error')).toEqual([]);
 });

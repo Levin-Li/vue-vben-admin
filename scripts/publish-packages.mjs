@@ -632,6 +632,11 @@ async function main() {
       return;
     }
 
+    // 标准发布入口在上传前核对静态字段声明，禁止依赖浏览器动态补查。
+    if (selectedPackages.some(({ name }) => name === '@levin/oak-base-admin')) {
+      run('node', ['./scripts/check-static-data-attr-contract.mjs']);
+    }
+
     assertPublishConfiguration();
     userConfig = mode === 'publish' ? createPublishNpmrc() : undefined;
     const publishEnv = userConfig ? { NPM_CONFIG_USERCONFIG: userConfig } : {};

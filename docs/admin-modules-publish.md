@@ -1,5 +1,7 @@
 # 后台前端模块发布说明
 
+API 静态字段分组方案的候选、验收与上传状态见 [2026-10-24 API 静态字段分组发布记录](releases/20261024-static-api-field-groups.md)。
+
 会话初始化与页面请求治理的本批候选、验收和上传状态见 [2026-10-24 会话初始化与页面请求治理发布记录](releases/20261024-session-bootstrap-request-lifecycle.md)。
 
 本批完整候选、版本与实际上传结果见 [2026-10-21 管理前端全部变更发布记录](releases/20261021-all-changes.md)。

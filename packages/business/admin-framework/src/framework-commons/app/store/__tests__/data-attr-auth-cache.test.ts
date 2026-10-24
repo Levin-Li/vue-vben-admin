@@ -1,10 +1,8 @@
-import { watch } from 'vue';
-
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  configureDataAttrPolicyLoader,
+  registerDataAttrStaticContract,
   getDataAttrPolicyEpoch,
   guardDataAttrRequest,
   isDataAttrPolicyReady,
@@ -24,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   policy: vi.fn(),
   userInfo: vi.fn(),
   setUserInfo: vi.fn(),
+  currentUser: undefined as any,
 }));
 vi.mock('../../api/session-role-options', () => ({}));
 vi.mock('vue-router', () => ({ useRouter: () => ({}) }));
@@ -42,7 +41,12 @@ vi.mock('@vben/runtime/stores', () => ({
     },
   }),
   useTabbarStore: () => ({}),
-  useUserStore: () => ({ setUserInfo: mocks.setUserInfo }),
+  useUserStore: () => ({
+    get userInfo() {
+      return mocks.currentUser;
+    },
+    setUserInfo: mocks.setUserInfo,
+  }),
 }));
 vi.mock('@vben-core/foundation/preferences', () => ({
   preferences: { app: {} },
@@ -68,10 +72,12 @@ beforeEach(() => {
   clearAdminSession();
   mocks.codes = ['domain:type:resource:action'];
   mocks.token = 'current-token';
+  mocks.currentUser = { fieldGroupGrants: { version: 1, allowed: [] } };
   mocks.userInfo.mockReset();
   mocks.setUserInfo.mockReset();
   mocks.access.mockReset().mockResolvedValue(mocks.codes);
-  mocks.policy.mockReset().mockResolvedValue({
+  mocks.policy.mockReset();
+  registerDataAttrStaticContract({
     version: 1,
     policies: [
       {
@@ -99,45 +105,9 @@ describe('会话属性组缓存', () => {
     await auth.ensureAccessCodesLoaded();
     await loadDataAttrPolicy('GET', '/plain');
     expect(getDataAttrPolicyEpoch()).toBe(epoch);
-    expect(mocks.policy).toHaveBeenCalledTimes(1);
+    expect(mocks.policy).not.toHaveBeenCalled();
     expect(mocks.access).not.toHaveBeenCalled();
   });
-  it('同步就绪监听只读取清理后新代策略，不复用旧账号缓存', async () => {
-    const auth = useAuthStore();
-    await auth.ensureAccessCodesLoaded();
-    await loadDataAttrPolicy('GET', '/plain');
-    const epoch = getDataAttrPolicyEpoch();
-    let requested: Promise<unknown> | undefined;
-    const nextLoader = vi.fn().mockResolvedValue({
-      version: 1,
-      policies: [
-        {
-          ...(await loadDataAttrPolicy('GET', '/plain')),
-          id: 'next-user-policy',
-        },
-      ],
-    });
-    const stop = watch(
-      isDataAttrPolicyReady,
-      (ready) => {
-        if (ready) {
-          expect(getDataAttrPolicyEpoch()).toBeGreaterThan(epoch);
-          requested = loadDataAttrPolicy('GET', '/plain');
-        }
-      },
-      { flush: 'sync' },
-    );
-    try {
-      configureDataAttrPolicyLoader(nextLoader);
-      await expect(requested).resolves.toMatchObject({
-        id: 'next-user-policy',
-      });
-      expect(nextLoader).toHaveBeenCalledTimes(1);
-    } finally {
-      stop();
-    }
-  });
-
   it('旧身份本人信息在切换令牌后迟到不能覆写新会话', async () => {
     let finish!: (user: object) => void;
     mocks.userInfo.mockReturnValueOnce(
@@ -190,14 +160,14 @@ describe('会话属性组缓存', () => {
     await expect(
       guardDataAttrRequest('PUT', '/contract', { data: { amount: null } }),
     ).rejects.toThrow('会话尚未就绪');
-    expect(mocks.policy).toHaveBeenCalledTimes(1);
+    expect(mocks.policy).not.toHaveBeenCalled();
   });
 
-  it('并发路由共享一次初始化，目录在权限和快照就绪后加载', async () => {
+  it('并发路由共享一次初始化，目录在登录许可就绪后加载', async () => {
     const load = vi.fn(async () => {
       expect(isDataAttrPolicyReady()).toBe(true);
       expect(mocks.access).toHaveBeenCalledTimes(1);
-      expect(mocks.policy).toHaveBeenCalledTimes(1);
+      expect(mocks.policy).not.toHaveBeenCalled();
     });
     const unregister = registerAdminSessionInitializer('auth-test-directory', {
       load,
@@ -214,42 +184,69 @@ describe('会话属性组缓存', () => {
       await auth.ensureAccessCodesLoaded();
       expect(load).toHaveBeenCalledTimes(1);
       expect(mocks.access).toHaveBeenCalledTimes(1);
-      expect(mocks.policy).toHaveBeenCalledTimes(1);
+      expect(mocks.policy).not.toHaveBeenCalled();
     } finally {
       unregister();
     }
   });
 
-  it('快照失败不因后续路由再次请求，显式强制刷新可恢复', async () => {
+  it('登录响应许可按身份合并，旧服务器和超管标记不会保留上一用户许可', async () => {
+    registerDataAttrStaticContract({
+      version: 1,
+      policies: [
+        {
+          id: 'controlled',
+          operation: 'contract:read',
+          methods: ['GET'],
+          pathPatterns: ['/contract'],
+          restricted: true,
+          groups: [{ id: 'finance', name: '财务', authorizable: true }],
+          nodes: {},
+          requestRoots: [],
+          responseRoot: null,
+          viewRoots: { request: [], response: [] },
+        },
+      ],
+    });
+    mocks.currentUser = {
+      fieldGroupGrants: {
+        version: 1,
+        allowed: [{ operation: 'contract:read', groupKeys: ['finance'] }],
+      },
+    };
     const auth = useAuthStore();
-    mocks.policy.mockRejectedValueOnce(new Error('快照不可用'));
-    await expect(auth.ensureAccessCodesLoaded()).rejects.toThrow('快照不可用');
-    await expect(auth.ensureAccessCodesLoaded()).rejects.toThrow('快照不可用');
-    expect(mocks.policy).toHaveBeenCalledTimes(1);
-    expect(isDataAttrPolicyReady()).toBe(false);
-    await auth.ensureAccessCodesLoaded(true);
-    expect(mocks.policy).toHaveBeenCalledTimes(2);
-    expect(isDataAttrPolicyReady()).toBe(true);
+    await auth.ensureAccessCodesLoaded();
+    expect(
+      (await loadDataAttrPolicy('GET', '/contract'))!.groups[0]!.allowed,
+    ).toBe(true);
+    mocks.token = 'legacy-token';
+    mocks.currentUser = { isSuperAdmin: true };
+    await auth.ensureAccessCodesLoaded();
+    expect(
+      (await loadDataAttrPolicy('GET', '/contract'))!.groups[0]!.allowed,
+    ).toBe(false);
+    expect(mocks.policy).not.toHaveBeenCalled();
   });
 
-  it('旧快照在令牌切换后迟到不能安装，下一身份独立初始化', async () => {
-    const response = await mocks.policy();
-    mocks.policy.mockClear();
-    let finish!: (value: typeof response) => void;
-    mocks.policy.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-    );
-    const auth = useAuthStore();
-    const old = auth.ensureAccessCodesLoaded();
-    await vi.waitFor(() => expect(mocks.policy).toHaveBeenCalledTimes(1));
-    mocks.token = 'next-token';
-    finish(response);
-    await expect(old).rejects.toThrow('登录身份已变化');
-    expect(isDataAttrPolicyReady()).toBe(false);
-    await auth.ensureAccessCodesLoaded();
-    expect(mocks.policy).toHaveBeenCalledTimes(2);
+  it('旧服务器没有字段许可时使用空许可且不补发策略请求', async () => {
+    mocks.currentUser = { id: 'legacy-user' };
+    await useAuthStore().ensureAccessCodesLoaded();
     expect(isDataAttrPolicyReady()).toBe(true);
+    await expect(loadDataAttrPolicy('GET', '/plain')).resolves.toMatchObject({
+      restricted: false,
+    });
+    expect(mocks.policy).not.toHaveBeenCalled();
+  });
+
+  it('切换身份后本地许可重新初始化且不请求策略接口', async () => {
+    const auth = useAuthStore();
+    await auth.ensureAccessCodesLoaded();
+    const epoch = getDataAttrPolicyEpoch();
+    mocks.token = 'next-token';
+    mocks.currentUser = { fieldGroupGrants: { version: 1, allowed: [] } };
+    await auth.ensureAccessCodesLoaded();
+    expect(getDataAttrPolicyEpoch()).toBeGreaterThan(epoch);
+    expect(isDataAttrPolicyReady()).toBe(true);
+    expect(mocks.policy).not.toHaveBeenCalled();
   });
 });

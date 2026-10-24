@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchCrudList } from '../../../api';
 import {
   configureDataAttrPolicyLoader,
+  DATA_ATTR_POLICY_PATH,
   DATA_ATTR_POLICY_SNAPSHOT_PATH,
   getDataAttrPolicyEpoch,
   suspendDataAttrPolicies,
@@ -303,16 +304,17 @@ describe('公开登录目录精确边界', () => {
     };
     await expect(secure(config)).resolves.toMatchObject(config);
     await expect(
-      secure({ ...config, url: DATA_ATTR_POLICY_SNAPSHOT_PATH }),
-    ).resolves.toHaveProperty('url', DATA_ATTR_POLICY_SNAPSHOT_PATH);
-    await expect(
       secure({ ...config, url: '/oauth/getSupportedPlatforms?tenantId=qa' }),
     ).resolves.toHaveProperty(
       'url',
       '/oauth/getSupportedPlatforms?tenantId=qa',
     );
     for (const [method, url] of [
+      // 废弃字段策略 HTTP 入口不再属于登录引导白名单。
+      ['GET', DATA_ATTR_POLICY_SNAPSHOT_PATH],
       ['POST', DATA_ATTR_POLICY_SNAPSHOT_PATH],
+      ['POST', DATA_ATTR_POLICY_PATH],
+      ['GET', DATA_ATTR_POLICY_PATH],
       ['GET', `${DATA_ATTR_POLICY_SNAPSHOT_PATH}/extra`],
       ['POST', '/oauth/getSupportedPlatforms'],
       ['GET', '/oauth/getSupportedPlatforms/extra'],

@@ -1,10 +1,16 @@
 import type { UserInfo } from '@vben/runtime/types';
 
+import type { DataAttrFieldGrants } from '../../data-attr-policy';
+
 import type { BackendMenuInfo } from './core/menu-route';
 
 import { ResAuthorize, Service } from '../../api-authorize';
 import { RequestService } from '../../request-service';
 import { baseRequestClient, requestClient } from './request';
+
+export type AuthorizedUserInfo = UserInfo & {
+  fieldGroupGrants?: DataAttrFieldGrants;
+};
 
 export const ADMIN_UI_BASE_SETTING_KEY = 'admin-ui-base-setting';
 
@@ -73,6 +79,7 @@ export namespace RbacApi {
     [key: string]: any;
     avatar?: string;
     email?: string;
+    fieldGroupGrants?: DataAttrFieldGrants;
     id?: string;
     loginName?: string;
     mustChangeInitialPassword?: boolean;
@@ -191,7 +198,7 @@ function normalizeHomePath(homePath: unknown) {
     : '/';
 }
 
-function normalizeUserInfo(data: BackendUserInfo): UserInfo {
+function normalizeUserInfo(data: BackendUserInfo): AuthorizedUserInfo {
   const username =
     data.loginName || data.email || data.telephone || data.id || 'unknown';
   const realName = data.name || data.nickname || username;
