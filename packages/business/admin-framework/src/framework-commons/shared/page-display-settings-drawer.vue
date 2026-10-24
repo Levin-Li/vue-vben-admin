@@ -495,7 +495,7 @@ function ensureFields(view: Exclude<View, 'list'>) {
             key: field.key,
             order: index,
             defaultValue: {},
-            visibleRoleCodes: getDefaultVisibleRoleCodes(field.key),
+            visibleRoleCodes: getDefaultVisibleRoleCodes(field),
           },
   );
   if (
@@ -516,7 +516,12 @@ function ensureFields(view: Exclude<View, 'list'>) {
     }
     // 默认值编辑器渲染前补齐，避免切换页签才写入空对象并产生假修改。
     field.defaultValue ??= {};
-    field.visibleRoleCodes = initializeVisibleRoleCodes(field);
+    field.visibleRoleCodes = initializeVisibleRoleCodes({
+      visibleRoleCodes: getDefaultVisibleRoleCodes(
+        allowed.find((source) => source.key === field.key) || field.key,
+      ),
+      ...field,
+    });
   }
   return holder.fields;
 }
@@ -1714,22 +1719,26 @@ watch([activeKey, previewSignature], () => {
   void refreshPreviewOverflow();
 });
 
-watch(activeKey, () => {
-  // 首次切换页签会惰性补齐默认字段；这些默认值不是用户修改。
-  const unchangedBeforeSwitch = !hasUnuploadedChanges.value;
-  if (props.open && unchangedBeforeSwitch) {
-    if (activeKey.value === 'list') {
-      ensureHeaders();
-      ensureActions();
-    } else {
-      ensureFields(activeKey.value);
-      ensureGroups(activeKey.value);
+watch(
+  activeKey,
+  () => {
+    // 首次切换页签会惰性补齐默认字段；这些默认值不是用户修改。
+    const unchangedBeforeSwitch = !hasUnuploadedChanges.value;
+    if (props.open && unchangedBeforeSwitch) {
+      if (activeKey.value === 'list') {
+        ensureHeaders();
+        ensureActions();
+      } else {
+        ensureFields(activeKey.value);
+        ensureGroups(activeKey.value);
+      }
+      initialSnapshot.value = currentSnapshot();
     }
-    initialSnapshot.value = currentSnapshot();
-  }
-  // 更新活动视图前恢复滚动起点，沿用原先重建容器时的行为，避免旧滚动位置触发批量加载。
-  if (fieldScrollRef.value) fieldScrollRef.value.scrollTop = 0;
-}, { flush: 'sync' });
+    // 更新活动视图前恢复滚动起点，沿用原先重建容器时的行为，避免旧滚动位置触发批量加载。
+    if (fieldScrollRef.value) fieldScrollRef.value.scrollTop = 0;
+  },
+  { flush: 'sync' },
+);
 
 watch(normalizedFieldSearch, () => {
   // 搜索先覆盖全部候选，再从结果首批展示；清空后不会遗留旧滚动位置或加载额度。

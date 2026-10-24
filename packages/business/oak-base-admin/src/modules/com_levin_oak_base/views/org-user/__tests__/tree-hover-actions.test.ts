@@ -44,9 +44,7 @@ describe('组织与用户页面组织树', () => {
     expect(source).toMatch(
       /\.user-org-main\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*1;/s,
     );
-    expect(source).toMatch(
-      /\.user-org-tree-actions\s*\{[^}]*z-index:\s*20;/s,
-    );
+    expect(source).toMatch(/\.user-org-tree-actions\s*\{[^}]*z-index:\s*20;/s);
     expect(source).toContain('aria-label="新增下级组织"');
     expect(source).toContain('aria-label="编辑组织"');
     expect(source).toContain('aria-label="删除组织"');
@@ -76,8 +74,8 @@ describe('组织与用户页面组织树', () => {
     const source = readFileSync(pagePath, 'utf8');
 
     expect(source).toContain("message.warning('请选择归属租户')");
-    expect(source).toContain(
-      "orgModalMode === 'create' && isPlatformUser && !orgFormState.parentId",
+    expect(source).toMatch(
+      /orgModalMode === 'create'\s*&&\s*isPlatformUser\s*&&\s*!orgFormState\.parentId/,
     );
     expect(source).toContain('v-model:value="orgFormState.tenantId"');
   });

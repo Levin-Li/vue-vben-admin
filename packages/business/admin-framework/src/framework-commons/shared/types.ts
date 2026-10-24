@@ -1,4 +1,5 @@
 import type { SelectOption } from '../api';
+import type { DataAttrPolicy } from '../data-attr-policy';
 import type {
   CrudListOperationCandidate,
   CrudListOperationConfig,
@@ -91,7 +92,14 @@ export interface CrudFieldConfig {
   complexGroupKey?: string;
   /** 复杂对象、对象集合或扁平子字段的显式标记，用于排除快捷填写。 */
   complexValue?: boolean;
+  /** 每个视图的缺省隐藏状态，用户明确保存的展示设置优先。 */
+  defaultHidden?: Partial<
+    Record<'create' | 'detail' | 'edit' | 'list' | 'query', boolean>
+  >;
   defaultValue?: any;
+  /** 缺省可见角色，空数组表示不额外按角色收紧；仍需通过字段和操作授权。 */
+  defaultVisibleRoleCodes?: string[];
+
   /** 由页面展示设置注入的轻量区块元数据，不参与提交。 */
   displayGroup?: CrudPageDisplayGroupConfig;
   /** 显式声明是否用于详情；仅查询字段默认不用于详情。 */
@@ -106,6 +114,8 @@ export interface CrudFieldConfig {
   form?: boolean;
   formCreate?: boolean;
   formEdit?: boolean;
+  /** 条件字段只在当前表单值满足时展示、校验和提交。 */
+  formVisibleWhen?: (formState: Record<string, any>) => boolean;
   /** 仅在表单中使用的动态字段标题，不影响列表与导出标题。 */
   formLabel?: CrudDynamicText;
   formVisibleForSuperAdmin?: boolean;
@@ -346,6 +356,12 @@ export interface CrudRowAction {
   action?: string;
   actionData?: string;
   badgeCount?: (record: Record<string, any>) => number;
+  /** 独立的小角标；数量小于 1 时隐藏，label 用作悬停提示。 */
+  badgeItems?: (record: Record<string, any>) => Array<{
+    count: number;
+    label: string;
+    tone: 'action' | 'danger' | 'field' | 'menu' | 'success';
+  }>;
   confirmText?: string;
   confirmTitle?: string;
   danger?: boolean;
@@ -379,10 +395,22 @@ export type CrudPathConfig =
       editingRecord: null | Record<string, any>,
     ) => string);
 
+export type CrudDataAttrOperation =
+  | 'batchCreate'
+  | 'create'
+  | 'delete'
+  | 'list'
+  | 'retrieve'
+  | 'update';
+
 export interface CrudApiService {
   batchCreate?: (data?: any, options?: any) => Promise<any>;
   create?: (data?: any, options?: any) => Promise<any>;
-  delete?: (params?: any, options?: any) => Promise<any>;
+  delete?: (
+    params?: any,
+    options?: any,
+    record?: Record<string, any>,
+  ) => Promise<any>;
   list?: (params?: any, options?: any) => Promise<any>;
   retrieve?: (params?: any, options?: any) => Promise<any>;
   update?: (data?: any, options?: any) => Promise<any>;
@@ -458,6 +486,8 @@ export interface CrudListTableConfig {
   allowCreate?: boolean;
   allowDelete?: boolean;
   allowEdit?: boolean;
+  /** 查询接口是否可用；停用时即使拥有通配权限也不显示或执行查询。 */
+  allowQuery?: boolean;
   allowRetrieve?: boolean;
   key: string;
   label?: string;
@@ -475,6 +505,10 @@ export interface CrudPageConfig {
   apiService?: CrudApiService;
   /** 显式声明需原样保留并校验的范围/定位参数，禁止当作赋值字段裁剪。 */
   dataAttrConditionKeys?: string[];
+  /** 页面显式提供当前操作的完整属性策略；失败时保持关闭，不退回全局策略。 */
+  dataAttrPolicyProvider?: (
+    operation: CrudDataAttrOperation,
+  ) => Promise<DataAttrPolicy>;
   /** 同一资源操作对应多个实际处理器时，显式指定字段策略目标；不从服务方法名称猜路径。 */
   dataAttrTargets?: Partial<
     Record<
@@ -485,8 +519,14 @@ export interface CrudPageConfig {
   allowCreate?: boolean;
   allowDelete?: boolean;
   allowEdit?: boolean;
+  /** 禁止无法保证完整性的导出；不影响刷新、列设置等工具。 */
+  allowExport?: boolean;
+  /** 停用页面查询时不请求列表和其字段策略。 */
+  allowQuery?: boolean;
   allowRetrieve?: boolean;
   complexGroups?: CrudComplexGroupConfig[];
+  /** 仅隐藏内置新增按钮，供显式扩展入口复用标准表单；不影响操作授权。 */
+  createButtonVisible?: boolean;
   createPath?: CrudPathConfig;
   createPermission?: string | string[];
   /** 新增时允许页面转换器补入的隐藏必需字段；未列出的隐藏字段仍被最终提交白名单排除。 */
@@ -509,17 +549,31 @@ export interface CrudPageConfig {
   /** 详情返回对象字段契约；无记录时用于详情设置候选。 */
   detailFields?: CrudFieldConfig[];
   formMaxColumns?: number;
+  /** 可清空的初始查询模型；不会作为隐藏固定参数反复合并进请求。 */
+  initialQuery?: Record<string, any>;
   listPath?: string;
   listTables?: CrudListTableConfig[];
+  /** 编辑前读取完整且已授权的对象，返回值替代列表行而非与其合并。 */
+  loadEditRecord?: (
+    record: Record<string, any>,
+  ) => Promise<Record<string, any>>;
   modalWidth?: number | string;
   /** 显式宽度是否作为硬上限；仅用于需要紧凑布局的页面。 */
   modalWidthStrict?: boolean;
+  /** 页面显式区分同路由下的业务设置身份；缺省沿用当前路由路径。 */
+  pageDisplaySettingCode?: string;
+  /** 显式游标分页；默认使用总数分页。游标列表返回 items、hasMore、nextCursor。 */
+  paginationMode?: 'cursor';
   recordKey?: string;
   /** 内置详情入口文案；未配置时为“详情”。 */
   retrieveLabel?: string;
   permissionDomain?: string;
   permissionResourceName?: string;
   permissionTypePrefix?: string;
+  /** 新增前加载当前上下文和默认值，不把默认值视为已有编辑记录。 */
+  // 允许无需默认值的异步准备回调自然返回 void。
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+  prepareCreate?: () => Promise<Record<string, any> | void>;
   queryPermission?: string | string[];
   rowActions?: CrudRowAction[];
   searchCollapsedCount?: number;

@@ -38,6 +38,7 @@ export * from './framework-commons/shared/crud-form-elements';
 export * from './framework-commons/shared/crud-list-operations';
 export * from './framework-commons/shared/draggable-floating-panel-service';
 export * from './framework-commons/shared/pattern-list-utils';
+export * from './framework-commons/shared/pinyin-fuzzy-search';
 export * from './framework-commons/shared/user-dropdown-menu-service';
 export * from './framework-commons/shared/user-message-summary';
 export * from './framework-commons/shared/user-message-target';

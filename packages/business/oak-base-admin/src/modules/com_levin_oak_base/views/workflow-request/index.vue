@@ -3,7 +3,7 @@ import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-com
 
 import type { WorkflowRequestRecord } from '../../api/workflow-request-service';
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useAccessStore, useUserStore } from '@vben/runtime/stores';
@@ -11,14 +11,15 @@ import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 import { UserOrgSelector } from '@levin/admin-framework';
 import { isDataAttrPolicyReady } from '@levin/admin-framework/framework-commons/data-attr-policy';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import CrudLayout from '@levin/admin-framework/framework-commons/shared/crud-layout.vue';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { WorkflowBusinessPanel } from '@levin/bpm-runtime-ui';
 import {
   Alert,
   Button,
-  Card,
   Descriptions,
   Drawer,
+  Form,
   message,
   Modal,
   Space,
@@ -107,6 +108,9 @@ const contractVersions = ref<string[]>([]);
 const selectedContractVersion = ref<string>();
 const catalogLoading = ref(false);
 const catalogError = ref(false);
+watch(catalogError, (value) => {
+  if (value) message.error('契约版本加载失败，请刷新后重试。');
+});
 let catalogRequestVersion = 0;
 let reloadList: (() => Promise<unknown> | unknown) | undefined;
 
@@ -228,34 +232,33 @@ function changeOrganization(records: UserOrgSelectorRecord[]) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <!-- 复用授权组织选择器，只影响本页请求，不启用或修改全局选择器配置。 -->
-    <Card size="small" title="当前业务组织">
-      <UserOrgSelector
-        :model-value="selectedOrg"
-        :selectable-types="['org']"
-        value-mode="record"
-        :multiple="false"
-        :show-tenant-nodes="isPlatformUser"
-        :load-org-tree="loadWorkflowRequestOrgTree"
-        placeholder="请选择本次办理的授权组织"
-        class="w-full max-w-md"
-        @update:selected-records="changeOrganization"
-      />
-    </Card>
-    <!-- 样例没有业务状态选择器；是否可启动以服务端资格为准。 -->
-    <Alert
-      type="info"
-      show-icon
-      message="同一申请可关联多个用途的流程。修改关键资料是否允许，由服务端根据当前办理记录校验。"
-    />
-    <Alert
-      v-if="!selectedScope"
-      type="info"
-      show-icon
-      message="请先选择业务组织，再创建或查看申请。范围将由服务端重新校验。"
-    />
-    <CrudPage v-else :key="scopeKey" :config="scopedConfig">
+  <div class="flex min-w-0 flex-col gap-2">
+    <!-- 业务范围使用标准查询面板，原业务列表继续复用独立 CRUD。 -->
+    <CrudLayout form-id="workflow-request-scope" form-name="申请业务范围">
+      <template #query>
+        <Form.Item label="业务组织" name="orgId">
+          <UserOrgSelector
+            :model-value="selectedOrg"
+            :selectable-types="['org']"
+            value-mode="record"
+            :multiple="false"
+            :show-tenant-nodes="isPlatformUser"
+            :load-org-tree="loadWorkflowRequestOrgTree"
+            placeholder="请选择本次办理的授权组织"
+            class="w-full"
+            @update:selected-records="changeOrganization"
+          />
+        </Form.Item>
+      </template>
+      <template #notice>
+        {{
+          selectedScope
+            ? '同一申请可关联多个用途的流程，在列表中选择“业务流程”查看办理进度。'
+            : '请先选择业务组织，再创建或查看申请。'
+        }}
+      </template>
+    </CrudLayout>
+    <CrudPage v-if="selectedScope" :key="scopeKey" :config="scopedConfig">
       <template #row-actions="{ record, reload }">
         <Button
           v-if="hasPermission(detailPermission)"
@@ -305,14 +308,9 @@ function changeOrganization(records: UserOrgSelectorRecord[]) {
         </Space>
         <!-- 只从当前租户授权目录选择契约；一次仅展示一个版本的轮次和历史。 -->
         <Alert
-          v-if="catalogError"
-          type="error"
-          show-icon
-          message="契约版本加载失败，请刷新后重试。"
-          class="mb-4"
-        />
-        <Alert
-          v-else-if="!catalogLoading && contractVersions.length === 0"
+          v-if="
+            !catalogError && !catalogLoading && contractVersions.length === 0
+          "
           type="info"
           show-icon
           message="当前没有可用的申请流程契约版本。"

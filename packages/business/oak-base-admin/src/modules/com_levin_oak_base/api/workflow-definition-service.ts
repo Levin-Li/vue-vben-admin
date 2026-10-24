@@ -1,3 +1,9 @@
+import type {
+  WorkflowBusinessObject,
+  WorkflowStateBinding,
+  WorkflowStateOption,
+} from '@levin/bpm-designer';
+
 import {
   CRUD,
   RequestService,
@@ -8,10 +14,16 @@ import {
 import { OAK_BASE_API_MODULE } from './_module';
 
 export interface WorkflowDefinitionRecord {
+  bindingSnapshot?: WorkflowStateBinding;
+  businessEntityKey?: string;
   businessType: string;
+  genericBusinessContract?: { bindingSnapshot?: WorkflowStateBinding };
   id: string;
   name: string;
   processKey: string;
+  stateField?: string;
+  stateMapping?: string | WorkflowStateOption[];
+  stateType?: WorkflowStateBinding['stateType'];
   tenantId?: string;
   tenantName?: string;
 }
@@ -32,6 +44,16 @@ export interface WorkflowPage<T> {
 export class WorkflowDefinitionService extends RequestService {
   constructor() {
     super(OAK_BASE_API_MODULE);
+  }
+
+  /** 真实部署目录只包含当前主体可访问的对象及字段，不加载业务记录。 */
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '平台数据-工作流定义',
+    action: '查询列表',
+  })
+  businessObjects() {
+    return this.get<WorkflowBusinessObject[]>('businessObjects');
   }
 
   @CRUD.Op({ opRefTargetType: 'None' })
@@ -56,6 +78,22 @@ export class WorkflowDefinitionService extends RequestService {
     });
   }
 
+  @CRUD.Op({ opRefTargetType: 'None' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '平台数据-工作流定义',
+    action: '新增',
+  })
+  createBound(data: {
+    businessEntityKey: string;
+    name: string;
+    processKey: string;
+    stateField: string;
+    stateMapping: WorkflowStateOption[];
+  }) {
+    return this.post<WorkflowDefinitionRecord>('createBound', { data });
+  }
+
   @CRUD.ListTable({
     refEntityClass: 'com.levin.oak.base.entities.WorkflowDefinition',
   })
@@ -66,6 +104,7 @@ export class WorkflowDefinitionService extends RequestService {
   })
   list(
     params: {
+      businessEntityKey?: string;
       businessType?: string;
       containsName?: string;
       pageIndex?: number;

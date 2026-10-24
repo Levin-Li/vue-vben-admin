@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { socialUserService } from '../../api/social-user-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -22,6 +23,7 @@ export const socialUserPageCrudConfig: CrudPageConfig = {
   apiBase: '/SocialUser',
   domainObject: true,
   apiService: socialUserService,
+  dataAttrTargets: standardCrudDataAttrTargets(socialUserService),
   defaultFormValues: {
     editable: true,
     enable: true,

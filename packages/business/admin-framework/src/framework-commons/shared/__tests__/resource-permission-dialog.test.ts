@@ -9,6 +9,9 @@ import ResourcePermissionDialog from '../resource-permission-dialog.vue';
 const action = 'example:合同::试算';
 const group = 'example:属性组:finance:试算';
 const mocks = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), tree: vi.fn() }));
+vi.mock('@vben/runtime/hooks', () => ({
+  useAppConfig: () => ({ apiURL: '/com.levin.oak.base/V1/api' }),
+}));
 vi.mock('../../runtime', () => ({
   requestClient: { get: mocks.get, put: mocks.put },
 }));
@@ -66,16 +69,24 @@ describe('资源授权保存属性组', () => {
       props: { open: true, record: { id: 'role' } },
     });
     await flushPromises();
+    expect(mocks.get).toHaveBeenCalledWith(
+      '/com.levin.oak.base/V1/api/Role/retrieve',
+      { baseURL: '', params: { id: 'role' } },
+    );
     expect(
       wrapper.findComponent({ name: 'PermissionEditor' }).props('value'),
     ).toEqual([action, group]);
     await wrapper.get('[data-test="save"]').trigger('click');
     await flushPromises();
-    expect(mocks.put).toHaveBeenCalledWith('/Role/update', {
-      id: 'role',
-      permissionList: [action, group],
-      autoForceUpdateField: false,
-      forceUpdateFields: ['permissionList'],
-    });
+    expect(mocks.put).toHaveBeenCalledWith(
+      '/com.levin.oak.base/V1/api/Role/update',
+      {
+        id: 'role',
+        permissionList: [action, group],
+        autoForceUpdateField: false,
+        forceUpdateFields: ['permissionList'],
+      },
+      { baseURL: '' },
+    );
   });
 });

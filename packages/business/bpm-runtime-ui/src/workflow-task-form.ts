@@ -1,5 +1,6 @@
 import type {
   WorkflowActionInput,
+  WorkflowFormItem,
   WorkflowTaskAction,
   WorkflowTaskView,
 } from './types';
@@ -41,15 +42,43 @@ export function workflowActionUnavailable(
     return '服务端未提供加签顺序';
 }
 
+/** 任务字段保留公共必填，叠加当前动作要求；只信任任务返回的授权动作。 */
+export function workflowActionFormItems(
+  task: WorkflowTaskView,
+  selectedAction?: WorkflowTaskAction,
+): WorkflowFormItem[] {
+  const action = task.actions?.find(
+    (item) => item.code === selectedAction?.code,
+  );
+  const fields: WorkflowFormItem[] =
+    task.formItems ??
+    task.requiredFields?.map((key) => ({
+      key,
+      label: key,
+      required: true,
+      type: 'text',
+    })) ??
+    [];
+  const required = new Set(action?.requiredFields);
+  return fields
+    .filter(
+      (field) =>
+        action?.editableFields === undefined ||
+        action.editableFields.includes(field.key),
+    )
+    .map((field) => ({
+      ...field,
+      required: field.required || required.has(field.key),
+    }));
+}
+
 /** 只提交本节点明确公开的可写表单字段，拒绝残留字段进入请求。 */
 export function workflowFormData(
   task: WorkflowTaskView,
   values: Record<string, unknown>,
+  action?: WorkflowTaskAction,
 ) {
-  const fields =
-    task.formItems ??
-    task.requiredFields?.map((key) => ({ key, label: key, required: true })) ??
-    [];
+  const fields = workflowActionFormItems(task, action);
   return Object.fromEntries(
     fields
       .filter(
@@ -75,10 +104,7 @@ export function validateWorkflowAction(
   if (unavailable) return [unavailable];
 
   const errors: string[] = [];
-  const fields =
-    task.formItems ??
-    task.requiredFields?.map((key) => ({ key, label: key, required: true })) ??
-    [];
+  const fields = workflowActionFormItems(task, action);
   for (const field of fields) {
     if ('readOnly' in field && field.readOnly) continue;
     const value = input.formData[field.key];

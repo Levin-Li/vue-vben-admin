@@ -3,7 +3,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { computed } from 'vue';
 
-import SharedCrudPage from '@levin/admin-framework/framework-commons/shared/crud-page.vue';
+import DynamicCrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
 import { Button } from 'ant-design-vue';
 
 import { moduleExportTemplateService, OAK_BASE_API_MODULE } from './api-module';
@@ -25,7 +25,7 @@ const mergedConfig = computed<CrudPageConfig>(() => ({
 
 <template>
   <WorkflowCrudEntry :config="mergedConfig" v-slot="workflow">
-    <SharedCrudPage :config="mergedConfig">
+    <DynamicCrudPage :config="mergedConfig">
       <template
         v-for="slotName in Object.keys($slots).filter(
           (name) => name !== 'row-actions',
@@ -49,6 +49,6 @@ const mergedConfig = computed<CrudPageConfig>(() => ({
           业务流程
         </Button>
       </template>
-    </SharedCrudPage>
+    </DynamicCrudPage>
   </WorkflowCrudEntry>
 </template>

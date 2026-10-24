@@ -1,3 +1,5 @@
+import type { PropType } from 'vue';
+
 import { flushPromises, mount } from '@vue/test-utils';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -90,6 +92,92 @@ vi.mock('../views/crud-page.vue', () => ({
     template: '<main><slot name="toolbar-extra" /></main>',
   },
 }));
+// 工作流通知路由直接接入公共 CRUD；模拟其查询快照、分页和具名插槽合同。
+vi.mock(
+  '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue',
+  async () => {
+    const { defineComponent } = await import('vue');
+    const { Table } = await import('ant-design-vue');
+    type MockCrudConfig = {
+      initialQuery?: Record<string, unknown>;
+      fields: {
+        key: string;
+        options?: { label: string; value: string }[];
+        loadOptions?: () => Promise<{ label: string; value: string }[]>;
+        search?: boolean;
+        table?: boolean;
+        tableValue?: (record: Record<string, unknown>) => unknown;
+      }[];
+      apiService: {
+        list: (query: Record<string, unknown>) => Promise<{
+          items: Record<string, unknown>[];
+        }>;
+      };
+    };
+    return {
+      default: defineComponent({
+        components: { Table },
+        props: {
+          config: { type: Object as PropType<MockCrudConfig>, required: true },
+        },
+        data() {
+          return {
+            query: { ...this.config.initialQuery } as Record<string, unknown>,
+            appliedQuery: { ...this.config.initialQuery } as Record<
+              string,
+              unknown
+            >,
+            rows: [] as Record<string, unknown>[],
+            channels: [] as { label: string; value: string }[],
+            pageIndex: 1,
+          };
+        },
+        async mounted() {
+          this.channels =
+            (await this.config.fields
+              .find((field) => field.key === 'channel')
+              ?.loadOptions?.()) ?? [];
+          await this.loadList();
+        },
+        methods: {
+          async loadList() {
+            const result = await this.config.apiService.list({
+              ...this.appliedQuery,
+              pageIndex: this.pageIndex,
+              pageSize: 20,
+            });
+            this.rows = result.items;
+          },
+          search() {
+            this.pageIndex = 1;
+            this.appliedQuery = { ...this.query };
+            return this.loadList();
+          },
+          reset() {
+            this.query.eventName = undefined;
+            this.query.channel = undefined;
+            this.query.status = undefined;
+          },
+          changePage(page: { current: number }) {
+            this.pageIndex = page.current;
+            return this.loadList();
+          },
+        },
+        template: `<main>
+          <slot name="search-field-orgId" :search-state="query" />
+          <select v-if="config.fields.some(field => field.key === 'eventName' && field.search)" v-model="query.eventName"><option value="">全部事件</option><option v-for="item in config.fields.find(field => field.key === 'eventName').options" :key="item.value" :value="item.value">{{ item.label }}</option></select>
+          <select v-if="config.fields.some(field => field.key === 'channel' && field.search)" v-model="query.channel"><option value="">全部渠道</option><option v-for="item in channels" :key="item.value" :value="item.value">{{ item.label }}</option></select>
+          <select v-if="config.fields.some(field => field.key === 'status' && field.search)" v-model="query.status"><option value="">全部状态</option><option v-for="item in config.fields.find(field => field.key === 'status').options" :key="item.value" :value="item.value">{{ item.label }}</option></select>
+          <button @click="search">查询</button><button @click="reset">重置</button>
+          <slot name="toolbar-extra" :load-list="loadList" :is-list-operation-visible="() => true" />
+          <Table :data-source="rows" :columns="[]" @change="changePage" />
+          <div v-for="record in rows" :key="record.id"><span v-for="field in config.fields.filter(field => field.table)" :key="field.key">{{ field.tableValue ? field.tableValue(record) : record[field.key] }}</span><slot name="row-actions" :record="record" :reload="loadList" /></div>
+          <slot v-if="!rows.length" name="emptyText" />
+        </main>`,
+      }),
+    };
+  },
+);
 vi.mock('../api/user-service', () => ({ userService: { list: mocks.users } }));
 vi.mock('../api/role-service', () => ({ roleService: { list: mocks.roles } }));
 vi.mock('@vben/runtime/stores', () => ({
@@ -134,6 +222,14 @@ vi.mock('ant-design-vue', () => {
       template: `<button :disabled="disabled" @click="$emit('click')"><slot /></button>`,
     },
     Form: { ...plain, Item: plain },
+    Collapse: {
+      ...plain,
+      Panel: {
+        props: ['header'],
+        template: '<div>{{ header }}<slot /></div>',
+      },
+    },
+    Empty: { props: ['description'], template: '<div>{{ description }}</div>' },
     InputNumber: {
       props: ['value'],
       emits: ['update:value'],
@@ -174,6 +270,8 @@ vi.mock('ant-design-vue', () => {
     Descriptions: { ...plain, Item: plain },
     Tag: plain,
     Table: {
+      name: 'Table',
+      emits: ['change'],
       props: ['columns', 'dataSource'],
       template: `<div><div v-for="record in dataSource" :key="record.id || record.attemptNo"><div v-for="column in columns" :key="column.key || column.dataIndex"><span>{{ record[column.dataIndex] }}</span><slot name="bodyCell" :record="record" :column="column" /></div></div></div>`,
     },
@@ -232,6 +330,11 @@ describe('邮件工单工作台业务入口', () => {
         return [
           { label: 'SMTP', value: 'LocalSmtp' },
           { label: 'Forward Email', value: 'ForwardEmail' },
+        ];
+      if (name.endsWith('$Status'))
+        return [
+          { label: '结果未知', value: 'Unknown' },
+          { label: '已受理', value: 'Delivered' },
         ];
       if (name.endsWith('$Channel'))
         return [
@@ -526,6 +629,8 @@ describe('邮件工单工作台业务入口', () => {
   it('工作流通知页提供三家服务端渠道，只提交选定租户的逻辑引用', async () => {
     const wrapper = mount(WorkflowRoutePage);
     await flushPromises();
+    expect(wrapper.text()).toContain('任务完成');
+    expect(wrapper.text()).toContain('当前范围暂无通知路由');
     expect(wrapper.text()).toContain('飞书 Webhook');
     expect(wrapper.text()).toContain('企业微信 Webhook');
     expect(wrapper.text()).toContain('钉钉 Webhook');
@@ -540,7 +645,7 @@ describe('邮件工单工作台业务入口', () => {
           select
             .findAll('option')
             .some((option) => option.attributes('value') === 'FeishuWebhook') &&
-          select.element.closest('section'),
+          select.element.closest('[name="workflowNotificationRouteEdit"]'),
       );
     if (!channelSelect) throw new Error('渠道选择器不存在');
     await channelSelect.setValue('FeishuWebhook');
@@ -564,13 +669,83 @@ describe('邮件工单工作台业务入口', () => {
     );
   });
 
+  it('通知路由筛选手动查询，分页沿用快照且重置不请求', async () => {
+    const wrapper = mount(WorkflowRoutePage);
+    await flushPromises();
+    await button(wrapper, '选择范围').trigger('click');
+    await flushPromises();
+    const initialCalls = mocks.workflowRoute.list.mock.calls.length;
+    const [eventSelect, channelSelect] = wrapper.findAll('select');
+    if (!eventSelect || !channelSelect) throw new Error('缺少事件或渠道筛选');
+    await eventSelect.setValue('TaskProcessed');
+    await channelSelect.setValue('Email');
+    await flushPromises();
+    expect(mocks.workflowRoute.list).toHaveBeenCalledTimes(initialCalls);
+    await button(wrapper, '查询').trigger('click');
+    await flushPromises();
+    expect(mocks.workflowRoute.list).toHaveBeenLastCalledWith({
+      tenantId: 'tenant',
+      orgId: 'org',
+      eventName: 'TaskProcessed',
+      channel: 'Email',
+      pageIndex: 1,
+      pageSize: 20,
+    });
+    await channelSelect.setValue('Station');
+    wrapper.getComponent({ name: 'Table' }).vm.$emit('change', { current: 2 });
+    await flushPromises();
+    expect(mocks.workflowRoute.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ channel: 'Email', pageIndex: 2 }),
+    );
+    const queriedCalls = mocks.workflowRoute.list.mock.calls.length;
+    await button(wrapper, '重置').trigger('click');
+    await flushPromises();
+    expect(mocks.workflowRoute.list).toHaveBeenCalledTimes(queriedCalls);
+    await button(wrapper, '查询').trigger('click');
+    await flushPromises();
+    expect(mocks.workflowRoute.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ eventName: undefined, channel: undefined }),
+    );
+  });
+
+  it('投递记录筛选手动查询，切换范围立即清除详情且重置不请求', async () => {
+    const wrapper = mount(AuditPage);
+    await flushPromises();
+    await button(wrapper, '查看详情').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('通知投递详情');
+    const initialCalls = mocks.audit.list.mock.calls.length;
+    await button(wrapper, '选择范围').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('select').html()).toContain('Unknown');
+    await wrapper.find('select').setValue('Unknown');
+    await flushPromises();
+    expect(mocks.audit.list).toHaveBeenCalledTimes(initialCalls + 1);
+    expect(wrapper.text()).not.toContain('通知投递详情');
+    await button(wrapper, '查询').trigger('click');
+    await flushPromises();
+    expect(mocks.audit.list).toHaveBeenLastCalledWith({
+      tenantId: 'tenant',
+      orgId: 'org',
+      status: 'Unknown',
+      pageIndex: 1,
+      pageSize: 20,
+    });
+    const queriedCalls = mocks.audit.list.mock.calls.length;
+    await button(wrapper, '重置').trigger('click');
+    await flushPromises();
+    expect(mocks.audit.list).toHaveBeenCalledTimes(queriedCalls);
+  });
+
   it('机器人路由拒绝跨租户引用，不发送配置请求', async () => {
     const wrapper = mount(WorkflowRoutePage);
     await flushPromises();
     await button(wrapper, '选择范围').trigger('click');
     await flushPromises();
     await button(wrapper, '新增通知路由').trigger('click');
-    const selects = wrapper.findAll('section select');
+    const selects = wrapper.findAll(
+      '[name="workflowNotificationRouteEdit"] select',
+    );
     const channelSelect = selects.find((select) =>
       select
         .findAll('option')
@@ -586,6 +761,46 @@ describe('邮件工单工作台业务入口', () => {
     expect(mocks.workflowRoute.create).not.toHaveBeenCalled();
     expect(mocks.notify.error).toHaveBeenCalledWith(
       '机器人目标必须与当前路由作用域的逻辑配置引用一致',
+    );
+  });
+
+  it('编辑路由保留高级匹配配置并使用任务完成事件值', async () => {
+    const route = {
+      id: 'route-1',
+      tenantId: 'tenant',
+      orgId: 'org',
+      processKey: 'approval',
+      nodeKey: 'review',
+      workflowDefinitionVersionId: '',
+      eventName: 'TaskProcessed',
+      channel: 'Station',
+      priority: 20,
+      forceOverride: true,
+      enable: true,
+      matchCondition: { businessType: 'request' },
+      targetConfig: {},
+      optimisticLock: 3,
+    };
+    mocks.workflowRoute.list.mockResolvedValue({ items: [route], totals: 1 });
+    mocks.workflowRoute.retrieve.mockResolvedValue(route);
+    const wrapper = mount(WorkflowRoutePage);
+    await flushPromises();
+    await button(wrapper, '编辑').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('高级匹配与覆盖');
+    await button(wrapper, '确认').trigger('click');
+    await flushPromises();
+    expect(mocks.workflowRoute.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'route-1',
+        eventName: 'TaskProcessed',
+        processKey: 'approval',
+        nodeKey: 'review',
+        priority: 20,
+        forceOverride: true,
+        matchCondition: { businessType: 'request' },
+        optimisticLock: 3,
+      }),
     );
   });
 
@@ -642,7 +857,7 @@ describe('邮件工单工作台业务入口', () => {
   it('未知投递只提供未受理核验，不能直接重发；不确认则不执行', async () => {
     const wrapper = mount(AuditPage);
     await flushPromises();
-    await button(wrapper, '查看审计').trigger('click');
+    await button(wrapper, '查看详情').trigger('click');
     await flushPromises();
     expect(
       wrapper.findAll('button').some((item) => item.text() === '重试投递'),
@@ -675,7 +890,7 @@ describe('邮件工单工作台业务入口', () => {
     });
     const wrapper = mount(AuditPage);
     await flushPromises();
-    await button(wrapper, '查看审计').trigger('click');
+    await button(wrapper, '查看详情').trigger('click');
     await flushPromises();
     expect(
       wrapper.findAll('button').some((item) => item.text() === '重试投递'),
@@ -1003,6 +1218,7 @@ describe('邮件工单工作台业务入口', () => {
     const wrapper = mount(InboxPage);
     await flushPromises();
     expect(mocks.inbox.retrieve).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain('邮件定位参数无效');
+    expect(mocks.notify.error).toHaveBeenCalledWith('邮件定位参数无效');
+    expect(wrapper.text()).not.toContain('邮件定位参数无效');
   });
 });

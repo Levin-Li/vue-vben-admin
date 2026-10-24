@@ -3,6 +3,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 
 import { platformDomainService } from '../../api/platform-domain-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 
 const stateOptions = [
   { label: '草稿', value: 'Draft' },
@@ -20,6 +21,7 @@ export const pageMeta = {
 export const platformDomainPageCrudConfig: CrudPageConfig = {
   apiBase: '/PlatformDomain',
   apiService: platformDomainService,
+  dataAttrTargets: standardCrudDataAttrTargets(platformDomainService),
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -114,7 +116,7 @@ export const platformDomainPageCrudConfig: CrudPageConfig = {
     { key: 'remark', label: '备注', fullRow: true, type: 'textarea' },
   ],
   formMaxColumns: 2,
-  modalWidth: 860,
+  modalWidth: 960,
   rowActions: [
     {
       handler: (record: Record<string, any>) =>
@@ -122,7 +124,8 @@ export const platformDomainPageCrudConfig: CrudPageConfig = {
       flowFormFields: [],
       label: '发布',
       permission: buildApiMethodPermissions(platformDomainService, 'publish'),
-      visible: (record: Record<string, any>) => canFirePlatformDomainEvent(record, '发布'),
+      visible: (record: Record<string, any>) =>
+        canFirePlatformDomainEvent(record, '发布'),
     },
     {
       handler: (record: Record<string, any>) =>
@@ -130,13 +133,19 @@ export const platformDomainPageCrudConfig: CrudPageConfig = {
       flowFormFields: [],
       label: '下线',
       permission: buildApiMethodPermissions(platformDomainService, 'offline'),
-      visible: (record: Record<string, any>) => canFirePlatformDomainEvent(record, '下线'),
+      visible: (record: Record<string, any>) =>
+        canFirePlatformDomainEvent(record, '下线'),
     },
   ],
   title: '平台领域',
 };
 
-function canFirePlatformDomainEvent(record: Record<string, any>, event: string) {
-  return Array.isArray(record.supportEventsByCurrentStatus)
-    && record.supportEventsByCurrentStatus.includes(event);
+function canFirePlatformDomainEvent(
+  record: Record<string, any>,
+  event: string,
+) {
+  return (
+    Array.isArray(record.supportEventsByCurrentStatus) &&
+    record.supportEventsByCurrentStatus.includes(event)
+  );
 }

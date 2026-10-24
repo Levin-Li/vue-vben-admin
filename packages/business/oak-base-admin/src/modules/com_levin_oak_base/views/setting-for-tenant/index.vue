@@ -7,7 +7,6 @@ import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/runtime/icons';
 
 import {
-  Alert,
   Button,
   Empty,
   message,
@@ -49,6 +48,7 @@ const props = withDefaults(
   {
     emptyDescription: '暂无系统配置',
     loadErrorMessage: '系统配置加载失败',
+    service: undefined,
     title: '系统配置',
   },
 );
@@ -175,6 +175,7 @@ async function loadSettings() {
   } catch (error) {
     console.error(error);
     errorMessage.value = props.loadErrorMessage;
+    message.error(props.loadErrorMessage);
   } finally {
     loading.value = false;
   }
@@ -316,18 +317,15 @@ onMounted(() => {
         </Tooltip>
       </div>
 
-      <Alert
-        v-if="errorMessage"
-        :message="errorMessage"
-        show-icon
-        type="error"
-      />
-
       <Spin :spinning="loading" class="min-h-0 flex-1">
         <Empty
           v-if="!loading && !hasSettings"
-          :description="props.emptyDescription"
-        />
+          :description="errorMessage || props.emptyDescription"
+        >
+          <Button v-if="errorMessage" size="small" @click="loadSettings">
+            重试
+          </Button>
+        </Empty>
 
         <Tabs
           v-else

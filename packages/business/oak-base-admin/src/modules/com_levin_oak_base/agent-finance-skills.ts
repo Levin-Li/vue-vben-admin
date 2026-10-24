@@ -7,7 +7,7 @@ import { electronicInvoiceService } from './api/electronic-invoice-service';
 import { fundAccountLogService } from './api/fund-account-log-service';
 import { fundAccountService } from './api/fund-account-service';
 import { payOrderService } from './api/pay-order-service';
-import { settlementStatementService } from './api/settlement-statement-service';
+import { settlementOrderService } from './api/settlement-order-service';
 
 // 财务技能仅查询本系统台账，不触发供应商查单、对账、支付、退款、开票或签署。
 export const financeAgentSkills: readonly AgentSkill[] = [
@@ -106,17 +106,13 @@ export const financeAgentSkills: readonly AgentSkill[] = [
     },
   }),
   ...agentReadSkills({
-    resource: 'settlementStatement',
+    resource: 'settlementOrder',
     title: '结算单',
-    service: settlementStatementService,
+    service: settlementOrderService,
     fields: [
       'id',
       'tenantId',
       'orgId',
-      'ownLegalSubjectId',
-      'counterpartyLegalSubjectId',
-      'payerLegalSubjectId',
-      'payeeLegalSubjectId',
       'partnerId',
       'startTime',
       'endTime',
@@ -128,10 +124,6 @@ export const financeAgentSkills: readonly AgentSkill[] = [
       'createTime',
     ],
     filters: {
-      ownLegalSubjectId: { kind: 'id' },
-      counterpartyLegalSubjectId: { kind: 'id' },
-      payerLegalSubjectId: { kind: 'id' },
-      payeeLegalSubjectId: { kind: 'id' },
       partnerId: { kind: 'id' },
       currencyCode: { kind: 'code' },
       status: { kind: 'code' },

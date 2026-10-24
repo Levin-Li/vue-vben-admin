@@ -12,6 +12,8 @@ import type {
   WorkflowStartPage,
   WorkflowStartPageQuery,
   WorkflowStartRecord,
+  WorkflowStateEventCommand,
+  WorkflowTaskSaveRequest,
   WorkflowTaskView,
 } from './types';
 
@@ -40,6 +42,7 @@ export class WorkflowRuntimeService extends RequestService {
     query: WorkflowStartPageQuery & {
       businessType: string;
       contractVersion: string;
+      purposeKey?: string;
     },
   ) {
     return this.get<WorkflowStartPage<WorkflowStartRecord>>(
@@ -231,6 +234,11 @@ export class WorkflowRuntimeService extends RequestService {
     );
   }
 
+  /** 保存表单不完成任务；授权、修订和幂等均由服务端复核。 */
+  async saveTask(data: WorkflowTaskSaveRequest) {
+    return this.post<WorkflowTaskView>('workflow-runtime/saveTask', { data });
+  }
+
   /** 作用域只作显式选择条件；身份、真实归属、轮次与流程版本由服务端核验。 */
   async start(
     data: WorkflowBusinessReference & {
@@ -288,6 +296,13 @@ export class WorkflowRuntimeService extends RequestService {
       'workflow-runtime/todo',
       { params: query },
     );
+  }
+
+  /** 仅发出已授权事件；后端重新校验访问、业务权限与转移条件。 */
+  async triggerStateEvent(data: WorkflowStateEventCommand) {
+    return this.post<WorkflowInstanceView>('workflow-runtime/state-event', {
+      data,
+    });
   }
 
   /** 上传只提交当前任务与文件，后端返回私有 ID 而不是公开 URL。 */

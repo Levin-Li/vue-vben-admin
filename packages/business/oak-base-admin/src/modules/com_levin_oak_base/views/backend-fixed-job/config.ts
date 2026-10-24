@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { backendFixedJobService } from '../../api/backend-fixed-job-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { DEFAULT_CRUD_MODAL_WIDTH } from '../api-module';
 
 export const pageMeta = {
@@ -42,6 +43,11 @@ export function transformBackendFixedJobSubmit(
 export const backendFixedJobPageCrudConfig: CrudPageConfig = {
   apiBase: '/BackendFixedJob',
   apiService: backendFixedJobService,
+  dataAttrTargets: fixedCrudDataAttrTargets(backendFixedJobService, {
+    update: { method: 'PUT', path: 'update' },
+    list: { method: 'GET', path: 'list' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+  }),
   allowCreate: false,
   allowDelete: false,
   allowEdit: true,

@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { brandService } from '../../api/brand-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
 export const pageMeta = {
@@ -13,6 +14,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
   apiBase: '/Brand',
   domainObject: true,
   apiService: brandService,
+  dataAttrTargets: standardCrudDataAttrTargets(brandService),
   defaultFormValues: {
     editable: true,
     enable: true,

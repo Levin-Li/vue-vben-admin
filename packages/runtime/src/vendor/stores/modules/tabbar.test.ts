@@ -61,6 +61,41 @@ describe('useAccessStore', () => {
     expect(store.tabs[0]?.query).toEqual({ id: '1' });
   });
 
+  it('收拢当前会话中同一路径留下的旧查询页签', () => {
+    const store = useTabbarStore();
+    store.addTab({
+      fullPath: '/help?doc=one',
+      meta: {},
+      name: 'Help',
+      path: '/help',
+    } as any);
+    store.addTab({
+      fullPath: '/help?doc=two',
+      meta: {},
+      name: 'Help',
+      path: '/help',
+    } as any);
+    store.addTab({
+      fullPath: '/other?doc=one',
+      meta: {},
+      name: 'Other',
+      path: '/other',
+    } as any);
+
+    store.addTab({
+      fullPath: '/help?doc=three',
+      meta: { fullPathKey: false },
+      name: 'Help',
+      path: '/help',
+    } as any);
+
+    expect(store.tabs.map((tab) => tab.key)).toEqual([
+      '/other?doc=one',
+      '/help',
+    ]);
+    expect(store.tabs[1]?.fullPath).toBe('/help?doc=three');
+  });
+
   it('uses a page setting to cache a tab and preserves it when the route is re-added', () => {
     const store = useTabbarStore();
     const tab: any = {

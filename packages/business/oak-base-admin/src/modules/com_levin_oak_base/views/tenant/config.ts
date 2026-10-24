@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { tenantService } from '../../api/tenant-service';
 import {
   confidentialLevelOptionsLoader,
@@ -21,6 +22,13 @@ export const tenantPageCrudConfig: CrudPageConfig = {
   apiBase: '/Tenant',
   domainObject: true,
   apiService: tenantService,
+  dataAttrTargets: fixedCrudDataAttrTargets(tenantService, {
+    create: { method: 'POST', path: 'createWithAdmin' },
+    update: { method: 'PUT', path: 'update' },
+    delete: { method: 'DELETE', path: 'delete' },
+    list: { method: 'GET', path: 'list' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+  }),
   defaultFormValues: {
     editable: true,
     enable: true,

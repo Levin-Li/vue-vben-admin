@@ -46,6 +46,7 @@ import WorkflowBusinessDetail from './workflow-business-detail.vue';
 import {
   isWorkflowEmpty,
   validateWorkflowAction,
+  workflowActionFormItems,
   workflowActionUnavailable,
   workflowFormData,
   workflowStatusLabel,
@@ -58,6 +59,7 @@ const props = withDefaults(
     canComplete?: boolean;
     canDeletePendingAttachment?: boolean;
     canDownloadAttachment?: boolean;
+    canSaveTask?: boolean;
     canUploadAttachment?: boolean;
     deletingAttachmentId?: string;
     detailComponents?: Record<string, Component>;
@@ -69,6 +71,7 @@ const props = withDefaults(
   }>(),
   {
     canComplete: true,
+    canSaveTask: false,
     attachments: undefined,
     deletingAttachmentId: undefined,
     detailComponents: undefined,
@@ -87,6 +90,9 @@ const emit = defineEmits<{
       verificationType: string;
     },
   ];
+  save: [
+    payload: { attachmentIds?: string[]; formData: Record<string, unknown> },
+  ];
   submit: [payload: WorkflowTaskSubmitPayload];
   uploadAttachment: [file: File];
   verificationInvalidated: [];
@@ -102,23 +108,16 @@ const verificationType = ref<string>();
 const contextVersion = ref(0);
 const selectedAction = ref<WorkflowTaskAction>();
 const errors = ref<string[]>([]);
-const displayFormItems = computed<WorkflowFormItem[]>(
-  () =>
-    props.task.formItems ??
-    props.task.requiredFields?.map((key) => ({
-      key,
-      label: key,
-      required: true,
-      type: 'text',
-    })) ??
-    [],
+const displayFormItems = computed(() =>
+  workflowActionFormItems(props.task, selectedAction.value),
 );
 const actions = computed(() =>
   props.task.status === 'Todo' &&
   props.canComplete !== false &&
   !props.task.businessBasisChanged
     ? (props.task.actions ?? []).filter(
-        (action) => !workflowActionUnavailable(action),
+        (action) =>
+          action.code !== 'save' && !workflowActionUnavailable(action),
       )
     : [],
 );
@@ -126,15 +125,15 @@ const unavailableActions = computed(() =>
   props.task.status === 'Todo' &&
   props.canComplete !== false &&
   !props.task.businessBasisChanged
-    ? (props.task.actions ?? []).filter((action) =>
-        workflowActionUnavailable(action),
+    ? (props.task.actions ?? []).filter(
+        (action) => action.code !== 'save' && workflowActionUnavailable(action),
       )
     : [],
 );
 const readOnly = computed(
   () =>
     props.task.status !== 'Todo' ||
-    props.canComplete === false ||
+    (props.canComplete === false && !props.canSaveTask) ||
     props.task.businessBasisChanged === true ||
     props.submitting ||
     props.uploadingAttachment,
@@ -339,7 +338,7 @@ function chooseAction(action: WorkflowTaskAction) {
 function actionInput(): WorkflowActionInput {
   // 只组装所选动作适用参数，切换后不得携带上个动作的目标。
   const input: WorkflowActionInput = {
-    formData: workflowFormData(props.task, formData),
+    formData: workflowFormData(props.task, formData, selectedAction.value),
     comment: comment.value.trim() || undefined,
   };
   const pending =
@@ -374,6 +373,18 @@ function prepareVerification() {
     action: selectedAction.value,
     verificationType: verificationType.value,
     contextVersion: contextVersion.value,
+  });
+}
+
+// 保存不做完成动作必填检查，但仅提交服务端授权的保存字段。
+function saveTask() {
+  if (readOnly.value || !props.canSaveTask) return;
+  if (!props.task.canSave) return;
+  emit('save', {
+    formData: workflowFormData(props.task, formData),
+    attachmentIds: props.attachments
+      ?.filter((item) => !item.attached)
+      .map((item) => item.id),
   });
 }
 
@@ -463,10 +474,47 @@ function submit() {
         </ADescriptionsItem>
       </ADescriptions>
 
+      <!-- 先选办理操作，再呈现该操作的表单必填和确认入口。 -->
+      <template v-if="task.status === 'Todo'">
+        <ADivider orientation="left">审批动作</ADivider>
+        <ASpace wrap>
+          <AButton
+            v-for="action in actions"
+            :key="action.code"
+            :type="selectedAction?.code === action.code ? 'primary' : 'default'"
+            :disabled="readOnly"
+            @click="chooseAction(action)"
+          >
+            {{ action.label }}
+          </AButton>
+        </ASpace>
+        <AAlert
+          v-if="actions.length === 0"
+          type="info"
+          message="当前没有可执行的授权动作。"
+        />
+        <AAlert
+          v-for="action in unavailableActions"
+          :key="action.code"
+          class="mt-2"
+          type="info"
+          :message="`${action.label}：${workflowActionUnavailable(action)}`"
+        />
+      </template>
+
       <!-- 只渲染节点明确声明的控件，数字和布尔保持实际类型。 -->
       <template v-if="displayFormItems.length > 0">
-        <ADivider orientation="left">审批表单</ADivider>
-        <AForm layout="vertical" @submit.prevent>
+        <ADivider orientation="left">
+          {{ selectedAction ? `${selectedAction.label}表单` : '办理表单' }}
+        </ADivider>
+        <AForm
+          id="workflow-task-node-fields"
+          name="workflowTaskNodeFields"
+          data-form-id="workflow-task-node-fields"
+          data-form-name="填写工作流节点字段"
+          layout="vertical"
+          @submit.prevent
+        >
           <AFormItem
             v-for="item in displayFormItems"
             :key="item.key"
@@ -526,7 +574,7 @@ function submit() {
         <AAlert
           v-if="missingRequired && !readOnly"
           class="mb-3"
-          message="请填写节点要求的表单字段后再提交。"
+          message="请填写当前办理动作要求的表单字段后再提交。"
           type="warning"
         />
       </template>
@@ -536,6 +584,16 @@ function submit() {
         :form-data="formData"
         :read-only="readOnly"
       ></slot>
+
+      <AButton
+        v-if="task.status === 'Todo' && canSaveTask && task.canSave"
+        class="mb-3"
+        :disabled="readOnly"
+        :loading="submitting"
+        @click="saveTask"
+      >
+        保存，暂不提交
+      </AButton>
 
       <!-- 私有附件仅保存工作流 ID，不把公开文件 URL 写入表单或历史。 -->
       <template
@@ -596,32 +654,12 @@ function submit() {
 
       <!-- 动作参数来自任务专属选项，不能输入任意人员或节点。 -->
       <template v-if="task.status === 'Todo'">
-        <ADivider orientation="left">审批动作</ADivider>
-        <ASpace wrap>
-          <AButton
-            v-for="action in actions"
-            :key="action.code"
-            :type="selectedAction?.code === action.code ? 'primary' : 'default'"
-            :disabled="readOnly"
-            @click="chooseAction(action)"
-          >
-            {{ action.label }}
-          </AButton>
-        </ASpace>
-        <AAlert
-          v-if="actions.length === 0"
-          type="info"
-          message="当前没有可执行的授权动作。"
-        />
-        <AAlert
-          v-for="action in unavailableActions"
-          :key="action.code"
-          class="mt-2"
-          type="info"
-          :message="`${action.label}：${workflowActionUnavailable(action)}`"
-        />
         <AForm
           v-if="selectedAction"
+          id="workflow-task-action-parameters"
+          name="workflowTaskActionParameters"
+          data-form-id="workflow-task-action-parameters"
+          data-form-name="填写工作流动作参数"
           class="mt-4"
           layout="vertical"
           @submit.prevent

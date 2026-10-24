@@ -112,11 +112,12 @@ onMounted(() => {
     <Select
       :value="modelValue"
       :disabled="disabled"
+      :allow-clear="true"
       :options="options"
       :filter-option="false"
       :show-search="true"
       class="w-full"
-      placeholder="搜索并选择已有法律主体"
+      placeholder="可留空，或搜索并选择已有法律主体"
       @search="searchSubjects"
       @update:value="
         (value) =>

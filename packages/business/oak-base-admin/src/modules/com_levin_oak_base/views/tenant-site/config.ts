@@ -1,10 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { tenantSiteService } from '../../api/tenant-site-service';
 import {
   brandOptionsLoader,
-  tenantSiteDnsDomainOptionsLoader,
   tenantOptionsLoader,
+  tenantSiteDnsDomainOptionsLoader,
 } from '../api-module';
 import { siteInfoFormFields, transformSiteInfoSubmit } from '../site-info-form';
 
@@ -18,6 +19,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantSite',
   domainObject: true,
   apiService: tenantSiteService,
+  dataAttrTargets: standardCrudDataAttrTargets(tenantSiteService),
   defaultFormValues: {
     editable: true,
     enable: true,

@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
       'payOrder',
       'fundAccount',
       'fundAccountLog',
-      'settlementStatement',
+      'settlementOrder',
       'electronicInvoice',
       'electronicContract',
       'electronicContractTemplate',
@@ -71,8 +71,8 @@ vi.mock('../api/fund-account-service', () => ({
 vi.mock('../api/fund-account-log-service', () => ({
   fundAccountLogService: mocks.services.fundAccountLog,
 }));
-vi.mock('../api/settlement-statement-service', () => ({
-  settlementStatementService: mocks.services.settlementStatement,
+vi.mock('../api/settlement-order-service', () => ({
+  settlementOrderService: mocks.services.settlementOrder,
 }));
 vi.mock('../api/electronic-invoice-service', () => ({
   electronicInvoiceService: mocks.services.electronicInvoice,
@@ -88,7 +88,7 @@ const cases = [
   { resource: 'payOrder', filter: { payStatus: 'Success' } },
   { resource: 'fundAccount', filter: { currencyCode: 'CNY' } },
   { resource: 'fundAccountLog', filter: { tradeAccountId: 'account-1' } },
-  { resource: 'settlementStatement', filter: { partnerId: 'partner-1' } },
+  { resource: 'settlementOrder', filter: { partnerId: 'partner-1' } },
   { resource: 'electronicInvoice', filter: { status: 'Issued' } },
   { resource: 'electronicContract', filter: { templateId: 'template-1' } },
   { resource: 'electronicContractTemplate', filter: { enable: true } },

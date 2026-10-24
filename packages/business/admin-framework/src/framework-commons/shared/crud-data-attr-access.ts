@@ -1,10 +1,17 @@
 import type { DataAttrPolicy } from '../data-attr-policy';
-import type { CrudFieldConfig, CrudPageConfig } from './types';
+import type {
+  CrudDataAttrOperation,
+  CrudFieldConfig,
+  CrudPageConfig,
+} from './types';
 
 import { onScopeDispose, reactive, watch } from 'vue';
 
+import { CanceledError } from '@vben/runtime/request';
+
 import { buildModuleRequestPath } from '../api';
 import {
+  getCrudListTableMeta,
   getResAuthorizeMeta,
   getServiceMeta,
   hasResAuthorizeMeta,
@@ -19,6 +26,7 @@ import {
   pruneDataAttrInput,
   pruneDataAttrOutput,
   subscribeDataAttrPolicyInvalidation,
+  validatePolicy,
 } from '../data-attr-policy';
 import {
   buildApiMethodPermissions,
@@ -27,13 +35,7 @@ import {
 } from './crud-permissions';
 import { omitExcludedCrudFields } from './crud-submit-fields';
 
-export type CrudDataAttrOperation =
-  | 'batchCreate'
-  | 'create'
-  | 'delete'
-  | 'list'
-  | 'retrieve'
-  | 'update';
+export type { CrudDataAttrOperation } from './types';
 
 const legacyPolicy: DataAttrPolicy = {
   id: 'legacy-host',
@@ -71,9 +73,12 @@ export function isCrudDataAttrOperationEnabled(
       hasPermission(buildApiMethodPermissions(config.apiService, operation))
     );
   if (operation === 'list')
-    return hasPermission(
-      config.queryPermission ||
-        buildCrudOperationPermissions(config, operation),
+    return (
+      config.allowQuery !== false &&
+      hasPermission(
+        config.queryPermission ||
+          buildCrudOperationPermissions(config, operation),
+      )
     );
   const action = operation === 'update' ? 'edit' : operation;
   const flag = {
@@ -152,6 +157,23 @@ export function resolveCrudDataAttrTarget(
     typeof config.apiService?.[operation] === 'function' &&
     !override &&
     (operation !== 'list' || listPath === `${config.apiBase}/list`);
+  // 标准列表服务已持有模块前缀与控制器路径，公共 CRUD 直接使用该真实路径。
+  const standardListService = config.apiService as
+    | (CrudPageConfig['apiService'] & {
+        buildRequestPath?: (path: string) => string;
+      })
+    | undefined;
+  if (
+    usesService &&
+    operation === 'list' &&
+    getCrudListTableMeta(standardListService?.list) &&
+    typeof standardListService?.buildRequestPath === 'function'
+  ) {
+    return {
+      method: 'GET',
+      path: standardListService.buildRequestPath('list'),
+    };
+  }
   if (
     usesService ||
     typeof override === 'function' ||
@@ -210,29 +232,38 @@ export function useCrudDataAttrAccess(
   >({});
   const pending = new Map<CrudDataAttrOperation, Promise<DataAttrPolicy>>();
   let generation = 0;
+  let checkpointVersion = 0;
 
-  function ensure(operation: CrudDataAttrOperation) {
+  function ensure(operation: CrudDataAttrOperation, reload = false) {
     if (!operationEnabled(operation))
       return Promise.reject(
         new Error('当前操作未显示或没有权限，不能读取字段策略'),
       );
-    if (!isDataAttrPolicyEnabled()) {
+    const options = config();
+    if (!options.dataAttrPolicyProvider && !isDataAttrPolicyEnabled()) {
       policies[operation] = legacyPolicy;
       return Promise.resolve(legacyPolicy);
+    }
+    if (reload) {
+      checkpointVersion++;
+      Reflect.deleteProperty(policies, operation);
+      pending.delete(operation);
     }
     const current = policies[operation];
     if (current) return Promise.resolve(current);
     const existing = pending.get(operation);
     if (existing) return existing;
     const snapshot = generation;
-    const options = config();
     const target = resolveCrudDataAttrTarget(options, operation, listPath());
     const expression = resolveCrudDataAttrOperationExpression(
       options,
       operation,
     );
     let request: Promise<DataAttrPolicy>;
-    if (expression) {
+    const provider = options.dataAttrPolicyProvider;
+    if (provider) {
+      request = Promise.resolve().then(() => provider(operation));
+    } else if (expression) {
       request = loadDataAttrPolicyByOperation(expression, target);
     } else if (target) {
       request = loadDataAttrPolicy(
@@ -247,8 +278,9 @@ export function useCrudDataAttrAccess(
     }
     const promise = request
       .then((policy) => {
-        if (generation !== snapshot)
-          throw new Error('授权上下文已变化，请重试');
+        if (generation !== snapshot || pending.get(operation) !== promise)
+          throw new CanceledError('授权上下文已变化，请重试');
+        validatePolicy(policy);
         policies[operation] = policy;
         return policy;
       })
@@ -261,15 +293,17 @@ export function useCrudDataAttrAccess(
 
   function refresh() {
     generation++;
+    checkpointVersion++;
     pending.clear();
     for (const operation of operations)
       Reflect.deleteProperty(policies, operation);
     for (const operation of operations) {
       if (!operationEnabled(operation)) continue;
-      if (operation === 'delete' && config().allowDelete === false) continue;
+      // 列表快捷更新与已打开详情的投影需要预读；创建、删除和导入在操作入口读取。
       if (
-        operation === 'batchCreate' &&
-        typeof config().apiService?.batchCreate !== 'function'
+        operation === 'batchCreate' ||
+        operation === 'create' ||
+        operation === 'delete'
       )
         continue;
       void ensure(operation).catch(() => {
@@ -281,6 +315,7 @@ export function useCrudDataAttrAccess(
     () => [
       config(),
       listPath(),
+      config().dataAttrPolicyProvider,
       operations.map((operation) => operationEnabled(operation)),
     ],
     refresh,
@@ -375,10 +410,10 @@ export function useCrudDataAttrAccess(
     return policy ? pruneDataAttrOutput(policy, payload) : undefined;
   }
   function checkpoint() {
-    return generation;
+    return checkpointVersion;
   }
   function assertCheckpoint(snapshot: number) {
-    if (snapshot !== generation)
+    if (snapshot !== checkpointVersion)
       throw new Error('权限上下文已变化，请重新确认后保存');
   }
   return {

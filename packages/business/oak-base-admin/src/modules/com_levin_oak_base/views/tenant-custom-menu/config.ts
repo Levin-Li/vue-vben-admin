@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { tenantCustomMenuService } from '../../api/tenant-custom-menu-service';
 import {
   buildDictOptionsLoader,
@@ -33,6 +34,7 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
   apiBase: '/TenantCustomMenu',
   domainObject: true,
   apiService: tenantCustomMenuService,
+  dataAttrTargets: standardCrudDataAttrTargets(tenantCustomMenuService),
   defaultFormValues: {
     editable: true,
     enable: true,

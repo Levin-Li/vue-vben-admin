@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { areaService } from '../../api/area-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   areaOptionsLoader,
   buildEnumOptionsLoader,
@@ -21,6 +22,7 @@ export const areaPageCrudConfig: CrudPageConfig = {
   apiBase: '/Area',
   domainObject: true,
   apiService: areaService,
+  dataAttrTargets: standardCrudDataAttrTargets(areaService),
   defaultFormValues: {
     editable: true,
     enable: true,

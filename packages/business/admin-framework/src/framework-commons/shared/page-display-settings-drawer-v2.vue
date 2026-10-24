@@ -528,7 +528,7 @@ function ensureFields(view: Exclude<View, 'list'>) {
             key: field.key,
             order: index,
             defaultValue: {},
-            visibleRoleCodes: getDefaultVisibleRoleCodes(field.key),
+            visibleRoleCodes: getDefaultVisibleRoleCodes(field),
           },
   );
   if (
@@ -554,7 +554,12 @@ function ensureFields(view: Exclude<View, 'list'>) {
     }
     // 默认值编辑器渲染前补齐，避免切换页签才写入空对象并产生假修改。
     field.defaultValue ??= {};
-    field.visibleRoleCodes = initializeVisibleRoleCodes(field);
+    field.visibleRoleCodes = initializeVisibleRoleCodes({
+      visibleRoleCodes: getDefaultVisibleRoleCodes(
+        allowed.find((source) => source.key === field.key) || field.key,
+      ),
+      ...field,
+    });
   }
   return holder.fields;
 }

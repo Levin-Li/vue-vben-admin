@@ -25,7 +25,7 @@ describe('useRbacAccess', () => {
   it('allows super admin users even when authorized permission list is empty', () => {
     stores.user.userInfo = {
       loginName: 'platform-sa',
-      roleList: ['R_PLATFORM_SA'],
+      superAdmin: true,
     };
 
     expect(
@@ -35,10 +35,19 @@ describe('useRbacAccess', () => {
     ).toBe(true);
   });
 
-  it('旧超级平台角色码不授予无限制权限', () => {
+  it('平台超级管理员角色无需单独授权即可访问', () => {
     stores.user.userInfo = {
-      loginName: 'legacy-user',
-      roleList: ['R_SA'],
+      loginName: 'platform-sa-by-role',
+      roleList: ['R_PLATFORM_SA'],
+    };
+
+    expect(useRbacAccess().hasPermission('demo:resource:read')).toBe(true);
+  });
+
+  it('平台管理员角色不授予无限制权限', () => {
+    stores.user.userInfo = {
+      loginName: 'platform-admin',
+      roleList: ['R_PLATFORM_ADMIN'],
     };
 
     expect(useRbacAccess().hasPermission('demo:resource:read')).toBe(false);

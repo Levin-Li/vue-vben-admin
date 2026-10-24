@@ -4,20 +4,22 @@ import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-com
 import type { SupportScope } from '../../api/support-workbench-types';
 import type {
   NotificationChannel,
-  WorkflowNotificationEventName,
   WorkflowNotificationRouteInput,
   WorkflowNotificationRouteRecord,
 } from '../../api/workflow-notification-route-service';
 
-import { computed, onMounted, reactive, ref } from 'vue';
-
-import { Page } from '@vben/common-ui';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import { DEFAULT_CONTENT_MODAL_BODY_STYLE } from '@levin/admin-framework/framework-commons/shared/config-helpers';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
+import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
 import {
   Alert,
   Button,
+  Collapse,
+  Empty,
   Form,
   Input,
   InputNumber,
@@ -25,13 +27,13 @@ import {
   Modal,
   Select,
   Switch,
-  Table,
 } from 'ant-design-vue';
 
 import { workflowNotificationRouteService } from '../../api/workflow-notification-route-service';
 import { moduleFetchEnumOptions } from '../api-module';
 import SupportScopeSelector from '../support-scope-selector.vue';
 import {
+  createWorkflowNotificationRouteCrudConfig,
   normalizeNotificationChannels,
   robotWebhookChannels,
   validRobotConfigRef,
@@ -44,14 +46,49 @@ const allowed = (method: string) =>
   hasPermission(
     buildApiMethodPermissions(workflowNotificationRouteService, method),
   );
-const scope = ref<SupportScope>();
-const rows = ref<WorkflowNotificationRouteRecord[]>([]);
-const pageIndex = ref(1);
-const total = ref(0);
-const loading = ref(false);
+const selectedScope = ref<UserOrgSelectorRecord>();
+const scopeGeneration = ref(0);
+const initialQuery = ref<Record<string, unknown>>({});
 const error = ref('');
-const filterChannel = ref<NotificationChannel>();
-const filterEvent = ref<WorkflowNotificationEventName>();
+watch(error, (value) => {
+  if (value) message.error(value);
+});
+let queryState: Record<string, unknown> = {};
+let reloadList: (() => Promise<unknown> | unknown) | undefined;
+// 范围来自查询模型；重置后不沿用选择器旧记录的组织。
+function currentScope(orgId: unknown): SupportScope | undefined {
+  const record = selectedScope.value;
+  if (
+    orgId &&
+    (typeof orgId !== 'string' || record?.id !== orgId || !record.tenantId)
+  )
+    throw new Error('业务范围已变化，请重新选择组织');
+  return typeof orgId === 'string' && record?.id === orgId && record.tenantId
+    ? { tenantId: record.tenantId, orgId: record.id }
+    : undefined;
+}
+// 公共组件动态插槽在声明文件中与表单插槽合并；宿主校验实际查询插槽合同。
+function searchScopeState(slot: unknown): Record<string, unknown> {
+  if (!slot || typeof slot !== 'object' || !('searchState' in slot))
+    throw new Error('业务范围查询插槽未提供查询模型');
+  const state = slot.searchState;
+  if (!state || typeof state !== 'object' || Array.isArray(state))
+    throw new Error('业务范围查询模型无效');
+  return state as Record<string, unknown>;
+}
+function scopeSelection(state: Record<string, unknown>) {
+  queryState = state;
+  return state.orgId === selectedScope.value?.id
+    ? selectedScope.value
+    : undefined;
+}
+const crudConfig = computed(() =>
+  createWorkflowNotificationRouteCrudConfig({
+    apiService: { list: listRoutes },
+    initialQuery: initialQuery.value,
+    loadChannels,
+  }),
+);
 const channels = ref<{ label: string; value: NotificationChannel }[]>([]);
 const current = ref<WorkflowNotificationRouteRecord>();
 const opened = ref(false);
@@ -67,77 +104,89 @@ const draft = reactive<WorkflowNotificationRouteInput>({
 });
 const configRef = ref('');
 const conditionText = ref('{}');
+const conditionValue = computed({
+  get: () => JSON.parse(conditionText.value || '{}') as unknown,
+  set: (value: unknown) => {
+    conditionText.value = JSON.stringify(value) ?? 'null';
+  },
+});
+const advancedKeys = ref<string[]>([]);
 const isRobot = computed(() => robotWebhookChannels.includes(draft.channel));
-const canSave = computed(() => allowed(current.value ? 'update' : 'create'));
-const channelLabel = (value: string) =>
-  channels.value.find((item) => item.value === value)?.label || '渠道不可用';
-const eventLabel = (value: string) =>
-  workflowNotificationEvents.find((item) => item.value === value)?.label ||
-  '事件不可用';
-const columns = [
-  { title: '流程标识', dataIndex: 'processKey' },
-  { title: '节点标识', dataIndex: 'nodeKey' },
-  { title: '事件', key: 'event' },
-  { title: '渠道', key: 'channel' },
-  { title: '优先级', dataIndex: 'priority' },
-  { title: '是否启用', key: 'enable' },
-  { title: '操作', key: 'actions' },
-];
+const canSave = computed(
+  () =>
+    current.value?.editable !== false &&
+    allowed(current.value ? 'update' : 'create'),
+);
 let listVersion = 0;
 let detailVersion = 0;
-async function load(page = pageIndex.value) {
+// 公共CRUD传入查询快照及真实分页；仅传输当前接口声明的参数。
+async function listRoutes(params: Record<string, unknown> = {}) {
   const version = ++listVersion;
-  rows.value = [];
   error.value = '';
-  if (!allowed('list')) return;
-  loading.value = true;
+  if (!allowed('list')) return { items: [], totals: 0 };
   try {
+    const queryChannels = params.channel
+      ? await loadChannels()
+      : channels.value;
+    const channel = queryChannels.find(
+      (item) => item.value === params.channel,
+    )?.value;
+    const eventName = workflowNotificationEvents.find(
+      (item) => item.value === params.eventName,
+    )?.value;
+    if ((params.channel && !channel) || (params.eventName && !eventName))
+      throw new Error('通知渠道或流程事件已失效，请重新选择');
     const result = await workflowNotificationRouteService.list({
-      ...scope.value,
-      eventName: filterEvent.value,
-      channel: filterChannel.value,
-      pageIndex: page,
-      pageSize: 20,
+      ...currentScope(params.orgId),
+      eventName,
+      channel,
+      pageIndex: Number(params.pageIndex) || 1,
+      pageSize: Number(params.pageSize) || 20,
     });
-    if (version !== listVersion) return;
-    rows.value = result.items;
-    pageIndex.value = page;
-    total.value = result.totals;
-  } catch {
+    return version === listVersion ? result : { items: [], totals: 0 };
+  } catch (error_) {
     if (version === listVersion) error.value = '工作流通知路由不可访问';
-  } finally {
-    if (version === listVersion) loading.value = false;
+    throw error_;
   }
 }
-function changeScope(record?: UserOrgSelectorRecord) {
-  scope.value =
-    record?.kind === 'org' && record.tenantId
-      ? { tenantId: record.tenantId, orgId: record.id }
-      : undefined;
+// 切换组织使旧列表实例失效，同时保留其它查询条件；详情和删除确认立即关闭。
+function changeScope(
+  record: undefined | UserOrgSelectorRecord,
+  state: Record<string, unknown>,
+) {
+  selectedScope.value = record;
+  initialQuery.value = { ...state, orgId: record?.id };
+  queryState = initialQuery.value;
   detailVersion += 1;
   opened.value = false;
   current.value = undefined;
   removing.value = undefined;
-  void load(1);
+  listVersion += 1;
+  error.value = '';
+  scopeGeneration.value += 1;
 }
 async function open(record?: WorkflowNotificationRouteRecord) {
   const version = ++detailVersion;
-  if (record ? !allowed('retrieve') || !allowed('update') : !allowed('create'))
+  if (
+    record
+      ? record.editable === false || !allowed('retrieve') || !allowed('update')
+      : !allowed('create')
+  )
     return;
   try {
     const result = record
       ? await workflowNotificationRouteService.retrieve({
-          ...scope.value,
+          ...currentScope(queryState.orgId),
           id: record.id,
         })
       : undefined;
-    if (version !== detailVersion) return;
+    if (version !== detailVersion || result?.editable === false) return;
     current.value = result;
     Object.assign(
       draft,
       {
-        tenantId: scope.value?.tenantId,
-        orgId: scope.value?.orgId,
+        tenantId: currentScope(queryState.orgId)?.tenantId,
+        orgId: currentScope(queryState.orgId)?.orgId,
         processKey: '',
         workflowDefinitionVersionId: '',
         nodeKey: '',
@@ -158,6 +207,16 @@ async function open(record?: WorkflowNotificationRouteRecord) {
         ? storedRef
         : '';
     conditionText.value = JSON.stringify(result?.matchCondition || {}, null, 2);
+    advancedKeys.value =
+      result &&
+      (result.processKey ||
+        result.workflowDefinitionVersionId ||
+        result.nodeKey ||
+        result.priority !== 100 ||
+        result.forceOverride ||
+        Object.keys(result.matchCondition || {}).length > 0)
+        ? ['advanced']
+        : [];
     opened.value = true;
   } catch {
     message.error('路由详情不可访问或已失效');
@@ -241,7 +300,7 @@ async function save() {
         })
       : workflowNotificationRouteService.create(data));
     opened.value = false;
-    await load();
+    await reloadList?.();
   } catch {
     message.error('路由保存失败，请刷新核对权限、范围和版本');
   } finally {
@@ -249,212 +308,268 @@ async function save() {
   }
 }
 async function remove() {
-  if (!removing.value || !allowed('remove') || busy.value) return;
+  if (
+    !removing.value ||
+    removing.value.editable === false ||
+    !allowed('remove') ||
+    busy.value
+  )
+    return;
   busy.value = true;
   try {
     await workflowNotificationRouteService.remove({
-      ...scope.value,
+      ...currentScope(queryState.orgId),
       id: removing.value.id,
     });
     removing.value = undefined;
-    await load();
+    await reloadList?.();
   } catch {
     message.error('删除失败，请刷新核对权限和范围');
   } finally {
     busy.value = false;
   }
 }
-onMounted(async () => {
-  try {
-    channels.value = normalizeNotificationChannels(
-      await moduleFetchEnumOptions(
-        'com.levin.oak.base.entities.WorkflowNotificationRoute$Channel',
-      ),
-    );
-  } catch {
-    error.value = '通知渠道选项加载失败';
-  }
-  await load(1);
+// 查询和编辑共用同一份服务端枚举选项，失败时不补造渠道。
+let channelsPromise: Promise<typeof channels.value> | undefined;
+function loadChannels() {
+  channelsPromise ??= moduleFetchEnumOptions(
+    'com.levin.oak.base.entities.WorkflowNotificationRoute$Channel',
+  )
+    .then((options) => {
+      channels.value = normalizeNotificationChannels(options);
+      return channels.value;
+    })
+    .catch((error_) => {
+      channelsPromise = undefined;
+      error.value = '通知渠道选项加载失败';
+      throw error_;
+    });
+  return channelsPromise;
+}
+onMounted(() => {
+  void loadChannels().catch(() => {});
 });
 </script>
 <template>
-  <Page title="工作流通知路由">
-    <div class="bg-card grid gap-4 rounded-lg p-4">
-      <SupportScopeSelector
-        placeholder="选择流程通知适用组织"
-        @change="changeScope"
-      />
-      <Alert
-        type="info"
-        message="站内与邮箱使用引擎确定的精确接收人；群机器人只配置对应作用域逻辑引用，部署秘密由服务器解析。"
-      />
-      <Alert v-if="error" :message="error" type="error" />
-      <div class="flex flex-wrap gap-2">
-        <Select
-          v-model:value="filterChannel"
-          class="w-48"
-          :options="channels"
-          allow-clear
-          placeholder="通知渠道"
-          @change="load(1)"
+  <div class="flex min-w-0 flex-col gap-2">
+    <CrudPage :key="scopeGeneration" :config="crudConfig">
+      <template #search-field-orgId="slot">
+        <SupportScopeSelector
+          :model-value="scopeSelection(searchScopeState(slot))"
+          placeholder="全部授权范围"
+          @change="changeScope($event, searchScopeState(slot))"
         />
-        <Select
-          v-model:value="filterEvent"
-          class="w-48"
-          :options="workflowNotificationEvents"
-          allow-clear
-          placeholder="流程事件"
-          @change="load(1)"
-        />
-        <Button v-if="allowed('create')" type="primary" @click="open()">
+      </template>
+      <template #toolbar-extra="{ loadList, isListOperationVisible }">
+        <Button
+          v-if="
+            allowed('create') && isListOperationVisible('notification:create')
+          "
+          type="primary"
+          @click="
+            reloadList = loadList;
+            open();
+          "
+        >
           新增通知路由
         </Button>
-        <Button v-if="allowed('list')" @click="load()">刷新</Button>
-      </div>
-      <Table
-        row-key="id"
-        :columns="columns"
-        :data-source="rows"
-        :loading="loading"
-        :pagination="{ current: pageIndex, pageSize: 20, total }"
-        @change="load($event.current)"
+      </template>
+      <template #row-actions="{ record, reload }">
+        <Button
+          v-if="
+            record.editable !== false &&
+            allowed('update') &&
+            allowed('retrieve')
+          "
+          size="small"
+          type="link"
+          @click="
+            reloadList = reload;
+            open(record as WorkflowNotificationRouteRecord);
+          "
+        >
+          编辑
+        </Button>
+        <Button
+          v-if="record.editable !== false && allowed('remove')"
+          size="small"
+          type="link"
+          @click="
+            reloadList = reload;
+            removing = record as WorkflowNotificationRouteRecord;
+          "
+        >
+          删除
+        </Button>
+      </template>
+      <template #emptyText>
+        <Empty
+          description="当前范围暂无通知路由；可点击“新增通知路由”配置工作流事件通知"
+        />
+      </template>
+    </CrudPage>
+    <Modal
+      v-model:open="opened"
+      title="工作流通知路由配置"
+      width="960px"
+      :body-style="DEFAULT_CONTENT_MODAL_BODY_STYLE"
+      :confirm-loading="busy"
+      :mask-closable="false"
+      @ok="save"
+    >
+      <Form
+        id="workflow-notification-route-edit"
+        data-form-id="workflow-notification-route-edit"
+        data-form-name="工作流通知路由配置"
+        name="workflowNotificationRouteEdit"
+        layout="horizontal"
+        class="grid gap-x-4"
+        style="
+          grid-template-columns: repeat(
+            auto-fit,
+            minmax(min(100%, 400px), 1fr)
+          );
+        "
+        :label-col="{ style: { width: '128px' } }"
+        :wrapper-col="{ flex: 1 }"
       >
-        <template #bodyCell="{ column, record }">
-          <span v-if="column.key === 'event'">{{
-            eventLabel(record.eventName)
-          }}</span>
-          <span v-if="column.key === 'channel'">{{
-            channelLabel(record.channel)
-          }}</span>
-          <span v-if="column.key === 'enable'">{{
-            record.enable ? '已启用' : '已停用'
-          }}</span>
-          <template v-if="column.key === 'actions'">
-            <Button
-              v-if="
-                record.editable !== false &&
-                allowed('update') &&
-                allowed('retrieve')
-              "
-              type="link"
-              @click="open(record as WorkflowNotificationRouteRecord)"
-            >
-              编辑
-            </Button>
-            <Button
-              v-if="record.editable !== false && allowed('remove')"
-              type="link"
-              @click="removing = record as WorkflowNotificationRouteRecord"
-            >
-              删除
-            </Button>
-          </template>
-        </template>
-      </Table>
-      <Modal
-        v-model:open="opened"
-        title="工作流通知路由配置"
-        :confirm-loading="busy"
-        @ok="save"
-      >
-        <Form layout="vertical">
-          <Form.Item label="流程标识">
-            <Input
-              v-model:value="draft.processKey"
-              :maxlength="128"
-              placeholder="留空表示当前范围默认路由"
-            />
-          </Form.Item>
-          <Form.Item label="定义版本标识">
-            <Input
-              v-model:value="draft.workflowDefinitionVersionId"
-              :maxlength="64"
-              placeholder="可空，仅匹配指定的定义版本"
-            />
-          </Form.Item>
-          <Form.Item label="节点标识">
-            <Input
-              v-model:value="draft.nodeKey"
-              :maxlength="128"
-              placeholder="可空，仅匹配指定BPMN节点"
-            />
-          </Form.Item>
-          <Form.Item label="事件" required>
-            <Select
-              v-model:value="draft.eventName"
-              :options="workflowNotificationEvents"
-            />
-          </Form.Item>
-          <Form.Item label="通知渠道" required>
-            <Select
-              v-model:value="draft.channel"
-              :options="channels"
-              @change="changeChannel"
-            />
-          </Form.Item>
-          <Form.Item v-if="isRobot" label="逻辑配置引用" required>
-            <Input
-              v-model:value="configRef"
-              :maxlength="128"
-              :placeholder="
-                draft.tenantId
-                  ? 'tenant:租户标识:已部署目标名称'
-                  : 'platform:已部署目标名称'
-              "
-            />
-            <p class="text-muted-foreground text-xs">
-              只填写配置标识，不填写Webhook URL、token或加签秘密。
-            </p>
-          </Form.Item>
-          <Alert
-            v-else
-            type="info"
-            message="接收人来自当前流程事件；不提供任意邮箱、角色或群目标输入。"
+        <Alert
+          class="col-span-full mb-4"
+          type="info"
+          message="基本配置：选择事件和渠道即可。留空的高级匹配字段表示当前业务范围内的默认路由。"
+        />
+        <Form.Item label="事件" name="eventName" required>
+          <Select
+            v-model:value="draft.eventName"
+            :options="workflowNotificationEvents"
           />
-          <Alert
-            v-if="isRobot && !draft.tenantId"
-            type="info"
-            message="平台机器人路由不匹配租户工作流；租户流程须选择实际租户所属组织和同作用域目标。"
+        </Form.Item>
+        <Form.Item label="通知渠道" name="channel" required>
+          <Select
+            v-model:value="draft.channel"
+            :options="channels"
+            @change="changeChannel"
           />
-          <Form.Item label="优先级" required>
-            <InputNumber
-              v-model:value="draft.priority"
-              :precision="0"
-              :min="-2147483648"
-              :max="2147483647"
-            />
-          </Form.Item>
-          <Form.Item label="同作用域强制覆盖">
-            <Switch v-model:checked="draft.forceOverride" />
-          </Form.Item>
-          <Form.Item label="是否启用">
-            <Switch v-model:checked="draft.enable" />
-          </Form.Item>
-          <Form.Item label="精确匹配条件">
-            <Input.TextArea
-              v-model:value="conditionText"
-              :maxlength="8192"
-              :rows="4"
-              placeholder="仅JSON对象，值为精确值或值数组；不执行表达式"
-            />
-          </Form.Item>
-          <Form.Item label="通知模板">
-            <Input value="服务端固定安全模板（不可编辑）" disabled />
-          </Form.Item>
-          <Form.Item label="备注">
-            <Input.TextArea v-model:value="draft.remark" :maxlength="512" />
-          </Form.Item>
-        </Form>
-      </Modal>
-      <Modal
-        :open="Boolean(removing)"
-        title="删除通知路由"
-        :confirm-loading="busy"
-        @cancel="removing = undefined"
-        @ok="remove"
-      >
-        <p>确认删除此路由配置？已产生的事件与投递记录保留。</p>
-      </Modal>
-    </div>
-  </Page>
+        </Form.Item>
+        <Form.Item
+          v-if="isRobot"
+          label="逻辑配置引用"
+          name="configRef"
+          class="col-span-full"
+          required
+        >
+          <Input
+            v-model:value="configRef"
+            :maxlength="128"
+            :placeholder="
+              draft.tenantId
+                ? 'tenant:租户标识:已部署目标名称'
+                : 'platform:已部署目标名称'
+            "
+          />
+          <p class="text-muted-foreground text-xs">
+            先在服务端部署机器人目标，再填写 platform:目标名称 或
+            tenant:当前租户标识:目标名称。不要填写 Webhook URL、token 或密钥。
+          </p>
+        </Form.Item>
+        <Alert
+          v-else
+          class="col-span-full"
+          type="info"
+          message="接收人来自当前流程事件；不提供任意邮箱、角色或群目标输入。"
+        />
+        <Alert
+          v-if="isRobot && !draft.tenantId"
+          class="col-span-full"
+          type="info"
+          message="平台机器人路由不匹配租户工作流；租户流程须选择实际租户所属组织和同作用域目标。"
+        />
+        <Collapse v-model:active-key="advancedKeys" class="col-span-full mb-4">
+          <Collapse.Panel key="advanced" header="高级匹配与覆盖（可选）">
+            <div
+              class="grid gap-x-4"
+              style="
+                grid-template-columns: repeat(
+                  auto-fit,
+                  minmax(min(100%, 400px), 1fr)
+                );
+              "
+            >
+              <p class="text-muted-foreground col-span-full text-xs">
+                留空表示不限定流程、版本或节点。优先级只影响同类匹配规则的排序；强制覆盖会替代较低匹配层级的路由。
+              </p>
+              <Form.Item label="流程标识" name="processKey">
+                <Input
+                  v-model:value="draft.processKey"
+                  :maxlength="128"
+                  placeholder="留空匹配当前范围内所有流程"
+                />
+              </Form.Item>
+              <Form.Item
+                label="定义版本标识"
+                name="workflowDefinitionVersionId"
+              >
+                <Input
+                  v-model:value="draft.workflowDefinitionVersionId"
+                  :maxlength="64"
+                  placeholder="留空匹配所有版本"
+                />
+              </Form.Item>
+              <Form.Item label="节点标识" name="nodeKey">
+                <Input
+                  v-model:value="draft.nodeKey"
+                  :maxlength="128"
+                  placeholder="留空匹配所有节点"
+                />
+              </Form.Item>
+              <Form.Item
+                label="强制覆盖"
+                name="forceOverride"
+                help="替代较低匹配层级的路由"
+              >
+                <Switch v-model:checked="draft.forceOverride" />
+              </Form.Item>
+              <Form.Item
+                label="匹配条件"
+                name="matchCondition"
+                class="col-span-full"
+                help="仅 JSON 精确值，不执行表达式"
+              >
+                <JsonEditorField
+                  v-model="conditionValue"
+                  title="精确匹配条件"
+                />
+              </Form.Item>
+            </div>
+          </Collapse.Panel>
+        </Collapse>
+        <p class="text-muted-foreground col-span-full text-xs">
+          通知内容使用服务端固定安全模板。
+        </p>
+        <Form.Item label="优先级" name="priority" required>
+          <InputNumber
+            v-model:value="draft.priority"
+            :precision="0"
+            :min="-2147483648"
+            :max="2147483647"
+          />
+        </Form.Item>
+        <Form.Item label="是否启用" name="enable">
+          <Switch v-model:checked="draft.enable" />
+        </Form.Item>
+        <Form.Item label="备注" name="remark" class="col-span-full">
+          <Input.TextArea v-model:value="draft.remark" :maxlength="512" />
+        </Form.Item>
+      </Form>
+    </Modal>
+    <Modal
+      :open="Boolean(removing)"
+      title="删除通知路由"
+      :confirm-loading="busy"
+      @cancel="removing = undefined"
+      @ok="remove"
+    >
+      <p>确认删除此路由配置？已产生的事件与投递记录保留。</p>
+    </Modal>
+  </div>
 </template>

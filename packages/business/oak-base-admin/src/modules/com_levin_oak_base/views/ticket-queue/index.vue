@@ -9,12 +9,11 @@ import type {
 
 import { computed, reactive, ref } from 'vue';
 
-import { Page } from '@vben/common-ui';
-
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import { DEFAULT_CONTENT_MODAL_BODY_STYLE } from '@levin/admin-framework/framework-commons/shared/config-helpers';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
 import {
-  Alert,
   Button,
   Form,
   Input,
@@ -22,32 +21,106 @@ import {
   Modal,
   Select,
   Switch,
-  Table,
-  Tag,
 } from 'ant-design-vue';
 
 import { roleService } from '../../api/role-service';
 import { ticketQueueService } from '../../api/ticket-queue-service';
 import { userService } from '../../api/user-service';
 import SupportScopeSelector from '../support-scope-selector.vue';
+import { createTicketQueueCrudConfig } from './config';
 import {
   buildQueueHandlerRoleQuery,
   buildQueueHandlerUserQuery,
   isQueueHandlerRoleOption,
 } from './handler-options';
 
-// 每个操作绑定对应方法权限；所选组织始终经服务端复核。
+// 组织选择只提供业务上下文，服务端仍独立验证范围和各操作权限。
 const { hasPermission } = useRbacAccess();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(ticketQueueService, method));
-const scope = ref<SupportScope>();
-const rows = ref<QueueRecord[]>([]);
-const pageIndex = ref(1);
-const total = ref(0);
-const loading = ref(false);
-const saving = ref(false);
-const error = ref('');
+const selectedScope = ref<UserOrgSelectorRecord>();
+const scopeGeneration = ref(0);
+const initialQuery = ref<Record<string, unknown>>({});
+let queryState: Record<string, unknown> = {};
+let reloadList: (() => Promise<unknown> | unknown) | undefined;
+let listVersion = 0;
+let detailVersion = 0;
+let userOptionsVersion = 0;
+let roleOptionsVersion = 0;
+
+function currentScope(orgId: unknown): SupportScope | undefined {
+  const record = selectedScope.value;
+  if (
+    orgId &&
+    (typeof orgId !== 'string' || record?.id !== orgId || !record.tenantId)
+  )
+    throw new Error('受理组织已变化，请重新选择');
+  return typeof orgId === 'string' && record?.id === orgId && record.tenantId
+    ? { tenantId: record.tenantId, orgId: record.id }
+    : undefined;
+}
+
+// 公共查询插槽必须携带实际查询模型，不能从页面本地控件臆造请求范围。
+function searchScopeState(slot: unknown): Record<string, unknown> {
+  if (!slot || typeof slot !== 'object' || !('searchState' in slot))
+    throw new Error('受理组织查询插槽未提供查询模型');
+  const state = slot.searchState;
+  if (!state || typeof state !== 'object' || Array.isArray(state))
+    throw new Error('受理组织查询模型无效');
+  return state as Record<string, unknown>;
+}
+
+function scopeSelection(state: Record<string, unknown>) {
+  queryState = state;
+  return state.orgId === selectedScope.value?.id
+    ? selectedScope.value
+    : undefined;
+}
+
+// 列表只传专用服务声明的范围、编码和分页参数。
+async function listQueues(params: Record<string, unknown> = {}) {
+  const version = ++listVersion;
+  if (!allowed('list')) return { items: [], totals: 0 };
+  const scope = currentScope(params.orgId);
+  if (!scope) return { items: [], totals: 0 };
+  const result = await ticketQueueService.list({
+    ...scope,
+    code: typeof params.code === 'string' ? params.code.trim() : undefined,
+    pageIndex: Number(params.pageIndex) || 1,
+    pageSize: Number(params.pageSize) || 20,
+  });
+  return version === listVersion ? result : { items: [], totals: 0 };
+}
+
+const crudConfig = computed(() =>
+  createTicketQueueCrudConfig({
+    apiService: { list: listQueues },
+    initialQuery: initialQuery.value,
+  }),
+);
+
+function changeScope(
+  record: undefined | UserOrgSelectorRecord,
+  state: Record<string, unknown>,
+) {
+  selectedScope.value =
+    record?.kind === 'org' && record.tenantId ? record : undefined;
+  initialQuery.value = { ...state, orgId: selectedScope.value?.id };
+  queryState = initialQuery.value;
+  detailVersion += 1;
+  listVersion += 1;
+  editing.value = false;
+  userOptions.value = [];
+  roleOptions.value = [];
+  userOptionsVersion += 1;
+  roleOptionsVersion += 1;
+  reloadList = undefined;
+  scopeGeneration.value += 1;
+}
+
+// 单个 save 接口同时负责新增和编辑，保留其乐观锁与受控候选项。
 const editing = ref(false);
+const saving = ref(false);
 const draft = reactive<QueueInput>({
   tenantId: '',
   orgId: '',
@@ -59,60 +132,23 @@ const draft = reactive<QueueInput>({
 });
 const userOptions = ref<{ label: string; value: string }[]>([]);
 const roleOptions = ref<{ label: string; value: string }[]>([]);
-const columns = [
-  { title: '队列编码', dataIndex: 'code' },
-  { title: '队列名称', dataIndex: 'name' },
-  { title: '是否受理', key: 'enabled' },
-  { title: '操作', key: 'actions' },
-];
-const canSave = computed(() => allowed('save') && Boolean(scope.value));
-let version = 0;
-async function load(page = pageIndex.value) {
-  const current = ++version;
-  rows.value = [];
-  error.value = '';
-  if (!scope.value || !allowed('list')) return;
-  loading.value = true;
-  try {
-    const result = await ticketQueueService.list({
-      ...scope.value,
-      pageIndex: page,
-      pageSize: 20,
-    });
-    if (current !== version) return;
-    rows.value = result.items;
-    total.value = result.totals;
-    pageIndex.value = page;
-  } catch {
-    if (current === version) error.value = '队列加载失败，请重试';
-  } finally {
-    if (current === version) loading.value = false;
-  }
-}
-function changeScope(record?: UserOrgSelectorRecord) {
-  scope.value =
-    record?.kind === 'org' && record.tenantId
-      ? { tenantId: record.tenantId, orgId: record.id }
-      : undefined;
-  editing.value = false;
-  userOptions.value = [];
-  roleOptions.value = [];
-  total.value = 0;
-  void load(1);
-}
+const canSave = computed(() => allowed('save') && Boolean(selectedScope.value));
+const switchingIds = new Set<string>();
+
 async function open(record?: QueueRecord) {
-  if (!scope.value || !canSave.value) return;
-  const selected = JSON.stringify(scope.value);
+  const version = ++detailVersion;
+  if (!canSave.value || (record && !allowed('retrieve'))) return;
   try {
-    const source =
-      record && allowed('retrieve')
-        ? await ticketQueueService.retrieve({ ...scope.value, id: record.id })
-        : undefined;
-    if (JSON.stringify(scope.value) !== selected) return;
+    const scope = currentScope(queryState.orgId);
+    if (!scope) return;
+    const source = record
+      ? await ticketQueueService.retrieve({ ...scope, id: record.id })
+      : undefined;
+    if (version !== detailVersion || !currentScope(queryState.orgId)) return;
     Object.assign(
       draft,
       {
-        ...scope.value,
+        ...scope,
         id: undefined,
         optimisticLock: undefined,
         code: '',
@@ -128,159 +164,219 @@ async function open(record?: QueueRecord) {
     message.error('队列详情不可访问');
   }
 }
-// 下拉查询只在当前范围加载有效主体，不使用自由输入伪造角色或用户。
+
+// 候选项仅从当前组织及其租户读取；搜索失败不清除已选值。
 async function searchUsers(value = '') {
-  if (!scope.value) return;
-  const selected = JSON.stringify(scope.value);
+  const scope = currentScope(queryState.orgId);
+  if (!scope) return;
+  const version = scopeGeneration.value;
+  const optionsVersion = ++userOptionsVersion;
   try {
     const result = (await userService.list(
-      buildQueueHandlerUserQuery(scope.value, value),
+      buildQueueHandlerUserQuery(scope, value),
     )) as { items: { id: string; name?: string; realName?: string }[] };
-    if (JSON.stringify(scope.value) !== selected) return;
-    userOptions.value = (result.items || []).map(
-      (item: { id: string; name?: string; realName?: string }) => ({
-        value: item.id,
-        label: item.realName || item.name || item.id,
-      }),
-    );
+    if (
+      version !== scopeGeneration.value ||
+      optionsVersion !== userOptionsVersion
+    )
+      return;
+    userOptions.value = (result.items || []).map((item) => ({
+      value: item.id,
+      label: item.realName || item.name || item.id,
+    }));
   } catch {
-    message.error('处理人选项不可访问');
+    if (
+      version === scopeGeneration.value &&
+      optionsVersion === userOptionsVersion
+    )
+      message.error('处理人选项不可访问');
   }
 }
+
 async function searchRoles(value = '') {
-  if (!scope.value) return;
-  const selected = JSON.stringify(scope.value);
+  const scope = currentScope(queryState.orgId);
+  if (!scope) return;
+  const version = scopeGeneration.value;
+  const optionsVersion = ++roleOptionsVersion;
   try {
     const result = (await roleService.list(
-      buildQueueHandlerRoleQuery(scope.value, value),
+      buildQueueHandlerRoleQuery(scope, value),
     )) as {
       items: { code: string; name?: string; tenantId?: null | string }[];
     };
-    if (JSON.stringify(scope.value) !== selected) return;
+    if (
+      version !== scopeGeneration.value ||
+      optionsVersion !== roleOptionsVersion
+    )
+      return;
     roleOptions.value = (result.items || [])
-      .filter((item) => isQueueHandlerRoleOption(item, scope.value?.tenantId))
-      .map((item: { code: string; name?: string }) => ({
-        value: item.code,
-        label: item.name || item.code,
-      }));
+      .filter((item) => isQueueHandlerRoleOption(item, scope.tenantId))
+      .map((item) => ({ value: item.code, label: item.name || item.code }));
   } catch {
-    message.error('角色选项不可访问');
+    if (
+      version === scopeGeneration.value &&
+      optionsVersion === roleOptionsVersion
+    )
+      message.error('角色选项不可访问');
   }
 }
+
 async function save() {
-  if (!scope.value || !canSave.value || saving.value) return;
+  if (!canSave.value || saving.value) return;
+  const scope = currentScope(queryState.orgId);
+  if (!scope) return;
   if (!draft.code.trim() || !draft.name.trim()) {
     message.error('请填写队列编码和名称');
     return;
   }
   saving.value = true;
+  const version = scopeGeneration.value;
   try {
-    await ticketQueueService.save({ ...draft, ...scope.value });
-    editing.value = false;
-    await load();
+    await ticketQueueService.save({ ...draft, ...scope });
+    if (version === scopeGeneration.value) {
+      editing.value = false;
+      await reloadList?.();
+    }
   } catch {
     message.error('保存失败，请核对范围、处理人和版本后重试');
   } finally {
     saving.value = false;
   }
 }
+
 async function switchEnabled(record: QueueRecord) {
-  if (!scope.value || !allowed('setEnabled')) return;
+  if (!allowed('setEnabled') || switchingIds.has(record.id)) return;
+  switchingIds.add(record.id);
+  const version = scopeGeneration.value;
   try {
+    const scope = currentScope(queryState.orgId);
+    if (!scope) return;
     await ticketQueueService.setEnabled({
-      ...scope.value,
+      ...scope,
       id: record.id,
       optimisticLock: record.optimisticLock,
       enabled: !record.enabled,
     });
-    await load();
+    if (version === scopeGeneration.value) await reloadList?.();
   } catch {
     message.error('队列启停失败，请刷新后重试');
+  } finally {
+    switchingIds.delete(record.id);
   }
 }
 </script>
+
 <template>
-  <Page title="工单受理队列">
-    <div class="bg-card grid gap-4 rounded-lg p-4">
-      <SupportScopeSelector @change="changeScope" />
-      <Alert v-if="!scope" type="info" message="请选择授权受理组织" />
-      <Alert v-if="error" type="error" :message="error" />
-      <div class="flex gap-2">
-        <Button v-if="canSave" type="primary" @click="open()">新建队列</Button>
-        <Button v-if="allowed('list')" :disabled="!scope" @click="load()">
-          刷新
+  <div class="flex min-w-0 flex-col gap-2">
+    <CrudPage :key="scopeGeneration" :config="crudConfig">
+      <template #search-field-orgId="slot">
+        <SupportScopeSelector
+          :model-value="scopeSelection(searchScopeState(slot))"
+          placeholder="选择受理组织"
+          @change="changeScope($event, searchScopeState(slot))"
+        />
+      </template>
+
+      <template #toolbar-extra="{ loadList, isListOperationVisible }">
+        <Button
+          v-if="canSave && isListOperationVisible('queue:create')"
+          type="primary"
+          @click="
+            reloadList = loadList;
+            open();
+          "
+        >
+          新建队列
         </Button>
-      </div>
-      <Table
-        row-key="id"
-        :columns="columns"
-        :data-source="rows"
-        :loading="loading"
-        :pagination="{ current: pageIndex, pageSize: 20, total }"
-        @change="load($event.current)"
+      </template>
+
+      <template #row-actions="{ record, reload }">
+        <Button
+          v-if="canSave && allowed('retrieve')"
+          size="small"
+          type="link"
+          @click="
+            reloadList = reload;
+            open(record as QueueRecord);
+          "
+        >
+          编辑
+        </Button>
+        <Button
+          v-if="allowed('setEnabled')"
+          size="small"
+          type="link"
+          @click="
+            reloadList = reload;
+            switchEnabled(record as QueueRecord);
+          "
+        >
+          {{ record.enabled ? '停用' : '启用' }}
+        </Button>
+      </template>
+
+      <template #emptyText>
+        {{ selectedScope ? '暂无受理队列' : '选择受理组织后查看队列' }}
+      </template>
+    </CrudPage>
+
+    <Modal
+      v-model:open="editing"
+      title="保存工单受理队列"
+      width="960px"
+      :body-style="DEFAULT_CONTENT_MODAL_BODY_STYLE"
+      :confirm-loading="saving"
+      :mask-closable="false"
+      @ok="save"
+    >
+      <Form
+        id="ticket-queue-edit"
+        data-form-id="ticket-queue-edit"
+        data-form-name="工单受理队列编辑"
+        name="ticketQueueEdit"
+        layout="horizontal"
+        class="grid gap-x-4"
+        style="
+          grid-template-columns: repeat(
+            auto-fit,
+            minmax(min(100%, 330px), 1fr)
+          );
+        "
+        :label-col="{ style: { width: '104px' } }"
+        :wrapper-col="{ flex: 1 }"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'enabled'">
-            <Tag>{{ record.enabled ? '受理中' : '已停用' }}</Tag>
-          </template>
-          <template v-if="column.key === 'actions'">
-            <Button
-              v-if="canSave && allowed('retrieve')"
-              type="link"
-              @click="open(record as QueueRecord)"
-            >
-              编辑
-            </Button>
-            <Button
-              v-if="allowed('setEnabled')"
-              type="link"
-              @click="switchEnabled(record as QueueRecord)"
-            >
-              {{ record.enabled ? '停用' : '启用' }}
-            </Button>
-          </template>
-        </template>
-      </Table>
-      <Modal
-        v-model:open="editing"
-        title="保存工单受理队列"
-        :confirm-loading="saving"
-        @ok="save"
-      >
-        <Form layout="vertical">
-          <Form.Item label="队列编码" required>
-            <Input v-model:value="draft.code" :maxlength="64" />
-          </Form.Item>
-          <Form.Item label="队列名称" required>
-            <Input v-model:value="draft.name" :maxlength="128" />
-          </Form.Item>
-          <Form.Item label="可处理用户">
-            <Select
-              v-model:value="draft.handlerUserIds"
-              mode="multiple"
-              show-search
-              :filter-option="false"
-              :options="userOptions"
-              @search="searchUsers"
-              @focus="searchUsers()"
-            />
-          </Form.Item>
-          <Form.Item label="可处理角色">
-            <Select
-              v-model:value="draft.handlerRoleCodes"
-              mode="multiple"
-              show-search
-              :filter-option="false"
-              :options="roleOptions"
-              @search="searchRoles"
-              @focus="searchRoles()"
-            />
-          </Form.Item>
-          <Form.Item label="是否受理">
-            <Switch v-model:checked="draft.enabled" />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
-  </Page>
+        <Form.Item label="队列编码" name="code" required>
+          <Input v-model:value="draft.code" :maxlength="64" />
+        </Form.Item>
+        <Form.Item label="队列名称" name="name" required>
+          <Input v-model:value="draft.name" :maxlength="128" />
+        </Form.Item>
+        <Form.Item label="可处理用户" name="handlerUserIds">
+          <Select
+            v-model:value="draft.handlerUserIds"
+            mode="multiple"
+            show-search
+            :filter-option="false"
+            :options="userOptions"
+            @search="searchUsers"
+            @focus="searchUsers()"
+          />
+        </Form.Item>
+        <Form.Item label="可处理角色" name="handlerRoleCodes">
+          <Select
+            v-model:value="draft.handlerRoleCodes"
+            mode="multiple"
+            show-search
+            :filter-option="false"
+            :options="roleOptions"
+            @search="searchRoles"
+            @focus="searchRoles()"
+          />
+        </Form.Item>
+        <Form.Item label="是否受理" name="enabled">
+          <Switch v-model:checked="draft.enabled" />
+        </Form.Item>
+      </Form>
+    </Modal>
+  </div>
 </template>

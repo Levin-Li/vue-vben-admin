@@ -1,30 +1,25 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { channelPartnerService } from '../../api/channel-partner-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
-  buildModuleOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   withModuleCrudConfig,
 } from '../api-module';
+import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
 import {
   partnerCommonComplexGroups,
   partnerCommonFields,
 } from '../partner/config';
 
 // 独立子类型入口承载本类合作关系的权限与业务字段。
-const channelOrgOptionsLoader = buildModuleOptionsLoader(
-  '/Org/list',
-  'name',
-  'id',
-  { pageIndex: 1, pageSize: 500, type: 'ChannelPartner' },
-  'containsName',
-);
+const channelOrgOptionsLoader = buildOrgAssignmentOptionsLoader();
 
 export const pageMeta = {
   name: 'ChannelPartner',
   title: '渠道伙伴',
-  description: '维护渠道伙伴及法律主体关联。',
+  description: '快速建档并维护渠道伙伴，法律主体可后续补全。',
 } as const;
 export const channelPartnerPageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
@@ -32,8 +27,10 @@ export const channelPartnerPageCrudConfig: CrudPageConfig =
     apiBase: '/ChannelPartner',
     domainObject: true,
     apiService: channelPartnerService,
+    dataAttrTargets: fixedCrudDataAttrTargets(channelPartnerService, {
+      retrieve: { method: 'GET', path: 'retrieve' },
+    }),
     listPath: '/ChannelPartner/list',
-    detailPath: '/ChannelPartner/retrieve',
     createPath: '/ChannelPartner/saveChannelPartner',
     updatePath: '/ChannelPartner/updateChannelPartner',
     defaultFormValues: { enable: true },
@@ -45,7 +42,7 @@ export const channelPartnerPageCrudConfig: CrudPageConfig =
         field.key === 'orgId'
           ? {
               ...field,
-              label: '渠道伙伴组织节点',
+              label: '新渠道伙伴组织的内部父级',
               loadOptions: channelOrgOptionsLoader,
               remoteSearch: true,
             }

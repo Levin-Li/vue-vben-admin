@@ -1,5 +1,9 @@
 # @levin/admin-framework
 
+JSON Schema 编辑器的 `:xxx` 属性引用见 [使用指南](docs/json-schema-editor-reference.md)。
+
+角色与用户数据权限分配的操作与继承语义见 [数据权限分配使用指南](docs/data-permission-checklist.md)。
+
 Levin 后台基础组件和公共运行时框架包，面向第三方后台系统提供应用启动、布局、路由、权限、菜单同步、通用 CRUD、页面注册、页面覆盖、事件总线、顶部栏扩展区和窗口级可拖拽悬浮面板等基础能力。
 
 ## 安装
@@ -42,8 +46,13 @@ configureAdminApplication({
 公共 CRUD 的复杂对象归属、页面展示设置和验证方法见[复杂对象分组使用指南](docs/complex-object-groups.md)。
 本地长期与临时上传方法及公开临时 URL 的边界见[本地文件上传 API 使用指南](docs/local-file-storage-upload.md)。
 标准 CRUD 的标签缓存接入与失效边界见[标签缓存接入指南](docs/crud-tab-cache.md)。
+
+服务端提供游标的列表直接使用 `CrudPage`，见[标准 CRUD 游标列表接入指南](docs/crud-cursor-pagination.md)。
+
+专用业务列表可复用[标准 CRUD 查询与列表布局](docs/crud-layout.md)，由页面保留实际 API、权限和分页契约。
 系统原生网页 Agent 的聊天入口和技能登记见[网页 Agent 使用与扩展指南](docs/ai-agent.md)。
 标准 CRUD 金额字段的四位分组、默认单位与页面覆盖见[金额展示使用说明](docs/crud-money-display.md)。
+标准 CRUD 本地下拉的文本、拼音与首字母搜索见[本地选项搜索使用说明](docs/crud-local-search.md)。
 `EditableObject` 的全局字段显隐及超管编辑行为见[EditableObject 标准 CRUD 使用说明](docs/crud-editableobject-access.md)。
 页面展示设置的默认值编辑方式与设置记录信息见[页面展示设置使用说明](docs/page-display-setting-record.md)。
 紧凑列表的表头固定列图标、临时状态和列配置入口见[紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。
@@ -78,3 +87,5 @@ API 属性组权限的轻量分配、后端元数据契约与保存语义见 [�
 公共 CRUD 的新增、编辑和单 JSON 字段编辑在业务值有修改时，取消、关闭或 Escape 会先询问继续编辑或放弃修改；取消确认保留输入，恢复原值后不再提示。保存失败保留输入及原始比较基准，保存中禁用关闭。分组折叠和快捷填写不视为业务修改。普通表单沿用用户展示设置的宽高上限，并限制顶部偏移以保持窄屏操作按钮可达。
 
 详情首次打开会为当前权限与UI设置允许的选择字段读取既有只读选项标签；组织选择器沿用原有授权接口。该行为不会增加业务字段、改变提交范围或扩大凭据权限。最小验证：打开标准CRUD编辑记录，修改后模拟保存失败，点击取消并选择继续编辑应保留输入；还原原值后取消可直接关闭。
+
+运行时模型与独立页面复用公共 CRUD 的字段、策略和服务回调见[运行时元数据接入指南](docs/runtime-crud-metadata.md)。

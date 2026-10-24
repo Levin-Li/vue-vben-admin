@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { domainSslCertService } from '../../api/domain-ssl-cert-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { tenantOptionsLoader } from '../api-module';
 
 const applyStatusOptions = [
@@ -23,6 +24,13 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
   apiBase: '/DomainSslCert',
   domainObject: true,
   apiService: domainSslCertService,
+  dataAttrTargets: fixedCrudDataAttrTargets(domainSslCertService, {
+    create: { method: 'POST', path: 'create' },
+    list: { method: 'GET', path: 'list' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+  }),
+  allowEdit: false,
+  allowDelete: false,
   defaultFormValues: {
     editable: true,
     enable: true,

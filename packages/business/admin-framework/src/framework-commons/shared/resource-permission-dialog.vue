@@ -7,10 +7,14 @@ import type {
 
 import { computed, ref, watch } from 'vue';
 
+import { useAppConfig } from '@vben/runtime/hooks';
+
 import { Alert, message, Modal, Spin } from 'ant-design-vue';
 
+import { buildModuleRequestPath } from '../api';
 import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
+import { OAK_BASE_API_MODULE } from './config-helpers';
 import {
   collectKnownPermissionTreeValues,
   collectKnownPermissionValues,
@@ -40,6 +44,13 @@ const emit = defineEmits<{
   saved: [];
   'update:open': [boolean];
 }>();
+
+const runtimeEnv = (import.meta as ImportMeta & { env: Record<string, any> })
+  .env;
+const { apiURL } = useAppConfig(runtimeEnv, Boolean(runtimeEnv.PROD));
+const apiBase = computed(() =>
+  buildModuleRequestPath(props.apiBase, apiURL || OAK_BASE_API_MODULE),
+);
 
 const detail = ref<null | Record<string, any>>(null);
 const errorMessage = ref('');
@@ -86,15 +97,16 @@ async function loadData() {
   try {
     const [detailResp, permissionTreeResp, modulesResp, menuTreeResp] =
       await Promise.all([
-      requestClient.get<Record<string, any>>(`${props.apiBase}/retrieve`, {
-        params: {
-          id: props.record.id,
-        },
-      }),
-      rbacService.fetchAuthorizedPermissionTree(),
-      rbacService.fetchAuthorizedResourceModules(),
-      rbacService.getAuthorizedMenuList(),
-    ]);
+        requestClient.get<Record<string, any>>(`${apiBase.value}/retrieve`, {
+          baseURL: '',
+          params: {
+            id: props.record.id,
+          },
+        }),
+        rbacService.fetchAuthorizedPermissionTree(),
+        rbacService.fetchAuthorizedResourceModules(),
+        rbacService.getAuthorizedMenuList(),
+      ]);
 
     detail.value = detailResp;
     permissionTree.value = (permissionTreeResp || []) as PermissionTreeNode[];
@@ -122,8 +134,7 @@ async function handleSave() {
 
   const permissions = collectPermissionValues(selectedPermissions.value);
   const invalidPermissions = permissions.filter(
-    (permission) =>
-      !permission || !knownPermissionValues.value.has(permission),
+    (permission) => !permission || !knownPermissionValues.value.has(permission),
   );
 
   if (invalidPermissions.length > 0) {
@@ -145,7 +156,9 @@ async function handleSave() {
       payload.optimisticLock = detail.value.optimisticLock;
     }
 
-    await requestClient.put(`${props.apiBase}/update`, payload);
+    await requestClient.put(`${apiBase.value}/update`, payload, {
+      baseURL: '',
+    });
     message.success('资源权限保存成功');
     emit('saved');
     closeDialog();

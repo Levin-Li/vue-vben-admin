@@ -5,6 +5,13 @@ import { isSuperAdminUser } from './user-identity';
 
 export type CrudFormMode = 'create' | 'edit';
 
+export function isCrudFormFieldConditionMet(
+  field: CrudFieldConfig,
+  formState: Record<string, any>,
+) {
+  return field.formVisibleWhen?.(formState) !== false;
+}
+
 export function shouldShowCrudFormField(
   field: CrudFieldConfig,
   mode: CrudFormMode,

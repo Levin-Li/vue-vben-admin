@@ -175,6 +175,7 @@ function toMissingRouteMeta(item: BackendMenuInfo, normalizedPath: string) {
     item,
     normalizedPath,
     {
+      hideInMenu: true,
       hideInTab: true,
       menuRouteMissingPage: true,
       title: item.name || '404',
@@ -319,6 +320,7 @@ function convertLeafRoute(
         crudResource: mapping.resource,
         authority: toAuthority(item),
         disabled: item.enable === false,
+        ...(mapping.fullPathKey === false ? { fullPathKey: false } : {}),
         icon: resolveLocalPageIcon(item.icon, mapping.icon),
         hideInMenu: item.hidden === true,
         ...(mapping.keepAlive ? { keepAlive: true } : {}),
@@ -502,6 +504,7 @@ export function buildMenuRoutes(
           : FORBIDDEN_PAGE_COMPONENT,
       meta: {
         crudResource: mapping.resource,
+        ...(mapping.fullPathKey === false ? { fullPathKey: false } : {}),
         hideInMenu: true,
         icon: mapping.icon,
         menuRouteForbidden: mapping.onlyRequireAuthenticated !== true,

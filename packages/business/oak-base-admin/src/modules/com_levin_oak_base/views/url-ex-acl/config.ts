@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { urlExAclService } from '../../api/url-ex-acl-service';
 import {
   authorizedControllerPathOptionsLoader,
@@ -58,6 +59,7 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
   apiBase: '/UrlExAcl',
   domainObject: true,
   apiService: urlExAclService,
+  dataAttrTargets: standardCrudDataAttrTargets(urlExAclService),
   defaultFormValues: {
     editable: true,
     enable: true,

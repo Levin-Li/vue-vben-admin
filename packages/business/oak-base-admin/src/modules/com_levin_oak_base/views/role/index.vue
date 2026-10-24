@@ -2,13 +2,13 @@
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
 import ResourcePermissionDialog from '@levin/admin-framework/framework-commons/shared/resource-permission-dialog.vue';
 
-import { loadDomainScopeOptions } from '../../domain-scope-options';
+import { loadDataPermissionDomainOptions } from '../../domain-scope-options';
 import CrudPage from '../crud-page.vue';
 import { useRolePageConfig } from './config';
 
 // 数据权限弹窗只接受字符串 ID，在页面边界规范化公共候选。
 async function loadStringDomainScopeOptions(keyword?: string) {
-  const options = await loadDomainScopeOptions(keyword);
+  const options = await loadDataPermissionDomainOptions(keyword);
   return options.map((option) => ({
     label: String(option.label),
     value: String(option.value),

@@ -68,6 +68,9 @@ const loadTargetInstance = (instanceId: string) =>
   workflowRuntimeService.instance(instanceId);
 
 // 每个列表只消费对应控制器方法的当前权限，菜单展示权不替代 API 授权。
+const canSaveTask = computed(() =>
+  hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'saveTask')),
+);
 const canComplete = computed(() =>
   hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'complete')),
 );
@@ -82,6 +85,13 @@ const canTerminate = computed(() =>
 const canRecover = computed(() =>
   hasPermission(workflowOperationPermissions.recover),
 );
+// 公共CRUD沿用四个真实读取方法的权限，不推导通用list权限。
+const listPermissions = {
+  todo: buildApiMethodPermissions(workflowRuntimeService, 'todo'),
+  done: buildApiMethodPermissions(workflowRuntimeService, 'done'),
+  started: buildApiMethodPermissions(workflowRuntimeService, 'started'),
+  copied: buildApiMethodPermissions(workflowRuntimeService, 'copied'),
+};
 const canViewTodo = computed(() =>
   hasPermission(buildApiMethodPermissions(workflowRuntimeService, 'todo')),
 );
@@ -154,8 +164,10 @@ const loadCopyRecipients = (instanceId: string, keyword: string) =>
     message="邮件中的流程链接无效，请从工作流列表查找或联系发送方。"
   />
   <WorkflowRuntimeWorkbench
+    :list-permissions="listPermissions"
     :key="userStore.userInfo?.id"
     :can-complete="canComplete"
+    :can-save-task="canSaveTask"
     :can-withdraw="canWithdraw"
     :can-terminate="canTerminate"
     :can-recover="canRecover"

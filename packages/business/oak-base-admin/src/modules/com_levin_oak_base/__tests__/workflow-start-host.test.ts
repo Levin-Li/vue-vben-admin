@@ -91,13 +91,18 @@ describe('发起流程宿主范围与权限', () => {
     'isSuperAdmin',
     'platformAdmin',
     'isPlatformAdmin',
-  ])('%s身份缺少会话租户时仍能从授权组织选择业务租户', async (flag) => {
+  ])('%s身份可查询平台全局流程，并能从授权组织切换业务范围', async (flag) => {
     state.actor = { [flag]: true };
     const wrapper = mount(WorkflowStart);
     await flushPromises();
     expect(
       wrapper.findComponent({ name: 'WorkflowStartWorkbench' }).exists(),
-    ).toBe(false);
+    ).toBe(true);
+    expect(wrapper.find('[data-form-id="workflow-start-scope"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('.ant-form-item-label').text()).toContain('业务范围');
+    expect(wrapper.find('.ant-card').exists()).toBe(false);
     await wrapper.findComponent({ name: 'UserOrgSelector' }).trigger('click');
     await flushPromises();
     expect(

@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { servicePluginService } from '../../api/service-plugin-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   FILE_STORAGE_SINGLE_UPLOAD_PATH,
@@ -16,6 +17,12 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
   apiBase: '/ServicePlugin',
   domainObject: true,
   apiService: servicePluginService,
+  dataAttrTargets: fixedCrudDataAttrTargets(servicePluginService, {
+    create: { method: 'POST', path: 'create' },
+    update: { method: 'PUT', path: 'update' },
+    delete: { method: 'DELETE', path: 'delete' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+  }),
   defaultQuery: {
     pageIndex: 1,
     pageSize: 10,

@@ -1,12 +1,13 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { simplePageService } from '../../api/simple-page-service';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 
+import { simplePageService } from '../../api/simple-page-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
-  DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -54,6 +55,7 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
   apiBase: '/SimplePage',
   domainObject: true,
   apiService: simplePageService,
+  dataAttrTargets: standardCrudDataAttrTargets(simplePageService),
   defaultFormValues: {
     editable: true,
     enable: true,

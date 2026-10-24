@@ -37,3 +37,18 @@ export async function loadDomainScopeOptions(
       }))
     : [];
 }
+
+/** 权限分配必须列出当前操作者的全部授权领域，不受全局选择器 UI Setting 限制。 */
+export async function loadDataPermissionDomainOptions(
+  keyword = '',
+): Promise<SelectOption[]> {
+  const items = await loadAuthorizedPlatformDomainList(
+    keyword.trim() ? { keyword: keyword.trim() } : undefined,
+  );
+  return Array.isArray(items)
+    ? items.map((domain) => ({
+        label: String(domain.name || domain.id),
+        value: String(domain.id),
+      }))
+    : [];
+}

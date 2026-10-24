@@ -36,6 +36,43 @@ vi.mock('../api/user-service', () => ({ userService: { list: mocks.users } }));
 vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({ userInfo: mocks.userInfo }),
 }));
+vi.mock(
+  '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue',
+  async () => {
+    const { defineComponent } = await import('vue');
+    return {
+      default: defineComponent({
+        props: { config: { type: Object, required: true } },
+        data() {
+          return {
+            query: { ...this.config.initialQuery },
+            rows: [] as Record<string, unknown>[],
+          };
+        },
+        mounted() {
+          void this.reload();
+        },
+        methods: {
+          async reload() {
+            const result = await this.config.apiService.list({
+              ...this.query,
+              pageIndex: 1,
+              pageSize: 20,
+            });
+            this.rows = result.items;
+          },
+        },
+        template: `<main>
+          <slot name="search-field-orgId" :search-state="query" />
+          <slot name="toolbar-extra" :is-list-operation-visible="() => true" />
+          <div v-for="record in rows" :key="record.id">
+            <slot name="row-actions" :record="record" />
+          </div>
+        </main>`,
+      }),
+    };
+  },
+);
 vi.mock('../views/api-module', () => ({ moduleFetchEnumOptions: mocks.enums }));
 vi.mock('../views/support-scope-selector.vue', () => ({
   default: {

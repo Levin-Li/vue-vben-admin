@@ -6,7 +6,11 @@ export interface WorkflowTaskAction {
   addSignPositions?: WorkflowOption[];
   candidateUsers?: WorkflowOption[];
   code: string;
+  /** 本动作允许编辑的字段，只能收窄节点公开的可写字段。 */
+  editableFields?: string[];
   label: string;
+  /** 本动作额外必填字段，服务端授权后返回。 */
+  requiredFields?: string[];
   requiresComment?: boolean;
   returnTargets?: WorkflowOption[];
 }
@@ -72,10 +76,16 @@ export type WorkflowNodeStatus =
   | 'pending'
   | 'skipped';
 export interface WorkflowDiagramNode {
+  /** 仅服务端执行事实；不从浏览器点击次数计算会签或并行进度。 */
+  completedCount?: null | number;
   id: string;
   name: string;
   status?: WorkflowNodeStatus;
+  totalCount?: null | number;
   type?: string;
+  waitingCount?: null | number;
+  x?: number;
+  y?: number;
 }
 export interface WorkflowDiagramEdge {
   id: string;
@@ -104,11 +114,14 @@ export interface WorkflowInstanceOperationCommand extends WorkflowBusinessRefere
 export interface WorkflowTaskView {
   actions?: WorkflowTaskAction[];
   allowedOperations?: string[];
+  allowedStateEvents?: WorkflowOption[];
   businessBasisChanged?: boolean;
   businessFields?: WorkflowBusinessField[];
   businessId?: string;
+  businessRevision?: string;
   businessTitle?: string;
   businessType?: string;
+  canSave?: boolean;
   detailComponentKey?: string;
   effectStatus?: string;
   executionStatus?: string;
@@ -121,7 +134,10 @@ export interface WorkflowTaskView {
   processDiagramEdges?: WorkflowDiagramEdge[];
   processDiagramNodes?: WorkflowDiagramNode[];
   processInstanceId?: string;
+  /** 固定版本模型标识，任务图不按第三版树或第四版状态图解释。 */
+  processSchemaVersion?: number;
   requiredFields?: string[];
+  stateVisitId?: string;
   status?: string;
   taskDefinitionKey?: string;
   taskId: string;
@@ -146,6 +162,7 @@ export interface WorkflowRuntimePageQuery {
 
 export interface WorkflowInstanceView {
   allowedOperations?: string[];
+  allowedStateEvents?: WorkflowOption[];
   attemptNo?: number;
   businessBasisChanged?: boolean;
   businessContractVersion?: string;
@@ -164,10 +181,13 @@ export interface WorkflowInstanceView {
   processDefinitionId?: string;
   processDiagramEdges?: WorkflowDiagramEdge[];
   processDiagramNodes?: WorkflowDiagramNode[];
+  /** 固定版本模型标识，任务图不按第三版树或第四版状态图解释。 */
+  processSchemaVersion?: number;
   purposeKey?: string;
   roundId?: string;
   /** 平台用途运行记录标识，显式重提必须引用它而不是引擎实例标识。 */
   runId?: string;
+  stateVisitId?: string;
   status: string;
   tenantId?: string;
   timeline?: WorkflowTimelineItem[];
@@ -198,6 +218,16 @@ export interface WorkflowVerificationChallenge {
   successful: boolean;
   taskId: string;
   verificationType: string;
+}
+
+/** 保存仅写授权字段，固定修订与去重键不推进任务。 */
+export interface WorkflowTaskSaveRequest {
+  actionCode: 'save';
+  attachmentIds?: string[];
+  expectedBusinessRevision: string;
+  formData: Record<string, unknown>;
+  idempotencyKey: string;
+  taskId: string;
 }
 
 export interface WorkflowCompleteRequest extends WorkflowActionInput {
@@ -252,4 +282,12 @@ export interface WorkflowStartPageQuery {
   pageIndex?: number;
   pageSize?: number;
   tenantId?: string;
+}
+
+/** 事件不携带目标状态，服务端以固定版本、旧访问和最新业务值决定路线。 */
+export interface WorkflowStateEventCommand {
+  eventId: string;
+  expectedVisitId: string;
+  idempotencyKey: string;
+  instanceId: string;
 }

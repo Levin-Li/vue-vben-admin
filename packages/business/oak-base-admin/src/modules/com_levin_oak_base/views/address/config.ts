@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { addressService } from '../../api/address-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -22,6 +23,7 @@ export const addressPageCrudConfig: CrudPageConfig = {
   apiBase: '/Address',
   domainObject: true,
   apiService: addressService,
+  dataAttrTargets: standardCrudDataAttrTargets(addressService),
   defaultFormValues: {
     category: 'ReceiveAndSend',
     editable: true,

@@ -7,6 +7,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import WorkflowRuntimeWorkbench from './workflow-runtime-workbench.vue';
 
+vi.mock(
+  '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue',
+  async () => {
+    const component = await import('./workflow-personal-crud-test-double');
+    return { default: component.default };
+  },
+);
+
 vi.mock('@levin/admin-framework', () => ({
   RequestService: class {
     basePath = '';
@@ -50,6 +58,51 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 describe('工作流邮件链接定位', () => {
+  it('正式保存失败重试复用原命令，成功仍保留待办且不触发完成', async () => {
+    const savedTask = {
+      ...task,
+      canSave: true,
+      businessRevision: 'r2',
+      formItems: [{ key: 'reason', label: '原因', required: true }],
+    };
+    const saveTask = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('temporary'))
+      .mockResolvedValue(savedTask);
+    const { wrapper } = setup({
+      canSaveTask: true,
+      loadTargetTask: vi
+        .fn()
+        .mockResolvedValue({ ...savedTask, businessRevision: 'r1' }),
+      service: { saveTask } as unknown as WorkflowRuntimeService,
+    });
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '保存，暂不提交')
+      ?.trigger('click');
+    await flushPromises();
+    expect(saveTask).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain('保存未成功');
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '保存，暂不提交')
+      ?.trigger('click');
+    await flushPromises();
+    expect(saveTask).toHaveBeenCalledTimes(2);
+    expect(saveTask.mock.calls[0]).toEqual(saveTask.mock.calls[1]);
+    expect(saveTask.mock.calls[0]?.[0]).toMatchObject({
+      taskId: task.taskId,
+      actionCode: 'save',
+      expectedBusinessRevision: 'r1',
+      formData: {},
+    });
+    expect(wrapper.emitted('saved')).toHaveLength(1);
+    expect(wrapper.emitted('completed')).toBeUndefined();
+    expect(wrapper.text()).toContain('保存，暂不提交');
+    wrapper.unmount();
+  });
+
   it('关键依据变化阻断审批但保留服务端授权的撤回入口', async () => {
     const { wrapper, api } = setup({
       canWithdraw: true,

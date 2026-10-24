@@ -127,6 +127,22 @@ export const useTabbarStore = defineStore('core-tabbar', {
         return tab;
       }
 
+      // 路由改为按路径复用页签后，清除当前会话中旧版按完整 URL 保存的同页签。
+      if (routeTab.meta?.fullPathKey === false && tab.key === tab.path) {
+        const staleKeys = this.tabs
+          .filter(
+            (item) =>
+              item.path === tab.path && getTabKeyFromTab(item) !== tab.key,
+          )
+          .map((item) => getTabKeyFromTab(item));
+        if (staleKeys.length > 0) {
+          this.tabs = this.tabs.filter(
+            (item) => !staleKeys.includes(getTabKeyFromTab(item)),
+          );
+          if (isVisitHistory()) this.visitHistory.remove(...staleKeys);
+        }
+      }
+
       const tabIndex = this.tabs.findIndex((item) => {
         return equalTab(item, tab);
       });

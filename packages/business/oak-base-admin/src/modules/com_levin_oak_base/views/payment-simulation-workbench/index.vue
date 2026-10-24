@@ -325,7 +325,13 @@ onMounted(loadWorkbenchStatus);
           </Card>
 
           <Card size="small" title="创建与推进">
-            <Form class="payment-simulation-workbench__form">
+            <Form
+              id="payment-simulation-workbench-create-advance"
+              name="paymentSimulationWorkbenchCreateAdvance"
+              data-form-id="payment-simulation-workbench-create-advance"
+              data-form-name="支付模拟创建与推进"
+              class="payment-simulation-workbench__form"
+            >
               <Form.Item label="供应商">
                 <Select
                   v-model:value="formState.providerCode"

@@ -29,6 +29,12 @@ export interface CreateOakBaseAdminCrudRoutesOptions {
 
 export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   {
+    icon: 'lucide:database-zap',
+    name: 'DataModel',
+    resource: 'DataModel',
+    title: '数据模型',
+  },
+  {
     icon: 'lucide:bot-message-square',
     name: 'RobotNotifyGroup',
     resource: 'RobotNotifyGroup',
@@ -111,6 +117,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     name: 'AccessLog',
     resource: 'AccessLog',
     title: '访问日志',
+  },
+  {
+    icon: 'lucide:chart-no-axes-combined',
+    name: 'DailyAccessStat',
+    resource: 'DailyAccessStat',
+    title: '性能监控',
   },
   {
     icon: 'lucide:map-pin',
@@ -226,10 +238,10 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '电子发票',
   },
   {
-    icon: 'lucide:plug-zap',
+    icon: 'lucide:badge-check',
     name: 'EInvoiceProviderConnection',
     resource: 'EInvoiceProviderConnection',
-    title: '电子发票供应商连接',
+    title: '电子发票授权',
   },
   {
     icon: 'lucide:shield-check',
@@ -336,8 +348,8 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   },
   {
     icon: 'lucide:receipt-text',
-    name: 'SettlementStatement',
-    resource: 'SettlementStatement',
+    name: 'SettlementOrder',
+    resource: 'SettlementOrder',
     title: '结算单',
   },
   {
@@ -495,9 +507,9 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   { icon: 'lucide:user', name: 'User', resource: 'User', title: '用户管理' },
   {
     icon: 'lucide:link-2',
-    name: 'RecommendationLink',
-    resource: 'RecommendationLink',
-    title: '邀请注册链接',
+    name: 'InvitationLink',
+    resource: 'InvitationLink',
+    title: '邀请链接',
   },
   {
     icon: 'lucide:user-cog',
@@ -511,6 +523,7 @@ export const oakBaseAdminResourceViewMap: Record<
   string,
   NonNullable<RouteRecordRaw['component']>
 > = {
+  DataModel: () => import('./views/data-model/index.vue'),
   RobotNotifyGroup: () => import('./views/robot-notify-group/index.vue'),
   WorkflowNotificationRoute: () =>
     import('./views/workflow-notification-route/index.vue'),
@@ -520,6 +533,7 @@ export const oakBaseAdminResourceViewMap: Record<
   WorkflowStart: () => import('./views/workflow-start/index.vue'),
   MyWorkflow: () => import('./views/my-workflow/index.vue'),
   AccessLog: () => import('./views/access-log/index.vue'),
+  DailyAccessStat: () => import('./views/daily-access-stat/index.vue'),
   AuditReport: () => import('./views/audit-report/index.vue'),
   BackendFixedJob: () => import('./views/backend-fixed-job/index.vue'),
   Address: () => import('./views/address/index.vue'),
@@ -571,7 +585,7 @@ export const oakBaseAdminResourceViewMap: Record<
   PayOrder: () => import('./views/pay-order/index.vue'),
   PaymentSimulationWorkbench: () =>
     import('./views/payment-simulation-workbench/index.vue'),
-  SettlementStatement: () => import('./views/settlement-statement/index.vue'),
+  SettlementOrder: () => import('./views/settlement-order/index.vue'),
   SupplierPartner: () => import('./views/supplier-partner/index.vue'),
   ChannelPartner: () => import('./views/channel-partner/index.vue'),
   RbacPermissionItem: () => import('./views/rbac-permission-item/index.vue'),
@@ -599,9 +613,25 @@ export const oakBaseAdminResourceViewMap: Record<
   TrafficControlRule: () => import('./views/traffic-control-rule/index.vue'),
   UrlExAcl: () => import('./views/url-ex-acl/index.vue'),
   User: () => import('./views/user/index.vue'),
-  RecommendationLink: () => import('./views/recommendation-link/index.vue'),
+  InvitationLink: () => import('./views/invitation-link/index.vue'),
   UserSetting: () => import('./views/user-setting/index.vue'),
 };
+
+// 工作流入口统一归组；实际导航仅重排已授权菜单，页面地址和权限保持原值。
+export const oakWorkflowMenuGroup = {
+  icon: 'lucide:git-branch',
+  parentPath: '/clob/V1/index',
+  path: '/clob/V1/index/groups/工作流',
+  title: '工作流',
+};
+export const oakWorkflowResources: readonly string[] = [
+  'WorkflowDefinition',
+  'WorkflowStart',
+  'MyWorkflow',
+  'WorkflowInstance',
+  'WorkflowNotificationRoute',
+  'WorkflowRequest',
+];
 
 const menuGroups = [
   [
@@ -609,7 +639,7 @@ const menuGroups = [
     'lucide:shield-check',
     [
       'User',
-      'RecommendationLink',
+      'InvitationLink',
       'Role',
       'Org',
       'OrgUser',
@@ -641,7 +671,7 @@ const menuGroups = [
     '支付&交易',
     'lucide:wallet-cards',
     [
-      'SettlementStatement',
+      'SettlementOrder',
       'PayOrder',
       'PayChannel',
       'FundAccount',
@@ -684,15 +714,13 @@ const menuGroups = [
       'PlatformDomain',
     ],
   ],
+  [oakWorkflowMenuGroup.title, oakWorkflowMenuGroup.icon, oakWorkflowResources],
   [
     '开发&工具',
     'lucide:code-2',
     [
+      'DataModel',
       'OnlineCodeGen',
-      'WorkflowNotificationRoute',
-      'WorkflowDefinition',
-      'WorkflowInstance',
-      'WorkflowRequest',
       'SimpleForm',
       'SimpleApi',
       'SimplePage',
@@ -711,17 +739,14 @@ const menuGroups = [
       'I18nRes',
     ],
   ],
-  [
-    '个人&中心',
-    'lucide:circle-user-round',
-    ['MySetting', 'MyMessages', 'WorkflowStart', 'MyWorkflow'],
-  ],
+  ['个人&中心', 'lucide:circle-user-round', ['MySetting', 'MyMessages']],
   [
     '运维&审计',
     'lucide:clipboard-check',
     [
       'NotificationAudit',
       'AccessLog',
+      'DailyAccessStat',
       'AuditReport',
       'BackendFixedJob',
       'TrafficControlRule',

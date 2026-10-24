@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { nationService } from '../../api/nation-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   currencyCodeOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -16,6 +17,7 @@ export const pageMeta = {
 export const nationPageCrudConfig: CrudPageConfig = {
   apiBase: '/Nation',
   apiService: nationService,
+  dataAttrTargets: standardCrudDataAttrTargets(nationService),
   defaultFormValues: {
     enable: true,
     orderCode: 100,

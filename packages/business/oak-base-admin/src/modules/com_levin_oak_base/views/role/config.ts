@@ -1,8 +1,11 @@
-import { computed, ref, watch } from 'vue';
-
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { computed, ref, watch } from 'vue';
+
+import { buildCrudOperationPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+
 import { roleService } from '../../api/role-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   confidentialLevelOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -10,10 +13,9 @@ import {
   roleOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
-import { buildCrudOperationPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import {
-  getDataPermissionCount,
-  getResourcePermissionCount,
+  getDataPermissionBadgeItems,
+  getResourcePermissionBadgeItems,
 } from '../permission-action-counts';
 
 const roleTypeOptionsLoader = () =>
@@ -62,6 +64,7 @@ export const rolePageCrudConfig: CrudPageConfig = {
   apiBase: '/Role',
   domainObject: true,
   apiService: roleService,
+  dataAttrTargets: standardCrudDataAttrTargets(roleService),
   allowRetrieve: true,
   defaultFormValues: {
     editable: true,
@@ -344,7 +347,7 @@ export function useRolePageConfig() {
     rowActions: [
       ...(rolePageCrudConfig.rowActions || []),
       {
-        badgeCount: getResourcePermissionCount,
+        badgeItems: getResourcePermissionBadgeItems,
         handler: async (record: Record<string, any>) => {
           selectedResourcePermissionRecord.value = record;
           resourcePermissionDialogOpen.value = true;
@@ -357,7 +360,7 @@ export function useRolePageConfig() {
         successMessage: false as const,
       },
       {
-        badgeCount: getDataPermissionCount,
+        badgeItems: getDataPermissionBadgeItems,
         handler: async (record: Record<string, any>) => {
           selectedDataPermissionRecord.value = record;
           dataPermissionDialogOpen.value = true;

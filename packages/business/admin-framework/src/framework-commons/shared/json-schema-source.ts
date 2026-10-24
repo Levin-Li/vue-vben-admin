@@ -63,7 +63,9 @@ export function getCrudFieldJsonSchemaInput(field: CrudFieldConfig) {
   );
 }
 
-export function hasJsonSchemaSourceInput(input: JsonSchemaSourceInput) {
+export function hasJsonSchemaSourceInput(
+  input: JsonSchemaSourceInput,
+): input is Record<string, any> | string {
   if (typeof input === 'string') {
     return input.trim().length > 0;
   }
@@ -81,28 +83,40 @@ export function getJsonSchemaSourceInput(
   value?: any,
   record?: Record<string, any>,
 ) {
-  const valueInput = getJsonValueJsonSchemaInput(value);
-
-  if (hasJsonSchemaSourceInput(valueInput)) {
-    return valueInput;
-  }
-
   const fieldInput = getCrudFieldJsonSchemaInput(field);
 
   if (typeof fieldInput === 'string' && fieldInput.trim().startsWith(':')) {
     const fieldKey = fieldInput.trim().slice(1);
 
+    // 显式引用只允许安全的单层属性名，不解析路径或表达式。
     if (
       !/^[A-Z_$][\w$]*$/i.test(fieldKey) ||
-      ['__proto__', 'constructor', 'prototype'].includes(fieldKey) ||
-      !record ||
-      !Object.prototype.hasOwnProperty.call(record, fieldKey)
+      ['__proto__', 'constructor', 'prototype'].includes(fieldKey)
     ) {
       return undefined;
     }
 
-    const sourceInput = record[fieldKey];
-    return resolveJsonSchemaSource(sourceInput) ? sourceInput : undefined;
+    // 同层属性优先；无有效来源时才读取被注解字段的 JSON 内容。
+    const valueRecord = parseObjectRecord(value);
+    for (const sourceRecord of [record, valueRecord]) {
+      if (
+        sourceRecord &&
+        Object.prototype.hasOwnProperty.call(sourceRecord, fieldKey)
+      ) {
+        const sourceInput = sourceRecord[fieldKey];
+        if (resolveJsonSchemaSource(sourceInput)) {
+          return sourceInput;
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  // 未声明显式属性引用的字段沿用 JSON 内容元数据的解析顺序。
+  const valueInput = getJsonValueJsonSchemaInput(value);
+  if (hasJsonSchemaSourceInput(valueInput)) {
+    return valueInput;
   }
 
   return hasJsonSchemaSourceInput(fieldInput) ? fieldInput : undefined;

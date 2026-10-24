@@ -51,6 +51,12 @@ export function collectKnownPermissionTreeValues(nodes: PermissionTreeNode[]) {
     }
     for (const group of node.attrGroups || []) {
       if (group.permissionExpr) values.add(group.permissionExpr);
+      if (
+        node.permissionExpr &&
+        group.entityScope &&
+        group.legacyPermissionExpr
+      )
+        values.add(group.legacyPermissionExpr);
     }
     for (const childValue of collectKnownPermissionTreeValues([
       ...(node.children || []),

@@ -108,7 +108,14 @@ onMounted(loadOptions);
         type="info"
         message="本页只在非生产环境可用。顶部全局领域、组织和用户选择器会自动写入 X-Oak Header；本表单的显式选择用于验证原值优先。"
       />
-      <Form layout="vertical" class="grid gap-x-4 md:grid-cols-2">
+      <Form
+        id="named-scope-variable-acceptance"
+        name="namedScopeVariableAcceptance"
+        data-form-id="named-scope-variable-acceptance"
+        data-form-name="具名数据范围变量验收"
+        layout="vertical"
+        class="grid gap-x-4 md:grid-cols-2"
+      >
         <Form.Item label="显式租户">
           <Select
             v-model:value="values.tenantId"

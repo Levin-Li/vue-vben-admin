@@ -655,15 +655,20 @@ describe('crud page display rules', () => {
       ]),
     ).toBe(true);
     expect(
+      isRoleVisibilitySatisfied(getDefaultVisibleRoleCodes('domainId'), [
+        'R_PLATFORM_SA',
+      ]),
+    ).toBe(true);
+    expect(
       isRoleVisibilitySatisfied(getDefaultVisibleRoleCodes('tenantId'), [
-        'R_SA',
+        'R_PLATFORM_ADMIN',
       ]),
     ).toBe(false);
     expect(
       isRoleVisibilitySatisfied(getDefaultVisibleRoleCodes('orgId'), [
-        'R_SAAS_ADMIN',
+        'R_PLATFORM_ADMIN',
       ]),
-    ).toBe(false);
+    ).toBe(true);
     expect(getDefaultVisibleRoleCodes('name')).toEqual([]);
   });
 
@@ -1064,5 +1069,50 @@ describe('运行与设置面板共用默认配置', () => {
         keepAlive: 'false',
       } as unknown as CrudPageDisplayConfig).keepAlive,
     ).toBeUndefined();
+  });
+});
+
+describe('页面字段元数据的展示缺省', () => {
+  it('按视图保留字段候选，显式UI隐藏和角色设置优先于缺省', () => {
+    const field = {
+      key: 'tenantId',
+      label: '租户',
+      table: true,
+      defaultHidden: { create: true, query: true, list: true },
+      defaultVisibleRoleCodes: [],
+    };
+    expect(getDefaultFieldHidden(field, { view: 'create' })).toBe(true);
+    expect(getDefaultFieldHidden(field, { view: 'query' })).toBe(true);
+    expect(getDefaultVisibleRoleCodes(field)).toEqual([]);
+    expect(initializeFieldHidden(field, { view: 'create' })).toBe(true);
+    expect(
+      initializeFieldHidden({ ...field, hidden: false }, { view: 'create' }),
+    ).toBe(false);
+    expect(initializeVisibleRoleCodes(field)).toEqual([]);
+    expect(
+      initializeVisibleRoleCodes({ ...field, visibleRoleCodes: ['CUSTOM'] }),
+    ).toEqual(['CUSTOM']);
+    expect(
+      resolveRuntimeDisplayField(
+        { key: field.key, hidden: false },
+        { view: 'create' },
+      ).hidden,
+    ).toBe(false);
+    const headers = reconcileCrudPageDisplayHeaders([], [field]);
+    expect(headers).toHaveLength(1);
+    expect(headers[0]?.visible?.mode).toBe('hidden');
+    expect(headers[0]?.visibleRoleCodes).toEqual([]);
+    const explicit = reconcileCrudPageDisplayHeaders(
+      [
+        {
+          key: field.key,
+          visible: { mode: 'always' },
+          visibleRoleCodes: ['CUSTOM'],
+        },
+      ],
+      [field],
+    );
+    expect(explicit[0]?.visible?.mode).toBe('always');
+    expect(explicit[0]?.visibleRoleCodes).toEqual(['CUSTOM']);
   });
 });

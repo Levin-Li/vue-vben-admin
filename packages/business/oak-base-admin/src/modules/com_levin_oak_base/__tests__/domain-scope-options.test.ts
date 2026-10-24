@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { loadDomainScopeOptions } from '../domain-scope-options';
+import {
+  loadDataPermissionDomainOptions,
+  loadDomainScopeOptions,
+} from '../domain-scope-options';
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -53,5 +56,29 @@ describe('loadDomainScopeOptions', () => {
       keyword: '支付',
       typePrefix: 'payment.',
     });
+  });
+});
+
+describe('数据权限领域候选', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('不依赖全局选择器配置，列出当前操作者全部授权领域', async () => {
+    mocks.authorizedList.mockResolvedValue([
+      { id: 'domain-1', name: '支付领域' },
+      { id: 'domain-2', name: '订单领域' },
+    ]);
+
+    await expect(loadDataPermissionDomainOptions()).resolves.toEqual([
+      { label: '支付领域', value: 'domain-1' },
+      { label: '订单领域', value: 'domain-2' },
+    ]);
+    expect(mocks.get).not.toHaveBeenCalled();
+    expect(mocks.authorizedList).toHaveBeenCalledWith(undefined);
+  });
+
+  it('搜索时只向授权接口提交关键词', async () => {
+    mocks.authorizedList.mockResolvedValue([]);
+    await loadDataPermissionDomainOptions('  支付  ');
+    expect(mocks.authorizedList).toHaveBeenCalledWith({ keyword: '支付' });
   });
 });

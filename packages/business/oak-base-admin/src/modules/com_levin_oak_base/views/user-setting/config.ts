@@ -2,6 +2,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { userSettingService } from '../../api/user-setting-service';
 import {
   buildEnumOptionsLoader,
@@ -25,6 +26,7 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/UserSetting',
   domainObject: true,
   apiService: userSettingService,
+  dataAttrTargets: standardCrudDataAttrTargets(userSettingService),
   defaultFormValues: {
     editable: true,
     enable: true,

@@ -21,7 +21,10 @@ const props = withDefaults(
     readonly?: boolean;
     validators?: Record<string, WorkflowBusinessAction>;
     variableLabels?: Record<string, string>;
-    variableOptions?: Record<string, string[]>;
+    variableOptions?: Record<
+      string,
+      (string | { label: string; value: number | string })[]
+    >;
     variables?: Record<string, WorkflowVariable>;
   }>(),
   {
@@ -82,7 +85,17 @@ const literal = computed(() =>
 const variableType = computed(
   () => props.variables[variable.value]?.type ?? 'string',
 );
-const enumOptions = computed(() => props.variableOptions[variable.value] ?? []);
+const enumOptions = computed(() =>
+  (props.variableOptions[variable.value] ?? []).map((option) =>
+    typeof option === 'string' ? { value: option, label: option } : option,
+  ),
+);
+function optionValue(value: string): unknown {
+  return (
+    enumOptions.value.find((option) => String(option.value) === value)?.value ??
+    value
+  );
+}
 
 // 修改运算符时新建符合形状的节点；比较值保持声明类型，布尔 false 不视作空值。
 function changeOperator(value: string) {
@@ -137,7 +150,8 @@ function updateVariable(key: string) {
 }
 function updateLiteral(event: Event) {
   const value = (event.target as HTMLInputElement).value;
-  let literalValue: unknown = value;
+  let literalValue: unknown =
+    enumOptions.value.length > 0 ? optionValue(value) : value;
   if (variableType.value === 'boolean') literalValue = value === 'true';
   if (variableType.value === 'integer' || variableType.value === 'decimal')
     literalValue = value === '' ? null : Number(value);
@@ -159,9 +173,8 @@ function updateCollection(event: Event) {
 function updateEnumCollection(event: Event) {
   updateLeaf(
     variable.value,
-    Array.from(
-      (event.target as HTMLSelectElement).selectedOptions,
-      (option) => option.value,
+    Array.from((event.target as HTMLSelectElement).selectedOptions, (option) =>
+      optionValue(option.value),
     ),
   );
 }
@@ -304,12 +317,14 @@ function updateDependency(patch: { outcome?: string; purposeKey?: string }) {
             @change="updateEnumCollection"
           >
             <option
-              v-for="value in enumOptions"
-              :key="value"
-              :selected="Array.isArray(literal) && literal.includes(value)"
-              :value="value"
+              v-for="option in enumOptions"
+              :key="String(option.value)"
+              :selected="
+                Array.isArray(literal) && literal.includes(option.value)
+              "
+              :value="String(option.value)"
             >
-              {{ value }}
+              {{ option.label }}
             </option>
           </select>
           <textarea
@@ -339,8 +354,12 @@ function updateDependency(patch: { outcome?: string; purposeKey?: string }) {
             @change="updateLiteral"
           >
             <option value="">选择业务取值</option>
-            <option v-for="value in enumOptions" :key="value" :value="value">
-              {{ value }}
+            <option
+              v-for="option in enumOptions"
+              :key="String(option.value)"
+              :value="String(option.value)"
+            >
+              {{ option.label }}
             </option>
           </select>
           <input

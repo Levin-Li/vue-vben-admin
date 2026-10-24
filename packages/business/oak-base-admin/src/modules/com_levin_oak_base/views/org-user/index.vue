@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { SelectOption } from '@levin/admin-framework';
 
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
@@ -41,7 +41,8 @@ import {
 } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
 import { loadDomainScopeOptions } from '../../domain-scope-options';
-import { getDataPermissionCount } from '../permission-action-counts';
+import { loadRolePermissionRecords } from '../load-role-permission-records';
+import { getUserDataPermissionBadgeItems } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from '../user/config';
 
 // 数据权限弹窗只接受字符串 ID，在页面边界规范化公共候选。
@@ -120,6 +121,7 @@ const ORG_TYPE_LABEL_MAP: Record<string, string> = {
 
 const dialogOpen = ref(false);
 const pageKey = ref(0);
+const permissionRoleRecords = ref<Array<Record<string, any>>>([]);
 const selectedRecord = ref<null | Record<string, any>>(null);
 const roleModalOpen = ref(false);
 const roleSubmitting = ref(false);
@@ -217,50 +219,54 @@ const orgTypeLegendItems = computed(() => {
     });
 });
 
-const userConfig = computed(() => ({
-  ...userPageCrudConfig,
-  defaultFormValues: {
-    ...userPageCrudConfig.defaultFormValues,
-    orgId: selectedOrgId.value || undefined,
-  },
-  defaultQuery: {
-    ...userPageCrudConfig.defaultQuery,
-    orgId: selectedOrgId.value,
-  },
-  fields: userPageCrudConfig.fields.map((field) =>
-    field.key === 'orgId'
-      ? {
-          ...field,
-          search: false,
-        }
-      : field,
-  ),
-  rowActions: [
-    ...(userPageCrudConfig.rowActions || []),
-    {
-      handler: async (record: Record<string, any>) => {
-        await openRoleModal(record);
-      },
-      label: '分配角色',
-      permission: buildApiMethodPermissions(userService, 'assignRoles'),
-      reloadAfterAction: false,
-      successMessage: false as const,
+const userConfig = computed(() => {
+  const roleRecords = permissionRoleRecords.value;
+  return {
+    ...userPageCrudConfig,
+    defaultFormValues: {
+      ...userPageCrudConfig.defaultFormValues,
+      orgId: selectedOrgId.value || undefined,
     },
-    {
-      badgeCount: getDataPermissionCount,
-      handler: async (record: Record<string, any>) => {
-        selectedRecord.value = record;
-        dialogOpen.value = true;
-      },
-      label: '数据权限分配',
-      permission:
-        userPageCrudConfig.editPermission ||
-        buildCrudOperationPermissions(userPageCrudConfig, 'update'),
-      reloadAfterAction: false,
-      successMessage: false as const,
+    defaultQuery: {
+      ...userPageCrudConfig.defaultQuery,
+      orgId: selectedOrgId.value,
     },
-  ],
-}));
+    fields: userPageCrudConfig.fields.map((field) =>
+      field.key === 'orgId'
+        ? {
+            ...field,
+            search: false,
+          }
+        : field,
+    ),
+    rowActions: [
+      ...(userPageCrudConfig.rowActions || []),
+      {
+        handler: async (record: Record<string, any>) => {
+          await openRoleModal(record);
+        },
+        label: '分配角色',
+        permission: buildApiMethodPermissions(userService, 'assignRoles'),
+        reloadAfterAction: false,
+        successMessage: false as const,
+      },
+      {
+        badgeItems: (record: Record<string, any>) =>
+          getUserDataPermissionBadgeItems(record, roleRecords),
+        handler: async (record: Record<string, any>) => {
+          selectedRecord.value = record;
+          dialogOpen.value = true;
+        },
+        label: '数据权限分配',
+        permission:
+          userPageCrudConfig.editPermission ||
+          buildCrudOperationPermissions(userPageCrudConfig, 'update'),
+        reloadAfterAction: false,
+        successMessage: false as const,
+      },
+    ],
+  };
+});
 
 const crudPageKey = computed(
   () => `${pageKey.value}-${selectedOrgId.value || 'none'}`,
@@ -312,7 +318,9 @@ function groupOrgTreeByTenant(
 }
 
 function getOrgTypeIcon(type?: string) {
-  return type ? ORG_TYPE_ICON_MAP[type] || 'lucide:building' : 'lucide:building';
+  return type
+    ? ORG_TYPE_ICON_MAP[type] || 'lucide:building'
+    : 'lucide:building';
 }
 
 function getOrgTypeLabel(type?: string) {
@@ -327,7 +335,9 @@ function getOrgTypeLabel(type?: string) {
 
 function toStringSelectOptions(options: SelectOption[]): StringSelectOption[] {
   return options.map((option) => ({
-    children: option.children ? toStringSelectOptions(option.children) : undefined,
+    children: option.children
+      ? toStringSelectOptions(option.children)
+      : undefined,
     disabled: option.disabled,
     label: option.label,
     value: String(option.value),
@@ -671,8 +681,24 @@ watch(orgKeyword, (keyword) => {
 });
 
 onMounted(async () => {
+  refreshRolePermissionRecords();
   await Promise.all([loadOrgTree(), loadOrgOptions()]);
 });
+
+let rolePermissionLoad: null | Promise<Array<Record<string, any>>> = null;
+function refreshRolePermissionRecords() {
+  if (rolePermissionLoad) return;
+  rolePermissionLoad = loadRolePermissionRecords();
+  void rolePermissionLoad
+    .then((records) => {
+      permissionRoleRecords.value = records;
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      rolePermissionLoad = null;
+    });
+}
+onActivated(refreshRolePermissionRecords);
 </script>
 
 <template>
@@ -760,74 +786,74 @@ onMounted(async () => {
             class="user-org-tree"
             @select="handleOrgSelect"
           >
-          <template #title="node">
-            <div
-              :class="{
-                'user-org-tree-node--actions-visible':
-                  hoveredOrgId === String(node.key),
-              }"
-              class="user-org-tree-node"
-              tabindex="0"
-              @focusin="hoveredOrgId = String(node.key)"
-              @focusout="handleOrgNodeFocusOut"
-              @mouseenter="hoveredOrgId = String(node.key)"
-              @mouseleave="hoveredOrgId = ''"
-            >
-              <span
-                class="user-org-tree-node-title min-w-0 flex flex-1 items-center gap-2 truncate"
+            <template #title="node">
+              <div
+                :class="{
+                  'user-org-tree-node--actions-visible':
+                    hoveredOrgId === String(node.key),
+                }"
+                class="user-org-tree-node"
+                tabindex="0"
+                @focusin="hoveredOrgId = String(node.key)"
+                @focusout="handleOrgNodeFocusOut"
+                @mouseenter="hoveredOrgId = String(node.key)"
+                @mouseleave="hoveredOrgId = ''"
               >
-                <Tooltip :title="getOrgTypeLabel(node.type)">
-                  <IconifyIcon
-                    aria-hidden="true"
-                    class="user-org-tree-node-icon size-4"
-                    :icon="getOrgTypeIcon(node.type)"
-                  />
-                </Tooltip>
-                <span class="min-w-0 truncate">{{ node.title }}</span>
-              </span>
-              <span
-                v-if="!node.virtual && hoveredOrgId === String(node.key)"
-                class="user-org-tree-actions"
-              >
-                <Tooltip title="新增下级组织">
-                  <Button
-                    aria-label="新增下级组织"
-                    size="small"
-                    type="text"
-                    @click.stop="openCreateOrgModal(String(node.key))"
-                  >
-                    <IconifyIcon aria-hidden="true" icon="lucide:plus" />
-                  </Button>
-                </Tooltip>
-                <Tooltip title="编辑组织">
-                  <Button
-                    aria-label="编辑组织"
-                    size="small"
-                    type="text"
-                    @click.stop="openEditOrgModal(String(node.key))"
-                  >
-                    <IconifyIcon aria-hidden="true" icon="lucide:pencil" />
-                  </Button>
-                </Tooltip>
-                <Popconfirm
-                  title="确认删除当前组织节点吗？"
-                  @confirm="deleteOrg(String(node.key))"
+                <span
+                  class="user-org-tree-node-title flex min-w-0 flex-1 items-center gap-2 truncate"
                 >
-                  <Tooltip title="删除组织">
+                  <Tooltip :title="getOrgTypeLabel(node.type)">
+                    <IconifyIcon
+                      aria-hidden="true"
+                      class="user-org-tree-node-icon size-4"
+                      :icon="getOrgTypeIcon(node.type)"
+                    />
+                  </Tooltip>
+                  <span class="min-w-0 truncate">{{ node.title }}</span>
+                </span>
+                <span
+                  v-if="!node.virtual && hoveredOrgId === String(node.key)"
+                  class="user-org-tree-actions"
+                >
+                  <Tooltip title="新增下级组织">
                     <Button
-                      aria-label="删除组织"
-                      danger
+                      aria-label="新增下级组织"
                       size="small"
                       type="text"
-                      @click.stop
+                      @click.stop="openCreateOrgModal(String(node.key))"
                     >
-                      <IconifyIcon aria-hidden="true" icon="lucide:trash-2" />
+                      <IconifyIcon aria-hidden="true" icon="lucide:plus" />
                     </Button>
                   </Tooltip>
-                </Popconfirm>
-              </span>
-            </div>
-          </template>
+                  <Tooltip title="编辑组织">
+                    <Button
+                      aria-label="编辑组织"
+                      size="small"
+                      type="text"
+                      @click.stop="openEditOrgModal(String(node.key))"
+                    >
+                      <IconifyIcon aria-hidden="true" icon="lucide:pencil" />
+                    </Button>
+                  </Tooltip>
+                  <Popconfirm
+                    title="确认删除当前组织节点吗？"
+                    @confirm="deleteOrg(String(node.key))"
+                  >
+                    <Tooltip title="删除组织">
+                      <Button
+                        aria-label="删除组织"
+                        danger
+                        size="small"
+                        type="text"
+                        @click.stop
+                      >
+                        <IconifyIcon aria-hidden="true" icon="lucide:trash-2" />
+                      </Button>
+                    </Tooltip>
+                  </Popconfirm>
+                </span>
+              </div>
+            </template>
           </Tree>
           <Empty v-else description="暂无组织" />
         </div>
@@ -861,7 +887,13 @@ onMounted(async () => {
       :width="720"
       @ok="submitRoleForm"
     >
-      <Form layout="vertical">
+      <Form
+        id="org-user-role-assignment"
+        name="orgUserRoleAssignment"
+        data-form-id="org-user-role-assignment"
+        data-form-name="分配角色"
+        layout="vertical"
+      >
         <Form.Item label="角色">
           <Select
             v-model:value="roleFormState.roleList"
@@ -887,8 +919,14 @@ onMounted(async () => {
       :width="DEFAULT_CRUD_MODAL_WIDTH"
       @ok="submitOrgForm"
     >
-      <Form layout="vertical">
-        <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+      <Form
+        id="org-user-org-edit"
+        name="orgUserOrgEdit"
+        data-form-id="org-user-org-edit"
+        data-form-name="新增或编辑组织"
+        layout="vertical"
+      >
+        <div class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
           <Form.Item label="上级组织">
             <TreeSelect
               v-model:value="orgFormState.parentId"
@@ -902,7 +940,11 @@ onMounted(async () => {
             />
           </Form.Item>
           <Form.Item
-            v-if="orgModalMode === 'create' && isPlatformUser && !orgFormState.parentId"
+            v-if="
+              orgModalMode === 'create' &&
+              isPlatformUser &&
+              !orgFormState.parentId
+            "
             label="归属租户"
             required
           >
@@ -951,7 +993,7 @@ onMounted(async () => {
           <Form.Item v-if="shouldShowOrgEditableControl" label="是否可编辑">
             <Switch v-model:checked="orgFormState.editable" />
           </Form.Item>
-          <Form.Item class="col-span-2" label="备注">
+          <Form.Item class="sm:col-span-2" label="备注">
             <Input.TextArea
               v-model:value="orgFormState.remark"
               :rows="3"

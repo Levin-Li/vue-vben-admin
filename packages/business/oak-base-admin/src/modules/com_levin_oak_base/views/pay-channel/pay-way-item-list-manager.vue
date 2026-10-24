@@ -347,8 +347,15 @@ onMounted(async () => {
     width="fit-content"
     @ok="handleSave"
   >
-    <Form class="w-[560px] max-w-full" layout="vertical">
-      <div class="grid grid-cols-2 gap-x-4">
+    <Form
+      id="pay-channel-pay-way-item-edit"
+      name="payChannelPayWayItemEdit"
+      data-form-id="pay-channel-pay-way-item-edit"
+      data-form-name="新增或编辑支付方式"
+      class="w-[560px] max-w-full"
+      layout="vertical"
+    >
+      <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
         <Form.Item label="标题">
           <Input v-model:value="draft.title" placeholder="请输入标题" />
         </Form.Item>

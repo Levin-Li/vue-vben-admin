@@ -24,7 +24,9 @@ const group = {
   attributes: ['合同金额', '税率', '结算账号'],
   name: '财务信息',
   permissionExpr: expression,
+  remark: '控制合作关系专用收款账户的API输入与输出',
 };
+const entityExpression = 'example:业务数据-合同:DataAttrGroup@finance:access';
 const tree: PermissionTreeNode[] = [
   {
     id: 'module',
@@ -54,7 +56,94 @@ const settle = async () => {
 };
 
 describe('api 属性组授权', () => {
-  it('无组时不增加入口，成员仅在悬停名称时展示', async () => {
+  it('实体节点集中展示同一组，勾选不改变接口操作', async () => {
+    const firstAction = 'example:业务数据-合同::查询列表';
+    const secondAction = 'example:业务数据-合同::查看详情';
+    const entityGroup = {
+      ...group,
+      entityScope: true,
+      name: '财 务 信息',
+      permissionExpr: entityExpression,
+      scopeKey: 'example:业务数据-合同',
+    };
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: 'module',
+            name: '示例',
+            nodeType: 'Module',
+            children: [
+              {
+                id: 'contract-type',
+                name: '合同',
+                nodeType: 'ResourceType',
+                attrGroups: [entityGroup],
+                children: [
+                  {
+                    id: 'contract',
+                    name: '合同',
+                    nodeType: 'Resource',
+                    children: [
+                      {
+                        id: 'list',
+                        name: '查询列表',
+                        nodeType: 'Action',
+                        permissionExpr: firstAction,
+                        attrGroups: [entityGroup],
+                      },
+                      {
+                        id: 'detail',
+                        name: '查看详情',
+                        nodeType: 'Action',
+                        permissionExpr: secondAction,
+                        attrGroups: [entityGroup],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ] as PermissionTreeNode[],
+        value: [firstAction, secondAction],
+      },
+    });
+    expect(wrapper.findAll('[data-test="entity-attr-groups"]')).toHaveLength(1);
+    expect(wrapper.find('[data-test="attr-group-icon"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-test="attr-groups-trigger"]')).toHaveLength(
+      0,
+    );
+    const entityCheckbox = wrapper.get(
+      `[data-test="entity-attr-group-${entityExpression}"]`,
+    );
+    expect(entityCheckbox.element.closest('label')?.textContent).toContain(
+      '财务信息',
+    );
+    await entityCheckbox.setValue(true);
+    expect(
+      new Set(wrapper.emitted('update:value')?.at(-1)?.[0] as string[]),
+    ).toEqual(new Set([entityExpression, firstAction, secondAction]));
+    await wrapper.setProps({
+      value: [firstAction, secondAction, entityExpression],
+    });
+    await wrapper
+      .get(`[data-test="permission-${firstAction}"]`)
+      .setValue(false);
+    const afterFirstRemoval = wrapper
+      .emitted('update:value')
+      ?.at(-1)?.[0] as string[];
+    expect(afterFirstRemoval).toContain(entityExpression);
+    await wrapper.setProps({ value: afterFirstRemoval });
+    await wrapper
+      .get(`[data-test="permission-${secondAction}"]`)
+      .setValue(false);
+    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual([
+      entityExpression,
+    ]);
+  });
+
+  it('无组时不增加入口，悬停仅显示中文属性名称列表', async () => {
     const empty = mount(AttrGroupPermissions, {
       props: { enabled: true, groups: [], selected: [] },
     });
@@ -65,6 +154,7 @@ describe('api 属性组授权', () => {
       attachTo: document.body,
       props: { enabled: true, groups: [group], selected: [] },
     });
+    expect(wrapper.find('[data-test="attr-group-icon"]').exists()).toBe(true);
     expect(wrapper.text()).not.toContain('合同金额');
     await wrapper.get('button').trigger('click');
     await settle();
@@ -75,9 +165,9 @@ describe('api 属性组授权', () => {
     await name.trigger('mouseenter');
     await new Promise((resolve) => setTimeout(resolve, 250));
     await flushPromises();
-    expect(document.body.textContent).toContain(
-      '包含：合同金额、税率、结算账号',
-    );
+    expect(document.body.textContent).toContain('合同金额、税率、结算账号');
+    expect(document.body.textContent).not.toContain('包含：');
+    expect(document.body.textContent).not.toContain(group.remark);
   });
 
   it('同名组显示源实体名称，勾选互相隔离', async () => {
@@ -117,6 +207,26 @@ describe('api 属性组授权', () => {
           .element as HTMLInputElement
       ).checked,
     ).toBe(false);
+  });
+
+  it('悬停 0.7 秒预览已选组，组属性可继续悬停查看', async () => {
+    const wrapper = mount(AttrGroupPermissions, {
+      attachTo: document.body,
+      props: { enabled: true, groups: [group], selected: [expression] },
+    });
+    await wrapper
+      .get('[data-test="attr-groups-trigger"]')
+      .trigger('mouseenter');
+    await new Promise((resolve) => setTimeout(resolve, 750));
+    await flushPromises();
+    const body = new DOMWrapper(document.body);
+    const selected = body.get(
+      `[data-test="selected-attr-group-${expression}"]`,
+    );
+    expect(selected.text()).toBe('财务信息');
+    await selected.trigger('mouseenter');
+    await settle();
+    expect(document.body.textContent).toContain('合同金额、税率、结算账号');
   });
 
   it('父操作未授权时禁用；选中组仅发送后端表达式', async () => {
@@ -188,5 +298,35 @@ describe('api 属性组授权', () => {
     expect(
       splitMappedAndUnmappedPermissions([action, expression], [], tree),
     ).toEqual({ mapped: [action, expression], unmapped: [] });
+  });
+
+  it('旧接口级组授权保留在原操作，不自动转成实体授权', () => {
+    const legacyExpression = 'example:DataAttrGroup:legacy:access';
+    const legacyTree: PermissionTreeNode[] = [
+      {
+        id: 'operation',
+        name: '查询列表',
+        nodeType: 'Action',
+        permissionExpr: action,
+        attrGroups: [
+          {
+            ...group,
+            entityScope: true,
+            legacyPermissionExpr: legacyExpression,
+            permissionExpr: entityExpression,
+          },
+        ],
+      },
+    ];
+    expect(collectKnownPermissionTreeValues(legacyTree)).toEqual(
+      new Set([action, entityExpression, legacyExpression]),
+    );
+    expect(
+      splitMappedAndUnmappedPermissions(
+        [action, legacyExpression],
+        [],
+        legacyTree,
+      ),
+    ).toEqual({ mapped: [action, legacyExpression], unmapped: [] });
   });
 });

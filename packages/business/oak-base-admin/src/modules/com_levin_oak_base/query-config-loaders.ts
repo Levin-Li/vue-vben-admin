@@ -129,9 +129,9 @@ export const oakBaseQueryConfigLoaders: NonNullable<
     ),
   '/system/com_levin_oak_base/org/index.vue': () =>
     import('./views/org/config').then((module) => module.orgPageCrudConfig),
-  '/system/com_levin_oak_base/settlement-statement/index.vue': () =>
-    import('./views/settlement-statement/config').then(
-      (module) => module.settlementStatementPageCrudConfig,
+  '/system/com_levin_oak_base/settlement-order/index.vue': () =>
+    import('./views/settlement-order/config').then(
+      (module) => module.settlementOrderPageCrudConfig,
     ),
   '/system/com_levin_oak_base/supplier-partner/index.vue': () =>
     import('./views/supplier-partner/config').then(

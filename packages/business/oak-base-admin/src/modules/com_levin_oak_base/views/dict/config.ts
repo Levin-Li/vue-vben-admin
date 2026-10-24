@@ -1,7 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { dictService } from '../../api/dict-service';
-
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { tenantOptionsLoader } from '../api-module';
 
 export const dictTitle = '数据字典管理';
@@ -21,6 +21,7 @@ export const dictPageCrudConfig: CrudPageConfig = {
   apiBase: '/Dict',
   domainObject: true,
   apiService: dictService,
+  dataAttrTargets: standardCrudDataAttrTargets(dictService),
   defaultFormValues: {
     editable: true,
     enable: true,

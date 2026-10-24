@@ -17,10 +17,11 @@ describe('electronicInvoicePageCrudConfig', () => {
 
   it('rejects invoice amounts that cannot form a tax-inclusive total', async () => {
     await expect(
-      electronicInvoicePageCrudConfig.transformSubmit?.({
-        amountWithoutTax: 100,
-        amountWithTax: 107,
-        taxAmount: 6,
+      electronicInvoicePageCrudConfig.transformSubmit?.(
+        {
+          amountWithoutTax: 100,
+          amountWithTax: 107,
+          taxAmount: 6,
         },
         null,
       ),
@@ -41,7 +42,9 @@ describe('electronicInvoicePageCrudConfig', () => {
   });
 
   it('uses the new invoice model instead of removed compatibility fields', () => {
-    const keys = electronicInvoicePageCrudConfig.fields.map((field) => field.key);
+    const keys = electronicInvoicePageCrudConfig.fields.map(
+      (field) => field.key,
+    );
 
     expect(keys).toEqual(
       expect.arrayContaining(['requestNo', 'buyerInfo', 'itemList']),
@@ -58,5 +61,32 @@ describe('electronicInvoicePageCrudConfig', () => {
         'invoiceCode',
       ]),
     );
+  });
+
+  it('defaults to core invoice columns while retaining technical fields in details', () => {
+    const fields = electronicInvoicePageCrudConfig.fields;
+    expect(
+      fields.filter((field) => field.table).map((field) => field.key),
+    ).toEqual([
+      'requestNo',
+      'partnerId',
+      'amountWithTax',
+      'direction',
+      'status',
+      'invoiceNo',
+      'createTime',
+    ]);
+    for (const key of [
+      'originalInvoiceId',
+      'redReason',
+      'invoiceFileUrl',
+      'lastStatusDesc',
+      'errorMessage',
+    ]) {
+      expect(fields.find((field) => field.key === key)).toMatchObject({
+        detail: true,
+        form: false,
+      });
+    }
   });
 });

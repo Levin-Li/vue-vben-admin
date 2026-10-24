@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { domainService } from '../../api/domain-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   tenantOptionsLoader,
   tenantSiteVendorOptionsLoader,
@@ -39,6 +40,7 @@ export const domainPageCrudConfig: CrudPageConfig = {
   apiBase: '/Domain',
   domainObject: true,
   apiService: domainService,
+  dataAttrTargets: standardCrudDataAttrTargets(domainService),
   defaultFormValues: {
     editable: true,
     enable: true,

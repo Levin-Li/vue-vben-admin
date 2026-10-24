@@ -2,10 +2,12 @@ import { getResAuthorizeMeta, getServiceMeta } from '@levin/admin-framework';
 import { buildModuleSyncMenuPayload } from '@levin/admin-framework/framework-commons/app/utils/sync-menu-routes';
 import { describe, expect, it } from 'vitest';
 
+import { dailyAccessStatService } from '../api/daily-access-stat-service';
 import { workflowNotificationRouteService } from '../api/workflow-notification-route-service';
 import { oakBaseAdminBackendRouteMappings } from '../backend-route-mappings';
 import { createOakBaseAdminModule } from '../module';
 import { oakBaseAdminPageMap } from '../page-map';
+import { pageMeta as dailyAccessStatMeta } from '../views/daily-access-stat/config';
 import { pageMeta as auditMeta } from '../views/notification-audit/config';
 import { pageMeta as robotNotifyGroupMeta } from '../views/robot-notify-group/config';
 import { pageMeta as mailboxMeta } from '../views/support-mailbox-rule/config';
@@ -89,6 +91,49 @@ describe('新增业务页真实eager元数据注册', () => {
       expect(metadata.onlyRequireAuthenticated).not.toBe(true);
       expect(metadata.ignored).not.toBe(true);
     }
+  });
+
+  it('性能监控以只读操作进入运维路由并指向真实页面', () => {
+    expect(dailyAccessStatMeta.title).toBe('性能监控');
+    expect(getServiceMeta(dailyAccessStatService).controllerClass).toBe(
+      'com.levin.oak.base.controller.BizDailyAccessMonitorController',
+    );
+    const mapping = oakBaseAdminBackendRouteMappings.find(
+      (item) => item.path === '/clob/V1/DailyAccessStat',
+    );
+    expect(mapping).toMatchObject({
+      title: dailyAccessStatMeta.title,
+      description: dailyAccessStatMeta.description,
+      sourceFilePath:
+        'modules/com_levin_oak_base/views/daily-access-stat/index.vue',
+      viewPath: '/system/com_levin_oak_base/daily-access-stat/index.vue',
+    });
+    expect(mapping?.operations?.map((operation) => operation.opName)).toEqual([
+      'overview',
+      'top20',
+    ]);
+    expect(
+      getResAuthorizeMeta(
+        dailyAccessStatService.top20 as Parameters<
+          typeof getResAuthorizeMeta
+        >[0],
+      ),
+    ).toMatchObject({
+      domain: 'com.levin.oak.base',
+      type: '系统数据-每日访问统计',
+      action: '查询排行榜',
+    });
+    expect(
+      getResAuthorizeMeta(
+        dailyAccessStatService.overview as Parameters<
+          typeof getResAuthorizeMeta
+        >[0],
+      ),
+    ).toMatchObject({
+      domain: 'com.levin.oak.base',
+      type: '系统数据-每日访问统计',
+      action: '查询排行榜',
+    });
   });
 
   it.each([

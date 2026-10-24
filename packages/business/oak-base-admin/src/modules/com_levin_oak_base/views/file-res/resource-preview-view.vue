@@ -1009,7 +1009,14 @@ function getPreviewIcon(record: FileResourceRecord) {
       @cancel="closeEditor"
       @ok="submitEditor"
     >
-      <Form layout="vertical" class="file-resource-preview__editor">
+      <Form
+        id="file-resource-preview-edit"
+        name="fileResourcePreviewEdit"
+        data-form-id="file-resource-preview-edit"
+        data-form-name="编辑文件资源"
+        layout="vertical"
+        class="file-resource-preview__editor"
+      >
         <Form.Item label="文件名称" required>
           <Input
             v-model:value="editorForm.name"

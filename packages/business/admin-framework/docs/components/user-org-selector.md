@@ -101,6 +101,12 @@ const oakBaseApiModule = '/com.levin.oak.base/V1/api';
 | `showSearch` | `true` | 是否支持按节点标题搜索。 |
 | `loadOnInitialValue` | `false` | 已有 ID 时提前加载当前组织树完成名称回显；默认仍在首次展开时加载。 |
 | `inline` | `false` | 在手机抽屉等受限空间内直接展示搜索框和可滚动候选树，不打开第二层浮动下拉。候选权限、懒加载与选中事件与默认模式相同。 |
+| `actionOnly` | `false` | 与 `inline` 一起使用时关闭树自身的选中和勾选，改由 `org-action` 节点插槽提供操作；普通选择器行为不变。 |
+| `autoExpandOrgIds` | `[]` | 已配置组织 ID 列表；树加载后自动展开这些组织的祖先路径，列表更新时继续展开新增路径，不替调用方保存选择。 |
+
+`org-action` 是内嵌树的组织节点操作插槽，参数 `node` 含当前组织的 `id`、`name` 等记录字段。适合在树节点上放置由业务方管理的状态控件；组件仍负责授权组织树、搜索与层级展示，业务方必须独立保存操作结果并由服务端校验权限。
+
+调用方可让外层容器统一滚动；`actionOnly` 模式的节点操作会靠右对齐。
 
 `maxSelectCount=1` 会优先于 `multiple=true`，按单选处理。`onlyLeafNode` 与 `onlyNotLeafNode` 不能同时开启。
 

@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { electronicInvoiceService } from '../../api/electronic-invoice-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -22,7 +23,13 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
     apiBase: '/EInvoice',
     domainObject: true,
     apiService: electronicInvoiceService,
+    dataAttrTargets: fixedCrudDataAttrTargets(electronicInvoiceService, {
+      list: { method: 'GET', path: 'list' },
+      retrieve: { method: 'GET', path: 'retrieve' },
+    }),
     createPath: '/EInvoice/issue',
+    allowEdit: false,
+    allowDelete: false,
     title: '电子发票',
     modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
     transformSubmit: async (values) => {
@@ -59,7 +66,6 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
         label: '发票申请ID',
         form: false,
         search: true,
-        table: true,
         width: 180,
       },
       {
@@ -71,6 +77,7 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
       {
         key: 'requestNo',
         label: '申请号',
+        help: '租户内唯一，用于开票请求幂等；失败后重试沿用同一申请号。',
         required: true,
         table: true,
         width: 180,
@@ -78,7 +85,7 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
       {
         key: 'partnerId',
         label: '销方合作伙伴',
-        help: '请选择已完成开票资料维护并已开通供应商连接的商户主体；提交后系统会冻结该主体的票面快照。',
+        help: '请选择已完成开票资料维护和电子发票授权的商户主体；提交后系统会冻结该主体的票面快照。',
         required: true,
         search: true,
         table: true,
@@ -90,7 +97,6 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
         label: '业务类型',
         required: true,
         search: true,
-        table: true,
         width: 140,
       },
       {
@@ -166,35 +172,35 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
         key: 'originalInvoiceId',
         label: '原发票ID',
         form: false,
-        table: true,
+        detail: true,
         width: 160,
       },
       {
         key: 'redReason',
         label: '红冲原因',
         form: false,
-        table: true,
+        detail: true,
         width: 180,
       },
       {
         key: 'invoiceFileUrl',
         label: '发票文件链接',
         form: false,
-        table: true,
+        detail: true,
         width: 220,
       },
       {
         key: 'lastStatusDesc',
         label: '最后状态描述',
         form: false,
-        table: true,
+        detail: true,
         width: 220,
       },
       {
         key: 'errorMessage',
         label: '错误信息',
         form: false,
-        table: true,
+        detail: true,
         width: 260,
       },
       {

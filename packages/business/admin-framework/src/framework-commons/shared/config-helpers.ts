@@ -62,14 +62,14 @@ export function buildDictOptionsLoader(dictCode: string): CrudOptionLoader {
 }
 
 export const tenantOptionsLoader = buildOptionsLoader('/Tenant/list');
-/** 数据权限候选弹窗默认只加载前十条，输入搜索条件后仍使用同一列表接口。 */
-export const tenantDataScopeOptionsLoader = (keyword = '') =>
+/** 数据权限清单按页读取当前操作者可见的租户，支持继续加载。 */
+export const tenantDataScopeOptionsLoader = (keyword = '', pageIndex = 1) =>
   fetchOptions(
     '/Tenant/list',
     'name',
     'id',
     withOptionSearchParams(
-      { pageIndex: 1, pageSize: keyword.trim() ? 50 : 10 },
+      { pageIndex, pageSize: 50 },
       'containsName',
       keyword,
     ),

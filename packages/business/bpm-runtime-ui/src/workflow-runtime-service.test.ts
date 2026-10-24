@@ -27,6 +27,22 @@ vi.mock('@levin/admin-framework/framework-commons/runtime', () => ({
 }));
 
 describe('workflowRuntimeService', () => {
+  it('保存走独立正式接口并完整保留业务修订与去重键', async () => {
+    requestCalls.post.mockClear();
+    const data = {
+      taskId: 't1',
+      actionCode: 'save' as const,
+      expectedBusinessRevision: 'r1',
+      idempotencyKey: 'key1',
+      formData: { amount: 0 },
+    };
+    await new WorkflowRuntimeService().saveTask(data);
+    expect(requestCalls.post).toHaveBeenCalledWith(
+      'workflow-runtime/saveTask',
+      { data },
+    );
+  });
+
   it('撤回终止和显式接管保留去重命令且仅传各自允许定位符', async () => {
     requestCalls.post.mockClear();
     const service = new WorkflowRuntimeService();

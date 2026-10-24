@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { scheduledLogService } from '../../api/scheduled-log-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
 export const pageMeta = {
@@ -13,6 +14,7 @@ export const scheduledLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/ScheduledLog',
   domainObject: true,
   apiService: scheduledLogService,
+  dataAttrTargets: standardCrudDataAttrTargets(scheduledLogService),
   allowCreate: false,
   allowDelete: false,
   allowEdit: false,

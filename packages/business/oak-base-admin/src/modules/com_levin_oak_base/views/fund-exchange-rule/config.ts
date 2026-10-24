@@ -1,10 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { fundExchangeRuleService } from '../../api/fund-exchange-rule-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
-  DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -23,6 +24,7 @@ export const fundExchangeRulePageCrudConfig: CrudPageConfig = {
   apiBase: '/FundExchangeRule',
   domainObject: true,
   apiService: fundExchangeRuleService,
+  dataAttrTargets: standardCrudDataAttrTargets(fundExchangeRuleService),
   defaultFormValues: {
     editable: true,
     enable: true,

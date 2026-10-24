@@ -8,9 +8,10 @@ import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 import { UserOrgSelector } from '@levin/admin-framework';
 import { isDataAttrPolicyReady } from '@levin/admin-framework/framework-commons/data-attr-policy';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import CrudLayout from '@levin/admin-framework/framework-commons/shared/crud-layout.vue';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { WorkflowStartWorkbench } from '@levin/bpm-runtime-ui';
-import { Alert, Card, message } from 'ant-design-vue';
+import { Form, message } from 'ant-design-vue';
 
 import { loadWorkflowRequestOrgTree } from '../../api/workflow-request-service';
 import { workflowRuntimeService } from '../../api/workflow-runtime-service';
@@ -74,26 +75,39 @@ function showError(error: unknown) {
 
 <template>
   <div class="space-y-4">
-    <!-- 平台主体先选择当前有权组织的租户范围，不改变全局选择器。 -->
-    <Card v-if="isPlatformActor" title="业务范围" size="small">
-      <UserOrgSelector
-        :model-value="selectedOrg"
-        :selectable-types="['org']"
-        value-mode="record"
-        :multiple="false"
-        :show-tenant-nodes="true"
-        :load-org-tree="loadWorkflowRequestOrgTree"
-        placeholder="请选择本次发起流程的授权组织"
-        @update:selected-records="changeOrganization"
-      />
-    </Card>
-    <Alert
-      v-if="!tenantId"
-      type="info"
-      message="请先确认当前业务租户范围，再选择手动流程。"
-    />
+    <!-- 平台业务范围使用标准横向查询面板，不改变全局选择器。 -->
+    <CrudLayout
+      v-if="isPlatformActor"
+      form-id="workflow-start-scope"
+      form-name="发起流程业务范围"
+    >
+      <template #query>
+        <Form.Item label="业务范围" name="orgId">
+          <UserOrgSelector
+            :model-value="selectedOrg"
+            :selectable-types="['org']"
+            value-mode="record"
+            :multiple="false"
+            :show-tenant-nodes="true"
+            :load-org-tree="loadWorkflowRequestOrgTree"
+            placeholder="平台全局业务；可选择授权组织"
+            class="w-full"
+            @update:selected-records="changeOrganization"
+          />
+        </Form.Item>
+      </template>
+      <template #notice>
+        未选择组织时查询平台全局状态流程；选择组织后查询该业务范围。
+      </template>
+    </CrudLayout>
+    <p
+      v-if="!tenantId && !isPlatformActor"
+      class="text-muted-foreground text-sm"
+    >
+      请先确认当前业务租户范围，再选择手动流程。
+    </p>
     <WorkflowStartWorkbench
-      v-else-if="workflowReady"
+      v-if="(tenantId || isPlatformActor) && workflowReady"
       :tenant-id="tenantId"
       :key="actorKey"
       :service="workflowRuntimeService"

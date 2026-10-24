@@ -110,12 +110,12 @@ async function submitAuthorization() {
       terminalRef: terminalRef || undefined,
       invoiceTypeList: invoiceTypeList.length > 0 ? invoiceTypeList : undefined,
     });
-    message.success(`${guide.name}商户授权已确认`);
+    message.success(`${guide.name}电子发票授权已确认`);
     authorizationOpen.value = false;
     await reloadConnections.value?.();
   } catch (error) {
     console.error(error);
-    message.error('确认商户授权失败');
+    message.error('确认电子发票授权失败');
   } finally {
     authorizationSaving.value = false;
   }
@@ -130,7 +130,7 @@ async function submitAuthorization() {
       type="info"
     />
 
-    <Card title="供应商接入概览" size="small">
+    <Card title="可授权服务商" size="small">
       <div class="provider-guide-grid">
         <article
           v-for="provider in providerGuides"
@@ -200,7 +200,7 @@ async function submitAuthorization() {
           type="link"
           @click="openAuthorization(record, reload)"
         >
-          确认商户授权
+          确认授权
         </Button>
       </template>
     </CrudPage>
@@ -212,7 +212,7 @@ async function submitAuthorization() {
     :mask-closable="false"
     destroy-on-close
     ok-text="确认授权"
-    title="确认商户供应商授权"
+    title="确认电子发票授权"
     @ok="submitAuthorization"
   >
     <Alert
@@ -222,7 +222,13 @@ async function submitAuthorization() {
       class="mb-4"
       show-icon
     />
-    <Form layout="vertical">
+    <Form
+      id="electronic-invoice-provider-authorization"
+      name="electronicInvoiceProviderAuthorization"
+      data-form-id="electronic-invoice-provider-authorization"
+      data-form-name="确认电子发票授权"
+      layout="vertical"
+    >
       <Form.Item :label="selectedGuide.authorizationRefLabel" required>
         <Input
           v-model:value="form.authorizationRef"
@@ -270,7 +276,7 @@ async function submitAuthorization() {
     :footer="null"
     :mask-closable="true"
     destroy-on-close
-    title="电子发票供应商正式接入清单"
+    title="电子发票授权前检查"
   >
     <div class="provider-guide-modal">
       <section

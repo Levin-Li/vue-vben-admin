@@ -2,6 +2,8 @@
 
 本批完整候选、版本与实际上传结果见 [2026-10-21 管理前端全部变更发布记录](releases/20261021-all-changes.md)。
 
+最新批次见 [2026-10-24 管理前端全部可交付变更发布记录](releases/20261024-all-changes.md)。
+
 本前端工程支持把可复用的后台模块发布到 NPM 私服。最终应用安装这些模块包，并显式注册需要启用的模块。
 
 ## 按需正式版本发布流程
@@ -271,7 +273,7 @@ configureAdminApplication({
 
 ```text
 packages/business/admin-framework/src/framework-commons/index.ts
-packages/business/admin-framework/src/framework-commons/shared/crud-page.vue
+packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue
 packages/business/admin-framework/src/framework-commons/adapter/vxe-table.ts
 ```
 

@@ -327,6 +327,7 @@ async function loadSettings() {
   } catch (error) {
     console.error(error);
     errorMessage.value = '租户插件设置加载失败';
+    message.error(errorMessage.value);
   } finally {
     loading.value = false;
   }
@@ -687,18 +688,15 @@ onMounted(() => {
         </div>
       </div>
 
-      <Alert
-        v-if="errorMessage"
-        :message="errorMessage"
-        show-icon
-        type="error"
-      />
-
       <Spin :spinning="loading" class="min-h-0 flex-1">
         <Empty
           v-if="!loading && !hasSettings"
-          description="暂无可用的租户插件设置"
-        />
+          :description="errorMessage || '暂无可用的租户插件设置'"
+        >
+          <Button v-if="errorMessage" size="small" @click="loadSettings">
+            重试
+          </Button>
+        </Empty>
         <Tabs
           v-else
           v-model:active-key="activeCategoryKey"
@@ -855,9 +853,17 @@ onMounted(() => {
       v-model:open="basicModalOpen"
       :confirm-loading="basicSubmitting"
       :title="editingBasicItem ? '编辑插件配置基本信息' : '新增插件配置'"
+      :width="960"
       @ok="saveBasicSetting"
     >
-      <Form class="tenant-plugin-basic-form" layout="vertical">
+      <Form
+        id="tenant-plugin-setting-basic-form"
+        name="tenant-plugin-setting-basic-form"
+        data-form-id="tenant-plugin-setting-basic-form"
+        data-form-name="租户插件设置基本信息"
+        class="tenant-plugin-basic-form"
+        layout="vertical"
+      >
         <Form.Item label="服务插件" required>
           <Select
             v-if="!editingBasicItem"
@@ -923,6 +929,7 @@ onMounted(() => {
         </Form.Item>
         <Alert
           v-if="getMode(basicFormState.servicePluginId) === 'SINGLE_ACTIVE'"
+          class="tenant-plugin-basic-form-wide"
           message="单选插件可保存多家供应商设置，同一范围只能启用一家。"
           show-icon
           type="info"
@@ -931,11 +938,15 @@ onMounted(() => {
           v-if="
             getMode(basicFormState.servicePluginId) === 'MULTI_ACTIVE_BALANCED'
           "
+          class="tenant-plugin-basic-form-wide"
           message="均衡模式允许多家供应商及同一供应商多套配置共同启用，按使用次数与权重自动分配。"
           show-icon
           type="info"
         />
-        <p v-if="!editingBasicItem" class="text-muted-foreground text-xs">
+        <p
+          v-if="!editingBasicItem"
+          class="tenant-plugin-basic-form-wide text-muted-foreground text-xs"
+        >
           新增默认停用；请完成当前供应商配置后再启用。
         </p>
         <Form.Item label="匹配域名" extra="留空表示匹配所有域名">
@@ -944,19 +955,17 @@ onMounted(() => {
             placeholder="请输入域名"
           />
         </Form.Item>
-        <div class="tenant-plugin-basic-form-row">
-          <Form.Item label="排序代码">
-            <Input
-              v-model:value="basicFormState.orderCode"
-              inputmode="numeric"
-              type="number"
-            />
-          </Form.Item>
-          <Form.Item label="是否启用">
-            <Switch v-model:checked="basicFormState.enable" />
-          </Form.Item>
-        </div>
-        <Form.Item label="备注">
+        <Form.Item label="排序代码">
+          <Input
+            v-model:value="basicFormState.orderCode"
+            inputmode="numeric"
+            type="number"
+          />
+        </Form.Item>
+        <Form.Item label="是否启用">
+          <Switch v-model:checked="basicFormState.enable" />
+        </Form.Item>
+        <Form.Item label="备注" class="tenant-plugin-basic-form-wide">
           <Input.TextArea
             v-model:value="basicFormState.remark"
             :auto-size="{ minRows: 2, maxRows: 4 }"
@@ -1097,12 +1106,11 @@ onMounted(() => {
 }
 .tenant-plugin-basic-form {
   display: grid;
-  gap: 2px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
 }
-.tenant-plugin-basic-form-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 160px;
-  gap: 16px;
+.tenant-plugin-basic-form-wide {
+  grid-column: 1 / -1;
 }
 .tenant-plugin-edit-form {
   display: grid;
@@ -1113,9 +1121,8 @@ onMounted(() => {
   .tenant-plugin-items-grid {
     grid-template-columns: 1fr;
   }
-  .tenant-plugin-basic-form-row {
+  .tenant-plugin-basic-form {
     grid-template-columns: 1fr;
-    gap: 0;
   }
 }
 </style>

@@ -105,6 +105,29 @@ describe('独立发起流程与业务对象启动命令共用', () => {
     wrapper.unmount();
   });
 
+  it('状态图选择业务记录绑定具体定义，平台全局目录不伪造租户', async () => {
+    const { wrapper, api } = setup();
+    await flushPromises();
+    api.manualStarts.mockResolvedValue({
+      items: [{ ...purpose, contractVersion: 'state-graph-v4' }],
+      pageIndex: 1,
+      hasMore: false,
+    });
+    await wrapper.setProps({ tenantId: undefined });
+    await flushPromises();
+    await wrapper.get('[aria-label="选择流程资料审核"]').trigger('click');
+    await flushPromises();
+    expect(api.businessRecords).toHaveBeenLastCalledWith({
+      tenantId: undefined,
+      businessType: 'request',
+      contractVersion: 'state-graph-v4',
+      purposeKey: 'review',
+      pageIndex: 1,
+      pageSize: 20,
+    });
+    wrapper.unmount();
+  });
+
   it('资格只展示所选用途和脱敏原因，启动失败重放完整同一命令', async () => {
     const { wrapper, api, button } = setup();
     api.eligibility.mockResolvedValue([

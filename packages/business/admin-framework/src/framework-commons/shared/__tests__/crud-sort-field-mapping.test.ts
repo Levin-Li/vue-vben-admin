@@ -6,7 +6,7 @@ describe('CRUD 排序字段映射', () => {
   it('优先使用列声明的后端排序字段', () => {
     // 展示字段可来自 join，排序字段必须能明确指向后端实体别名。
     const source = readFileSync(
-      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
 

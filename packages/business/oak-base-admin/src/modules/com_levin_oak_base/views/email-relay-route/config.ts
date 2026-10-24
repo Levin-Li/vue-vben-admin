@@ -1,7 +1,12 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { emailRelayRouteService } from '../../api/email-relay-route-service';
-import { domainOptionsLoader, tenantOptionsLoader } from '../api-module';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
+import {
+  DEFAULT_CRUD_MODAL_WIDTH,
+  domainOptionsLoader,
+  tenantOptionsLoader,
+} from '../api-module';
 
 type RelayTarget = {
   endpoint?: string;
@@ -37,17 +42,29 @@ function normalizeTargets(value: unknown): string[] {
   const targets = value.map((value) => {
     if (typeof value === 'string') return value.trim();
     const target = (value || {}) as RelayTarget;
-    const type = String(target.type || '').trim().toLowerCase();
+    const type = String(target.type || '')
+      .trim()
+      .toLowerCase();
     const endpoint = String(target.endpoint || '').trim();
-    if (!['email', 'mail-webhook', 'notify-webhook'].includes(type) || !endpoint) {
-      throw new TypeError('每个投递目标都必须填写邮箱、完整邮件 Webhook 或通知 Webhook 类型及地址');
+    if (
+      !['email', 'mail-webhook', 'notify-webhook'].includes(type) ||
+      !endpoint
+    ) {
+      throw new TypeError(
+        '每个投递目标都必须填写邮箱、完整邮件 Webhook 或通知 Webhook 类型及地址',
+      );
     }
-    if (type === 'email' && !/^\S+@\S+\.\S+$/.test(endpoint)) {
+    if (type === 'email' && !/^\S[^\s@]*@\S[^\s.]*\.\S+$/.test(endpoint)) {
       throw new TypeError('邮箱投递目标格式无效');
     }
     if (type !== 'email') {
       const url = new URL(endpoint);
-      if (url.protocol !== 'https:' || url.username || url.password || !url.hostname) {
+      if (
+        url.protocol !== 'https:' ||
+        url.username ||
+        url.password ||
+        !url.hostname
+      ) {
         throw new TypeError('Webhook 必须是没有用户信息的 HTTPS URL');
       }
     }
@@ -55,7 +72,7 @@ function normalizeTargets(value: unknown): string[] {
   });
 
   const valid = targets.filter(Boolean);
-  if (!valid.length) throw new TypeError('至少需要一个投递目标');
+  if (valid.length === 0) throw new TypeError('至少需要一个投递目标');
   return valid;
 }
 
@@ -69,6 +86,7 @@ export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
   apiBase: '/EmailRelayRoute',
   domainObject: true,
   apiService: emailRelayRouteService,
+  dataAttrTargets: standardCrudDataAttrTargets(emailRelayRouteService),
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -223,7 +241,7 @@ export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
       type: 'textarea',
     },
   ],
-  modalWidth: 760,
+  modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
   title: '邮件中转路由',
   transformSubmit: async (values) => {
     const nextValues = { ...values };

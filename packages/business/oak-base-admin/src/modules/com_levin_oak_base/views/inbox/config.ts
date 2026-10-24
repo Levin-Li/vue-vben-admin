@@ -3,6 +3,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 
 import { inboxService } from '../../api/inbox-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 
 export const pageMeta = {
   name: 'Inbox',
@@ -26,6 +27,10 @@ const statusOptions = [
 export const inboxPageCrudConfig: CrudPageConfig = {
   apiBase: '/Inbox',
   apiService: inboxService,
+  dataAttrTargets: fixedCrudDataAttrTargets(inboxService, {
+    list: { method: 'GET', path: 'list' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+  }),
   allowCreate: false,
   allowDelete: false,
   allowEdit: false,

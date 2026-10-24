@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(
-  'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+  'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
   'utf8',
 );
 
@@ -16,11 +16,11 @@ function getToolbarButtonBlock(label: string) {
 
 describe('crud toolbar import/export icons', () => {
   it('附加脚本保留工具栏原条件，扩展和设置入口统一接入', () => {
-    expect(source).toContain(
-      "canCreate && isListOperationVisible('builtin:create')",
+    expect(source).toMatch(
+      /canCreate\s*&&\s*isListOperationVisible\('builtin:create'\)/,
     );
-    expect(source).toContain(
-      "canQuery && isListOperationVisible('tool:export')",
+    expect(source).toMatch(
+      /canQuery\s*&&\s*isListOperationVisible\('tool:export'\)/,
     );
     expect(source).toContain(
       "canImport && isListOperationVisible('tool:import')",

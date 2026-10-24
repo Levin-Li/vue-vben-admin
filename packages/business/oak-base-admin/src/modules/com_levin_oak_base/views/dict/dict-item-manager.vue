@@ -190,7 +190,14 @@ function handleSave() {
     width="fit-content"
     @ok="handleSave"
   >
-    <Form class="w-[480px] max-w-full" layout="vertical">
+    <Form
+      id="dict-item-edit"
+      name="dictItemEdit"
+      data-form-id="dict-item-edit"
+      data-form-name="新增或编辑字典项"
+      class="w-[480px] max-w-full"
+      layout="vertical"
+    >
       <Form.Item label="标签" required>
         <Input v-model:value="draft.name" placeholder="请输入标签" />
       </Form.Item>

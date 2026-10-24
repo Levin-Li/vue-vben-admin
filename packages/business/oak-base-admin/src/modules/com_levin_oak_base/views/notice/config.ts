@@ -3,6 +3,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 
 import { noticeService } from '../../api/notice-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
@@ -65,6 +66,7 @@ export const noticePageCrudConfig: CrudPageConfig = {
   apiBase: '/Notice',
   domainObject: true,
   apiService: noticeService,
+  dataAttrTargets: standardCrudDataAttrTargets(noticeService),
   defaultFormValues: {
     editable: true,
     enable: true,

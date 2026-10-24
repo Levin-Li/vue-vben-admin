@@ -1,6 +1,8 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { customerService } from '../../api/customer-service';
+import { getLegalSubjectStatus } from '../../api/legal-subject-status';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
@@ -10,6 +12,7 @@ import {
   tenantOptionsLoader,
   withModuleCrudConfig,
 } from '../api-module';
+import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
 
 // 客户仅引用已有法律主体，主体资料仍在法律主体页面维护。
 const legalSubjectOptionsLoader = buildModuleOptionsLoader(
@@ -28,19 +31,13 @@ const investmentRelationOptionsLoader = buildEnumOptionsLoader(
 const levelOptionsLoader = buildDictOptionsLoader(
   'com.levin.oak.base.entities.Customer.level',
 );
-// 客户主档只能选择有权访问的客户组织节点。
-const customerOrgOptionsLoader = buildModuleOptionsLoader(
-  '/Org/list',
-  'name',
-  'id',
-  { pageIndex: 1, pageSize: 500, type: 'Customer' },
-  'containsName',
-);
+// 所选内部组织作为新客户节点的父级。
+const customerOrgOptionsLoader = buildOrgAssignmentOptionsLoader();
 
 export const pageMeta = {
   name: 'Customer',
   title: '客户',
-  description: '维护法律主体对应的直接或渠道客户资料。',
+  description: '快速建档并维护直接或渠道客户资料，法律主体可后续补全。',
 } as const;
 
 export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
@@ -48,6 +45,10 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
   apiBase: '/Customer',
   domainObject: true,
   apiService: customerService,
+  dataAttrTargets: fixedCrudDataAttrTargets(customerService, {
+    list: { method: 'GET', path: 'list' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+  }),
   createPath: '/Customer/saveCustomer',
   updatePath: '/Customer/updateCustomer',
   defaultFormValues: { enable: true },
@@ -83,15 +84,13 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     },
     {
       key: 'legalSubjectId',
-      disabledOnEdit: true,
       label: '法律主体',
-      help: '请选择已有且有权访问的法律主体；主体资料请在法律主体页面维护。',
+      help: '可暂不选择，后续补全；已关联的法律主体不能更换。',
       layoutGroup: 'basic',
       layoutGroupTitle: '客户身份',
       layoutOrder: 10,
       loadOptions: legalSubjectOptionsLoader,
       remoteSearch: true,
-      required: true,
       search: true,
       table: true,
       type: 'select',
@@ -103,6 +102,30 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       form: false,
       table: true,
       width: 220,
+    },
+    {
+      key: 'legalSubjectStatus',
+      label: '主体资料状态',
+      form: false,
+      table: true,
+      tableValue: getLegalSubjectStatus,
+      export: false,
+      width: 130,
+    },
+    {
+      key: 'customerName',
+      label: '客户名称',
+      help: '必填，将作为自动创建的客户组织名称。',
+      layoutGroup: 'basic',
+      layoutOrder: 15,
+      formCreate: true,
+      formEdit: false,
+      table: false,
+      detail: false,
+      validator: (value) =>
+        String(value ?? '').trim()
+          ? undefined
+          : '自动创建客户组织时请输入客户名称',
     },
     {
       key: 'type',
@@ -141,15 +164,30 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     },
     {
       key: 'orgId',
-      disabledOnEdit: true,
-      label: '客户组织节点',
-      help: '请选择该客户自己的客户类型组织节点，保存后不可修改。',
+      formCreate: true,
+      formEdit: false,
+      detail: false,
+      table: false,
+      label: '新客户组织的内部父级',
+      help: '可选；未选择时使用当前登录用户所属的内部组织。保存时创建客户外部组织节点，不可选择已有外部节点。',
       layoutGroup: 'ownership',
       layoutOrder: 20,
       loadOptions: customerOrgOptionsLoader,
       remoteSearch: true,
-      required: true,
       type: 'select',
+      placeholder: '留空使用当前用户所属组织，或搜索内部父组织',
+    },
+    {
+      key: 'orgName',
+      label: '客户组织节点',
+      formCreate: false,
+      formEdit: true,
+      disabledOnEdit: true,
+      omitOnEdit: true,
+      layoutGroup: 'ownership',
+      layoutOrder: 21,
+      table: true,
+      search: false,
     },
     {
       key: 'contactName',

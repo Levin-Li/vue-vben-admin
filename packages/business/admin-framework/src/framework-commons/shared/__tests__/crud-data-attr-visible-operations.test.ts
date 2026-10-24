@@ -15,6 +15,10 @@ import {
   useCrudDataAttrAccess,
 } from '../crud-data-attr-access';
 
+type PolicyQuery = Parameters<
+  Parameters<typeof configureDataAttrPolicyLoader>[0]
+>[0];
+
 function configuration(): CrudPageConfig {
   const service: Record<string, any> = {};
   for (const method of [
@@ -37,8 +41,64 @@ function configuration(): CrudPageConfig {
   return { apiBase: '/User', title: '用户', fields: [], apiService: service };
 }
 
-describe('cRUD字段策略只预取当前可用操作', () => {
-  it('普通只读角色不预取不存在的批量接口、隐藏新增删除及未获权更新', async () => {
+describe('cRUD 字段策略只预取页面展示所需操作', () => {
+  it('新增、删除和批量导入策略只在实际调用时加载', async () => {
+    const config = configuration();
+    const loader = vi.fn(async (query: PolicyQuery) => ({
+      version: 1,
+      policies: [
+        {
+          id: 'policy',
+          operation: 'operation' in query ? query.operation : '',
+          methods: [],
+          pathPatterns: [],
+          restricted: false,
+          groups: [],
+          nodes: {},
+          requestRoots: [],
+          viewRoots: { request: [], response: [] },
+        },
+      ],
+    }));
+    configureDataAttrPolicyLoader(loader);
+    const scope = effectScope();
+    try {
+      const access = scope.run(() =>
+        useCrudDataAttrAccess(
+          () => config,
+          () => '/User/list',
+          () => 'admin',
+          (operation) =>
+            isCrudDataAttrOperationEnabled(config, operation, () => true),
+        ),
+      );
+      await flushPromises();
+      for (const operation of ['create', 'delete', 'batchCreate']) {
+        expect(
+          loader.mock.calls.some(
+            ([query]) =>
+              'operation' in query && query.operation.endsWith(`:${operation}`),
+          ),
+        ).toBe(false);
+      }
+
+      await access?.ensure('create');
+      await access?.ensure('delete');
+      await access?.ensure('batchCreate');
+      for (const operation of ['create', 'delete', 'batchCreate']) {
+        expect(
+          loader.mock.calls.some(
+            ([query]) =>
+              'operation' in query && query.operation.endsWith(`:${operation}`),
+          ),
+        ).toBe(true);
+      }
+    } finally {
+      scope.stop();
+    }
+  });
+
+  it('普通只读角色只预读列表和详情，权限刷新后重新加载', async () => {
     const config = configuration();
     const allowed = new Set(['list', 'retrieve']);
     const permission = (values: string | string[] | undefined) =>

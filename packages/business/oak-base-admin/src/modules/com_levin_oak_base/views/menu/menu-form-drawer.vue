@@ -308,7 +308,13 @@ async function submit() {
     width="min(80vw, 1120px)"
     @close="close"
   >
-    <Form layout="vertical">
+    <Form
+      id="menu-drawer-edit"
+      name="menuDrawerEdit"
+      data-form-id="menu-drawer-edit"
+      data-form-name="新增或编辑菜单"
+      layout="vertical"
+    >
       <div
         class="grid grid-cols-1 gap-x-5 gap-y-1 md:grid-cols-2 xl:grid-cols-3"
       >

@@ -7,27 +7,26 @@ import type {
 
 import { computed, ref, watch } from 'vue';
 
-import { IconifyIcon } from '@vben/runtime/icons';
+import { useAppConfig } from '@vben/runtime/hooks';
 import { useUserStore } from '@vben/runtime/stores';
 
 import {
   Alert,
-  Badge,
   Button,
   Checkbox,
   Empty,
   Input,
-  List,
   message,
   Modal,
+  Segmented,
   Select,
   Spin,
+  Switch,
   Tabs,
-  Tag,
-  Tooltip,
   TreeSelect,
 } from 'ant-design-vue';
 
+import { buildModuleRequestPath } from '../api';
 import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
 import { tenantDataScopeOptionsLoader } from './config-helpers';
@@ -36,6 +35,7 @@ import {
   isSuperAdminUser,
   isTenantAdminUser,
 } from './user-identity';
+import UserOrgSelector from './user-org-selector.vue';
 
 type ScopeField =
   | 'deniedDomainScopeList'
@@ -46,6 +46,8 @@ type ScopeField =
   | 'tenantScopeList';
 type ScopeKind = 'domain' | 'org' | 'tenant';
 type ScopeSide = 'allow' | 'deny';
+type ScopeChoice = 'none' | ScopeSide;
+type ScopeMode = 'allowAll' | 'custom' | 'denyAll';
 type Option = {
   description?: string;
   label: string;
@@ -87,18 +89,36 @@ const scopeTabs: ScopeTab[] = [
     label: '组织',
   },
 ];
+const choiceOptions = [
+  { label: '未设置', value: 'none' },
+  { label: '允许', value: 'allow' },
+  { label: '禁止', value: 'deny' },
+];
 const activeKey = ref<ScopeKind>('domain');
-const candidateKind = ref<ScopeKind>('domain');
 const candidateKeyword = ref('');
 const candidateLoading = ref(false);
-const candidateOptions = ref<Option[]>([]);
-const candidateOpen = ref(false);
-const candidateSide = ref<ScopeSide>('allow');
-const candidateEditingValue = ref('');
-const orgMatchingMode = ref('SelfAndAllChild');
-const orgMatchingExpression = ref('');
-const orgStartValue = ref('_DEFAULT_');
-const isNoOrgStart = computed(() => orgStartValue.value === '_NONE_');
+const advancedMode = ref(false);
+const advancedCandidateOpen = ref(false);
+const advancedCandidateKind = ref<ScopeKind>('domain');
+const advancedCandidateSide = ref<ScopeSide>('allow');
+const advancedEditingValue = ref('');
+const advancedKeyword = ref('');
+const advancedOptions = ref<Option[]>([]);
+const advancedLoading = ref(false);
+const advancedTenantPage = ref(0);
+const advancedTenantHasMore = ref(false);
+let advancedGeneration = 0;
+const advancedOrgStart = ref('_DEFAULT_');
+const advancedOrgMode = ref('SelfAndAllChild');
+const advancedOrgExpression = ref('');
+const modeSnapshots = new Map<
+  ScopeKind,
+  { allow: null | string[]; deny: null | string[] }
+>();
+const tenantOptions = ref<Option[]>([]);
+const tenantPage = ref(0);
+const tenantHasMore = ref(true);
+let candidateGeneration = 0;
 const detail = ref<null | Record<string, any>>(null);
 const domainOptions = ref<Option[]>([]);
 const knownOptions = ref<Option[]>([]);
@@ -124,7 +144,12 @@ const savedValues = ref<Record<ScopeField, null | string[]>>({
   tenantScopeList: [],
 });
 const isUser = computed(() => props.subjectType === 'user');
-const apiBase = computed(() => (isUser.value ? '/User' : '/Role'));
+const runtimeEnv = (import.meta as ImportMeta & { env: Record<string, any> })
+  .env;
+const { apiURL } = useAppConfig(runtimeEnv, Boolean(runtimeEnv.PROD));
+const apiBase = computed(() =>
+  buildModuleRequestPath(isUser.value ? '/User' : '/Role', apiURL),
+);
 const modalTitle = computed(() =>
   isUser.value ? '用户数据权限分配' : '角色数据权限分配',
 );
@@ -144,13 +169,11 @@ const isOrgScopeReadOnly = computed(
   () => !isSuperAdmin.value && hasGroovyOrgRule.value,
 );
 const visibleScopeTabs = computed(() =>
-  scopeTabs.filter((tab) =>
-    tab.kind === 'tenant'
-      ? isPlatformOperator.value
-      : tab.kind === 'domain'
-        ? canConfigureDomainScope.value
-        : true,
-  ),
+  scopeTabs.filter((tab) => {
+    if (tab.kind === 'tenant') return isPlatformOperator.value;
+    if (tab.kind === 'domain') return canConfigureDomainScope.value;
+    return true;
+  }),
 );
 const hasChanges = computed(
   () => visibleScopeTabs.value.flatMap((tab) => fieldsChanged(tab)).length > 0,
@@ -159,10 +182,6 @@ const modalBodyStyle = {
   height: '640px',
   maxHeight: 'calc(100vh - 220px)',
   overflow: 'hidden',
-} as const;
-const candidateModalBodyStyle = {
-  maxHeight: '420px',
-  overflowY: 'auto',
 } as const;
 const summaryText = computed(() =>
   detail.value
@@ -238,6 +257,36 @@ const orgMatchingModeOptions = [
   { label: '基于名称的路径', value: 'NamePath' },
   { label: 'Groovy 表达式', value: 'Groovy' },
 ];
+const orgInlineMatchingModeOptions = orgMatchingModeOptions.slice(0, 4);
+const orgInlineMatchingModes = new Set(
+  orgInlineMatchingModeOptions.map((item) => item.value),
+);
+const orgModeDraft = ref<Record<string, string>>({});
+const savedOrgInlineModes = computed(() => {
+  const modes = new Map<string, string>();
+  for (const value of [
+    ...(scopeValues.value.deniedOrgScopeList || []),
+    ...(scopeValues.value.orgScopeList || []),
+  ]) {
+    const rule = parseOrgRule(value);
+    if (
+      !modes.has(rule.startValue) &&
+      orgInlineMatchingModes.has(rule.matchingMode)
+    )
+      modes.set(rule.startValue, rule.matchingMode);
+  }
+  return modes;
+});
+const configuredOrgIds = computed(() => [
+  ...new Set(
+    [
+      ...(scopeValues.value.orgScopeList || []),
+      ...(scopeValues.value.deniedOrgScopeList || []),
+    ]
+      .map((value) => parseOrgRule(value).startValue)
+      .filter((value) => value && !value.startsWith('_')),
+  ),
+]);
 const orgPresetStartLabels: Record<string, string> = {
   _ALL_ROOT_: '全部根组织',
   _DEFAULT_: '默认组织',
@@ -246,17 +295,20 @@ const orgPresetStartLabels: Record<string, string> = {
 const orgMatchingModeLabels = new Map(
   orgMatchingModeOptions.map((item) => [item.value, item.label]),
 );
-const orgExpressionModeSet = new Set(['Groovy', 'IdPath', 'NamePath']);
-const availableOrgMatchingModeOptions = computed(() =>
+const advancedNoOrg = computed(() => advancedOrgStart.value === '_NONE_');
+const advancedRequiresExpression = computed(() =>
+  ['Groovy', 'IdPath', 'NamePath'].includes(advancedOrgMode.value),
+);
+const advancedOrgModeOptions = computed(() =>
   orgMatchingModeOptions.filter(
     (item) => item.value !== 'Groovy' || isSuperAdmin.value,
   ),
 );
-const requiresOrgMatchingExpression = computed(() =>
-  orgExpressionModeSet.has(orgMatchingMode.value),
-);
 function cloneValue(value: null | string[]) {
   return value === null ? null : [...value];
+}
+function removeRules(value: null | string[], rules: Set<string>) {
+  return value === null ? null : value.filter((item) => !rules.has(item));
 }
 function toScopeValue(value: unknown): null | string[] {
   return Array.isArray(value)
@@ -264,6 +316,8 @@ function toScopeValue(value: unknown): null | string[] {
     : null;
 }
 function setDetailState(nextDetail: Record<string, any>) {
+  modeSnapshots.clear();
+  orgModeDraft.value = {};
   detail.value = nextDetail;
   for (const tab of scopeTabs)
     for (const field of [tab.allowField, tab.denyField]) {
@@ -295,13 +349,30 @@ const orgOptions = computed(() => {
   flattenOrgOptions(orgTree.value, result);
   return result;
 });
-function toOrgTreeData(nodes: OrgTreeNode[]): Array<Record<string, any>> {
+function toAdvancedOrgTreeData(
+  nodes: OrgTreeNode[],
+): Array<Record<string, any>> {
   return nodes.map((node) => ({
-    children: toOrgTreeData(node.children || []),
+    children: toAdvancedOrgTreeData(node.children || []),
     title: String(node.name || node.title || node.id),
     value: String(node.id),
   }));
 }
+const advancedOrgTreeData = computed(() => [
+  {
+    children: [
+      { title: '默认组织', value: '_DEFAULT_' },
+      { title: '无组织', value: '_NONE_' },
+      ...(isSuperAdmin.value
+        ? [{ title: '全部根组织', value: '_ALL_ROOT_' }]
+        : []),
+    ],
+    disabled: true,
+    title: '预设值',
+    value: '__preset__',
+  },
+  ...toAdvancedOrgTreeData(orgTree.value),
+]);
 function findOrgName(nodes: OrgTreeNode[], id: string): null | string {
   for (const node of nodes) {
     if (String(node.id) === id)
@@ -312,7 +383,7 @@ function findOrgName(nodes: OrgTreeNode[], id: string): null | string {
   return null;
 }
 function parseOrgRule(value: string) {
-  const [startValue, rawMode = 'SelfAndAllChild'] = value.split('|');
+  const [startValue = '', rawMode = 'SelfAndAllChild'] = value.split('|');
   const matchingMode =
     orgMatchingModeOptions.find((item) => rawMode.startsWith(`${item.value}#`))
       ?.value || rawMode;
@@ -337,46 +408,9 @@ function orgRuleMatchingModeLabel(value: string) {
         .filter(Boolean)
         .join('：');
 }
-function isOrgMatchingModePreset(value: string) {
-  const { matchingMode, startValue } = parseOrgRule(value);
-  return (
-    startValue !== '_NONE_' &&
-    orgMatchingModeLabels.has(matchingMode) &&
-    !orgExpressionModeSet.has(matchingMode)
-  );
-}
-function orgMatchingModeBadge(value: string) {
-  const { matchingMode } = parseOrgRule(value);
-  return (
-    {
-      Groovy: 'Groovy匹配',
-      IdPath: 'ID匹配',
-      NamePath: '名称匹配',
-    }[matchingMode] || ''
-  );
-}
 function orgRuleLabel(value: string) {
   return `${orgRuleStartLabel(value)} ${orgRuleMatchingModeLabel(value)}`;
 }
-function orgRuleStartTooltip(value: string) {
-  const description = presetDescription('org', value);
-  return description
-    ? `${orgRuleStartLabel(value)}：${description}`
-    : orgRuleStartLabel(value);
-}
-const orgStartTreeData = computed(() => [
-  {
-    children: [
-      { title: '默认组织', value: '_DEFAULT_' },
-      { title: '无组织', value: '_NONE_' },
-      { title: '全部根组织', value: '_ALL_ROOT_' },
-    ],
-    disabled: true,
-    title: '预设值',
-    value: '__preset__',
-  },
-  ...toOrgTreeData(orgTree.value),
-]);
 function builtinOptions(kind: ScopeKind): Option[] {
   if (kind === 'tenant')
     return tenantBuiltinOptions.filter(
@@ -393,32 +427,242 @@ function builtinOptions(kind: ScopeKind): Option[] {
 function fieldFor(tab: ScopeTab, side: ScopeSide) {
   return side === 'allow' ? tab.allowField : tab.denyField;
 }
+function allRowOptions(tab: ScopeTab) {
+  const saved: Option[] = [
+    ...(scopeValues.value[tab.allowField] || []),
+    ...(scopeValues.value[tab.denyField] || []),
+  ].map((value) => ({ label: optionLabel(tab.kind, value), value }));
+  let available: Option[] = orgOptions.value;
+  if (tab.kind === 'domain') available = domainOptions.value;
+  if (tab.kind === 'tenant') available = tenantOptions.value;
+  return [
+    ...new Map(
+      [...builtinOptions(tab.kind), ...saved, ...available].map((item) => [
+        item.value,
+        item,
+      ]),
+    ).values(),
+  ];
+}
+function allTokens(tab: ScopeTab) {
+  return tab.kind === 'org' ? ['_ALL_ROOT_|SelfAndAllChild'] : ['_ALL_'];
+}
+function scopeMode(tab: ScopeTab): ScopeMode {
+  const allow = scopeValues.value[tab.allowField] || [];
+  const deny = scopeValues.value[tab.denyField] || [];
+  const all = allTokens(tab);
+  if (all.every((value) => deny.includes(value))) return 'denyAll';
+  const relevantDeny =
+    tab.kind === 'org' ? deny.filter((value) => value !== '_NONE_|Self') : deny;
+  if (relevantDeny.length === 0 && all.every((value) => allow.includes(value)))
+    return 'allowAll';
+  return 'custom';
+}
+function setScopeMode(tab: ScopeTab, mode: ScopeMode) {
+  if (isTabReadOnly(tab) || !isTabCustom(tab)) return;
+  const current = scopeMode(tab);
+  if (current === mode) return;
+  if (mode === 'custom') {
+    const snapshot = modeSnapshots.get(tab.kind);
+    const all = new Set(allTokens(tab));
+    scopeValues.value[tab.allowField] = snapshot
+      ? cloneValue(snapshot.allow)
+      : removeRules(scopeValues.value[tab.allowField], all);
+    scopeValues.value[tab.denyField] = snapshot
+      ? cloneValue(snapshot.deny)
+      : removeRules(scopeValues.value[tab.denyField], all);
+    modeSnapshots.delete(tab.kind);
+    return;
+  }
+  if (current === 'custom' && !modeSnapshots.has(tab.kind)) {
+    modeSnapshots.set(tab.kind, {
+      allow: cloneValue(scopeValues.value[tab.allowField]),
+      deny: cloneValue(scopeValues.value[tab.denyField]),
+    });
+  }
+  const independentAllow =
+    tab.kind === 'org'
+      ? (scopeValues.value[tab.allowField] || []).filter(
+          (value) => value === '_NONE_|Self',
+        )
+      : [];
+  const independentDeny =
+    tab.kind === 'org'
+      ? (scopeValues.value[tab.denyField] || []).filter(
+          (value) => value === '_NONE_|Self',
+        )
+      : [];
+  scopeValues.value[tab.allowField] = [
+    ...independentAllow,
+    ...(mode === 'allowAll' ? allTokens(tab) : []),
+  ];
+  scopeValues.value[tab.denyField] = [
+    ...independentDeny,
+    ...(mode === 'denyAll' ? allTokens(tab) : []),
+  ];
+  candidateKeyword.value = '';
+}
+function allChoice(tab: ScopeTab): ScopeChoice {
+  const all = allTokens(tab);
+  if (
+    all.every((value) =>
+      (scopeValues.value[tab.denyField] || []).includes(value),
+    )
+  )
+    return 'deny';
+  if (
+    all.every((value) =>
+      (scopeValues.value[tab.allowField] || []).includes(value),
+    )
+  )
+    return 'allow';
+  return 'none';
+}
+function setAllChoice(tab: ScopeTab, choice: ScopeChoice) {
+  if (allChoice(tab) === choice) return;
+  if (choice === 'none' && scopeMode(tab) === 'custom') {
+    const all = new Set(allTokens(tab));
+    for (const field of [tab.allowField, tab.denyField])
+      scopeValues.value[field] = removeRules(scopeValues.value[field], all);
+    return;
+  }
+  let mode: ScopeMode = 'custom';
+  if (choice === 'allow') mode = 'allowAll';
+  if (choice === 'deny') mode = 'denyAll';
+  setScopeMode(tab, mode);
+}
+function fixedOptions(tab: ScopeTab) {
+  return builtinOptions(tab.kind)
+    .filter((item) => item.preset)
+    .map((item) =>
+      tab.kind === 'org' && item.value === '_ALL_ROOT_|SelfAndAllChild'
+        ? { ...item, label: '全部组织' }
+        : item,
+    )
+    .toSorted(
+      (left, right) =>
+        Number(right.value === allTokens(tab)[0]) -
+        Number(left.value === allTokens(tab)[0]),
+    );
+}
+function visibleFixedOptions(tab: ScopeTab) {
+  if (tab.kind === 'org') return fixedOptions(tab);
+  return scopeMode(tab) === 'custom'
+    ? fixedOptions(tab)
+    : fixedOptions(tab).filter((item) => item.value === allTokens(tab)[0]);
+}
+function dynamicOptions(tab: ScopeTab) {
+  const keyword = candidateKeyword.value.trim().toLowerCase();
+  const fixed = new Set(fixedOptions(tab).map((item) => item.value));
+  return allRowOptions(tab).filter(
+    (item) =>
+      !fixed.has(item.value) &&
+      (!keyword ||
+        item.label.toLowerCase().includes(keyword) ||
+        item.value.toLowerCase().includes(keyword)),
+  );
+}
+function isChecked(tab: ScopeTab, side: ScopeSide, value: string) {
+  return (scopeValues.value[fieldFor(tab, side)] || []).includes(value);
+}
+function selectedChoice(tab: ScopeTab, value: string): ScopeChoice {
+  if (isChecked(tab, 'deny', value)) return 'deny';
+  if (isChecked(tab, 'allow', value)) return 'allow';
+  return 'none';
+}
+function orgModeForNode(id: unknown) {
+  const key = String(id);
+  if (orgModeDraft.value[key]) return orgModeDraft.value[key];
+  return savedOrgInlineModes.value.get(key) || '';
+}
+function orgRuleValue(id: unknown) {
+  return `${String(id)}|${orgModeForNode(id) || 'SelfAndAllChild'}`;
+}
+function setOrgChoice(tab: ScopeTab, id: unknown, choice: ScopeChoice) {
+  if (isTabReadOnly(tab) || !isTabCustom(tab)) return;
+  const key = String(id);
+  if (choice === 'none') {
+    const current = [
+      ...(scopeValues.value[tab.allowField] || []),
+      ...(scopeValues.value[tab.denyField] || []),
+    ];
+    for (const value of current) {
+      const rule = parseOrgRule(value);
+      if (
+        rule.startValue === key &&
+        orgInlineMatchingModes.has(rule.matchingMode)
+      )
+        setChoice(tab, value, 'none');
+    }
+    const draft = { ...orgModeDraft.value };
+    delete draft[key];
+    orgModeDraft.value = draft;
+    return;
+  }
+  setChoice(tab, orgRuleValue(key), choice);
+}
+function setOrgMode(tab: ScopeTab, id: unknown, mode: string) {
+  if (isTabReadOnly(tab) || !isTabCustom(tab)) return;
+  if (!orgInlineMatchingModes.has(mode)) return;
+  const key = String(id);
+  const previous = orgModeForNode(key);
+  if (!previous || previous === mode) return;
+  const oldRule = `${key}|${previous}`;
+  const choice = selectedChoice(tab, oldRule);
+  orgModeDraft.value = { ...orgModeDraft.value, [key]: mode };
+  if (choice === 'none') return;
+  setChoice(tab, oldRule, 'none');
+  setChoice(tab, `${key}|${mode}`, choice);
+}
+const loadOrgTreeForSelector = async () => orgTree.value;
 function isTabReadOnly(tab: ScopeTab) {
   return tab.kind === 'org' && isOrgScopeReadOnly.value;
 }
 function isFieldUnset(field: ScopeField) {
   return scopeValues.value[field] === null;
 }
-function isFieldCustom(field: ScopeField) {
-  return !isFieldUnset(field);
+function isTabCustom(tab: ScopeTab) {
+  return (
+    !isUser.value ||
+    !isFieldUnset(tab.allowField) ||
+    !isFieldUnset(tab.denyField)
+  );
 }
-function setFieldCustom(field: ScopeField, checked: boolean, tab: ScopeTab) {
+function setChoice(tab: ScopeTab, value: string, choice: ScopeChoice) {
+  if (isTabReadOnly(tab) || !isTabCustom(tab)) return;
+  for (const side of ['allow', 'deny'] as const) {
+    const field = fieldFor(tab, side);
+    const current = scopeValues.value[field];
+    scopeValues.value[field] =
+      choice === side
+        ? [...new Set([value, ...(current || [])])]
+        : removeRules(current, new Set([value]));
+  }
+}
+function setTabCustom(tab: ScopeTab, checked: boolean) {
   if (!isUser.value || isTabReadOnly(tab)) return;
   if (checked) {
-    scopeValues.value[field] = [];
+    if (isFieldUnset(tab.allowField)) scopeValues.value[tab.allowField] = [];
+    if (isFieldUnset(tab.denyField)) scopeValues.value[tab.denyField] = [];
     return;
   }
-  const current = scopeValues.value[field] || [];
+  const current = [
+    ...(scopeValues.value[tab.allowField] || []),
+    ...(scopeValues.value[tab.denyField] || []),
+  ];
+  const clear = () => {
+    scopeValues.value[tab.allowField] = null;
+    scopeValues.value[tab.denyField] = null;
+  };
   if (current.length === 0) {
-    scopeValues.value[field] = null;
+    clear();
     return;
   }
   Modal.confirm({
-    content: '取消自定义会清空当前列表，并继承有效角色的对应范围。',
+    content:
+      '取消自定义会清空当前类别的允许与禁止设置，并继承有效角色的对应范围。',
     okText: '清空并继承',
-    onOk: () => {
-      scopeValues.value[field] = null;
-    },
+    onOk: clear,
     title: '确认取消自定义？',
   });
 }
@@ -433,6 +677,22 @@ function optionLabel(kind: ScopeKind, value: string) {
     ].find((item) => item.value === value)?.label || value
   );
 }
+function advancedRuleDescription(kind: ScopeKind, value: string) {
+  if (kind !== 'org')
+    return builtinOptions(kind).find((item) => item.value === value)
+      ?.description;
+  const fixed = orgBuiltinOptions.find((item) => item.value === value);
+  if (fixed) return fixed.description;
+  const { matchingMode, startValue } = parseOrgRule(value);
+  const start = orgPresetStartLabels[startValue];
+  if (!start) return undefined;
+  if (matchingMode === 'Self') return `仅匹配${start}自身的数据。`;
+  if (matchingMode === 'DirectChild') return `仅匹配${start}直接下级的数据。`;
+  if (matchingMode === 'SelfAndDirectChild')
+    return `匹配${start}及其直接下级的数据。`;
+  const mode = orgMatchingModeLabels.get(matchingMode) || matchingMode;
+  return `按${mode}匹配${start}的数据。`;
+}
 function cacheOptions(options: Option[]) {
   knownOptions.value = [
     ...new Map(
@@ -440,48 +700,33 @@ function cacheOptions(options: Option[]) {
     ).values(),
   ];
 }
+function tenantOptionLabel(label: string, value: string) {
+  return label === '默认租户' && value !== '_DEFAULT_'
+    ? `${label}（ID ${value}）`
+    : label;
+}
 async function loadTenantDisplayOptions(values: string[]) {
   const ids = values.filter((value) => !value.startsWith('_'));
   if (ids.length === 0) return;
-  const result: any = await requestClient.get('/Tenant/list', {
-    params: { idList: ids, pageIndex: 1, pageSize: Math.min(ids.length, 50) },
-  });
+  const result: any = await requestClient.get(
+    buildModuleRequestPath('/Tenant/list', apiURL),
+    {
+      baseURL: '',
+      params: { idList: ids, pageIndex: 1, pageSize: Math.min(ids.length, 50) },
+    },
+  );
   const items = result?.items || result?.records || result || [];
   if (Array.isArray(items)) {
     cacheOptions(
       items.map((item) => ({
-        label: String(item.name || item.code || item.id),
+        label: tenantOptionLabel(
+          String(item.name || item.code || item.id),
+          String(item.id),
+        ),
         value: String(item.id),
       })),
     );
   }
-}
-function isPresetValue(kind: ScopeKind, value: string) {
-  if (kind === 'org')
-    return Boolean(orgPresetStartLabels[parseOrgRule(value).startValue]);
-  return builtinOptions(kind).some((item) => item.value === value);
-}
-function orderedValues(kind: ScopeKind, values: string[]) {
-  return values.toSorted((left, right) => {
-    const presetOrder =
-      Number(isPresetValue(kind, right)) - Number(isPresetValue(kind, left));
-    return (
-      presetOrder ||
-      optionLabel(kind, left).localeCompare(optionLabel(kind, right))
-    );
-  });
-}
-function presetDescription(kind: ScopeKind, value: string) {
-  if (kind === 'org') {
-    const { matchingMode, startValue } = parseOrgRule(value);
-    if (startValue === '_NONE_') return '匹配无归属组织的数据。';
-    const startLabel = orgPresetStartLabels[startValue];
-    const modeLabel = orgMatchingModeLabels.get(matchingMode);
-    return startLabel && modeLabel
-      ? `匹配${startLabel}${modeLabel}的数据。`
-      : undefined;
-  }
-  return builtinOptions(kind).find((item) => item.value === value)?.description;
 }
 function fieldsChanged(tab: ScopeTab) {
   return [tab.allowField, tab.denyField].filter(
@@ -498,11 +743,13 @@ async function loadData() {
     if (props.previewPayload) {
       setDetailState(props.previewPayload.detail);
       orgTree.value = props.previewPayload.orgTree;
+      tenantHasMore.value = false;
       return;
     }
     if (!props.record?.id) return;
     const [nextDetail, nextOrgTree, nextDomainOptions] = await Promise.all([
       requestClient.get<Record<string, any>>(`${apiBase.value}/retrieve`, {
+        baseURL: '',
         params: { id: props.record.id },
       }),
       rbacService.fetchAuthorizedOrgTree() as Promise<OrgTreeNode[]>,
@@ -512,6 +759,10 @@ async function loadData() {
     orgTree.value = nextOrgTree || [];
     domainOptions.value = nextDomainOptions || [];
     cacheOptions(domainOptions.value);
+    tenantOptions.value = [];
+    tenantPage.value = 0;
+    tenantHasMore.value = true;
+    if (isPlatformOperator.value) await loadMoreTenants();
     try {
       await loadTenantDisplayOptions([
         ...(scopeValues.value.tenantScopeList || []),
@@ -527,128 +778,208 @@ async function loadData() {
     loading.value = false;
   }
 }
-async function loadCandidates(nextKeyword?: string) {
+async function loadMoreTenants() {
+  if (!tenantHasMore.value || candidateLoading.value) return;
+  const generation = candidateGeneration;
   candidateLoading.value = true;
   try {
-    const keyword = String(nextKeyword ?? candidateKeyword.value).trim();
-    const presetOptions = builtinOptions(candidateKind.value);
-    let remoteOptions: Option[] = [];
-    if (candidateKind.value === 'domain') {
-      remoteOptions = props.loadDomainOptions
+    const loaded = await tenantDataScopeOptionsLoader(
+      candidateKeyword.value,
+      tenantPage.value + 1,
+    );
+    const options: Option[] = loaded.map((item) => ({
+      label: tenantOptionLabel(String(item.label), String(item.value)),
+      value: String(item.value),
+    }));
+    if (generation !== candidateGeneration) return;
+    tenantOptions.value = [
+      ...new Map(
+        [...tenantOptions.value, ...options].map((item) => [item.value, item]),
+      ).values(),
+    ];
+    cacheOptions(options);
+    tenantPage.value += 1;
+    tenantHasMore.value = options.length === 50;
+    errorMessage.value = '';
+  } catch (error) {
+    console.warn('租户候选加载失败', error);
+    errorMessage.value = '租户候选加载失败，请重试。';
+  } finally {
+    if (generation === candidateGeneration) candidateLoading.value = false;
+  }
+}
+async function searchCandidates(value: string) {
+  candidateKeyword.value = value;
+  candidateGeneration += 1;
+  candidateLoading.value = false;
+  if (activeKey.value === 'tenant') {
+    tenantOptions.value = [];
+    tenantPage.value = 0;
+    tenantHasMore.value = true;
+    await loadMoreTenants();
+  } else if (activeKey.value === 'domain' && props.loadDomainOptions) {
+    const generation = candidateGeneration;
+    candidateLoading.value = true;
+    try {
+      const options = await props.loadDomainOptions(value);
+      if (generation !== candidateGeneration) return;
+      domainOptions.value = options;
+      cacheOptions(options);
+      errorMessage.value = '';
+    } catch (error) {
+      console.warn('领域候选加载失败', error);
+      errorMessage.value = '领域候选加载失败，请重试。';
+    } finally {
+      if (generation === candidateGeneration) candidateLoading.value = false;
+    }
+  }
+}
+function advancedSideValues(tab: ScopeTab, side: ScopeSide) {
+  const values = scopeValues.value[fieldFor(tab, side)] || [];
+  return values.toSorted((left, right) =>
+    optionLabel(tab.kind, left).localeCompare(optionLabel(tab.kind, right)),
+  );
+}
+function setAdvancedSideCustom(
+  tab: ScopeTab,
+  side: ScopeSide,
+  checked: boolean,
+) {
+  if (!isUser.value || isTabReadOnly(tab)) return;
+  const field = fieldFor(tab, side);
+  if (checked) {
+    scopeValues.value[field] = [];
+    return;
+  }
+  const clear = () => {
+    scopeValues.value[field] = null;
+  };
+  if ((scopeValues.value[field] || []).length === 0) {
+    clear();
+    return;
+  }
+  Modal.confirm({
+    content: '取消自定义会清空当前列表，并继承有效角色的对应范围。',
+    okText: '清空并继承',
+    onOk: clear,
+    title: '确认取消自定义？',
+  });
+}
+function removeAdvancedRule(tab: ScopeTab, side: ScopeSide, value: string) {
+  if (isAdvancedRuleReadOnly(tab, value)) return;
+  const field = fieldFor(tab, side);
+  scopeValues.value[field] = removeRules(
+    scopeValues.value[field],
+    new Set([value]),
+  );
+}
+function isAdvancedRuleReadOnly(tab: ScopeTab, value: string) {
+  return (
+    isTabReadOnly(tab) ||
+    (tab.kind === 'org' &&
+      !isSuperAdmin.value &&
+      parseOrgRule(value).startValue === '_ALL_ROOT_')
+  );
+}
+async function loadAdvancedCandidates(reset = true) {
+  const generation = ++advancedGeneration;
+  if (reset) {
+    advancedOptions.value = [];
+    advancedTenantPage.value = 0;
+  }
+  advancedLoading.value = true;
+  try {
+    const keyword = advancedKeyword.value.trim();
+    let options: Option[] = [];
+    if (advancedCandidateKind.value === 'domain') {
+      options = props.loadDomainOptions
         ? await props.loadDomainOptions(keyword)
         : [];
-    } else if (candidateKind.value === 'tenant') {
-      remoteOptions = await tenantDataScopeOptionsLoader(keyword);
-    } else {
-      remoteOptions = orgOptions.value.filter((item) =>
-        item.label.includes(keyword),
+    } else if (advancedCandidateKind.value === 'tenant') {
+      const loaded = await tenantDataScopeOptionsLoader(
+        keyword,
+        advancedTenantPage.value + 1,
       );
-      remoteOptions = remoteOptions.slice(0, keyword ? 50 : 10);
+      options = loaded.map((item) => ({
+        label: tenantOptionLabel(String(item.label), String(item.value)),
+        value: String(item.value),
+      }));
+      advancedTenantPage.value += 1;
+      advancedTenantHasMore.value = loaded.length === 50;
     }
-    const editingOption = candidateEditingValue.value
+    if (generation !== advancedGeneration) return;
+    const saved = advancedEditingValue.value
       ? [
           {
-            label: optionLabel(candidateKind.value, candidateEditingValue.value),
-            preset: isPresetValue(
-              candidateKind.value,
-              candidateEditingValue.value,
+            label: optionLabel(
+              advancedCandidateKind.value,
+              advancedEditingValue.value,
             ),
-            value: candidateEditingValue.value,
+            value: advancedEditingValue.value,
           },
         ]
       : [];
-    candidateOptions.value = [
+    advancedOptions.value = [
       ...new Map(
-        [...editingOption, ...presetOptions, ...remoteOptions].map((item) => [
-          item.value,
-          item,
-        ]),
+        [
+          ...(reset
+            ? builtinOptions(advancedCandidateKind.value)
+            : advancedOptions.value),
+          ...saved,
+          ...options,
+        ].map((item) => [item.value, item]),
       ).values(),
     ];
-    cacheOptions(candidateOptions.value);
+    cacheOptions(advancedOptions.value);
   } finally {
-    candidateLoading.value = false;
+    if (generation === advancedGeneration) advancedLoading.value = false;
   }
 }
-async function openCandidate(tab: ScopeTab, side: ScopeSide) {
-  if (isTabReadOnly(tab)) return;
-  candidateKind.value = tab.kind;
-  candidateSide.value = side;
-  candidateEditingValue.value = '';
-  candidateKeyword.value = '';
-  orgStartValue.value = '_DEFAULT_';
-  orgMatchingMode.value = 'SelfAndAllChild';
-  orgMatchingExpression.value = '';
-  candidateOpen.value = true;
-  await loadCandidates();
-}
-async function openCandidateEditor(
+async function openAdvancedCandidate(
   tab: ScopeTab,
   side: ScopeSide,
-  value: string,
+  value = '',
 ) {
-  if (isTabReadOnly(tab)) return;
-
-  candidateKind.value = tab.kind;
-  candidateSide.value = side;
-  candidateEditingValue.value = value;
-  candidateKeyword.value = '';
-
-  if (tab.kind === 'org') {
-    const rule = parseOrgRule(value);
-    orgStartValue.value = rule.startValue;
-    orgMatchingMode.value = rule.matchingMode;
-    orgMatchingExpression.value = rule.expression;
-  } else {
-    candidateOptions.value = [
-      {
-        label: optionLabel(tab.kind, value),
-        preset: isPresetValue(tab.kind, value),
-        value,
-      },
-    ];
-  }
-
-  candidateOpen.value = true;
-  await loadCandidates();
-}
-function addCandidate(tab: ScopeTab, value: string) {
-  const field = fieldFor(tab, candidateSide.value);
-  const current = scopeValues.value[field] || [];
-  const editingValue = candidateEditingValue.value;
-
-  scopeValues.value[field] = editingValue
-    ? [...new Set(current.map((item) => (item === editingValue ? value : item)))]
-    : [...new Set([value, ...current])];
-}
-function addOrgRule(tab: ScopeTab, closeAfterAdd = false) {
-  const matchingRule = requiresOrgMatchingExpression.value
-    ? `${orgMatchingMode.value}#${orgMatchingExpression.value.trim()}`
-    : orgMatchingMode.value;
-  addCandidate(
-    tab,
-    `${orgStartValue.value}|${isNoOrgStart.value ? 'Self' : matchingRule}`,
-  );
-  if (closeAfterAdd || candidateEditingValue.value) candidateOpen.value = false;
-}
-function isCandidateAdded(tab: ScopeTab, value: string) {
-  return (
-    value !== candidateEditingValue.value &&
-    (scopeValues.value[fieldFor(tab, candidateSide.value)] || []).includes(
-      value,
-    )
-  );
-}
-function removeValue(field: ScopeField, value: string) {
-  if (
-    isOrgScopeReadOnly.value &&
-    (field === 'orgScopeList' || field === 'deniedOrgScopeList')
-  ) {
+  if (isTabReadOnly(tab) || (value && isAdvancedRuleReadOnly(tab, value)))
     return;
+  advancedCandidateKind.value = tab.kind;
+  advancedCandidateSide.value = side;
+  advancedEditingValue.value = value;
+  advancedKeyword.value = '';
+  if (tab.kind === 'org') {
+    const rule = value ? parseOrgRule(value) : null;
+    advancedOrgStart.value = rule?.startValue || '_DEFAULT_';
+    advancedOrgMode.value = rule?.matchingMode || 'SelfAndAllChild';
+    advancedOrgExpression.value = rule?.expression || '';
+  } else {
+    await loadAdvancedCandidates();
   }
-  scopeValues.value[field] = (scopeValues.value[field] || []).filter(
-    (item) => item !== value,
+  advancedCandidateOpen.value = true;
+}
+function saveAdvancedCandidate(value: string) {
+  const tab = scopeTabs.find(
+    (item) => item.kind === advancedCandidateKind.value,
   );
+  if (!tab || !value || isTabReadOnly(tab)) return;
+  if (advancedEditingValue.value && advancedEditingValue.value !== value)
+    setChoice(tab, advancedEditingValue.value, 'none');
+  setChoice(tab, value, advancedCandidateSide.value);
+  advancedCandidateOpen.value = false;
+}
+function saveAdvancedOrgRule() {
+  if (!advancedOrgStart.value) return;
+  if (advancedOrgStart.value === '_ALL_ROOT_' && !isSuperAdmin.value) return;
+  if (
+    !advancedNoOrg.value &&
+    advancedRequiresExpression.value &&
+    !advancedOrgExpression.value.trim()
+  )
+    return;
+  let mode = advancedOrgMode.value;
+  if (advancedNoOrg.value) mode = 'Self';
+  else if (advancedRequiresExpression.value)
+    mode = `${advancedOrgMode.value}#${advancedOrgExpression.value.trim()}`;
+  saveAdvancedCandidate(`${advancedOrgStart.value}|${mode}`);
 }
 async function saveChanges(closeAfterSave = false) {
   const changed = visibleScopeTabs.value.flatMap((tab) => fieldsChanged(tab));
@@ -677,6 +1008,7 @@ async function saveChanges(closeAfterSave = false) {
     const updated: any = await requestClient.put(
       `${apiBase.value}/update`,
       payload,
+      { baseURL: '' },
     );
     if (updated?.optimisticLock !== undefined && detail.value)
       detail.value.optimisticLock = updated.optimisticLock;
@@ -691,7 +1023,11 @@ async function saveChanges(closeAfterSave = false) {
 watch(
   () => [props.open, props.record?.id, props.subjectType] as const,
   ([open]) => {
-    if (open) void loadData();
+    if (open) {
+      advancedMode.value = false;
+      advancedCandidateOpen.value = false;
+      void loadData();
+    }
   },
   { immediate: true },
 );
@@ -699,310 +1035,35 @@ watch(
 
 <template>
   <Modal
-    :footer="null"
     :mask-closable="false"
     :open="open"
-    :title="summaryText ? `${modalTitle}【${summaryText}】` : modalTitle"
-    :width="1180"
+    :width="advancedMode ? 1180 : 1040"
     :body-style="modalBodyStyle"
     destroy-on-close
     @cancel="emit('update:open', false)"
   >
-    <div class="flex h-full min-h-0 flex-col">
-      <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-        <div class="space-y-4">
-          <Alert
-            v-if="errorMessage"
-            :message="errorMessage"
-            show-icon
-            type="error"
-          />
-          <Spin :spinning="loading">
-            <Tabs v-model:active-key="activeKey">
-              <Tabs.TabPane v-for="tab in visibleScopeTabs" :key="tab.kind">
-                <template #tab>
-                  <span class="inline-flex items-center gap-1">
-                    {{ tab.label }}
-                    <Badge
-                      :count="(scopeValues[tab.allowField] || []).length"
-                      :number-style="{ backgroundColor: '#22c55e' }"
-                    />
-                    <Badge
-                      :count="(scopeValues[tab.denyField] || []).length"
-                      :number-style="{ backgroundColor: '#ef4444' }"
-                    />
-                  </span>
-                </template>
-                <div class="space-y-4 py-3">
-                  <div class="flex items-center justify-between gap-3">
-                    <Alert
-                      class="flex-1"
-                      :message="`仅可添加当前操作者实际拥有的${tab.label}范围；服务端会再次校验。`"
-                      show-icon
-                      type="info"
-                    />
-                  </div>
-                  <Alert
-                    v-if="isTabReadOnly(tab)"
-                    message="当前组织范围包含 Groovy 表达式，只有超级管理员可以编辑。"
-                    show-icon
-                    type="warning"
-                  />
-                  <div class="grid grid-cols-2 gap-4">
-                    <section
-                      v-for="side in ['allow', 'deny'] as ScopeSide[]"
-                      :key="side"
-                      class="flex h-[390px] flex-col rounded-lg border border-slate-200 p-4"
-                    >
-                      <div class="mb-3 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                          <strong>
-                            {{ side === 'allow' ? '允许列表' : '拒绝列表' }}
-                          </strong>
-                          <Checkbox
-                            v-if="isUser"
-                            :checked="isFieldCustom(fieldFor(tab, side))"
-                            :disabled="isTabReadOnly(tab)"
-                            @update:checked="
-                              setFieldCustom(fieldFor(tab, side), $event, tab)
-                            "
-                          >
-                            自定义
-                          </Checkbox>
-                        </div>
-                        <Button
-                          :disabled="
-                            isTabReadOnly(tab) ||
-                            isFieldUnset(fieldFor(tab, side))
-                          "
-                          size="small"
-                          type="primary"
-                          @click="openCandidate(tab, side)"
-                        >
-                          添加
-                        </Button>
-                      </div>
-                      <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-                        <div
-                          v-if="
-                            tab.kind === 'org' &&
-                            (scopeValues[fieldFor(tab, side)] || []).length > 0
-                          "
-                          class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 px-3 pb-2 text-xs text-slate-500"
-                        >
-                          <span>起点根组织</span>
-                          <span>子组织匹配模式</span>
-                          <span class="w-12"></span>
-                        </div>
-                        <List
-                          v-if="
-                            (scopeValues[fieldFor(tab, side)] || []).length > 0
-                          "
-                          :data-source="
-                            orderedValues(
-                              tab.kind,
-                              scopeValues[fieldFor(tab, side)] || [],
-                            )
-                          "
-                          :split="false"
-                          size="small"
-                        >
-                          <template #renderItem="{ item }">
-                            <List.Item
-                              class="transition-colors hover:bg-blue-50/60"
-                            >
-                              <div
-                                v-if="tab.kind === 'org'"
-                                class="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3"
-                              >
-                                <Tooltip
-                                  v-if="isPresetValue(tab.kind, item)"
-                                  :title="orgRuleStartTooltip(item)"
-                                >
-                                  <span
-                                    class="relative block min-w-0 max-w-full pt-4"
-                                  >
-                                    <span
-                                      class="block truncate whitespace-nowrap"
-                                    >
-                                      {{ orgRuleStartLabel(item) }}
-                                    </span>
-                                    <Tag
-                                      class="absolute left-0 top-0 !m-0 !rounded-sm !px-1 !py-0 !text-[12px] !leading-4"
-                                      color="blue"
-                                    >
-                                      预设值
-                                    </Tag>
-                                  </span>
-                                </Tooltip>
-                                <Tooltip
-                                  v-else
-                                  :title="orgRuleStartTooltip(item)"
-                                >
-                                  <span
-                                    class="block truncate whitespace-nowrap"
-                                  >
-                                    {{ orgRuleStartLabel(item) }}
-                                  </span>
-                                </Tooltip>
-                                <span
-                                  v-if="isOrgMatchingModePreset(item)"
-                                  :title="orgRuleMatchingModeLabel(item)"
-                                >
-                                  <span
-                                    class="relative block min-w-0 max-w-full pt-4"
-                                  >
-                                    <span
-                                      class="block truncate whitespace-nowrap"
-                                    >
-                                      {{ orgRuleMatchingModeLabel(item) }}
-                                    </span>
-                                    <Tag
-                                      class="absolute left-0 top-0 !m-0 !rounded-sm !px-1 !py-0 !text-[12px] !leading-4"
-                                      color="blue"
-                                    >
-                                      预设值
-                                    </Tag>
-                                  </span>
-                                </span>
-                                <Tooltip
-                                  v-else
-                                  :title="orgRuleMatchingModeLabel(item)"
-                                >
-                                  <span
-                                    class="relative block min-w-0 max-w-full pt-4"
-                                  >
-                                    <span
-                                      class="block truncate whitespace-nowrap"
-                                    >
-                                      {{ orgRuleMatchingModeLabel(item) }}
-                                    </span>
-                                    <Tag
-                                      v-if="orgMatchingModeBadge(item)"
-                                      class="absolute left-0 top-0 !m-0 !rounded-sm !px-1 !py-0 !text-[12px] !leading-4"
-                                      color="blue"
-                                    >
-                                      {{ orgMatchingModeBadge(item) }}
-                                    </Tag>
-                                  </span>
-                                </Tooltip>
-                                <div class="flex items-center gap-1">
-                                  <Tooltip title="编辑">
-                                    <Button
-                                      :aria-label="`编辑${orgRuleLabel(item)}`"
-                                      :disabled="isTabReadOnly(tab)"
-                                      size="small"
-                                      type="text"
-                                      @click="openCandidateEditor(tab, side, item)"
-                                    >
-                                      <IconifyIcon
-                                        class="size-4"
-                                        icon="lucide:pencil"
-                                      />
-                                    </Button>
-                                  </Tooltip>
-                                  <Tooltip title="删除">
-                                  <Button
-                                    aria-label="删除"
-                                    class="border border-rose-200 text-rose-500 hover:!border-rose-300 hover:!bg-rose-50"
-                                    :disabled="isTabReadOnly(tab)"
-                                    danger
-                                    size="small"
-                                    type="text"
-                                    @click="
-                                      removeValue(fieldFor(tab, side), item)
-                                    "
-                                  >
-                                    <IconifyIcon
-                                      class="size-4"
-                                      icon="lucide:minus"
-                                    />
-                                  </Button>
-                                </Tooltip>
-                                </div>
-                              </div>
-                              <template v-else>
-                                <Tooltip
-                                  v-if="isPresetValue(tab.kind, item)"
-                                  :title="presetDescription(tab.kind, item)"
-                                >
-                                  <span class="relative inline-block pt-4">
-                                    {{ optionLabel(tab.kind, item) }}
-                                    <Tag
-                                      class="absolute left-0 top-0 !m-0 !rounded-sm !px-1 !py-0 !text-[12px] !leading-4"
-                                      color="blue"
-                                    >
-                                      预设值
-                                    </Tag>
-                                  </span>
-                                </Tooltip>
-                                <span v-else>
-                                  {{ optionLabel(tab.kind, item) }}
-                                </span>
-                                <div class="flex items-center gap-1">
-                                  <Tooltip title="编辑">
-                                    <Button
-                                      :aria-label="`编辑${optionLabel(tab.kind, item)}`"
-                                      :disabled="isTabReadOnly(tab)"
-                                      size="small"
-                                      type="text"
-                                      @click="openCandidateEditor(tab, side, item)"
-                                    >
-                                      <IconifyIcon
-                                        class="size-4"
-                                        icon="lucide:pencil"
-                                      />
-                                    </Button>
-                                  </Tooltip>
-                                  <Tooltip title="删除">
-                                  <Button
-                                    aria-label="删除"
-                                    class="border border-rose-200 text-rose-500 hover:!border-rose-300 hover:!bg-rose-50"
-                                    :disabled="isTabReadOnly(tab)"
-                                    danger
-                                    size="small"
-                                    type="text"
-                                    @click="
-                                      removeValue(fieldFor(tab, side), item)
-                                    "
-                                  >
-                                    <IconifyIcon
-                                      class="size-4"
-                                      icon="lucide:minus"
-                                    />
-                                  </Button>
-                                </Tooltip>
-                                </div>
-                              </template>
-                            </List.Item>
-                          </template>
-                        </List>
-                        <Empty
-                          v-else
-                          :description="
-                            isUser && isFieldUnset(fieldFor(tab, side))
-                              ? '不设置（继承）'
-                              : '暂无配置'
-                          "
-                          :image="Empty.PRESENTED_IMAGE_SIMPLE"
-                        />
-                      </div>
-                    </section>
-                  </div>
-                </div>
-              </Tabs.TabPane>
-            </Tabs>
-          </Spin>
-        </div>
+    <template #title>
+      <div class="flex items-center justify-between gap-4 pr-8">
+        <span>{{
+          summaryText ? `${modalTitle}【${summaryText}】` : modalTitle
+        }}</span>
+        <Button
+          data-testid="data-permission-mode-switch"
+          size="small"
+          type="link"
+          @click="advancedMode = !advancedMode"
+        >
+          {{ advancedMode ? '返回简单模式' : '切换到高级模式' }}
+        </Button>
       </div>
-      <div
-        class="mt-4 flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-white pb-1 pt-3"
-      >
+    </template>
+    <template #footer>
+      <div data-testid="data-permission-footer" class="flex justify-end gap-2">
         <Button
           :disabled="!hasChanges"
           :loading="saving"
           type="primary"
-          @click="saveChanges"
+          @click="saveChanges()"
         >
           保存
         </Button>
@@ -1014,32 +1075,340 @@ watch(
           保存并关闭
         </Button>
       </div>
+    </template>
+    <div class="flex h-full min-h-0 flex-col">
+      <Alert
+        v-if="errorMessage"
+        :message="errorMessage"
+        show-icon
+        type="error"
+      />
+      <Spin :spinning="loading" class="min-h-0 flex-1">
+        <Tabs v-model:active-key="activeKey" @change="searchCandidates('')">
+          <Tabs.TabPane v-for="tab in visibleScopeTabs" :key="tab.kind">
+            <template #tab>
+              <span class="inline-flex items-start gap-0.5">
+                <span>{{ tab.label }}</span>
+                <span class="inline-flex -translate-y-1 gap-0.5">
+                  <sup
+                    v-if="(scopeValues[tab.allowField] || []).length > 0"
+                    :aria-label="`${tab.label}允许规则数`"
+                    class="inline-flex h-3 min-w-3 items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[9px] leading-3 text-white"
+                    v-text="(scopeValues[tab.allowField] || []).length"
+                  ></sup>
+                  <sup
+                    v-if="(scopeValues[tab.denyField] || []).length > 0"
+                    :aria-label="`${tab.label}禁止规则数`"
+                    class="inline-flex h-3 min-w-3 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] leading-3 text-white"
+                    v-text="(scopeValues[tab.denyField] || []).length"
+                  ></sup>
+                </span>
+              </span>
+            </template>
+            <div
+              v-if="advancedMode"
+              data-testid="data-permission-advanced"
+              class="grid grid-cols-1 gap-4 py-3 md:grid-cols-2"
+            >
+              <section
+                v-for="side in ['allow', 'deny'] as ScopeSide[]"
+                :key="side"
+                class="flex h-[390px] min-w-0 flex-col rounded-lg border border-slate-200 p-4"
+              >
+                <div class="mb-3 flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <strong>{{
+                      side === 'allow' ? '允许列表' : '禁止列表'
+                    }}</strong>
+                    <span class="text-xs text-slate-500">
+                      {{ advancedSideValues(tab, side).length }}
+                    </span>
+                    <Checkbox
+                      v-if="isUser"
+                      :checked="!isFieldUnset(fieldFor(tab, side))"
+                      :disabled="isTabReadOnly(tab)"
+                      @update:checked="
+                        setAdvancedSideCustom(tab, side, Boolean($event))
+                      "
+                    >
+                      自定义
+                    </Checkbox>
+                  </div>
+                  <Button
+                    :disabled="
+                      isTabReadOnly(tab) || isFieldUnset(fieldFor(tab, side))
+                    "
+                    size="small"
+                    type="primary"
+                    @click="openAdvancedCandidate(tab, side)"
+                  >
+                    添加
+                  </Button>
+                </div>
+                <div class="min-h-0 flex-1 overflow-y-auto">
+                  <div
+                    v-for="value in advancedSideValues(tab, side)"
+                    :key="value"
+                    class="flex min-h-11 items-center gap-2 border-t border-slate-100 px-2 text-sm"
+                  >
+                    <span
+                      class="min-w-0 flex-1 py-2"
+                      :title="
+                        [
+                          optionLabel(tab.kind, value),
+                          advancedRuleDescription(tab.kind, value),
+                        ]
+                          .filter(Boolean)
+                          .join(' ')
+                      "
+                    >
+                      <span class="block truncate">{{
+                        optionLabel(tab.kind, value)
+                      }}</span>
+                      <span
+                        v-if="advancedRuleDescription(tab.kind, value)"
+                        class="mt-0.5 block text-xs text-slate-500"
+                        v-text="advancedRuleDescription(tab.kind, value)"
+                      ></span>
+                    </span>
+                    <Button
+                      :aria-label="`编辑${optionLabel(tab.kind, value)}`"
+                      :disabled="isAdvancedRuleReadOnly(tab, value)"
+                      size="small"
+                      @click="openAdvancedCandidate(tab, side, value)"
+                    >
+                      编辑
+                    </Button>
+                    <Button
+                      :aria-label="`删除${optionLabel(tab.kind, value)}`"
+                      :disabled="isAdvancedRuleReadOnly(tab, value)"
+                      danger
+                      size="small"
+                      @click="removeAdvancedRule(tab, side, value)"
+                    >
+                      删除
+                    </Button>
+                  </div>
+                  <Empty
+                    v-if="advancedSideValues(tab, side).length === 0"
+                    :description="
+                      isUser && isFieldUnset(fieldFor(tab, side))
+                        ? '不设置（继承）'
+                        : '暂无配置'
+                    "
+                    :image="Empty.PRESENTED_IMAGE_SIMPLE"
+                  />
+                </div>
+              </section>
+            </div>
+            <div v-else class="flex min-h-0 flex-col gap-3 py-3">
+              <div v-if="isUser" class="flex items-center gap-2 text-sm">
+                <span>自定义{{ tab.label }}范围</span>
+                <Switch
+                  :aria-label="`自定义${tab.label}范围`"
+                  :checked="isTabCustom(tab)"
+                  :disabled="isTabReadOnly(tab)"
+                  @update:checked="setTabCustom(tab, Boolean($event))"
+                />
+              </div>
+              <div
+                class="data-permission-options-scroll rounded-lg border border-slate-200"
+              >
+                <table class="w-full border-collapse text-left text-sm">
+                  <thead class="bg-slate-50">
+                    <tr>
+                      <th class="px-4 py-3 font-medium">选项</th>
+                      <th class="w-72 px-3 py-3 text-center font-medium">
+                        访问设置
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="item in visibleFixedOptions(tab)"
+                      :key="item.value"
+                      class="border-t border-slate-100"
+                    >
+                      <td class="px-4 py-3">
+                        {{ item.label }}
+                        <span
+                          v-if="item.description"
+                          class="ml-2 text-xs text-slate-500"
+                          v-text="item.description"
+                        ></span>
+                      </td>
+                      <td class="px-3 py-2 text-center">
+                        <Segmented
+                          :aria-label="`${item.label}访问设置`"
+                          class="data-permission-choice"
+                          :class="{
+                            'data-permission-choice--unset':
+                              (item.value === allTokens(tab)[0]
+                                ? allChoice(tab)
+                                : selectedChoice(tab, item.value)) === 'none',
+                          }"
+                          :disabled="isTabReadOnly(tab) || !isTabCustom(tab)"
+                          :options="choiceOptions"
+                          :value="
+                            item.value === allTokens(tab)[0]
+                              ? allChoice(tab)
+                              : selectedChoice(tab, item.value)
+                          "
+                          @change="
+                            item.value === allTokens(tab)[0]
+                              ? setAllChoice(tab, String($event) as ScopeChoice)
+                              : setChoice(
+                                  tab,
+                                  item.value,
+                                  String($event) as ScopeChoice,
+                                )
+                          "
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div
+                  v-if="scopeMode(tab) === 'custom'"
+                  class="border-t border-slate-200 p-3"
+                >
+                  <Input
+                    v-if="tab.kind !== 'org'"
+                    :value="candidateKeyword"
+                    allow-clear
+                    class="mb-3 max-w-sm"
+                    :placeholder="`搜索${tab.label}名称或 ID`"
+                    @update:value="searchCandidates"
+                  />
+                  <div v-if="tab.kind === 'org'" class="min-w-0">
+                    <UserOrgSelector
+                      v-if="!loading"
+                      class="min-w-0"
+                      :action-only="true"
+                      :auto-expand-org-ids="configuredOrgIds"
+                      :inline="true"
+                      :selectable-types="['org']"
+                      :disabled="isTabReadOnly(tab) || !isTabCustom(tab)"
+                      :load-org-tree="loadOrgTreeForSelector"
+                    >
+                      <template #org-action="{ node }">
+                        <Segmented
+                          :aria-label="`${node.name}访问设置`"
+                          class="data-permission-choice"
+                          :class="{
+                            'data-permission-choice--unset':
+                              selectedChoice(tab, orgRuleValue(node.id)) ===
+                              'none',
+                          }"
+                          :disabled="
+                            isTabReadOnly(tab) ||
+                            !isTabCustom(tab) ||
+                            node.disabled
+                          "
+                          :options="choiceOptions"
+                          :value="selectedChoice(tab, orgRuleValue(node.id))"
+                          @change="
+                            setOrgChoice(
+                              tab,
+                              node.id,
+                              String($event) as ScopeChoice,
+                            )
+                          "
+                        />
+                        <Select
+                          :aria-label="`${node.name}子组织匹配模式`"
+                          class="w-40"
+                          :disabled="
+                            isTabReadOnly(tab) ||
+                            !isTabCustom(tab) ||
+                            node.disabled ||
+                            selectedChoice(tab, orgRuleValue(node.id)) ===
+                              'none'
+                          "
+                          :options="orgInlineMatchingModeOptions"
+                          placeholder="选择匹配模式"
+                          :value="orgModeForNode(node.id) || undefined"
+                          @update:value="
+                            setOrgMode(tab, node.id, String($event))
+                          "
+                        />
+                      </template>
+                    </UserOrgSelector>
+                  </div>
+                  <table
+                    v-else
+                    class="w-full border-collapse text-left text-sm"
+                  >
+                    <tbody>
+                      <tr
+                        v-for="item in dynamicOptions(tab)"
+                        :key="item.value"
+                        class="border-t border-slate-100 hover:bg-blue-50/60"
+                      >
+                        <td class="px-4 py-2">{{ item.label }}</td>
+                        <td class="w-72 px-3 py-2 text-center">
+                          <Segmented
+                            :aria-label="`${item.label}访问设置`"
+                            class="data-permission-choice"
+                            :class="{
+                              'data-permission-choice--unset':
+                                selectedChoice(tab, item.value) === 'none',
+                            }"
+                            :disabled="isTabReadOnly(tab) || !isTabCustom(tab)"
+                            :options="choiceOptions"
+                            :value="selectedChoice(tab, item.value)"
+                            @change="
+                              setChoice(
+                                tab,
+                                item.value,
+                                String($event) as ScopeChoice,
+                              )
+                            "
+                          />
+                        </td>
+                      </tr>
+                      <tr v-if="dynamicOptions(tab).length === 0">
+                        <td
+                          colspan="2"
+                          class="px-4 py-8 text-center text-slate-500"
+                        >
+                          没有更多
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <Button
+                    v-if="tab.kind === 'tenant' && tenantHasMore"
+                    :loading="candidateLoading"
+                    class="mt-3"
+                    @click="loadMoreTenants"
+                  >
+                    加载更多租户
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Tabs.TabPane>
+        </Tabs>
+      </Spin>
     </div>
   </Modal>
+
   <Modal
-    v-model:open="candidateOpen"
+    v-model:open="advancedCandidateOpen"
     :footer="null"
-    :title="`${candidateEditingValue ? '编辑' : '添加'}${candidateSide === 'allow' ? '允许' : '拒绝'}${candidateKind === 'domain' ? '领域' : candidateKind === 'tenant' ? '租户' : '组织'}`"
+    :title="`${advancedEditingValue ? '编辑' : '添加'}${advancedCandidateSide === 'allow' ? '允许' : '禁止'}${scopeTabs.find((tab) => tab.kind === advancedCandidateKind)?.label || ''}`"
     :width="480"
-    :body-style="candidateModalBodyStyle"
+    :body-style="{ maxHeight: '420px', overflowY: 'auto' }"
   >
-    <Input
-      v-if="candidateKind !== 'org'"
-      v-model:value="candidateKeyword"
-      allow-clear
-      class="mb-3"
-      placeholder="输入名称搜索"
-      @update:value="loadCandidates"
-      @press-enter="loadCandidates"
-    />
-    <div v-if="candidateKind === 'org'" class="space-y-4">
+    <div v-if="advancedCandidateKind === 'org'" class="space-y-4">
       <div>
         <div class="mb-1 text-sm font-medium">起点根组织</div>
         <TreeSelect
-          v-model:value="orgStartValue"
+          v-model:value="advancedOrgStart"
           allow-clear
           class="w-full"
-          :tree-data="orgStartTreeData"
+          :tree-data="advancedOrgTreeData"
           placeholder="请选择起点根组织"
           show-search
           tree-default-expand-all
@@ -1048,131 +1417,148 @@ watch(
       <div>
         <div class="mb-1 text-sm font-medium">子组织匹配模式</div>
         <Select
-          v-model:value="orgMatchingMode"
+          v-model:value="advancedOrgMode"
           class="w-full"
-          :disabled="isNoOrgStart"
-          :options="availableOrgMatchingModeOptions"
+          :disabled="advancedNoOrg"
+          :options="advancedOrgModeOptions"
         />
-        <div v-if="isNoOrgStart" class="mt-1 text-xs text-gray-500">
+        <div v-if="advancedNoOrg" class="mt-1 text-xs text-slate-500">
           无组织不包含下级组织，此匹配模式不生效。
         </div>
       </div>
-      <div v-if="!isNoOrgStart && requiresOrgMatchingExpression">
+      <div v-if="!advancedNoOrg && advancedRequiresExpression">
         <div class="mb-1 text-sm font-medium">匹配表达式</div>
         <Input.TextArea
-          v-if="orgMatchingMode === 'Groovy'"
-          v-model:value="orgMatchingExpression"
+          v-if="advancedOrgMode === 'Groovy'"
+          v-model:value="advancedOrgExpression"
           :rows="3"
           placeholder="Groovy 可用变量：_org、_user"
         />
         <Input
           v-else
-          v-model:value="orgMatchingExpression"
+          v-model:value="advancedOrgExpression"
           :placeholder="
-            orgMatchingMode === 'IdPath'
+            advancedOrgMode === 'IdPath'
               ? '例如：/* 或 /组织ID/**'
-              : orgMatchingMode === 'NamePath'
-                ? '例如：/* 或 /组织名称/**'
-                : ''
+              : '例如：/* 或 /组织名称/**'
           "
         />
-        <div class="mt-1 text-xs text-gray-500">
-          <template v-if="orgMatchingMode === 'Groovy'">
-            Groovy 属于动态代码，仅超级管理员可以配置。
-          </template>
-          <template v-else>
-            使用 Spring PathPattern：/ 为起点组织，* 匹配一层，**
-            匹配零层或多层。
-          </template>
-        </div>
       </div>
-      <div class="flex justify-end gap-2">
+      <div class="flex justify-end">
         <Button
           :disabled="
-            !orgStartValue ||
-            (!isNoOrgStart &&
-              (!orgMatchingMode ||
-                (requiresOrgMatchingExpression &&
-                  !orgMatchingExpression.trim())))
+            !advancedOrgStart ||
+            (!advancedNoOrg &&
+              advancedRequiresExpression &&
+              !advancedOrgExpression.trim())
           "
           type="primary"
-          @click="addOrgRule(scopeTabs.find((tab) => tab.kind === 'org')!)"
+          @click="saveAdvancedOrgRule"
         >
-          {{ candidateEditingValue ? '保存' : '添加' }}
-        </Button>
-        <Button
-          :disabled="
-            !orgStartValue ||
-            (!isNoOrgStart &&
-              (!orgMatchingMode ||
-                (requiresOrgMatchingExpression &&
-                  !orgMatchingExpression.trim())))
-          "
-          @click="
-            addOrgRule(scopeTabs.find((tab) => tab.kind === 'org')!, true)
-          "
-        >
-          {{ candidateEditingValue ? '保存并关闭' : '添加并关闭' }}
+          {{ advancedEditingValue ? '保存规则' : '添加规则' }}
         </Button>
       </div>
     </div>
-    <Spin v-else :spinning="candidateLoading">
-      <List
-        v-if="candidateOptions.length > 0"
-        :data-source="candidateOptions"
-        bordered
-        :split="false"
-        size="small"
+    <div v-else data-testid="advanced-candidate-options" class="space-y-3">
+      <Input
+        :value="advancedKeyword"
+        allow-clear
+        placeholder="输入名称搜索"
+        @update:value="
+          advancedKeyword = String($event);
+          loadAdvancedCandidates();
+        "
+      />
+      <Spin :spinning="advancedLoading">
+        <div
+          v-for="item in advancedOptions"
+          :key="item.value"
+          class="flex min-h-11 items-center justify-between gap-2 border-b border-slate-100 px-2 text-sm"
+        >
+          <span
+            class="min-w-0 truncate"
+            :title="item.description || item.label"
+          >
+            {{ item.label }}
+          </span>
+          <Button
+            :disabled="
+              item.value !== advancedEditingValue &&
+              (
+                scopeValues[
+                  fieldFor(
+                    scopeTabs.find(
+                      (tab) => tab.kind === advancedCandidateKind,
+                    )!,
+                    advancedCandidateSide,
+                  )
+                ] || []
+              ).includes(item.value)
+            "
+            size="small"
+            type="primary"
+            @click="saveAdvancedCandidate(item.value)"
+          >
+            {{ advancedEditingValue ? '保存' : '添加' }}
+          </Button>
+        </div>
+        <Empty
+          v-if="advancedOptions.length === 0 && !advancedLoading"
+          description="没有可添加的候选资源"
+          :image="Empty.PRESENTED_IMAGE_SIMPLE"
+        />
+      </Spin>
+      <Button
+        v-if="advancedCandidateKind === 'tenant' && advancedTenantHasMore"
+        :loading="advancedLoading"
+        @click="loadAdvancedCandidates(false)"
       >
-        <template #renderItem="{ item }">
-          <List.Item class="group transition-colors hover:bg-blue-50/60">
-            <Tooltip v-if="item.preset" :title="item.description">
-              <span class="relative inline-block pt-4">
-                {{ item.label }}
-                <Tag
-                  class="absolute left-0 top-0 !m-0 !rounded-sm !px-1 !py-0 !text-[12px] !leading-4"
-                  color="blue"
-                >
-                  预设值
-                </Tag>
-              </span>
-            </Tooltip>
-            <span v-else>
-              {{ item.label }}
-            </span>
-            <Button
-              class="opacity-0 transition-opacity focus:opacity-100 group-hover:opacity-100"
-              :disabled="
-                isCandidateAdded(
-                  scopeTabs.find((tab) => tab.kind === candidateKind)!,
-                  item.value,
-                )
-              "
-              size="small"
-              type="primary"
-              @click="
-                addCandidate(
-                  scopeTabs.find((tab) => tab.kind === candidateKind)!,
-                  item.value,
-                );
-                candidateEditingValue && (candidateOpen = false)
-              "
-            >
-              {{
-                candidateEditingValue
-                  ? '保存'
-                  : isCandidateAdded(
-                        scopeTabs.find((tab) => tab.kind === candidateKind)!,
-                        item.value,
-                      )
-                    ? '已添加'
-                    : '添加'
-              }}
-            </Button>
-          </List.Item>
-        </template>
-      </List>
-      <Empty v-else description="没有可添加的候选资源" />
-    </Spin>
+        加载更多租户
+      </Button>
+    </div>
   </Modal>
 </template>
+
+<style scoped>
+/* 固定与动态候选共用一个滚动框；保存按钮由弹窗 Footer 固定在底部。 */
+.data-permission-options-scroll {
+  max-height: min(480px, calc(100vh - 330px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* 组织树在外层滚动框内自然增高，避免树和外框出现两层滚动条。 */
+.data-permission-options-scroll :deep(.user-org-selector__inline-tree) {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.data-permission-options-scroll :deep(.user-org-selector__inline-search) {
+  width: 25%;
+  min-width: min(240px, 100%);
+  height: 32px;
+  min-height: 32px;
+}
+
+/* 三档开关只突出当前档位，随运行时主题主色与前景色变化。 */
+.data-permission-choice:not(.data-permission-choice--unset)
+  :deep(.ant-segmented-item-selected),
+.data-permission-choice:not(.data-permission-choice--unset)
+  :deep(.ant-segmented-item-selected:hover) {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.data-permission-choice:not(.data-permission-choice--unset)
+  :deep(.ant-segmented-thumb) {
+  background: hsl(var(--primary));
+}
+
+.data-permission-choice--unset :deep(.ant-segmented-item-selected),
+.data-permission-choice--unset :deep(.ant-segmented-item-selected:hover),
+.data-permission-choice--unset :deep(.ant-segmented-thumb) {
+  background: hsl(var(--foreground) / 0.18);
+  color: hsl(var(--foreground));
+}
+</style>

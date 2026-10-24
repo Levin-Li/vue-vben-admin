@@ -3,6 +3,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { collectUserRoleIdentityValues } from '@levin/admin-framework/framework-commons/shared/user-identity';
 
 import { robotNotifyGroupService } from '../../api/robot-notify-group-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildModuleEnumOptionsLoader,
   tenantOptionsLoader,
@@ -33,6 +34,7 @@ export const pageMeta = {
 export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
   apiBase: '/RobotNotifyGroup',
   apiService: robotNotifyGroupService,
+  dataAttrTargets: standardCrudDataAttrTargets(robotNotifyGroupService),
   domainObject: true,
   defaultFormValues: {
     editable: true,

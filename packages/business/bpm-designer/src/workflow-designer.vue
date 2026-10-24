@@ -639,7 +639,7 @@ function addOutcomeAction() {
         此业务方案只记录审批过程和结果，不会自动修改业务状态。需要回写时，业务模块须先公开受控业务操作。
       </p>
       <p v-if="!options.businessTypes?.length" class="hint">
-        暂无可配置的业务对象，请联系管理员开通。
+        当前没有可用业务对象，请检查业务目录及当前账号权限。
       </p>
       <p
         v-if="
@@ -649,7 +649,7 @@ function addOutcomeAction() {
         "
         class="hint"
       >
-        此业务对象缺少记录编号或名称的受控说明，请联系管理员补齐后再发布。
+        此业务对象缺少记录编号或名称的字段说明，请由开发人员补齐后端业务接入后再发布。
       </p>
       <details v-if="modelValue.businessBinding" class="technical-details">
         <summary>字段对应关系（通常由系统填写）</summary>
@@ -677,91 +677,95 @@ function addOutcomeAction() {
           </label>
         </div>
       </details>
-      <h3>可用于判断的业务字段</h3>
-      <p class="hint">
-        需要按业务数据决定是否发起或走哪条审批路线时，在这里选择字段；权限和归属由系统处理。
-      </p>
-      <div class="inline-form">
-        <label>
-          业务字段
+      <!-- 选中有效业务方案后才展示可操作的条件字段。 -->
+      <template v-if="business">
+        <h3>审批条件使用哪些业务字段？</h3>
+        <p class="hint">
+          例如“申请金额大于 1
+          万元时由部门负责人审批”：先添加“申请金额”，再到“发起规则”或审批分支中设置金额条件。不按业务数据分流时，可以跳过此项。权限和归属由系统处理。
+        </p>
+        <div class="inline-form">
+          <label>
+            业务字段
 
-          <select v-model="variableField" :disabled="readonly">
-            <option value="">选择可判断字段</option>
+            <select v-model="variableField" :disabled="readonly">
+              <option value="">选择可判断字段</option>
 
-            <option
-              v-for="field in conditionFields"
-              :key="field.key"
-              :value="field.key"
-            >
-              {{ field.title }}
-            </option>
-          </select>
-        </label>
-        <button
-          type="button"
-          :disabled="
-            readonly ||
-            !variableField ||
-            Object.values(modelValue.variables ?? {}).some(
-              (variable) => variable.source === `business.${variableField}`,
-            )
-          "
-          @click="addVariable"
-        >
-          添加判断字段
-        </button>
-      </div>
-      <table v-if="Object.keys(modelValue.variables ?? {}).length > 0">
-        <thead>
-          <tr>
-            <th>业务字段</th>
-            <th>取值时间</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(variable, key) in modelValue.variables" :key="key">
-            <td>
-              {{
-                fields.find(
-                  (field) => variable.source === `business.${field.key}`,
-                )?.title ?? '已配置字段'
-              }}
-            </td>
-            <td>
-              <select
-                :aria-label="`${variableLabels[key]}取值时间`"
-                :disabled="readonly"
-                :value="variable.readAt"
-                @change="
-                  updateDefinition((draft) => {
-                    draft.variables![key]!.readAt = text($event) as
-                      | 'start'
-                      | 'node';
-                  })
-                "
+              <option
+                v-for="field in conditionFields"
+                :key="field.key"
+                :value="field.key"
               >
-                <option value="start">发起时的值</option>
+                {{ field.title }}
+              </option>
+            </select>
+          </label>
+          <button
+            type="button"
+            :disabled="
+              readonly ||
+              !variableField ||
+              Object.values(modelValue.variables ?? {}).some(
+                (variable) => variable.source === `business.${variableField}`,
+              )
+            "
+            @click="addVariable"
+          >
+            添加判断字段
+          </button>
+        </div>
+        <table v-if="Object.keys(modelValue.variables ?? {}).length > 0">
+          <thead>
+            <tr>
+              <th>业务字段</th>
+              <th>取值时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(variable, key) in modelValue.variables" :key="key">
+              <td>
+                {{
+                  fields.find(
+                    (field) => variable.source === `business.${field.key}`,
+                  )?.title ?? '已配置字段'
+                }}
+              </td>
+              <td>
+                <select
+                  :aria-label="`${variableLabels[key]}取值时间`"
+                  :disabled="readonly"
+                  :value="variable.readAt"
+                  @change="
+                    updateDefinition((draft) => {
+                      draft.variables![key]!.readAt = text($event) as
+                        | 'start'
+                        | 'node';
+                    })
+                  "
+                >
+                  <option value="start">发起时的值</option>
 
-                <option value="node">进入步骤时的值</option>
-              </select>
-            </td>
-            <td>
-              <button
-                type="button"
-                :disabled="readonly"
-                @click="
-                  updateDefinition((draft) => {
-                    delete draft.variables![key];
-                  })
-                "
-              >
-                移除字段
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                  <option value="node">进入步骤时的值</option>
+                </select>
+              </td>
+              <td>
+                <button
+                  type="button"
+                  :disabled="readonly"
+                  @click="
+                    updateDefinition((draft) => {
+                      delete draft.variables![key];
+                    })
+                  "
+                >
+                  移除字段
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
     </div>
 
     <!-- 启动资格与同轮次用途依赖独立配置，自动模式必须显式选择事件和主体。 -->

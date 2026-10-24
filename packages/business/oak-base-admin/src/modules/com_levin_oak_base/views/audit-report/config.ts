@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { auditReportService } from '../../api/audit-report-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
@@ -17,6 +18,10 @@ export const pageMeta = {
 export const auditReportPageCrudConfig: CrudPageConfig = {
   apiBase: '/AuditReport',
   apiService: auditReportService,
+  dataAttrTargets: fixedCrudDataAttrTargets(auditReportService, {
+    list: { method: 'GET', path: 'list' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+  }),
   domainObject: true,
   allowCreate: false,
   allowEdit: false,
@@ -213,7 +218,13 @@ export const auditReportPageCrudConfig: CrudPageConfig = {
       type: 'switch',
       valueType: 'boolean',
     },
-    { key: 'remark', label: '备注', form: false, fullRow: true, type: 'textarea' },
+    {
+      key: 'remark',
+      label: '备注',
+      form: false,
+      fullRow: true,
+      type: 'textarea',
+    },
     { key: 'optimisticLock', label: '乐观锁版本号', form: false },
   ],
   rowActions: [],

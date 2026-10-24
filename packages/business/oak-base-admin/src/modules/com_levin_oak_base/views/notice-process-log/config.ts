@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { noticeProcessLogService } from '../../api/notice-process-log-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -22,6 +23,7 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/NoticeProcessLog',
   domainObject: true,
   apiService: noticeProcessLogService,
+  dataAttrTargets: standardCrudDataAttrTargets(noticeProcessLogService),
   defaultQuery: {
     pageIndex: 1,
     pageSize: 10,

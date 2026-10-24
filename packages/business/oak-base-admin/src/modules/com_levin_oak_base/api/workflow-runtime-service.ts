@@ -238,6 +238,16 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
     return super.roundState(this.businessScope(args[0]));
   }
 
+  @CRUD.Op({ label: '保存' })
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
+    action: '完成工作流待办',
+  })
+  override saveTask(...args: Parameters<WorkflowRuntimeService['saveTask']>) {
+    return super.saveTask(...args);
+  }
+
   @CRUD.Op({ label: '发起流程' })
   @ResAuthorize({
     domain: 'WorkflowRuntime',

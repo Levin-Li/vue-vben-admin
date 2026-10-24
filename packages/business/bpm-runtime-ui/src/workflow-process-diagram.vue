@@ -3,7 +3,12 @@ import type { WorkflowNodeStatus, WorkflowTaskView } from './types';
 
 import { computed } from 'vue';
 
-import { LowflowFlowDesign, toLowflowRuntimeTree } from '@levin/bpm-designer';
+import {
+  layoutTaskGraph,
+  LowflowFlowDesign,
+  toLowflowRuntimeTree,
+  WorkflowGraphCanvas,
+} from '@levin/bpm-designer';
 import { Alert as AAlert, Empty as AEmpty } from 'ant-design-vue';
 
 import { workflowNodeStatusLabels } from './workflow-diagram-layout';
@@ -13,7 +18,11 @@ const props = defineProps<{
   task: Partial<
     Pick<
       WorkflowTaskView,
-      'processDiagramEdges' | 'processDiagramNodes' | 'taskId' | 'taskName'
+      | 'processDiagramEdges'
+      | 'processDiagramNodes'
+      | 'processSchemaVersion'
+      | 'taskId'
+      | 'taskName'
     >
   >;
 }>();
@@ -34,9 +43,79 @@ const nodeStatuses = computed(() =>
   ),
 );
 
+// 状态节点由服务端固定图标识，不按连线形状猜测协议，也不索取完整设计配置。
+const isStateGraph = computed(
+  () =>
+    nodes.value.length > 0 &&
+    nodes.value.every((node) => node.type === 'state'),
+);
+
+// 服务端可序列化null；只展示有限非负整数，不将空投影当作进度。
+function isProgressCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+// 第五版直接保留任务拓扑，仅适配画布事件图形，不隐式改写固定版本。
+const isTaskGraph = computed(() => props.task.processSchemaVersion === 5);
+// 无坐标的运行投影复用设计期拓扑布局；仅改展示克隆，已有位置保持原值。
+const displayNodes = computed(() => {
+  const copies = nodes.value.map((node) => ({ ...node }));
+  if (!isTaskGraph.value) return copies;
+  const layout = layoutTaskGraph({
+    nodes: copies,
+    edges: edges.value.map((edge) => ({ ...edge })),
+  });
+  return layout.nodes.map((node, index) => ({
+    ...node,
+    x: Number.isFinite(nodes.value[index]?.x) ? nodes.value[index]?.x : node.x,
+    y: Number.isFinite(nodes.value[index]?.y) ? nodes.value[index]?.y : node.y,
+  }));
+});
+const canvasNodes = computed(() =>
+  displayNodes.value.map((node) => {
+    let type = node.type;
+    if (type === 'start') type = 'startEvent';
+    if (type === 'end') type = 'endEvent';
+    const canvasType = [
+      'endEvent',
+      'exclusiveGateway',
+      'parallelGateway',
+      'serviceTask',
+      'startEvent',
+      'userTask',
+    ].includes(type ?? '')
+      ? (type as
+          | 'endEvent'
+          | 'exclusiveGateway'
+          | 'parallelGateway'
+          | 'serviceTask'
+          | 'startEvent'
+          | 'userTask')
+      : undefined;
+    const progress =
+      isProgressCount(node.completedCount) && isProgressCount(node.totalCount)
+        ? `已完成 ${node.completedCount}／${node.totalCount}`
+        : '';
+    const waiting =
+      isProgressCount(node.waitingCount) && node.waitingCount > 0
+        ? `等待 ${node.waitingCount} ${node.type === 'parallelGateway' ? '条分支' : '人办理'}`
+        : '';
+    return {
+      ...node,
+      type: canvasType,
+      stateLabel: [progress, waiting].filter(Boolean).join(' · '),
+    };
+  }),
+);
+
 // 缺少连线或图结构异常时只展示事实列表，不能推断一条不存在的执行路径。
 const diagram = computed(() => {
-  if (nodes.value.length === 0 || edges.value.length === 0)
+  if (
+    isTaskGraph.value ||
+    isStateGraph.value ||
+    nodes.value.length === 0 ||
+    edges.value.length === 0
+  )
     return { tree: null, error: '' };
   try {
     return {
@@ -82,9 +161,18 @@ const diagram = computed(() => {
         :message="`服务端流程图结构不完整：${diagram.error}`"
       />
 
-      <!-- 同一份 lowflow-design 源码的只读模式展示真实拓扑和服务端状态。 -->
+      <!-- 第四版直接展示服务端授权图，多入边和回环保留原节点身份。 -->
+      <WorkflowGraphCanvas
+        v-if="isStateGraph || isTaskGraph"
+        :nodes="canvasNodes"
+        :edges="edges"
+        :node-statuses="nodeStatuses"
+        :read-only="true"
+      />
+
+      <!-- 第三版继续按其固定树协议展示，不进行隐式格式转换。 -->
       <div
-        v-if="diagram.tree"
+        v-else-if="diagram.tree"
         class="workflow-diagram-scroll"
         tabindex="0"
         aria-label="流程图，可横向滚动查看所有分支"

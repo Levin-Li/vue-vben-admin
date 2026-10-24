@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { accessLogService } from '../../api/access-log-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
 function formatAccessLogRequestInfo(record: Record<string, any>) {
@@ -27,6 +28,7 @@ export const accessLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/AccessLog',
   domainObject: true,
   apiService: accessLogService,
+  dataAttrTargets: standardCrudDataAttrTargets(accessLogService),
   allowCreate: false,
   allowDelete: false,
   allowEdit: false,

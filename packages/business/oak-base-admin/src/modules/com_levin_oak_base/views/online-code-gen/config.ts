@@ -1,8 +1,9 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
-import { onlineCodeGenService } from '../../api/online-code-gen-service';
 
+import { onlineCodeGenService } from '../../api/online-code-gen-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { DEFAULT_CRUD_MODAL_WIDTH } from '../api-module';
 
 function buildGenAmisPageCodeAction(record: Record<string, any>) {
@@ -21,8 +22,12 @@ export const onlineCodeGenPageCrudConfig: CrudPageConfig = {
   allowCreate: false,
   allowDelete: false,
   allowEdit: false,
+  allowRetrieve: false,
   apiBase: '/OnlineCodeGen',
   apiService: onlineCodeGenService,
+  dataAttrTargets: fixedCrudDataAttrTargets(onlineCodeGenService, {
+    list: { method: 'GET', path: 'list' },
+  }),
   defaultQuery: {
     pageIndex: 1,
     pageSize: 10,

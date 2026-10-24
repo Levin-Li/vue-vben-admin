@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { clientAppService } from '../../api/client-app-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   authorizedControllerPathOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -69,6 +70,7 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
   apiBase: '/ClientApp',
   domainObject: true,
   apiService: clientAppService,
+  dataAttrTargets: standardCrudDataAttrTargets(clientAppService),
   defaultFormValues: {
     editable: true,
     enable: true,

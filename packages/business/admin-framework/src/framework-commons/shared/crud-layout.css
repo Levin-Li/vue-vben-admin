@@ -1,0 +1,25 @@
+/* 标准 CRUD 与专用列表共用分区和表头主题，避免业务页面复制样式。 */
+:where(.vben-crud-page, .vben-crud-layout) .vben-crud-section {
+  min-width: 0;
+  padding: 16px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+:where(.vben-crud-page, .vben-crud-layout)
+  .vben-crud-section:has(.vben-crud-table) {
+  padding-bottom: 8px;
+}
+
+:where(.vben-crud-page, .vben-crud-layout)
+  .vben-crud-table
+  .ant-table-thead
+  > tr
+  > th {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: hsl(var(--muted));
+}

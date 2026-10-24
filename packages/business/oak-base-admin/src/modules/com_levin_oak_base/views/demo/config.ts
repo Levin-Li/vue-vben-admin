@@ -4,6 +4,7 @@ import type {
 } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { demoService } from '../../api/demo-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -152,6 +153,7 @@ export const demoPageCrudConfig: NestedDemoPageConfig = {
   apiBase: '/Demo',
   domainObject: true,
   apiService: demoService,
+  dataAttrTargets: standardCrudDataAttrTargets(demoService),
   defaultFormValues: {
     editable: false,
     enable: true,

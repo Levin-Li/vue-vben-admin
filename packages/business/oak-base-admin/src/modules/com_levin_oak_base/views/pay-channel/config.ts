@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { payChannelService } from '../../api/pay-channel-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
@@ -25,6 +26,7 @@ export const payChannelPageCrudConfig: CrudPageConfig = {
   apiBase: '/PayChannel',
   domainObject: true,
   apiService: payChannelService,
+  dataAttrTargets: standardCrudDataAttrTargets(payChannelService),
   defaultFormValues: {
     editable: true,
     enable: true,

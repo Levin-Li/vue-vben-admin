@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { userPageCrudConfig } from '../config';
 
 vi.mock('../../../api/user-service', () => ({
-  userService: {},
+  userService: {
+    buildRequestPath: (path: string) =>
+      `/com.levin.oak.base/V1/api/User/${path}`,
+  },
 }));
 
 vi.mock('../../api-module', () => ({
@@ -11,6 +14,24 @@ vi.mock('../../api-module', () => ({
 }));
 
 describe('user page config', () => {
+  it('queries field policies through the actual CRUD endpoints', () => {
+    expect(userPageCrudConfig.dataAttrTargets).toMatchObject({
+      create: {
+        method: 'POST',
+        path: '/com.levin.oak.base/V1/api/User/create',
+      },
+      update: { method: 'PUT', path: '/com.levin.oak.base/V1/api/User/update' },
+      delete: {
+        method: 'DELETE',
+        path: '/com.levin.oak.base/V1/api/User/delete',
+      },
+      list: { method: 'GET', path: '/com.levin.oak.base/V1/api/User/list' },
+      retrieve: {
+        method: 'GET',
+        path: '/com.levin.oak.base/V1/api/User/retrieve',
+      },
+    });
+  });
   it('renders MFA enrollment as a form with an explicit QR field', () => {
     const mfaQrAction = userPageCrudConfig.rowActions?.find(
       (action) => action.label === 'MFA二维码',
@@ -36,9 +57,9 @@ describe('user page config', () => {
       (field) => field.key === 'orgName',
     );
 
-    expect(orgField?.tableValue?.({ org: { name: '研发中心' }, orgId: 'org-1' })).toBe(
-      '研发中心',
-    );
+    expect(
+      orgField?.tableValue?.({ org: { name: '研发中心' }, orgId: 'org-1' }),
+    ).toBe('研发中心');
     expect(orgField?.tableValue?.({ orgId: 'org-1' })).toBe('org-1');
   });
 

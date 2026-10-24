@@ -2,6 +2,7 @@
 import { Select } from 'ant-design-vue';
 
 import CrudPage from '../crud-page.vue';
+import { isLegalSubjectPickerLocked } from '../partner/legal-subject-edit-lock';
 import LegalSubjectPicker from '../partner/legal-subject-picker.vue';
 import ChannelPartnerPicker from './channel-partner-picker.vue';
 import { customerPageCrudConfig } from './config';
@@ -14,10 +15,12 @@ function updateType(formState: Record<string, any>, type?: unknown) {
 
 <template>
   <CrudPage :config="customerPageCrudConfig">
-    <template #form-field-legalSubjectId="{ disabled, formState }">
+    <template
+      #form-field-legalSubjectId="{ disabled, editingRecord, formState }"
+    >
       <LegalSubjectPicker
         v-model="formState.legalSubjectId"
-        :disabled="disabled"
+        :disabled="isLegalSubjectPickerLocked(disabled, editingRecord)"
       />
     </template>
     <template #form-field-type="{ disabled, formState }">

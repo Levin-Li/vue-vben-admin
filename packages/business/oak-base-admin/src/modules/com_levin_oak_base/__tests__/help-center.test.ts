@@ -3,6 +3,8 @@ import type { UserDropdownMenuRecord } from '@levin/admin-framework';
 import { createApp } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { getTabKey, useTabbarStore } from '@vben/runtime/stores';
+
 import {
   getUserDropdownMenuItems,
   removeUserDropdownMenuItem,
@@ -56,7 +58,9 @@ describe('随包文档中心', () => {
     );
 
     expect(page?.name).toBe('_clob_V1_HelpCenter');
+    expect(page?.meta?.fullPathKey).toBe(false);
     expect(mapping).toMatchObject({
+      fullPathKey: false,
       onlyRequireAuthenticated: true,
       sourceFilePath: 'modules/com_levin_oak_base/views/help-center/index.vue',
       viewPath: '/system/com_levin_oak_base/help-center/index.vue',
@@ -65,6 +69,37 @@ describe('随包文档中心', () => {
     await menu?.handler();
     expect(push).toHaveBeenCalledWith('/clob/V1/HelpCenter');
     removeUserDropdownMenuItem('help-center');
+  });
+
+  it('切换文档仍复用一个页签并保留最新阅读地址', () => {
+    const module = createOakBaseAdminModule();
+    const personalGroup = module.routes?.[0]?.children?.find(
+      (route) => route.meta?.title === '个人&中心',
+    );
+    const page = personalGroup?.children?.find(
+      (route) => route.path === '/clob/V1/HelpCenter',
+    );
+    if (!page) throw new Error('文档中心路由未注册');
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [page],
+    });
+    const store = useTabbarStore(createPinia());
+    const firstResolved = router.resolve(helpDocumentUrl('mail-ticket-guide'));
+    const secondResolved = router.resolve(
+      helpDocumentUrl('mail-receiving-admin', '部署前置条件'),
+    );
+    if (!firstResolved.name || !secondResolved.name)
+      throw new Error('文档中心路由名称缺失');
+    const first = { ...firstResolved, name: firstResolved.name };
+    const second = { ...secondResolved, name: secondResolved.name };
+
+    store.addTab(first);
+    store.addTab(second);
+
+    expect(getTabKey(first)).toBe('/clob/V1/HelpCenter');
+    expect(store.tabs).toHaveLength(1);
+    expect(store.tabs[0]?.fullPath).toBe(second.fullPath);
   });
 
   it('markdown 渲染转义脚本、限制链接，并支持表格与章节定位', () => {

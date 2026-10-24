@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
-import { Alert, Button, Form, Input, message, Modal } from 'ant-design-vue';
+import { Button, Form, Input, message, Modal } from 'ant-design-vue';
 
 import { electronicInvoiceService } from '../../api/electronic-invoice-service';
 import CrudPage from '../crud-page.vue';
@@ -94,12 +94,7 @@ async function submitRedIssue() {
 
 <template>
   <div class="electronic-invoice-page">
-    <Alert
-      description="请以商户自身税号为销方提交申请。申请号用于幂等；提交后票面冻结，失败后可修正并用同一申请号重新提交。红冲会创建关联原票的独立红字票。"
-      message="商户自用电子发票"
-      show-icon
-      type="info"
-    />
+    <!-- 日常发票管理直接使用标准 CRUD，特殊办理仅保留在记录操作中。 -->
     <CrudPage :config="pageConfig">
       <template #search-field-partnerId="{ searchState }">
         <IssuerPartnerPicker
@@ -124,35 +119,34 @@ async function submitRedIssue() {
         </Button>
       </template>
     </CrudPage>
+
+    <Modal
+      v-model:open="redIssueOpen"
+      :confirm-loading="redIssueSubmitting"
+      :mask-closable="false"
+      destroy-on-close
+      ok-text="提交红冲"
+      title="申请电子发票红冲"
+      @ok="submitRedIssue"
+    >
+      <Form
+        id="electronic-invoice-red-flush"
+        name="electronicInvoiceRedFlush"
+        data-form-id="electronic-invoice-red-flush"
+        data-form-name="申请电子发票红冲"
+        layout="vertical"
+      >
+        <Form.Item label="红冲业务单号" required>
+          <Input v-model:value="redIssueForm.redRequestNo" :maxlength="128" />
+        </Form.Item>
+        <Form.Item label="红冲原因" required>
+          <Input.TextArea
+            v-model:value="redIssueForm.redReason"
+            :maxlength="512"
+            :rows="4"
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
   </div>
-
-  <Modal
-    v-model:open="redIssueOpen"
-    :confirm-loading="redIssueSubmitting"
-    :mask-closable="false"
-    destroy-on-close
-    ok-text="提交红冲"
-    title="申请电子发票红冲"
-    @ok="submitRedIssue"
-  >
-    <Form layout="vertical">
-      <Form.Item label="红冲业务单号" required>
-        <Input v-model:value="redIssueForm.redRequestNo" :maxlength="128" />
-      </Form.Item>
-      <Form.Item label="红冲原因" required>
-        <Input.TextArea
-          v-model:value="redIssueForm.redReason"
-          :maxlength="512"
-          :rows="4"
-        />
-      </Form.Item>
-    </Form>
-  </Modal>
 </template>
-
-<style scoped>
-.electronic-invoice-page {
-  display: grid;
-  gap: 12px;
-}
-</style>

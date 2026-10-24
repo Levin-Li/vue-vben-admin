@@ -17,6 +17,8 @@ API 属性组权限的轻量分配、后端元数据契约与保存语义见 [�
 
 标准 CRUD 金额字段的四位分组、默认单位和页面覆盖见 [金额展示使用说明](docs/crud-money-display.md)。
 
+标准 CRUD 本地下拉的文本、拼音与首字母搜索见 [本地选项搜索使用说明](docs/crud-local-search.md)。
+
 实现 EditableObject 的实体在标准 CRUD 中的超管可见性与编辑规则见 [EditableObject 标准 CRUD 使用说明](docs/crud-editableobject-access.md)。
 
 紧凑列表的表头固定列图标与临时收展见 [紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。

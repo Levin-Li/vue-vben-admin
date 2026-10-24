@@ -3,6 +3,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 
 import { settingService } from '../../api/setting-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -148,6 +149,7 @@ export const settingPageCrudConfig: CrudPageConfig = {
   apiBase: '/Setting',
   domainObject: true,
   apiService: settingPageCrudService,
+  dataAttrTargets: standardCrudDataAttrTargets(settingService),
   defaultFormValues: {
     editable: true,
     enable: true,

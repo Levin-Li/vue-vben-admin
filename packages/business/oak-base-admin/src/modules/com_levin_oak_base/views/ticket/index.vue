@@ -14,10 +14,9 @@ import type {
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Page } from '@vben/common-ui';
-
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
 import {
   Alert,
   Button,
@@ -29,7 +28,6 @@ import {
   Modal,
   Pagination,
   Select,
-  Table,
   Timeline,
 } from 'ant-design-vue';
 
@@ -39,6 +37,7 @@ import { helpDocumentUrl } from '../../help-center';
 import { moduleFetchEnumOptions } from '../api-module';
 import { buildSupportUserQuery } from '../support-options';
 import SupportScopeSelector from '../support-scope-selector.vue';
+import { createTicketCrudConfig } from './config';
 
 // 工单不提供通用新增/编辑；状态变化只提交真实业务命令与预期版本。
 const { hasPermission } = useRbacAccess();
@@ -46,15 +45,18 @@ const route = useRoute();
 const router = useRouter();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(ticketService, method));
-const scope = ref<SupportScope>();
-const rows = ref<TicketRecord[]>([]);
-const pageIndex = ref(1);
-const total = ref(0);
-const status = ref<string>();
+const selectedScope = ref<UserOrgSelectorRecord>();
+const scopeGeneration = ref(0);
+const initialQuery = ref<Record<string, unknown>>({});
+const crudPage = ref<{ reload: () => Promise<unknown> }>();
+let queryState: Record<string, unknown> = {};
+const detailScope = ref<SupportScope>();
 const statuses = ref<{ label: string; value: string }[]>([]);
 const directions = ref<{ label: string; value: string }[]>([]);
-const loading = ref(false);
 const error = ref('');
+watch(error, (value) => {
+  if (value) message.error(value);
+});
 const detail = ref<TicketRecord>();
 const opened = ref(false);
 const messages = ref<TicketMessageRecord[]>([]);
@@ -82,12 +84,6 @@ const reviewSnapshot =
 const reviewOpen = ref(false);
 const reviewConfirmed = ref(false);
 const reviewEvidence = ref('');
-const columns = [
-  { title: '标题', dataIndex: 'title' },
-  { title: '状态', key: 'status' },
-  { title: '请求人邮箱', dataIndex: 'requesterEmail' },
-  { title: '操作', key: 'actions' },
-];
 const stateActions = [
   { method: 'assign', event: '分派', label: '分派' },
   { method: 'start', event: '开始处理', label: '开始处理' },
@@ -150,32 +146,61 @@ let listVersion = 0;
 let detailVersion = 0;
 let messagesVersion = 0;
 let outboundVersion = 0;
-async function load(page = pageIndex.value) {
+const crudConfig = computed(() =>
+  createTicketCrudConfig({
+    apiService: { list: listTickets },
+    initialQuery: initialQuery.value,
+    stateLabel,
+    statuses: statuses.value,
+  }),
+);
+// 查询参数中的组织必须与当前授权选择器记录一致，避免跨范围复用旧值。
+function currentScope(orgId: unknown): SupportScope | undefined {
+  const record = selectedScope.value;
+  if (
+    orgId &&
+    (typeof orgId !== 'string' ||
+      record?.kind !== 'org' ||
+      record.id !== orgId ||
+      !record.tenantId)
+  )
+    throw new Error('业务范围已变化，请重新选择组织');
+  return typeof orgId === 'string' &&
+    record?.kind === 'org' &&
+    record.id === orgId &&
+    record.tenantId
+    ? { tenantId: record.tenantId, orgId: record.id }
+    : undefined;
+}
+function searchScopeState(slot: unknown): Record<string, unknown> {
+  if (!slot || typeof slot !== 'object' || !('searchState' in slot))
+    throw new Error('业务范围查询插槽未提供查询模型');
+  const state = slot.searchState;
+  if (!state || typeof state !== 'object' || Array.isArray(state))
+    throw new Error('业务范围查询模型无效');
+  return state as Record<string, unknown>;
+}
+function scopeSelection(state: Record<string, unknown>) {
+  queryState = state;
+  return state.orgId === selectedScope.value?.id
+    ? selectedScope.value
+    : undefined;
+}
+// 列表只传工单查询服务接受的范围、状态及分页参数。
+async function listTickets(params: Record<string, unknown> = {}) {
   const current = ++listVersion;
-  rows.value = [];
-  error.value = '';
-  if (!allowed('list')) return;
-  loading.value = true;
-  try {
-    const result = await ticketService.list({
-      ...scope.value,
-      status: status.value,
-      pageIndex: page,
-      pageSize: 20,
-    });
-    if (current !== listVersion) return;
-    rows.value = result.items;
-    total.value = result.totals;
-    pageIndex.value = page;
-  } catch {
-    if (current === listVersion) error.value = '工单列表不可访问';
-  } finally {
-    if (current === listVersion) loading.value = false;
-  }
+  if (!allowed('list')) return { items: [], totals: 0 };
+  const result = await ticketService.list({
+    ...currentScope(params.orgId),
+    status: typeof params.status === 'string' ? params.status : undefined,
+    pageIndex: Number(params.pageIndex) || 1,
+    pageSize: Number(params.pageSize) || 20,
+  });
+  return current === listVersion ? result : { items: [], totals: 0 };
 }
 function locator() {
   if (!detail.value) throw new Error('工单不可访问');
-  return { id: detail.value.id, ...scope.value };
+  return { id: detail.value.id, ...detailScope.value };
 }
 async function loadMessages(page = 1) {
   const current = ++messagesVersion;
@@ -196,7 +221,7 @@ async function loadMessages(page = 1) {
     if (current === messagesVersion) messageError.value = '工单会话不可访问';
   }
 }
-async function open(id: string) {
+async function open(id: string, requestScope = currentScope(queryState.orgId)) {
   const current = ++detailVersion;
   outboundVersion += 1;
   reviewOpen.value = false;
@@ -217,23 +242,28 @@ async function open(id: string) {
     return;
   }
   try {
-    const result = await ticketService.retrieve({ id, ...scope.value });
+    const result = await ticketService.retrieve({ id, ...requestScope });
     if (current !== detailVersion) return;
     detail.value = result;
+    detailScope.value = requestScope;
     opened.value = true;
     await loadMessages();
   } catch {
     if (current === detailVersion) error.value = '工单来源不可访问或已失效';
   }
 }
-function changeScope(record?: UserOrgSelectorRecord) {
-  scope.value =
-    record?.kind === 'org' && record.tenantId
-      ? { tenantId: record.tenantId, orgId: record.id }
-      : undefined;
+function changeScope(
+  record: undefined | UserOrgSelectorRecord,
+  state: Record<string, unknown>,
+) {
+  selectedScope.value = record?.kind === 'org' ? record : undefined;
+  initialQuery.value = { ...state, orgId: selectedScope.value?.id };
+  queryState = initialQuery.value;
+  listVersion += 1;
   detailVersion += 1;
   messagesVersion += 1;
   detail.value = undefined;
+  detailScope.value = undefined;
   messages.value = [];
   opened.value = false;
   action.value = undefined;
@@ -247,7 +277,7 @@ function changeScope(record?: UserOrgSelectorRecord) {
   reviewEvidence.value = '';
   expandedMessage.value = undefined;
   frozenReply.value = undefined;
-  void load(1);
+  scopeGeneration.value += 1;
 }
 async function deepLink(value: unknown) {
   if (value === undefined) return;
@@ -318,6 +348,8 @@ async function submitAction() {
     optimisticLock: detail.value.optimisticLock,
     remark: remark.value || undefined,
   };
+  const selected = detailVersion;
+  const requestScope = detailScope.value;
   try {
     if (method === 'assign')
       await ticketService.assign({
@@ -330,9 +362,10 @@ async function submitAction() {
         evidenceReason: evidence.value,
       });
     else await ticketService[method](command);
+    if (selected !== detailVersion) return;
     action.value = undefined;
-    await open(command.id);
-    await load();
+    await open(command.id, requestScope);
+    await crudPage.value?.reload();
   } catch {
     message.error('工单操作失败，请刷新核对权限、状态和版本');
   } finally {
@@ -373,8 +406,8 @@ async function submitReply() {
     outbound.value = result;
     outboundFresh.value = false;
     replyOpen.value = false;
-    await open(request.id);
-    await load();
+    await open(request.id, detailScope.value);
+    await crudPage.value?.reload();
     message.success('回复已保存，请查看外发受理状态');
   } catch {
     message.error('本次回复提交未确认，可重试相同请求');
@@ -576,54 +609,40 @@ onMounted(async () => {
   } catch {
     error.value = '工单展示选项加载失败';
   }
-  await load(1);
   await deepLink(route.query.id);
 });
 watch(() => route.query.id, deepLink);
 </script>
 <template>
-  <Page title="客服工单">
-    <div class="bg-card grid gap-4 rounded-lg p-4">
-      <SupportScopeSelector @change="changeScope" />
-      <Alert v-if="error" type="error" :message="error" />
-      <div class="flex gap-2">
-        <Select
-          v-model:value="status"
-          allow-clear
-          :options="statuses"
-          placeholder="按状态查询"
-          class="w-48"
-          @change="load(1)"
+  <div class="flex min-w-0 flex-col gap-2">
+    <CrudPage :key="scopeGeneration" ref="crudPage" :config="crudConfig">
+      <template #search-field-orgId="slot">
+        <SupportScopeSelector
+          :model-value="scopeSelection(searchScopeState(slot))"
+          placeholder="全部授权范围"
+          @change="changeScope($event, searchScopeState(slot))"
         />
-        <Button v-if="allowed('list')" @click="load()">刷新</Button>
+      </template>
+      <template #toolbar-extra="{ isListOperationVisible }">
         <Button
-          class="ml-auto"
+          v-if="isListOperationVisible('ticket:help')"
           @click="router.push(helpDocumentUrl('mail-ticket-guide'))"
         >
           帮助
         </Button>
-      </div>
-      <Table
-        row-key="id"
-        :columns="columns"
-        :data-source="rows"
-        :loading="loading"
-        :pagination="{ current: pageIndex, pageSize: 20, total }"
-        @change="load($event.current)"
-      >
-        <template #bodyCell="{ column, record }">
-          <span v-if="column.key === 'status'">{{
-            stateLabel(record.status)
-          }}</span>
-          <Button
-            v-if="column.key === 'actions' && allowed('retrieve')"
-            type="link"
-            @click="open(record.id)"
-          >
-            查看工单
-          </Button>
-        </template>
-      </Table>
+      </template>
+      <template #row-actions="{ record }">
+        <Button
+          v-if="allowed('retrieve')"
+          size="small"
+          type="link"
+          @click="open(String(record.id))"
+        >
+          查看工单
+        </Button>
+      </template>
+    </CrudPage>
+    <div class="contents">
       <Modal
         v-model:open="opened"
         :title="detail?.title || '客服工单'"
@@ -775,7 +794,13 @@ watch(() => route.query.id, deepLink);
         @cancel="action = undefined"
         @ok="submitAction"
       >
-        <Form layout="vertical">
+        <Form
+          id="ticket-action"
+          name="ticketAction"
+          data-form-id="ticket-action"
+          data-form-name="执行工单操作"
+          layout="vertical"
+        >
           <Form.Item v-if="action === 'assign'" label="目标处理人" required>
             <Select
               v-model:value="assigneeId"
@@ -808,7 +833,13 @@ watch(() => route.query.id, deepLink);
         :confirm-loading="busy"
         @ok="submitReply"
       >
-        <Form layout="vertical">
+        <Form
+          id="ticket-email-reply"
+          name="ticketEmailReply"
+          data-form-id="ticket-email-reply"
+          data-form-name="发送工单邮件回复"
+          layout="vertical"
+        >
           <Form.Item label="固定收件人">
             {{ detail?.confirmedContactEmail }}
           </Form.Item>
@@ -866,5 +897,5 @@ watch(() => route.query.id, deepLink);
         }}</pre>
       </Modal>
     </div>
-  </Page>
+  </div>
 </template>

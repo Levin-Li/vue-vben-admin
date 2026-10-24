@@ -27,6 +27,7 @@ const actionStubs = {
   ),
   'a-alert': { props: ['message'], template: '<div>{{ message }}</div>' },
   'a-button': {
+    emits: ['click'],
     props: ['disabled'],
     template:
       '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
@@ -51,6 +52,79 @@ const actionStubs = {
 };
 
 describe('workflowTaskPanel', () => {
+  it('只有服务端许可和真实保存API权限同时存在才可保存，保存不触发完成必填', async () => {
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: {
+        canSaveTask: true,
+        task: {
+          taskId: 'save-task',
+          status: 'Todo',
+          canSave: true,
+          businessRevision: 'r1',
+          formItems: [{ key: 'reason', label: '原因', required: true }],
+        },
+      },
+      global: { stubs: actionStubs },
+    });
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '保存，暂不提交')
+      ?.trigger('click');
+    expect(wrapper.emitted('save')).toHaveLength(1);
+    expect(wrapper.emitted('submit')).toBeUndefined();
+    await wrapper.setProps({ canSaveTask: false });
+    expect(
+      wrapper
+        .findAll('button')
+        .some((item) => item.text() === '保存，暂不提交'),
+    ).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('切换到驳回后展示动作必填并阻止空原因提交，通过不受驳回字段阻断', async () => {
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: {
+        task: {
+          taskId: 'action-form',
+          status: 'Todo',
+          actions: [
+            { code: 'approve', label: '通过', requiredFields: [] },
+            {
+              code: 'reject',
+              label: '驳回',
+              requiredFields: ['reason'],
+              requiresComment: true,
+            },
+          ],
+          formItems: [{ key: 'reason', label: '驳回原因', type: 'text' }],
+        },
+      },
+      global: { stubs: actionStubs },
+    });
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '驳回')
+      ?.trigger('click');
+    expect(wrapper.text()).toContain('驳回表单');
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '确认驳回')
+      ?.trigger('click');
+    expect(wrapper.text()).toContain('请填写驳回原因');
+    expect(wrapper.emitted('submit')).toBeUndefined();
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '通过')
+      ?.trigger('click');
+    expect(wrapper.text()).toContain('通过表单');
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '确认通过')
+      ?.trigger('click');
+    expect(wrapper.emitted('submit')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
   it('关键业务依据变化时显示服务端原因并拒绝审批动作', () => {
     const wrapper = shallowMount(WorkflowTaskPanel, {
       props: {
@@ -531,7 +605,9 @@ describe('workflowTaskPanel', () => {
 
     expect(wrapper.text()).toContain('费用报销 #1001');
     expect(wrapper.text()).toContain('待处理');
-    expect(wrapper.text()).toContain('请填写节点要求的表单字段后再提交。');
+    expect(wrapper.text()).toContain(
+      '请填写当前办理动作要求的表单字段后再提交。',
+    );
 
     const approve = wrapper
       .findAll('button')

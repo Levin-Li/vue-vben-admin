@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { orgService } from '../../api/org-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   confidentialLevelOptionsLoader,
   legalSubjectOptionsLoader,
@@ -22,6 +23,7 @@ export const orgPageCrudConfig: CrudPageConfig = {
   apiBase: '/Org',
   domainObject: true,
   apiService: orgService,
+  dataAttrTargets: standardCrudDataAttrTargets(orgService),
   allowRetrieve: true,
   defaultFormValues: {
     editable: true,

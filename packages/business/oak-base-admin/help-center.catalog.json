@@ -115,15 +115,15 @@
   },
   {
     "id": "invitation-registration-admin",
-    "title": "邀请注册链接使用指南",
+    "title": "邀请链接使用指南",
     "module": "用户与权限",
     "audience": "管理员",
     "type": "使用指南",
     "source": "frontend/admin/packages/business/oak-base-admin/docs/invitation-registration.md",
     "pages": [
       {
-        "path": "/clob/V1/RecommendationLink",
-        "view": "recommendation-link"
+        "path": "/clob/V1/InvitationLink",
+        "view": "invitation-link"
       }
     ]
   }

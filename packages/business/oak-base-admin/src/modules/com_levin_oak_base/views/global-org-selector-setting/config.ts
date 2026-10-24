@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { uiSettingService } from '../../api/ui-setting-service';
 import {
   buildDictOptionsLoader,
@@ -45,6 +46,7 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/UiSetting',
   domainObject: true,
   apiService: uiSettingService,
+  dataAttrTargets: standardCrudDataAttrTargets(uiSettingService),
   defaultFormValues: {
     code: GLOBAL_ORG_SELECTOR_SETTING_CODE,
     editable: true,

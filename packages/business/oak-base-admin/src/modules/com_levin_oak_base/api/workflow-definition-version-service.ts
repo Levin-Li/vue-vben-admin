@@ -1,5 +1,7 @@
 import type {
   WorkflowDefinitionVersion,
+  WorkflowStateGraph,
+  WorkflowTaskGraph,
   WorkflowTreeVersion,
 } from '@levin/bpm-designer';
 
@@ -40,7 +42,10 @@ export class WorkflowDefinitionVersionService extends WorkflowDesignerService {
     action: '新增',
   })
   create(data: {
-    lowflowDefinition?: WorkflowTreeVersion;
+    lowflowDefinition?:
+      | WorkflowStateGraph
+      | WorkflowTaskGraph
+      | WorkflowTreeVersion;
     versionNo: number;
     workflowDefinitionId: string;
   }) {

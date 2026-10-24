@@ -1,135 +1,42 @@
 import { shallowMount } from '@vue/test-utils';
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { electronicContractPageCrudConfig } from '../config';
 import ContractPage from '../index.vue';
 
 vi.mock('@levin/admin-framework/framework-commons/rbac-access', () => ({
   useRbacAccess: () => ({ hasPermission: () => true }),
 }));
-
-const mocks = vi.hoisted(() => ({
-  retrieve: vi.fn(),
-  createFromTemplate: vi.fn(),
-  regenerateFromTemplate: vi.fn(),
+vi.mock('ant-design-vue', () => ({
+  Button: { name: 'Button', template: '<button><slot /></button>' },
+  Modal: { name: 'Modal', template: '<div><slot /></div>', info: vi.fn() },
+  message: { error: vi.fn() },
 }));
-
-vi.mock('../../../api/electronic-contract-service', () => ({
-  electronicContractService: {
-    retrieve: mocks.retrieve,
-    createFromTemplate: mocks.createFromTemplate,
-    regenerateFromTemplate: mocks.regenerateFromTemplate,
+vi.mock('../../crud-page.vue', () => ({
+  default: {
+    name: 'CrudPage',
+    props: ['config'],
+    template: '<div data-testid="crud-page" />',
   },
 }));
+vi.mock('../contract-counterparty-picker.vue', () => ({ default: {} }));
+vi.mock('../contract-template-values.vue', () => ({ default: {} }));
 
-vi.mock('../../../api/electronic-contract-simulation-service', () => ({
-  electronicContractSimulationService: {},
-}));
-
-type ContractPageState = {
-  canArchive: boolean;
-  canCancelSigning: boolean;
-  canCopyForResign: boolean;
-  canDownloadSignedFile: boolean;
-  canReceiveCallback: boolean;
-  canReplayCompletedCallback: boolean;
-  canSubmitSigning: boolean;
-  createTemplateDraft: () => Promise<void>;
-  draftContract: null | { id: string; status: string };
-  draftForm: {
-    contractNo: string;
-    counterpartyId: string;
-    counterpartyKind: 'Customer';
-    name: string;
-    partyALegalSubjectId: string;
-    providerCode: string;
-    templateId: string;
-    templateValues: Record<string, string>;
-  };
-  loadSimulationContract: () => Promise<void>;
-  regenerateTemplateDraft: () => Promise<void>;
-  simulationStatus: string;
-  templates: { id: string; name: string; templateFieldSchema: unknown }[];
-};
-
-describe('电子合同模拟状态', () => {
-  beforeEach(() => {
-    mocks.retrieve.mockReset();
-    mocks.createFromTemplate.mockReset();
-    mocks.regenerateFromTemplate.mockReset();
-  });
-
-  it('未知非空状态不提供任何流程动作', async () => {
-    mocks.retrieve.mockResolvedValueOnce({
-      data: { status: 'UnexpectedState' },
-    });
+describe('电子合同管理页', () => {
+  it('直接使用一张标准 CRUD 页面，新增字段作为表单插槽', () => {
     const wrapper = shallowMount(ContractPage);
-    const page = wrapper.vm as unknown as ContractPageState;
+    const crud = wrapper.findComponent({ name: 'CrudPage' });
 
-    await page.loadSimulationContract();
-
-    expect(page.simulationStatus).toBe('UnexpectedState');
-    expect(page.canSubmitSigning).toBe(false);
-    expect(page.canArchive).toBe(false);
-    expect(page.canCancelSigning).toBe(false);
-    expect(page.canCopyForResign).toBe(false);
-    expect(page.canDownloadSignedFile).toBe(false);
-    expect(page.canReceiveCallback).toBe(false);
-    expect(page.canReplayCompletedCallback).toBe(false);
-  });
-
-  it('已知草稿状态仍只开放提交签署', async () => {
-    mocks.retrieve.mockResolvedValueOnce({ data: { status: 'Draft' } });
-    const wrapper = shallowMount(ContractPage);
-    const page = wrapper.vm as unknown as ContractPageState;
-
-    await page.loadSimulationContract();
-
-    expect(page.simulationStatus).toBe('Draft');
-    expect(page.canSubmitSigning).toBe(true);
-    expect(page.canReceiveCallback).toBe(false);
-  });
-
-  it('模板草稿变更通过重新生成接口提交合同 ID 和变量', async () => {
-    mocks.createFromTemplate.mockResolvedValueOnce({
-      id: 'contract-1',
-      status: 'Draft',
-    });
-    mocks.regenerateFromTemplate.mockResolvedValueOnce({
-      id: 'contract-1',
-      status: 'Draft',
-    });
-    const page = shallowMount(ContractPage).vm as unknown as ContractPageState;
-    page.templates = [
-      {
-        id: 'template-1',
-        name: '合同模板',
-        templateFieldSchema: [{ key: 'amount', title: '金额', required: true }],
-      },
-    ];
-    Object.assign(page.draftForm, {
-      templateId: 'template-1',
-      contractNo: 'C-1',
-      name: '合同',
-      partyALegalSubjectId: 'subject-1',
-      counterpartyKind: 'Customer',
-      counterpartyId: 'customer-1',
-      templateValues: { amount: '100' },
-    });
-    await page.createTemplateDraft();
-    expect(mocks.createFromTemplate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        templateId: 'template-1',
-        templateValues: { amount: '100' },
-      }),
+    expect(crud.exists()).toBe(true);
+    expect(crud.props('config')).toBe(electronicContractPageCrudConfig);
+    expect(Object.keys(crud.vm.$slots)).toEqual(
+      expect.arrayContaining([
+        'form-field-counterpartyId',
+        'form-field-templateValues',
+      ]),
     );
-    page.draftForm.templateValues.amount = '200';
-    await page.regenerateTemplateDraft();
-    expect(mocks.regenerateFromTemplate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        contractId: 'contract-1',
-        templateValues: { amount: '200' },
-      }),
-    );
+    expect(wrapper.html()).not.toContain('两方签约模拟流程');
+    expect(wrapper.html()).not.toContain('合同文档预览与模拟签章');
   });
 });

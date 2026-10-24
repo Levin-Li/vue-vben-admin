@@ -11,7 +11,7 @@ test.describe('Admin Smoke', () => {
     const pages = [
       { path: '/clob/V1/Role', breadcrumb: '角色管理', header: '角色名称' },
       { path: '/clob/V1/Menu', breadcrumb: '菜单管理', header: '新增菜单' },
-      { path: '/clob/V1/Org', breadcrumb: '组织管理', header: '机构名称' },
+      { path: '/clob/V1/Org', breadcrumb: '组织管理', header: '名称' },
       { path: '/clob/V1/User', breadcrumb: '用户管理', header: '登录名' },
       { path: '/clob/V1/Dict', breadcrumb: '数据字典', header: '字典名称' },
       { path: '/clob/V1/Tenant', breadcrumb: '租户管理', header: '租户名称' },

@@ -15,7 +15,7 @@ const orgUserSource = readFileSync(
   'utf8',
 );
 const crudPageSource = readFileSync(
-  'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+  'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
   'utf8',
 );
 const explicitForceUpdateSources = [

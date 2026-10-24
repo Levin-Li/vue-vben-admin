@@ -308,7 +308,7 @@ function isAllowedFullRowHighComponent(file: string, field: CrudFieldConfig) {
     domain: ['nameservers', 'exInfo'],
     menu: ['params'],
     'service-plugin': ['baseConfig'],
-    'settlement-statement': ['settlementContent'],
+    'settlement-order': ['settlementContent'],
   };
   if (
     Object.entries(reviewedWideJsonFields).some(

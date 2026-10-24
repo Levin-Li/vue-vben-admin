@@ -882,6 +882,80 @@ describe('资源权限树编辑器', () => {
     ).toBe(true);
   });
 
+  it('视觉合并同名资源层，保留操作及枚举范围入口', () => {
+    const list = 'example:业务数据-合作伙伴::查询列表';
+    const submit = 'example:业务数据-合作伙伴:合作伙伴:提交认证';
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: 'module',
+            name: '示例',
+            nodeType: 'Module',
+            children: [
+              {
+                id: 'partner-type',
+                name: '合作伙伴',
+                nodeType: 'ResourceType',
+                children: [
+                  {
+                    id: 'list',
+                    name: '查询列表',
+                    nodeType: 'Action',
+                    permissionExpr: list,
+                  },
+                  {
+                    id: 'partner-resource',
+                    name: '合作伙伴',
+                    nodeType: 'Resource',
+                    dataAttrs: [
+                      {
+                        attribute: 'status',
+                        entityClass: 'Partner',
+                        name: '状态',
+                        values: [
+                          {
+                            label: '已认证',
+                            name: 'Certified',
+                            permissionExpr: 'example:状态:Partner:Certified',
+                          },
+                        ],
+                      },
+                    ],
+                    children: [
+                      {
+                        id: 'submit',
+                        name: '提交认证',
+                        nodeType: 'Action',
+                        permissionExpr: submit,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        value: [],
+      },
+    });
+    expect(
+      wrapper.findAll('[data-test="permission-node-partner-type"]'),
+    ).toHaveLength(1);
+    expect(
+      wrapper.find('[data-test="permission-node-partner-resource"]').exists(),
+    ).toBe(false);
+    expect(wrapper.find(`[data-test="permission-${list}"]`).exists()).toBe(
+      true,
+    );
+    expect(wrapper.find(`[data-test="permission-${submit}"]`).exists()).toBe(
+      true,
+    );
+    expect(wrapper.find('[data-test="data-attrs-trigger"]').exists()).toBe(
+      true,
+    );
+  });
+
   it('keeps the menu layout and renders module tabs recursively inside pure tree tabs', async () => {
     const wrapper = mount(ResourcePermissionTreeEditor, {
       props: {

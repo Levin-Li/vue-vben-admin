@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { useRolePageConfig } from '../config';
 
 vi.mock('../../../api/role-service', () => ({
-  roleService: {},
+  roleService: {
+    buildRequestPath: (path: string) =>
+      `/com.levin.oak.base/V1/api/Role/${path}`,
+  },
 }));
 
 vi.mock('../../api-module', () => ({
@@ -22,6 +25,25 @@ vi.mock(
 );
 
 describe('role page config', () => {
+  it('queries field policies through the actual CRUD endpoints', () => {
+    const { config } = useRolePageConfig();
+    expect(config.value.dataAttrTargets).toMatchObject({
+      create: {
+        method: 'POST',
+        path: '/com.levin.oak.base/V1/api/Role/create',
+      },
+      update: { method: 'PUT', path: '/com.levin.oak.base/V1/api/Role/update' },
+      delete: {
+        method: 'DELETE',
+        path: '/com.levin.oak.base/V1/api/Role/delete',
+      },
+      list: { method: 'GET', path: '/com.levin.oak.base/V1/api/Role/list' },
+      retrieve: {
+        method: 'GET',
+        path: '/com.levin.oak.base/V1/api/Role/retrieve',
+      },
+    });
+  });
   it('shows role constraint fields as single-line tooltip table columns', () => {
     const { config } = useRolePageConfig();
     const fields = config.value.fields;

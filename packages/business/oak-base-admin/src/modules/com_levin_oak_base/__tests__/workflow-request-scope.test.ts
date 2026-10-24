@@ -318,6 +318,11 @@ describe('流程申请宿主的显式组织选择', () => {
     expect(wrapper.findComponent({ name: 'CrudPage' }).exists()).toBe(false);
     expect(calls.get).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain('请先选择业务组织');
+    expect(
+      wrapper.find('[data-form-id="workflow-request-scope"]').exists(),
+    ).toBe(true);
+    expect(wrapper.find('.ant-form-item-label').text()).toContain('业务组织');
+    expect(wrapper.find('.ant-card').exists()).toBe(false);
     wrapper.unmount();
   });
 

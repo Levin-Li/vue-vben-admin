@@ -125,6 +125,7 @@ async function loadMessages(nextPage = pageIndex.value) {
     console.error(error);
     if (version === listRequestVersion) {
       errorMessage.value = '我的消息加载失败，请重试';
+      message.error(errorMessage.value);
     }
   } finally {
     if (version === listRequestVersion) loading.value = false;
@@ -332,22 +333,22 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <Alert
-        v-if="errorMessage"
-        :message="errorMessage"
-        class="m-4"
-        show-icon
-        type="error"
-      />
-
       <!-- 列表只展示个人消息安全摘要；不渲染来源正文或富文本。 -->
       <Spin :spinning="loading" class="min-h-0 flex-1 overflow-auto">
         <div class="h-full overflow-auto px-4 py-3">
           <Empty
             v-if="!loading && messages.length === 0"
             class="mt-20"
-            description="暂无消息"
-          />
+            :description="errorMessage || '暂无消息'"
+          >
+            <Button
+              v-if="errorMessage"
+              size="small"
+              @click="loadMessages(pageIndex)"
+            >
+              重试
+            </Button>
+          </Empty>
           <div
             v-for="item in messages"
             :key="item.id"

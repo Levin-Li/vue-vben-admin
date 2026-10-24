@@ -28,6 +28,54 @@ async function openGraph(wrapper: ReturnType<typeof mount>) {
 }
 
 describe('v3 树单源设计器', () => {
+  it('无可用业务对象时说明配置入口，并隐藏无法操作的条件字段', () => {
+    const wrapper = mount(WorkflowDesigner, {
+      props: { modelValue: createTreeDefinition('review', '审核') },
+    });
+    expect(wrapper.text()).toContain('请检查业务目录');
+    expect(wrapper.text()).not.toContain('联系管理员开通');
+    expect(wrapper.text()).not.toContain('审批条件使用哪些业务字段');
+    expect(wrapper.text()).not.toContain('添加判断字段');
+  });
+
+  it('仅在当前草稿绑定有效业务对象后展示金额审批条件示例', async () => {
+    const definition = createTreeDefinition('review', '审核');
+    const wrapper = mount(WorkflowDesigner, {
+      props: {
+        modelValue: definition,
+        options: {
+          businessTypes: [
+            {
+              businessType: 'expense',
+              contractVersion: 1,
+              title: '费用申请',
+              fields: {
+                amount: { title: '申请金额', type: 'decimal', condition: true },
+              },
+            },
+          ],
+        },
+      },
+    });
+    expect(wrapper.text()).not.toContain('添加判断字段');
+    await wrapper.setProps({
+      modelValue: {
+        ...definition,
+        businessBinding: {
+          businessType: 'expense',
+          contractVersion: 1,
+          identityField: 'id',
+          titleField: 'name',
+        },
+      },
+    });
+    expect(wrapper.text()).toContain('申请金额大于 1 万元');
+    expect(wrapper.text()).toContain('添加判断字段');
+    expect(
+      wrapper.findAll('option').some((option) => option.text() === '申请金额'),
+    ).toBe(true);
+  });
+
   it('枚举条件使用受控选项选择比较值和集合值', async () => {
     const variables = {
       category: {
@@ -217,7 +265,7 @@ describe('v3 树单源设计器', () => {
       titleField: '',
     });
     await wrapper.setProps({ modelValue: latest(wrapper) });
-    expect(wrapper.text()).toContain('请联系管理员补齐后再发布');
+    expect(wrapper.text()).toContain('请由开发人员补齐后端业务接入后再发布');
     expect(wrapper.emitted('validate')?.at(-1)?.[0]).toBe(false);
   });
 

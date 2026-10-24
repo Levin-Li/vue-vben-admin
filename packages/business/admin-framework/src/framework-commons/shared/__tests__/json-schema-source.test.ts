@@ -222,17 +222,45 @@ describe('json schema source', () => {
     expect(hasCrudFieldJsonSchema(field, undefined, record)).toBe(false);
   });
 
-  it('keeps embedded schema precedence over referenced editors', () => {
-    const value = { '@JsonSchema': 'class:com.example.EmbeddedConfig' };
+  it('uses the explicit reference before generic embedded schema metadata', () => {
+    const value = {
+      '@JsonSchema': 'class:com.example.EmbeddedConfig',
+      configDataEditor: 'class:com.example.ContentConfig',
+    };
     expect(
       getJsonSchemaSourceInput(referenceField, value, {
         configDataEditor: 'class:com.example.RecordConfig',
       }),
-    ).toBe('class:com.example.EmbeddedConfig');
+    ).toBe('class:com.example.RecordConfig');
     expect(
       getJsonSchemaSourceInput(referenceField, JSON.stringify(value)),
-    ).toBe('class:com.example.EmbeddedConfig');
+    ).toBe('class:com.example.ContentConfig');
     expect(hasCrudFieldJsonSchema(referenceField, value)).toBe(true);
+  });
+
+  it('reads the referenced property from JSON field content when the sibling is unusable', () => {
+    const value = { configDataEditor: 'url:/schema/content.json' };
+
+    for (const record of [
+      undefined,
+      {},
+      { configDataEditor: '' },
+      { configDataEditor: 'unknown' },
+    ]) {
+      expect(getJsonSchemaSourceInput(referenceField, value, record)).toBe(
+        'url:/schema/content.json',
+      );
+      expect(
+        getJsonSchemaSourceInput(referenceField, JSON.stringify(value), record),
+      ).toBe('url:/schema/content.json');
+    }
+  });
+
+  it('does not replace an unresolved explicit reference with generic metadata', () => {
+    const value = { '@JsonSchema': 'class:com.example.EmbeddedConfig' };
+
+    expect(getJsonSchemaSourceInput(referenceField, value)).toBeUndefined();
+    expect(hasCrudFieldJsonSchema(referenceField, value)).toBe(false);
   });
 
   it('keeps ordinary explicit schema sources independent of the record', () => {

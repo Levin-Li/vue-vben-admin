@@ -16,9 +16,16 @@ export type * from './types';
 export { default as WorkflowDefinitionWorkbench } from './workflow-definition-workbench.vue';
 export { WorkflowDesignerService } from './workflow-designer-service';
 export { default as WorkflowDesigner } from './workflow-designer.vue';
+export { default as WorkflowGraphCanvas } from './workflow-graph-canvas.vue';
+export { default as WorkflowGraphDesigner } from './workflow-graph-designer.vue';
+
 export {
   workflowLifecycleLabels,
   workflowVerificationLabel,
   workflowVerificationOptions,
 } from './workflow-labels';
+export * from './workflow-state-graph';
+export { default as WorkflowTaskDesigner } from './workflow-task-designer.vue';
+
+export * from './workflow-task-graph';
 export type { WorkflowTreeVersion } from './workflow-tree-version';

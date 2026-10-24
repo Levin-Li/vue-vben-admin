@@ -13,6 +13,7 @@ export const pageOperations = [
   { opName: 'copied', apiMethods: [workflowRuntimeService.copied] },
   { opName: 'started', apiMethods: [workflowRuntimeService.started] },
   { opName: 'complete', apiMethods: [workflowRuntimeService.complete] },
+  { opName: 'saveTask', apiMethods: [workflowRuntimeService.saveTask] },
   { opName: 'withdraw', apiMethods: [workflowRuntimeService.withdraw] },
   { opName: 'terminate', apiMethods: [workflowRuntimeService.terminate] },
   { opName: 'recover', apiMethods: [workflowRuntimeService.recover] },

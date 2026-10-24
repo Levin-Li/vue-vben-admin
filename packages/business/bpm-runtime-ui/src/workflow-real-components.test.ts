@@ -29,6 +29,14 @@ function pagedApi<T extends object>(api: T): T {
   });
 }
 
+vi.mock(
+  '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue',
+  async () => {
+    const component = await import('./workflow-personal-crud-test-double');
+    return { default: component.default };
+  },
+);
+
 vi.mock('@levin/admin-framework', () => ({
   RequestService: class {
     basePath = '';
@@ -127,7 +135,7 @@ describe('运行时公开组件独立挂载', () => {
       cursor: 'todo-2',
       size: 20,
     });
-    await wrapper.get('.ant-card-extra button').trigger('click');
+    wrapper.vm.refresh();
     await flushPromises();
     expect(api.todo).toHaveBeenNthCalledWith(4, {
       cursor: undefined,
@@ -468,9 +476,7 @@ describe('运行时公开组件独立挂载', () => {
     await flushPromises();
 
     // 只使用有权的started响应；实例没有taskId，也不能补造审批按钮。
-    await wrapper
-      .get('[aria-label="查看资料不齐申请实例"]')
-      .trigger('keydown', { key: 'Enter' });
+    await wrapper.get('[aria-label="查看资料不齐申请实例"]').trigger('click');
     await flushPromises();
     expect(wrapper.text()).toContain('拒绝结束');
     expect(wrapper.find('[data-node-id="rejected"]').exists()).toBe(true);
@@ -519,7 +525,7 @@ describe('运行时公开组件独立挂载', () => {
     wrapper.unmount();
   });
 
-  it('同名已办节点按业务标题与实例区分，键盘打开保留真实连线和轨迹', async () => {
+  it('同名已办节点按业务标题与实例区分，通过操作列打开并保留真实连线和轨迹', async () => {
     const first = {
       taskId: 't1',
       taskName: '部门审批',
@@ -554,7 +560,9 @@ describe('运行时公开组件独立挂载', () => {
       todo: vi.fn().mockResolvedValue([]),
       done: vi.fn().mockResolvedValue([first, second]),
       started: vi.fn().mockResolvedValue([]),
-      pendingAttachments: vi.fn().mockRejectedValue(new Error('已办没有待绑定附件')),
+      pendingAttachments: vi
+        .fn()
+        .mockRejectedValue(new Error('已办没有待绑定附件')),
     };
     const wrapper = mount(WorkflowRuntimeWorkbench, {
       props: {
@@ -568,13 +576,14 @@ describe('运行时公开组件独立挂载', () => {
       .find((tab) => tab.text().includes('已办'))
       ?.trigger('click');
     await flushPromises();
-    const rows = wrapper.findAll('.ant-list-item[role="button"]');
+    const buttons = wrapper.findAll('[aria-label^="查看采购申请"]');
+    const rows = buttons.map((button) => button.element.parentElement);
     expect(rows).toHaveLength(2);
-    expect(rows[0]?.text()).toContain('采购申请甲');
-    expect(rows[1]?.text()).toContain('采购申请乙');
-    expect(rows[1]?.text()).toContain('p2');
-    expect(rows[1]?.text()).toContain('已处理');
-    await rows[1]?.trigger('keydown', { key: 'Enter' });
+    expect(rows[0]?.textContent).toContain('采购申请甲');
+    expect(rows[1]?.textContent).toContain('采购申请乙');
+    expect(rows[1]?.textContent).toContain('p2');
+    expect(rows[1]?.textContent).toContain('已处理');
+    await buttons[1]?.trigger('click');
     await flushPromises();
     expect(wrapper.find('.levin-workflow-task-panel').text()).toContain(
       '采购申请乙',
@@ -613,7 +622,7 @@ describe('运行时公开组件独立挂载', () => {
     });
     await flushPromises();
     expect(wrapper.text()).toContain('业务审核节点');
-    await wrapper.find('.ant-list-item').trigger('click');
+    await wrapper.get('[aria-label="查看审批申请"]').trigger('click');
     await flushPromises();
     expect(wrapper.text()).toContain('申请金额');
     expect(wrapper.text()).toContain('300');

@@ -1,6 +1,9 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+
 import { electronicContractTemplateService } from '../../api/electronic-contract-template-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -12,12 +15,12 @@ import {
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
 );
-const electronicContractTemplateStatusOptionsLoader = buildEnumOptionsLoader(
+const statusOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.EContractTemplate$Status',
 );
 
-// 模板变量仅为文本占位符，禁止页面配置任意表达式或脚本。
-const templateFieldSchema = {
+// 变量定义只允许模板声明的文本占位符，不执行脚本或表达式。
+const variableSchema = {
   type: 'array',
   title: '模板变量',
   items: {
@@ -45,50 +48,62 @@ export const pageMeta = {
 export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
     apiBase: '/EContractTemplate',
-    domainObject: true,
     apiService: electronicContractTemplateService,
-    allowCreate: false,
+    dataAttrTargets: standardCrudDataAttrTargets(
+      electronicContractTemplateService,
+    ),
+    domainObject: true,
+    allowCreate: true,
     allowDelete: false,
-    defaultFormValues: {
-      status: 'Draft',
+    editVisibleOn: "status == 'Draft'",
+    defaultFormValues: { templateFieldSchema: [] },
+    // 受控上传结果写入表单状态；保存时只提交当前创建接口的字段。
+    transformSubmit: (values, record) => {
+      if (record) return values;
+      if (!values.fileResId || !values.fileName || !values.fileUrl) {
+        throw new Error('请先上传受控 DOCX 模板');
+      }
+      const schema =
+        typeof values.templateFieldSchema === 'string'
+          ? JSON.parse(values.templateFieldSchema)
+          : values.templateFieldSchema;
+      if (!Array.isArray(schema)) throw new Error('模板变量必须是数组');
+      return {
+        tenantId: values.tenantId,
+        orgId: values.orgId,
+        ownerId: values.ownerId,
+        templateNo: values.templateNo,
+        name: values.name,
+        category: values.category,
+        confidentialLevel: values.confidentialLevel,
+        fileResId: values.fileResId,
+        fileName: values.fileName,
+        fileUrl: values.fileUrl,
+        fileHash: values.fileHash,
+        mimeType: values.mimeType,
+        templateFieldSchema: schema,
+        sealPositionRules: values.sealPositionRules,
+      };
     },
     fields: [
       {
         key: 'tenantId',
         label: '归属租户',
-        layoutGroup: 'ownership',
-        layoutGroupTitle: '归属信息',
-        layoutOrder: 10,
         loadOptions: tenantOptionsLoader,
         remoteSearch: true,
         search: true,
         type: 'select',
         visibleForPlatformUser: true,
       },
-      {
-        key: 'orgId',
-        label: '所属组织',
-        layoutGroup: 'ownership',
-        layoutOrder: 20,
-        type: 'org-tree-select',
-      },
+      { key: 'orgId', label: '所属组织', type: 'org-tree-select' },
       {
         key: 'ownerId',
         label: '所属用户',
-        layoutGroup: 'ownership',
-        layoutOrder: 30,
         loadOptions: userOptionsLoader,
         remoteSearch: true,
         type: 'select',
       },
-      {
-        key: 'id',
-        label: '模板ID',
-        form: false,
-        search: true,
-        table: true,
-        width: 180,
-      },
+      { key: 'id', label: '模板ID', form: false, search: true },
       {
         key: 'containsTemplateNo',
         label: '模板编号',
@@ -98,9 +113,6 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'templateNo',
         label: '模板编号',
-        layoutGroup: 'basic',
-        layoutGroupTitle: '模板信息',
-        layoutOrder: 10,
         required: true,
         table: true,
         width: 180,
@@ -108,135 +120,80 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'name',
         label: '模板名称',
-        layoutGroup: 'basic',
-        layoutOrder: 20,
         required: true,
+        search: true,
         table: true,
         width: 220,
       },
       {
         key: 'category',
         label: '类别',
-        layoutGroup: 'basic',
-        layoutOrder: 30,
         required: true,
         table: true,
         width: 140,
       },
       {
-        key: 'title',
-        label: '模板标题',
-        form: false,
-        search: true,
-        table: true,
-        width: 220,
-      },
-      {
-        key: 'bizType',
-        label: '业务类型',
-        form: false,
-        search: true,
-        table: true,
-        width: 140,
-      },
-      {
-        key: 'contractCategory',
-        label: '合同类别',
-        layoutGroup: 'basic',
-        layoutOrder: 40,
-        table: true,
-        width: 140,
-      },
-      {
-        key: 'contractType',
-        label: '合同类型',
-        layoutGroup: 'basic',
-        layoutOrder: 50,
-        table: true,
-        width: 160,
-      },
-      {
         key: 'confidentialLevel',
         label: '机密等级',
-        layoutGroup: 'basic',
-        layoutOrder: 60,
         loadOptions: confidentialLevelOptionsLoader,
         type: 'select',
         valueType: 'number',
-        width: 130,
       },
       {
         key: 'fileResId',
-        label: '受控模板文件',
-        help: '使用上方专用上传入口创建受控文件；模板文件创建后保持冻结。',
-        layoutGroup: 'media',
-        layoutGroupTitle: '模板文件',
-        layoutOrder: 10,
-        form: false,
-        table: true,
+        label: 'Word 模板文件',
+        required: true,
+        formCreate: true,
+        formEdit: false,
+        detail: true,
       },
       {
         key: 'fileName',
         label: '模板文件名',
-        form: false,
-        table: true,
-        width: 220,
-      },
-      { key: 'fileUrl', label: '受控模板文件路径', form: false, detail: true },
-      { key: 'fileHash', label: '模板文件哈希', form: false, width: 180 },
-      { key: 'mimeType', label: '模板文件类型', form: false, width: 180 },
-      {
-        key: 'signerRoleDefinition',
-        label: '签署角色定义',
-        layoutGroup: 'extension',
-        layoutGroupTitle: '签署与字段配置',
-        layoutOrder: 10,
-        type: 'json',
+        required: true,
+        formCreate: true,
+        formEdit: false,
       },
       {
-        key: 'defaultSealPositionRules',
-        label: '默认签章位置规则',
-        layoutGroup: 'extension',
-        layoutOrder: 20,
-        type: 'json',
+        key: 'fileUrl',
+        label: '受控模板文件路径',
+        required: true,
+        formCreate: true,
+        formEdit: false,
+      },
+      {
+        key: 'fileHash',
+        label: '模板文件哈希',
+        formCreate: true,
+        formEdit: false,
+      },
+      {
+        key: 'mimeType',
+        label: '模板文件类型',
+        formCreate: true,
+        formEdit: false,
       },
       {
         key: 'templateFieldSchema',
         label: '模板变量定义',
-        layoutGroup: 'extension',
-        layoutOrder: 30,
         type: 'json',
-        jsonSchema: templateFieldSchema,
+        jsonSchema: variableSchema,
         jsonSchemaMode: 'popup',
       },
       {
-        key: 'description',
-        label: '模板描述',
-        fullRow: true,
-        layoutGroup: 'content',
-        layoutGroupTitle: '模板说明',
-        layoutOrder: 10,
-        type: 'textarea',
+        key: 'sealPositionRules',
+        label: '默认签章位置规则',
+        type: 'json',
       },
       {
         key: 'status',
         label: '模板状态',
-        layoutGroup: 'business',
-        layoutGroupTitle: '状态设置',
-        layoutOrder: 10,
+        form: false,
+        loadOptions: statusOptionsLoader,
         search: true,
         table: true,
-        loadOptions: electronicContractTemplateStatusOptionsLoader,
         type: 'select',
         width: 120,
-      },
-      {
-        key: 'versionNo',
-        label: '版本号',
-        layoutGroup: 'business',
-        layoutOrder: 20,
-        table: true,
-        width: 100,
       },
       {
         key: 'createTime',
@@ -245,6 +202,40 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
         table: true,
         type: 'datetime',
         width: 180,
+      },
+    ],
+    rowActions: [
+      {
+        label: '上线',
+        handler: (record) =>
+          electronicContractTemplateService.publish({
+            id: record.id,
+            tenantId: record.tenantId,
+            orgId: record.orgId,
+            ownerId: record.ownerId,
+          }),
+        permission: buildApiMethodPermissions(
+          electronicContractTemplateService,
+          'publish',
+        ),
+        visibleOn: "status == 'Draft'",
+        flowFormFields: [],
+      },
+      {
+        label: '归档',
+        handler: (record) =>
+          electronicContractTemplateService.archive({
+            id: record.id,
+            tenantId: record.tenantId,
+            orgId: record.orgId,
+            ownerId: record.ownerId,
+          }),
+        permission: buildApiMethodPermissions(
+          electronicContractTemplateService,
+          'archive',
+        ),
+        visibleOn: "status == 'Published'",
+        flowFormFields: [],
       },
     ],
     modalWidth: DEFAULT_CRUD_MODAL_WIDTH,

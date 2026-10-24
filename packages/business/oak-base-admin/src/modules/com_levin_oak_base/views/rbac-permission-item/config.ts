@@ -1,9 +1,10 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { rbacPermissionItemService } from '../../api/rbac-permission-item-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
-  DEFAULT_CRUD_MODAL_WIDTH,
   buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
   roleOptionsLoader,
 } from '../api-module';
 
@@ -27,6 +28,7 @@ export const rbacPermissionItemPageCrudConfig: CrudPageConfig = {
   apiBase: '/RbacPermissionItem',
   domainObject: true,
   apiService: rbacPermissionItemService,
+  dataAttrTargets: standardCrudDataAttrTargets(rbacPermissionItemService),
   allowRetrieve: true,
   defaultFormValues: {
     category: 'Custom',

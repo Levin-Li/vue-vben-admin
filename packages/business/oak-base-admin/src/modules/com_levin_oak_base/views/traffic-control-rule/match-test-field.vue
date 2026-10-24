@@ -96,7 +96,13 @@ function testMatch() {
     :mask-closable="false"
     :title="modalTitle"
   >
-    <Form layout="vertical">
+    <Form
+      id="traffic-control-rule-match-test"
+      name="trafficControlRuleMatchTest"
+      data-form-id="traffic-control-rule-match-test"
+      data-form-name="测试流控规则匹配字段"
+      layout="vertical"
+    >
       <template v-if="isNameValueRule">
         <Form.Item label="实际名称">
           <Input

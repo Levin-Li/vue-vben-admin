@@ -22,6 +22,7 @@ function listConfigFiles(dir: string): string[] {
 const compactJsonFields = [
   'electronic-contract/config.ts:signingSubjectList',
   'electronic-contract/config.ts:sealPositionRules',
+  'electronic-contract-template/config.ts:sealPositionRules',
   'client-app/config.ts:exInfo',
   'demo/config.ts:jsonData',
   'domain-ssl-cert/config.ts:exInfo',
@@ -67,7 +68,8 @@ const compactJsonFields = [
 ];
 
 const wideJsonFields = [
-  'settlement-statement/config.ts:settlementContent',
+  'electronic-contract/config.ts:templateValues',
+  'settlement-order/config.ts:settlementContent',
   'audit-report/config.ts:content',
   'backend-fixed-job/config.ts:configData',
   'domain/config.ts:nameservers',
@@ -100,7 +102,7 @@ function hasExplicitJsonWidth(source: string, key: string) {
 function hasExplicitWideJsonLayout(source: string, key: string) {
   const objectSource = getJsonFieldSource(source, key);
 
-  return /fullRow:\s*true|span:\s*-1/.test(objectSource);
+  return /fullRow:\s*true|span:\s*(?:-1|[2-9]\d*)\b/.test(objectSource);
 }
 
 function fieldIndex(source: string, key: string) {
@@ -124,9 +126,7 @@ describe('json field layout rules', () => {
       const fieldPattern =
         /\{[^{}]*key:\s*['"]([^'"]+)['"][^{}]*type:\s*['"]json['"][^{}]*\}/g;
       const fields: string[] = [];
-      let match: null | RegExpExecArray;
-
-      while ((match = fieldPattern.exec(source))) {
+      for (const match of source.matchAll(fieldPattern)) {
         const key = match[1];
         const fieldId = `${relativeFile}:${key}`;
 
@@ -149,11 +149,11 @@ describe('json field layout rules', () => {
       ]),
     );
     const offenders = compactJsonFields.filter((entry) => {
-      const [relativeFile, key] = entry.split(':');
-      const file = join(viewsDir, relativeFile!);
+      const [relativeFile = '', key = ''] = entry.split(':');
+      const file = join(viewsDir, relativeFile);
       const source = sourceByFile.get(file);
 
-      return source ? hasExplicitJsonWidth(source, key!) : false;
+      return source ? hasExplicitJsonWidth(source, key) : false;
     });
 
     expect(offenders).toEqual([]);
@@ -167,11 +167,11 @@ describe('json field layout rules', () => {
       ]),
     );
     const offenders = wideJsonFields.filter((entry) => {
-      const [relativeFile, key] = entry.split(':');
-      const file = join(viewsDir, relativeFile!);
+      const [relativeFile = '', key = ''] = entry.split(':');
+      const file = join(viewsDir, relativeFile);
       const source = sourceByFile.get(file);
 
-      return source ? !hasExplicitWideJsonLayout(source, key!) : true;
+      return source ? !hasExplicitWideJsonLayout(source, key) : true;
     });
 
     expect(offenders).toEqual([]);

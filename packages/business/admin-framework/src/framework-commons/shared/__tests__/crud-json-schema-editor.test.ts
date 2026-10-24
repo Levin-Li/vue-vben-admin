@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(
-  'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+  'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
   'utf8',
 );
 

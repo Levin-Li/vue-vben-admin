@@ -35,6 +35,9 @@ const selectedScopeRecord = ref<UserOrgSelectorRecord>();
 const scope = ref<SupportScope>();
 const scopeVersion = ref(0);
 const error = ref('');
+watch(error, (value) => {
+  if (value) message.error(value);
+});
 const detail = ref<InboxRecord>();
 const opened = ref(false);
 const mime = ref('');
@@ -208,7 +211,6 @@ watch(
         :model-value="selectedScopeRecord"
         @change="changeScope"
       />
-      <Alert v-if="error" type="error" :message="error" />
     </template>
     <template #row-actions="{ record }">
       <Button v-if="allowed('retrieve')" type="link" @click="open(record.id)">

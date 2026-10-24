@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { getLegalSubjectStatus } from '../../api/legal-subject-status';
 import {
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
@@ -84,15 +85,13 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
   },
   {
     key: 'legalSubjectId',
-    disabledOnEdit: true,
     label: '法律主体',
-    help: '请选择已有且有权访问的法律主体；主体名称、证照及开票资料请在法律主体页面维护。',
+    help: '可暂不选择，后续补全；已关联的法律主体不能更换。',
     layoutGroup: 'basic',
     layoutGroupTitle: '合作主体',
     layoutOrder: 10,
     loadOptions: legalSubjectOptionsLoader,
     remoteSearch: true,
-    required: true,
     search: true,
     table: true,
     type: 'select',
@@ -105,6 +104,15 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
     table: false,
     detail: false,
     export: false,
+  },
+  {
+    key: 'legalSubjectStatus',
+    label: '主体资料状态',
+    form: false,
+    table: true,
+    tableValue: getLegalSubjectStatus,
+    export: false,
+    width: 130,
   },
   // 认证状态由服务端事件控制，只用于列表、详情和查询。
   {
@@ -137,13 +145,28 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
   { key: 'containsDisplayName', label: '业务名称', form: false, search: true },
   {
     key: 'orgId',
-    disabledOnEdit: true,
-    label: '伙伴组织节点',
-    help: '请选择该伙伴自己的外部组织节点，保存后不可修改。',
+    formCreate: true,
+    formEdit: false,
+    detail: false,
+    table: false,
+    label: '新伙伴组织的内部父级',
+    help: '可选；未选择时使用当前登录用户所属的内部组织。保存时创建对应类型的外部组织节点，不可选择已有外部节点。',
     layoutGroup: 'ownership',
     layoutOrder: 20,
-    required: true,
     type: 'select',
+    placeholder: '留空使用当前用户所属组织，或搜索内部父组织',
+  },
+  {
+    key: 'orgName',
+    label: '伙伴组织节点',
+    formCreate: false,
+    formEdit: true,
+    disabledOnEdit: true,
+    omitOnEdit: true,
+    layoutGroup: 'ownership',
+    layoutOrder: 21,
+    table: true,
+    search: false,
   },
   {
     key: 'groupName',

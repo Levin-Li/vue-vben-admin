@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { memberUserService } from '../../api/member-user-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
@@ -37,6 +38,7 @@ export const memberUserPageCrudConfig: CrudPageConfig = {
   apiBase: '/MemberUser',
   domainObject: true,
   apiService: memberUserService,
+  dataAttrTargets: standardCrudDataAttrTargets(memberUserService),
   defaultFormValues: {
     editable: true,
     enable: true,

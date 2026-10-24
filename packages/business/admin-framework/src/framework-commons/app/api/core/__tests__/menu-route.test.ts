@@ -47,6 +47,35 @@ const testBackendRouteMappings = [
 ];
 
 describe('menu route conversion', () => {
+  it('保留文档中心后台菜单和无菜单路由的页签复用配置', () => {
+    const helpMapping = {
+      description: '随包文档阅读',
+      fullPathKey: false,
+      icon: 'lucide:book-open',
+      onlyRequireAuthenticated: true,
+      path: '/clob/V1/HelpCenter',
+      resource: 'HelpCenter',
+      sourceFilePath: 'modules/com_levin_oak_base/views/help-center/index.vue',
+      title: '文档中心',
+      viewPath: '/system/com_levin_oak_base/help-center/index.vue',
+    };
+    const menuRoute = buildMenuRoutes(
+      [{ pageType: 'LocalPage', path: helpMapping.path }],
+      [helpMapping],
+    ).find((route) => route.path === helpMapping.path);
+    const fallbackRoute = buildMenuRoutes([], [helpMapping]).find(
+      (route) => route.path === helpMapping.path,
+    );
+
+    expect(menuRoute?.meta?.fullPathKey).toBe(false);
+    expect(fallbackRoute?.meta?.fullPathKey).toBe(false);
+    expect(
+      buildMenuRoutes([], testBackendRouteMappings).find(
+        (route) => route.path === '/clob/V1/Article',
+      )?.meta?.fullPathKey,
+    ).toBeUndefined();
+  });
+
   it('preserves declared CRUD tab caching without enabling it for other pages', () => {
     const role = convertMenuNodeForTest(
       { pageType: 'LocalPage', path: '/clob/V1/Role' },
@@ -169,6 +198,7 @@ describe('menu route conversion', () => {
     expect(route?.path).toBe('/clob/V1/Permission');
     expect(route?.component).toBe('/_core/fallback/not-found.vue');
     expect(route?.meta?.menuRouteMissingPage).toBe(true);
+    expect(route?.meta?.hideInMenu).toBe(true);
   });
 
   it('routes tenant setting path to the tenant setting local page', () => {
@@ -198,6 +228,7 @@ describe('menu route conversion', () => {
     expect(route?.path).toBe('/cvf/V1/UserExt');
     expect(route?.meta?.backendIframeSrc).toBeUndefined();
     expect(route?.meta?.menuRouteMissingPage).toBe(true);
+    expect(route?.meta?.hideInMenu).toBe(true);
   });
 
   it('routes unmapped old backend page types to the 404 page', () => {
@@ -214,6 +245,7 @@ describe('menu route conversion', () => {
     expect(route?.path).toBe('/cvf/merchant');
     expect(route?.meta?.backendIframeSrc).toBeUndefined();
     expect(route?.meta?.menuRouteMissingPage).toBe(true);
+    expect(route?.meta?.hideInMenu).toBe(true);
   });
 
   it('routes HtmlPage to iframe view', () => {

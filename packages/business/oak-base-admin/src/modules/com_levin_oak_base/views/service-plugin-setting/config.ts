@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { servicePluginSettingService } from '../../api/service-plugin-setting-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { DEFAULT_CRUD_MODAL_WIDTH, tenantOptionsLoader } from '../api-module';
 
 export const pageMeta = {
@@ -14,6 +15,7 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
   createSubmitKeys: ['value'],
   domainObject: true,
   apiService: servicePluginSettingService,
+  dataAttrTargets: standardCrudDataAttrTargets(servicePluginSettingService),
   defaultFormValues: {
     enable: false,
     orderCode: 1000,

@@ -4,6 +4,21 @@ import { legalSubjectOptionsLoader } from '../../api-module';
 import { orgPageCrudConfig } from '../config';
 
 describe('orgPageCrudConfig', () => {
+  it('queries field policies through the actual CRUD endpoints', () => {
+    expect(orgPageCrudConfig.dataAttrTargets).toMatchObject({
+      create: { method: 'POST', path: '/com.levin.oak.base/V1/api/Org/create' },
+      update: { method: 'PUT', path: '/com.levin.oak.base/V1/api/Org/update' },
+      delete: {
+        method: 'DELETE',
+        path: '/com.levin.oak.base/V1/api/Org/delete',
+      },
+      list: { method: 'GET', path: '/com.levin.oak.base/V1/api/Org/list' },
+      retrieve: {
+        method: 'GET',
+        path: '/com.levin.oak.base/V1/api/Org/retrieve',
+      },
+    });
+  });
   it('uses the legal subject field for create, edit, and query', () => {
     expect(orgPageCrudConfig.fields).toEqual(
       expect.arrayContaining([

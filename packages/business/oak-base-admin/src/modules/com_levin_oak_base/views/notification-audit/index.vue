@@ -10,15 +10,16 @@ import type {
 
 import { computed, onMounted, ref } from 'vue';
 
-import { Page } from '@vben/common-ui';
-
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
 import {
   Alert,
   Button,
   Checkbox,
   Descriptions,
+  Empty,
+  Form,
   Input,
   message,
   Modal,
@@ -30,13 +31,17 @@ import { notificationAuditService } from '../../api/notification-audit-service';
 import { moduleFetchEnumOptions } from '../api-module';
 import SupportScopeSelector from '../support-scope-selector.vue';
 import { normalizeNotificationChannels } from '../workflow-notification-route/config';
+import { createNotificationAuditCrudConfig } from './config';
 
 // 审计只消费安全元数据；未知结果必须先核验，重试是独立操作。
 const { hasPermission } = useRbacAccess();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(notificationAuditService, method));
-const scope = ref<SupportScope>();
-const status = ref<string>();
+const selectedScope = ref<UserOrgSelectorRecord>();
+const scopeGeneration = ref(0);
+const initialQuery = ref<Record<string, unknown>>({});
+let queryState: Record<string, unknown> = {};
+let reloadList: (() => Promise<unknown> | unknown) | undefined;
 const statuses = ref<{ label: string; value: string }[]>([]);
 const channels = ref<{ label: string; value: string }[]>([]);
 const outcomes = ref<{ label: string; value: string }[]>([]);
@@ -46,12 +51,8 @@ const channelLabel = (value: string) =>
   channels.value.find((item) => item.value === value)?.label || '渠道不可用';
 const outcomeLabel = (value: string) =>
   outcomes.value.find((item) => item.value === value)?.label || '结果不可用';
-const rows = ref<AuditRecord[]>([]);
-const pageIndex = ref(1);
-const total = ref(0);
-const loading = ref(false);
-const error = ref('');
 const detail = ref<AuditDetail>();
+const detailScope = ref<SupportScope>();
 const opened = ref(false);
 const action = ref<'resolveUnsent' | 'retry'>();
 const processing = ref(false);
@@ -70,13 +71,6 @@ const canRetry = computed(
 const canResolve = computed(
   () => allowed('resolveUnsent') && detail.value?.delivery.status === 'Unknown',
 );
-const columns = [
-  { title: '投递标识', dataIndex: 'id' },
-  { title: '渠道', key: 'channel' },
-  { title: '状态', key: 'status' },
-  { title: '尝试次数', dataIndex: 'attemptCount' },
-  { title: '操作', key: 'actions' },
-];
 const attemptColumns = [
   { title: '序号', dataIndex: 'attemptNo' },
   { title: '开始时间', dataIndex: 'startedTime' },
@@ -90,52 +84,92 @@ const reviewColumns = [
   { title: '原因', dataIndex: 'reason' },
   { title: '核验引用', dataIndex: 'verificationRef' },
 ];
-let version = 0;
+let listVersion = 0;
 let detailVersion = 0;
-async function load(page = pageIndex.value) {
-  const current = ++version;
-  rows.value = [];
-  error.value = '';
-  if (!allowed('list')) return;
-  loading.value = true;
-  try {
-    const result = await notificationAuditService.list({
-      ...scope.value,
-      status: status.value,
-      pageIndex: page,
-      pageSize: 20,
-    });
-    if (current !== version) return;
-    rows.value = result.items;
-    total.value = result.totals;
-    pageIndex.value = page;
-  } catch {
-    if (current === version) error.value = '通知投递审计不可访问';
-  } finally {
-    if (current === version) loading.value = false;
-  }
+const crudConfig = computed(() =>
+  createNotificationAuditCrudConfig({
+    apiService: { list: listRecords },
+    initialQuery: initialQuery.value,
+    statuses: statuses.value,
+    statusLabel,
+    channelLabel,
+  }),
+);
+// 范围由当前查询模型和已选组织共同确认，禁止复用已变化的组织标识。
+function currentScope(orgId: unknown): SupportScope | undefined {
+  const record = selectedScope.value;
+  if (
+    orgId &&
+    (typeof orgId !== 'string' ||
+      record?.kind !== 'org' ||
+      record.id !== orgId ||
+      !record.tenantId)
+  )
+    throw new Error('业务范围已变化，请重新选择组织');
+  return typeof orgId === 'string' &&
+    record?.kind === 'org' &&
+    record.id === orgId &&
+    record.tenantId
+    ? { tenantId: record.tenantId, orgId: record.id }
+    : undefined;
 }
-function changeScope(record?: UserOrgSelectorRecord) {
-  scope.value =
-    record?.kind === 'org' && record.tenantId
-      ? { tenantId: record.tenantId, orgId: record.id }
-      : undefined;
+function searchScopeState(slot: unknown): Record<string, unknown> {
+  if (!slot || typeof slot !== 'object' || !('searchState' in slot))
+    throw new Error('业务范围查询插槽未提供查询模型');
+  const state = slot.searchState;
+  if (!state || typeof state !== 'object' || Array.isArray(state))
+    throw new Error('业务范围查询模型无效');
+  return state as Record<string, unknown>;
+}
+function scopeSelection(state: Record<string, unknown>) {
+  queryState = state;
+  return state.orgId === selectedScope.value?.id
+    ? selectedScope.value
+    : undefined;
+}
+// 公共 CRUD 负责查询、分页与加载反馈；适配层仅传实际接口接受的参数。
+async function listRecords(params: Record<string, unknown> = {}) {
+  const current = ++listVersion;
+  if (!allowed('list')) return { items: [], totals: 0 };
+  const result = await notificationAuditService.list({
+    ...currentScope(params.orgId),
+    status: typeof params.status === 'string' ? params.status : undefined,
+    pageIndex: Number(params.pageIndex) || 1,
+    pageSize: Number(params.pageSize) || 20,
+  });
+  return current === listVersion ? result : { items: [], totals: 0 };
+}
+// 选择条件只更新表单；切换组织立即清理旧范围的列表和详情。
+function changeScope(
+  record: undefined | UserOrgSelectorRecord,
+  state: Record<string, unknown>,
+) {
+  selectedScope.value = record?.kind === 'org' ? record : undefined;
+  initialQuery.value = { ...state, orgId: selectedScope.value?.id };
+  queryState = initialQuery.value;
   detailVersion += 1;
   detail.value = undefined;
+  detailScope.value = undefined;
   opened.value = false;
   action.value = undefined;
-  void load(1);
+  reloadList = undefined;
+  listVersion += 1;
+  scopeGeneration.value += 1;
 }
-async function open(record: AuditRecord) {
+async function open(
+  record: AuditRecord,
+  requestScope = currentScope(queryState.orgId),
+) {
   if (!allowed('retrieve')) return;
   const current = ++detailVersion;
   try {
     const result = await notificationAuditService.retrieve({
       id: record.id,
-      tenantId: scope.value?.tenantId,
+      tenantId: requestScope?.tenantId,
     });
     if (current !== detailVersion) return;
     detail.value = result;
+    detailScope.value = requestScope;
     opened.value = true;
   } catch {
     message.error('投递详情不可访问或已失效');
@@ -163,18 +197,20 @@ async function submit() {
   processing.value = true;
   const req: AuditReview = {
     id: detail.value.delivery.id,
-    tenantId: scope.value?.tenantId,
+    tenantId: detailScope.value?.tenantId,
     optimisticLock: detail.value.delivery.optimisticLock,
     reason: reason.value,
     ...(method === 'resolveUnsent'
       ? { verifiedUnsent: true, verificationRef: verificationRef.value }
       : {}),
   };
+  const generation = scopeGeneration.value;
   try {
     const result = await notificationAuditService[method](req);
+    if (generation !== scopeGeneration.value) return;
     action.value = undefined;
-    await open(result);
-    await load();
+    await open(result, detailScope.value);
+    await reloadList?.();
   } catch {
     message.error('人工处理失败，请刷新核对权限、状态和版本');
   } finally {
@@ -204,143 +240,136 @@ onMounted(async () => {
       value: String(item.value),
     }));
   } catch {
-    error.value = '投递状态选项加载失败';
+    message.error('投递状态选项加载失败');
   }
-  await load(1);
 });
 </script>
 <template>
-  <Page title="通知投递">
-    <div class="bg-card grid gap-4 rounded-lg p-4">
-      <SupportScopeSelector @change="changeScope" />
-      <Alert
-        type="info"
-        message="提交成功只表示渠道受理；未知结果须核验，不能直接重发。"
-      />
-      <Alert v-if="error" type="error" :message="error" />
-      <div class="flex gap-2">
-        <Select
-          v-model:value="status"
-          allow-clear
-          :options="statuses"
-          placeholder="投递状态"
-          class="w-48"
-          @change="load(1)"
+  <div class="flex min-w-0 flex-col gap-2">
+    <CrudPage :key="scopeGeneration" :config="crudConfig">
+      <template #search-field-orgId="slot">
+        <SupportScopeSelector
+          :model-value="scopeSelection(searchScopeState(slot))"
+          placeholder="全部授权范围"
+          @change="changeScope($event, searchScopeState(slot))"
         />
-        <Button v-if="allowed('list')" @click="load()">刷新</Button>
-      </div>
-      <Table
-        row-key="id"
-        :columns="columns"
-        :data-source="rows"
-        :loading="loading"
-        :pagination="{ current: pageIndex, pageSize: 20, total }"
-        @change="load($event.current)"
-      >
-        <template #bodyCell="{ column, record }">
-          <span v-if="column.key === 'status'">{{
-            statusLabel(record.status)
-          }}</span>
-          <span v-if="column.key === 'channel'">{{
-            channelLabel(record.channel)
-          }}</span>
-          <Button
-            v-if="column.key === 'actions' && allowed('retrieve')"
-            type="link"
-            @click="open(record as AuditRecord)"
-          >
-            查看审计
+      </template>
+      <template #row-actions="{ record, reload }">
+        <Button
+          v-if="allowed('retrieve')"
+          size="small"
+          type="link"
+          @click="
+            reloadList = reload;
+            open(record as AuditRecord);
+          "
+        >
+          查看详情
+        </Button>
+      </template>
+      <template #emptyText>
+        <Empty description="当前业务范围和状态下暂无通知投递记录" />
+      </template>
+    </CrudPage>
+    <Modal
+      v-model:open="opened"
+      title="通知投递详情"
+      width="960px"
+      :footer="null"
+    >
+      <template v-if="detail">
+        <Descriptions :column="2">
+          <Descriptions.Item label="事件标识">
+            {{ detail.delivery.eventId }}
+          </Descriptions.Item>
+          <Descriptions.Item label="状态">
+            {{ statusLabel(detail.delivery.status) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="尝试次数">
+            {{ detail.delivery.attemptCount }}
+          </Descriptions.Item>
+          <Descriptions.Item label="版本">
+            {{ detail.delivery.optimisticLock }}
+          </Descriptions.Item>
+          <Descriptions.Item label="渠道受理时间">
+            {{ detail.delivery.deliveredTime || '-' }}
+          </Descriptions.Item>
+        </Descriptions>
+        <Alert
+          v-if="detail.attemptsTruncated"
+          type="warning"
+          message="历史超过一千条，当前仅显示前一千条"
+        />
+        <h3>投递尝试</h3>
+        <Table
+          :columns="attemptColumns"
+          :data-source="detail.attempts"
+          row-key="attemptNo"
+          :pagination="false"
+        >
+          <template #bodyCell="{ column, record }">
+            <div v-if="column.key === 'outcome'">
+              {{ outcomeLabel(record.outcome) }}
+            </div>
+          </template>
+        </Table>
+        <h3>人工日志</h3>
+        <Table
+          :columns="reviewColumns"
+          :data-source="detail.reviews"
+          :pagination="false"
+        />
+        <div class="mt-4 flex gap-2">
+          <Button v-if="canResolve" @click="begin('resolveUnsent')">
+            核验未受理
           </Button>
-        </template>
-      </Table>
-      <Modal
-        v-model:open="opened"
-        title="投递审计"
-        width="960px"
-        :footer="null"
-      >
-        <template v-if="detail">
-          <Descriptions :column="2">
-            <Descriptions.Item label="事件标识">
-              {{ detail.delivery.eventId }}
-            </Descriptions.Item>
-            <Descriptions.Item label="状态">
-              {{ statusLabel(detail.delivery.status) }}
-            </Descriptions.Item>
-            <Descriptions.Item label="尝试次数">
-              {{ detail.delivery.attemptCount }}
-            </Descriptions.Item>
-            <Descriptions.Item label="版本">
-              {{ detail.delivery.optimisticLock }}
-            </Descriptions.Item>
-            <Descriptions.Item label="渠道受理时间">
-              {{ detail.delivery.deliveredTime || '-' }}
-            </Descriptions.Item>
-          </Descriptions>
-          <Alert
-            v-if="detail.attemptsTruncated"
-            type="warning"
-            message="历史超过一千条，当前仅显示前一千条"
-          />
-          <h3>投递尝试</h3>
-          <Table
-            :columns="attemptColumns"
-            :data-source="detail.attempts"
-            row-key="attemptNo"
-            :pagination="false"
-          >
-            <template #bodyCell="{ column, record }">
-              <div v-if="column.key === 'outcome'">
-                {{ outcomeLabel(record.outcome) }}
-              </div>
-            </template>
-          </Table>
-          <h3>人工日志</h3>
-          <Table
-            :columns="reviewColumns"
-            :data-source="detail.reviews"
-            :pagination="false"
-          />
-          <div class="mt-4 flex gap-2">
-            <Button v-if="canResolve" @click="begin('resolveUnsent')">
-              核验未受理
-            </Button>
-            <Button v-if="canRetry" @click="begin('retry')">重试投递</Button>
-          </div>
-        </template>
-      </Modal>
-      <Modal
-        :open="Boolean(action)"
-        :title="action === 'resolveUnsent' ? '核验渠道未受理' : '重试通知投递'"
-        :confirm-loading="processing"
-        @cancel="action = undefined"
-        @ok="submit"
+          <Button v-if="canRetry" @click="begin('retry')">重试投递</Button>
+        </div>
+      </template>
+    </Modal>
+    <Modal
+      :open="Boolean(action)"
+      :title="action === 'resolveUnsent' ? '核验渠道未受理' : '重试通知投递'"
+      :confirm-loading="processing"
+      @cancel="action = undefined"
+      @ok="submit"
+    >
+      <Form
+        id="notification-audit-review"
+        name="notificationAuditReview"
+        data-form-id="notification-audit-review"
+        data-form-name="通知投递人工处理"
+        layout="horizontal"
+        :label-col="{ style: { width: '88px' } }"
+        :wrapper-col="{ flex: 1 }"
       >
         <template v-if="action === 'resolveUnsent'">
           <Alert
             type="warning"
             message="仅在已核验供应商未受理时确认；本操作不会发送通知。"
           />
-          <Input
-            v-model:value="verificationRef"
-            :maxlength="128"
-            placeholder="无机密核验记录标识，禁止邮箱或 URL"
-            class="my-4"
-          />
+          <Form.Item label="核验记录" name="verificationRef" class="mt-4">
+            <Input
+              v-model:value="verificationRef"
+              :maxlength="128"
+              placeholder="无机密核验记录标识，禁止邮箱或 URL"
+            />
+          </Form.Item>
           <Checkbox v-model:checked="verifiedUnsent">
             我已核验本次渠道没有受理
           </Checkbox>
         </template>
-        <Select
-          v-else
-          v-model:value="reason"
-          class="w-full"
-          :options="[
-            { label: '配置已修复', value: 'ConfigurationFixed' },
-            { label: '服务已恢复', value: 'ServiceRestored' },
-          ]"
-        />
-      </Modal>
-    </div>
-  </Page>
+        <Form.Item v-else label="重试原因" name="reason">
+          <Select
+            v-model:value="reason"
+            class="w-full"
+            :options="[
+              { label: '配置已修复', value: 'ConfigurationFixed' },
+              { label: '服务已恢复', value: 'ServiceRestored' },
+            ]"
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
+  </div>
 </template>

@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { electronicInvoiceProviderConnectionService } from '../../api/electronic-invoice-provider-connection-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
@@ -152,8 +153,8 @@ function normalizeSimulationFlag(value: unknown) {
 
 export const pageMeta = {
   name: 'ElectronicInvoiceProviderConnection',
-  title: '电子发票供应商连接',
-  description: '维护电子发票供应商连接。',
+  title: '电子发票授权',
+  description: '维护销方与开票服务商的授权关系。',
 } as const;
 
 export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
@@ -161,8 +162,17 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
     apiBase: '/EInvoiceProviderConnection',
     domainObject: true,
     apiService: electronicInvoiceProviderConnectionService,
+    dataAttrTargets: fixedCrudDataAttrTargets(
+      electronicInvoiceProviderConnectionService,
+      {
+        list: { method: 'GET', path: 'list' },
+      },
+    ),
     createPath: '/EInvoiceProviderConnection/activate',
-    title: '电子发票供应商连接',
+    allowEdit: false,
+    allowDelete: false,
+    allowRetrieve: false,
+    title: '电子发票授权',
     modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
     defaultFormValues: {
       simulation: true,
@@ -204,7 +214,7 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       },
       {
         key: 'id',
-        label: '连接ID',
+        label: '授权ID',
         form: false,
         search: true,
         table: true,
@@ -254,7 +264,7 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       },
       {
         key: 'status',
-        label: '连接状态',
+        label: '授权状态',
         search: true,
         table: true,
         form: false,

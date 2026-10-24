@@ -5,8 +5,15 @@ import {
   getServiceMeta,
 } from '@levin/admin-framework';
 
-import { oakBaseAdminCrudResources } from './admin-crud';
+import {
+  oakBaseAdminCrudResources,
+  oakWorkflowMenuGroup,
+  oakWorkflowResources,
+} from './admin-crud';
 import * as oakBaseApi from './api';
+import { pageMeta as dailyAccessStatPageMeta } from './views/daily-access-stat/config';
+import { pageMeta as dataModelRecordPageMeta } from './views/data-model-record-page/config';
+import { pageMeta as dataModelPageMeta } from './views/data-model/config';
 import { pageMeta as notificationAuditPageMeta } from './views/notification-audit/config';
 import { pageMeta as robotNotifyGroupPageMeta } from './views/robot-notify-group/config';
 import { pageMeta as supportMailboxRulePageMeta } from './views/support-mailbox-rule/config';
@@ -39,6 +46,9 @@ const pageMetaModules: Record<string, PageMeta> = {
       metadata,
     ]),
   ),
+  './views/data-model/config.ts': dataModelPageMeta,
+  './views/data-model-record-page/config.ts': dataModelRecordPageMeta,
+  './views/daily-access-stat/config.ts': dailyAccessStatPageMeta,
   './views/notification-audit/config.ts': notificationAuditPageMeta,
   './views/robot-notify-group/config.ts': robotNotifyGroupPageMeta,
   './views/support-mailbox-rule/config.ts': supportMailboxRulePageMeta,
@@ -180,6 +190,10 @@ function createCrudBackendRouteMapping(
     description: pageMeta.description,
     icon: item.icon,
     keepAlive: true,
+    // 分组只供前端授权后导航使用，不修改后端授权菜单或页面路径。
+    ...(oakWorkflowResources.includes(item.resource)
+      ? { menuGroup: oakWorkflowMenuGroup }
+      : {}),
     operations: getPageOperations(item.permissionResource || item.resource),
     // 个人消息由登录态和服务端精确受众校验；没有菜单时仍允许从通知铃铛进入。
     ...(item.resource === 'MyMessages'
@@ -196,8 +210,29 @@ function createCrudBackendRouteMapping(
 
 export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
   {
+    description: dataModelRecordPageMeta.description,
+    icon: 'lucide:table-properties',
+    operations: buildAdminPageOperations(oakBaseApi.dataModelService).filter(
+      (item) =>
+        [
+          'createRecord',
+          'deleteRecord',
+          'queryRecords',
+          'setEnabled',
+          'updateRecord',
+        ].includes(item.opName),
+    ),
+    path: '/clob/V1/DataModelRecord',
+    onlyRequireAuthenticated: true,
+    resource: 'DataModelRecord',
+    sourceFilePath: `${MODULE_SOURCE_PREFIX}/data-model-record-page/index.vue`,
+    title: dataModelRecordPageMeta.title,
+    viewPath: `${MODULE_VIEW_PREFIX}/data-model-record-page/index.vue`,
+  },
+  {
     description: getPageMeta(`${MODULE_SOURCE_PREFIX}/help-center/index.vue`)
       .description,
+    fullPathKey: false,
     icon: 'lucide:book-open',
     operations: [],
     onlyRequireAuthenticated: true,

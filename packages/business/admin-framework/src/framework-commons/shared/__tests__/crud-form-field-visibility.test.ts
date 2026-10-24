@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  isCrudFormFieldConditionMet,
   shouldShowCrudFormField,
   shouldSubmitCrudFormField,
 } from '../crud-form-field-visibility';
@@ -13,6 +14,20 @@ const editableField = {
 };
 
 describe('crud form field visibility', () => {
+  it('uses current form values for conditional create fields', () => {
+    const field = {
+      key: 'maxRegistrations',
+      label: '人数上限',
+      formVisibleWhen: (state: Record<string, any>) =>
+        state.usageMode === 'Limited',
+    };
+    expect(isCrudFormFieldConditionMet(field, { usageMode: 'Single' })).toBe(
+      false,
+    );
+    expect(isCrudFormFieldConditionMet(field, { usageMode: 'Limited' })).toBe(
+      true,
+    );
+  });
   it('hides editable in create forms for normal users', () => {
     expect(
       shouldShowCrudFormField(editableField, 'create', {
@@ -77,12 +92,17 @@ describe('crud form field visibility', () => {
   it('recognizes super admins from role identity values', () => {
     expect(
       isSuperAdminUser({
+        roles: [{ code: 'R_PLATFORM_SA' }],
+      }),
+    ).toBe(true);
+    expect(
+      isSuperAdminUser({
         roleList: [{ code: 'R_PLATFORM_SA' }],
       }),
     ).toBe(true);
     expect(
       isSuperAdminUser({
-        roleList: [{ code: 'R_SA' }],
+        roleList: [{ code: 'R_PLATFORM_ADMIN' }],
       }),
     ).toBe(false);
   });

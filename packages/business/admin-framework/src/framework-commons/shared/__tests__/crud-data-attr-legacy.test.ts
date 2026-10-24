@@ -13,6 +13,26 @@ import { useCrudDataAttrAccess } from '../crud-data-attr-access';
 describe('旧宿主与暂停状态的边界', () => {
   it('从未配置时沿用原行为，一旦启用后加载失败或暂停始终关闭', async () => {
     expect(isDataAttrPolicyEnabled()).toBe(false);
+    const explicitScope = effectScope();
+    const explicit = explicitScope.run(() =>
+      useCrudDataAttrAccess(
+        () => ({
+          apiBase: '/Dynamic',
+          title: '动态',
+          fields: [],
+          dataAttrPolicyProvider: async () => {
+            throw new Error('显式策略失败');
+          },
+        }),
+        () => '/Dynamic/list',
+        () => 'legacy',
+        (operation) => operation === 'create',
+      ),
+    );
+    if (!explicit) throw new Error('测试作用域未创建');
+    await expect(explicit.ensure('create')).rejects.toThrow('显式策略失败');
+    expect(explicit.allowed('create', 'input', 'name')).toBe(false);
+    explicitScope.stop();
     const scope = effectScope();
     const access = scope.run(() =>
       useCrudDataAttrAccess(
@@ -22,6 +42,7 @@ describe('旧宿主与暂停状态的边界', () => {
       ),
     );
     if (!access) throw new Error('Missing scoped access');
+    await access.ensure('create');
     expect(access.allowed('create', 'input', 'amount')).toBe(true);
     expect(access.pruneInput('create', { amount: 900 })).toEqual({
       amount: 900,

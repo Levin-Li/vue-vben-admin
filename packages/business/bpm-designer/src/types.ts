@@ -208,6 +208,7 @@ export interface WorkflowDesignerOptions {
   fields?: WorkflowFormField[];
   groups?: WorkflowCandidate[];
   purposeOptions?: { label: string; value: string }[];
+  stateBusinessObjects?: import('./workflow-state-graph').WorkflowBusinessObject[];
   users?: WorkflowCandidate[];
 }
 
@@ -216,7 +217,10 @@ export interface WorkflowDefinitionVersion {
   bpmnXml?: string;
   id: string;
   lifecycle: WorkflowVersionLifecycle;
-  lowflowDefinition?: import('./workflow-tree-version').WorkflowTreeVersion;
+  lowflowDefinition?:
+    | import('./workflow-state-graph').WorkflowStateGraph
+    | import('./workflow-task-graph').WorkflowTaskGraph
+    | import('./workflow-tree-version').WorkflowTreeVersion;
   lowflowJson?: string;
   optimisticLock?: number;
   simulationReport?: WorkflowSimulationReport;

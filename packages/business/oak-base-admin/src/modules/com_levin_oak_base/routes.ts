@@ -28,6 +28,8 @@ export const namedScopeVariableAcceptanceRoute: RouteRecordRaw = {
 export const helpCenterRoute: RouteRecordRaw = {
   component: () => import('./views/help-center/index.vue'),
   meta: {
+    // 文档 ID 和章节仍留在地址中，顶部页签只按文档中心路径复用。
+    fullPathKey: false,
     hideInMenu: true,
     icon: 'lucide:book-open',
     requiresAccess: true,

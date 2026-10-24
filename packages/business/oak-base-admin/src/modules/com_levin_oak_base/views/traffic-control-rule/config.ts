@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { trafficControlRuleService } from '../../api/traffic-control-rule-service';
 import {
   authorizedControllerPathOptionsLoader,
@@ -62,6 +63,7 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
   apiBase: '/TrafficControlRule',
   domainObject: true,
   apiService: trafficControlRuleService,
+  dataAttrTargets: standardCrudDataAttrTargets(trafficControlRuleService),
   defaultFormValues: {
     algorithm: 'FixedWindow',
     editable: true,

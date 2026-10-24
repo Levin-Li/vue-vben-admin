@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { menuService } from '../../api/menu-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   menuOptionsLoader,
   menuPageTypeOptionsLoader,
@@ -28,6 +29,7 @@ export const menuPageCrudConfig: CrudPageConfig = {
   apiBase: '/Menu',
   domainObject: true,
   apiService: menuService,
+  dataAttrTargets: standardCrudDataAttrTargets(menuService),
   allowRetrieve: true,
   defaultFormValues: {
     actionType: 'Default',

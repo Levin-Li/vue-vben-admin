@@ -6,6 +6,7 @@ import {
 } from '@levin/admin-framework';
 
 import { OAK_BASE_API_MODULE } from './_module';
+import { withLegalSubjectStatus } from './legal-subject-status';
 
 @Service({
   basePath: '/ChannelPartner',
@@ -52,7 +53,9 @@ export class ChannelPartnerService extends RequestService {
     action: '查看详情',
   })
   async retrieve(params?: any, options?: any) {
-    return this.get('retrieve', { ...options, params });
+    return withLegalSubjectStatus(
+      await this.get('retrieve', { ...options, params }),
+    );
   }
 
   @CRUD.Op({ confirmText: 'None', label: '更新渠道伙伴' })

@@ -35,9 +35,18 @@ export interface AdminModuleContext<
 
 export interface AdminBackendRouteMapping {
   description: string;
+  /** false 表示同一页面的不同查询参数共用一个顶部页签。 */
+  fullPathKey?: boolean;
   icon: string;
   /** 后端菜单映射后的本地页面是否保留标签实例状态。 */
   keepAlive?: boolean;
+  /** 仅在授权完成后调整菜单显示位置，不改变路由或后端菜单。 */
+  menuGroup?: {
+    icon?: string;
+    parentPath: string;
+    path: string;
+    title: string;
+  };
   /** 映射不声明路由名称；运行时始终从最终 path 生成。 */
   name?: string;
   /** 显式声明页面仅要求登录，不依赖后端菜单授权；默认仍要求菜单授权。 */

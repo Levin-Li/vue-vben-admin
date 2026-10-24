@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 describe('设置加载范围回显', () => {
   it('页面展示设置只读取记录范围，并同时传递给原版与 V2 抽屉', () => {
     const source = readFileSync(
-      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
 

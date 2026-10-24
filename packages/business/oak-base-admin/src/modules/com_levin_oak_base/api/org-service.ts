@@ -1,5 +1,10 @@
-import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
-import { RequestService } from '@levin/admin-framework';
+import {
+  CRUD,
+  RequestService,
+  ResAuthorize,
+  Service,
+} from '@levin/admin-framework';
+
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
@@ -7,7 +12,7 @@ import { OAK_BASE_API_MODULE } from './_module';
   controllerClass: 'com.levin.oak.base.controller.BizOrgController',
   description: '机构管理',
   title: '机构',
-  type: '系统数据-机构',
+  type: '系统数据-组织机构',
 })
 export class OrgService extends RequestService {
   constructor() {
@@ -16,7 +21,7 @@ export class OrgService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-机构',
+    type: '系统数据-组织机构',
     action: '清除缓存',
   })
   async clearCache(params?: any, options?: any) {
@@ -26,13 +31,13 @@ export class OrgService extends RequestService {
     });
   }
 
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-机构',
-    action: '新增',
-  })
   @CRUD.Op({
     opRefTargetType: 'None',
+  })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-组织机构',
+    action: '新增',
   })
   async create(data?: any, options?: any) {
     return this.post('create', {
@@ -41,12 +46,12 @@ export class OrgService extends RequestService {
     });
   }
 
+  @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-机构',
+    type: '系统数据-组织机构',
     action: '删除',
   })
-  @CRUD.Op()
   async delete(params?: any, options?: any) {
     return this.deleteRequest('delete', {
       ...options,
@@ -54,13 +59,13 @@ export class OrgService extends RequestService {
     });
   }
 
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-机构',
-    action: '查询列表',
-  })
   @CRUD.ListTable({
     refEntityClass: 'com.levin.oak.base.entities.Org',
+  })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-组织机构',
+    action: '查询列表',
   })
   async list(params?: any, options?: any) {
     return this.get('list', {
@@ -69,13 +74,13 @@ export class OrgService extends RequestService {
     });
   }
 
-  @ResAuthorize({
-    domain: 'com.levin.oak.base',
-    type: '系统数据-机构',
-    action: '查看详情',
-  })
   @CRUD.Op({
     confirmText: 'None',
+  })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-组织机构',
+    action: '查看详情',
   })
   async retrieve(params?: any, options?: any) {
     return this.get('retrieve', {
@@ -84,12 +89,12 @@ export class OrgService extends RequestService {
     });
   }
 
+  @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-机构',
+    type: '系统数据-组织机构',
     action: '更新',
   })
-  @CRUD.Op()
   async update(data?: any, options?: any) {
     return this.put('update', {
       ...options,

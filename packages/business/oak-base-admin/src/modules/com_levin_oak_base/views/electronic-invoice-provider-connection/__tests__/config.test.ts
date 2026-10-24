@@ -4,6 +4,7 @@ import {
   electronicInvoiceProviderConnectionPageCrudConfig,
   electronicInvoiceProviderOptions,
   getElectronicInvoiceProviderGuide,
+  pageMeta,
 } from '../config';
 
 vi.mock('../../../api/electronic-invoice-provider-connection-service', () => ({
@@ -18,6 +19,18 @@ vi.mock('../../api-module', () => ({
 }));
 
 describe('electronic invoice provider connection page config', () => {
+  it('uses the authorization name in the page and field labels', () => {
+    expect(pageMeta.title).toBe('电子发票授权');
+    expect(electronicInvoiceProviderConnectionPageCrudConfig.title).toBe(
+      '电子发票授权',
+    );
+    expect(electronicInvoiceProviderConnectionPageCrudConfig.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'status', label: '授权状态' }),
+      ]),
+    );
+  });
+
   it('lets platform users select the tenant that owns the issuer connection', () => {
     expect(electronicInvoiceProviderConnectionPageCrudConfig.fields).toEqual(
       expect.arrayContaining([

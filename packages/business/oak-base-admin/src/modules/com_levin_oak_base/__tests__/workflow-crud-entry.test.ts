@@ -45,7 +45,7 @@ vi.mock('../views/api-module', () => ({
   moduleExportTemplateService: {},
 }));
 vi.mock(
-  '@levin/admin-framework/framework-commons/shared/crud-page.vue',
+  '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue',
   () => ({
     default: {
       props: ['config'],

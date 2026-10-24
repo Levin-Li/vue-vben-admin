@@ -11,6 +11,7 @@ import {
   buildPartnerCertificationLog,
   buildPartnerCertificationLogAction,
 } from './certification-log';
+import { isLegalSubjectPickerLocked } from './legal-subject-edit-lock';
 import LegalSubjectPicker from './legal-subject-picker.vue';
 
 const props = defineProps<{ config: CrudPageConfig }>();
@@ -40,10 +41,12 @@ const pageConfig = computed<CrudPageConfig>(() => ({
 
 <template>
   <CrudPage :config="pageConfig">
-    <template #form-field-legalSubjectId="{ disabled, formState }">
+    <template
+      #form-field-legalSubjectId="{ disabled, editingRecord, formState }"
+    >
       <LegalSubjectPicker
         v-model="formState.legalSubjectId"
-        :disabled="disabled"
+        :disabled="isLegalSubjectPickerLocked(disabled, editingRecord)"
       />
     </template>
   </CrudPage>

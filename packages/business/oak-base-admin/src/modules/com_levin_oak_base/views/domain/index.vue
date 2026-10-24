@@ -11,6 +11,7 @@ import { useRouter } from 'vue-router';
 import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
 
+import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import {
   Alert,
@@ -38,6 +39,11 @@ import { domainPageCrudConfig } from './config';
 import DnsRecordManager from './dns-record-manager.vue';
 
 const dnsManagerOpen = ref(false);
+const { hasPermission } = useRbacAccess();
+const applyDomainPermission = buildApiMethodPermissions(
+  domainService,
+  'applyDomain',
+);
 const router = useRouter();
 const selectedDomain = ref<DomainRecord | null>(null);
 const domainApplyOpen = ref(false);
@@ -463,7 +469,10 @@ onMounted(async () => {
         帮助
       </Button>
       <Button
-        v-if="isListOperationVisible('domain:apply', true)"
+        v-if="
+          isListOperationVisible('domain:apply', true) &&
+          hasPermission(applyDomainPermission)
+        "
         type="primary"
         @click="openDomainApply"
       >
@@ -489,7 +498,13 @@ onMounted(async () => {
           () => submitDomainApply((slotProps as Record<string, any>).loadList)
         "
       >
-        <Form layout="vertical">
+        <Form
+          id="domain-application"
+          name="domainApplication"
+          data-form-id="domain-application"
+          data-form-name="申请域名"
+          layout="vertical"
+        >
           <Form.Item v-if="isPlatformUser" label="所属租户">
             <Select
               v-model:value="applyDomainForm.tenantId"

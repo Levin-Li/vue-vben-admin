@@ -2,6 +2,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { userService } from '../../api/user-service';
 import {
   moduleFetchDictOptions,
@@ -115,6 +116,7 @@ export const userPageCrudConfig: CrudPageConfig = {
   apiBase: '/User',
   domainObject: true,
   apiService: userService,
+  dataAttrTargets: standardCrudDataAttrTargets(userService),
   allowRetrieve: true,
   defaultFormValues: {
     category: 'Staff',

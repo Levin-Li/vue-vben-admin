@@ -382,7 +382,14 @@ function save() {
         <p v-if="items.length === 0 && !loading">
           该页面没有可配置的公共查询字段。
         </p>
-        <Form class="grid grid-cols-1 gap-x-6 md:grid-cols-2" layout="vertical">
+        <Form
+          id="menu-fixed-query-editor"
+          name="menuFixedQueryEditor"
+          data-form-id="menu-fixed-query-editor"
+          data-form-name="编辑菜单固定查询条件"
+          class="grid grid-cols-1 gap-x-6 md:grid-cols-2"
+          layout="vertical"
+        >
           <Form.Item v-for="item in items" :key="item.key">
             <template #label>
               <Checkbox

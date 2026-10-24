@@ -9,7 +9,7 @@ import { OAK_BASE_API_MODULE } from './_module';
     'com.levin.oak.base.controller.BizImportExportTemplateController',
   description: '导入导出模板管理',
   title: '导入导出模板',
-  type: '系统数据-导入导出模板',
+  type: '业务数据-导入导出模板',
 })
 export class ImportExportTemplateService extends RequestService {
   constructor() {
@@ -18,7 +18,7 @@ export class ImportExportTemplateService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-导入导出模板',
+    type: '业务数据-导入导出模板',
     action: '新增',
   })
   @CRUD.Op({
@@ -33,7 +33,7 @@ export class ImportExportTemplateService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-导入导出模板',
+    type: '业务数据-导入导出模板',
     action: '删除',
   })
   @CRUD.Op()
@@ -46,7 +46,7 @@ export class ImportExportTemplateService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-导入导出模板',
+    type: '业务数据-导入导出模板',
     action: '查询列表',
   })
   @CRUD.ListTable({
@@ -61,7 +61,7 @@ export class ImportExportTemplateService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-导入导出模板',
+    type: '业务数据-导入导出模板',
     action: '查看详情',
   })
   @CRUD.Op({
@@ -76,7 +76,7 @@ export class ImportExportTemplateService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-导入导出模板',
+    type: '业务数据-导入导出模板',
     action: '更新',
   })
   @CRUD.Op()

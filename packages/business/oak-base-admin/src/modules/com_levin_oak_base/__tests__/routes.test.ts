@@ -44,7 +44,7 @@ describe('oak base admin routes', () => {
     const group = root?.children?.find(
       (route) => route.meta?.title === '支付&交易',
     );
-    const path = '/clob/V1/SettlementStatement';
+    const path = '/clob/V1/SettlementOrder';
     expect(group?.children?.find((route) => route.path === path)?.name).toBe(
       path.replaceAll('/', '_'),
     );
@@ -52,10 +52,10 @@ describe('oak base admin routes', () => {
       (item) => item.path === path,
     );
     expect(mapping).toMatchObject({
-      resource: 'SettlementStatement',
-      viewPath: '/system/com_levin_oak_base/settlement-statement/index.vue',
+      resource: 'SettlementOrder',
+      viewPath: '/system/com_levin_oak_base/settlement-order/index.vue',
       sourceFilePath:
-        'modules/com_levin_oak_base/views/settlement-statement/index.vue',
+        'modules/com_levin_oak_base/views/settlement-order/index.vue',
     });
     expect(mapping).not.toHaveProperty('name');
     expect(mapping?.operations?.map((item) => item.opName)).toEqual(
@@ -200,13 +200,13 @@ describe('oak base admin routes', () => {
   it('工作流设计、业务样例与个人办理页具有唯一业务归属及完整映射', () => {
     const root = createOakBaseAdminModule().routes?.[0];
     for (const [resource, directory, groupName] of [
-      ['WorkflowDefinition', 'workflow-definition', '开发&工具'],
-      ['WorkflowInstance', 'workflow-instance', '开发&工具'],
-      ['WorkflowNotificationRoute', 'workflow-notification-route', '开发&工具'],
+      ['WorkflowDefinition', 'workflow-definition', '工作流'],
+      ['WorkflowInstance', 'workflow-instance', '工作流'],
+      ['WorkflowNotificationRoute', 'workflow-notification-route', '工作流'],
       ['RobotNotifyGroup', 'robot-notify-group', '基础&设置'],
-      ['WorkflowRequest', 'workflow-request', '开发&工具'],
-      ['MyWorkflow', 'my-workflow', '个人&中心'],
-      ['WorkflowStart', 'workflow-start', '个人&中心'],
+      ['WorkflowRequest', 'workflow-request', '工作流'],
+      ['MyWorkflow', 'my-workflow', '工作流'],
+      ['WorkflowStart', 'workflow-start', '工作流'],
     ]) {
       const group = root?.children?.find(
         (item) => item.meta?.title === groupName,
@@ -227,6 +227,40 @@ describe('oak base admin routes', () => {
         }),
       ]);
     }
+    // 本地路由与导航分组声明一致；通用通知投递保留运维入口。
+    const workflowGroup = root?.children?.find(
+      (item) => item.meta?.title === '工作流',
+    );
+    expect(workflowGroup?.meta?.icon).toBe('lucide:git-branch');
+    expect(workflowGroup?.children?.map((item) => item.path)).toEqual([
+      '/clob/V1/WorkflowDefinition',
+      '/clob/V1/WorkflowStart',
+      '/clob/V1/MyWorkflow',
+      '/clob/V1/WorkflowInstance',
+      '/clob/V1/WorkflowNotificationRoute',
+      '/clob/V1/WorkflowRequest',
+    ]);
+    for (const route of workflowGroup?.children || []) {
+      expect(
+        oakBaseAdminBackendRouteMappings.find(
+          (item) => item.path === route.path,
+        )?.menuGroup,
+      ).toMatchObject({
+        parentPath: '/clob/V1/index',
+        path: '/clob/V1/index/groups/工作流',
+        title: '工作流',
+      });
+      expect(
+        flattenCrudRoutes(root?.children).filter(
+          (item) => item.path === route.path,
+        ),
+      ).toHaveLength(1);
+    }
+    expect(
+      root?.children
+        ?.find((item) => item.meta?.title === '运维&审计')
+        ?.children?.some((item) => item.path === '/clob/V1/NotificationAudit'),
+    ).toBe(true);
     const design = oakBaseAdminBackendRouteMappings.find(
       (item) => item.resource === 'WorkflowDefinition',
     );
@@ -317,7 +351,7 @@ describe('oak base admin routes', () => {
     ).toBe(false);
   });
 
-  it('默认将所有可生成 CRUD 页面唯一归入十个带语义图标的业务分组', () => {
+  it('默认将所有可生成 CRUD 页面唯一归入十一个带语义图标的业务分组', () => {
     const module = createOakBaseAdminModule();
     const root = module.routes?.[0];
     const expectedGroupIcons = {
@@ -328,6 +362,7 @@ describe('oak base admin routes', () => {
       '客户&伙伴': 'lucide:handshake',
       '内容&资源': 'lucide:folder-open',
       '基础&设置': 'lucide:settings-2',
+      工作流: 'lucide:git-branch',
       '开发&工具': 'lucide:code-2',
       '个人&中心': 'lucide:circle-user-round',
       '运维&审计': 'lucide:clipboard-check',
@@ -338,8 +373,8 @@ describe('oak base admin routes', () => {
     const expectedPaths = oakBaseAdminCrudResources
       .filter((resource) => oakBaseAdminResourceViewMap[resource.resource])
       .map((resource) => `/clob/V1/${resource.routePath || resource.resource}`)
-      .sort();
-    const actualPaths = groupedCrudRoutes.map((route) => route.path).sort();
+      .toSorted();
+    const actualPaths = groupedCrudRoutes.map((route) => route.path).toSorted();
 
     expect(actualPaths).toEqual(expectedPaths);
     expect(new Set(actualPaths)).toHaveLength(actualPaths.length);
@@ -433,7 +468,7 @@ describe('oak base admin routes', () => {
     expect(
       mapping?.operations?.find((item) => item.opName === 'retrieve')
         ?.requireAuthorizations,
-    ).toEqual(['com.levin.oak.base:系统数据-导入导出模板::查看详情']);
+    ).toEqual(['com.levin.oak.base:业务数据-导入导出模板::查看详情']);
     for (const route of oakBaseAdminBackendRouteMappings) {
       for (const operation of route.operations || []) {
         expect(
@@ -832,7 +867,7 @@ describe('oak base admin routes', () => {
         expect.objectContaining({
           meta: expect.objectContaining({
             crudResource: 'EInvoiceProviderConnection',
-            title: '电子发票供应商连接',
+            title: '电子发票授权',
           }),
           path: '/clob/V1/EInvoiceProviderConnection',
         }),

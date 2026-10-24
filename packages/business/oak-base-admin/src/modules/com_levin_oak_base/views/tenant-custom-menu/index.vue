@@ -1514,7 +1514,13 @@ function closeLayoutAdjuster() {
         title="新增菜单展示布局"
         @ok="createLayout"
       >
-        <Form layout="vertical">
+        <Form
+          id="tenant-custom-menu-layout-create"
+          name="tenantCustomMenuLayoutCreate"
+          data-form-id="tenant-custom-menu-layout-create"
+          data-form-name="新增菜单展示布局"
+          layout="vertical"
+        >
           <Form.Item label="布局名称" required>
             <Input
               v-model:value="newLayoutForm.name"
@@ -1536,7 +1542,13 @@ function closeLayoutAdjuster() {
         title="新增展示分组"
         @ok="addGroup"
       >
-        <Form layout="vertical">
+        <Form
+          id="tenant-custom-menu-group-create"
+          name="tenantCustomMenuGroupCreate"
+          data-form-id="tenant-custom-menu-group-create"
+          data-form-name="新增展示分组"
+          layout="vertical"
+        >
           <Form.Item label="分组名称" required>
             <Input
               v-model:value="newGroupForm.label"

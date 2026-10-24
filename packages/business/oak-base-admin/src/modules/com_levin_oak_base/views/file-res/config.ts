@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { fileResService } from '../../api/file-res-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -27,6 +28,7 @@ export const fileResPageCrudConfig: CrudPageConfig = {
   apiBase: '/FileRes',
   domainObject: true,
   apiService: fileResService,
+  dataAttrTargets: standardCrudDataAttrTargets(fileResService),
   defaultFormValues: {
     editable: true,
     enable: true,

@@ -6,6 +6,7 @@ import {
   flushPromises,
   shallowMount,
 } from '@vue/test-utils';
+import { defineComponent, h } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -14,8 +15,12 @@ import {
   clearDataAttrPolicies,
   configureDataAttrPolicyLoader,
 } from '../../data-attr-policy';
-import CrudPage from '../crud-page.vue';
+import CrudPage from '../dynamic-crud-page.vue';
 import UserOrgSelector from '../user-org-selector.vue';
+
+type PolicyQuery = Parameters<
+  Parameters<typeof configureDataAttrPolicyLoader>[0]
+>[0];
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -24,8 +29,10 @@ const mocks = vi.hoisted(() => ({
   request: vi.fn(),
   delete: vi.fn(),
   error: vi.fn(),
+  download: vi.fn(),
   warning: vi.fn(),
   setPageKeepAlive: vi.fn(),
+  permissionAllowed: true,
   route: {
     path: '/contracts',
     matched: [],
@@ -34,6 +41,10 @@ const mocks = vi.hoisted(() => ({
   },
   user: { userInfo: { id: 'tester' } },
   access: { accessCodes: [] as string[] },
+}));
+vi.mock('../crud-file-export', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../crud-file-export')>()),
+  downloadExcelXml: mocks.download,
 }));
 vi.mock('../../app/api/request', () => ({
   requestClient: {
@@ -55,7 +66,7 @@ vi.mock('../../runtime', () => ({
   },
 }));
 vi.mock('../../rbac-access', () => ({
-  useRbacAccess: () => ({ hasPermission: () => true }),
+  useRbacAccess: () => ({ hasPermission: () => mocks.permissionAllowed }),
 }));
 vi.mock('@vben/runtime/stores', () => ({
   getTabKey: (route: { fullPath?: string; path: string }) =>
@@ -146,6 +157,7 @@ function setupState(wrapper: ReturnType<typeof shallowMount>) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.permissionAllowed = true;
   mocks.user.userInfo = { id: 'tester' };
   mocks.route.meta = {};
   mocks.get.mockImplementation(async (path: string) =>
@@ -164,6 +176,599 @@ beforeEach(() => {
 });
 
 describe('标准 crud 的属性组策略', () => {
+  it('普通用户缺少列表权限时不请求列表策略也不弹内部错误', async () => {
+    mocks.permissionAllowed = false;
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: { config: config() },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+
+    expect(vm.canQuery).toBe(false);
+    expect(
+      mocks.get.mock.calls.some(([path]) => String(path).includes('/list')),
+    ).toBe(false);
+    expect(mocks.error).not.toHaveBeenCalled();
+  });
+
+  it('缓存页失活期间的列表刷新不弹内部权限错误，恢复后仍可读取列表', async () => {
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: { config: config() },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    mocks.error.mockClear();
+    mocks.get.mockClear();
+
+    vm.pageActive = false;
+    await vm.loadList();
+    expect(mocks.error).not.toHaveBeenCalled();
+    expect(mocks.get).not.toHaveBeenCalled();
+
+    vm.pageActive = true;
+    await vm.loadList();
+    expect(
+      mocks.get.mock.calls.some(([path]) => String(path).includes('/list')),
+    ).toBe(true);
+  });
+
+  it('活动页的旧字段策略失效时重试新策略，不把上下文变化显示给用户', async () => {
+    let resolveOldPolicy!: (value: DataAttrPolicy) => void;
+    const oldPolicy = new Promise<DataAttrPolicy>((resolve) => {
+      resolveOldPolicy = resolve;
+    });
+    let listPolicyCalls = 0;
+    const provider = vi.fn((operation: string) => {
+      if (operation === 'list' && ++listPolicyCalls === 1) return oldPolicy;
+      return Promise.resolve(policy());
+    });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: { config: config({ dataAttrPolicyProvider: provider }) },
+    });
+    await flushPromises();
+    clearDataAttrPolicies();
+    await flushPromises();
+    resolveOldPolicy(policy());
+    await flushPromises();
+
+    expect(listPolicyCalls).toBeGreaterThan(1);
+    expect(
+      mocks.get.mock.calls.some(([path]) => String(path).includes('/list')),
+    ).toBe(true);
+    expect(mocks.error).not.toHaveBeenCalled();
+    expect(setupState(wrapper).dataSource).toEqual([
+      { id: '1', name: '合同甲' },
+    ]);
+  });
+
+  it('默认隐藏仍保留设置候选，运行时应用字段缺省并尊重显式设置', async () => {
+    const field = {
+      key: 'tenantId',
+      label: '租户',
+      form: true,
+      table: true,
+      search: true,
+      defaultHidden: { create: true, query: true, list: true },
+      defaultVisibleRoleCodes: [],
+    };
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: { config: config({ fields: [field] }) },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    expect(
+      vm.effectiveFields.some(
+        (item: { key: string }) => item.key === 'tenantId',
+      ),
+    ).toBe(true);
+    expect(vm.getPageDisplayField('create', 'tenantId')).toMatchObject({
+      hidden: true,
+      visibleRoleCodes: [],
+    });
+    expect(vm.getPageDisplayHeader('tenantId')).toMatchObject({
+      visible: { mode: 'hidden' },
+      visibleRoleCodes: [],
+    });
+    vm.pageDisplayConfig.create = {
+      fields: [
+        { key: 'tenantId', hidden: false, visibleRoleCodes: ['CUSTOM'] },
+      ],
+    };
+    expect(vm.getPageDisplayField('create', 'tenantId')).toMatchObject({
+      hidden: false,
+      visibleRoleCodes: ['CUSTOM'],
+    });
+  });
+
+  it('页面显式设置身份区分同路由的模型，迟到编辑不得覆盖后发新增', async () => {
+    let finishEdit!: (record: Record<string, any>) => void;
+    const loadEditRecord = vi.fn(
+      () =>
+        new Promise<Record<string, any>>((resolve) => {
+          finishEdit = resolve;
+        }),
+    );
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({ pageDisplaySettingCode: '/models/a', loadEditRecord }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    expect(vm.pageDisplaySettingCode).toBe('/models/a');
+    const edit = vm.handleEdit({ id: '1' });
+    await vm.handleCreate();
+    finishEdit({ id: '1', name: '迟到记录', optimisticLock: 4 });
+    await edit;
+    expect(vm.editingRecord).toBeNull();
+    expect(vm.modalOpen).toBe(true);
+    expect(vm.formState.name).not.toBe('迟到记录');
+  });
+
+  it('新增上下文失败不开窗，准备默认值保持新增模式并刷新当前策略', async () => {
+    const prepareCreate = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('上下文失败'))
+      .mockResolvedValue({ name: '默认名称' });
+    const dataAttrPolicyProvider = vi.fn(async () => policy());
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: { config: config({ prepareCreate, dataAttrPolicyProvider }) },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    await vm.handleCreate();
+    expect(vm.modalOpen).toBe(false);
+    dataAttrPolicyProvider.mockClear();
+    await vm.handleCreate();
+    expect(dataAttrPolicyProvider).toHaveBeenCalledWith('create');
+    expect(vm.modalOpen).toBe(true);
+    expect(vm.editingRecord).toBeNull();
+    expect(vm.formState.name).toBe('默认名称');
+  });
+
+  it('编辑加载失败不开窗，完整响应替换列表行并提交编辑专属字段和最新版本', async () => {
+    const loadEditRecord = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('上下文失败'))
+      .mockResolvedValue({
+        id: '1',
+        name: '完整名称',
+        editOnly: '编辑专属',
+        optimisticLock: 9,
+      });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          loadEditRecord,
+          fields: [
+            { key: 'name', label: '名称', form: true },
+            { key: 'editOnly', label: '编辑专属', form: true },
+          ],
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    const row = { id: '1', staleSecret: '旧无权字段', optimisticLock: 1 };
+    await vm.handleEdit(row);
+    expect(vm.modalOpen).toBe(false);
+    await vm.handleEdit(row);
+    expect(vm.formState.editOnly).toBe('编辑专属');
+    expect(vm.editingRecord).not.toHaveProperty('staleSecret');
+    await vm.handleSubmit();
+    expect(mocks.put.mock.calls.at(-1)?.[1]).toMatchObject({
+      optimisticLock: 9,
+      editOnly: '编辑专属',
+    });
+  });
+
+  it('单独JSON编辑也读取完整记录，失败保持关闭', async () => {
+    const field = {
+      key: 'config',
+      label: '配置',
+      type: 'json' as const,
+      form: true,
+      jsonSchemaEditor: true,
+      jsonSchema: { type: 'object' },
+    };
+    const loadEditRecord = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('失败'))
+      .mockResolvedValue({
+        id: '1',
+        config: { current: true },
+        optimisticLock: 7,
+      });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: { config: config({ loadEditRecord, fields: [field] }) },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    await vm.handleJsonFieldEdit({ id: '1' }, field);
+    expect(vm.modalOpen).toBe(false);
+    await vm.handleJsonFieldEdit({ id: '1', staleSecret: '旧字段' }, field);
+    expect(loadEditRecord).toHaveBeenCalledTimes(2);
+    expect(vm.modalOpen).toBe(true);
+    expect(vm.editingRecord).toEqual({
+      id: '1',
+      config: { current: true },
+      optimisticLock: 7,
+    });
+  });
+
+  it('同路由模型按显式设置身份隔离本地列偏好，静态页面保持原存储键', async () => {
+    const fields = [
+      { key: 'name', label: '名称', table: true },
+      { key: 'other', label: '其它', table: true },
+    ];
+    const dataAttrPolicyProvider = async () => policy();
+    const configuration = (code?: string) =>
+      config({ fields, dataAttrPolicyProvider, pageDisplaySettingCode: code });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: { config: configuration() },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    const legacyKey = vm.tableColumnPreferenceStorageKey;
+    expect(legacyKey).toBe('vben:crud-table-columns:/contracts:default');
+    await wrapper.setProps({
+      config: configuration('/models/local-columns-a'),
+    });
+    await flushPromises();
+    const firstKey = vm.tableColumnPreferenceStorageKey;
+    expect(firstKey).not.toBe(legacyKey);
+    vm.hiddenTableColumnKeys = ['name'];
+    vm.orderedTableColumnKeys = ['other', 'name'];
+    vm.saveTableColumnPreference();
+    await wrapper.setProps({
+      config: configuration('/models/local-columns-b'),
+    });
+    await flushPromises();
+    const secondKey = vm.tableColumnPreferenceStorageKey;
+    expect(secondKey).not.toBe(firstKey);
+    expect(vm.hiddenTableColumnKeys).toEqual([]);
+    vm.hiddenTableColumnKeys = ['other'];
+    vm.orderedTableColumnKeys = ['name', 'other'];
+    vm.saveTableColumnPreference();
+    await wrapper.setProps({
+      config: configuration('/models/local-columns-a'),
+    });
+    await flushPromises();
+    expect(vm.hiddenTableColumnKeys).toEqual(['name']);
+    expect(vm.orderedTableColumnKeys).toEqual(['other', 'name']);
+    await wrapper.setProps({ config: configuration() });
+    await flushPromises();
+    expect(vm.tableColumnPreferenceStorageKey).toBe(legacyKey);
+    window.localStorage.removeItem(firstKey);
+    window.localStorage.removeItem(secondKey);
+  });
+
+  it('只读启用字段仅展示且不发送更新，原可写快捷开关继续生效', async () => {
+    const record = { id: '1', enabled: true, optimisticLock: 2 };
+    const update = vi.fn().mockResolvedValue({});
+    const list = vi.fn().mockResolvedValue({ items: [record], totals: 1 });
+    const dataAttrPolicyProvider = async () => policy();
+    const field = {
+      key: 'enabled',
+      label: '启用',
+      type: 'select' as const,
+      valueType: 'boolean' as const,
+      form: false,
+      table: true,
+      readOnly: true,
+    };
+    const Table = defineComponent({
+      props: { dataSource: { type: Array, default: () => [] } },
+      setup(props, { slots }) {
+        return () =>
+          h(
+            'div',
+            props.dataSource?.length
+              ? slots.bodyCell?.({
+                  column: { key: 'enabled' },
+                  record: props.dataSource[0],
+                })
+              : [],
+          );
+      },
+    });
+    const wrapper = shallowMount(CrudPage, {
+      global: {
+        config: { errorHandler: () => {} },
+        renderStubDefaultSlot: true,
+        stubs: { ATable: Table },
+      },
+      props: {
+        config: config({
+          fields: [field],
+          apiService: { list, update },
+          dataAttrPolicyProvider,
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    expect(wrapper.findComponent({ name: 'ASwitch' }).exists()).toBe(false);
+    expect(wrapper.text()).toContain('启用');
+    await vm.updateBooleanEnableField(record, field, false);
+    expect(update).not.toHaveBeenCalled();
+    expect(record.enabled).toBe(true);
+    await wrapper.setProps({
+      config: config({
+        fields: [{ ...field, readOnly: false }],
+        apiService: { list, update },
+        dataAttrPolicyProvider,
+      }),
+    });
+    await flushPromises();
+    const toggle = wrapper.findComponent({ name: 'ASwitch' });
+    expect(toggle.exists()).toBe(true);
+    toggle.vm.$emit('change', false);
+    await flushPromises();
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: '1',
+        enabled: false,
+        optimisticLock: 2,
+        autoForceUpdateField: false,
+      }),
+    );
+  });
+
+  it('查询停用时通配授权也不请求列表或加载查询策略，仍可新增', async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], totals: 0 });
+    const dataAttrPolicyProvider = vi.fn(async (_operation: string) =>
+      policy(),
+    );
+    const wrapper = shallowMount(CrudPage, {
+      global: {
+        config: { errorHandler: () => {} },
+        renderStubDefaultSlot: true,
+      },
+      props: {
+        config: config({
+          allowQuery: false,
+          allowCreate: true,
+          apiService: { list },
+          dataAttrPolicyProvider,
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    expect(vm.canQuery).toBe(false);
+    expect(wrapper.find('.vben-crud-search-actions').exists()).toBe(false);
+    await vm.loadList();
+    expect(list).not.toHaveBeenCalled();
+    expect(
+      dataAttrPolicyProvider.mock.calls.some(
+        ([operation]) => operation === 'list',
+      ),
+    ).toBe(false);
+    await vm.handleCreate();
+    expect(vm.modalOpen).toBe(true);
+    expect(dataAttrPolicyProvider).toHaveBeenCalledWith('create');
+  });
+
+  it('导出等待期间修改查询和排序时后续页保留开始时的条件快照', async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], totals: 0 });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { list },
+          dataAttrPolicyProvider: async () => policy(),
+          fields: [
+            {
+              key: 'name',
+              label: '名称',
+              search: true,
+              table: true,
+              sortable: true,
+            },
+          ],
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    vm.searchState.name = '原条件';
+    vm.tableSorterState.field = 'name';
+    vm.tableSorterState.order = 'ascend';
+    let finishFirstPage: (result: {
+      items: Array<{ id: string; name: string }>;
+      totals: number;
+    }) => void = () => {
+      throw new Error('首页请求尚未发出');
+    };
+    list.mockClear();
+    list.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishFirstPage = resolve;
+        }),
+    );
+    list.mockResolvedValueOnce({ items: [], totals: 2000 });
+    const exporting = vm.fetchExportRecords();
+    await flushPromises();
+    const initialParams = { ...list.mock.calls[0]?.[0] };
+    expect(initialParams).toMatchObject({
+      name: '原条件',
+      pageIndex: 1,
+      pageSize: 2000,
+    });
+    vm.searchState.name = '新条件';
+    vm.tableSorterState.order = 'descend';
+    finishFirstPage({
+      items: Array.from({ length: 2000 }, (_, index) => ({
+        id: String(index),
+        name: '原条件记录',
+      })),
+      totals: 2000,
+    });
+    expect(await exporting).toHaveLength(2000);
+    expect(list.mock.calls[1]?.[0]).toEqual({ ...initialParams, pageIndex: 2 });
+    expect(vm.searchState.name).toBe('新条件');
+    expect(vm.tableSorterState.order).toBe('descend');
+  });
+
+  it('导出末次空页等待期间策略失效时拒绝下载已读取记录', async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], totals: 0 });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { list },
+          dataAttrPolicyProvider: async () => policy(),
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    vm.exportSelectedFieldKeys = ['name'];
+    expect(vm.selectedExportFields).toHaveLength(1);
+    let finishEmptyPage: (result: {
+      items: never[];
+      totals: number;
+    }) => void = () => {
+      throw new Error('末页请求尚未发出');
+    };
+    list.mockClear();
+    list.mockResolvedValueOnce({
+      items: Array.from({ length: 2000 }, (_, index) => ({
+        id: String(index),
+        name: '已读取记录',
+      })),
+      totals: 2000,
+    });
+    list.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishEmptyPage = resolve;
+        }),
+    );
+    const exporting = vm.handleExportConfirm();
+    await flushPromises();
+    expect(list).toHaveBeenCalledTimes(2);
+    clearDataAttrPolicies();
+    finishEmptyPage({ items: [], totals: 2000 });
+    await exporting;
+    expect(mocks.download).not.toHaveBeenCalled();
+    expect(mocks.error).toHaveBeenCalledWith('导出失败');
+    expect(vm.exporting).toBe(false);
+  });
+
+  it('导出复用列表服务，显式路径保持HTTP请求', async () => {
+    const list = vi
+      .fn()
+      .mockResolvedValue({ items: [{ id: '1', name: '服务记录' }], totals: 1 });
+    const dataAttrPolicyProvider = vi.fn(async () => policy());
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({ apiService: { list }, dataAttrPolicyProvider }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    expect(vm.dataSource[0]?.name).toBe('服务记录');
+    list.mockClear();
+    expect(await vm.fetchExportRecords()).toEqual([
+      { id: '1', name: '服务记录' },
+    ]);
+    expect(list).toHaveBeenCalledOnce();
+    await wrapper.setProps({
+      config: config({
+        apiService: { list },
+        dataAttrPolicyProvider,
+        listPath: '/Contract/custom-list',
+      }),
+    });
+    await flushPromises();
+    list.mockClear();
+    mocks.get.mockClear();
+    await vm.fetchExportRecords();
+    expect(list).not.toHaveBeenCalled();
+    expect(mocks.get).toHaveBeenCalledWith(
+      '/Contract/custom-list',
+      expect.anything(),
+    );
+  });
+
+  it('自定义删除收到第三参数完整记录，默认删除请求仍只传主键', async () => {
+    const remove = vi.fn().mockResolvedValue({});
+    const dataAttrPolicyProvider = vi.fn(async () => policy());
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { delete: remove },
+          dataAttrPolicyProvider,
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    const record = { id: '1', optimisticLock: 8, name: '记录' };
+    await vm.handleDelete(record);
+    expect(remove).toHaveBeenCalledWith({ id: '1' }, undefined, record);
+    await wrapper.setProps({ config: config({ dataAttrPolicyProvider }) });
+    await flushPromises();
+    await vm.handleDelete(record);
+    expect(mocks.delete).toHaveBeenCalledWith(
+      '/Contract/delete',
+      expect.objectContaining({ params: { id: '1' } }),
+    );
+  });
+
+  it('禁用批量接口的策略失败时不打开导入表单', async () => {
+    const batchCreate = vi.fn();
+    const apiService = { batchCreate };
+    ResAuthorize({ domain: 'contract', type: '合同', action: '批量新增' })(
+      apiService,
+      'batchCreate',
+      { value: batchCreate },
+    );
+    const loader = vi.fn(async (query: PolicyQuery) => {
+      if ('operation' in query && query.operation.endsWith('批量新增'))
+        throw new Error('请求参数异常');
+      const result = policy('operation' in query ? query.operation : '');
+      result.restricted = false;
+      return { version: 1, policies: [result] };
+    });
+    configureDataAttrPolicyLoader(loader);
+    const wrapper = shallowMount(CrudPage, {
+      global: {
+        config: { errorHandler: () => {} },
+        renderStubDefaultSlot: true,
+      },
+      props: { config: config({ apiService }) },
+    });
+    await flushPromises();
+    expect(
+      loader.mock.calls.some(
+        ([query]) =>
+          'operation' in query && query.operation.endsWith('批量新增'),
+      ),
+    ).toBe(false);
+
+    const state = setupState(wrapper);
+    await state.openImportModal();
+
+    expect(state.importModalOpen).toBe(false);
+    expect(mocks.error).toHaveBeenCalled();
+    expect(batchCreate).not.toHaveBeenCalled();
+  });
+
   it('查询组织字段通过通用选择器回填组织 ID', async () => {
     Object.assign(mocks.user.userInfo, { admin: true, roleList: ['R_ADMIN'] });
     configureDataAttrPolicyLoader(async (query) => {
@@ -332,7 +937,9 @@ describe('标准 crud 的属性组策略', () => {
     });
     await flushPromises();
     const vm = setupState(wrapper);
-    await expect(vm.loadList()).rejects.toThrow('属性');
+    await vm.loadList();
+    expect(vm.listError).toContain('属性');
+    expect(mocks.error).toHaveBeenCalledWith(expect.stringContaining('属性'));
     expect(
       mocks.get.mock.calls.filter(([path]) => String(path).includes('/list')),
     ).toHaveLength(0);
@@ -347,12 +954,14 @@ describe('标准 crud 的属性组策略', () => {
     mocks.get.mockClear();
     state.tableSorterState.field = 'amount';
     state.tableSorterState.order = 'ascend';
-    await expect(state.loadList()).rejects.toThrow('属性');
+    await state.loadList();
+    expect(state.listError).toContain('属性');
     expect(mocks.get).not.toHaveBeenCalled();
     state.tableSorterState.field = undefined;
     state.tableSorterState.order = undefined;
     state.searchState.amount = 300;
-    await expect(state.loadList()).rejects.toThrow('属性');
+    await state.loadList();
+    expect(state.listError).toContain('属性');
     expect(mocks.get).not.toHaveBeenCalled();
     expect(state.searchState.amount).toBe(300);
   });
@@ -654,5 +1263,152 @@ describe('标准 crud 的属性组策略', () => {
     await flushPromises();
     expect(vm.visibleDataSource[0].detail).toEqual({ comment: '公开说明' });
     expect(vm.visibleActionResultData.detail).toEqual({ comment: '公开说明' });
+  });
+});
+
+// 通过真实组件验证请求与错误边界，默认总数分页保持原有协议。
+describe('标准 CRUD 游标与默认分页兼容', () => {
+  async function mountList(overrides: Partial<CrudPageConfig> = {}) {
+    configureDataAttrPolicyLoader(async () => {
+      const result = policy();
+      result.restricted = false;
+      result.groups = [];
+      result.nodes = {};
+      result.requestRoots = [];
+      result.viewRoots = { request: [], response: [] };
+      result.responseRoot = null;
+      return { version: 1, policies: [result] };
+    });
+    const wrapper = shallowMount(CrudPage, {
+      global: {
+        config: { errorHandler: () => {} },
+        renderStubDefaultSlot: true,
+      },
+      props: {
+        config: config({
+          fields: [{ key: 'name', label: '名称', table: true, search: true }],
+          dataAttrTargets: { list: { method: 'GET', path: '/Contract/list' } },
+          ...overrides,
+        }),
+      },
+    });
+    await flushPromises();
+    return wrapper;
+  }
+  it('游标使用真实 size/cursor 并能回首页，默认模式保留 pageIndex/pageSize/totals', async () => {
+    const list = vi.fn().mockResolvedValue({
+      items: [{ id: '1' }],
+      hasMore: true,
+      nextCursor: 'next:20',
+    });
+    const wrapper = await mountList({
+      paginationMode: 'cursor',
+      defaultQuery: { pageSize: 20 },
+      apiService: { list },
+    });
+    expect(list.mock.calls[0]?.[0]).toMatchObject({ size: 20 });
+    expect(list.mock.calls[0]?.[0]).not.toHaveProperty('pageIndex');
+    expect(list.mock.calls[0]?.[0]).not.toHaveProperty('pageSize');
+    setupState(wrapper).changeCursorPage('next');
+    await flushPromises();
+    expect(list.mock.calls[1]?.[0]).toMatchObject({
+      size: 20,
+      cursor: 'next:20',
+    });
+    setupState(wrapper).loadSearchFromFirstPage();
+    await flushPromises();
+    expect(list.mock.calls[2]?.[0]).not.toHaveProperty('cursor');
+    wrapper.unmount();
+    const normalList = vi.fn().mockResolvedValue({ items: [], totals: 13 });
+    const normal = await mountList({
+      apiService: { list: normalList },
+      defaultQuery: { pageSize: 20 },
+    });
+    expect(normalList.mock.calls[0]?.[0]).toMatchObject({
+      pageIndex: 1,
+      pageSize: 20,
+    });
+    expect(setupState(normal).pagination.total).toBe(13);
+  });
+  it('多列表分别保留真实游标，切换时不串表', async () => {
+    const list = vi
+      .fn()
+      .mockResolvedValue({ items: [], hasMore: true, nextCursor: 'next:20' });
+    const wrapper = await mountList({
+      paginationMode: 'cursor',
+      listTables: [{ key: 'a' }, { key: 'b' }],
+      apiService: { list },
+    });
+    const vm = setupState(wrapper);
+    vm.changeCursorPage('next');
+    await flushPromises();
+    expect(list.mock.calls.at(-1)?.[0].cursor).toBe('next:20');
+    vm.handleListTableChange('b');
+    await flushPromises();
+    expect(list.mock.calls.at(-1)?.[0]).not.toHaveProperty('cursor');
+    vm.handleListTableChange('a');
+    await flushPromises();
+    expect(list.mock.calls.at(-1)?.[0].cursor).toBe('next:20');
+  });
+
+  it('初始条件可清空，重置恢复但不请求，缺少下一游标不能前进', async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], hasMore: true });
+    const wrapper = await mountList({
+      paginationMode: 'cursor',
+      initialQuery: { name: '初始名称' },
+      apiService: { list },
+    });
+    const vm = setupState(wrapper);
+    expect(list.mock.calls[0]?.[0]).toMatchObject({ name: '初始名称' });
+    vm.searchState.name = '';
+    await vm.loadList();
+    expect(list.mock.calls.at(-1)?.[0].name).not.toBe('初始名称');
+    const count = list.mock.calls.length;
+    vm.resetSearch();
+    await flushPromises();
+    expect(vm.searchState.name).toBe('初始名称');
+    expect(list).toHaveBeenCalledTimes(count);
+    vm.changeCursorPage('next');
+    await flushPromises();
+    expect(list).toHaveBeenCalledTimes(count);
+  });
+
+  it('错误清理旧列表，迟到及卸载响应不可恢复数据', async () => {
+    const list = vi
+      .fn()
+      .mockResolvedValue({ items: [{ id: 'old' }], hasMore: false });
+    const wrapper = await mountList({
+      paginationMode: 'cursor',
+      apiService: { list },
+    });
+    let finishOld!: (value: unknown) => void;
+    list.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishOld = resolve;
+        }),
+    );
+    const oldRequest = (wrapper.vm as any).reload();
+    await flushPromises();
+    list.mockRejectedValueOnce(new Error('真实列表错误'));
+    await (wrapper.vm as any).reload();
+    expect(setupState(wrapper).dataSource).toEqual([]);
+    expect(setupState(wrapper).listError).toBe('真实列表错误');
+    finishOld({ items: [{ id: 'late' }] });
+    await oldRequest;
+    expect(setupState(wrapper).dataSource).toEqual([]);
+    list.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishOld = resolve;
+        }),
+    );
+    const lastRequest = (wrapper.vm as any).reload();
+    await flushPromises();
+    const vm = setupState(wrapper);
+    wrapper.unmount();
+    finishOld({ items: [{ id: 'unmounted' }] });
+    await lastRequest;
+    expect(vm.dataSource).toEqual([]);
   });
 });

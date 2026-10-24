@@ -27,6 +27,7 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 包的正式入口指向 `dist` 构建结果；随包携带的 `src` 只用于源码查看、调试和问题定位，不应通过 `@levin/oak-base-admin/src/...` 参与第三方应用编译。
 
 标准 CRUD 切换标签时的分页与查询状态见[标签状态使用说明](docs/crud-tab-state.md)。
+动态业务表定义、结构预览和记录操作见[数据模型管理页面指南](docs/data-model.md)。
 两方电子合同模板与签署入口见[电子合同模板使用指南](docs/electronic-contract-template.md)。
 业务处理与超级管理员故障诊断见[AI 网页 Agent 使用指南](docs/ai-agent-business.md)。
 
@@ -53,7 +54,12 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 
 供应伙伴与渠道伙伴分开的维护入口及选择器见 [供应商与渠道伙伴页面](docs/partner-inheritance.md)。
 
-结算单 CRUD、财务资料、分笔打款及凭证上传见 [结算单使用指南](docs/settlement-statement.md)。
-## 邀请注册链接
+结算单 CRUD、财务资料、分笔打款及凭证上传见 [结算单使用指南](docs/settlement-order.md)。
 
-签发权限、注册方式、组织创建与链接失效规则见 [邀请注册链接使用指南](docs/invitation-registration.md)。
+## 邀请链接
+
+签发权限、注册方式、组织创建与链接失效规则见 [邀请链接使用指南](docs/invitation-registration.md)。
+
+## 性能监控
+
+网络访问、OS、Java 和数据库四个标签的指标口径与权限要求见 [使用指南](docs/daily-access-monitor.md)。

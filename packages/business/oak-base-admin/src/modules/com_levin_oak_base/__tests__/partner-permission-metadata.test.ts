@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 
 import { channelPartnerService } from '../api/channel-partner-service';
 import { partnerService } from '../api/partner-service';
-import { settlementStatementService } from '../api/settlement-statement-service';
+import { settlementOrderService } from '../api/settlement-order-service';
 import { supplierPartnerService } from '../api/supplier-partner-service';
 import { channelPartnerPageCrudConfig } from '../views/channel-partner/config';
 import { partnerCommonFields } from '../views/partner/config';
-import { settlementStatementPageCrudConfig } from '../views/settlement-statement/config';
+import { settlementOrderPageCrudConfig } from '../views/settlement-order/config';
 import { supplierPartnerPageCrudConfig } from '../views/supplier-partner/config';
 
 describe('合作伙伴与结算单 API 操作身份', () => {
@@ -32,7 +32,7 @@ describe('合作伙伴与结算单 API 操作身份', () => {
     for (const [service, type] of [
       [supplierPartnerService, '业务数据-供应伙伴'],
       [channelPartnerService, '业务数据-渠道伙伴'],
-      [settlementStatementService, '业务数据-结算单'],
+      [settlementOrderService, '业务数据-结算单'],
     ] as const) {
       expect(getServiceMeta(service).type).toBe(type);
       for (const operation of [
@@ -86,12 +86,23 @@ describe('合作伙伴与结算单 API 操作身份', () => {
     for (const [config, resource] of [
       [supplierPartnerPageCrudConfig, 'SupplierPartner'],
       [channelPartnerPageCrudConfig, 'ChannelPartner'],
-      [settlementStatementPageCrudConfig, 'SettlementStatement'],
+      [settlementOrderPageCrudConfig, 'SettlementOrder'],
     ] as const) {
       expect(config.listPath).toBe(`/${resource}/list`);
-      expect(config.detailPath).toBe(`/${resource}/retrieve`);
       expect(config.allowDelete).toBe(false);
     }
+    for (const [config, service] of [
+      [supplierPartnerPageCrudConfig, supplierPartnerService],
+      [channelPartnerPageCrudConfig, channelPartnerService],
+    ] as const) {
+      expect(config.dataAttrTargets?.retrieve?.method).toBe('GET');
+      expect(config.dataAttrTargets?.retrieve?.path).toBe(
+        service.buildRequestPath('retrieve'),
+      );
+    }
+    expect(settlementOrderPageCrudConfig.detailPath).toBe(
+      '/SettlementOrder/retrieve',
+    );
   });
 
   it('普通合作伙伴列表与详情不展示法定主体名称', () => {

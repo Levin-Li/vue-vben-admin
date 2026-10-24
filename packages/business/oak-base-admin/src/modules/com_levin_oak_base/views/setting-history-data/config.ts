@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { settingHistoryDataService } from '../../api/setting-history-data-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildDictOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -16,6 +17,11 @@ export const pageMeta = {
 export const settingHistoryDataPageCrudConfig: CrudPageConfig = {
   apiBase: '/SettingHistoryData',
   apiService: settingHistoryDataService,
+  dataAttrTargets: fixedCrudDataAttrTargets(settingHistoryDataService, {
+    delete: { method: 'DELETE', path: 'delete' },
+    list: { method: 'GET', path: 'list' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+  }),
   allowCreate: false,
   allowEdit: false,
   allowDelete: true,

@@ -16,7 +16,11 @@ vi.mock('../../api-module', () => ({
 
 const SelectStub = defineComponent({
   name: 'ASelect',
-  props: { disabled: Boolean, options: { type: Array, default: () => [] } },
+  props: {
+    allowClear: Boolean,
+    disabled: Boolean,
+    options: { type: Array, default: () => [] },
+  },
   emits: ['search', 'update:value'],
   template: '<div />',
 });
@@ -59,6 +63,21 @@ describe('法律主体选择控件', () => {
       label: '甲公司',
       value: 'subject-1',
     });
+    wrapper.unmount();
+  });
+
+  it('尚未保存时允许清空误选的主体', async () => {
+    mocked.load.mockResolvedValue([]);
+    mocked.retrieve.mockResolvedValue({ data: { id: 'subject-1' } });
+    const wrapper = shallowMount(LegalSubjectPicker, {
+      props: { modelValue: 'subject-1' },
+      global: { stubs: { ASelect: SelectStub } },
+    });
+    const select = wrapper.findComponent(SelectStub);
+    expect(select.props('allowClear')).toBe(true);
+    select.vm.$emit('update:value', undefined);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:modelValue')).toContainEqual([undefined]);
     wrapper.unmount();
   });
 });

@@ -33,7 +33,7 @@ export interface ContractDocumentReference {
   controllerClass: 'com.levin.oak.base.controller.BizEContractController',
   description: '电子合同管理',
   title: '电子合同',
-  type: '系统数据-电子合同',
+  type: '业务数据-电子合同',
 })
 export class ElectronicContractService extends RequestService {
   constructor(
@@ -46,7 +46,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op({ label: '归档' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '归档合同',
   })
   async archive(data?: any, options?: any) {
@@ -56,7 +56,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op({ label: '撤销' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '撤销签署',
   })
   async cancelSigning(data?: any, options?: any) {
@@ -66,7 +66,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op({ label: '复制重签' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '复制重签草稿',
   })
   async copyForResign(data?: any, options?: any) {
@@ -76,7 +76,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op({ label: '创建草稿', opRefTargetType: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '创建电子合同草稿',
   })
   async create(data?: any, options?: any) {
@@ -86,7 +86,7 @@ export class ElectronicContractService extends RequestService {
   // 模板出约由服务端解析变量并冻结受控合同文件。
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '创建电子合同草稿',
   })
   async createFromTemplate(data: {
@@ -105,7 +105,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '删除',
   })
   async delete(params?: any, options?: any) {
@@ -115,7 +115,7 @@ export class ElectronicContractService extends RequestService {
   // 仅按已授权合同绑定和修订读取字节，禁止传入任意文件地址或文件ID。
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '查看详情',
   })
   async document(params: {
@@ -152,7 +152,7 @@ export class ElectronicContractService extends RequestService {
   // 分页表示使用标准业务JSON响应，每一页独立复核合同修订与读取权限。
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '查看详情',
   })
   async documentPage(params: {
@@ -176,7 +176,7 @@ export class ElectronicContractService extends RequestService {
   // 工作台携带业务引用，普通租户省略受保护tenantId，冲突归属必须明确拒绝。
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '查看详情',
   })
   async documentReference(params: {
@@ -223,7 +223,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op({ label: '下载已签文件', confirmText: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '下载已签文件',
   })
   async downloadSignedFile(params?: any, options?: any) {
@@ -233,7 +233,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.ListTable({ refEntityClass: 'com.levin.oak.base.entities.EContract' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '查询列表',
   })
   async list(params?: any, options?: any) {
@@ -243,7 +243,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op({ label: '模拟供应商回调' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '供应商回调',
   })
   async providerCallback(data?: any, options?: any) {
@@ -252,7 +252,7 @@ export class ElectronicContractService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '重新生成模板合同草稿',
   })
   async regenerateFromTemplate(
@@ -266,7 +266,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op({ confirmText: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '查看详情',
   })
   async retrieve(params?: any, options?: any) {
@@ -280,14 +280,20 @@ export class ElectronicContractService extends RequestService {
     res: '电子合同',
     action: '领取签署入口',
   })
-  async signingEntry(params: { id: string; signerIndex: 0 | 1 }) {
+  async signingEntry(params: {
+    id: string;
+    orgId?: string;
+    ownerId?: string;
+    signerIndex: 0 | 1;
+    tenantId?: string;
+  }) {
     return this.get<{ url: string }>('signingEntry', { params });
   }
 
   @CRUD.Op({ label: '签署日志', confirmText: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '查看签署日志',
   })
   async signingLog(params?: any, options?: any) {
@@ -297,7 +303,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op({ label: '提交签署' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '提交签署',
   })
   async submitSigning(data?: any, options?: any) {
@@ -307,7 +313,7 @@ export class ElectronicContractService extends RequestService {
   @CRUD.Op({ label: '更新草稿' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子合同',
+    type: '业务数据-电子合同',
     action: '更新电子合同草稿',
   })
   async update(data?: any, options?: any) {

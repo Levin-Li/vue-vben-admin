@@ -527,7 +527,13 @@ watch(
       @cancel="closeEditor"
       @ok="submitDraft"
     >
-      <Form layout="vertical">
+      <Form
+        id="domain-dns-record-edit"
+        name="domainDnsRecordEdit"
+        data-form-id="domain-dns-record-edit"
+        data-form-name="新增或编辑域名解析记录"
+        layout="vertical"
+      >
         <div class="grid grid-cols-2 gap-x-4 gap-y-2">
           <Form.Item label="解析类型" required>
             <Select

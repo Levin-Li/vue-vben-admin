@@ -110,23 +110,29 @@ function clearSegment(
 function distance(first: GraphPoint, second: GraphPoint) {
   return Math.abs(first.x - second.x) + Math.abs(first.y - second.y);
 }
-function ports(rect: GraphRect, margin: number, obstacles: GraphRect[]) {
+function ports(
+  rect: GraphRect,
+  margin: number,
+  obstacles: GraphRect[],
+  offset?: GraphPoint,
+) {
+  const shift = offset ?? { x: 0, y: 0 };
   return [
     [
-      { x: rect.x + WIDTH, y: rect.y + HEIGHT / 2 },
-      { x: rect.x + WIDTH + margin, y: rect.y + HEIGHT / 2 },
+      { x: rect.x + WIDTH, y: rect.y + HEIGHT / 2 + shift.y },
+      { x: rect.x + WIDTH + margin, y: rect.y + HEIGHT / 2 + shift.y },
     ],
     [
-      { x: rect.x, y: rect.y + HEIGHT / 2 },
-      { x: rect.x - margin, y: rect.y + HEIGHT / 2 },
+      { x: rect.x, y: rect.y + HEIGHT / 2 + shift.y },
+      { x: rect.x - margin, y: rect.y + HEIGHT / 2 + shift.y },
     ],
     [
-      { x: rect.x + WIDTH / 2, y: rect.y },
-      { x: rect.x + WIDTH / 2, y: rect.y - margin },
+      { x: rect.x + WIDTH / 2 + shift.x, y: rect.y },
+      { x: rect.x + WIDTH / 2 + shift.x, y: rect.y - margin },
     ],
     [
-      { x: rect.x + WIDTH / 2, y: rect.y + HEIGHT },
-      { x: rect.x + WIDTH / 2, y: rect.y + HEIGHT + margin },
+      { x: rect.x + WIDTH / 2 + shift.x, y: rect.y + HEIGHT },
+      { x: rect.x + WIDTH / 2 + shift.x, y: rect.y + HEIGHT + margin },
     ],
   ].filter(
     (pair): pair is [GraphPoint, GraphPoint] =>
@@ -136,11 +142,73 @@ function ports(rect: GraphRect, margin: number, obstacles: GraphRect[]) {
   );
 }
 
+/** 只有状态图显式传入避让条件；旧树投影继续使用原有端口与最短路径。 */
+export interface GraphRoutingOptions {
+  occupiedPaths?: readonly GraphPoint[][];
+  portOffset?: GraphPoint;
+}
+
+/** 统计共线重叠长度；真正交叉单独计分，不能把长重叠线当成一次相交。 */
+export function graphSegmentOverlap(
+  a: GraphPoint,
+  b: GraphPoint,
+  c: GraphPoint,
+  d: GraphPoint,
+): number {
+  if (a.y === b.y && c.y === d.y && a.y === c.y)
+    return Math.max(
+      0,
+      Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) -
+        Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)),
+    );
+  if (a.x === b.x && c.x === d.x && a.x === c.x)
+    return Math.max(
+      0,
+      Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) -
+        Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)),
+    );
+  return 0;
+}
+function occupiedPenalty(
+  a: GraphPoint,
+  b: GraphPoint,
+  paths: readonly GraphPoint[][],
+): number {
+  let cost = 0;
+  for (const path of paths)
+    for (let index = 1; index < path.length; index++) {
+      const c = path[index - 1];
+      const d = path[index];
+      if (!c || !d) continue;
+      cost += graphSegmentOverlap(a, b, c, d) * 10_000;
+      if (
+        a.y === b.y &&
+        c.x === d.x &&
+        c.x > Math.min(a.x, b.x) &&
+        c.x < Math.max(a.x, b.x) &&
+        a.y > Math.min(c.y, d.y) &&
+        a.y < Math.max(c.y, d.y)
+      )
+        cost += 120;
+      if (
+        a.x === b.x &&
+        c.y === d.y &&
+        a.x > Math.min(c.x, d.x) &&
+        a.x < Math.max(c.x, d.x) &&
+        c.y > Math.min(a.y, b.y) &&
+        c.y < Math.max(a.y, b.y)
+      )
+        cost += 120;
+    }
+  return cost;
+}
+
 /** 先尝试简短正交线，再沿节点外侧通道搜索；箭头只落到真实目标节点边界。 */
 export function routeGraphEdge(
   nodes: WorkflowNode[],
   edge: WorkflowEdge,
   edgeIndex = 0,
+  options: GraphRoutingOptions = {},
 ): GraphPoint[] {
   const rectangles = nodes.map((node, index) => ({
     id: node.id,
@@ -150,8 +218,8 @@ export function routeGraphEdge(
   const target = rectangles.find((rect) => rect.id === edge.target);
   if (!source || !target) return [];
   const margin = 24 + (edgeIndex % 4) * 10;
-  const starts = ports(source, margin, rectangles);
-  const ends = ports(target, margin, rectangles);
+  const starts = ports(source, margin, rectangles, options.portOffset);
+  const ends = ports(target, margin, rectangles, options.portOffset);
   const proposals: GraphPoint[][] = [];
   for (const [boundary, first] of starts) {
     for (const [lastBoundary, last] of ends) {
@@ -167,12 +235,62 @@ export function routeGraphEdge(
       }
     }
   }
+  // 状态图额外探索节点外侧的独立横/纵通道，保留原始箭头目标。
+  if (options.occupiedPaths) {
+    const channelsY = [
+      ...new Set(
+        rectangles.flatMap((rect) => [
+          rect.y - 20 - edgeIndex * 12,
+          rect.y + HEIGHT + 20 + edgeIndex * 12,
+        ]),
+      ),
+    ].filter((value) => value >= 20);
+    const channelsX = [
+      ...new Set(
+        rectangles.flatMap((rect) => [
+          rect.x - 20 - edgeIndex * 12,
+          rect.x + WIDTH + 20 + edgeIndex * 12,
+        ]),
+      ),
+    ].filter((value) => value >= 20);
+    for (const [boundary, first] of starts)
+      for (const [lastBoundary, last] of ends) {
+        const bodies = [
+          ...channelsY.map((y) => [
+            first,
+            { x: first.x, y },
+            { x: last.x, y },
+            last,
+          ]),
+          ...channelsX.map((x) => [
+            first,
+            { x, y: first.y },
+            { x, y: last.y },
+            last,
+          ]),
+        ];
+        for (const body of bodies)
+          if (
+            body.every(
+              (point, index) =>
+                index === 0 ||
+                clearSegment(body[index - 1] as GraphPoint, point, rectangles),
+            )
+          )
+            proposals.push([boundary, ...body, lastBoundary]);
+      }
+  }
   const length = (points: GraphPoint[]) =>
     points.reduce(
       (sum, point, index) =>
         sum +
         (points[index - 1]
-          ? distance(points[index - 1] as GraphPoint, point)
+          ? distance(points[index - 1] as GraphPoint, point) +
+            occupiedPenalty(
+              points[index - 1] as GraphPoint,
+              point,
+              options.occupiedPaths ?? [],
+            )
           : 0),
       0,
     );
@@ -254,7 +372,10 @@ export function routeGraphEdge(
       const next = points[neighbor];
       if (!next || done.has(neighbor) || !clearSegment(point, next, rectangles))
         continue;
-      const cost = (costs.get(current) ?? 0) + distance(point, next);
+      const cost =
+        (costs.get(current) ?? 0) +
+        distance(point, next) +
+        occupiedPenalty(point, next, options.occupiedPaths ?? []);
       if (cost >= (costs.get(neighbor) ?? Infinity)) continue;
       costs.set(neighbor, cost);
       previous.set(neighbor, current);

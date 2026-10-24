@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { workflowRequestService } from '../../api/workflow-request-service';
 import { workflowRuntimeService } from '../../api/workflow-runtime-service';
 
@@ -42,6 +43,12 @@ export const pageOperations = [
 export const workflowRequestPageConfig: CrudPageConfig = {
   apiBase: '/WorkflowRequest',
   apiService: workflowRequestService,
+  dataAttrTargets: fixedCrudDataAttrTargets(workflowRequestService, {
+    create: { method: 'POST', path: 'create' },
+    list: { method: 'GET', path: 'list' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+    update: { method: 'PUT', path: 'update' },
+  }),
   title: pageMeta.title,
   allowDelete: false,
   defaultFormValues: { amount: 0, documentsComplete: false },

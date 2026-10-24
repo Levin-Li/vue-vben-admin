@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { importExportTemplateService } from '../../api/import-export-template-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
@@ -28,6 +29,7 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
   apiBase: '/ImportExportTemplate',
   domainObject: true,
   apiService: importExportTemplateService,
+  dataAttrTargets: standardCrudDataAttrTargets(importExportTemplateService),
   defaultFormValues: {
     editable: true,
     enable: true,

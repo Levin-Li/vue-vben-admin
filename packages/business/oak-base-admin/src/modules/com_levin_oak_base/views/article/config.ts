@@ -1,7 +1,9 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { articleService } from '../../api/article-service';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+
+import { articleService } from '../../api/article-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   articleChannelOptionsLoader,
   buildEnumOptionsLoader,
@@ -52,6 +54,7 @@ export const articlePageCrudConfig: CrudPageConfig = {
   apiBase: '/Article',
   domainObject: true,
   apiService: articleService,
+  dataAttrTargets: standardCrudDataAttrTargets(articleService),
   defaultFormValues: {
     collectCount: 0,
     commentCount: 0,

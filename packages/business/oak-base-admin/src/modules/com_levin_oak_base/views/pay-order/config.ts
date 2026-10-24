@@ -1,10 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { payOrderService } from '../../api/pay-order-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
-  DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
   payChannelCategoryOptionsLoader,
   payChannelOptionsLoader,
   tenantOptionsLoader,
@@ -31,6 +32,13 @@ export const payOrderPageCrudConfig: CrudPageConfig = {
   apiBase: '/PayOrder',
   domainObject: true,
   apiService: payOrderService,
+  dataAttrTargets: fixedCrudDataAttrTargets(payOrderService, {
+    create: { method: 'POST', path: 'create' },
+    list: { method: 'GET', path: 'list' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+  }),
+  allowEdit: false,
+  allowDelete: false,
   defaultFormValues: {
     amount: 0,
     discountAmount: 0,

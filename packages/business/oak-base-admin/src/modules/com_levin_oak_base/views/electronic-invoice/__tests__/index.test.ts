@@ -76,4 +76,11 @@ describe('电子发票红冲页面', () => {
     expect(crud().vm.$.vnode.key).toBe(initialKey);
     consoleError.mockRestore();
   });
+
+  it('以单个标准 CRUD 为页面主体，不展示额外说明块', () => {
+    const wrapper = shallowMount(InvoicePage);
+    expect(wrapper.findAllComponents(CrudPage)).toHaveLength(1);
+    expect(wrapper.element.tagName).toBe('DIV');
+    expect(wrapper.html()).not.toContain('商户自用电子发票');
+  });
 });

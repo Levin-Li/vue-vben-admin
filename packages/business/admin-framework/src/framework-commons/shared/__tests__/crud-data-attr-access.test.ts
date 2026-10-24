@@ -2,7 +2,7 @@ import type { CrudPageConfig } from '../types';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { ResAuthorize } from '../../api-authorize';
+import { CRUD, ResAuthorize } from '../../api-authorize';
 import {
   resolveCrudDataAttrOperationExpression,
   resolveCrudDataAttrPath,
@@ -59,6 +59,40 @@ describe('crud 的实际接口策略定位', () => {
         '/Contract/list',
       ),
     ).toEqual({ method: 'PATCH', path: '/actual/submit' });
+  });
+  it('标准列表服务由公共CRUD定位真实模块接口', () => {
+    const list = vi.fn();
+    const apiService = {
+      list,
+      buildRequestPath: (path: string) =>
+        `/com.levin.oak.base/V1/api/Contract/${path}`,
+    };
+    CRUD.ListTable()(apiService, 'list', { value: list });
+
+    expect(
+      resolveCrudDataAttrTarget(
+        config({ apiService }),
+        'list',
+        '/Contract/list',
+      ),
+    ).toEqual({
+      method: 'GET',
+      path: '/com.levin.oak.base/V1/api/Contract/list',
+    });
+    expect(
+      resolveCrudDataAttrTarget(
+        config({ apiService, listPath: '/Contract/exList' }),
+        'list',
+        '/Contract/exList',
+      ),
+    ).toEqual({ method: 'GET', path: '/api/V1/Contract/exList' });
+    expect(
+      resolveCrudDataAttrTarget(
+        config({ apiService: { ...apiService, list: vi.fn() } }),
+        'list',
+        '/Contract/list',
+      ),
+    ).toBeUndefined();
   });
   it('仅登录豁免不丢失操作身份，ignored声明不误造操作', () => {
     const create = vi.fn();

@@ -1,3 +1,5 @@
+import type { CrudFieldConfig } from '../types';
+
 import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
@@ -13,7 +15,6 @@ import {
   resolveSearchCollapsedCount,
   sortFormLayoutFields,
 } from '../crud-form-layout';
-import type { CrudFieldConfig } from '../types';
 
 describe('crud form layout', () => {
   const textField = (key: string): CrudFieldConfig => ({
@@ -24,7 +25,7 @@ describe('crud form layout', () => {
 
   it('uses only static layout config for field spans', () => {
     const source = readFileSync(
-      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
     const spanClassBlock = source.slice(
@@ -59,7 +60,7 @@ describe('crud form layout', () => {
 
   it('keeps fields one column by default while honoring explicit json layout config', () => {
     const source = readFileSync(
-      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
 
@@ -114,7 +115,7 @@ describe('crud form layout', () => {
 
   it('uses the current content-form modal width cap and full-width controls', () => {
     const source = readFileSync(
-      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
 
@@ -136,7 +137,7 @@ describe('crud form layout', () => {
 
   it('uses the shared organization selector and its bounded popup for query and form fields', () => {
     const crudSource = readFileSync(
-      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
     const selectorSource = readFileSync(
@@ -162,7 +163,7 @@ describe('crud form layout', () => {
       'utf8',
     );
     const source = readFileSync(
-      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
 
@@ -175,7 +176,7 @@ describe('crud form layout', () => {
 
   it('keeps the detail empty-value switch in the title action area', () => {
     const source = readFileSync(
-      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
     const detailTitleStart = source.lastIndexOf('<template #title>');
@@ -190,7 +191,7 @@ describe('crud form layout', () => {
 
   it('shows concise group-toggle labels from the actual default expansion state', () => {
     const source = readFileSync(
-      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
     expect(source).toContain("(pageDisplayGroupExpandedRows[groupKey] ?? 'all') === 'all'");
@@ -242,7 +243,7 @@ describe('crud form layout', () => {
 
   it('treats the saved modal maximum width as a content-width cap', () => {
     const source = readFileSync(
-      'packages/business/admin-framework/src/framework-commons/shared/crud-page.vue',
+      'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
 
@@ -298,6 +299,19 @@ describe('crud form layout', () => {
         viewportWidth: 1440,
       }),
     ).toBe(4);
+  });
+
+  it('keeps a nine-field form single-column on a narrow viewport', () => {
+    expect(
+      resolveFormColumnCount({
+        fields: Array.from({ length: 9 }, (_, index) =>
+          textField(`field${index}`),
+        ),
+        modalAvailableWidth: 608,
+        viewportHeight: 900,
+        viewportWidth: 760,
+      }),
+    ).toBe(1);
   });
 
   it('allows pages to cap create and edit form columns explicitly', () => {

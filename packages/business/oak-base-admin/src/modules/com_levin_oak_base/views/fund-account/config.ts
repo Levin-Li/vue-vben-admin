@@ -1,10 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { fundAccountService } from '../../api/fund-account-service';
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
-  DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -29,6 +30,13 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
   apiBase: '/FundAccount',
   domainObject: true,
   apiService: fundAccountService,
+  dataAttrTargets: fixedCrudDataAttrTargets(fundAccountService, {
+    create: { method: 'POST', path: 'create' },
+    list: { method: 'GET', path: 'list' },
+    retrieve: { method: 'GET', path: 'retrieve' },
+  }),
+  allowEdit: false,
+  allowDelete: false,
   defaultFormValues: {
     editable: true,
     enable: true,

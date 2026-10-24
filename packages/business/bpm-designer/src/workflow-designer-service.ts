@@ -4,10 +4,14 @@ import type {
   WorkflowSimulationHistory,
   WorkflowSimulationHistoryPage,
 } from './types';
+import type { WorkflowStateGraph } from './workflow-state-graph';
+import type { WorkflowTaskGraph } from './workflow-task-graph';
 import type { WorkflowTreeVersion } from './workflow-tree-version';
 
 import { RequestService } from '@levin/admin-framework';
 
+import { validateStateGraph } from './workflow-state-graph';
+import { validateTaskGraph } from './workflow-task-graph';
 import { projectDraftV3ToV2 } from './workflow-tree-version';
 
 /**
@@ -46,13 +50,34 @@ export class WorkflowDesignerService extends RequestService {
 
   async saveDraft(
     id: string,
-    lowflowDefinition: WorkflowTreeVersion,
+    lowflowDefinition:
+      | WorkflowStateGraph
+      | WorkflowTaskGraph
+      | WorkflowTreeVersion,
     optimisticLock?: number,
   ) {
     // 客户端只发送树，真实持久化与执行投影仍由服务端重新校验。
-    if (lowflowDefinition.schemaVersion !== 3)
-      throw new Error('只接受 schemaVersion=3 的流程定义');
-    projectDraftV3ToV2(lowflowDefinition);
+    switch (lowflowDefinition.schemaVersion) {
+      case 3: {
+        projectDraftV3ToV2(lowflowDefinition);
+        break;
+      }
+      case 4: {
+        const errors = validateStateGraph(lowflowDefinition, true);
+        if (errors.length > 0) throw new Error(errors.join('；'));
+
+        break;
+      }
+      case 5: {
+        const errors = validateTaskGraph(lowflowDefinition, true);
+        if (errors.length > 0) throw new Error(errors.join('；'));
+
+        break;
+      }
+      default: {
+        throw new Error('不支持此流程设计格式。');
+      }
+    }
     return this.post<WorkflowDefinitionVersion>(
       'WorkflowDefinitionVersion/save-design',
       { data: { id, optimisticLock, lowflowDefinition } },

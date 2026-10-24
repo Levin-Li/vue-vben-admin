@@ -80,12 +80,12 @@ describe('auto-injected ownership fields', () => {
     }
   });
 
-  it('requires the external organization node on customer and partner forms', () => {
+  it('allows the backend to choose an internal parent when customer or partner leaves orgId empty', () => {
     for (const page of ['customer', 'partner']) {
       const requiredFields = readRequiredScopeFields(
         `${viewsDir}/${page}/config.ts`,
       );
-      expect(requiredFields, `${page}.orgId`).toContain('orgId');
+      expect(requiredFields, `${page}.orgId`).not.toContain('orgId');
     }
   });
 });

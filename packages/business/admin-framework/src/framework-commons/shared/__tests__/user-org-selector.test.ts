@@ -43,6 +43,7 @@ vi.mock('ant-design-vue', () => ({
       'checkedKeys',
       'expandedKeys',
       'checkable',
+      'selectable',
       'loadData',
     ],
     template:
@@ -97,6 +98,7 @@ const treeStub = {
     'checkedKeys',
     'expandedKeys',
     'checkable',
+    'selectable',
     'loadData',
   ],
   template:
@@ -210,6 +212,69 @@ describe('userOrgSelector', () => {
     expect(wrapper.emitted('update:selectedRecords')?.at(-1)?.[0]).toEqual([
       expect.objectContaining({ id: 'org-1', kind: 'org' }),
     ]);
+  });
+
+  it('自动展开已设置组织节点的祖先路径', async () => {
+    const orgLoadApi = vi.fn(async () => [
+      {
+        id: 'root',
+        name: '总部',
+        children: [
+          {
+            id: 'branch',
+            name: '研发中心',
+            children: [{ id: 'leaf', name: '项目组' }],
+          },
+          {
+            id: 'other-branch',
+            name: '运营中心',
+            children: [{ id: 'other-leaf', name: '运营组' }],
+          },
+        ],
+      },
+    ]);
+    const wrapper = mountSelector({
+      autoExpandOrgIds: ['leaf'],
+      inline: true,
+      orgLoadApi,
+      selectableTypes: ['org'],
+    });
+    await flushPromises();
+    expect(wrapper.findComponent(treeStub).props('expandedKeys')).toEqual(
+      expect.arrayContaining([
+        encodeUserOrgSelectorKey('org', 'root'),
+        encodeUserOrgSelectorKey('org', 'branch'),
+      ]),
+    );
+    await wrapper.setProps({ autoExpandOrgIds: ['leaf', 'other-leaf'] });
+    expect(wrapper.findComponent(treeStub).props('expandedKeys')).toContain(
+      encodeUserOrgSelectorKey('org', 'other-branch'),
+    );
+  });
+
+  it('节点操作模式复用公共组织树并关闭内置选择', async () => {
+    const wrapper = mount(UserOrgSelector, {
+      global: {
+        stubs: {
+          IconifyIcon: iconifyIconStub,
+          Tree: treeStub,
+          TreeSelect: treeSelectStub,
+        },
+      },
+      props: {
+        actionOnly: true,
+        inline: true,
+        orgLoadApi: vi.fn(async () => [{ id: 'org-1', name: '总部' }]),
+      },
+      slots: {
+        'org-action': ({ node }: { node: { name: string } }) => node.name,
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.findComponent(treeStub).props('checkable')).toBe(false);
+    expect(wrapper.findComponent(treeStub).props('selectable')).toBe(false);
+    expect(wrapper.find('[data-test="inline-tree"]').text()).toContain('总部');
   });
 
   it('手机内嵌多选仍遵守选择数量上限', async () => {

@@ -366,7 +366,12 @@ export function isDisplayGroupVisible(
   );
 }
 
-export function getDefaultVisibleRoleCodes(fieldKey: string) {
+export function getDefaultVisibleRoleCodes(
+  field: string | Pick<CrudFieldConfig, 'key' | 'defaultVisibleRoleCodes'>,
+) {
+  if (typeof field !== 'string' && field.defaultVisibleRoleCodes !== undefined)
+    return [...field.defaultVisibleRoleCodes];
+  const fieldKey = typeof field === 'string' ? field : field.key;
   if (fieldKey === 'tenantId') return ['R_PLATFORM_SA'];
   if (fieldKey === 'domainId') return ['R_PLATFORM_SA'];
   if (fieldKey === 'orgId') {
@@ -376,11 +381,12 @@ export function getDefaultVisibleRoleCodes(fieldKey: string) {
 }
 
 export function initializeVisibleRoleCodes(
-  field: Pick<CrudPageDisplayFieldConfig, 'key' | 'visibleRoleCodes'>,
+  field: Pick<CrudPageDisplayFieldConfig, 'key' | 'visibleRoleCodes'> &
+    Pick<CrudFieldConfig, 'defaultVisibleRoleCodes'>,
 ) {
   return Object.hasOwn(field, 'visibleRoleCodes')
     ? field.visibleRoleCodes || []
-    : getDefaultVisibleRoleCodes(field.key);
+    : getDefaultVisibleRoleCodes(field);
 }
 
 export function getDefaultFieldHidden(
@@ -388,6 +394,7 @@ export function getDefaultFieldHidden(
     | string
     | Pick<
         CrudFieldConfig,
+        | 'defaultHidden'
         | 'detail'
         | 'hasBackingField'
         | 'form'
@@ -403,6 +410,11 @@ export function getDefaultFieldHidden(
   } = { hideDomainId: false },
 ) {
   const key = typeof field === 'string' ? field : field.key;
+  const explicit =
+    typeof field !== 'string' && options.view
+      ? field.defaultHidden?.[options.view]
+      : undefined;
+  if (explicit !== undefined) return explicit;
   if (
     options.view === 'create' &&
     key === 'id' &&
@@ -429,19 +441,24 @@ export function getDefaultFieldHidden(
 }
 
 export function initializeFieldHidden(
-  field: Pick<CrudPageDisplayFieldConfig, 'hidden' | 'key'>,
+  field: Pick<CrudPageDisplayFieldConfig, 'hidden' | 'key'> &
+    Pick<CrudFieldConfig, 'defaultHidden'>,
   options: Parameters<typeof getDefaultFieldHidden>[1] = {},
 ) {
   return Object.hasOwn(field, 'hidden')
     ? field.hidden === true
-    : getDefaultFieldHidden(field.key, options);
+    : getDefaultFieldHidden(field, options);
 }
 
 export function initializeHeaderVisibility(
-  header: Pick<CrudPageDisplayHeaderConfig, 'key' | 'visible'>,
+  header: Pick<CrudPageDisplayHeaderConfig, 'key' | 'visible'> &
+    Pick<CrudFieldConfig, 'defaultHidden'>,
   options: { hideDomainId?: boolean } = { hideDomainId: false },
 ) {
-  const defaultMode = getDefaultFieldHidden(header.key, options)
+  const defaultMode = getDefaultFieldHidden(header, {
+    ...options,
+    view: 'list',
+  })
     ? 'hidden'
     : 'always';
   if (!Object.hasOwn(header, 'visible')) {
@@ -543,7 +560,15 @@ export function reconcileCrudPageDisplayHeaders(
   fields: Array<
     Pick<
       CrudFieldConfig,
-      'key' | 'label' | 'sortable' | 'table' | 'type' | 'valueType' | 'width'
+      | 'defaultHidden'
+      | 'defaultVisibleRoleCodes'
+      | 'key'
+      | 'label'
+      | 'sortable'
+      | 'table'
+      | 'type'
+      | 'valueType'
+      | 'width'
     >
   >,
   options: { hideDomainId?: boolean; includeOperationColumn?: boolean } = {},
@@ -569,11 +594,10 @@ export function reconcileCrudPageDisplayHeaders(
       label: field.label,
       order: index,
       valueDisplay: { mode: 'default' },
-      visible: initializeHeaderVisibility(
-        { key: field.key },
-        { hideDomainId: options.hideDomainId === true },
-      ),
-      visibleRoleCodes: getDefaultVisibleRoleCodes(field.key),
+      visible: initializeHeaderVisibility(field, {
+        hideDomainId: options.hideDomainId === true,
+      }),
+      visibleRoleCodes: getDefaultVisibleRoleCodes(field),
       width: resolveDefaultTableColumnWidth(field),
     };
     const label = defaults.label || field.label;
@@ -581,8 +605,11 @@ export function reconcileCrudPageDisplayHeaders(
       field.key === CRUD_OPERATION_COLUMN_KEY
         ? Number.MAX_SAFE_INTEGER
         : (defaults.order ?? index);
-    const visible = initializeHeaderVisibility(defaults);
-    const visibleRoleCodes = initializeVisibleRoleCodes(defaults);
+    const visible = initializeHeaderVisibility({ ...field, ...defaults });
+    const visibleRoleCodes = initializeVisibleRoleCodes({
+      visibleRoleCodes: getDefaultVisibleRoleCodes(field),
+      ...defaults,
+    });
     const width =
       defaults.width === 'auto' || !defaults.width
         ? resolveDefaultTableColumnWidth(field)

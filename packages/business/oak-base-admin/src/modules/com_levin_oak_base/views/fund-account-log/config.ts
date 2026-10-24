@@ -1,10 +1,11 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { fundAccountLogService } from '../../api/fund-account-log-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
-  DEFAULT_CRUD_MODAL_WIDTH,
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -32,6 +33,7 @@ export const fundAccountLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/FundAccountLog',
   domainObject: true,
   apiService: fundAccountLogService,
+  dataAttrTargets: standardCrudDataAttrTargets(fundAccountLogService),
   allowCreate: false,
   allowDelete: false,
   allowEdit: false,

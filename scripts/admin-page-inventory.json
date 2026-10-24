@@ -1,0 +1,655 @@
+{
+  "version": 1,
+  "routes": [
+    {
+      "resource": "AccessLog",
+      "title": "访问日志",
+      "view": "./views/access-log/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Address",
+      "title": "地址管理",
+      "view": "./views/address/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "AdministrativeAreaDemo",
+      "title": "常用组件测试",
+      "view": "./views/dev/TestDemo.vue",
+      "classification": "demo",
+      "reason": "组件示例"
+    },
+    {
+      "resource": "Area",
+      "title": "区域管理",
+      "view": "./views/area/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Article",
+      "title": "文章管理",
+      "view": "./views/article/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "ArticleChannel",
+      "title": "文章栏目",
+      "view": "./views/article-channel/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "AuditReport",
+      "title": "审计报告",
+      "view": "./views/audit-report/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "BackendFixedJob",
+      "title": "后端固定定时任务",
+      "view": "./views/backend-fixed-job/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Brand",
+      "title": "品牌管理",
+      "view": "./views/brand/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "ChannelPartner",
+      "title": "渠道伙伴",
+      "view": "./views/channel-partner/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 PartnerCrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "ClientApp",
+      "title": "客户端应用",
+      "view": "./views/client-app/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Customer",
+      "title": "客户",
+      "view": "./views/customer/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "DailyAccessStat",
+      "title": "性能监控",
+      "view": "./views/daily-access-stat/index.vue",
+      "classification": "dashboard",
+      "reason": "按日聚合统计与多标签指标"
+    },
+    {
+      "resource": "DataModel",
+      "title": "数据模型",
+      "view": "./views/data-model/index.vue",
+      "classification": "designer",
+      "reason": "动态模型定义、字段和记录由多层配置组成"
+    },
+    {
+      "resource": "Demo",
+      "title": "示例管理",
+      "view": "./views/demo/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Dict",
+      "title": "数据字典",
+      "view": "./views/dict/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Domain",
+      "title": "根域名管理",
+      "view": "./views/domain/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "DomainSslCert",
+      "title": "SSL证书管理",
+      "view": "./views/domain-ssl-cert/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "EContract",
+      "title": "电子合同",
+      "view": "./views/electronic-contract/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "EContractTemplate",
+      "title": "电子合同模板",
+      "view": "./views/electronic-contract-template/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "EInvoice",
+      "title": "电子发票",
+      "view": "./views/electronic-invoice/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "EInvoiceProviderConnection",
+      "title": "电子发票授权",
+      "view": "./views/electronic-invoice-provider-connection/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "EmailRelayRoute",
+      "title": "邮件中转路由",
+      "view": "./views/email-relay-route/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "FileRes",
+      "title": "文件资源库",
+      "view": "./views/file-res/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "FundAccount",
+      "title": "资金账户",
+      "view": "./views/fund-account/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "FundAccountLog",
+      "title": "资金账户日志",
+      "view": "./views/fund-account-log/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "FundExchangeRule",
+      "title": "资金兑换规则",
+      "view": "./views/fund-exchange-rule/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "GlobalOrgSelectorSetting",
+      "title": "全局组织与用户选择器",
+      "view": "./views/global-org-selector-setting/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "I18nRes",
+      "title": "国际化资源",
+      "view": "./views/i18n-res/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "ImportExportTemplate",
+      "title": "导入导出模板",
+      "view": "./views/import-export-template/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Inbox",
+      "title": "收件箱",
+      "view": "./views/inbox/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "JobPost",
+      "title": "岗位管理",
+      "view": "./views/job-post/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "LegalSubject",
+      "title": "法律主体",
+      "view": "./views/legal-subject/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "MemberUser",
+      "title": "会员用户管理",
+      "view": "./views/member-user/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Menu",
+      "title": "菜单管理",
+      "view": "./views/menu/index.vue",
+      "classification": "tree",
+      "reason": "授权菜单树与树节点编辑"
+    },
+    {
+      "resource": "MyMessages",
+      "title": "我的消息",
+      "view": "./views/my-messages/index.vue",
+      "classification": "message",
+      "reason": "个人消息阅读和处理"
+    },
+    {
+      "resource": "MySetting",
+      "title": "我的设置",
+      "view": "./views/my-setting/index.vue",
+      "classification": "settings",
+      "reason": "复用租户设置视图"
+    },
+    {
+      "resource": "MyWorkflow",
+      "title": "我的流程",
+      "view": "./views/my-workflow/index.vue",
+      "classification": "workflow",
+      "reason": "待办、办理和历史视图"
+    },
+    {
+      "resource": "Nation",
+      "title": "国家地区",
+      "view": "./views/nation/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Notice",
+      "title": "通知公告",
+      "view": "./views/notice/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "NoticeProcessLog",
+      "title": "通知处理日志",
+      "view": "./views/notice-process-log/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "NotificationAudit",
+      "title": "通知投递",
+      "view": "./views/notification-audit/index.vue",
+      "classification": "shared-crud",
+      "reason": "只读审计列表、查询、分页与列设置使用公共 CrudPage；详情时间线及人工处理保留受控动作"
+    },
+    {
+      "resource": "OnlineCodeGen",
+      "title": "在线代码生成",
+      "view": "./views/online-code-gen/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "OpenArea",
+      "title": "开通区域",
+      "view": "./views/open-area/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Org",
+      "title": "组织管理",
+      "view": "./views/org/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "OrgUser",
+      "title": "组织与用户",
+      "view": "./views/org-user/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "PayChannel",
+      "title": "支付渠道",
+      "view": "./views/pay-channel/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "PaymentSimulationWorkbench",
+      "title": "支付模拟工作台",
+      "view": "./views/payment-simulation-workbench/index.vue",
+      "classification": "workbench",
+      "reason": "支付模拟动作与结果"
+    },
+    {
+      "resource": "PayOrder",
+      "title": "支付订单",
+      "view": "./views/pay-order/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "PlatformDomain",
+      "title": "平台领域",
+      "view": "./views/platform-domain/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "RbacPermissionItem",
+      "title": "权限项定义",
+      "view": "./views/rbac-permission-item/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "InvitationLink",
+      "title": "邀请链接",
+      "view": "./views/invitation-link/index.vue",
+      "classification": "shared-crud",
+      "reason": "查询、创建、列表、详情和列设置使用公共 CrudPage；复制与作废走专用授权动作"
+    },
+    {
+      "resource": "RobotNotifyGroup",
+      "title": "机器人通知群",
+      "view": "./views/robot-notify-group/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Role",
+      "title": "角色管理",
+      "view": "./views/role/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "RuntimeSchemaFormDemo",
+      "title": "动态表单测试",
+      "view": "./views/dev/RuntimeSchemaFormDemo.vue",
+      "classification": "demo",
+      "reason": "动态表单示例"
+    },
+    {
+      "resource": "ScheduledLog",
+      "title": "定时任务日志",
+      "view": "./views/scheduled-log/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "ScheduledTask",
+      "title": "定时任务",
+      "view": "./views/scheduled-task/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "ServicePlugin",
+      "title": "服务插件",
+      "view": "./views/service-plugin/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "ServicePluginSetting",
+      "title": "服务插件设置",
+      "view": "./views/service-plugin-setting/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Setting",
+      "title": "系统设置",
+      "view": "./views/setting/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 SettingCrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "SettingForTenant",
+      "title": "租户系统设置",
+      "view": "./views/setting-for-tenant/index.vue",
+      "classification": "settings",
+      "reason": "租户设置元数据与内容值分离"
+    },
+    {
+      "resource": "SettingHistoryData",
+      "title": "设置历史数据",
+      "view": "./views/setting-history-data/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "SettlementOrder",
+      "title": "结算单",
+      "view": "./views/settlement-order/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "SimpleApi",
+      "title": "简单接口",
+      "view": "./views/simple-api/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 SimpleContentResourcePage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "SimpleForm",
+      "title": "简单表单",
+      "view": "./views/simple-form/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 SimpleContentResourcePage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "SimplePage",
+      "title": "简单页面",
+      "view": "./views/simple-page/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 SimpleContentResourcePage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "SocialUser",
+      "title": "社交用户",
+      "view": "./views/social-user/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "SupplierPartner",
+      "title": "供应伙伴",
+      "view": "./views/supplier-partner/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 PartnerCrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "SupportMailboxRule",
+      "title": "支持邮箱受理规则",
+      "view": "./views/support-mailbox-rule/index.vue",
+      "classification": "shared-crud",
+      "reason": "列表、分页、列设置与刷新使用公共 CrudPage；受控配置保存及启停保留专用接口"
+    },
+    {
+      "resource": "Tenant",
+      "title": "租户管理",
+      "view": "./views/tenant/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "TenantCustomMenu",
+      "title": "租户自定义菜单",
+      "view": "./views/tenant-custom-menu/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "TenantPluginSetting",
+      "title": "租户插件设置",
+      "view": "./views/tenant-plugin-setting/index.vue",
+      "classification": "settings",
+      "reason": "供应商实例卡片与内容值分离"
+    },
+    {
+      "resource": "TenantSite",
+      "title": "租户站点",
+      "view": "./views/tenant-site/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "Ticket",
+      "title": "客服工单",
+      "view": "./views/ticket/index.vue",
+      "classification": "shared-crud",
+      "reason": "列表、查询、分页与列设置使用公共 CrudPage；会话、回复和外发动作保留受控工作台"
+    },
+    {
+      "resource": "TicketQueue",
+      "title": "工单受理队列",
+      "view": "./views/ticket-queue/index.vue",
+      "classification": "shared-crud",
+      "reason": "列表、查询、分页、列设置与刷新使用公共 CrudPage；保存及启停保留专用受控接口"
+    },
+    {
+      "resource": "TrafficControlRule",
+      "title": "流控规则",
+      "view": "./views/traffic-control-rule/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "UiSetting",
+      "title": "界面设置",
+      "view": "./views/ui-setting/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 SettingCrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "UrlExAcl",
+      "title": "访问控制",
+      "view": "./views/url-ex-acl/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "User",
+      "title": "用户管理",
+      "view": "./views/user/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "UserSetting",
+      "title": "用户设置",
+      "view": "./views/user-setting/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 SettingCrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "WorkflowDefinition",
+      "title": "流程设计",
+      "view": "./views/workflow-definition/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "WorkflowInstance",
+      "title": "工作流实例管理",
+      "view": "./views/workflow-instance/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "WorkflowNotificationRoute",
+      "title": "工作流通知路由",
+      "view": "./views/workflow-notification-route/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "WorkflowRequest",
+      "title": "流程申请样例",
+      "view": "./views/workflow-request/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用 CrudPage；继续按接口和字段规则验收"
+    },
+    {
+      "resource": "WorkflowStart",
+      "title": "发起流程",
+      "view": "./views/workflow-start/index.vue",
+      "classification": "workflow",
+      "reason": "流程发起选择与办理"
+    }
+  ],
+  "frameworkRoutes": [
+    "/index",
+    "/profile",
+    "/auth/login",
+    "/auth/code-login",
+    "/auth/qrcode-login",
+    "/auth/forget-password",
+    "/auth/register",
+    "/auth/invitation-register",
+    "/:path(.*)*",
+    "/demos/ant-design",
+    "/demos/public-components/user-org-selector",
+    "/demos/public-components/permissions"
+  ],
+  "frameworkAliases": [
+    "/clob/V1/MyMessages",
+    "/system/com_levin_oak_base/data-permission-preview"
+  ],
+  "embedded": [
+    {
+      "view": "./views/acl-test/index.vue",
+      "parent": "independent",
+      "reason": "无直接菜单入口，随父页面或开发工具验收"
+    },
+    {
+      "view": "./views/data-model-record-page/index.vue",
+      "parent": "DataModel",
+      "reason": "无直接菜单入口，随父页面或开发工具验收"
+    },
+    {
+      "view": "./views/data-model-record/index.vue",
+      "parent": "DataModel",
+      "reason": "无直接菜单入口，随父页面或开发工具验收"
+    },
+    {
+      "view": "./views/data-permission-preview/index.vue",
+      "parent": "independent",
+      "reason": "无直接菜单入口，随父页面或开发工具验收"
+    },
+    {
+      "view": "./views/help-center/index.vue",
+      "parent": "independent",
+      "reason": "无直接菜单入口，随父页面或开发工具验收"
+    },
+    {
+      "view": "./views/home/index.vue",
+      "parent": "independent",
+      "reason": "无直接菜单入口，随父页面或开发工具验收"
+    },
+    {
+      "view": "./views/named-scope-variable-acceptance/index.vue",
+      "parent": "independent",
+      "reason": "无直接菜单入口，随父页面或开发工具验收"
+    }
+  ]
+}

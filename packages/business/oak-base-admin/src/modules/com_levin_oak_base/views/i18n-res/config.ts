@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { i18nResService } from '../../api/i18n-res-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildDictOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
@@ -29,6 +30,7 @@ export const i18nResPageCrudConfig: CrudPageConfig = {
   apiBase: '/I18nRes',
   domainObject: true,
   apiService: i18nResService,
+  dataAttrTargets: standardCrudDataAttrTargets(i18nResService),
   defaultFormValues: {
     editable: true,
     enable: true,

@@ -16,6 +16,7 @@ import type {
 
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
+import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
 // 待办列表和具名槽依赖真实组件，不能退化为未注册的自定义DOM标签。
 import {
   Alert as AAlert,
@@ -25,20 +26,24 @@ import {
   Empty as AEmpty,
   List as AList,
   ListItem as AListItem,
-  ListItemMeta as AListItemMeta,
   Row as ARow,
   Select as ASelect,
   Space as ASpace,
   TabPane as ATabPane,
   Tabs as ATabs,
-  Tag as ATag,
   Timeline as ATimeline,
   TimelineItem as ATimelineItem,
 } from 'ant-design-vue';
 
 import WorkflowInstanceOperations from './workflow-instance-operations.vue';
+import {
+  createPersonalWorkflowCrudConfig,
+  isPersonalWorkflowInstance,
+  isPersonalWorkflowTask,
+} from './workflow-personal-crud';
 import WorkflowProcessDiagram from './workflow-process-diagram.vue';
 import { WorkflowRuntimeService } from './workflow-runtime-service';
+import WorkflowStateEvents from './workflow-state-events.vue';
 import { workflowStatusLabel } from './workflow-task-form';
 import WorkflowTaskPanel from './workflow-task-panel.vue';
 
@@ -50,6 +55,7 @@ const props = withDefaults(
     canLoadCopyRecipients?: boolean;
     canRecover?: boolean;
     canRetry?: boolean;
+    canSaveTask?: boolean;
     canSendCopy?: boolean;
     canTerminate?: boolean;
     canUploadAttachment?: boolean;
@@ -63,6 +69,9 @@ const props = withDefaults(
     canViewTodo?: boolean;
     canWithdraw?: boolean;
     detailComponents?: Record<string, Component>;
+    listPermissions?: Partial<
+      Record<'copied' | 'done' | 'started' | 'todo', string[]>
+    >;
     loadCopyRecipients?: (
       instanceId: string,
       keyword: string,
@@ -75,6 +84,7 @@ const props = withDefaults(
   }>(),
   {
     canComplete: true,
+    canSaveTask: false,
     canWithdraw: false,
     canTerminate: false,
     canRecover: false,
@@ -98,12 +108,14 @@ const props = withDefaults(
     canLoadCopyRecipients: false,
     loadCopyRecipients: undefined,
     service: undefined,
+    listPermissions: undefined,
   },
 );
 const emit = defineEmits<{
   completed: [task: WorkflowTaskView];
   error: [error: unknown];
   retried: [instanceId: string];
+  saved: [task: WorkflowTaskView];
 }>();
 // 默认连接器只创建一次，避免响应式刷新导致重复初始化。
 const defaultService = new WorkflowRuntimeService();
@@ -113,54 +125,46 @@ const canViewTodo = computed(() => props.canViewTodo !== false);
 const canViewDone = computed(() => props.canViewDone !== false);
 const canViewStarted = computed(() => props.canViewStarted !== false);
 const canViewCopied = computed(() => props.canViewCopied !== false);
-const activeKey = ref('todo');
+const activeKey = ref(
+  (['todo', 'done', 'started', 'copied'] as const).find(
+    (key) =>
+      ({
+        todo: canViewTodo.value,
+        done: canViewDone.value,
+        started: canViewStarted.value,
+        copied: canViewCopied.value,
+      })[key],
+  ) ?? '',
+);
 const loading = ref(false);
-const todo = ref<WorkflowTaskView[]>([]);
-const done = ref<WorkflowTaskView[]>([]);
-const copied = ref<WorkflowInstanceView[]>([]);
-const started = ref<WorkflowInstanceView[]>([]);
 type TabKey = 'copied' | 'done' | 'started' | 'todo';
-type PageState = {
-  cursors: (string | undefined)[];
-  hasMore: boolean;
-  index: number;
-  nextCursor?: string;
-};
-const makePageState = (): PageState => ({
-  cursors: [undefined],
-  hasMore: false,
-  index: 0,
-});
-const pages = ref<Record<TabKey, PageState>>({
-  todo: makePageState(),
-  done: makePageState(),
-  started: makePageState(),
-  copied: makePageState(),
-});
-const currentPage = computed(() => pages.value[activeKey.value as TabKey]);
-const currentPageCount = computed(() => {
-  switch (activeKey.value) {
-    case 'copied': {
-      return copied.value.length;
-    }
-    case 'done': {
-      return done.value.length;
-    }
-    case 'started': {
-      return started.value.length;
-    }
-    case 'todo': {
-      return todo.value.length;
-    }
-    default: {
-      return 0;
-    }
-  }
-});
-const pageSummary = computed(() =>
-  currentPage.value
-    ? `第 ${currentPage.value.index + 1} 页 · 本页 ${currentPageCount.value} 条`
-    : '',
+// 四个分栏由各自的标准CRUD维护游标；刷新通过代际重新挂载，避免两份页码状态。
+const listEpoch = ref(0);
+const tabs = computed(() => [
+  ...(canViewTodo.value ? [{ key: 'todo' as const, label: '待办' }] : []),
+  ...(canViewDone.value ? [{ key: 'done' as const, label: '已办' }] : []),
+  ...(canViewStarted.value
+    ? [{ key: 'started' as const, label: '我发起' }]
+    : []),
+  ...(canViewCopied.value ? [{ key: 'copied' as const, label: '抄送' }] : []),
+]);
+const listConfigs = computed(() =>
+  Object.fromEntries(
+    tabs.value.map((tab) => [
+      tab.key,
+      createPersonalWorkflowCrudConfig(
+        tab.key,
+        (query) => loadPage(tab.key, query),
+        {
+          path:
+            typeof service.value.buildRequestPath === 'function'
+              ? service.value.buildRequestPath(`workflow-runtime/${tab.key}`)
+              : `/com.levin.oak.base/V1/api/workflow-runtime/${tab.key}`,
+          permissions: props.listPermissions?.[tab.key] ?? [],
+        },
+      ),
+    ]),
+  ),
 );
 const selectedTask = ref<WorkflowTaskView>();
 const selectedInstance = ref<WorkflowInstanceView>();
@@ -179,6 +183,7 @@ const copyOptions = ref<WorkflowOption[]>([]);
 const loadingCopyOptions = ref(false);
 let copyOptionsVersion = 0;
 const errorMessage = ref('');
+const listLoadError = ref(false);
 // 邮件链接只定位授权详情；链接本身不包含身份或办理命令。
 const targetMessage = ref('');
 const targetSelected = ref(false);
@@ -191,13 +196,19 @@ let pendingVersion = 0;
 let verificationVersion = 0;
 
 // 分栏切换后移除旧分栏详情，防止我发起实例在抄送分栏继续展示。
+const listRefs: Partial<Record<TabKey, { reload: () => Promise<unknown> }>> =
+  {};
+function registerList(key: TabKey, instance: unknown) {
+  listRefs[key] = instance as (typeof listRefs)[TabKey];
+}
 watch(activeKey, () => {
-  selectedTask.value = undefined;
-  selectedInstance.value = undefined;
-  copyRecipients.value = [];
-  copyOptions.value = [];
-  ++copyOptionsVersion;
-  void loadPage();
+  ++refreshVersion;
+  loading.value = false;
+  clearSelection();
+  // 已访问分栏保留自己的游标，重新进入时按当前会话再次读取；首次挂载由CRUD加载。
+  const existing = listRefs[activeKey.value as TabKey];
+  if (existing) void existing.reload();
+  else void loadTarget();
 });
 
 async function loadPendingAttachments(taskId: string) {
@@ -408,104 +419,31 @@ function clearSelection() {
 }
 
 function clearPages() {
-  pages.value = {
-    todo: makePageState(),
-    done: makePageState(),
-    started: makePageState(),
-    copied: makePageState(),
-  };
-  todo.value = [];
-  done.value = [];
-  started.value = [];
-  copied.value = [];
+  ++listEpoch.value;
+  for (const key of Object.keys(listRefs) as TabKey[]) delete listRefs[key];
 }
 
-async function loadPage() {
-  const key = activeKey.value as TabKey;
-  const allowed = () => ({
-    todo: canViewTodo.value,
-    done: canViewDone.value,
-    started: canViewStarted.value,
-    copied: canViewCopied.value,
-  });
+// 标准CRUD只透传真实接口支持的游标和页大小，不把本页筛选伪装为全局查询。
+async function loadPage(key: TabKey, query: { cursor?: string; size: number }) {
+  const allowed = () => tabs.value.some((tab) => tab.key === key);
+  if (!allowed() || activeKey.value !== key)
+    return { items: [], hasMore: false };
   const version = ++refreshVersion;
-  if (!allowed()[key]) {
-    loading.value = false;
-    clearSelection();
-    await loadTarget();
-    return;
-  }
-  const page = pages.value[key];
-  const query = { cursor: page.cursors[page.index], size: 20 };
   loading.value = true;
-  errorMessage.value = '';
+  listLoadError.value = false;
   clearSelection();
-  // 请求期间不呈现旧页或另一用户的结果。
-  switch (key) {
-    case 'done': {
-      done.value = [];
-      break;
-    }
-    case 'started': {
-      started.value = [];
-      break;
-    }
-    case 'todo': {
-      todo.value = [];
-      break;
-    }
-    default: {
-      copied.value = [];
-    }
-  }
   try {
-    let result: WorkflowRuntimePage<WorkflowInstanceView | WorkflowTaskView>;
-    switch (key) {
-      case 'done': {
-        result = await service.value.done(query);
-        break;
-      }
-      case 'started': {
-        result = await service.value.started(query);
-        break;
-      }
-      case 'todo': {
-        result = await service.value.todo(query);
-        break;
-      }
-      default: {
-        result = await service.value.copied(query);
-      }
-    }
-    if (
-      version !== refreshVersion ||
-      activeKey.value !== key ||
-      !allowed()[key]
-    )
-      return;
-    page.hasMore = result.hasMore;
-    page.nextCursor = result.nextCursor;
-    switch (key) {
-      case 'done': {
-        done.value = result.items as WorkflowTaskView[];
-        break;
-      }
-      case 'started': {
-        started.value = result.items as WorkflowInstanceView[];
-        break;
-      }
-      case 'todo': {
-        todo.value = result.items as WorkflowTaskView[];
-        break;
-      }
-      default: {
-        copied.value = result.items as WorkflowInstanceView[];
-      }
-    }
+    const result: WorkflowRuntimePage<WorkflowInstanceView | WorkflowTaskView> =
+      await service.value[key](query);
+    if (version !== refreshVersion || activeKey.value !== key || !allowed())
+      return { items: [], hasMore: false };
+    return result;
   } catch (error) {
-    if (version !== refreshVersion) return;
-    errorMessage.value = '流程列表加载失败，请重试。';
-    emit('error', error);
+    if (version === refreshVersion) {
+      listLoadError.value = true;
+      emit('error', error);
+    }
+    throw error;
   } finally {
     if (version === refreshVersion) {
       loading.value = false;
@@ -588,26 +526,10 @@ function refresh() {
     ? activeKey.value
     : (visibleKeys[0] ?? '');
   if (nextKey === activeKey.value) {
-    void loadPage();
+    void loadTarget();
   } else {
     activeKey.value = nextKey;
   }
-}
-
-function nextPage() {
-  const page = currentPage.value;
-  if (!page || loading.value || !page.hasMore || !page.nextCursor) return;
-  page.cursors[page.index + 1] = page.nextCursor;
-  page.cursors.length = page.index + 2;
-  ++page.index;
-  void loadPage();
-}
-
-function previousPage() {
-  const page = currentPage.value;
-  if (!page || loading.value || page.index === 0) return;
-  --page.index;
-  void loadPage();
 }
 
 // 当前用户权限重新载入或撤销时丢弃旧详情，并重新按最新授权加载列表。
@@ -625,6 +547,16 @@ watch(
     ++copyOptionsVersion;
   },
 );
+
+// 公共CRUD的通用行记录必须先核验真实DTO必需字段，不强制断言缺失标识的记录。
+function openListRecord(key: TabKey, record: unknown) {
+  if (key === 'todo' || key === 'done') {
+    if (isPersonalWorkflowTask(record)) selectTask(record);
+  } else if (isPersonalWorkflowInstance(record)) selectInstance(record);
+}
+function retryListRecord(record: unknown) {
+  if (isPersonalWorkflowInstance(record)) void retry(record);
+}
 
 function selectTask(task: WorkflowTaskView) {
   ++targetVersion;
@@ -728,6 +660,63 @@ async function sendCopy() {
     emit('error', error);
   } finally {
     sendingCopy.value = false;
+  }
+}
+
+// 同一保存内容失败后重放同一去重键；切换内容或任务才创建新命令。
+let pendingSave: undefined | { fingerprint: string; idempotencyKey: string };
+async function saveTask(payload: {
+  attachmentIds?: string[];
+  formData: Record<string, unknown>;
+}) {
+  const task = selectedTask.value;
+  if (
+    !task ||
+    submitting.value ||
+    !props.canSaveTask ||
+    !task.canSave ||
+    task.businessBasisChanged
+  )
+    return;
+  if (!task.businessRevision) {
+    errorMessage.value = '服务端未提供业务修订，无法安全保存，请刷新任务。';
+    return;
+  }
+  const command = {
+    ...payload,
+    taskId: task.taskId,
+    actionCode: 'save' as const,
+    expectedBusinessRevision: task.businessRevision,
+  };
+  const fingerprint = JSON.stringify(command);
+  if (pendingSave?.fingerprint !== fingerprint)
+    pendingSave = { fingerprint, idempotencyKey: crypto.randomUUID() };
+  const request = { ...command, idempotencyKey: pendingSave.idempotencyKey };
+  const version = targetVersion;
+  submitting.value = true;
+  errorMessage.value = '';
+  invalidateVerification();
+  try {
+    const result = await service.value.saveTask(request);
+    pendingSave = undefined;
+    if (
+      selectedTask.value?.taskId === task.taskId &&
+      targetVersion === version
+    ) {
+      selectedTask.value = result;
+      pendingFiles.value = [];
+      await loadPendingAttachments(task.taskId);
+      if (result.processInstanceId)
+        await loadAttachments(result.processInstanceId, 'task');
+      emit('saved', result);
+    }
+  } catch (error) {
+    if (selectedTask.value?.taskId !== task.taskId || targetVersion !== version)
+      return;
+    errorMessage.value = '保存未成功，输入已保留；重试将复用原保存命令。';
+    emit('error', error);
+  } finally {
+    submitting.value = false;
   }
 }
 
@@ -873,18 +862,14 @@ function invalidateVerification() {
   verificationMessage.value = '';
   verificationChallenge.value = undefined;
 }
-onMounted(refresh);
+onMounted(() => {
+  if (!activeKey.value) void loadTarget();
+});
 defineExpose({ refresh });
 </script>
 
 <template>
   <section class="levin-workflow-runtime-workbench">
-    <AAlert
-      v-if="errorMessage"
-      class="mb-3"
-      type="error"
-      :message="errorMessage"
-    />
     <AAlert
       v-if="targetMessage"
       class="mb-3"
@@ -897,157 +882,60 @@ defineExpose({ refresh });
       type="info"
       :message="verificationMessage"
     />
-    <ACard title="工作流中心" size="small">
-      <template #extra>
-        <AButton :loading="loading" @click="refresh">刷新</AButton>
-      </template>
-      <ATabs v-model:active-key="activeKey">
-        <ATabPane v-if="canViewTodo" key="todo" tab="待办">
-          <AList :data-source="todo" item-layout="horizontal">
-            <template #renderItem="{ item }">
-              <AListItem
-                class="cursor-pointer"
-                role="button"
-                tabindex="0"
-                :aria-label="`查看${item.businessTitle || item.taskName || item.taskId}`"
-                @click="selectTask(item)"
-                @keydown.enter.prevent="selectTask(item)"
-                @keydown.space.prevent="selectTask(item)"
-              >
-                <AListItemMeta
-                  :description="`${item.taskName || item.taskId} · ${item.processInstanceId || '—'}`"
-                >
-                  <template #title>
-                    {{ item.businessTitle || item.taskName || item.taskId }}
-                  </template>
-                </AListItemMeta>
-                <ATag color="processing">待处理</ATag>
-              </AListItem>
-            </template>
-          </AList>
-        </ATabPane>
-        <ATabPane v-if="canViewDone" key="done" tab="已办">
-          <AList :data-source="done">
-            <template #renderItem="{ item }">
-              <AListItem
-                class="cursor-pointer"
-                role="button"
-                tabindex="0"
-                :aria-label="`查看${item.businessTitle || item.taskName || item.taskId}`"
-                @click="selectTask(item)"
-                @keydown.enter.prevent="selectTask(item)"
-                @keydown.space.prevent="selectTask(item)"
-              >
-                <AListItemMeta
-                  :title="item.businessTitle || item.taskName || item.taskId"
-                  :description="`${item.taskName || item.taskId} · ${item.processInstanceId || '—'}`"
-                />
-                <ATag>
-                  {{
-                    item.status === 'Completed'
-                      ? '已处理'
-                      : workflowStatusLabel(item.status)
-                  }}
-                </ATag>
-              </AListItem>
-            </template>
-          </AList>
-        </ATabPane>
-        <ATabPane v-if="canViewStarted" key="started" tab="我发起">
-          <AList :data-source="started">
-            <template #renderItem="{ item }">
-              <AListItem
-                class="cursor-pointer"
-                role="button"
-                tabindex="0"
-                :aria-label="`查看${item.businessTitle || item.purposeKey || '流程'}实例`"
-                @click="selectInstance(item)"
-                @keydown.enter.prevent="selectInstance(item)"
-                @keydown.space.prevent="selectInstance(item)"
-              >
-                <AListItemMeta :description="item.instanceId">
-                  <template #title>
-                    {{ item.businessTitle || item.purposeKey || '流程实例' }}
-                  </template>
-                  <template #description>
-                    <div>{{ item.instanceId }}</div>
-                    <div v-if="item.lastError" class="text-destructive">
-                      {{ item.lastError }}
-                    </div>
-                  </template>
-                </AListItemMeta>
-                <ASpace wrap>
-                  <ATag>
-                    执行：{{
-                      workflowStatusLabel(item.executionStatus || item.status)
-                    }}
-                  </ATag>
-                  <ATag v-if="item.outcome">
-                    结果：{{ workflowStatusLabel(item.outcome) }}
-                  </ATag>
-                  <ATag v-if="item.effectStatus">
-                    业务处理：{{ workflowStatusLabel(item.effectStatus) }}
-                  </ATag>
-                  <AButton
-                    v-if="
-                      canRetry &&
-                      item.pendingDispatchId &&
-                      item.businessType &&
-                      item.businessId
-                    "
-                    :loading="retrying === item.pendingDispatchId"
-                    :disabled="!!retrying || submitting || loading"
-                    @click.stop="retry(item)"
-                  >
-                    重试业务处理
-                  </AButton>
-                </ASpace>
-              </AListItem>
-            </template>
-          </AList>
-        </ATabPane>
-        <ATabPane v-if="canViewCopied" key="copied" tab="抄送">
-          <AEmpty v-if="copied.length === 0" description="暂无抄送记录" />
-          <AList v-else :data-source="copied">
-            <template #renderItem="{ item }">
-              <AListItem
-                class="cursor-pointer"
-                role="button"
-                tabindex="0"
-                :aria-label="`查看${item.businessTitle || item.purposeKey || '流程'}抄送实例`"
-                @click="selectInstance(item)"
-                @keydown.enter.prevent="selectInstance(item)"
-                @keydown.space.prevent="selectInstance(item)"
-              >
-                <AListItemMeta
-                  :title="item.businessTitle || item.purposeKey || '流程实例'"
-                  :description="item.instanceId"
-                />
-                <ATag>
-                  {{ workflowStatusLabel(item.executionStatus || item.status) }}
-                </ATag>
-              </AListItem>
-            </template>
-          </AList>
-        </ATabPane>
-      </ATabs>
-      <!-- 游标页只有继续读取信号，不推断全局条数或最后页码。 -->
-      <ASpace v-if="currentPage" class="mt-3" wrap>
-        <span>{{ pageSummary }}</span>
-        <AButton
-          :disabled="loading || currentPage.index === 0"
-          @click="previousPage"
+    <!-- 每个授权分栏使用真正的公共CRUD，办理详情仍由工作台专用面板承载。 -->
+    <ATabs v-model:active-key="activeKey">
+      <ATabPane v-for="tab in tabs" :key="tab.key" :tab="tab.label">
+        <CrudPage
+          :ref="(instance) => registerList(tab.key, instance)"
+          :key="`${tab.key}:${listEpoch}`"
+          :config="listConfigs[tab.key]!"
         >
-          上一页
-        </AButton>
-        <AButton
-          :disabled="loading || !currentPage.hasMore || !currentPage.nextCursor"
-          @click="nextPage"
-        >
-          下一页
-        </AButton>
-      </ASpace>
-    </ACard>
+          <template #row-actions="{ record }">
+            <AButton
+              :aria-label="`查看${record.businessTitle || record.taskName || record.taskId || record.purposeKey || '流程'}${tab.key === 'started' ? '实例' : tab.key === 'copied' ? '抄送实例' : ''}`"
+              size="small"
+              type="link"
+              @click="openListRecord(tab.key, record)"
+            >
+              {{ tab.key === 'todo' ? '办理' : '详情' }}
+            </AButton>
+            <AButton
+              v-if="
+                tab.key === 'started' &&
+                canRetry &&
+                record.pendingDispatchId &&
+                record.businessType &&
+                record.businessId
+              "
+              size="small"
+              type="link"
+              :loading="retrying === record.pendingDispatchId"
+              :disabled="!!retrying || submitting || loading"
+              @click="retryListRecord(record)"
+            >
+              重试业务处理
+            </AButton>
+          </template>
+          <template #emptyText>
+            <AEmpty
+              :description="
+                listLoadError && activeKey === tab.key
+                  ? '流程列表加载失败，请重试。'
+                  : `暂无${tab.label}记录`
+              "
+            >
+              <AButton
+                v-if="listLoadError && activeKey === tab.key"
+                size="small"
+                @click="listRefs[tab.key]?.reload()"
+              >
+                重试
+              </AButton>
+            </AEmpty>
+          </template>
+        </CrudPage>
+      </ATabPane>
+    </ATabs>
     <ARow
       v-if="
         selectedTask &&
@@ -1058,9 +946,24 @@ defineExpose({ refresh });
     >
       <!-- 办理面板先占完整宽度，避免并行流程图被固定侧栏裁掉。 -->
       <ACol :span="24">
+        <AAlert
+          v-if="errorMessage"
+          class="mb-3"
+          type="error"
+          :message="errorMessage"
+        />
+        <WorkflowStateEvents
+          :instance-id="selectedTask.processInstanceId"
+          :visit-id="selectedTask.stateVisitId"
+          :events="selectedTask.allowedStateEvents"
+          :execute="(command) => service.triggerStateEvent(command)"
+          @completed="operationCompleted"
+          @error="emit('error', $event)"
+        />
         <WorkflowTaskPanel
           :task="selectedTask"
           :can-complete="canComplete"
+          :can-save-task="canSaveTask"
           :submitting="submitting"
           :detail-components="detailComponents"
           :attachments="[...attachedFiles, ...pendingFiles]"
@@ -1074,6 +977,7 @@ defineExpose({ refresh });
           @prepare-verification="prepareVerification"
           @verification-invalidated="invalidateVerification"
           @submit="complete"
+          @save="saveTask"
           @upload-attachment="uploadAttachment"
           @download-attachment="downloadAttachment"
           @delete-pending-attachment="deletePendingAttachment"
@@ -1122,6 +1026,12 @@ defineExpose({ refresh });
       ref="instanceDetail"
       class="levin-workflow-instance-detail mt-4"
     >
+      <AAlert
+        v-if="errorMessage"
+        class="mb-3"
+        type="error"
+        :message="errorMessage"
+      />
       <ARow :gutter="16">
         <ACol :span="24">
           <ACard size="small" title="流程图">
@@ -1145,6 +1055,14 @@ defineExpose({ refresh });
               type="warning"
               :message="selectedInstance.operationBlockedReason"
               show-icon
+            />
+            <WorkflowStateEvents
+              :instance-id="selectedInstance.instanceId"
+              :visit-id="selectedInstance.stateVisitId"
+              :events="selectedInstance.allowedStateEvents"
+              :execute="(command) => service.triggerStateEvent(command)"
+              @completed="operationCompleted"
+              @error="emit('error', $event)"
             />
             <WorkflowInstanceOperations
               v-if="

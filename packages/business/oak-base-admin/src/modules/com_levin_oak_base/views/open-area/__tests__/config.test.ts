@@ -9,7 +9,7 @@ vi.mock('../../../api/open-area-service', () => ({
 }));
 
 vi.mock('../../api-module', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../../api-module')>(),
+  ...(await importOriginal<typeof import('../../api-module')>()),
   DEFAULT_CRUD_MODAL_WIDTH: '80%',
   tenantOptionsLoader: async () => [],
 }));
@@ -30,6 +30,15 @@ describe('openAreaPageCrudConfig', () => {
       openAreaPageCrudConfig.fields.find((field) => field.key === 'orgId'),
     ).toMatchObject({
       type: 'org-tree-select',
+    });
+    expect(
+      openAreaPageCrudConfig.fields.map((field) => field.key),
+    ).not.toContain('bizCategory');
+    expect(
+      openAreaPageCrudConfig.fields.find((field) => field.key === 'bizType'),
+    ).toMatchObject({
+      type: 'select',
+      loadOptions: expect.any(Function),
     });
   });
 

@@ -1,5 +1,5 @@
 {
-  "version": "6.0.12",
+  "version": "6.0.13",
   "documents": [
     {
       "id": "system-user-manual",
@@ -110,7 +110,7 @@
           "view": "my-workflow"
         }
       ],
-      "sha256": "918aa28856ad47de1d99caa765e18e696a0340c040fc5197cd00794f4f4518fd"
+      "sha256": "aa91496e39d3e502217cab81a49d3f02f862758e03c588ef5a0bdc768c2e87af"
     },
     {
       "id": "domain-provider-guide",
@@ -130,22 +130,22 @@
       "type": "开发指南",
       "source": "frontend/admin/packages/business/oak-base-admin/docs/communication-workbench.md",
       "pages": [],
-      "sha256": "313b3189c5131c1c3b11bc817575a63216757e6d65407c6049be3fa1223da065"
+      "sha256": "7ce945fed8e5153355c5cd6c98fe784045fff853c61df72791a73969fb33a808"
     },
     {
       "id": "invitation-registration-admin",
-      "title": "邀请注册链接使用指南",
+      "title": "邀请链接使用指南",
       "module": "用户与权限",
       "audience": "管理员",
       "type": "使用指南",
       "source": "frontend/admin/packages/business/oak-base-admin/docs/invitation-registration.md",
       "pages": [
         {
-          "path": "/clob/V1/RecommendationLink",
-          "view": "recommendation-link"
+          "path": "/clob/V1/InvitationLink",
+          "view": "invitation-link"
         }
       ],
-      "sha256": "c37fe866e88e7ced4d6f206e3dcfdcbd795acc12b6506f1c99fb168bec3ee0c0"
+      "sha256": "e1f4ba7d17d95febe36153cad4c66db7e55a5a2e81f7e59f9cdf6b5d86a0be35"
     }
   ]
 }

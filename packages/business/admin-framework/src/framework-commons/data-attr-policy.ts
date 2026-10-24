@@ -178,7 +178,7 @@ function candidates(node: DataAttrNode, name: string, insensitive?: boolean) {
     }),
   );
 }
-function validatePolicy(policy: DataAttrPolicy) {
+export function validatePolicy(policy: DataAttrPolicy) {
   const exists = (id: unknown) => {
     if (typeof id !== 'string' || !policy.nodes[id])
       throw new Error('API属性组策略节点缺失');

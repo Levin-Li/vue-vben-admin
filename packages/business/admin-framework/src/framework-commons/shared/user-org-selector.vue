@@ -39,6 +39,12 @@ defineOptions({
 });
 
 const props = defineProps({
+  /** 仅在内嵌树显示节点操作，由调用方通过 org-action 插槽维护选择状态。 */
+  actionOnly: { default: false, type: Boolean },
+  autoExpandOrgIds: {
+    default: () => [],
+    type: Array as PropType<string[]>,
+  },
   allowClear: {
     default: true,
     type: Boolean,
@@ -271,6 +277,14 @@ watch(
 );
 
 watch(
+  () => props.autoExpandOrgIds,
+  () => {
+    if (hasLoadedOrgTree.value) expandConfiguredOrgPaths();
+  },
+  { deep: true },
+);
+
+watch(
   () => [props.modelValue, props.loadOnInitialValue] as const,
   async () => {
     if (
@@ -386,6 +400,7 @@ async function loadOrgTree() {
       ),
     );
     treeExpandedKeys.value = [];
+    expandConfiguredOrgPaths();
     loadedOrgNodeKeys.value = new Set();
   } catch (error) {
     orgTreeData.value = [];
@@ -791,6 +806,23 @@ function getSearchExpandedKeys(
   return [...expandedKeys];
 }
 
+function expandConfiguredOrgPaths() {
+  if (searchValue.value || props.autoExpandOrgIds.length === 0) return;
+  const ids = new Set(props.autoExpandOrgIds.map(String));
+  const expanded = new Set(treeExpandedKeys.value);
+  function visit(nodes: UserOrgTreeSelectNode[], ancestors: string[]) {
+    for (const node of nodes) {
+      if (node.kind === 'org' && ids.has(String(node.id))) {
+        ancestors.forEach((key) => expanded.add(key));
+        if (node.children?.length) expanded.add(node.key);
+      }
+      visit(node.children || [], [...ancestors, node.key]);
+    }
+  }
+  visit(orgTreeData.value, []);
+  treeExpandedKeys.value = [...expanded];
+}
+
 function getNodeTitleParts(title: string) {
   const keyword = searchValue.value.trim();
 
@@ -858,7 +890,11 @@ function handleInlineExpand(keys: Array<number | string>) {
 
 <template>
   <!-- 手机抽屉直接展示搜索和候选树，避免键盘出现时第二层浮动列表盖住输入框。 -->
-  <div v-if="inline" class="user-org-selector__inline">
+  <div
+    v-if="inline"
+    class="user-org-selector__inline"
+    :class="{ 'user-org-selector__action-only': actionOnly }"
+  >
     <input
       v-if="showSearch"
       :value="searchValue"
@@ -873,12 +909,12 @@ function handleInlineExpand(keys: Array<number | string>) {
       data-testid="user-org-selector-inline-tree"
     >
       <Tree
-        :checkable="effectiveMultiple"
+        :checkable="effectiveMultiple && !actionOnly"
         :checked-keys="effectiveMultiple ? selectedKeys : []"
         :disabled="disabled"
         :expanded-keys="treeExpandedKeys"
         :load-data="handleLoadData"
-        :selectable="!effectiveMultiple"
+        :selectable="!effectiveMultiple && !actionOnly"
         :selected-keys="effectiveMultiple ? [] : selectedKeys"
         :tree-data="inlineTreeData"
         @check="handleInlineCheck"
@@ -900,7 +936,7 @@ function handleInlineExpand(keys: Array<number | string>) {
               :icon="getUserOrgSelectorNodeIcon(node)"
               class="user-org-selector__node-icon"
             />
-            <span>
+            <span class="user-org-selector__node-label">
               <template
                 v-for="(part, index) in getNodeTitleParts(
                   String(node.title || ''),
@@ -915,6 +951,14 @@ function handleInlineExpand(keys: Array<number | string>) {
                 </mark>
                 <template v-else>{{ part.text }}</template>
               </template>
+            </span>
+            <span
+              v-if="actionOnly && node.kind === 'org'"
+              class="user-org-selector__node-action"
+              @click.stop
+              @mousedown.stop
+            >
+              <slot name="org-action" :node="node"></slot>
             </span>
           </span>
         </template>
@@ -1008,6 +1052,38 @@ function handleInlineExpand(keys: Array<number | string>) {
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* 权限分配节点占满整行，节点操作始终贴齐树的右边界。 */
+.user-org-selector__action-only .ant-tree,
+.user-org-selector__action-only .ant-tree-list-holder-inner,
+.user-org-selector__action-only .ant-tree-treenode {
+  width: 100%;
+}
+
+.user-org-selector__action-only .ant-tree-node-content-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.user-org-selector__action-only .user-org-selector__node-title {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.user-org-selector__action-only .user-org-selector__node-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-org-selector__node-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .user-org-selector__inline .ant-tree-treenode {

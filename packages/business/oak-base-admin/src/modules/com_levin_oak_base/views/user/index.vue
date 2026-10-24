@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
@@ -14,14 +14,15 @@ import DataPermissionDialog from '@levin/admin-framework/framework-commons/share
 import { Card, message, Modal, Select } from 'ant-design-vue';
 
 import { UserService, userService } from '../../api/user-service';
-import { loadDomainScopeOptions } from '../../domain-scope-options';
+import { loadDataPermissionDomainOptions } from '../../domain-scope-options';
 import CrudPage from '../crud-page.vue';
-import { getDataPermissionCount } from '../permission-action-counts';
+import { loadRolePermissionRecords } from '../load-role-permission-records';
+import { getUserDataPermissionBadgeItems } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from './config';
 
 // 数据权限弹窗只接受字符串 ID，在页面边界规范化公共候选。
 async function loadStringDomainScopeOptions(keyword?: string) {
-  const options = await loadDomainScopeOptions(keyword);
+  const options = await loadDataPermissionDomainOptions(keyword);
   return options.map((option) => ({
     label: String(option.label),
     value: String(option.value),
@@ -51,40 +52,61 @@ const roleModalOpen = ref(false);
 const roleSubmitting = ref(false);
 const roleOptionsLoading = ref(false);
 const roleOptions = ref<Array<{ label: string; value: string }>>([]);
+const permissionRoleRecords = ref<Array<Record<string, any>>>([]);
 const roleFormState = reactive({
   id: '',
   roleList: [] as string[],
 });
 
-const userListConfig = computed(() => ({
-  ...userPageCrudConfig,
-  apiService: scopedUserService,
-  rowActions: [
-    ...(userPageCrudConfig.rowActions || []),
-    {
-      handler: async (record: Record<string, any>) => {
-        await openRoleModal(record);
+const userListConfig = computed(() => {
+  const roleRecords = permissionRoleRecords.value;
+  return {
+    ...userPageCrudConfig,
+    apiService: scopedUserService,
+    rowActions: [
+      ...(userPageCrudConfig.rowActions || []),
+      {
+        handler: async (record: Record<string, any>) => {
+          await openRoleModal(record);
+        },
+        label: '分配角色',
+        permission: buildApiMethodPermissions(userService, 'assignRoles'),
+        reloadAfterAction: false,
+        successMessage: false as const,
       },
-      label: '分配角色',
-      permission: buildApiMethodPermissions(userService, 'assignRoles'),
-      reloadAfterAction: false,
-      successMessage: false as const,
-    },
-    {
-      badgeCount: getDataPermissionCount,
-      handler: async (record: Record<string, any>) => {
-        selectedRecord.value = record;
-        dialogOpen.value = true;
+      {
+        badgeItems: (record: Record<string, any>) =>
+          getUserDataPermissionBadgeItems(record, roleRecords),
+        handler: async (record: Record<string, any>) => {
+          selectedRecord.value = record;
+          dialogOpen.value = true;
+        },
+        label: '数据权限分配',
+        permission:
+          userPageCrudConfig.editPermission ||
+          buildCrudOperationPermissions(userPageCrudConfig, 'update'),
+        reloadAfterAction: false,
+        successMessage: false as const,
       },
-      label: '数据权限分配',
-      permission:
-        userPageCrudConfig.editPermission ||
-        buildCrudOperationPermissions(userPageCrudConfig, 'update'),
-      reloadAfterAction: false,
-      successMessage: false as const,
-    },
-  ],
-}));
+    ],
+  };
+});
+
+let rolePermissionLoad: null | Promise<Array<Record<string, any>>> = null;
+function refreshRolePermissionRecords() {
+  if (rolePermissionLoad) return;
+  rolePermissionLoad = loadRolePermissionRecords();
+  void rolePermissionLoad
+    .then((records) => {
+      permissionRoleRecords.value = records;
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      rolePermissionLoad = null;
+    });
+}
+onMounted(refreshRolePermissionRecords);
+onActivated(refreshRolePermissionRecords);
 
 async function loadRoleOptions(keyword = '') {
   const generation = scopeGeneration;

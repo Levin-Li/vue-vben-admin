@@ -1,30 +1,25 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { fixedCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { supplierPartnerService } from '../../api/supplier-partner-service';
 import {
   buildEnumOptionsLoader,
-  buildModuleOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   withModuleCrudConfig,
 } from '../api-module';
+import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
 import {
   partnerCommonComplexGroups,
   partnerCommonFields,
 } from '../partner/config';
 
 // 独立子类型入口承载本类合作关系的权限与业务字段。
-const supplierOrgOptionsLoader = buildModuleOptionsLoader(
-  '/Org/list',
-  'name',
-  'id',
-  { pageIndex: 1, pageSize: 500, type: 'SupplierPartner' },
-  'containsName',
-);
+const supplierOrgOptionsLoader = buildOrgAssignmentOptionsLoader();
 
 export const pageMeta = {
   name: 'SupplierPartner',
   title: '供应伙伴',
-  description: '维护供应伙伴及法律主体关联。',
+  description: '快速建档并维护供应伙伴，法律主体可后续补全。',
 } as const;
 export const supplierPartnerPageCrudConfig: CrudPageConfig =
   withModuleCrudConfig({
@@ -32,8 +27,10 @@ export const supplierPartnerPageCrudConfig: CrudPageConfig =
     apiBase: '/SupplierPartner',
     domainObject: true,
     apiService: supplierPartnerService,
+    dataAttrTargets: fixedCrudDataAttrTargets(supplierPartnerService, {
+      retrieve: { method: 'GET', path: 'retrieve' },
+    }),
     listPath: '/SupplierPartner/list',
-    detailPath: '/SupplierPartner/retrieve',
     createPath: '/SupplierPartner/saveSupplierPartner',
     updatePath: '/SupplierPartner/updateSupplierPartner',
     defaultFormValues: { enable: true },
@@ -45,7 +42,7 @@ export const supplierPartnerPageCrudConfig: CrudPageConfig =
         field.key === 'orgId'
           ? {
               ...field,
-              label: '供应伙伴组织节点',
+              label: '新供应伙伴组织的内部父级',
               loadOptions: supplierOrgOptionsLoader,
               remoteSearch: true,
             }

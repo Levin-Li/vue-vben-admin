@@ -11,6 +11,8 @@
 
 标准 CRUD 标签状态保留见 [标签状态使用说明](docs/crud-tab-state.md)。
 
+领域模型定义、字段管理与动态记录使用见 [数据模型管理页面指南](docs/data-model.md)。
+
 法律主体、合作伙伴一对多关系和电子发票合作关系选择见 [法律主体与合作伙伴页面接入指南](docs/partner-legal-subject-relations.md)。
 
 右上角在线文档入口、文档命名和构建登记见 [文档中心使用指南](docs/文档中心使用指南.md)。

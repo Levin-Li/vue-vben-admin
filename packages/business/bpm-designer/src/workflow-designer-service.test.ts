@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createTreeDefinition } from './definition-model';
 import { WorkflowDesignerService } from './workflow-designer-service';
+import { createTaskGraph } from './workflow-task-graph';
 
 const requestCalls = vi.hoisted(() => ({
   get: vi.fn(),
@@ -107,7 +108,35 @@ describe('workflowDesignerService', () => {
         nodes: [],
         edges: [],
       } as never),
-    ).rejects.toThrow('只接受 schemaVersion=3');
+    ).rejects.toThrow('不支持此流程设计格式。');
     expect(requestCalls.post).not.toHaveBeenCalled();
+  });
+});
+
+// 任务图保持自己的协议与证明，不经过旧状态图或树投影。
+describe('任务图版本连接器', () => {
+  it('显式提交任务图且保留绑定，不转换成状态节点', async () => {
+    const graph = createTaskGraph(
+      {
+        businessEntityKey: 'example.Order',
+        stateField: 'status',
+        stateType: 'string',
+        stateMapping: [
+          { value: 'Draft', label: '草稿' },
+          { value: 'Done', label: '完成' },
+        ],
+      },
+      'task_review',
+      '任务审批',
+    );
+    await new WorkflowDesignerService().saveDraft('task-v1', graph, 2);
+    expect(requestCalls.post).toHaveBeenLastCalledWith(
+      'WorkflowDefinitionVersion/save-design',
+      {
+        data: { id: 'task-v1', optimisticLock: 2, lowflowDefinition: graph },
+      },
+    );
+    expect(graph.nodes.map((node) => node.type)).toEqual(['start', 'end']);
+    expect(graph.nodes.every((node) => !('stateValue' in node))).toBe(true);
   });
 });

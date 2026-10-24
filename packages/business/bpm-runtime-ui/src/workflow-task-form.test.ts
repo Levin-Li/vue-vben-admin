@@ -176,6 +176,62 @@ describe('任务动作提交契约', () => {
     );
   });
 
+  it('动作必填随通过或驳回切换，不能通过伪造选中动作放宽服务端要求', () => {
+    const current = task();
+    current.formItems = [{ key: 'reason', label: '驳回原因', type: 'text' }];
+    current.actions = [
+      { code: 'approve', label: '通过', requiredFields: [] },
+      {
+        code: 'reject',
+        label: '驳回',
+        requiredFields: ['reason'],
+        requiresComment: true,
+      },
+    ];
+    expect(
+      validateWorkflowAction(
+        current,
+        current.actions[0] as WorkflowTaskAction,
+        { formData: {} },
+      ),
+    ).toEqual([]);
+    expect(
+      validateWorkflowAction(
+        current,
+        { code: 'reject', label: '驳回', requiredFields: [] },
+        { formData: {} },
+      ),
+    ).toEqual(['请填写驳回原因', '请填写审批意见']);
+    expect(
+      validateWorkflowAction(
+        current,
+        current.actions[1] as WorkflowTaskAction,
+        {
+          formData: { reason: '资料缺失' },
+          comment: '请补充',
+        },
+      ),
+    ).toEqual([]);
+  });
+
+  it('按动作收窄展示与提交字段，不能提交另一操作的残留值', () => {
+    const current = task();
+    const action = {
+      code: 'approve',
+      label: '通过',
+      editableFields: ['amount'],
+    };
+    current.actions = [action];
+    expect(
+      workflowFormData(current, { amount: 0, confirmed: false }, action),
+    ).toEqual({ amount: 0 });
+    expect(
+      validateWorkflowAction(current, action, { formData: { amount: 0 } }),
+    ).toEqual([]);
+    current.actions = [{ ...action, editableFields: [] }];
+    expect(workflowFormData(current, { amount: 0 }, action)).toEqual({});
+  });
+
   it('执行结束与业务处理失败分别展示，不把结束当成通过', () => {
     expect(workflowStatusLabel('Completed')).toBe('已结束');
     expect(workflowStatusLabel('Failed')).toBe('处理失败');

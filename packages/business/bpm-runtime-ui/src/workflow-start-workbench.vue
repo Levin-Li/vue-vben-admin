@@ -9,17 +9,14 @@ import type { WorkflowRuntimeService } from './workflow-runtime-service';
 
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
+import CrudLayout from '@levin/admin-framework/framework-commons/shared/crud-layout.vue';
 // 发起页明确使用本包组件，宿主只提供实际 API 权限和授权连接器。
 import {
   Alert as AAlert,
   Button as AButton,
-  Card as ACard,
   Empty as AEmpty,
-  List as AList,
-  ListItem as AListItem,
-  ListItemMeta as AListItemMeta,
   Space as ASpace,
-  Spin as ASpin,
+  Table as ATable,
 } from 'ant-design-vue';
 
 import WorkflowBusinessPanel from './workflow-business-panel.vue';
@@ -49,6 +46,15 @@ const records = ref<WorkflowStartPage<WorkflowStartRecord>>({
   pageIndex: 1,
   hasMore: false,
 });
+// 分页说明只反映当前页，API没有授权总数时不推算总页数。
+const catalogPageSummary = computed(
+  () =>
+    `第 ${catalog.value.pageIndex} 页 · 本页 ${catalog.value.items.length} 条`,
+);
+const recordsPageSummary = computed(
+  () =>
+    `第 ${records.value.pageIndex} 页 · 本页 ${records.value.items.length} 条`,
+);
 const selectedPurpose = ref<WorkflowManualStart>();
 const selectedRecord = ref<WorkflowStartRecord>();
 // 展示标题不属于启动载荷，命令只提交明确的业务引用和范围。
@@ -122,6 +128,9 @@ async function loadRecords(pageIndex = 1) {
       tenantId: props.tenantId,
       businessType: purpose.businessType,
       contractVersion: purpose.contractVersion,
+      ...(purpose.contractVersion === 'state-graph-v4'
+        ? { purposeKey: purpose.purposeKey }
+        : {}),
       pageIndex,
       pageSize: 20,
     });
@@ -192,60 +201,91 @@ onBeforeUnmount(() => {
       type="info"
       message="当前没有查询手动流程目录或发起流程的权限。"
     />
-    <ACard v-else title="选择手动流程" size="small">
-      <template #extra>
+    <!-- 选择流程仍是专用操作，列表复用标准CRUD分区与表格样式。 -->
+    <CrudLayout
+      v-else
+      form-id="workflow-start-catalog"
+      form-name="选择手动流程"
+    >
+      <template #toolbar>
+        <h2 class="mr-auto font-medium">1. 选择手动流程</h2>
         <AButton :loading="catalogLoading" @click="loadCatalog()">
           刷新流程
         </AButton>
       </template>
-      <AAlert
-        v-if="catalogError"
-        type="error"
-        message="手动流程加载失败，请刷新重试。"
-      />
-      <ASpin :spinning="catalogLoading">
-        <AList :data-source="catalog.items">
-          <template #renderItem="{ item }">
-            <AListItem>
-              <AListItemMeta
-                :title="item.purposeName"
-                :description="item.definitionName"
-              />
-              <AButton
-                :aria-label="`选择流程${item.purposeName}`"
-                :type="selectedPurpose === item ? 'primary' : 'default'"
-                @click="selectPurpose(item)"
-              >
-                选择
-              </AButton>
-            </AListItem>
-          </template>
-        </AList>
-        <AEmpty
-          v-if="!catalogLoading && !catalogError && catalog.items.length === 0"
-          description="当前没有有权发起的手动流程。"
+      <ATable
+        :data-source="catalog.items"
+        :loading="catalogLoading"
+        :pagination="false"
+        :scroll="{ x: 600 }"
+        :row-key="
+          (item: WorkflowManualStart) =>
+            `${item.businessType}:${item.contractVersion}:${item.purposeKey}`
+        "
+      >
+        <ATable.Column
+          title="流程名称"
+          data-index="definitionName"
+          key="definitionName"
         />
-      </ASpin>
-      <ASpace class="mt-3">
-        <AButton
-          :disabled="catalogLoading || catalog.pageIndex <= 1"
-          @click="loadCatalog(catalog.pageIndex - 1)"
-        >
-          上一页流程
-        </AButton>
-        <span>第 {{ catalog.pageIndex }} 页</span>
-        <AButton
-          :disabled="catalogLoading || !catalog.hasMore"
-          @click="loadCatalog(catalog.pageIndex + 1)"
-        >
-          下一页流程
-        </AButton>
-      </ASpace>
-    </ACard>
+        <ATable.Column
+          title="办理事项"
+          data-index="purposeName"
+          key="purposeName"
+        />
+        <ATable.Column title="操作" key="actions" fixed="right" :width="120">
+          <template #default="{ record: item }">
+            <AButton
+              :aria-label="`选择流程${item.purposeName}`"
+              :type="selectedPurpose === item ? 'primary' : 'link'"
+              @click="selectPurpose(item)"
+            >
+              选择
+            </AButton>
+          </template>
+        </ATable.Column>
+        <template #emptyText>
+          <AEmpty
+            :description="
+              catalogError
+                ? '流程加载失败，请刷新重试。'
+                : '当前没有有权发起的手动流程。'
+            "
+          >
+            <AButton v-if="catalogError" size="small" @click="loadCatalog()">
+              重试
+            </AButton>
+          </AEmpty>
+        </template>
+      </ATable>
+      <!-- API只有页码和继续信号，不展示未经授权计算的总数。 -->
+      <template #footer>
+        <ASpace wrap>
+          <AButton
+            :disabled="catalogLoading || catalog.pageIndex <= 1"
+            @click="loadCatalog(catalog.pageIndex - 1)"
+          >
+            上一页流程
+          </AButton>
+          <span>{{ catalogPageSummary }}</span>
+          <AButton
+            :disabled="catalogLoading || !catalog.hasMore"
+            @click="loadCatalog(catalog.pageIndex + 1)"
+          >
+            下一页流程
+          </AButton>
+        </ASpace>
+      </template>
+    </CrudLayout>
 
-    <!-- 记录只来自后端授权分页选择器，不允许手工输入业务 ID。 -->
-    <ACard v-if="selectedPurpose" title="选择业务记录" size="small">
-      <template #extra>
+    <!-- 业务记录沿原授权选择接口分页，选择后才加载发起资格。 -->
+    <CrudLayout
+      v-if="selectedPurpose"
+      form-id="workflow-start-records"
+      form-name="选择业务记录"
+    >
+      <template #toolbar>
+        <h2 class="mr-auto font-medium">2. 选择业务记录</h2>
         <AButton
           v-if="canReadRecords"
           :loading="recordsLoading"
@@ -260,51 +300,47 @@ onBeforeUnmount(() => {
         message="当前没有查询流程业务记录的权限。"
       />
       <template v-else>
-        <AAlert
-          v-if="recordsError"
-          type="error"
-          message="业务记录加载失败，请刷新重试。"
-        />
-        <ASpin :spinning="recordsLoading">
-          <AList :data-source="records.items">
-            <template #renderItem="{ item }">
-              <AListItem>
-                <AListItemMeta
-                  :title="item.businessTitle || '未命名业务记录'"
-                />
-                <AButton
-                  :aria-label="`选择记录${item.businessTitle || '未命名业务记录'}`"
-                  :disabled="!canReadEligibility"
-                  :type="selectedRecord === item ? 'primary' : 'default'"
-                  @click="selectRecord(item)"
-                >
-                  查看发起资格
-                </AButton>
-              </AListItem>
+        <ATable
+          :data-source="records.items"
+          :loading="recordsLoading"
+          :pagination="false"
+          :scroll="{ x: 500 }"
+          :row-key="
+            (item: WorkflowStartRecord) =>
+              `${item.businessType}:${item.businessId}`
+          "
+        >
+          <ATable.Column title="业务记录" key="businessTitle">
+            <template #default="{ record: item }">
+              {{ item.businessTitle || '未命名业务记录' }}
             </template>
-          </AList>
-          <AEmpty
-            v-if="
-              !recordsLoading && !recordsError && records.items.length === 0
-            "
-            description="当前页没有有权查看的业务记录。"
-          />
-        </ASpin>
-        <ASpace class="mt-3">
-          <AButton
-            :disabled="recordsLoading || records.pageIndex <= 1"
-            @click="loadRecords(records.pageIndex - 1)"
-          >
-            上一页记录
-          </AButton>
-          <span>第 {{ records.pageIndex }} 页</span>
-          <AButton
-            :disabled="recordsLoading || !records.hasMore"
-            @click="loadRecords(records.pageIndex + 1)"
-          >
-            下一页记录
-          </AButton>
-        </ASpace>
+          </ATable.Column>
+          <ATable.Column title="操作" key="actions" fixed="right" :width="160">
+            <template #default="{ record: item }">
+              <AButton
+                :aria-label="`选择记录${item.businessTitle || '未命名业务记录'}`"
+                :disabled="!canReadEligibility"
+                :type="selectedRecord === item ? 'primary' : 'link'"
+                @click="selectRecord(item)"
+              >
+                查看发起资格
+              </AButton>
+            </template>
+          </ATable.Column>
+          <template #emptyText>
+            <AEmpty
+              :description="
+                recordsError
+                  ? '业务记录加载失败，请刷新重试。'
+                  : '当前页没有有权查看的业务记录。'
+              "
+            >
+              <AButton v-if="recordsError" size="small" @click="loadRecords()">
+                重试
+              </AButton>
+            </AEmpty>
+          </template>
+        </ATable>
         <AAlert
           v-if="!canReadEligibility"
           class="mt-3"
@@ -312,7 +348,24 @@ onBeforeUnmount(() => {
           message="当前没有查询发起资格的权限。"
         />
       </template>
-    </ACard>
+      <template v-if="canReadRecords" #footer>
+        <ASpace wrap>
+          <AButton
+            :disabled="recordsLoading || records.pageIndex <= 1"
+            @click="loadRecords(records.pageIndex - 1)"
+          >
+            上一页记录
+          </AButton>
+          <span>{{ recordsPageSummary }}</span>
+          <AButton
+            :disabled="recordsLoading || !records.hasMore"
+            @click="loadRecords(records.pageIndex + 1)"
+          >
+            下一页记录
+          </AButton>
+        </ASpace>
+      </template>
+    </CrudLayout>
 
     <!-- 复用业务对象入口的资格与幂等启动命令，自动用途不会产生手动按钮。 -->
     <WorkflowBusinessPanel

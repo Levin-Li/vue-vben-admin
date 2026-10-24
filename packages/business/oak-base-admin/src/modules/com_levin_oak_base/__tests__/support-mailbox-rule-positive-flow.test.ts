@@ -27,6 +27,38 @@ vi.mock('@vben/runtime/stores', () => ({
     userInfo: { platformUser: false, tenantId: 'tenant-a' },
   }),
 }));
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock(
+  '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue',
+  async () => {
+    const { defineComponent } = await import('vue');
+    return {
+      default: defineComponent({
+        props: { config: { type: Object, required: true } },
+        data: () => ({ rows: [] as Record<string, unknown>[] }),
+        mounted() {
+          void this.reload();
+        },
+        methods: {
+          async reload() {
+            const result = await this.config.apiService.list({
+              pageIndex: 1,
+              pageSize: 20,
+            });
+            this.rows = result.items;
+          },
+        },
+        template: `<main>
+          <slot name="toolbar-extra" :is-list-operation-visible="() => true" />
+          <div v-for="record in rows" :key="record.id">
+            <span v-for="field in config.fields.filter(item => item.table)" :key="field.key">{{ field.tableValue ? field.tableValue(record) : record[field.key] }}</span>
+            <slot name="row-actions" :record="record" />
+          </div>
+        </main>`,
+      }),
+    };
+  },
+);
 vi.mock('../api/support-mailbox-rule-service', () => ({
   supportMailboxRuleService: mocks.rules,
 }));

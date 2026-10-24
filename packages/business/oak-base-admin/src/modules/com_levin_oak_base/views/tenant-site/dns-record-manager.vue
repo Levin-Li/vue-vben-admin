@@ -412,7 +412,13 @@ watch(
       @cancel="closeEditor"
       @ok="submitDraft"
     >
-      <Form layout="vertical">
+      <Form
+        id="tenant-site-dns-record-edit"
+        name="tenantSiteDnsRecordEdit"
+        data-form-id="tenant-site-dns-record-edit"
+        data-form-name="新增或编辑租户站点解析记录"
+        layout="vertical"
+      >
         <div class="grid grid-cols-2 gap-x-4 gap-y-2">
           <Form.Item label="解析类型" required>
             <Select

@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { legalSubjectService } from '../../api/legal-subject-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   confidentialLevelOptionsLoader,
@@ -52,6 +53,7 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
   apiBase: '/LegalSubject',
   domainObject: true,
   apiService: legalSubjectService,
+  dataAttrTargets: standardCrudDataAttrTargets(legalSubjectService),
   defaultFormValues: {
     enable: true,
     subjectType: 'Legal',

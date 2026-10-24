@@ -8,9 +8,12 @@ export interface OrgTreeNode {
 export interface RbacDataAttrGroup {
   attributes: string[];
   entityName?: string;
+  entityScope?: boolean;
+  legacyPermissionExpr?: string;
   name: string;
   permissionExpr: string;
   remark?: string;
+  scopeKey?: string;
 }
 
 /** 后端提供的枚举记录范围；许可表达式必须原样保存。 */

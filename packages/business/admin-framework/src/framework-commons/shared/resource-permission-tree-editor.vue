@@ -79,6 +79,7 @@ interface VisibleMenuPermissionNode extends MenuPermissionNode {
 }
 
 interface PermissionViewNode {
+  attrGroups: RbacDataAttrGroup[];
   children: PermissionViewNode[];
   dataAttrs: DataAttrValuePermission[];
   depth: number;
@@ -349,7 +350,33 @@ function attrGroups(expression: string) {
     ...(operationAttrGroups.value
       .get(normalizePermissionExpr(expression))
       ?.values() || []),
-  ];
+  ].filter((group) => !group.entityScope);
+}
+
+function entityAttrGroups(node: PermissionViewNode) {
+  return node.nodeType === PermissionTreeNodeTypeEnum.ResourceType
+    ? node.attrGroups.filter((group) => group.entityScope)
+    : [];
+}
+
+function toggleEntityAttrGroup(
+  node: PermissionViewNode,
+  groupExpression: string,
+  checked: boolean,
+) {
+  if (
+    isSingleSelection.value ||
+    !entityAttrGroups(node).some(
+      (group) => group.permissionExpr === groupExpression,
+    )
+  )
+    return;
+  emit(
+    'update:value',
+    checked
+      ? [...new Set([groupExpression, ...props.value])]
+      : removeSelectedPermissions([groupExpression]),
+  );
 }
 
 function toggleAttrGroup(
@@ -609,7 +636,12 @@ function removeSelectedPermissions(permissions: string[]) {
           permissions.some((permission) =>
             RbacPermissionMatchUtils.simpleMatchList(expression, [permission]),
           )
-            ? [...groups.keys()]
+            ? [...groups.values()].flatMap((group) => {
+                if (!group.entityScope) return [group.permissionExpr];
+                return group.legacyPermissionExpr
+                  ? [group.legacyPermissionExpr]
+                  : [];
+              })
             : [],
       ),
       ...permissions,
@@ -647,6 +679,19 @@ function removeSelectedPermissions(permissions: string[]) {
       !coversRemoved(expression) &&
       RbacPermissionMatchUtils.simpleMatchList(expression, covering)
     ) {
+      remaining.push(expression);
+    }
+  }
+  // 实体组授权独立于操作，移除操作时保留显式勾选的实体组。
+  const entityGroups = new Set(
+    [...operationAttrGroups.value.values()].flatMap((groups) =>
+      [...groups.values()]
+        .filter((group) => group.entityScope)
+        .map((group) => group.permissionExpr),
+    ),
+  );
+  for (const expression of entityGroups) {
+    if (current.includes(expression) && !permissions.includes(expression)) {
       remaining.push(expression);
     }
   }
@@ -931,9 +976,21 @@ function buildPermissionViewTree(
           [parentPath, title].filter(Boolean).join(' / '),
           fromMenu,
         );
+    const repeatedResources =
+      nodeType === PermissionTreeNodeTypeEnum.ResourceType
+        ? children.filter(
+            (child) =>
+              child.nodeType === PermissionTreeNodeTypeEnum.Resource &&
+              child.title === title &&
+              !child.permissionExpr,
+          )
+        : [];
+    const visibleChildren = children.flatMap((child) =>
+      repeatedResources.includes(child) ? child.children : [child],
+    );
     const permissions = [
       ...(permissionExpr ? [permissionExpr] : []),
-      ...getPermissionNodePermissions(children),
+      ...getPermissionNodePermissions(visibleChildren),
     ];
 
     if (!title && !permissionExpr && !isInlinePermissionNodeType(nodeType)) {
@@ -942,21 +999,34 @@ function buildPermissionViewTree(
 
     return [
       {
-        children,
+        attrGroups: node.attrGroups || [],
+        children: visibleChildren,
         dataAttrs:
           nodeType === PermissionTreeNodeTypeEnum.Resource
             ? resourceDataAttrs.value.get(permissionExpr || node.id) || []
-            : [],
+            : mergeDataAttrs(
+                repeatedResources.flatMap((child) => child.dataAttrs),
+              ),
         depth,
         id: String(node.id || `${parentPath || 'permission'}-${index}`),
         label,
-        resourcePermissions: (node.resourcePermissions || [])
-          .filter((resource) => resource.permissionExpr)
-          .map((resource) => ({
-            expression: normalizePermissionExpr(resource.permissionExpr || ''),
-            name:
-              resource.label || resource.name || resource.permissionExpr || '',
-          })),
+        resourcePermissions: [
+          ...(node.resourcePermissions || [])
+            .filter((resource) => resource.permissionExpr)
+            .map((resource) => ({
+              expression: normalizePermissionExpr(
+                resource.permissionExpr || '',
+              ),
+              name:
+                resource.label ||
+                resource.name ||
+                resource.permissionExpr ||
+                '',
+            })),
+          ...repeatedResources.flatMap(
+            (child) => child.resourcePermissions || [],
+          ),
+        ],
         isOperation: fromMenu && nodeType === PermissionTreeNodeTypeEnum.Action,
         nodeType,
         pathText: [
@@ -1317,6 +1387,7 @@ function convertMenuPermissionTreeToViewTree(
         : PermissionTreeNodeTypeEnum.Menu;
 
     return {
+      attrGroups: [],
       children,
       dataAttrs: [],
       depth: node.depth + 1,
@@ -2026,6 +2097,18 @@ function getPermissionCountText(permissions: string[]) {
                 />
                 {{ node.title }}
               </span>
+
+              <AttrGroupPermissions
+                v-if="!isSingleSelection && entityAttrGroups(node).length > 0"
+                inline
+                :groups="entityAttrGroups(node)"
+                :enabled="true"
+                :selected="value"
+                @toggle="
+                  (groupExpression, checked) =>
+                    toggleEntityAttrGroup(node, groupExpression, checked)
+                "
+              />
 
               <DataAttrPermissions
                 v-if="!isSingleSelection && node.dataAttrs.length > 0"

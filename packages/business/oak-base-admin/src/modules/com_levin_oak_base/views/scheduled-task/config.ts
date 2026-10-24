@@ -1,10 +1,12 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { scheduledTaskService } from '../../api/scheduled-task-service';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+
+import { scheduledTaskService } from '../../api/scheduled-task-service';
+import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
-  DEFAULT_CRUD_MODAL_WIDTH,
   buildEnumOptionsLoader,
+  DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
 } from '../api-module';
 
@@ -50,6 +52,7 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
   apiBase: '/ScheduledTask',
   domainObject: true,
   apiService: scheduledTaskService,
+  dataAttrTargets: standardCrudDataAttrTargets(scheduledTaskService),
   defaultFormValues: {
     cron: '0 0/5 * * * *',
     editable: true,

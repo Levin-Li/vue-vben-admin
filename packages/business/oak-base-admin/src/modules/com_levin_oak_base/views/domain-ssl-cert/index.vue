@@ -335,7 +335,13 @@ watch(
         @cancel="closeManualModal"
         @ok="() => submitManual((slotProps as Record<string, any>).loadList)"
       >
-        <Form layout="vertical">
+        <Form
+          id="domain-ssl-cert-manual-config"
+          name="domainSslCertManualConfig"
+          data-form-id="domain-ssl-cert-manual-config"
+          data-form-name="手动配置证书"
+          layout="vertical"
+        >
           <div class="grid grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-2">
             <Form.Item label="证书域名" required>
               <Input
