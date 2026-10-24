@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { isApiErrorNotified, showApiErrorMessage } from '../api-error-message';
+
 const mocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
@@ -7,8 +9,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('ant-design-vue', () => ({
   message: { error: mocks.error },
 }));
-
-import { showApiErrorMessage } from '../api-error-message';
 
 describe('统一请求错误提示', () => {
   beforeEach(() => mocks.error.mockClear());
@@ -22,5 +22,14 @@ describe('统一请求错误提示', () => {
       content: '租户ID不能为空',
       key: 'api-error:租户ID不能为空',
     });
+  });
+
+  it('标记已提示的原始失败，公共表单不再追加泛化错误', () => {
+    const failure = new Error('当前账号未归属租户组织');
+    expect(isApiErrorNotified(failure)).toBe(false);
+    showApiErrorMessage(failure.message, failure);
+    expect(isApiErrorNotified(failure)).toBe(true);
+    expect(isApiErrorNotified(new Error(failure.message))).toBe(false);
+    expect(isApiErrorNotified(null)).toBe(false);
   });
 });

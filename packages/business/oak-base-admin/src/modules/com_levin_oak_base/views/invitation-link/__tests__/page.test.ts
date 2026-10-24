@@ -13,6 +13,8 @@ const {
   createInternal,
   writeText,
   permissionAllowed,
+  user,
+  openCreate,
 } = vi.hoisted(() => ({
   list: vi.fn(),
   copyLink: vi.fn(),
@@ -20,8 +22,20 @@ const {
   createInternal: vi.fn(),
   writeText: vi.fn(),
   permissionAllowed: vi.fn(),
+  user: { userInfo: { tenantId: 'tenant', orgId: 'org' } },
+  openCreate: vi.fn(),
 }));
 
+vi.mock('@vben/runtime/stores', () => ({ useUserStore: () => user }));
+vi.mock(
+  '@levin/admin-framework/framework-commons/api-authorize',
+  async (original) => ({
+    ...(await original<
+      typeof import('@levin/admin-framework/framework-commons/api-authorize')
+    >()),
+    getCrudOpMeta: () => ({ label: '创建邀请', opRefTargetType: 'None' }),
+  }),
+);
 vi.mock('../../../api/invitation-link-service', () => ({
   invitationLinkService: {
     list,
@@ -61,11 +75,31 @@ vi.mock(
           });
           rows.value = result.items;
         }
-        expose({ reload: () => load() });
+        let formOpen = false;
+        expose({
+          reload: () => load(),
+          openCreate: () => {
+            formOpen = true;
+            openCreate();
+          },
+          isFormOpen: () => formOpen,
+        });
         onMounted(() => void load());
         return () =>
           h('main', [
-            slots['toolbar-extra']?.({ isListOperationVisible: () => true }),
+            slots['toolbar-extra']?.(),
+            ...(props.config as any).rowActions
+              .filter((action: any) => action.visible({}))
+              .map((action: any) =>
+                h(
+                  'button',
+                  {
+                    'data-action': action.displayKey,
+                    onClick: () => action.handler({}),
+                  },
+                  action.label,
+                ),
+              ),
             ...rows.value.map((record) =>
               h('div', { class: 'row' }, slots['row-actions']?.({ record })),
             ),
@@ -104,6 +138,7 @@ vi.mock('ant-design-vue', () => ({
 describe('邀请链接页面公共 CRUD 行为', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    user.userInfo = { tenantId: 'tenant', orgId: 'org' };
     permissionAllowed.mockImplementation(
       (method: string) => method !== 'canInviteChildAdmin',
     );
@@ -157,14 +192,17 @@ describe('邀请链接页面公共 CRUD 行为', () => {
     wrapper.unmount();
   });
 
-  it('切换邀请目标后公共新增使用对应权限、字段策略和独立创建方法', async () => {
+  it('标准目标动作打开公共新增并固定权限、字段策略和独立创建方法', async () => {
     const wrapper = mount(InvitationLinkPage);
     await flushPromises();
     const crud = wrapper.findComponent({ name: 'CrudPageStub' });
     expect((crud.props('config') as any).dataAttrTargets.create.path).toContain(
       '/InvitationLink/createInternal',
     );
-    await wrapper.get('[data-target="Customer"]').trigger('click');
+    await wrapper
+      .get('[data-action="invitation:createCustomer"]')
+      .trigger('click');
+    expect(openCreate).toHaveBeenCalledTimes(1);
     await flushPromises();
     const config = crud.props('config') as any;
     expect(config.createPermission).toBe('createCustomer');
@@ -187,7 +225,29 @@ describe('邀请链接页面公共 CRUD 行为', () => {
         childOrgType: 'Customer',
       }),
     );
+    await wrapper
+      .get('[data-action="invitation:createInternal"]')
+      .trigger('click');
+    await flushPromises();
+    expect((crud.props('config') as any).dataAttrTargets.create.path).toContain(
+      '/InvitationLink/createCustomer',
+    );
+    expect(openCreate).toHaveBeenCalledTimes(1);
     expect(createInternal).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+  it('签发人缺少组织时不开放创建，平台超管标记不能代替归属', async () => {
+    user.userInfo = { tenantId: 'tenant', orgId: '' };
+    const wrapper = mount(InvitationLinkPage);
+    await flushPromises();
+    expect(wrapper.findAll('[data-action]').length).toBe(0);
+    const config = wrapper
+      .findComponent({ name: 'CrudPageStub' })
+      .props('config') as any;
+    expect(config.allowCreate).toBe(false);
+    expect(config.createButtonVisible).toBe(false);
+    expect(config.description).toContain('所属组织');
+    expect(wrapper.get('[role="status"]').text()).toContain('所属组织');
     wrapper.unmount();
   });
 });

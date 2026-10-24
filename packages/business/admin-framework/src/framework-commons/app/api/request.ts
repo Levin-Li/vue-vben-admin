@@ -495,7 +495,7 @@ function applyCommonInterceptors(client: RequestClient) {
         return;
       }
 
-      showApiErrorMessage(getUnifiedErrorMessage(msg, error));
+      showApiErrorMessage(getUnifiedErrorMessage(msg, error), error);
     }),
   );
 }

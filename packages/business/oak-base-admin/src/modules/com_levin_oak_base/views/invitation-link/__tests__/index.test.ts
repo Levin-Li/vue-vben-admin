@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createInvitationLinkCrudConfig,
+  invitationCreateActions,
+  invitationIssuerRequirement,
   normalizeInvitationListQuery,
 } from '../config';
 
@@ -104,5 +106,62 @@ describe('邀请链接公共 CRUD 配置', () => {
     expect(
       partnerField?.formVisibleWhen?.({ customerType: 'ChannelCustomer' }),
     ).toBe(true);
+  });
+  it('五个签发动作来自API元数据且不显示泛化新增', () => {
+    const actions = invitationCreateActions(async () => {}, true);
+    expect(actions.map((action) => action.label)).toEqual([
+      '创建内部用户邀请',
+      '创建会员用户邀请',
+      '创建客户邀请',
+      '创建供应伙伴邀请',
+      '创建渠道伙伴邀请',
+    ]);
+    expect(
+      actions.every(
+        (action) =>
+          action.opRefTargetType === 'None' &&
+          action.successMessage === false &&
+          action.successAction === 'None' &&
+          action.reloadAfterAction === false,
+      ),
+    ).toBe(true);
+    expect(
+      createInvitationLinkCrudConfig({
+        apiService,
+        canCreate: true,
+        canInviteChildAdmin: false,
+        target: 'Internal',
+      }).createButtonVisible,
+    ).toBe(false);
+    expect(
+      invitationIssuerRequirement({ superAdmin: true, tenantId: 't' }),
+    ).toContain('所属组织');
+    expect(invitationIssuerRequirement({ tenantId: 't', orgId: 'o' })).toBe('');
+  });
+
+  it('到期时间与限定人数遵循后端边界', () => {
+    const fields = createInvitationLinkCrudConfig({
+      apiService,
+      canCreate: true,
+      canInviteChildAdmin: false,
+      target: 'Internal',
+    }).fields;
+    const expires = fields.find(
+      (field) => field.key === 'expiresAt',
+    )?.validator;
+    const count = fields.find(
+      (field) => field.key === 'maxRegistrations',
+    )?.validator;
+    if (!expires || !count) throw new Error('邀请校验缺失');
+    expect(expires('invalid', {})).toBeTruthy();
+    expect(
+      expires(new Date(Date.now() + 367 * 86_400_000).toISOString(), {}),
+    ).toBeTruthy();
+    expect(
+      expires(new Date(Date.now() + 86_400_000).toISOString(), {}),
+    ).toBeUndefined();
+    expect(count(10_000, {})).toBeUndefined();
+    expect(count(10_001, {})).toBeTruthy();
+    expect(count(1.5, {})).toBeTruthy();
   });
 });

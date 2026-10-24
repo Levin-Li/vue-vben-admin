@@ -96,6 +96,7 @@ import {
   fetchCrudList,
   updateCrudRecord,
 } from '../api';
+import { isApiErrorNotified } from '../app/api/api-error-message';
 import {
   FILE_STORAGE_MULTI_UPLOAD_PATH,
   FILE_STORAGE_SINGLE_UPLOAD_PATH,
@@ -391,8 +392,9 @@ interface TableColumnSettingsSnapshot {
   orderedKeys: string[];
 }
 function getCrudErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message) {
-    return error.message;
+  const text = (error as null | { message?: unknown })?.message;
+  if (typeof text === 'string' && text.trim()) {
+    return text;
   }
 
   const data = (error as any)?.response?.data;
@@ -5242,7 +5244,12 @@ async function loadListWithRetry(contextRetryCount: number) {
 }
 
 // 宿主在专用业务动作完成后刷新当前列表，仍沿用标准查询与权限校验。
-defineExpose({ reload: loadList, openCreate: handleCreate });
+// 外部动作读取弹窗状态，避免替换正在编辑的创建目标。
+defineExpose({
+  reload: loadList,
+  openCreate: handleCreate,
+  isFormOpen: () => modalOpen.value,
+});
 
 // 初始化完成后固定本次字段集合，后续 UI 显隐变化不重置用户修改基准。
 function captureFormSnapshot() {
@@ -5748,8 +5755,9 @@ async function handleSubmit() {
     modalOpen.value = false;
     await loadList();
   } catch (error) {
-    console.error(error);
-    message.error(getCrudErrorMessage(error, '保存失败'));
+    if (!isApiErrorNotified(error)) {
+      message.error(getCrudErrorMessage(error, '保存失败'));
+    }
   } finally {
     submitting.value = false;
   }
@@ -9238,9 +9246,11 @@ watch(
           </Checkbox>
         </div>
       </template>
+      <!-- 业务表单的口令和密钥不能由浏览器保存的后台登录凭据自动填入。 -->
       <Form
         layout="vertical"
         class="w-full max-w-full"
+        autocomplete="off"
         :style="formContainerStyle"
       >
         <div
@@ -9427,6 +9437,7 @@ watch(
                   </div>
                   <Input.Password
                     v-else-if="field.type === 'password'"
+                    autocomplete="new-password"
                     :value="
                       getInteractionModelValue(
                         formState[field.key],

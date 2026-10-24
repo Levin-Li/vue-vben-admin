@@ -4,43 +4,58 @@ import type {
   InvitationTarget,
 } from '../../api/invitation-link-service';
 
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
+
+import { useUserStore } from '@vben/runtime/stores';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
-import { Button, Form, Input, message, Modal, Select } from 'ant-design-vue';
+import { Button, Form, Input, message, Modal } from 'ant-design-vue';
 
 import { invitationLinkService } from '../../api/invitation-link-service';
 import ChannelPartnerPicker from '../customer/channel-partner-picker.vue';
 import {
   createInvitationLinkCrudConfig,
   createMethodByTarget,
+  invitationCreateActions,
+  invitationIssuerRequirement,
   normalizeInvitationListQuery,
-  targetOptions,
 } from './config';
 
 const { hasPermission } = useRbacAccess();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(invitationLinkService, method));
-const availableTargets = computed(() =>
-  targetOptions.filter((item) => allowed(createMethodByTarget[item.value])),
+const userStore = useUserStore();
+const issuerRequirement = computed(() =>
+  invitationIssuerRequirement(userStore.userInfo),
 );
-const selectedTarget = ref<InvitationTarget>('Internal');
-const activeTarget = computed<InvitationTarget>({
-  get: () =>
-    availableTargets.value.some((item) => item.value === selectedTarget.value)
-      ? selectedTarget.value
-      : availableTargets.value[0]?.value || 'Internal',
-  set: (value) => {
-    selectedTarget.value = value;
-  },
-});
+const activeTarget = ref<InvitationTarget>('Internal');
 const createdUrl = ref('');
 const revokeId = ref('');
 const revokeReason = ref('');
 const revoking = ref(false);
-const crudPage = ref<{ reload: () => Promise<void> }>();
+const crudPage = ref<{
+  isFormOpen: () => boolean;
+  openCreate: () => Promise<void>;
+  reload: () => Promise<void>;
+}>();
+
+let openingCreate = false;
+async function openInvitation(target: InvitationTarget) {
+  if (issuerRequirement.value) throw new Error(issuerRequirement.value);
+  if (!allowed(createMethodByTarget[target]))
+    throw new Error('当前账号无权创建此类邀请链接');
+  if (openingCreate || crudPage.value?.isFormOpen()) return;
+  openingCreate = true;
+  try {
+    activeTarget.value = target;
+    await nextTick();
+    await crudPage.value?.openCreate();
+  } finally {
+    openingCreate = false;
+  }
+}
 
 function createPayload(
   values: Record<string, any>,
@@ -94,7 +109,12 @@ const pageConfig = computed(() => {
   const config = createInvitationLinkCrudConfig({
     target,
     canInviteChildAdmin: allowed('canInviteChildAdmin'),
-    canCreate: availableTargets.value.length > 0,
+    canCreate: !issuerRequirement.value && allowed(method),
+    issuerRequirement: issuerRequirement.value,
+    createActions: invitationCreateActions(
+      openInvitation,
+      !issuerRequirement.value,
+    ),
     apiService: {
       list: async (params = {}) => {
         const result = await invitationLinkService.list(
@@ -104,6 +124,8 @@ const pageConfig = computed(() => {
       },
       retrieve: ({ id }: { id: string }) => invitationLinkService.retrieve(id),
       create: async (values: CreateInvitationLinkRequest) => {
+        const requirement = invitationIssuerRequirement(userStore.userInfo);
+        if (requirement) throw new Error(requirement);
         if (!allowed(method)) throw new Error('当前账号无权创建此类邀请链接');
         const result = await invitationLinkService[method](values);
         createdUrl.value = result.url;
@@ -160,14 +182,10 @@ async function copyCreatedUrl() {
 
 <template>
   <CrudPage ref="crudPage" :config="pageConfig">
-    <template #toolbar-extra>
-      <Select
-        v-if="availableTargets.length > 0"
-        v-model:value="activeTarget"
-        aria-label="邀请目标"
-        :options="availableTargets"
-        class="min-w-36"
-      />
+    <template v-if="issuerRequirement" #toolbar-extra>
+      <span role="status" class="text-muted-foreground">{{
+        issuerRequirement
+      }}</span>
     </template>
     <template #form-field-channelPartnerId="{ formState, disabled }">
       <ChannelPartnerPicker

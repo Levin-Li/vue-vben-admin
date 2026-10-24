@@ -12,6 +12,7 @@ import { createPinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ResAuthorize } from '../../api-authorize';
+import { showApiErrorMessage } from '../../app/api/api-error-message';
 import {
   clearDataAttrPolicies,
   configureDataAttrPolicyLoader,
@@ -178,6 +179,42 @@ beforeEach(() => {
 });
 
 describe('标准 crud 的属性组策略', () => {
+  it('保存失败已由请求层提示时不重复弹错，并保留表单草稿', async () => {
+    const failure = new Error('当前账号未归属租户组织，无法签发邀请链接');
+    const create = vi.fn(async () => {
+      showApiErrorMessage(failure.message, failure);
+      throw failure;
+    });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { create },
+          dataAttrTargets: {
+            create: { method: 'POST', path: '/Contract/create' },
+          },
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    const exposed = wrapper.vm as unknown as { isFormOpen: () => boolean };
+    expect(exposed.isFormOpen()).toBe(false);
+    await vm.handleCreate();
+    expect(exposed.isFormOpen()).toBe(true);
+    vm.formState.name = '保留草稿';
+    mocks.error.mockClear();
+    await vm.handleSubmit();
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(mocks.error).toHaveBeenCalledTimes(1);
+    expect(mocks.error).toHaveBeenCalledWith(
+      expect.objectContaining({ content: failure.message }),
+    );
+    expect(vm.formState.name).toBe('保留草稿');
+    expect(exposed.isFormOpen()).toBe(true);
+    expect(vm.submitting).toBe(false);
+  });
+
   it('页面 UI 设置点击前不挂载编辑内容，点击后挂载且关闭时销毁', async () => {
     const wrapper = shallowMount(CrudPage, {
       global: {

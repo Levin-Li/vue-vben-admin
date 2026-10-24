@@ -26,7 +26,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 - `prepareCreate()` 可异步加载当前身份的创建字段、候选及默认值，返回默认值对象或不返回值。准备失败不会打开表单。
 - `loadEditRecord(record)` 可异步取得完整 EDIT 响应，返回对象替代列表行。列表字段与编辑字段不同时，不能把列表行合并进去恢复未授权字段。普通编辑与单 JSON 字段编辑都使用此入口。
 - 准备过程可更新配置字段与策略上下文。公共页在准备后重新取得对应操作策略，再初始化表单；真实主体、权限、页面或归属变化使旧异步结果失效。
-- 组件公开 `reload()` 与 `openCreate()`。对象级自定义动作可复用标准新增表单，但宿主必须先确定该动作的字段和权限。`createButtonVisible: false` 只收紧内置新增按钮显示，不授予表单或接口权限。
+- 组件公开 `reload()`、`openCreate()` 与只读 `isFormOpen()`。对象级自定义动作可复用标准新增表单，但宿主必须先确定该动作的字段和权限；表单已打开时不得切换其业务目标。仅打开表单的动作应关闭提前成功提示和列表刷新，实际保存成功后由公共表单反馈。`createButtonVisible: false` 只收紧内置新增按钮显示，不授予表单或接口权限。
 
 ## 静态 API 与运行时模型字段策略
 
