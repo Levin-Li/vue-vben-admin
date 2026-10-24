@@ -21,6 +21,12 @@ vi.mock('vue-router', async () => ({
   ...(await vi.importActual('vue-router')),
   useRouter: () => state.router,
 }));
+vi.mock('../../api/session-role-options', () => ({}));
+vi.mock('../../api/data-attr-policy-service', () => ({
+  dataAttrPolicyService: {
+    snapshot: vi.fn(async () => ({ version: 1, policies: [] })),
+  },
+}));
 vi.mock('../../router', () => ({ resetRoutes: vi.fn() }));
 const api = vi.hoisted(() => ({
   accessCodes: vi.fn(),

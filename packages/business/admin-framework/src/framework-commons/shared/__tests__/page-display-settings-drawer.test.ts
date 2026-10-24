@@ -4,6 +4,8 @@ import { defineComponent, nextTick } from 'vue';
 import { AutoComplete, Select, Switch, Tooltip } from 'ant-design-vue';
 import { describe, expect, it, vi } from 'vitest';
 
+import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../../api';
+import { roleOptionsLoader } from '../config-helpers';
 import PageDisplaySettingsDrawer from '../page-display-settings-drawer.vue';
 import PageDisplaySettingsDetailTab from '../page-display-settings-detail-tab.vue';
 import PageDisplaySettingsListTab from '../page-display-settings-list-tab.vue';
@@ -72,6 +74,67 @@ async function searchFields(keyword: string) {
 }
 
 describe('页面展示设置抽屉', () => {
+  it('关闭时不加载编辑目录，首次打开初始化一次', async () => {
+    for (const loader of [
+      fetchOptions,
+      fetchDictOptions,
+      fetchEnumOptions,
+      roleOptionsLoader,
+    ]) {
+      vi.mocked(loader).mockClear();
+    }
+    const wrapper = mount(PageDisplaySettingsDrawer, {
+      attachTo: document.body,
+      props: {
+        code: '/clob/V1/Area',
+        fields: [{ key: 'name', label: '名称', search: true }],
+        modelValue: { version: 1 },
+        open: false,
+        saving: false,
+      },
+    });
+    try {
+      await flushPromises();
+      expect(fetchOptions).not.toHaveBeenCalled();
+      expect(fetchDictOptions).not.toHaveBeenCalled();
+      expect(fetchEnumOptions).not.toHaveBeenCalled();
+      expect(roleOptionsLoader).not.toHaveBeenCalled();
+      expect(
+        document.body.querySelector('.page-display-settings-field-row'),
+      ).toBeNull();
+      await wrapper.setProps({ open: true });
+      await flushPromises();
+      expect(fetchOptions).toHaveBeenCalledTimes(1);
+      expect(fetchDictOptions).toHaveBeenCalledTimes(2);
+      expect(fetchEnumOptions).toHaveBeenCalledTimes(2);
+      expect(roleOptionsLoader).toHaveBeenCalledTimes(1);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it('首次以打开状态挂载时也初始化编辑目录一次', async () => {
+    for (const loader of [
+      fetchOptions,
+      fetchDictOptions,
+      fetchEnumOptions,
+      roleOptionsLoader,
+    ]) {
+      vi.mocked(loader).mockClear();
+    }
+    const wrapper = mountDrawer(false);
+    try {
+      await flushPromises();
+      expect(fetchOptions).toHaveBeenCalledTimes(1);
+      expect(roleOptionsLoader).toHaveBeenCalledTimes(1);
+      await nextTick();
+      expect(fetchOptions).toHaveBeenCalledTimes(1);
+      expect(roleOptionsLoader).toHaveBeenCalledTimes(1);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   it('加载记录后用记录范围整体替换旧范围，未命中时清空', async () => {
     const wrapper = mountDrawer(false);
     const savedScope = () =>

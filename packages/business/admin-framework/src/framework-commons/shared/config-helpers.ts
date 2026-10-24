@@ -109,23 +109,6 @@ export const nationCodeOptionsLoader = buildDictOptionsLoader('NationCode');
 export const currencyCodeOptionsLoader = buildDictOptionsLoader('CurrencyCode');
 export const languageCodeOptionsLoader = buildDictOptionsLoader('LanguageCode');
 
-export const roleOptionsLoader = (keyword?: string) =>
-  fetchOptions(
-    '/Role/listUserRoleCode',
-    'label',
-    'value',
-    withOptionSearchParams(
-      {
-        codeForKey: false,
-        pageIndex: 1,
-        pageSize: 500,
-      },
-      'containsName',
-      keyword,
-    ),
-    OAK_BASE_API_MODULE,
-  );
-
 export const orgOptionsLoader = () =>
   rbacService.fetchAuthorizedOrgOptions({
     assembleTree: false,
@@ -227,3 +210,6 @@ export async function loadTenantSitePublicIp() {
   tenantSiteCapabilityState.publicIpLoaded = true;
   return tenantSiteCapabilityState.publicIp;
 }
+
+// 角色按页面和实际查询条件共享请求结果，关键词仍由服务端搜索。
+export { getSessionRoleOptions as roleOptionsLoader } from '../app/api/session-role-options';

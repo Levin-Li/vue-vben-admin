@@ -21,6 +21,7 @@ export {
   currentGlobalTenantId,
 } from './framework-commons/app/global-org-context-state';
 export * from './framework-commons/app/options';
+export * from './framework-commons/app/session-resources';
 export * from './framework-commons/app/views/_core/authentication/behavior-captcha';
 export * from './framework-commons/data-attr-policy';
 export * from './framework-commons/event-bus';
@@ -41,9 +42,8 @@ export * from './framework-commons/shared/pattern-list-utils';
 export * from './framework-commons/shared/pinyin-fuzzy-search';
 export * from './framework-commons/shared/user-dropdown-menu-service';
 export * from './framework-commons/shared/user-message-summary';
-export * from './framework-commons/shared/user-message-target';
 
-export * from './framework-commons/shared/user-org-selector-types';
+export * from './framework-commons/shared/user-message-target';
 
 export const DraggableFloatingPanel = defineAsyncComponent(
   () => import('./framework-commons/shared/draggable-floating-panel.vue'),
@@ -64,6 +64,8 @@ export const PatternListEditor = defineAsyncComponent(
 export const UserOrgSelector = defineAsyncComponent(
   () => import('./framework-commons/shared/user-org-selector.vue'),
 );
+
+export * from './framework-commons/shared/user-org-selector-types';
 
 export {
   addLayoutHeaderExtensionAreaItem,

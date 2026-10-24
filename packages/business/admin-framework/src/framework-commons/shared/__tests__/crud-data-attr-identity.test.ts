@@ -5,11 +5,15 @@ import { effectScope, nextTick, ref } from 'vue';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { configureDataAttrPolicyLoader } from '../../data-attr-policy';
+import {
+  clearDataAttrPolicies,
+  configureDataAttrPolicyLoader,
+  getDataAttrPolicyEpoch,
+} from '../../data-attr-policy';
 import { useCrudDataAttrAccess } from '../crud-data-attr-access';
 
 describe('外部身份更新后的属性组缓存', () => {
-  it('身份签名改变会重新读取后端策略，不复用上个身份的allowed结论', async () => {
+  it('页面身份只刷新派生状态，会话统一失效后才重新读取授权', async () => {
     const identity = ref('reader');
     const loader = vi.fn(async () => {
       const policy: DataAttrPolicy = {
@@ -59,8 +63,16 @@ describe('外部身份更新后的属性组缓存', () => {
       await access.ensure('update');
       expect(access.allowed('update', 'input', 'amount')).toBe(false);
       const before = loader.mock.calls.length;
+      const epoch = getDataAttrPolicyEpoch();
       identity.value = 'writer';
       await nextTick();
+      await flushPromises();
+      await access.ensure('update');
+      expect(getDataAttrPolicyEpoch()).toBe(epoch);
+      expect(loader.mock.calls.length).toBe(before);
+      expect(access.allowed('update', 'input', 'amount')).toBe(false);
+      // 登录流程安装新会话，统一通知所有页面刷新。
+      clearDataAttrPolicies();
       await flushPromises();
       await access.ensure('update');
       expect(loader.mock.calls.length).toBeGreaterThan(before);

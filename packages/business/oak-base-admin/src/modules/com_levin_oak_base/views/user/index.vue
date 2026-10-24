@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
-import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
@@ -16,7 +16,7 @@ import { Card, message, Modal, Select } from 'ant-design-vue';
 import { UserService, userService } from '../../api/user-service';
 import { loadDataPermissionDomainOptions } from '../../domain-scope-options';
 import CrudPage from '../crud-page.vue';
-import { loadRolePermissionRecords } from '../load-role-permission-records';
+import { usePageRolePermissionRecords } from '../load-role-permission-records';
 import { getUserDataPermissionBadgeItems } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from './config';
 
@@ -31,6 +31,8 @@ async function loadStringDomainScopeOptions(keyword?: string) {
 
 const pageKey = ref(0);
 const currentUser = useUserStore();
+const { records: permissionRoleRecords, refresh: refreshRolePermissionRecords } =
+  usePageRolePermissionRecords(() => currentUser.userInfo);
 const selectedOrg = ref<UserOrgSelectorRecord>();
 const selectedScope = computed(() =>
   selectedOrg.value?.tenantId
@@ -52,7 +54,6 @@ const roleModalOpen = ref(false);
 const roleSubmitting = ref(false);
 const roleOptionsLoading = ref(false);
 const roleOptions = ref<Array<{ label: string; value: string }>>([]);
-const permissionRoleRecords = ref<Array<Record<string, any>>>([]);
 const roleFormState = reactive({
   id: '',
   roleList: [] as string[],
@@ -92,21 +93,6 @@ const userListConfig = computed(() => {
   };
 });
 
-let rolePermissionLoad: null | Promise<Array<Record<string, any>>> = null;
-function refreshRolePermissionRecords() {
-  if (rolePermissionLoad) return;
-  rolePermissionLoad = loadRolePermissionRecords();
-  void rolePermissionLoad
-    .then((records) => {
-      permissionRoleRecords.value = records;
-    })
-    .catch(() => undefined)
-    .finally(() => {
-      rolePermissionLoad = null;
-    });
-}
-onMounted(refreshRolePermissionRecords);
-onActivated(refreshRolePermissionRecords);
 
 async function loadRoleOptions(keyword = '') {
   const generation = scopeGeneration;
@@ -157,6 +143,7 @@ async function submitRoleForm() {
 }
 
 function handleSaved() {
+  void refreshRolePermissionRecords(true);
   pageKey.value += 1;
 }
 

@@ -217,6 +217,36 @@ describe('工单工作台授权交互阳性合同', () => {
     vi.unstubAllGlobals();
   });
 
+  it('无默认租户时先引导选择受理组织，选择后才查询工单', async () => {
+    mocks.userInfo = { platformUser: true, tenantId: '' };
+    const wrapper = mount(TicketPage);
+    wrappers.push(wrapper);
+    await flushPromises();
+
+    expect(mocks.ticket.list).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('请选择受理组织后查询客服工单');
+
+    await button(wrapper, '选择范围').trigger('click');
+    await flushPromises();
+    expect(mocks.ticket.list).toHaveBeenCalledExactlyOnceWith({
+      ...scope,
+      status: undefined,
+      pageIndex: 1,
+      pageSize: 20,
+    });
+    expect(wrapper.text()).not.toContain('请选择受理组织后查询客服工单');
+  });
+
+  it('有默认租户时继续查询当前租户，不强制选择组织', async () => {
+    mocks.userInfo = { platformUser: false, tenantId: 'tenant' };
+    const wrapper = mount(TicketPage);
+    wrappers.push(wrapper);
+    await flushPromises();
+
+    expect(mocks.ticket.list).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).not.toContain('请选择受理组织后查询客服工单');
+  });
+
   it.each([true, false])(
     '分派目录按主体查询，提交选定处理人及范围版本并重新读取 platform=%s',
     async (platformUser) => {

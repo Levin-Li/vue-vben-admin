@@ -94,7 +94,6 @@ import {
   createCrudRecord,
   deleteCrudRecord,
   fetchCrudList,
-  fetchOptions,
   updateCrudRecord,
 } from '../api';
 import {
@@ -103,6 +102,7 @@ import {
   uploadFileByFileStorageController,
 } from '../app/api/file-storage-service';
 import { rbacService } from '../app/api/rbac-service';
+import { getSessionRoleOptions } from '../app/api/session-role-options';
 import { saveUiSettingWithCandidates } from '../app/api/ui-setting-candidate-save';
 import { resolveUiSettingRecordScope } from '../app/api/ui-setting-record-scope';
 import {
@@ -440,6 +440,7 @@ const { hasPermission } = useRbacAccess();
 const pageActive = ref(true);
 onActivated(() => {
   pageActive.value = true;
+  attachPageWindowListeners();
   if (listRefreshOnActivate) {
     listRefreshOnActivate = false;
     void loadList();
@@ -447,6 +448,9 @@ onActivated(() => {
 });
 onDeactivated(() => {
   pageActive.value = false;
+  detachPageWindowListeners();
+  clearSingleTextQueryAutoSearchTimer();
+  cancelListTableTabsDrag();
   listRequestGeneration++;
   if (loading.value) {
     listRefreshOnActivate = true;
@@ -613,7 +617,7 @@ const hiddenTableColumnKeys = ref<string[]>([]);
 const orderedTableColumnKeys = ref<string[]>([]);
 const columnSettingsOpen = ref(false);
 const pageDisplaySettingsOpen = ref(false);
-// 第二版按需加载并独立挂载，原版组件和编辑状态继续保持原有路径。
+// 两版编辑抽屉仅在点击后挂载，普通页面只解析实际应用的展示配置。
 const PageDisplaySettingsDrawerV2 = defineAsyncComponent(
   () => import('./page-display-settings-drawer-v2.vue'),
 );
@@ -3193,6 +3197,13 @@ function stopListTableTabsDrag() {
   window.removeEventListener('pointercancel', handleListTableTabsPointerUp);
 }
 
+// 失活仅终止拖动，不触发点击折叠或保存未完成的拖动。
+function cancelListTableTabsDrag() {
+  listTableTabsDragState = null;
+  isDraggingListTableTabs.value = false;
+  stopListTableTabsDrag();
+}
+
 function handleListTableTabsPointerUp() {
   const shouldToggleCollapsed = !listTableTabsDragState?.moved;
 
@@ -3330,26 +3341,12 @@ function getDefaultOptionsLoader(field: CrudFieldConfig) {
   }
 
   if (field.type === 'role-select') {
-    return (keyword?: string) => {
-      const params: Record<string, any> = {
-        codeForKey: false,
-        pageIndex: 1,
-        pageSize: 500,
-      };
-      const normalizedKeyword = String(keyword || '').trim();
-
-      if (normalizedKeyword) {
-        params.containsName = normalizedKeyword;
-      }
-
-      return fetchOptions(
-        '/Role/listUserRoleCode',
-        'label',
-        'value',
-        params,
-        props.config.apiModuleBase,
+    return (keyword?: string) =>
+      getSessionRoleOptions(
+        keyword,
+        pageEntryPath,
+        props.config.apiModuleBase ?? '',
       );
-    };
   }
 }
 
@@ -5896,8 +5893,10 @@ function loadSearchFromFirstPage() {
 
 function scheduleSingleTextQueryAutoSearch() {
   clearSingleTextQueryAutoSearchTimer();
+  if (!pageActive.value) return;
   singleTextQueryAutoSearchTimer = setTimeout(() => {
     singleTextQueryAutoSearchTimer = undefined;
+    if (!pageActive.value) return;
     if (
       !shouldAutoQuery(
         singleTextQueryAutoSearchEnabled.value,
@@ -5919,6 +5918,10 @@ function handleSingleTextQuerySearchEnter() {
 watch(
   searchState,
   () => {
+    if (!pageActive.value) {
+      clearSingleTextQueryAutoSearchTimer();
+      return;
+    }
     if (
       shouldAutoQuery(
         autoSearchEnabled.value,
@@ -7837,9 +7840,24 @@ async function runRowAction(
   }
 }
 
-onMounted(async () => {
+// 缓存页仅在前台订阅窗口事件；首次挂载与 KeepAlive 激活共用去重入口。
+let pageWindowListenersAttached = false;
+function attachPageWindowListeners() {
+  if (pageWindowListenersAttached) return;
+  pageWindowListenersAttached = true;
   window.addEventListener('resize', handleViewportResize);
   window.addEventListener('paste', handlePasteUpload);
+}
+
+function detachPageWindowListeners() {
+  if (!pageWindowListenersAttached) return;
+  pageWindowListenersAttached = false;
+  window.removeEventListener('resize', handleViewportResize);
+  window.removeEventListener('paste', handlePasteUpload);
+}
+
+onMounted(async () => {
+  attachPageWindowListeners();
   Object.assign(searchState, props.config.initialQuery || {});
   applyEditableSearchDefault();
   await loadPageDisplaySettings();
@@ -7871,9 +7889,8 @@ onUnmounted(() => {
   listUnmounted = true;
   listRequestGeneration += 1;
   clearSingleTextQueryAutoSearchTimer();
-  window.removeEventListener('resize', handleViewportResize);
-  window.removeEventListener('paste', handlePasteUpload);
-  stopListTableTabsDrag();
+  detachPageWindowListeners();
+  cancelListTableTabsDrag();
   listSectionResizeObserver?.disconnect();
   listSectionResizeObserver = null;
   searchPanelResizeObserver?.disconnect();
@@ -9964,7 +9981,7 @@ watch(
     />
 
     <PageDisplaySettingsDrawer
-      v-if="pageDisplaySettingCode"
+      v-if="pageDisplaySettingCode && pageDisplaySettingsOpen"
       v-model:open="pageDisplaySettingsOpen"
       :action-candidates="actionDisplayCandidates"
       :code="pageDisplaySettingCode"

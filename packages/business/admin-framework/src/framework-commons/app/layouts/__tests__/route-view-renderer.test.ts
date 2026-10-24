@@ -8,17 +8,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { RouteViewRenderer } from '../route-view-renderer';
 
-vi.mock('@vben-core/foundation/preferences', () => ({
-  usePreferences: () => ({ keepAlive: { value: true } }),
-}));
-
 vi.mock('@vben/runtime/stores', () => ({
   getTabKey: (route: { fullPath: string }) => route.fullPath,
-  storeToRefs: () => ({
-    getCachedTabs: { value: ['CrudPage', 'OtherPage'] },
-    getExcludeCachedTabs: { value: [] },
-  }),
-  useTabbarStore: () => ({}),
 }));
 
 function route(name: string) {
@@ -29,8 +20,8 @@ function route(name: string) {
   } as RouteLocationNormalizedLoadedGeneric;
 }
 
-describe('routeViewRenderer', () => {
-  it('keeps a named leaf page whose component name differs from its route', async () => {
+describe('内层路由渲染器', () => {
+  it('只渲染当前页面，缓存由外层标签持有', async () => {
     const mounted = vi.fn();
     const active = ref<'CrudPage' | 'OtherPage'>('CrudPage');
     const CrudPage = defineComponent({
@@ -62,11 +53,12 @@ describe('routeViewRenderer', () => {
     active.value = 'CrudPage';
     await nextTick();
 
-    expect(wrapper.find('button').text()).toBe('第 2 页');
-    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('button').text()).toBe('第 1 页');
+    expect(mounted).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
   });
 
-  it('retains CRUD pagination state when a cached tab is revisited', async () => {
+  it('空页面退出后不保留内层缓存', async () => {
     const mounted = vi.fn();
     const active = ref<'CrudPage' | 'OtherPage' | undefined>('CrudPage');
     const CrudPage = defineComponent({
@@ -102,7 +94,8 @@ describe('routeViewRenderer', () => {
     active.value = 'CrudPage';
     await nextTick();
 
-    expect(wrapper.find('button').text()).toBe('第 2 页');
-    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('button').text()).toBe('第 1 页');
+    expect(mounted).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
   });
 });

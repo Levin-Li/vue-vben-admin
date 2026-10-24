@@ -185,7 +185,12 @@ describe.skipIf(!baseUrl)('真实 Spring MVC 与前端属性组策略契约', ()
   it('真实策略裁剪默认值及转换器恢复的赋值，保留ID版本和可写force项', async () => {
     const { access, fields, service } = contractAccess();
     await access.ensure('update');
-    const defaults = { id: 'c1', version: 1, optimisticLock: 1, amount: '999.00' };
+    const defaults = {
+      id: 'c1',
+      version: 1,
+      optimisticLock: 1,
+      amount: '999.00',
+    };
     const transformed = {
       ...defaults,
       title: '真实HTTP保存',
@@ -214,12 +219,16 @@ describe.skipIf(!baseUrl)('真实 Spring MVC 与前端属性组策略契约', ()
     expect(JSON.stringify(info)).not.toContain('"amount"');
   });
 
-  it('无权查询条件在真实网络出口前拒绝，raw fetch绕过仍被后端拒绝且业务计数不增', async () => {
+  it('页面从内存策略拒绝无权条件，直调服务仍被后端拒绝且业务计数不增', async () => {
     const { access, service } = contractAccess();
     await access.ensure('list');
     expect(() => access.assertInput('list', { amount: '100.00' })).toThrow();
-    await expect(service.list({ amount: '100.00' })).rejects.toThrow();
-    expect(sent).toHaveLength(0);
+    const queries = metadataQueries.length;
+    await expect(service.list({ amount: '100.00' })).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(sent).toHaveLength(1);
+    expect(metadataQueries).toHaveLength(queries);
     expect(await callCount('query')).toBe(0);
     await expect(
       rawRequest(routes.query, 'POST', { amount: '100.00' }),
@@ -252,8 +261,11 @@ describe.skipIf(!baseUrl)('真实 Spring MVC 与前端属性组策略契约', ()
     async (user) => {
       await useActor(user);
       const input = { id: 'c1', version: 1, amount: '500.00', title: '不可写' };
-      await expect(requestClient.post(routes.update, input)).rejects.toThrow();
-      expect(sent).toHaveLength(0);
+      await expect(
+        requestClient.post(routes.update, input),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(sent).toHaveLength(1);
+      expect(metadataQueries).toHaveLength(0);
       await expect(
         rawRequest(routes.update, 'POST', input),
       ).rejects.toMatchObject({ status: 403 });
@@ -287,13 +299,13 @@ describe.skipIf(!baseUrl)('真实 Spring MVC 与前端属性组策略契约', ()
     await access.ensure('update');
     expect(access.allowed('update', 'input', 'amount')).toBe(false);
     sent.splice(0);
-    await expect(
-      service.update({
+    expect(() =>
+      access.assertInput('update', {
         id: 'c1',
         version: before.contract.version,
         amount: '300.00',
       }),
-    ).rejects.toThrow();
+    ).toThrow();
     expect(sent).toHaveLength(0);
     const info = await service.retrieve();
     expect(JSON.stringify(info)).not.toContain('"amount"');
@@ -306,19 +318,19 @@ describe.skipIf(!baseUrl)('真实 Spring MVC 与前端属性组策略契约', ()
     expect(access.allowed('retrieve', 'output', 'amount')).toBe(true);
     expect(await service.retrieve()).toHaveProperty('amount');
     const count = metadataQueries.length;
-    await useActor('reader', false);
+    await useActor('reader');
     await access.ensure('retrieve');
     expect(metadataQueries.length).toBeGreaterThan(count);
     expect(access.allowed('retrieve', 'output', 'amount')).toBe(false);
     expect(JSON.stringify(await service.retrieve())).not.toContain('"amount"');
   });
 
-  it('无注解真实接口重复访问复用无组策略缓存，行为保持不变', async () => {
+  it('无注解真实接口重复访问不查询字段策略，行为保持不变', async () => {
     await requestClient.get('/fixture/plain');
     await requestClient.get('/fixture/plain');
     expect(await callCount('plain')).toBe(2);
     expect(
       metadataQueries.filter((query: any) => query.path === '/fixture/plain'),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
 });

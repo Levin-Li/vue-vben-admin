@@ -14,6 +14,7 @@ import { buildApiMethodPermissions } from '@levin/admin-framework/framework-comm
 import { WorkflowBusinessPanel } from '@levin/bpm-runtime-ui';
 import { Alert, Drawer, message, Select } from 'ant-design-vue';
 
+import { getSessionWorkflowCatalog } from '../api/session-directories';
 import { workflowRuntimeService } from '../api/workflow-runtime-service';
 import {
   workflowCrudContracts,
@@ -91,7 +92,7 @@ watch(
     )
       return;
     try {
-      const result = await workflowRuntimeService.catalog();
+      const result = await getSessionWorkflowCatalog();
       if (request === generation) catalog.value = result;
     } catch {
       // 工作流未安装或目录无权时，普通业务 CRUD 继续可用，入口保持隐藏。

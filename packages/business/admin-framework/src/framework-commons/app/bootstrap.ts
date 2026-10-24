@@ -117,9 +117,6 @@ async function bootstrap(namespace: string) {
   const { initTippy } = await import('@vben/common-ui/es/tippy');
   initTippy(app);
 
-  // 配置路由及路由守卫
-  app.use(router);
-
   // 模块可在 setup 中注册应用级扩展；必须在挂载前统一执行，避免模块声明只被收集而未生效。
   await setupAdminModules(getEnabledFrontendModules(), {
     app,
@@ -128,6 +125,9 @@ async function bootstrap(namespace: string) {
     request: requestClient,
     router,
   });
+
+  // 模块共享目录注册完成后再启动首个路由守卫和会话初始化。
+  app.use(router);
 
   // 路由可能缓存清理前的首个 URL；绑定恢复时等待稳定后同步剔除，保留业务路径和片段。
   if (capturedBindCallback) {

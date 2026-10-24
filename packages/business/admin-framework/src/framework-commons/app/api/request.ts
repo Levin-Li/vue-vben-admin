@@ -16,12 +16,11 @@ import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store
  * 该文件可自行根据业务逻辑进行调整
  */
 import {
-  clearDataAttrPolicies,
+  assertDataAttrSessionReady,
   DATA_ATTR_POLICY_PATH,
+  DATA_ATTR_POLICY_SNAPSHOT_PATH,
   dataAttrRequestPath,
-  guardDataAttrRequest,
   isDataAttrPolicyReady,
-  shouldInvalidateDataAttrPolicy,
 } from '../../data-attr-policy';
 import {
   currentGlobalDomainIds,
@@ -259,7 +258,7 @@ async function signClientRequest(config: any) {
 
 /** 加密完成后再按原始明文体签名，两个协商路径始终复用这一个公共入口。 */
 async function secureClientRequest(config: any) {
-  // 策略查询使用固定入口避免递归；其余已登录业务请求在加密前检查明文参数。
+  // 登录初始化只检查会话是否就绪，不为业务请求重复查询字段策略。
   const path = String(config.url || '');
   const route = dataAttrRequestPath(path, config.baseURL).split('?')[0] || '';
   // 只开放后端明确公开的登录目录，其他 OAuth 接口仍检查会话策略。
@@ -279,11 +278,13 @@ async function secureClientRequest(config: any) {
     !publicLoginCatalog &&
     !isAnonymousCryptoContext(config) &&
     !(
-      String(config.method || 'GET').toUpperCase() === 'POST' &&
-      route === DATA_ATTR_POLICY_PATH
+      (String(config.method || 'GET').toUpperCase() === 'POST' &&
+        route === DATA_ATTR_POLICY_PATH) ||
+      (String(config.method || 'GET').toUpperCase() === 'GET' &&
+        route === DATA_ATTR_POLICY_SNAPSHOT_PATH)
     )
   ) {
-    await guardDataAttrRequest(String(config.method || 'GET'), path, config);
+    assertDataAttrSessionReady();
   }
   return signClientRequest(await encryptClientRequest(config));
 }
@@ -489,8 +490,7 @@ function applyCommonInterceptors(client: RequestClient) {
       });
     },
     rejected: (error: any) => {
-      // 后端拒绝权限时撤销当前策略，保留错误提示且不重放写请求。
-      if (shouldInvalidateDataAttrPolicy(error)) clearDataAttrPolicies();
+      // 后端拒绝直接交给调用方，不清空会话快照或自动重放业务请求。
       emitApiRequestEvent({
         config: error?.config ?? error?.response?.config,
         error,

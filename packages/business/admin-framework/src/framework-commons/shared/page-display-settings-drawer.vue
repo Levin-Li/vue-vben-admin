@@ -24,7 +24,6 @@ import {
   defineComponent,
   h,
   nextTick,
-  onMounted,
   onUnmounted,
   reactive,
   ref,
@@ -171,9 +170,6 @@ let cachedScopeOptions:
     }
   | undefined;
 let scopeOptionsRequestVersion = 0;
-let cachedRoleVisibilityOptions:
-  | Array<{ label: string; value: string }>
-  | undefined;
 const roleVisibilityOptions = ref<Array<{ label: string; value: string }>>([]);
 const roleVisibilityLoading = ref(false);
 const groupRenderVersion = ref(0);
@@ -400,15 +396,10 @@ function handleTenantScopeChange() {
 }
 
 async function loadRoleVisibilityOptions() {
-  if (cachedRoleVisibilityOptions) {
-    roleVisibilityOptions.value = cachedRoleVisibilityOptions;
-    return;
-  }
   if (roleVisibilityLoading.value) return;
   roleVisibilityLoading.value = true;
   try {
     roleVisibilityOptions.value = normalizeOptions(await roleOptionsLoader());
-    cachedRoleVisibilityOptions = roleVisibilityOptions.value;
   } catch (error) {
     console.warn('加载字段可见角色选项失败。', error);
   } finally {
@@ -1687,6 +1678,7 @@ watch(
     previewExpanded.value = false;
     void refreshPreviewOverflow();
   },
+  { immediate: true },
 );
 
 watch(
@@ -1749,9 +1741,6 @@ watch(normalizedFieldSearch, () => {
 onUnmounted(() => {
   previewResizeObserver?.disconnect();
   observedPreviewElement = null;
-});
-onMounted(() => {
-  void loadRoleVisibilityOptions();
 });
 </script>
 

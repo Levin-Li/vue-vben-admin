@@ -1,7 +1,10 @@
 import type { DataAttrPolicies, DataAttrTarget } from '../../data-attr-policy';
 
 import { ResAuthorize, Service } from '../../api-authorize';
-import { DATA_ATTR_POLICY_PATH } from '../../data-attr-policy';
+import {
+  DATA_ATTR_POLICY_PATH,
+  DATA_ATTR_POLICY_SNAPSHOT_PATH,
+} from '../../data-attr-policy';
 import { RequestService } from '../../request-service';
 import { requestClient } from './request';
 
@@ -22,6 +25,18 @@ export class DataAttrPolicyService extends RequestService {
   async resolve(query: DataAttrTarget | { operation: string }) {
     // 只由固定策略入口读取，不递归经过业务代理；底层安全链仍负责签名与加密。
     return requestClient.post<DataAttrPolicies>(DATA_ATTR_POLICY_PATH, query, {
+      baseURL: '',
+    });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: 'API字段策略',
+    action: '读取API字段策略',
+    onlyRequireAuthenticated: true,
+  })
+  async snapshot() {
+    return requestClient.get<DataAttrPolicies>(DATA_ATTR_POLICY_SNAPSHOT_PATH, {
       baseURL: '',
     });
   }

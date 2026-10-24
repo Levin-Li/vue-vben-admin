@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { roleOptionsLoader } from '@levin/admin-framework/framework-commons/shared/config-helpers';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
@@ -25,21 +26,7 @@ function withOptionSearchParams(
   return params;
 }
 
-export const roleOptionsLoader = (keyword?: string) =>
-  moduleFetchOptions(
-    '/Role/listUserRoleCode',
-    'label',
-    'value',
-    withOptionSearchParams(
-      {
-        codeForKey: false,
-        pageIndex: 1,
-        pageSize: 500,
-      },
-      'containsName',
-      keyword,
-    ),
-  );
+export { roleOptionsLoader };
 
 const tenantOptionsLoader = (keyword?: string) =>
   moduleFetchOptions(

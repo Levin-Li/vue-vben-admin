@@ -5,7 +5,7 @@ import type {
   DomainRecord,
 } from '../../api/domain-service';
 
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/runtime/icons';
@@ -52,6 +52,12 @@ const providerOptions = ref<Array<{ label: string; value: any }>>([]);
 const tenantOptions = ref<Array<{ label: string; value: any }>>([]);
 const userStore = useUserStore();
 const operationProfiles = reactive<Record<string, DomainOperationProfile>>({});
+// 同一行的多个按钮和重复渲染共享正在加载的画像。
+const operationProfileRequests = new Map<
+  string,
+  Promise<DomainOperationProfile>
+>();
+let applyDomainOptionsRequest: Promise<void> | undefined;
 const selectedProviderGuidance = computed(() =>
   getTenantSiteVendorOnboardingGuidance(applyDomainForm.providerName),
 );
@@ -189,14 +195,16 @@ function operationVisible(record: DomainRecord, operation: string) {
 
 async function loadOperationProfile(id: string) {
   if (operationProfiles[id]) return operationProfiles[id];
-  try {
-    const profile = await domainService.operationProfile(id);
-    operationProfiles[id] = profile || {};
-    return operationProfiles[id];
-  } catch {
-    operationProfiles[id] = {};
-    return operationProfiles[id];
-  }
+  const pending = operationProfileRequests.get(id);
+  if (pending) return pending;
+
+  const request = domainService
+    .operationProfile(id)
+    .then((profile) => (operationProfiles[id] = profile || {}))
+    .catch(() => (operationProfiles[id] = {}))
+    .finally(() => operationProfileRequests.delete(id));
+  operationProfileRequests.set(id, request);
+  return request;
 }
 
 async function ensureOperationEnabled(record: DomainRecord, operation: string) {
@@ -361,6 +369,22 @@ function isSafeExternalUrl(url?: string) {
 function openDomainApply() {
   resetApplyDomainForm();
   domainApplyOpen.value = true;
+  void loadApplyDomainOptions().catch(console.error);
+}
+
+// 申请专用选项仅在首次打开弹窗时读取，列表不为关闭的弹窗加载目录。
+function loadApplyDomainOptions() {
+  applyDomainOptionsRequest ??= Promise.all([
+    tenantSiteVendorOptionsLoader().then((options) => {
+      providerOptions.value = options;
+    }),
+    isPlatformUser.value
+      ? tenantOptionsLoader().then((options) => {
+          tenantOptions.value = options;
+        })
+      : Promise.resolve(),
+  ]).then(() => undefined);
+  return applyDomainOptionsRequest;
 }
 
 function closeDomainApply() {
@@ -453,13 +477,6 @@ async function submitDomainApply(loadList?: () => Promise<void> | void) {
     domainApplying.value = false;
   }
 }
-
-onMounted(async () => {
-  providerOptions.value = await tenantSiteVendorOptionsLoader();
-  if (isPlatformUser.value) {
-    tenantOptions.value = await tenantOptionsLoader();
-  }
-});
 </script>
 
 <template>

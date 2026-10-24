@@ -42,11 +42,11 @@ import {
   Tag,
 } from 'ant-design-vue';
 
+import { getSessionWorkflowCatalog } from '../../api/session-directories';
 import { loadWorkflowCandidates } from '../../api/workflow-candidate-service';
 import { workflowDefinitionService } from '../../api/workflow-definition-service';
 import { workflowDefinitionVersionService } from '../../api/workflow-definition-version-service';
 import { workflowManagementService } from '../../api/workflow-management-service';
-import { workflowRuntimeService } from '../../api/workflow-runtime-service';
 import NoticeContentViewer from '../my-messages/notice-content-viewer.vue';
 import { createWorkflowDefinitionCrudConfig, lifecycleLabels } from './config';
 
@@ -86,6 +86,12 @@ watch(error, (value) => {
 });
 const candidateKeyword = ref('');
 let candidateRequest = 0;
+// 编辑候选按查询词在当前页面复用，空结果和并发请求同样属于有效缓存。
+const candidateLoads = new Map<
+  string,
+  ReturnType<typeof loadWorkflowCandidates>
+>();
+let publishedVersionsLoad: Promise<void> | undefined;
 let selectionRequest = 0;
 const createOpen = ref(false);
 const designOpen = ref(false);
@@ -404,15 +410,43 @@ function showError(value: unknown) {
   error.value = value instanceof Error ? value.message : '操作失败，请重试。';
 }
 
-async function loadCandidates() {
+async function loadCandidates(refresh = false) {
   const current = ++candidateRequest;
+  const keyword = candidateKeyword.value.trim();
+  let pending = candidateLoads.get(keyword);
+  if (!pending || refresh) {
+    pending = loadWorkflowCandidates(keyword);
+    candidateLoads.set(keyword, pending);
+  }
   try {
-    const result = await loadWorkflowCandidates(candidateKeyword.value.trim());
+    const result = await pending;
     if (current === candidateRequest) candidates.value = result;
   } catch (error_) {
+    // 失败不缓存为成功空值，用户下次打开或主动刷新时可以恢复。
+    if (candidateLoads.get(keyword) === pending) candidateLoads.delete(keyword);
     if (current === candidateRequest) showError(error_);
   }
 }
+
+// 已发布正文只用于设计器的前置用途选项，列表无需提前加载。
+function loadPublishedVersionOptions() {
+  publishedVersionsLoad ??= loadVersions({ lifecycle: 'Published' })
+    .then((published) => {
+      publishedVersions.value = published;
+    })
+    .catch((error_) => {
+      publishedVersionsLoad = undefined;
+      showError(error_);
+    });
+  return publishedVersionsLoad;
+}
+
+// 只有面板打开才准备编辑目录；关闭重开不重复获取已加载的选项。
+watch(designOpen, (open) => {
+  if (!open) return;
+  void loadCandidates();
+  void loadPublishedVersionOptions();
+});
 
 // 分页加载版本元数据，不能用固定 200 条把旧版历史或前置用途静默截断。
 async function loadVersions(query_: {
@@ -506,19 +540,11 @@ async function loadDirectory() {
         if (request === directoryRequest) directoryLoading.value = false;
       }),
     // 固定第三版仍使用原受控能力目录，不能让其失败阻止新对象目录使用。
-    workflowRuntimeService.catalog().then(
+    getSessionWorkflowCatalog().then(
       (directory) => {
         if (request === directoryRequest) businessTypes.value = directory;
       },
       () => {},
-    ),
-    loadVersions({ lifecycle: 'Published' }).then(
-      (published) => {
-        if (request === directoryRequest) publishedVersions.value = published;
-      },
-      (error_) => {
-        if (request === directoryRequest) showError(error_);
-      },
     ),
   ]);
 }
@@ -920,7 +946,6 @@ function closeCreate() {
 
 onMounted(() => {
   void loadDirectory();
-  void loadCandidates();
 });
 </script>
 
@@ -1069,9 +1094,9 @@ onMounted(() => {
             aria-label="审批人搜索"
             placeholder="按姓名搜索审批人"
             class="w-72"
-            @press-enter="loadCandidates"
+            @press-enter="loadCandidates(true)"
           />
-          <Button @click="loadCandidates">刷新人员候选</Button>
+          <Button @click="loadCandidates(true)">刷新人员候选</Button>
         </Space>
         <p class="text-muted-foreground mt-3 text-sm" role="note">
           发起前请确认流程已发布、业务记录满足启动条件，且发起人和审批人均具备该记录的业务访问权限。实例的租户和组织跟随业务记录，选择审批人不会自动授予数据权限。

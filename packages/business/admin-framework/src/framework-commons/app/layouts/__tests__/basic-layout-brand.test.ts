@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import { flushPromises, mount } from '@vue/test-utils';
+import { reactive } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -24,6 +25,10 @@ const mocks = vi.hoisted(() => ({
   },
   messageReadListener: undefined as (() => void) | undefined,
   stopMessageReadListener: vi.fn(),
+  reactiveStores: null as null | {
+    accessToken: string;
+    userInfo: Record<string, any>;
+  },
   accessToken: '',
   routePath: '/index',
   destroyWatermark: vi.fn(),
@@ -131,13 +136,15 @@ vi.mock('@vben-core/foundation/preferences', () => ({
 }));
 
 vi.mock('@vben/runtime/stores', () => ({
-  useAccessStore: () => ({
-    accessToken: mocks.accessToken,
-    loginExpired: false,
-  }),
-  useUserStore: () => ({
-    userInfo: mocks.userInfo,
-  }),
+  useAccessStore: () =>
+    mocks.reactiveStores ?? {
+      accessToken: mocks.accessToken,
+      loginExpired: false,
+    },
+  useUserStore: () =>
+    mocks.reactiveStores ?? {
+      userInfo: mocks.userInfo,
+    },
 }));
 
 vi.mock('vue-router', () => ({
@@ -217,6 +224,7 @@ describe('basic layout tenant site brand', () => {
     mocks.adminMenuSyncService = null;
     mocks.adminUserMessageService = null;
     mocks.accessToken = '';
+    mocks.reactiveStores = null;
     mocks.userInfo.superAdmin = false;
   });
 
@@ -263,6 +271,39 @@ describe('basic layout tenant site brand', () => {
       wrapper.unmount();
     },
   );
+
+  it('同一用户资料对象替换不重查通知，身份与就绪状态变化仍重新同步', async () => {
+    const stores = reactive({
+      accessToken: 'token-a',
+      userInfo: { id: 'user-a', name: '原名称' },
+    });
+    mocks.reactiveStores = stores;
+    mocks.adminUserMessageService = {
+      list: vi.fn().mockResolvedValue({ items: [] }),
+      unreadCount: vi.fn().mockResolvedValue(0),
+      markRead: vi.fn(),
+    };
+    const wrapper = mount(Basic);
+    await flushPromises();
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(1);
+    stores.userInfo = { id: 'user-a', name: '新名称' };
+    await flushPromises();
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(1);
+    expect(mocks.adminUserMessageService.unreadCount).toHaveBeenCalledTimes(1);
+    stores.userInfo = { id: 'user-b', name: '另一个用户' };
+    await flushPromises();
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(2);
+    stores.accessToken = 'token-b';
+    await flushPromises();
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(3);
+    suspendDataAttrPolicies();
+    await flushPromises();
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(3);
+    configureDataAttrPolicyLoader(async () => ({ version: 1, policies: [] }));
+    await flushPromises();
+    expect(mocks.adminUserMessageService.list).toHaveBeenCalledTimes(4);
+    wrapper.unmount();
+  });
 
   it('退出暂停后即使布局和旧令牌仍存在也不再读取通知', async () => {
     mocks.accessToken = 'old-access-token';

@@ -802,10 +802,11 @@ watch(
 );
 
 watch(
-  () => [
-    isDataAttrPolicyReady(),
-    accessStore.accessToken,
-    userStore.userInfo?.id,
+  // 仅监听身份值变化，刷新同一用户资料不能重复查询消息。
+  [
+    () => isDataAttrPolicyReady(),
+    () => accessStore.accessToken,
+    () => userStore.userInfo?.id,
   ],
   () => {
     // 登录身份变化时立即同步，并按最新登录态更新定时器。

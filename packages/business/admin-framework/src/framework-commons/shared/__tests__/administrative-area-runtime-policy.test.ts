@@ -6,14 +6,19 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  assertDataAttrSessionReady,
   configureDataAttrPolicyLoader,
   suspendDataAttrPolicies,
 } from '../../data-attr-policy';
 import { setAdminFrameworkRuntime } from '../../runtime';
 import { loadAdministrativeAreaOverride } from '../administrative-area-data';
 
-// 使用真实通用请求代理，验证其字段策略目标与宿主最终发送配置一致。
-const hostGet = vi.fn().mockResolvedValue(null);
+// 通用代理直接委托宿主；宿主在发送前检查会话，不逐接口查询策略。
+const send = vi.fn().mockResolvedValue(null);
+const hostGet = vi.fn((url: string, config: unknown) => {
+  assertDataAttrSessionReady();
+  return send(url, config);
+});
 const loader = vi.fn().mockResolvedValue({
   version: 1,
   policies: [
@@ -34,6 +39,7 @@ const loader = vi.fn().mockResolvedValue({
 
 beforeEach(() => {
   hostGet.mockClear();
+  send.mockClear();
   loader.mockClear();
   setAdminFrameworkRuntime({
     requestClient: {
@@ -48,12 +54,9 @@ beforeEach(() => {
 });
 
 describe('行政区划运行时正式策略目标', () => {
-  it('代理读取包含完整模块路径，宿主继续使用相同baseURL与相对路径', async () => {
+  it('代理保留宿主baseURL与相对路径，不为行政区划查询字段策略', async () => {
     await expect(loadAdministrativeAreaOverride()).resolves.toBe(false);
-    expect(loader).toHaveBeenCalledWith({
-      method: 'GET',
-      path: '/com.levin.oak.base/V1/api/Setting/use/areaCodes',
-    });
+    expect(loader).not.toHaveBeenCalled();
     expect(hostGet).toHaveBeenCalledWith('/Setting/use/areaCodes', {
       baseURL: '/com.levin.oak.base/V1/api',
       __silentError: true,
@@ -73,6 +76,7 @@ describe('行政区划运行时正式策略目标', () => {
     ).rejects.toBe(canceled);
     expect(showError).not.toHaveBeenCalled();
     expect(loader).not.toHaveBeenCalled();
-    expect(hostGet).not.toHaveBeenCalled();
+    expect(hostGet).toHaveBeenCalledOnce();
+    expect(send).not.toHaveBeenCalled();
   });
 });

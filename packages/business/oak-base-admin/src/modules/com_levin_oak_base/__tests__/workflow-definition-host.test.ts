@@ -27,6 +27,7 @@ const api = vi.hoisted(() => ({
   versions: vi.fn(),
   retrieve: vi.fn(),
   catalog: vi.fn(),
+  candidates: vi.fn(),
   businessObjects: vi.fn(),
   create: vi.fn(),
   createVersion: vi.fn(),
@@ -90,8 +91,11 @@ vi.mock('../api/workflow-management-service', () => ({
 vi.mock('../api/workflow-runtime-service', () => ({
   workflowRuntimeService: { catalog: api.catalog },
 }));
+vi.mock('../api/session-directories', () => ({
+  getSessionWorkflowCatalog: api.catalog,
+}));
 vi.mock('../api/workflow-candidate-service', () => ({
-  loadWorkflowCandidates: async () => ({ users: [], groups: [] }),
+  loadWorkflowCandidates: api.candidates,
 }));
 vi.mock('@levin/admin-framework/framework-commons/rbac-access', () => ({
   useRbacAccess: () => ({
@@ -224,6 +228,7 @@ describe('流程设计宿主的版本恢复', () => {
       ],
     });
     api.catalog.mockResolvedValue([]);
+    api.candidates.mockResolvedValue({ users: [], groups: [] });
     api.businessObjects.mockResolvedValue([
       {
         entityKey: 'example.Request',
@@ -315,6 +320,12 @@ describe('流程设计宿主的版本恢复', () => {
       return { items: [] };
     });
     const wrapper = mountPage();
+    await flushPromises();
+    expect(message.error).not.toHaveBeenCalledWith('版本加载失败');
+    await wrapper
+      .findAllComponents(Button)
+      .find((button) => button.text() === '打开设计')
+      ?.trigger('click');
     await flushPromises();
     expect(message.error).toHaveBeenCalledWith('版本加载失败');
     expect(wrapper.text()).not.toContain('当前没有可用业务对象');
@@ -415,6 +426,107 @@ describe('流程设计宿主的版本恢复', () => {
       ],
       processKey: expect.stringMatching(/^workflow-[\da-f-]+$/),
     });
+    wrapper.unmount();
+  });
+
+  it('关闭设计面板不加载编辑候选，首次打开加载并在重新打开后复用空结果', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+    expect(api.candidates).not.toHaveBeenCalled();
+    expect(
+      api.versions.mock.calls.some(
+        ([query]) => query.lifecycle === 'Published',
+      ),
+    ).toBe(false);
+
+    const openDesign = async () => {
+      await wrapper
+        .findAllComponents(Button)
+        .find((button) => button.text() === '打开设计')
+        ?.trigger('click');
+      await flushPromises();
+    };
+    await openDesign();
+    expect(api.candidates).toHaveBeenCalledExactlyOnceWith('');
+    expect(
+      api.versions.mock.calls.filter(
+        ([query]) => query.lifecycle === 'Published',
+      ),
+    ).toHaveLength(1);
+    const designer = required(
+      wrapper
+        .findAllComponents(Modal)
+        .find((item) => item.props('width') === 'calc(100vw - 32px)'),
+    );
+    designer.vm.$emit('cancel');
+    await flushPromises();
+    await openDesign();
+    expect(api.candidates).toHaveBeenCalledTimes(1);
+    expect(
+      api.versions.mock.calls.filter(
+        ([query]) => query.lifecycle === 'Published',
+      ),
+    ).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('候选尚未返回时关闭重开合并同一个页面的请求', async () => {
+    let resolveCandidates!: (value: { groups: []; users: [] }) => void;
+    api.candidates.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCandidates = resolve;
+      }),
+    );
+    const wrapper = mountPage();
+    await flushPromises();
+    const open = async () => {
+      await wrapper
+        .findAllComponents(Button)
+        .find((button) => button.text() === '打开设计')
+        ?.trigger('click');
+      await flushPromises();
+    };
+    await open();
+    const designer = required(
+      wrapper
+        .findAllComponents(Modal)
+        .find((item) => item.props('width') === 'calc(100vw - 32px)'),
+    );
+    designer.vm.$emit('cancel');
+    await flushPromises();
+    await open();
+    expect(api.candidates).toHaveBeenCalledTimes(1);
+    resolveCandidates({ users: [], groups: [] });
+    await flushPromises();
+    expect(
+      wrapper
+        .findComponent({ name: 'WorkflowDefinitionWorkbench' })
+        .props('options').users,
+    ).toEqual([]);
+    wrapper.unmount();
+  });
+
+  it('编辑候选首次打开后进入真实设计选项', async () => {
+    api.candidates.mockResolvedValue({
+      users: [{ id: 'u1', label: '用户甲', kind: 'user' }],
+      groups: [{ id: 'r1', label: '角色甲', value: 'role:r1', kind: 'role' }],
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper
+      .findAllComponents(Button)
+      .find((button) => button.text() === '打开设计')
+      ?.trigger('click');
+    await flushPromises();
+    const options = wrapper
+      .findComponent({ name: 'WorkflowDefinitionWorkbench' })
+      .props('options');
+    expect(options.users).toEqual([
+      { id: 'u1', label: '用户甲', kind: 'user' },
+    ]);
+    expect(options.groups).toEqual([
+      { id: 'r1', label: '角色甲', value: 'role:r1', kind: 'role' },
+    ]);
     wrapper.unmount();
   });
 

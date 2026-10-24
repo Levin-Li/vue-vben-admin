@@ -1,6 +1,6 @@
 import type { Recordable, UserInfo } from '@vben/runtime/types';
 
-import { onScopeDispose, ref } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/runtime/constants';
@@ -26,19 +26,21 @@ import { notification } from 'ant-design-vue';
 import { defineStore } from 'pinia';
 
 import {
-  clearDataAttrPolicies,
-  configureDataAttrPolicyLoader,
-  isDataAttrPolicyReady,
+  initializeDataAttrPolicySnapshot,
   suspendDataAttrPolicies,
 } from '../../data-attr-policy';
-import { onGlobalDomainContextChange } from '../global-domain-context-state';
-import { onGlobalUserOrgContextChange } from '../global-org-context-state';
 import {
   INITIAL_PASSWORD_CHANGE_PATH,
   mustChangeInitialPassword,
 } from '../initial-password';
 import { resolveLoginRedirect } from '../router/login-redirect';
+import {
+  clearAdminSession,
+  initializeAdminSession,
+} from '../session-resources';
 import { clearPreviousUserAccessState } from './user-access-session';
+
+import '../api/session-role-options';
 
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
@@ -49,13 +51,18 @@ export const useAuthStore = defineStore('auth', () => {
   const loginLoading = ref(false);
   let logoutInFlight: Promise<void> | undefined;
 
-  // 领域、组织和租户切换可能改变有效角色与等级，同步撤销旧的属性组结论。
-  const stopDomain = onGlobalDomainContextChange(clearDataAttrPolicies);
-  const stopOrg = onGlobalUserOrgContextChange(clearDataAttrPolicies);
-  onScopeDispose(() => {
-    stopDomain();
-    stopOrg();
-  });
+  // 会话初始化由认证入口持有，切页和组织选择不触发目录重载。
+  let initializationGeneration = 0;
+  let initializationToken: string | undefined;
+  let accessInitialization: Promise<string[]> | undefined;
+
+  function resetSessionInitialization() {
+    initializationGeneration++;
+    initializationToken = undefined;
+    accessInitialization = undefined;
+    clearAdminSession();
+    suspendDataAttrPolicies();
+  }
 
   /**
    * 异步处理登录操作
@@ -124,7 +131,7 @@ export const useAuthStore = defineStore('auth', () => {
   ) {
     // A logout endpoint's own 401 must not await the operation that is awaiting it.
     if (logoutInFlight) return remoteLogout ? logoutInFlight : undefined;
-    suspendDataAttrPolicies();
+    resetSessionInitialization();
     const route = router.currentRoute.value;
     const target = redirect
       ? resolveLoginRedirect(
@@ -172,46 +179,59 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function ensureAccessCodesLoaded(force = false) {
-    if (logoutInFlight || !accessStore.accessToken) {
+    const accessToken = accessStore.accessToken;
+    if (logoutInFlight || !accessToken) {
       throw new Error('登录会话尚未就绪，请重新登录');
     }
-    if (
-      !force &&
-      !shouldRefreshAuthorizedPermissions(accessStore.accessCodes)
-    ) {
-      // 路由命中已有权限时保留正负策略缓存，只补齐尚未初始化的加载器。
-      if (!isDataAttrPolicyReady()) {
-        configureDataAttrPolicyLoader(async (query) => {
-          const { dataAttrPolicyService } =
-            await import('../api/data-attr-policy-service');
-          return dataAttrPolicyService.resolve(query);
-        });
-      }
-      return accessStore.accessCodes;
+    if (!force && initializationToken === accessToken && accessInitialization) {
+      return accessInitialization;
     }
 
-    // 刷新期间暂停策略读取，失败时保持关闭，避免活跃页面复用旧授权加载器。
-    suspendDataAttrPolicies();
-    const accessToken = accessStore.accessToken;
-    const accessCodes = await getAccessCodesApi();
-    // 退出或账号切换后的迟到响应不能恢复旧账号权限及策略加载器。
-    if (logoutInFlight || accessToken !== accessStore.accessToken) {
-      throw new Error('登录身份已变化，请重新登录');
-    }
-    accessStore.setAccessCodes(accessCodes || []);
-    configureDataAttrPolicyLoader(async (query) => {
-      const { dataAttrPolicyService } =
-        await import('../api/data-attr-policy-service');
-      return dataAttrPolicyService.resolve(query);
+    // 每个身份只安装一次快照与共享目录；失败保留，不由路由循环重试。
+    const tokenChanged =
+      Boolean(initializationToken) && initializationToken !== accessToken;
+    resetSessionInitialization();
+    initializationToken = accessToken;
+    const epoch = initializationGeneration;
+    const assertCurrentSession = () => {
+      if (
+        logoutInFlight ||
+        epoch !== initializationGeneration ||
+        accessToken !== accessStore.accessToken
+      ) {
+        throw new Error('登录身份已变化，请重新登录');
+      }
+    };
+    accessInitialization = Promise.resolve().then(async () => {
+      const accessCodes =
+        force ||
+        tokenChanged ||
+        shouldRefreshAuthorizedPermissions(accessStore.accessCodes)
+          ? (await getAccessCodesApi()) || []
+          : accessStore.accessCodes;
+      assertCurrentSession();
+      accessStore.setAccessCodes(accessCodes);
+      await initializeDataAttrPolicySnapshot(async () => {
+        const { dataAttrPolicyService } =
+          await import('../api/data-attr-policy-service');
+        const snapshot = await dataAttrPolicyService.snapshot();
+        // 快照安装前检查身份，迟到响应不能短暂恢复旧账号策略。
+        assertCurrentSession();
+        return snapshot;
+      });
+      assertCurrentSession();
+      await initializeAdminSession();
+      assertCurrentSession();
+      return accessCodes;
     });
-    return accessCodes || [];
+    return accessInitialization;
   }
 
   async function finishLoginWithAccessToken(
     accessToken: string,
     onSuccess?: () => Promise<void> | void,
   ) {
-    suspendDataAttrPolicies();
+    resetSessionInitialization();
     const { resetRoutes } = await import('../router');
     clearPreviousUserAccessState(accessStore, resetRoutes, () =>
       tabbarStore.$reset(),

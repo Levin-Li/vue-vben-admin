@@ -40,6 +40,9 @@ vi.mock(
 vi.mock('../api/workflow-runtime-service', () => ({
   workflowRuntimeService: { catalog: state.catalog },
 }));
+vi.mock('../api/session-directories', () => ({
+  getSessionWorkflowCatalog: state.catalog,
+}));
 vi.mock('../views/api-module', () => ({
   OAK_BASE_API_MODULE: '/com.levin.oak.base/V1/api',
   moduleExportTemplateService: {},

@@ -13,7 +13,8 @@ const config = {
   apiKey: 'browser-test-key',
   defaultModelAlias: 'default',
   modelAliases: [{ alias: 'default', providerModelId: 'deepseek-flash' }],
-  timeoutSeconds: 1,
+  // 常规协议断言给 SDK 冷初始化留余量；超时用例显式使用一秒假时钟。
+  timeoutSeconds: 5,
 };
 const messages = [
   { role: 'System', content: '系统提示' },
@@ -170,6 +171,9 @@ describe('网页 Agent 直连模型', () => {
     ).rejects.toThrow(/^网页模型请求失败/);
   });
   it('超时和范围失效均取消供应商请求', async () => {
+    mocks.get.mockResolvedValue([
+      { ...structuredClone(config), timeoutSeconds: 1 },
+    ]);
     vi.useFakeTimers();
     fetchMock.mockImplementation(
       (_url, init) =>
@@ -297,6 +301,9 @@ describe('网页 Agent 直连模型', () => {
     expect(cancelled).toHaveBeenCalledOnce();
   });
   it('响应头已到达但正文停滞时仍然超时并取消流读取', async () => {
+    mocks.get.mockResolvedValue([
+      { ...structuredClone(config), timeoutSeconds: 1 },
+    ]);
     vi.useFakeTimers();
     const cancelled = vi.fn();
     fetchMock.mockResolvedValue(

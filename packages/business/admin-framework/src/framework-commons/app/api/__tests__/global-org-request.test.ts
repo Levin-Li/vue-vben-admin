@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchCrudList } from '../../../api';
 import {
   configureDataAttrPolicyLoader,
+  DATA_ATTR_POLICY_SNAPSHOT_PATH,
+  getDataAttrPolicyEpoch,
   suspendDataAttrPolicies,
 } from '../../../data-attr-policy';
 import {
@@ -31,10 +33,13 @@ vi.mock('@vben/runtime/request', async () => ({
   ...(await vi.importActual('@vben/runtime/request')),
   RequestClient: class {
     interceptors: any[] = [];
+    responseInterceptors: any[] = [];
     addRequestInterceptor(value: any) {
       this.interceptors.push(value);
     }
-    addResponseInterceptor() {}
+    addResponseInterceptor(value: any) {
+      this.responseInterceptors.push(value);
+    }
   },
   authenticateResponseInterceptor: vi.fn(),
   errorMessageResponseInterceptor: vi.fn(),
@@ -263,6 +268,29 @@ describe('公开登录目录精确边界', () => {
   const secure = (config: any) =>
     (baseRequestClient as any).interceptors[0].fulfilled(config);
 
+  it('业务请求只检查会话状态，后端403不触发策略重载', async () => {
+    const policy = vi.fn();
+    configureDataAttrPolicyLoader(policy);
+    await expect(
+      secure({
+        method: 'PUT',
+        url: '/contract',
+        data: { amount: null },
+        headers: {},
+      }),
+    ).resolves.toHaveProperty('url', '/contract');
+    expect(policy).not.toHaveBeenCalled();
+    const epoch = getDataAttrPolicyEpoch();
+    const error = {
+      response: { status: 403, config: { method: 'PUT', url: '/contract' } },
+    };
+    const interceptor = (baseRequestClient as any).responseInterceptors.find(
+      (item: any) => item?.rejected,
+    );
+    await expect(interceptor.rejected(error)).rejects.toBe(error);
+    expect(getDataAttrPolicyEpoch()).toBe(epoch);
+  });
+
   it('暂停时只允许GET公开目录，其他方法和相邻路径继续拒绝', async () => {
     const policy = vi.fn();
     configureDataAttrPolicyLoader(policy);
@@ -275,12 +303,17 @@ describe('公开登录目录精确边界', () => {
     };
     await expect(secure(config)).resolves.toMatchObject(config);
     await expect(
+      secure({ ...config, url: DATA_ATTR_POLICY_SNAPSHOT_PATH }),
+    ).resolves.toHaveProperty('url', DATA_ATTR_POLICY_SNAPSHOT_PATH);
+    await expect(
       secure({ ...config, url: '/oauth/getSupportedPlatforms?tenantId=qa' }),
     ).resolves.toHaveProperty(
       'url',
       '/oauth/getSupportedPlatforms?tenantId=qa',
     );
     for (const [method, url] of [
+      ['POST', DATA_ATTR_POLICY_SNAPSHOT_PATH],
+      ['GET', `${DATA_ATTR_POLICY_SNAPSHOT_PATH}/extra`],
       ['POST', '/oauth/getSupportedPlatforms'],
       ['GET', '/oauth/getSupportedPlatforms/extra'],
       ['GET', '/oauth/bindings'],

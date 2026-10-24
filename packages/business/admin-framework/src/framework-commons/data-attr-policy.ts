@@ -4,6 +4,8 @@ import { CanceledError } from '@vben/runtime/request';
 
 export const DATA_ATTR_POLICY_PATH =
   '/com.levin.oak.base/V1/api/rbac/apiDataAttrPolicies';
+export const DATA_ATTR_POLICY_SNAPSHOT_PATH =
+  '/com.levin.oak.base/V1/api/rbac/apiDataAttrPolicySnapshot';
 /** API 属性组策略由后端计算；前端只消费当前主体的 allowed 结论。 */
 export interface DataAttrTarget {
   contentType?: string;
@@ -50,6 +52,10 @@ export interface DataAttrPolicies {
 type PolicyQuery = DataAttrTarget | { operation: string };
 type Loader = (query: PolicyQuery) => Promise<DataAttrPolicies>;
 let loader: Loader | undefined;
+let snapshot: DataAttrPolicies | undefined;
+let snapshotLoading: Promise<void> | undefined;
+let snapshotMode = false;
+const snapshotTargets = new Map<string, DataAttrPolicy[]>();
 let enabled = false;
 // 就绪状态与策略加载器同步变化，供启动与退出阶段延后附属业务请求。
 const policyReady = shallowRef(false);
@@ -76,6 +82,10 @@ const cache = new Map<string, Promise<DataAttrPolicy>>();
 export function clearDataAttrPolicies() {
   generation++;
   cache.clear();
+  snapshot = undefined;
+  snapshotLoading = undefined;
+  snapshotTargets.clear();
+  if (snapshotMode) policyReady.value = false;
   listeners.forEach((listener) => listener());
 }
 export function suspendDataAttrPolicies() {
@@ -85,12 +95,82 @@ export function suspendDataAttrPolicies() {
 }
 export function configureDataAttrPolicyLoader(next: Loader) {
   enabled = true;
+  snapshotMode = false;
   policyReady.value = false;
   loader = next;
   clearDataAttrPolicies();
   policyReady.value = true;
 }
+
+/** 登录时一次取得当前主体的完整快照，页面和请求不再查询单接口策略。 */
+export function initializeDataAttrPolicySnapshot(
+  load: () => Promise<DataAttrPolicies>,
+) {
+  if (snapshotMode && snapshotLoading) return snapshotLoading;
+  enabled = true;
+  snapshotMode = true;
+  loader = undefined;
+  policyReady.value = false;
+  clearDataAttrPolicies();
+  const epoch = generation;
+  snapshotLoading = Promise.resolve()
+    .then(load)
+    .then((result) => {
+      if (epoch !== generation)
+        throw new CanceledError('登录身份已变化，已丢弃字段快照');
+      if (result.version !== 1 || !Array.isArray(result.policies))
+        throw new Error('API字段策略快照无效');
+      for (const policy of result.policies) {
+        validatePolicy(policy);
+        for (const path of policy.pathPatterns) {
+          for (const method of policy.methods.length > 0
+            ? policy.methods
+            : ['*']) {
+            const key = `${method.toUpperCase()} ${path}`;
+            const matches = snapshotTargets.get(key) || [];
+            matches.push(policy);
+            snapshotTargets.set(key, matches);
+          }
+        }
+      }
+      snapshot = result;
+      policyReady.value = true;
+      listeners.forEach((listener) => listener());
+    });
+  return snapshotLoading;
+}
+
+/** 仅保留会话就绪检查；实际业务请求的字段安全由后端处理器执行。 */
+export function assertDataAttrSessionReady() {
+  if (enabled && !policyReady.value)
+    throw new CanceledError('登录会话尚未就绪，不能提交业务请求');
+}
+
 function fetchPolicy(query: PolicyQuery): Promise<DataAttrPolicy> {
+  if (snapshotMode) {
+    if (!snapshot || !policyReady.value)
+      return Promise.reject(
+        new CanceledError('字段权限快照尚未就绪，请刷新页面'),
+      );
+    const matches =
+      'operation' in query
+        ? snapshot.policies.filter(
+            (policy) => policy.operation === query.operation,
+          )
+        : [
+            ...(snapshotTargets.get(`${query.method} ${query.path}`) || []),
+            ...(snapshotTargets.get(`* ${query.path}`) || []),
+          ];
+    if (matches.length !== 1)
+      return Promise.reject(
+        new Error(
+          matches.length > 0
+            ? 'API字段策略快照匹配不唯一'
+            : '字段权限快照未包含此接口，请刷新页面',
+        ),
+      );
+    return Promise.resolve(matches[0] as DataAttrPolicy);
+  }
   if (!loader) {
     return Promise.reject(
       enabled
@@ -147,9 +227,9 @@ export async function loadDataAttrPolicyByOperation(
   operation: string,
   target?: DataAttrTarget,
 ) {
-  const policy = target
-    ? await loadDataAttrPolicy(target.method, target.path, target.contentType)
-    : await fetchPolicy({ operation });
+  if (target)
+    return loadDataAttrPolicy(target.method, target.path, target.contentType);
+  const policy = await fetchPolicy({ operation });
   if (policy.operation !== operation)
     throw new Error('API操作与属性组策略不一致');
   return policy;
@@ -179,6 +259,19 @@ function candidates(node: DataAttrNode, name: string, insensitive?: boolean) {
   );
 }
 export function validatePolicy(policy: DataAttrPolicy) {
+  if (
+    typeof policy.restricted !== 'boolean' ||
+    !policy.nodes ||
+    !Array.isArray(policy.groups) ||
+    !Array.isArray(policy.methods) ||
+    !Array.isArray(policy.pathPatterns) ||
+    policy.methods.some((method) => typeof method !== 'string') ||
+    policy.pathPatterns.some((path) => typeof path !== 'string') ||
+    policy.groups.some(
+      (group) => !group.id || typeof group.allowed !== 'boolean',
+    )
+  )
+    throw new Error('API属性组策略无效');
   const exists = (id: unknown) => {
     if (typeof id !== 'string' || !policy.nodes[id])
       throw new Error('API属性组策略节点缺失');

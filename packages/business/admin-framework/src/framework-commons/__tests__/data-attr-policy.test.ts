@@ -374,48 +374,46 @@ describe('aPI属性组通用策略', () => {
 });
 
 describe('通用网络出口', () => {
-  it('requestService、CRUD helper和公共客户端在无权时均不发写请求', async () => {
+  it('通用客户端直接交给后端授权，不为每次业务调用查询字段策略', async () => {
     const { setAdminFrameworkRuntime, requestClient } =
       await import('../runtime');
     const { RequestService } = await import('../request-service');
     const { createCrudRecord, updateCrudRecord, fetchCrudList } =
       await import('../api');
     const transport: any = {
-      get: vi.fn(),
-      post: vi.fn(),
-      put: vi.fn(),
-      delete: vi.fn(),
-      request: vi.fn(),
+      get: vi.fn().mockResolvedValue({ items: [] }),
+      post: vi.fn().mockResolvedValue('ok'),
+      put: vi.fn().mockResolvedValue('ok'),
+      delete: vi.fn().mockResolvedValue('ok'),
+      request: vi.fn().mockResolvedValue('ok'),
+      upload: vi.fn().mockResolvedValue('ok'),
     };
     setAdminFrameworkRuntime({ requestClient: transport });
-    configureDataAttrPolicyLoader(async () => ({
-      version: 1,
+    const loader = vi.fn(async () => ({
+      version: 1 as const,
       policies: [policy()],
     }));
+    configureDataAttrPolicyLoader(loader);
     class TestService extends RequestService {
       update(data: unknown) {
         return this.request({ path: '/contract', method: 'PUT', data });
       }
     }
-    await expect(new TestService().update({ total: null })).rejects.toThrow(
-      '未授予',
-    );
-    await expect(
-      createCrudRecord('/contract', { total: null }),
-    ).rejects.toThrow('未授予');
-    await expect(
-      updateCrudRecord('/contract', { total: null }),
-    ).rejects.toThrow('未授予');
-    await expect(
-      requestClient.post('/contract', { total: null }),
-    ).rejects.toThrow('未授予');
-    await expect(
-      fetchCrudList('/contract', { orderBy: 'amount desc' }),
-    ).rejects.toThrow('未授予');
-    expect(transport.post).not.toHaveBeenCalled();
-    expect(transport.put).not.toHaveBeenCalled();
-    expect(transport.request).not.toHaveBeenCalled();
-    expect(transport.get).not.toHaveBeenCalled();
+    await new TestService().update({ total: null });
+    await createCrudRecord('/contract', { total: null });
+    await updateCrudRecord('/contract', { total: null });
+    await requestClient.post('/contract', { total: null });
+    await fetchCrudList('/contract', { orderBy: 'amount desc' });
+    await requestClient.delete('/contract');
+    if (!requestClient.upload) throw new Error('缺少上传传输');
+    await requestClient.upload('/contract', { total: null });
+    expect(transport.post).toHaveBeenCalledTimes(2);
+    expect(transport.put).toHaveBeenCalledTimes(1);
+    expect(transport.request).toHaveBeenCalledTimes(1);
+    expect(transport.get).toHaveBeenCalledTimes(1);
+    expect(transport.delete).toHaveBeenCalledTimes(1);
+    expect(transport.upload).toHaveBeenCalledTimes(1);
+    expect(loader).not.toHaveBeenCalled();
   });
   it('有权写入只提交一次，无组请求保留原有字段和null', async () => {
     const { setAdminFrameworkRuntime, requestClient } =

@@ -402,22 +402,7 @@ function getDnsRecordFullDomain(rootDomain: string, record: DomainDnsRecord) {
   return `${host}.${rootDomain}`;
 }
 
-export const roleOptionsLoader = (keyword?: string) =>
-  fetchOptions(
-    '/Role/listUserRoleCode',
-    'label',
-    'value',
-    withOptionSearchParams(
-      {
-        codeForKey: false,
-        pageIndex: 1,
-        pageSize: 500,
-      },
-      'containsName',
-      keyword,
-    ),
-    OAK_BASE_API_MODULE,
-  );
+export { roleOptionsLoader } from '@levin/admin-framework/framework-commons/shared/config-helpers';
 
 export const orgOptionsLoader = () =>
   rbacService.fetchAuthorizedOrgOptions({

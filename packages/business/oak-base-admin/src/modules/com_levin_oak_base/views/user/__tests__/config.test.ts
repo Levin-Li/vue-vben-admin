@@ -1,6 +1,7 @@
+import { roleOptionsLoader as sharedRoleOptionsLoader } from '@levin/admin-framework/framework-commons/shared/config-helpers';
 import { describe, expect, it, vi } from 'vitest';
 
-import { userPageCrudConfig } from '../config';
+import { roleOptionsLoader, userPageCrudConfig } from '../config';
 
 vi.mock('../../../api/user-service', () => ({
   userService: {
@@ -14,6 +15,9 @@ vi.mock('../../api-module', () => ({
 }));
 
 describe('user page config', () => {
+  it('角色选项与公共抽屉复用同一个加载器', () => {
+    expect(roleOptionsLoader).toBe(sharedRoleOptionsLoader);
+  });
   it('queries field policies through the actual CRUD endpoints', () => {
     expect(userPageCrudConfig.dataAttrTargets).toMatchObject({
       create: {

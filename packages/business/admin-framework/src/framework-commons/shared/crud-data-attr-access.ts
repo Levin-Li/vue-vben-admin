@@ -18,7 +18,6 @@ import {
 } from '../api-authorize';
 import {
   assertDataAttrInput,
-  clearDataAttrPolicies,
   fieldAllowed,
   isDataAttrPolicyEnabled,
   loadDataAttrPolicy,
@@ -322,7 +321,8 @@ export function useCrudDataAttrAccess(
     { immediate: true },
   );
   watch(identity, (current, previous) => {
-    if (current !== previous) clearDataAttrPolicies();
+    // 会话快照由登录流程统一维护，页面身份变化只刷新本页派生状态。
+    if (current !== previous) refresh();
   });
   onScopeDispose(subscribeDataAttrPolicyInvalidation(refresh));
 

@@ -14,6 +14,8 @@ import type {
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { useUserStore } from '@vben/runtime/stores';
+
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
@@ -41,11 +43,19 @@ import { createTicketCrudConfig } from './config';
 
 // 工单不提供通用新增/编辑；状态变化只提交真实业务命令与预期版本。
 const { hasPermission } = useRbacAccess();
+const userStore = useUserStore();
 const route = useRoute();
 const router = useRouter();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(ticketService, method));
 const selectedScope = ref<UserOrgSelectorRecord>();
+// 工单必须绑定受理租户；平台主体没有默认租户时，先选择有权受理组织。
+const hasDefaultTenant = computed(() =>
+  Boolean(String(userStore.userInfo?.tenantId || '').trim()),
+);
+const requiresScopeSelection = computed(
+  () => !hasDefaultTenant.value && !selectedScope.value?.tenantId,
+);
 const scopeGeneration = ref(0);
 const initialQuery = ref<Record<string, unknown>>({});
 const crudPage = ref<{ reload: () => Promise<unknown> }>();
@@ -190,8 +200,12 @@ function scopeSelection(state: Record<string, unknown>) {
 async function listTickets(params: Record<string, unknown> = {}) {
   const current = ++listVersion;
   if (!allowed('list')) return { items: [], totals: 0 };
+  const scope = currentScope(params.orgId);
+  // 不发送已知缺少受理租户的查询；已选范围仍由后端独立验证。
+  if (!scope?.tenantId && !hasDefaultTenant.value)
+    return { items: [], totals: 0 };
   const result = await ticketService.list({
-    ...currentScope(params.orgId),
+    ...scope,
     status: typeof params.status === 'string' ? params.status : undefined,
     pageIndex: Number(params.pageIndex) || 1,
     pageSize: Number(params.pageSize) || 20,
@@ -241,6 +255,8 @@ async function open(id: string, requestScope = currentScope(queryState.orgId)) {
     error.value = '工单来源不可访问';
     return;
   }
+  // 深链接也不能省略受理租户，保持与列表相同的范围前置条件。
+  if (!requestScope?.tenantId && !hasDefaultTenant.value) return;
   try {
     const result = await ticketService.retrieve({ id, ...requestScope });
     if (current !== detailVersion) return;
@@ -615,11 +631,17 @@ watch(() => route.query.id, deepLink);
 </script>
 <template>
   <div class="flex min-w-0 flex-col gap-2">
+    <!-- 范围未确定时说明下一步，不把业务前置条件变成接口错误。 -->
+    <div v-if="requiresScopeSelection" role="status" class="px-4 py-2">
+      请选择受理组织后查询客服工单
+    </div>
     <CrudPage :key="scopeGeneration" ref="crudPage" :config="crudConfig">
       <template #search-field-orgId="slot">
         <SupportScopeSelector
           :model-value="scopeSelection(searchScopeState(slot))"
-          placeholder="全部授权范围"
+          :placeholder="
+            requiresScopeSelection ? '请选择受理组织' : '全部授权范围'
+          "
           @change="changeScope($event, searchScopeState(slot))"
         />
       </template>

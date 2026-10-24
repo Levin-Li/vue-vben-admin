@@ -8,6 +8,7 @@ import {
 } from '@vue/test-utils';
 import { defineComponent, h } from 'vue';
 
+import { createPinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ResAuthorize } from '../../api-authorize';
@@ -16,6 +17,7 @@ import {
   configureDataAttrPolicyLoader,
 } from '../../data-attr-policy';
 import CrudPage from '../dynamic-crud-page.vue';
+import PageDisplaySettingsDrawer from '../page-display-settings-drawer.vue';
 import UserOrgSelector from '../user-org-selector.vue';
 
 type PolicyQuery = Parameters<
@@ -176,6 +178,68 @@ beforeEach(() => {
 });
 
 describe('标准 crud 的属性组策略', () => {
+  it('页面 UI 设置点击前不挂载编辑内容，点击后挂载且关闭时销毁', async () => {
+    const wrapper = shallowMount(CrudPage, {
+      global: {
+        plugins: [createPinia()],
+        config: {
+          errorHandler: (error) => {
+            throw error;
+          },
+        },
+        stubs: {
+          Page: { template: '<div><slot /></div>' },
+          ATable: { inheritAttrs: false, template: '<div />' },
+        },
+      },
+      props: { config: config() },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    expect(wrapper.findComponent(PageDisplaySettingsDrawer).exists()).toBe(
+      false,
+    );
+    vm.pageDisplaySettingsOpen = true;
+    await flushPromises();
+    expect(wrapper.findComponent(PageDisplaySettingsDrawer).exists()).toBe(
+      true,
+    );
+    expect(wrapper.findComponent(PageDisplaySettingsDrawer).props('open')).toBe(
+      true,
+    );
+    vm.pageDisplaySettingsOpen = false;
+    await flushPromises();
+    expect(wrapper.findComponent(PageDisplaySettingsDrawer).exists()).toBe(
+      false,
+    );
+  });
+
+  it('默认角色选择器沿用页面模块地址并合并同页相同查询', async () => {
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: { config: config({ apiModuleBase: '/custom/V1/api' }) },
+    });
+    await flushPromises();
+    mocks.get.mockClear();
+    const loader = setupState(wrapper).getDefaultOptionsLoader({
+      type: 'role-select',
+    });
+    await Promise.all([loader('角色关键词'), loader('角色关键词')]);
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+    expect(mocks.get).toHaveBeenCalledWith(
+      '/custom/V1/api/Role/listUserRoleCode',
+      {
+        baseURL: '',
+        params: {
+          codeForKey: false,
+          pageIndex: 1,
+          pageSize: 500,
+          containsName: '角色关键词',
+        },
+      },
+    );
+  });
+
   it('普通用户缺少列表权限时不请求列表策略也不弹内部错误', async () => {
     mocks.permissionAllowed = false;
     const wrapper = shallowMount(CrudPage, {

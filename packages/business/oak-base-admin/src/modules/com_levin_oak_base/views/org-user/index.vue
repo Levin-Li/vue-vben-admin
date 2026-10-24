@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { SelectOption } from '@levin/admin-framework';
 
-import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
@@ -41,7 +41,7 @@ import {
 } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
 import { loadDomainScopeOptions } from '../../domain-scope-options';
-import { loadRolePermissionRecords } from '../load-role-permission-records';
+import { usePageRolePermissionRecords } from '../load-role-permission-records';
 import { getUserDataPermissionBadgeItems } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from '../user/config';
 
@@ -121,7 +121,6 @@ const ORG_TYPE_LABEL_MAP: Record<string, string> = {
 
 const dialogOpen = ref(false);
 const pageKey = ref(0);
-const permissionRoleRecords = ref<Array<Record<string, any>>>([]);
 const selectedRecord = ref<null | Record<string, any>>(null);
 const roleModalOpen = ref(false);
 const roleSubmitting = ref(false);
@@ -142,6 +141,8 @@ const orgTreeData = ref<OrgTreeNode[]>([]);
 const orgTypeOptions = ref<Array<{ label: string; value: string }>>([]);
 const tenantOptions = ref<StringSelectOption[]>([]);
 const userStore = useUserStore();
+const { records: permissionRoleRecords, refresh: refreshRolePermissionRecords } =
+  usePageRolePermissionRecords(() => userStore.userInfo);
 
 const orgModalOpen = ref(false);
 const orgModalMode = ref<'create' | 'edit'>('create');
@@ -665,6 +666,7 @@ async function submitOrgForm() {
 }
 
 function handleSaved() {
+  void refreshRolePermissionRecords(true);
   pageKey.value += 1;
 }
 
@@ -681,24 +683,8 @@ watch(orgKeyword, (keyword) => {
 });
 
 onMounted(async () => {
-  refreshRolePermissionRecords();
   await Promise.all([loadOrgTree(), loadOrgOptions()]);
 });
-
-let rolePermissionLoad: null | Promise<Array<Record<string, any>>> = null;
-function refreshRolePermissionRecords() {
-  if (rolePermissionLoad) return;
-  rolePermissionLoad = loadRolePermissionRecords();
-  void rolePermissionLoad
-    .then((records) => {
-      permissionRoleRecords.value = records;
-    })
-    .catch(() => undefined)
-    .finally(() => {
-      rolePermissionLoad = null;
-    });
-}
-onActivated(refreshRolePermissionRecords);
 </script>
 
 <template>
