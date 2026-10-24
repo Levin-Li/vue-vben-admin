@@ -2,7 +2,7 @@
 
 ## 1. 状态与变化
 
-1. 本次静态声明方案已完成实施和最终验收；后端 Maven 与四个 npm 包均正式发布成功，提交与推送结果待执行负责人补齐。旧快照方案已发布的历史记录保持原状，本批使用独立最终验证结果。
+1. 本次静态声明方案已完成实施、最终验收、Maven/npm 发布及两仓代码推送。前端功能提交 `a64f0008`、后端功能提交 `e5f772a8b` 均已成功推送至 `6.0.0`；最后的交付记录单独提交。旧快照方案保持原有历史事实，本批使用独立最终验证结果。
 2. 模块 API 目录维护版本 1 静态字段契约，通过 `registerDataAttrStaticContract` 注册；认证从既有 `userInfo.fieldGroupGrants` 安装有效许可，公共 CRUD 本地合并。标准前端字段策略和快照端点均为零调用。
 3. 无静态声明且身份就绪时默认无前端字段限制并去重控制台警告；已声明受控组无有效许可时拒绝。服务端真实字段与数据范围授权独立有效，不由 UI 声明授予业务权利。
 
@@ -27,7 +27,7 @@
 2. 静态契约两次门禁成功，构建 dist JSON 与源码一致；864 个接口、117 个受控接口。源 JSON 6,394,845 字节、gzip 级别 9 为 288,124 字节，属于构件测量，不声称为实际浏览器传输量。
 3. 真实浏览器 9 个既定场景通过（首轮 6 项、修复后 3 项），90 个可见页面通过，观察窗口共 278 个 API 请求；119 路由记录差集补充 20 条检查通过（17 入口、3 匿名保护重定向），无业务叶页遗漏。页面打开不等于全部业务按钮操作；超过 5 次页面逐项解释及认证渲染/预期 404 边界见[页面请求审计](../../../../openspec/changes/c20261024-1923-static-api-field-groups/page-request-audit.md)。
 4. 登录起两个字段策略端点 HTTP 调用均为零，userInfo 一次返回 39 项许可，工作流目录 1 次。两个页面角色选项各 1 次，十轮切页新增角色查询为零；个人资料 14 次、UI 设置首开 7 次/重开 2 次都有来源说明。304 仍计 HTTP 请求，不把缓存验证说成零网络。
-5. 标准命令 `NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ NPM_AUTH_FROM_MAVEN=true MAVEN_SERVER_ID=dist-repo pnpm run publish:packages` 已零退出，逐包报告成功，最终“本批发布完成：4 个包”，本机日志 `/tmp/levin-static-npm-release.log`。真实 tarball 逐文件/精确内部版本检查、独立消费者安装及 Vite 构建全部通过后才上传，成功后未重复反查私服。Git 提交及推送：待补。配套后端完整 Reactor `clean deploy` 已零退出且 `BUILD SUCCESS`，2026-10-24 21:15:02（亚洲/上海）结束，公共模块 `6.0.0-SNAPSHOT` 上传成功，两个 bootstrap 跳过部署。
+5. 标准命令 `NPM_REGISTRY=http://nexus.v-ma.com/repository/npm/ NPM_AUTH_FROM_MAVEN=true MAVEN_SERVER_ID=dist-repo pnpm run publish:packages` 已零退出，逐包报告成功，最终“本批发布完成：4 个包”，本机日志 `/tmp/levin-static-npm-release.log`。真实 tarball 逐文件/精确内部版本检查、独立消费者安装及 Vite 构建全部通过后才上传，成功后未重复反查私服。Git 功能提交 `a64f0008` 已成功推送至 `6.0.0`，后端对应 `e5f772a8b`；未反复检查远端。配套后端完整 Reactor `clean deploy` 已零退出且 `BUILD SUCCESS`，2026-10-24 21:15:02（亚洲/上海）结束，公共模块 `6.0.0-SNAPSHOT` 上传成功，两个 bootstrap 跳过部署。
 6. 使用[正式发布入口](../admin-modules-publish.md#按需正式版本发布流程)，上传同一份已校验 tarball；成功后不重复反查私服。本批配套后端沿用当前 `6.0.0-SNAPSHOT`，无数据库迁移、自动响应加密或生产服务重启。
 
 ## 4. 使用和资料边界
