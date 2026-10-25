@@ -166,6 +166,7 @@ function toSyncMenuItems(
     }
 
     const mapping = routeMappingLookup.get(path);
+    if (mapping?.hideInMenu === true) return children;
     if (requirePageMapping && children.length === 0 && !mapping) {
       throw new Error(
         `页面路由缺少完整映射：${path}。请在 backendRouteMappings 中提供 path、title、description、viewPath 和 sourceFilePath。`,
@@ -254,6 +255,7 @@ function buildModuleMenuItems(module: AdminFrontendModule): SyncMenuItem[] {
   const menuKeys = collectSyncMenuKeys(menuItems);
 
   routeMappings.forEach((mapping) => {
+    if (mapping.hideInMenu === true) return;
     const key = getSyncMenuKey(module.name, mapping.path);
 
     if (menuKeys.has(key)) {
@@ -285,6 +287,7 @@ export function buildSyncMenuPayload(
   const menuKeys = collectSyncMenuKeys(menuList);
 
   routeMappings.forEach((mapping) => {
+    if (mapping.hideInMenu === true) return;
     const key = getSyncMenuKey(moduleId, mapping.path);
 
     if (menuKeys.has(key)) {

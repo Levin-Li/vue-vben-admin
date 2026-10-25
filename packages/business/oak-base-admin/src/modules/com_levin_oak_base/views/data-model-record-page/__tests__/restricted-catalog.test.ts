@@ -136,7 +136,7 @@ describe('动态菜单使用当前授权目录', () => {
     expect(mocks.catalog).toHaveBeenCalledTimes(2);
   });
 
-  it('无固定模型参数时直接提供已同步的可用目录，不读取管理草稿', async () => {
+  it('无模型参数时不展示通用目录且不发请求', async () => {
     route.meta.fixedQuery.modelKey = undefined;
     mocks.catalog.mockResolvedValue([
       { key: 'shared', title: '共享定义', fields: [] },
@@ -151,9 +151,9 @@ describe('动态菜单使用当前授权目录', () => {
       },
     });
     await flushPromises();
-    expect(wrapper.text()).toContain('领域模型数据');
     expect(wrapper.find('.runtime-fields').exists()).toBe(false);
-    expect(mocks.catalog).toHaveBeenCalledOnce();
+    expect(wrapper.find('.runtime-fields').exists()).toBe(false);
+    expect(mocks.catalog).not.toHaveBeenCalled();
   });
   it('同主体凭据轮换与权限角色集合重排不卸载页面和未保存草稿', async () => {
     access.accessCodes = ['permission-b', 'permission-a'];
@@ -205,51 +205,6 @@ describe('动态菜单使用当前授权目录', () => {
     expect(mocks.catalog).toHaveBeenCalledTimes(3);
   });
 
-  it('手动选择模型后同上下文重新激活仍保留选择和草稿', async () => {
-    route.meta.fixedQuery.modelKey = undefined;
-    mocks.catalog.mockResolvedValue([
-      {
-        key: 'invoice',
-        syncedVersion: 1,
-        title: '发票',
-        fields: [{ name: 'amount' }],
-      },
-    ]);
-    const active = ref(true);
-    const Host = defineComponent({
-      setup: () => () =>
-        h(KeepAlive, null, {
-          default: () => (active.value ? h(RuntimePage) : null),
-        }),
-    });
-    const wrapper = mount(Host, {
-      global: {
-        stubs: {
-          Spin: { template: '<div><slot /></div>' },
-          Alert: true,
-          Table: {
-            props: { dataSource: { type: Array, default: () => [] } },
-            template: `<div><slot name="bodyCell" :column="{key: 'open'}" :record="dataSource[0]" /></div>`,
-          },
-        },
-      },
-    });
-    await flushPromises();
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === '使用模型')
-      ?.trigger('click');
-    await flushPromises();
-    await wrapper.find('input.local-draft').setValue('保留编辑状态');
-    active.value = false;
-    await flushPromises();
-    active.value = true;
-    await flushPromises();
-    expect(
-      (wrapper.find('input.local-draft').element as HTMLInputElement).value,
-    ).toBe('保留编辑状态');
-    expect(wrapper.find('.runtime-fields').text()).toBe('amount');
-  });
   it('空固定参数允许校验后的query模型链接，固定模型参数优先', async () => {
     route.meta.fixedQuery.modelKey = undefined;
     route.query.modelKey = 'shared';

@@ -59,3 +59,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 只读布尔字段不会渲染列表快捷开关，事件入口也拒绝旧控件的写入。已有可写布尔字段仍遵循公共快捷更新行为。查询配置可用 `initialQuery: {}` 明确初始条件，使重置保留当前列表与展开状态并等待显式查询。
 
 标准页面的代码元数据和领域模型的后端元数据都进入同一个 `DynamicCrudPage`。除元数据来源外，功能、操作、布局、展示设置、校验和权限规则统一使用公共实现；本次直接移除旧组件名称及旧公共文件路径，消费者须更新到 `framework-commons/shared/dynamic-crud-page.vue`，无旧入口转发。
+
+### 内部页面映射与菜单
+
+`backendRouteMappings` 可声明标准 `hideInMenu: true`：隐藏映射原路径的既有菜单，并从两种菜单同步入口排除。使用同一组件但具有独立业务路径的菜单仍按自身 `hidden` 配置显示。该属性只决定导航展示，不授予访问权限。

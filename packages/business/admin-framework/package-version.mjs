@@ -1,6 +1,6 @@
 // 由框架包元数据生成脚本生成，记录此包本次构建或打包时间。
 export const packageVersion = {
-  buildTime: '2026-10-24T16:55:51.094Z',
+  buildTime: '2026-10-25T02:16:51.277Z',
   name: '@levin/admin-framework',
-  version: '6.0.14',
+  version: '6.0.15',
 };

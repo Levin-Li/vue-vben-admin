@@ -1,6 +1,6 @@
 {
   "name": "@levin/bpm-designer",
-  "version": "6.0.14",
+  "version": "6.0.15",
   "description": "Levin BPMN workflow designer package.",
   "license": "MIT",
   "type": "module",
@@ -43,7 +43,7 @@
     }
   },
   "peerDependencies": {
-    "@levin/admin-framework": "6.0.14",
+    "@levin/admin-framework": "6.0.15",
     "ant-design-vue": ">=4.0.0",
     "vue": ">=3.5.0"
   },

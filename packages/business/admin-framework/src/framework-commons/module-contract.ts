@@ -37,6 +37,8 @@ export interface AdminBackendRouteMapping {
   description: string;
   /** false 表示同一页面的不同查询参数共用一个顶部页签。 */
   fullPathKey?: boolean;
+  /** 隐藏此映射原路径的菜单并排除菜单同步；复用组件的独立业务路径不受影响。 */
+  hideInMenu?: boolean;
   icon: string;
   /** 后端菜单映射后的本地页面是否保留标签实例状态。 */
   keepAlive?: boolean;

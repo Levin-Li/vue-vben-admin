@@ -322,7 +322,9 @@ function convertLeafRoute(
         disabled: item.enable === false,
         ...(mapping.fullPathKey === false ? { fullPathKey: false } : {}),
         icon: resolveLocalPageIcon(item.icon, mapping.icon),
-        hideInMenu: item.hidden === true,
+        hideInMenu:
+          item.hidden === true ||
+          (mapping.hideInMenu === true && normalizedPath === mapping.path),
         ...(mapping.keepAlive ? { keepAlive: true } : {}),
         menuActionType: actionType,
         menuPageType: pageType,

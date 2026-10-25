@@ -211,6 +211,7 @@ function createCrudBackendRouteMapping(
 export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
   {
     description: dataModelRecordPageMeta.description,
+    hideInMenu: true,
     icon: 'lucide:table-properties',
     operations: buildAdminPageOperations(oakBaseApi.dataModelService).filter(
       (item) =>
