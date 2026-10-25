@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  applyJsonSchemaDefaults,
+  getJsonSchemaFieldOptions,
+} from '../json-schema-form';
+import {
   buildJsonSchemaFormNodes,
   planJsonSchemaColumns,
 } from '../json-schema-form-layout';
@@ -36,15 +40,53 @@ describe('运行时 Schema 表单布局', () => {
   });
 
   it('少字段单列，三个简单字段最多双列', () => {
-    expect(planJsonSchemaColumns(buildJsonSchemaFormNodes({
-      properties: { endpoint: { type: 'string' }, token: { type: 'string' } },
-    }))).toBe(1);
-    expect(planJsonSchemaColumns(buildJsonSchemaFormNodes({
-      properties: {
-        endpoint: { type: 'string' },
-        plan: { type: 'string' },
-        token: { type: 'string' },
-      },
-    }))).toBe(2);
+    expect(
+      planJsonSchemaColumns(
+        buildJsonSchemaFormNodes({
+          properties: {
+            endpoint: { type: 'string' },
+            token: { type: 'string' },
+          },
+        }),
+      ),
+    ).toBe(1);
+    expect(
+      planJsonSchemaColumns(
+        buildJsonSchemaFormNodes({
+          properties: {
+            endpoint: { type: 'string' },
+            plan: { type: 'string' },
+            token: { type: 'string' },
+          },
+        }),
+      ),
+    ).toBe(2);
   });
+});
+
+it('retains root arrays and explicit defaults without inventing an initial row', () => {
+  const schema = {
+    type: 'array',
+    items: { type: 'object', properties: { type: { default: 'Email' } } },
+  };
+  expect(applyJsonSchemaDefaults(undefined, schema)).toEqual([]);
+  expect(
+    applyJsonSchemaDefaults([{ address: 'old@example.com' }], schema),
+  ).toEqual([{ type: 'Email', address: 'old@example.com' }]);
+  expect(applyJsonSchemaDefaults(['unchanged'], { type: 'array' })).toEqual([
+    'unchanged',
+  ]);
+});
+
+it('keeps falsy const values and full enum values', () => {
+  expect(
+    getJsonSchemaFieldOptions({
+      oneOf: [
+        { const: false },
+        { const: 0 },
+        { const: null },
+        { enum: ['Email', 'Webhook'] },
+      ],
+    }).map((option) => option.value),
+  ).toEqual([false, 0, null, 'Email', 'Webhook']);
 });

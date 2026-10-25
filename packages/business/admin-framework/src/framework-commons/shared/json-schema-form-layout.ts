@@ -1,8 +1,10 @@
+import type { JsonSchemaFormField } from './json-schema-form';
+
 import {
-  type JsonSchemaFormField,
   getJsonSchemaFieldKind,
   getJsonSchemaFieldOptions,
   getJsonSchemaPathKey,
+  hasJsonSchemaValueOptions,
   normalizeJsonSchemaObject,
 } from './json-schema-form';
 
@@ -113,7 +115,9 @@ function buildNodes(
         ...common,
         children: buildNodes(
           schema.properties,
-          new Set<string>(Array.isArray(schema.required) ? schema.required : []),
+          new Set<string>(
+            Array.isArray(schema.required) ? schema.required : [],
+          ),
           path,
           level + 1,
         ),
@@ -130,12 +134,15 @@ function buildNodes(
     }
 
     const branchSchemas = schema.oneOf || schema.anyOf;
-    if (Array.isArray(branchSchemas)) {
+    if (Array.isArray(branchSchemas) && !hasJsonSchemaValueOptions(schema)) {
       return {
         ...common,
         branches: branchSchemas.map((item: unknown, index: number) => {
           const branch = isRecord(item) ? item : {};
-          return { label: getLabel(`方案 ${index + 1}`, branch), schema: branch };
+          return {
+            label: getLabel(`方案 ${index + 1}`, branch),
+            schema: branch,
+          };
         }),
         kind: 'branch',
       } satisfies JsonSchemaFormBranchNode;
@@ -147,7 +154,17 @@ function buildNodes(
 
 export function buildJsonSchemaFormNodes(schema?: Record<string, any>) {
   const normalizedSchema = normalizeJsonSchemaObject(schema);
-  if (!normalizedSchema || !isRecord(normalizedSchema.properties)) return [];
+  if (!normalizedSchema) return [];
+  if (normalizedSchema.type === 'array') {
+    const rootNode = buildNodes(
+      { value: normalizedSchema },
+      new Set(),
+      [],
+      0,
+    )[0];
+    return rootNode ? [{ ...rootNode, path: [], pathKey: '' }] : [];
+  }
+  if (!isRecord(normalizedSchema.properties)) return [];
 
   return buildNodes(
     normalizedSchema.properties,
@@ -160,6 +177,12 @@ export function buildJsonSchemaFormNodes(schema?: Record<string, any>) {
 }
 
 export function planJsonSchemaColumns(nodes: JsonSchemaFormNode[]) {
-  const simpleCount = nodes.filter((node) => 'kind' in node && node.kind !== 'group' && node.kind !== 'collection' && node.kind !== 'branch').length;
+  const simpleCount = nodes.filter(
+    (node) =>
+      'kind' in node &&
+      node.kind !== 'group' &&
+      node.kind !== 'collection' &&
+      node.kind !== 'branch',
+  ).length;
   return simpleCount < 3 ? 1 : 2;
 }

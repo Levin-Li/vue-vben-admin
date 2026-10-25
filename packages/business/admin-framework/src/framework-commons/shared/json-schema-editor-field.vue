@@ -37,7 +37,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   ready: [ready: boolean];
-  'update:modelValue': [value: Record<string, any>];
+  'update:modelValue': [value: any[] | Record<string, any>];
   validity: [valid: boolean];
 }>();
 

@@ -5,7 +5,7 @@ import {
   Service,
 } from '@levin/admin-framework';
 
-import { invalidateDataModelMetadata } from '../views/data-model/model-metadata';
+import { invalidateDataModelMetadata } from '../views/domain-data-dynamic-model/model-metadata';
 import { OAK_BASE_API_MODULE } from './_module';
 
 export type DataModelFieldType =

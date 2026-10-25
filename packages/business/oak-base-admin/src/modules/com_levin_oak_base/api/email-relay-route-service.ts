@@ -27,8 +27,8 @@ function normalizeRouteResponse(response: any) {
 @Service({
   basePath: '/EmailRelayRoute',
   controllerClass: 'com.levin.oak.base.controller.BizEmailRelayRouteController',
-  description: '自定义域名入站邮件中转路由',
-  title: '邮件中转路由',
+  description: '自定义域名入站邮件中转配置',
+  title: '邮件中转',
   type: '系统数据-邮件中转路由',
 })
 export class EmailRelayRouteService extends RequestService {

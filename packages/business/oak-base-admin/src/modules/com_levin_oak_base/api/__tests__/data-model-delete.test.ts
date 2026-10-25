@@ -2,7 +2,7 @@ import { getResAuthorizeMeta } from '@levin/admin-framework/framework-commons/ap
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { describe, expect, it, vi } from 'vitest';
 
-import { modelMetadataCache } from '../../views/data-model/model-metadata';
+import { modelMetadataCache } from '../../views/domain-data-dynamic-model/model-metadata';
 import { dataModelService } from '../data-model-service';
 
 describe('动态记录永久删除请求', () => {

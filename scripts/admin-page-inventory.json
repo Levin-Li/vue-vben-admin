@@ -93,9 +93,9 @@
       "reason": "按日聚合统计与多标签指标"
     },
     {
-      "resource": "DataModel",
-      "title": "数据模型",
-      "view": "./views/data-model/index.vue",
+      "resource": "DomainDataDynamicModel",
+      "title": "领域数据动态模型",
+      "view": "./views/domain-data-dynamic-model/index.vue",
       "classification": "designer",
       "reason": "动态模型定义、字段和记录由多层配置组成"
     },
@@ -623,12 +623,12 @@
     },
     {
       "view": "./views/data-model-record-page/index.vue",
-      "parent": "DataModel",
+      "parent": "DomainDataDynamicModel",
       "reason": "无直接菜单入口，随父页面或开发工具验收"
     },
     {
       "view": "./views/data-model-record/index.vue",
-      "parent": "DataModel",
+      "parent": "DomainDataDynamicModel",
       "reason": "无直接菜单入口，随父页面或开发工具验收"
     },
     {

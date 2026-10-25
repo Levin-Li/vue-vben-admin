@@ -1,6 +1,6 @@
 // 由框架包元数据生成脚本生成，记录此包本次构建或打包时间。
 export const packageVersion = {
-  buildTime: '2026-10-25T03:06:29.565Z',
+  buildTime: '2026-10-25T04:34:07.257Z',
   name: '@levin/bpm-runtime-ui',
-  version: '6.0.16',
+  version: '6.0.17',
 };

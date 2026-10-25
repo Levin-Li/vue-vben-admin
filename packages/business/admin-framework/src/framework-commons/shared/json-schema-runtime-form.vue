@@ -15,7 +15,7 @@ import {
 
 const props = withDefaults(defineProps<{
   disabled?: boolean;
-  modelValue?: Record<string, any>;
+  modelValue?: any[] | Record<string, any>;
   schema?: Record<string, any>;
 }>(), {
   disabled: false,
@@ -24,7 +24,7 @@ const props = withDefaults(defineProps<{
 });
 
 const emit = defineEmits<{
-  'update:modelValue': [value: Record<string, any>];
+  'update:modelValue': [value: any[] | Record<string, any>];
   validity: [valid: boolean];
 }>();
 
@@ -89,7 +89,7 @@ function removeCollectionItem(node: Extract<JsonSchemaFormNode, { kind: 'collect
   updateAt(node.path, nextItems);
 }
 
-function updateCollectionItem(node: Extract<JsonSchemaFormNode, { kind: 'collection' }>, index: number, value: Record<string, any>) {
+function updateCollectionItem(node: Extract<JsonSchemaFormNode, { kind: 'collection' }>, index: number, value: any[] | Record<string, any>) {
   const nextItems = Array.isArray(valueAt(node.path)) ? [...valueAt(node.path)] : [];
   nextItems[index] = value;
   updateAt(node.path, nextItems);

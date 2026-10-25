@@ -11,7 +11,7 @@ import DataModelRecordPage from '../data-model-record/index.vue';
 import {
   modelMetadataCache,
   useModelMetadataContext,
-} from '../data-model/model-metadata';
+} from '../domain-data-dynamic-model/model-metadata';
 
 const route = useRoute();
 const metadataContext = useModelMetadataContext();

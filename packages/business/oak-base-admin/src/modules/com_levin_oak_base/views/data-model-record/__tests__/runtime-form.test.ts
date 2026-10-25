@@ -29,7 +29,7 @@ const service = vi.hoisted(() => ({
 vi.mock('../../../api/data-model-service', () => ({
   dataModelService: service,
 }));
-vi.mock('../../data-model/model-metadata', () => ({
+vi.mock('../../domain-data-dynamic-model/model-metadata', () => ({
   modelMetadataCache: {
     read: (_context: string, _key: string, loader: () => Promise<unknown>) =>
       loader(),

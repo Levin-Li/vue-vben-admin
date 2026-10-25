@@ -76,10 +76,19 @@ function normalizeTargets(value: unknown): string[] {
   return valid;
 }
 
+function validateTargets(value: unknown) {
+  try {
+    normalizeTargets(value);
+  } catch (error) {
+    return error instanceof Error ? error.message : '投递目标格式无效';
+  }
+  return undefined;
+}
+
 export const pageMeta = {
   name: 'EmailRelayRoute',
-  title: '邮件中转路由',
-  description: '维护邮件中转路由。',
+  title: '邮件中转',
+  description: '维护邮件中转配置。',
 } as const;
 
 export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
@@ -198,12 +207,15 @@ export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
     {
       key: 'targetList',
       label: '投递目标',
+      required: true,
+      help: '至少添加一个目标，选择投递类型并填写接收邮箱或 HTTPS 地址。',
       fullRow: true,
       jsonSchema: relayTargetJsonSchema,
       jsonSchemaInline: true,
       layoutGroup: 'basic',
       layoutOrder: 50,
       type: 'json',
+      validator: validateTargets,
     },
     {
       key: 'lastSyncError',
@@ -242,7 +254,7 @@ export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  title: '邮件中转路由',
+  title: '邮件中转',
   transformSubmit: async (values) => {
     const nextValues = { ...values };
     nextValues.mailDomain = String(nextValues.mailDomain || '')

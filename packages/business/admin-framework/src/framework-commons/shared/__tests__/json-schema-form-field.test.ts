@@ -66,3 +66,38 @@ describe('json schema form field', () => {
     });
   });
 });
+
+const rootArraySchema = {
+  type: 'array',
+  items: { type: 'object', properties: { address: { type: 'string' } } },
+};
+
+it.each([false, true])(
+  'preserves existing root array rows in popup/inline mode: %s',
+  async (inline) => {
+    const wrapper = mount(JsonSchemaFormField, {
+      attachTo: document.body,
+      props: {
+        inline,
+        schema: rootArraySchema,
+        modelValue: JSON.stringify([{ address: 'old@example.com' }]),
+      },
+    });
+    if (!inline) {
+      await wrapper.get('button').trigger('click');
+      await flushPromises();
+    }
+    const input = wrapper.findAllComponents(Input).at(-1);
+    expect(input?.props('value')).toBe('old@example.com');
+    input?.vm.$emit('update:value', 'edited@example.com');
+    await flushPromises();
+    if (!inline) {
+      wrapper.findComponent(Modal).vm.$emit('ok');
+      await flushPromises();
+    }
+    expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual([
+      { address: 'edited@example.com' },
+    ]);
+    wrapper.unmount();
+  },
+);

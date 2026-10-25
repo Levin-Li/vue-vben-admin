@@ -10,7 +10,7 @@ import { computed, onMounted, ref } from 'vue';
 import DynamicCrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
 import { Alert, Button, message } from 'ant-design-vue';
 
-import { useModelMetadataContext } from '../data-model/model-metadata';
+import { useModelMetadataContext } from '../domain-data-dynamic-model/model-metadata';
 import ScopeFields from './scope-fields.vue';
 import { createDynamicCrudAdapter } from './standard-crud-adapter';
 

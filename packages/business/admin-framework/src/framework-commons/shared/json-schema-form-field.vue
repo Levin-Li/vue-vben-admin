@@ -65,12 +65,12 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  'update:modelValue': [value: Record<string, any>];
+  'update:modelValue': [value: any[] | Record<string, any>];
   validity: [valid: boolean];
 }>();
 
 const open = ref(false);
-const draftValue = ref<Record<string, any>>({});
+const draftValue = ref<any[] | Record<string, any>>({});
 const complexTextValues = reactive<Record<string, string>>({});
 const complexErrors = reactive<Record<string, string>>({});
 const runtimeValid = ref(true);
@@ -117,15 +117,13 @@ function cloneObjectValue(value: any) {
   if (typeof value === 'string') {
     try {
       const parsed = JSON.parse(value);
-      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-        ? parsed
-        : {};
+      return parsed && typeof parsed === 'object' ? parsed : {};
     } catch {
       return {};
     }
   }
 
-  if (typeof value !== 'object' || Array.isArray(value)) {
+  if (typeof value !== 'object') {
     return {};
   }
 

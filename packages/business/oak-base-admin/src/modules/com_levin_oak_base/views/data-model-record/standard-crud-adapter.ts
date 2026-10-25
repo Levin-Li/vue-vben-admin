@@ -17,8 +17,8 @@ import type {
 import { reactive } from 'vue';
 
 import { dataModelService } from '../../api/data-model-service';
-import { modelMetadataCache } from '../data-model/model-metadata';
-import { loadModelCrudPage } from '../data-model/model-page-adapter';
+import { modelMetadataCache } from '../domain-data-dynamic-model/model-metadata';
+import { loadModelCrudPage } from '../domain-data-dynamic-model/model-page-adapter';
 import { isModelActionAllowed, modelDisplayCode } from './dynamic-page-display';
 import { recordFailure } from './record-errors';
 import {

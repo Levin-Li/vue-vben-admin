@@ -89,7 +89,7 @@ export function definitionCrudConfig(options: {
     queryPermission: buildApiMethodPermissions(dataModelService, 'queryModels'),
     createPermission: buildApiMethodPermissions(dataModelService, 'save'),
     editPermission: buildApiMethodPermissions(dataModelService, 'save'),
-    title: '领域模型定义',
+    title: '领域数据动态模型',
     recordKey: 'key',
     allowDelete: false,
     allowRetrieve: true,

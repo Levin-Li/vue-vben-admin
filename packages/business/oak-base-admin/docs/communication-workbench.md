@@ -1,5 +1,11 @@
 # 邮件、个人消息与工单工作台使用指南
 
+## 邮件中转的投递目标
+
+在邮件中转的标准新增表单填写域名、邮箱别名和提供商后，必须至少添加一个“投递目标”。点击“新增一项”，选择“邮箱”“完整邮件Webhook”或“通知Webhook”，再填写对应的接收邮箱或HTTPS地址。类型和地址都需要填写，多个目标可逐项维护。
+
+编辑时会回显已有目标，修改一项不会清空其它目标；空目标列表不能保存，必填帮助会保留在表单内。保存只创建或更新本地配置，不等于已经同步至提供商；同步和DNS操作仍通过各自明确动作执行。
+
 ## 安装与入口
 
 通过 `@levin/oak-base-admin` 公开入口启用 `createOakBaseAdminModule()`，并使用当前后端授权菜单及页面路由映射。宿主在 `configureAdminApplication` 中注入本包 API 入口导出的 `userMessageService`；框架接入方式见 `@levin/admin-framework` 包内 `docs/personal-message-integration.md`。独立页面不会注册私有邮件文件、通知事件、投递尝试或工单消息的通用 CRUD。

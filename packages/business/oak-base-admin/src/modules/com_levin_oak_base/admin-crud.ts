@@ -30,9 +30,10 @@ export interface CreateOakBaseAdminCrudRoutesOptions {
 export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   {
     icon: 'lucide:database-zap',
-    name: 'DataModel',
-    resource: 'DataModel',
-    title: '数据模型',
+    name: 'DomainDataDynamicModel',
+    resource: 'DomainDataDynamicModel',
+    permissionResource: 'DataModel',
+    title: '领域数据动态模型',
   },
   {
     icon: 'lucide:bot-message-square',
@@ -405,7 +406,7 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     icon: 'lucide:mail',
     name: 'EmailRelayRoute',
     resource: 'EmailRelayRoute',
-    title: '邮件中转路由',
+    title: '邮件中转',
   },
   { icon: 'lucide:inbox', name: 'Inbox', resource: 'Inbox', title: '收件箱' },
   {
@@ -523,7 +524,8 @@ export const oakBaseAdminResourceViewMap: Record<
   string,
   NonNullable<RouteRecordRaw['component']>
 > = {
-  DataModel: () => import('./views/data-model/index.vue'),
+  DomainDataDynamicModel: () =>
+    import('./views/domain-data-dynamic-model/index.vue'),
   RobotNotifyGroup: () => import('./views/robot-notify-group/index.vue'),
   WorkflowNotificationRoute: () =>
     import('./views/workflow-notification-route/index.vue'),
@@ -719,7 +721,7 @@ const menuGroups = [
     '开发&工具',
     'lucide:code-2',
     [
-      'DataModel',
+      'DomainDataDynamicModel',
       'OnlineCodeGen',
       'SimpleForm',
       'SimpleApi',

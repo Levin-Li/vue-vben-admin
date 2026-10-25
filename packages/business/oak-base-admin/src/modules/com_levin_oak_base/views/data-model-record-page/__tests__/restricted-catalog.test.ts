@@ -4,7 +4,7 @@ import { defineComponent, h, KeepAlive, reactive, ref } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { modelMetadataCache } from '../../data-model/model-metadata';
+import { modelMetadataCache } from '../../domain-data-dynamic-model/model-metadata';
 import RuntimePage from '../index.vue';
 
 enableAutoUnmount(afterEach);

@@ -1,5 +1,13 @@
 # JSON Schema 编辑器属性引用使用指南
 
+## 根数组与集合编辑
+
+Schema的根类型可以是`array`。对象数组复用集合编辑控件，点击“新增一项”后填写各项字段，可编辑或删除指定项目；已有数组在内联和弹窗模式下都保持数组类型及原有内容。字段的初始值应使用`[]`，不需要额外套一层对象。
+
+纯常量或枚举的`oneOf`/`anyOf`显示为选择框，选择后保存实际值；没有默认值时，不会仅在界面伪装成已选首项。包含对象属性的分支继续使用分支表单。编辑器返回自然JSON值；具体业务接口需要的编码由页面按其契约转换。
+
+内联模式设置`jsonSchemaInline: true`，默认模式通过弹窗编辑。业务必填集合应在标准CRUD字段上声明`required`及对应校验，提供说明并阻止空集合提交；公共组件不会代替业务声明猜测目标数量。
+
 ## 入口与前置条件
 
 实体文本字段或 JSON 字段标注 `@JsonSchemaEditor(jsonSchema = ":xxx")`。文本字段使用 `@JdbcTypeCode(SqlTypes.LONGVARCHAR)`，JSON 字段使用 `@JdbcTypeCode(SqlTypes.JSON)`。开发公共 CRUD 页面时，开发者查看后端注解，将 `jsonSchemaEditor: true` 与 `jsonSchema: ':xxx'` 写入静态字段配置。页面运行时不扫描 Java 注解，只根据字段配置解析当前记录的 Schema 来源。

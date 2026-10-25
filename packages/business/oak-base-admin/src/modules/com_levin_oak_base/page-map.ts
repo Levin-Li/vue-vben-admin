@@ -12,8 +12,8 @@ const discoveredPageMap: AdminPageMap = Object.fromEntries(
 // 新增业务页面显式注册真实lazy loader，避免开发服务器旧glob缓存漏掉组件。
 export const oakBaseAdminPageMap: AdminPageMap = {
   ...discoveredPageMap,
-  '/system/com_levin_oak_base/data-model/index.vue': () =>
-    import('./views/data-model/index.vue'),
+  '/system/com_levin_oak_base/domain-data-dynamic-model/index.vue': () =>
+    import('./views/domain-data-dynamic-model/index.vue'),
   '/system/com_levin_oak_base/data-model-record-page/index.vue': () =>
     import('./views/data-model-record-page/index.vue'),
   '/system/com_levin_oak_base/daily-access-stat/index.vue': () =>

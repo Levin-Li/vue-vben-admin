@@ -93,7 +93,7 @@ export function getJsonSchemaPathValue(source: any, path: string[]) {
 }
 
 export function setJsonSchemaPathValue(
-  source: Record<string, any>,
+  source: any[] | Record<string, any>,
   path: string[],
   value: any,
 ) {
@@ -144,7 +144,9 @@ function normalizeSchemaType(schema: Record<string, any>) {
 
 function getConstOption(item: any, index: number): JsonSchemaFormOption {
   if (isRecord(item)) {
-    const value = item.const ?? item.value ?? item.enum?.[0] ?? index;
+    const value = Object.hasOwn(item, 'const')
+      ? item.const
+      : (item.value ?? item.enum?.[0] ?? index);
     return {
       label: String(item.title ?? item.label ?? item.name ?? value),
       value,
@@ -157,6 +159,20 @@ function getConstOption(item: any, index: number): JsonSchemaFormOption {
   };
 }
 
+export function hasJsonSchemaValueOptions(schema: Record<string, any>) {
+  const alternatives = schema.oneOf || schema.anyOf;
+  return (
+    Array.isArray(alternatives) &&
+    alternatives.length > 0 &&
+    alternatives.every(
+      (item) =>
+        isRecord(item) &&
+        !item.properties &&
+        (Object.hasOwn(item, 'const') || Array.isArray(item.enum)),
+    )
+  );
+}
+
 export function getJsonSchemaFieldOptions(schema: Record<string, any>) {
   if (Array.isArray(schema.enum)) {
     const names = schema.enumNames || schema.enumTitles || [];
@@ -166,12 +182,16 @@ export function getJsonSchemaFieldOptions(schema: Record<string, any>) {
     }));
   }
 
-  if (Array.isArray(schema.oneOf)) {
-    return schema.oneOf.map((item, index) => getConstOption(item, index));
-  }
-
-  if (Array.isArray(schema.anyOf)) {
-    return schema.anyOf.map((item, index) => getConstOption(item, index));
+  if (hasJsonSchemaValueOptions(schema)) {
+    return (schema.oneOf || schema.anyOf).flatMap(
+      (item: Record<string, any>, index: number) =>
+        Object.hasOwn(item, 'const')
+          ? [getConstOption(item, index)]
+          : item.enum.map((value: any) => ({
+              label: String(item.title ?? value),
+              value,
+            })),
+    );
   }
 
   return [];
@@ -180,7 +200,7 @@ export function getJsonSchemaFieldOptions(schema: Record<string, any>) {
 export function getJsonSchemaFieldKind(
   schema: Record<string, any>,
 ): JsonSchemaFieldKind {
-  if (schema.enum || schema.oneOf || schema.anyOf) {
+  if (schema.enum || hasJsonSchemaValueOptions(schema)) {
     return 'select';
   }
 
@@ -302,8 +322,21 @@ function applyDefaultsFromSchema(
 export function applyJsonSchemaDefaults(
   value: any,
   schema?: Record<string, any>,
-) {
+): any {
   const normalizedSchema = normalizeJsonSchemaObject(schema);
+  if (normalizedSchema?.type === 'array') {
+    const items = Array.isArray(value) ? value : normalizedSchema.default;
+    return Array.isArray(items)
+      ? items.map((item) =>
+          isRecord(normalizedSchema.items)
+            ? applyJsonSchemaDefaults(item, normalizedSchema.items)
+            : cloneValue(item),
+        )
+      : [];
+  }
+  if (normalizedSchema && normalizeSchemaType(normalizedSchema) !== 'object') {
+    return cloneValue(value === undefined ? normalizedSchema.default : value);
+  }
   const target = isRecord(value) ? cloneValue(value) : {};
 
   if (!normalizedSchema) {

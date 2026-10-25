@@ -22,7 +22,12 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn(),
   user: { userInfo: { id: 'sa', roles: ['R_PLATFORM_SA'] } },
   access: { accessCodes: ['*'] },
-  route: { path: '/clob/V1/DataModel', matched: [], meta: {}, query: {} },
+  route: {
+    path: '/clob/V1/DomainDataDynamicModel',
+    matched: [],
+    meta: {},
+    query: {},
+  },
 }));
 vi.mock('../../../api/data-model-service', () => ({
   dataModelService: {

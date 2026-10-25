@@ -13,7 +13,7 @@ import {
 import * as oakBaseApi from './api';
 import { pageMeta as dailyAccessStatPageMeta } from './views/daily-access-stat/config';
 import { pageMeta as dataModelRecordPageMeta } from './views/data-model-record-page/config';
-import { pageMeta as dataModelPageMeta } from './views/data-model/config';
+import { pageMeta as dataModelPageMeta } from './views/domain-data-dynamic-model/config';
 import { pageMeta as notificationAuditPageMeta } from './views/notification-audit/config';
 import { pageMeta as robotNotifyGroupPageMeta } from './views/robot-notify-group/config';
 import { pageMeta as supportMailboxRulePageMeta } from './views/support-mailbox-rule/config';
@@ -46,7 +46,7 @@ const pageMetaModules: Record<string, PageMeta> = {
       metadata,
     ]),
   ),
-  './views/data-model/config.ts': dataModelPageMeta,
+  './views/domain-data-dynamic-model/config.ts': dataModelPageMeta,
   './views/data-model-record-page/config.ts': dataModelRecordPageMeta,
   './views/daily-access-stat/config.ts': dailyAccessStatPageMeta,
   './views/notification-audit/config.ts': notificationAuditPageMeta,
