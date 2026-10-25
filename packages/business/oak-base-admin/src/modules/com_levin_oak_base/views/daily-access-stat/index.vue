@@ -7,7 +7,7 @@ import type {
   HostResourceStat,
 } from '../../api/daily-access-stat-service';
 
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
@@ -124,11 +124,16 @@ const poolPendingSummary = (record: Partial<HostResourceStat>) =>
     .map((value) => count(value))
     .join(' / ');
 let loadVersion = 0;
+const LIVE_REFRESH_MILLIS = 5000;
+let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
-async function load() {
+async function load(periodic = false) {
+  if (periodic === true && loading.value) return;
   const current = ++loadVersion;
-  rows.value = { Ip: [], User: [] };
-  overview.value = undefined;
+  if (periodic !== true) {
+    rows.value = { Ip: [], User: [] };
+    overview.value = undefined;
+  }
   error.value = '';
   if (!allowed()) {
     error.value = '没有性能监控查询权限';
@@ -165,24 +170,35 @@ async function load() {
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  void load();
+  refreshTimer = setInterval(() => {
+    if (statDate.value === today() && document.visibilityState === 'visible') {
+      void load(true);
+    }
+  }, LIVE_REFRESH_MILLIS);
+});
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer);
+  loadVersion++;
+});
 </script>
 
 <template>
   <Page title="性能监控">
     <div class="bg-card grid gap-4 rounded-lg p-4">
       <p class="text-muted-foreground m-0 text-sm">
-        按北京时间查看每日访问与节点性能。当天累计每 60
-        分钟持久化一次，跨天后补写最终值。
+        按北京时间查看每日访问与节点性能。今天的数据每 5
+        秒自动更新；有接口请求时每小时顺带保存一次快照，跨天后的请求补写最终值。
       </p>
       <div class="flex flex-wrap items-center gap-2">
         <DatePicker
           v-model:value="statDate"
           value-format="YYYY-MM-DD"
           placeholder="统计日期"
-          @change="load"
+          @change="() => load()"
         />
-        <Button :disabled="!allowed()" @click="load">刷新</Button>
+        <Button :disabled="!allowed()" @click="() => load()">刷新</Button>
       </div>
 
       <Tabs v-model:active-key="activeTab">
@@ -195,7 +211,7 @@ onMounted(load);
             v-model:value="accessSide"
             :options="sideOptions"
             class="mb-4 w-48"
-            @change="load"
+            @change="() => load()"
           />
 
           <!-- 整体数据由独立汇总提供，不能从 IP 和用户维度相加。 -->

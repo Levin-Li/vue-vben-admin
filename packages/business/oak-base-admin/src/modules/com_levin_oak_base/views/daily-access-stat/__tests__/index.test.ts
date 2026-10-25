@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DailyAccessStatPage from '../index.vue';
 
@@ -30,7 +30,12 @@ vi.mock('ant-design-vue', () => ({
     template: '<div>{{ message }} {{ description }}</div>',
   },
   Button: { template: '<button><slot /></button>' },
-  DatePicker: { template: '<input />' },
+  DatePicker: {
+    props: ['value'],
+    emits: ['change', 'update:value'],
+    template:
+      '<input :value="value" @change="$emit(\'update:value\', $event.target.value); $emit(\'change\')" />',
+  },
   Descriptions: Object.assign(
     { template: '<div><slot /></div>' },
     { Item: { template: '<div><slot /></div>' } },
@@ -58,6 +63,49 @@ describe('性能监控页面', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     top20.mockResolvedValue([]);
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it('今天自动重新查询，选择历史日期和卸载后停止定时查询', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-25T08:00:00+08:00'));
+    overview.mockResolvedValue({
+      collectionIncomplete: false,
+      totalVisitCount: 1,
+      peakConcurrency: 1,
+      slowUrls: [],
+      hosts: [],
+    });
+    const wrapper = mount(DailyAccessStatPage);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(overview).toHaveBeenCalledTimes(1);
+
+    overview.mockResolvedValue({
+      collectionIncomplete: false,
+      totalVisitCount: 2,
+      peakConcurrency: 1,
+      slowUrls: [],
+      hosts: [],
+    });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(overview).toHaveBeenCalledTimes(2);
+    expect(overview).toHaveBeenLastCalledWith({
+      statDate: '2026-10-25',
+      accessSide: 'Backend',
+    });
+    expect(top20).toHaveBeenCalledTimes(4);
+    expect(wrapper.text()).toContain('2');
+
+    await wrapper.get('input').setValue('2026-10-24');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(overview).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(overview).toHaveBeenCalledTimes(3);
+
+    wrapper.unmount();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(overview).toHaveBeenCalledTimes(3);
   });
 
   it.each([true, false])(

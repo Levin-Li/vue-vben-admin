@@ -493,7 +493,7 @@ catalogs:
       specifier: ^3.2.4
       version: 3.2.4
     vxe-pc-ui:
-      specifier: ^4.12.16
+      specifier: 4.12.35
       version: 4.12.35
     vxe-table:
       specifier: ^4.17.46

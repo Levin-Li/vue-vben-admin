@@ -1,5 +1,7 @@
 # 后台前端模块发布说明
 
+最新批次见 [2026-10-26 性能监控前端包发布记录](releases/20261026-performance-monitor.md)。
+
 最新批次见 [2026-10-25 邮件中转目标编辑与实体名页面](releases/20261025-mail-relay-target-editor.md)。
 
 最新批次见 [2026-10-25 管理端核心修复包发布记录](releases/20261025-admin-core-fixes.md)。
