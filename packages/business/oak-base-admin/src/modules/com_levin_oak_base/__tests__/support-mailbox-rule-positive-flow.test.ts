@@ -49,7 +49,8 @@ vi.mock(
           },
         },
         template: `<main>
-          <slot name="toolbar-extra" :is-list-operation-visible="() => true" />
+          <div data-query><slot name="search-field-orgId" /></div>
+          <div data-toolbar><slot name="toolbar-extra" :is-list-operation-visible="() => true" /></div>
           <div v-for="record in rows" :key="record.id">
             <span v-for="field in config.fields.filter(item => item.table)" :key="field.key">{{ field.tableValue ? field.tableValue(record) : record[field.key] }}</span>
             <slot name="row-actions" :record="record" />
@@ -175,6 +176,8 @@ const existing = {
 async function scopedPage() {
   const wrapper = mount(RulePage);
   await flushPromises();
+  expect(wrapper.get('[data-query]').text()).toContain('Scope A');
+  expect(wrapper.get('[data-toolbar]').text()).not.toContain('Scope A');
   await button(wrapper, 'Scope A').trigger('click');
   await flushPromises();
   return wrapper;

@@ -53,10 +53,10 @@ const nestedGroups = [
 ];
 
 describe('复杂属性分组', () => {
-  it('新建时默认勾选并展开对象', () => {
+  it('新建时可选复杂对象默认不提交且收起', () => {
     expect(buildCrudComplexGroupInitialState(groups)).toEqual({
-      collapsed: { contact: false, invoice: false },
-      enabled: { contact: true, invoice: true },
+      collapsed: { contact: true, invoice: true },
+      enabled: { contact: false, invoice: false },
       flatValues: {
         contactMobile: undefined,
         contactName: undefined,
@@ -72,8 +72,8 @@ describe('复杂属性分组', () => {
       invoiceInfo: { name: '示例公司', taxNo: '91350211M000100Y43' },
     });
 
-    expect(initial.enabled).toEqual({ contact: true, invoice: true });
-    expect(initial.collapsed).toEqual({ contact: false, invoice: false });
+    expect(initial.enabled).toEqual({ contact: false, invoice: true });
+    expect(initial.collapsed).toEqual({ contact: true, invoice: false });
     expect(initial.flatValues).toMatchObject({
       invoiceName: '示例公司',
       invoiceTaxNo: '91350211M000100Y43',

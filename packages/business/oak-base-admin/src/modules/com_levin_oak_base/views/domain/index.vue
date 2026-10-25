@@ -200,8 +200,11 @@ async function loadOperationProfile(id: string) {
 
   const request = domainService
     .operationProfile(id)
-    .then((profile) => (operationProfiles[id] = profile || {}))
-    .catch(() => (operationProfiles[id] = {}))
+    .then(
+      (profile) =>
+        (operationProfiles[id] = profile || ({} as DomainOperationProfile)),
+    )
+    .catch(() => (operationProfiles[id] = {} as DomainOperationProfile))
     .finally(() => operationProfileRequests.delete(id));
   operationProfileRequests.set(id, request);
   return request;

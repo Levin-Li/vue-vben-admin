@@ -1,8 +1,8 @@
-import { flushPromises, mount } from '@vue/test-utils';
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, nextTick } from 'vue';
 
 import { AutoComplete, Select, Switch, Tooltip } from 'ant-design-vue';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../../api';
 import { roleOptionsLoader } from '../config-helpers';
@@ -28,6 +28,20 @@ vi.mock('../script-workbench-dialog.vue', () => ({
     template: '<div />',
   }),
 }));
+
+// 大字段抽屉挂载真实 Ant Design 控件，全量并行运行时给渲染留出有界时间。
+vi.setConfig({ testTimeout: 20_000 });
+
+// 测试失败时也卸载 Teleport 和事件监听，避免下一例读到上例的页签或字段行。
+enableAutoUnmount(afterEach);
+beforeEach(() => {
+  vi.unstubAllGlobals();
+  document.body.replaceChildren();
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  document.body.replaceChildren();
+});
 
 function mountDrawer(saving: boolean, showOperationColumn = false) {
   return mount(PageDisplaySettingsDrawer, {

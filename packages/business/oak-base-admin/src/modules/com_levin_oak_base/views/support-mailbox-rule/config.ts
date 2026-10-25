@@ -56,6 +56,15 @@ export function createSupportMailboxRuleCrudConfig(options: {
     ],
     fields: [
       {
+        key: 'orgId',
+        label: '受理组织',
+        type: 'org-tree-select',
+        search: true,
+        table: false,
+        form: false,
+        detail: false,
+      },
+      {
         key: 'email',
         label: '邮箱地址',
         table: true,

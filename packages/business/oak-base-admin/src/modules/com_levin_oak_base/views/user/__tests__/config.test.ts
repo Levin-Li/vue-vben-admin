@@ -1,4 +1,5 @@
 import { roleOptionsLoader as sharedRoleOptionsLoader } from '@levin/admin-framework/framework-commons/shared/config-helpers';
+import { resolveDetailFields } from '@levin/admin-framework/framework-commons/shared/detail-display';
 import { describe, expect, it, vi } from 'vitest';
 
 import { roleOptionsLoader, userPageCrudConfig } from '../config';
@@ -54,6 +55,20 @@ describe('user page config', () => {
         type: 'qrcode',
       }),
     );
+  });
+
+  it('excludes ordinary credentials and MFA secrets from user details', () => {
+    expect(userPageCrudConfig.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'password', detail: false }),
+        expect.objectContaining({ key: 'mfaSecretKey', detail: false }),
+      ]),
+    );
+    const fields = resolveDetailFields(
+      { name: 'QA 用户', mfaSecretKey: 'not-for-display' },
+      userPageCrudConfig.fields,
+    );
+    expect(fields.map((field) => field.key)).not.toContain('mfaSecretKey');
   });
 
   it('shows the nested organization name with an organization ID fallback', () => {

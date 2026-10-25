@@ -53,7 +53,7 @@ vi.mock('../views/crud-page.vue', () => ({
       page.rows = result.items || [];
     },
     template:
-      '<main><slot name="toolbar-extra" /><div v-for="record in rows" :key="record.id"><slot name="row-actions" :record="record" /></div></main>',
+      '<main><div data-query><slot name="search-field-orgId" /></div><div data-toolbar><slot name="toolbar-extra" /></div><div v-for="record in rows" :key="record.id"><slot name="row-actions" :record="record" /></div></main>',
   },
 }));
 vi.mock('@vben/common-ui', () => ({
@@ -148,6 +148,8 @@ const mimeText =
 async function openMail() {
   const wrapper = mount(InboxPage);
   await flushPromises();
+  expect(wrapper.get('[data-query]').text()).toContain('Scope A');
+  expect(wrapper.get('[data-toolbar]').text()).not.toContain('Scope A');
   await button(wrapper, 'Scope A').trigger('click');
   await flushPromises();
   await button(wrapper, '原文与受理').trigger('click');

@@ -600,10 +600,18 @@ export const userPageCrudConfig: CrudPageConfig = {
     {
       key: 'password',
       label: '登录密码',
+      detail: false,
       layoutGroup: 'basic',
       layoutOrder: 80,
       placeholder: '新增时设置初始密码；编辑时留空表示不修改',
       type: 'password',
+    },
+    {
+      key: 'mfaSecretKey',
+      label: '多因子认证密钥',
+      detail: false,
+      form: false,
+      table: false,
     },
     {
       key: 'signature',

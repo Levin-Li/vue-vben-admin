@@ -181,12 +181,10 @@ async function copyCreatedUrl() {
 </script>
 
 <template>
+  <p v-if="issuerRequirement" role="status" class="text-muted-foreground">
+    {{ issuerRequirement }}
+  </p>
   <CrudPage ref="crudPage" :config="pageConfig">
-    <template v-if="issuerRequirement" #toolbar-extra>
-      <span role="status" class="text-muted-foreground">{{
-        issuerRequirement
-      }}</span>
-    </template>
     <template #form-field-channelPartnerId="{ formState, disabled }">
       <ChannelPartnerPicker
         v-model="formState.channelPartnerId"

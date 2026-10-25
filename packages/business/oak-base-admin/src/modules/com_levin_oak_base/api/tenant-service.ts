@@ -163,7 +163,7 @@ export class TenantService extends RequestService {
     type: '平台数据-平台租户',
     action: '更新',
     isAndMode: true,
-    anyRoles: ['R_PLATFORM_SA', 'R_PLATFORM_ADMIN'],
+    anyRoles: ['R_PLATFORM_SA'],
   })
   @CRUD.Op()
   async update(data?: any, options?: any) {

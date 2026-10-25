@@ -58,8 +58,10 @@ export function buildCrudComplexGroupInitialState(
 
   for (const group of groups || []) {
     const value = getRecordValue(record, group.submitKey);
-    enabled[group.key] = true;
-    collapsed[group.key] = false;
+    // 可选对象无原值时默认不提交并收起；已有对象继续回显并参与编辑。
+    const hasValue = value !== null && value !== undefined;
+    enabled[group.key] = hasValue;
+    collapsed[group.key] = !hasValue;
 
     for (const [flatKey, nestedKey] of Object.entries(group.fieldMappings)) {
       flatValues[flatKey] = getRecordValue(value, nestedKey);

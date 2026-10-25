@@ -206,7 +206,7 @@ watch(
 </script>
 <template>
   <CrudPage :key="scopeVersion" :config="pageConfig">
-    <template #toolbar-extra>
+    <template #search-field-orgId>
       <SupportScopeSelector
         :model-value="selectedScopeRecord"
         @change="changeScope"

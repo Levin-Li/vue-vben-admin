@@ -89,7 +89,8 @@ vi.mock('../api/inbox-service', () => ({ inboxService: mocks.inbox }));
 vi.mock('../views/crud-page.vue', () => ({
   default: {
     props: ['config'],
-    template: '<main><slot name="toolbar-extra" /></main>',
+    template:
+      '<main><slot name="search-field-orgId" /><slot name="toolbar-extra" /></main>',
   },
 }));
 // 工作流通知路由直接接入公共 CRUD；模拟其查询快照、分页和具名插槽合同。

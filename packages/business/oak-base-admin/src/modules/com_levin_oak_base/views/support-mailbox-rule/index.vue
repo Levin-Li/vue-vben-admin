@@ -33,6 +33,7 @@ const { hasPermission } = useRbacAccess();
 const router = useRouter();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(supportMailboxRuleService, method));
+const selectedScopeRecord = ref<UserOrgSelectorRecord>();
 const scope = ref<SupportScope>();
 const scopeGeneration = ref(0);
 const crudPage = ref<{ reload: () => Promise<void> }>();
@@ -54,11 +55,16 @@ const canSave = computed(
   () =>
     allowed(currentRecord.value ? 'update' : 'create') && Boolean(scope.value),
 );
-const pageConfig = createSupportMailboxRuleCrudConfig({
-  list: listRules,
-  channelLabel: (value) =>
-    channels.value.find((item) => item.value === value)?.label || '通道不可用',
-});
+// 组织选择进入标准查询字段，重置查询时保留当前受理范围。
+const pageConfig = computed(() => ({
+  ...createSupportMailboxRuleCrudConfig({
+    list: listRules,
+    channelLabel: (value) =>
+      channels.value.find((item) => item.value === value)?.label ||
+      '通道不可用',
+  }),
+  defaultQuery: { pageIndex: 1, pageSize: 20, orgId: scope.value?.orgId },
+}));
 let listVersion = 0;
 async function listRules(params: Record<string, unknown> = {}) {
   const current = ++listVersion;
@@ -78,6 +84,7 @@ async function reloadList() {
   await crudPage.value?.reload();
 }
 function changeScope(record?: UserOrgSelectorRecord) {
+  selectedScopeRecord.value = record;
   scope.value =
     record?.kind === 'org' && record.tenantId
       ? { tenantId: record.tenantId, orgId: record.id }
@@ -275,11 +282,14 @@ onMounted(async () => {
 </script>
 <template>
   <CrudPage :key="scopeGeneration" ref="crudPage" :config="pageConfig">
+    <template #search-field-orgId>
+      <SupportScopeSelector
+        :model-value="selectedScopeRecord"
+        @change="changeScope"
+      />
+    </template>
     <template #toolbar-extra="{ isListOperationVisible }">
       <div class="flex flex-wrap items-center gap-2">
-        <div class="min-w-64 flex-1 sm:max-w-80">
-          <SupportScopeSelector @change="changeScope" />
-        </div>
         <Button
           v-if="allowed('create') && isListOperationVisible('mailbox:create')"
           :disabled="!scope"
@@ -317,14 +327,14 @@ onMounted(async () => {
     :confirm-loading="saving"
     @ok="save"
   >
-        <Form
-          id="support-mailbox-rule-config"
-          name="supportMailboxRuleConfig"
-          data-form-id="support-mailbox-rule-config"
-          data-form-name="支持邮箱配置"
-          layout="vertical"
-          class="grid grid-cols-1 gap-x-4 md:grid-cols-2"
-        >
+    <Form
+      id="support-mailbox-rule-config"
+      name="supportMailboxRuleConfig"
+      data-form-id="support-mailbox-rule-config"
+      data-form-name="支持邮箱配置"
+      layout="vertical"
+      class="grid grid-cols-1 gap-x-4 md:grid-cols-2"
+    >
       <Form.Item label="支持邮箱地址" required>
         <Input
           v-model:value="draft.email"

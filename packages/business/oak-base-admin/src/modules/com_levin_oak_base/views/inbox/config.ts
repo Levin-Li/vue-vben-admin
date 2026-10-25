@@ -39,6 +39,15 @@ export const inboxPageCrudConfig: CrudPageConfig = {
   description: '邮件按实际收件地址归属；正文、原文和附件仅在授权详情中查看。',
   detailPermission: buildApiMethodPermissions(inboxService, 'retrieve'),
   fields: [
+    {
+      key: 'orgId',
+      label: '受理组织',
+      type: 'org-tree-select',
+      search: true,
+      table: false,
+      form: false,
+      detail: false,
+    },
     { key: 'id', label: '邮件ID', form: false, table: true, width: 160 },
     {
       key: '__tenant',
