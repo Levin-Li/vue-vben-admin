@@ -76,8 +76,9 @@ vi.mock(
 vi.mock('../views/api-module', () => ({ moduleFetchEnumOptions: mocks.enums }));
 vi.mock('../views/support-scope-selector.vue', () => ({
   default: {
+    props: ['placeholder'],
     emits: ['change'],
-    template: `<button @click="$emit('change', { id: 'org', kind: 'org', tenantId: 'tenant' })">选择范围</button>`,
+    template: `<button :data-placeholder="placeholder" @click="$emit('change', { id: 'org', kind: 'org', tenantId: 'tenant' })">选择范围</button>`,
   },
 }));
 vi.mock('@levin/admin-framework/framework-commons/rbac-access', () => ({
@@ -224,7 +225,10 @@ describe('工单工作台授权交互阳性合同', () => {
     await flushPromises();
 
     expect(mocks.ticket.list).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain('请选择受理组织后查询客服工单');
+    expect(wrapper.text()).not.toContain('请选择受理组织后查询客服工单');
+    expect(button(wrapper, '选择范围').attributes('data-placeholder')).toBe(
+      '请选择受理组织',
+    );
 
     await button(wrapper, '选择范围').trigger('click');
     await flushPromises();

@@ -631,10 +631,6 @@ watch(() => route.query.id, deepLink);
 </script>
 <template>
   <div class="flex min-w-0 flex-col gap-2">
-    <!-- 范围未确定时说明下一步，不把业务前置条件变成接口错误。 -->
-    <div v-if="requiresScopeSelection" role="status" class="px-4 py-2">
-      请选择受理组织后查询客服工单
-    </div>
     <CrudPage :key="scopeGeneration" ref="crudPage" :config="crudConfig">
       <template #search-field-orgId="slot">
         <SupportScopeSelector
