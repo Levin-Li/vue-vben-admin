@@ -53,9 +53,12 @@ configureAdminApplication({
 系统原生网页 Agent 的聊天入口和技能登记见[网页 Agent 使用与扩展指南](docs/ai-agent.md)。
 标准 CRUD 金额字段的四位分组、默认单位与页面覆盖见[金额展示使用说明](docs/crud-money-display.md)。
 标准 CRUD 本地下拉的文本、拼音与首字母搜索见[本地选项搜索使用说明](docs/crud-local-search.md)。
+
+标准 CRUD 查询字段若以成对的起止前缀或 `After`/`Before` 后缀命名，且类型同为日期、日期时间或时间，将合并显示为一个范围选择器；查询请求仍分别使用原字段名。单独的时间字段仍使用单值组件。配置时须以列表接口实际接受的参数名为准，不能为了合并控件伪造查询参数。
 `EditableObject` 的全局字段显隐及超管编辑行为见[EditableObject 标准 CRUD 使用说明](docs/crud-editableobject-access.md)。
 页面展示设置的默认值编辑方式与设置记录信息见[页面展示设置使用说明](docs/page-display-setting-record.md)。
 紧凑列表的表头固定列图标、临时状态和列配置入口见[紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。
+公共 CRUD 的表头临时拖动及刷新恢复见[临时列宽使用指南](docs/crud-temporary-column-resize.md)。
 默认管理员首次登录后的强制改密接入与验证见[默认管理员首次改密指南](docs/initial-password-change.md)。
 新增时由页面生成的隐藏必需字段见[CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。
 HTML 字段与独立页面的安全富文本编辑接入见[公共富文本编辑器使用指南](docs/rich-text-editor.md)。
@@ -89,3 +92,11 @@ API 字段分组的开发期静态声明、登录有效许可、本地合并及�
 详情首次打开会为当前权限与UI设置允许的选择字段读取既有只读选项标签；组织选择器沿用原有授权接口。该行为不会增加业务字段、改变提交范围或扩大凭据权限。最小验证：打开标准CRUD编辑记录，修改后模拟保存失败，点击取消并选择继续编辑应保留输入；还原原值后取消可直接关闭。
 
 运行时模型与独立页面复用公共 CRUD 的字段、策略和服务回调见[运行时元数据接入指南](docs/runtime-crud-metadata.md)。
+
+## 公共 CRUD 表头排序
+
+名称、类型、类别、枚举、字典和日期时间字段默认提供表头排序；其他后端标量字段可通过页面展示设置开启。配置入口与边界见 [表头排序使用指南](docs/crud-sort-settings.md)。
+
+# MP4 JSON 元数据
+
+浏览器读写本地或可访问的网络 MP4 标记：[MP4 JSON 元数据使用指南](docs/mp4-json-metadata.md)。

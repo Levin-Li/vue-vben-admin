@@ -10,7 +10,7 @@ import { OAK_BASE_API_MODULE } from './_module';
 @Service({
   basePath: '/EInvoice',
   controllerClass: 'com.levin.oak.base.controller.BizEInvoiceController',
-  title: '电子发票',
+  title: '开票申请',
   type: '系统数据-电子发票',
 })
 export class ElectronicInvoiceService extends RequestService {

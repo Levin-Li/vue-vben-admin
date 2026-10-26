@@ -323,10 +323,12 @@ import {
   getTableColumnPreferenceStorageKey,
   readTableColumnPreference,
 } from './crud-table-column-preference';
+import { resizeTemporaryTableColumns } from './crud-table-column-resize';
 import {
   normalizeLeftFixedTableColumns,
   resolveCompactTableColumnFixed,
 } from './crud-table-columns';
+import { isCrudTableFieldSortable } from './crud-table-sort-eligibility';
 import {
   buildCrudTemplateScopePayload,
   canShowCrudTemplateDelete,
@@ -617,6 +619,11 @@ const isDraggingListTableTabs = ref(false);
 const listTableTabsHandleTooltipOpen = ref(false);
 const hiddenTableColumnKeys = ref<string[]>([]);
 const orderedTableColumnKeys = ref<string[]>([]);
+const temporaryTableColumnWidths = ref<Record<string, number>>({});
+const temporaryResizeBaseline = ref<{
+  targetKey: string;
+  widths: number[];
+} | null>(null);
 const columnSettingsOpen = ref(false);
 const pageDisplaySettingsOpen = ref(false);
 // 两版编辑抽屉仅在点击后挂载，普通页面只解析实际应用的展示配置。
@@ -2377,50 +2384,68 @@ const tableColumns = computed<TableColumnsType>(() => {
     Math.max(tableAvailableWidth.value - actionWidth, 0),
   );
   const columns: TableColumnsType = orderedVisibleTableFields.value.map(
-    (field, index) => ({
-      align: isNumericField(field) ? 'right' : undefined,
-      dataIndex: field.key,
-      fixed: resolveCompactTableColumnFixed(
-        getEffectiveTableColumnFixed(field),
-        isCompactTable.value,
-        compactExpandedFixedSide.value,
-      ),
-      key: field.key,
-      sorter: isTableFieldSortable(field),
-      sortField: getTableSortField(field),
-      sortOrder:
-        tableSorterState.field === String(getTableSortField(field))
-          ? tableSorterState.order
-          : undefined,
-      title: () =>
-        h('span', { class: 'vben-crud-table-header-content' }, [
-          h(
-            Tooltip,
-            { title: field.label },
-            {
-              default: () =>
-                h(
-                  'span',
-                  {
-                    'aria-label': field.label,
-                    class: 'vben-crud-table-header-title',
-                    title: field.label,
-                  },
-                  getPageDisplayHeader(field.key)?.title || field.label,
-                ),
-            },
-          ),
-          renderFieldFixedToggle(field),
-        ]),
-      width: Math.min(
-        distributedWidths[index] ?? resolveDefaultTableColumnWidth(field),
+    (field, index) => {
+      const header = getPageDisplayHeader(field.key);
+      const maximumWidth =
         field.tableMaxWidth ||
-          getPageDisplayHeader(field.key)?.maxWidth ||
-          (Number.isFinite(defaultMaxColumnWidth) && defaultMaxColumnWidth > 0
-            ? defaultMaxColumnWidth
-            : Number.POSITIVE_INFINITY),
-      ),
-    }),
+        header?.maxWidth ||
+        (Number.isFinite(defaultMaxColumnWidth) && defaultMaxColumnWidth > 0
+          ? defaultMaxColumnWidth
+          : Number.POSITIVE_INFINITY);
+      const defaultWidth = Math.min(
+        distributedWidths[index] ?? resolveDefaultTableColumnWidth(field),
+        maximumWidth,
+      );
+      const width =
+        temporaryTableColumnWidths.value[getTableFieldKey(field)] ??
+        defaultWidth;
+      const configuredMinimum =
+        header?.minWidth ||
+        (Number.isFinite(defaultMinColumnWidth) && defaultMinColumnWidth > 0
+          ? defaultMinColumnWidth
+          : 80);
+
+      return {
+        align: isNumericField(field) ? 'right' : undefined,
+        dataIndex: field.key,
+        fixed: resolveCompactTableColumnFixed(
+          getEffectiveTableColumnFixed(field),
+          isCompactTable.value,
+          compactExpandedFixedSide.value,
+        ),
+        key: field.key,
+        maxWidth: maximumWidth,
+        minWidth: Math.min(configuredMinimum, width),
+        resizable: index < orderedVisibleTableFields.value.length - 1,
+        sorter: isTableFieldSortable(field),
+        sortField: getTableSortField(field),
+        sortOrder:
+          tableSorterState.field === String(getTableSortField(field))
+            ? tableSorterState.order
+            : undefined,
+        title: () =>
+          h('span', { class: 'vben-crud-table-header-content' }, [
+            h(
+              Tooltip,
+              { title: field.label },
+              {
+                default: () =>
+                  h(
+                    'span',
+                    {
+                      'aria-label': field.label,
+                      class: 'vben-crud-table-header-title',
+                      title: field.label,
+                    },
+                    getPageDisplayHeader(field.key)?.title || field.label,
+                  ),
+              },
+            ),
+            renderFieldFixedToggle(field),
+          ]),
+        width,
+      };
+    },
   );
 
   if (showActionColumn.value) {
@@ -2447,6 +2472,55 @@ const tableColumns = computed<TableColumnsType>(() => {
   // 普通列已完成服务端及本地排序，操作区只追加在最后。
   return columns;
 });
+
+function handleTableColumnResize(
+  requestedWidth: number,
+  column: { key?: number | string },
+) {
+  const fields = orderedVisibleTableFields.value;
+  const targetIndex = fields.findIndex(
+    (field) => getTableFieldKey(field) === String(column.key || ''),
+  );
+  if (targetIndex === -1 || targetIndex >= fields.length - 1) return;
+
+  // 拖动只覆盖当前页面内存；列设置的本地存储和服务端展示设置均不参与。
+  const visibleColumns = tableColumns.value.slice(0, fields.length);
+  const renderedHeaders = [
+    ...(listSectionRef.value?.querySelectorAll<HTMLTableCellElement>(
+      '.vben-crud-table .ant-table-thead th:not(.ant-table-selection-column):not(.ant-table-cell-scrollbar)',
+    ) || []),
+  ];
+  const currentWidths = visibleColumns.map((item, index) => {
+    const field = fields[index];
+    const savedWidth = field
+      ? temporaryTableColumnWidths.value[getTableFieldKey(field)]
+      : undefined;
+    if (savedWidth !== undefined) return savedWidth;
+    return (
+      renderedHeaders[index]?.getBoundingClientRect().width ||
+      Number(item.width)
+    );
+  });
+  const targetKey = getTableFieldKey(fields[targetIndex]!);
+  if (temporaryResizeBaseline.value?.targetKey !== targetKey) {
+    temporaryResizeBaseline.value = {
+      targetKey,
+      widths: currentWidths,
+    };
+  }
+  const nextWidths = resizeTemporaryTableColumns(
+    temporaryResizeBaseline.value.widths,
+    visibleColumns.map((item) => Number(item.minWidth || 80)),
+    visibleColumns.map((item) =>
+      Number(item.maxWidth || Number.POSITIVE_INFINITY),
+    ),
+    targetIndex,
+    requestedWidth,
+  );
+  temporaryTableColumnWidths.value = Object.fromEntries(
+    fields.map((field, index) => [getTableFieldKey(field), nextWidths[index]!]),
+  );
+}
 
 const tableFieldMap = computed(() =>
   Object.fromEntries(tableFields.value.map((field) => [field.key, field])),
@@ -2676,15 +2750,12 @@ function getTableSortField(field: CrudFieldConfig) {
 }
 
 function isTableFieldSortable(field: CrudFieldConfig) {
-  if (
-    field.sortable === false ||
-    field.key === '__tenant' ||
-    !dataAttrAccess.allowed('list', 'input', getTableSortField(field))
-  )
-    return false;
-
-  // 页面展示设置只能关闭静态字段已支持的排序，不能为虚拟或后端不支持的字段新增排序请求。
-  return getPageDisplayHeader(field.key)?.sortable !== false;
+  const header = getPageDisplayHeader(field.key);
+  return (
+    header?.virtual !== true &&
+    dataAttrAccess.allowed('list', 'input', getTableSortField(field)) &&
+    isCrudTableFieldSortable(field, header?.sortable)
+  );
 }
 
 function getModalAvailableWidth() {
@@ -3960,6 +4031,17 @@ async function loadTableDisplayOptions(field: CrudFieldConfig) {
 
 function buildSortParams() {
   if (!tableSorterState.field || !tableSorterState.order) {
+    return {};
+  }
+
+  // 展示设置关闭排序后，旧的排序状态也不能继续进入列表请求。
+  if (
+    !effectiveFields.value.some(
+      (field) =>
+        getTableSortField(field) === tableSorterState.field &&
+        isTableFieldSortable(field),
+    )
+  ) {
     return {};
   }
 
@@ -5872,6 +5954,8 @@ function handleListTableChange(key: number | string) {
 
   captureListTableState(previousKey);
   activeListTableKey.value = nextKey;
+  temporaryTableColumnWidths.value = {};
+  temporaryResizeBaseline.value = null;
   restoreListTableState(nextKey);
   loadTableColumnPreference();
   void loadList();
@@ -7949,6 +8033,8 @@ watch(
 );
 
 watch(tableFields, () => {
+  temporaryTableColumnWidths.value = {};
+  temporaryResizeBaseline.value = null;
   if (!canCustomizeTableColumnsLocally.value) {
     return;
   }
@@ -7956,6 +8042,35 @@ watch(tableFields, () => {
   // 候选条件变化只更新内存；初始化不得覆盖尚未读取的本地偏好。
   pruneTableColumnPreference();
 });
+
+watch(
+  () =>
+    orderedVisibleTableFields.value
+      .map((field) => getTableFieldKey(field))
+      .join('|'),
+  () => {
+    temporaryTableColumnWidths.value = {};
+    temporaryResizeBaseline.value = null;
+  },
+);
+
+watch(
+  () =>
+    JSON.stringify({
+      defaultMax: pageDisplayConfig.value.list?.defaultMaxColumnWidth,
+      defaultMin: pageDisplayConfig.value.list?.defaultMinColumnWidth,
+      headers: pageDisplayConfig.value.list?.headers?.map((header) => ({
+        key: header.key,
+        maxWidth: header.maxWidth,
+        minWidth: header.minWidth,
+        width: header.width,
+      })),
+    }),
+  () => {
+    temporaryTableColumnWidths.value = {};
+    temporaryResizeBaseline.value = null;
+  },
+);
 
 watch(tableColumnPreferenceStorageKey, () => {
   loadTableColumnPreference();
@@ -8667,6 +8782,7 @@ watch(
           :scroll="tableScroll"
           :row-key="recordKey"
           @change="handleTableChange"
+          @resize-column="handleTableColumnResize"
           class="vben-crud-table"
         >
           <template v-if="$slots.emptyText" #emptyText>

@@ -63,7 +63,7 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     icon: 'lucide:mail-check',
     name: 'SupportMailboxRule',
     resource: 'SupportMailboxRule',
-    title: '支持邮箱受理规则',
+    title: '客服邮箱设置',
   },
   {
     icon: 'lucide:send',
@@ -236,13 +236,13 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     icon: 'lucide:receipt-text',
     name: 'EInvoice',
     resource: 'EInvoice',
-    title: '电子发票',
+    title: '开票申请',
   },
   {
     icon: 'lucide:badge-check',
     name: 'EInvoiceProviderConnection',
     resource: 'EInvoiceProviderConnection',
-    title: '电子发票授权',
+    title: '开票授权',
   },
   {
     icon: 'lucide:shield-check',

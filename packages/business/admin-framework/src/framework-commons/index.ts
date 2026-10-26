@@ -25,6 +25,7 @@ export { default as DraggableFloatingPanelHost } from './shared/draggable-floati
  * scoped floating area.
  */
 export * from './shared/draggable-floating-panel-service';
+export * from './shared/mp4-json-metadata';
 export { default as DraggableFloatingPanel } from './shared/draggable-floating-panel.vue';
 export { default as PatternListEditor } from './shared/pattern-list-editor.vue';
 export * from './shared/pattern-list-utils';

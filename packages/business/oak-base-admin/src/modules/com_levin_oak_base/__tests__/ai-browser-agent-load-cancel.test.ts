@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({ started: false, get: vi.fn() }));
 vi.mock('../api/_module', () => ({ oakBaseGet: state.get }));
@@ -6,6 +6,12 @@ vi.mock('@levin/oak-base-admin/ai-sdk-browser', () => {
   state.started = true;
   // 模拟浏览器模块下载悬挂，不能等待这个 Promise 才响应停止或超时。
   return new Promise(() => {});
+});
+
+beforeEach(() => {
+  // 每个场景重新触发悬挂的模块下载，避免复用上一场景的加载状态。
+  vi.resetModules();
+  state.started = false;
 });
 
 afterEach(() => {

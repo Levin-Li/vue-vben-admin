@@ -6,21 +6,18 @@ import { buildApiMethodPermissions } from '@levin/admin-framework/framework-comm
 import {
   Alert,
   Button,
-  Card,
   DatePicker,
   Form,
   Input,
   message,
   Modal,
-  Tag,
 } from 'ant-design-vue';
 
 import { electronicInvoiceProviderConnectionService } from '../../api/electronic-invoice-provider-connection-service';
 import CrudPage from '../crud-page.vue';
-import IssuerPartnerPicker from '../partner/issuer-partner-picker.vue';
+import AuthorizationLegalSubjectPicker from './authorization-legal-subject-picker.vue';
 import {
   electronicInvoiceProviderConnectionPageCrudConfig,
-  electronicInvoiceProviderOptions,
   getElectronicInvoiceProviderGuide,
 } from './config';
 
@@ -28,7 +25,6 @@ const authorizationOpen = ref(false);
 const authorizationSaving = ref(false);
 const selected = ref<any>();
 const reloadConnections = ref<(() => Promise<void> | void) | undefined>();
-const providerGuideOpen = ref(false);
 const form = reactive({
   authorizationRef: '',
   expiredTime: undefined as string | undefined,
@@ -40,13 +36,6 @@ const { hasPermission } = useRbacAccess();
 const completeAuthorizationPermission = buildApiMethodPermissions(
   electronicInvoiceProviderConnectionService,
   'completeAuthorization',
-);
-
-const providerGuides = computed(() =>
-  electronicInvoiceProviderOptions.map((provider) => ({
-    ...provider,
-    guide: getElectronicInvoiceProviderGuide(provider.value),
-  })),
 );
 
 const selectedGuide = computed(() =>
@@ -84,7 +73,11 @@ async function submitAuthorization() {
   ];
   const guide = selectedGuide.value;
 
-  if (!selected.value?.partnerId || !authorizationRef) {
+  if (!selected.value?.legalSubjectId) {
+    message.warning('请选择需要开票的法律主体');
+    return;
+  }
+  if (!authorizationRef) {
     message.warning(`请填写${guide.authorizationRefLabel}`);
     return;
   }
@@ -101,7 +94,7 @@ async function submitAuthorization() {
   authorizationSaving.value = true;
   try {
     await electronicInvoiceProviderConnectionService.completeAuthorization({
-      partnerId: selected.value.partnerId,
+      legalSubjectId: selected.value.legalSubjectId,
       providerCode: selected.value.providerCode,
       tenantId: selected.value.tenantId,
       authorizationRef,
@@ -110,83 +103,30 @@ async function submitAuthorization() {
       terminalRef: terminalRef || undefined,
       invoiceTypeList: invoiceTypeList.length > 0 ? invoiceTypeList : undefined,
     });
-    message.success(`${guide.name}电子发票授权已确认`);
+    message.success(`${guide.name}开票授权已确认`);
     authorizationOpen.value = false;
     await reloadConnections.value?.();
   } catch (error) {
     console.error(error);
-    message.error('确认电子发票授权失败');
+    message.error('确认开票授权失败');
   } finally {
     authorizationSaving.value = false;
   }
 }
 </script>
 <template>
+  <!-- 日常授权页直接呈现查询和记录，办理提示只在具体操作中展示。 -->
   <div class="electronic-invoice-provider-connection-page">
-    <Alert
-      message="商户自助接入说明"
-      description="我们当前支持商户在系统内自行发起电子发票接入。建议先开启模拟器走完整个授权、开票、回调与补偿闭环，再切换到正式环境。腾讯电子发票默认按灰度/模拟联调处理。"
-      show-icon
-      type="info"
-    />
-
-    <Card title="可授权服务商" size="small">
-      <div class="provider-guide-grid">
-        <article
-          v-for="provider in providerGuides"
-          :key="provider.value"
-          class="provider-guide-card"
-        >
-          <div class="provider-guide-card__header">
-            <div>
-              <div class="provider-guide-card__title">
-                {{ provider.guide.name }}
-              </div>
-              <div class="provider-guide-card__summary">
-                {{ provider.guide.summary }}
-              </div>
-            </div>
-            <Tag
-              :color="
-                provider.guide.supportLevel === 'limited'
-                  ? 'warning'
-                  : 'success'
-              "
-            >
-              {{ provider.guide.statusTag }}
-            </Tag>
-          </div>
-          <div class="provider-guide-card__section-title">商户需先完成</div>
-          <ul class="provider-guide-card__list">
-            <li
-              v-for="step in provider.guide.authorizationSteps"
-              :key="`${provider.value}-${step}`"
-            >
-              {{ step }}
-            </li>
-          </ul>
-          <div class="provider-guide-card__footer">
-            {{ provider.guide.merchantFit }}
-          </div>
-        </article>
-      </div>
-      <div class="provider-guide-actions">
-        <Button type="primary" @click="providerGuideOpen = true">
-          查看正式接入清单
-        </Button>
-      </div>
-    </Card>
-
     <CrudPage :config="pageConfig">
-      <template #search-field-partnerId="{ searchState }">
-        <IssuerPartnerPicker
-          v-model="searchState.partnerId"
+      <template #search-field-legalSubjectId="{ searchState }">
+        <AuthorizationLegalSubjectPicker
+          v-model="searchState.legalSubjectId"
           :tenant-id="searchState.tenantId"
         />
       </template>
-      <template #form-field-partnerId="{ formState }">
-        <IssuerPartnerPicker
-          v-model="formState.partnerId"
+      <template #form-field-legalSubjectId="{ formState }">
+        <AuthorizationLegalSubjectPicker
+          v-model="formState.legalSubjectId"
           :tenant-id="formState.tenantId"
         />
       </template>
@@ -212,7 +152,7 @@ async function submitAuthorization() {
     :mask-closable="false"
     destroy-on-close
     ok-text="确认授权"
-    title="确认电子发票授权"
+    title="确认开票授权"
     @ok="submitAuthorization"
   >
     <Alert
@@ -226,7 +166,7 @@ async function submitAuthorization() {
       id="electronic-invoice-provider-authorization"
       name="electronicInvoiceProviderAuthorization"
       data-form-id="electronic-invoice-provider-authorization"
-      data-form-name="确认电子发票授权"
+      data-form-name="确认开票授权"
       layout="vertical"
     >
       <Form.Item :label="selectedGuide.authorizationRefLabel" required>
@@ -270,120 +210,4 @@ async function submitAuthorization() {
       </Form.Item>
     </Form>
   </Modal>
-
-  <Modal
-    v-model:open="providerGuideOpen"
-    :footer="null"
-    :mask-closable="true"
-    destroy-on-close
-    title="电子发票授权前检查"
-  >
-    <div class="provider-guide-modal">
-      <section
-        v-for="provider in providerGuides"
-        :key="`${provider.value}-checklist`"
-        class="provider-guide-modal__section"
-      >
-        <div class="provider-guide-modal__header">
-          <strong>{{ provider.guide.name }}</strong>
-          <Tag
-            :color="
-              provider.guide.supportLevel === 'limited'
-                ? 'warning'
-                : 'processing'
-            "
-          >
-            {{ provider.guide.statusTag }}
-          </Tag>
-        </div>
-        <div class="provider-guide-modal__block-title">正式接入前检查</div>
-        <ul class="provider-guide-card__list">
-          <li
-            v-for="item in provider.guide.liveRequirements"
-            :key="`${provider.value}-requirement-${item}`"
-          >
-            {{ item }}
-          </li>
-        </ul>
-        <Alert
-          :message="provider.guide.productionGuard"
-          :type="provider.guide.supportLevel === 'limited' ? 'warning' : 'info'"
-          show-icon
-        />
-      </section>
-    </div>
-  </Modal>
 </template>
-
-<style scoped>
-.electronic-invoice-provider-connection-page {
-  display: grid;
-  gap: 12px;
-}
-
-.provider-guide-grid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-
-.provider-guide-card {
-  border: 1px solid hsl(var(--border));
-  border-radius: 12px;
-  display: grid;
-  gap: 10px;
-  padding: 16px;
-}
-
-.provider-guide-card__header,
-.provider-guide-modal__header {
-  align-items: flex-start;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-}
-
-.provider-guide-card__title {
-  color: hsl(var(--foreground));
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.provider-guide-card__summary,
-.provider-guide-card__footer {
-  color: hsl(var(--muted-foreground));
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.provider-guide-card__section-title,
-.provider-guide-modal__block-title {
-  color: hsl(var(--foreground));
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.provider-guide-card__list {
-  color: hsl(var(--foreground));
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding-left: 18px;
-}
-
-.provider-guide-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 12px;
-}
-
-.provider-guide-modal {
-  display: grid;
-  gap: 16px;
-}
-
-.provider-guide-modal__section {
-  display: grid;
-  gap: 10px;
-}
-</style>

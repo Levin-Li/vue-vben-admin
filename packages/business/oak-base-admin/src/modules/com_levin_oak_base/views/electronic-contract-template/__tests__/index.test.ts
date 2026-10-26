@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { electronicContractTemplatePageCrudConfig } from '../config';
 import ContractTemplateDocxUpload from '../contract-template-docx-upload.vue';
+import ContractTemplateVariablesEditor from '../contract-template-variables-editor.vue';
 import TemplatePage from '../index.vue';
 
 const mocks = vi.hoisted(() => ({ uploadTemplateDocx: vi.fn() }));
@@ -19,6 +20,18 @@ vi.mock('ant-design-vue', () => ({
     props: ['message'],
     template: '<div>{{ message }}</div>',
   },
+  Button: {
+    name: 'Button',
+    template: '<button><slot /></button>',
+  },
+  Checkbox: {
+    name: 'Checkbox',
+    template: '<label><slot /></label>',
+  },
+  Input: {
+    name: 'Input',
+    template: '<input />',
+  },
 }));
 vi.mock('../../crud-page.vue', () => ({
   default: { name: 'CrudPage', props: ['config'], template: '<div />' },
@@ -31,7 +44,30 @@ describe('电子合同模板标准 CRUD 页面', () => {
     expect(crud.exists()).toBe(true);
     expect(crud.props('config')).toBe(electronicContractTemplatePageCrudConfig);
     expect(Object.keys(crud.vm.$slots)).toContain('form-field-fileResId');
+    expect(Object.keys(crud.vm.$slots)).toContain(
+      'form-field-templateFieldSchema',
+    );
     expect(wrapper.html()).not.toContain('新建 Word 合同模板');
+  });
+
+  it('变量编辑器说明固定合同无需填写项，并能逐项添加', async () => {
+    const formState = reactive<Record<string, any>>({
+      templateFieldSchema: [],
+    });
+    const wrapper = mount(ContractTemplateVariablesEditor, {
+      props: {
+        formState,
+        onUpdate: (value) => (formState.templateFieldSchema = value),
+      },
+    });
+    expect(wrapper.text()).toContain('合同内容固定时可直接保存');
+    expect(wrapper.text()).toContain('添加要填写的内容');
+
+    (wrapper.vm as any).addRow();
+    await nextTick();
+    expect(formState.templateFieldSchema).toEqual([
+      { key: '', title: '', required: false },
+    ]);
   });
 
   it('上传元数据进入表单，归属改变后必须重新上传', async () => {
@@ -65,7 +101,7 @@ describe('电子合同模板标准 CRUD 页面', () => {
       orgId: 'org-1',
       ownerId: undefined,
     });
-    expect(formState.fileResId).toBe('res-1');
+    expect(formState.fileResId).toMatchObject({ fileResId: 'res-1' });
     formState.orgId = 'org-2';
     await nextTick();
     expect(formState.fileResId).toBeUndefined();
@@ -104,5 +140,19 @@ describe('电子合同模板标准 CRUD 页面', () => {
 
     expect(formState.fileResId).toBeUndefined();
     expect(wrapper.text()).toContain('请重新上传');
+  });
+
+  it('上传缺少归属时给出普通用户可执行的提示', async () => {
+    mocks.uploadTemplateDocx.mockReset();
+    mocks.uploadTemplateDocx.mockRejectedValue(
+      new Error('模板上传缺少身份或归属范围'),
+    );
+    const wrapper = mount(ContractTemplateDocxUpload, {
+      props: { formState: reactive<Record<string, any>>({}) },
+    });
+    await (wrapper.vm as any).uploadTemplate({
+      target: { files: [new File(['docx'], 'contract.docx')] },
+    } as unknown as Event);
+    expect(wrapper.text()).toContain('请先选择使用租户和使用组织');
   });
 });

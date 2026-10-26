@@ -1,12 +1,12 @@
 import { flushPromises, mount } from '@vue/test-utils';
 
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
-import JsonSchemaEditorField from '@levin/admin-framework/framework-commons/shared/json-schema-editor-field.vue';
-import { Button, Form, Select } from 'ant-design-vue';
+import { Button, Form, Modal, Select } from 'ant-design-vue';
 import { createPinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import EmailRelayPage from '../index.vue';
+import RelayTargetManager from '../relay-target-manager.vue';
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -118,6 +118,17 @@ function itemByLabel(modal: any, label: string) {
   return item;
 }
 
+function targetManager(modal: any) {
+  const manager = modal.findComponent(RelayTargetManager);
+  if (!manager.exists()) throw new Error('缺少投递目标子列表');
+  return manager;
+}
+
+async function confirmTargetEditor(manager: any) {
+  manager.findComponent(Modal).vm.$emit('ok');
+  await flushPromises();
+}
+
 async function fillBase(modal: any) {
   await itemByLabel(modal, '路由名称').get('input').setValue('客服邮件');
   itemByLabel(modal, '邮件域名')
@@ -178,15 +189,19 @@ describe('邮件中转真实标准表单', () => {
       .findAllComponents({ name: 'AModal' })
       .find((item) => item.props('open'));
     if (!modal) throw new Error('缺少标准编辑弹窗');
-    const editor = modal.findComponent(JsonSchemaEditorField);
-    const addresses = editor
-      .findAllComponents(Form.Item)
-      .filter((field) => field.props('label') === '地址');
-    expect(addresses).toHaveLength(2);
-    expect((addresses[0]?.get('input').element as HTMLInputElement).value).toBe(
+    const manager = targetManager(modal);
+    expect(manager.findAll('[data-relay-target-row]')).toHaveLength(2);
+    const editTarget = manager
+      .findAllComponents(Button)
+      .find((button: any) => button.text() === '编辑');
+    await editTarget?.trigger('click');
+    await flushPromises();
+    const address = itemByLabel(manager.findComponent(Modal), '地址');
+    expect((address.get('input').element as HTMLInputElement).value).toBe(
       'old@example.test',
     );
-    await addresses[0]?.get('input').setValue('new@example.test');
+    await address.get('input').setValue('new@example.test');
+    await confirmTargetEditor(manager);
     await flushPromises();
     await save();
     await vi.waitFor(() =>
@@ -212,17 +227,18 @@ describe('邮件中转真实标准表单', () => {
   it('通过新增目标控件填写邮箱并点击保存，提交稳定投递协议', async () => {
     const modal = await openCreate();
     await fillBase(modal);
-    const editor = modal.findComponent(JsonSchemaEditorField);
-    expect(editor.exists()).toBe(true);
-    const add = editor
+    const manager = targetManager(modal);
+    expect(manager.findAll('[data-relay-target-row]')).toHaveLength(0);
+    const add = manager
       .findAllComponents(Button)
-      .find((item) => item.text() === '新增一项');
+      .find((item: any) => item.text() === '新增目标');
     expect(add, '空目标列表必须有可见填写入口').toBeDefined();
     await add?.trigger('click');
     await flushPromises();
+    const editor = manager.findComponent(Modal);
     const type = editor
       .findAllComponents(Select)
-      .find((control) =>
+      .find((control: any) =>
         control
           .props('options')
           ?.some((option: any) => option.value === 'email'),
@@ -231,7 +247,8 @@ describe('邮件中转真实标准表单', () => {
     type?.vm.$emit('update:value', 'email');
     await flushPromises();
     await itemByLabel(editor, '地址').get('input').setValue('ops@example.test');
-    await flushPromises();
+    await confirmTargetEditor(manager);
+    expect(manager.findAll('[data-relay-target-row]')).toHaveLength(1);
     await save();
     await vi.waitFor(() =>
       expect(
@@ -273,8 +290,6 @@ describe('邮件中转真实标准表单', () => {
     expect((wrapper?.findComponent(CrudPage).vm as any).isFormOpen()).toBe(
       true,
     );
-    expect(modal.findComponent(JsonSchemaEditorField).text()).toContain(
-      '新增一项',
-    );
+    expect(targetManager(modal).text()).toContain('新增目标');
   });
 });

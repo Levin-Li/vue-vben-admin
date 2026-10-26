@@ -312,7 +312,7 @@ const selectedStateField = computed(() =>
 );
 const bindObjectOptions = computed(() =>
   businessObjects.value.map((item) => ({
-    label: `${item.title} · ${item.className || item.entityKey}`,
+    label: `${item.title} · ${item.className || item.entityKey}${item.selectable ? '' : `（不可绑定：${item.unavailableReason || '当前对象不满足流程绑定条件'}）`}`,
     value: item.entityKey,
     disabled: !item.selectable,
   })),
@@ -1180,7 +1180,7 @@ onMounted(() => {
             :disabled="directoryLoading || !!directoryError"
             show-search
             option-filter-prop="label"
-            placeholder="选择当前账号可访问的业务实体"
+            placeholder="选择可绑定的业务实体"
           />
           <p
             v-if="selectedBusinessObject?.description"

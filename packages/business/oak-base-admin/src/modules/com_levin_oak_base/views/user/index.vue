@@ -11,7 +11,7 @@ import {
   buildCrudOperationPermissions,
 } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
-import { Card, message, Modal, Select } from 'ant-design-vue';
+import { message, Modal, Select } from 'ant-design-vue';
 
 import { UserService, userService } from '../../api/user-service';
 import { loadDataPermissionDomainOptions } from '../../domain-scope-options';
@@ -31,8 +31,10 @@ async function loadStringDomainScopeOptions(keyword?: string) {
 
 const pageKey = ref(0);
 const currentUser = useUserStore();
-const { records: permissionRoleRecords, refresh: refreshRolePermissionRecords } =
-  usePageRolePermissionRecords(() => currentUser.userInfo);
+const {
+  records: permissionRoleRecords,
+  refresh: refreshRolePermissionRecords,
+} = usePageRolePermissionRecords(() => currentUser.userInfo);
 const selectedOrg = ref<UserOrgSelectorRecord>();
 const selectedScope = computed(() =>
   selectedOrg.value?.tenantId
@@ -92,7 +94,6 @@ const userListConfig = computed(() => {
     ],
   };
 });
-
 
 async function loadRoleOptions(keyword = '') {
   const generation = scopeGeneration;
@@ -188,19 +189,20 @@ watch(dialogOpen, (open) => {
 </script>
 
 <template>
-  <Card size="small" title="用户查询组织" class="mb-4">
-    <UserOrgSelector
-      :model-value="selectedOrg"
-      :selectable-types="['org']"
-      :multiple="false"
-      value-mode="record"
-      :load-org-tree="loadAuthorizedOrganizations"
-      placeholder="当前默认组织，可选择一个已授权组织"
-      class="w-full max-w-md"
-      @update:selected-records="changeOrganization"
-    />
-  </Card>
-  <CrudPage :key="scopeKey" :config="userListConfig" />
+  <CrudPage :key="scopeKey" :config="userListConfig">
+    <template #search-field-orgId>
+      <UserOrgSelector
+        :model-value="selectedOrg"
+        :selectable-types="['org']"
+        :multiple="false"
+        value-mode="record"
+        :load-org-tree="loadAuthorizedOrganizations"
+        placeholder="当前默认组织，可选择一个已授权组织"
+        class="w-full"
+        @update:selected-records="changeOrganization"
+      />
+    </template>
+  </CrudPage>
 
   <DataPermissionDialog
     v-if="selectedRecord"

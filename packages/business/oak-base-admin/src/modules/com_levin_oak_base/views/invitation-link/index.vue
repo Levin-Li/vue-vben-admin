@@ -6,8 +6,6 @@ import type {
 
 import { computed, nextTick, ref } from 'vue';
 
-import { useUserStore } from '@vben/runtime/stores';
-
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
@@ -19,17 +17,12 @@ import {
   createInvitationLinkCrudConfig,
   createMethodByTarget,
   invitationCreateActions,
-  invitationIssuerRequirement,
   normalizeInvitationListQuery,
 } from './config';
 
 const { hasPermission } = useRbacAccess();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(invitationLinkService, method));
-const userStore = useUserStore();
-const issuerRequirement = computed(() =>
-  invitationIssuerRequirement(userStore.userInfo),
-);
 const activeTarget = ref<InvitationTarget>('Internal');
 const createdUrl = ref('');
 const revokeId = ref('');
@@ -43,7 +36,6 @@ const crudPage = ref<{
 
 let openingCreate = false;
 async function openInvitation(target: InvitationTarget) {
-  if (issuerRequirement.value) throw new Error(issuerRequirement.value);
   if (!allowed(createMethodByTarget[target]))
     throw new Error('当前账号无权创建此类邀请链接');
   if (openingCreate || crudPage.value?.isFormOpen()) return;
@@ -109,12 +101,8 @@ const pageConfig = computed(() => {
   const config = createInvitationLinkCrudConfig({
     target,
     canInviteChildAdmin: allowed('canInviteChildAdmin'),
-    canCreate: !issuerRequirement.value && allowed(method),
-    issuerRequirement: issuerRequirement.value,
-    createActions: invitationCreateActions(
-      openInvitation,
-      !issuerRequirement.value,
-    ),
+    canCreate: allowed(method),
+    createActions: invitationCreateActions(openInvitation),
     apiService: {
       list: async (params = {}) => {
         const result = await invitationLinkService.list(
@@ -124,8 +112,6 @@ const pageConfig = computed(() => {
       },
       retrieve: ({ id }: { id: string }) => invitationLinkService.retrieve(id),
       create: async (values: CreateInvitationLinkRequest) => {
-        const requirement = invitationIssuerRequirement(userStore.userInfo);
-        if (requirement) throw new Error(requirement);
         if (!allowed(method)) throw new Error('当前账号无权创建此类邀请链接');
         const result = await invitationLinkService[method](values);
         createdUrl.value = result.url;
@@ -181,9 +167,6 @@ async function copyCreatedUrl() {
 </script>
 
 <template>
-  <p v-if="issuerRequirement" role="status" class="text-muted-foreground">
-    {{ issuerRequirement }}
-  </p>
   <CrudPage ref="crudPage" :config="pageConfig">
     <template #form-field-channelPartnerId="{ formState, disabled }">
       <ChannelPartnerPicker

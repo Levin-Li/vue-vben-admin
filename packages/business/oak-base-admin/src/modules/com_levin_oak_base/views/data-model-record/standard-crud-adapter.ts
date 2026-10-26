@@ -19,6 +19,7 @@ import { reactive } from 'vue';
 import { dataModelService } from '../../api/data-model-service';
 import { modelMetadataCache } from '../domain-data-dynamic-model/model-metadata';
 import { loadModelCrudPage } from '../domain-data-dynamic-model/model-page-adapter';
+import { buildConditionTree, newCondition } from './condition-tree';
 import { isModelActionAllowed, modelDisplayCode } from './dynamic-page-display';
 import { recordFailure } from './record-errors';
 import {
@@ -62,6 +63,15 @@ const sortableTypes = new Set([
 ]);
 const identityFields = ['id', 'optimisticLock'];
 
+function modelFieldSortable(
+  type: string,
+  optionSource?: DataModelDefinition['fields'][number]['optionSource'],
+): boolean | undefined {
+  if (!sortableTypes.has(type)) return false;
+  if (optionSource === 'DICT' || optionSource === 'ENUM') return true;
+  return undefined;
+}
+
 function recordRequest<T>(request: Promise<T>, fallback: string): Promise<T> {
   return request.catch((error: unknown) => {
     throw new Error(recordFailure(error, fallback));
@@ -99,6 +109,7 @@ export function createDynamicCrudAdapter(
     original?: DataModelRecord;
   }>({ operation: 'CREATE' });
   const queryContext = reactive<{ value?: DataModelFormContext }>({});
+  const advancedQuery = reactive({ active: false, tree: newCondition('AND') });
   let pendingCreate: DataModelOperationCode = 'CREATE';
   let requestKey = '';
   let formGeneration = 0;
@@ -184,9 +195,10 @@ export function createDynamicCrudAdapter(
       table: listNames.has(name),
       detail: detailNames.has(name),
       search: false,
-      sortable:
-        listNames.has(name) &&
-        sortableTypes.has(business?.type || system?.type || ''),
+      sortable: modelFieldSortable(
+        business?.type || system?.type || '',
+        business?.optionSource,
+      ),
       defaultHidden: {
         list: !business && !['createTime', 'enable'].includes(name),
         ...(scope?.referenceType === 'TENANT' ||
@@ -429,6 +441,7 @@ export function createDynamicCrudAdapter(
     const inputNames = new Set(inputFields);
     if (op === 'list')
       for (const key of [
+        'conditionTree',
         'pageIndex',
         'pageSize',
         'modelKey',
@@ -507,14 +520,27 @@ export function createDynamicCrudAdapter(
     apiService: {
       list: async (input: Record<string, unknown> = {}) => {
         assertOperation('QUERY');
-        const queryValues = buildRecordQueryValues(
-          model.queryInputs || [],
-          input,
-        );
+        // 模式互斥：高级查询不读取隐藏的简单查询状态。
+        const condition = advancedQuery.active
+          ? {
+              conditionTree: buildConditionTree(
+                advancedQuery.tree,
+                model.queryInputs || [],
+              ),
+            }
+          : {
+              queryValues: buildRecordQueryValues(
+                model.queryInputs || [],
+                input,
+              ),
+            };
         let sorting: { sortBy?: string; sortDirection?: 'ASC' | 'DESC' } = {};
         if (input.orderBy !== undefined) {
           const sortedField = config.fields.find(
-            (field) => field.key === input.orderBy && field.sortable,
+            (field) =>
+              field.key === input.orderBy &&
+              field.table !== false &&
+              field.sortable !== false,
           );
           if (!sortedField) throw new Error('当前字段不支持排序或未获授权');
           sorting = {
@@ -530,7 +556,7 @@ export function createDynamicCrudAdapter(
             dataModelService.queryRecords(model.key, {
               pageIndex: page + 1,
               pageSize: size,
-              queryValues,
+              ...condition,
               ...sorting,
             }),
           context,
@@ -631,6 +657,14 @@ export function createDynamicCrudAdapter(
     config,
     form,
     queryContext,
+    advancedQuery,
+    setAdvancedQuery(active: boolean) {
+      advancedQuery.active = active;
+      for (const input of model.queryInputs || []) {
+        const field = config.fields.find((item) => item.key === input.key);
+        if (field) field.search = !active;
+      }
+    },
     allowed,
     customCreates: (model.operations || []).filter(
       (item) =>

@@ -58,7 +58,7 @@ const mailboxFields = [
 const mailboxEnabled: AgentSkill = {
   id: 'com.levin.oak.base.supportMailboxRule.setEnabled',
   description:
-    '按用户明确要求启用或停用支持邮箱受理规则。参数 id、enabled，可选 tenantId、orgId；先聊天预览确认再执行，不改邮箱、路由或凭证。',
+    '按用户明确要求启用或停用客服邮箱。参数 id、enabled，可选 tenantId、orgId；先聊天预览确认再执行，不改邮箱、路由或凭证。',
   inputSchema: {
     required: ['id', 'enabled'],
     properties: {
@@ -69,7 +69,7 @@ const mailboxEnabled: AgentSkill = {
     },
   },
   maxRecords: 1,
-  permission: '支持邮箱受理规则启停权限',
+  permission: '客服邮箱启停权限',
   writeIntent: ['启用', '停用', '开启', '关闭', 'enable', 'disable'],
   available: () =>
     agentPermission(supportMailboxRuleService, 'retrieve') &&
@@ -85,7 +85,7 @@ const mailboxEnabled: AgentSkill = {
     const permitted = () =>
       agentPermission(supportMailboxRuleService, 'retrieve') &&
       agentPermission(supportMailboxRuleService, target ? 'enable' : 'disable');
-    if (!permitted()) throw new Error('当前用户无受理规则启停权限');
+    if (!permitted()) throw new Error('当前用户无客服邮箱启停权限');
     const actor = useUserStore().userInfo;
     const actorId = agentId(actor?.id, '当前用户 ID');
     const actorTenant = actor?.tenantId;
@@ -109,7 +109,7 @@ const mailboxEnabled: AgentSkill = {
       ) {
         throw new Error('当前身份已变化，请重新发起操作');
       }
-      if (!permitted()) throw new Error('当前用户无受理规则启停权限');
+      if (!permitted()) throw new Error('当前用户无客服邮箱启停权限');
       if (
         selectedTenant !== currentGlobalTenantId.value ||
         selectedOrg !== currentGlobalOrgId.value
@@ -133,11 +133,11 @@ const mailboxEnabled: AgentSkill = {
       );
     };
     if (!validRecord(item)) throw new Error('规则范围或版本信息不正确');
-    const description = `支持邮箱受理规则 ${id}：${item.enabled ? '启用' : '停用'} → ${target ? '启用' : '停用'}`;
+    const description = `客服邮箱 ${id}：${item.enabled ? '启用' : '停用'} → ${target ? '启用' : '停用'}`;
     let consumed = false;
     return {
       description,
-      source: '支持邮箱受理规则详情接口',
+      source: '客服邮箱详情接口',
       recheck: async () => {
         reauthorize();
         const latest = await supportMailboxRuleService.retrieve(query);
@@ -274,7 +274,7 @@ export const messageAgentSkills: readonly AgentSkill[] = [
   },
   ...agentReadSkills({
     resource: 'supportMailboxRule',
-    title: '支持邮箱受理规则',
+    title: '客服邮箱设置',
     service: supportMailboxRuleService,
     fields: mailboxFields,
   }),

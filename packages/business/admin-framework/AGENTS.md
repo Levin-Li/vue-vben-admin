@@ -23,6 +23,8 @@ API 属性组权限的轻量分配、后端元数据契约与保存语义见 [�
 
 紧凑列表的表头固定列图标与临时收展见 [紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。
 
+公共 CRUD 的当前页表头拖动、列宽边界及刷新恢复见 [临时列宽使用指南](docs/crud-temporary-column-resize.md)。
+
 本地长期与临时上传 API 见 [本地文件上传 API 使用指南](docs/local-file-storage-upload.md)。
 
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。

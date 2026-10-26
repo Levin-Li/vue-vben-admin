@@ -472,7 +472,7 @@ describe('邮件工单工作台业务入口', () => {
       await flushPromises();
       await button(wrapper, '选择范围').trigger('click');
       await flushPromises();
-      await button(wrapper, '创建受理邮箱').trigger('click');
+      await button(wrapper, '新增客服邮箱').trigger('click');
       await flushPromises();
       const selects = wrapper.findAll('section select');
       const channelSelect = selects.find((select) =>

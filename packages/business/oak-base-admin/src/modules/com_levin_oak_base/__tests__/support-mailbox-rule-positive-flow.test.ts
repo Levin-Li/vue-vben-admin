@@ -188,19 +188,19 @@ function field(wrapper: ReturnType<typeof mount>, label: string) {
   return wrapper.get(`[data-field="${label}"] select`);
 }
 async function fillCreate(wrapper: ReturnType<typeof mount>, open = true) {
-  if (open) await button(wrapper, '创建受理邮箱').trigger('click');
+  if (open) await button(wrapper, '新增客服邮箱').trigger('click');
   await flushPromises();
   await wrapper
     .get('input[placeholder="support@example.com"]')
     .setValue('support@unit.invalid');
-  await field(wrapper, '入站通道').setValue('LocalSmtp');
+  await field(wrapper, '收件方式').setValue('LocalSmtp');
   await flushPromises();
   await field(wrapper, '收件域名').trigger('focus');
-  await field(wrapper, '受理队列').trigger('focus');
+  await field(wrapper, '工单队列').trigger('focus');
   await field(wrapper, '默认处理人').trigger('focus');
   await flushPromises();
   await field(wrapper, '收件域名').setValue('domain-a');
-  await field(wrapper, '受理队列').setValue('queue-a');
+  await field(wrapper, '工单队列').setValue('queue-a');
   await field(wrapper, '默认处理人').setValue('user-a');
   await field(wrapper, '默认优先级').setValue('Normal');
 }
@@ -257,14 +257,14 @@ describe('support mailbox rule positive component contracts', () => {
     const wrapper = mount(RulePage);
     await flushPromises();
     expect(
-      button(wrapper, '创建受理邮箱').attributes('disabled'),
+      button(wrapper, '新增客服邮箱').attributes('disabled'),
     ).toBeUndefined();
-    await button(wrapper, '创建受理邮箱').trigger('click');
-    const modal = wrapper.get('[data-modal="创建受理邮箱"]');
-    expect(modal.find('[data-field="受理组织"]').exists()).toBe(true);
+    await button(wrapper, '新增客服邮箱').trigger('click');
+    const modal = wrapper.get('[data-modal="新增客服邮箱"]');
+    expect(modal.find('[data-field="处理组织"]').exists()).toBe(true);
     await button(wrapper, 'Confirm').trigger('click');
     expect(mocks.rules.create).not.toHaveBeenCalled();
-    await modal.get('[data-field="受理组织"] button').trigger('click');
+    await modal.get('[data-field="处理组织"] button').trigger('click');
     await fillCreate(wrapper, false);
     await button(wrapper, 'Confirm').trigger('click');
     await flushPromises();
@@ -275,10 +275,10 @@ describe('support mailbox rule positive component contracts', () => {
 
   it('uses the modal organization instead of the current list filter', async () => {
     const wrapper = await scopedPage();
-    await button(wrapper, '创建受理邮箱').trigger('click');
+    await button(wrapper, '新增客服邮箱').trigger('click');
     await flushPromises();
     const modalScopeB = wrapper.get(
-      '[data-modal="创建受理邮箱"] [data-field="受理组织"] button:nth-child(2)',
+      '[data-modal="新增客服邮箱"] [data-field="处理组织"] button:nth-child(2)',
     );
     expect(modalScopeB.text()).toBe('Scope B');
     await modalScopeB.trigger('click');
@@ -291,7 +291,7 @@ describe('support mailbox rule positive component contracts', () => {
     await flushPromises();
     expect(
       wrapper
-        .get('[data-modal="创建受理邮箱"] [data-field="受理组织"] > div')
+        .get('[data-modal="新增客服邮箱"] [data-field="处理组织"] > div')
         .attributes('data-selected'),
     ).toBe('org-b');
     await fillCreate(wrapper, false);
@@ -311,15 +311,15 @@ describe('support mailbox rule positive component contracts', () => {
 
   it('discards stale modal candidates when creation ownership changes', async () => {
     const wrapper = await scopedPage();
-    await button(wrapper, '创建受理邮箱').trigger('click');
+    await button(wrapper, '新增客服邮箱').trigger('click');
     await flushPromises();
-    await field(wrapper, '入站通道').setValue('LocalSmtp');
+    await field(wrapper, '收件方式').setValue('LocalSmtp');
     const old = deferred<Record<string, unknown>[]>();
     mocks.sources.mockReturnValueOnce(old.promise);
     await field(wrapper, '收件域名').trigger('focus');
     await wrapper
       .get(
-        '[data-modal="创建受理邮箱"] [data-field="受理组织"] button:nth-child(2)',
+        '[data-modal="新增客服邮箱"] [data-field="处理组织"] button:nth-child(2)',
       )
       .trigger('click');
     await field(wrapper, '收件域名').trigger('focus');
@@ -336,7 +336,7 @@ describe('support mailbox rule positive component contracts', () => {
     const wrapper = await scopedPage();
     await fillCreate(wrapper);
     expect(
-      field(wrapper, '受理队列')
+      field(wrapper, '工单队列')
         .findAll('option')
         .map((item) => item.attributes('value')),
     ).toEqual(['queue-a']);
@@ -415,12 +415,12 @@ describe('support mailbox rule positive component contracts', () => {
 
   it('ignores an older source lookup after changing inbound channel and does not save both source kinds', async () => {
     const wrapper = await scopedPage();
-    await button(wrapper, '创建受理邮箱').trigger('click');
+    await button(wrapper, '新增客服邮箱').trigger('click');
     const old = deferred<Record<string, unknown>[]>();
     mocks.sources.mockReturnValueOnce(old.promise);
-    await field(wrapper, '入站通道').setValue('LocalSmtp');
+    await field(wrapper, '收件方式').setValue('LocalSmtp');
     await field(wrapper, '收件域名').trigger('focus');
-    await field(wrapper, '入站通道').setValue('ForwardEmail');
+    await field(wrapper, '收件方式').setValue('ForwardEmail');
     await field(wrapper, '中转路由').trigger('focus');
     await flushPromises();
     old.resolve([{ ...domain, label: 'Old channel source' }]);
@@ -443,14 +443,14 @@ describe('support mailbox rule positive component contracts', () => {
     oldDetail.resolve({ ...existing, email: 'stale@unit.invalid' });
     await flushPromises();
     expect(wrapper.find('[data-modal="支持邮箱配置"]').exists()).toBe(false);
-    await button(wrapper, '创建受理邮箱').trigger('click');
-    await field(wrapper, '入站通道').setValue('LocalSmtp');
+    await button(wrapper, '新增客服邮箱').trigger('click');
+    await field(wrapper, '收件方式').setValue('LocalSmtp');
     const oldSource = deferred<Record<string, unknown>[]>();
     mocks.sources.mockReturnValueOnce(oldSource.promise);
     await field(wrapper, '收件域名').trigger('focus');
     await button(wrapper, 'Scope A').trigger('click');
-    await button(wrapper, '创建受理邮箱').trigger('click');
-    await field(wrapper, '入站通道').setValue('LocalSmtp');
+    await button(wrapper, '新增客服邮箱').trigger('click');
+    await field(wrapper, '收件方式').setValue('LocalSmtp');
     await field(wrapper, '收件域名').trigger('focus');
     await flushPromises();
     oldSource.resolve([{ ...domain, label: 'Old organization source' }]);

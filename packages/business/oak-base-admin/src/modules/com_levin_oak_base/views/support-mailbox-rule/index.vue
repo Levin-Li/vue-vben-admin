@@ -158,7 +158,7 @@ async function open(record?: MailboxRecord) {
     );
     editing.value = true;
   } catch {
-    message.error('规则详情不可访问');
+    message.error('客服邮箱设置不可访问');
   }
 }
 async function searchQueues(code = '') {
@@ -180,7 +180,7 @@ async function searchQueues(code = '') {
         label: `${item.name} (${item.code})`,
       }));
   } catch {
-    if (generation === formScopeGeneration) message.error('受理队列不可访问');
+    if (generation === formScopeGeneration) message.error('工单队列不可访问');
   }
 }
 async function searchUsers(containsName = '') {
@@ -237,7 +237,7 @@ async function save() {
   const selected = formScope.value;
   const generation = formScopeGeneration;
   if (!selected) {
-    message.error('请选择受理组织');
+    message.error('请选择负责处理邮件的组织');
     return;
   }
   if (
@@ -249,7 +249,9 @@ async function save() {
       ? !draft.mailDomainId
       : !draft.emailRelayRouteId)
   ) {
-    message.error('请填写邮箱地址并选择通道、入站来源、队列和优先级');
+    message.error(
+      '请填写客服邮箱地址，并选择收件方式、收件来源、工单队列和优先级',
+    );
     return;
   }
   saving.value = true;
@@ -306,7 +308,7 @@ async function switchEnabled(record: MailboxRecord) {
     });
     await reloadList();
   } catch {
-    message.error('启停失败，请刷新并核对受理配置');
+    message.error('启停失败，请刷新并核对客服邮箱设置');
   }
 }
 onMounted(async () => {
@@ -345,7 +347,7 @@ onMounted(async () => {
           type="primary"
           @click="open()"
         >
-          创建受理邮箱
+          新增客服邮箱
         </Button>
         <Button @click="router.push(helpDocumentUrl('mail-ticket-guide'))">
           帮助
@@ -371,7 +373,7 @@ onMounted(async () => {
   </CrudPage>
   <Modal
     v-model:open="editing"
-    :title="currentRecord ? '修改受理邮箱' : '创建受理邮箱'"
+    :title="currentRecord ? '编辑客服邮箱' : '新增客服邮箱'"
     :width="960"
     :confirm-loading="saving"
     @ok="save"
@@ -384,13 +386,13 @@ onMounted(async () => {
       layout="vertical"
       class="grid grid-cols-1 gap-x-4 md:grid-cols-2"
     >
-      <Form.Item v-if="!currentRecord" label="受理组织" required>
+      <Form.Item v-if="!currentRecord" label="处理组织" required>
         <SupportScopeSelector
           :model-value="selectedFormScopeRecord"
           @change="changeFormScope"
         />
       </Form.Item>
-      <Form.Item label="支持邮箱地址" required>
+      <Form.Item label="客服邮箱地址" required>
         <Input
           v-model:value="draft.email"
           :disabled="!formScope"
@@ -398,7 +400,7 @@ onMounted(async () => {
           placeholder="support@example.com"
         />
       </Form.Item>
-      <Form.Item label="入站通道" required>
+      <Form.Item label="收件方式" required>
         <Select
           v-model:value="draft.inboundChannel"
           :disabled="!formScope"
@@ -431,14 +433,14 @@ onMounted(async () => {
           @focus="searchSources()"
         />
       </Form.Item>
-      <Form.Item label="受理队列" required>
+      <Form.Item label="工单队列" required>
         <Select
           v-model:value="draft.queueId"
           :disabled="!formScope"
           show-search
           :filter-option="false"
           :options="queues"
-          placeholder="按队列编码查询"
+          placeholder="搜索工单队列"
           @search="searchQueues"
           @focus="searchQueues()"
         />
@@ -458,12 +460,12 @@ onMounted(async () => {
       <Form.Item label="默认优先级" required>
         <Select v-model:value="draft.defaultPriority" :options="priorities" />
       </Form.Item>
-      <Form.Item label="受控外发配置引用" class="md:col-span-2">
+      <Form.Item label="回复邮件设置" class="md:col-span-2">
         <Input
           v-model:value="draft.outboundConfigRef"
           :disabled="!formScope"
           :maxlength="128"
-          placeholder="同租户已授权配置标识，可留空"
+          placeholder="填写已授权的发信配置标识，可留空"
         />
       </Form.Item>
     </Form>

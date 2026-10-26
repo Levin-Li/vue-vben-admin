@@ -1030,7 +1030,7 @@ describe('标准 crud 的属性组策略', () => {
     expect(payload).not.toHaveProperty('amount');
   });
 
-  it('固定条件、旧排序和查询草稿含受限属性时阻止发送，保留草稿', async () => {
+  it('固定条件和查询草稿含受限属性时阻止发送，旧排序不携带受限字段', async () => {
     mocks.route.meta = { fixedQuery: { amount: 100 } };
     const wrapper = shallowMount(CrudPage, {
       global: { config: { errorHandler: () => {} } },
@@ -1056,11 +1056,16 @@ describe('标准 crud 的属性组策略', () => {
     state.tableSorterState.field = 'amount';
     state.tableSorterState.order = 'ascend';
     await state.loadList();
-    expect(state.listError).toContain('属性');
-    expect(mocks.get).not.toHaveBeenCalled();
+    // 金额列默认不可排序，遗留状态不进入请求；受限属性的查询草稿仍需拦截。
+    expect(state.listError).toBe('');
+    expect(mocks.get).toHaveBeenCalledWith(
+      '/Contract/list',
+      expect.not.objectContaining({ orderBy: 'amount' }),
+    );
     state.tableSorterState.field = undefined;
     state.tableSorterState.order = undefined;
     state.searchState.amount = 300;
+    mocks.get.mockClear();
     await state.loadList();
     expect(state.listError).toContain('属性');
     expect(mocks.get).not.toHaveBeenCalled();

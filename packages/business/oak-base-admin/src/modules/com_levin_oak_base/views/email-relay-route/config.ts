@@ -8,32 +8,12 @@ import {
   tenantOptionsLoader,
 } from '../api-module';
 
-type RelayTarget = {
+export type RelayTarget = {
   endpoint?: string;
   type?: string;
 };
 
-const relayTargetJsonSchema = {
-  items: {
-    properties: {
-      endpoint: { title: '地址', type: 'string' },
-      type: {
-        oneOf: [
-          { const: 'email', title: '邮箱' },
-          { const: 'mail-webhook', title: '完整邮件 Webhook' },
-          { const: 'notify-webhook', title: '通知 Webhook' },
-        ],
-        title: '投递类型',
-      },
-    },
-    required: ['type', 'endpoint'],
-    type: 'object',
-  },
-  title: '投递目标',
-  type: 'array',
-} as const;
-
-function normalizeTargets(value: unknown): string[] {
+export function normalizeTargets(value: unknown): string[] {
   // UI 使用可编辑的类型化行；持久化使用稳定的 type:endpoint 协议。
   if (!Array.isArray(value)) {
     throw new TypeError('投递目标必须是数组');
@@ -209,11 +189,12 @@ export const emailRelayRoutePageCrudConfig: CrudPageConfig = {
       label: '投递目标',
       required: true,
       help: '至少添加一个目标，选择投递类型并填写接收邮箱或 HTTPS 地址。',
+      complexValue: true,
       fullRow: true,
-      jsonSchema: relayTargetJsonSchema,
-      jsonSchemaInline: true,
-      layoutGroup: 'basic',
-      layoutOrder: 50,
+      layoutGroup: 'targets',
+      layoutGroupTitle: '投递目标',
+      layoutNewRow: true,
+      layoutOrder: 10,
       type: 'json',
       validator: validateTargets,
     },

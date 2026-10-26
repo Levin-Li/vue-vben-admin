@@ -89,7 +89,7 @@ vi.mock(
           h('main', [
             slots['toolbar-extra']?.(),
             ...(props.config as any).rowActions
-              .filter((action: any) => action.visible({}))
+              .filter((action: any) => action.visible?.({}) ?? true)
               .map((action: any) =>
                 h(
                   'button',
@@ -236,18 +236,18 @@ describe('邀请链接页面公共 CRUD 行为', () => {
     expect(createInternal).not.toHaveBeenCalled();
     wrapper.unmount();
   });
-  it('签发人缺少组织时不开放创建，平台超管标记不能代替归属', async () => {
+  it('用户资料缺少组织时仍按 API 权限提供标准创建入口', async () => {
     user.userInfo = { tenantId: 'tenant', orgId: '' };
     const wrapper = mount(InvitationLinkPage);
     await flushPromises();
-    expect(wrapper.findAll('[data-action]').length).toBe(0);
+    expect(wrapper.findAll('[data-action]').length).toBe(5);
     const config = wrapper
       .findComponent({ name: 'CrudPageStub' })
       .props('config') as any;
-    expect(config.allowCreate).toBe(false);
+    expect(config.allowCreate).toBe(true);
     expect(config.createButtonVisible).toBe(false);
-    expect(config.description).toContain('所属组织');
-    expect(wrapper.get('[role="status"]').text()).toContain('所属组织');
+    expect(config.description).toBe('查询、创建、复制与作废邀请链接。');
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
     wrapper.unmount();
   });
 });

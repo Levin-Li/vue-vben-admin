@@ -14,13 +14,13 @@
 
 邮件服务器和域名 DNS 准备见[邮件收件模块功能与使用手册](?doc=mail-receiving-admin)。架构与运行边界见[实现说明](?doc=mail-ticket-design)，通知 HTML 和办理链接见[工作流通知邮件使用指南](?doc=workflow-email-guide)。
 
-## 2. 配置受理队列与支持邮箱
+## 2. 配置工单队列与客服邮箱
 
 ### 2.1 配置顺序
 
 1. 开通实际接收入口：本地 SMTP 使用已开启收件、有效的 Domain；Forward Email 使用已同步、启用且地址匹配的受管路由和验签配置。
 2. 在目标租户和受理组织创建工单队列，指定允许处理的用户或角色，再启用队列。处理人必须拥有实际注册的“开始处理工单”权限；只有同组织的处理权限不足以访问其他队列。
-3. 创建支持邮箱规则，填写完整 `email`、`inboundChannel`、`queueId`、默认优先级及可选默认负责人。规则新建时停用，核对后显式启用。
+3. 在“客服邮箱设置”中新增邮箱，填写完整邮箱地址、收件方式、工单队列、默认优先级及可选默认处理人。对应接口字段仍为 `email`、`inboundChannel`、`queueId`；新建后默认停用，核对后显式启用。
 4. 本地通道只填 `mailDomainId`；Forward Email 通道只填 `emailRelayRouteId`。规则、队列及默认负责人必须属于同一受理范围。
 5. 需要工单外发时，再填 `outboundConfigRef`。它是当前租户实际 `ServicePluginSetting` 配置记录标识。邮件配置中的 `fromEmail` 负责发件身份，必须等于支持邮箱地址；`username` 负责 SMTP 认证，可使用供应商要求的 API key 用户名，不必是邮箱。仅收件无需填写外发配置。
 

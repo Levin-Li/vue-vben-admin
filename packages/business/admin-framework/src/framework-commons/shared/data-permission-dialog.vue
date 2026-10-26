@@ -203,7 +203,7 @@ const tenantBuiltinOptions: Option[] = [
   },
   {
     description: '平台用户匹配无租户数据；租户用户匹配本租户数据。',
-    label: '默认租户',
+    label: '用户默认租户',
     preset: true,
     value: '_DEFAULT_',
   },
@@ -230,8 +230,8 @@ const domainBuiltinOptions: Option[] = [
 ];
 const orgBuiltinOptions: Option[] = [
   {
-    description: '匹配默认组织及其全部下级组织的数据。',
-    label: '默认组织（含全部下级）',
+    description: '按所选匹配模式匹配用户默认组织的数据。',
+    label: '用户默认组织',
     preset: true,
     value: '_DEFAULT_|SelfAndAllChild',
   },
@@ -242,8 +242,8 @@ const orgBuiltinOptions: Option[] = [
     value: '_NONE_|Self',
   },
   {
-    description: '匹配所有根组织及其全部下级组织的数据。',
-    label: '全部根组织（含全部下级）',
+    description: '按所选匹配模式匹配全部根组织的数据。',
+    label: '全部根组织',
     preset: true,
     value: '_ALL_ROOT_|SelfAndAllChild',
   },
@@ -289,7 +289,7 @@ const configuredOrgIds = computed(() => [
 ]);
 const orgPresetStartLabels: Record<string, string> = {
   _ALL_ROOT_: '全部根组织',
-  _DEFAULT_: '默认组织',
+  _DEFAULT_: '用户默认组织',
   _NONE_: '无组织',
 };
 const orgMatchingModeLabels = new Map(
@@ -361,7 +361,7 @@ function toAdvancedOrgTreeData(
 const advancedOrgTreeData = computed(() => [
   {
     children: [
-      { title: '默认组织', value: '_DEFAULT_' },
+      { title: '用户默认组织', value: '_DEFAULT_' },
       { title: '无组织', value: '_NONE_' },
       ...(isSuperAdmin.value
         ? [{ title: '全部根组织', value: '_ALL_ROOT_' }]
@@ -551,6 +551,32 @@ function visibleFixedOptions(tab: ScopeTab) {
     ? fixedOptions(tab)
     : fixedOptions(tab).filter((item) => item.value === allTokens(tab)[0]);
 }
+// 固定项的组织起点与三档选择统一由规则起点解析，避免模板按具体模式判断。
+function fixedOrgPresetStart(tab: ScopeTab, value: string) {
+  if (tab.kind !== 'org') return '';
+  if (value.startsWith('_ALL_ROOT_|')) return '_ALL_ROOT_';
+  if (value.startsWith('_DEFAULT_|')) return '_DEFAULT_';
+  return '';
+}
+function fixedChoice(tab: ScopeTab, item: Option): ScopeChoice {
+  const start = fixedOrgPresetStart(tab, item.value);
+  if (start) return orgPresetChoice(tab, start);
+  return item.value === allTokens(tab)[0]
+    ? allChoice(tab)
+    : selectedChoice(tab, item.value);
+}
+function setFixedChoice(tab: ScopeTab, item: Option, choice: ScopeChoice) {
+  const start = fixedOrgPresetStart(tab, item.value);
+  if (start) {
+    setOrgPresetChoice(tab, start, choice);
+    return;
+  }
+  if (item.value === allTokens(tab)[0]) {
+    setAllChoice(tab, choice);
+    return;
+  }
+  setChoice(tab, item.value, choice);
+}
 function dynamicOptions(tab: ScopeTab) {
   const keyword = candidateKeyword.value.trim().toLowerCase();
   const fixed = new Set(fixedOptions(tab).map((item) => item.value));
@@ -574,6 +600,82 @@ function orgModeForNode(id: unknown) {
   const key = String(id);
   if (orgModeDraft.value[key]) return orgModeDraft.value[key];
   return savedOrgInlineModes.value.get(key) || '';
+}
+// 固定组织项与普通组织共用四种常用模式，规则仍写入原有范围字段。
+function orgPresetMode(start: string) {
+  return orgModeForNode(start);
+}
+function orgPresetChoice(tab: ScopeTab, start: string): ScopeChoice {
+  for (const side of ['deny', 'allow'] as const) {
+    const rules = scopeValues.value[fieldFor(tab, side)] || [];
+    if (
+      rules.some((value) => {
+        const rule = parseOrgRule(value);
+        return (
+          rule.startValue === start &&
+          orgInlineMatchingModes.has(rule.matchingMode)
+        );
+      })
+    )
+      return side;
+  }
+  return 'none';
+}
+function clearOrgPresetRules(tab: ScopeTab, start: string) {
+  for (const side of ['allow', 'deny'] as const) {
+    const field = fieldFor(tab, side);
+    const current = scopeValues.value[field];
+    scopeValues.value[field] =
+      current === null
+        ? null
+        : current.filter((value) => {
+            const rule = parseOrgRule(value);
+            return (
+              rule.startValue !== start ||
+              !orgInlineMatchingModes.has(rule.matchingMode)
+            );
+          });
+  }
+}
+function setOrgPresetChoice(tab: ScopeTab, start: string, choice: ScopeChoice) {
+  if (isTabReadOnly(tab) || !isTabCustom(tab)) return;
+  const mode = orgPresetMode(start) || 'SelfAndAllChild';
+  if (start === '_ALL_ROOT_' && scopeMode(tab) !== 'custom')
+    setScopeMode(tab, 'custom');
+  clearOrgPresetRules(tab, start);
+  if (choice === 'none') {
+    const draft = { ...orgModeDraft.value };
+    delete draft[start];
+    orgModeDraft.value = draft;
+    return;
+  }
+  orgModeDraft.value = { ...orgModeDraft.value, [start]: mode };
+  if (start === '_ALL_ROOT_' && mode === 'SelfAndAllChild') {
+    setScopeMode(tab, choice === 'allow' ? 'allowAll' : 'denyAll');
+    return;
+  }
+  const field = fieldFor(tab, choice);
+  scopeValues.value[field] = [
+    ...new Set([`${start}|${mode}`, ...(scopeValues.value[field] || [])]),
+  ];
+}
+function setOrgPresetMode(tab: ScopeTab, start: string, mode: string) {
+  if (isTabReadOnly(tab) || !isTabCustom(tab)) return;
+  if (!orgInlineMatchingModes.has(mode)) return;
+  const choice = orgPresetChoice(tab, start);
+  if (choice === 'none' || orgPresetMode(start) === mode) return;
+  if (start === '_ALL_ROOT_' && scopeMode(tab) !== 'custom')
+    setScopeMode(tab, 'custom');
+  clearOrgPresetRules(tab, start);
+  orgModeDraft.value = { ...orgModeDraft.value, [start]: mode };
+  if (start === '_ALL_ROOT_' && mode === 'SelfAndAllChild') {
+    setScopeMode(tab, choice === 'allow' ? 'allowAll' : 'denyAll');
+    return;
+  }
+  const field = fieldFor(tab, choice);
+  scopeValues.value[field] = [
+    ...new Set([`${start}|${mode}`, ...(scopeValues.value[field] || [])]),
+  ];
 }
 function orgRuleValue(id: unknown) {
   return `${String(id)}|${orgModeForNode(id) || 'SelfAndAllChild'}`;
@@ -681,8 +783,8 @@ function advancedRuleDescription(kind: ScopeKind, value: string) {
   if (kind !== 'org')
     return builtinOptions(kind).find((item) => item.value === value)
       ?.description;
-  const fixed = orgBuiltinOptions.find((item) => item.value === value);
-  if (fixed) return fixed.description;
+  if (value === '_NONE_|Self')
+    return orgBuiltinOptions.find((item) => item.value === value)?.description;
   const { matchingMode, startValue } = parseOrgRule(value);
   const start = orgPresetStartLabels[startValue];
   if (!start) return undefined;
@@ -1238,32 +1340,54 @@ watch(
                         ></span>
                       </td>
                       <td class="px-3 py-2 text-center">
-                        <Segmented
-                          :aria-label="`${item.label}访问设置`"
-                          class="data-permission-choice"
-                          :class="{
-                            'data-permission-choice--unset':
-                              (item.value === allTokens(tab)[0]
-                                ? allChoice(tab)
-                                : selectedChoice(tab, item.value)) === 'none',
-                          }"
-                          :disabled="isTabReadOnly(tab) || !isTabCustom(tab)"
-                          :options="choiceOptions"
-                          :value="
-                            item.value === allTokens(tab)[0]
-                              ? allChoice(tab)
-                              : selectedChoice(tab, item.value)
-                          "
-                          @change="
-                            item.value === allTokens(tab)[0]
-                              ? setAllChoice(tab, String($event) as ScopeChoice)
-                              : setChoice(
-                                  tab,
-                                  item.value,
-                                  String($event) as ScopeChoice,
-                                )
-                          "
-                        />
+                        <!-- 固定组织项在权限开关后选择匹配模式；无组织没有下级。 -->
+                        <div class="flex items-center justify-center gap-2">
+                          <Segmented
+                            :aria-label="`${item.label}访问设置`"
+                            class="data-permission-choice"
+                            :class="{
+                              'data-permission-choice--unset':
+                                fixedChoice(tab, item) === 'none',
+                            }"
+                            :disabled="isTabReadOnly(tab) || !isTabCustom(tab)"
+                            :options="choiceOptions"
+                            :value="fixedChoice(tab, item)"
+                            @change="
+                              setFixedChoice(
+                                tab,
+                                item,
+                                String($event) as ScopeChoice,
+                              )
+                            "
+                          />
+                          <Select
+                            v-if="fixedOrgPresetStart(tab, item.value)"
+                            :aria-label="`${item.label}子组织匹配模式`"
+                            class="w-40"
+                            :disabled="
+                              isTabReadOnly(tab) ||
+                              !isTabCustom(tab) ||
+                              orgPresetChoice(
+                                tab,
+                                fixedOrgPresetStart(tab, item.value),
+                              ) === 'none'
+                            "
+                            :options="orgInlineMatchingModeOptions"
+                            placeholder="选择匹配模式"
+                            :value="
+                              orgPresetMode(
+                                fixedOrgPresetStart(tab, item.value),
+                              ) || undefined
+                            "
+                            @update:value="
+                              setOrgPresetMode(
+                                tab,
+                                fixedOrgPresetStart(tab, item.value),
+                                String($event),
+                              )
+                            "
+                          />
+                        </div>
                       </td>
                     </tr>
                   </tbody>

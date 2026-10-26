@@ -60,6 +60,11 @@ export interface DataModelFilter {
   value: boolean | number | string;
 }
 
+export type DataModelConditionNode =
+  | { child: DataModelConditionNode; type: 'NOT' }
+  | { children: DataModelConditionNode[]; type: 'AND' | 'OR' }
+  | { key: string; type: 'PARAM'; value: boolean | number | string };
+
 export interface DataModelDefinition {
   createdAt?: string;
   creator?: string;
@@ -346,6 +351,22 @@ export class DataModelService extends RequestService {
   }
 
   @CRUD.Op({
+    label: '删除定义',
+    opRefTargetType: 'SingleRow',
+    confirmText: '仅当数据表尚未创建或表内没有记录时才能删除，确定继续吗？',
+  })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-数据模型',
+    action: '删除定义',
+  })
+  async deleteModel(key: string, expectedVersion: number): Promise<void> {
+    await this.deleteRequest<unknown>('deleteModel', {
+      data: { key, expectedVersion },
+    }).finally(invalidateDataModelMetadata);
+  }
+
+  @CRUD.Op({
     label: '永久删除记录',
     opRefTargetType: 'SingleRow',
     confirmText: '此操作将永久删除记录且不可恢复，确定继续吗？',
@@ -403,7 +424,7 @@ export class DataModelService extends RequestService {
     });
   }
 
-  @CRUD.Op({ label: '生成菜单', opRefTargetType: 'SingleRow' })
+  @CRUD.Op({ label: '添加到菜单', opRefTargetType: 'SingleRow' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '系统数据-数据模型',
@@ -483,19 +504,27 @@ export class DataModelService extends RequestService {
   async queryRecords(
     key: string,
     params: {
+      conditionTree?: DataModelConditionNode;
       pageIndex?: number;
       pageSize?: number;
-      queryValues: Record<string, boolean | number | string>;
+      queryValues?: Record<string, boolean | number | string>;
       sortBy?: string;
       sortDirection?: 'ASC' | 'DESC';
     },
   ): Promise<DataModelPage<DataModelRecord>> {
+    if (
+      params.conditionTree &&
+      Object.keys(params.queryValues || {}).length > 0
+    )
+      throw new Error('简单查询参数不能与高级条件同时提交');
     return this.post('queryRecords', {
       data: {
         key,
         page: Math.max(0, Number(params.pageIndex || 1) - 1),
         size: Number(params.pageSize || 20),
-        queryValues: params.queryValues,
+        ...(params.conditionTree
+          ? { conditionTree: params.conditionTree }
+          : { queryValues: params.queryValues || {} }),
         ...(params.sortBy
           ? { sortBy: params.sortBy, sortDirection: params.sortDirection }
           : {}),

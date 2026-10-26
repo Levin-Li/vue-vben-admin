@@ -82,23 +82,9 @@ export const createMethodByTarget = {
   SupplierPartner: 'createSupplierPartner',
   ChannelPartner: 'createChannelPartner',
 } as const;
-/** 签发人必须属于真实租户和组织，平台超管也不例外。 */
-export function invitationIssuerRequirement(
-  user: null | Record<string, any> | undefined,
-) {
-  const missing = [
-    !String(user?.tenantId || '').trim() && '所属租户',
-    !String(user?.orgId || '').trim() && '所属组织',
-  ].filter(Boolean);
-  return missing.length > 0
-    ? `当前账号缺少${missing.join('和')}，不能签发邀请链接，请使用具有有效租户和组织的账号。`
-    : '';
-}
-
 /** 五种签发入口沿用真实 API 的按钮元数据和权限，统一交给公共 CRUD 工具栏。 */
 export function invitationCreateActions(
   open: (target: InvitationTarget) => Promise<void>,
-  eligible: boolean,
 ): CrudRowAction[] {
   return targetOptions.map(({ value }) => {
     const method = createMethodByTarget[value];
@@ -109,7 +95,6 @@ export function invitationCreateActions(
       label: meta.label || method,
       displayKey: `invitation:${method}`,
       permission: buildApiMethodPermissions(invitationLinkService, method),
-      visible: () => eligible,
       handler: () => open(value),
       successMessage: false,
       reloadAfterAction: false,
@@ -146,7 +131,6 @@ export function createInvitationLinkCrudConfig(options: {
   canCreate: boolean;
   canInviteChildAdmin: boolean;
   createActions?: CrudRowAction[];
-  issuerRequirement?: string;
   target: InvitationTarget;
 }): CrudPageConfig {
   const { target, canInviteChildAdmin, apiService, canCreate } = options;
@@ -185,7 +169,7 @@ export function createInvitationLinkCrudConfig(options: {
       },
     },
     title: pageMeta.title,
-    description: options.issuerRequirement || pageMeta.description,
+    description: pageMeta.description,
     createButtonVisible: false,
     rowActions: options.createActions,
     defaultQuery: { pageIndex: 1, pageSize: 20 },

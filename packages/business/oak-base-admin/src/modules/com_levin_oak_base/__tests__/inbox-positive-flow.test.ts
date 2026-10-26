@@ -278,7 +278,7 @@ describe('inbox positive component contracts', () => {
     for (let attempt = 0; attempt < 2; attempt++) {
       await button(wrapper, '收件转工单').trigger('click');
       await flushPromises();
-      const modal = wrapper.get('[data-modal="选择支持邮箱受理规则"]');
+      const modal = wrapper.get('[data-modal="选择客服邮箱"]');
       expect(
         modal.findAll('option').map((item) => item.attributes('value')),
       ).toEqual(['matching']);

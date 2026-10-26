@@ -28,11 +28,11 @@ vi.mock('@levin/admin-framework/framework-commons/rbac-access', () => ({
 }));
 
 type InvoicePageState = {
-  redIssueForm: { redReason: string; redRequestNo: string };
+  redIssueForm: { redReason: string };
   redIssueOpen: boolean;
 };
 
-describe('电子发票红冲页面', () => {
+describe('开票申请红冲页面', () => {
   beforeEach(() => {
     mocks.redIssue.mockReset();
     mocks.reload.mockReset();
@@ -49,7 +49,6 @@ describe('电子发票红冲页面', () => {
       ) => void;
     };
     state.openRedIssue({ id: 'invoice-1', status: 'Issued' }, mocks.reload);
-    state.redIssueForm.redRequestNo = 'red-1';
     state.redIssueForm.redReason = '票面错误';
 
     const consoleError = vi
@@ -68,7 +67,6 @@ describe('电子发票红冲页面', () => {
     expect(mocks.redIssue).toHaveBeenLastCalledWith({
       originalInvoiceId: 'invoice-1',
       redReason: '票面错误',
-      redRequestNo: 'red-1',
       tenantId: undefined,
     });
     expect(state.redIssueOpen).toBe(false);
@@ -82,5 +80,23 @@ describe('电子发票红冲页面', () => {
     expect(wrapper.findAllComponents(CrudPage)).toHaveLength(1);
     expect(wrapper.element.tagName).toBe('DIV');
     expect(wrapper.html()).not.toContain('商户自用电子发票');
+  });
+
+  it('只在安全链接上打开供应商交付的票据', () => {
+    const wrapper = shallowMount(InvoicePage);
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const page = wrapper.vm as unknown as {
+      openInvoiceFile: (url: string) => void;
+    };
+
+    page.openInvoiceFile('https://example.test/invoice.pdf');
+    expect(open).toHaveBeenCalledWith(
+      'https://example.test/invoice.pdf',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    page.openInvoiceFile('javascript:alert(1)');
+    expect(open).toHaveBeenCalledTimes(1);
+    open.mockRestore();
   });
 });

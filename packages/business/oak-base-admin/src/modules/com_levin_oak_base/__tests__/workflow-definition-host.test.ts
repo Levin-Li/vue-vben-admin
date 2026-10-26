@@ -345,6 +345,34 @@ describe('流程设计宿主的版本恢复', () => {
     wrapper.unmount();
   });
 
+  it('新建流程列出不可绑定 JPA 对象并显示原因', async () => {
+    api.businessObjects.mockResolvedValue([
+      {
+        entityKey: 'example.Account',
+        className: 'example.Account',
+        title: '账号资料',
+        provider: 'jpa',
+        selectable: false,
+        unavailableReason: '当前账号没有该对象列表或详情权限',
+        fields: [],
+      },
+    ]);
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper
+      .findAllComponents(Button)
+      .find((button) => button.text() === '新建流程')
+      ?.trigger('click');
+    await flushPromises();
+    const option = wrapper
+      .findAllComponents(Select)
+      .flatMap((select) => select.props('options') || [])
+      .find((item) => item.value === 'example.Account');
+    expect(option?.disabled).toBe(true);
+    expect(option?.label).toContain('当前账号没有该对象列表或详情权限');
+    wrapper.unmount();
+  });
+
   it('业务设计者新建流程先绑定业务对象和状态字段', async () => {
     const wrapper = mountPage();
     await flushPromises();

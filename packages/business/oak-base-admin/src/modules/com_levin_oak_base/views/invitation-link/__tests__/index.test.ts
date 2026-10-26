@@ -1,9 +1,9 @@
+import { buildCrudQueryItems } from '@levin/admin-framework/framework-commons/shared/crud-query-items';
 import { describe, expect, it } from 'vitest';
 
 import {
   createInvitationLinkCrudConfig,
   invitationCreateActions,
-  invitationIssuerRequirement,
   normalizeInvitationListQuery,
 } from '../config';
 
@@ -65,6 +65,16 @@ describe('邀请链接公共 CRUD 配置', () => {
       'expiresBefore',
     ]);
     expect(
+      buildCrudQueryItems(config.fields.filter((field) => field.search)).at(-1),
+    ).toEqual({
+      kind: 'range',
+      key: 'expiresAfter__expiresBefore',
+      label: '到期时间',
+      format: 'datetime',
+      startKey: 'expiresAfter',
+      endKey: 'expiresBefore',
+    });
+    expect(
       config.fields.find((field) => field.key === 'userType')?.options,
     ).toEqual([{ label: '普通用户', value: 'Employee' }]);
   });
@@ -108,7 +118,7 @@ describe('邀请链接公共 CRUD 配置', () => {
     ).toBe(true);
   });
   it('五个签发动作来自API元数据且不显示泛化新增', () => {
-    const actions = invitationCreateActions(async () => {}, true);
+    const actions = invitationCreateActions(async () => {});
     expect(actions.map((action) => action.label)).toEqual([
       '创建内部用户邀请',
       '创建会员用户邀请',
@@ -133,10 +143,6 @@ describe('邀请链接公共 CRUD 配置', () => {
         target: 'Internal',
       }).createButtonVisible,
     ).toBe(false);
-    expect(
-      invitationIssuerRequirement({ superAdmin: true, tenantId: 't' }),
-    ).toContain('所属组织');
-    expect(invitationIssuerRequirement({ tenantId: 't', orgId: 'o' })).toBe('');
   });
 
   it('到期时间与限定人数遵循后端边界', () => {

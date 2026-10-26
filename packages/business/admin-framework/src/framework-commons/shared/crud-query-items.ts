@@ -18,6 +18,7 @@ const RANGE_PREFIX_PAIRS: Array<[string, string]> = [
   ['begin', 'end'],
   ['from', 'to'],
 ];
+const RANGE_SUFFIX_PAIRS: Array<[string, string]> = [['After', 'Before']];
 
 function getRangePrefixPair(key: string) {
   return RANGE_PREFIX_PAIRS.find(([startPrefix, endPrefix]) => {
@@ -26,28 +27,46 @@ function getRangePrefixPair(key: string) {
   });
 }
 
+function getRangeSuffixPair(key: string) {
+  return RANGE_SUFFIX_PAIRS.find(([startSuffix, endSuffix]) =>
+    [startSuffix, endSuffix].some(
+      (suffix) => key.length > suffix.length && key.endsWith(suffix),
+    ),
+  );
+}
+
 function isRangeDateField(field: CrudFieldConfig) {
   return (
     (field.type === 'date' ||
       field.type === 'datetime' ||
       field.type === 'time') &&
-    !!getRangePrefixPair(field.key)
+    !!(getRangePrefixPair(field.key) || getRangeSuffixPair(field.key))
   );
 }
 
 function getRangePartnerKey(key: string) {
   const pair = getRangePrefixPair(key);
-  if (!pair) {
-    return '';
+  if (pair) {
+    const [startPrefix, endPrefix] = pair;
+    if (key.startsWith(startPrefix)) {
+      return `${endPrefix}${key.slice(startPrefix.length)}`;
+    }
+
+    if (key.startsWith(endPrefix)) {
+      return `${startPrefix}${key.slice(endPrefix.length)}`;
+    }
   }
 
-  const [startPrefix, endPrefix] = pair;
-  if (key.startsWith(startPrefix)) {
-    return `${endPrefix}${key.slice(startPrefix.length)}`;
-  }
+  const suffixPair = getRangeSuffixPair(key);
+  if (suffixPair) {
+    const [startSuffix, endSuffix] = suffixPair;
+    if (key.endsWith(startSuffix)) {
+      return `${key.slice(0, -startSuffix.length)}${endSuffix}`;
+    }
 
-  if (key.startsWith(endPrefix)) {
-    return `${startPrefix}${key.slice(endPrefix.length)}`;
+    if (key.endsWith(endSuffix)) {
+      return `${key.slice(0, -endSuffix.length)}${startSuffix}`;
+    }
   }
 
   return '';
@@ -55,7 +74,9 @@ function getRangePartnerKey(key: string) {
 
 function isRangeStartKey(key: string) {
   const pair = getRangePrefixPair(key);
-  return !!pair && key.startsWith(pair[0]);
+  if (pair) return key.startsWith(pair[0]);
+  const suffixPair = getRangeSuffixPair(key);
+  return !!suffixPair && key.endsWith(suffixPair[0]);
 }
 
 function getRangeBaseLabel(label: string) {
@@ -64,6 +85,7 @@ function getRangeBaseLabel(label: string) {
     .replace(/结束$/, '')
     .replace(/起始$/, '')
     .replace(/截止$/, '')
+    .replace(/[起止]$/, '')
     .trim();
 }
 

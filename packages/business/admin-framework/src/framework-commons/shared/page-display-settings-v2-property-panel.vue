@@ -27,6 +27,10 @@ import {
   setDisplaySubmitMode,
   supportsInlineChoiceOptions,
 } from './crud-page-display';
+import {
+  canSortCrudTableField,
+  isCrudTableFieldSortable,
+} from './crud-table-sort-eligibility';
 
 // 第二版仅接收当前选中项；所有修改交给父级草稿，读取属性时不补写响应式对象。
 const props = defineProps<{
@@ -133,11 +137,15 @@ const canConfigureColumnSort = computed(
     props.kind === 'field' &&
     props.view === 'list' &&
     column.value.virtual !== true &&
-    props.sourceField?.key !== '__tenant' &&
-    props.sourceField?.sortable !== false,
+    Boolean(props.sourceField && canSortCrudTableField(props.sourceField)),
 );
 const columnSortable = computed(
-  () => canConfigureColumnSort.value && column.value.sortable !== false,
+  () =>
+    canConfigureColumnSort.value &&
+    Boolean(
+      props.sourceField &&
+      isCrudTableFieldSortable(props.sourceField, column.value.sortable),
+    ),
 );
 const expandedRowsOptions = [
   { label: '展开所有字段', value: 'all' },

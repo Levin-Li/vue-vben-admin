@@ -77,6 +77,14 @@ describe('合作关系公共资料', () => {
   });
 
   it('供应与渠道页面只选择新外部组织的内部父级', () => {
+    const supplierTypeField = supplierPartnerPageCrudConfig.fields.find(
+      (field) => field.key === 'type',
+    );
+    expect(supplierTypeField).toMatchObject({
+      label: '供应商类型',
+      required: true,
+    });
+    expect(supplierTypeField?.help).toBeUndefined();
     expect(
       supplierPartnerPageCrudConfig.fields.find(
         (field) => field.key === 'orgId',

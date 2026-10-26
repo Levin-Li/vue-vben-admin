@@ -860,14 +860,14 @@ describe('oak base admin routes', () => {
         expect.objectContaining({
           meta: expect.objectContaining({
             crudResource: 'EInvoice',
-            title: '电子发票',
+            title: '开票申请',
           }),
           path: '/clob/V1/EInvoice',
         }),
         expect.objectContaining({
           meta: expect.objectContaining({
             crudResource: 'EInvoiceProviderConnection',
-            title: '电子发票授权',
+            title: '开票授权',
           }),
           path: '/clob/V1/EInvoiceProviderConnection',
         }),

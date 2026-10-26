@@ -15,30 +15,74 @@ describe('electronicInvoicePageCrudConfig', () => {
     );
   });
 
-  it('rejects invoice amounts that cannot form a tax-inclusive total', async () => {
+  it('requires buyer details and invoice lines', async () => {
     await expect(
       electronicInvoicePageCrudConfig.transformSubmit?.(
-        {
-          amountWithoutTax: 100,
-          amountWithTax: 107,
-          taxAmount: 6,
-        },
+        { buyerInfo: { name: '购买方', taxNo: '9133' } },
         null,
       ),
-    ).rejects.toThrow('不含税金额与税额之和必须等于价税合计');
+    ).rejects.toThrow('请填写至少一项完整的票面明细');
   });
 
-  it('keeps a valid invoice request unchanged', async () => {
+  it('calculates totals and omits user-entered request identity', async () => {
     const values = {
-      amountWithoutTax: 100,
-      amountWithTax: 106,
+      buyerInfo: { name: '购买方', taxNo: '9133' },
+      itemList: [
+        {
+          itemName: '服务',
+          quantity: 1,
+          unitPrice: 100,
+          amountWithoutTax: 100,
+          taxAmount: 6,
+        },
+      ],
       partnerId: 'partner-1',
-      taxAmount: 6,
+      issuerChannelAuthorizationId: 'authorization-1',
     };
 
     await expect(
       electronicInvoicePageCrudConfig.transformSubmit?.(values, null),
-    ).resolves.toEqual(values);
+    ).resolves.toMatchObject({
+      ...values,
+      amountWithoutTax: 100,
+      taxAmount: 6,
+      amountWithTax: 106,
+    });
+    expect(electronicInvoicePageCrudConfig.createSubmitKeys).toEqual([
+      'amountWithoutTax',
+      'taxAmount',
+      'amountWithTax',
+    ]);
+  });
+
+  it('uses structured buyer fields and requires an explicit authorization', () => {
+    const fields = electronicInvoicePageCrudConfig.fields;
+    expect(fields.find((field) => field.key === 'buyerInfo')).toMatchObject({
+      type: 'json',
+    });
+    expect(
+      fields.find((field) => field.key === 'buyerInfo')?.jsonSchemaEditor,
+    ).toBeUndefined();
+    expect(
+      fields.find((field) => field.key === 'itemList')?.jsonSchemaEditor,
+    ).toBeUndefined();
+    expect(
+      fields.find((field) => field.key === 'buyerInfo')?.jsonSchema,
+    ).toBeUndefined();
+    expect(
+      fields.find((field) => field.key === 'itemList')?.jsonSchema,
+    ).toBeUndefined();
+    expect(
+      fields.find((field) => field.key === 'issuerChannelAuthorizationId'),
+    ).toMatchObject({
+      required: true,
+    });
+    expect(fields.find((field) => field.key === 'partnerId')).toMatchObject({
+      form: false,
+    });
+    expect(fields.find((field) => field.key === 'requestNo')).toMatchObject({
+      form: false,
+    });
   });
 
   it('uses the new invoice model instead of removed compatibility fields', () => {
@@ -68,7 +112,7 @@ describe('electronicInvoicePageCrudConfig', () => {
     expect(
       fields.filter((field) => field.table).map((field) => field.key),
     ).toEqual([
-      'requestNo',
+      'id',
       'partnerId',
       'amountWithTax',
       'direction',

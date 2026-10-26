@@ -45,6 +45,7 @@ import {
 } from 'ant-design-vue';
 
 import { dataModelService } from '../../api/data-model-service';
+import { dictService } from '../../api/dict-service';
 import { menuService } from '../../api/menu-service';
 import {
   confidentialLevelOptionsLoader,
@@ -52,6 +53,7 @@ import {
 } from '../api-module';
 import { confidentialLevelOptions } from './confidential-level';
 import { definitionCrudConfig } from './definition-crud-adapter';
+import { validateFixedOptions } from './field-options';
 import {
   buildFieldTableRows,
   cloneDataModelDto,
@@ -124,6 +126,13 @@ const rowDraft = ref<DataModelField>();
 const rowIndex = ref(-1);
 const rowOptionText = ref('[]');
 const rowOptionError = ref('');
+const dictionaryCandidates = ref<Array<{ label: string; value: string }>>([]);
+const dictionaryItems = ref<
+  Array<{ code: string; disabled?: boolean; name: string }>
+>([]);
+const dictionaryLoading = ref(false);
+const dictionaryError = ref('');
+let dictionaryLoadVersion = 0;
 const groupEditorOpen = ref(false);
 const groupDraft = ref<DataModelPermissionGroup>();
 const groupIndex = ref(-1);
@@ -272,7 +281,7 @@ const managementConfig = computed(() =>
         },
       },
       {
-        label: '生成菜单',
+        label: '添加到菜单',
         displayKey: 'generate',
         visible: (row) =>
           !row.requiresNamingMigration &&
@@ -281,6 +290,13 @@ const managementConfig = computed(() =>
           canGenerateMenu(),
         permission: buildApiMethodPermissions(dataModelService, 'generateMenu'),
         handler: (row) => generateMenu(row as DataModelDefinition),
+      },
+      {
+        label: '删除定义',
+        displayKey: 'deleteDefinition',
+        permission: buildApiMethodPermissions(dataModelService, 'deleteModel'),
+        confirmText: '仅当数据表尚未创建或表内没有记录时才能删除，确定继续吗？',
+        handler: (row) => deleteDefinition(row as DataModelDefinition),
       },
       {
         label: '启用/禁用',
@@ -399,8 +415,10 @@ function validateFields(model: SaveDataModelFieldsInput): string | undefined {
     if (names.has(field.name)) return `字段 ${field.name} 重复`;
     keys.add(field.key);
     names.add(field.name);
-    if (field.optionSource === 'FIXED' && !field.options?.length)
-      return `字段 ${field.name} 缺少固定选项`;
+    const fixedOptionError = validateFixedOptions(field);
+    if (fixedOptionError) return `字段 ${field.name}：${fixedOptionError}`;
+    if (field.optionSource === 'DICT' && !field.optionRef?.trim())
+      return `字段 ${field.name} 请选择字典`;
     if (
       !field.nullable &&
       field.createEnabled === false &&
@@ -494,6 +512,92 @@ function editField(index = -1) {
   rowOptionText.value = JSON.stringify(rowDraft.value.options || [], null, 2);
   rowOptionError.value = '';
   rowEditorOpen.value = true;
+  if (rowDraft.value.optionSource === 'DICT') void loadDictionaries();
+}
+
+// 字典列表与详情均由当前登录身份访问；切换弹窗时丢弃过期响应。
+async function loadDictionaries(search = '') {
+  const version = ++dictionaryLoadVersion;
+  dictionaryLoading.value = true;
+  dictionaryError.value = '';
+  try {
+    const query = {
+      enable: true,
+      pageIndex: 1,
+      pageSize: 200,
+    };
+    const results = (await Promise.all([
+      dictService.list({
+        ...query,
+        ...(search ? { containsName: search } : {}),
+      }),
+      ...(search ? [dictService.list({ ...query, code: search })] : []),
+    ])) as Array<{
+      items?: Array<{ code: string; enable?: boolean; name?: string }>;
+    }>;
+    if (version !== dictionaryLoadVersion) return;
+    const available = new Map<string, { label: string; value: string }>();
+    for (const result of results)
+      for (const item of result.items || [])
+        if (item.enable !== false && item.code)
+          available.set(item.code, {
+            value: item.code,
+            label: `${item.name || item.code}（${item.code}）`,
+          });
+    dictionaryCandidates.value = [...available.values()];
+    if (rowDraft.value?.optionSource === 'DICT' && rowDraft.value.optionRef)
+      await loadDictionaryItems(rowDraft.value.optionRef, version);
+  } catch {
+    if (version === dictionaryLoadVersion) {
+      dictionaryCandidates.value = [];
+      dictionaryItems.value = [];
+      dictionaryError.value = '字典候选读取失败，请检查字典查询权限后重试';
+    }
+  } finally {
+    if (version === dictionaryLoadVersion) dictionaryLoading.value = false;
+  }
+}
+
+async function loadDictionaryItems(
+  code: string,
+  version = dictionaryLoadVersion,
+) {
+  dictionaryItems.value = [];
+  if (!code) return;
+  try {
+    const detail = (await dictService.retrieveByCode({ code })) as {
+      code?: string;
+      itemList?: Array<{ code: string; disabled?: boolean; name: string }>;
+      name?: string;
+    };
+    if (version !== dictionaryLoadVersion || rowDraft.value?.optionRef !== code)
+      return;
+    dictionaryItems.value = (detail.itemList || []).filter(
+      (item) => !item.disabled,
+    );
+    if (!dictionaryCandidates.value.some((item) => item.value === code))
+      dictionaryCandidates.value.push({
+        value: code,
+        label: `${detail.name || code}（${code}）`,
+      });
+    dictionaryError.value = '';
+  } catch {
+    if (version === dictionaryLoadVersion) {
+      dictionaryError.value = `字典 ${code} 不可访问或未启用`;
+    }
+  }
+}
+
+function changeOptionSource(source?: DataModelField['optionSource']) {
+  if (!rowDraft.value) return;
+  rowDraft.value.optionSource = source;
+  rowDraft.value.optionRef = undefined;
+  rowDraft.value.options = undefined;
+  rowOptionText.value = '[]';
+  rowOptionError.value = '';
+  dictionaryItems.value = [];
+  dictionaryError.value = '';
+  if (source === 'DICT') void loadDictionaries();
 }
 
 function setFixedOptions(text: string) {
@@ -523,6 +627,10 @@ function setFixedOptions(text: string) {
 
 function saveFieldRow() {
   if (!rowDraft.value || !fieldsDraft.value) return;
+  if (rowDraft.value.optionSource === 'DICT' && dictionaryError.value) {
+    message.error(dictionaryError.value);
+    return;
+  }
   if (rowOptionError.value) {
     message.error(rowOptionError.value);
     return;
@@ -587,7 +695,7 @@ async function generateMenu(model: DataModelDefinition) {
   try {
     await dataModelService.generateMenu(model.key);
   } catch {
-    message.error('生成菜单失败，请检查模型同步状态与菜单权限');
+    message.error('添加到菜单失败，请检查定义同步状态与菜单权限');
     generatingMenu.value = undefined;
     return;
   }
@@ -595,12 +703,62 @@ async function generateMenu(model: DataModelDefinition) {
     useAccessStore().setIsAccessChecked(false);
     await router.replace(router.currentRoute.value.fullPath);
     await useTabbarStore().invalidateCachedRouteViews(router);
-    message.success('模型菜单已生成，导航已刷新');
+    message.success('已添加到菜单，导航已刷新');
   } catch {
-    message.warning('菜单已生成，导航暂未刷新，请刷新当前页面');
+    message.warning('已添加到菜单，导航暂未刷新，请刷新当前页面');
   } finally {
     generatingMenu.value = undefined;
   }
+}
+
+async function deleteDefinition(model: DataModelDefinition) {
+  if (!allowed('deleteModel')) return;
+  if (!Number.isInteger(model.version) || Number(model.version) < 1) {
+    message.error('定义版本缺失，请刷新列表后重试');
+    return;
+  }
+  try {
+    await dataModelService.deleteModel(model.key, Number(model.version));
+  } catch (error) {
+    const response =
+      error && typeof error === 'object' && 'response' in error
+        ? error.response
+        : undefined;
+    const data =
+      response && typeof response === 'object' && 'data' in response
+        ? response.data
+        : undefined;
+    const reason = [
+      error instanceof Error ? error.message : undefined,
+      data && typeof data === 'object' && 'message' in data
+        ? data.message
+        : undefined,
+    ]
+      .filter((part): part is string => typeof part === 'string')
+      .join(' ');
+    let feedback = '删除定义失败，请检查权限或菜单状态';
+    if (reason.includes('数据表已有记录'))
+      feedback = '数据表中已有记录，不能删除定义';
+    else if (reason.includes('定义版本已变化'))
+      feedback = '定义已更新，请刷新列表后重试';
+    message.error(feedback);
+    return;
+  }
+  let navigationUpdated = true;
+  try {
+    await load();
+  } catch {
+    navigationUpdated = false;
+  }
+  try {
+    useAccessStore().setIsAccessChecked(false);
+    await router.replace(router.currentRoute.value.fullPath);
+    await useTabbarStore().invalidateCachedRouteViews(router);
+  } catch {
+    navigationUpdated = false;
+  }
+  if (navigationUpdated) message.success('定义已删除，关联菜单已移除');
+  else message.warning('定义已删除，请刷新页面以更新列表和导航');
 }
 
 async function openPreview(model: DataModelDefinition) {
@@ -663,6 +821,12 @@ async function migrateNaming() {
 
 // 真实身份与权限范围变化时清理弹窗内旧定义；同主体凭据续期不触发此上下文。
 watch(metadataContext, () => {
+  // 身份切换后旧租户的字典候选与在途响应均不可复用。
+  dictionaryLoadVersion++;
+  dictionaryCandidates.value = [];
+  dictionaryItems.value = [];
+  dictionaryLoading.value = false;
+  dictionaryError.value = '';
   namingOpen.value = false;
   namingPreview.value = undefined;
   fieldsOpen.value = false;
@@ -994,21 +1158,49 @@ watch(metadataContext, () => {
         </Form.Item>
         <Form.Item label="选项来源">
           <Select
-            v-model:value="rowDraft.optionSource"
+            :value="rowDraft.optionSource"
             allow-clear
             :options="[
               { value: 'FIXED', label: '固定选项' },
               { value: 'ENUM', label: '枚举' },
               { value: 'DICT', label: '字典' },
             ]"
+            @update:value="
+              (value) =>
+                changeOptionSource(value as DataModelField['optionSource'])
+            "
           />
         </Form.Item>
-        <Form.Item
-          v-if="
-            rowDraft.optionSource === 'ENUM' || rowDraft.optionSource === 'DICT'
-          "
-          label="选项引用"
-        >
+        <Form.Item v-if="rowDraft.optionSource === 'DICT'" label="字典编码">
+          <Select
+            v-model:value="rowDraft.optionRef"
+            show-search
+            :filter-option="false"
+            :loading="dictionaryLoading"
+            :options="dictionaryCandidates"
+            placeholder="选择当前可访问的启用字典"
+            @search="loadDictionaries"
+            @update:value="(code) => loadDictionaryItems(String(code || ''))"
+          />
+          <Button
+            type="link"
+            :loading="dictionaryLoading"
+            @click="() => loadDictionaries()"
+          >
+            刷新字典
+          </Button>
+          <div v-if="dictionaryError" class="text-red-600">
+            {{ dictionaryError }}
+          </div>
+          <div v-else-if="rowDraft.optionRef && dictionaryItems.length > 0">
+            可选值：{{
+              dictionaryItems
+                .map((item) => `${item.name}（${item.code}）`)
+                .join('、')
+            }}
+          </div>
+        </Form.Item>
+        <Form.Item v-if="rowDraft.optionSource === 'ENUM'" label="枚举引用">
           <Input v-model:value="rowDraft.optionRef" />
         </Form.Item>
         <Form.Item class="col-span-2" label="描述">

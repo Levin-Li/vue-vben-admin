@@ -2,6 +2,7 @@
 import CrudPage from '../crud-page.vue';
 import { electronicContractTemplatePageCrudConfig } from './config';
 import ContractTemplateDocxUpload from './contract-template-docx-upload.vue';
+import ContractTemplateVariablesEditor from './contract-template-variables-editor.vue';
 </script>
 
 <template>
@@ -14,15 +15,12 @@ import ContractTemplateDocxUpload from './contract-template-docx-upload.vue';
         @update="(values) => Object.assign(formState, values)"
       />
     </template>
+    <template #form-field-templateFieldSchema="{ disabled, formState }">
+      <ContractTemplateVariablesEditor
+        :disabled="disabled"
+        :form-state="formState"
+        @update="(value) => (formState.templateFieldSchema = value)"
+      />
+    </template>
   </CrudPage>
 </template>
-
-<style scoped>
-/* 文件元数据由受控上传接口写入表单状态，不单独展示为可编辑输入。 */
-:deep([data-crud-form-field='fileName']),
-:deep([data-crud-form-field='fileUrl']),
-:deep([data-crud-form-field='fileHash']),
-:deep([data-crud-form-field='mimeType']) {
-  display: none;
-}
-</style>

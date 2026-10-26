@@ -6,7 +6,6 @@ import type {
 } from '../../api/domain-service';
 
 import { computed, reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
@@ -24,7 +23,6 @@ import {
 } from 'ant-design-vue';
 
 import { domainService } from '../../api/domain-service';
-import { helpDocumentUrl } from '../../help-center';
 import {
   getTenantSiteSuffixApplyApi,
   getTenantSiteVendorApplyApi,
@@ -44,7 +42,6 @@ const applyDomainPermission = buildApiMethodPermissions(
   domainService,
   'applyDomain',
 );
-const router = useRouter();
 const selectedDomain = ref<DomainRecord | null>(null);
 const domainApplyOpen = ref(false);
 const domainApplying = ref(false);
@@ -485,9 +482,6 @@ async function submitDomainApply(loadList?: () => Promise<void> | void) {
 <template>
   <CrudPage :config="pageConfig">
     <template #toolbar-extra="{ isListOperationVisible }">
-      <Button @click="router.push(helpDocumentUrl('mail-receiving-admin'))">
-        帮助
-      </Button>
       <Button
         v-if="
           isListOperationVisible('domain:apply', true) &&

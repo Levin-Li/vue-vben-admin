@@ -17,13 +17,8 @@ export interface ElectronicInvoiceProviderGuide {
   authorizationRefHelp: string;
   authorizationRefLabel: string;
   authorizationRefPlaceholder: string;
-  authorizationSteps: string[];
-  liveRequirements: string[];
-  merchantFit: string;
   name: string;
   productionGuard: string;
-  statusTag: string;
-  summary: string;
   supportLevel: 'full' | 'limited';
   terminalRefHelp: string;
   terminalRefLabel: string;
@@ -39,22 +34,9 @@ const providerGuides: Record<
       '填写国票发票通完成刷脸授权后返回的授权单号、商户关系单号或平台侧授权引用。',
     authorizationRefLabel: '发票通授权引用',
     authorizationRefPlaceholder: '例如：auth-ft-202608280001',
-    authorizationSteps: [
-      '商户在线完成企业实名认证、协议签约和法人刷脸授权。',
-      '在本系统选择“国票信息·发票通”，优先开启模拟器联调。',
-      '切正式环境前，把开放平台应用、密钥、回调地址和商户税号绑定完成。',
-    ],
-    liveRequirements: [
-      '商户已在发票通开放平台开通可用应用。',
-      '商户税号、开票主体和合作伙伴中的开票信息一致。',
-      '已从官方平台拿到正式环境 appKey、appSecret 或等价凭据。',
-    ],
-    merchantFit: '适合平台代接入，商户自助授权链路相对完整。',
     name: '国票信息·发票通',
     productionGuard:
       '正式开票前必须先在发票通后台完成应用开通、签约和法人刷脸授权，再关闭模拟器。',
-    statusTag: '推荐接入',
-    summary: '多商户托管和商户自助授权能力较完整，适合作为平台商户主接入通道。',
     supportLevel: 'full',
     terminalRefHelp:
       '若发票通返回税控设备号、开票终端号或全电标识，可回填到这里，方便后续排障。',
@@ -65,22 +47,9 @@ const providerGuides: Record<
       '填写诺诺开放平台完成企业授权后返回的授权编号、企业编码或官方回跳引用。',
     authorizationRefLabel: '诺诺授权引用',
     authorizationRefPlaceholder: '例如：nn-auth-202608280001',
-    authorizationSteps: [
-      '商户先在诺诺开放平台完成企业实名认证与应用授权。',
-      '联调阶段先使用模拟器验证开票、回调和状态补偿流程。',
-      '切正式环境前，确认商户税号、开票邮箱和回调配置已在官方平台生效。',
-    ],
-    liveRequirements: [
-      '商户已具备诺诺正式应用和接口权限。',
-      '商户税号、销方名称、银行及地址信息已在合作伙伴开票资料中维护完整。',
-      '正式环境 SDK 凭据、回调地址和白名单已在官方平台配置。',
-    ],
-    merchantFit: '适合已有诺诺合作基础、希望优先走官方 SDK 的商户。',
     name: '诺诺开放平台',
     productionGuard:
       '正式环境需要诺诺官方应用授权和企业资质齐备；未完成前请保持模拟器开启。',
-    statusTag: 'SDK优先',
-    summary: '官方 SDK 成熟，适合优先走 SDK 接入并复用诺诺已有商户授权体系。',
     supportLevel: 'full',
     terminalRefHelp:
       '诺诺如返回税控设备号、盘号或终端编号，建议同步回填，便于对账与异常定位。',
@@ -91,23 +60,9 @@ const providerGuides: Record<
       '填写腾讯电子发票平台或微信支付灰度申请链路返回的授权流水号、商户号关联引用。',
     authorizationRefLabel: '腾讯授权引用',
     authorizationRefPlaceholder: '例如：wx-einvoice-auth-202608280001',
-    authorizationSteps: [
-      '优先用模拟器联调整条开票链路，先不要直接切正式环境。',
-      '如要接入真实环境，需先确认腾讯电子发票能力已经对当前商户开放灰度。',
-      '只有灰度资格、接口配置和回调联通都确认后，才考虑关闭模拟器。',
-    ],
-    liveRequirements: [
-      '商户已拿到腾讯电子发票/微信支付侧明确的灰度准入资格。',
-      '商户号、回调地址、签名配置和发票能力绑定已经通过官方审核。',
-      '没有灰度资格时只能走模拟器，不应发起正式开票。',
-    ],
-    merchantFit: '适合已拿到腾讯灰度资格的商户；默认只建议做模拟联调。',
     name: '腾讯电子发票（灰度）',
     productionGuard:
       '当前默认只支持模拟或灰度联调；未拿到腾讯灰度资格时禁止关闭模拟器。',
-    statusTag: '灰度限制',
-    summary:
-      '适合补充微信生态场景，但正式能力受灰度准入限制，默认按模拟联调处理。',
     supportLevel: 'limited',
     terminalRefHelp:
       '若腾讯侧提供商户号、设备号或发票终端标识，可回填到这里，帮助后续联调定位。',
@@ -153,8 +108,8 @@ function normalizeSimulationFlag(value: unknown) {
 
 export const pageMeta = {
   name: 'ElectronicInvoiceProviderConnection',
-  title: '电子发票授权',
-  description: '维护销方与开票服务商的授权关系。',
+  title: '开票授权',
+  description: '维护销方与开票服务商的电子发票开票授权关系。',
 } as const;
 
 export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
@@ -172,7 +127,7 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
     allowEdit: false,
     allowDelete: false,
     allowRetrieve: false,
-    title: '电子发票授权',
+    title: '开票授权',
     modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
     defaultFormValues: {
       simulation: true,
@@ -183,8 +138,8 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
         | undefined;
       const simulation = normalizeSimulationFlag(values.simulation);
 
-      if (!values.partnerId) {
-        throw new Error('请先选择已经维护开票信息的合作伙伴。');
+      if (!values.legalSubjectId) {
+        throw new Error('请选择需要开票的法律主体。');
       }
 
       if (!providerCode || !(providerCode in providerGuides)) {
@@ -221,14 +176,16 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
         width: 180,
       },
       {
-        key: 'partnerId',
-        label: '开票合作伙伴',
+        key: 'legalSubjectId',
+        label: '法律主体',
         required: true,
         search: true,
         table: true,
+        tableValue: (record) =>
+          record.legalSubjectName || record.legalSubjectId,
         type: 'select',
         width: 220,
-        help: '请选择已经维护完整开票资料的合作伙伴；正式联调时该合作伙伴即作为销方主体快照来源。',
+        help: '选择您要开票的公司。可选公司包括您本人及您可访问的客户、供应商所关联的法律主体。',
       },
       // 精确匹配例外：供应商由固定选项选择，查询时按选中的完整编码过滤。
       {

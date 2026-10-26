@@ -163,7 +163,7 @@ async function loadRules(page = 1) {
     ruleTotal.value = result.totals;
     rulePage.value = page;
   } catch {
-    message.error('受理规则不可访问');
+    message.error('客服邮箱不可访问');
   }
 }
 async function beginIntake() {
@@ -175,7 +175,7 @@ async function beginIntake() {
 async function intake() {
   if (!canIntake.value || !detail.value || pending.value) return;
   if (!ruleId.value) {
-    message.error('请选择已启用的匹配受理规则');
+    message.error('请选择与这封邮件匹配且已启用的客服邮箱');
     return;
   }
   pending.value = true;
@@ -189,7 +189,7 @@ async function intake() {
     message.success('已转为工单');
     await router.push({ path: '/clob/V1/Ticket', query: { id: ticketId } });
   } catch {
-    message.error('转工单失败，请核对收件范围和受理规则');
+    message.error('转工单失败，请核对收件范围和客服邮箱设置');
   } finally {
     pending.value = false;
   }
@@ -302,7 +302,7 @@ watch(
   </Modal>
   <Modal
     v-model:open="intakeOpen"
-    title="选择支持邮箱受理规则"
+    title="选择客服邮箱"
     :confirm-loading="pending"
     @ok="intake"
   >

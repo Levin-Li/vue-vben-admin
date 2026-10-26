@@ -197,6 +197,45 @@ describe('后端元数据适配公共CRUD', () => {
     expect(result.totals).toBe(12);
   });
 
+  it('高级模式只传条件树，切回简单模式只传原查询参数', async () => {
+    const adapter = createDynamicCrudAdapter(model(), () => 'actor');
+    adapter.setAdvancedQuery(true);
+    expect(
+      adapter.config.fields.find(
+        (item) => item.key === '__query_f_name_contains',
+      )?.search,
+    ).toBe(false);
+    adapter.advancedQuery.tree = {
+      type: 'NOT',
+      child: { type: 'PARAM', key: '__query_f_name_contains', value: '归档' },
+    };
+    await adapter.config.apiService!.list!({
+      __query_f_name_contains: '隐藏旧值',
+    });
+    expect(service.queryRecords).toHaveBeenLastCalledWith('demo', {
+      pageIndex: 1,
+      pageSize: 20,
+      conditionTree: {
+        type: 'NOT',
+        child: { type: 'PARAM', key: '__query_f_name_contains', value: '归档' },
+      },
+    });
+    adapter.setAdvancedQuery(false);
+    expect(
+      adapter.config.fields.find(
+        (item) => item.key === '__query_f_name_contains',
+      )?.search,
+    ).toBe(true);
+    await adapter.config.apiService!.list!({
+      __query_f_name_contains: '当前简单值',
+    });
+    expect(service.queryRecords).toHaveBeenLastCalledWith('demo', {
+      pageIndex: 1,
+      pageSize: 20,
+      queryValues: { __query_f_name_contains: '当前简单值' },
+    });
+  });
+
   it('编辑先读完整EDIT对象，未改日期微秒原样提交，冲突不重试', async () => {
     const adapter = createDynamicCrudAdapter(model(), () => 'actor');
     const original = {
@@ -375,6 +414,9 @@ describe('后端元数据适配公共CRUD', () => {
   });
   it('公共表头排序只映射已授权LIST标量字段，JSON与未返回字段拒绝', async () => {
     const adapter = createDynamicCrudAdapter(model(), () => 'actor');
+    expect(
+      adapter.config.fields.find((item) => item.key === 'amount')?.sortable,
+    ).toBeUndefined();
     await adapter.config.apiService!.list!({
       orderBy: 'amount',
       orderDir: 'Desc',

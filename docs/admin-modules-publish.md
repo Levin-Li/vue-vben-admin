@@ -1,5 +1,7 @@
 # 后台前端模块发布说明
 
+[2026-10-27 全部交付变更发布记录](releases/20261027-all-changes.md)记录本批候选、验证、上传与边界。
+
 最新批次见 [2026-10-26 性能监控前端包发布记录](releases/20261026-performance-monitor.md)。
 
 最新批次见 [2026-10-25 邮件中转目标编辑与实体名页面](releases/20261025-mail-relay-target-editor.md)。

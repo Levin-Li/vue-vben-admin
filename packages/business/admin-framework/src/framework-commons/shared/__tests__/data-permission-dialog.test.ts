@@ -430,6 +430,93 @@ describe('数据权限候选三档分配', () => {
     wrapper.unmount();
   });
 
+  it('固定组织项可切换匹配模式，未设置禁用，无组织不显示模式', async () => {
+    const wrapper = await openDialog('role');
+    const allMode = wrapper.find('[aria-label="全部组织子组织匹配模式"]');
+    const defaultMode = wrapper.find(
+      '[aria-label="用户默认组织子组织匹配模式"]',
+    );
+    expect(allMode.attributes('disabled')).toBeDefined();
+    expect(defaultMode.attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[aria-label="无组织子组织匹配模式"]').exists()).toBe(
+      false,
+    );
+
+    await choice(wrapper, '全部组织', '允许')?.trigger('click');
+    expect(allMode.element.value).toBe('SelfAndAllChild');
+    await allMode.setValue('Self');
+    expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
+    expect(
+      choice(wrapper, '全部组织', '允许')?.attributes('aria-pressed'),
+    ).toBe('true');
+
+    await choice(wrapper, '用户默认组织', '禁止')?.trigger('click');
+    await defaultMode.setValue('DirectChild');
+    const save = wrapper
+      .findAll('button')
+      .find((button) => button.text() === '保存');
+    await save?.trigger('click');
+    await flushPromises();
+    expect(mocks.put).toHaveBeenCalledWith(
+      '/com.levin.oak.base/V1/api/Role/update',
+      expect.objectContaining({
+        orgScopeList: expect.arrayContaining(['_ALL_ROOT_|Self']),
+        deniedOrgScopeList: expect.arrayContaining(['_DEFAULT_|DirectChild']),
+      }),
+      expect.anything(),
+    );
+
+    await choice(wrapper, '用户默认组织', '未设置')?.trigger('click');
+    expect(defaultMode.attributes('disabled')).toBeDefined();
+    expect(defaultMode.element.value).toBe('');
+    wrapper.unmount();
+  });
+
+  it('固定组织非默认匹配模式从保存值回显并保留档位', async () => {
+    const wrapper = await openDialog('role', {
+      orgScopeList: ['_DEFAULT_|Self'],
+      deniedOrgScopeList: ['_ALL_ROOT_|SelfAndDirectChild'],
+    });
+    expect(
+      choice(wrapper, '用户默认组织', '允许')?.attributes('aria-pressed'),
+    ).toBe('true');
+    expect(
+      wrapper.find('[aria-label="用户默认组织子组织匹配模式"]').element.value,
+    ).toBe('Self');
+    expect(
+      choice(wrapper, '全部组织', '禁止')?.attributes('aria-pressed'),
+    ).toBe('true');
+    expect(
+      wrapper.find('[aria-label="全部组织子组织匹配模式"]').element.value,
+    ).toBe('SelfAndDirectChild');
+    expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('全部组织在全下级和非全下级模式之间切换时正确收展候选', async () => {
+    const wrapper = await openDialog('role');
+    const mode = wrapper.find('[aria-label="全部组织子组织匹配模式"]');
+    await choice(wrapper, '全部组织', '允许')?.trigger('click');
+    expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(
+      false,
+    );
+
+    await mode.setValue('DirectChild');
+    expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
+    expect(
+      choice(wrapper, '全部组织', '允许')?.attributes('aria-pressed'),
+    ).toBe('true');
+
+    await mode.setValue('SelfAndAllChild');
+    expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(
+      false,
+    );
+    await choice(wrapper, '全部组织', '未设置')?.trigger('click');
+    expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
+    expect(mode.attributes('disabled')).toBeDefined();
+    wrapper.unmount();
+  });
+
   it('高级与简易模式共用待保存规则，全部根组织回显一致', async () => {
     const wrapper = await openDialog('role', {
       orgScopeList: ['_ALL_ROOT_|SelfAndAllChild'],
@@ -557,8 +644,8 @@ describe('数据权限候选三档分配', () => {
     const orgAdvanced = wrapper.findAll(
       '[data-testid="data-permission-advanced"]',
     )[2];
-    expect(orgAdvanced?.text()).toContain('默认组织 仅自身');
-    expect(orgAdvanced?.text()).toContain('仅匹配默认组织自身的数据');
+    expect(orgAdvanced?.text()).toContain('用户默认组织 仅自身');
+    expect(orgAdvanced?.text()).toContain('仅匹配用户默认组织自身的数据');
     wrapper.unmount();
   });
 
@@ -571,8 +658,8 @@ describe('数据权限候选三档分配', () => {
       ],
     });
     const org = wrapper.find('section:nth-of-type(3)');
-    expect(org.find('table').text()).toContain('默认组织（含全部下级）');
-    expect(org.find('table').text()).toContain('匹配默认组织');
+    expect(org.find('table').text()).toContain('用户默认组织');
+    expect(org.find('table').text()).toContain('匹配用户默认组织');
     expect(org.find('[data-testid="org-special-rules"]').exists()).toBe(false);
     expect(org.text()).not.toContain('编辑组织匹配规则');
     await choice(wrapper, '已授权组织', '禁止')?.trigger('click');
@@ -696,7 +783,7 @@ describe('数据权限候选三档分配', () => {
     ]);
     const wrapper = await openDialog('role');
     const tenant = wrapper.find('section:nth-of-type(2)');
-    expect(tenant.find('table').text()).toContain('默认租户');
+    expect(tenant.find('table').text()).toContain('用户默认租户');
     expect(tenant.text()).toContain('默认租户（ID tenant-real）');
     expect(tenant.text()).toContain('平台用户匹配无租户数据');
     wrapper.unmount();

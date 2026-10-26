@@ -14,8 +14,8 @@ const electronicInvoiceStatusOptionsLoader = buildEnumOptionsLoader(
 );
 export const pageMeta = {
   name: 'ElectronicInvoice',
-  title: '电子发票',
-  description: '维护电子发票。',
+  title: '开票申请',
+  description: '提交和跟踪开票申请，开具成功后查看票据链接。',
 } as const;
 
 export const electronicInvoicePageCrudConfig: CrudPageConfig =
@@ -28,14 +28,38 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
       retrieve: { method: 'GET', path: 'retrieve' },
     }),
     createPath: '/EInvoice/issue',
+    createSubmitKeys: ['amountWithoutTax', 'taxAmount', 'amountWithTax'],
     allowEdit: false,
     allowDelete: false,
-    title: '电子发票',
+    title: '开票申请',
     modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
     transformSubmit: async (values) => {
-      const amountWithoutTax = Number(values.amountWithoutTax);
-      const taxAmount = Number(values.taxAmount);
-      const amountWithTax = Number(values.amountWithTax);
+      const items = Array.isArray(values.itemList) ? values.itemList : [];
+      if (
+        items.length === 0 ||
+        items.some(
+          (item) =>
+            !item.itemName?.trim() ||
+            !Number.isFinite(Number(item.quantity)) ||
+            !Number.isFinite(Number(item.unitPrice)),
+        )
+      ) {
+        throw new Error('请填写至少一项完整的票面明细。');
+      }
+      if (!values.buyerInfo?.name?.trim() || !values.buyerInfo?.taxNo?.trim()) {
+        throw new Error('请填写购买方名称和纳税人识别号。');
+      }
+      const amountWithoutTax = Number(
+        items
+          .reduce((sum, item) => sum + Number(item.amountWithoutTax ?? 0), 0)
+          .toFixed(4),
+      );
+      const taxAmount = Number(
+        items
+          .reduce((sum, item) => sum + Number(item.taxAmount ?? 0), 0)
+          .toFixed(4),
+      );
+      const amountWithTax = Number((amountWithoutTax + taxAmount).toFixed(4));
 
       if (
         !Number.isFinite(amountWithoutTax) ||
@@ -49,7 +73,14 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
         throw new Error('不含税金额与税额之和必须等于价税合计。');
       }
 
-      return values;
+      return {
+        ...values,
+        requestNo: undefined,
+        bizType: undefined,
+        amountWithoutTax,
+        taxAmount,
+        amountWithTax,
+      };
     },
     fields: [
       {
@@ -66,6 +97,7 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
         label: '发票申请ID',
         form: false,
         search: true,
+        table: true,
         width: 180,
       },
       {
@@ -77,32 +109,40 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
       {
         key: 'requestNo',
         label: '申请号',
-        help: '租户内唯一，用于开票请求幂等；失败后重试沿用同一申请号。',
-        required: true,
-        table: true,
+        form: false,
+        table: false,
         width: 180,
       },
       {
         key: 'partnerId',
-        label: '销方合作伙伴',
-        help: '请选择已完成开票资料维护和电子发票授权的商户主体；提交后系统会冻结该主体的票面快照。',
-        required: true,
+        label: '销售方公司',
+        form: false,
         search: true,
         table: true,
+        tableValue: (record) =>
+          record.sellerSnapshot?.subjectName || record.partnerId,
         type: 'select',
         width: 220,
       },
       {
-        key: 'bizType',
-        label: '业务类型',
+        key: 'issuerChannelAuthorizationId',
+        label: '销售方公司及开票授权',
+        help: '请选择您有权使用的公司及其有效开票授权。',
         required: true,
+        type: 'select',
+        table: false,
+      },
+      {
+        key: 'bizType',
+        label: '外部业务类型',
+        form: false,
         search: true,
         width: 140,
       },
       {
         key: 'buyerInfo',
-        label: '购方开票信息',
-        help: '按票种填写购方抬头、税号及需要的专票资料。',
+        label: '购买方信息',
+        help: '购买方开票抬头对应 buyerInfo.name；专票再填写地址、电话和银行资料。',
         type: 'json',
         table: false,
       },
@@ -111,6 +151,7 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
         key: 'amountWithoutTax',
         label: '不含税金额',
         required: true,
+        form: false,
         type: 'number',
         width: 130,
       },
@@ -118,6 +159,7 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
         key: 'taxAmount',
         label: '税额',
         required: true,
+        form: false,
         type: 'number',
         width: 120,
       },
@@ -125,6 +167,7 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
         key: 'amountWithTax',
         label: '价税合计',
         required: true,
+        form: false,
         type: 'number',
         table: true,
         width: 130,
@@ -164,8 +207,9 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
       {
         key: 'itemList',
         label: '票面明细',
-        help: '每项填写项目名称、规格、单位、数量、单价、金额、税率和税额。',
+        help: '逐项填写项目、数量、单价和税率；金额与税额自动计算。',
         type: 'json',
+        required: true,
         table: false,
       },
       {
@@ -184,7 +228,7 @@ export const electronicInvoicePageCrudConfig: CrudPageConfig =
       },
       {
         key: 'invoiceFileUrl',
-        label: '发票文件链接',
+        label: '票据文档链接',
         form: false,
         detail: true,
         width: 220,

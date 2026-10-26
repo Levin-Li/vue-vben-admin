@@ -11,12 +11,17 @@ import { OAK_BASE_API_MODULE } from './_module';
   basePath: '/EInvoiceProviderConnection',
   controllerClass:
     'com.levin.oak.base.controller.BizEInvoiceProviderConnectionController',
-  title: '电子发票授权',
+  title: '开票授权',
   type: '系统数据-电子发票供应商连接',
 })
 export class ElectronicInvoiceProviderConnectionService extends RequestService {
   constructor() {
     super(OAK_BASE_API_MODULE);
+  }
+
+  // 只返回当前登录用户可授权的法律主体，权限和关联范围由后端判定。
+  async availableLegalSubjects(params?: any, options?: any) {
+    return this.get('availableLegalSubjects', { ...options, params });
   }
 
   @CRUD.Op({ label: '确认授权' })

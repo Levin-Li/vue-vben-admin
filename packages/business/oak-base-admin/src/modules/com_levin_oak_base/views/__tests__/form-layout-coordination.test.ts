@@ -306,6 +306,8 @@ function isAllowedFullRowHighComponent(file: string, field: CrudFieldConfig) {
   const reviewedWideJsonFields: Record<string, string[]> = {
     'backend-fixed-job': ['configData'],
     domain: ['nameservers', 'exInfo'],
+    // 合同填写项使用多列变量编辑器，整行宽度用于同时展示变量名、标题和必填操作。
+    'electronic-contract-template': ['templateFieldSchema'],
     menu: ['params'],
     'service-plugin': ['baseConfig'],
     'settlement-order': ['settlementContent'],

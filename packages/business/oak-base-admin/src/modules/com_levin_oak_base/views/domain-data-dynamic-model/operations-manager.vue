@@ -32,6 +32,11 @@ import {
 } from '../data-model-record/record-fields';
 import { cloneDataModelDto } from './field-table';
 import { queryOperatorLabels } from './field-usage';
+import {
+  derivedQueryColumn,
+  validateQueryInputMapping,
+  withQueryMappingCandidate,
+} from './query-input-mapping';
 
 const props = defineProps<{ editable: boolean; model: DataModelDefinition }>();
 const emit = defineEmits<{ saved: [model: DataModelDefinition] }>();
@@ -59,8 +64,9 @@ const columns = [
   { title: '操作', key: 'actions' },
 ];
 const queryColumns = [
-  { title: '参数名', dataIndex: 'key', width: 230 },
+  { title: '查询参数键', key: 'key', width: 180 },
   { title: '目标字段', key: 'field' },
+  { title: '数据库列（派生）', key: 'column', width: 170 },
   { title: '中文名称', key: 'title' },
   { title: '固定操作符', key: 'operator' },
   { title: '默认显示', key: 'visible' },
@@ -269,10 +275,17 @@ function changeTarget(target: unknown) {
   draft.value.responseFields = [];
   assignments.value = [];
 }
-function changeQuery(index: number, key: string) {
-  const candidate = queryCandidates.value.find((input) => input.key === key);
-  if (!candidate || !draft.value?.queryInputs) return;
-  draft.value.queryInputs[index] = cloneDataModelDto(candidate);
+function changeQueryOperator(index: number, operator: string) {
+  const input = draft.value?.queryInputs?.[index];
+  if (!input) return;
+  const candidate = queryCandidates.value.find(
+    (item) => item.field === input.field && item.operator === operator,
+  );
+  if (!candidate) return;
+  draft.value!.queryInputs![index] = withQueryMappingCandidate(
+    input,
+    cloneDataModelDto(candidate),
+  );
 }
 function addQuery() {
   if (!draft.value) return;
@@ -304,18 +317,27 @@ function queryFields() {
   ];
 }
 function queryOperators(field: string) {
-  return queryCandidates.value
-    .filter((input) => input.field === field)
-    .map((input) => ({
-      value: input.key,
-      label: queryOperatorLabels[input.operator],
-    }));
+  return [
+    ...new Set(
+      queryCandidates.value
+        .filter((input) => input.field === field)
+        .map((input) => input.operator),
+    ),
+  ].map((operator) => ({
+    value: operator,
+    label: queryOperatorLabels[operator],
+  }));
 }
 function changeQueryField(index: number, field: string) {
   const candidate = queryCandidates.value.find(
     (input) => input.field === field,
   );
-  if (candidate) changeQuery(index, candidate.key);
+  const selected = draft.value?.queryInputs?.[index];
+  if (candidate && selected)
+    draft.value!.queryInputs![index] = withQueryMappingCandidate(
+      selected,
+      cloneDataModelDto(candidate),
+    );
 }
 function addAssignment() {
   const candidate = assignmentCandidates.value.find(
@@ -397,9 +419,9 @@ function apply() {
     }
   }
   if (operation.code === 'QUERY') {
-    const keys = (operation.queryInputs || []).map((input) => input.key);
-    if (new Set(keys).size !== keys.length) {
-      message.error('查询参数不能重复');
+    const mappingError = validateQueryInputMapping(operation.queryInputs || []);
+    if (mappingError) {
+      message.error(mappingError);
       return;
     }
   }
@@ -664,7 +686,7 @@ async function save() {
       </Form.Item>
       <template v-if="draft.code === 'QUERY'">
         <div class="col-span-full mb-2 flex items-center justify-between">
-          <strong>固定查询参数</strong>
+          <strong>查询参数映射：参数键 → 模型字段 → 比较符 → 数据库列</strong>
           <Button @click="addQuery">添加查询参数</Button>
         </div>
         <Table
@@ -676,8 +698,13 @@ async function save() {
           :scroll="{ x: 900 }"
         >
           <template #bodyCell="{ column, record, index }">
+            <Input
+              v-if="column.key === 'key'"
+              v-model:value="record.key"
+              placeholder="如 minimumAmount"
+            />
             <Select
-              v-if="column.key === 'field'"
+              v-else-if="column.key === 'field'"
               :value="record.field"
               :options="queryFields()"
               class="w-40"
@@ -685,16 +712,21 @@ async function save() {
                 (value) => changeQueryField(index, value as string)
               "
             />
+            <span v-else-if="column.key === 'column'" class="font-mono">
+              {{ derivedQueryColumn(record.field) }}
+            </span>
             <Input
               v-else-if="column.key === 'title'"
               v-model:value="record.title"
             />
             <Select
               v-else-if="column.key === 'operator'"
-              :value="record.key"
+              :value="record.operator"
               :options="queryOperators(record.field)"
               class="w-32"
-              @update:value="(value) => changeQuery(index, value as string)"
+              @update:value="
+                (value) => changeQueryOperator(index, value as string)
+              "
             />
             <Switch
               v-else-if="column.key === 'visible'"

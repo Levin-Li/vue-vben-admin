@@ -20,7 +20,7 @@ import { toGenericSupportRequestScope } from './support-request-scope';
   basePath: '/SupportMailboxRuleAction',
   controllerClass:
     'com.levin.oak.base.controller.BizSupportMailboxRuleActionController',
-  title: '支持邮箱受理规则',
+  title: '客服邮箱设置',
   type: '业务数据-支持邮箱受理规则',
 })
 export class SupportMailboxRuleService extends RequestService {

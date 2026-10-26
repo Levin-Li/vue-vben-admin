@@ -100,11 +100,18 @@ describe('独立客户页面', () => {
     const nameField = customerPageCrudConfig.fields.find(
       (item) => item.key === 'customerName',
     );
-    expect(nameField).toMatchObject({ formCreate: true, formEdit: false });
+    expect(nameField).toMatchObject({
+      formCreate: true,
+      formEdit: false,
+      required: true,
+    });
     expect(nameField?.validator?.('', {})).toBe(
       '自动创建客户组织时请输入客户名称',
     );
     expect(nameField?.validator?.('甲客户', {})).toBeUndefined();
+    expect(nameField?.validator?.('   ', {})).toBe(
+      '自动创建客户组织时请输入客户名称',
+    );
     expect(nameField?.validator?.('', { orgId: 'internal-org' })).toBe(
       '自动创建客户组织时请输入客户名称',
     );

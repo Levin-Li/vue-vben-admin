@@ -115,11 +115,12 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     {
       key: 'customerName',
       label: '客户名称',
-      help: '必填，将作为自动创建的客户组织名称。',
+      help: '将作为自动创建的客户组织名称。',
       layoutGroup: 'basic',
       layoutOrder: 15,
       formCreate: true,
       formEdit: false,
+      required: true,
       table: false,
       detail: false,
       validator: (value) =>

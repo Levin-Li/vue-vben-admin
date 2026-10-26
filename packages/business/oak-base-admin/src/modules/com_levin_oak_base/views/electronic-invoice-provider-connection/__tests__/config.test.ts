@@ -20,9 +20,9 @@ vi.mock('../../api-module', () => ({
 
 describe('electronic invoice provider connection page config', () => {
   it('uses the authorization name in the page and field labels', () => {
-    expect(pageMeta.title).toBe('电子发票授权');
+    expect(pageMeta.title).toBe('开票授权');
     expect(electronicInvoiceProviderConnectionPageCrudConfig.title).toBe(
-      '电子发票授权',
+      '开票授权',
     );
     expect(electronicInvoiceProviderConnectionPageCrudConfig.fields).toEqual(
       expect.arrayContaining([
@@ -43,6 +43,36 @@ describe('electronic invoice provider connection page config', () => {
     );
   });
 
+  it('requires a legal subject and does not ask for a partner relation', async () => {
+    const fields = electronicInvoiceProviderConnectionPageCrudConfig.fields;
+    expect(fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'legalSubjectId',
+          label: '法律主体',
+          required: true,
+          search: true,
+        }),
+      ]),
+    );
+    expect(fields?.some((field) => field.key === 'partnerId')).toBe(false);
+    const subjectField = fields?.find(
+      (field) => field.key === 'legalSubjectId',
+    );
+    expect(
+      subjectField?.tableValue?.({
+        legalSubjectId: 'subject-1',
+        legalSubjectName: '甲公司',
+      }),
+    ).toBe('甲公司');
+    await expect(
+      electronicInvoiceProviderConnectionPageCrudConfig.transformSubmit?.(
+        { providerCode: 'nuonuo', simulation: true },
+        null,
+      ),
+    ).rejects.toThrow('请选择需要开票的法律主体');
+  });
+
   it('keeps the supported provider options visible to merchants', () => {
     expect(electronicInvoiceProviderOptions).toEqual([
       expect.objectContaining({
@@ -60,20 +90,17 @@ describe('electronic invoice provider connection page config', () => {
     ]);
   });
 
-  it('exposes provider-specific guidance for authorization and production cutover', () => {
+  it('keeps operation-specific authorization guidance', () => {
     expect(getElectronicInvoiceProviderGuide('fapiaotong')).toMatchObject({
       authorizationRefLabel: '发票通授权引用',
-      statusTag: '推荐接入',
       supportLevel: 'full',
     });
     expect(getElectronicInvoiceProviderGuide('nuonuo')).toMatchObject({
       authorizationRefLabel: '诺诺授权引用',
-      statusTag: 'SDK优先',
       supportLevel: 'full',
     });
     expect(getElectronicInvoiceProviderGuide('wechatpay')).toMatchObject({
       authorizationRefLabel: '腾讯授权引用',
-      statusTag: '灰度限制',
       supportLevel: 'limited',
     });
   });
@@ -82,14 +109,14 @@ describe('electronic invoice provider connection page config', () => {
     await expect(
       electronicInvoiceProviderConnectionPageCrudConfig.transformSubmit?.(
         {
-          partnerId: 'partner-1',
+          legalSubjectId: 'subject-1',
           providerCode: 'nuonuo',
           simulation: 'false',
         },
         null,
       ),
     ).resolves.toMatchObject({
-      partnerId: 'partner-1',
+      legalSubjectId: 'subject-1',
       providerCode: 'nuonuo',
       simulation: false,
     });
@@ -97,7 +124,7 @@ describe('electronic invoice provider connection page config', () => {
     await expect(
       electronicInvoiceProviderConnectionPageCrudConfig.transformSubmit?.(
         {
-          partnerId: 'partner-2',
+          legalSubjectId: 'subject-2',
           providerCode: 'wechatpay',
           simulation: false,
         },

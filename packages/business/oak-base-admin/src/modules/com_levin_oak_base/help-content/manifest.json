@@ -1,5 +1,5 @@
 {
-  "version": "6.0.20",
+  "version": "6.0.21",
   "documents": [
     {
       "id": "system-user-manual",
@@ -28,7 +28,7 @@
           "view": "support-mailbox-rule"
         }
       ],
-      "sha256": "66a39fd1f06e2dc643758f3893432eb4f85e5148d6c2892e2d8edb0b9e33c74b"
+      "sha256": "8baf99d8a3a983f020aca5ea47042ff9b916b2fe22ae253a67dfc051f8890a2e"
     },
     {
       "id": "mail-receiving-admin",
@@ -63,7 +63,7 @@
       "type": "使用指南",
       "source": "docs/邮件中转路由使用指南.md",
       "pages": [],
-      "sha256": "dd210de12141948fcb891fc285b9a864dd8df2c663292367064850d8ea3ca3ac"
+      "sha256": "0ae73bb42a785e215fc0ba1c91e6b9866a3d537830d12b9bcfdd5ca27a5fe331"
     },
     {
       "id": "mail-ticket-design",
@@ -130,7 +130,7 @@
       "type": "开发指南",
       "source": "frontend/admin/packages/business/oak-base-admin/docs/communication-workbench.md",
       "pages": [],
-      "sha256": "e3fb88b1ea11e652d6c529ca9de2a2ff7b2cc9a4a6b997bc2f49d325faa35715"
+      "sha256": "971c975e7f1d4c92fdb5bbab0e9328f0ca327d38d5946ebd060bb01766b3e468"
     },
     {
       "id": "invitation-registration-admin",
@@ -145,7 +145,7 @@
           "view": "invitation-link"
         }
       ],
-      "sha256": "67e9d7e9010765c9a67154cf1bc0e43d14a84fcc379d904ec0d4042edf36238f"
+      "sha256": "cf78947322d50f87929b16ebeb787d9f9d90dc65a232333c7945e57d0549fe1e"
     }
   ]
 }

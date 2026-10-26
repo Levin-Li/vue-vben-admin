@@ -143,14 +143,14 @@
     },
     {
       "resource": "EInvoice",
-      "title": "电子发票",
+      "title": "开票申请",
       "view": "./views/electronic-invoice/index.vue",
       "classification": "shared-crud",
       "reason": "使用 CrudPage；继续按接口和字段规则验收"
     },
     {
       "resource": "EInvoiceProviderConnection",
-      "title": "电子发票授权",
+      "title": "开票授权",
       "view": "./views/electronic-invoice-provider-connection/index.vue",
       "classification": "shared-crud",
       "reason": "使用 CrudPage；继续按接口和字段规则验收"

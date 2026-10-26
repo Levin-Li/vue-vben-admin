@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { electronicInvoiceProviderConnectionService } from '../../../api/electronic-invoice-provider-connection-service';
 
-describe('电子发票授权展示名称', () => {
+describe('开票授权展示名称', () => {
   it('保留已有授权资源和动作标识', () => {
     expect(
       buildApiMethodPermissions(

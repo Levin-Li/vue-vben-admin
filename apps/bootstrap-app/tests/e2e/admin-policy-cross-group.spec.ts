@@ -30,7 +30,7 @@ test('switching CRUD pages across business groups does not expose field policy i
   });
   for (const [group, names] of [
     ['租户&域名', ['根域名管理', '租户管理', '租户站点']],
-    ['应用&接入', ['客户端应用', '支持邮箱受理规则']],
+    ['应用&接入', ['客户端应用', '客服邮箱设置']],
     ['支付&交易', ['支付渠道', '支付订单']],
     ['客户&伙伴', ['客户', '法律主体']],
     ['内容&资源', ['文章管理', '品牌管理']],

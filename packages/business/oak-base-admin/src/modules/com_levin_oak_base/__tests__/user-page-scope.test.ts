@@ -63,7 +63,7 @@ vi.mock('../views/crud-page.vue', async () => {
       setup() {
         onBeforeUnmount(calls.unmounted);
       },
-      template: '<div>用户列表</div>',
+      template: '<div>用户列表<slot name="search-field-orgId" /></div>',
     },
   };
 });
@@ -119,6 +119,7 @@ describe('普通用户原页面选择授权组织', () => {
 
   it('普通页面可选组织仅来自授权树，切换重新挂载旧记录与流程抽屉', async () => {
     const wrapper = mount(UserPage);
+    expect(wrapper.text()).not.toContain('用户查询组织');
     const picker = wrapper.findComponent({ name: 'UserOrgSelector' });
     await picker.props('loadOrgTree')();
     expect(calls.organizations).toHaveBeenCalledWith({ assembleTree: true });

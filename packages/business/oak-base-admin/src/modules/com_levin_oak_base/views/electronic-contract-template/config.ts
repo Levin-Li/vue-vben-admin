@@ -5,12 +5,13 @@ import { buildApiMethodPermissions } from '@levin/admin-framework/framework-comm
 import { electronicContractTemplateService } from '../../api/electronic-contract-template-service';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
+  buildDictOptionsLoader,
   buildEnumOptionsLoader,
-  DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
   userOptionsLoader,
   withModuleCrudConfig,
 } from '../api-module';
+import { normalizeTemplateVariables } from './template-variables';
 
 const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
   'com.levin.commons.rbac.ConfidentialLevel',
@@ -18,26 +19,9 @@ const confidentialLevelOptionsLoader = buildEnumOptionsLoader(
 const statusOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.EContractTemplate$Status',
 );
-
-// 变量定义只允许模板声明的文本占位符，不执行脚本或表达式。
-const variableSchema = {
-  type: 'array',
-  title: '模板变量',
-  items: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['key', 'title'],
-    properties: {
-      key: {
-        type: 'string',
-        title: '变量名',
-        description: '对应 Word 中的 {{变量名}}',
-      },
-      title: { type: 'string', title: '填写提示' },
-      required: { type: 'boolean', title: '必填' },
-    },
-  },
-} as const;
+const categoryOptionsLoader = buildDictOptionsLoader(
+  'com.levin.oak.base.entities.EContract.category',
+);
 
 export const pageMeta = {
   name: 'ElectronicContractTemplate',
@@ -57,30 +41,38 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
     allowDelete: false,
     editVisibleOn: "status == 'Draft'",
     defaultFormValues: { templateFieldSchema: [] },
-    // 受控上传结果写入表单状态；保存时只提交当前创建接口的字段。
+    createSubmitKeys: [
+      'templateNo',
+      'fileName',
+      'fileUrl',
+      'fileHash',
+      'mimeType',
+    ],
+    // 受控上传结果写入表单状态；模板编号以本次资源 ID 派生，用户无需维护技术字段。
     transformSubmit: (values, record) => {
       if (record) return values;
-      if (!values.fileResId || !values.fileName || !values.fileUrl) {
-        throw new Error('请先上传受控 DOCX 模板');
+      const uploaded =
+        values.fileResId && typeof values.fileResId === 'object'
+          ? values.fileResId
+          : values;
+      if (!uploaded.fileResId || !uploaded.fileName || !uploaded.fileUrl) {
+        throw new Error('请先上传 Word 合同文件（.docx）');
       }
-      const schema =
-        typeof values.templateFieldSchema === 'string'
-          ? JSON.parse(values.templateFieldSchema)
-          : values.templateFieldSchema;
-      if (!Array.isArray(schema)) throw new Error('模板变量必须是数组');
+      const schema = normalizeTemplateVariables(values.templateFieldSchema);
       return {
         tenantId: values.tenantId,
         orgId: values.orgId,
         ownerId: values.ownerId,
-        templateNo: values.templateNo,
-        name: values.name,
-        category: values.category,
+        templateNo:
+          String(values.templateNo || '').trim() || `CT-${uploaded.fileResId}`,
+        name: String(values.name || '').trim(),
+        category: String(values.category || '').trim(),
         confidentialLevel: values.confidentialLevel,
-        fileResId: values.fileResId,
-        fileName: values.fileName,
-        fileUrl: values.fileUrl,
-        fileHash: values.fileHash,
-        mimeType: values.mimeType,
+        fileResId: uploaded.fileResId,
+        fileName: uploaded.fileName,
+        fileUrl: uploaded.fileUrl,
+        fileHash: uploaded.fileHash,
+        mimeType: uploaded.mimeType,
         templateFieldSchema: schema,
         sealPositionRules: values.sealPositionRules,
       };
@@ -88,20 +80,34 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
     fields: [
       {
         key: 'tenantId',
-        label: '归属租户',
+        label: '使用租户',
         loadOptions: tenantOptionsLoader,
         remoteSearch: true,
         search: true,
         type: 'select',
         visibleForPlatformUser: true,
       },
-      { key: 'orgId', label: '所属组织', type: 'org-tree-select' },
+      {
+        key: 'orgId',
+        label: '使用组织',
+        type: 'org-tree-select',
+      },
       {
         key: 'ownerId',
         label: '所属用户',
         loadOptions: userOptionsLoader,
         remoteSearch: true,
         type: 'select',
+        defaultHidden: { create: true },
+      },
+      {
+        key: 'fileResId',
+        label: '上传 Word 合同',
+        fullRow: true,
+        required: true,
+        formCreate: true,
+        formEdit: false,
+        detail: true,
       },
       { key: 'id', label: '模板ID', form: false, search: true },
       {
@@ -113,13 +119,15 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'templateNo',
         label: '模板编号',
-        required: true,
+        formCreate: false,
+        help: '新增时由系统根据上传文件自动生成。',
         table: true,
         width: 180,
       },
       {
         key: 'name',
         label: '模板名称',
+        placeholder: '如：客户服务合同',
         required: true,
         search: true,
         table: true,
@@ -127,62 +135,65 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       },
       {
         key: 'category',
-        label: '类别',
+        label: '合同用途',
+        allowInput: true,
+        loadOptions: categoryOptionsLoader,
+        placeholder: '选择或输入，如：销售合同',
         required: true,
         table: true,
+        type: 'select',
         width: 140,
       },
       {
         key: 'confidentialLevel',
         label: '机密等级',
+        defaultHidden: { create: true },
         loadOptions: confidentialLevelOptionsLoader,
         type: 'select',
         valueType: 'number',
       },
       {
-        key: 'fileResId',
-        label: 'Word 模板文件',
-        required: true,
-        formCreate: true,
-        formEdit: false,
-        detail: true,
-      },
-      {
         key: 'fileName',
         label: '模板文件名',
-        required: true,
-        formCreate: true,
+        formCreate: false,
         formEdit: false,
       },
       {
         key: 'fileUrl',
         label: '受控模板文件路径',
-        required: true,
-        formCreate: true,
+        formCreate: false,
         formEdit: false,
       },
       {
         key: 'fileHash',
         label: '模板文件哈希',
-        formCreate: true,
+        formCreate: false,
         formEdit: false,
       },
       {
         key: 'mimeType',
         label: '模板文件类型',
-        formCreate: true,
+        formCreate: false,
         formEdit: false,
       },
       {
         key: 'templateFieldSchema',
-        label: '模板变量定义',
+        label: '合同里要填写的内容（可选）',
+        fullRow: true,
         type: 'json',
-        jsonSchema: variableSchema,
-        jsonSchemaMode: 'popup',
+        validator: (value) => {
+          try {
+            normalizeTemplateVariables(value);
+          } catch (error) {
+            return error instanceof Error ? error.message : '填写项格式不正确';
+          }
+        },
       },
       {
         key: 'sealPositionRules',
-        label: '默认签章位置规则',
+        label: '签章位置高级设置',
+        defaultHidden: { create: true, edit: true },
+        help: '普通模板可以暂不填写；只有明确签章位置要求时由管理员配置。',
         type: 'json',
       },
       {
@@ -238,6 +249,6 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
         flowFormFields: [],
       },
     ],
-    modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
+    modalWidth: 'min(92vw, 900px)',
     title: '电子合同模板',
   });

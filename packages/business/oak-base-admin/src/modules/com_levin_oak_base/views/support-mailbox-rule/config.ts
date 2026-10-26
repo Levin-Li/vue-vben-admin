@@ -10,8 +10,8 @@ import { supportMailboxRuleService } from '../../api/support-mailbox-rule-servic
 
 export const pageMeta = {
   name: 'SupportMailboxRule',
-  title: '支持邮箱受理规则',
-  description: '配置支持邮箱入站来源和受理队列，显式启用或停用。',
+  title: '客服邮箱设置',
+  description: '设置客服邮箱收到邮件后由哪个工单队列处理。',
 } as const;
 
 export const pageOperations = [
@@ -52,7 +52,7 @@ export function createSupportMailboxRuleCrudConfig(options: {
     allowRetrieve: false,
     allowExport: false,
     listOperations: [
-      { key: 'mailbox:create', label: '创建受理邮箱', placement: 'left' },
+      { key: 'mailbox:create', label: '新增客服邮箱', placement: 'left' },
     ],
     fields: [
       {
@@ -74,7 +74,7 @@ export function createSupportMailboxRuleCrudConfig(options: {
       },
       {
         key: 'inboundChannel',
-        label: '入站通道',
+        label: '收件方式',
         table: true,
         form: false,
         sortable: false,
@@ -83,7 +83,7 @@ export function createSupportMailboxRuleCrudConfig(options: {
       },
       {
         key: 'queueId',
-        label: '受理队列',
+        label: '工单队列',
         table: true,
         form: false,
         sortable: false,
