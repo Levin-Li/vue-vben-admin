@@ -88,15 +88,17 @@ vi.mock(
 );
 vi.mock('../views/support-scope-selector.vue', () => ({
   default: {
+    name: 'SupportScopeSelectorStub',
+    props: ['modelValue'],
     emits: ['change'],
-    template: `<div><button @click="$emit('change', { kind: 'org', id: 'org-a', tenantId: 'tenant-a' })">Scope A</button><button @click="$emit('change', { kind: 'org', id: 'org-b', tenantId: 'tenant-a' })">Scope B</button></div>`,
+    template: `<div :data-selected="modelValue?.id"><button @click="$emit('change', { kind: 'org', id: 'org-a', tenantId: 'tenant-a' })">Scope A</button><button @click="$emit('change', { kind: 'org', id: 'org-b', tenantId: 'tenant-a' })">Scope B</button></div>`,
   },
 }));
 vi.mock('ant-design-vue', () => {
   const plain = { template: '<div><slot /></div>' };
   const field = {
     props: ['label'],
-    template: '<label :data-field="label"><slot /></label>',
+    template: '<div :data-field="label"><slot /></div>',
   };
   return {
     Alert: { props: ['message'], template: '<p>{{ message }}</p>' },
@@ -185,8 +187,8 @@ async function scopedPage() {
 function field(wrapper: ReturnType<typeof mount>, label: string) {
   return wrapper.get(`[data-field="${label}"] select`);
 }
-async function fillCreate(wrapper: ReturnType<typeof mount>) {
-  await button(wrapper, '创建受理邮箱').trigger('click');
+async function fillCreate(wrapper: ReturnType<typeof mount>, open = true) {
+  if (open) await button(wrapper, '创建受理邮箱').trigger('click');
   await flushPromises();
   await wrapper
     .get('input[placeholder="support@example.com"]')
@@ -250,6 +252,85 @@ describe('support mailbox rule positive component contracts', () => {
     );
   });
   afterEach(() => vi.restoreAllMocks());
+
+  it('chooses creation ownership in the modal without requiring a list filter', async () => {
+    const wrapper = mount(RulePage);
+    await flushPromises();
+    expect(
+      button(wrapper, '创建受理邮箱').attributes('disabled'),
+    ).toBeUndefined();
+    await button(wrapper, '创建受理邮箱').trigger('click');
+    const modal = wrapper.get('[data-modal="创建受理邮箱"]');
+    expect(modal.find('[data-field="受理组织"]').exists()).toBe(true);
+    await button(wrapper, 'Confirm').trigger('click');
+    expect(mocks.rules.create).not.toHaveBeenCalled();
+    await modal.get('[data-field="受理组织"] button').trigger('click');
+    await fillCreate(wrapper, false);
+    await button(wrapper, 'Confirm').trigger('click');
+    await flushPromises();
+    expect(mocks.rules.create).toHaveBeenCalledWith(
+      expect.objectContaining(scope),
+    );
+  });
+
+  it('uses the modal organization instead of the current list filter', async () => {
+    const wrapper = await scopedPage();
+    await button(wrapper, '创建受理邮箱').trigger('click');
+    await flushPromises();
+    const modalScopeB = wrapper.get(
+      '[data-modal="创建受理邮箱"] [data-field="受理组织"] button:nth-child(2)',
+    );
+    expect(modalScopeB.text()).toBe('Scope B');
+    await modalScopeB.trigger('click');
+    const selectors = wrapper.findAllComponents({
+      name: 'SupportScopeSelectorStub',
+    });
+    expect(selectors[1]?.emitted('change')?.at(-1)?.[0]).toMatchObject({
+      id: 'org-b',
+    });
+    await flushPromises();
+    expect(
+      wrapper
+        .get('[data-modal="创建受理邮箱"] [data-field="受理组织"] > div')
+        .attributes('data-selected'),
+    ).toBe('org-b');
+    await fillCreate(wrapper, false);
+    await button(wrapper, 'Confirm').trigger('click');
+    await flushPromises();
+    expect(mocks.rules.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-a',
+        orgId: 'org-b',
+        config: expect.objectContaining({ defaultOrgId: 'org-b' }),
+      }),
+    );
+    expect(mocks.queues.list).toHaveBeenCalledWith(
+      expect.objectContaining({ orgId: 'org-b', tenantId: 'tenant-a' }),
+    );
+  });
+
+  it('discards stale modal candidates when creation ownership changes', async () => {
+    const wrapper = await scopedPage();
+    await button(wrapper, '创建受理邮箱').trigger('click');
+    await flushPromises();
+    await field(wrapper, '入站通道').setValue('LocalSmtp');
+    const old = deferred<Record<string, unknown>[]>();
+    mocks.sources.mockReturnValueOnce(old.promise);
+    await field(wrapper, '收件域名').trigger('focus');
+    await wrapper
+      .get(
+        '[data-modal="创建受理邮箱"] [data-field="受理组织"] button:nth-child(2)',
+      )
+      .trigger('click');
+    await field(wrapper, '收件域名').trigger('focus');
+    await flushPromises();
+    old.resolve([{ ...domain, label: 'Old organization source' }]);
+    await flushPromises();
+    expect(field(wrapper, '收件域名').text()).not.toContain(
+      'Old organization source',
+    );
+    expect(field(wrapper, '收件域名').text()).toContain('unit.invalid');
+  });
 
   it('creates a disabled rule from selected valid source and queue with immutable organization ownership', async () => {
     const wrapper = await scopedPage();

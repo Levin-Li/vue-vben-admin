@@ -35,6 +35,14 @@ const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(supportMailboxRuleService, method));
 const selectedScopeRecord = ref<UserOrgSelectorRecord>();
 const scope = ref<SupportScope>();
+const selectedFormScopeRecord = ref<UserOrgSelectorRecord>();
+const formScope = computed<SupportScope | undefined>(() => {
+  const record = selectedFormScopeRecord.value;
+  return record?.kind === 'org' && record.tenantId
+    ? { tenantId: record.tenantId, orgId: record.id }
+    : undefined;
+});
+let formScopeGeneration = 0;
 const scopeGeneration = ref(0);
 const crudPage = ref<{ reload: () => Promise<void> }>();
 const currentRecord = ref<MailboxRecord>();
@@ -51,11 +59,10 @@ const priorities = ref<{ label: string; value: string }[]>([]);
 const queues = ref<{ label: string; value: string }[]>([]);
 const users = ref<{ label: string; value: string }[]>([]);
 const sources = ref<{ label: string; value: string }[]>([]);
-const canSave = computed(
-  () =>
-    allowed(currentRecord.value ? 'update' : 'create') && Boolean(scope.value),
+const canSave = computed(() =>
+  allowed(currentRecord.value ? 'update' : 'create'),
 );
-// 组织选择进入标准查询字段，重置查询时保留当前受理范围。
+// 列表查询范围与创建表单归属分别维护，避免把筛选操作当作创建前提。
 const pageConfig = computed(() => ({
   ...createSupportMailboxRuleCrudConfig({
     list: listRules,
@@ -91,24 +98,49 @@ function changeScope(record?: UserOrgSelectorRecord) {
       : undefined;
   editing.value = false;
   currentRecord.value = undefined;
+  selectedFormScopeRecord.value = undefined;
+  formScopeGeneration += 1;
   queues.value = [];
   users.value = [];
   sources.value = [];
   listVersion += 1;
   scopeGeneration.value += 1;
 }
+function changeFormScope(record?: UserOrgSelectorRecord) {
+  if (currentRecord.value) return;
+  if (
+    record?.id === selectedFormScopeRecord.value?.id &&
+    record?.tenantId === selectedFormScopeRecord.value?.tenantId
+  )
+    return;
+  selectedFormScopeRecord.value = record;
+  formScopeGeneration += 1;
+  draft.email = '';
+  draft.queueId = '';
+  draft.defaultAssigneeId = undefined;
+  draft.mailDomainId = undefined;
+  draft.emailRelayRouteId = undefined;
+  draft.outboundConfigRef = undefined;
+  queues.value = [];
+  users.value = [];
+  sources.value = [];
+}
 async function open(record?: MailboxRecord) {
-  if (!scope.value) return;
   const selected = JSON.stringify(scope.value);
   try {
-    const result = record
-      ? await supportMailboxRuleService.retrieve({
-          ...scope.value,
-          id: record.id,
-        })
-      : undefined;
+    let result: MailboxRecord | undefined;
+    if (record) {
+      const selectedScope = scope.value;
+      if (!selectedScope) return;
+      result = await supportMailboxRuleService.retrieve({
+        ...selectedScope,
+        id: record.id,
+      });
+    }
     if (JSON.stringify(scope.value) !== selected) return;
     currentRecord.value = result;
+    selectedFormScopeRecord.value = selectedScopeRecord.value;
+    formScopeGeneration += 1;
     Object.assign(
       draft,
       {
@@ -130,16 +162,17 @@ async function open(record?: MailboxRecord) {
   }
 }
 async function searchQueues(code = '') {
-  if (!scope.value) return;
-  const selected = JSON.stringify(scope.value);
+  const selected = formScope.value;
+  if (!selected) return;
+  const generation = formScopeGeneration;
   try {
     const result = await ticketQueueService.list({
-      ...scope.value,
+      ...selected,
       pageIndex: 1,
       pageSize: 100,
       ...(code ? { code } : {}),
     });
-    if (JSON.stringify(scope.value) !== selected) return;
+    if (generation !== formScopeGeneration) return;
     queues.value = result.items
       .filter((item) => item.enabled)
       .map((item) => ({
@@ -147,17 +180,18 @@ async function searchQueues(code = '') {
         label: `${item.name} (${item.code})`,
       }));
   } catch {
-    message.error('受理队列不可访问');
+    if (generation === formScopeGeneration) message.error('受理队列不可访问');
   }
 }
 async function searchUsers(containsName = '') {
-  if (!scope.value) return;
-  const selected = JSON.stringify(scope.value);
+  const selected = formScope.value;
+  if (!selected) return;
+  const generation = formScopeGeneration;
   try {
     const result = (await userService.list(
-      buildSupportUserQuery(scope.value, containsName),
+      buildSupportUserQuery(selected, containsName),
     )) as { items: { id: string; name?: string; realName?: string }[] };
-    if (JSON.stringify(scope.value) !== selected) return;
+    if (generation !== formScopeGeneration) return;
     users.value = (result.items || []).map(
       (item: { id: string; name?: string; realName?: string }) => ({
         value: item.id,
@@ -165,31 +199,32 @@ async function searchUsers(containsName = '') {
       }),
     );
   } catch {
-    message.error('处理人不可访问');
+    if (generation === formScopeGeneration) message.error('处理人不可访问');
   }
 }
 async function searchSources(search = '') {
-  if (!scope.value || !draft.inboundChannel) return;
+  const selected = formScope.value;
+  if (!selected || !draft.inboundChannel) return;
   const channel = draft.inboundChannel;
   const local = channel === 'LocalSmtp';
-  const selected = JSON.stringify(scope.value);
+  const generation = formScopeGeneration;
   try {
     const result = await moduleFetchOptions(
       local ? '/Domain/list' : '/EmailRelayRoute/list',
       'name',
       'id',
-      buildMailboxSourceQuery(scope.value, local, search),
+      buildMailboxSourceQuery(selected, local, search),
     );
-    if (JSON.stringify(scope.value) !== selected) return;
+    if (generation !== formScopeGeneration) return;
     if (draft.inboundChannel !== channel) return;
     sources.value = result
-      .filter((item) => usableMailboxSource(item, local, scope.value?.tenantId))
+      .filter((item) => usableMailboxSource(item, local, selected.tenantId))
       .map((item) => ({
         label: item.label,
         value: String(item.value),
       }));
   } catch {
-    message.error('邮件来源不可访问');
+    if (generation === formScopeGeneration) message.error('邮件来源不可访问');
   }
 }
 function changeChannel() {
@@ -198,7 +233,13 @@ function changeChannel() {
   sources.value = [];
 }
 async function save() {
-  if (!scope.value || !canSave.value || saving.value) return;
+  if (!canSave.value || saving.value) return;
+  const selected = formScope.value;
+  const generation = formScopeGeneration;
+  if (!selected) {
+    message.error('请选择受理组织');
+    return;
+  }
   if (
     !draft.email.trim() ||
     !draft.queueId ||
@@ -224,22 +265,31 @@ async function save() {
         ? draft.emailRelayRouteId
         : undefined,
     defaultAssigneeId: draft.defaultAssigneeId || undefined,
-    defaultOrgId: scope.value.orgId,
+    defaultOrgId: selected.orgId,
     outboundConfigRef: draft.outboundConfigRef || undefined,
   };
   try {
     await (currentRecord.value
       ? supportMailboxRuleService.update({
-          ...scope.value,
+          ...selected,
           id: currentRecord.value.id,
           optimisticLock: currentRecord.value.optimisticLock,
           config,
         })
-      : supportMailboxRuleService.create({ ...scope.value, config }));
+      : supportMailboxRuleService.create({ ...selected, config }));
+    if (generation !== formScopeGeneration) return;
     editing.value = false;
-    await reloadList();
+    if (
+      !currentRecord.value &&
+      selectedFormScopeRecord.value?.id !== scope.value?.orgId
+    ) {
+      changeScope(selectedFormScopeRecord.value);
+    } else {
+      await reloadList();
+    }
   } catch {
-    message.error('保存失败，请核对邮箱来源、队列和版本');
+    if (generation === formScopeGeneration)
+      message.error('保存失败，请核对邮箱来源、队列和版本');
   } finally {
     saving.value = false;
   }
@@ -292,7 +342,6 @@ onMounted(async () => {
       <div class="flex flex-wrap items-center gap-2">
         <Button
           v-if="allowed('create') && isListOperationVisible('mailbox:create')"
-          :disabled="!scope"
           type="primary"
           @click="open()"
         >
@@ -335,9 +384,16 @@ onMounted(async () => {
       layout="vertical"
       class="grid grid-cols-1 gap-x-4 md:grid-cols-2"
     >
+      <Form.Item v-if="!currentRecord" label="受理组织" required>
+        <SupportScopeSelector
+          :model-value="selectedFormScopeRecord"
+          @change="changeFormScope"
+        />
+      </Form.Item>
       <Form.Item label="支持邮箱地址" required>
         <Input
           v-model:value="draft.email"
+          :disabled="!formScope"
           :maxlength="256"
           placeholder="support@example.com"
         />
@@ -345,6 +401,7 @@ onMounted(async () => {
       <Form.Item label="入站通道" required>
         <Select
           v-model:value="draft.inboundChannel"
+          :disabled="!formScope"
           :options="channels"
           @change="changeChannel"
         />
@@ -356,6 +413,7 @@ onMounted(async () => {
         <Select
           v-if="draft.inboundChannel === 'LocalSmtp'"
           v-model:value="draft.mailDomainId"
+          :disabled="!formScope"
           show-search
           :filter-option="false"
           :options="sources"
@@ -365,6 +423,7 @@ onMounted(async () => {
         <Select
           v-else
           v-model:value="draft.emailRelayRouteId"
+          :disabled="!formScope"
           show-search
           :filter-option="false"
           :options="sources"
@@ -375,6 +434,7 @@ onMounted(async () => {
       <Form.Item label="受理队列" required>
         <Select
           v-model:value="draft.queueId"
+          :disabled="!formScope"
           show-search
           :filter-option="false"
           :options="queues"
@@ -386,6 +446,7 @@ onMounted(async () => {
       <Form.Item label="默认处理人">
         <Select
           v-model:value="draft.defaultAssigneeId"
+          :disabled="!formScope"
           allow-clear
           show-search
           :filter-option="false"
@@ -400,6 +461,7 @@ onMounted(async () => {
       <Form.Item label="受控外发配置引用" class="md:col-span-2">
         <Input
           v-model:value="draft.outboundConfigRef"
+          :disabled="!formScope"
           :maxlength="128"
           placeholder="同租户已授权配置标识，可留空"
         />
