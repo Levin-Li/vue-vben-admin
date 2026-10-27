@@ -5424,8 +5424,7 @@ async function handleCreate() {
     if (!isCurrent()) return;
     dataAttrAccess.assertCheckpoint(checkpoint);
   } catch (error) {
-    if (isCurrent())
-      showCrudError(error, '新增表单加载失败');
+    if (isCurrent()) showCrudError(error, '新增表单加载失败');
     return;
   }
   focusedJsonFieldKey.value = undefined;
@@ -5464,8 +5463,7 @@ async function handleEdit(record: GenericRecord) {
     if (!isCurrent()) return;
     dataAttrAccess.assertCheckpoint(checkpoint);
   } catch (error) {
-    if (isCurrent())
-      showCrudError(error, '编辑表单加载失败');
+    if (isCurrent()) showCrudError(error, '编辑表单加载失败');
     return;
   }
   focusedJsonFieldKey.value = undefined;
@@ -5501,8 +5499,7 @@ async function handleJsonFieldEdit(
     if (!isCurrent()) return;
     dataAttrAccess.assertCheckpoint(checkpoint);
   } catch (error) {
-    if (isCurrent())
-      showCrudError(error, '编辑表单加载失败');
+    if (isCurrent()) showCrudError(error, '编辑表单加载失败');
     return;
   }
   const currentField = getRowJsonSchemaFields(record).find(
