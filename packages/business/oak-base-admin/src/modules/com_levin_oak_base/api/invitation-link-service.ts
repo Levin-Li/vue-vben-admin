@@ -32,11 +32,12 @@ export interface CreateInvitationLinkRequest {
     | 'OnlineStore';
   childOrgType?: string;
   customerType?: 'ChannelCustomer' | 'DirectCustomer';
-  expiresAt: string;
+  expiresAt: null | string;
   maxRegistrations?: number;
   organizationMode?: 'CreateChildOrg' | 'JoinInviterOrg';
   registrationChannel: InvitationRegistrationChannel;
   supplierPartnerType?:
+    | 'ContentAndCopyright'
     | 'Goods'
     | 'Logistics'
     | 'Operation'
@@ -45,8 +46,14 @@ export interface CreateInvitationLinkRequest {
     | 'RawMaterials'
     | 'Service'
     | 'Technology';
+  targetOrgId: string;
   usageMode: InvitationUsageMode;
   userType?: InvitationUserType;
+}
+
+export interface InvitationTargetOrganization {
+  id: string;
+  name: string;
 }
 
 export interface InvitationLinkInfo extends CreateInvitationLinkRequest {
@@ -54,6 +61,7 @@ export interface InvitationLinkInfo extends CreateInvitationLinkRequest {
   id: string;
   status: string;
   successCount: number;
+  targetOrgName?: string;
   targetType: InvitationTarget;
 }
 
@@ -190,6 +198,11 @@ export class InvitationLinkService extends RequestService {
     return this.post<{ id: string; revokedAt: string }>('revoke', {
       data: { id, reason },
     });
+  }
+
+  @ResAuthorize({ onlyRequireAuthenticated: true })
+  async targetOrganizations() {
+    return this.post<InvitationTargetOrganization[]>('targetOrganizations');
   }
 }
 

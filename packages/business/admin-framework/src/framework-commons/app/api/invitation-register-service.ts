@@ -34,7 +34,6 @@ export interface InvitationRedeemRequest {
 export interface InvitationRedeemResult {
   accountId: string;
   businessId?: string;
-  organizationId?: string;
 }
 
 // com.levin.oak.base.controller.InvitationRegisterController 的公开端点仅接受完整令牌和受控注册资料。

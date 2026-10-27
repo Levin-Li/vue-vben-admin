@@ -17,7 +17,7 @@ import {
   projectAgentRecord,
 } from './agent-business-common';
 import { notificationAuditService } from './api/notification-audit-service';
-import { supportMailboxRuleService } from './api/support-mailbox-rule-service';
+import { supportMailboxSettingService } from './api/support-mailbox-setting-service';
 import { toGenericSupportRequestScope } from './api/support-request-scope';
 import { userMessageService } from './api/user-message-service';
 
@@ -56,7 +56,7 @@ const mailboxFields = [
 
 // 支持邮箱启停是唯一注册的写操作，预览不写入，确认后只允许执行一次。
 const mailboxEnabled: AgentSkill = {
-  id: 'com.levin.oak.base.supportMailboxRule.setEnabled',
+  id: 'com.levin.oak.base.supportMailboxSetting.setEnabled',
   description:
     '按用户明确要求启用或停用客服邮箱。参数 id、enabled，可选 tenantId、orgId；先聊天预览确认再执行，不改邮箱、路由或凭证。',
   inputSchema: {
@@ -72,9 +72,9 @@ const mailboxEnabled: AgentSkill = {
   permission: '客服邮箱启停权限',
   writeIntent: ['启用', '停用', '开启', '关闭', 'enable', 'disable'],
   available: () =>
-    agentPermission(supportMailboxRuleService, 'retrieve') &&
-    (agentPermission(supportMailboxRuleService, 'enable') ||
-      agentPermission(supportMailboxRuleService, 'disable')),
+    agentPermission(supportMailboxSettingService, 'retrieve') &&
+    (agentPermission(supportMailboxSettingService, 'enable') ||
+      agentPermission(supportMailboxSettingService, 'disable')),
   risk: 'confirm',
   preview: async (args) => {
     agentExactKeys(args, ['id', 'enabled', 'tenantId', 'orgId']);
@@ -83,8 +83,11 @@ const mailboxEnabled: AgentSkill = {
       throw new Error('enabled 必须是布尔值');
     const target = args.enabled;
     const permitted = () =>
-      agentPermission(supportMailboxRuleService, 'retrieve') &&
-      agentPermission(supportMailboxRuleService, target ? 'enable' : 'disable');
+      agentPermission(supportMailboxSettingService, 'retrieve') &&
+      agentPermission(
+        supportMailboxSettingService,
+        target ? 'enable' : 'disable',
+      );
     if (!permitted()) throw new Error('当前用户无客服邮箱启停权限');
     const actor = useUserStore().userInfo;
     const actorId = agentId(actor?.id, '当前用户 ID');
@@ -117,7 +120,7 @@ const mailboxEnabled: AgentSkill = {
         throw new Error('当前范围已变化，请重新发起操作');
       }
     };
-    const item = await supportMailboxRuleService.retrieve(query);
+    const item = await supportMailboxSettingService.retrieve(query);
     reauthorize();
     const validRecord = (record: typeof item) => {
       const effectiveTenant =
@@ -140,7 +143,7 @@ const mailboxEnabled: AgentSkill = {
       source: '客服邮箱详情接口',
       recheck: async () => {
         reauthorize();
-        const latest = await supportMailboxRuleService.retrieve(query);
+        const latest = await supportMailboxSettingService.retrieve(query);
         reauthorize();
         return validRecord(latest) && latest.enabled === target;
       },
@@ -149,7 +152,7 @@ const mailboxEnabled: AgentSkill = {
         reauthorize();
         // 首次确认即消费，异常后不得盲目重发；复查入口只执行读取。
         consumed = true;
-        const latest = await supportMailboxRuleService.retrieve(query);
+        const latest = await supportMailboxSettingService.retrieve(query);
         reauthorize();
         if (
           !validRecord(latest) ||
@@ -164,9 +167,9 @@ const mailboxEnabled: AgentSkill = {
           optimisticLock: item.optimisticLock,
         });
         await (target
-          ? supportMailboxRuleService.enable(command)
-          : supportMailboxRuleService.disable(command));
-        const verified = await supportMailboxRuleService.retrieve(query);
+          ? supportMailboxSettingService.enable(command)
+          : supportMailboxSettingService.disable(command));
+        const verified = await supportMailboxSettingService.retrieve(query);
         reauthorize();
         if (!validRecord(verified) || verified.enabled !== target)
           throw new Error('执行结果核验不一致，请只读复查');
@@ -273,9 +276,9 @@ export const messageAgentSkills: readonly AgentSkill[] = [
     },
   },
   ...agentReadSkills({
-    resource: 'supportMailboxRule',
+    resource: 'supportMailboxSetting',
     title: '客服邮箱设置',
-    service: supportMailboxRuleService,
+    service: supportMailboxSettingService,
     fields: mailboxFields,
   }),
   mailboxEnabled,

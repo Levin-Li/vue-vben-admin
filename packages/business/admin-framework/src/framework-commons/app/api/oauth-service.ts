@@ -273,7 +273,6 @@ export class OAuthService extends RequestService {
     return this.post<{
       accountId: string;
       businessId?: string;
-      organizationId?: string;
     }>('invitationRedeemOAuth', { ...options, data });
   }
 

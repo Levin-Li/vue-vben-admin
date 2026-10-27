@@ -63,8 +63,8 @@ vi.mock('../api/user-message-service', () => ({
 vi.mock('../api/notification-audit-service', () => ({
   notificationAuditService: mocks.audit,
 }));
-vi.mock('../api/support-mailbox-rule-service', () => ({
-  supportMailboxRuleService: mocks.mailbox,
+vi.mock('../api/support-mailbox-setting-service', () => ({
+  supportMailboxSettingService: mocks.mailbox,
 }));
 
 function skill(suffix: string) {
@@ -78,7 +78,7 @@ async function run(suffix: string, args: Record<string, unknown> = {}) {
   return execute(args, false);
 }
 async function preview(enabled = true) {
-  const handler = skill('supportMailboxRule.setEnabled').preview;
+  const handler = skill('supportMailboxSetting.setEnabled').preview;
   if (!handler) throw new Error('不是写入技能');
   return handler({ id: 'm1', tenantId: 't1', orgId: 'o1', enabled });
 }
@@ -138,8 +138,8 @@ describe('消息与支持邮箱 Agent 技能', () => {
   });
   it.each([
     ['notificationAudit.list', 'audit', 'list'],
-    ['supportMailboxRule.list', 'mailbox', 'list'],
-    ['supportMailboxRule.retrieve', 'mailbox', 'retrieve'],
+    ['supportMailboxSetting.list', 'mailbox', 'list'],
+    ['supportMailboxSetting.retrieve', 'mailbox', 'retrieve'],
   ] as const)('%s 使用固定方法和显式摘要', async (suffix, resource, action) => {
     mocks[resource][action].mockResolvedValue(
       action === 'list' ? { items: [record], totals: 1 } : record,
@@ -288,7 +288,7 @@ describe('消息与支持邮箱 Agent 技能', () => {
       messageAgentSkills
         .filter((entry) => entry.risk === 'confirm')
         .map((entry) => entry.id),
-    ).toEqual(['com.levin.oak.base.supportMailboxRule.setEnabled']);
+    ).toEqual(['com.levin.oak.base.supportMailboxSetting.setEnabled']);
     expect(messageAgentSkills.map((entry) => entry.id).join(',')).not.toMatch(
       /markRead|\.send|\.retry/,
     );

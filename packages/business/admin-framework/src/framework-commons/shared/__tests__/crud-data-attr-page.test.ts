@@ -215,6 +215,65 @@ describe('标准 crud 的属性组策略', () => {
     expect(vm.submitting).toBe(false);
   });
 
+  it('请求客户端改抛响应数据后也只展示一次具体原因', async () => {
+    const responseData = { msg: '推荐人必须属于租户组织' };
+    const create = vi.fn(async () => {
+      showApiErrorMessage(responseData.msg, {
+        response: { data: responseData },
+      });
+      throw responseData;
+    });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { create },
+          dataAttrTargets: {
+            create: { method: 'POST', path: '/Contract/create' },
+          },
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    await vm.handleCreate();
+    vm.formState.name = '保留草稿';
+    mocks.error.mockClear();
+    await vm.handleSubmit();
+    expect(mocks.error).toHaveBeenCalledTimes(1);
+    expect(mocks.error).toHaveBeenCalledWith(
+      expect.objectContaining({ content: responseData.msg }),
+    );
+    expect(vm.formState.name).toBe('保留草稿');
+    expect(
+      (wrapper.vm as unknown as { isFormOpen: () => boolean }).isFormOpen(),
+    ).toBe(true);
+  });
+
+  it('未经过请求层的本地保存错误仍显示一次', async () => {
+    const create = vi.fn(async () => {
+      throw new Error('填写的日期无效');
+    });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { create },
+          dataAttrTargets: {
+            create: { method: 'POST', path: '/Contract/create' },
+          },
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    await vm.handleCreate();
+    mocks.error.mockClear();
+    await vm.handleSubmit();
+    expect(mocks.error).toHaveBeenCalledTimes(1);
+    expect(mocks.error).toHaveBeenCalledWith('填写的日期无效');
+  });
+
   it('页面 UI 设置点击前不挂载编辑内容，点击后挂载且关闭时销毁', async () => {
     const wrapper = shallowMount(CrudPage, {
       global: {
@@ -764,7 +823,9 @@ describe('标准 crud 的属性组策略', () => {
     finishEmptyPage({ items: [], totals: 2000 });
     await exporting;
     expect(mocks.download).not.toHaveBeenCalled();
-    expect(mocks.error).toHaveBeenCalledWith('导出失败');
+    expect(mocks.error).toHaveBeenCalledWith(
+      '权限上下文已变化，请重新确认后保存',
+    );
     expect(vm.exporting).toBe(false);
   });
 

@@ -5,6 +5,7 @@ import type {
   DataModelOperationDefinition,
   DataModelOperationParameter,
 } from '../../api/data-model-service';
+import type { EditableConditionNode } from '../data-model-record/condition-tree';
 
 import { computed, ref, watch } from 'vue';
 
@@ -25,6 +26,11 @@ import {
 } from 'ant-design-vue';
 
 import { dataModelService } from '../../api/data-model-service';
+import ConditionNodeEditor from '../data-model-record/condition-node-editor.vue';
+import {
+  buildConditionDefinition,
+  newCondition,
+} from '../data-model-record/condition-tree';
 import { recordFailure } from '../data-model-record/record-errors';
 import {
   serializeRecordValue,
@@ -44,6 +50,8 @@ const operations = ref<DataModelOperationDefinition[]>([]);
 const saving = ref(false);
 const editorOpen = ref(false);
 const draft = ref<DataModelOperationDefinition>();
+const conditionDraft = ref<EditableConditionNode>(newCondition('AND'));
+const conditionEnabled = ref(false);
 const editingIndex = ref(-1);
 const customKey = ref('');
 const assignments = ref<Array<{ field: string; value: unknown }>>([]);
@@ -203,6 +211,10 @@ function edit(index: number) {
   if (!operation || !props.editable) return;
   editingIndex.value = index;
   draft.value = cloneDataModelDto(operation);
+  conditionDraft.value = operation.conditionTree
+    ? cloneDataModelDto(operation.conditionTree)
+    : newCondition('AND');
+  conditionEnabled.value = Boolean(operation.conditionTree);
   requestJson.value = contractJson(
     operation.requestDefinition,
     operation.requestFields,
@@ -423,6 +435,21 @@ function apply() {
     if (mappingError) {
       message.error(mappingError);
       return;
+    }
+    if (conditionEnabled.value && operation.queryInputs?.length) {
+      try {
+        operation.conditionTree = buildConditionDefinition(
+          conditionDraft.value,
+          operation.queryInputs,
+        );
+        operation.requestDefinition.conditionTree = operation.conditionTree;
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '查询条件无效');
+        return;
+      }
+    } else {
+      operation.conditionTree = undefined;
+      delete operation.requestDefinition.conditionTree;
     }
   }
   if (isCustom(operation)) {
@@ -742,6 +769,23 @@ async function save() {
             </Button>
           </template>
         </Table>
+        <div v-if="draft.queryInputs?.length" class="col-span-full mt-4">
+          <div class="flex items-center gap-3">
+            <strong>查询条件组合</strong>
+            <Switch v-model:checked="conditionEnabled" />
+          </div>
+          <p class="mt-1 text-sm text-gray-600">
+            在这里设置参数之间的“与、或、非”。使用者只填写参数值。
+          </p>
+          <ConditionNodeEditor
+            v-if="conditionEnabled"
+            :node="conditionDraft"
+            :root="conditionDraft"
+            :depth="1"
+            :inputs="draft.queryInputs"
+            @update="conditionDraft = $event"
+          />
+        </div>
       </template>
       <template v-if="isCustom(draft) || editingIndex < 0">
         <div class="col-span-full mb-2 flex items-center justify-between">

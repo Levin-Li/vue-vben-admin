@@ -1,4 +1,5 @@
 import { getResAuthorizeMeta, getServiceMeta } from '@levin/admin-framework';
+import { groupAccessibleMenus } from '@levin/admin-framework/framework-commons/app/router/menu-display-groups';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -58,6 +59,33 @@ describe('oak base admin routes', () => {
         'modules/com_levin_oak_base/views/settlement-order/index.vue',
     });
     expect(mapping).not.toHaveProperty('name');
+    expect(mapping?.menuGroup).toEqual({
+      icon: 'lucide:wallet-cards',
+      parentPath: '/clob/V1/index',
+      path: '/clob/V1/index/groups/支付&交易',
+      title: '支付&交易',
+    });
+    const authorizedMenus = [
+      {
+        name: '基础框架',
+        path: '/clob/V1/index',
+        children: [{ name: '结算单', path }],
+      },
+    ];
+    const groupedMenus = groupAccessibleMenus(
+      authorizedMenus,
+      mapping ? [mapping] : [],
+      [{ path: '/clob/V1/index', children: [{ path, component: {} }] }],
+    );
+    expect(groupedMenus[0]?.children?.[0]).toMatchObject({
+      name: '支付&交易',
+      path: '/clob/V1/index/groups/支付&交易',
+      children: [{ name: '结算单', path }],
+    });
+    expect(groupedMenus[0]?.children?.map((item) => item.path)).toEqual([
+      '/clob/V1/index/groups/支付&交易',
+    ]);
+    expect(authorizedMenus[0]?.children?.[0]?.path).toBe(path);
     expect(mapping?.operations?.map((item) => item.opName)).toEqual(
       expect.arrayContaining([
         'create',
@@ -305,8 +333,8 @@ describe('oak base admin routes', () => {
         ['list', 'retrieve', 'save', 'setEnabled'],
       ],
       [
-        'SupportMailboxRule',
-        'support-mailbox-rule',
+        'SupportMailboxSetting',
+        'support-mailbox-setting',
         '应用&接入',
         ['list', 'retrieve', 'create', 'update', 'enable', 'disable'],
       ],

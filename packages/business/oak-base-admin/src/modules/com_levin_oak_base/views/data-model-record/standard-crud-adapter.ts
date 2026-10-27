@@ -19,7 +19,6 @@ import { reactive } from 'vue';
 import { dataModelService } from '../../api/data-model-service';
 import { modelMetadataCache } from '../domain-data-dynamic-model/model-metadata';
 import { loadModelCrudPage } from '../domain-data-dynamic-model/model-page-adapter';
-import { buildConditionTree, newCondition } from './condition-tree';
 import { isModelActionAllowed, modelDisplayCode } from './dynamic-page-display';
 import { recordFailure } from './record-errors';
 import {
@@ -109,7 +108,6 @@ export function createDynamicCrudAdapter(
     original?: DataModelRecord;
   }>({ operation: 'CREATE' });
   const queryContext = reactive<{ value?: DataModelFormContext }>({});
-  const advancedQuery = reactive({ active: false, tree: newCondition('AND') });
   let pendingCreate: DataModelOperationCode = 'CREATE';
   let requestKey = '';
   let formGeneration = 0;
@@ -441,7 +439,6 @@ export function createDynamicCrudAdapter(
     const inputNames = new Set(inputFields);
     if (op === 'list')
       for (const key of [
-        'conditionTree',
         'pageIndex',
         'pageSize',
         'modelKey',
@@ -520,20 +517,9 @@ export function createDynamicCrudAdapter(
     apiService: {
       list: async (input: Record<string, unknown> = {}) => {
         assertOperation('QUERY');
-        // 模式互斥：高级查询不读取隐藏的简单查询状态。
-        const condition = advancedQuery.active
-          ? {
-              conditionTree: buildConditionTree(
-                advancedQuery.tree,
-                model.queryInputs || [],
-              ),
-            }
-          : {
-              queryValues: buildRecordQueryValues(
-                model.queryInputs || [],
-                input,
-              ),
-            };
+        const condition = {
+          queryValues: buildRecordQueryValues(model.queryInputs || [], input),
+        };
         let sorting: { sortBy?: string; sortDirection?: 'ASC' | 'DESC' } = {};
         if (input.orderBy !== undefined) {
           const sortedField = config.fields.find(
@@ -657,14 +643,6 @@ export function createDynamicCrudAdapter(
     config,
     form,
     queryContext,
-    advancedQuery,
-    setAdvancedQuery(active: boolean) {
-      advancedQuery.active = active;
-      for (const input of model.queryInputs || []) {
-        const field = config.fields.find((item) => item.key === input.key);
-        if (field) field.search = !active;
-      }
-    },
     allowed,
     customCreates: (model.operations || []).filter(
       (item) =>

@@ -26,8 +26,8 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mocks.push }),
 }));
 vi.mock('../api/inbox-service', () => ({ inboxService: mocks.inbox }));
-vi.mock('../api/support-mailbox-rule-service', () => ({
-  supportMailboxRuleService: mocks.rules,
+vi.mock('../api/support-mailbox-setting-service', () => ({
+  supportMailboxSettingService: mocks.rules,
 }));
 // 标准 CRUD 在公共包已有独立测试；这里保留真实页面对列表作用域和扩展动作的组合契约。
 vi.mock('../views/crud-page.vue', () => ({
@@ -290,8 +290,8 @@ describe('inbox positive component contracts', () => {
       await flushPromises();
     }
     expect(mocks.inbox.intake.mock.calls.map(([params]) => params)).toEqual([
-      { id: mail.id, ...scope, supportMailboxRuleId: 'matching' },
-      { id: mail.id, ...scope, supportMailboxRuleId: 'matching' },
+      { id: mail.id, ...scope, supportMailboxSettingId: 'matching' },
+      { id: mail.id, ...scope, supportMailboxSettingId: 'matching' },
     ]);
     expect(mocks.push.mock.calls.map(([target]) => target)).toEqual([
       { path: '/clob/V1/Ticket', query: { id: 'ticket-issued-by-server' } },

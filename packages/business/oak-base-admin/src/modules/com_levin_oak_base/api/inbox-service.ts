@@ -111,7 +111,7 @@ export class InboxService extends RequestService {
   async intake(data: {
     id: string;
     orgId?: string;
-    supportMailboxRuleId: string;
+    supportMailboxSettingId: string;
     tenantId?: string;
   }): Promise<string> {
     return this.post('ticket/intake', { data });

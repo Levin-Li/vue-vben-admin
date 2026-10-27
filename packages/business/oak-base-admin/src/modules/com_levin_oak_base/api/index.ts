@@ -61,7 +61,7 @@ export * from './simple-form-service';
 export * from './simple-page-service';
 export * from './social-user-service';
 export * from './supplier-partner-service';
-export * from './support-mailbox-rule-service';
+export * from './support-mailbox-setting-service';
 export * from './support-workbench-types';
 export * from './tenant-custom-menu-service';
 export * from './tenant-service';

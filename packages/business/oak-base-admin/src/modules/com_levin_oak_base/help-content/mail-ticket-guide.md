@@ -22,7 +22,7 @@
 2. 在目标租户和受理组织创建工单队列，指定允许处理的用户或角色，再启用队列。处理人必须拥有实际注册的“开始处理工单”权限；只有同组织的处理权限不足以访问其他队列。
 3. 在“客服邮箱设置”中新增邮箱，填写完整邮箱地址、收件方式、工单队列、默认优先级及可选默认处理人。对应接口字段仍为 `email`、`inboundChannel`、`queueId`；新建后默认停用，核对后显式启用。
 4. 本地通道只填 `mailDomainId`；Forward Email 通道只填 `emailRelayRouteId`。规则、队列及默认负责人必须属于同一受理范围。
-5. 需要工单外发时，再填 `outboundConfigRef`。它是当前租户实际 `ServicePluginSetting` 配置记录标识。邮件配置中的 `fromEmail` 负责发件身份，必须等于支持邮箱地址；`username` 负责 SMTP 认证，可使用供应商要求的 API key 用户名，不必是邮箱。仅收件无需填写外发配置。
+5. 需要工单外发时，再填 `outboundConfigRef`。它是当前租户实际 `ServicePluginSetting` 配置记录标识。邮件配置中的 `fromEmail` 负责发件身份，必须等于客服邮箱地址；`username` 负责 SMTP 认证，可使用供应商要求的 API key 用户名，不必是邮箱。仅收件无需填写外发配置。
 
 ### 2.2 受控配置 API
 
@@ -31,10 +31,10 @@
 | `GET TicketQueueAction/list`、`retrieve` | `tenantId`、`orgId`、分页；详情增加 `id` |
 | `POST TicketQueueAction/save` | `tenantId`、`orgId`、`code`、`name`、`enabled`、`handlerUserIds`、`handlerRoleCodes`；修改增加 `id`、`optimisticLock` |
 | `POST TicketQueueAction/setEnabled` | `id`、范围、`optimisticLock`、`enabled` |
-| `GET SupportMailboxRuleAction/list`、`retrieve` | 范围、分页或规则 `id` |
-| `POST SupportMailboxRuleAction/create` | `tenantId`、`orgId`、嵌套 `config` |
-| `POST SupportMailboxRuleAction/update` | `id`、范围、`optimisticLock`、完整 `config`；必须先停用 |
-| `POST SupportMailboxRuleAction/enable`、`disable` | `id`、范围、当前 `optimisticLock` |
+| `GET SupportMailboxSettingAction/list`、`retrieve` | 范围、分页或规则 `id` |
+| `POST SupportMailboxSettingAction/create` | `tenantId`、`orgId`、嵌套 `config` |
+| `POST SupportMailboxSettingAction/update` | `id`、范围、`optimisticLock`、完整 `config`；必须先停用 |
+| `POST SupportMailboxSettingAction/enable`、`disable` | `id`、范围、当前 `optimisticLock` |
 
 `config` 字段为 `email`、`inboundChannel`（`LocalSmtp` 或 `ForwardEmail`）、`mailDomainId` 或 `emailRelayRouteId`、`queueId`、可选 `defaultAssigneeId`、可选 `defaultOrgId`、`defaultPriority`（`Normal`、`Important`、`Urgent`）及可选 `outboundConfigRef`。`defaultOrgId` 非空时须等于规则受理组织。同地址、同通道只能有一个规则；不能靠配置顺序决定归属。
 
@@ -55,9 +55,9 @@
 1. 唯一启用规则与有效队列匹配时，收件事务创建工单及首条入站消息，并保存通知意图；业务保存失败不会先向 SMTP 确认成功。
 2. 同租户但原 `Inbox.orgId` 为空时，明确规则可把工单受理到规则组织。原 Inbox、原文及附件的租户/组织/个人归属保持不变。有明确来源组织时必须匹配；不能把平台或另一租户邮件默默转入本租户。
 3. 普通邮箱、停用规则、配置冲突或证据不足的邮件留在授权收件箱，查看 `processError` 后处理。恢复规则不会隐式迁移历史归属。
-4. 有权处置来源 Inbox、处理工单且能访问目标组织的人员，可调用 `POST Inbox/ticket/intake`：提交 `id`（Inbox）、`supportMailboxRuleId` 及来源范围。服务先核验收件权限，再核验受理目标。重复处理返回已有工单，不追加相同消息、重开或通知。
+4. 有权处置来源 Inbox、处理工单且能访问目标组织的人员，可调用 `POST Inbox/ticket/intake`：提交 `id`（Inbox）、`supportMailboxSettingId` 及来源范围。服务先核验收件权限，再核验受理目标。重复处理返回已有工单，不追加相同消息、重开或通知。
 
-后续邮件仅在同受理租户、组织、支持邮箱及固定参与者下核对 `In-Reply-To` / `References` 候选。已记录的入站邮件标识或关联外发意图的 `Accepted` / `Unknown` 标识可参与匹配；多工单冲突、仅主题或工单号均不足以关联。
+后续邮件仅在同受理租户、组织、客服邮箱及固定参与者下核对 `In-Reply-To` / `References` 候选。已记录的入站邮件标识或关联外发意图的 `Accepted` / `Unknown` 标识可参与匹配；多工单冲突、仅主题或工单号均不足以关联。
 
 自动追加和重开还需要可信、对齐通过的 DMARC 证据。证据取自验签供应商的结构化字段，经数据库 JSON 往返后仍核验 `status.result=pass`、`status.header.from` 与 `domain`。原始邮件中的 `Authentication-Results` 自称通过不算证据。本地 SMTP 当前不生成这类认证结果，因此其带会话头回复留待核验，不自动追加或重开。
 
@@ -92,7 +92,7 @@
 
 ### 5.2 提交与读取结果
 
-1. 配置当前租户授权的外发设置并绑定规则，明确填写 `fromEmail` 并使固定 From 等于支持邮箱；SMTP `username` / 密码负责认证，与发件地址分开。本地 James 入站端口不能用作外发中继。
+1. 配置当前租户授权的外发设置并绑定规则，明确填写 `fromEmail` 并使固定 From 等于客服邮箱；SMTP `username` / 密码负责认证，与发件地址分开。本地 James 入站端口不能用作外发中继。
 2. 调用 `POST TicketAction/reply`，字段为 `id`、范围、当前 `optimisticLock`、`replyKey`、`body` 和可选 `attachmentIds`。正文为最多100000字符的纯文本，附件最多20个本工单关联的合法私有附件。
 3. `replyKey` 是本次明确回复的稳定非机密标识，1～128字符、同样采用上述 ASCII 引用字符集。技术重试必须保留相同键及相同内容；同键不同正文或附件被拒绝。
 4. 服务端固定 From、To、配置及会话头；请求不能提交 SMTP 主机、凭据、From、To、抄送或任意会话头。调用成功表示意图和消息已保存，随后才由受控调度发送。

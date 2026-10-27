@@ -7,7 +7,7 @@ test('支持邮箱可先打开创建弹窗再选择受理组织', async ({ page 
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await loginViaCurrentPasswordChallenge(page, { timeout: 90_000 });
-  await page.goto('/clob/V1/SupportMailboxRule', {
+  await page.goto('/clob/V1/SupportMailboxSetting', {
     waitUntil: 'domcontentloaded',
   });
 

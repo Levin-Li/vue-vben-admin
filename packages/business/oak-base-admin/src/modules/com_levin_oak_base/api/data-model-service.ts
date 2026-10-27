@@ -60,10 +60,10 @@ export interface DataModelFilter {
   value: boolean | number | string;
 }
 
-export type DataModelConditionNode =
-  | { child: DataModelConditionNode; type: 'NOT' }
-  | { children: DataModelConditionNode[]; type: 'AND' | 'OR' }
-  | { key: string; type: 'PARAM'; value: boolean | number | string };
+export type DataModelConditionDefinition =
+  | { child: DataModelConditionDefinition; type: 'NOT' }
+  | { children: DataModelConditionDefinition[]; type: 'AND' | 'OR' }
+  | { key: string; type: 'PARAM' };
 
 export interface DataModelDefinition {
   createdAt?: string;
@@ -182,6 +182,7 @@ export interface DataModelOperationDefinition {
   assignments?: Record<string, unknown>;
   classification?: DataModelOperationClassification;
   code: DataModelOperationCode;
+  conditionTree?: DataModelConditionDefinition;
   confirmText?: string;
   enabled: boolean;
   executionType: 'CREATE_RECORD' | 'STANDARD' | 'UPDATE_FIELDS';
@@ -504,7 +505,6 @@ export class DataModelService extends RequestService {
   async queryRecords(
     key: string,
     params: {
-      conditionTree?: DataModelConditionNode;
       pageIndex?: number;
       pageSize?: number;
       queryValues?: Record<string, boolean | number | string>;
@@ -512,19 +512,12 @@ export class DataModelService extends RequestService {
       sortDirection?: 'ASC' | 'DESC';
     },
   ): Promise<DataModelPage<DataModelRecord>> {
-    if (
-      params.conditionTree &&
-      Object.keys(params.queryValues || {}).length > 0
-    )
-      throw new Error('简单查询参数不能与高级条件同时提交');
     return this.post('queryRecords', {
       data: {
         key,
         page: Math.max(0, Number(params.pageIndex || 1) - 1),
         size: Number(params.pageSize || 20),
-        ...(params.conditionTree
-          ? { conditionTree: params.conditionTree }
-          : { queryValues: params.queryValues || {} }),
+        queryValues: params.queryValues || {},
         ...(params.sortBy
           ? { sortBy: params.sortBy, sortDirection: params.sortDirection }
           : {}),

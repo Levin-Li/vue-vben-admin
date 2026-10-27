@@ -15,7 +15,7 @@ import { buildApiMethodPermissions } from '@levin/admin-framework/framework-comm
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
 import { Button, Form, Input, message, Modal, Select } from 'ant-design-vue';
 
-import { supportMailboxRuleService } from '../../api/support-mailbox-rule-service';
+import { supportMailboxSettingService } from '../../api/support-mailbox-setting-service';
 import { ticketQueueService } from '../../api/ticket-queue-service';
 import { userService } from '../../api/user-service';
 import { helpDocumentUrl } from '../../help-center';
@@ -26,13 +26,15 @@ import {
   usableMailboxSource,
 } from '../support-options';
 import SupportScopeSelector from '../support-scope-selector.vue';
-import { createSupportMailboxRuleCrudConfig } from './config';
+import { createSupportMailboxSettingCrudConfig } from './config';
 
 // 保存只提交受控配置对象；启停使用独立命令与读取时的版本。
 const { hasPermission } = useRbacAccess();
 const router = useRouter();
 const allowed = (method: string) =>
-  hasPermission(buildApiMethodPermissions(supportMailboxRuleService, method));
+  hasPermission(
+    buildApiMethodPermissions(supportMailboxSettingService, method),
+  );
 const selectedScopeRecord = ref<UserOrgSelectorRecord>();
 const scope = ref<SupportScope>();
 const selectedFormScopeRecord = ref<UserOrgSelectorRecord>();
@@ -64,7 +66,7 @@ const canSave = computed(() =>
 );
 // 列表查询范围与创建表单归属分别维护，避免把筛选操作当作创建前提。
 const pageConfig = computed(() => ({
-  ...createSupportMailboxRuleCrudConfig({
+  ...createSupportMailboxSettingCrudConfig({
     list: listRules,
     channelLabel: (value) =>
       channels.value.find((item) => item.value === value)?.label ||
@@ -77,7 +79,7 @@ async function listRules(params: Record<string, unknown> = {}) {
   const current = ++listVersion;
   if (!scope.value || !allowed('list')) return { items: [], totals: 0 };
   const selected = JSON.stringify(scope.value);
-  const result = await supportMailboxRuleService.list({
+  const result = await supportMailboxSettingService.list({
     ...scope.value,
     pageIndex: Math.max(1, Number(params.pageIndex) || 1),
     pageSize: Math.min(100, Math.max(1, Number(params.pageSize) || 20)),
@@ -132,7 +134,7 @@ async function open(record?: MailboxRecord) {
     if (record) {
       const selectedScope = scope.value;
       if (!selectedScope) return;
-      result = await supportMailboxRuleService.retrieve({
+      result = await supportMailboxSettingService.retrieve({
         ...selectedScope,
         id: record.id,
       });
@@ -272,13 +274,13 @@ async function save() {
   };
   try {
     await (currentRecord.value
-      ? supportMailboxRuleService.update({
+      ? supportMailboxSettingService.update({
           ...selected,
           id: currentRecord.value.id,
           optimisticLock: currentRecord.value.optimisticLock,
           config,
         })
-      : supportMailboxRuleService.create({ ...selected, config }));
+      : supportMailboxSettingService.create({ ...selected, config }));
     if (generation !== formScopeGeneration) return;
     editing.value = false;
     if (
@@ -301,7 +303,7 @@ async function switchEnabled(record: MailboxRecord) {
   const method = record.enabled ? 'disable' : 'enable';
   if (!allowed(method)) return;
   try {
-    await supportMailboxRuleService[method]({
+    await supportMailboxSettingService[method]({
       ...scope.value,
       id: record.id,
       optimisticLock: record.optimisticLock,
@@ -379,9 +381,9 @@ onMounted(async () => {
     @ok="save"
   >
     <Form
-      id="support-mailbox-rule-config"
-      name="supportMailboxRuleConfig"
-      data-form-id="support-mailbox-rule-config"
+      id="support-mailbox-setting-config"
+      name="supportMailboxSettingConfig"
+      data-form-id="support-mailbox-setting-config"
       data-form-name="支持邮箱配置"
       layout="vertical"
       class="grid grid-cols-1 gap-x-4 md:grid-cols-2"

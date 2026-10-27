@@ -16,9 +16,9 @@
 
 ## 2. 模块落点与模型
 
-`entities` 定义 Inbox、私有 MailBlob、Ticket、追加式 TicketMessage、TicketQueue、SupportMailboxRule、TicketOutboundIntent、NotificationEvent、NotificationDelivery、NotificationDeliveryAttempt、UserMessage 和 NoticePublication。实体及生成默认服务/控制器的模型更新遵循先编译实体再生成的顺序；业务行为位于 `services` 的业务接口/请求与 `services-impl` 的实现，不手改生成目录。
+`entities` 定义 Inbox、私有 MailBlob、Ticket、追加式 TicketMessage、TicketQueue、SupportMailboxSetting、TicketOutboundIntent、NotificationEvent、NotificationDelivery、NotificationDeliveryAttempt、UserMessage 和 NoticePublication。实体及生成默认服务/控制器的模型更新遵循先编译实体再生成的顺序；业务行为位于 `services` 的业务接口/请求与 `services-impl` 的实现，不手改生成目录。
 
-`admin-api` 提供受控聚合入口：Inbox 私有下载/转单、TicketQueueAction、SupportMailboxRuleAction、TicketAction、UserMessage/use、NotificationAudit 和 Notice/myDetail。邮件事实、工单、工单消息、通知内部对象及私有字节不开放通用增删改入口。API 默认前缀为 `/com.levin.oak.base/V1/api/`；前端路由是另一层路径。
+`admin-api` 提供受控聚合入口：Inbox 私有下载/转单、TicketQueueAction、SupportMailboxSettingAction、TicketAction、UserMessage/use、NotificationAudit 和 Notice/myDetail。邮件事实、工单、工单消息、通知内部对象及私有字节不开放通用增删改入口。API 默认前缀为 `/com.levin.oak.base/V1/api/`；前端路由是另一层路径。
 
 关键完整性边界：
 
@@ -39,7 +39,7 @@ Inbox 及入站工单消息正文使用可容纳 MIME 边界的 TEXT 存储，�
 
 `BizInboundMailPersistenceServiceImpl` 在一个事务中保存 Inbox、RawMime、附件引用、工单受理和相关通知意图。MIME 限制在解析和字节保存前检查。非资源超限的解析错误保留原文与安全原因；超限不部分保存。本地 SMTP 仅在接受的收件人完成保存后回复250，暂时保存失败回复451；部分已提交地址重投复用。
 
-`BizTicketIntakeServiceImpl` 锁定 Inbox，核验当前规则、来源、队列和默认负责人，再建单或追加。同租户无来源组织只能由明确规则映射受理组织，原私有文件不改归属。入站会话候选同时限定租户、组织、支持邮箱、来源/外发关联及固定参与者。外发候选仅来自已关联消息且意图为 Accepted/Unknown；待发送、发送中、确定失败不会作为已发会话候选。
+`BizTicketIntakeServiceImpl` 锁定 Inbox，核验当前规则、来源、队列和默认负责人，再建单或追加。同租户无来源组织只能由明确规则映射受理组织，原私有文件不改归属。入站会话候选同时限定租户、组织、客服邮箱、来源/外发关联及固定参与者。外发候选仅来自已关联消息且意图为 Accepted/Unknown；待发送、发送中、确定失败不会作为已发会话候选。
 
 认证证据来自受签名供应商快照；数据库 JSON 嵌套对象可由不同 Map 实现承载，但必须是结构化对象并完整通过对齐校验，字符串“pass”或原始头自称通过均不接受。本地 SMTP 缺少这种证据，因此不会自动追加回复或重开。
 
@@ -55,7 +55,7 @@ Inbox 及入站工单消息正文使用可容纳 MIME 边界的 TEXT 存储，�
 
 ## 5. 外发与私有附件
 
-`BizTicketReplyServiceImpl` 将回复、发送意图、关联消息及流程事实原子保存。外发配置必须来自当前租户实际设置，不回退平台设置；配置 `fromEmail`、支持邮箱及固定 From 一致，认证 `username` 可以独立使用供应商 API key 用户名，To 来自当前已核验联系人。正文最多100000字符，附件最多20项且必须属于本工单关联来源邮件。
+`BizTicketReplyServiceImpl` 将回复、发送意图、关联消息及流程事实原子保存。外发配置必须来自当前租户实际设置，不回退平台设置；配置 `fromEmail`、客服邮箱及固定 From 一致，认证 `username` 可以独立使用供应商 API key 用户名，To 来自当前已核验联系人。正文最多100000字符，附件最多20项且必须属于本工单关联来源邮件。
 
 提交后调度用独立事务领取，外部发送前重新核验操作者、队列、联系人、配置指纹、附件及内容摘要。确认 SMTP 受理记 Accepted；调用开始后无法确定的错误或过期领取记 Unknown，发送前确定异常记 Failed。尝试最多5次，人工重试不清零、改写内容或生成新消息标识。Unknown 的独立人工核验权限、当前意图版本、安全引用和行锁检查将已确认未受理的记录转为 Failed，不触发发送；重试是另一动作。该入口已有单元及隔离 PostgreSQL 证据，完整目标环境 HTTP/浏览器与真实回执仍有验收边界。
 

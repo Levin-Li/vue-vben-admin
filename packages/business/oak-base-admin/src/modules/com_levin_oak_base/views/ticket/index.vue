@@ -672,7 +672,7 @@ watch(() => route.query.id, deepLink);
             <Descriptions.Item label="工单状态">
               {{ stateLabel(detail.status) }}
             </Descriptions.Item>
-            <Descriptions.Item label="支持邮箱">
+            <Descriptions.Item label="客服邮箱">
               {{ detail.supportEmail }}
             </Descriptions.Item>
             <Descriptions.Item label="固定请求人邮箱">

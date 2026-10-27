@@ -22,8 +22,8 @@ export const oakBaseAdminPageMap: AdminPageMap = {
     import('./views/robot-notify-group/index.vue'),
   '/system/com_levin_oak_base/notification-audit/index.vue': () =>
     import('./views/notification-audit/index.vue'),
-  '/system/com_levin_oak_base/support-mailbox-rule/index.vue': () =>
-    import('./views/support-mailbox-rule/index.vue'),
+  '/system/com_levin_oak_base/support-mailbox-setting/index.vue': () =>
+    import('./views/support-mailbox-setting/index.vue'),
   '/system/com_levin_oak_base/ticket-queue/index.vue': () =>
     import('./views/ticket-queue/index.vue'),
   '/system/com_levin_oak_base/ticket/index.vue': () =>

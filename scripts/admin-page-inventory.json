@@ -478,9 +478,9 @@
       "reason": "使用 PartnerCrudPage；继续按接口和字段规则验收"
     },
     {
-      "resource": "SupportMailboxRule",
+      "resource": "SupportMailboxSetting",
       "title": "支持邮箱受理规则",
-      "view": "./views/support-mailbox-rule/index.vue",
+      "view": "./views/support-mailbox-setting/index.vue",
       "classification": "shared-crud",
       "reason": "列表、分页、列设置与刷新使用公共 CrudPage；受控配置保存及启停保留专用接口"
     },

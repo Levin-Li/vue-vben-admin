@@ -1,5 +1,5 @@
 {
-  "version": "6.0.21",
+  "version": "6.0.22",
   "documents": [
     {
       "id": "system-user-manual",
@@ -24,11 +24,11 @@
           "view": "ticket"
         },
         {
-          "path": "/clob/V1/SupportMailboxRule",
-          "view": "support-mailbox-rule"
+          "path": "/clob/V1/SupportMailboxSetting",
+          "view": "support-mailbox-setting"
         }
       ],
-      "sha256": "8baf99d8a3a983f020aca5ea47042ff9b916b2fe22ae253a67dfc051f8890a2e"
+      "sha256": "2ea08666a36cc81f76b583ededda7545d072a93083e40aa034c3bd1ab1748698"
     },
     {
       "id": "mail-receiving-admin",
@@ -43,7 +43,7 @@
           "view": "domain"
         }
       ],
-      "sha256": "64a36df6d355b0805ebb54c313d80e8e4d317933aba6710ba98a9a5b934987c6"
+      "sha256": "e6aa72e3798174418a67410b6b504b68af0d47c381e2e580e57cb710830be461"
     },
     {
       "id": "local-smtp-admin",
@@ -73,7 +73,7 @@
       "type": "实现说明",
       "source": "docs/统一消息与邮件工单实现说明.md",
       "pages": [],
-      "sha256": "0e12006609e527fc942d76d126fc0fb17f693172f4f36849b538ce869c8ebda8"
+      "sha256": "5f62b4ed1435d7a4d3252909ade853d8aedcce432aaab54c1e092f78006d86d3"
     },
     {
       "id": "workflow-email-guide",
@@ -120,7 +120,7 @@
       "type": "使用指南",
       "source": "docs/12-域名与验证码插件设计使用指南.md",
       "pages": [],
-      "sha256": "85b7f85d06b953d508df38d647a38c505dfcdc7b025250aee3cb904d5c92ea9a"
+      "sha256": "42477c2cd3a063aafb10b10f098add9fbdb2dd5ea232632efb1df258ae34f0cd"
     },
     {
       "id": "communication-workbench-dev",
@@ -130,7 +130,7 @@
       "type": "开发指南",
       "source": "frontend/admin/packages/business/oak-base-admin/docs/communication-workbench.md",
       "pages": [],
-      "sha256": "971c975e7f1d4c92fdb5bbab0e9328f0ca327d38d5946ebd060bb01766b3e468"
+      "sha256": "69e2489a07452a022d274b62f6268ae6d9b32295541a451c2da017020412c3c4"
     },
     {
       "id": "invitation-registration-admin",
@@ -145,7 +145,7 @@
           "view": "invitation-link"
         }
       ],
-      "sha256": "cf78947322d50f87929b16ebeb787d9f9d90dc65a232333c7945e57d0549fe1e"
+      "sha256": "ab16449afc458c9b3deb9fc055c1a12ef1562ea8e2da8ea509b663a8d1b99705"
     }
   ]
 }

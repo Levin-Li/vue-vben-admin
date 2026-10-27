@@ -10,7 +10,7 @@ import { oakBaseAdminPageMap } from '../page-map';
 import { pageMeta as dailyAccessStatMeta } from '../views/daily-access-stat/config';
 import { pageMeta as auditMeta } from '../views/notification-audit/config';
 import { pageMeta as robotNotifyGroupMeta } from '../views/robot-notify-group/config';
-import { pageMeta as mailboxMeta } from '../views/support-mailbox-rule/config';
+import { pageMeta as mailboxMeta } from '../views/support-mailbox-setting/config';
 import { pageMeta as queueMeta } from '../views/ticket-queue/config';
 import { pageMeta as ticketMeta } from '../views/ticket/config';
 import { pageMeta as workflowRouteMeta } from '../views/workflow-notification-route/config';
@@ -37,7 +37,7 @@ describe('新增业务页真实eager元数据注册', () => {
       'WorkflowNotificationRoute',
       'Ticket',
       'TicketQueue',
-      'SupportMailboxRule',
+      'SupportMailboxSetting',
       'NotificationAudit',
       'RobotNotifyGroup',
     ]) {
@@ -50,7 +50,7 @@ describe('新增业务页真实eager元数据注册', () => {
   it.each([
     'notification-audit',
     'robot-notify-group',
-    'support-mailbox-rule',
+    'support-mailbox-setting',
     'ticket-queue',
     'ticket',
     'workflow-notification-route',
@@ -139,7 +139,7 @@ describe('新增业务页真实eager元数据注册', () => {
   it.each([
     ['NotificationAudit', 'notification-audit', auditMeta],
     ['RobotNotifyGroup', 'robot-notify-group', robotNotifyGroupMeta],
-    ['SupportMailboxRule', 'support-mailbox-rule', mailboxMeta],
+    ['SupportMailboxSetting', 'support-mailbox-setting', mailboxMeta],
     ['TicketQueue', 'ticket-queue', queueMeta],
     ['Ticket', 'ticket', ticketMeta],
     [

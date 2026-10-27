@@ -5,48 +5,20 @@ import type { EditableConditionNode } from './condition-tree';
 import { computed } from 'vue';
 
 import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
-import { Button, DatePicker, Input, Select, TimePicker } from 'ant-design-vue';
+import { Button, Select } from 'ant-design-vue';
 
-import {
-  canAddCondition,
-  newCondition,
-  resolveConditionOptions,
-  resolveConditionOptionValue,
-} from './condition-tree';
+import { canAddCondition, newCondition } from './condition-tree';
 
 const props = defineProps<{
   depth: number;
   inputs: DataModelQueryInput[];
   node: EditableConditionNode;
   root: EditableConditionNode;
-  scopeOptions?: Record<string, Array<{ label: string; value: string }>>;
 }>();
 const emit = defineEmits<{
   remove: [];
   update: [node: EditableConditionNode];
 }>();
-const selected = computed(() => {
-  const node = props.node;
-  return node.type === 'PARAM'
-    ? props.inputs.find((input) => input.key === node.key)
-    : undefined;
-});
-const options = computed(() =>
-  resolveConditionOptions(selected.value, props.scopeOptions),
-);
-const selectOptions = computed(() =>
-  options.value.map((option) => ({
-    label: option.label,
-    value: String(option.value),
-  })),
-);
-const selectedValue = computed(() =>
-  props.node.type === 'PARAM' &&
-  props.node.value !== null &&
-  props.node.value !== undefined
-    ? String(props.node.value)
-    : undefined,
-);
 const inputOptions = computed(() =>
   props.inputs.map((input) => ({
     value: input.key,
@@ -80,19 +52,13 @@ function replaceNotChild(child: EditableConditionNode) {
 }
 function setKey(key: unknown) {
   if (props.node.type !== 'PARAM' || typeof key !== 'string') return;
-  emit('update', { type: 'PARAM', key, value: undefined });
-}
-function setOption(value: unknown) {
-  setValue(resolveConditionOptionValue(value, options.value));
-}
-function setValue(value: unknown) {
-  if (props.node.type === 'PARAM') emit('update', { ...props.node, value });
+  emit('update', { type: 'PARAM', key });
 }
 </script>
 
 <template>
   <div class="condition-node rounded border border-gray-200 p-2">
-    <!-- 逻辑组只负责布尔组合，新增项仍由已发布参数定义约束。 -->
+    <!-- 逻辑组只保存接口定义中的参数关系。 -->
     <template v-if="node.type === 'AND' || node.type === 'OR'">
       <div class="mb-2 flex flex-wrap items-center gap-2">
         <Select
@@ -144,7 +110,6 @@ function setValue(value: unknown) {
           :root="root"
           :depth="depth + 1"
           :inputs="inputs"
-          :scope-options="scopeOptions"
           @remove="replaceChild(index)"
           @update="replaceChild(index, $event)"
         />
@@ -175,62 +140,21 @@ function setValue(value: unknown) {
         :root="root"
         :depth="depth + 1"
         :inputs="inputs"
-        :scope-options="scopeOptions"
         @remove="replaceNotChild(newCondition('PARAM'))"
         @update="replaceNotChild"
       />
     </template>
-    <!-- 叶子仅选择参数键和值，输入控件跟随参数类型与候选。 -->
+    <!-- 叶子只选择参数键，运行时才输入参数值。 -->
     <template v-else>
       <div class="flex flex-wrap items-center gap-2">
         <Select
           class="min-w-52 flex-1"
-          :value="node.key || undefined"
+          :value="node.type === 'PARAM' ? node.key || undefined : undefined"
           :options="inputOptions"
           placeholder="选择查询参数"
           show-search
           :filter-option="filterCrudLocalSelectOption"
           @update:value="setKey"
-        />
-        <Select
-          v-if="options.length > 0"
-          class="min-w-40 flex-1"
-          :value="selectedValue"
-          :options="selectOptions"
-          placeholder="选择值"
-          show-search
-          :filter-option="filterCrudLocalSelectOption"
-          @update:value="setOption"
-        />
-        <DatePicker
-          v-else-if="selected?.type === 'DATE'"
-          class="min-w-40 flex-1"
-          :value="node.value as string"
-          value-format="YYYY-MM-DD"
-          @update:value="setValue"
-        />
-        <TimePicker
-          v-else-if="selected?.type === 'TIME'"
-          class="min-w-40 flex-1"
-          :value="node.value as string"
-          value-format="HH:mm:ss"
-          @update:value="setValue"
-        />
-        <DatePicker
-          v-else-if="selected?.type === 'DATETIME'"
-          class="min-w-48 flex-1"
-          :value="node.value as string"
-          show-time
-          value-format="YYYY-MM-DD HH:mm:ss"
-          @update:value="setValue"
-        />
-        <Input
-          v-else
-          class="min-w-40 flex-1"
-          :value="node.value as string"
-          :placeholder="selected ? `输入${selected.title}` : '先选择参数'"
-          :disabled="!selected"
-          @update:value="setValue"
         />
         <Button size="small" danger @click="emit('remove')">删除</Button>
       </div>

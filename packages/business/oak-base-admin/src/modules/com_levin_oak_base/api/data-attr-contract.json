@@ -113407,6 +113407,20 @@
     },
     "nodes" : { }
   }, {
+    "id" : "40ade721-02a4-345e-b573-1ebbaa62dc92",
+    "operation" : "com.levin.oak.base:业务数据-邀请链接::选择邀请目标组织",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/InvitationLink/targetOrganizations" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "1b6fb599-4f66-37dd-a072-6c534c377a8c",
     "operation" : null,
     "methods" : [ "POST" ],
@@ -197257,10 +197271,10 @@
       }
     }
   }, {
-    "id" : "2ea8cceb-0317-3e24-9263-6d98ddbeefea",
-    "operation" : "com.levin.oak.base:业务数据-支持邮箱受理规则::创建受理邮箱",
+    "id" : "eff89aae-2a54-3aac-aa08-a58203acc453",
+    "operation" : "com.levin.oak.base:业务数据-客服邮箱设置::新增客服邮箱设置",
     "methods" : [ "POST" ],
-    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxRuleAction/create" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxSettingAction/create" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],
@@ -197271,10 +197285,10 @@
     },
     "nodes" : { }
   }, {
-    "id" : "7d58a675-656e-3467-91cd-570951f665ee",
-    "operation" : "com.levin.oak.base:业务数据-支持邮箱受理规则::停用受理邮箱",
+    "id" : "6ca646d4-b1ed-3662-87f9-d4fa518b9ab1",
+    "operation" : "com.levin.oak.base:业务数据-客服邮箱设置::停用客服邮箱设置",
     "methods" : [ "POST" ],
-    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxRuleAction/disable" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxSettingAction/disable" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],
@@ -197285,10 +197299,10 @@
     },
     "nodes" : { }
   }, {
-    "id" : "293f6fb0-43cd-3272-a24c-6d6cbd51662c",
-    "operation" : "com.levin.oak.base:业务数据-支持邮箱受理规则::启用受理邮箱",
+    "id" : "e58c87bd-a70b-3aab-9e19-01b5c69c1213",
+    "operation" : "com.levin.oak.base:业务数据-客服邮箱设置::启用客服邮箱设置",
     "methods" : [ "POST" ],
-    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxRuleAction/enable" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxSettingAction/enable" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],
@@ -197299,10 +197313,10 @@
     },
     "nodes" : { }
   }, {
-    "id" : "0da7c13c-9c94-31de-bc1f-40f8f53bd989",
-    "operation" : "com.levin.oak.base:业务数据-支持邮箱受理规则::查询受理邮箱",
+    "id" : "86a24d4c-617d-3980-ae85-cf510e32e7f0",
+    "operation" : "com.levin.oak.base:业务数据-客服邮箱设置::查询客服邮箱设置",
     "methods" : [ "GET" ],
-    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxRuleAction/list" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxSettingAction/list" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],
@@ -197313,10 +197327,10 @@
     },
     "nodes" : { }
   }, {
-    "id" : "5faee85a-be8b-30c3-b81a-4f268f0b450c",
-    "operation" : "com.levin.oak.base:业务数据-支持邮箱受理规则::查看受理邮箱",
+    "id" : "71751a16-738a-32a5-84a4-4a956038200d",
+    "operation" : "com.levin.oak.base:业务数据-客服邮箱设置::查看客服邮箱设置",
     "methods" : [ "GET" ],
-    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxRuleAction/retrieve" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxSettingAction/retrieve" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],
@@ -197327,10 +197341,10 @@
     },
     "nodes" : { }
   }, {
-    "id" : "806b246d-b864-3b13-92f4-d9d04f0c2c19",
-    "operation" : "com.levin.oak.base:业务数据-支持邮箱受理规则::修改受理邮箱",
+    "id" : "6b3cfd75-ebf5-3900-a293-7b82a98bdf7b",
+    "operation" : "com.levin.oak.base:业务数据-客服邮箱设置::修改客服邮箱设置",
     "methods" : [ "POST" ],
-    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxRuleAction/update" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupportMailboxSettingAction/update" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],

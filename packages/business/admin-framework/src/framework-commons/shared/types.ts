@@ -527,6 +527,8 @@ export interface CrudPageConfig {
   complexGroups?: CrudComplexGroupConfig[];
   /** 仅隐藏内置新增按钮，供显式扩展入口复用标准表单；不影响操作授权。 */
   createButtonVisible?: boolean;
+  /** 多个专用新增入口共用页面时，可覆盖新增弹窗标题而不改变列表标题。 */
+  createFormTitle?: string;
   createPath?: CrudPathConfig;
   createPermission?: string | string[];
   /** 新增时允许页面转换器补入的隐藏必需字段；未列出的隐藏字段仍被最终提交白名单排除。 */

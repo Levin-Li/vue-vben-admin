@@ -17,5 +17,13 @@ export function showApiErrorMessage(content: string, error?: unknown) {
     content: text,
     key: `api-error:${text}`,
   });
-  if (typeof error === 'object' && error !== null) notifiedErrors.add(error);
+  if (typeof error === 'object' && error !== null) {
+    notifiedErrors.add(error);
+    // RequestClient.request 向页面抛出响应数据，而非 Axios 原始错误。
+    const responseData = (error as { response?: { data?: unknown } }).response
+      ?.data;
+    if (typeof responseData === 'object' && responseData !== null) {
+      notifiedErrors.add(responseData);
+    }
+  }
 }

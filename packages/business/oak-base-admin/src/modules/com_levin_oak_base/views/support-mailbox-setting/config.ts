@@ -6,40 +6,40 @@ import type {
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 
 import { OAK_BASE_API_MODULE } from '../../api/_module';
-import { supportMailboxRuleService } from '../../api/support-mailbox-rule-service';
+import { supportMailboxSettingService } from '../../api/support-mailbox-setting-service';
 
 export const pageMeta = {
-  name: 'SupportMailboxRule',
+  name: 'SupportMailboxSetting',
   title: '客服邮箱设置',
   description: '设置客服邮箱收到邮件后由哪个工单队列处理。',
 } as const;
 
 export const pageOperations = [
-  { opName: 'list', apiMethods: [supportMailboxRuleService.list] },
-  { opName: 'retrieve', apiMethods: [supportMailboxRuleService.retrieve] },
-  { opName: 'create', apiMethods: [supportMailboxRuleService.create] },
-  { opName: 'update', apiMethods: [supportMailboxRuleService.update] },
-  { opName: 'enable', apiMethods: [supportMailboxRuleService.enable] },
-  { opName: 'disable', apiMethods: [supportMailboxRuleService.disable] },
+  { opName: 'list', apiMethods: [supportMailboxSettingService.list] },
+  { opName: 'retrieve', apiMethods: [supportMailboxSettingService.retrieve] },
+  { opName: 'create', apiMethods: [supportMailboxSettingService.create] },
+  { opName: 'update', apiMethods: [supportMailboxSettingService.update] },
+  { opName: 'enable', apiMethods: [supportMailboxSettingService.enable] },
+  { opName: 'disable', apiMethods: [supportMailboxSettingService.disable] },
 ];
 
 /** 受理范围和配置动作由页面服务适配；列表工具与字段展示使用公共 CRUD。 */
-export function createSupportMailboxRuleCrudConfig(options: {
+export function createSupportMailboxSettingCrudConfig(options: {
   channelLabel: (value: string) => string;
   list: NonNullable<CrudApiService['list']>;
 }): CrudPageConfig {
   return {
-    apiBase: '/SupportMailboxRuleAction',
+    apiBase: '/SupportMailboxSettingAction',
     apiModuleBase: OAK_BASE_API_MODULE,
     apiService: { list: options.list },
     queryPermission: buildApiMethodPermissions(
-      supportMailboxRuleService,
+      supportMailboxSettingService,
       'list',
     ),
     dataAttrTargets: {
       list: {
         method: 'GET',
-        path: `${OAK_BASE_API_MODULE}/SupportMailboxRuleAction/list`,
+        path: `${OAK_BASE_API_MODULE}/SupportMailboxSettingAction/list`,
       },
     },
     dataAttrConditionKeys: ['tenantId', 'orgId'],

@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import RulePage from '../views/support-mailbox-rule/index.vue';
+import RulePage from '../views/support-mailbox-setting/index.vue';
 
 // Component contract tests with service stubs only; no runtime mail or supplier fixture.
 const mocks = vi.hoisted(() => ({
@@ -60,8 +60,8 @@ vi.mock(
     };
   },
 );
-vi.mock('../api/support-mailbox-rule-service', () => ({
-  supportMailboxRuleService: mocks.rules,
+vi.mock('../api/support-mailbox-setting-service', () => ({
+  supportMailboxSettingService: mocks.rules,
 }));
 vi.mock('../api/ticket-queue-service', () => ({
   ticketQueueService: mocks.queues,

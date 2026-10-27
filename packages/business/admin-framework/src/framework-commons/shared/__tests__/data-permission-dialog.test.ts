@@ -229,8 +229,15 @@ describe('数据权限候选三档分配', () => {
     wrapper.unmount();
   });
 
-  it('各标签不显示常驻规则说明和全量模式说明', async () => {
+  it('简单与高级模式共用一条允许禁止说明，不恢复其它常驻横幅', async () => {
     const wrapper = await openDialog('role');
+    const hint = wrapper.find('[data-testid="data-permission-rule-hint"]');
+    expect(hint.text()).toBe(
+      '先按允许规则确定范围，再扣除禁止规则；同一数据同时命中两边时，禁止优先。例如：允许全部租户、禁止甲租户，甲租户数据仍不可访问。',
+    );
+    expect(
+      wrapper.findAll('[data-testid="data-permission-rule-hint"]'),
+    ).toHaveLength(1);
     expect(wrapper.text()).not.toContain('每个领域候选项选择');
     expect(wrapper.text()).not.toContain('每个租户候选项选择');
     expect(wrapper.text()).not.toContain('每个组织候选项选择');
@@ -238,6 +245,13 @@ describe('数据权限候选三档分配', () => {
 
     await choice(wrapper, '全部领域', '允许')?.trigger('click');
     expect(wrapper.text()).not.toContain('其它候选暂时收起');
+    await wrapper
+      .find('[data-testid="data-permission-mode-switch"]')
+      .trigger('click');
+    expect(
+      wrapper.findAll('[data-testid="data-permission-rule-hint"]'),
+    ).toHaveLength(1);
+    expect(hint.text()).toContain('禁止优先');
     wrapper.unmount();
   });
 
@@ -280,18 +294,54 @@ describe('数据权限候选三档分配', () => {
     wrapper.unmount();
   });
 
-  it('全部候选选允许后收起其它项，切回默认恢复草稿', async () => {
+  it('全部领域允许后保留逐项候选，切回未设置保留草稿', async () => {
     const wrapper = await openDialog('role');
     await choice(wrapper, '全部领域', '允许')?.trigger('click');
     const domain = wrapper.find('section:first-of-type');
-    expect(domain.find('input').exists()).toBe(false);
+    expect(domain.find('input').exists()).toBe(true);
     expect(wrapper.find('[aria-label="domain-allowed访问设置"]').exists()).toBe(
-      false,
+      true,
     );
+    await choice(wrapper, 'domain-allowed', '禁止')?.trigger('click');
+    await choice(wrapper, '全部领域', '禁止')?.trigger('click');
+    expect(domain.find('input').exists()).toBe(false);
+    await choice(wrapper, '全部领域', '允许')?.trigger('click');
+    expect(
+      choice(wrapper, 'domain-allowed', '禁止')?.attributes('aria-pressed'),
+    ).toBe('true');
     await choice(wrapper, '全部领域', '未设置')?.trigger('click');
     expect(
-      choice(wrapper, 'domain-allowed', '允许')?.attributes('aria-pressed'),
+      choice(wrapper, 'domain-allowed', '禁止')?.attributes('aria-pressed'),
     ).toBe('true');
+    wrapper.unmount();
+  });
+
+  it.each([
+    {
+      all: '全部领域',
+      item: 'domain-allowed',
+      allowField: 'domainScopeList',
+      denyField: 'deniedDomainScopeList',
+    },
+    {
+      all: '全部租户',
+      item: 'tenant-allowed',
+      allowField: 'tenantScopeList',
+      denyField: 'deniedTenantScopeList',
+    },
+  ])('$all 允许时可保存 $item 禁止例外', async (scope) => {
+    const wrapper = await openDialog('role');
+    await choice(wrapper, scope.all, '允许')?.trigger('click');
+    expect(choice(wrapper, scope.item, '禁止')?.exists()).toBe(true);
+    await choice(wrapper, scope.item, '禁止')?.trigger('click');
+    const save = wrapper
+      .findAll('button')
+      .find((button) => button.text() === '保存');
+    await save?.trigger('click');
+    await flushPromises();
+    const payload = mocks.put.mock.calls[0]?.[1] as Record<string, string[]>;
+    expect(payload[scope.allowField]).toContain('_ALL_');
+    expect(payload[scope.denyField]).toContain(scope.item);
     wrapper.unmount();
   });
 
@@ -405,9 +455,9 @@ describe('数据权限候选三档分配', () => {
     wrapper.unmount();
   });
 
-  it('全部组织只映射全部根组织，无组织选项独立', async () => {
+  it('全部根组织规则与无组织选项独立', async () => {
     const wrapper = await openDialog('role');
-    await choice(wrapper, '全部组织', '禁止')?.trigger('click');
+    await choice(wrapper, '全部根组织', '禁止')?.trigger('click');
     expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(
       false,
     );
@@ -432,7 +482,7 @@ describe('数据权限候选三档分配', () => {
 
   it('固定组织项可切换匹配模式，未设置禁用，无组织不显示模式', async () => {
     const wrapper = await openDialog('role');
-    const allMode = wrapper.find('[aria-label="全部组织子组织匹配模式"]');
+    const allMode = wrapper.find('[aria-label="全部根组织子组织匹配模式"]');
     const defaultMode = wrapper.find(
       '[aria-label="用户默认组织子组织匹配模式"]',
     );
@@ -442,12 +492,12 @@ describe('数据权限候选三档分配', () => {
       false,
     );
 
-    await choice(wrapper, '全部组织', '允许')?.trigger('click');
+    await choice(wrapper, '全部根组织', '允许')?.trigger('click');
     expect(allMode.element.value).toBe('SelfAndAllChild');
     await allMode.setValue('Self');
     expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
     expect(
-      choice(wrapper, '全部组织', '允许')?.attributes('aria-pressed'),
+      choice(wrapper, '全部根组织', '允许')?.attributes('aria-pressed'),
     ).toBe('true');
 
     await choice(wrapper, '用户默认组织', '禁止')?.trigger('click');
@@ -484,37 +534,80 @@ describe('数据权限候选三档分配', () => {
       wrapper.find('[aria-label="用户默认组织子组织匹配模式"]').element.value,
     ).toBe('Self');
     expect(
-      choice(wrapper, '全部组织', '禁止')?.attributes('aria-pressed'),
+      choice(wrapper, '全部根组织', '禁止')?.attributes('aria-pressed'),
     ).toBe('true');
     expect(
-      wrapper.find('[aria-label="全部组织子组织匹配模式"]').element.value,
+      wrapper.find('[aria-label="全部根组织子组织匹配模式"]').element.value,
     ).toBe('SelfAndDirectChild');
     expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
     wrapper.unmount();
   });
 
-  it('全部组织在全下级和非全下级模式之间切换时正确收展候选', async () => {
+  it('全部根组织允许时保留候选，禁止全部时收起候选', async () => {
     const wrapper = await openDialog('role');
-    const mode = wrapper.find('[aria-label="全部组织子组织匹配模式"]');
-    await choice(wrapper, '全部组织', '允许')?.trigger('click');
-    expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(
-      false,
-    );
+    const mode = wrapper.find('[aria-label="全部根组织子组织匹配模式"]');
+    await choice(wrapper, '全部根组织', '允许')?.trigger('click');
+    await choice(wrapper, '已授权组织', '禁止')?.trigger('click');
+    expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
 
     await mode.setValue('DirectChild');
     expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
     expect(
-      choice(wrapper, '全部组织', '允许')?.attributes('aria-pressed'),
+      choice(wrapper, '全部根组织', '允许')?.attributes('aria-pressed'),
     ).toBe('true');
 
     await mode.setValue('SelfAndAllChild');
+    expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
+    await choice(wrapper, '全部根组织', '禁止')?.trigger('click');
     expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(
       false,
     );
-    await choice(wrapper, '全部组织', '未设置')?.trigger('click');
+    await choice(wrapper, '全部根组织', '未设置')?.trigger('click');
     expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
+    expect(
+      choice(wrapper, '已授权组织', '禁止')?.attributes('aria-pressed'),
+    ).toBe('true');
     expect(mode.attributes('disabled')).toBeDefined();
     wrapper.unmount();
+  });
+
+  it('全部根组织允许与单个组织禁止同时保存并正确回显', async () => {
+    const wrapper = await openDialog('role');
+    await choice(wrapper, '全部根组织', '允许')?.trigger('click');
+    await choice(wrapper, '已授权组织', '禁止')?.trigger('click');
+    expect(wrapper.find('[data-testid="shared-org-tree"]').exists()).toBe(true);
+    const save = wrapper
+      .findAll('button')
+      .find((button) => button.text() === '保存');
+    await save?.trigger('click');
+    await flushPromises();
+    expect(mocks.put).toHaveBeenCalledWith(
+      '/com.levin.oak.base/V1/api/Role/update',
+      expect.objectContaining({
+        orgScopeList: ['_ALL_ROOT_|SelfAndAllChild'],
+        deniedOrgScopeList: [
+          'org-allowed|SelfAndAllChild',
+          'org-denied|SelfAndAllChild',
+        ],
+      }),
+      expect.anything(),
+    );
+    wrapper.unmount();
+
+    const reopened = await openDialog('role', {
+      orgScopeList: ['_ALL_ROOT_|SelfAndAllChild'],
+      deniedOrgScopeList: ['org-allowed|SelfAndAllChild'],
+    });
+    expect(
+      choice(reopened, '全部根组织', '允许')?.attributes('aria-pressed'),
+    ).toBe('true');
+    expect(
+      choice(reopened, '已授权组织', '禁止')?.attributes('aria-pressed'),
+    ).toBe('true');
+    expect(reopened.find('[data-testid="shared-org-tree"]').exists()).toBe(
+      true,
+    );
+    reopened.unmount();
   });
 
   it('高级与简易模式共用待保存规则，全部根组织回显一致', async () => {
@@ -523,7 +616,7 @@ describe('数据权限候选三档分配', () => {
       deniedOrgScopeList: [],
     });
     expect(
-      choice(wrapper, '全部组织', '允许')?.attributes('aria-pressed'),
+      choice(wrapper, '全部根组织', '允许')?.attributes('aria-pressed'),
     ).toBe('true');
     expect(
       choice(wrapper, '无组织', '未设置')?.attributes('aria-pressed'),
@@ -544,7 +637,7 @@ describe('数据权限候选三档分配', () => {
       .find('[data-testid="data-permission-mode-switch"]')
       .trigger('click');
     expect(
-      choice(wrapper, '全部组织', '允许')?.attributes('aria-pressed'),
+      choice(wrapper, '全部根组织', '允许')?.attributes('aria-pressed'),
     ).toBe('true');
     wrapper.unmount();
   });

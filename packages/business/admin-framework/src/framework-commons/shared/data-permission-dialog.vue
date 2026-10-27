@@ -115,6 +115,7 @@ const modeSnapshots = new Map<
   ScopeKind,
   { allow: null | string[]; deny: null | string[] }
 >();
+const allowAllInherited = new Set<ScopeKind>();
 const tenantOptions = ref<Option[]>([]);
 const tenantPage = ref(0);
 const tenantHasMore = ref(true);
@@ -317,6 +318,7 @@ function toScopeValue(value: unknown): null | string[] {
 }
 function setDetailState(nextDetail: Record<string, any>) {
   modeSnapshots.clear();
+  allowAllInherited.clear();
   orgModeDraft.value = {};
   detail.value = nextDetail;
   for (const tab of scopeTabs)
@@ -452,34 +454,66 @@ function scopeMode(tab: ScopeTab): ScopeMode {
   const deny = scopeValues.value[tab.denyField] || [];
   const all = allTokens(tab);
   if (all.every((value) => deny.includes(value))) return 'denyAll';
-  const relevantDeny =
-    tab.kind === 'org' ? deny.filter((value) => value !== '_NONE_|Self') : deny;
-  if (relevantDeny.length === 0 && all.every((value) => allow.includes(value)))
-    return 'allowAll';
+  if (all.every((value) => allow.includes(value))) return 'allowAll';
   return 'custom';
+}
+function withoutAllRule(tab: ScopeTab, field: ScopeField) {
+  const remaining = removeRules(
+    scopeValues.value[field],
+    new Set(allTokens(tab)),
+  );
+  return field === tab.allowField &&
+    allowAllInherited.has(tab.kind) &&
+    remaining?.length === 0
+    ? null
+    : remaining;
 }
 function setScopeMode(tab: ScopeTab, mode: ScopeMode) {
   if (isTabReadOnly(tab) || !isTabCustom(tab)) return;
   const current = scopeMode(tab);
   if (current === mode) return;
-  if (mode === 'custom') {
+  // 离开“禁止全部”先恢复暂存的逐项规则，再处理目标档位。
+  if (current === 'denyAll') {
     const snapshot = modeSnapshots.get(tab.kind);
-    const all = new Set(allTokens(tab));
     scopeValues.value[tab.allowField] = snapshot
       ? cloneValue(snapshot.allow)
-      : removeRules(scopeValues.value[tab.allowField], all);
+      : withoutAllRule(tab, tab.allowField);
     scopeValues.value[tab.denyField] = snapshot
       ? cloneValue(snapshot.deny)
-      : removeRules(scopeValues.value[tab.denyField], all);
+      : withoutAllRule(tab, tab.denyField);
     modeSnapshots.delete(tab.kind);
+  }
+
+  if (mode === 'custom') {
+    // 取消全量只删除全量令牌，保留允许期间新设的逐项禁止例外。
+    scopeValues.value[tab.allowField] = withoutAllRule(tab, tab.allowField);
+    scopeValues.value[tab.denyField] = withoutAllRule(tab, tab.denyField);
+    allowAllInherited.delete(tab.kind);
     return;
   }
-  if (current === 'custom' && !modeSnapshots.has(tab.kind)) {
+
+  if (mode === 'allowAll') {
+    // 全量允许与逐项禁止同时生效，逐项候选继续可编辑。
+    if (scopeValues.value[tab.allowField] === null)
+      allowAllInherited.add(tab.kind);
+    scopeValues.value[tab.allowField] = [
+      ...new Set([
+        ...(scopeValues.value[tab.allowField] || []),
+        ...allTokens(tab),
+      ]),
+    ];
+    scopeValues.value[tab.denyField] = withoutAllRule(tab, tab.denyField);
+    return;
+  }
+
+  // “禁止全部”独占候选，切回其它档位时恢复此前逐项草稿。
+  if (!modeSnapshots.has(tab.kind)) {
     modeSnapshots.set(tab.kind, {
-      allow: cloneValue(scopeValues.value[tab.allowField]),
-      deny: cloneValue(scopeValues.value[tab.denyField]),
+      allow: withoutAllRule(tab, tab.allowField),
+      deny: withoutAllRule(tab, tab.denyField),
     });
   }
+  allowAllInherited.delete(tab.kind);
   const independentAllow =
     tab.kind === 'org'
       ? (scopeValues.value[tab.allowField] || []).filter(
@@ -492,14 +526,8 @@ function setScopeMode(tab: ScopeTab, mode: ScopeMode) {
           (value) => value === '_NONE_|Self',
         )
       : [];
-  scopeValues.value[tab.allowField] = [
-    ...independentAllow,
-    ...(mode === 'allowAll' ? allTokens(tab) : []),
-  ];
-  scopeValues.value[tab.denyField] = [
-    ...independentDeny,
-    ...(mode === 'denyAll' ? allTokens(tab) : []),
-  ];
+  scopeValues.value[tab.allowField] = [...independentAllow];
+  scopeValues.value[tab.denyField] = [...independentDeny, ...allTokens(tab)];
   candidateKeyword.value = '';
 }
 function allChoice(tab: ScopeTab): ScopeChoice {
@@ -520,12 +548,6 @@ function allChoice(tab: ScopeTab): ScopeChoice {
 }
 function setAllChoice(tab: ScopeTab, choice: ScopeChoice) {
   if (allChoice(tab) === choice) return;
-  if (choice === 'none' && scopeMode(tab) === 'custom') {
-    const all = new Set(allTokens(tab));
-    for (const field of [tab.allowField, tab.denyField])
-      scopeValues.value[field] = removeRules(scopeValues.value[field], all);
-    return;
-  }
   let mode: ScopeMode = 'custom';
   if (choice === 'allow') mode = 'allowAll';
   if (choice === 'deny') mode = 'denyAll';
@@ -534,11 +556,6 @@ function setAllChoice(tab: ScopeTab, choice: ScopeChoice) {
 function fixedOptions(tab: ScopeTab) {
   return builtinOptions(tab.kind)
     .filter((item) => item.preset)
-    .map((item) =>
-      tab.kind === 'org' && item.value === '_ALL_ROOT_|SelfAndAllChild'
-        ? { ...item, label: '全部组织' }
-        : item,
-    )
     .toSorted(
       (left, right) =>
         Number(right.value === allTokens(tab)[0]) -
@@ -547,9 +564,9 @@ function fixedOptions(tab: ScopeTab) {
 }
 function visibleFixedOptions(tab: ScopeTab) {
   if (tab.kind === 'org') return fixedOptions(tab);
-  return scopeMode(tab) === 'custom'
-    ? fixedOptions(tab)
-    : fixedOptions(tab).filter((item) => item.value === allTokens(tab)[0]);
+  return scopeMode(tab) === 'denyAll'
+    ? fixedOptions(tab).filter((item) => item.value === allTokens(tab)[0])
+    : fixedOptions(tab);
 }
 // 固定项的组织起点与三档选择统一由规则起点解析，避免模板按具体模式判断。
 function fixedOrgPresetStart(tab: ScopeTab, value: string) {
@@ -1185,6 +1202,14 @@ watch(
         show-icon
         type="error"
       />
+      <!-- 三类范围共用一条允许与禁止优先级说明。 -->
+      <Alert
+        class="mb-2"
+        data-testid="data-permission-rule-hint"
+        message="先按允许规则确定范围，再扣除禁止规则；同一数据同时命中两边时，禁止优先。例如：允许全部租户、禁止甲租户，甲租户数据仍不可访问。"
+        show-icon
+        type="info"
+      />
       <Spin :spinning="loading" class="min-h-0 flex-1">
         <Tabs v-model:active-key="activeKey" @change="searchCandidates('')">
           <Tabs.TabPane v-for="tab in visibleScopeTabs" :key="tab.kind">
@@ -1393,7 +1418,7 @@ watch(
                   </tbody>
                 </table>
                 <div
-                  v-if="scopeMode(tab) === 'custom'"
+                  v-if="scopeMode(tab) !== 'denyAll'"
                   class="border-t border-slate-200 p-3"
                 >
                   <Input

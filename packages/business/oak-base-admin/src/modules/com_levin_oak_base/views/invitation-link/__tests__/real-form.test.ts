@@ -62,11 +62,18 @@ beforeEach(() => {
         : mocks.post(path, options),
   );
   mocks.get.mockResolvedValue([]);
-  mocks.post.mockImplementation(async (path: string) =>
-    path.endsWith('/list')
-      ? { items: [], total: 0 }
-      : { id: 'new-invitation', url: 'https://example.test/invite?token=test' },
-  );
+  mocks.post.mockImplementation(async (path: string) => {
+    if (path.endsWith('/list')) return { items: [], total: 0 };
+    if (path.endsWith('/targetOrganizations'))
+      return [
+        { id: 'org', name: '测试组织' },
+        { id: 'org-b', name: '另一个可访问组织' },
+      ];
+    return {
+      id: 'new-invitation',
+      url: 'https://example.test/invite?token=test',
+    };
+  });
 });
 afterEach(() => {
   wrapper?.unmount();
@@ -95,7 +102,15 @@ describe('邀请真实公共表单提交', () => {
       .findAllComponents({ name: 'AModal' })
       .find((item) => item.props('open') === true);
     if (!modal) throw new Error('缺少实际控件：modal');
+    expect((crud.props('config') as any).createFormTitle).toBe(
+      '新增会员用户邀请链接',
+    );
     const selects = modal.findAllComponents(Select);
+    const targetOrganization = selects.find((select) =>
+      select.props('options')?.some((option: any) => option.value === 'org-b'),
+    );
+    if (!targetOrganization) throw new Error('缺少邀请目标组织选择控件');
+    targetOrganization.vm.$emit('update:value', 'org-b');
     const usage = selects.find((select) =>
       select
         .props('options')
@@ -110,15 +125,8 @@ describe('邀请真实公共表单提交', () => {
     expect(input).not.toBeNull();
     input.value = '10';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    const date = modal
-      .findAllComponents(DatePicker)
-      .find((picker) => picker.props('showTime'));
-    if (!date) throw new Error('缺少实际控件：date');
-    date.vm.$emit(
-      'update:value',
-      new Date(Date.now() + 86_400_000).toISOString().slice(0, 19),
-    );
-    await flushPromises();
+    expect(modal.findAllComponents(DatePicker)).toHaveLength(1);
+    expect(modal.findComponent(DatePicker).props('showTime')).toBe(false);
     const save = document.body.querySelector<HTMLButtonElement>(
       '.ant-modal-footer button.ant-btn-primary',
     );
@@ -138,10 +146,12 @@ describe('邀请真实公共表单提交', () => {
     if (!submitted) throw new Error('缺少实际创建请求');
     const [, request] = submitted;
     expect(request.data).toMatchObject({
+      targetOrgId: 'org-b',
       userType: 'Employee',
       organizationMode: 'JoinInviterOrg',
       usageMode: 'Limited',
       maxRegistrations: 10,
+      expiresAt: null,
     });
     expect(request.data).not.toHaveProperty('childOrgType');
     expect(request.data).not.toHaveProperty('customerType');
@@ -163,6 +173,9 @@ describe('邀请真实公共表单提交', () => {
       .findAllComponents({ name: 'AModal' })
       .find((item) => item.props('open') === true);
     if (!customerModal) throw new Error('缺少真实新增表单');
+    expect((crud.props('config') as any).createFormTitle).toBe(
+      '新增客户邀请链接',
+    );
     for (const value of ['Employee', 'DirectCustomer']) {
       const select = customerModal
         .findAllComponents(Select)
@@ -174,13 +187,20 @@ describe('邀请真实公共表单提交', () => {
       if (!select) throw new Error(`缺少实际选择控件：${value}`);
       select.vm.$emit('update:value', value);
     }
+    const customerOrganization = customerModal
+      .findAllComponents(Select)
+      .find((select) =>
+        select.props('options')?.some((option: any) => option.value === 'org'),
+      );
+    if (!customerOrganization) throw new Error('缺少客户邀请目标组织选择控件');
+    customerOrganization.vm.$emit('update:value', 'org');
     const customerDate = customerModal
       .findAllComponents(DatePicker)
-      .find((picker) => picker.props('showTime'));
+      .find((picker) => !picker.props('showTime'));
     if (!customerDate) throw new Error('缺少到期日期控件');
     customerDate.vm.$emit(
       'update:value',
-      new Date(Date.now() + 86_400_000).toISOString().slice(0, 19),
+      new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10),
     );
     await flushPromises();
     const customerSave = document.body.querySelector<HTMLButtonElement>(
@@ -201,11 +221,13 @@ describe('邀请真实公共表单提交', () => {
     );
     if (!customerSubmitted) throw new Error('缺少客户邀请真实请求');
     expect(customerSubmitted[1].data).toMatchObject({
+      targetOrgId: 'org',
       userType: 'Employee',
       organizationMode: 'CreateChildOrg',
       childOrgType: 'Customer',
       customerType: 'DirectCustomer',
       usageMode: 'Single',
+      expiresAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     });
     expect(customerSubmitted[1].data).not.toHaveProperty('channelPartnerId');
     expect(customerSubmitted[1].data).not.toHaveProperty('maxRegistrations');

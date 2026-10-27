@@ -400,7 +400,18 @@ function getCrudErrorMessage(error: unknown, fallback: string) {
   }
 
   const data = (error as any)?.response?.data;
-  return data?.msg || data?.detailMsg || data?.message || fallback;
+  const response = data || error;
+  return (
+    (response as any)?.msg ||
+    (response as any)?.detailMsg ||
+    (response as any)?.message ||
+    fallback
+  );
+}
+function showCrudError(error: unknown, fallback: string) {
+  if (!isApiErrorNotified(error)) {
+    message.error(getCrudErrorMessage(error, fallback));
+  }
 }
 interface ListTableRuntimeState {
   dataSource: GenericRecord[];
@@ -4744,7 +4755,7 @@ async function openExportModal() {
     exportModalOpen.value = true;
   } catch (error) {
     console.error(error);
-    message.error('导出前检查失败');
+    showCrudError(error, '导出前检查失败');
   } finally {
     exportLimitChecking.value = false;
   }
@@ -4765,7 +4776,7 @@ async function openImportModal() {
   try {
     await dataAttrAccess.ensure('batchCreate');
   } catch (error) {
-    message.error(getCrudErrorMessage(error, '属性权限加载失败'));
+    showCrudError(error, '属性权限加载失败');
     return;
   }
   resetImportState();
@@ -4792,7 +4803,7 @@ async function handleImportFileChange(file: File) {
     message.success(`已读取 ${sheet.rows.length} 行数据`);
   } catch (error) {
     console.error(error);
-    message.error(getCrudErrorMessage(error, '导入文件解析失败'));
+    showCrudError(error, '导入文件解析失败');
   }
 }
 
@@ -5060,7 +5071,7 @@ async function handleImportConfirm() {
   try {
     await dataAttrAccess.ensure('batchCreate');
   } catch (error) {
-    message.error(getCrudErrorMessage(error, '属性权限加载失败'));
+    showCrudError(error, '属性权限加载失败');
     return;
   }
   const apiService = props.config.apiService;
@@ -5142,7 +5153,7 @@ async function handleImportConfirm() {
       error: getCrudErrorMessage(error, '导入失败'),
       response: (error as any)?.response?.data,
     });
-    message.error('导入失败，详情见控制台');
+    showCrudError(error, '导入失败，详情见控制台');
   } finally {
     importing.value = false;
   }
@@ -5244,7 +5255,7 @@ async function handleExportConfirm() {
     }
 
     console.error(error);
-    message.error('导出失败');
+    showCrudError(error, '导出失败');
   } finally {
     exporting.value = false;
   }
@@ -5318,7 +5329,7 @@ async function loadListWithRetry(contextRetryCount: number) {
     selectedRowKeys.value = [];
     selectedRows.value = [];
     listError.value = getCrudErrorMessage(error, '列表加载失败，请重试');
-    message.error(listError.value);
+    if (!isApiErrorNotified(error)) message.error(listError.value);
     captureListTableState();
   } finally {
     if (isCurrent()) loading.value = false;
@@ -5414,7 +5425,7 @@ async function handleCreate() {
     dataAttrAccess.assertCheckpoint(checkpoint);
   } catch (error) {
     if (isCurrent())
-      message.error(getCrudErrorMessage(error, '新增表单加载失败'));
+      showCrudError(error, '新增表单加载失败');
     return;
   }
   focusedJsonFieldKey.value = undefined;
@@ -5454,7 +5465,7 @@ async function handleEdit(record: GenericRecord) {
     dataAttrAccess.assertCheckpoint(checkpoint);
   } catch (error) {
     if (isCurrent())
-      message.error(getCrudErrorMessage(error, '编辑表单加载失败'));
+      showCrudError(error, '编辑表单加载失败');
     return;
   }
   focusedJsonFieldKey.value = undefined;
@@ -5491,7 +5502,7 @@ async function handleJsonFieldEdit(
     dataAttrAccess.assertCheckpoint(checkpoint);
   } catch (error) {
     if (isCurrent())
-      message.error(getCrudErrorMessage(error, '编辑表单加载失败'));
+      showCrudError(error, '编辑表单加载失败');
     return;
   }
   const currentField = getRowJsonSchemaFields(record).find(
@@ -5573,7 +5584,7 @@ async function handleSubmit() {
   try {
     await dataAttrAccess.ensure(editingRecord.value ? 'update' : 'create');
   } catch (error) {
-    message.error(getCrudErrorMessage(error, '属性权限加载失败'));
+    showCrudError(error, '属性权限加载失败');
     return;
   } finally {
     submitting.value = false;
@@ -5837,9 +5848,7 @@ async function handleSubmit() {
     modalOpen.value = false;
     await loadList();
   } catch (error) {
-    if (!isApiErrorNotified(error)) {
-      message.error(getCrudErrorMessage(error, '保存失败'));
-    }
+    showCrudError(error, '保存失败');
   } finally {
     submitting.value = false;
   }
@@ -7684,7 +7693,7 @@ async function updateBooleanEnableField(
   } catch (error) {
     record[fieldKey] = previousValue;
     console.error(error);
-    message.error(getCrudErrorMessage(error, '更新失败'));
+    showCrudError(error, '更新失败');
   } finally {
     quickSwitchLoadingState[loadingKey] = false;
   }
@@ -7928,7 +7937,7 @@ async function runRowAction(
     }
   } catch (error) {
     console.error(error);
-    message.error(getCrudErrorMessage(error, `${action.label}失败`));
+    showCrudError(error, `${action.label}失败`);
   }
 }
 
@@ -9348,7 +9357,7 @@ watch(
                 ? `编辑${effectiveFields.find((field) => field.key === focusedJsonFieldKey)?.label || ''}`
                 : editingRecord
                   ? `编辑${getBusinessTitle(config.title)}`
-                  : `新增${getBusinessTitle(config.title)}`
+                  : config.createFormTitle || `新增${getBusinessTitle(config.title)}`
             }}
           </span>
           <Checkbox

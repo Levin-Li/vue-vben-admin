@@ -61,8 +61,8 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   },
   {
     icon: 'lucide:mail-check',
-    name: 'SupportMailboxRule',
-    resource: 'SupportMailboxRule',
+    name: 'SupportMailboxSetting',
+    resource: 'SupportMailboxSetting',
     title: '客服邮箱设置',
   },
   {
@@ -564,7 +564,8 @@ export const oakBaseAdminResourceViewMap: Record<
   Inbox: () => import('./views/inbox/index.vue'),
   Ticket: () => import('./views/ticket/index.vue'),
   TicketQueue: () => import('./views/ticket-queue/index.vue'),
-  SupportMailboxRule: () => import('./views/support-mailbox-rule/index.vue'),
+  SupportMailboxSetting: () =>
+    import('./views/support-mailbox-setting/index.vue'),
   NotificationAudit: () => import('./views/notification-audit/index.vue'),
   FileRes: () => import('./views/file-res/index.vue'),
   FundAccount: () => import('./views/fund-account/index.vue'),
@@ -619,7 +620,14 @@ export const oakBaseAdminResourceViewMap: Record<
   UserSetting: () => import('./views/user-setting/index.vue'),
 };
 
-// 工作流入口统一归组；实际导航仅重排已授权菜单，页面地址和权限保持原值。
+// 前端导航仅重排已授权菜单，页面地址和权限保持原值。
+export const oakPaymentMenuGroup = {
+  icon: 'lucide:wallet-cards',
+  parentPath: '/clob/V1/index',
+  path: '/clob/V1/index/groups/支付&交易',
+  title: '支付&交易',
+};
+
 export const oakWorkflowMenuGroup = {
   icon: 'lucide:git-branch',
   parentPath: '/clob/V1/index',
@@ -667,11 +675,11 @@ const menuGroups = [
   [
     '应用&接入',
     'lucide:app-window',
-    ['ClientApp', 'EmailRelayRoute', 'Inbox', 'SupportMailboxRule'],
+    ['ClientApp', 'EmailRelayRoute', 'Inbox', 'SupportMailboxSetting'],
   ],
   [
-    '支付&交易',
-    'lucide:wallet-cards',
+    oakPaymentMenuGroup.title,
+    oakPaymentMenuGroup.icon,
     [
       'SettlementOrder',
       'PayOrder',

@@ -2,6 +2,7 @@
 import type {
   CreateInvitationLinkRequest,
   InvitationTarget,
+  InvitationTargetOrganization,
 } from '../../api/invitation-link-service';
 
 import { computed, nextTick, ref } from 'vue';
@@ -24,6 +25,7 @@ const { hasPermission } = useRbacAccess();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(invitationLinkService, method));
 const activeTarget = ref<InvitationTarget>('Internal');
+const targetOrganizations = ref<InvitationTargetOrganization[]>([]);
 const createdUrl = ref('');
 const revokeId = ref('');
 const revokeReason = ref('');
@@ -41,6 +43,10 @@ async function openInvitation(target: InvitationTarget) {
   if (openingCreate || crudPage.value?.isFormOpen()) return;
   openingCreate = true;
   try {
+    targetOrganizations.value =
+      await invitationLinkService.targetOrganizations();
+    if (targetOrganizations.value.length === 0)
+      throw new Error('当前没有可邀请的组织');
     activeTarget.value = target;
     await nextTick();
     await crudPage.value?.openCreate();
@@ -69,8 +75,9 @@ function createPayload(
   else if (organizationMode === 'CreateChildOrg')
     childOrgType = values.childOrgType;
   return {
+    targetOrgId: values.targetOrgId,
     registrationChannel: values.registrationChannel,
-    expiresAt: values.expiresAt,
+    expiresAt: values.expiresAt || null,
     usageMode: values.usageMode,
     ...(values.usageMode === 'Limited'
       ? { maxRegistrations: values.maxRegistrations }
@@ -100,6 +107,7 @@ const pageConfig = computed(() => {
   const method = createMethodByTarget[target];
   const config = createInvitationLinkCrudConfig({
     target,
+    targetOrganizations: targetOrganizations.value,
     canInviteChildAdmin: allowed('canInviteChildAdmin'),
     canCreate: allowed(method),
     createActions: invitationCreateActions(openInvitation),

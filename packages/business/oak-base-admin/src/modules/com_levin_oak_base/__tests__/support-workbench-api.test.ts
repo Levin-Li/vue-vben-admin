@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InboxService, safeMailFileName } from '../api/inbox-service';
 import { NoticeService } from '../api/notice-service';
 import { NotificationAuditService } from '../api/notification-audit-service';
-import { SupportMailboxRuleService } from '../api/support-mailbox-rule-service';
+import { SupportMailboxSettingService } from '../api/support-mailbox-setting-service';
 import { TicketQueueService } from '../api/ticket-queue-service';
 import { TicketService } from '../api/ticket-service';
 import { WorkflowNotificationRouteService } from '../api/workflow-notification-route-service';
@@ -61,7 +61,7 @@ describe('邮件工单受控 API', () => {
       for (const ServiceClass of [
         WorkflowNotificationRouteService,
         TicketQueueService,
-        SupportMailboxRuleService,
+        SupportMailboxSettingService,
         TicketService,
         InboxService,
       ]) {
@@ -227,8 +227,8 @@ describe('邮件工单受控 API', () => {
       id: 'rule',
       optimisticLock: 4,
     };
-    await new SupportMailboxRuleService().enable(command);
-    await new SupportMailboxRuleService().disable(command);
+    await new SupportMailboxSettingService().enable(command);
+    await new SupportMailboxSettingService().disable(command);
     expect(calls.post).toHaveBeenNthCalledWith(1, 'enable', { data: command });
     expect(calls.post).toHaveBeenNthCalledWith(2, 'disable', { data: command });
     const review = {

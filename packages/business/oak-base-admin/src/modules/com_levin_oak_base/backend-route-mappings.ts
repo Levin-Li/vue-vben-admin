@@ -7,6 +7,7 @@ import {
 
 import {
   oakBaseAdminCrudResources,
+  oakPaymentMenuGroup,
   oakWorkflowMenuGroup,
   oakWorkflowResources,
 } from './admin-crud';
@@ -16,7 +17,7 @@ import { pageMeta as dataModelRecordPageMeta } from './views/data-model-record-p
 import { pageMeta as dataModelPageMeta } from './views/domain-data-dynamic-model/config';
 import { pageMeta as notificationAuditPageMeta } from './views/notification-audit/config';
 import { pageMeta as robotNotifyGroupPageMeta } from './views/robot-notify-group/config';
-import { pageMeta as supportMailboxRulePageMeta } from './views/support-mailbox-rule/config';
+import { pageMeta as supportMailboxSettingPageMeta } from './views/support-mailbox-setting/config';
 import { pageMeta as ticketQueuePageMeta } from './views/ticket-queue/config';
 import { pageMeta as ticketPageMeta } from './views/ticket/config';
 import { pageMeta as workflowNotificationRoutePageMeta } from './views/workflow-notification-route/config';
@@ -51,7 +52,7 @@ const pageMetaModules: Record<string, PageMeta> = {
   './views/daily-access-stat/config.ts': dailyAccessStatPageMeta,
   './views/notification-audit/config.ts': notificationAuditPageMeta,
   './views/robot-notify-group/config.ts': robotNotifyGroupPageMeta,
-  './views/support-mailbox-rule/config.ts': supportMailboxRulePageMeta,
+  './views/support-mailbox-setting/config.ts': supportMailboxSettingPageMeta,
   './views/ticket-queue/config.ts': ticketQueuePageMeta,
   './views/ticket/config.ts': ticketPageMeta,
   './views/workflow-notification-route/config.ts':
@@ -96,8 +97,8 @@ function getPageOperations(resource: string) {
     return buildAdminPageOperations(oakBaseApi.ticketService);
   if (resource === 'TicketQueue')
     return buildAdminPageOperations(oakBaseApi.ticketQueueService);
-  if (resource === 'SupportMailboxRule')
-    return buildAdminPageOperations(oakBaseApi.supportMailboxRuleService);
+  if (resource === 'SupportMailboxSetting')
+    return buildAdminPageOperations(oakBaseApi.supportMailboxSettingService);
   if (resource === 'NotificationAudit')
     return buildAdminPageOperations(oakBaseApi.notificationAuditService);
   // 工作流宿主页组合两个明确控制器的操作；运行页复用公共服务但仍上传真实操作权限。
@@ -191,6 +192,9 @@ function createCrudBackendRouteMapping(
     icon: item.icon,
     keepAlive: true,
     // 分组只供前端授权后导航使用，不修改后端授权菜单或页面路径。
+    ...(item.resource === 'SettlementOrder'
+      ? { menuGroup: oakPaymentMenuGroup }
+      : {}),
     ...(oakWorkflowResources.includes(item.resource)
       ? { menuGroup: oakWorkflowMenuGroup }
       : {}),

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import InboxPage from '../views/inbox/index.vue';
 import AuditPage from '../views/notification-audit/index.vue';
-import MailboxPage from '../views/support-mailbox-rule/index.vue';
+import MailboxPage from '../views/support-mailbox-setting/index.vue';
 import QueuePage from '../views/ticket-queue/index.vue';
 import TicketPage from '../views/ticket/index.vue';
 import WorkflowRoutePage from '../views/workflow-notification-route/index.vue';
@@ -79,8 +79,8 @@ vi.mock('../api/ticket-service', () => ({ ticketService: mocks.ticket }));
 vi.mock('../api/ticket-queue-service', () => ({
   ticketQueueService: mocks.queue,
 }));
-vi.mock('../api/support-mailbox-rule-service', () => ({
-  supportMailboxRuleService: mocks.mailbox,
+vi.mock('../api/support-mailbox-setting-service', () => ({
+  supportMailboxSettingService: mocks.mailbox,
 }));
 vi.mock('../api/notification-audit-service', () => ({
   notificationAuditService: mocks.audit,

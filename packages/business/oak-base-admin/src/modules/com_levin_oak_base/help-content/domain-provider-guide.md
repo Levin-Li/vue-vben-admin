@@ -322,7 +322,7 @@ API 动态访问控制由 `UrlAclInterceptor` 触发，用于对已经登录且�
 | `CloudflareDomainApplyServicePlugin` | `CloudflareApiSetting` | `accountId`, `apiToken`, `managedZones`, `zoneIdByName` | 支持注册商和 DNS。真实注册需设置 `registrationEnabled = true`。 |
 | `DynadotDomainApplyServicePlugin` | `DynadotApiSetting` | `apiKey`, `apiSecret` | 支持注册、续期、转入、DNS。真实注册需设置 `registrationEnabled = true`。 |
 | `SpaceshipDomainApplyServicePlugin` | `SpaceshipApiSetting` | `apiKey`, `apiSecret`, `defaultContactId` | 支持注册、续期、转入、DNS。真实注册需设置 `registrationEnabled = true`。 |
-| `DNSHeDomainApplyServicePlugin` | `DNSHeApiSetting` | `apiKey`, `apiSecret`, `supportedDomainSuffixes` | 免费子域名和 DNS API。 |
+| `DNSHeDomainApplyServicePlugin` | `DNSHeApiSetting` | `apiKey`, `apiSecret`, `supportedDomainSuffixes` | 免费子域名和 DNS API；当前官方主页展示 V2 协议，现有接口版本需凭测试账号继续核验。 |
 | `DeSecDomainApplyServicePlugin` | `DeSecApiSetting` | `token`, `supportedDomainSuffixes` | deSEC 免费子域名和 DNS API。 |
 
 配置示例：
@@ -370,7 +370,7 @@ GET /api/TenantSite/availableSuffixes
 
 返回的 `DomainVendor` 会包含供应商名称、API 地址、支持后缀和能力信息。申请域名时前端应把选中的 `apiUrl` 带回，业务层用它辅助匹配供应商。
 
-“申请域名”的供应商下拉框从后端当前插件注册表动态读取，只列具备免费子域名申请、域名申请或域名注册能力的插件；当前可看到 Cloudflare、DNSHe、deSEC、Dynadot、Spaceship。GoDaddy、Gname、Namecheap 当前仅实现域名查询或 DNS 操作，不提供注册能力，因此不出现在申请下拉框。选择供应商后，后缀下拉框只展示该供应商声明的后缀；例如选择 DNSHe 时，不会显示其它供应商的后缀。候选目录保留尚待配置的供应商及其接入指引，实际提交仍要求该插件已启用、配置可用并支持选中的后缀。
+“申请域名”的供应商下拉框从后端当前插件注册表动态读取，只列具备免费子域名申请、域名申请或域名注册能力的插件；当前可看到 Cloudflare、DNSHe、deSEC、Dynadot、Spaceship。GoDaddy、Gname、Namecheap 当前仅实现域名查询或 DNS 操作，不提供注册能力，因此不出现在申请下拉框。选择供应商后，后缀下拉框只展示该供应商声明的后缀；例如选择 DNSHe 时，不会显示其它供应商的后缀。候选目录保留尚待配置的供应商及其接入指引，实际提交仍要求该插件已启用、配置可用并支持选中的后缀。DNSHe 当前官方主页展示 V2 协议，与现有适配器的请求格式不同，不能仅替换 API 地址；真实申请仍需供应商测试凭据核验。
 
 ### 9.2 申请或登记域名
 
@@ -425,7 +425,7 @@ SSL 证书申请服务在 DNS-01 模式下，会根据域名寻找支持 `DnsRec
 
 ### 9.5 远端状态同步
 
-`BizDomainService.syncDomainStatus(DomainIdReq)` 先按当前请求范围验证域名，再要求匹配插件明确声明 `DomainStatus`；无能力的供应商不能调用状态同步。deSEC 仅将目标域名的 `200` 且响应名称匹配视为已拥有、`404` 视为不存在；其它 HTTP 错误或异常响应直接报错，不会把认证失败、限流或临时故障写成域名失效。DNSHe 仅接受 `active`、`suspended`、`expired` 三种已知状态；接口失败、未知状态或列表当前页未命中目标时也报错，不把可能存在于后续分页的域名判为不存在。参考供应商[deSEC 域名接口](https://desec.readthedocs.io/en/latest/dns/domains.html)与[DNSHe 子域名接口](https://my.dnshe.com/knowledgebase/13/DNSHE-Free-Domain-API-User-Guide-V2.0.html?language=english)。
+`BizDomainService.syncDomainStatus(DomainIdReq)` 先按当前请求范围验证域名，再要求匹配插件明确声明 `DomainStatus`；无能力的供应商不能调用状态同步。deSEC 仅将目标域名的 `200` 且响应名称匹配视为已拥有、`404` 视为不存在；其它 HTTP 错误或异常响应直接报错，不会把认证失败、限流或临时故障写成域名失效。DNSHe 仅接受 `active`、`suspended`、`expired` 三种已知状态；接口失败、未知状态或列表当前页未命中目标时也报错，不把可能存在于后续分页的域名判为不存在。参考[deSEC 域名接口](https://desec.readthedocs.io/en/latest/dns/domains.html)与[DNSHe 当前 API 说明](https://www.dnshe.com/#api)。
 
 ## 10. 接入新插件的约定
 

@@ -20,8 +20,8 @@
         "view": "ticket"
       },
       {
-        "path": "/clob/V1/SupportMailboxRule",
-        "view": "support-mailbox-rule"
+        "path": "/clob/V1/SupportMailboxSetting",
+        "view": "support-mailbox-setting"
       }
     ]
   },

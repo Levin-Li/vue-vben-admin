@@ -9,6 +9,7 @@ import type {
   InvitationLinkListQuery,
   InvitationRegistrationChannel,
   InvitationTarget,
+  InvitationTargetOrganization,
   InvitationUsageMode,
   InvitationUserType,
 } from '../../api/invitation-link-service';
@@ -26,6 +27,10 @@ export const pageMeta = {
 } as const;
 
 export const pageOperations = [
+  {
+    opName: 'targetOrganizations',
+    apiMethods: [invitationLinkService.targetOrganizations],
+  },
   { opName: 'list', apiMethods: [invitationLinkService.list] },
   { opName: 'retrieve', apiMethods: [invitationLinkService.retrieve] },
   {
@@ -120,6 +125,25 @@ const childOrgOptions = [
   { label: '团队', value: 'Team' },
   { label: '小组', value: 'Group' },
 ];
+// 选项名称使用实体枚举的中文说明，提交值仍保持 Java 常量名。
+const supplierPartnerTypeOptions = [
+  { label: '商品', value: 'Goods' },
+  { label: '原材料', value: 'RawMaterials' },
+  { label: '配件', value: 'Parts' },
+  { label: '一般服务', value: 'Service' },
+  { label: '物流', value: 'Logistics' },
+  { label: '技术服务', value: 'Technology' },
+  { label: '运营', value: 'Operation' },
+  { label: '内容与版权', value: 'ContentAndCopyright' },
+  { label: '其他', value: 'Other' },
+];
+const channelPartnerTypeOptions = [
+  { label: '经销商', value: 'Dealer' },
+  { label: '分销商', value: 'Distributor' },
+  { label: '代理商', value: 'Agent' },
+  { label: '线上店铺', value: 'OnlineStore' },
+  { label: '线下店铺', value: 'OfflineStore' },
+];
 
 type InvitationCrudField = CrudFieldConfig & {
   formVisibleWhen?: (state: Record<string, any>) => boolean;
@@ -132,6 +156,7 @@ export function createInvitationLinkCrudConfig(options: {
   canInviteChildAdmin: boolean;
   createActions?: CrudRowAction[];
   target: InvitationTarget;
+  targetOrganizations?: InvitationTargetOrganization[];
 }): CrudPageConfig {
   const { target, canInviteChildAdmin, apiService, canCreate } = options;
   const method = createMethodByTarget[target];
@@ -169,16 +194,25 @@ export function createInvitationLinkCrudConfig(options: {
       },
     },
     title: pageMeta.title,
+    createFormTitle: `新增${targetOptions.find((item) => item.value === target)?.label}邀请链接`,
     description: pageMeta.description,
     createButtonVisible: false,
     rowActions: options.createActions,
     defaultQuery: { pageIndex: 1, pageSize: 20 },
     defaultFormValues: {
+      ...(options.targetOrganizations?.length === 1
+        ? { targetOrgId: options.targetOrganizations[0]?.id }
+        : {}),
       ...(target === 'Member' ? { userType: 'Employee' } : {}),
       ...(external ? { organizationMode: 'CreateChildOrg' } : {}),
       ...(external ? { childOrgType: target } : {}),
     },
-    createSubmitKeys: ['userType', 'organizationMode', 'childOrgType'],
+    createSubmitKeys: [
+      'targetOrgId',
+      'userType',
+      'organizationMode',
+      'childOrgType',
+    ],
     formMaxColumns: 2,
     modalWidth: 960,
     allowCreate: canCreate,
@@ -187,6 +221,29 @@ export function createInvitationLinkCrudConfig(options: {
     allowRetrieve: true,
     allowExport: false,
     fields: [
+      {
+        key: 'targetOrgId',
+        label: '邀请到哪个组织',
+        type: 'select',
+        options: (options.targetOrganizations || []).map((org) => ({
+          label: org.name,
+          value: org.id,
+        })),
+        form: true,
+        search: false,
+        table: false,
+        required: true,
+      },
+      {
+        key: 'targetOrgName',
+        label: '目标组织',
+        type: 'text',
+        form: false,
+        search: false,
+        table: true,
+        detail: true,
+        width: 180,
+      },
       {
         key: 'targetType',
         label: '邀请目标',
@@ -232,8 +289,8 @@ export function createInvitationLinkCrudConfig(options: {
       },
       {
         key: 'expiresAfter',
-        label: '到期时间起',
-        type: 'datetime',
+        label: '到期日期起',
+        type: 'date',
         form: false,
         detail: false,
         table: false,
@@ -241,8 +298,8 @@ export function createInvitationLinkCrudConfig(options: {
       },
       {
         key: 'expiresBefore',
-        label: '到期时间止',
-        type: 'datetime',
+        label: '到期日期止',
+        type: 'date',
         form: false,
         detail: false,
         table: false,
@@ -297,16 +354,7 @@ export function createInvitationLinkCrudConfig(options: {
         key: 'supplierPartnerType',
         label: '供应伙伴类型',
         type: 'select',
-        options: [
-          'Goods',
-          'RawMaterials',
-          'Parts',
-          'Service',
-          'Logistics',
-          'Technology',
-          'Operation',
-          'Other',
-        ].map((value) => ({ label: value, value })),
+        options: supplierPartnerTypeOptions,
         form: target === 'SupplierPartner',
         table: false,
         required: target === 'SupplierPartner',
@@ -315,33 +363,38 @@ export function createInvitationLinkCrudConfig(options: {
         key: 'channelPartnerType',
         label: '渠道伙伴类型',
         type: 'select',
-        options: [
-          'Dealer',
-          'Distributor',
-          'Agent',
-          'OnlineStore',
-          'OfflineStore',
-        ].map((value) => ({ label: value, value })),
+        options: channelPartnerTypeOptions,
         form: target === 'ChannelPartner',
         table: false,
         required: target === 'ChannelPartner',
       },
       {
         key: 'expiresAt',
-        label: '到期时间',
-        type: 'datetime',
+        label: '到期日期',
+        type: 'date',
         table: true,
-        required: true,
+        required: false,
+        placeholder: '留空表示永不过期',
         width: 190,
         validator: (value) => {
-          const expires = new Date(String(value)).getTime();
-          const limit = new Date();
+          if (value === null || value === undefined || value === '')
+            return undefined;
+          const parsed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value));
+          if (!parsed) return '到期日期格式无效';
+          const year = Number(parsed[1]);
+          const month = Number(parsed[2]);
+          const day = Number(parsed[3]);
+          const expires = new Date(year, month - 1, day);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const limit = new Date(today);
           limit.setDate(limit.getDate() + 366);
-          return !value ||
-            !Number.isFinite(expires) ||
-            expires <= Date.now() ||
-            expires >= limit.getTime()
-            ? '到期时间须为未来且小于366天'
+          return expires.getFullYear() !== year ||
+            expires.getMonth() !== month - 1 ||
+            expires.getDate() !== day ||
+            expires < today ||
+            expires >= limit
+            ? '到期日期须为今天起366天内的有效日期'
             : undefined;
         },
       },

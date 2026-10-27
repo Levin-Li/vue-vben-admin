@@ -32,4 +32,12 @@ describe('统一请求错误提示', () => {
     expect(isApiErrorNotified(new Error(failure.message))).toBe(false);
     expect(isApiErrorNotified(null)).toBe(false);
   });
+
+  it('请求客户端改抛响应数据时仍识别为已提示', () => {
+    const responseData = { msg: '推荐人必须属于租户组织' };
+    const failure = { response: { data: responseData } };
+    showApiErrorMessage(responseData.msg, failure);
+    expect(isApiErrorNotified(responseData)).toBe(true);
+    expect(isApiErrorNotified({ msg: responseData.msg })).toBe(false);
+  });
 });

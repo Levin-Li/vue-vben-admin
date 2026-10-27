@@ -20,7 +20,7 @@ import {
 } from 'ant-design-vue';
 
 import { inboxService } from '../../api/inbox-service';
-import { supportMailboxRuleService } from '../../api/support-mailbox-rule-service';
+import { supportMailboxSettingService } from '../../api/support-mailbox-setting-service';
 import CrudPage from '../crud-page.vue';
 import SupportScopeSelector from '../support-scope-selector.vue';
 import { inboxPageCrudConfig } from './config';
@@ -147,7 +147,7 @@ async function download(blobId: string, preview = false) {
 async function loadRules(page = 1) {
   if (!scope.value) return;
   try {
-    const result = await supportMailboxRuleService.list({
+    const result = await supportMailboxSettingService.list({
       ...scope.value,
       pageIndex: page,
       pageSize: 20,
@@ -183,7 +183,7 @@ async function intake() {
     const ticketId = await inboxService.intake({
       id: detail.value.id,
       ...scope.value,
-      supportMailboxRuleId: ruleId.value,
+      supportMailboxSettingId: ruleId.value,
     });
     intakeOpen.value = false;
     message.success('已转为工单');
