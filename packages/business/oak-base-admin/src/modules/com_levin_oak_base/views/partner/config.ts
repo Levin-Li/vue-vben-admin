@@ -34,6 +34,9 @@ const investmentRelationOptionsLoader = buildEnumOptionsLoader(
 const levelOptionsLoader = buildDictOptionsLoader(
   'com.levin.oak.base.entities.Partner.level',
 );
+const industriesOptionsLoader = buildDictOptionsLoader(
+  'com.levin.oak.base.entities.Partner.industries',
+);
 
 // 合作关系的可选财务资料按业务对象独立提交，未选择时保留服务端原值。
 export const partnerCommonComplexGroups: CrudPageConfig['complexGroups'] = [
@@ -176,12 +179,13 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
   {
     key: 'industries',
     label: '所属行业',
-    help: '可输入多个行业，按回车确认。',
     layoutGroup: 'business',
     layoutOrder: 40,
+    loadOptions: industriesOptionsLoader,
+    multiple: true,
     search: true,
     table: true,
-    type: 'tags',
+    type: 'select',
     width: 150,
   },
   {
