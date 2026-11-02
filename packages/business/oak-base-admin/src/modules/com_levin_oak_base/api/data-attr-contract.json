@@ -267662,7 +267662,7 @@
           "wireName" : "interactions",
           "aliases" : [ ],
           "groupIds" : [ ],
-          "nodeId" : "n20",
+          "nodeId" : "n27",
           "caseInsensitive" : null
         }, {
           "name" : "msg",
@@ -267714,6 +267714,230 @@
         "selectorNodeId" : null
       },
       "n10" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n11",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n11" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "branches",
+          "wireName" : "branches",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n12",
+          "caseInsensitive" : null
+        }, {
+          "name" : "entityClass",
+          "wireName" : "entityClass",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "fields",
+          "wireName" : "fields",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n14",
+          "caseInsensitive" : null
+        }, {
+          "name" : "operation",
+          "wireName" : "operation",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "state",
+          "wireName" : "state",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n12" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n13",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n13" : {
+        "kind" : "map",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : null,
+        "valueNodeId" : "n4",
+        "selectorNodeId" : null
+      },
+      "n14" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n15",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n15" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "attribute",
+          "wireName" : "attribute",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "sourceKey",
+          "wireName" : "sourceKey",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "sourceKind",
+          "wireName" : "sourceKind",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n16" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "code",
+          "wireName" : "code",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "createTime",
+          "wireName" : "createTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "creator",
+          "wireName" : "creator",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainId",
+          "wireName" : "domainId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "editable",
+          "wireName" : "editable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "enable",
+          "wireName" : "enable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "id",
+          "wireName" : "id",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastUpdateTime",
+          "wireName" : "lastUpdateTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "optimisticLock",
+          "wireName" : "optimisticLock",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orderCode",
+          "wireName" : "orderCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "remark",
+          "wireName" : "remark",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantId",
+          "wireName" : "tenantId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantName",
+          "wireName" : "tenantName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "type",
+          "wireName" : "type",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n17" : {
         "kind" : "object",
         "caseInsensitive" : false,
         "locale" : "und",
@@ -267722,7 +267946,7 @@
           "wireName" : "bankAccount",
           "aliases" : [ ],
           "groupIds" : [ ],
-          "nodeId" : "n11",
+          "nodeId" : "n18",
           "caseInsensitive" : null
         }, {
           "name" : "bankAccountHash",
@@ -267743,7 +267967,7 @@
           "wireName" : "children",
           "aliases" : [ ],
           "groupIds" : [ ],
-          "nodeId" : "n12",
+          "nodeId" : "n19",
           "caseInsensitive" : null
         }, {
           "name" : "code",
@@ -267848,7 +268072,7 @@
           "wireName" : "legalSubject",
           "aliases" : [ ],
           "groupIds" : [ ],
-          "nodeId" : "n13",
+          "nodeId" : "n20",
           "caseInsensitive" : null
         }, {
           "name" : "legalSubjectId",
@@ -267911,7 +268135,7 @@
           "wireName" : "parent",
           "aliases" : [ ],
           "groupIds" : [ ],
-          "nodeId" : "n10",
+          "nodeId" : "n17",
           "caseInsensitive" : null
         }, {
           "name" : "parentId",
@@ -267932,7 +268156,7 @@
           "wireName" : "responsibleUser",
           "aliases" : [ ],
           "groupIds" : [ ],
-          "nodeId" : "n18",
+          "nodeId" : "n25",
           "caseInsensitive" : null
         }, {
           "name" : "responsibleUserId",
@@ -267981,7 +268205,7 @@
         "valueNodeId" : null,
         "selectorNodeId" : null
       },
-      "n11" : {
+      "n18" : {
         "kind" : "object",
         "caseInsensitive" : false,
         "locale" : "und",
@@ -268025,1006 +268249,12 @@
         "valueNodeId" : null,
         "selectorNodeId" : null
       },
-      "n12" : {
-        "kind" : "array",
-        "caseInsensitive" : false,
-        "locale" : "und",
-        "fields" : [ ],
-        "elementNodeId" : "n10",
-        "valueNodeId" : null,
-        "selectorNodeId" : null
-      },
-      "n13" : {
-        "kind" : "object",
-        "caseInsensitive" : false,
-        "locale" : "und",
-        "fields" : [ {
-          "name" : "bankAccount",
-          "wireName" : "bankAccount",
-          "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#银行账户" ],
-          "nodeId" : "n11",
-          "caseInsensitive" : null
-        }, {
-          "name" : "bankAccountHash",
-          "wireName" : "bankAccountHash",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "businessPremises",
-          "wireName" : "businessPremises",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n4",
-          "caseInsensitive" : null
-        }, {
-          "name" : "certificationLog",
-          "wireName" : "certificationLog",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n14",
-          "caseInsensitive" : null
-        }, {
-          "name" : "certificationStatus",
-          "wireName" : "certificationStatus",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "cityCode",
-          "wireName" : "cityCode",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "confidentialLevel",
-          "wireName" : "confidentialLevel",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "contactInfo",
-          "wireName" : "contactInfo",
-          "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#联系人信息" ],
-          "nodeId" : "n16",
-          "caseInsensitive" : null
-        }, {
-          "name" : "createTime",
-          "wireName" : "createTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "creator",
-          "wireName" : "creator",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "domainId",
-          "wireName" : "domainId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "editable",
-          "wireName" : "editable",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "enable",
-          "wireName" : "enable",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "expiredTime",
-          "wireName" : "expiredTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "id",
-          "wireName" : "id",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "identityImg",
-          "wireName" : "identityImg",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n4",
-          "caseInsensitive" : null
-        }, {
-          "name" : "identityType",
-          "wireName" : "identityType",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "invoiceInfo",
-          "wireName" : "invoiceInfo",
-          "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#开票信息" ],
-          "nodeId" : "n17",
-          "caseInsensitive" : null
-        }, {
-          "name" : "invoiceInfoHash",
-          "wireName" : "invoiceInfoHash",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "lastStatusDesc",
-          "wireName" : "lastStatusDesc",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "lastStatusTime",
-          "wireName" : "lastStatusTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "lastUpdateTime",
-          "wireName" : "lastUpdateTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "legalInfo",
-          "wireName" : "legalInfo",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n16",
-          "caseInsensitive" : null
-        }, {
-          "name" : "logo",
-          "wireName" : "logo",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "maintainOrg",
-          "wireName" : "maintainOrg",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n10",
-          "caseInsensitive" : null
-        }, {
-          "name" : "maintainOrgId",
-          "wireName" : "maintainOrgId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "maintainUser",
-          "wireName" : "maintainUser",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n18",
-          "caseInsensitive" : null
-        }, {
-          "name" : "maintainUserId",
-          "wireName" : "maintainUserId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "optimisticLock",
-          "wireName" : "optimisticLock",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "orderCode",
-          "wireName" : "orderCode",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "remark",
-          "wireName" : "remark",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "shippingInfo",
-          "wireName" : "shippingInfo",
-          "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#邮寄信息" ],
-          "nodeId" : "n19",
-          "caseInsensitive" : null
-        }, {
-          "name" : "shippingInfoHash",
-          "wireName" : "shippingInfoHash",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "shortName",
-          "wireName" : "shortName",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "subjectName",
-          "wireName" : "subjectName",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "subjectOrg",
-          "wireName" : "subjectOrg",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n10",
-          "caseInsensitive" : null
-        }, {
-          "name" : "subjectOrgId",
-          "wireName" : "subjectOrgId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "subjectType",
-          "wireName" : "subjectType",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "subjectUser",
-          "wireName" : "subjectUser",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n18",
-          "caseInsensitive" : null
-        }, {
-          "name" : "subjectUserId",
-          "wireName" : "subjectUserId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "supportCertificationEventsByCurrentStatus",
-          "wireName" : "supportCertificationEventsByCurrentStatus",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n4",
-          "caseInsensitive" : null
-        }, {
-          "name" : "tenantId",
-          "wireName" : "tenantId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "tenantName",
-          "wireName" : "tenantName",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "unifiedCreditNo",
-          "wireName" : "unifiedCreditNo",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        } ],
-        "elementNodeId" : null,
-        "valueNodeId" : null,
-        "selectorNodeId" : null
-      },
-      "n14" : {
-        "kind" : "array",
-        "caseInsensitive" : false,
-        "locale" : "und",
-        "fields" : [ ],
-        "elementNodeId" : "n15",
-        "valueNodeId" : null,
-        "selectorNodeId" : null
-      },
-      "n15" : {
-        "kind" : "object",
-        "caseInsensitive" : false,
-        "locale" : "und",
-        "fields" : [ {
-          "name" : "action",
-          "wireName" : "action",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "afterStatus",
-          "wireName" : "afterStatus",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "beforeStatus",
-          "wireName" : "beforeStatus",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "extInfo",
-          "wireName" : "extInfo",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n5",
-          "caseInsensitive" : null
-        }, {
-          "name" : "occurTime",
-          "wireName" : "occurTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "operator",
-          "wireName" : "operator",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "remark",
-          "wireName" : "remark",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        } ],
-        "elementNodeId" : null,
-        "valueNodeId" : null,
-        "selectorNodeId" : null
-      },
-      "n16" : {
-        "kind" : "object",
-        "caseInsensitive" : false,
-        "locale" : "und",
-        "fields" : [ {
-          "name" : "email",
-          "wireName" : "email",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "idCard",
-          "wireName" : "idCard",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "idType",
-          "wireName" : "idType",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "legalIdBackImageUrl",
-          "wireName" : "legalIdBackImageUrl",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "legalIdFrontImageUrl",
-          "wireName" : "legalIdFrontImageUrl",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "mobilePhone",
-          "wireName" : "mobilePhone",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "name",
-          "wireName" : "name",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        } ],
-        "elementNodeId" : null,
-        "valueNodeId" : null,
-        "selectorNodeId" : null
-      },
-      "n17" : {
-        "kind" : "object",
-        "caseInsensitive" : false,
-        "locale" : "und",
-        "fields" : [ {
-          "name" : "bankAccount",
-          "wireName" : "bankAccount",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "bankName",
-          "wireName" : "bankName",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "invoiceEmail",
-          "wireName" : "invoiceEmail",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "name",
-          "wireName" : "name",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "taxNo",
-          "wireName" : "taxNo",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "taxRegisteredAddress",
-          "wireName" : "taxRegisteredAddress",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "taxRegisteredPhone",
-          "wireName" : "taxRegisteredPhone",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        } ],
-        "elementNodeId" : null,
-        "valueNodeId" : null,
-        "selectorNodeId" : null
-      },
-      "n18" : {
-        "kind" : "object",
-        "caseInsensitive" : false,
-        "locale" : "und",
-        "fields" : [ {
-          "name" : "admin",
-          "wireName" : "admin",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "aliOpenId",
-          "wireName" : "aliOpenId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "areaCode",
-          "wireName" : "areaCode",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "avatar",
-          "wireName" : "avatar",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "birthday",
-          "wireName" : "birthday",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "category",
-          "wireName" : "category",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "confidentialDataAccessLevel",
-          "wireName" : "confidentialDataAccessLevel",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "confidentialLevel",
-          "wireName" : "confidentialLevel",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "createTime",
-          "wireName" : "createTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "creator",
-          "wireName" : "creator",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "deniedDomainScopeList",
-          "wireName" : "deniedDomainScopeList",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n3",
-          "caseInsensitive" : null
-        }, {
-          "name" : "deniedOrgScopeList",
-          "wireName" : "deniedOrgScopeList",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n3",
-          "caseInsensitive" : null
-        }, {
-          "name" : "deniedTenantScopeList",
-          "wireName" : "deniedTenantScopeList",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n3",
-          "caseInsensitive" : null
-        }, {
-          "name" : "domainId",
-          "wireName" : "domainId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "domainList",
-          "wireName" : "domainList",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n4",
-          "caseInsensitive" : null
-        }, {
-          "name" : "domainScopeList",
-          "wireName" : "domainScopeList",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n3",
-          "caseInsensitive" : null
-        }, {
-          "name" : "editable",
-          "wireName" : "editable",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "email",
-          "wireName" : "email",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "enable",
-          "wireName" : "enable",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "exInfo",
-          "wireName" : "exInfo",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n5",
-          "caseInsensitive" : null
-        }, {
-          "name" : "expiredTime",
-          "wireName" : "expiredTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "id",
-          "wireName" : "id",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "jobPost",
-          "wireName" : "jobPost",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n9",
-          "caseInsensitive" : null
-        }, {
-          "name" : "jobPostCode",
-          "wireName" : "jobPostCode",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "joinDate",
-          "wireName" : "joinDate",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "lastLoginTime",
-          "wireName" : "lastLoginTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "lastUpdateTime",
-          "wireName" : "lastUpdateTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "level",
-          "wireName" : "level",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "lockExpiredTime",
-          "wireName" : "lockExpiredTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "loginName",
-          "wireName" : "loginName",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "mfaSecretKey",
-          "wireName" : "mfaSecretKey",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "name",
-          "wireName" : "name",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "nickname",
-          "wireName" : "nickname",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "optimisticLock",
-          "wireName" : "optimisticLock",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "orderCode",
-          "wireName" : "orderCode",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "org",
-          "wireName" : "org",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n10",
-          "caseInsensitive" : null
-        }, {
-          "name" : "orgId",
-          "wireName" : "orgId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "orgName",
-          "wireName" : "orgName",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "orgScopeList",
-          "wireName" : "orgScopeList",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n3",
-          "caseInsensitive" : null
-        }, {
-          "name" : "platformAdmin",
-          "wireName" : "platformAdmin",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "platformUser",
-          "wireName" : "platformUser",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "referrerId",
-          "wireName" : "referrerId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "referrerName",
-          "wireName" : "referrerName",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "registerIp",
-          "wireName" : "registerIp",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "registerSource",
-          "wireName" : "registerSource",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "remark",
-          "wireName" : "remark",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "roleList",
-          "wireName" : "roleList",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n4",
-          "caseInsensitive" : null
-        }, {
-          "name" : "sex",
-          "wireName" : "sex",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "signature",
-          "wireName" : "signature",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "staffNo",
-          "wireName" : "staffNo",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "state",
-          "wireName" : "state",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "superAdmin",
-          "wireName" : "superAdmin",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "tagList",
-          "wireName" : "tagList",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n4",
-          "caseInsensitive" : null
-        }, {
-          "name" : "telephone",
-          "wireName" : "telephone",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "tenantAdmin",
-          "wireName" : "tenantAdmin",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "tenantId",
-          "wireName" : "tenantId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "tenantName",
-          "wireName" : "tenantName",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "tenantScopeList",
-          "wireName" : "tenantScopeList",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n3",
-          "caseInsensitive" : null
-        }, {
-          "name" : "tenantUser",
-          "wireName" : "tenantUser",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "topSuperAdmin",
-          "wireName" : "topSuperAdmin",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "type",
-          "wireName" : "type",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "wxOpenId",
-          "wireName" : "wxOpenId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        } ],
-        "elementNodeId" : null,
-        "valueNodeId" : null,
-        "selectorNodeId" : null
-      },
       "n19" : {
-        "kind" : "object",
+        "kind" : "array",
         "caseInsensitive" : false,
         "locale" : "und",
-        "fields" : [ {
-          "name" : "address",
-          "wireName" : "address",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "areaCode",
-          "wireName" : "areaCode",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "contactName",
-          "wireName" : "contactName",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "contactPhone",
-          "wireName" : "contactPhone",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "nationCode",
-          "wireName" : "nationCode",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "zipCode",
-          "wireName" : "zipCode",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        } ],
-        "elementNodeId" : null,
+        "fields" : [ ],
+        "elementNodeId" : "n17",
         "valueNodeId" : null,
         "selectorNodeId" : null
       },
@@ -269187,6 +268417,13 @@
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
+          "name" : "fieldValueGrants",
+          "wireName" : "fieldValueGrants",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n9",
+          "caseInsensitive" : null
+        }, {
           "name" : "id",
           "wireName" : "id",
           "aliases" : [ ],
@@ -269198,7 +268435,7 @@
           "wireName" : "jobPost",
           "aliases" : [ ],
           "groupIds" : [ ],
-          "nodeId" : "n9",
+          "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
           "name" : "jobPostCode",
@@ -269296,7 +268533,7 @@
           "wireName" : "org",
           "aliases" : [ ],
           "groupIds" : [ ],
-          "nodeId" : "n10",
+          "nodeId" : "n17",
           "caseInsensitive" : null
         }, {
           "name" : "orgId",
@@ -269486,15 +268723,1009 @@
         "selectorNodeId" : null
       },
       "n20" : {
-        "kind" : "array",
+        "kind" : "object",
         "caseInsensitive" : false,
         "locale" : "und",
-        "fields" : [ ],
-        "elementNodeId" : "n21",
+        "fields" : [ {
+          "name" : "bankAccount",
+          "wireName" : "bankAccount",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#银行账户" ],
+          "nodeId" : "n18",
+          "caseInsensitive" : null
+        }, {
+          "name" : "bankAccountHash",
+          "wireName" : "bankAccountHash",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "businessPremises",
+          "wireName" : "businessPremises",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n4",
+          "caseInsensitive" : null
+        }, {
+          "name" : "certificationLog",
+          "wireName" : "certificationLog",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n21",
+          "caseInsensitive" : null
+        }, {
+          "name" : "certificationStatus",
+          "wireName" : "certificationStatus",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "cityCode",
+          "wireName" : "cityCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "confidentialLevel",
+          "wireName" : "confidentialLevel",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "contactInfo",
+          "wireName" : "contactInfo",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#联系人信息" ],
+          "nodeId" : "n23",
+          "caseInsensitive" : null
+        }, {
+          "name" : "createTime",
+          "wireName" : "createTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "creator",
+          "wireName" : "creator",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainId",
+          "wireName" : "domainId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "editable",
+          "wireName" : "editable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "enable",
+          "wireName" : "enable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "expiredTime",
+          "wireName" : "expiredTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "id",
+          "wireName" : "id",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "identityImg",
+          "wireName" : "identityImg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n4",
+          "caseInsensitive" : null
+        }, {
+          "name" : "identityType",
+          "wireName" : "identityType",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "invoiceInfo",
+          "wireName" : "invoiceInfo",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#开票信息" ],
+          "nodeId" : "n24",
+          "caseInsensitive" : null
+        }, {
+          "name" : "invoiceInfoHash",
+          "wireName" : "invoiceInfoHash",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastStatusDesc",
+          "wireName" : "lastStatusDesc",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastStatusTime",
+          "wireName" : "lastStatusTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastUpdateTime",
+          "wireName" : "lastUpdateTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "legalInfo",
+          "wireName" : "legalInfo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n23",
+          "caseInsensitive" : null
+        }, {
+          "name" : "logo",
+          "wireName" : "logo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "maintainOrg",
+          "wireName" : "maintainOrg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n17",
+          "caseInsensitive" : null
+        }, {
+          "name" : "maintainOrgId",
+          "wireName" : "maintainOrgId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "maintainUser",
+          "wireName" : "maintainUser",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n25",
+          "caseInsensitive" : null
+        }, {
+          "name" : "maintainUserId",
+          "wireName" : "maintainUserId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "optimisticLock",
+          "wireName" : "optimisticLock",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orderCode",
+          "wireName" : "orderCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "remark",
+          "wireName" : "remark",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "shippingInfo",
+          "wireName" : "shippingInfo",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#邮寄信息" ],
+          "nodeId" : "n26",
+          "caseInsensitive" : null
+        }, {
+          "name" : "shippingInfoHash",
+          "wireName" : "shippingInfoHash",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "shortName",
+          "wireName" : "shortName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectName",
+          "wireName" : "subjectName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectOrg",
+          "wireName" : "subjectOrg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n17",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectOrgId",
+          "wireName" : "subjectOrgId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectType",
+          "wireName" : "subjectType",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectUser",
+          "wireName" : "subjectUser",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n25",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectUserId",
+          "wireName" : "subjectUserId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "supportCertificationEventsByCurrentStatus",
+          "wireName" : "supportCertificationEventsByCurrentStatus",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n4",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantId",
+          "wireName" : "tenantId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantName",
+          "wireName" : "tenantName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "unifiedCreditNo",
+          "wireName" : "unifiedCreditNo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
         "valueNodeId" : null,
         "selectorNodeId" : null
       },
       "n21" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n22",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n22" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "action",
+          "wireName" : "action",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "afterStatus",
+          "wireName" : "afterStatus",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "beforeStatus",
+          "wireName" : "beforeStatus",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "extInfo",
+          "wireName" : "extInfo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n5",
+          "caseInsensitive" : null
+        }, {
+          "name" : "occurTime",
+          "wireName" : "occurTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "operator",
+          "wireName" : "operator",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "remark",
+          "wireName" : "remark",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n23" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "email",
+          "wireName" : "email",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "idCard",
+          "wireName" : "idCard",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "idType",
+          "wireName" : "idType",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "legalIdBackImageUrl",
+          "wireName" : "legalIdBackImageUrl",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "legalIdFrontImageUrl",
+          "wireName" : "legalIdFrontImageUrl",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "mobilePhone",
+          "wireName" : "mobilePhone",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n24" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "bankAccount",
+          "wireName" : "bankAccount",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "bankName",
+          "wireName" : "bankName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "invoiceEmail",
+          "wireName" : "invoiceEmail",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "taxNo",
+          "wireName" : "taxNo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "taxRegisteredAddress",
+          "wireName" : "taxRegisteredAddress",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "taxRegisteredPhone",
+          "wireName" : "taxRegisteredPhone",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n25" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "admin",
+          "wireName" : "admin",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "aliOpenId",
+          "wireName" : "aliOpenId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "areaCode",
+          "wireName" : "areaCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "avatar",
+          "wireName" : "avatar",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "birthday",
+          "wireName" : "birthday",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "category",
+          "wireName" : "category",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "confidentialDataAccessLevel",
+          "wireName" : "confidentialDataAccessLevel",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "confidentialLevel",
+          "wireName" : "confidentialLevel",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "createTime",
+          "wireName" : "createTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "creator",
+          "wireName" : "creator",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "deniedDomainScopeList",
+          "wireName" : "deniedDomainScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "deniedOrgScopeList",
+          "wireName" : "deniedOrgScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "deniedTenantScopeList",
+          "wireName" : "deniedTenantScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainId",
+          "wireName" : "domainId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainList",
+          "wireName" : "domainList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n4",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainScopeList",
+          "wireName" : "domainScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "editable",
+          "wireName" : "editable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "email",
+          "wireName" : "email",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "enable",
+          "wireName" : "enable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "exInfo",
+          "wireName" : "exInfo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n5",
+          "caseInsensitive" : null
+        }, {
+          "name" : "expiredTime",
+          "wireName" : "expiredTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "id",
+          "wireName" : "id",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "jobPost",
+          "wireName" : "jobPost",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n16",
+          "caseInsensitive" : null
+        }, {
+          "name" : "jobPostCode",
+          "wireName" : "jobPostCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "joinDate",
+          "wireName" : "joinDate",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastLoginTime",
+          "wireName" : "lastLoginTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastUpdateTime",
+          "wireName" : "lastUpdateTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "level",
+          "wireName" : "level",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lockExpiredTime",
+          "wireName" : "lockExpiredTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "loginName",
+          "wireName" : "loginName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "mfaSecretKey",
+          "wireName" : "mfaSecretKey",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "nickname",
+          "wireName" : "nickname",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "optimisticLock",
+          "wireName" : "optimisticLock",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orderCode",
+          "wireName" : "orderCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "org",
+          "wireName" : "org",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n17",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orgId",
+          "wireName" : "orgId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orgName",
+          "wireName" : "orgName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orgScopeList",
+          "wireName" : "orgScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "platformAdmin",
+          "wireName" : "platformAdmin",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "platformUser",
+          "wireName" : "platformUser",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "referrerId",
+          "wireName" : "referrerId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "referrerName",
+          "wireName" : "referrerName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "registerIp",
+          "wireName" : "registerIp",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "registerSource",
+          "wireName" : "registerSource",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "remark",
+          "wireName" : "remark",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "roleList",
+          "wireName" : "roleList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n4",
+          "caseInsensitive" : null
+        }, {
+          "name" : "sex",
+          "wireName" : "sex",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "signature",
+          "wireName" : "signature",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "staffNo",
+          "wireName" : "staffNo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "state",
+          "wireName" : "state",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "superAdmin",
+          "wireName" : "superAdmin",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tagList",
+          "wireName" : "tagList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n4",
+          "caseInsensitive" : null
+        }, {
+          "name" : "telephone",
+          "wireName" : "telephone",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantAdmin",
+          "wireName" : "tenantAdmin",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantId",
+          "wireName" : "tenantId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantName",
+          "wireName" : "tenantName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantScopeList",
+          "wireName" : "tenantScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantUser",
+          "wireName" : "tenantUser",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "topSuperAdmin",
+          "wireName" : "topSuperAdmin",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "type",
+          "wireName" : "type",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "wxOpenId",
+          "wireName" : "wxOpenId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n26" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "address",
+          "wireName" : "address",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "areaCode",
+          "wireName" : "areaCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "contactName",
+          "wireName" : "contactName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "contactPhone",
+          "wireName" : "contactPhone",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "nationCode",
+          "wireName" : "nationCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "zipCode",
+          "wireName" : "zipCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n27" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n28",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n28" : {
         "kind" : "object",
         "caseInsensitive" : false,
         "locale" : "und",
@@ -269503,7 +269734,7 @@
           "wireName" : "actions",
           "aliases" : [ ],
           "groupIds" : [ ],
-          "nodeId" : "n22",
+          "nodeId" : "n29",
           "caseInsensitive" : null
         }, {
           "name" : "info",
@@ -269531,16 +269762,25 @@
         "valueNodeId" : null,
         "selectorNodeId" : null
       },
-      "n22" : {
+      "n29" : {
         "kind" : "array",
         "caseInsensitive" : false,
         "locale" : "und",
         "fields" : [ ],
-        "elementNodeId" : "n23",
+        "elementNodeId" : "n30",
         "valueNodeId" : null,
         "selectorNodeId" : null
       },
-      "n23" : {
+      "n3" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n1",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n30" : {
         "kind" : "object",
         "caseInsensitive" : false,
         "locale" : "und",
@@ -269574,15 +269814,6 @@
           "caseInsensitive" : null
         } ],
         "elementNodeId" : null,
-        "valueNodeId" : null,
-        "selectorNodeId" : null
-      },
-      "n3" : {
-        "kind" : "array",
-        "caseInsensitive" : false,
-        "locale" : "und",
-        "fields" : [ ],
-        "elementNodeId" : "n1",
         "valueNodeId" : null,
         "selectorNodeId" : null
       },
@@ -269664,106 +269895,15 @@
         "caseInsensitive" : false,
         "locale" : "und",
         "fields" : [ {
-          "name" : "code",
-          "wireName" : "code",
+          "name" : "allowed",
+          "wireName" : "allowed",
           "aliases" : [ ],
           "groupIds" : [ ],
-          "nodeId" : "n1",
+          "nodeId" : "n10",
           "caseInsensitive" : null
         }, {
-          "name" : "createTime",
-          "wireName" : "createTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "creator",
-          "wireName" : "creator",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "domainId",
-          "wireName" : "domainId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "editable",
-          "wireName" : "editable",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "enable",
-          "wireName" : "enable",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "id",
-          "wireName" : "id",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "lastUpdateTime",
-          "wireName" : "lastUpdateTime",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "name",
-          "wireName" : "name",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "optimisticLock",
-          "wireName" : "optimisticLock",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "orderCode",
-          "wireName" : "orderCode",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "remark",
-          "wireName" : "remark",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "tenantId",
-          "wireName" : "tenantId",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "tenantName",
-          "wireName" : "tenantName",
-          "aliases" : [ ],
-          "groupIds" : [ ],
-          "nodeId" : "n1",
-          "caseInsensitive" : null
-        }, {
-          "name" : "type",
-          "wireName" : "type",
+          "name" : "version",
+          "wireName" : "version",
           "aliases" : [ ],
           "groupIds" : [ ],
           "nodeId" : "n1",
