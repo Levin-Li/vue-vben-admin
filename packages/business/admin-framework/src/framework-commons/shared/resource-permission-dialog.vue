@@ -14,11 +14,13 @@ import { Alert, message, Modal, Spin } from 'ant-design-vue';
 import { buildModuleRequestPath } from '../api';
 import { rbacService } from '../app/api/rbac-service';
 import { requestClient } from '../runtime';
+import { parseApiScopedGrant } from './api-scoped-grant';
 import { OAK_BASE_API_MODULE } from './config-helpers';
 import {
   collectKnownPermissionTreeValues,
   collectKnownPermissionValues,
   collectPermissionValues,
+  mergeUnmappedPermissions,
   splitMappedAndUnmappedPermissions,
 } from './data-permission-transform';
 import ResourcePermissionTreeEditor from './resource-permission-tree-editor.vue';
@@ -60,6 +62,7 @@ const menuTree = ref<RbacMenuNode[]>([]);
 const permissionTree = ref<PermissionTreeNode[]>([]);
 const saving = ref(false);
 const selectedPermissions = ref<string[]>([]);
+const unmappedPermissions = ref<string[]>([]);
 
 const summaryText = computed(() => {
   if (!detail.value) {
@@ -119,6 +122,7 @@ async function loadData() {
       permissionTree.value,
     );
     selectedPermissions.value = permissionState.mapped;
+    unmappedPermissions.value = permissionState.unmapped;
   } catch (error) {
     console.error(error);
     errorMessage.value = '加载资源权限信息失败，请稍后重试。';
@@ -132,10 +136,17 @@ async function handleSave() {
     return;
   }
 
-  const permissions = collectPermissionValues(selectedPermissions.value);
-  const invalidPermissions = permissions.filter(
-    (permission) => !permission || !knownPermissionValues.value.has(permission),
-  );
+  const selected = collectPermissionValues(selectedPermissions.value);
+  const invalidPermissions = selected.filter((permission) => {
+    if (!permission) return true;
+    if (knownPermissionValues.value.has(permission)) return false;
+    try {
+      const grant = parseApiScopedGrant(permission);
+      return !grant || !knownPermissionValues.value.has(grant.operation);
+    } catch {
+      return true;
+    }
+  });
 
   if (invalidPermissions.length > 0) {
     errorMessage.value = `存在无效权限表达式，未提交保存：${invalidPermissions.join('、')}`;
@@ -145,6 +156,11 @@ async function handleSave() {
   saving.value = true;
 
   try {
+    // 历史未知许可只原样保留，当前界面不得在加载和保存之间静默抹除。
+    const permissions = mergeUnmappedPermissions(
+      selected,
+      unmappedPermissions.value,
+    );
     const payload: Record<string, any> = {
       autoForceUpdateField: false,
       forceUpdateFields: [props.permissionField],

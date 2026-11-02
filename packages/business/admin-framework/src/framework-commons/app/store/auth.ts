@@ -29,6 +29,7 @@ import {
   initializeDataAttrFieldGrants,
   suspendDataAttrPolicies,
 } from '../../data-attr-policy';
+import { initializeFieldValueGrants } from '../../shared/crud-field-value-scope';
 import {
   INITIAL_PASSWORD_CHANGE_PATH,
   mustChangeInitialPassword,
@@ -216,6 +217,7 @@ export const useAuthStore = defineStore('auth', () => {
       initializeDataAttrFieldGrants(
         userStore.userInfo?.fieldGroupGrants ?? { version: 1, allowed: [] },
       );
+      initializeFieldValueGrants(userStore.userInfo?.fieldValueGrants);
       assertCurrentSession();
       await initializeAdminSession();
       assertCurrentSession();

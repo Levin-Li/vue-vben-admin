@@ -54,9 +54,16 @@ export function canMutateCrudRecord(
   record: Record<string, any>,
   userInfo: unknown,
 ) {
-  return (
+  // 明确的只读标志属于记录本身，不能因页面省略 editable 控件而失效。
+  const user = (userInfo || {}) as Record<string, unknown>;
+  if (
     isSuperAdminUser(userInfo) ||
-    !hasCrudEditableField(fields) ||
-    record.editable === true
-  );
+    user.topSuperAdmin === true ||
+    user.isTopSuperAdmin === true
+  )
+    return true;
+  if (record.editable === false) return false;
+
+  // 未携带该能力的普通记录保持原有行为；已声明能力的记录仍要求显式可编辑。
+  return !hasCrudEditableField(fields) || record.editable === true;
 }

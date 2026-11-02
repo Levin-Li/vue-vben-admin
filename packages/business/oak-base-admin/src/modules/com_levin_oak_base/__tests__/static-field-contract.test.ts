@@ -70,4 +70,94 @@ describe('基础模块静态字段契约', () => {
       warning.mockRestore();
     }
   });
+
+  it.each([
+    ['LegalSubject', ['subject', 'maintain']],
+    ['Customer', ['subject', 'sales', 'presales', 'aftersales', 'finance']],
+    ['Partner', ['subject', 'sales', 'presales', 'aftersales', 'finance']],
+    [
+      'SupplierPartner',
+      ['subject', 'sales', 'presales', 'aftersales', 'finance'],
+    ],
+    [
+      'ChannelPartner',
+      ['subject', 'sales', 'presales', 'aftersales', 'finance'],
+    ],
+  ] as const)('%s 的主档响应只包含新的多方归属字段', (resource, parties) => {
+    const policy = contract.policies.find((item) =>
+      item.pathPatterns.includes(
+        `/com.levin.oak.base/V1/api/${resource}/retrieve`,
+      ),
+    );
+    if (!policy) throw new Error(`缺少 ${resource} 详情契约`);
+    const roots = policy.viewRoots.response;
+    const fields = roots.flatMap((root) =>
+      ((policy.nodes as Record<string, any>)[root]?.fields || []).map(
+        (field: { wireName: string }) => field.wireName,
+      ),
+    );
+    for (const party of parties) {
+      expect(fields).toContain(`${party}OrgId`);
+      expect(fields).toContain(`${party}UserId`);
+      expect(fields).toContain(`${party}Org`);
+      expect(fields).toContain(`${party}User`);
+    }
+    expect(fields).not.toContain('orgId');
+    expect(fields).not.toContain('ownerId');
+  });
+
+  it.each([
+    ['LegalSubject', 'update', ['subject', 'maintain']],
+    [
+      'SupplierPartner',
+      'updateSupplierPartner',
+      ['subject', 'sales', 'presales', 'aftersales', 'finance'],
+    ],
+    [
+      'ChannelPartner',
+      'updateChannelPartner',
+      ['subject', 'sales', 'presales', 'aftersales', 'finance'],
+    ],
+  ] as const)(
+    '%s 的受字段策略控制的写入契约识别多方 ID',
+    (resource, action, parties) => {
+      const policy = contract.policies.find((item) =>
+        item.pathPatterns.includes(
+          `/com.levin.oak.base/V1/api/${resource}/${action}`,
+        ),
+      );
+      if (!policy) throw new Error(`缺少 ${resource} 写入契约`);
+      const fields = policy.viewRoots.request.flatMap((root) =>
+        ((policy.nodes as Record<string, any>)[root]?.fields || []).map(
+          (field: { wireName: string }) => field.wireName,
+        ),
+      );
+      for (const party of parties) {
+        expect(fields).toContain(`${party}OrgId`);
+        expect(fields).toContain(`${party}UserId`);
+      }
+      expect(fields).not.toContain('orgId');
+      expect(fields).not.toContain('ownerId');
+    },
+  );
+
+  it('无字段分组的客户保存仍显式声明为不受字段组裁剪', async () => {
+    registerOakDataAttrContract();
+    initializeDataAttrFieldGrants({ version: 1, allowed: [] });
+    const policy = await loadDataAttrPolicy(
+      'POST',
+      '/com.levin.oak.base/V1/api/Customer/saveCustomer',
+    );
+    expect(policy.restricted).toBe(false);
+    for (const party of [
+      'subject',
+      'sales',
+      'presales',
+      'aftersales',
+      'finance',
+    ]) {
+      expect(fieldAllowed(policy, 'input', `${party}OrgId`)).toBe(true);
+      expect(fieldAllowed(policy, 'input', `${party}UserId`)).toBe(true);
+    }
+  });
 });

@@ -11,10 +11,9 @@ import { computed, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Radio, Space, Tag } from 'ant-design-vue';
-
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
 import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
+import { Button, Card, Radio, Space, Tag } from 'ant-design-vue';
 
 const mockOrgTree = [
   {
@@ -68,14 +67,12 @@ const permissionModules: RbacModuleNode[] = [
               {
                 action: '新增',
                 id: 'menu-user-create',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-用户::新增',
+                permissionExpr: 'com.levin.oak.base:系统数据-用户::新增',
               },
               {
                 action: '修改',
                 id: 'menu-user-update',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-用户::修改',
+                permissionExpr: 'com.levin.oak.base:系统数据-用户::修改',
               },
             ],
           },
@@ -98,14 +95,12 @@ const permissionModules: RbacModuleNode[] = [
               {
                 action: '查询列表',
                 id: 'role-list',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-角色::查询列表',
+                permissionExpr: 'com.levin.oak.base:系统数据-角色::查询列表',
               },
               {
                 action: '分配权限',
                 id: 'role-permission',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-角色::分配权限',
+                permissionExpr: 'com.levin.oak.base:系统数据-角色::分配权限',
               },
             ],
           },
@@ -116,8 +111,7 @@ const permissionModules: RbacModuleNode[] = [
               {
                 action: '查询列表',
                 id: 'user-list',
-                permissionExpr:
-                  'com.levin.oak.base:系统数据-用户::查询列表',
+                permissionExpr: 'com.levin.oak.base:系统数据-用户::查询列表',
               },
               {
                 action: '数据权限分配',
@@ -165,26 +159,26 @@ const permissionTree: PermissionTreeNode[] = [
   {
     id: 'system',
     name: '系统管理',
-    nodeType: 'group',
+    nodeType: 'Group',
     remark: '仅用于组织系统管理相关权限',
     children: [
       {
         id: 'role',
         name: '角色',
-        nodeType: 'resource',
+        nodeType: 'Resource',
         remark: '角色资源下的操作权限',
         children: [
           {
             id: 'role-list',
             name: '查询列表',
-            nodeType: 'action',
+            nodeType: 'Action',
             permissionExpr: 'com.levin.oak.base:系统数据-角色::查询列表',
             remark: '允许查看角色列表',
           },
           {
             id: 'role-permission',
             name: '分配权限',
-            nodeType: 'action',
+            nodeType: 'Action',
             permissionExpr: 'com.levin.oak.base:系统数据-角色::分配权限',
             remark: '允许打开角色权限分配弹窗',
           },
@@ -193,22 +187,61 @@ const permissionTree: PermissionTreeNode[] = [
       {
         id: 'user',
         name: '用户',
-        nodeType: 'resource',
+        nodeType: 'Resource',
         remark: '用户资源下的操作权限',
         children: [
           {
             id: 'user-list',
             name: '查询列表',
-            nodeType: 'action',
+            nodeType: 'Action',
             permissionExpr: 'com.levin.oak.base:系统数据-用户::查询列表',
             remark: '允许查看用户列表',
+            dataAttrs: [
+              {
+                attribute: 'category',
+                entityClass: 'com.example.User',
+                name: '用户类别',
+                sourceKind: 'enum',
+                sourceKey: 'com.example.UserCategory',
+                values: [
+                  {
+                    name: 'Customer',
+                    label: '客户',
+                    permissionExpr: 'demo:enum:customer',
+                  },
+                  {
+                    name: 'Supplier',
+                    label: '供应商',
+                    permissionExpr: 'demo:enum:supplier',
+                  },
+                ],
+              },
+              {
+                attribute: 'level',
+                entityClass: 'com.example.User',
+                name: '客户等级',
+                sourceKind: 'dict',
+                sourceKey: 'demo.customer.level',
+                values: [
+                  {
+                    name: 'VIP',
+                    label: '重要客户',
+                    permissionExpr: 'demo:dict:vip',
+                  },
+                  {
+                    name: 'NORMAL',
+                    label: '普通客户',
+                    permissionExpr: 'demo:dict:normal',
+                  },
+                ],
+              },
+            ],
           },
           {
             id: 'user-data-permission',
             name: '数据权限分配',
-            nodeType: 'action',
-            permissionExpr:
-              'com.levin.oak.base:系统数据-用户::数据权限分配',
+            nodeType: 'Action',
+            permissionExpr: 'com.levin.oak.base:系统数据-用户::数据权限分配',
             remark: '允许维护用户数据权限',
           },
         ],
@@ -218,12 +251,12 @@ const permissionTree: PermissionTreeNode[] = [
   {
     id: 'content',
     name: '内容管理',
-    nodeType: 'group',
+    nodeType: 'Group',
     children: [
       {
         id: 'article',
         name: '文章发布',
-        nodeType: 'action',
+        nodeType: 'Action',
         permissionExpr: 'com.demo.content:内容数据-文章::发布',
         remark: '允许发布内容文章',
       },
@@ -314,6 +347,7 @@ const userPreviewPayload: DataPermissionPreviewPayload = {
 
 const selectedPermissions = ref<string[]>([
   'com.levin.oak.base:系统数据-角色::查询列表',
+  'com.levin.oak.base:系统数据-用户::查询列表',
 ]);
 const dataPermissionOpen = ref(false);
 const dataPermissionSubjectType = ref<DataPermissionSubjectType>('role');
@@ -324,7 +358,9 @@ const dataPermissionPreviewPayload = computed(() =>
     : userPreviewPayload,
 );
 
-const selectedPermissionCount = computed(() => selectedPermissions.value.length);
+const selectedPermissionCount = computed(
+  () => selectedPermissions.value.length,
+);
 
 function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -332,15 +368,9 @@ function formatJson(value: unknown) {
 </script>
 
 <template>
-  <Page
-    description="按权限分配业务拆分的公共组件演示页面。"
-    title="权限分配"
-  >
+  <Page description="按权限分配业务拆分的公共组件演示页面。" title="权限分配">
     <div class="space-y-5">
-      <Card
-        class="border-border border"
-        title="资源权限分配"
-      >
+      <Card class="border-border border" title="资源权限分配">
         <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <ResourcePermissionTreeEditor
             v-model:value="selectedPermissions"
@@ -349,32 +379,39 @@ function formatJson(value: unknown) {
             :permission-tree="permissionTree"
           />
 
-          <div class="space-y-3 rounded-lg border border-border p-4">
+          <div class="border-border space-y-3 rounded-lg border p-4">
             <div class="flex items-center justify-between gap-3">
-              <div class="font-medium text-foreground">已选权限表达式</div>
+              <div class="text-foreground font-medium">已选权限表达式</div>
               <Tag>{{ selectedPermissionCount }}</Tag>
             </div>
-            <pre class="max-h-[420px] overflow-auto rounded-lg bg-muted p-3 text-xs text-foreground">{{ formatJson(selectedPermissions) }}</pre>
+            <pre
+              class="bg-muted text-foreground max-h-[420px] overflow-auto rounded-lg p-3 text-xs"
+              v-text="formatJson(selectedPermissions)"
+            ></pre>
           </div>
         </div>
       </Card>
 
-      <Card
-        class="border-border border"
-        title="数据权限分配"
-      >
+      <Card class="border-border border" title="数据权限分配">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div class="space-y-1">
-            <div class="font-medium text-foreground">
-              {{ dataPermissionSubjectType === 'role' ? '角色数据权限分配预览' : '用户数据权限分配预览' }}
+            <div class="text-foreground font-medium">
+              {{
+                dataPermissionSubjectType === 'role'
+                  ? '角色数据权限分配预览'
+                  : '用户数据权限分配预览'
+              }}
             </div>
-            <div class="text-sm text-muted-foreground">
+            <div class="text-muted-foreground text-sm">
               使用静态 previewPayload 打开共享弹窗，保存时只模拟预览模式。
             </div>
           </div>
 
           <Space wrap>
-            <Radio.Group v-model:value="dataPermissionSubjectType" button-style="solid">
+            <Radio.Group
+              v-model:value="dataPermissionSubjectType"
+              button-style="solid"
+            >
               <Radio.Button value="role">角色预览</Radio.Button>
               <Radio.Button value="user">用户预览</Radio.Button>
             </Radio.Group>

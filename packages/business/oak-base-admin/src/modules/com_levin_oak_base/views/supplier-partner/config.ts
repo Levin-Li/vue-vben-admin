@@ -39,7 +39,7 @@ export const supplierPartnerPageCrudConfig: CrudPageConfig =
     title: '供应伙伴',
     fields: [
       ...partnerCommonFields.map((field) =>
-        field.key === 'orgId'
+        field.key === 'parentOrgId'
           ? {
               ...field,
               label: '新供应伙伴组织的内部父级',

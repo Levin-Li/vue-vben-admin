@@ -7,7 +7,7 @@ type ChannelPartner = {
   enable?: boolean;
   id?: number | string;
   legalSubjectName?: string;
-  orgId?: number | string;
+  subjectOrgId?: number | string;
   type?: string;
 };
 
@@ -38,7 +38,7 @@ export async function loadChannelPartnerPage(
           partner.enable !== false,
       )
       .map((partner) => ({
-        label: `${partner.displayName || `渠道伙伴 ${partner.id}`} · 组织 ${partner.orgId || '当前组织'} · ${partner.type || '渠道'}`,
+        label: `${partner.displayName || `渠道伙伴 ${partner.id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '渠道'}`,
         value: partner.id as number | string,
       })),
   };

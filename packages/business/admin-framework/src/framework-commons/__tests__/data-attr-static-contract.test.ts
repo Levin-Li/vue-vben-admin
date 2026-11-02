@@ -9,6 +9,7 @@ import {
   loadDataAttrPolicy,
   registerDataAttrStaticContract,
 } from '../data-attr-policy';
+import { RbacPermissionMatchUtils } from '../rbac-permission-match';
 
 const definition: DataAttrStaticPolicy = {
   id: 'static-contract-test',
@@ -39,6 +40,29 @@ beforeEach(() => {
   clearDataAttrPolicies();
 });
 describe('开发期字段静态契约', () => {
+  it('只将静态契约登记的 API 操作作为复合授权的前端调用权限', () => {
+    const operation = 'example:系统数据-用户::查询列表';
+    registerDataAttrStaticContract({
+      version: 1,
+      policies: [
+        {
+          ...definition,
+          id: 'scoped-operation',
+          operation,
+          pathPatterns: ['/scoped-operation/items'],
+        },
+      ],
+    });
+    const grant = '@example:系统数据-用户::*:@财务信息';
+    expect(RbacPermissionMatchUtils.simpleMatch(operation, grant)).toBe(true);
+    expect(
+      RbacPermissionMatchUtils.simpleMatch(
+        'example:系统数据-用户::未登记操作',
+        grant,
+      ),
+    ).toBe(false);
+  });
+
   it('按操作和分组合并授权，切换身份后保留静态声明', async () => {
     registerDataAttrStaticContract({ version: 1, policies: [definition] });
     initializeDataAttrFieldGrants({

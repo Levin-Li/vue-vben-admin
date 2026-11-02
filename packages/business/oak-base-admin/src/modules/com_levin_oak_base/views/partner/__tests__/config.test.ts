@@ -1,3 +1,4 @@
+import { resolveDetailFields } from '@levin/admin-framework/framework-commons/shared/detail-display';
 import { describe, expect, it, vi } from 'vitest';
 
 import { channelPartnerPageCrudConfig } from '../../channel-partner/config';
@@ -23,6 +24,7 @@ vi.mock('../../api-module', () => ({
   },
   DEFAULT_CRUD_MODAL_WIDTH: 960,
   tenantOptionsLoader: async () => [],
+  userOptionsLoader: async () => [],
   withModuleCrudConfig: (config: any) => config,
 }));
 
@@ -35,21 +37,22 @@ describe('合作关系公共资料', () => {
       expect(keys).not.toContain(key);
     expect(keys).not.toContain('ownerId');
     expect(
-      partnerCommonFields.find((field) => field.key === 'orgId'),
+      partnerCommonFields.find((field) => field.key === 'parentOrgId'),
     ).toMatchObject({
       formCreate: true,
       formEdit: false,
       type: 'select',
     });
     expect(
-      partnerCommonFields.find((field) => field.key === 'orgName'),
+      partnerCommonFields.find((field) => field.key === 'subjectOrgId'),
     ).toMatchObject({
       formCreate: false,
-      formEdit: true,
       disabledOnEdit: true,
+      omitOnEdit: true,
     });
     expect(
-      partnerCommonFields.find((field) => field.key === 'orgId')?.required,
+      partnerCommonFields.find((field) => field.key === 'parentOrgId')
+        ?.required,
     ).not.toBe(true);
     expect(
       partnerCommonFields.find((field) => field.key === 'legalSubjectId')
@@ -87,12 +90,12 @@ describe('合作关系公共资料', () => {
     expect(supplierTypeField?.help).toBeUndefined();
     expect(
       supplierPartnerPageCrudConfig.fields.find(
-        (field) => field.key === 'orgId',
+        (field) => field.key === 'parentOrgId',
       ),
     ).toMatchObject({ label: '新供应伙伴组织的内部父级' });
     expect(
       channelPartnerPageCrudConfig.fields.find(
-        (field) => field.key === 'orgId',
+        (field) => field.key === 'parentOrgId',
       ),
     ).toMatchObject({ label: '新渠道伙伴组织的内部父级' });
     expect(optionLoaderCalls.filter((args) => args[0] === '/Org/list')).toEqual(
@@ -136,4 +139,33 @@ describe('合作关系公共资料', () => {
       ],
     );
   });
+  it.each([supplierPartnerPageCrudConfig, channelPartnerPageCrudConfig])(
+    '伙伴详情不重复显示五方关联对象及内部字段',
+    (config) => {
+      const record: Record<string, unknown> = {
+        optimisticLock: 1,
+        creator: 'u1',
+        actionLog: [],
+        supportEventsByCurrentStatus: [],
+        legalSubject: {},
+      };
+      for (const party of [
+        'subject',
+        'sales',
+        'presales',
+        'aftersales',
+        'finance',
+      ]) {
+        record[`${party}OrgId`] = 'org-1';
+        record[`${party}UserId`] = 'u1';
+        record[`${party}Org`] = {};
+        record[`${party}User`] = {};
+      }
+      const fields = resolveDetailFields(record, config.fields);
+      expect(fields).toHaveLength(10);
+      expect(fields.every((field) => /(?:OrgId|UserId)$/.test(field.key))).toBe(
+        true,
+      );
+    },
+  );
 });

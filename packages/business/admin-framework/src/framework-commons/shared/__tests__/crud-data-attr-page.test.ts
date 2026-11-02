@@ -32,10 +32,12 @@ const mocks = vi.hoisted(() => ({
   request: vi.fn(),
   delete: vi.fn(),
   error: vi.fn(),
+  success: vi.fn(),
   download: vi.fn(),
   warning: vi.fn(),
   setPageKeepAlive: vi.fn(),
   permissionAllowed: true,
+  permissionCodes: null as null | string[],
   route: {
     path: '/contracts',
     matched: [],
@@ -68,9 +70,31 @@ vi.mock('../../runtime', () => ({
     delete: mocks.delete,
   },
 }));
-vi.mock('../../rbac-access', () => ({
-  useRbacAccess: () => ({ hasPermission: () => mocks.permissionAllowed }),
-}));
+vi.mock('../../rbac-access', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../rbac-access')>();
+  return {
+    ...actual,
+    useRbacAccess: () => ({
+      hasPermission: (permission?: string | string[]) => {
+        if (!mocks.permissionAllowed) return false;
+        if (mocks.permissionCodes === null) return true;
+        if (!permission || permission.length === 0) return true;
+        const requirements = Array.isArray(permission)
+          ? permission
+          : [permission];
+        return (
+          requirements.length === 0 ||
+          requirements.some((required) =>
+            actual.matchRbacPermissionList(
+              required,
+              mocks.permissionCodes || [],
+            ),
+          )
+        );
+      },
+    }),
+  };
+});
 vi.mock('@vben/runtime/stores', () => ({
   getTabKey: (route: { fullPath?: string; path: string }) =>
     route.fullPath || route.path,
@@ -88,7 +112,7 @@ vi.mock('ant-design-vue', async (importOriginal) => ({
   message: {
     error: mocks.error,
     warning: mocks.warning,
-    success: vi.fn(),
+    success: mocks.success,
     info: vi.fn(),
   },
 }));
@@ -161,6 +185,7 @@ function setupState(wrapper: ReturnType<typeof shallowMount>) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.permissionAllowed = true;
+  mocks.permissionCodes = null;
   mocks.user.userInfo = { id: 'tester' };
   mocks.route.meta = {};
   mocks.get.mockImplementation(async (path: string) =>
@@ -176,6 +201,414 @@ beforeEach(() => {
       policy('operation' in query ? query.operation : 'contract:合同::操作'),
     ],
   }));
+});
+
+describe('crud 写操作零影响结果', () => {
+  function unrestrictedPolicy() {
+    return {
+      ...policy(),
+      restricted: false,
+      groups: [],
+      nodes: {},
+      requestRoots: [],
+      responseRoot: null,
+      viewRoots: { request: [], response: [] },
+    };
+  }
+
+  async function mountWithResult(result: unknown) {
+    const record = { id: '1', name: '原名称', enabled: true, editable: true };
+    const list = vi.fn().mockResolvedValue({ items: [record], totals: 1 });
+    const update = vi.fn().mockResolvedValue(result);
+    const remove = vi.fn().mockResolvedValue(result);
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          fields: [
+            { key: 'name', label: '名称', form: true },
+            {
+              key: 'enabled',
+              label: '启用',
+              type: 'switch',
+              valueType: 'boolean',
+            },
+          ],
+          apiService: { list, update, delete: remove },
+          dataAttrPolicyProvider: unrestrictedPolicy,
+        }),
+      },
+    });
+    await flushPromises();
+    return { record, list, update, remove, vm: setupState(wrapper) };
+  }
+
+  it('更新零影响时保留编辑表单并提示未生效', async () => {
+    const { record, list, update, vm } = await mountWithResult({ affected: 0 });
+    await vm.handleEdit(record);
+    vm.formState.name = '新名称';
+    await vm.handleSubmit();
+    expect(update).toHaveBeenCalledOnce();
+    expect(vm.modalOpen).toBe(true);
+    expect(mocks.error).toHaveBeenCalledWith(
+      expect.stringContaining('更新未生效'),
+    );
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(list).toHaveBeenCalledTimes(1);
+  });
+
+  it('删除零影响时提示未生效，不显示成功或刷新列表', async () => {
+    const { record, list, remove, vm } = await mountWithResult({ affected: 0 });
+    await vm.handleDelete(record);
+    expect(remove).toHaveBeenCalledOnce();
+    expect(mocks.error).toHaveBeenCalledWith(
+      expect.stringContaining('删除未生效'),
+    );
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(list).toHaveBeenCalledTimes(1);
+  });
+
+  it('行内更新零影响时恢复开关原值', async () => {
+    const { record, list, update, vm } = await mountWithResult({ affected: 0 });
+    await vm.updateBooleanEnableField(
+      record,
+      { key: 'enabled', label: '启用', type: 'switch' },
+      false,
+    );
+    expect(update).toHaveBeenCalledOnce();
+    expect(record.enabled).toBe(true);
+    expect(mocks.error).toHaveBeenCalledWith(
+      expect.stringContaining('更新未生效'),
+    );
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(list).toHaveBeenCalledTimes(1);
+  });
+
+  it('更新一条记录仍显示成功并关闭表单', async () => {
+    const { record, list, update, vm } = await mountWithResult({ affected: 1 });
+    await vm.handleEdit(record);
+    vm.formState.name = '新名称';
+    await vm.handleSubmit();
+    expect(update).toHaveBeenCalledOnce();
+    expect(vm.modalOpen).toBe(false);
+    expect(mocks.success).toHaveBeenCalledWith('更新成功');
+    expect(list).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('标准 CRUD 操作与接口路径的授权边界', () => {
+  async function mountWithPermissions(permissions: string[]) {
+    mocks.permissionCodes = permissions;
+    const service = {
+      create: vi.fn(),
+      update: vi.fn(),
+      retrieve: vi.fn(),
+      delete: vi.fn(),
+    };
+    const actions = {
+      create: '保存客户',
+      update: '更新客户',
+      retrieve: '查看详情',
+      delete: '删除',
+    };
+    for (const method of ['create', 'update', 'retrieve', 'delete'] as const) {
+      ResAuthorize({
+        domain: 'com.levin.oak.base',
+        type: '业务数据-客户',
+        action: actions[method],
+      })(service, method, { value: service[method] });
+    }
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: service,
+          createPath: '/Customer/saveCustomer',
+          updatePath: '/Customer/updateCustomer',
+          detailPath: '/Customer/retrieve',
+          deletePath: '/Customer/delete',
+        }),
+      },
+    });
+    await flushPromises();
+    return setupState(wrapper);
+  }
+
+  it('菜单展示的域通配符不能通过原始接口路径打开增改查删按钮', async () => {
+    const vm = await mountWithPermissions(['*:系统数据-系统菜单:*:展示']);
+    expect(vm.canCreate).toBe(false);
+    expect(vm.canEdit).toBe(false);
+    expect(vm.canRetrieve).toBe(false);
+    expect(vm.canDelete).toBe(false);
+  });
+
+  it('合法的 API 方法操作授权仍能打开对应按钮且不扩大其它操作', async () => {
+    const vm = await mountWithPermissions([
+      '*:系统数据-系统菜单:*:展示',
+      'com.levin.oak.base:业务数据-客户::保存客户',
+    ]);
+    expect(vm.canCreate).toBe(true);
+    expect(vm.canEdit).toBe(false);
+    expect(vm.canRetrieve).toBe(false);
+    expect(vm.canDelete).toBe(false);
+  });
+});
+
+describe('详情尊重字段的身份可见性', () => {
+  it.each([false, true])(
+    '平台身份为 %s 时只按可见字段加载租户选项',
+    async (platformUser) => {
+      Object.assign(mocks.user.userInfo, { platformUser });
+      const tenantOptions = vi.fn(async () => [
+        { label: '测试租户', value: 'tenant-1' },
+      ]);
+      configureDataAttrPolicyLoader(async () => ({
+        version: 1,
+        policies: [
+          {
+            ...policy(),
+            restricted: false,
+            groups: [],
+            nodes: {},
+            requestRoots: [],
+            responseRoot: null,
+            viewRoots: { request: [], response: [] },
+          },
+        ],
+      }));
+      const wrapper = shallowMount(CrudPage, {
+        global: { config: { errorHandler: () => {} } },
+        props: {
+          config: config({
+            apiService: {
+              retrieve: vi.fn(async () => ({
+                id: '1',
+                tenantId: 'tenant-1',
+                name: '记录',
+              })),
+            },
+            dataAttrTargets: {
+              retrieve: { method: 'GET', path: '/Contract/retrieve' },
+            },
+            fields: [
+              { key: 'name', label: '名称' },
+              {
+                key: 'tenantId',
+                label: '归属租户',
+                visibleForPlatformUser: true,
+                loadOptions: tenantOptions,
+                type: 'select',
+              },
+            ],
+          }),
+        },
+      });
+      await flushPromises();
+      const vm = setupState(wrapper);
+      await vm.handleRetrieve({ id: '1' });
+      await flushPromises();
+      expect(
+        vm
+          .getDetailDisplayFields()
+          .some((field: { key: string }) => field.key === 'tenantId'),
+      ).toBe(platformUser);
+      expect(tenantOptions).toHaveBeenCalledTimes(platformUser ? 1 : 0);
+    },
+  );
+});
+
+describe('显式只读记录不能通过自定义更新入口绕过', () => {
+  function unrestrictedPolicy() {
+    return {
+      ...policy(),
+      restricted: false,
+      groups: [],
+      nodes: {},
+      requestRoots: [],
+      responseRoot: null,
+      viewRoots: { request: [], response: [] },
+    };
+  }
+
+  async function mountRecord(
+    record: Record<string, any>,
+    loadEditRecord?: (
+      record: Record<string, any>,
+    ) => Promise<Record<string, any>>,
+  ) {
+    const update = vi.fn(async () => ({}));
+    const list = vi.fn(async () => ({ items: [record], totals: 1 }));
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          fields: [
+            { key: 'name', label: '名称' },
+            {
+              key: 'enabled',
+              label: '启用',
+              type: 'switch',
+              table: true,
+              valueType: 'boolean',
+            },
+          ],
+          apiService: { list, update },
+          updatePath: '/Customer/updateCustomer',
+          editVisibleOn: 'true',
+          loadEditRecord,
+          dataAttrPolicyProvider: async () => unrestrictedPolicy(),
+        }),
+      },
+    });
+    await flushPromises();
+    return { vm: setupState(wrapper), update };
+  }
+
+  it('自定义路径不放开只读行的编辑和启用开关，陈旧事件不发送写入', async () => {
+    const record = {
+      id: 'readonly',
+      name: '客户',
+      enabled: true,
+      editable: false,
+      optimisticLock: 1,
+    };
+    const callback = vi.fn(async () => ({ ...record, editable: true }));
+    const { vm, update } = await mountRecord(record, callback);
+    const field = {
+      key: 'enabled',
+      label: '启用',
+      type: 'switch',
+      valueType: 'boolean',
+    };
+    expect(vm.canShowBuiltinEdit(record)).toBe(false);
+    expect(vm.canQuickUpdateBooleanEnableField(field, record)).toBe(false);
+    await vm.handleEdit(record);
+    expect(callback).not.toHaveBeenCalled();
+    expect(vm.modalOpen).toBe(false);
+    await vm.updateBooleanEnableField(record, field, false);
+    expect(record.enabled).toBe(true);
+    expect(update).not.toHaveBeenCalled();
+    expect(mocks.put).not.toHaveBeenCalled();
+    vm.editingRecord = record;
+    vm.formState.name = '不应写入';
+    await vm.handleSubmit();
+    expect(mocks.put).not.toHaveBeenCalled();
+  });
+
+  it('加载完整详情后发现记录只读，不打开编辑表单', async () => {
+    const record = { id: 'changed', name: '客户', editable: true };
+    const { vm } = await mountRecord(record, async () => ({
+      ...record,
+      editable: false,
+    }));
+    await vm.handleEdit(record);
+    expect(vm.modalOpen).toBe(false);
+  });
+
+  it('原可写记录保留普通用户编辑，超级管理员可编辑只读记录', async () => {
+    const writable = {
+      id: 'writable',
+      name: '客户',
+      enabled: true,
+      editable: true,
+    };
+    const { vm } = await mountRecord(writable);
+    expect(vm.canShowBuiltinEdit(writable)).toBe(true);
+    Object.assign(mocks.user.userInfo, { superAdmin: true });
+    expect(vm.canShowBuiltinEdit({ ...writable, editable: false })).toBe(true);
+  });
+});
+
+describe('更新保留原记录的租户定位上下文', () => {
+  const unrestrictedPolicy = async () => ({
+    ...policy(),
+    restricted: false,
+    groups: [],
+    nodes: {},
+    requestRoots: [],
+    responseRoot: null,
+    viewRoots: { request: [], response: [] },
+  });
+
+  it.each([false, true])(
+    '租户表单字段不参与提交时仍保留原租户，自定义路径=%s',
+    async (customPath) => {
+      Object.assign(mocks.user.userInfo, {
+        superAdmin: true,
+        platformUser: true,
+      });
+      const record = {
+        id: '1',
+        tenantId: 'original-tenant',
+        editable: false,
+        name: '原备注',
+        optimisticLock: 2,
+      };
+      const update = vi.fn(async (_payload: Record<string, any>) => ({}));
+      const wrapper = shallowMount(CrudPage, {
+        global: { config: { errorHandler: () => {} } },
+        props: {
+          config: config({
+            fields: [
+              { key: 'name', label: '备注', form: true },
+              { key: 'tenantId', label: '租户', form: false, formEdit: false },
+            ],
+            apiService: { update },
+            updatePath: customPath ? '/Customer/updateCustomer' : undefined,
+            dataAttrPolicyProvider: unrestrictedPolicy,
+          }),
+        },
+      });
+      await flushPromises();
+      const vm = setupState(wrapper);
+      await vm.handleEdit(record);
+      vm.formState.name = '新备注';
+      await vm.handleSubmit();
+      const payload = customPath
+        ? mocks.put.mock.calls[0]?.[1]
+        : update.mock.calls[0]?.[0];
+      expect(payload).toMatchObject({
+        id: '1',
+        tenantId: 'original-tenant',
+        name: '新备注',
+        optimisticLock: 2,
+      });
+      expect(payload.forceUpdateFields || []).not.toContain('tenantId');
+    },
+  );
+
+  it('行内启用更新也带原记录租户而不使用全局租户', async () => {
+    Object.assign(mocks.user.userInfo, { tenantId: 'unrelated-global-tenant' });
+    const record = {
+      id: '1',
+      tenantId: 'original-tenant',
+      editable: true,
+      enabled: true,
+      optimisticLock: 2,
+    };
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          fields: [{ key: 'enabled', label: '启用', type: 'switch' }],
+          updatePath: '/Customer/updateCustomer',
+          dataAttrPolicyProvider: unrestrictedPolicy,
+        }),
+      },
+    });
+    await flushPromises();
+    await setupState(wrapper).updateBooleanEnableField(
+      record,
+      { key: 'enabled', label: '启用', type: 'switch' },
+      false,
+    );
+    expect(mocks.put.mock.calls[0]?.[1]).toMatchObject({
+      id: '1',
+      tenantId: 'original-tenant',
+      enabled: false,
+      autoForceUpdateField: false,
+    });
+  });
 });
 
 describe('标准 crud 的属性组策略', () => {
@@ -1058,6 +1491,125 @@ describe('标准 crud 的属性组策略', () => {
     );
     expect(mocks.post.mock.calls.at(-1)?.[1]).not.toHaveProperty('amount');
   });
+  it('新增和编辑仅展示有权复杂对象分组，并排除无权对象', async () => {
+    const restricted = policy();
+    restricted.groups = [
+      { id: 'bank', name: '结算账户信息', allowed: true },
+      { id: 'invoice', name: '开票信息', allowed: false },
+    ];
+    restricted.nodes = {
+      dto: {
+        kind: 'object',
+        fields: [
+          { name: 'name', wireName: 'name', groupIds: [], nodeId: 'value' },
+          {
+            name: 'bankAccount',
+            wireName: 'bankAccount',
+            groupIds: ['bank'],
+            nodeId: 'bank',
+          },
+          {
+            name: 'invoiceInfo',
+            wireName: 'invoiceInfo',
+            groupIds: ['invoice'],
+            nodeId: 'invoice',
+          },
+        ],
+      },
+      bank: {
+        kind: 'object',
+        fields: [
+          {
+            name: 'bankName',
+            wireName: 'bankName',
+            groupIds: [],
+            nodeId: 'value',
+          },
+        ],
+      },
+      invoice: {
+        kind: 'object',
+        fields: [
+          { name: 'taxNo', wireName: 'taxNo', groupIds: [], nodeId: 'value' },
+        ],
+      },
+      value: { kind: 'value' },
+    };
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          dataAttrPolicyProvider: async () => restricted,
+          fields: [
+            { key: 'name', label: '名称', form: true },
+            { key: 'bankName', label: '开户行名称', complexGroupKey: 'bank' },
+            {
+              key: 'invoiceTaxNo',
+              label: '纳税人识别号',
+              complexGroupKey: 'invoice',
+            },
+          ],
+          complexGroups: [
+            {
+              key: 'bank',
+              title: '结算账户信息',
+              submitKey: 'bankAccount',
+              fieldMappings: { bankName: 'bankName' },
+            },
+            {
+              key: 'invoice',
+              title: '开票信息',
+              submitKey: 'invoiceInfo',
+              fieldMappings: { invoiceTaxNo: 'taxNo' },
+            },
+          ],
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    await vm.handleCreate();
+    await flushPromises();
+    expect(
+      vm.visibleFormFields.map((field: { key: string }) => field.key),
+    ).toContain('bankName');
+    expect(
+      vm.visibleFormFields.map((field: { key: string }) => field.key),
+    ).not.toContain('invoiceTaxNo');
+    expect(
+      vm.displayedFormBlocks.map(
+        (block: { complexGroupKey?: string }) => block.complexGroupKey,
+      ),
+    ).toContain('bank');
+    expect(
+      vm.displayedFormBlocks.map(
+        (block: { complexGroupKey?: string }) => block.complexGroupKey,
+      ),
+    ).not.toContain('invoice');
+    vm.formState.name = '测试';
+    vm.formState.bankName = '测试银行';
+    vm.formState.invoiceTaxNo = '不能提交';
+    vm.complexGroupEnabled.bank = true;
+    vm.complexGroupEnabled.invoice = true;
+    await vm.handleSubmit();
+    expect(mocks.post.mock.calls.at(-1)?.[1]).toMatchObject({
+      bankAccount: { bankName: '测试银行' },
+    });
+    expect(mocks.post.mock.calls.at(-1)?.[1]).not.toHaveProperty('invoiceInfo');
+    await vm.handleEdit({
+      id: '1',
+      name: '测试',
+      bankAccount: { bankName: '测试银行' },
+      invoiceInfo: { taxNo: '不能读取' },
+    });
+    await flushPromises();
+    expect(
+      vm.visibleFormFields.map((field: { key: string }) => field.key),
+    ).toContain('bankName');
+    expect(
+      vm.visibleFormFields.map((field: { key: string }) => field.key),
+    ).not.toContain('invoiceTaxNo');
+  });
   it('真实组件更新保留显式空值，清理转换器恢复的字段和forceUpdateFields', async () => {
     const wrapper = shallowMount(CrudPage, {
       global: { config: { errorHandler: () => {} } },
@@ -1462,6 +2014,35 @@ describe('标准 CRUD 游标与默认分页兼容', () => {
     await flushPromises();
     return wrapper;
   }
+  it('单列表配置重算时保留第五页和查询状态', async () => {
+    let resolvePage!: (result: {
+      items: { id: string }[];
+      totals: number;
+    }) => void;
+    const pendingPage = new Promise<{
+      items: { id: string }[];
+      totals: number;
+    }>((resolve) => {
+      resolvePage = resolve;
+    });
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({ items: [{ id: 'first' }], totals: 100 })
+      .mockReturnValueOnce(pendingPage);
+    const wrapper = await mountList({ apiService: { list }, listTables: [] });
+    const vm = setupState(wrapper);
+    vm.searchState.name = '测试';
+    vm.handleTableChange({ current: 5, pageSize: 10 }, {}, {});
+    await wrapper.setProps({
+      config: { ...wrapper.props('config'), listTables: [] },
+    });
+    await flushPromises();
+    expect(vm.pagination.current).toBe(5);
+    expect(vm.searchState.name).toBe('测试');
+    resolvePage({ items: [{ id: 'fifth' }], totals: 100 });
+    await flushPromises();
+    expect(vm.dataSource[0].id).toBe('fifth');
+  });
   it('游标使用真实 size/cursor 并能回首页，默认模式保留 pageIndex/pageSize/totals', async () => {
     const list = vi.fn().mockResolvedValue({
       items: [{ id: '1' }],

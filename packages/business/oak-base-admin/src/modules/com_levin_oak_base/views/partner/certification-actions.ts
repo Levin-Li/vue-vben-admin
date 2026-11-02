@@ -8,7 +8,6 @@ function actionRequest(record: Record<string, any>) {
   return {
     id: record.id,
     tenantId: record.tenantId,
-    orgId: record.orgId,
     optimisticLock: record.optimisticLock,
     remark: record._operatorAction || undefined,
   };

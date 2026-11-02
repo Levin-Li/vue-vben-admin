@@ -14,15 +14,18 @@ export interface RbacDataAttrGroup {
   permissionExpr: string;
   remark?: string;
   scopeKey?: string;
+  sourceKey?: string;
 }
 
-/** 后端提供的枚举记录范围；许可表达式必须原样保存。 */
+/** 后端提供的受控枚举或字典值候选；新授权使用来源类型与稳定来源键。 */
 export interface DataAttrValuePermission {
   attribute: string;
   entityClass: string;
   entityName?: string;
   name: string;
   remark?: string;
+  sourceKey?: string;
+  sourceKind?: 'dict' | 'enum';
   values: { label: string; name: string; permissionExpr: string }[];
 }
 
@@ -76,6 +79,7 @@ export interface PermissionTreeNode {
   permissionExpr?: null | string;
   remark?: null | string;
   resourcePermissions?: PermissionTreeNode[];
+  wildcardOperation?: string;
 }
 
 export interface RbacMenuNode {

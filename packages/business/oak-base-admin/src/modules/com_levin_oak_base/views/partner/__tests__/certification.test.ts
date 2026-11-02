@@ -49,7 +49,6 @@ describe('合作关系认证', () => {
     await action.handler({
       id: 'p1',
       tenantId: 'tenant-1',
-      orgId: 'org-1',
       optimisticLock: 7,
       certificationStatus: 'Certified',
       _operatorAction: '补齐资料',
@@ -57,7 +56,6 @@ describe('合作关系认证', () => {
     expect(submit).toHaveBeenCalledWith({
       id: 'p1',
       tenantId: 'tenant-1',
-      orgId: 'org-1',
       optimisticLock: 7,
       remark: '补齐资料',
     });

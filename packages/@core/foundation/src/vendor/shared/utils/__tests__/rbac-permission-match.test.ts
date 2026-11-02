@@ -39,6 +39,44 @@ describe('SpringPatternMatchUtils', () => {
 });
 
 describe('RbacPermissionMatchUtils', () => {
+  it('projects a valid API composite grant to its four-part operation only', () => {
+    const grant =
+      '@com.demo:系统数据-用户::*:enum#com.demo.User$Sex#sex@Man|dict#com.demo.User.type#type@Customer';
+    RbacPermissionMatchUtils.registerApiOperations([
+      'com.demo:系统数据-用户::查询列表',
+    ]);
+    expect(
+      RbacPermissionMatchUtils.simpleMatch(
+        'com.demo:系统数据-用户::查询列表',
+        grant,
+      ),
+    ).toBe(true);
+    expect(
+      RbacPermissionMatchUtils.simpleMatch(
+        'com.demo:系统数据-角色::查询列表',
+        grant,
+      ),
+    ).toBe(false);
+    expect(
+      RbacPermissionMatchUtils.simpleMatch(
+        'com.demo:系统数据-用户::未登记操作',
+        grant,
+      ),
+    ).toBe(false);
+    expect(
+      RbacPermissionMatchUtils.simpleMatch(
+        'com.demo:系统数据-用户:DataAttrGroup@finance:access',
+        grant,
+      ),
+    ).toBe(false);
+    expect(
+      RbacPermissionMatchUtils.simpleMatch(
+        'com.demo:系统数据-用户::查询列表',
+        '@broken',
+      ),
+    ).toBe(false);
+  });
+
   it('allows empty required permissions', () => {
     expect(RbacPermissionMatchUtils.simpleMatch(undefined, undefined)).toBe(
       true,

@@ -12,6 +12,11 @@ import {
   tenantOptionsLoader,
   withModuleCrudConfig,
 } from '../api-module';
+import {
+  buildMasterDetailMetadata,
+  buildMasterPartyFields,
+  customerPartnerParties,
+} from '../master-party-fields';
 import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
 
 // 客户仅引用已有法律主体，主体资料仍在法律主体页面维护。
@@ -121,8 +126,10 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       formCreate: true,
       formEdit: false,
       required: true,
-      table: false,
-      detail: false,
+      table: true,
+      detail: true,
+      search: false,
+      width: 220,
       validator: (value) =>
         String(value ?? '').trim()
           ? undefined
@@ -164,7 +171,7 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       width: 180,
     },
     {
-      key: 'orgId',
+      key: 'parentOrgId',
       formCreate: true,
       formEdit: false,
       detail: false,
@@ -178,18 +185,9 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       type: 'select',
       placeholder: '留空使用当前用户所属组织，或搜索内部父组织',
     },
-    {
-      key: 'orgName',
-      label: '客户组织节点',
-      formCreate: false,
-      formEdit: true,
-      disabledOnEdit: true,
-      omitOnEdit: true,
-      layoutGroup: 'ownership',
-      layoutOrder: 21,
-      table: true,
-      search: false,
-    },
+    // 主体组织由建档生成，五方负责人和职能组织分别维护。
+    ...buildMasterPartyFields(customerPartnerParties, true),
+    ...buildMasterDetailMetadata(customerPartnerParties),
     {
       key: 'contactName',
       label: '联系人姓名',

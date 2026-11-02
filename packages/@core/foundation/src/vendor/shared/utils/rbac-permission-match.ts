@@ -4,6 +4,14 @@ import SpringPatternMatchUtils from './spring-pattern-match';
  * Mirrors the backend RbacPermissionMatchUtils permission matching semantics.
  */
 export class RbacPermissionMatchUtils {
+  private static readonly apiOperations = new Set<string>();
+
+  public static registerApiOperations(operations: string[]): void {
+    for (const operation of operations) {
+      if (operation.split(':').length === 4) this.apiOperations.add(operation);
+    }
+  }
+
   public static simpleMatchList(
     requirePermission: null | string | undefined,
     ownerPermissions: null | string[] | undefined,
@@ -49,6 +57,31 @@ export class RbacPermissionMatchUtils {
         requireIsRole &&
         this.textPatternMatch(ownerPermission, requirePermission)
       );
+    }
+
+    // 接口复合授权仅向普通四段操作投影；附加组和值由服务端单独判定。
+    if (ownerPermission.startsWith('@')) {
+      const operation = this.compositeOperation(ownerPermission);
+      const required = requirePermission.split(':');
+      if (
+        !operation ||
+        required.length !== 4 ||
+        !this.apiOperations.has(requirePermission) ||
+        required[1] === 'DataAttrGroup' ||
+        required[2]?.startsWith('DataAttrGroup@')
+      )
+        return false;
+      return operation.split(':').every((pattern, index) => {
+        const requiredPart = required[index] || '';
+        return pattern
+          .split('|')
+          .some(
+            (part) =>
+              part === requiredPart ||
+              (requiredPart === '' && part === '*') ||
+              SpringPatternMatchUtils.simpleMatch(part, requiredPart),
+          );
+      });
     }
 
     if (!this.isPattern(ownerPermission)) {
@@ -105,6 +138,20 @@ export class RbacPermissionMatchUtils {
 
   public static getPermissionDelimiter(): string {
     return ':';
+  }
+
+  private static compositeOperation(permission: string): string | undefined {
+    const parts = permission.slice(1).split(':');
+    if (
+      parts.length !== 5 ||
+      !parts[0] ||
+      !parts[1] ||
+      !parts[3] ||
+      !parts[4] ||
+      parts[4].split('|').some((clause) => !clause || clause === '@')
+    )
+      return undefined;
+    return parts.slice(0, 4).join(':');
   }
 }
 

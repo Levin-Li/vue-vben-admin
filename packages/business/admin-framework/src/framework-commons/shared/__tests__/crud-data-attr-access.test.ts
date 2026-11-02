@@ -3,7 +3,9 @@ import type { CrudPageConfig } from '../types';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CRUD, ResAuthorize } from '../../api-authorize';
+import { matchRbacPermissionList } from '../../rbac-access';
 import {
+  isCrudDataAttrOperationEnabled,
   resolveCrudDataAttrOperationExpression,
   resolveCrudDataAttrPath,
   resolveCrudDataAttrTarget,
@@ -136,5 +138,36 @@ describe('crud 的实际接口策略定位', () => {
     expect(
       resolveCrudDataAttrPath({ key: 'name', label: '名称' }, options),
     ).toBe('name');
+  });
+  it('字段策略入口不把原始路径误判为菜单通配授权', () => {
+    const create = vi.fn();
+    const service = { create };
+    ResAuthorize({ domain: 'contract', type: '合同', action: '保存合同' })(
+      service,
+      'create',
+      { value: create },
+    );
+    const options = config({
+      apiService: service,
+      createPath: '/Contract/saveContract',
+    });
+    const allows = (owned: string[]) => (required?: string | string[]) =>
+      (Array.isArray(required) ? required : [required]).some((value) =>
+        matchRbacPermissionList(value || '', owned),
+      );
+    expect(
+      isCrudDataAttrOperationEnabled(
+        options,
+        'create',
+        allows(['*:系统数据-系统菜单:*:展示']),
+      ),
+    ).toBe(false);
+    expect(
+      isCrudDataAttrOperationEnabled(
+        options,
+        'create',
+        allows(['contract:合同::保存合同']),
+      ),
+    ).toBe(true);
   });
 });

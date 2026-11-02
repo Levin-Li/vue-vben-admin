@@ -28,6 +28,11 @@ import {
   validatePolicy,
 } from '../data-attr-policy';
 import {
+  allowedFieldValues,
+  assertFieldValueAssignment,
+  assertValueScopeContract,
+} from './crud-field-value-scope';
+import {
   buildApiMethodPermissions,
   buildCrudOperationPermissions,
   resolvePermissionType,
@@ -92,20 +97,12 @@ export function isCrudDataAttrOperationEnabled(
     delete: config.deletePermission,
     retrieve: config.detailPermission,
   }[operation];
-  const path = {
-    create: config.createPath,
-    update: config.updatePath,
-    delete: config.deletePath,
-    retrieve: config.detailPath,
-  }[operation];
   const candidates = buildCrudOperationPermissions(config, operation);
   return (
     flag !== false &&
     visible(action) &&
-    hasPermission(
-      override ||
-        (typeof path === 'string' ? [path, ...candidates] : candidates),
-    )
+    // 字段策略与按钮使用同一 API 操作授权，不把 HTTP 路径当作资源表达式。
+    hasPermission(override || candidates)
   );
 }
 
@@ -280,6 +277,8 @@ export function useCrudDataAttrAccess(
         if (generation !== snapshot || pending.get(operation) !== promise)
           throw new CanceledError('授权上下文已变化，请重试');
         validatePolicy(policy);
+        if (operation === 'create' || operation === 'update')
+          assertValueScopeContract(policy);
         policies[operation] = policy;
         return policy;
       })
@@ -341,6 +340,34 @@ export function useCrudDataAttrAccess(
           ? field
           : resolveCrudDataAttrPath(field, config()),
       ),
+    );
+  }
+  function allowedValues(
+    operation: 'create' | 'update',
+    field: CrudFieldConfig,
+    formValues: Record<string, unknown>,
+  ) {
+    const policy = policies[operation];
+    if (!policy) return new Set<string>();
+    return allowedFieldValues(
+      policy,
+      resolveCrudDataAttrPath(field, config()),
+      formValues,
+      operation === 'update',
+    );
+  }
+  function assertValueAssignment(
+    operation: 'create' | 'update',
+    payload: Record<string, unknown>,
+    initialValues: Record<string, unknown>,
+  ) {
+    const policy = policies[operation];
+    if (!policy) throw new Error('字段值范围尚未加载，请重试');
+    assertFieldValueAssignment(
+      policy,
+      payload,
+      initialValues,
+      operation === 'update',
     );
   }
   function assertInput(
@@ -418,8 +445,10 @@ export function useCrudDataAttrAccess(
   }
   return {
     allowed,
+    allowedValues,
     assertCheckpoint,
     assertInput,
+    assertValueAssignment,
     checkpoint,
     ensure,
     prepareAssignment,

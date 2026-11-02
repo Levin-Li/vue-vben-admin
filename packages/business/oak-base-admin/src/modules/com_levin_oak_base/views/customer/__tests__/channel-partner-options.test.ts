@@ -15,7 +15,7 @@ describe('渠道客户选择渠道伙伴', () => {
           id: 'channel-1',
           enable: true,
           displayName: '甲公司',
-          orgId: 'org-1',
+          subjectOrgId: 'org-1',
           type: 'Dealer',
         },
         { id: 'channel-2', category: 'Channel', enable: false },

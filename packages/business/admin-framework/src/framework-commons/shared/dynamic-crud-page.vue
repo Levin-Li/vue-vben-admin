@@ -176,6 +176,7 @@ import {
 } from './crud-cursor-pagination';
 import {
   isCrudDataAttrOperationEnabled,
+  resolveCrudDataAttrPath,
   useCrudDataAttrAccess,
 } from './crud-data-attr-access';
 import {
@@ -255,6 +256,7 @@ import {
   getCrudMoneyUnitHint,
   isCrudMoneyField,
 } from './crud-money-display';
+import { assertCrudMutationApplied } from './crud-mutation-result';
 import { shouldShowCrudOperationColumn } from './crud-operation-column-visibility';
 import { getCrudOrgLoadApi } from './crud-org-selector';
 import {
@@ -310,6 +312,7 @@ import {
   buildCrudDeleteParams,
   buildCrudRetrieveParams,
   omitNonPlatformTenantId,
+  withCrudUpdateTenantContext,
 } from './crud-retrieve-context';
 import {
   reconcileInitialChoiceValue,
@@ -551,6 +554,7 @@ const loading = ref(false);
 const modalOpen = ref(false);
 // 每次打开独立保存初始化后的业务值，展示模式和折叠状态不参与比较。
 let initialFormSnapshot = '';
+let initialFieldValuePaths: Record<string, unknown> = {};
 let formSnapshotKeys: string[] = [];
 let formSnapshotJsonKeys = new Set<string>();
 let closeConfirmationOpen = false;
@@ -1345,7 +1349,7 @@ function getInlineChoiceOptions(
       },
     ];
   }
-  return getFieldOptions(field);
+  return view === 'query' ? getFieldOptions(field) : getFormFieldOptions(field);
 }
 
 function isPageDisplayHeaderVisible(key: string) {
@@ -2580,10 +2584,6 @@ function isCustomListOperationVisible(
   return !key || isListOperationVisible(key);
 }
 
-function getStaticCrudPath(path?: CrudPathConfig) {
-  return typeof path === 'string' ? path : undefined;
-}
-
 function resolveCrudPath(
   path: CrudPathConfig | undefined,
   fallback: string,
@@ -2593,14 +2593,6 @@ function resolveCrudPath(
   return typeof path === 'function'
     ? path(values, editingRecordValue)
     : path || fallback;
-}
-
-function getCreatePermissionCandidates() {
-  const createPath = getStaticCrudPath(props.config.createPath);
-
-  return createPath
-    ? [createPath, ...buildCrudOperationPermissions(props.config, 'create')]
-    : buildCrudOperationPermissions(props.config, 'create');
 }
 
 const rowSelection = computed(() => {
@@ -2630,12 +2622,14 @@ const canQuery = computed(
     ),
 );
 
+// HTTP 路径只用于发送请求；按钮授权只采用 API 声明，避免菜单域通配符误匹配路径。
 const canCreate = computed(
   () =>
     props.config.allowCreate !== false &&
     canShowActiveBuiltinAction('create') &&
     hasPermission(
-      props.config.createPermission || getCreatePermissionCandidates(),
+      props.config.createPermission ||
+        buildCrudOperationPermissions(props.config, 'create'),
     ),
 );
 
@@ -2655,12 +2649,7 @@ const canRetrieve = computed(
     canShowActiveBuiltinAction('retrieve') &&
     hasPermission(
       props.config.detailPermission ||
-        (props.config.detailPath
-          ? [
-              props.config.detailPath,
-              ...buildCrudOperationPermissions(props.config, 'retrieve'),
-            ]
-          : buildCrudOperationPermissions(props.config, 'retrieve')),
+        buildCrudOperationPermissions(props.config, 'retrieve'),
     ),
 );
 
@@ -2670,12 +2659,7 @@ const canDelete = computed(
     canShowActiveBuiltinAction('delete') &&
     hasPermission(
       props.config.deletePermission ||
-        (props.config.deletePath
-          ? [
-              props.config.deletePath,
-              ...buildCrudOperationPermissions(props.config, 'delete'),
-            ]
-          : buildCrudOperationPermissions(props.config, 'delete')),
+        buildCrudOperationPermissions(props.config, 'delete'),
     ),
 );
 
@@ -2685,12 +2669,7 @@ const canEdit = computed(
     canShowActiveBuiltinAction('edit') &&
     hasPermission(
       props.config.editPermission ||
-        (props.config.updatePath
-          ? [
-              props.config.updatePath,
-              ...buildCrudOperationPermissions(props.config, 'update'),
-            ]
-          : buildCrudOperationPermissions(props.config, 'update')),
+        buildCrudOperationPermissions(props.config, 'update'),
     ),
 );
 
@@ -5356,6 +5335,7 @@ function captureFormSnapshot() {
     fields.filter((field) => field.type === 'json').map((field) => field.key),
   );
   initialFormSnapshot = currentFormSnapshot();
+  initialFieldValuePaths = getCurrentFormValuePaths();
 }
 
 function currentFormSnapshot() {
@@ -5447,20 +5427,22 @@ async function handleCreate() {
 }
 
 async function handleEdit(record: GenericRecord) {
+  // 自定义详情加载不能将当前只读行升级为可编辑目标。
+  if (!canMutateCrudRecord(record)) return;
   const { session, isCurrent } = beginFormOpen();
   try {
     record = props.config.loadEditRecord
       ? await props.config.loadEditRecord(record)
       : record;
     await nextTick();
-    if (!isCurrent()) return;
+    if (!isCurrent() || !canMutateCrudRecord(record)) return;
     const policyReady = dataAttrAccess.ensure(
       'update',
       !!props.config.loadEditRecord,
     );
     const checkpoint = dataAttrAccess.checkpoint();
     await policyReady;
-    if (!isCurrent()) return;
+    if (!isCurrent() || !canMutateCrudRecord(record)) return;
     dataAttrAccess.assertCheckpoint(checkpoint);
   } catch (error) {
     if (isCurrent()) showCrudError(error, '编辑表单加载失败');
@@ -5483,20 +5465,22 @@ async function handleJsonFieldEdit(
   record: GenericRecord,
   field: CrudFieldConfig,
 ) {
+  // 独立 JSON 编辑和普通编辑遵守相同的记录只读边界。
+  if (!canMutateCrudRecord(record)) return;
   const { isCurrent } = beginFormOpen();
   try {
     record = props.config.loadEditRecord
       ? await props.config.loadEditRecord(record)
       : record;
     await nextTick();
-    if (!isCurrent()) return;
+    if (!isCurrent() || !canMutateCrudRecord(record)) return;
     const policyReady = dataAttrAccess.ensure(
       'update',
       !!props.config.loadEditRecord,
     );
     const checkpoint = dataAttrAccess.checkpoint();
     await policyReady;
-    if (!isCurrent()) return;
+    if (!isCurrent() || !canMutateCrudRecord(record)) return;
     dataAttrAccess.assertCheckpoint(checkpoint);
   } catch (error) {
     if (isCurrent()) showCrudError(error, '编辑表单加载失败');
@@ -5558,24 +5542,35 @@ async function handleRetrieve(record: GenericRecord) {
 }
 
 async function handleDelete(record: GenericRecord) {
-  await dataAttrAccess.ensure('delete');
-  const deleteParams = buildCrudDeleteParams(record, recordKey.value);
-  dataAttrAccess.assertInput('delete', deleteParams);
-  const recordId = deleteParams[recordKey.value];
+  try {
+    await dataAttrAccess.ensure('delete');
+    const deleteParams = buildCrudDeleteParams(record, recordKey.value);
+    dataAttrAccess.assertInput('delete', deleteParams);
+    const recordId = deleteParams[recordKey.value];
 
-  await (props.config.apiService?.delete && !props.config.deletePath
-    ? props.config.apiService.delete(deleteParams, undefined, record)
-    : deleteCrudRecord(
-        props.config.deletePath || `${props.config.apiBase}/delete`,
-        recordId,
-        recordKey.value,
-        props.config.apiModuleBase,
-      ));
-  message.success('删除成功');
-  await loadList();
+    const result = await (props.config.apiService?.delete &&
+    !props.config.deletePath
+      ? props.config.apiService.delete(deleteParams, undefined, record)
+      : deleteCrudRecord(
+          props.config.deletePath || `${props.config.apiBase}/delete`,
+          recordId,
+          recordKey.value,
+          props.config.apiModuleBase,
+        ));
+    assertCrudMutationApplied(result, '删除');
+    message.success('删除成功');
+    await loadList();
+  } catch (error) {
+    showCrudError(error, '删除失败');
+  }
 }
 
 async function handleSubmit() {
+  // 陈旧表单或自定义提交回调不得绕过原记录的只读标志。
+  if (editingRecord.value && !canMutateCrudRecord(editingRecord.value)) {
+    message.warning('当前记录不可编辑');
+    return;
+  }
   if (submitting.value) return;
   submitting.value = true;
   try {
@@ -5803,6 +5798,13 @@ async function handleSubmit() {
       );
     }
 
+    // 租户输入虽可不参与表单，原记录的租户仍是更新目标的技术定位上下文。
+    if (!isCreating && editingRecord.value)
+      finalPayload = withCrudUpdateTenantContext(
+        finalPayload,
+        editingRecord.value,
+      );
+
     dataAttrAccess.assertCheckpoint(assignmentCheckpoint);
     finalPayload = dataAttrAccess.prepareAssignment(
       isCreating ? 'create' : 'update',
@@ -5822,6 +5824,11 @@ async function handleSubmit() {
       ),
       Object.keys(menuFixedQuery),
     );
+    dataAttrAccess.assertValueAssignment(
+      isCreating ? 'create' : 'update',
+      finalPayload,
+      initialFieldValuePaths,
+    );
     if (isCreating) {
       await (props.config.apiService?.create && !props.config.createPath
         ? props.config.apiService.create(finalPayload)
@@ -5832,13 +5839,15 @@ async function handleSubmit() {
           ));
       message.success('创建成功');
     } else {
-      await (props.config.apiService?.update && !props.config.updatePath
+      const result = await (props.config.apiService?.update &&
+      !props.config.updatePath
         ? props.config.apiService.update(finalPayload)
         : updateCrudRecord(
             props.config.updatePath || `${props.config.apiBase}/update`,
             finalPayload,
             props.config.apiModuleBase,
           ));
+      assertCrudMutationApplied(result, '更新');
       message.success('更新成功');
     }
 
@@ -6385,6 +6394,34 @@ function getFieldOptions(
     field,
     optionState[field.key] || field.options || [],
   );
+}
+
+/** 受控选项仅用于新增/编辑，列表和查询保持原始展示选项。 */
+function getCurrentFormValuePaths() {
+  const currentValues: Record<string, unknown> = {};
+  for (const item of props.config.fields || []) {
+    const value = formState[item.key];
+    currentValues[resolveCrudDataAttrPath(item, props.config)] = Array.isArray(
+      value,
+    )
+      ? [...value]
+      : value;
+  }
+  return currentValues;
+}
+function getFormValueScope(field: CrudFieldConfig) {
+  return dataAttrAccess.allowedValues(
+    editingRecord.value ? 'update' : 'create',
+    field,
+    getCurrentFormValuePaths(),
+  );
+}
+function getFormFieldOptions(field: CrudFieldConfig): any[] {
+  const allowed = getFormValueScope(field);
+  const options = getFieldOptions(field);
+  return allowed === undefined
+    ? options
+    : options.filter((option) => allowed.has(String(option.value)));
 }
 
 function getTableDisplayFieldOptions(field: CrudFieldConfig) {
@@ -7659,8 +7696,8 @@ async function updateBooleanEnableField(
   field: CrudFieldConfig,
   checked: boolean,
 ) {
-  // 只读元数据同时约束事件入口，避免旧控件事件在配置变更后继续提交。
-  if (field.readOnly) return;
+  // 字段及记录只读同时约束事件入口，避免旧控件事件或自定义路径继续提交。
+  if (field.readOnly || !canMutateCrudRecord(record)) return;
   const fieldKey = String(field.key);
   const loadingKey = getQuickSwitchLoadingKey(record, fieldKey);
   const previousValue = Boolean(record[fieldKey]);
@@ -7670,21 +7707,26 @@ async function updateBooleanEnableField(
 
   try {
     await dataAttrAccess.ensure('update');
-    const payload = {
-      autoForceUpdateField: false,
-      [recordKey.value]: getRecordValue(record, recordKey.value),
-      optimisticLock: record.optimisticLock,
-      [fieldKey]: checked,
-    };
+    const payload = withCrudUpdateTenantContext(
+      {
+        autoForceUpdateField: false,
+        [recordKey.value]: getRecordValue(record, recordKey.value),
+        optimisticLock: record.optimisticLock,
+        [fieldKey]: checked,
+      },
+      record,
+    );
 
     dataAttrAccess.assertInput('update', payload);
-    await (props.config.apiService?.update && !props.config.updatePath
+    const result = await (props.config.apiService?.update &&
+    !props.config.updatePath
       ? props.config.apiService.update(payload)
       : updateCrudRecord(
           props.config.updatePath || `${props.config.apiBase}/update`,
           payload,
           props.config.apiModuleBase,
         ));
+    assertCrudMutationApplied(result, '更新');
     message.success('更新成功');
     await loadList();
   } catch (error) {
@@ -7771,23 +7813,27 @@ const flattenedDetailData = computed(() =>
 );
 
 function getDetailDisplayFields() {
-  return applyPageDisplayFields(
-    resolveDetailFields(
-      flattenedDetailData.value,
-      effectiveFields.value,
-      effectiveDetailFields.value,
-    ),
-    'detail',
-  )
-    .filter(
-      (field) =>
-        !actionResultUsesRetrievePolicy.value ||
-        dataAttrAccess.allowed('retrieve', 'output', field),
+  return (
+    applyPageDisplayFields(
+      resolveDetailFields(
+        flattenedDetailData.value,
+        effectiveFields.value,
+        effectiveDetailFields.value,
+      ),
+      'detail',
     )
-    .map((field) => ({
-      ...field,
-      options: getTableDisplayFieldOptions(field),
-    }));
+      // 详情与表单、列表共用身份可见性，隐藏租户字段不得触发全局租户选项请求。
+      .filter((field) => isFieldVisible(field))
+      .filter(
+        (field) =>
+          !actionResultUsesRetrievePolicy.value ||
+          dataAttrAccess.allowed('retrieve', 'output', field),
+      )
+      .map((field) => ({
+        ...field,
+        options: getTableDisplayFieldOptions(field),
+      }))
+  );
 }
 
 const actionResultEntries = computed((): DetailDisplayEntry[] => {
@@ -8014,8 +8060,10 @@ watch(columnSettingsOpen, (open) => {
 
 watch(
   listTables,
-  (tables) => {
+  (tables, previousTables) => {
     if (tables.length === 0) {
+      // 配置重算仍是单列表时，当前分页和筛选才是最新状态，不能恢复旧快照。
+      if (previousTables && previousTables.length === 0) return;
       ensureListTableState('default');
       restoreListTableState('default');
       return;
@@ -9354,7 +9402,8 @@ watch(
                 ? `编辑${effectiveFields.find((field) => field.key === focusedJsonFieldKey)?.label || ''}`
                 : editingRecord
                   ? `编辑${getBusinessTitle(config.title)}`
-                  : config.createFormTitle || `新增${getBusinessTitle(config.title)}`
+                  : config.createFormTitle ||
+                    `新增${getBusinessTitle(config.title)}`
             }}
           </span>
           <Checkbox
@@ -9868,6 +9917,7 @@ watch(
                       (field.type === 'select' ||
                         field.type === 'role-select') &&
                       field.allowInput &&
+                      getFormValueScope(field) === undefined &&
                       !field.multiple
                     "
                     :value="
@@ -9879,7 +9929,7 @@ watch(
                     @update:value="updateFormFieldInput(field, $event)"
                     :allow-clear="true"
                     :disabled="isFormFieldInteractionDisabled(field)"
-                    :options="getFieldOptions(field)"
+                    :options="getFormFieldOptions(field)"
                     :placeholder="getPlaceholder(field)"
                     :filter-option="
                       isRemoteSearchField(field)
@@ -9908,7 +9958,7 @@ watch(
                     :allow-clear="true"
                     :disabled="isFormFieldInteractionDisabled(field)"
                     :mode="field.multiple ? 'multiple' : undefined"
-                    :options="getFieldOptions(field)"
+                    :options="getFormFieldOptions(field)"
                     :placeholder="getPlaceholder(field)"
                     :filter-option="
                       isRemoteSearchField(field)
@@ -9935,7 +9985,7 @@ watch(
                       )
                     "
                     @update:value="updateFormFieldInput(field, $event)"
-                    :options="getFieldOptions(field)"
+                    :options="getFormFieldOptions(field)"
                     :placeholder="getPlaceholder(field)"
                     :filter-option="
                       isRemoteSearchField(field)
@@ -9944,7 +9994,11 @@ watch(
                     "
                     :loading="optionLoadingState[field.key]"
                     class="w-full"
-                    mode="tags"
+                    :mode="
+                      getFormValueScope(field) === undefined
+                        ? 'tags'
+                        : 'multiple'
+                    "
                     show-search
                     @blur="() => restoreRemoteFieldOptions(field)"
                     @dropdown-visible-change="

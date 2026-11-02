@@ -11,7 +11,7 @@ type PartnerSummary = {
   displayName?: string;
   id?: number | string;
   legalSubjectName?: string;
-  orgId?: number | string;
+  subjectOrgId?: number | string;
   type?: string;
 };
 
@@ -83,7 +83,7 @@ watch(
       if (props.modelValue !== id) return;
       options.value = [
         {
-          label: `${partner.displayName || `渠道伙伴 ${id}`} · 组织 ${partner.orgId || '当前组织'} · ${partner.type || '渠道'}`,
+          label: `${partner.displayName || `渠道伙伴 ${id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '渠道'}`,
           value: id,
         },
         ...options.value,

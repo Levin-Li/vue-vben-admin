@@ -32,8 +32,10 @@ function toggle(expressions: string[], value: boolean) {
 export function mergeDataAttrs(items: DataAttrValuePermission[]) {
   const merged = new Map<string, DataAttrValuePermission>();
   for (const item of items) {
-    if (!item.entityClass || !item.attribute) continue;
-    const key = `${item.entityClass}#${item.attribute}`;
+    if (!item.attribute || !(item.sourceKey || item.entityClass)) continue;
+    const key = item.sourceKey
+      ? `${item.sourceKind}#${item.sourceKey}#${item.attribute}`
+      : `${item.entityClass}#${item.attribute}`;
     const previous = merged.get(key);
     const values = new Map(
       [...(previous?.values || []), ...(item.values || [])]

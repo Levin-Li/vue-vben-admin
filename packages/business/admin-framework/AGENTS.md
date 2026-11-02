@@ -10,6 +10,7 @@
 默认管理员强制改密：[接入指南](docs/initial-password-change.md)。
 
 API 属性组权限的轻量分配、后端元数据契约与保存语义见 [属性组授权接入指南](docs/api-attribute-group-permissions.md)。
+接口级信息组与枚举／字典值授权见 [接入指南](docs/api-scoped-attribute-grants.md)、[设计](docs/api-scoped-attribute-grants-design.md)和[实现说明](docs/api-scoped-attribute-grants-implementation.md)。
 
 公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。
 

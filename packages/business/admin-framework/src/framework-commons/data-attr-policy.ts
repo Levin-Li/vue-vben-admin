@@ -2,6 +2,9 @@ import { shallowRef } from 'vue';
 
 import { CanceledError } from '@vben/runtime/request';
 
+import RbacPermissionMatchUtils from './rbac-permission-match';
+import { clearFieldValueGrants } from './shared/crud-field-value-scope';
+
 export const DATA_ATTR_POLICY_PATH =
   '/com.levin.oak.base/V1/api/rbac/apiDataAttrPolicies';
 export const DATA_ATTR_POLICY_SNAPSHOT_PATH =
@@ -29,6 +32,19 @@ export interface DataAttrNode {
   selectorNodeId?: string;
   valueNodeId?: string;
 }
+/** 服务端从实际请求模型生成的字段值范围绑定。 */
+export interface DataAttrValueFieldBinding {
+  attribute: string;
+  entityClass: string;
+  location: 'body' | 'parameters' | null;
+  mapped: boolean;
+  mappingStatus?: 'absent' | 'mapped' | 'unknown';
+  modelPath: string[];
+  parameterIndex: number;
+  sourceKey: string;
+  sourceKind: 'dict' | 'enum';
+  wirePath: string[];
+}
 export interface DataAttrPolicy {
   groups: { allowed: boolean; id: string; name: string }[];
   id: string;
@@ -43,6 +59,7 @@ export interface DataAttrPolicy {
   }[];
   responseRoot?: null | string;
   restricted: boolean;
+  valueFields?: DataAttrValueFieldBinding[];
   viewRoots: { request: string[]; response: string[] };
 }
 export interface DataAttrPolicies {
@@ -110,6 +127,7 @@ export function clearDataAttrPolicies() {
   generation++;
   cache.clear();
   fieldGrants.clear();
+  clearFieldValueGrants();
   missingWarnings.clear();
   snapshot = undefined;
   snapshotLoading = undefined;
@@ -162,6 +180,9 @@ export function registerDataAttrStaticContract(
     return copy;
   });
   definitions.forEach((policy) => staticPolicies.set(policy.id, policy));
+  RbacPermissionMatchUtils.registerApiOperations(
+    definitions.map((policy) => policy.operation).filter(Boolean),
+  );
   enabled = true;
   staticMode = true;
   snapshotMode = false;
@@ -528,6 +549,33 @@ export function validatePolicy(policy: DataAttrPolicy) {
     )
   )
     throw new Error('API属性组策略无效');
+  if (
+    policy.valueFields !== undefined &&
+    (!Array.isArray(policy.valueFields) ||
+      policy.valueFields.some(
+        (field) =>
+          !field ||
+          !field.entityClass ||
+          !field.attribute ||
+          !field.sourceKey ||
+          !['dict', 'enum'].includes(field.sourceKind) ||
+          typeof field.mapped !== 'boolean' ||
+          (field.mappingStatus !== undefined &&
+            (!['absent', 'mapped', 'unknown'].includes(field.mappingStatus) ||
+              field.mapped !== (field.mappingStatus === 'mapped'))) ||
+          !Array.isArray(field.modelPath) ||
+          !Array.isArray(field.wirePath) ||
+          field.modelPath.some((part) => typeof part !== 'string' || !part) ||
+          field.wirePath.some((part) => typeof part !== 'string' || !part) ||
+          (field.mapped &&
+            (!['body', 'parameters'].includes(field.location || '') ||
+              !Number.isInteger(field.parameterIndex) ||
+              field.parameterIndex < 0 ||
+              field.modelPath.length === 0 ||
+              field.wirePath.length === 0)),
+      ))
+  )
+    throw new Error('API字段值范围契约无效');
   const exists = (id: unknown) => {
     if (typeof id !== 'string' || !policy.nodes[id])
       throw new Error('API属性组策略节点缺失');

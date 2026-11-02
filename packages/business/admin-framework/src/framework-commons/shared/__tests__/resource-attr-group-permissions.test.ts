@@ -7,10 +7,13 @@ import {
   mount,
 } from '@vue/test-utils';
 
+import { Tooltip } from 'ant-design-vue';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import ApiScopedDataPermissions from '../api-scoped-data-permissions.vue';
 import {
   collectKnownPermissionTreeValues,
+  collectPermissionValues,
   splitMappedAndUnmappedPermissions,
 } from '../data-permission-transform';
 import AttrGroupPermissions from '../resource-attr-group-permissions.vue';
@@ -56,7 +59,323 @@ const settle = async () => {
 };
 
 describe('api 属性组授权', () => {
-  it('实体节点集中展示同一组，勾选不改变接口操作', async () => {
+  it('信息权限以绿色角标统计并延迟预览已选内容', () => {
+    const wrapper = mount(ApiScopedDataPermissions, {
+      props: {
+        operation: action,
+        enabled: true,
+        groups: [group],
+        selected: [`@${action}:@财务信息|enum#Example#kind@A`],
+        attributes: [
+          {
+            attribute: 'kind',
+            entityClass: 'Contract',
+            name: '类型',
+            sourceKind: 'enum',
+            sourceKey: 'Example',
+            values: [{ name: 'A', label: '客户', permissionExpr: 'old:a' }],
+          },
+        ],
+      },
+    });
+    expect(wrapper.get('[aria-label="已选 2 项信息权限"]').classes()).toContain(
+      'bg-success',
+    );
+    const tooltip = wrapper
+      .findAllComponents(Tooltip)
+      .find((item) => item.props('mouseEnterDelay') === 0.7);
+    expect(tooltip?.props('title')).toBe('财务信息；类型：客户');
+  });
+  it('只对服务端声明的同类全部操作入口汇总同源组和值', async () => {
+    const wildcard = 'example:业务数据-合同::*';
+    const sourceGroup = {
+      ...group,
+      entityScope: true,
+      name: '财务信息',
+      sourceKey: 'com.example.Contract#财务信息',
+    };
+    const attribute = (value: string) => ({
+      attribute: 'type',
+      entityClass: 'com.example.Contract',
+      name: '合同类型',
+      sourceKind: 'enum' as const,
+      sourceKey: 'com.example.Contract$Type',
+      values: [{ name: value, label: value, permissionExpr: `old:${value}` }],
+    });
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: 'module',
+            name: '示例',
+            nodeType: 'Module',
+            children: [
+              {
+                id: 'contract-type',
+                name: '合同',
+                nodeType: 'ResourceType',
+                wildcardOperation: wildcard,
+                children: [
+                  {
+                    id: 'contract',
+                    name: '合同',
+                    nodeType: 'Resource',
+                    children: [
+                      {
+                        id: 'list',
+                        name: '查询列表',
+                        nodeType: 'Action',
+                        permissionExpr: 'example:业务数据-合同::查询列表',
+                        attrGroups: [sourceGroup],
+                        dataAttrs: [attribute('Customer')],
+                      },
+                      {
+                        id: 'detail',
+                        name: '查看详情',
+                        nodeType: 'Action',
+                        permissionExpr: 'example:业务数据-合同::查看详情',
+                        attrGroups: [sourceGroup],
+                        dataAttrs: [attribute('Supplier')],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        value: [wildcard],
+      },
+    });
+    expect(
+      wrapper.find(`[data-test="permission-wildcard-${wildcard}"]`).exists(),
+    ).toBe(true);
+    const picker = wrapper
+      .findAllComponents(ApiScopedDataPermissions)
+      .find((item) => item.props('operation') === wildcard);
+    expect(picker?.props('groups')).toHaveLength(1);
+    expect(
+      picker?.props('attributes')[0]?.values.map((item: any) => item.name),
+    ).toEqual(['Customer', 'Supplier']);
+    picker?.vm.$emit(
+      'toggleValues',
+      'enum#com.example.Contract$Type#type',
+      ['Customer'],
+      true,
+    );
+    await flushPromises();
+    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual([
+      `@${wildcard}:enum#com.example.Contract$Type#type@Customer`,
+    ]);
+    const saved = splitMappedAndUnmappedPermissions(
+      [`@${wildcard}:@财务信息`],
+      [],
+      wrapper.props('permissionTree'),
+    );
+    expect(saved).toEqual({
+      mapped: [`@${wildcard}:@财务信息`],
+      unmapped: [],
+    });
+    await wrapper.setProps({ value: saved.mapped });
+    await wrapper
+      .get(`[data-test="permission-wildcard-${wildcard}"]`)
+      .setValue(false);
+    const revoked = wrapper.emitted('update:value')?.at(-1)?.[0] as string[];
+    expect(collectPermissionValues(revoked)).toEqual([]);
+  });
+
+  it('未声明通配入口及同名不同来源候选不显示通配配置', () => {
+    const wildcard = 'example:业务数据-合同::*';
+    const permissionTree: PermissionTreeNode[] = [
+      {
+        id: 'type',
+        name: '合同',
+        nodeType: 'ResourceType',
+        wildcardOperation: wildcard,
+        children: [
+          {
+            id: 'resource',
+            name: '合同',
+            nodeType: 'Resource',
+            children: [
+              {
+                id: 'first',
+                name: '查询',
+                nodeType: 'Action',
+                permissionExpr: 'example:业务数据-合同::查询',
+                attrGroups: [
+                  { ...group, entityScope: true, sourceKey: 'First#财务信息' },
+                ],
+                dataAttrs: [
+                  {
+                    attribute: 'type',
+                    entityClass: 'First',
+                    name: '类型',
+                    sourceKind: 'enum',
+                    sourceKey: 'First$Type',
+                    values: [
+                      { name: 'A', label: 'A', permissionExpr: 'old:A' },
+                    ],
+                  },
+                ],
+              },
+              {
+                id: 'second',
+                name: '详情',
+                nodeType: 'Action',
+                permissionExpr: 'example:业务数据-合同::详情',
+                attrGroups: [
+                  { ...group, entityScope: true, sourceKey: 'Second#财务信息' },
+                ],
+                dataAttrs: [
+                  {
+                    attribute: 'type',
+                    entityClass: 'Second',
+                    name: '类型',
+                    sourceKind: 'enum',
+                    sourceKey: 'Second$Type',
+                    values: [
+                      { name: 'B', label: 'B', permissionExpr: 'old:B' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: 'module',
+            name: '示例',
+            nodeType: 'Module',
+            children: permissionTree,
+          },
+        ],
+        value: [],
+      },
+    });
+    expect(
+      wrapper.find(`[data-test="permission-wildcard-${wildcard}"]`).exists(),
+    ).toBe(true);
+    expect(
+      wrapper
+        .findAllComponents(ApiScopedDataPermissions)
+        .some((item) => item.props('operation') === wildcard),
+    ).toBe(false);
+    const withoutWildcard = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: 'module',
+            name: '示例',
+            nodeType: 'Module',
+            children: [{ ...permissionTree[0], wildcardOperation: undefined }],
+          },
+        ],
+        value: [],
+      },
+    });
+    expect(
+      withoutWildcard.find('[data-test^="permission-wildcard-"]').exists(),
+    ).toBe(false);
+  });
+
+  it('同一接口的枚举和字典允许值写入一条复合授权', async () => {
+    const operation = 'example:系统数据-用户::查询列表';
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: 'module',
+            name: '示例',
+            nodeType: 'Module',
+            children: [
+              {
+                id: 'user',
+                name: '用户',
+                nodeType: 'Resource',
+                children: [
+                  {
+                    id: 'list',
+                    name: '查询列表',
+                    nodeType: 'Action',
+                    permissionExpr: operation,
+                    dataAttrs: [
+                      {
+                        attribute: 'sex',
+                        entityClass: 'User',
+                        name: '性别',
+                        sourceKind: 'enum',
+                        sourceKey: 'com.example.User$Sex',
+                        values: [
+                          {
+                            label: '男',
+                            name: 'Male',
+                            permissionExpr: 'old:male',
+                          },
+                        ],
+                      },
+                      {
+                        attribute: 'type',
+                        entityClass: 'User',
+                        name: '用户类型',
+                        sourceKind: 'dict',
+                        sourceKey: 'com.example.User.type',
+                        values: [
+                          {
+                            label: '客户',
+                            name: 'Customer',
+                            permissionExpr: 'old:customer',
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        value: [operation],
+      },
+    });
+    const picker = wrapper.findComponent(ApiScopedDataPermissions);
+    expect(picker.exists()).toBe(true);
+    picker.vm.$emit(
+      'toggleValues',
+      'enum#com.example.User$Sex#sex',
+      ['Male'],
+      true,
+    );
+    await flushPromises();
+    const first = `@${operation}:enum#com.example.User$Sex#sex@Male`;
+    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual([first]);
+
+    await wrapper.setProps({ value: [first] });
+    expect(picker.text()).toContain('信息权限 1');
+    picker.vm.$emit(
+      'toggleValues',
+      'dict#com.example.User.type#type',
+      ['Customer'],
+      true,
+    );
+    await flushPromises();
+    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual([
+      `@${operation}:dict#com.example.User.type#type@Customer|enum#com.example.User$Sex#sex@Male`,
+    ]);
+    await wrapper.setProps({
+      value: [
+        `@${operation}:dict#com.example.User.type#type@Customer|enum#com.example.User$Sex#sex@Male`,
+      ],
+    });
+    expect(picker.text()).toContain('信息权限 2');
+  });
+
+  it('同一信息组在不同接口操作下分别勾选并保存为一条复合授权', async () => {
     const firstAction = 'example:业务数据-合同::查询列表';
     const secondAction = 'example:业务数据-合同::查看详情';
     const entityGroup = {
@@ -109,38 +428,29 @@ describe('api 属性组授权', () => {
         value: [firstAction, secondAction],
       },
     });
-    expect(wrapper.findAll('[data-test="entity-attr-groups"]')).toHaveLength(1);
-    expect(wrapper.find('[data-test="attr-group-icon"]').exists()).toBe(true);
-    expect(wrapper.findAll('[data-test="attr-groups-trigger"]')).toHaveLength(
-      0,
+    expect(wrapper.find('[data-test="entity-attr-groups"]').exists()).toBe(
+      false,
     );
-    const entityCheckbox = wrapper.get(
-      `[data-test="entity-attr-group-${entityExpression}"]`,
-    );
-    expect(entityCheckbox.element.closest('label')?.textContent).toContain(
-      '财务信息',
-    );
-    await entityCheckbox.setValue(true);
-    expect(
-      new Set(wrapper.emitted('update:value')?.at(-1)?.[0] as string[]),
-    ).toEqual(new Set([entityExpression, firstAction, secondAction]));
-    await wrapper.setProps({
-      value: [firstAction, secondAction, entityExpression],
-    });
+    const selectors = wrapper.findAllComponents(ApiScopedDataPermissions);
+    expect(selectors).toHaveLength(2);
+    selectors[0]?.vm.$emit('toggleGroup', '财务信息', true);
+    await flushPromises();
+    const scoped = `@${firstAction}:@财务信息`;
+    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual([
+      secondAction,
+      scoped,
+    ]);
+    await wrapper.setProps({ value: [secondAction, scoped] });
+    expect(selectors[0]?.props('selected')).toEqual([secondAction, scoped]);
+    expect(selectors[1]?.props('selected')).toEqual([secondAction, scoped]);
     await wrapper
       .get(`[data-test="permission-${firstAction}"]`)
       .setValue(false);
     const afterFirstRemoval = wrapper
       .emitted('update:value')
       ?.at(-1)?.[0] as string[];
-    expect(afterFirstRemoval).toContain(entityExpression);
-    await wrapper.setProps({ value: afterFirstRemoval });
-    await wrapper
-      .get(`[data-test="permission-${secondAction}"]`)
-      .setValue(false);
-    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual([
-      entityExpression,
-    ]);
+    expect(afterFirstRemoval).not.toContain(scoped);
+    expect(afterFirstRemoval).toContain(secondAction);
   });
 
   it('无组时不增加入口，悬停仅显示中文属性名称列表', async () => {

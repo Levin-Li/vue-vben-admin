@@ -7,6 +7,11 @@ import {
   buildModuleOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
+import {
+  buildMasterDetailMetadata,
+  buildMasterPartyFields,
+  customerPartnerParties,
+} from '../master-party-fields';
 
 // 路由同步仍读取页面元数据；合作关系字段拆分不改变该页面的稳定标识。
 export const pageMeta = {
@@ -144,7 +149,7 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
   },
   { key: 'containsDisplayName', label: '业务名称', form: false, search: true },
   {
-    key: 'orgId',
+    key: 'parentOrgId',
     formCreate: true,
     formEdit: false,
     detail: false,
@@ -156,18 +161,9 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
     type: 'select',
     placeholder: '留空使用当前用户所属组织，或搜索内部父组织',
   },
-  {
-    key: 'orgName',
-    label: '伙伴组织节点',
-    formCreate: false,
-    formEdit: true,
-    disabledOnEdit: true,
-    omitOnEdit: true,
-    layoutGroup: 'ownership',
-    layoutOrder: 21,
-    table: true,
-    search: false,
-  },
+  // 主体组织由建档生成，五方负责人和职能组织分别维护。
+  ...buildMasterPartyFields(customerPartnerParties, true),
+  ...buildMasterDetailMetadata(customerPartnerParties),
   {
     key: 'groupName',
     label: '分组',

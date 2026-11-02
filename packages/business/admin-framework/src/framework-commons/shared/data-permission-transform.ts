@@ -4,6 +4,10 @@ import type {
 } from './data-permission-types';
 
 import { RbacPermissionMatchUtils } from '../rbac-permission-match';
+import {
+  parseApiScopedGrant,
+  projectOperationPermission,
+} from './api-scoped-grant';
 
 export function mergeUnmappedPermissions(
   selected: string[],
@@ -20,7 +24,23 @@ export function removePermissionValue(
 }
 
 export function collectPermissionValues(checkedPermissions: string[]) {
-  return [...new Set(checkedPermissions.filter(Boolean))];
+  const scopedOperations = new Set(
+    checkedPermissions.flatMap((permission) => {
+      try {
+        const grant = parseApiScopedGrant(permission);
+        return grant ? [grant.operation] : [];
+      } catch {
+        return [];
+      }
+    }),
+  );
+  return [
+    ...new Set(
+      checkedPermissions.filter(
+        (permission) => permission && !scopedOperations.has(permission),
+      ),
+    ),
+  ];
 }
 
 export function collectKnownPermissionValues(modules: RbacModuleNode[]) {
@@ -44,6 +64,7 @@ export function collectKnownPermissionTreeValues(nodes: PermissionTreeNode[]) {
   const values = new Set<string>();
   for (const node of nodes) {
     if (node.permissionExpr) values.add(node.permissionExpr);
+    if (node.wildcardOperation) values.add(node.wildcardOperation);
     for (const attribute of node.dataAttrs || []) {
       for (const value of attribute.values || []) {
         if (value.permissionExpr) values.add(value.permissionExpr);
@@ -75,14 +96,34 @@ export function splitMappedAndUnmappedPermissions(
   const treeValues = collectKnownPermissionTreeValues(permissionTree);
   const knownValues =
     treeValues.size > 0 ? treeValues : collectKnownPermissionValues(modules);
-  const mapped = [...knownValues].filter((permissionExpr) =>
-    RbacPermissionMatchUtils.simpleMatchList(permissionExpr, value),
+  const scoped = value.filter((permission) => {
+    try {
+      const grant = parseApiScopedGrant(permission);
+      return !!grant && knownValues.has(grant.operation);
+    } catch {
+      return false;
+    }
+  });
+  const scopedPatterns = scoped.map((permission) =>
+    projectOperationPermission(permission),
+  );
+  const projected = value.map((permission) =>
+    projectOperationPermission(permission),
+  );
+  const mapped = [...knownValues].filter(
+    (permissionExpr) =>
+      RbacPermissionMatchUtils.simpleMatchList(permissionExpr, projected) &&
+      (value.includes(permissionExpr) ||
+        !scopedPatterns.some((pattern) =>
+          RbacPermissionMatchUtils.simpleMatchList(permissionExpr, [pattern]),
+        )),
   );
   const unmapped = value.filter(
     (permission) =>
+      !scoped.includes(permission) &&
       ![...knownValues].some((permissionExpr) =>
         RbacPermissionMatchUtils.simpleMatchList(permissionExpr, [permission]),
       ),
   );
-  return { mapped, unmapped };
+  return { mapped: [...new Set([...mapped, ...scoped])], unmapped };
 }

@@ -39,7 +39,7 @@ export const channelPartnerPageCrudConfig: CrudPageConfig =
     title: '渠道伙伴',
     fields: [
       ...partnerCommonFields.map((field) =>
-        field.key === 'orgId'
+        field.key === 'parentOrgId'
           ? {
               ...field,
               label: '新渠道伙伴组织的内部父级',

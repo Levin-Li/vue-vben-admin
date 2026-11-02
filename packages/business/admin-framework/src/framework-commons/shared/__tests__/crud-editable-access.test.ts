@@ -63,7 +63,7 @@ describe('cRUD editable access', () => {
     ).toBe(false);
   });
 
-  it('applies row mutation restrictions only to CRUDs with editable metadata', () => {
+  it('保留能力元数据的严格检查及无只读标志记录的原有行为', () => {
     expect(canMutateCrudRecord([], { id: 'record-1' }, {})).toBe(true);
     expect(canMutateCrudRecord([editableField], { editable: false }, {})).toBe(
       false,
@@ -73,6 +73,32 @@ describe('cRUD editable access', () => {
     );
     expect(
       canMutateCrudRecord([editableField], { editable: false }, { sa: true }),
+    ).toBe(true);
+  });
+  it('实际记录的 editable=false 不因页面缺少字段元数据而失效', () => {
+    expect(canMutateCrudRecord([], { editable: false }, {})).toBe(false);
+    expect(canMutateCrudRecord([], { editable: true }, {})).toBe(true);
+    expect(canMutateCrudRecord([], { id: 'record-1' }, {})).toBe(true);
+  });
+
+  it.each([{ admin: true }, { tenantAdmin: true }, { platformAdmin: true }])(
+    '普通管理员身份不能编辑显式只读记录：%j',
+    (userInfo) => {
+      expect(canMutateCrudRecord([], { editable: false }, userInfo)).toBe(
+        false,
+      );
+    },
+  );
+
+  it.each([
+    { superAdmin: true },
+    { isSuperAdmin: true },
+    { topSuperAdmin: true },
+    { isTopSuperAdmin: true },
+  ])('超级管理员保留显式只读记录的编辑例外：%j', (userInfo) => {
+    expect(canMutateCrudRecord([], { editable: false }, userInfo)).toBe(true);
+    expect(
+      canMutateCrudRecord([editableField], { editable: false }, userInfo),
     ).toBe(true);
   });
 });

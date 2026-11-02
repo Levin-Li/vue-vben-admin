@@ -15,7 +15,7 @@ type PartnerSummary = {
   id?: number | string;
   legalSubjectId?: number | string;
   legalSubjectName?: string;
-  orgId?: number | string;
+  subjectOrgId?: number | string;
   type?: string;
 };
 
@@ -150,7 +150,7 @@ watch(
       ];
       relationOptions.value = [
         {
-          label: `${partner.displayName || `合作关系 ${id}`} · 组织 ${partner.orgId || '当前组织'} · ${partner.type || '供应伙伴'}`,
+          label: `${partner.displayName || `合作关系 ${id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '供应伙伴'}`,
           value: id,
         },
       ];

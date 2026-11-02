@@ -4,9 +4,10 @@ import {
   buildCrudDeleteParams,
   buildCrudRetrieveParams,
   omitNonPlatformTenantId,
+  withCrudUpdateTenantContext,
 } from '../crud-retrieve-context';
 
-describe('CRUD detail request context', () => {
+describe('更新与详情请求上下文', () => {
   const record = {
     id: 'record-1',
     orgId: 'org-1',
@@ -43,8 +44,29 @@ describe('CRUD detail request context', () => {
   });
 
   it('preserves tenant context for platform users', () => {
+    expect(omitNonPlatformTenantId({ tenantId: 'tenant-1' }, true)).toEqual({
+      tenantId: 'tenant-1',
+    });
+  });
+  it('更新定位只补原记录租户，保留显式值且不猜测缺失上下文', () => {
     expect(
-      omitNonPlatformTenantId({ tenantId: 'tenant-1' }, true),
-    ).toEqual({ tenantId: 'tenant-1' });
+      withCrudUpdateTenantContext({ id: '1' }, { tenantId: 'original' }),
+    ).toEqual({ id: '1', tenantId: 'original' });
+    expect(
+      withCrudUpdateTenantContext(
+        { id: '1', tenantId: 'explicit' },
+        { tenantId: 'original' },
+      ),
+    ).toEqual({ id: '1', tenantId: 'explicit' });
+    expect(
+      withCrudUpdateTenantContext(
+        { id: '1', tenantId: null },
+        { tenantId: 'original' },
+      ),
+    ).toEqual({ id: '1', tenantId: null });
+    expect(withCrudUpdateTenantContext({ id: '1' }, {})).toEqual({ id: '1' });
+    expect(
+      withCrudUpdateTenantContext({ id: '1' }, { tenantId: null }),
+    ).toEqual({ id: '1' });
   });
 });

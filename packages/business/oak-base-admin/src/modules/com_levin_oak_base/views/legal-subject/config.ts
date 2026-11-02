@@ -10,6 +10,10 @@ import {
   withModuleCrudConfig,
 } from '../api-module';
 import {
+  buildMasterDetailMetadata,
+  buildMasterPartyFields,
+} from '../master-party-fields';
+import {
   getSubjectIdentityHelp,
   getSubjectIdentityImageHelp,
   getSubjectIdentityImageLabel,
@@ -140,14 +144,6 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       width: 180,
     },
     {
-      key: 'orgId',
-      label: '添加/管理组织',
-      layoutGroup: 'ownership',
-      layoutGroupTitle: '归属信息',
-      layoutOrder: 15,
-      type: 'org-tree-select',
-    },
-    {
       key: 'containsSubjectName',
       label: '主体名称',
       form: false,
@@ -243,6 +239,15 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       type: 'image',
       multiple: true,
     },
+    // 主体方和维护方独立赋予访问资格，资料权限仍由服务端判断。
+    ...buildMasterPartyFields([
+      ['subject', '主体方'],
+      ['maintain', '维护方'],
+    ]),
+    ...buildMasterDetailMetadata([
+      ['subject', '主体方'],
+      ['maintain', '维护方'],
+    ]),
     {
       key: 'confidentialLevel',
       label: '机密等级',

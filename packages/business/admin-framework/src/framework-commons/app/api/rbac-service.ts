@@ -1,7 +1,7 @@
 import type { UserInfo } from '@vben/runtime/types';
 
 import type { DataAttrFieldGrants } from '../../data-attr-policy';
-
+import type { FieldValueGrants } from '../../shared/crud-field-value-scope';
 import type { BackendMenuInfo } from './core/menu-route';
 
 import { ResAuthorize, Service } from '../../api-authorize';
@@ -10,6 +10,7 @@ import { baseRequestClient, requestClient } from './request';
 
 export type AuthorizedUserInfo = UserInfo & {
   fieldGroupGrants?: DataAttrFieldGrants;
+  fieldValueGrants?: FieldValueGrants;
 };
 
 export const ADMIN_UI_BASE_SETTING_KEY = 'admin-ui-base-setting';
@@ -80,6 +81,7 @@ export namespace RbacApi {
     avatar?: string;
     email?: string;
     fieldGroupGrants?: DataAttrFieldGrants;
+    fieldValueGrants?: FieldValueGrants;
     id?: string;
     loginName?: string;
     mustChangeInitialPassword?: boolean;
