@@ -87,6 +87,10 @@ export interface CrudFieldConfig {
   '@JsonschemaMode'?: 'inline' | 'popup';
   allowInput?: boolean;
   areaCascader?: CrudAreaCascaderConfig;
+  /** 简要表单中使用的字段标题；普通表单仍使用 formLabel 或 label。 */
+  briefLabel?: string;
+  /** 简要表单专用必填提示；完整表单不因此增加必填约束。 */
+  briefRequired?: boolean;
   cellSingleLine?: boolean;
   cellTooltip?: boolean;
   complexGroupKey?: string;
@@ -498,6 +502,34 @@ export interface CrudListTableConfig {
 }
 
 export interface CrudPageConfig {
+  /** 主记录保存后执行独立业务操作；失败返回明确的部分成功提示。 */
+  afterSave?: (context: {
+    created: boolean;
+    editingRecord: null | Record<string, any>;
+    formState: Record<string, any>;
+    id: string;
+  }) => Promise<string | undefined>;
+  /** 当前页面新增/编辑的简要表单重点字段；未声明时不启用简要视图。 */
+  briefFields?: Partial<Record<'create' | 'edit', string[]>>;
+  /** 打开或返回简要表单时同步页面专属的临时输入值。 */
+  briefOnEnter?: (
+    formState: Record<string, any>,
+    editingRecord: null | Record<string, any>,
+  ) => void;
+  /** 离开简要表单时将临时输入同步到完整表单。 */
+  briefOnExit?: (
+    formState: Record<string, any>,
+    editingRecord: null | Record<string, any>,
+  ) => void;
+  /** 本页简要视图缺少任一字段时整体回退完整表单。 */
+  briefRequiredFields?: Partial<Record<'create' | 'edit', string[]>>;
+  /** 字段排除后转换页面专属的简要输入，后端字段权限仍会复核。 */
+  finalizeBriefSubmit?: (
+    payload: Record<string, any>,
+    formState: Record<string, any>,
+    editingRecord: null | Record<string, any>,
+    canSubmitField: (key: string) => boolean,
+  ) => Record<string, any>;
   /** 显式登记 toolbar-extra 等扩展按钮，稳定键不得随显示名称改变。 */
   listOperations?: CrudListOperationCandidate[];
   apiBase: string;

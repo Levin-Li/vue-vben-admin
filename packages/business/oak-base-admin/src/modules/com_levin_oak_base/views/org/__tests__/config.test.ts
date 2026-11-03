@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { legalSubjectOptionsLoader } from '../../api-module';
+import {
+  legalSubjectOptionsLoader,
+  orgResponsibilityOptionsLoader,
+} from '../../api-module';
 import { orgPageCrudConfig } from '../config';
 
 describe('orgPageCrudConfig', () => {
@@ -53,6 +56,26 @@ describe('orgPageCrudConfig', () => {
         expect.objectContaining({ key: 'category', required: true }),
       ]),
     );
+  });
+
+  it('offers an optional dictionary-backed organization responsibility', () => {
+    expect(orgPageCrudConfig.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'responsibilityCode',
+          label: '组织职能',
+          loadOptions: orgResponsibilityOptionsLoader,
+          search: true,
+          table: true,
+          type: 'select',
+        }),
+      ]),
+    );
+    expect(
+      orgPageCrudConfig.fields.find(
+        (field) => field.key === 'responsibilityCode',
+      ),
+    ).not.toHaveProperty('required', true);
   });
 
   it('qualifies the organization type sort field after loading parents', () => {

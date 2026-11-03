@@ -10,7 +10,9 @@ import { settlementOrderService } from '../../api/settlement-order-service';
 import {
   buildEnumOptionsLoader,
   buildModuleOptionsLoader,
+  legalSubjectOptionsLoader,
   tenantOptionsLoader,
+  userOptionsLoader,
   withModuleCrudConfig,
 } from '../api-module';
 import {
@@ -68,6 +70,30 @@ export function validateSettlementSave(
   values: Record<string, any>,
   editing: null | Record<string, any>,
 ) {
+  // 旧管理组织字段不属于多方结算契约；编辑时交易身份与参与归属由原记录保持。
+  const { orgId: _orgId, ...submitted } = values;
+  values = submitted;
+  if (editing) {
+    const {
+      partnerId: _partnerId,
+      payerLegalSubjectId: _payerLegalSubjectId,
+      payeeLegalSubjectId: _payeeLegalSubjectId,
+      payeeOrgId: _payeeOrgId,
+      payeeUserId: _payeeUserId,
+      salesOrgId: _salesOrgId,
+      salesUserId: _salesUserId,
+      financeOrgId: _financeOrgId,
+      financeUserId: _financeUserId,
+      ...editable
+    } = values;
+    values = editable;
+  } else if (
+    values.payerLegalSubjectId &&
+    values.payeeLegalSubjectId &&
+    values.payerLegalSubjectId === values.payeeLegalSubjectId
+  ) {
+    throw new Error('付款主体与收款主体不能相同');
+  }
   if ('settlementAmount' in values) {
     const error = positiveMoney(values.settlementAmount);
     if (error) throw new Error(error);
@@ -110,7 +136,7 @@ export function buildSettlementPageConfig(
   return withModuleCrudConfig({
     apiBase: '/SettlementOrder',
     apiService: settlementOrderService,
-    listPath: '/SettlementOrder/list',
+    listPath: '/SettlementOrder/listByRoles',
     detailPath: '/SettlementOrder/retrieve',
     domainObject: true,
     title: '结算单',
@@ -137,17 +163,8 @@ export function buildSettlementPageConfig(
         visibleForPlatformUser: true,
         search: true,
         layoutGroup: 'identity',
-        layoutGroupTitle: '结算关系',
+        layoutGroupTitle: '合作关系与结算主体',
         layoutOrder: 5,
-      },
-      {
-        key: 'orgId',
-        label: '管理组织',
-        type: 'org-tree-select',
-        disabledOnEdit: true,
-        search: true,
-        layoutGroup: 'identity',
-        layoutOrder: 10,
       },
       {
         key: 'partnerId',
@@ -161,6 +178,121 @@ export function buildSettlementPageConfig(
         search: true,
         table: true,
         layoutGroup: 'identity',
+        layoutOrder: 10,
+      },
+      {
+        key: 'payerLegalSubjectId',
+        label: '付款主体',
+        type: 'select',
+        loadOptions: legalSubjectOptionsLoader,
+        remoteSearch: true,
+        required: true,
+        disabledOnEdit: true,
+        omitOnEdit: true,
+        search: true,
+        table: true,
+        width: 200,
+        layoutGroup: 'identity',
+        layoutOrder: 20,
+      },
+      {
+        key: 'payeeLegalSubjectId',
+        label: '收款主体',
+        type: 'select',
+        loadOptions: legalSubjectOptionsLoader,
+        remoteSearch: true,
+        required: true,
+        disabledOnEdit: true,
+        omitOnEdit: true,
+        search: true,
+        table: true,
+        width: 200,
+        layoutGroup: 'identity',
+        layoutOrder: 30,
+      },
+      // 销售和财务属于付款方；负责人候选不按同方组织过滤。
+      {
+        key: 'salesOrgId',
+        label: '销售组织',
+        type: 'org-tree-select',
+        required: true,
+        disabledOnEdit: true,
+        omitOnEdit: true,
+        search: true,
+        table: true,
+        width: 180,
+        layoutGroup: 'participants',
+        layoutGroupTitle: '付款方销售与财务',
+        layoutOrder: 10,
+      },
+      {
+        key: 'salesUserId',
+        label: '销售负责人',
+        type: 'select',
+        loadOptions: userOptionsLoader,
+        remoteSearch: true,
+        disabledOnEdit: true,
+        omitOnEdit: true,
+        search: true,
+        table: true,
+        width: 160,
+        layoutGroup: 'participants',
+        layoutOrder: 20,
+      },
+      {
+        key: 'financeOrgId',
+        label: '财务组织',
+        type: 'org-tree-select',
+        required: true,
+        disabledOnEdit: true,
+        omitOnEdit: true,
+        search: true,
+        table: true,
+        width: 180,
+        layoutGroup: 'participants',
+        layoutOrder: 30,
+      },
+      {
+        key: 'financeUserId',
+        label: '财务负责人',
+        type: 'select',
+        loadOptions: userOptionsLoader,
+        remoteSearch: true,
+        disabledOnEdit: true,
+        omitOnEdit: true,
+        search: true,
+        table: true,
+        width: 160,
+        layoutGroup: 'participants',
+        layoutOrder: 40,
+      },
+      // 收款方组织及对接人独立于付款方销售、财务归属。
+      {
+        key: 'payeeOrgId',
+        label: '收款方组织',
+        type: 'org-tree-select',
+        required: true,
+        disabledOnEdit: true,
+        omitOnEdit: true,
+        search: true,
+        table: true,
+        width: 180,
+        layoutGroup: 'payee',
+        layoutGroupTitle: '收款方对接',
+        layoutOrder: 10,
+      },
+      {
+        key: 'payeeUserId',
+        label: '收款方对接人',
+        type: 'select',
+        loadOptions: userOptionsLoader,
+        remoteSearch: true,
+        disabledOnEdit: true,
+        omitOnEdit: true,
+        search: true,
+        table: true,
+        width: 160,
+        layoutGroup: 'payee',
         layoutOrder: 20,
       },
       {

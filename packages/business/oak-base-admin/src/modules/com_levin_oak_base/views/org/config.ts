@@ -7,6 +7,7 @@ import {
   legalSubjectOptionsLoader,
   orgCategoryOptionsLoader,
   orgLevelOptionsLoader,
+  orgResponsibilityOptionsLoader,
   orgStateOptionsLoader,
   orgTypeOptionsLoader,
   tenantOptionsLoader,
@@ -215,6 +216,18 @@ export const orgPageCrudConfig: CrudPageConfig = {
       loadOptions: orgCategoryOptionsLoader,
       required: true,
       type: 'select',
+    },
+    // 主职能是可选分类；字典选项由管理员维护，不推导组织层级或权限。
+    {
+      key: 'responsibilityCode',
+      label: '组织职能',
+      layoutGroup: 'basic',
+      layoutOrder: 75,
+      loadOptions: orgResponsibilityOptionsLoader,
+      search: true,
+      table: true,
+      type: 'select',
+      width: 140,
     },
     {
       key: 'contractPerson',

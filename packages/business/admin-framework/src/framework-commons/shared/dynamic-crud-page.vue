@@ -155,6 +155,7 @@ import {
   isCrudBooleanField,
   isCrudEnableBooleanField,
 } from './crud-boolean-display';
+import { resolveCrudBriefFill } from './crud-brief-fill';
 import {
   findMatchingCrudChoiceOption,
   normalizeCrudChoiceFormValue,
@@ -1618,6 +1619,25 @@ const submittableFormFields = computed(() =>
 
 const quickFillRequested = ref(false);
 const quickFillMore = ref(false);
+const briefRequested = ref(false);
+const briefPlan = computed(() => {
+  const view = editingRecord.value ? 'edit' : 'create';
+  const requested = props.config.briefFields?.[view] || [];
+  const fields = visibleFormFields.value.filter(
+    (field) => !unsubmittedGroupKeys.value.has(field.key),
+  );
+  return resolveCrudBriefFill(
+    fields,
+    requested,
+    props.config.briefRequiredFields?.[view] || [],
+  );
+});
+const briefActive = computed(
+  () =>
+    briefRequested.value &&
+    briefPlan.value.eligible &&
+    !focusedJsonFieldKey.value,
+);
 const quickFillPlan = computed(() =>
   resolveCrudQuickFill(
     visibleFormFields.value.filter(
@@ -1636,13 +1656,48 @@ const quickFillPlan = computed(() =>
   ),
 );
 const quickFillActive = computed(
-  () => quickFillRequested.value && quickFillPlan.value.eligible,
+  () =>
+    !briefActive.value &&
+    quickFillRequested.value &&
+    quickFillPlan.value.eligible,
 );
-const displayedFormFields = computed(() =>
-  quickFillActive.value
-    ? quickFillPlan.value.orderedFields
-    : visibleFormFields.value,
+const compactFormActive = computed(
+  () => briefActive.value || quickFillActive.value,
 );
+const displayedFormFields = computed(() => {
+  if (briefActive.value) return briefPlan.value.orderedFields;
+  if (quickFillActive.value) return quickFillPlan.value.orderedFields;
+  return visibleFormFields.value;
+});
+
+function setBriefRequested(value: boolean) {
+  if (briefActive.value && !value) {
+    try {
+      props.config.briefOnExit?.(formState, editingRecord.value);
+    } catch (error) {
+      message.warning(error instanceof Error ? error.message : '登录账号无效');
+      return false;
+    }
+  }
+  if (!briefActive.value && value)
+    props.config.briefOnEnter?.(formState, editingRecord.value);
+  briefRequested.value = value;
+  if (value) quickFillRequested.value = false;
+  return true;
+}
+
+function setQuickFillRequested(value: boolean) {
+  if (value && !setBriefRequested(false)) return;
+  quickFillRequested.value = value;
+}
+
+function showCompleteForm() {
+  if (briefActive.value) {
+    setBriefRequested(false);
+  } else {
+    quickFillMore.value = !quickFillMore.value;
+  }
+}
 
 // 将连续复杂对象字段收拢为对象区块，普通字段继续参与原有表单网格。
 const displayedFormBlocks = computed(() => {
@@ -3656,6 +3711,9 @@ async function revealInvalidFormField(field: CrudFieldConfig) {
     isFormFieldInteractionDisabled(field)
   )
     return;
+  if (briefActive.value && !briefPlan.value.selectedKeys.has(field.key)) {
+    setBriefRequested(false);
+  }
   if (quickFillActive.value) {
     quickFillMore.value = true;
   } else {
@@ -3807,8 +3865,12 @@ function initializeComplexFormValues(
 }
 
 function resetForm(record?: GenericRecord) {
+  const view = record ? 'edit' : 'create';
+  briefRequested.value =
+    Boolean(props.config.briefFields?.[view]?.length) &&
+    pageDisplayConfig.value[view]?.quickFill !== true;
   quickFillRequested.value =
-    pageDisplayConfig.value[record ? 'edit' : 'create']?.quickFill === true;
+    !briefRequested.value && pageDisplayConfig.value[view]?.quickFill === true;
   quickFillMore.value = false;
   for (const key of Object.keys(groupSubmitChecked))
     delete groupSubmitChecked[key];
@@ -5427,6 +5489,7 @@ async function handleCreate() {
   focusedJsonFieldKey.value = undefined;
   editingRecord.value = null;
   resetForm();
+  if (briefActive.value) props.config.briefOnEnter?.(formState, null);
   if (defaults) {
     for (const field of initialFormFields.value) {
       if (Object.hasOwn(defaults, field.key))
@@ -5468,6 +5531,7 @@ async function handleEdit(record: GenericRecord) {
   focusedJsonFieldKey.value = undefined;
   editingRecord.value = record;
   resetForm(record);
+  if (briefActive.value) props.config.briefOnEnter?.(formState, record);
   captureFormSnapshot();
   modalOpen.value = true;
   for (const field of visibleFormFields.value)
@@ -5787,6 +5851,37 @@ async function handleSubmit() {
         : [recordKey.value, 'optimisticLock'],
     );
 
+    // 简要表单的页面专属输入只能映射到本接口仍允许的字段。
+    if (briefActive.value && props.config.finalizeBriefSubmit) {
+      finalPayload = props.config.finalizeBriefSubmit(
+        finalPayload,
+        formState,
+        editingRecord.value,
+        (key) => {
+          const field = effectiveFields.value.find((item) => item.key === key);
+          if (
+            !field ||
+            getPageDisplayField(isCreating ? 'create' : 'edit', key).hidden
+          )
+            return false;
+          return (
+            dataAttrAccess.allowed(
+              isCreating ? 'create' : 'update',
+              'input',
+              field,
+            ) &&
+            shouldShowCrudFormField(
+              field,
+              isCreating ? 'create' : 'edit',
+              userStore.userInfo,
+            ) &&
+            !isFieldDisabledOnEdit(field) &&
+            !unsubmittedGroupKeys.value.has(field.key)
+          );
+        },
+      );
+    }
+
     // 展示配置隐藏的新增默认字段仍是服务端契约的一部分，不能被白名单剔除。
     if (isCreating) {
       finalPayload = {
@@ -5846,15 +5941,21 @@ async function handleSubmit() {
       finalPayload,
       initialFieldValuePaths,
     );
+    let savedId = String(editingRecord.value?.[recordKey.value] ?? '');
     if (isCreating) {
-      await (props.config.apiService?.create && !props.config.createPath
+      const created = await (props.config.apiService?.create &&
+      !props.config.createPath
         ? props.config.apiService.create(finalPayload)
         : createCrudRecord(
             createPath,
             finalPayload,
             props.config.apiModuleBase,
           ));
-      message.success('创建成功');
+      savedId = String(
+        typeof created === 'object' && created !== null
+          ? ((created as GenericRecord)[recordKey.value] ?? '')
+          : (created ?? ''),
+      );
     } else {
       const result = await (props.config.apiService?.update &&
       !props.config.updatePath
@@ -5865,8 +5966,26 @@ async function handleSubmit() {
             props.config.apiModuleBase,
           ));
       assertCrudMutationApplied(result, '更新');
-      message.success('更新成功');
     }
+
+    // 主记录已保存后附加操作失败属于部分成功，不再重提创建请求。
+    let afterSaveWarning: string | undefined;
+    if (props.config.afterSave) {
+      try {
+        afterSaveWarning = await props.config.afterSave({
+          created: isCreating,
+          editingRecord: editingRecord.value,
+          formState,
+          id: savedId,
+        });
+      } catch {
+        afterSaveWarning = isCreating
+          ? '资料已创建，后续操作未完成，请在列表中重试'
+          : '资料已更新，后续操作未完成，请在列表中重试';
+      }
+    }
+    if (afterSaveWarning) message.warning(afterSaveWarning);
+    else message.success(isCreating ? '创建成功' : '更新成功');
 
     modalOpen.value = false;
     await loadList();
@@ -6508,6 +6627,7 @@ function resolveCrudDynamicText(value: CrudDynamicText | undefined) {
 }
 
 function getFormFieldLabel(field: CrudFieldConfig) {
+  if (briefActive.value && field.briefLabel) return field.briefLabel;
   return resolveCrudDynamicText(field.formLabel) || field.label;
 }
 
@@ -8571,6 +8691,13 @@ watch(
           class="mb-3 flex flex-wrap items-center gap-2"
         >
           <div class="flex flex-wrap items-center gap-2">
+            <slot
+              name="toolbar-before-create"
+              :is-list-operation-visible="isListOperationVisible"
+              :editing-record="editingRecord"
+              :form-state="formState"
+              :load-list="loadList"
+            ></slot>
             <Button
               v-if="
                 config.createButtonVisible !== false &&
@@ -9424,11 +9551,20 @@ watch(
             }}
           </span>
           <Checkbox
+            v-if="briefPlan.eligible"
+            class="shrink-0 whitespace-nowrap font-normal"
+            :checked="briefActive"
+            :disabled="submitting"
+            @update:checked="setBriefRequested($event)"
+          >
+            简要表单
+          </Checkbox>
+          <Checkbox
             v-if="quickFillPlan.eligible"
             class="shrink-0 whitespace-nowrap font-normal"
             :checked="quickFillActive"
             :disabled="submitting"
-            @update:checked="quickFillRequested = $event"
+            @update:checked="setQuickFillRequested($event)"
           >
             快捷填写
           </Checkbox>
@@ -9450,7 +9586,7 @@ watch(
             :blocks="displayedFormBlocks"
             :collapsed="complexGroupCollapsed"
             :grid-template-columns="formGridStyle.gridTemplateColumns"
-            :quick-fill-active="quickFillActive"
+            :quick-fill-active="compactFormActive"
           >
             <template #header="{ block }">
               <div
@@ -9505,15 +9641,16 @@ watch(
               <template v-for="field in block.fields" :key="field.key">
                 <div
                   v-if="
-                    quickFillActive &&
-                    field.key === quickFillPlan.firstOptionalKey
+                    (quickFillActive &&
+                      field.key === quickFillPlan.firstOptionalKey) ||
+                    (briefActive && field.key === briefPlan.firstOptionalKey)
                   "
                   class="vben-crud-quick-fill-divider"
                 >
                   <Button
                     type="link"
-                    :aria-expanded="quickFillMore"
-                    @click="quickFillMore = !quickFillMore"
+                    :aria-expanded="quickFillActive && quickFillMore"
+                    @click="showCompleteForm"
                   >
                     <template #icon>
                       <ChevronDown
@@ -9522,12 +9659,12 @@ watch(
                         aria-hidden="true"
                       />
                     </template>
-                    {{ quickFillMore ? '收起更多' : '更多' }}
+                    {{ quickFillActive && quickFillMore ? '收起更多' : '更多' }}
                   </Button>
                 </div>
                 <div
                   v-if="
-                    !quickFillActive &&
+                    !compactFormActive &&
                     !field.complexGroupKey &&
                     shouldShowFormGroupTitle(field)
                   "
@@ -9579,29 +9716,34 @@ watch(
                 </div>
                 <Form.Item
                   v-if="
-                    quickFillActive ||
+                    compactFormActive ||
                     (isComplexGroupFieldVisible(field) &&
                       isPageDisplayGroupFieldVisible(field))
                   "
                   v-show="
-                    !quickFillActive ||
+                    !compactFormActive ||
                     quickFillMore ||
-                    quickFillPlan.requiredKeys.has(field.key)
+                    (briefActive
+                      ? briefPlan.selectedKeys.has(field.key)
+                      : quickFillPlan.requiredKeys.has(field.key))
                   "
                   :data-crud-form-field="field.key"
                   :label="getFormFieldLabel(field)"
-                  :required="field.required && isComplexGroupEnabled(field)"
+                  :required="
+                    (field.required || (briefActive && field.briefRequired)) &&
+                    isComplexGroupEnabled(field)
+                  "
                   :extra="getFormFieldHelp(field)"
                   class="mb-0 w-full"
                   :class="{
                     'vben-crud-form-item-new-row':
-                      !quickFillActive && field.layoutNewRow,
+                      !compactFormActive && field.layoutNewRow,
                     'col-span-full': shouldFormItemSpanFullRow(field),
                     'md:col-span-2': shouldFormItemSpanTwoColumns(field),
                   }"
                   :style="
                     getFormItemStyle(
-                      quickFillActive
+                      compactFormActive
                         ? { ...field, layoutNewRow: false }
                         : field,
                     )
@@ -10053,6 +10195,12 @@ watch(
               </template>
             </template>
           </CrudFormBlockTree>
+          <slot
+            v-if="briefActive"
+            name="brief-extra"
+            :editing-record="editingRecord"
+            :form-state="formState"
+          ></slot>
         </div>
       </Form>
     </Modal>

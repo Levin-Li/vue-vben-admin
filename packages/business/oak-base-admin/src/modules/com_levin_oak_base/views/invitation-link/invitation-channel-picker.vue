@@ -66,6 +66,9 @@ watch(
     placeholder="请选择渠道伙伴"
     show-search
     @search="load"
-    @update:value="(value) => emit('update:modelValue', value)"
+    @update:value="
+      (value) =>
+        emit('update:modelValue', value == null ? undefined : String(value))
+    "
   />
 </template>

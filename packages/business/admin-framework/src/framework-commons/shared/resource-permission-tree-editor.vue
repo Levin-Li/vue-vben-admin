@@ -19,7 +19,9 @@ import { Checkbox, Modal, Radio, Tooltip } from 'ant-design-vue';
 import { RbacPermissionMatchUtils } from '../rbac-permission-match';
 import ApiScopedDataPermissions from './api-scoped-data-permissions.vue';
 import {
+  mergedApiScopedGrant,
   projectOperationPermission,
+  serializeApiScopedGrant,
   updateApiScopedGrant,
 } from './api-scoped-grant';
 import { PermissionTreeNodeType as PermissionTreeNodeTypeEnum } from './data-permission-types';
@@ -408,10 +410,7 @@ const wildcardCatalogs = computed(() => {
   }
   function visit(nodes: PermissionViewNode[]) {
     for (const node of nodes) {
-      if (
-        node.nodeType === PermissionTreeNodeTypeEnum.ResourceType &&
-        node.wildcardOperation
-      ) {
+      if (node.nodeType === PermissionTreeNodeTypeEnum.ResourceType) {
         const groupSources = new Map<string, Map<string, RbacDataAttrGroup>>();
         const fieldSources = new Map<
           string,
@@ -444,14 +443,17 @@ const wildcardCatalogs = computed(() => {
             fieldSources.set(attribute.attribute, sources);
           }
         }
-        catalogs.set(node.wildcardOperation, {
+        const catalog = {
           groups: [...groupSources.values()]
             .filter((sources) => sources.size === 1)
             .flatMap((sources) => [...sources.values()]),
           attributes: [...fieldSources.values()]
             .filter((sources) => sources.size === 1)
             .flatMap((sources) => [...sources.values()]),
-        });
+        };
+        catalogs.set(`entity:${node.id}`, catalog);
+        if (node.wildcardOperation)
+          catalogs.set(node.wildcardOperation, catalog);
       }
       visit(node.children);
     }
@@ -475,6 +477,172 @@ function hasScopedControls(operation: string) {
       (attribute) => attribute.sourceKind && attribute.sourceKey,
     )
   );
+}
+
+function entityScopedCatalog(node: PermissionViewNode) {
+  return (
+    wildcardCatalogs.value.get(`entity:${node.id}`) || {
+      groups: [],
+      attributes: [],
+    }
+  );
+}
+
+function inlineOperationKey(node: PermissionViewNode): string {
+  const actions = (nodes: PermissionViewNode[]): string[] =>
+    nodes.flatMap((child) => [
+      ...(child.nodeType === PermissionTreeNodeTypeEnum.Action &&
+      child.permissionExpr
+        ? [child.permissionExpr]
+        : []),
+      ...actions(child.children),
+    ]);
+  return node.wildcardOperation || actions(node.children)[0] || '';
+}
+
+// 实体行只操作已经获得的接口；既有通配授权优先沿用，不新建通配操作。
+function inlineOperations(node: PermissionViewNode): string[] {
+  const wildcard = node.wildcardOperation;
+  const hasWildcard = Boolean(wildcard && isActionSelected(wildcard));
+  const explicit = new Set(
+    props.value.map((value) => projectOperationPermission(value)),
+  );
+  const actions = (nodes: PermissionViewNode[]): string[] =>
+    nodes.flatMap((child) => [
+      ...(child.nodeType === PermissionTreeNodeTypeEnum.Action &&
+      child.permissionExpr &&
+      (hasWildcard
+        ? explicit.has(child.permissionExpr)
+        : isActionSelected(child.permissionExpr))
+        ? [child.permissionExpr]
+        : []),
+      ...actions(child.children),
+    ]);
+  return [
+    ...new Set([
+      ...(hasWildcard && wildcard ? [wildcard] : []),
+      ...actions(node.children),
+    ]),
+  ];
+}
+
+function inlineEligibleOperations(
+  node: PermissionViewNode,
+  key: string,
+  field: boolean,
+) {
+  return inlineOperations(node).filter((operation) =>
+    field
+      ? scopedAttributes(operation).some(
+          (item) =>
+            `${item.sourceKind}#${item.sourceKey}#${item.attribute}` === key,
+        )
+      : operationStaticGroups(operation).some(
+          (item) => item.name.replaceAll(/\s+/gu, '') === key,
+        ),
+  );
+}
+
+// 实体行汇总已有许可；部分接口配置时显示半选，保存仍按接口分别记录。
+function inlineSelected(node: PermissionViewNode): string[] {
+  const wildcard = inlineOperationKey(node);
+  const groups = entityScopedCatalog(node)
+    .groups.map((group) => group.name.replaceAll(/\s+/gu, ''))
+    .filter((name) => {
+      const operations = inlineEligibleOperations(node, name, false);
+      return operations.some((operation) =>
+        mergedApiScopedGrant(props.value, operation)?.groups.includes(name),
+      );
+    });
+  const values: Record<string, string[]> = {};
+  for (const attribute of entityScopedCatalog(node).attributes) {
+    const key = `${attribute.sourceKind}#${attribute.sourceKey}#${attribute.attribute}`;
+    const operations = inlineEligibleOperations(node, key, true);
+    const selected = attribute.values
+      .map((value) => value.name)
+      .filter((value) =>
+        operations.some((operation) =>
+          mergedApiScopedGrant(props.value, operation)?.values[key]?.includes(
+            value,
+          ),
+        ),
+      );
+    if (selected.length > 0) values[key] = selected;
+  }
+  return [serializeApiScopedGrant({ operation: wildcard, groups, values })];
+}
+
+function inlinePartialGroups(node: PermissionViewNode): string[] {
+  return entityScopedCatalog(node)
+    .groups.map((group) => group.name.replaceAll(/\s+/gu, ''))
+    .filter((name) => {
+      const operations = inlineEligibleOperations(node, name, false);
+      const selected = operations.filter((operation) =>
+        mergedApiScopedGrant(props.value, operation)?.groups.includes(name),
+      );
+      return selected.length > 0 && selected.length < operations.length;
+    });
+}
+
+function inlinePartialValues(node: PermissionViewNode): string[] {
+  return entityScopedCatalog(node).attributes.flatMap((attribute) => {
+    const key = `${attribute.sourceKind}#${attribute.sourceKey}#${attribute.attribute}`;
+    const operations = inlineEligibleOperations(node, key, true);
+    return attribute.values
+      .filter((value) => {
+        const selected = operations.filter((operation) =>
+          mergedApiScopedGrant(props.value, operation)?.values[key]?.includes(
+            value.name,
+          ),
+        );
+        return selected.length > 0 && selected.length < operations.length;
+      })
+      .map((value) => `${key}@${value.name}`);
+  });
+}
+
+function toggleInlineGroup(
+  node: PermissionViewNode,
+  name: string,
+  checked: boolean,
+) {
+  const operations = inlineEligibleOperations(node, name, false);
+  if (operations.length === 0) return;
+  let next = props.value;
+  for (const operation of operations) {
+    next = updateApiScopedGrant(next, operation, (grant) => ({
+      ...grant,
+      groups: checked
+        ? [...new Set([name, ...grant.groups])]
+        : grant.groups.filter((item) => item !== name),
+    }));
+  }
+  emit('update:value', next);
+}
+
+function toggleInlineValues(
+  node: PermissionViewNode,
+  field: string,
+  values: string[],
+  checked: boolean,
+) {
+  const operations = inlineEligibleOperations(node, field, true);
+  if (operations.length === 0) return;
+  let next = props.value;
+  for (const operation of operations) {
+    next = updateApiScopedGrant(next, operation, (grant) => {
+      const allowed = checked
+        ? [...new Set([...(grant.values[field] || []), ...values])]
+        : (grant.values[field] || []).filter(
+            (value) => !values.includes(value),
+          );
+      const nextValues = { ...grant.values };
+      if (allowed.length > 0) nextValues[field] = allowed;
+      else delete nextValues[field];
+      return { ...grant, values: nextValues };
+    });
+  }
+  emit('update:value', next);
 }
 
 function toggleScopedGroup(operation: string, name: string, checked: boolean) {
@@ -2173,107 +2341,168 @@ function getPermissionCountText(permissions: string[]) {
             <span v-else class="mt-0.5 size-5 shrink-0"></span>
 
             <div class="min-w-0 flex-1">
-              <Checkbox
-                v-if="!isSingleSelection"
-                :checked="
-                  isManualMenuPermissionNode(node)
-                    ? isActionSelected(node.permissionExpr)
-                    : isPermissionNodeSelected(
-                        node.permissionExpr,
-                        node.permissions,
-                      )
-                "
-                class="permission-tree-choice"
-                :indeterminate="
-                  !isManualMenuPermissionNode(node) &&
-                  isPermissionNodeIndeterminate(
-                    node.permissionExpr,
-                    node.permissions,
-                  )
-                "
-                :data-test="`permission-node-${node.id}`"
-                @change="
-                  handlePermissionNodeToggle(
-                    node,
-                    ($event.target as HTMLInputElement).checked,
-                  )
-                "
+              <div
+                class="flex items-center gap-2 overflow-x-auto whitespace-nowrap"
               >
-                <span
-                  class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
+                <Checkbox
+                  v-if="!isSingleSelection"
+                  :checked="
+                    isManualMenuPermissionNode(node)
+                      ? isActionSelected(node.permissionExpr)
+                      : isPermissionNodeSelected(
+                          node.permissionExpr,
+                          node.permissions,
+                        )
+                  "
+                  class="permission-tree-choice"
+                  :indeterminate="
+                    !isManualMenuPermissionNode(node) &&
+                    isPermissionNodeIndeterminate(
+                      node.permissionExpr,
+                      node.permissions,
+                    )
+                  "
+                  :data-test="`permission-node-${node.id}`"
+                  @change="
+                    handlePermissionNodeToggle(
+                      node,
+                      ($event.target as HTMLInputElement).checked,
+                    )
+                  "
                 >
-                  <IconifyIcon
-                    class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
-                    :icon="getPermissionNodeTypeIcon(node.nodeType)"
-                  />
-                  <Tooltip
-                    v-if="hasOwnPermissionMarker(node)"
-                    :title="`节点自身权限：${node.permissionExpr}`"
+                  <span
+                    class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
                   >
-                    <span
-                      class="bg-primary size-2 rounded-full"
-                      aria-label="节点自身权限"
-                    ></span>
-                  </Tooltip>
-                  {{ node.title }}
-                </span>
-                <SharedPermissionBadge :permission-expr="node.permissionExpr" />
-                <AttrGroupPermissions
-                  v-if="
-                    !isSingleSelection &&
-                    attrGroups(node.permissionExpr).length > 0
-                  "
-                  :groups="attrGroups(node.permissionExpr)"
-                  :enabled="isActionSelected(node.permissionExpr)"
-                  :selected="value"
-                  @toggle="
-                    (groupExpression, checked) =>
-                      toggleAttrGroup(
-                        node.permissionExpr,
-                        groupExpression,
-                        checked,
-                      )
-                  "
-                />
-                <ApiScopedDataPermissions
-                  v-if="
-                    !isSingleSelection && hasScopedControls(node.permissionExpr)
-                  "
-                  :attributes="scopedAttributes(node.permissionExpr)"
-                  :groups="operationStaticGroups(node.permissionExpr)"
-                  :enabled="isActionSelected(node.permissionExpr)"
-                  :operation="node.permissionExpr"
-                  :selected="value"
-                  @toggle-group="
-                    (name, checked) =>
-                      toggleScopedGroup(node.permissionExpr, name, checked)
-                  "
-                  @toggle-values="
-                    (sourceField, values, checked) =>
-                      toggleScopedValues(
-                        node.permissionExpr,
-                        sourceField,
-                        values,
-                        checked,
-                      )
-                  "
-                />
-                <span
-                  v-if="node.permissions.length > 0"
-                  class="text-muted-foreground ml-2 text-xs leading-5"
+                    <IconifyIcon
+                      class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
+                      :icon="getPermissionNodeTypeIcon(node.nodeType)"
+                    />
+                    <Tooltip
+                      v-if="hasOwnPermissionMarker(node)"
+                      :title="`节点自身权限：${node.permissionExpr}`"
+                    >
+                      <span
+                        class="bg-primary size-2 rounded-full"
+                        aria-label="节点自身权限"
+                      ></span>
+                    </Tooltip>
+                    {{ node.title }}
+                  </span>
+                  <SharedPermissionBadge
+                    :permission-expr="node.permissionExpr"
+                  />
+                  <AttrGroupPermissions
+                    v-if="
+                      !isSingleSelection &&
+                      attrGroups(node.permissionExpr).length > 0
+                    "
+                    :groups="attrGroups(node.permissionExpr)"
+                    :enabled="isActionSelected(node.permissionExpr)"
+                    :selected="value"
+                    @toggle="
+                      (groupExpression, checked) =>
+                        toggleAttrGroup(
+                          node.permissionExpr,
+                          groupExpression,
+                          checked,
+                        )
+                    "
+                  />
+                  <ApiScopedDataPermissions
+                    v-if="
+                      !isSingleSelection &&
+                      hasScopedControls(node.permissionExpr)
+                    "
+                    :attributes="scopedAttributes(node.permissionExpr)"
+                    :groups="operationStaticGroups(node.permissionExpr)"
+                    :enabled="isActionSelected(node.permissionExpr)"
+                    :operation="node.permissionExpr"
+                    :selected="value"
+                    @toggle-group="
+                      (name, checked) =>
+                        toggleScopedGroup(node.permissionExpr, name, checked)
+                    "
+                    @toggle-values="
+                      (sourceField, values, checked) =>
+                        toggleScopedValues(
+                          node.permissionExpr,
+                          sourceField,
+                          values,
+                          checked,
+                        )
+                    "
+                  />
+                  <span
+                    v-if="node.permissions.length > 0"
+                    class="text-muted-foreground ml-2 text-xs leading-5"
+                  >
+                    {{ getPermissionCountText(node.permissions) }}
+                  </span>
+                </Checkbox>
+                <component
+                  :is="Radio"
+                  v-else-if="node.permissionExpr"
+                  :checked="isActionSelected(node.permissionExpr)"
+                  class="permission-tree-choice"
+                  :data-test="`permission-${node.permissionExpr}`"
+                  @change="handleToggle(node.permissionExpr, true)"
                 >
-                  {{ getPermissionCountText(node.permissions) }}
-                </span>
-              </Checkbox>
-              <component
-                :is="Radio"
-                v-else-if="node.permissionExpr"
-                :checked="isActionSelected(node.permissionExpr)"
-                class="permission-tree-choice"
-                :data-test="`permission-${node.permissionExpr}`"
-                @change="handleToggle(node.permissionExpr, true)"
-              >
+                  <span
+                    class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
+                  >
+                    <IconifyIcon
+                      class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
+                      :icon="getPermissionNodeTypeIcon(node.nodeType)"
+                    />
+                    {{ node.title }}
+                  </span>
+                  <SharedPermissionBadge
+                    :permission-expr="node.permissionExpr"
+                  />
+                  <AttrGroupPermissions
+                    v-if="
+                      !isSingleSelection &&
+                      attrGroups(node.permissionExpr).length > 0
+                    "
+                    :groups="attrGroups(node.permissionExpr)"
+                    :enabled="isActionSelected(node.permissionExpr)"
+                    :selected="value"
+                    @toggle="
+                      (groupExpression, checked) =>
+                        toggleAttrGroup(
+                          node.permissionExpr,
+                          groupExpression,
+                          checked,
+                        )
+                    "
+                  />
+                  <ApiScopedDataPermissions
+                    v-if="
+                      !isSingleSelection &&
+                      hasScopedControls(node.permissionExpr)
+                    "
+                    :attributes="scopedAttributes(node.permissionExpr)"
+                    :groups="operationStaticGroups(node.permissionExpr)"
+                    :enabled="isActionSelected(node.permissionExpr)"
+                    :operation="node.permissionExpr"
+                    :selected="value"
+                    @toggle-group="
+                      (name, checked) =>
+                        toggleScopedGroup(node.permissionExpr, name, checked)
+                    "
+                    @toggle-values="
+                      (sourceField, values, checked) =>
+                        toggleScopedValues(
+                          node.permissionExpr,
+                          sourceField,
+                          values,
+                          checked,
+                        )
+                    "
+                  />
+                </component>
                 <span
+                  v-else
                   class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
                 >
                   <IconifyIcon
@@ -2282,58 +2511,58 @@ function getPermissionCountText(permissions: string[]) {
                   />
                   {{ node.title }}
                 </span>
-                <SharedPermissionBadge :permission-expr="node.permissionExpr" />
-                <AttrGroupPermissions
+
+                <!-- 信息权限与实体保持同一行，只修改已经授权的接口。 -->
+                <span
                   v-if="
                     !isSingleSelection &&
-                    attrGroups(node.permissionExpr).length > 0
+                    node.nodeType === PermissionTreeNodeTypeEnum.ResourceType &&
+                    inlineOperationKey(node) &&
+                    (entityScopedCatalog(node).groups.length > 0 ||
+                      entityScopedCatalog(node).attributes.length > 0)
                   "
-                  :groups="attrGroups(node.permissionExpr)"
-                  :enabled="isActionSelected(node.permissionExpr)"
-                  :selected="value"
-                  @toggle="
-                    (groupExpression, checked) =>
-                      toggleAttrGroup(
-                        node.permissionExpr,
-                        groupExpression,
-                        checked,
-                      )
-                  "
-                />
-                <ApiScopedDataPermissions
-                  v-if="
-                    !isSingleSelection && hasScopedControls(node.permissionExpr)
-                  "
-                  :attributes="scopedAttributes(node.permissionExpr)"
-                  :groups="operationStaticGroups(node.permissionExpr)"
-                  :enabled="isActionSelected(node.permissionExpr)"
-                  :operation="node.permissionExpr"
-                  :selected="value"
-                  @toggle-group="
-                    (name, checked) =>
-                      toggleScopedGroup(node.permissionExpr, name, checked)
-                  "
-                  @toggle-values="
-                    (sourceField, values, checked) =>
-                      toggleScopedValues(
-                        node.permissionExpr,
-                        sourceField,
-                        values,
-                        checked,
-                      )
-                  "
-                />
-              </component>
-              <span
-                v-else
-                class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium"
-              >
-                <IconifyIcon
-                  class="text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center"
-                  :icon="getPermissionNodeTypeIcon(node.nodeType)"
-                />
-                {{ node.title }}
-              </span>
+                  class="inline-flex shrink-0 items-center"
+                  data-test="permission-wildcard-inline"
+                >
+                  <ApiScopedDataPermissions
+                    :attributes="entityScopedCatalog(node).attributes"
+                    :disabled-fields="
+                      entityScopedCatalog(node)
+                        .attributes.map(
+                          (item) =>
+                            `${item.sourceKind}#${item.sourceKey}#${item.attribute}`,
+                        )
+                        .filter(
+                          (key) =>
+                            inlineEligibleOperations(node, key, true).length ===
+                            0,
+                        )
+                    "
+                    :disabled-groups="
+                      entityScopedCatalog(node)
+                        .groups.map((item) => item.name.replaceAll(/\s+/gu, ''))
+                        .filter(
+                          (name) =>
+                            inlineEligibleOperations(node, name, false)
+                              .length === 0,
+                        )
+                    "
+                    :enabled="inlineOperations(node).length > 0"
+                    :groups="entityScopedCatalog(node).groups"
+                    :operation="inlineOperationKey(node)"
+                    :partial-groups="inlinePartialGroups(node)"
+                    :partial-values="inlinePartialValues(node)"
+                    :selected="inlineSelected(node)"
+                    @toggle-group="
+                      (name, checked) => toggleInlineGroup(node, name, checked)
+                    "
+                    @toggle-values="
+                      (sourceField, values, checked) =>
+                        toggleInlineValues(node, sourceField, values, checked)
+                    "
+                  />
+                </span>
+              </div>
 
               <AttrGroupPermissions
                 v-if="
@@ -2364,53 +2593,6 @@ function getPermissionCountText(permissions: string[]) {
                     toggleDataAttrs(node, expressions, checked)
                 "
               />
-
-              <div
-                v-if="
-                  !isSingleSelection &&
-                  node.nodeType === PermissionTreeNodeTypeEnum.ResourceType &&
-                  node.wildcardOperation
-                "
-                class="bg-muted/20 ml-7 mt-2 flex flex-wrap items-center gap-2 rounded-lg px-3 py-2"
-              >
-                <Checkbox
-                  :checked="isActionSelected(node.wildcardOperation)"
-                  :data-test="`permission-wildcard-${node.wildcardOperation}`"
-                  @change="
-                    handleToggle(
-                      node.wildcardOperation || '',
-                      ($event.target as HTMLInputElement).checked,
-                    )
-                  "
-                >
-                  同类全部操作
-                </Checkbox>
-                <ApiScopedDataPermissions
-                  v-if="hasScopedControls(node.wildcardOperation)"
-                  :attributes="scopedAttributes(node.wildcardOperation)"
-                  :enabled="isActionSelected(node.wildcardOperation)"
-                  :groups="operationStaticGroups(node.wildcardOperation)"
-                  :operation="node.wildcardOperation"
-                  :selected="value"
-                  @toggle-group="
-                    (name, checked) =>
-                      toggleScopedGroup(
-                        node.wildcardOperation || '',
-                        name,
-                        checked,
-                      )
-                  "
-                  @toggle-values="
-                    (sourceField, values, checked) =>
-                      toggleScopedValues(
-                        node.wildcardOperation || '',
-                        sourceField,
-                        values,
-                        checked,
-                      )
-                  "
-                />
-              </div>
 
               <div
                 v-if="getPermissionInlineChildren(node).length > 0"

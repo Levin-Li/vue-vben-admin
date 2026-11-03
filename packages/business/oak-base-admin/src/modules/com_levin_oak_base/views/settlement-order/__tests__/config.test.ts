@@ -58,7 +58,7 @@ describe('结算单标准 CRUD', () => {
       ),
     ).toBe(false);
   });
-  it('按当前实体仅展示合作关系，不重加已删除的主体身份字段', () => {
+  it('完整展示合作关系、交易双方和销售财务归属，创建后身份只读', () => {
     const fields = settlementOrderPageCrudConfig.fields;
     expect(fields.find((field) => field.key === 'partnerId')).toMatchObject({
       required: true,
@@ -66,13 +66,87 @@ describe('结算单标准 CRUD', () => {
       omitOnEdit: true,
     });
     for (const key of [
-      'ownerId',
-      'ownLegalSubjectId',
-      'counterpartyLegalSubjectId',
       'payerLegalSubjectId',
       'payeeLegalSubjectId',
+      'payeeOrgId',
+      'salesOrgId',
+      'financeOrgId',
     ]) {
-      expect(fields.some((field) => field.key === key)).toBe(false);
+      expect(fields.find((field) => field.key === key)).toMatchObject({
+        required: true,
+        disabledOnEdit: true,
+        omitOnEdit: true,
+      });
+    }
+    for (const key of ['salesUserId', 'financeUserId', 'payeeUserId'])
+      expect(fields.find((field) => field.key === key)).toMatchObject({
+        disabledOnEdit: true,
+        omitOnEdit: true,
+      });
+    expect(fields.some((field) => field.key === 'orgId')).toBe(false);
+    expect(
+      fields.find((field) => field.key === 'payerLegalSubjectId')?.label,
+    ).toBe('付款主体');
+    expect(
+      fields.find((field) => field.key === 'payeeLegalSubjectId')?.label,
+    ).toBe('收款主体');
+    expect(fields.find((field) => field.key === 'payeeOrgId')?.label).toBe(
+      '收款方组织',
+    );
+    expect(fields.find((field) => field.key === 'payeeUserId')?.label).toBe(
+      '收款方对接人',
+    );
+  });
+  it('创建表单保留两种付款方向和独立负责人，普通编辑不提交交易身份', () => {
+    const common = {
+      partnerId: 'partner-1',
+      salesOrgId: 'sales-org',
+      salesUserId: 'sales-user',
+      financeOrgId: 'finance-org',
+      financeUserId: 'finance-user',
+      payeeOrgId: 'payee-org',
+      payeeUserId: 'payee-user',
+    };
+    for (const parties of [
+      {
+        payerLegalSubjectId: 'internal',
+        payeeLegalSubjectId: 'partner-subject',
+      },
+      {
+        payerLegalSubjectId: 'partner-subject',
+        payeeLegalSubjectId: 'internal',
+      },
+    ]) {
+      expect(
+        validateSettlementSave({ ...common, ...parties }, null),
+      ).toMatchObject({
+        ...common,
+        ...parties,
+      });
+      expect(
+        validateSettlementSave(
+          { ...common, ...parties, startTime: '2026-10-01' },
+          { id: 's1' },
+        ),
+      ).toEqual({ startTime: '2026-10-01' });
+    }
+  });
+  it('销售及财务组织和负责人均提供匹配业务列表接口的查询控件', () => {
+    expect(settlementOrderPageCrudConfig.listPath).toBe(
+      '/SettlementOrder/listByRoles',
+    );
+    for (const key of [
+      'salesOrgId',
+      'salesUserId',
+      'financeOrgId',
+      'financeUserId',
+      'payeeOrgId',
+      'payeeUserId',
+    ]) {
+      expect(
+        settlementOrderPageCrudConfig.fields.find((field) => field.key === key)
+          ?.search,
+      ).toBe(true);
     }
   });
   it('关闭默认删除，待确认才编辑；状态与累计金额只读，敏感财务资料不进入列表导出', () => {
@@ -137,6 +211,12 @@ describe('结算单标准 CRUD', () => {
     ).toThrow();
     expect(() =>
       validateSettlementSave(
+        { payerLegalSubjectId: 'same', payeeLegalSubjectId: 'same' },
+        null,
+      ),
+    ).toThrow('付款主体与收款主体不能相同');
+    expect(() =>
+      validateSettlementSave(
         { settlementAmount: '20' },
         { settlementAmount: '10' },
       ),
@@ -154,5 +234,23 @@ describe('结算单标准 CRUD', () => {
         null,
       ).settlementContent,
     ).toEqual({ custom: { amount: 1 } });
+    expect(
+      validateSettlementSave(
+        {
+          orgId: 'legacy-org',
+          partnerId: 'partner',
+          payerLegalSubjectId: 'payer',
+          payeeLegalSubjectId: 'payee',
+          salesOrgId: 'sales-org',
+          salesUserId: 'sales-user',
+          financeOrgId: 'finance-org',
+          financeUserId: 'finance-user',
+          payeeOrgId: 'payee-org',
+          payeeUserId: 'payee-user',
+          settlementContent: { orders: [1] },
+        },
+        { id: 'existing', settlementAmount: '20' },
+      ),
+    ).toEqual({ settlementContent: { orders: [1] } });
   });
 });

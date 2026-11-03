@@ -7,6 +7,8 @@ import type {
 
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 
+import { Plus } from '@vben/runtime/icons';
+
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { Button, Form, Input, message, Modal, Select } from 'ant-design-vue';
@@ -58,8 +60,7 @@ const form = reactive({
   creditCode: '',
   shortName: '',
   adminName: '',
-  telephone: '',
-  loginName: '',
+  loginAccount: '',
   password: '',
   supplierType: undefined as QuickAddPayload['supplierType'],
   channelType: undefined as QuickAddPayload['channelType'],
@@ -80,8 +81,7 @@ function reset() {
     creditCode: '',
     shortName: '',
     adminName: '',
-    telephone: '',
-    loginName: '',
+    loginAccount: '',
     password: '',
     supplierType: undefined,
     channelType: undefined,
@@ -120,6 +120,22 @@ watch(
   },
 );
 onBeforeUnmount(() => clearTimeout(searchTimer));
+
+// 手机号和邮箱可用验证码登录；普通登录名必须提供密码。
+const ordinaryLoginName = computed(() => {
+  const account = form.loginAccount.trim();
+  if (!account) return false;
+  const at = account.indexOf('@');
+  const domain = account.slice(at + 1);
+  const dot = domain.lastIndexOf('.');
+  const email =
+    at > 0 &&
+    at === account.lastIndexOf('@') &&
+    dot > 0 &&
+    dot < domain.length - 1 &&
+    !/\s/.test(account);
+  return !/^1[3-9]\d{9}$/.test(account) && !email;
+});
 
 // 搜索只返回候选；选定候选后才执行一次详情调用。
 async function search() {
@@ -186,14 +202,17 @@ function payload(): QuickAddPayload | undefined {
   const legalSubjectName = form.legalSubjectName.trim();
   const creditCode = form.creditCode.trim().toUpperCase();
   const shortName = form.shortName.trim();
-  const telephone = form.telephone.trim();
-  const loginName = form.loginName.trim();
+  const loginAccount = form.loginAccount.trim();
   if (!legalSubjectName || !/^[0-9A-Z]{18}$/.test(creditCode)) {
     message.warning('请填写主体名称和18位统一社会信用代码');
     return;
   }
-  if (!shortName || !telephone) {
-    message.warning('请填写简称和管理员手机号');
+  if (!shortName || !loginAccount) {
+    message.warning('请填写简称和登录账号');
+    return;
+  }
+  if (ordinaryLoginName.value && !form.password.trim()) {
+    message.warning('普通登录名必须设置密码');
     return;
   }
   if (props.target === 'SupplierPartner' && !form.supplierType) {
@@ -209,9 +228,8 @@ function payload(): QuickAddPayload | undefined {
     subjectType: form.subjectType,
     creditCode,
     shortName,
-    telephone,
+    loginAccount,
     ...(form.adminName.trim() ? { adminName: form.adminName.trim() } : {}),
-    ...(loginName ? { loginName } : {}),
     ...(form.password ? { password: form.password } : {}),
     ...(props.target === 'SupplierPartner'
       ? { supplierType: form.supplierType }
@@ -233,7 +251,7 @@ async function submit() {
     open.value = false;
     reset();
     message.success(
-      `${targetTitle.value}快捷添加成功，用户名：${result.loginName}`,
+      `${targetTitle.value}快捷添加成功，登录账号：${result.loginName}`,
     );
   } catch (error) {
     message.error(
@@ -271,7 +289,12 @@ const channelTypes = [
 </script>
 
 <template>
-  <Button v-if="visible !== false && canCreate" @click="openForm">
+  <Button
+    v-if="visible !== false && canCreate"
+    type="primary"
+    @click="openForm"
+  >
+    <Plus class="size-4" />
     快捷添加
   </Button>
 
@@ -396,32 +419,33 @@ const channelTypes = [
             class="w-full"
           />
         </Form.Item>
-        <Form.Item label="管理员姓名">
+        <Form.Item label="用户名">
           <Input
             v-model:value="form.adminName"
             :maxlength="128"
             placeholder="不填默认为管理员"
           />
         </Form.Item>
-        <Form.Item label="管理员手机号" required>
+        <Form.Item label="登录账号" required>
           <Input
-            v-model:value="form.telephone"
-            :maxlength="20"
-            placeholder="用于短信验证码登录"
-          />
-        </Form.Item>
-        <Form.Item label="用户名">
-          <Input
-            v-model:value="form.loginName"
+            v-model:value="form.loginAccount"
             :maxlength="128"
-            placeholder="不填自动生成管理员用户名"
+            placeholder="手机号、邮箱或普通登录名"
           />
         </Form.Item>
-        <Form.Item label="密码" class="sm:col-span-2">
+        <Form.Item
+          label="密码"
+          :required="ordinaryLoginName"
+          class="sm:col-span-2"
+        >
           <Input.Password
             v-model:value="form.password"
             autocomplete="new-password"
-            placeholder="可不填；不填时仅使用短信验证码登录"
+            :placeholder="
+              ordinaryLoginName
+                ? '普通登录名必须设置密码'
+                : '手机号或邮箱可不填，使用验证码登录'
+            "
           />
         </Form.Item>
       </div>

@@ -1,5 +1,11 @@
 # @levin/oak-base-admin
 
+[用户管理重置密码使用指南](docs/用户管理重置密码使用指南.md)说明独立重置入口、权限与前端请求加密。
+
+[组织与用户简要表单使用指南](docs/组织与用户简要表单使用指南.md)说明组织树和用户列表的重点字段填写、完整表单切换及角色失败后的重试。
+
+组织职能字典与机构管理页面的使用方式见 [组织职能使用指南](docs/组织职能使用指南.md)。
+
 客户、供应伙伴与渠道伙伴页面的[快捷添加使用指南](docs/快捷添加客户与伙伴使用指南.md)说明主体查询、人工补录、管理员账号与整单失败语义。
 
 快捷添加的 [设计](docs/快捷添加客户与伙伴设计.md)、[实现说明](docs/快捷添加客户与伙伴实现说明.md) 和 [开发指南](docs/快捷添加客户与伙伴开发指南.md) 说明界面决策、接口落点与扩展边界。
@@ -58,7 +64,7 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 
 供应伙伴与渠道伙伴分开的维护入口及选择器见 [供应商与渠道伙伴页面](docs/partner-inheritance.md)。
 
-结算单 CRUD、财务资料、分笔打款及凭证上传见 [结算单使用指南](docs/settlement-order.md)。
+结算单交易双方、多方归属、财务资料、分笔打款及凭证上传见 [结算单使用指南](docs/settlement-order.md)、[页面设计](docs/settlement-order-design.md)和[实现说明](docs/settlement-order-implementation.md)。
 
 ## 邀请链接
 

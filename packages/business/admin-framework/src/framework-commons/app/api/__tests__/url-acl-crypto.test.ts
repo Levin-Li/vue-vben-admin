@@ -116,6 +116,23 @@ describe('uRL ACL 前端加密协议', () => {
     ).toBe(false);
   });
 
+  it('oak 用户与组织 JSON API 与 RBAC 一样默认主动加密', () => {
+    const prefix = '/com.levin.oak.base/V1/api';
+    for (const path of [
+      '/User/create',
+      '/User/list',
+      '/User/resetPassword',
+      '/User/update',
+      '/Org/retrieve',
+      '/Org/update',
+    ]) {
+      expect(isClientCryptoPath(`${prefix}${path}`)).toBe(true);
+      expect(shouldEncryptClientRequest(`${prefix}${path}`, domain)).toBe(true);
+    }
+    expect(isClientCryptoPath('/other.module/V1/api/User/update')).toBe(false);
+    expect(isClientCryptoPath(`${prefix}/Customer/update`)).toBe(false);
+  });
+
   it('使用域名、来源和分钟派生相同 AES 密钥并可往返加解密', async () => {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const plain = encoder.encode('{"account":"demo","password":"secret"}');

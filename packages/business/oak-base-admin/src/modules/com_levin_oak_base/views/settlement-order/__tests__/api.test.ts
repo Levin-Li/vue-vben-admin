@@ -4,6 +4,21 @@ import { settlementOrderService } from '../../../api/settlement-order-service';
 
 afterEach(() => vi.restoreAllMocks());
 describe('结算动作请求契约', () => {
+  it('多方列表将销售及财务查询条件提交到业务列表接口', async () => {
+    const get = vi
+      .spyOn(settlementOrderService as any, 'get')
+      .mockResolvedValue({ items: [] });
+    const params = {
+      salesOrgId: 'sales-org',
+      salesUserId: 'sales-user',
+      financeOrgId: 'finance-org',
+      financeUserId: 'finance-user',
+      payeeOrgId: 'payee-org',
+      payeeUserId: 'payee-user',
+    };
+    await settlementOrderService.list(params);
+    expect(get).toHaveBeenCalledWith('listByRoles', { params });
+  });
   it('登记打款只提交请求 DTO，保留同一幂等键且不夹带状态或财务单据', async () => {
     const post = vi
       .spyOn(settlementOrderService as any, 'post')

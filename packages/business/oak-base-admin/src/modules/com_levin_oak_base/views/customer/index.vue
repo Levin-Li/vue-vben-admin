@@ -16,7 +16,7 @@ function updateType(formState: Record<string, any>, type?: unknown) {
 
 <template>
   <CrudPage :config="customerPageCrudConfig">
-    <template #toolbar-extra="{ loadList, isListOperationVisible }">
+    <template #toolbar-before-create="{ loadList, isListOperationVisible }">
       <QuickAdd
         target="Customer"
         :load-list="loadList"

@@ -29,6 +29,8 @@ vi.mock('ant-design-vue', () => ({
   }),
   Spin: defineComponent({ template: '<div><slot /></div>' }),
   Modal: defineComponent({
+    name: 'PermissionModal',
+    props: { width: { type: String, default: '' } },
     emits: ['ok', 'cancel'],
     template:
       '<div><slot /><button data-test="save" @click="$emit(\'ok\')">保存</button></div>',
@@ -69,6 +71,12 @@ describe('资源授权保存属性组', () => {
       props: { open: true, record: { id: 'role' } },
     });
     await flushPromises();
+    expect(
+      wrapper.findComponent({ name: 'PermissionModal' }).props('width'),
+    ).toBe('max(1200px, 90vw)');
+    expect(
+      wrapper.findComponent({ name: 'PermissionModal' }).attributes('style'),
+    ).toContain('max-width: none');
     expect(mocks.get).toHaveBeenCalledWith(
       '/com.levin.oak.base/V1/api/Role/retrieve',
       { baseURL: '', params: { id: 'role' } },

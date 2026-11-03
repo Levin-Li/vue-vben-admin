@@ -95,9 +95,12 @@ vi.mock('ant-design-vue', () => {
     List: list,
     Modal: Object.assign(
       defineComponent({
-        props: { open: Boolean },
+        props: {
+          bodyStyle: { default: () => ({}), type: Object },
+          open: Boolean,
+        },
         template:
-          '<div v-if="open"><slot name="title" /><slot /><slot name="footer" /></div>',
+          '<div v-if="open" :data-body-height="bodyStyle?.height"><slot name="title" /><slot /><slot name="footer" /></div>',
       }),
       { confirm: ({ onOk }: { onOk: () => void }) => onOk() },
     ),
@@ -150,6 +153,7 @@ beforeEach(() => {
 async function openDialog(
   subjectType: 'role' | 'user',
   detailOverrides: Record<string, unknown> = {},
+  roleRecords: Array<Record<string, unknown>> = [],
 ) {
   mocks.get.mockResolvedValue({
     id: 'subject-1',
@@ -168,6 +172,7 @@ async function openDialog(
       loadDomainOptions: mocks.domainOptions,
       open: false,
       record: { id: 'subject-1' },
+      roleRecords,
       subjectType,
     },
   });
@@ -177,6 +182,117 @@ async function openDialog(
 }
 
 describe('数据权限候选三档分配', () => {
+  it('弹窗主体高度增加到 720px，空用户规则仍显示未设置', async () => {
+    const wrapper = await openDialog('user', {
+      domainScopeList: null,
+      deniedDomainScopeList: null,
+      tenantScopeList: null,
+      deniedTenantScopeList: null,
+      orgScopeList: null,
+      deniedOrgScopeList: null,
+    });
+    expect(
+      wrapper.find('[data-body-height]').attributes('data-body-height'),
+    ).toBe('720px');
+    expect(wrapper.find('[aria-label="全部租户访问设置"]').text()).toContain(
+      '未设置',
+    );
+    wrapper.unmount();
+  });
+
+  it('用户继承三条角色租户规则时在简单和高级模式都还原且不改写 null', async () => {
+    const wrapper = await openDialog(
+      'user',
+      {
+        roleList: ['R_A', 'R_B'],
+        tenantId: 'tenant-1',
+        tenantScopeList: null,
+        deniedTenantScopeList: null,
+      },
+      [
+        {
+          code: 'R_A',
+          tenantId: 'tenant-1',
+          tenantScopeList: ['tenant-a', 'tenant-b'],
+        },
+        {
+          code: 'R_B',
+          tenantId: 'tenant-1',
+          tenantScopeList: ['tenant-b', 'tenant-c'],
+        },
+      ],
+    );
+    expect(wrapper.find('[aria-label="租户允许规则数"]').text()).toBe('3');
+    expect(
+      wrapper
+        .find('[aria-label="tenant-a访问设置"] [aria-pressed="true"]')
+        .text(),
+    ).toBe('允许');
+    expect(wrapper.text()).toContain('角色继承');
+    await wrapper
+      .find('[data-testid="data-permission-mode-switch"]')
+      .trigger('click');
+    expect(wrapper.text()).toContain('tenant-a');
+    expect(wrapper.text()).toContain('tenant-b');
+    expect(wrapper.text()).toContain('tenant-c');
+    await wrapper
+      .find('[data-testid="data-permission-mode-switch"]')
+      .trigger('click');
+    await wrapper.find('[aria-label="自定义租户范围"]').trigger('click');
+    expect(wrapper.find('[aria-label="租户允许规则数"]').exists()).toBe(false);
+    await wrapper.find('[aria-label="自定义租户范围"]').trigger('click');
+    expect(wrapper.find('[aria-label="租户允许规则数"]').text()).toBe('3');
+    expect(
+      wrapper
+        .find('[data-testid="data-permission-footer"] button')
+        .attributes('disabled'),
+    ).toBeDefined();
+    expect(mocks.put).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('详情未返回角色字段时仍可从列表记录还原继承规则', async () => {
+    mocks.get.mockResolvedValue({
+      id: 'subject-1',
+      optimisticLock: 7,
+      tenantScopeList: null,
+      deniedTenantScopeList: null,
+    });
+    const wrapper = mount(DataPermissionDialog, {
+      props: {
+        open: false,
+        record: { id: 'subject-1', roleList: ['R_A'], tenantId: 'tenant-1' },
+        roleRecords: [
+          { code: 'R_A', tenantId: 'tenant-1', tenantScopeList: ['tenant-a'] },
+        ],
+        subjectType: 'user',
+      },
+    });
+    await wrapper.setProps({ open: true });
+    await flushPromises();
+    expect(wrapper.find('[aria-label="租户允许规则数"]').text()).toBe('1');
+    expect(wrapper.find('[aria-label="tenant-a访问设置"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('关联角色列表稍后加载完成时会更新继承规则回显', async () => {
+    const wrapper = await openDialog('user', {
+      roleList: ['R_A'],
+      tenantId: 'tenant-1',
+      tenantScopeList: null,
+      deniedTenantScopeList: null,
+    });
+    expect(wrapper.find('[aria-label="租户允许规则数"]').exists()).toBe(false);
+    await wrapper.setProps({
+      roleRecords: [
+        { code: 'R_A', tenantId: 'tenant-1', tenantScopeList: ['tenant-a'] },
+      ],
+    });
+    expect(wrapper.find('[aria-label="租户允许规则数"]').text()).toBe('1');
+    expect(wrapper.find('[aria-label="tenant-a访问设置"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
   function choice(
     wrapper: ReturnType<typeof mount>,
     label: string,

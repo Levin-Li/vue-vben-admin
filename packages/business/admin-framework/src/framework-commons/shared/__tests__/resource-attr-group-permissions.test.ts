@@ -84,7 +84,34 @@ describe('api 属性组授权', () => {
     const tooltip = wrapper
       .findAllComponents(Tooltip)
       .find((item) => item.props('mouseEnterDelay') === 0.7);
-    expect(tooltip?.props('title')).toBe('财务信息；类型：客户');
+    expect(tooltip?.props('title')).toBe('信息组：财务信息\n类型：客户');
+    expect(tooltip?.props('overlayInnerStyle')).toEqual({
+      whiteSpace: 'pre-line',
+    });
+  });
+  it('部分接口已有信息组时显示半选，下一次勾选表示全部选中', async () => {
+    const wrapper = mount(ApiScopedDataPermissions, {
+      attachTo: document.body,
+      props: {
+        operation: action,
+        enabled: true,
+        groups: [group],
+        selected: [`@${action}:@财务信息`],
+        partialGroups: ['财务信息'],
+      },
+    });
+    await wrapper
+      .get(`[data-test="api-data-trigger-${action}"]`)
+      .trigger('click');
+    await flushPromises();
+    const checkbox = document.querySelector<HTMLInputElement>(
+      `[data-test="api-group-${action}-财务信息"]`,
+    );
+    expect(checkbox?.closest('.ant-checkbox-indeterminate')).not.toBeNull();
+    expect(checkbox?.checked).toBe(false);
+    checkbox?.click();
+    await flushPromises();
+    expect(wrapper.emitted('toggleGroup')?.at(-1)).toEqual(['财务信息', true]);
   });
   it('只对服务端声明的同类全部操作入口汇总同源组和值', async () => {
     const wildcard = 'example:业务数据-合同::*';
@@ -149,10 +176,21 @@ describe('api 属性组授权', () => {
     });
     expect(
       wrapper.find(`[data-test="permission-wildcard-${wildcard}"]`).exists(),
-    ).toBe(true);
+    ).toBe(false);
     const picker = wrapper
       .findAllComponents(ApiScopedDataPermissions)
       .find((item) => item.props('operation') === wildcard);
+    const inline = wrapper.get('[data-test="permission-wildcard-inline"]');
+    expect(inline.text()).not.toContain('全部操作');
+    expect(inline.text()).toContain('信息权限');
+    expect(
+      inline.find(`[data-test="api-data-trigger-${wildcard}"]`).exists(),
+    ).toBe(true);
+    expect(
+      inline.element.parentElement?.querySelector(
+        '[data-test="permission-node-contract-type"]',
+      ),
+    ).not.toBeNull();
     expect(picker?.props('groups')).toHaveLength(1);
     expect(
       picker?.props('attributes')[0]?.values.map((item: any) => item.name),
@@ -177,11 +215,188 @@ describe('api 属性组授权', () => {
       unmapped: [],
     });
     await wrapper.setProps({ value: saved.mapped });
-    await wrapper
-      .get(`[data-test="permission-wildcard-${wildcard}"]`)
-      .setValue(false);
+    expect(picker?.props('selected')).toContain(`@${wildcard}:@财务信息`);
+    expect(
+      inline
+        .findAllComponents(Tooltip)
+        .find((item) => item.props('mouseEnterDelay') === 0.7)
+        ?.props('title'),
+    ).toBe('信息组：财务信息');
+    picker?.vm.$emit('toggleGroup', '财务信息', false);
+    await flushPromises();
     const revoked = wrapper.emitted('update:value')?.at(-1)?.[0] as string[];
-    expect(collectPermissionValues(revoked)).toEqual([]);
+    expect(collectPermissionValues(revoked)).toEqual([wildcard]);
+    await wrapper.setProps({
+      value: [
+        '@example:业务数据-合同::查询列表:@财务信息|enum#com.example.Contract$Type#type@Customer',
+        'example:业务数据-合同::查看详情',
+      ],
+    });
+    expect(picker?.props('partialGroups')).toContain('财务信息');
+    expect(picker?.props('partialValues')).toContain(
+      'enum#com.example.Contract$Type#type@Customer',
+    );
+    expect(picker?.props('selected')).toContain(
+      `@${wildcard}:@财务信息|enum#com.example.Contract$Type#type@Customer`,
+    );
+    expect(inline.find('[aria-label="已选 2 项信息权限"]').exists()).toBe(true);
+    await wrapper.setProps({
+      value: [
+        'example:业务数据-合同::查询列表',
+        'example:业务数据-合同::查看详情',
+        'example:其他::查询',
+      ],
+    });
+    picker?.vm.$emit('toggleGroup', '财务信息', true);
+    await flushPromises();
+    const scoped = wrapper.emitted('update:value')?.at(-1)?.[0] as string[];
+    expect(scoped).toContain('@example:业务数据-合同::查询列表:@财务信息');
+    expect(scoped).toContain('@example:业务数据-合同::查看详情:@财务信息');
+    expect(scoped).toContain('example:其他::查询');
+    expect(scoped).not.toContain(wildcard);
+    await wrapper.setProps({ value: scoped });
+    expect(picker?.props('selected')).toContain(`@${wildcard}:@财务信息`);
+  });
+
+  it('只修改已选具体接口的信息权限，不隐式增加全部操作', async () => {
+    const wildcard = 'example:业务数据-合同::*';
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        value: [],
+        permissionTree: [
+          {
+            id: 'module',
+            name: '示例',
+            nodeType: 'Module',
+            children: [
+              {
+                id: 'contract-type',
+                name: '合同',
+                nodeType: 'ResourceType',
+                wildcardOperation: wildcard,
+                children: [
+                  {
+                    id: 'list',
+                    name: '查询列表',
+                    nodeType: 'Action',
+                    permissionExpr: 'example:业务数据-合同::查询列表',
+                    attrGroups: [
+                      {
+                        ...group,
+                        entityScope: true,
+                        sourceKey: 'Contract#财务信息',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const picker = wrapper
+      .findAllComponents(ApiScopedDataPermissions)
+      .find((item) => item.props('operation') === wildcard);
+    expect(picker?.props('enabled')).toBe(false);
+    expect(wrapper.emitted('update:value')).toBeUndefined();
+    picker?.vm.$emit('toggleGroup', '财务信息', true);
+    await flushPromises();
+    expect(wrapper.emitted('update:value')).toBeUndefined();
+    await wrapper.setProps({ value: ['example:业务数据-合同::查询列表'] });
+    expect(picker?.props('enabled')).toBe(true);
+    picker?.vm.$emit('toggleGroup', '财务信息', true);
+    await flushPromises();
+    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual([
+      '@example:业务数据-合同::查询列表:@财务信息',
+    ]);
+    await wrapper.setProps({
+      value: ['@example:业务数据-合同::查询列表:@财务信息'],
+    });
+    expect(picker?.props('selected')).toContain(`@${wildcard}:@财务信息`);
+  });
+
+  it('实体没有信息权限候选时不增加通配区域', () => {
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        value: [],
+        permissionTree: [
+          {
+            id: 'module',
+            name: '示例',
+            nodeType: 'Module',
+            children: [
+              {
+                id: 'contract-type',
+                name: '合同',
+                nodeType: 'ResourceType',
+                wildcardOperation: 'example:业务数据-合同::*',
+                children: [
+                  {
+                    id: 'list',
+                    name: '查询列表',
+                    nodeType: 'Action',
+                    permissionExpr: 'example:业务数据-合同::查询列表',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(
+      wrapper.find('[data-test="permission-wildcard-inline"]').exists(),
+    ).toBe(false);
+  });
+
+  it('没有通配目录时仍可为已选具体接口配置信息权限', async () => {
+    const operation = 'example:业务数据-合同::查询列表';
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        value: [operation],
+        permissionTree: [
+          {
+            id: 'module',
+            name: '示例',
+            nodeType: 'Module',
+            children: [
+              {
+                id: 'contract-type',
+                name: '合同',
+                nodeType: 'ResourceType',
+                children: [
+                  {
+                    id: 'list',
+                    name: '查询列表',
+                    nodeType: 'Action',
+                    permissionExpr: operation,
+                    attrGroups: [
+                      {
+                        ...group,
+                        entityScope: true,
+                        sourceKey: 'Contract#财务信息',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(
+      wrapper.find('[data-test="permission-wildcard-inline"]').exists(),
+    ).toBe(true);
+    const picker = wrapper
+      .find('[data-test="permission-wildcard-inline"]')
+      .findComponent(ApiScopedDataPermissions);
+    picker.vm.$emit('toggleGroup', '财务信息', true);
+    await flushPromises();
+    expect(wrapper.emitted('update:value')?.at(-1)?.[0]).toEqual([
+      `@${operation}:@财务信息`,
+    ]);
   });
 
   it('未声明通配入口及同名不同来源候选不显示通配配置', () => {
@@ -260,7 +475,7 @@ describe('api 属性组授权', () => {
     });
     expect(
       wrapper.find(`[data-test="permission-wildcard-${wildcard}"]`).exists(),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       wrapper
         .findAllComponents(ApiScopedDataPermissions)

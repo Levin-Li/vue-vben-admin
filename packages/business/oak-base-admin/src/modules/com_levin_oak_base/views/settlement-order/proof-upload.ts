@@ -5,16 +5,17 @@ import { fileResService } from '../../api/file-res-service';
 // 上传 URL 只用于文件资源登记，结算动作只能接收服务器生成的资源 ID。
 export async function uploadSettlementProof(
   file: File,
-  scope: { id: string; orgId?: string; tenantId?: string },
+  scope: { financeOrgId?: string; id: string; tenantId?: string },
 ): Promise<{ id: string; url: string }> {
-  if (!scope.orgId?.trim()) throw new Error('结算单缺少管理组织，不能登记凭证');
+  if (!scope.financeOrgId?.trim())
+    throw new Error('结算单缺少财务组织，不能登记凭证');
   const url = await uploadFileByFileStorageController(file);
   if (typeof url !== 'string' || !url.trim())
     throw new Error('上传未返回文件地址');
   const id = await fileResService.create({
     bizType: 'SettlementStatementPaymentProof',
     bizObjId: scope.id,
-    orgId: scope.orgId,
+    orgId: scope.financeOrgId,
     name: file.name,
     mimeType: file.type,
     paths: [url],

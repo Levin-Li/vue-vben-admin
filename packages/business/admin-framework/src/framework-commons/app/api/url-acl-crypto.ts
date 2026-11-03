@@ -4,6 +4,10 @@ const ENUM_API_PATH_PATTERN = /(?:^|\/)enums(?:\/|$)/;
 
 const RBAC_BINARY_RESOURCE_PATH_PATTERN = /(?:^|\/)rbac\/captcha$/;
 
+// Oak 基础模块的用户和组织入口均返回 JSON，与 RBAC 接口共用主动加密链路。
+const OAK_USER_ORG_API_PATH_PATTERN =
+  /(?:^|\/)com\.levin\.oak\.base\/v1\/api\/(?:user|org)(?:\/|$)/;
+
 // 这些入口在未登录前建立租户界面和登录会话，必须始终用浏览器 User-Agent 作为加密来源。
 const ANONYMOUS_RBAC_CRYPTO_PATH_PATTERN =
   /(?:^|\/)rbac\/(?:login|loginoptions|loginverifychallenge(?:\/complete)?|tenantinfo|tenantsiteinfo|getverifycode|register)$/;
@@ -29,8 +33,10 @@ export function isClientCryptoPath(url: unknown) {
   // 只依据路径判断，避免 query 或 hash 中的文本意外扩大主动加密范围。
   const path = normalizeCryptoPath(url);
 
-  // RBAC JSON API 统一主动加密，避免新增接口时遗漏租户、用户等敏感返回。
+  // RBAC、枚举及 Oak 用户／组织 JSON API 统一主动加密。
   if (ENUM_API_PATH_PATTERN.test(path)) return true;
+
+  if (OAK_USER_ORG_API_PATH_PATTERN.test(path)) return true;
 
   if (!RBAC_API_PATH_PATTERN.test(path)) return false;
 
@@ -100,7 +106,9 @@ export function hex(bytes: Uint8Array) {
 }
 
 export async function sha256(bytes: Uint8Array) {
-  return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  const input = new Uint8Array(bytes.byteLength);
+  input.set(bytes);
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', input.buffer));
 }
 
 export async function resolveMinuteByNonce(

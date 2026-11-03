@@ -68,6 +68,7 @@ export class UserService extends RequestService {
     return this.post('create', {
       ...options,
       data,
+      __sensitiveResponse: true,
     });
   }
 
@@ -112,6 +113,22 @@ export class UserService extends RequestService {
     return this.put('resetMfaSecretKey', {
       ...options,
       params,
+      __sensitiveResponse: true,
+    });
+  }
+
+  // 密码仅通过独立动作提交，普通资料更新不再接收密码字段。
+  @CRUD.Op({ level: 'Danger' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '系统数据-用户',
+    action: '重置密码',
+  })
+  async resetPassword(data?: any, options?: any) {
+    return this.put('resetPassword', {
+      ...options,
+      data,
+      __sensitiveResponse: true,
     });
   }
 
@@ -155,6 +172,7 @@ export class UserService extends RequestService {
     return this.get('viewMfaQrCode', {
       ...options,
       params,
+      __sensitiveResponse: true,
     });
   }
 
@@ -172,6 +190,7 @@ export class UserService extends RequestService {
     return this.get('viewMyMfaQrCode', {
       ...options,
       params,
+      __sensitiveResponse: true,
     });
   }
 

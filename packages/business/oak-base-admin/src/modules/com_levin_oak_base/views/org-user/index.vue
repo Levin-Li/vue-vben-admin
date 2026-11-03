@@ -25,6 +25,7 @@ import {
 } from 'ant-design-vue';
 
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
+import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { orgService } from '../../api/org-service';
 import { userService } from '../../api/user-service';
@@ -32,6 +33,7 @@ import { userService } from '../../api/user-service';
 import CrudPage from '../crud-page.vue';
 import {
   DEFAULT_CRUD_MODAL_WIDTH,
+  orgCategoryOptionsLoader,
   orgTypeOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
@@ -44,6 +46,17 @@ import { loadDomainScopeOptions } from '../../domain-scope-options';
 import { usePageRolePermissionRecords } from '../load-role-permission-records';
 import { getUserDataPermissionBadgeItems } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from '../user/config';
+import {
+  assertUserTenantOrg,
+  changeUserTenant,
+  tenantOrgChoices,
+} from './user-tenant-org';
+import {
+  BriefAccountConflictError,
+  mapBriefLoginAccount,
+  preferredLoginAccount,
+} from './brief-account';
+import { assignBriefRolesAfterSave } from './brief-roles';
 
 // 数据权限弹窗只接受字符串 ID，在页面边界规范化公共候选。
 async function loadStringDomainScopeOptions(keyword?: string) {
@@ -139,15 +152,25 @@ const hoveredOrgId = ref('');
 const expandedOrgKeys = ref<string[]>([]);
 const orgTreeData = ref<OrgTreeNode[]>([]);
 const orgTypeOptions = ref<Array<{ label: string; value: string }>>([]);
+const orgCategoryOptions = ref<Array<{ label: string; value: string }>>([]);
 const tenantOptions = ref<StringSelectOption[]>([]);
+const userTenantOptions = ref<StringSelectOption[]>([]);
 const userStore = useUserStore();
-const { records: permissionRoleRecords, refresh: refreshRolePermissionRecords } =
-  usePageRolePermissionRecords(() => userStore.userInfo);
+const {
+  records: permissionRoleRecords,
+  refresh: refreshRolePermissionRecords,
+} = usePageRolePermissionRecords(() => userStore.userInfo);
+const { hasPermission } = useRbacAccess();
+const canAssignRoles = computed(() =>
+  hasPermission(buildApiMethodPermissions(userService, 'assignRoles')),
+);
 
 const orgModalOpen = ref(false);
+const orgBriefMode = ref(true);
 const orgModalMode = ref<'create' | 'edit'>('create');
 const orgFormState = reactive<Record<string, any>>({
   code: '',
+  category: '',
   editable: true,
   enable: true,
   id: '',
@@ -224,22 +247,137 @@ const userConfig = computed(() => {
   const roleRecords = permissionRoleRecords.value;
   return {
     ...userPageCrudConfig,
+    briefFields: {
+      create: ['name', 'loginName', 'tenantId', 'orgId', 'type', 'category'],
+      edit: ['name', 'loginName', 'type', 'category'],
+    },
+    briefRequiredFields: {
+      create: ['name', 'loginName'],
+      edit: ['name', 'loginName'],
+    },
+    briefOnEnter: (
+      state: Record<string, any>,
+      record: null | Record<string, any>,
+    ) => {
+      state.loginName = preferredLoginAccount(state);
+      if (!Array.isArray(state.__briefRoleList)) {
+        state.__briefRoleList = Array.isArray(record?.roleList)
+          ? record.roleList.map(String)
+          : [];
+      }
+      if (canAssignRoles.value)
+        void loadRoleOptions().catch(() => {
+          roleOptions.value = [];
+          message.error('角色选项加载失败，请稍后重试');
+        });
+    },
+    briefOnExit: (
+      state: Record<string, any>,
+      record: null | Record<string, any>,
+    ) => {
+      if (!String(state.loginName || '').trim()) return;
+      try {
+        Object.assign(
+          state,
+          mapBriefLoginAccount(state.loginName, record, state).values,
+        );
+      } catch (error) {
+        if (!(error instanceof BriefAccountConflictError)) throw error;
+        state.loginName = record?.loginName || null;
+        message.warning(error.message);
+      }
+      if (
+        Array.isArray(state.__briefRoleList) &&
+        state.__briefRoleList.length > 0
+      )
+        message.info('已选角色将在保存用户资料后分配');
+    },
+    finalizeBriefSubmit: (
+      payload: Record<string, any>,
+      state: Record<string, any>,
+      record: null | Record<string, any>,
+      canSubmitField: (key: string) => boolean,
+    ) => {
+      const mapped = mapBriefLoginAccount(state.loginName, record, payload);
+      if (!record) {
+        assertUserTenantOrg(
+          orgTreeData.value,
+          String(state.tenantId || ''),
+          String(state.orgId || ''),
+        );
+        if (
+          (isPlatformUser.value && !canSubmitField('tenantId')) ||
+          !canSubmitField('orgId')
+        )
+          throw new Error('当前没有设置用户归属租户或组织的字段权限');
+      }
+      if (
+        !canSubmitField(mapped.field) ||
+        (mapped.previousField &&
+          mapped.previousField !== mapped.field &&
+          !canSubmitField(mapped.previousField))
+      ) {
+        throw new Error('当前登录账号字段不可提交，请检查字段权限或展示设置');
+      }
+      const result = { ...mapped.values };
+      delete result.roleList;
+      return result;
+    },
+    afterSave: async ({
+      created,
+      id,
+      formState,
+      editingRecord,
+    }: {
+      created: boolean;
+      editingRecord: null | Record<string, any>;
+      formState: Record<string, any>;
+      id: string;
+    }) => {
+      if (!Array.isArray(formState.__briefRoleList)) return undefined;
+      return assignBriefRolesAfterSave({
+        canAssign: canAssignRoles.value,
+        created,
+        id,
+        previousRoles: Array.isArray(editingRecord?.roleList)
+          ? editingRecord.roleList
+          : [],
+        roles: formState.__briefRoleList,
+        send: (userId, roles) =>
+          userService.assignRoles({
+            id: userId,
+            roleList: roles,
+          }),
+      });
+    },
+    loadEditRecord: async (record: Record<string, any>) => {
+      return (await userService.retrieve({
+        id: record.id,
+        tenantId: record.tenantId || getOrgTenantId(selectedOrgId.value),
+      })) as Record<string, any>;
+    },
     defaultFormValues: {
       ...userPageCrudConfig.defaultFormValues,
       orgId: selectedOrgId.value || undefined,
+      tenantId: getOrgTenantId(selectedOrgId.value),
     },
     defaultQuery: {
       ...userPageCrudConfig.defaultQuery,
       orgId: selectedOrgId.value,
     },
-    fields: userPageCrudConfig.fields.map((field) =>
-      field.key === 'orgId'
-        ? {
-            ...field,
-            search: false,
-          }
-        : field,
-    ),
+    fields: userPageCrudConfig.fields.map((field) => {
+      if (field.key === 'orgId') return { ...field, search: false };
+      if (field.key === 'tenantId')
+        return { ...field, formEdit: false, search: false };
+      if (field.key === 'loginName')
+        return {
+          ...field,
+          briefLabel: '登录账号',
+          briefRequired: true,
+        };
+      if (field.key === 'category') return { ...field, briefLabel: '用户类别' };
+      return field;
+    }),
     rowActions: [
       ...(userPageCrudConfig.rowActions || []),
       {
@@ -386,6 +524,25 @@ function getOrgTenantId(id: string) {
   return findOrgNode(orgTreeData.value, id)?.tenantId;
 }
 
+async function searchUserTenants(keyword: string) {
+  const options = await tenantOptionsLoader(keyword);
+  userTenantOptions.value = toStringSelectOptions(options);
+}
+
+function selectUserOrg(formState: Record<string, any>, value: unknown) {
+  const orgId = value ? String(value) : '';
+  if (!orgId) {
+    formState.orgId = undefined;
+    return;
+  }
+  const tenantId = getOrgTenantId(orgId);
+  if (!tenantId || tenantId !== formState.tenantId) {
+    message.warning('请选择所选租户下的组织');
+    return;
+  }
+  formState.orgId = orgId;
+}
+
 function filterOrgTreeNodes(nodes: OrgTreeNode[], keyword: string) {
   return nodes.reduce<OrgTreeNode[]>((result, node) => {
     const children = node.children
@@ -419,6 +576,7 @@ function disableOrgTreeNode(
 
 function resetOrgForm(values: Record<string, any> = {}) {
   Object.assign(orgFormState, {
+    category: '',
     code: '',
     editable: true,
     enable: true,
@@ -489,6 +647,7 @@ async function loadOrgTree() {
       tenantOptionList.map((option) => [String(option.value), option.label]),
     );
     tenantOptions.value = toStringSelectOptions(tenantOptionList);
+    userTenantOptions.value = toStringSelectOptions(tenantOptionList);
     const nextTreeData = isPlatformUser.value
       ? groupOrgTreeByTenant(realTreeData, tenantNames)
       : realTreeData;
@@ -513,14 +672,24 @@ async function loadOrgTree() {
 }
 
 async function loadOrgOptions() {
-  try {
-    orgTypeOptions.value = (await orgTypeOptionsLoader()).map((option) => ({
-      ...option,
-      value: String(option.value),
-    }));
-  } catch {
-    orgTypeOptions.value = [];
-  }
+  const [types, categories] = await Promise.allSettled([
+    orgTypeOptionsLoader(),
+    orgCategoryOptionsLoader(),
+  ]);
+  orgTypeOptions.value = types.status === 'fulfilled'
+    ? types.value.map((option) => ({
+        ...option,
+        value: String(option.value),
+      }))
+    : [];
+  orgCategoryOptions.value = categories.status === 'fulfilled'
+    ? categories.value.map((option) => ({
+        ...option,
+        value: String(option.value),
+      }))
+    : [];
+  if (categories.status === 'rejected')
+    message.error('组织类别选项加载失败，请刷新组织后重试');
 }
 
 function handleOrgSelect(keys: Array<number | string>) {
@@ -543,6 +712,7 @@ function handleOrgNodeFocusOut(event: FocusEvent) {
 
 function openCreateOrgModal(parentId = '') {
   orgModalMode.value = 'create';
+  orgBriefMode.value = true;
 
   // 新增下级组织继承父节点租户；根级新增继续使用既有全局或域名上下文。
   resetOrgForm({
@@ -560,6 +730,7 @@ async function openEditOrgModal(id = selectedOrgId.value) {
 
   selectedOrgId.value = id;
   orgModalMode.value = 'edit';
+  orgBriefMode.value = true;
   orgTreeLoading.value = true;
 
   // 详情请求显式携带树节点租户，供后端校验组织归属。
@@ -610,6 +781,10 @@ async function submitOrgForm() {
     message.warning('请输入组织名称');
     return;
   }
+  if (!String(orgFormState.category || '').trim()) {
+    message.warning('请选择组织类别');
+    return;
+  }
 
   if (
     orgModalMode.value === 'create' &&
@@ -625,6 +800,7 @@ async function submitOrgForm() {
 
   try {
     const payload: Record<string, any> = {
+      category: orgFormState.category || undefined,
       code: orgFormState.code || undefined,
       enable: orgFormState.enable,
       id: orgFormState.id || undefined,
@@ -847,7 +1023,58 @@ onMounted(async () => {
     </aside>
 
     <main class="user-org-main min-h-0 min-w-0 flex-1">
-      <CrudPage v-if="selectedOrgId" :key="crudPageKey" :config="userConfig" />
+      <CrudPage v-if="selectedOrgId" :key="crudPageKey" :config="userConfig">
+        <template #form-field-tenantId="{ formState }">
+          <Select
+            :value="formState.tenantId"
+            :options="userTenantOptions"
+            class="w-full"
+            data-testid="org-user-tenant-select"
+            :filter-option="false"
+            placeholder="请选择归属租户"
+            show-search
+            @search="searchUserTenants"
+            @update:value="changeUserTenant(formState, String($event || ''))"
+          />
+        </template>
+        <template #form-field-orgId="{ formState }">
+          <TreeSelect
+            :value="formState.orgId"
+            :tree-data="
+              tenantOrgChoices(orgTreeData, String(formState.tenantId || ''))
+            "
+            allow-clear
+            class="w-full"
+            data-testid="org-user-org-select"
+            placeholder="请重新选择所选租户下的组织"
+            show-search
+            tree-default-expand-all
+            tree-node-filter-prop="label"
+            @update:value="selectUserOrg(formState, $event)"
+          />
+        </template>
+        <template #brief-extra="{ formState }">
+          <Form.Item
+            v-if="canAssignRoles"
+            class="mb-0 w-full"
+            data-form-field="roleList"
+            label="角色"
+          >
+            <Select
+              v-model:value="formState.__briefRoleList"
+              allow-clear
+              class="w-full"
+              :filter-option="false"
+              mode="multiple"
+              :not-found-content="roleOptionsLoading ? '加载中...' : undefined"
+              :options="roleOptions"
+              placeholder="请选择角色"
+              show-search
+              @search="loadRoleOptions"
+            />
+          </Form.Item>
+        </template>
+      </CrudPage>
       <div
         v-else
         class="border-border bg-card flex h-full items-center justify-center rounded-lg border"
@@ -860,6 +1087,7 @@ onMounted(async () => {
       v-if="selectedRecord"
       v-model:open="dialogOpen"
       :record="selectedRecord"
+      :role-records="permissionRoleRecords"
       :load-domain-options="loadStringDomainScopeOptions"
       subject-type="user"
       @saved="handleSaved"
@@ -912,6 +1140,11 @@ onMounted(async () => {
         data-form-name="新增或编辑组织"
         layout="vertical"
       >
+        <div class="mb-3 flex justify-end">
+          <Button type="link" @click="orgBriefMode = !orgBriefMode">
+            {{ orgBriefMode ? '更多' : '返回简要表单' }}
+          </Button>
+        </div>
         <div class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
           <Form.Item label="上级组织">
             <TreeSelect
@@ -948,35 +1181,46 @@ onMounted(async () => {
               placeholder="请选择组织类型"
             />
           </Form.Item>
+          <Form.Item label="组织类别" required>
+            <Select
+              v-model:value="orgFormState.category"
+              allow-clear
+              :options="orgCategoryOptions"
+              placeholder="请选择组织类别"
+            />
+          </Form.Item>
           <Form.Item label="组织名称" required>
             <Input
               v-model:value="orgFormState.name"
               placeholder="请输入组织名称"
             />
           </Form.Item>
-          <Form.Item label="组织编码">
+          <Form.Item v-if="!orgBriefMode" label="组织编码">
             <Input
               v-model:value="orgFormState.code"
               placeholder="请输入组织编码"
             />
           </Form.Item>
-          <Form.Item label="组织简称">
+          <Form.Item v-if="!orgBriefMode" label="组织简称">
             <Input
               v-model:value="orgFormState.shortName"
               placeholder="请输入组织简称"
             />
           </Form.Item>
-          <Form.Item label="排序代码">
+          <Form.Item v-if="!orgBriefMode" label="排序代码">
             <InputNumber
               v-model:value="orgFormState.orderCode"
               class="w-full"
               placeholder="请输入排序代码"
             />
           </Form.Item>
-          <Form.Item label="是否启用">
+          <Form.Item v-if="!orgBriefMode" label="是否启用">
             <Switch v-model:checked="orgFormState.enable" />
           </Form.Item>
-          <Form.Item v-if="shouldShowOrgEditableControl" label="是否可编辑">
+          <Form.Item
+            v-if="!orgBriefMode && shouldShowOrgEditableControl"
+            label="是否可编辑"
+          >
             <Switch v-model:checked="orgFormState.editable" />
           </Form.Item>
           <Form.Item class="sm:col-span-2" label="备注">

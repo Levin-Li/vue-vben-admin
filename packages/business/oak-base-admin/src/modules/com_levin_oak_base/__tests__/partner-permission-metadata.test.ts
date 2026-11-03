@@ -86,11 +86,14 @@ describe('合作伙伴与结算单 API 操作身份', () => {
     for (const [config, resource] of [
       [supplierPartnerPageCrudConfig, 'SupplierPartner'],
       [channelPartnerPageCrudConfig, 'ChannelPartner'],
-      [settlementOrderPageCrudConfig, 'SettlementOrder'],
     ] as const) {
       expect(config.listPath).toBe(`/${resource}/list`);
       expect(config.allowDelete).toBe(false);
     }
+    expect(settlementOrderPageCrudConfig.listPath).toBe(
+      '/SettlementOrder/listByRoles',
+    );
+    expect(settlementOrderPageCrudConfig.allowDelete).toBe(false);
     for (const [config, service] of [
       [supplierPartnerPageCrudConfig, supplierPartnerService],
       [channelPartnerPageCrudConfig, channelPartnerService],

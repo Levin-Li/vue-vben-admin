@@ -60,7 +60,12 @@ describe('user page config', () => {
   it('excludes ordinary credentials and MFA secrets from user details', () => {
     expect(userPageCrudConfig.fields).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: 'password', detail: false }),
+        expect.objectContaining({
+          key: 'password',
+          detail: false,
+          formCreate: true,
+          formEdit: false,
+        }),
         expect.objectContaining({ key: 'mfaSecretKey', detail: false }),
       ]),
     );

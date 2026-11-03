@@ -1,5 +1,9 @@
 # @levin/admin-framework
 
+[默认加密 API 路径使用指南](docs/url-acl-default-crypto-paths.md)列出主动加密路径、协议边界与最小验证方法。
+
+[标准 CRUD 简要表单接入指南](docs/crud-brief-form.md)说明页面指定字段、权限过滤、完整表单切换与部分成功处理。
+
 JSON Schema 编辑器的 `:xxx` 属性引用见 [使用指南](docs/json-schema-editor-reference.md)。
 
 角色与用户数据权限分配的操作与继承语义见 [数据权限分配使用指南](docs/data-permission-checklist.md)。
@@ -48,6 +52,8 @@ configureAdminApplication({
 标准 CRUD 的标签缓存接入与失效边界见[标签缓存接入指南](docs/crud-tab-cache.md)。
 
 服务端提供游标的列表直接使用 `CrudPage`，见[标准 CRUD 游标列表接入指南](docs/crud-cursor-pagination.md)。
+
+标准 CRUD 工具栏支持 `toolbar-before-create` 插槽，内容显示在内置“新增”按钮前。插槽接收 `isListOperationVisible`、`editingRecord`、`formState`、`loadList`；调用方应结合列表操作权限判断是否显示按钮。原有 `toolbar-extra` 插槽仍显示在“新增”之后。
 
 专用业务列表可复用[标准 CRUD 查询与列表布局](docs/crud-layout.md)，由页面保留实际 API、权限和分页契约。
 系统原生网页 Agent 的聊天入口和技能登记见[网页 Agent 使用与扩展指南](docs/ai-agent.md)。

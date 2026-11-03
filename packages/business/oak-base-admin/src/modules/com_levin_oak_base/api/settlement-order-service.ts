@@ -18,16 +18,23 @@ export interface SettlementRecord {
   }[];
   currencyCode?: string;
   endTime?: string;
+  financeOrgId?: string;
+  financeUserId?: string;
   id: string;
   initialSettlementAmount?: number | string;
   invoiceDocuments?: Record<string, unknown>[];
   optimisticLock: number;
-  orgId?: string;
   paidAmount?: number | string;
   partnerId?: string;
   payeeBankAccount?: Record<string, unknown>;
+  payeeLegalSubjectId?: string;
+  payeeOrgId?: string;
+  payeeUserId?: string;
   payerInvoiceInfo?: Record<string, unknown>;
+  payerLegalSubjectId?: string;
   paymentDocuments?: Record<string, unknown>[];
+  salesOrgId?: string;
+  salesUserId?: string;
   settlementAmount?: number | string;
   settlementContent?: Record<string, unknown>;
   startTime?: string;
@@ -49,10 +56,17 @@ export interface SettlementPaymentCommand extends SettlementCommand {
 export interface SettlementSaveRequest {
   currencyCode?: string;
   endTime: string;
+  financeOrgId?: string;
+  financeUserId?: string;
   id?: string;
   optimisticLock?: number;
-  orgId?: string;
   partnerId?: string;
+  payeeLegalSubjectId?: string;
+  payeeOrgId?: string;
+  payeeUserId?: string;
+  payerLegalSubjectId?: string;
+  salesOrgId?: string;
+  salesUserId?: string;
   settlementAmount: number | string;
   settlementContent: Record<string, unknown>;
   startTime: string;
@@ -179,7 +193,7 @@ export class SettlementOrderService extends RequestService {
     payload: Record<string, unknown>,
     options?: any,
   ): Promise<{ items: SettlementRecord[]; totals: number }> {
-    return this.get('list', { ...options, params: payload });
+    return this.get('listByRoles', { ...options, params: payload });
   }
   @CRUD.Op({
     label: '进入待打款',

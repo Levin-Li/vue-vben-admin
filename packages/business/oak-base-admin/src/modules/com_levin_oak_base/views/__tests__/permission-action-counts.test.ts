@@ -66,20 +66,22 @@ describe('permission-action-counts', () => {
     ]);
   });
 
-  it('counts role rules only for inherited user scope sides', () => {
+  it('counts inherited role rules for unset user fields and explicit rules otherwise', () => {
     const roles = [
       {
         code: 'R_A',
         tenantId: 'tenant-1',
-        domainScopeList: ['domain-a'],
-        orgScopeList: ['org-a'],
-        deniedOrgScopeList: ['org-b'],
+        tenantScopeList: ['tenant-a', 'tenant-b'],
       },
       {
         code: 'R_B',
         tenantId: 'tenant-1',
-        domainScopeList: ['domain-a'],
-        orgScopeList: ['org-c'],
+        tenantScopeList: ['tenant-b', 'tenant-c'],
+      },
+      {
+        code: 'R_A',
+        tenantId: 'tenant-2',
+        tenantScopeList: ['tenant-other'],
       },
     ];
     expect(
@@ -87,15 +89,27 @@ describe('permission-action-counts', () => {
         {
           tenantId: 'tenant-1',
           roleList: ['R_A', 'R_B'],
-          domainScopeList: null,
+          tenantScopeList: null,
           orgScopeList: [],
-          deniedOrgScopeList: null,
         },
         roles,
       ),
     ).toEqual([
-      { count: 1, label: '允许规则（含角色继承）', tone: 'success' },
-      { count: 1, label: '禁止规则（含角色继承）', tone: 'danger' },
+      { count: 3, label: '允许规则（含角色继承）', tone: 'success' },
+      { count: 0, label: '禁止规则', tone: 'danger' },
+    ]);
+    expect(
+      getUserDataPermissionBadgeItems(
+        {
+          tenantId: 'tenant-1',
+          roleList: ['R_A', 'R_B'],
+          tenantScopeList: ['tenant-own'],
+        },
+        roles,
+      ),
+    ).toEqual([
+      { count: 1, label: '允许规则', tone: 'success' },
+      { count: 0, label: '禁止规则', tone: 'danger' },
     ]);
   });
 });

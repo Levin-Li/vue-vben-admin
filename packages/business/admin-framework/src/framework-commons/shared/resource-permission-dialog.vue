@@ -203,7 +203,8 @@ watch(
     :ok-button-props="{ disabled: saveDisabled }"
     :open="open"
     :title="dialogTitle"
-    :width="1080"
+    :style="{ maxWidth: 'none' }"
+    width="max(1200px, 90vw)"
     destroy-on-close
     @cancel="closeDialog"
     @ok="handleSave"

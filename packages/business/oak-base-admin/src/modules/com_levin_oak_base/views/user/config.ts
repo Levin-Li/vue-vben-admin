@@ -601,9 +601,11 @@ export const userPageCrudConfig: CrudPageConfig = {
       key: 'password',
       label: '登录密码',
       detail: false,
+      formCreate: true,
+      formEdit: false,
       layoutGroup: 'basic',
       layoutOrder: 80,
-      placeholder: '新增时设置初始密码；编辑时留空表示不修改',
+      placeholder: '新增时设置初始密码',
       type: 'password',
     },
     {

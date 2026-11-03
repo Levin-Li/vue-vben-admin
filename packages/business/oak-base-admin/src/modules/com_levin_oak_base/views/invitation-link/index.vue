@@ -345,7 +345,12 @@ async function copyCreatedUrl() {
         show-search
         option-filter-prop="label"
         @update:value="
-          (value) => !disabled && changeInvitationTenant(formState, value)
+          (value) =>
+            !disabled &&
+            changeInvitationTenant(
+              formState,
+              value == null ? undefined : String(value),
+            )
         "
       />
     </template>
@@ -366,7 +371,12 @@ async function copyCreatedUrl() {
         show-search
         option-filter-prop="label"
         @update:value="
-          (value) => !disabled && changeInvitationOrganization(formState, value)
+          (value) =>
+            !disabled &&
+            changeInvitationOrganization(
+              formState,
+              value == null ? undefined : String(value),
+            )
         "
       />
     </template>

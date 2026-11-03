@@ -312,6 +312,10 @@ export const orgLevelOptionsLoader = buildModuleDictOptionsLoader(
 export const orgCategoryOptionsLoader = buildModuleDictOptionsLoader(
   'com.levin.oak.base.entities.Org.category',
 );
+// 组织职能独立使用可维护字典，避免与组织类别或类型混用。
+export const orgResponsibilityOptionsLoader = buildModuleDictOptionsLoader(
+  'com.levin.oak.base.entities.Org.responsibilityCode',
+);
 export const tenantTypeOptionsLoader = buildModuleDictOptionsLoader(
   'com.levin.oak.base.entities.Tenant.type',
 );

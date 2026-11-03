@@ -337,7 +337,6 @@ onBeforeUnmount(() => {
         v-model="formState.settlementContent"
         :id="formState.id"
         :tenant-id="formState.tenantId"
-        :org-id="formState.orgId"
         :disabled="disabled"
       />
     </template>

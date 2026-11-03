@@ -123,9 +123,9 @@ describe('邀请真实公共表单提交', () => {
         );
       if (!identity) throw new Error('缺少账号身份选择');
       expect(
-        identity
-          .props('options')
-          .some((option: any) => option.value === 'Administrator'),
+        (identity.props('options') || []).some(
+          (option: any) => option.value === 'Administrator',
+        ),
       ).toBe(adminVisible);
     },
     20_000,

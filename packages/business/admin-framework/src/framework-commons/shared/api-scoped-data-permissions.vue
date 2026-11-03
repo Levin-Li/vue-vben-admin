@@ -14,9 +14,13 @@ import { mergedApiScopedGrant } from './api-scoped-grant';
 
 const props = defineProps<{
   attributes?: DataAttrValuePermission[];
+  disabledFields?: string[];
+  disabledGroups?: string[];
   enabled: boolean;
   groups: RbacDataAttrGroup[];
   operation: string;
+  partialGroups?: string[];
+  partialValues?: string[];
   selected: string[];
 }>();
 
@@ -80,7 +84,10 @@ const selectedPreview = computed(() => {
       ? [`${attribute.name || attribute.attribute}：${values.join('、')}`]
       : [];
   });
-  return [...groups, ...fields].join('；');
+  return [
+    ...(groups.length > 0 ? [`信息组：${groups.join('、')}`] : []),
+    ...fields,
+  ].join('\n');
 });
 
 function toggleValue(
@@ -112,8 +119,14 @@ function displayName(group: RbacDataAttrGroup) {
           <div class="text-muted-foreground text-xs">信息组</div>
           <div v-for="group in groups" :key="group.permissionExpr">
             <Checkbox
-              :checked="selectedGroups.has(displayName(group))"
-              :disabled="!enabled"
+              :checked="
+                selectedGroups.has(displayName(group)) &&
+                !partialGroups?.includes(displayName(group))
+              "
+              :indeterminate="partialGroups?.includes(displayName(group))"
+              :disabled="
+                !enabled || disabledGroups?.includes(displayName(group))
+              "
               :data-test="`api-group-${operation}-${group.name}`"
               @change="
                 emit('toggleGroup', displayName(group), $event.target.checked)
@@ -137,8 +150,16 @@ function displayName(group: RbacDataAttrGroup) {
             <Checkbox
               v-for="value in attribute.values"
               :key="value.name"
-              :checked="selectedValues(attribute).has(value.name)"
-              :disabled="!enabled"
+              :checked="
+                selectedValues(attribute).has(value.name) &&
+                !partialValues?.includes(`${fieldKey(attribute)}@${value.name}`)
+              "
+              :indeterminate="
+                partialValues?.includes(`${fieldKey(attribute)}@${value.name}`)
+              "
+              :disabled="
+                !enabled || disabledFields?.includes(fieldKey(attribute))
+              "
               :data-test="`api-value-${operation}-${fieldKey(attribute)}-${value.name}`"
               @change="
                 toggleValue(attribute, [value.name], $event.target.checked)
@@ -150,7 +171,11 @@ function displayName(group: RbacDataAttrGroup) {
         </div>
       </div>
     </template>
-    <Tooltip :title="selectedPreview || undefined" :mouse-enter-delay="0.7">
+    <Tooltip
+      :title="selectedPreview || undefined"
+      :mouse-enter-delay="0.7"
+      :overlay-inner-style="{ whiteSpace: 'pre-line' }"
+    >
       <button
         class="text-primary ml-2 inline-flex items-center gap-1 text-xs"
         type="button"

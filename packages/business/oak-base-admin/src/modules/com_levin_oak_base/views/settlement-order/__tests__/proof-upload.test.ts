@@ -21,7 +21,7 @@ describe('结算凭证上传', () => {
     expect(
       await uploadSettlementProof(
         new File(['proof'], 'proof.pdf', { type: 'application/pdf' }),
-        { id: 's1', tenantId: 't1', orgId: 'o1' },
+        { id: 's1', tenantId: 't1', financeOrgId: 'o1' },
       ),
     ).toEqual({ id: 'file-1', url: '/lfs/proof.pdf' });
     expect(create).toHaveBeenCalledWith(
@@ -40,19 +40,25 @@ describe('结算凭证上传', () => {
   it('上传失败不登记资源，登记返回 URL 时拒绝把它当作资源 ID', async () => {
     upload.mockRejectedValueOnce(new Error('failed'));
     await expect(
-      uploadSettlementProof(new File([], 'a.pdf'), { id: 's1', orgId: 'o1' }),
+      uploadSettlementProof(new File([], 'a.pdf'), {
+        id: 's1',
+        financeOrgId: 'o1',
+      }),
     ).rejects.toThrow();
     expect(create).not.toHaveBeenCalled();
     upload.mockResolvedValue('/lfs/a.pdf');
     create.mockResolvedValue('/lfs/a.pdf');
     await expect(
-      uploadSettlementProof(new File([], 'a.pdf'), { id: 's1', orgId: 'o1' }),
+      uploadSettlementProof(new File([], 'a.pdf'), {
+        id: 's1',
+        financeOrgId: 'o1',
+      }),
     ).rejects.toThrow('资源 ID');
   });
-  it('无管理组织时不上传孤立凭证', async () => {
+  it('无财务组织时不上传孤立凭证', async () => {
     await expect(
       uploadSettlementProof(new File([], 'a.pdf'), { id: 's1' }),
-    ).rejects.toThrow('管理组织');
+    ).rejects.toThrow('财务组织');
     expect(upload).not.toHaveBeenCalled();
   });
 });

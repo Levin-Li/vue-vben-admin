@@ -18,7 +18,7 @@ export interface QuickAddPayload {
     | 'OnlineStore';
   creditCode: string;
   legalSubjectName: string;
-  loginName?: string;
+  loginAccount: string;
   password?: string;
   shortName: string;
   subjectType: 'Individual' | 'Legal' | 'NotLegal';
@@ -32,5 +32,4 @@ export interface QuickAddPayload {
     | 'RawMaterials'
     | 'Service'
     | 'Technology';
-  telephone: string;
 }

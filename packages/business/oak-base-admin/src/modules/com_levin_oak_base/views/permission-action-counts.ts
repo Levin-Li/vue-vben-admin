@@ -78,13 +78,19 @@ export function getUserDataPermissionBadgeItems(
       ),
     ];
   }
-  const inherited = fields.some(
-    (field) => user[field] === null || user[field] === undefined,
-  );
-  return getDataPermissionBadgeItems(effective).map((item) => ({
+  return getDataPermissionBadgeItems(effective).map((item, index) => ({
     ...item,
     label:
-      inherited && assignedRoles.length > 0
+      assignedRoles.length > 0 &&
+      fields.some(
+        (field) =>
+          (index === 0
+            ? !field.startsWith('denied')
+            : field.startsWith('denied')) &&
+          (user[field] === null || user[field] === undefined) &&
+          Array.isArray(effective[field]) &&
+          effective[field].length > 0,
+      )
         ? `${item.label}（含角色继承）`
         : item.label,
   }));

@@ -47,7 +47,7 @@ const pageConfig = computed<CrudPageConfig>(() => ({
 
 <template>
   <CrudPage :config="pageConfig">
-    <template #toolbar-extra="{ loadList, isListOperationVisible }">
+    <template #toolbar-before-create="{ loadList, isListOperationVisible }">
       <QuickAdd
         v-if="quickTarget"
         :target="quickTarget"

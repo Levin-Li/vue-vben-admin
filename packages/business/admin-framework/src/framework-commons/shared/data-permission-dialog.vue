@@ -66,6 +66,7 @@ const props = defineProps<{
   open: boolean;
   previewPayload?: DataPermissionPreviewPayload;
   record: null | Record<string, any>;
+  roleRecords?: Array<Record<string, any>>;
   subjectType: DataPermissionSubjectType;
 }>();
 const emit = defineEmits<{ saved: []; 'update:open': [boolean] }>();
@@ -145,6 +146,36 @@ const savedValues = ref<Record<ScopeField, null | string[]>>({
   tenantScopeList: [],
 });
 const isUser = computed(() => props.subjectType === 'user');
+// 详情字段缺失时沿用列表记录的角色与租户，继承规则仅供回显。
+const inheritedRoleScopes = computed(() => {
+  const user = { ...props.record, ...detail.value };
+  const codes = new Set(
+    (Array.isArray(user.roleList) ? user.roleList : []).map(String),
+  );
+  const tenantId = user.tenantId && String(user.tenantId);
+  const roles = (props.roleRecords || []).filter(
+    (role) =>
+      codes.has(String(role.code)) &&
+      (!role.tenantId || String(role.tenantId) === tenantId),
+  );
+  const values = {} as Record<ScopeField, string[]>;
+  for (const tab of scopeTabs)
+    for (const field of [tab.allowField, tab.denyField])
+      values[field] = [
+        ...new Set(
+          roles.flatMap((role) =>
+            Array.isArray(role[field]) ? role[field].map(String) : [],
+          ),
+        ),
+      ];
+  return values;
+});
+function visibleScopeValues(field: ScopeField): string[] {
+  const own = scopeValues.value[field];
+  return own === null && isUser.value
+    ? inheritedRoleScopes.value[field]
+    : own || [];
+}
 const runtimeEnv = (import.meta as ImportMeta & { env: Record<string, any> })
   .env;
 const { apiURL } = useAppConfig(runtimeEnv, Boolean(runtimeEnv.PROD));
@@ -180,7 +211,7 @@ const hasChanges = computed(
   () => visibleScopeTabs.value.flatMap((tab) => fieldsChanged(tab)).length > 0,
 );
 const modalBodyStyle = {
-  height: '640px',
+  height: '720px',
   maxHeight: 'calc(100vh - 220px)',
   overflow: 'hidden',
 } as const;
@@ -266,8 +297,8 @@ const orgModeDraft = ref<Record<string, string>>({});
 const savedOrgInlineModes = computed(() => {
   const modes = new Map<string, string>();
   for (const value of [
-    ...(scopeValues.value.deniedOrgScopeList || []),
-    ...(scopeValues.value.orgScopeList || []),
+    ...visibleScopeValues('deniedOrgScopeList'),
+    ...visibleScopeValues('orgScopeList'),
   ]) {
     const rule = parseOrgRule(value);
     if (
@@ -281,8 +312,8 @@ const savedOrgInlineModes = computed(() => {
 const configuredOrgIds = computed(() => [
   ...new Set(
     [
-      ...(scopeValues.value.orgScopeList || []),
-      ...(scopeValues.value.deniedOrgScopeList || []),
+      ...visibleScopeValues('orgScopeList'),
+      ...visibleScopeValues('deniedOrgScopeList'),
     ]
       .map((value) => parseOrgRule(value).startValue)
       .filter((value) => value && !value.startsWith('_')),
@@ -431,8 +462,8 @@ function fieldFor(tab: ScopeTab, side: ScopeSide) {
 }
 function allRowOptions(tab: ScopeTab) {
   const saved: Option[] = [
-    ...(scopeValues.value[tab.allowField] || []),
-    ...(scopeValues.value[tab.denyField] || []),
+    ...visibleScopeValues(tab.allowField),
+    ...visibleScopeValues(tab.denyField),
   ].map((value) => ({ label: optionLabel(tab.kind, value), value }));
   let available: Option[] = orgOptions.value;
   if (tab.kind === 'domain') available = domainOptions.value;
@@ -452,6 +483,14 @@ function allTokens(tab: ScopeTab) {
 function scopeMode(tab: ScopeTab): ScopeMode {
   const allow = scopeValues.value[tab.allowField] || [];
   const deny = scopeValues.value[tab.denyField] || [];
+  const all = allTokens(tab);
+  if (all.every((value) => deny.includes(value))) return 'denyAll';
+  if (all.every((value) => allow.includes(value))) return 'allowAll';
+  return 'custom';
+}
+function visibleScopeMode(tab: ScopeTab): ScopeMode {
+  const allow = visibleScopeValues(tab.allowField);
+  const deny = visibleScopeValues(tab.denyField);
   const all = allTokens(tab);
   if (all.every((value) => deny.includes(value))) return 'denyAll';
   if (all.every((value) => allow.includes(value))) return 'allowAll';
@@ -532,17 +571,9 @@ function setScopeMode(tab: ScopeTab, mode: ScopeMode) {
 }
 function allChoice(tab: ScopeTab): ScopeChoice {
   const all = allTokens(tab);
-  if (
-    all.every((value) =>
-      (scopeValues.value[tab.denyField] || []).includes(value),
-    )
-  )
+  if (all.every((value) => visibleScopeValues(tab.denyField).includes(value)))
     return 'deny';
-  if (
-    all.every((value) =>
-      (scopeValues.value[tab.allowField] || []).includes(value),
-    )
-  )
+  if (all.every((value) => visibleScopeValues(tab.allowField).includes(value)))
     return 'allow';
   return 'none';
 }
@@ -564,7 +595,7 @@ function fixedOptions(tab: ScopeTab) {
 }
 function visibleFixedOptions(tab: ScopeTab) {
   if (tab.kind === 'org') return fixedOptions(tab);
-  return scopeMode(tab) === 'denyAll'
+  return visibleScopeMode(tab) === 'denyAll'
     ? fixedOptions(tab).filter((item) => item.value === allTokens(tab)[0])
     : fixedOptions(tab);
 }
@@ -606,7 +637,7 @@ function dynamicOptions(tab: ScopeTab) {
   );
 }
 function isChecked(tab: ScopeTab, side: ScopeSide, value: string) {
-  return (scopeValues.value[fieldFor(tab, side)] || []).includes(value);
+  return visibleScopeValues(fieldFor(tab, side)).includes(value);
 }
 function selectedChoice(tab: ScopeTab, value: string): ScopeChoice {
   if (isChecked(tab, 'deny', value)) return 'deny';
@@ -624,7 +655,7 @@ function orgPresetMode(start: string) {
 }
 function orgPresetChoice(tab: ScopeTab, start: string): ScopeChoice {
   for (const side of ['deny', 'allow'] as const) {
-    const rules = scopeValues.value[fieldFor(tab, side)] || [];
+    const rules = visibleScopeValues(fieldFor(tab, side));
     if (
       rules.some((value) => {
         const rule = parseOrgRule(value);
@@ -884,8 +915,8 @@ async function loadData() {
     if (isPlatformOperator.value) await loadMoreTenants();
     try {
       await loadTenantDisplayOptions([
-        ...(scopeValues.value.tenantScopeList || []),
-        ...(scopeValues.value.deniedTenantScopeList || []),
+        ...visibleScopeValues('tenantScopeList'),
+        ...visibleScopeValues('deniedTenantScopeList'),
       ]);
     } catch (error) {
       console.warn('租户范围名称回显失败', error);
@@ -954,7 +985,7 @@ async function searchCandidates(value: string) {
   }
 }
 function advancedSideValues(tab: ScopeTab, side: ScopeSide) {
-  const values = scopeValues.value[fieldFor(tab, side)] || [];
+  const values = visibleScopeValues(fieldFor(tab, side));
   return values.toSorted((left, right) =>
     optionLabel(tab.kind, left).localeCompare(optionLabel(tab.kind, right)),
   );
@@ -1218,16 +1249,16 @@ watch(
                 <span>{{ tab.label }}</span>
                 <span class="inline-flex -translate-y-1 gap-0.5">
                   <sup
-                    v-if="(scopeValues[tab.allowField] || []).length > 0"
+                    v-if="visibleScopeValues(tab.allowField).length > 0"
                     :aria-label="`${tab.label}允许规则数`"
                     class="inline-flex h-3 min-w-3 items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[9px] leading-3 text-white"
-                    v-text="(scopeValues[tab.allowField] || []).length"
+                    v-text="visibleScopeValues(tab.allowField).length"
                   ></sup>
                   <sup
-                    v-if="(scopeValues[tab.denyField] || []).length > 0"
+                    v-if="visibleScopeValues(tab.denyField).length > 0"
                     :aria-label="`${tab.label}禁止规则数`"
                     class="inline-flex h-3 min-w-3 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] leading-3 text-white"
-                    v-text="(scopeValues[tab.denyField] || []).length"
+                    v-text="visibleScopeValues(tab.denyField).length"
                   ></sup>
                 </span>
               </span>
@@ -1260,6 +1291,11 @@ watch(
                     >
                       自定义
                     </Checkbox>
+                    <span
+                      v-if="isUser && isFieldUnset(fieldFor(tab, side))"
+                      class="text-xs text-slate-500"
+                      v-text="'角色继承'"
+                    ></span>
                   </div>
                   <Button
                     :disabled="
@@ -1300,7 +1336,10 @@ watch(
                     </span>
                     <Button
                       :aria-label="`编辑${optionLabel(tab.kind, value)}`"
-                      :disabled="isAdvancedRuleReadOnly(tab, value)"
+                      :disabled="
+                        isFieldUnset(fieldFor(tab, side)) ||
+                        isAdvancedRuleReadOnly(tab, value)
+                      "
                       size="small"
                       @click="openAdvancedCandidate(tab, side, value)"
                     >
@@ -1308,7 +1347,10 @@ watch(
                     </Button>
                     <Button
                       :aria-label="`删除${optionLabel(tab.kind, value)}`"
-                      :disabled="isAdvancedRuleReadOnly(tab, value)"
+                      :disabled="
+                        isFieldUnset(fieldFor(tab, side)) ||
+                        isAdvancedRuleReadOnly(tab, value)
+                      "
                       danger
                       size="small"
                       @click="removeAdvancedRule(tab, side, value)"
@@ -1337,6 +1379,13 @@ watch(
                   :disabled="isTabReadOnly(tab)"
                   @update:checked="setTabCustom(tab, Boolean($event))"
                 />
+                <span
+                  v-if="
+                    isFieldUnset(tab.allowField) || isFieldUnset(tab.denyField)
+                  "
+                  class="text-xs text-slate-500"
+                  v-text="'角色继承的规则仅供查看'"
+                ></span>
               </div>
               <div
                 class="data-permission-options-scroll rounded-lg border border-slate-200"
@@ -1418,7 +1467,7 @@ watch(
                   </tbody>
                 </table>
                 <div
-                  v-if="scopeMode(tab) !== 'denyAll'"
+                  v-if="visibleScopeMode(tab) !== 'denyAll'"
                   class="border-t border-slate-200 p-3"
                 >
                   <Input

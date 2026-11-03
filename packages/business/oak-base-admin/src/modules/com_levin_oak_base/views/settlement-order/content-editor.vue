@@ -12,7 +12,6 @@ const props = defineProps<{
   disabled?: boolean;
   id?: string;
   modelValue?: unknown;
-  orgId?: string;
   tenantId?: string;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: unknown] }>();
@@ -42,7 +41,7 @@ function updateContent(value: unknown) {
 
 // 普通详情不含结算内容，编辑按独立财务权限加载，缺少字段组时不补造空对象。
 watch(
-  () => [props.id, props.tenantId, props.orgId],
+  () => [props.id, props.tenantId],
   async () => {
     const current = ++version;
     loadedId.value = '';
