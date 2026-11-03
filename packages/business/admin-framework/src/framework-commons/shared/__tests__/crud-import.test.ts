@@ -96,6 +96,15 @@ describe('crud import utilities', () => {
     });
   });
 
+  it('含逗号的旧版 Excel XML 仍按 XML 导入', () => {
+    const xml = `<?xml version="1.0"?><Workbook><Worksheet><Table><Row><Cell><Data>名称</Data></Cell></Row><Row><Cell><Data>甲,乙</Data></Cell></Row></Table></Worksheet></Workbook>`;
+
+    expect(parseSpreadsheetText(xml, 'legacy.xls')).toEqual({
+      headers: ['名称'],
+      rows: [['甲,乙']],
+    });
+  });
+
   it('parses the first sheet of a standard xlsx workbook', async () => {
     const workbook = createStoredZip({
       'xl/_rels/workbook.xml.rels': `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="worksheets/sheet1.xml" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"/></Relationships>`,

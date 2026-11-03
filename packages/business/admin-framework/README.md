@@ -59,7 +59,7 @@ configureAdminApplication({
 页面展示设置的默认值编辑方式与设置记录信息见[页面展示设置使用说明](docs/page-display-setting-record.md)。
 紧凑列表的表头固定列图标、临时状态和列配置入口见[紧凑表格固定列使用指南](docs/crud-compact-fixed-columns.md)。
 公共 CRUD 的表头临时拖动及刷新恢复见[临时列宽使用指南](docs/crud-temporary-column-resize.md)。
-公共 CRUD 导入导出：[使用指南](docs/公共CRUD导入导出使用指南.md)、[设计](docs/公共CRUD导出设计.md)、[实现说明](docs/公共CRUD导出实现说明.md)、[开发指南](docs/公共CRUD导出开发指南.md)。
+公共 CRUD 导入导出与 XLSX：[使用指南](docs/公共CRUD导入导出使用指南.md)、[设计](docs/公共CRUD导出设计.md)、[实现说明](docs/公共CRUD导出实现说明.md)、[开发指南](docs/公共CRUD导出开发指南.md)。
 默认管理员首次登录后的强制改密接入与验证见[默认管理员首次改密指南](docs/initial-password-change.md)。
 新增时由页面生成的隐藏必需字段见[CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。
 HTML 字段与独立页面的安全富文本编辑接入见[公共富文本编辑器使用指南](docs/rich-text-editor.md)。

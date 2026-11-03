@@ -155,14 +155,11 @@ function parseHtmlTableRows(text: string) {
     .filter((row) => row.some((value) => normalizeText(value)));
 }
 
-export function parseSpreadsheetText(text: string, fileName = '') {
-  const name = fileName.toLowerCase();
+export function parseSpreadsheetText(text: string, _fileName = '') {
   const trimmed = stripBom(text || '').trimStart();
   let rows: string[][];
 
-  if (name.endsWith('.csv') || trimmed.includes(',')) {
-    rows = parseCsvRows(text);
-  } else if (trimmed.startsWith('<?xml') || trimmed.includes('<Workbook')) {
+  if (trimmed.startsWith('<?xml') || trimmed.includes('<Workbook')) {
     rows = parseXmlWorkbookRows(text);
   } else if (trimmed.includes('<table')) {
     rows = parseHtmlTableRows(text);
@@ -218,7 +215,7 @@ async function inflateZipEntry(data: Uint8Array, compression: number) {
     typeof (globalThis as any).DecompressionStream !== 'function'
   ) {
     throw new Error(
-      '当前浏览器无法解压该 XLSX 文件，请改用 CSV 或系统导出的 .xls 文件。',
+      '当前浏览器无法解压该 XLSX 文件，请改用 CSV 或本系统导出的 XLSX 文件。',
     );
   }
 

@@ -193,7 +193,7 @@ import {
 } from './crud-export-template';
 import { updateCrudFieldInput } from './crud-field-interaction';
 import { serializeCrudFieldValue } from './crud-field-value';
-import { buildExcelXml, downloadExcelXml } from './crud-file-export';
+import { buildExcelXlsx, downloadExcelXlsx } from './crud-file-export';
 import {
   getFixedCrudFormValue,
   isFixedCrudFormField,
@@ -4645,7 +4645,7 @@ function getExportFileName() {
       )
     : '列表';
 
-  return `${props.config.title}_${listTitle}_${timestamp}.xls`;
+  return `${props.config.title}_${listTitle}_${timestamp}.xlsx`;
 }
 
 function formatExportCellValue(field: CrudFieldConfig, record: GenericRecord) {
@@ -5221,7 +5221,7 @@ async function handleExportConfirm() {
   try {
     const exportCheckpoint = dataAttrAccess.checkpoint();
     const records = await fetchExportRecords();
-    const xml = buildExcelXml({
+    const workbook = buildExcelXlsx({
       fields,
       formatCellValue: formatExportCellValue,
       getFieldHeader: getExportFieldHeader,
@@ -5230,7 +5230,7 @@ async function handleExportConfirm() {
       worksheetName: props.config.title,
     });
     dataAttrAccess.assertCheckpoint(exportCheckpoint);
-    downloadExcelXml(xml, getExportFileName());
+    downloadExcelXlsx(workbook, getExportFileName());
     exportModalOpen.value = false;
 
     try {

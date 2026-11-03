@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('../crud-file-export', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../crud-file-export')>()),
-  downloadExcelXml: mocks.download,
+  downloadExcelXlsx: mocks.download,
 }));
 vi.mock('../../app/api/request', () => ({
   requestClient: {

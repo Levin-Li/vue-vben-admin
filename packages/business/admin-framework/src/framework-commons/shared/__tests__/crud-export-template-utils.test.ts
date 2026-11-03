@@ -5,10 +5,11 @@ import {
   CRUD_IMPORT_TEMPLATE_SAVE_TYPE,
 } from '../crud-export-template';
 import {
-  buildExcelXml,
+  buildExcelXlsx,
   escapeExcelXmlValue,
-  getSpreadsheetMlColumnWidth,
+  getXlsxColumnWidth,
 } from '../crud-file-export';
+import { parseXlsxBuffer } from '../crud-import';
 import {
   canShowCrudTemplateDelete,
   dedupeCrudTemplates,
@@ -47,30 +48,48 @@ describe('crud export template utils', () => {
     expect(escapeExcelXmlValue('<tag a="1">&')).toBe(
       '&lt;tag a=&quot;1&quot;&gt;&amp;',
     );
-    expect(
-      buildExcelXml({
-        fields: [{ key: 'name', label: '名称' }],
-        formatCellValue: (_field, record) => record.name,
-        getFieldHeader: (field) => field.label,
-        records: [{ name: 'A&B' }],
-        worksheetName: 'Demo',
-      }),
-    ).toContain('A&amp;B');
+    expect(escapeExcelXmlValue('A\u0000B')).toBe('AB');
   });
 
-  it('writes configured export widths as SpreadsheetML columns', () => {
-    expect(getSpreadsheetMlColumnWidth(20)).toBe(105);
-    expect(getSpreadsheetMlColumnWidth(0)).toBeUndefined();
-    expect(getSpreadsheetMlColumnWidth(256)).toBeUndefined();
+  it('writes configured export widths as XLSX character columns', () => {
+    expect(getXlsxColumnWidth(20)).toBe(20);
+    expect(getXlsxColumnWidth(0)).toBeUndefined();
+    expect(getXlsxColumnWidth(256)).toBeUndefined();
 
-    expect(
-      buildExcelXml({
-        fields: [{ key: 'name', label: '名称' }],
-        formatCellValue: (_field, record) => record.name,
-        getFieldHeader: (field) => field.label,
-        getFieldWidth: () => 20,
-        records: [{ name: 'A' }],
-      }),
-    ).toContain('<Column ss:AutoFitWidth="0" ss:Width="105"/>');
+    const workbook = buildExcelXlsx({
+      fields: [{ key: 'name', label: '名称' }],
+      formatCellValue: (_field, record) => record.name,
+      getFieldHeader: (field) => field.label,
+      getFieldWidth: () => 20,
+      records: [{ name: 'A' }],
+    });
+    expect(new TextDecoder().decode(workbook)).toContain(
+      '<col min="1" max="1" width="20" customWidth="1"/>',
+    );
+  });
+
+  it('生成真实 XLSX，并按文本回读编号、中文和公式样式内容', async () => {
+    const bytes = buildExcelXlsx({
+      fields: [
+        { key: 'code', label: '编号' },
+        { key: 'remark', label: '备注' },
+      ],
+      formatCellValue: (field, record) =>
+        (record as Record<string, string>)[String(field.key)],
+      getFieldHeader: (field) => field.label,
+      getFieldWidth: (field) => (field.key === 'code' ? 20 : undefined),
+      records: [{ code: '00123', remark: '=1+1,中文 & <x>\n第二行' }],
+      worksheetName: '导出/测试',
+    });
+
+    expect(bytes.slice(0, 4)).toEqual(Uint8Array.of(80, 75, 3, 4));
+    const buffer = bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength,
+    ) as ArrayBuffer;
+    await expect(parseXlsxBuffer(buffer)).resolves.toEqual({
+      headers: ['编号', '备注'],
+      rows: [['00123', '=1+1,中文 & <x>\n第二行']],
+    });
   });
 });
