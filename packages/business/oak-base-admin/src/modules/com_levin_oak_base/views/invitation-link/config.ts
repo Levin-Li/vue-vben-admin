@@ -28,6 +28,18 @@ export const pageMeta = {
 
 export const pageOperations = [
   {
+    opName: 'targetTenants',
+    apiMethods: [invitationLinkService.targetTenants],
+  },
+  {
+    opName: 'targetChannels',
+    apiMethods: [invitationLinkService.targetChannels],
+  },
+  {
+    opName: 'targetDictionaryOptions',
+    apiMethods: [invitationLinkService.targetDictionaryOptions],
+  },
+  {
     opName: 'targetOrganizations',
     apiMethods: [invitationLinkService.targetOrganizations],
   },
@@ -53,6 +65,10 @@ export const pageOperations = [
   {
     opName: 'inviteChildAdminOption',
     apiMethods: [invitationLinkService.canInviteChildAdmin],
+  },
+  {
+    opName: 'inviteOrgAdminOption',
+    apiMethods: [invitationLinkService.canInviteOrgAdmin],
   },
   { opName: 'copyLink', apiMethods: [invitationLinkService.copyLink] },
   { opName: 'revoke', apiMethods: [invitationLinkService.revoke] },
@@ -115,7 +131,7 @@ const statuses: Record<string, string> = {
   Exhausted: '次数已用尽',
 };
 const organizationOptions = [
-  { label: '加入邀请人组织', value: 'JoinInviterOrg' },
+  { label: '加入所选组织', value: 'JoinInviterOrg' },
   { label: '为每人创建子组织', value: 'CreateChildOrg' },
 ];
 const childOrgOptions = [
@@ -149,25 +165,95 @@ type InvitationCrudField = CrudFieldConfig & {
   formVisibleWhen?: (state: Record<string, any>) => boolean;
 };
 
+/** 内部邀请的普通身份显示为普通员工，其余身份仍交由标准选项映射。 */
+export function invitationUserTypeDisplay(record: Record<string, any>) {
+  return record.targetType === 'Internal' && record.userType === 'Employee'
+    ? '普通员工'
+    : record.userType;
+}
+
+/** 详情只接收已声明的业务摘要，避免通用详情将内部响应字段自动展示。 */
+export function projectInvitationDetail(
+  record: Record<string, any>,
+  isPlatformUser: boolean,
+) {
+  const keys = [
+    'targetOrgName',
+    'targetType',
+    'userType',
+    'registrationChannel',
+    'usageMode',
+    'expiresAt',
+    'successCount',
+    'status',
+    'createdAt',
+    'organizationMode',
+  ];
+  if (isPlatformUser) keys.push('tenantId');
+  if (record.usageMode === 'Limited') keys.push('maxRegistrations');
+  if (
+    ['Internal', 'Member'].includes(record.targetType) &&
+    record.organizationMode === 'CreateChildOrg'
+  ) {
+    keys.push('childOrgType');
+  }
+  if (record.targetType === 'Customer') {
+    keys.push('customerType');
+    if (record.customerType === 'ChannelCustomer')
+      keys.push('channelPartnerId');
+  }
+  if (record.targetType === 'SupplierPartner') keys.push('supplierPartnerType');
+  if (record.targetType === 'ChannelPartner') keys.push('channelPartnerType');
+  if (
+    ['ChannelPartner', 'Customer', 'SupplierPartner'].includes(
+      record.targetType,
+    )
+  ) {
+    keys.push('organizationCategory', 'accountType');
+  }
+
+  return Object.fromEntries(
+    keys
+      .filter((key) => Object.hasOwn(record, key))
+      .map((key) => {
+        // 名称来自已授权的详情响应，不为回显额外读取租户字典。
+        if (key === 'organizationCategory' || key === 'accountType') {
+          const name = record[`${key}Name`];
+          return [
+            key,
+            typeof name === 'string' && name.trim() ? name : record[key],
+          ];
+        }
+        if (key === 'status')
+          return [key, statuses[record.status] || record.status];
+        return [
+          key,
+          key === 'userType' ? invitationUserTypeDisplay(record) : record[key],
+        ];
+      }),
+  );
+}
+
 /** 每种目标在公共表单打开前固定，策略、权限与提交接口使用同一目标。 */
 export function createInvitationLinkCrudConfig(options: {
   apiService: CrudApiService;
   canCreate: boolean;
   canInviteChildAdmin: boolean;
+  canSelectTenant?: boolean;
   createActions?: CrudRowAction[];
+  isPlatformUser?: boolean;
+  loadTenantOptions?: CrudFieldConfig['loadOptions'];
   target: InvitationTarget;
   targetOrganizations?: InvitationTargetOrganization[];
 }): CrudPageConfig {
-  const { target, canInviteChildAdmin, apiService, canCreate } = options;
+  const { target, apiService, canCreate } = options;
   const method = createMethodByTarget[target];
   const external = ['ChannelPartner', 'Customer', 'SupplierPartner'].includes(
     target,
   );
   const userTypeOptions: { label: string; value: InvitationUserType }[] = [
     { label: '普通用户', value: 'Employee' },
-    ...(canInviteChildAdmin
-      ? [{ label: '子组织管理员', value: 'Administrator' as const }]
-      : []),
+    { label: '管理员', value: 'Administrator' },
   ];
   return {
     apiBase: '/InvitationLink',
@@ -203,15 +289,19 @@ export function createInvitationLinkCrudConfig(options: {
       ...(options.targetOrganizations?.length === 1
         ? { targetOrgId: options.targetOrganizations[0]?.id }
         : {}),
-      ...(target === 'Member' ? { userType: 'Employee' } : {}),
+      ...(['Internal', 'Member'].includes(target)
+        ? { userType: 'Employee' }
+        : {}),
       ...(external ? { organizationMode: 'CreateChildOrg' } : {}),
       ...(external ? { childOrgType: target } : {}),
     },
     createSubmitKeys: [
+      ...(options.isPlatformUser ? ['tenantId'] : []),
       'targetOrgId',
       'userType',
       'organizationMode',
       'childOrgType',
+      ...(external ? ['organizationCategory', 'accountType'] : []),
     ],
     formMaxColumns: 2,
     modalWidth: 960,
@@ -221,6 +311,24 @@ export function createInvitationLinkCrudConfig(options: {
     allowRetrieve: true,
     allowExport: false,
     fields: [
+      ...(options.isPlatformUser
+        ? [
+            {
+              key: 'tenantId',
+              label: '归属租户',
+              type: 'select' as const,
+              form: true,
+              defaultVisibleRoleCodes: [],
+              search: options.canSelectTenant === true,
+              table: options.canSelectTenant === true,
+              detail: true,
+              loadOptions: options.canSelectTenant
+                ? options.loadTenantOptions
+                : undefined,
+              required: true,
+            },
+          ]
+        : []),
       {
         key: 'targetOrgId',
         label: '邀请到哪个组织',
@@ -256,14 +364,31 @@ export function createInvitationLinkCrudConfig(options: {
       },
       {
         key: 'userType',
-        label: '用户类型',
+        label: '账号身份',
         type: 'select',
         options: userTypeOptions,
+        tableValue: invitationUserTypeDisplay,
         search: true,
         table: true,
         form: target !== 'Member',
         required: target !== 'Member',
         width: 130,
+      },
+      {
+        key: 'organizationCategory',
+        label: '组织类别',
+        type: 'select',
+        form: external,
+        search: false,
+        table: false,
+      },
+      {
+        key: 'accountType',
+        label: '用户类型',
+        type: 'select',
+        form: external,
+        search: false,
+        table: false,
       },
       {
         key: 'registrationChannel',
@@ -315,8 +440,10 @@ export function createInvitationLinkCrudConfig(options: {
         required: !external,
         defaultValue: 'JoinInviterOrg',
         validator: (value, state) =>
-          state.userType === 'Administrator' && value !== 'CreateChildOrg'
-            ? '子组织管理员必须创建新子组织'
+          target !== 'Internal' &&
+          state.userType === 'Administrator' &&
+          value !== 'CreateChildOrg'
+            ? '管理员必须创建新子组织'
             : undefined,
       },
       {
@@ -448,6 +575,7 @@ export function normalizeInvitationListQuery(
     pageSize: Math.min(100, Math.max(1, Number(params.pageSize) || 20)),
   };
   for (const key of [
+    'tenantId',
     'targetType',
     'userType',
     'registrationChannel',

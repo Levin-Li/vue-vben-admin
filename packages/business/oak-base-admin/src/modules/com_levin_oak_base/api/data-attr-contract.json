@@ -124222,6 +124222,20 @@
     },
     "nodes" : { }
   }, {
+    "id" : "14c06401-dc9d-3595-9762-570fdbec5143",
+    "operation" : "com.levin.oak.base:业务数据-邀请链接::邀请组织管理员",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/InvitationLink/canInviteOrgAdmin" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "4ceae90e-930a-3ca9-8cf9-fd5e556df7e6",
     "operation" : "com.levin.oak.base:业务数据-邀请链接::复制我的邀请链接",
     "methods" : [ "POST" ],
@@ -124348,10 +124362,52 @@
     },
     "nodes" : { }
   }, {
-    "id" : "40ade721-02a4-345e-b573-1ebbaa62dc92",
+    "id" : "1107d9aa-67f5-39de-9b56-ad271b9455d3",
+    "operation" : "com.levin.oak.base:业务数据-邀请链接::查询可邀请的渠道伙伴",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/InvitationLink/targetChannels" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "6b9f1fdd-a55b-3eb8-a50a-fd312369c531",
+    "operation" : "com.levin.oak.base:业务数据-邀请链接::查询邀请字典选项",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/InvitationLink/targetDictionaryOptions" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "37f0ee1f-9626-3d80-b44a-415d97f8680e",
     "operation" : "com.levin.oak.base:业务数据-邀请链接::选择邀请目标组织",
     "methods" : [ "POST" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/InvitationLink/targetOrganizations" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "d843744e-6146-3267-ab2f-0471d9df4961",
+    "operation" : "com.levin.oak.base:业务数据-邀请链接::选择邀请租户",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/InvitationLink/targetTenants" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],

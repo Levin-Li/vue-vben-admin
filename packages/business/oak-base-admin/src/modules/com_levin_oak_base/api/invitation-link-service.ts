@@ -23,6 +23,7 @@ export type InvitationRegistrationChannel =
 export type InvitationUsageMode = 'Limited' | 'Single' | 'Unlimited';
 
 export interface CreateInvitationLinkRequest {
+  accountType?: string;
   channelPartnerId?: string;
   channelPartnerType?:
     | 'Agent'
@@ -34,6 +35,7 @@ export interface CreateInvitationLinkRequest {
   customerType?: 'ChannelCustomer' | 'DirectCustomer';
   expiresAt: null | string;
   maxRegistrations?: number;
+  organizationCategory?: string;
   organizationMode?: 'CreateChildOrg' | 'JoinInviterOrg';
   registrationChannel: InvitationRegistrationChannel;
   supplierPartnerType?:
@@ -47,11 +49,17 @@ export interface CreateInvitationLinkRequest {
     | 'Service'
     | 'Technology';
   targetOrgId: string;
+  tenantId?: string;
   usageMode: InvitationUsageMode;
   userType?: InvitationUserType;
 }
 
 export interface InvitationTargetOrganization {
+  id: string;
+  name: string;
+}
+
+export interface InvitationTargetTenant {
   id: string;
   name: string;
 }
@@ -77,6 +85,7 @@ export interface InvitationLinkListQuery {
   pageSize: number;
   registrationChannel?: InvitationRegistrationChannel;
   targetType?: InvitationTarget;
+  tenantId?: string;
   usageMode?: InvitationUsageMode;
   userType?: InvitationUserType;
 }
@@ -108,6 +117,15 @@ export class InvitationLinkService extends RequestService {
   })
   async canInviteChildAdmin() {
     return this.post<boolean>('canInviteChildAdmin');
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-邀请链接',
+    action: '邀请组织管理员',
+  })
+  async canInviteOrgAdmin() {
+    return this.post<boolean>('canInviteOrgAdmin');
   }
 
   @CRUD.Op({ label: '复制邀请链接', opRefTargetType: 'None' })
@@ -201,8 +219,43 @@ export class InvitationLinkService extends RequestService {
   }
 
   @ResAuthorize({ onlyRequireAuthenticated: true })
-  async targetOrganizations() {
-    return this.post<InvitationTargetOrganization[]>('targetOrganizations');
+  async targetChannels(
+    targetOrgId: string,
+    tenantId?: string,
+    keyword?: string,
+  ) {
+    return this.post<Array<{ id: string; name: string }>>('targetChannels', {
+      data: {
+        targetOrgId,
+        ...(tenantId ? { tenantId } : {}),
+        ...(keyword ? { keyword } : {}),
+      },
+    });
+  }
+
+  @ResAuthorize({ onlyRequireAuthenticated: true })
+  async targetDictionaryOptions(
+    field: 'accountType' | 'organizationCategory',
+    tenantId?: string,
+  ) {
+    return this.post<Array<{ label: string; value: string }>>(
+      'targetDictionaryOptions',
+      {
+        data: { field, ...(tenantId ? { tenantId } : {}) },
+      },
+    );
+  }
+
+  @ResAuthorize({ onlyRequireAuthenticated: true })
+  async targetOrganizations(tenantId?: string) {
+    return this.post<InvitationTargetOrganization[]>('targetOrganizations', {
+      data: tenantId ? { tenantId } : {},
+    });
+  }
+
+  @ResAuthorize({ onlyRequireAuthenticated: true })
+  async targetTenants() {
+    return this.post<InvitationTargetTenant[]>('targetTenants');
   }
 }
 

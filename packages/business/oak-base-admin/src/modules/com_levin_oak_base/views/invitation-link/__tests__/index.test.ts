@@ -5,6 +5,7 @@ import {
   createInvitationLinkCrudConfig,
   invitationCreateActions,
   normalizeInvitationListQuery,
+  projectInvitationDetail,
 } from '../config';
 
 const apiService = {
@@ -14,6 +15,88 @@ const apiService = {
 };
 
 describe('邀请链接公共 CRUD 配置', () => {
+  it('平台详情保留租户及外部邀请适用字段，排除其它目标字段', () => {
+    const detail = projectInvitationDetail(
+      {
+        id: 'id',
+        tenantId: 'tenant-a',
+        targetOrgId: 'org-a',
+        targetOrgName: '甲组织',
+        targetType: 'SupplierPartner',
+        organizationMode: 'CreateChildOrg',
+        childOrgType: 'SupplierPartner',
+        status: 'Active',
+        userType: 'Administrator',
+        usageMode: 'Limited',
+        maxRegistrations: 5,
+        organizationCategory: 'org-category',
+        accountType: 'account-type',
+        supplierPartnerType: 'Goods',
+        channelPartnerType: 'Agent',
+        customerType: 'DirectCustomer',
+        url: 'secret',
+        requiresExternalOrganization: true,
+      },
+      true,
+    );
+    expect(detail).toMatchObject({
+      tenantId: 'tenant-a',
+      targetOrgName: '甲组织',
+      status: '有效',
+      userType: 'Administrator',
+      maxRegistrations: 5,
+      organizationCategory: 'org-category',
+      accountType: 'account-type',
+      supplierPartnerType: 'Goods',
+    });
+    for (const key of [
+      'id',
+      'targetOrgId',
+      'url',
+      'requiresExternalOrganization',
+      'channelPartnerType',
+      'customerType',
+      'childOrgType',
+    ]) {
+      expect(detail).not.toHaveProperty(key);
+    }
+  });
+
+  it('内部邀请创建子组织时保留可读类型，详情状态按现有中文选项显示', () => {
+    const detail = projectInvitationDetail(
+      {
+        targetType: 'Internal',
+        organizationMode: 'CreateChildOrg',
+        childOrgType: 'Department',
+        status: 'Exhausted',
+      },
+      false,
+    );
+    expect(detail).toMatchObject({
+      childOrgType: 'Department',
+      status: '次数已用尽',
+    });
+  });
+
+  it('外部详情优先展示服务端字典名称，名称不可用时保留原编码', () => {
+    const detail = projectInvitationDetail(
+      {
+        targetType: 'Customer',
+        organizationCategory: 'org-code',
+        organizationCategoryName: '企业组织',
+        accountType: 'user-code',
+        accountTypeName: '',
+      },
+      true,
+    );
+    expect(detail).toMatchObject({
+      organizationCategory: '企业组织',
+      accountType: 'user-code',
+    });
+    expect(detail).not.toHaveProperty('organizationCategoryName');
+    expect(detail).not.toHaveProperty('accountTypeName');
+  });
+
   it('将六个查询条件交给真实列表接口，不丢弃分页和过滤条件', () => {
     expect(
       normalizeInvitationListQuery({
@@ -91,7 +174,38 @@ describe('邀请链接公共 CRUD 配置', () => {
     });
     expect(
       config.fields.find((field) => field.key === 'userType')?.options,
-    ).toEqual([{ label: '普通用户', value: 'Employee' }]);
+    ).toEqual([
+      { label: '普通用户', value: 'Employee' },
+      { label: '管理员', value: 'Administrator' },
+    ]);
+    expect(config.fields.find((field) => field.key === 'userType')?.label).toBe(
+      '账号身份',
+    );
+  });
+
+  it('内部员工在列表显示普通员工，外部身份及查询值不变', () => {
+    const config = createInvitationLinkCrudConfig({
+      apiService,
+      canCreate: true,
+      canInviteChildAdmin: true,
+      target: 'Internal',
+    });
+    const field = config.fields.find((item) => item.key === 'userType');
+    expect(
+      field?.tableValue?.({ targetType: 'Internal', userType: 'Employee' }),
+    ).toBe('普通员工');
+    expect(
+      field?.tableValue?.({ targetType: 'Customer', userType: 'Employee' }),
+    ).toBe('Employee');
+    expect(
+      field?.tableValue?.({
+        targetType: 'Customer',
+        userType: 'Administrator',
+      }),
+    ).toBe('Administrator');
+    expect(
+      normalizeInvitationListQuery({ userType: 'Employee' }).userType,
+    ).toBe('Employee');
   });
 
   it('只把服务端返回的可选目标组织放入创建表单', () => {

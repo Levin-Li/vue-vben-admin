@@ -9,19 +9,29 @@ import InvitationLinkPage from '../index.vue';
 const {
   list,
   copyLink,
+  retrieve,
   createCustomer,
   createInternal,
   writeText,
   permissionAllowed,
+  targetOrganizations,
+  targetTenants,
+  targetDictionaryOptions,
+  targetChannels,
   user,
   openCreate,
 } = vi.hoisted(() => ({
   list: vi.fn(),
   copyLink: vi.fn(),
+  retrieve: vi.fn(),
   createCustomer: vi.fn(),
   createInternal: vi.fn(),
   writeText: vi.fn(),
   permissionAllowed: vi.fn(),
+  targetOrganizations: vi.fn(),
+  targetTenants: vi.fn(),
+  targetDictionaryOptions: vi.fn(),
+  targetChannels: vi.fn(),
   user: { userInfo: { tenantId: 'tenant', orgId: 'org' } },
   openCreate: vi.fn(),
 }));
@@ -43,10 +53,15 @@ vi.mock('../../../api/invitation-link-service', () => ({
     createInternal,
     createCustomer,
     createMember: vi.fn(),
+    targetOrganizations,
+    targetTenants,
+    targetDictionaryOptions,
+    targetChannels,
     createSupplierPartner: vi.fn(),
     createChannelPartner: vi.fn(),
     canInviteChildAdmin: vi.fn(),
-    retrieve: vi.fn(),
+    canInviteOrgAdmin: vi.fn(),
+    retrieve,
     revoke: vi.fn(),
   },
 }));
@@ -138,9 +153,14 @@ vi.mock('ant-design-vue', () => ({
 describe('邀请链接页面公共 CRUD 行为', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    targetOrganizations.mockResolvedValue([{ id: 'org', name: '测试组织' }]);
+    targetTenants.mockResolvedValue([{ id: 'tenant', name: '测试租户' }]);
+    targetDictionaryOptions.mockResolvedValue([]);
+    targetChannels.mockResolvedValue([]);
     user.userInfo = { tenantId: 'tenant', orgId: 'org' };
     permissionAllowed.mockImplementation(
-      (method: string) => method !== 'canInviteChildAdmin',
+      (method: string) =>
+        !['canInviteChildAdmin', 'canInviteOrgAdmin'].includes(method),
     );
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
@@ -192,6 +212,82 @@ describe('邀请链接页面公共 CRUD 行为', () => {
     wrapper.unmount();
   });
 
+  it('内部员工详情使用普通员工称呼，外部员工保留原身份值', async () => {
+    const wrapper = mount(InvitationLinkPage);
+    await flushPromises();
+    const config = wrapper
+      .findComponent({ name: 'CrudPageStub' })
+      .props('config') as any;
+    retrieve.mockResolvedValueOnce({
+      id: 'internal',
+      targetType: 'Internal',
+      userType: 'Employee',
+    });
+    await expect(
+      config.apiService.retrieve({ id: 'internal' }),
+    ).resolves.toMatchObject({ userType: '普通员工' });
+    retrieve.mockResolvedValueOnce({
+      id: 'external',
+      targetType: 'Customer',
+      userType: 'Employee',
+    });
+    await expect(
+      config.apiService.retrieve({ id: 'external' }),
+    ).resolves.toMatchObject({ userType: 'Employee' });
+    wrapper.unmount();
+  });
+
+  it('租户用户详情仅显示适用的业务摘要，不泄露内部标识和未声明字段', async () => {
+    const wrapper = mount(InvitationLinkPage);
+    await flushPromises();
+    const config = wrapper
+      .findComponent({ name: 'CrudPageStub' })
+      .props('config') as any;
+    retrieve.mockResolvedValue({
+      id: 'internal-id',
+      tenantId: 'tenant',
+      targetOrgId: 'org',
+      targetOrgName: '组织名称',
+      targetType: 'Internal',
+      userType: 'Employee',
+      registrationChannel: 'Phone',
+      usageMode: 'Single',
+      status: 'Active',
+      successCount: 1,
+      url: 'https://example.test/invite?secret=1',
+      revokedAt: null,
+      remainingRegistrations: 1,
+      requiresExternalOrganization: false,
+      organizationCategory: null,
+      accountType: null,
+      customerType: null,
+      futureInternalField: '不展示',
+    });
+    const detail = await config.apiService.retrieve({ id: 'internal-id' });
+    expect(detail).toMatchObject({
+      targetOrgName: '组织名称',
+      targetType: 'Internal',
+      userType: '普通员工',
+      registrationChannel: 'Phone',
+    });
+    for (const key of [
+      'id',
+      'tenantId',
+      'targetOrgId',
+      'url',
+      'revokedAt',
+      'remainingRegistrations',
+      'requiresExternalOrganization',
+      'organizationCategory',
+      'accountType',
+      'customerType',
+      'futureInternalField',
+    ]) {
+      expect(detail).not.toHaveProperty(key);
+    }
+    wrapper.unmount();
+  });
+
   it('标准目标动作打开公共新增并固定权限、字段策略和独立创建方法', async () => {
     const wrapper = mount(InvitationLinkPage);
     await flushPromises();
@@ -199,16 +295,42 @@ describe('邀请链接页面公共 CRUD 行为', () => {
     expect((crud.props('config') as any).dataAttrTargets.create.path).toContain(
       '/InvitationLink/createInternal',
     );
+    expect(() =>
+      (crud.props('config') as any).transformSubmit({
+        userType: 'Administrator',
+        organizationMode: 'CreateChildOrg',
+      }),
+    ).toThrow('当前账号无权邀请管理员');
+    permissionAllowed.mockReturnValue(true);
+    for (const mode of ['JoinInviterOrg', 'CreateChildOrg']) {
+      expect(
+        (crud.props('config') as any).transformSubmit({
+          userType: 'Administrator',
+          organizationMode: mode,
+          childOrgType: 'Department',
+        }),
+      ).toMatchObject({ userType: 'Administrator', organizationMode: mode });
+    }
+    permissionAllowed.mockImplementation(
+      (method: string) =>
+        !['canInviteChildAdmin', 'canInviteOrgAdmin'].includes(method),
+    );
     await wrapper
       .get('[data-action="invitation:createCustomer"]')
       .trigger('click');
-    expect(openCreate).toHaveBeenCalledTimes(1);
     await flushPromises();
+    expect(openCreate).toHaveBeenCalledTimes(1);
     const config = crud.props('config') as any;
     expect(config.createPermission).toBe('createCustomer');
     expect(config.dataAttrTargets.create.path).toContain(
       '/InvitationLink/createCustomer',
     );
+    expect(() =>
+      config.transformSubmit({
+        userType: 'Administrator',
+        organizationMode: 'CreateChildOrg',
+      }),
+    ).toThrow('当前账号无权邀请管理员');
     await config.apiService.create(
       config.transformSubmit({
         userType: 'Employee',

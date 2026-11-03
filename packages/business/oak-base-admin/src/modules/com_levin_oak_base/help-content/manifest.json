@@ -1,5 +1,5 @@
 {
-  "version": "6.0.27",
+  "version": "6.0.28",
   "documents": [
     {
       "id": "system-user-manual",
@@ -145,7 +145,7 @@
           "view": "invitation-link"
         }
       ],
-      "sha256": "ab16449afc458c9b3deb9fc055c1a12ef1562ea8e2da8ea509b663a8d1b99705"
+      "sha256": "fdd61f522c117eda8a693559e2fad7ccfd7c7e0eca1f619daecf59dd66ec4523"
     }
   ]
 }
