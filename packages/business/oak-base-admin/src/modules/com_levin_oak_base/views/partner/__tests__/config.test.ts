@@ -64,6 +64,22 @@ describe('合作关系公共资料', () => {
     ).not.toBe(true);
   });
 
+  it('供应与渠道页面的名称及名称查询统一使用名称标签', () => {
+    // 两个页面复用伙伴字段，但仍逐一验证最终页面配置。
+    for (const config of [
+      supplierPartnerPageCrudConfig,
+      channelPartnerPageCrudConfig,
+    ]) {
+      expect(
+        config.fields.find((field) => field.key === 'displayName')?.label,
+      ).toBe('名称');
+      expect(
+        config.fields.find((field) => field.key === 'containsDisplayName')
+          ?.label,
+      ).toBe('名称');
+    }
+  });
+
   it('伙伴列表标明法律主体待完善并通过业务服务加载详情', () => {
     const subjectField = partnerCommonFields.find(
       (field) => field.key === 'legalSubjectStatus',

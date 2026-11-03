@@ -119,7 +119,7 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     },
     {
       key: 'customerName',
-      label: '客户名称',
+      label: '名称',
       help: '将作为自动创建的客户组织名称。',
       layoutGroup: 'basic',
       layoutOrder: 15,
@@ -131,9 +131,7 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       search: false,
       width: 220,
       validator: (value) =>
-        String(value ?? '').trim()
-          ? undefined
-          : '自动创建客户组织时请输入客户名称',
+        String(value ?? '').trim() ? undefined : '请输入名称',
     },
     {
       key: 'type',

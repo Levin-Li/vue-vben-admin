@@ -137,7 +137,7 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
   },
   {
     key: 'displayName',
-    label: '业务名称',
+    label: '名称',
     required: true,
     table: true,
     layoutGroup: 'basic',
@@ -150,7 +150,7 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
     layoutGroup: 'basic',
     layoutOrder: 30,
   },
-  { key: 'containsDisplayName', label: '业务名称', form: false, search: true },
+  { key: 'containsDisplayName', label: '名称', form: false, search: true },
   {
     key: 'parentOrgId',
     formCreate: true,

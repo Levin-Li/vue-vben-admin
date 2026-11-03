@@ -106,15 +106,11 @@ describe('独立客户页面', () => {
       formEdit: false,
       required: true,
     });
-    expect(nameField?.validator?.('', {})).toBe(
-      '自动创建客户组织时请输入客户名称',
-    );
+    expect(nameField?.validator?.('', {})).toBe('请输入名称');
     expect(nameField?.validator?.('甲客户', {})).toBeUndefined();
-    expect(nameField?.validator?.('   ', {})).toBe(
-      '自动创建客户组织时请输入客户名称',
-    );
+    expect(nameField?.validator?.('   ', {})).toBe('请输入名称');
     expect(nameField?.validator?.('', { parentOrgId: 'internal-org' })).toBe(
-      '自动创建客户组织时请输入客户名称',
+      '请输入名称',
     );
   });
 
@@ -191,7 +187,7 @@ describe('独立客户页面', () => {
         (field) => field.key === 'customerName',
       ),
     ).toMatchObject({
-      label: '客户名称',
+      label: '名称',
       formCreate: true,
       formEdit: false,
       table: true,
