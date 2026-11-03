@@ -25,6 +25,8 @@ API 属性组权限的轻量分配、后端元数据契约与保存语义见 [�
 
 公共 CRUD 的当前页表头拖动、列宽边界及刷新恢复见 [临时列宽使用指南](docs/crud-temporary-column-resize.md)。
 
+公共 CRUD 导入导出：[使用指南](docs/公共CRUD导入导出使用指南.md)、[设计](docs/公共CRUD导出设计.md)、[实现说明](docs/公共CRUD导出实现说明.md)、[开发指南](docs/公共CRUD导出开发指南.md)。
+
 本地长期与临时上传 API 见 [本地文件上传 API 使用指南](docs/local-file-storage-upload.md)。
 
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。

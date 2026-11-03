@@ -31781,6 +31781,48 @@
     },
     "nodes" : { }
   }, {
+    "id" : "9d0be575-b172-37b8-86b9-06841e9b1356",
+    "operation" : "com.levin.oak.base:业务数据-工商信息查询::查询工商资料",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/BusinessRegistry/use/lookup" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "3e1f7e7c-6f2e-3468-a202-c61bb4b84b6a",
+    "operation" : "com.levin.oak.base:业务数据-工商信息查询::查看工商查询供应商能力",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/BusinessRegistry/use/providers" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "0e4981be-86f9-35ab-8093-fbd4604637cc",
+    "operation" : "com.levin.oak.base:业务数据-工商信息查询::搜索工商主体候选",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/BusinessRegistry/use/search" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "f5232d22-1c89-3e6e-ad2f-8ec628b50e18",
     "operation" : "com.levin.oak.base:业务数据-渠道伙伴::清除缓存",
     "methods" : [ "GET" ],
@@ -36542,6 +36584,20 @@
         "selectorNodeId" : null
       }
     }
+  }, {
+    "id" : "1dce321e-7864-3511-ae81-c0e4576ff82a",
+    "operation" : "com.levin.oak.base:业务数据-渠道伙伴::快捷添加",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/ChannelPartner/quickAdd" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
   }, {
     "id" : "731ec382-8f78-3bfc-96ec-54c10b5f8e10",
     "operation" : "com.levin.oak.base:业务数据-渠道伙伴::查看详情",
@@ -46208,6 +46264,20 @@
         "selectorNodeId" : null
       }
     }
+  }, {
+    "id" : "04738afc-2842-3cd3-a320-33ef16e62016",
+    "operation" : "com.levin.oak.base:业务数据-客户::快捷添加",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/Customer/quickAdd" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
   }, {
     "id" : "bdc6ae74-33c4-3892-8290-c2feac8f3d55",
     "operation" : "com.levin.oak.base:业务数据-客户::查看详情",
@@ -245330,6 +245400,20 @@
         "selectorNodeId" : null
       }
     }
+  }, {
+    "id" : "68129579-4977-3384-bcdd-e68da0e2507f",
+    "operation" : "com.levin.oak.base:业务数据-供应伙伴::快捷添加",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupplierPartner/quickAdd" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
   }, {
     "id" : "ab744af2-3643-307b-91d2-2621276302a9",
     "operation" : "com.levin.oak.base:业务数据-供应伙伴::查看详情",

@@ -1190,7 +1190,7 @@ describe('标准 crud 的属性组策略', () => {
           finishFirstPage = resolve;
         }),
     );
-    list.mockResolvedValueOnce({ items: [], totals: 2000 });
+    list.mockResolvedValueOnce({ items: [], totals: 2001 });
     const exporting = vm.fetchExportRecords();
     await flushPromises();
     const initialParams = { ...list.mock.calls[0]?.[0] };
@@ -1206,12 +1206,118 @@ describe('标准 crud 的属性组策略', () => {
         id: String(index),
         name: '原条件记录',
       })),
-      totals: 2000,
+      totals: 2001,
     });
     expect(await exporting).toHaveLength(2000);
     expect(list.mock.calls[1]?.[0]).toEqual({ ...initialParams, pageIndex: 2 });
     expect(vm.searchState.name).toBe('新条件');
     expect(vm.tableSorterState.order).toBe('descend');
+  });
+
+  it('导出在服务端裁剪页大小后继续读取全部分页', async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], totals: 0 });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { list },
+          dataAttrPolicyProvider: async () => policy(),
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    list.mockClear();
+    list.mockImplementation(async ({ pageIndex }: { pageIndex: number }) => {
+      const start = (pageIndex - 1) * 100;
+      return {
+        items: Array.from(
+          { length: Math.max(0, Math.min(100, 250 - start)) },
+          (_, index) => ({
+            id: String(start + index),
+            name: `记录${start + index}`,
+          }),
+        ),
+        pageIndex,
+        pageSize: 100,
+        totals: 250,
+      };
+    });
+
+    const records = await vm.fetchExportRecords();
+    expect(records).toHaveLength(250);
+    expect(list.mock.calls.map(([params]) => params.pageIndex)).toEqual([
+      1, 2, 3,
+    ]);
+    expect(list.mock.calls.every(([params]) => params.pageSize === 2000)).toBe(
+      true,
+    );
+  });
+
+  it('导出总数未知时继续读取短页直到空页', async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], totals: 0 });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { list },
+          dataAttrPolicyProvider: async () => policy(),
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    list.mockClear();
+    const pages = [
+      [
+        { id: '1', name: '首页甲' },
+        { id: '2', name: '首页乙' },
+      ],
+      [{ id: '3', name: '次页甲' }],
+    ];
+    list.mockImplementation(async ({ pageIndex }: { pageIndex: number }) => ({
+      items: pages[pageIndex - 1] ?? [],
+      pageIndex,
+      pageSize: 2,
+      totals: -1,
+    }));
+
+    const records = await vm.fetchExportRecords();
+    expect(records).toHaveLength(3);
+    expect(list.mock.calls.map(([params]) => params.pageIndex)).toEqual([
+      1, 2, 3,
+    ]);
+  });
+
+  it('导出遇到服务端重复返回首页时拒绝生成数据', async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], totals: 0 });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { list },
+          dataAttrPolicyProvider: async () => policy(),
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    list.mockClear();
+    list.mockResolvedValue({
+      items: [
+        { id: '1', name: '首页甲' },
+        { id: '2', name: '首页乙' },
+      ],
+      pageIndex: 1,
+      pageSize: 2,
+      totals: 4,
+    });
+
+    vm.exportSelectedFieldKeys = ['name'];
+    await vm.handleExportConfirm();
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(mocks.download).not.toHaveBeenCalled();
+    expect(vm.exporting).toBe(false);
   });
 
   it('导出末次空页等待期间策略失效时拒绝下载已读取记录', async () => {
@@ -1241,7 +1347,7 @@ describe('标准 crud 的属性组策略', () => {
         id: String(index),
         name: '已读取记录',
       })),
-      totals: 2000,
+      totals: 2001,
     });
     list.mockImplementationOnce(
       () =>

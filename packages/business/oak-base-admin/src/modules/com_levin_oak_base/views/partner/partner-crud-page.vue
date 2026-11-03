@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import type { QuickAddTarget } from '../../api/quick-partner-onboarding';
+
 import { computed, ref } from 'vue';
 
 import { Empty, Modal, Timeline, TimelineItem } from 'ant-design-vue';
@@ -13,8 +15,12 @@ import {
 } from './certification-log';
 import { isLegalSubjectPickerLocked } from './legal-subject-edit-lock';
 import LegalSubjectPicker from './legal-subject-picker.vue';
+import QuickAdd from './quick-add.vue';
 
-const props = defineProps<{ config: CrudPageConfig }>();
+const props = defineProps<{
+  config: CrudPageConfig;
+  quickTarget?: QuickAddTarget;
+}>();
 const logOpen = ref(false);
 const logItems = ref<ReturnType<typeof buildPartnerCertificationLog>>([]);
 
@@ -41,6 +47,14 @@ const pageConfig = computed<CrudPageConfig>(() => ({
 
 <template>
   <CrudPage :config="pageConfig">
+    <template #toolbar-extra="{ loadList, isListOperationVisible }">
+      <QuickAdd
+        v-if="quickTarget"
+        :target="quickTarget"
+        :load-list="loadList"
+        :visible="isListOperationVisible(`${quickTarget}:quickAdd`)"
+      />
+    </template>
     <template
       #form-field-legalSubjectId="{ disabled, editingRecord, formState }"
     >

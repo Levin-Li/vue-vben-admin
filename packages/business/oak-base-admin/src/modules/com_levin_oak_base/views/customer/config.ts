@@ -50,6 +50,9 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
   apiBase: '/Customer',
   domainObject: true,
   apiService: customerService,
+  listOperations: [
+    { key: 'customer:quickAdd', label: '快捷添加', placement: 'left' },
+  ],
   dataAttrTargets: fixedCrudDataAttrTargets(customerService, {
     list: { method: 'GET', path: 'list' },
     retrieve: { method: 'GET', path: 'retrieve' },

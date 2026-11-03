@@ -4,5 +4,8 @@ import { supplierPartnerPageCrudConfig } from './config';
 </script>
 
 <template>
-  <PartnerCrudPage :config="supplierPartnerPageCrudConfig" />
+  <PartnerCrudPage
+    :config="supplierPartnerPageCrudConfig"
+    quick-target="SupplierPartner"
+  />
 </template>

@@ -5158,6 +5158,7 @@ async function fetchExportRecords() {
   const exportQuery = cloneDeep(buildListQueryParams(1, EXPORT_PAGE_SIZE));
   const records: GenericRecord[] = [];
   let pageIndex = 1;
+  let previousPageIds: string | undefined;
 
   while (true) {
     const result = await requestList({
@@ -5173,6 +5174,17 @@ async function fetchExportRecords() {
       break;
     }
 
+    // 仅在列表提供稳定 ID 时识别重复页，避免后端忽略页码后导出重复数据。
+    const pageIds = items.every(
+      (item: GenericRecord) => item?.id !== null && item?.id !== undefined,
+    )
+      ? JSON.stringify(items.map((item: GenericRecord) => item.id))
+      : undefined;
+    if (pageIndex > 1 && pageIds && pageIds === previousPageIds) {
+      throw new Error('导出分页未推进，请检查列表接口');
+    }
+    previousPageIds = pageIds;
+
     records.push(...dataAttrAccess.pruneOutput('list', items));
 
     if (records.length > EXPORT_MAX_RECORDS) {
@@ -5180,7 +5192,12 @@ async function fetchExportRecords() {
       throw new Error(EXPORT_LIMIT_ERROR_MESSAGE);
     }
 
-    if (items.length < EXPORT_PAGE_SIZE) {
+    // 服务端可能裁剪 pageSize；仅在取足可信总数时结束，其余情况读到空页。
+    if (
+      Number.isFinite(result.totals) &&
+      result.totals > 0 &&
+      records.length >= result.totals
+    ) {
       break;
     }
 

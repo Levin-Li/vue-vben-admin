@@ -4,5 +4,8 @@ import { channelPartnerPageCrudConfig } from './config';
 </script>
 
 <template>
-  <PartnerCrudPage :config="channelPartnerPageCrudConfig" />
+  <PartnerCrudPage
+    :config="channelPartnerPageCrudConfig"
+    quick-target="ChannelPartner"
+  />
 </template>

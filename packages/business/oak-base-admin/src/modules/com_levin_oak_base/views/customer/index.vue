@@ -4,6 +4,7 @@ import { Select } from 'ant-design-vue';
 import CrudPage from '../crud-page.vue';
 import { isLegalSubjectPickerLocked } from '../partner/legal-subject-edit-lock';
 import LegalSubjectPicker from '../partner/legal-subject-picker.vue';
+import QuickAdd from '../partner/quick-add.vue';
 import ChannelPartnerPicker from './channel-partner-picker.vue';
 import { customerPageCrudConfig } from './config';
 
@@ -15,6 +16,13 @@ function updateType(formState: Record<string, any>, type?: unknown) {
 
 <template>
   <CrudPage :config="customerPageCrudConfig">
+    <template #toolbar-extra="{ loadList, isListOperationVisible }">
+      <QuickAdd
+        target="Customer"
+        :load-list="loadList"
+        :visible="isListOperationVisible('customer:quickAdd')"
+      />
+    </template>
     <template
       #form-field-legalSubjectId="{ disabled, editingRecord, formState }"
     >

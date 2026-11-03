@@ -1,3 +1,8 @@
+import type {
+  QuickAddPayload,
+  QuickAddResult,
+} from './quick-partner-onboarding';
+
 import {
   CRUD,
   RequestService,
@@ -44,6 +49,15 @@ export class SupplierPartnerService extends RequestService {
   })
   async list(params?: any, options?: any) {
     return this.get('list', { ...options, params });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-供应伙伴',
+    action: '快捷添加',
+  })
+  quickAdd(data: QuickAddPayload) {
+    return this.post<QuickAddResult>('quickAdd', { data });
   }
 
   @CRUD.Op({ confirmText: 'None' })
