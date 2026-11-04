@@ -56,6 +56,7 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 邮件、个人消息、支持邮箱配置、工单与投递审计：[工作台使用指南](docs/communication-workbench.md)。
 右上角在线文档入口、文档命名和构建登记：[文档中心使用指南](docs/文档中心使用指南.md)。
 服务插件按模式选择供应商：[供应商选择模式接入指南](docs/provider-selection-modes.md)。
+服务插件配置指南：[使用说明](docs/服务插件配置指南使用说明.md)。
 法律主体与合作伙伴一对多页面：[接入与使用指南](docs/partner-legal-subject-relations.md)。
 独立客户管理：[客户页面使用指南](docs/customer-page.md)。
 法律主体、客户与伙伴多方组织和负责人：[管理页面使用指南](docs/external-org-master-ownership.md)。

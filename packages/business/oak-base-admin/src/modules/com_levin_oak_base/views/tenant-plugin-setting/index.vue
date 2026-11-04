@@ -53,6 +53,7 @@ import {
 import SettingValueContentField from '../setting-value-content-field.vue';
 
 interface ServicePluginProvider {
+  allowMultipleConfigurations?: boolean | null;
   code?: string;
   configEditor?: string;
   disabled?: boolean;
@@ -61,6 +62,7 @@ interface ServicePluginProvider {
 }
 
 interface ServicePluginRecord {
+  allowMultipleConfigurations?: boolean | null;
   categoryName?: string;
   enable?: boolean;
   groupName?: string;
@@ -153,8 +155,9 @@ function isMultiChoice(item?: TenantPluginSettingItem) {
   return allowsMultipleActiveProviders(getMode(item?.record.servicePluginId));
 }
 
-function allowsProviderInstances(pluginId?: string) {
-  return allowsMultipleProviderInstances(getMode(pluginId));
+function allowsProviderInstances(pluginId?: string, providerCode?: string) {
+  const plugin = plugins.value.find((item) => item.id === pluginId);
+  return allowsMultipleProviderInstances(plugin, providerCode);
 }
 function getPluginOptionLabel(plugin: ServicePluginRecord) {
   const name = normalizeText(plugin.name) || normalizeText(plugin.id);
@@ -427,6 +430,12 @@ function handleBasicPluginChange(pluginId?: string) {
   }
   basicFormState.servicePluginProviderInstanceCode = 'default';
   basicFormState.usageWeight = 1;
+}
+
+// 供应商变化后不复用上一家的配置实例编码。
+function handleBasicProviderChange(providerCode?: string) {
+  basicFormState.servicePluginProviderCode = providerCode;
+  basicFormState.servicePluginProviderInstanceCode = 'default';
 }
 
 async function saveBasicSetting() {
@@ -893,7 +902,11 @@ onMounted(() => {
             :value="basicFormState.servicePluginProviderCode"
             :placeholder="basicProviderPlaceholder"
             show-search
-            @update:value="basicFormState.servicePluginProviderCode = $event"
+            @update:value="
+              handleBasicProviderChange(
+                typeof $event === 'string' ? $event : undefined,
+              )
+            "
           />
           <Input
             v-else
@@ -905,7 +918,10 @@ onMounted(() => {
           <Input
             v-if="
               editingBasicItem ||
-              !allowsProviderInstances(basicFormState.servicePluginId)
+              !allowsProviderInstances(
+                basicFormState.servicePluginId,
+                basicFormState.servicePluginProviderCode,
+              )
             "
             :value="
               basicFormState.servicePluginProviderInstanceCode || 'default'
@@ -921,7 +937,10 @@ onMounted(() => {
         <Form.Item label="使用权重" required>
           <InputNumber
             v-model:value="basicFormState.usageWeight"
-            :disabled="!allowsProviderInstances(basicFormState.servicePluginId)"
+            :disabled="
+              getMode(basicFormState.servicePluginId) !==
+              'MULTI_ACTIVE_BALANCED'
+            "
             :min="1"
             :precision="0"
             class="w-full"
@@ -987,7 +1006,7 @@ onMounted(() => {
       :width="editValueModalWidth"
       @ok="saveEditValue"
     >
-      <!-- 租户设置与服务插件设置使用相同的 Markdown 指南入口。 -->
+      <!-- 租户设置与服务插件设置使用相同的结构化配置指南入口。 -->
       <template #title>
         <div class="flex items-center justify-between gap-4 pr-8">
           <span>{{ editValueTitle }}</span>

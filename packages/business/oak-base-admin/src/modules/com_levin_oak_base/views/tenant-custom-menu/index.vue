@@ -11,6 +11,10 @@ import { computed, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/runtime/icons';
+
+import { matchesPinyinFuzzySearch } from '@levin/admin-framework';
+import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import {
   Button,
   Card,
@@ -28,11 +32,8 @@ import {
   Tree,
 } from 'ant-design-vue';
 
-import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
-import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
-
-import { tenantCustomMenuService } from '../../api/tenant-custom-menu-service';
 import { menuService } from '../../api/menu-service';
+import { tenantCustomMenuService } from '../../api/tenant-custom-menu-service';
 import CrudPage from '../crud-page.vue';
 import MenuIconPicker from '../menu/menu-icon-picker.vue';
 import { tenantCustomMenuPageCrudConfig } from './config';
@@ -44,9 +45,9 @@ import {
   canMoveLayoutItem,
   cloneLayoutItems,
   collectExpandedTreeKeys,
+  filterTreeByLabel,
   findDuplicateLayoutLabel,
   findLayoutItem,
-  filterTreeByLabel,
   flattenMenuSources,
   hasLayoutLabelAtTarget,
   hasLayoutPathAtTarget,
@@ -325,6 +326,19 @@ function getReplacePathOptions() {
         value: String(source.path),
       })),
   ];
+}
+
+// 替换路径候选项沿用页面端拼音查找规则，并允许按完整路径定位。
+function filterReplacePathOption(
+  input: string,
+  option?: { label?: unknown; value?: unknown },
+) {
+  return (
+    matchesPinyinFuzzySearch(input, String(option?.label ?? '')) ||
+    String(option?.value ?? '')
+      .toLowerCase()
+      .includes(input.trim().toLowerCase())
+  );
 }
 
 function findInvalidReplacePath(
@@ -1473,21 +1487,45 @@ function closeLayoutAdjuster() {
                           updateLayoutItem(dataRef, 'enable', value === true)
                       "
                     />
-                    <Switch
-                      :checked="getLayoutTreeItem(dataRef).hidden === true"
-                      checked-children="隐藏"
-                      un-checked-children="显示"
-                      @click.stop
-                      @mousedown.stop
-                      @update:checked="
-                        (value) =>
-                          updateLayoutItem(dataRef, 'hidden', value === true)
-                      "
-                    />
+                    <!-- 显示设置仅影响导航可见性，提示与开关保持在同一操作区。 -->
+                    <Tooltip
+                      title="显示：菜单出现在导航栏；隐藏：菜单不在导航栏展示。此设置不改变访问权限。"
+                    >
+                      <span
+                        class="inline-flex shrink-0 items-center gap-1"
+                        @click.stop
+                        @mousedown.stop
+                      >
+                        <Switch
+                          :aria-label="`菜单${getLayoutTreeItem(dataRef).hidden === true ? '隐藏' : '显示'}设置`"
+                          :checked="getLayoutTreeItem(dataRef).hidden === true"
+                          checked-children="隐藏"
+                          un-checked-children="显示"
+                          @click.stop
+                          @mousedown.stop
+                          @update:checked="
+                            (value) =>
+                              updateLayoutItem(
+                                dataRef,
+                                'hidden',
+                                value === true,
+                              )
+                          "
+                        />
+                        <IconifyIcon
+                          aria-hidden="true"
+                          class="size-3.5 text-gray-400"
+                          icon="lucide:circle-help"
+                        />
+                      </span>
+                    </Tooltip>
                     <Select
                       class="w-40 shrink-0"
+                      :filter-option="filterReplacePathOption"
                       :options="getReplacePathOptions()"
                       :value="getLayoutTreeItem(dataRef).replacePath || ''"
+                      placeholder="查找替换菜单"
+                      show-search
                       @click.stop
                       @mousedown.stop
                       @update:value="

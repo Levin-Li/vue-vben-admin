@@ -32,7 +32,6 @@ import { userService } from '../../api/user-service';
 
 import CrudPage from '../crud-page.vue';
 import {
-  DEFAULT_CRUD_MODAL_WIDTH,
   orgCategoryOptionsLoader,
   orgTypeOptionsLoader,
   tenantOptionsLoader,
@@ -1125,12 +1124,13 @@ onMounted(async () => {
       </Form>
     </Modal>
 
+    <!-- 组织简要与完整表单共用紧凑宽度，窄屏仍保留边距。 -->
     <Modal
       v-model:open="orgModalOpen"
       :confirm-loading="orgSubmitting"
       :mask-closable="false"
       :title="orgModalMode === 'edit' ? '编辑组织' : '新增组织'"
-      :width="DEFAULT_CRUD_MODAL_WIDTH"
+      width="min(92vw, 760px)"
       @ok="submitOrgForm"
     >
       <Form

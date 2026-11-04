@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { SelectOption } from '@levin/admin-framework';
+
 import type { BusinessRegistryCandidate } from '../../api/business-registry-service';
 import type {
   QuickAddPayload,
@@ -8,15 +10,22 @@ import type {
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 
 import { Plus } from '@vben/runtime/icons';
+import { useUserStore } from '@vben/runtime/stores';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { Button, Form, Input, message, Modal, Select } from 'ant-design-vue';
 
 import { businessRegistryService } from '../../api/business-registry-service';
 import { channelPartnerService } from '../../api/channel-partner-service';
 import { customerService } from '../../api/customer-service';
+import { orgService } from '../../api/org-service';
 import { supplierPartnerService } from '../../api/supplier-partner-service';
+import { tenantService } from '../../api/tenant-service';
+import { tenantOptionsLoader } from '../api-module';
+import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
+import { changeQuickAddTenant, matchesQuickAddOrg } from './quick-add-scope';
 
 const props = defineProps<{
   loadList: () => Promise<unknown> | unknown;
@@ -25,13 +34,20 @@ const props = defineProps<{
 }>();
 
 const { hasPermission } = useRbacAccess();
+const userStore = useUserStore();
+const platformUser = computed(() => isPlatformUser(userStore.userInfo));
 const service = computed(() => {
   if (props.target === 'Customer') return customerService;
   if (props.target === 'SupplierPartner') return supplierPartnerService;
   return channelPartnerService;
 });
-const canCreate = computed(() =>
-  hasPermission(buildApiMethodPermissions(service.value, 'quickAdd')),
+// 平台用户还需读取租户与内部组织候选；缺少候选权限时入口无法完成归属选择。
+const canCreate = computed(
+  () =>
+    hasPermission(buildApiMethodPermissions(service.value, 'quickAdd')) &&
+    (!platformUser.value ||
+      (hasPermission(buildApiMethodPermissions(tenantService, 'list')) &&
+        hasPermission(buildApiMethodPermissions(orgService, 'list')))),
 );
 const canSearch = computed(
   () =>
@@ -46,6 +62,12 @@ const targetTitle = computed(() => {
   if (props.target === 'SupplierPartner') return '供应伙伴';
   return '渠道伙伴';
 });
+interface ScopeOption {
+  label: string;
+  tenantId?: string;
+  value: string;
+}
+
 const open = ref(false);
 const searching = ref(false);
 const lookingUp = ref(false);
@@ -53,7 +75,14 @@ const saving = ref(false);
 const candidates = ref<BusinessRegistryCandidate[]>([]);
 const candidateIndex = ref<string>();
 const source = ref<'manual' | 'supplier'>('manual');
+const tenantOptions = ref<ScopeOption[]>([]);
+const orgOptions = ref<ScopeOption[]>([]);
+const selectedOrg = ref<ScopeOption>();
+const tenantLoading = ref(false);
+const orgLoading = ref(false);
 const form = reactive({
+  tenantId: '',
+  parentOrgId: '',
   searchName: '',
   legalSubjectName: '',
   subjectType: 'Legal' as QuickAddPayload['subjectType'],
@@ -66,15 +95,21 @@ const form = reactive({
   channelType: undefined as QuickAddPayload['channelType'],
 });
 let requestGeneration = 0;
+let tenantRequestGeneration = 0;
+let orgRequestGeneration = 0;
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let lastSearchKeyword = '';
 
 // 三个入口共用表单，关闭与重开时不沿用上一次查询候选或账号资料。
 function reset() {
   requestGeneration++;
+  tenantRequestGeneration++;
+  orgRequestGeneration++;
   clearTimeout(searchTimer);
   lastSearchKeyword = '';
   Object.assign(form, {
+    tenantId: '',
+    parentOrgId: '',
     searchName: '',
     legalSubjectName: '',
     subjectType: 'Legal',
@@ -89,6 +124,11 @@ function reset() {
   candidates.value = [];
   candidateIndex.value = undefined;
   source.value = 'manual';
+  tenantOptions.value = [];
+  orgOptions.value = [];
+  selectedOrg.value = undefined;
+  tenantLoading.value = false;
+  orgLoading.value = false;
   searching.value = false;
   lookingUp.value = false;
 }
@@ -96,12 +136,87 @@ function reset() {
 function openForm() {
   reset();
   open.value = true;
+  if (platformUser.value) void searchTenants();
 }
 
 function closeForm() {
   if (saving.value) return;
   open.value = false;
   reset();
+}
+
+// 平台用户只从已有租户选项中选择归属，异步结果不得覆盖较新的搜索。
+async function searchTenants(keyword = '') {
+  const generation = ++tenantRequestGeneration;
+  tenantLoading.value = true;
+  try {
+    const options = await tenantOptionsLoader(keyword);
+    if (generation === tenantRequestGeneration) {
+      tenantOptions.value = options
+        .filter((option) => option.enable !== false)
+        .map((option) => ({
+          label: String(option.label),
+          value: String(option.value),
+        }));
+    }
+  } catch {
+    if (generation === tenantRequestGeneration) {
+      tenantOptions.value = [];
+      message.warning('租户列表加载失败，请重试');
+    }
+  } finally {
+    if (generation === tenantRequestGeneration) tenantLoading.value = false;
+  }
+}
+
+// 租户变化时立即清除旧组织，随后只加载目标租户的可访问内部组织。
+function changeTenant(tenantId: string) {
+  if (!changeQuickAddTenant(form, tenantId)) return;
+  selectedOrg.value = undefined;
+  orgOptions.value = [];
+  orgRequestGeneration++;
+  if (tenantId) void searchOrganizations();
+}
+
+async function searchOrganizations(keyword = '') {
+  const tenantId = form.tenantId;
+  if (!tenantId) return;
+  const generation = ++orgRequestGeneration;
+  orgLoading.value = true;
+  try {
+    const options = await buildOrgAssignmentOptionsLoader(tenantId)(keyword);
+    if (generation === orgRequestGeneration && tenantId === form.tenantId) {
+      orgOptions.value = options
+        .filter((option) => {
+          const record = option as SelectOption;
+          return (
+            record.enable !== false &&
+            (record.state === undefined ||
+              record.state === null ||
+              record.state === 'Normal')
+          );
+        })
+        .map((option) => ({
+          label: String(option.label),
+          tenantId: String((option as SelectOption).tenantId || ''),
+          value: String(option.value),
+        }));
+    }
+  } catch {
+    if (generation === orgRequestGeneration) {
+      orgOptions.value = [];
+      message.warning('内部父组织加载失败，请重试');
+    }
+  } finally {
+    if (generation === orgRequestGeneration) orgLoading.value = false;
+  }
+}
+
+function changeOrganization(orgId: string) {
+  selectedOrg.value = orgOptions.value.find(
+    (option) => String(option.value) === orgId,
+  );
+  form.parentOrgId = selectedOrg.value ? orgId : '';
 }
 
 // 名称输入停顿后自动搜候选；短输入不发起供应商调用。
@@ -199,6 +314,18 @@ async function selectCandidate(index: string) {
 }
 
 function payload(): QuickAddPayload | undefined {
+  // 只有平台用户提交显式归属；租户用户继续由服务端确定自身租户和内部组织。
+  if (platformUser.value) {
+    if (!form.tenantId || !form.parentOrgId) {
+      message.warning('请选择归属租户和内部父组织');
+      return;
+    }
+    if (!matchesQuickAddOrg(form, selectedOrg.value)) {
+      message.warning('内部父组织不属于所选租户，请重新选择');
+      return;
+    }
+  }
+
   const legalSubjectName = form.legalSubjectName.trim();
   const creditCode = form.creditCode.trim().toUpperCase();
   const shortName = form.shortName.trim();
@@ -224,6 +351,9 @@ function payload(): QuickAddPayload | undefined {
     return;
   }
   return {
+    ...(platformUser.value
+      ? { tenantId: form.tenantId, parentOrgId: form.parentOrgId }
+      : {}),
     legalSubjectName,
     subjectType: form.subjectType,
     creditCode,
@@ -320,6 +450,38 @@ const channelTypes = [
       data-form-name="快捷添加客户与伙伴"
       layout="vertical"
     >
+      <!-- 平台用户显式选择归属，普通租户用户仍使用当前租户和内部组织。 -->
+      <div v-if="platformUser" class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+        <Form.Item label="归属租户" required>
+          <Select
+            :value="form.tenantId"
+            :loading="tenantLoading"
+            :options="tenantOptions"
+            class="w-full"
+            data-testid="quick-add-tenant-select"
+            placeholder="请选择归属租户"
+            show-search
+            :filter-option="false"
+            @search="searchTenants"
+            @update:value="changeTenant(String($event || ''))"
+          />
+        </Form.Item>
+        <Form.Item label="内部父组织" required>
+          <Select
+            :value="form.parentOrgId"
+            :disabled="!form.tenantId"
+            :loading="orgLoading"
+            :options="orgOptions"
+            class="w-full"
+            data-testid="quick-add-parent-org-select"
+            placeholder="请选择所选租户下的内部组织"
+            show-search
+            :filter-option="false"
+            @search="searchOrganizations"
+            @update:value="changeOrganization(String($event || ''))"
+          />
+        </Form.Item>
+      </div>
       <Form.Item label="主体名称搜索">
         <div class="flex gap-2">
           <Input

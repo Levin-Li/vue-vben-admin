@@ -9,11 +9,25 @@ import {
   allowsMultipleProviderInstances,
   describeProviderConfiguration,
   getProviderSelectionMode,
+  getProviderSelectionModeLabel,
   parseProviderSelectionModes,
 } from '../../provider-selection-mode';
 import { servicePluginSettingPageCrudConfig } from '../config';
 
 describe('插件供应商选择模式', () => {
+  it('列表与配置选项使用一致的中文名称，未知值不显示内部编码', () => {
+    expect(getProviderSelectionModeLabel('SINGLE_ACTIVE')).toBe(
+      '单一启用供应商',
+    );
+    expect(getProviderSelectionModeLabel('MULTI_CHOICE')).toBe(
+      '使用时选择供应商',
+    );
+    expect(getProviderSelectionModeLabel('MULTI_ACTIVE_BALANCED')).toBe(
+      '多家供应商自动分配',
+    );
+    expect(getProviderSelectionModeLabel('OTHER')).toBe('未知模式');
+  });
+
   it('新建记录默认停用且只初始化本行供应商；编辑不更换供应商', () => {
     expect(servicePluginSettingPageCrudConfig.defaultFormValues?.enable).toBe(
       false,
@@ -57,9 +71,34 @@ describe('插件供应商选择模式', () => {
       'MULTI_ACTIVE_BALANCED',
     );
     expect(allowsMultipleActiveProviders('MULTI_ACTIVE_BALANCED')).toBe(true);
-    expect(allowsMultipleProviderInstances('MULTI_ACTIVE_BALANCED')).toBe(true);
+    expect(
+      allowsMultipleProviderInstances(
+        {
+          providerList: [{ allowMultipleConfigurations: true, code: 'sms' }],
+        },
+        'sms',
+      ),
+    ).toBe(true);
     expect(getProviderSelectionMode(modes, 'unknown')).toBeUndefined();
     expect(() => parseProviderSelectionModes({ oauth: 'OTHER' })).toThrow();
+  });
+
+  it('插件与供应商独立限制配置实例数量，不由选择模式推断', () => {
+    const plugin = {
+      providerList: [
+        { allowMultipleConfigurations: true, code: 'alpha' },
+        { code: 'beta' },
+      ],
+    };
+    expect(allowsMultipleProviderInstances(plugin, 'alpha')).toBe(true);
+    expect(allowsMultipleProviderInstances(plugin, 'beta')).toBe(false);
+    expect(allowsMultipleProviderInstances(plugin, 'unknown')).toBe(false);
+    expect(
+      allowsMultipleProviderInstances(
+        { ...plugin, allowMultipleConfigurations: false },
+        'alpha',
+      ),
+    ).toBe(false);
   });
 
   it('目录禁用和配置停用分别显示；更新只包含当前记录供应商与乐观锁', () => {

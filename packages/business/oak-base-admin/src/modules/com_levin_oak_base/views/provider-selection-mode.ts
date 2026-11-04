@@ -5,6 +5,14 @@ export type ProviderSelectionMode =
 
 export type ProviderSelectionModes = Record<string, ProviderSelectionMode>;
 
+// 将接口使用的稳定编码转换为管理员可直接理解的名称。
+export function getProviderSelectionModeLabel(mode: unknown): string {
+  if (mode === 'SINGLE_ACTIVE') return '单一启用供应商';
+  if (mode === 'MULTI_CHOICE') return '使用时选择供应商';
+  if (mode === 'MULTI_ACTIVE_BALANCED') return '多家供应商自动分配';
+  return '未知模式';
+}
+
 export function parseProviderSelectionModesResponse(
   value: unknown,
 ): ProviderSelectionModes {
@@ -32,10 +40,34 @@ export function parseProviderSelectionModes(
   return modes;
 }
 
+export interface ProviderConfigurationRules {
+  allowMultipleConfigurations?: boolean | null;
+  providerList?: Array<{
+    allowMultipleConfigurations?: boolean | null;
+    code?: string;
+  }>;
+}
+
+// 配置实例数量由插件和具体供应商共同决定，与运行时选择模式无关。
 export function allowsMultipleProviderInstances(
-  mode: ProviderSelectionMode | undefined,
+  plugin: ProviderConfigurationRules | undefined,
+  providerCode?: string,
 ): boolean {
-  return mode === 'MULTI_ACTIVE_BALANCED';
+  if (
+    !plugin ||
+    plugin.allowMultipleConfigurations === false ||
+    !providerCode
+  ) {
+    return false;
+  }
+
+  return (
+    plugin.providerList?.some(
+      (provider) =>
+        provider.code === providerCode &&
+        provider.allowMultipleConfigurations === true,
+    ) === true
+  );
 }
 
 export function allowsMultipleActiveProviders(

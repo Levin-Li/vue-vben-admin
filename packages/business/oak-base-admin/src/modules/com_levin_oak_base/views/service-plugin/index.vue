@@ -6,6 +6,9 @@ import type {
 
 import { computed, onMounted, ref } from 'vue';
 
+import { useUserStore } from '@vben/runtime/stores';
+
+import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
   Alert,
   Button,
@@ -22,6 +25,7 @@ import { servicePluginService } from '../../api/service-plugin-service';
 import CrudPage from '../crud-page.vue';
 import {
   getProviderSelectionMode,
+  getProviderSelectionModeLabel,
   parseProviderSelectionModesResponse,
 } from '../provider-selection-mode';
 import { resolveServiceProviderName } from '../service-provider-display-name';
@@ -29,6 +33,7 @@ import SettingValueContentField from '../setting-value-content-field.vue';
 import { servicePluginPageCrudConfig } from './config';
 
 interface ServicePluginProvider {
+  allowMultipleConfigurations?: boolean | null;
   code?: string;
   configEditor?: string;
   disabled?: boolean;
@@ -37,6 +42,7 @@ interface ServicePluginProvider {
 }
 
 interface ServicePluginRecord {
+  allowMultipleConfigurations?: boolean | null;
   baseConfig?: Record<string, any>;
   configEditor?: string;
   enable?: boolean;
@@ -53,6 +59,10 @@ interface ServicePluginRecord {
 }
 
 const providerListOpen = ref(false);
+const userStore = useUserStore();
+const canManageConfigurationRules = computed(() =>
+  isSuperAdminUser(userStore.userInfo),
+);
 const selectedPlugin = ref<ServicePluginRecord>();
 const editingProviders = ref<ServicePluginProvider[]>([]);
 const providerListSaving = ref(false);
@@ -64,8 +74,12 @@ const baseConfigSaving = ref(false);
 const baseConfigPlugin = ref<ServicePluginRecord>();
 // 打开基本配置时统一设置模式；表单保留同一单选默认值和明确类型。
 const baseConfigFormState = ref<
-  Record<string, any> & { providerSelectionMode: ProviderSelectionMode }
+  Record<string, any> & {
+    allowMultipleConfigurations: boolean;
+    providerSelectionMode: ProviderSelectionMode;
+  }
 >({
+  allowMultipleConfigurations: true,
   providerSelectionMode: 'SINGLE_ACTIVE',
   editor: 'json',
   valueContent: {},
@@ -88,7 +102,8 @@ const selectedModeLabel = computed(() => {
   if (mode === 'MULTI_CHOICE') return '多供应商可同时启用，由每次操作选择';
   if (mode === 'MULTI_ACTIVE_BALANCED')
     return '多供应商及多配置实例可同时启用，按权重自动均衡使用';
-  if (mode === 'SINGLE_ACTIVE') return '同一作用域只使用一个当前供应商';
+  if (mode === 'SINGLE_ACTIVE')
+    return '这里仅列出可选供应商。到“服务插件设置”或“租户插件设置”中启用要使用的那家；同一租户和域名下只能启用一家。';
   return '模式目录未加载';
 });
 
@@ -119,6 +134,11 @@ const providerColumns = [
     width: 180,
   },
   { key: 'disabled', title: '是否禁用' },
+  {
+    key: 'allowMultipleConfigurations',
+    title: '允许多套配置并存',
+    width: 190,
+  },
   { dataIndex: 'remark', key: 'remark', title: '备注' },
 ];
 
@@ -142,6 +162,7 @@ function cloneJsonValue(value: any): Record<string, any> {
 function openBaseConfig(record: ServicePluginRecord) {
   baseConfigPlugin.value = record;
   baseConfigFormState.value = {
+    allowMultipleConfigurations: record.allowMultipleConfigurations !== false,
     editor: record.configEditor?.trim() || 'json',
     id: record.id,
     name: `${record.name || record.id || '服务插件'} - 基本配置`,
@@ -164,15 +185,30 @@ async function saveBaseConfig() {
   baseConfigSaving.value = true;
   try {
     const baseConfig = cloneJsonValue(baseConfigFormState.value.valueContent);
+    const updateConfigurationRule = canManageConfigurationRules.value;
     await servicePluginService.update({
       autoForceUpdateField: false,
-      forceUpdateFields: ['baseConfig', 'providerSelectionMode'],
+      forceUpdateFields: [
+        'baseConfig',
+        'providerSelectionMode',
+        ...(updateConfigurationRule ? ['allowMultipleConfigurations'] : []),
+      ],
+      ...(updateConfigurationRule
+        ? {
+            allowMultipleConfigurations:
+              baseConfigFormState.value.allowMultipleConfigurations,
+          }
+        : {}),
       baseConfig,
       id: plugin.id,
       optimisticLock: plugin.optimisticLock,
       providerSelectionMode: baseConfigFormState.value.providerSelectionMode,
     });
     plugin.baseConfig = baseConfig;
+    if (updateConfigurationRule) {
+      plugin.allowMultipleConfigurations =
+        baseConfigFormState.value.allowMultipleConfigurations;
+    }
     plugin.providerSelectionMode =
       baseConfigFormState.value.providerSelectionMode;
     providerSelectionModes.value[plugin.id] = plugin.providerSelectionMode;
@@ -231,6 +267,10 @@ async function saveProviders() {
 
 <template>
   <CrudPage :config="servicePluginPageCrudConfig">
+    <!-- 列表展示中文名称，底层数据仍保留原有模式编码。 -->
+    <template #table-cell-providerSelectionMode="{ value }">
+      {{ getProviderSelectionModeLabel(value) }}
+    </template>
     <template #table-cell-pluginTypeName="{ record, value }">
       <Tooltip :mouse-enter-delay="1">
         <template #title>
@@ -294,6 +334,14 @@ async function saveProviders() {
             un-checked-children="启用"
           />
         </template>
+        <template v-else-if="column.key === 'allowMultipleConfigurations'">
+          <Switch
+            v-model:checked="record.allowMultipleConfigurations"
+            :disabled="!canManageConfigurationRules"
+            checked-children="允许"
+            un-checked-children="仅一套"
+          />
+        </template>
       </template>
     </Table>
   </Modal>
@@ -308,6 +356,16 @@ async function saveProviders() {
     width="min(80vw, 1120px)"
     @ok="saveBaseConfig"
   >
+    <!-- 插件级数量规则只控制配置记录数量，不改变供应商选择模式。 -->
+    <div class="mb-3 flex items-center gap-3">
+      <span class="shrink-0">允许多条配置并存</span>
+      <Switch
+        v-model:checked="baseConfigFormState.allowMultipleConfigurations"
+        :disabled="!canManageConfigurationRules"
+        checked-children="允许"
+        un-checked-children="仅一条"
+      />
+    </div>
     <div class="mb-3 flex items-center gap-3">
       <span class="shrink-0">供应商选择模式</span>
       <Select
@@ -319,13 +377,7 @@ async function saveProviders() {
           :key="mode"
           :value="mode"
         >
-          {{
-            mode === 'SINGLE_ACTIVE'
-              ? '单活'
-              : mode === 'MULTI_CHOICE'
-                ? '多供应商手动选择'
-                : '多供应商加权均衡'
-          }}
+          {{ getProviderSelectionModeLabel(mode) }}
         </Select.Option>
       </Select>
     </div>

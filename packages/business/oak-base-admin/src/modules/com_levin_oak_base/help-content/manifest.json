@@ -1,5 +1,5 @@
 {
-  "version": "6.0.30",
+  "version": "6.0.31",
   "documents": [
     {
       "id": "system-user-manual",
@@ -9,7 +9,7 @@
       "type": "使用手册",
       "source": "docs/使用手册.md",
       "pages": [],
-      "sha256": "30ea7511fc2dff3dbef72d7c2436993736ef4ed9e8fab245b44aa1df2440746e"
+      "sha256": "47af912d501635fb18c017e6b960a31042341c0b5dd55086607dd97580b05607"
     },
     {
       "id": "mail-ticket-guide",
@@ -120,7 +120,7 @@
       "type": "使用指南",
       "source": "docs/12-域名与验证码插件设计使用指南.md",
       "pages": [],
-      "sha256": "42477c2cd3a063aafb10b10f098add9fbdb2dd5ea232632efb1df258ae34f0cd"
+      "sha256": "aa37266615363ce5dee002adfdd6d5b64754a0186db6cfb9e7b5230094d543a1"
     },
     {
       "id": "communication-workbench-dev",

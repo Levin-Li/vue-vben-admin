@@ -11,18 +11,27 @@ const internalOrgTypes = [
 ] as const;
 const internalOrgTypeSet = new Set<string>(internalOrgTypes);
 
-export function buildOrgAssignmentOptionsLoader() {
+export function buildOrgAssignmentOptionsLoader(tenantId?: string) {
   const loadOrgs = buildModuleOptionsLoader(
     '/Org/list',
     'name',
     'id',
-    { pageIndex: 1, pageSize: 500, inType: [...internalOrgTypes] },
+    {
+      pageIndex: 1,
+      pageSize: 500,
+      inType: [...internalOrgTypes],
+      ...(tenantId ? { tenantId } : {}),
+    },
     'containsName',
   );
   return async (keyword?: string) => {
     const options = await loadOrgs(keyword);
     return options
-      .filter((option) => internalOrgTypeSet.has(String(option.type)))
+      .filter(
+        (option) =>
+          internalOrgTypeSet.has(String(option.type)) &&
+          (!tenantId || String(option.tenantId || '') === tenantId),
+      )
       .map((option) => ({
         ...option,
         label: `内部父组织 · ${option.label}`,

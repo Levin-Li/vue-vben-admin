@@ -41,6 +41,7 @@ import { servicePluginSettingPageCrudConfig } from './config';
 import { filterServicePluginOption } from './plugin-option-search';
 
 interface ServicePluginProvider {
+  allowMultipleConfigurations?: boolean | null;
   code?: string;
   configEditor?: string;
   disabled?: boolean;
@@ -49,6 +50,7 @@ interface ServicePluginProvider {
 }
 
 interface ServicePluginRecord {
+  allowMultipleConfigurations?: boolean | null;
   enable?: boolean;
   groupName?: string;
   id: string;
@@ -140,8 +142,9 @@ function getMode(pluginId?: string) {
   return getProviderSelectionMode(providerSelectionModes.value, pluginId);
 }
 
-function allowsProviderInstances(pluginId?: string) {
-  return allowsMultipleProviderInstances(getMode(pluginId));
+function allowsProviderInstances(pluginId?: string, providerCode?: string) {
+  const plugin = plugins.value.find((item) => item.id === pluginId);
+  return allowsMultipleProviderInstances(plugin, providerCode);
 }
 
 function isMultiChoice(record?: ServicePluginSettingRecord) {
@@ -288,6 +291,15 @@ function handlePluginChange(formState: Record<string, any>, pluginId?: string) {
   formState.usageWeight = 1;
 }
 
+// 切换供应商后恢复默认实例，避免把上一家的实例编码带入新配置。
+function handleProviderChange(
+  formState: Record<string, any>,
+  providerCode?: string,
+) {
+  formState.servicePluginProviderCode = providerCode;
+  formState.servicePluginProviderInstanceCode = 'default';
+}
+
 async function loadPlugins() {
   pluginsLoading.value = true;
   modesReady.value = false;
@@ -387,7 +399,12 @@ onMounted(() => {
             class="w-full"
             placeholder="请先选择服务插件"
             show-search
-            @update:value="formState.servicePluginProviderCode = $event"
+            @update:value="
+              handleProviderChange(
+                formState,
+                typeof $event === 'string' ? $event : undefined,
+              )
+            "
           />
           <p class="text-muted-foreground text-xs">
             每个供应商单独创建一条设置；新增默认停用，完成配置后再启用。
@@ -404,7 +421,10 @@ onMounted(() => {
         <Input
           v-if="
             editingRecord?.id ||
-            !allowsProviderInstances(formState.servicePluginId)
+            !allowsProviderInstances(
+              formState.servicePluginId,
+              formState.servicePluginProviderCode,
+            )
           "
           :value="formState.servicePluginProviderInstanceCode || 'default'"
           disabled
@@ -420,7 +440,9 @@ onMounted(() => {
         <div class="space-y-1">
           <InputNumber
             v-model:value="formState.usageWeight"
-            :disabled="!allowsProviderInstances(formState.servicePluginId)"
+            :disabled="
+              getMode(formState.servicePluginId) !== 'MULTI_ACTIVE_BALANCED'
+            "
             :min="1"
             :precision="0"
             class="w-full"
@@ -470,7 +492,7 @@ onMounted(() => {
     width="min(80vw, 1120px)"
     @ok="saveProviderConfig"
   >
-    <!-- 弹窗标题中的通用入口仅在供应商提供 Markdown 指南时显示。 -->
+    <!-- 弹窗标题中的通用入口展示所选供应商的结构化配置指南。 -->
     <template #title>
       <div class="flex items-center justify-between gap-4 pr-8">
         <span>{{ providerConfigTitle }}</span>

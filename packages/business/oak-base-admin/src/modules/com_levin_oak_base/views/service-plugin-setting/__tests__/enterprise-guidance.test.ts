@@ -103,7 +103,7 @@ describe('供应商 Markdown 配置指南', () => {
     modal.remove();
   });
 
-  it('切换供应商时不保留旧指南，缺少 Markdown 不显示入口', async () => {
+  it('切换供应商时不保留旧指南，只有结构化字段也显示入口', async () => {
     const wrapper = mount(ProviderGuidance, {
       props: { providerCode: 'FEISHU', guidance: { markdown: '# 飞书' } },
     });
@@ -117,7 +117,57 @@ describe('供应商 Markdown 配置指南', () => {
     await wrapper.get('button').trigger('click');
     expect(wrapper.find('aside').text()).toContain('钉钉');
     await wrapper.setProps({ guidance: { steps: ['旧格式'] } });
-    expect(wrapper.find('button').exists()).toBe(false);
+    expect(wrapper.find('button').exists()).toBe(true);
+    await wrapper.get('button').trigger('click');
+    expect(wrapper.find('aside').text()).toContain('旧格式');
+    wrapper.unmount();
+  });
+
+  it('先展示安全入口，再展示准备事项、步骤和补充说明', async () => {
+    const wrapper = mount(ProviderGuidance, {
+      props: {
+        guidance: {
+          applicationUrl: 'https://provider.example/',
+          documentationUrl: 'https://provider.example/console',
+          prerequisites: ['完成账号审核'],
+          steps: ['创建应用', '填写部署密钥引用'],
+          markdown: '### 当前能力\n\n只支持基础信息',
+        },
+      },
+    });
+    await wrapper.get('button').trigger('click');
+    const aside = wrapper.get('aside');
+    expect(aside.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      'https://provider.example/',
+      'https://provider.example/console',
+    ]);
+    const content = aside.text();
+    expect(content.indexOf('服务与配置入口')).toBeLessThan(
+      content.indexOf('配置前准备'),
+    );
+    expect(content.indexOf('配置前准备')).toBeLessThan(
+      content.indexOf('配置步骤'),
+    );
+    expect(content.indexOf('配置步骤')).toBeLessThan(
+      content.indexOf('当前能力'),
+    );
+    wrapper.unmount();
+  });
+
+  it('无元数据仍有指南，非法外链不生成可点击地址', async () => {
+    const wrapper = mount(ProviderGuidance, {
+      props: {
+        guidance: {
+          applicationUrl: 'javascript:alert(1)',
+          documentationUrl: 'https://127.0.0.1/console',
+        },
+      },
+    });
+    await wrapper.get('button').trigger('click');
+    expect(wrapper.find('aside a').exists()).toBe(false);
+    expect(wrapper.find('aside').text()).toContain('没有可核实的外部配置链接');
+    await wrapper.setProps({ guidance: undefined });
+    expect(wrapper.find('button').exists()).toBe(true);
     wrapper.unmount();
   });
 

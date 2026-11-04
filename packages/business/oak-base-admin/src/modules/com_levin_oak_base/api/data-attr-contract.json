@@ -226694,7 +226694,7 @@
     },
     "nodes" : { }
   }, {
-    "id" : "d7705108-48f0-3925-9db8-46c249cdc31d",
+    "id" : "83493cf7-1ad5-3d3e-a544-b4f8463efcae",
     "operation" : "com.levin.oak.base:专家数据-服务插件::新增",
     "methods" : [ "POST" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/ServicePlugin/create" ],
