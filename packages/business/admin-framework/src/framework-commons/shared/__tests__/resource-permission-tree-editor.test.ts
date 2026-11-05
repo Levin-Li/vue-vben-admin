@@ -778,6 +778,178 @@ describe('资源权限树编辑器', () => {
     ).toBe(false);
   });
 
+  it('shows unique selected permission counts on each category tab', async () => {
+    const selectedExpression = 'framework-base:数据字典:字典:查询列表';
+    const otherExpression = 'framework-base:短剧:剧集:查询列表';
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: 'system-menu',
+            name: '系统菜单',
+            nodeType: 'Menu',
+            children: [
+              {
+                id: 'dictionary-list',
+                name: '字典列表',
+                nodeType: 'Permission',
+                permissionExpr: selectedExpression,
+              },
+              {
+                id: 'dictionary-list-duplicate',
+                name: '字典列表重复入口',
+                nodeType: 'Permission',
+                permissionExpr: selectedExpression,
+              },
+              {
+                id: 'dictionary-edit',
+                name: '字典编辑',
+                nodeType: 'Permission',
+                permissionExpr: 'framework-base:数据字典:字典:更新',
+              },
+            ],
+          },
+          {
+            id: 'short-drama',
+            name: '短剧分销',
+            nodeType: 'Module',
+            children: [
+              {
+                id: 'episode-list',
+                name: '剧集列表',
+                nodeType: 'Permission',
+                permissionExpr: otherExpression,
+              },
+            ],
+          },
+        ],
+        value: [selectedExpression],
+      },
+    });
+
+    const systemBadgeSelector =
+      '[data-test="permission-root-selected-count-system-menu"]';
+
+    expect(wrapper.get(systemBadgeSelector).text()).toBe('1');
+    expect(wrapper.get(systemBadgeSelector).classes()).toContain('bg-success');
+    expect(
+      wrapper.get('[data-test="permission-root-tab-system-menu"]').text(),
+    ).toContain('3 项');
+    expect(
+      wrapper
+        .find('[data-test="permission-root-selected-count-short-drama"]')
+        .exists(),
+    ).toBe(false);
+
+    await wrapper.setProps({ value: [] });
+    expect(
+      wrapper
+        .find('[data-test="permission-root-selected-count-system-menu"]')
+        .exists(),
+    ).toBe(false);
+
+    await wrapper.setProps({ value: [otherExpression] });
+    expect(
+      wrapper
+        .find('[data-test="permission-root-selected-count-system-menu"]')
+        .exists(),
+    ).toBe(false);
+    expect(
+      wrapper
+        .get('[data-test="permission-root-selected-count-short-drama"]')
+        .text(),
+    ).toBe('1');
+  });
+
+  it('filters to selected permissions while preserving their tree path and search', async () => {
+    const selectedExpression = 'framework-base:字典:查询:查询列表';
+    const unselectedExpression = 'framework-base:字典:编辑:更新';
+    const otherExpression = 'framework-base:角色:角色:查询列表';
+    const wrapper = mount(ResourcePermissionTreeEditor, {
+      props: {
+        permissionTree: [
+          {
+            id: 'resource-root',
+            name: '基础模块',
+            nodeType: 'Module',
+            children: [
+              {
+                id: 'dictionary',
+                name: '字典',
+                nodeType: 'ResourceType',
+                children: [
+                  {
+                    id: 'dictionary-query',
+                    name: '字典查询',
+                    nodeType: 'Permission',
+                    permissionExpr: selectedExpression,
+                  },
+                  {
+                    id: 'dictionary-edit',
+                    name: '字典编辑',
+                    nodeType: 'Permission',
+                    permissionExpr: unselectedExpression,
+                  },
+                ],
+              },
+              {
+                id: 'role',
+                name: '角色',
+                nodeType: 'ResourceType',
+                children: [
+                  {
+                    id: 'role-query',
+                    name: '角色查询',
+                    nodeType: 'Permission',
+                    permissionExpr: otherExpression,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        value: [selectedExpression],
+      },
+    });
+
+    await wrapper
+      .get('[data-test="permission-only-selected-toggle"]')
+      .setValue(true);
+
+    expect(
+      wrapper.get('[data-test="permission-node-dictionary"]').exists(),
+    ).toBe(true);
+    expect(
+      wrapper.get(`[data-test="permission-${selectedExpression}"]`).exists(),
+    ).toBe(true);
+    expect(
+      wrapper.find(`[data-test="permission-${unselectedExpression}"]`).exists(),
+    ).toBe(false);
+    expect(wrapper.find('[data-test="permission-node-role"]').exists()).toBe(
+      false,
+    );
+
+    await wrapper.get('[data-test="permission-search"]').setValue('字典查询');
+    expect(
+      wrapper.get(`[data-test="permission-${selectedExpression}"]`).exists(),
+    ).toBe(true);
+    await wrapper.get('[data-test="permission-search"]').setValue('字典编辑');
+    expect(
+      wrapper.find(`[data-test="permission-${selectedExpression}"]`).exists(),
+    ).toBe(false);
+
+    await wrapper.get('[data-test="permission-search"]').setValue('');
+    await wrapper
+      .get('[data-test="permission-only-selected-toggle"]')
+      .setValue(false);
+    expect(wrapper.get('[data-test="permission-node-role"]').exists()).toBe(
+      true,
+    );
+    expect(
+      wrapper.get(`[data-test="permission-${unselectedExpression}"]`).exists(),
+    ).toBe(true);
+  });
+
   it('renders Action and Permission nodes horizontally by node type and ignores their children', () => {
     const wrapper = mount(ResourcePermissionTreeEditor, {
       props: {
@@ -1481,24 +1653,24 @@ describe('权限表达式共享状态', () => {
   });
 
   it('通过全树批量取消会同步模块权限并保留范围外权限', async () => {
-      const wrapper = mountSharedPermissions([
-        menuPermission,
-        sharedPermission,
-        queryPermission,
-      ]);
-      await wrapper.get('[data-test="permission-tree-toggle"]').setValue(false);
-      await confirmOperationCancellation();
-      expect(await applyPermissionUpdate(wrapper)).toEqual([queryPermission]);
-      await wrapper
-        .get('[data-test="permission-root-tab-resources"]')
-        .trigger('click');
-      expect(sharedCheckbox(wrapper, 0).element.checked).toBe(false);
-      expect(
-        wrapper.get<HTMLInputElement>(
-          `[data-test="permission-${queryPermission}"]`,
+    const wrapper = mountSharedPermissions([
+      menuPermission,
+      sharedPermission,
+      queryPermission,
+    ]);
+    await wrapper.get('[data-test="permission-tree-toggle"]').setValue(false);
+    await confirmOperationCancellation();
+    expect(await applyPermissionUpdate(wrapper)).toEqual([queryPermission]);
+    await wrapper
+      .get('[data-test="permission-root-tab-resources"]')
+      .trigger('click');
+    expect(sharedCheckbox(wrapper, 0).element.checked).toBe(false);
+    expect(
+      wrapper.get<HTMLInputElement>(
+        `[data-test="permission-${queryPermission}"]`,
       ).element.checked,
-      ).toBe(true);
-      wrapper.unmount();
+    ).toBe(true);
+    wrapper.unmount();
   });
 
   it('取消菜单不会取消菜单下已选的页面操作', async () => {

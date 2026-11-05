@@ -204,7 +204,7 @@ watch(
     :open="open"
     :title="dialogTitle"
     :style="{ maxWidth: 'none' }"
-    width="max(1200px, 90vw)"
+    width="max(1080px, 85vw)"
     destroy-on-close
     @cancel="closeDialog"
     @ok="handleSave"

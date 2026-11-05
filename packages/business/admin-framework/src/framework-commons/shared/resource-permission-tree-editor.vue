@@ -55,6 +55,7 @@ const activePermissionRootId = ref('');
 const expandedPermissionNodeIds = ref<Set<string>>(new Set());
 const expandedMenuNodeIds = ref<Set<string>>(new Set());
 const keyword = ref('');
+const onlySelected = ref(false);
 const MENU_MODULE_ID = '__menus__';
 const MENU_DISPLAY_ACTION = '展示';
 const MENU_PERMISSION_TYPE = '系统数据-系统菜单';
@@ -211,11 +212,18 @@ const menuPermissionTree = computed(() =>
 
 const visibleMenuPermissionNodes = computed(() => {
   const normalizedKeyword = keyword.value.trim().toLowerCase();
-  const nodes = normalizedKeyword
+  let nodes = normalizedKeyword
     ? filterMenuPermissionTree(menuPermissionTree.value, normalizedKeyword)
     : menuPermissionTree.value;
 
-  return flattenMenuPermissionTree(nodes, Boolean(normalizedKeyword));
+  if (onlySelected.value) {
+    nodes = filterSelectedMenuPermissionTree(nodes);
+  }
+
+  return flattenMenuPermissionTree(
+    nodes,
+    Boolean(normalizedKeyword) || onlySelected.value,
+  );
 });
 
 const menuPermissionViewTree = computed(() =>
@@ -1062,21 +1070,32 @@ const activePermissionViewTree = computed(() => {
 
 const visiblePermissionNodes = computed(() => {
   const normalizedKeyword = keyword.value.trim().toLowerCase();
-  const nodes = normalizedKeyword
+  let nodes = normalizedKeyword
     ? filterPermissionViewTree(
         activePermissionViewTree.value,
         normalizedKeyword,
       )
     : activePermissionViewTree.value;
 
-  return flattenPermissionViewTree(nodes, Boolean(normalizedKeyword));
+  if (onlySelected.value) {
+    nodes = filterSelectedPermissionViewTree(nodes);
+  }
+
+  return flattenPermissionViewTree(
+    nodes,
+    Boolean(normalizedKeyword) || onlySelected.value,
+  );
 });
 
-const activeRootInlinePermissionNodes = computed(() =>
-  activePermissionViewTree.value.filter(
+const activeRootInlinePermissionNodes = computed(() => {
+  const nodes = activePermissionViewTree.value.filter(
     (node) => isInlinePermissionNode(node) && Boolean(node.permissionExpr),
-  ),
-);
+  );
+
+  return onlySelected.value
+    ? nodes.filter((node) => isSelectionComplete(node.permissionExpr))
+    : nodes;
+});
 
 const activeTabPermissions = computed(() =>
   hasPermissionTree.value
@@ -1091,6 +1110,12 @@ const activeSelectedCount = computed(() => {
 });
 
 const activePermissionCount = computed(() => activeTabPermissions.value.length);
+
+function selectedPermissionCount(nodes: PermissionViewNode[]) {
+  return [...new Set(getPermissionNodePermissions(nodes))].filter(
+    (permission) => isSelectionComplete(permission),
+  ).length;
+}
 
 const activeUnselectedCount = computed(() =>
   Math.max(activePermissionCount.value - activeSelectedCount.value, 0),
@@ -1421,6 +1446,32 @@ function filterPermissionViewTree(
       };
     })
     .filter(Boolean) as PermissionViewNode[];
+}
+
+function filterSelectedPermissionViewTree(
+  nodes: PermissionViewNode[],
+): PermissionViewNode[] {
+  return nodes.flatMap((node) => {
+    const children = filterSelectedPermissionViewTree(node.children);
+    const selfSelected = Boolean(
+      node.permissionExpr && isSelectionComplete(node.permissionExpr),
+    );
+
+    if (!selfSelected && children.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        ...node,
+        children,
+        permissions: [
+          ...(selfSelected ? [node.permissionExpr] : []),
+          ...getPermissionNodePermissions(children),
+        ],
+      },
+    ];
+  });
 }
 
 function shiftPermissionViewTreeDepth(
@@ -1773,6 +1824,32 @@ function filterMenuPermissionTree(
     .filter(Boolean) as MenuPermissionNode[];
 }
 
+function filterSelectedMenuPermissionTree(
+  nodes: MenuPermissionNode[],
+): MenuPermissionNode[] {
+  return nodes.flatMap((node) => {
+    const children = filterSelectedMenuPermissionTree(node.children);
+    const selfSelected = Boolean(
+      node.selfPermission && isSelectionComplete(node.selfPermission),
+    );
+
+    if (!selfSelected && children.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        ...node,
+        children,
+        permissions: [
+          ...(selfSelected ? [node.selfPermission] : []),
+          ...children.flatMap((child) => child.permissions),
+        ],
+      },
+    ];
+  });
+}
+
 function flattenMenuPermissionTree(
   nodes: MenuPermissionNode[],
   forceExpanded = false,
@@ -2118,33 +2195,61 @@ function getPermissionCountText(permissions: string[]) {
           >
             {{ rootNode.children.length }} 项
           </span>
+          <span
+            v-if="selectedPermissionCount(rootNode.children) > 0"
+            :aria-label="`已选 ${selectedPermissionCount(rootNode.children)} 项`"
+            :data-test="`permission-root-selected-count-${rootNode.id}`"
+            class="bg-success text-success-foreground ml-2 inline-flex min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-4"
+          >
+            {{ selectedPermissionCount(rootNode.children) }}
+          </span>
         </button>
       </div>
 
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="space-y-1">
-          <Checkbox
-            v-if="!isSingleSelection && hasPermissionTree"
-            :checked="isAllSelected(activeTabPermissions)"
-            :indeterminate="
-              isSomeSelected(activeTabPermissions) &&
-              !isAllSelected(activeTabPermissions)
-            "
-            data-test="permission-tree-toggle"
-            @change="
-              handleTogglePermissions(
-                activeTabPermissions,
-                ($event.target as HTMLInputElement).checked,
-              )
-            "
+          <div
+            v-if="hasPermissionTree"
+            class="flex flex-wrap items-center gap-3"
           >
-            <span class="text-foreground text-sm font-medium">
+            <Checkbox
+              v-if="!isSingleSelection"
+              :checked="isAllSelected(activeTabPermissions)"
+              :indeterminate="
+                isSomeSelected(activeTabPermissions) &&
+                !isAllSelected(activeTabPermissions)
+              "
+              data-test="permission-tree-toggle"
+              @change="
+                handleTogglePermissions(
+                  activeTabPermissions,
+                  ($event.target as HTMLInputElement).checked,
+                )
+              "
+            >
+              <span class="text-foreground text-sm font-medium">
+                已选 {{ activeSelectedCount }}
+                <span class="text-muted-foreground ml-2">
+                  未选 {{ activeUnselectedCount }}
+                </span>
+              </span>
+            </Checkbox>
+            <span v-else class="text-foreground text-sm font-medium">
               已选 {{ activeSelectedCount }}
               <span class="text-muted-foreground ml-2">
                 未选 {{ activeUnselectedCount }}
               </span>
             </span>
-          </Checkbox>
+            <Checkbox
+              :checked="onlySelected"
+              data-test="permission-only-selected-toggle"
+              @change="
+                onlySelected = ($event.target as HTMLInputElement).checked
+              "
+            >
+              只显示选中项
+            </Checkbox>
+          </div>
           <Checkbox
             v-else-if="!isSingleSelection && activeModule"
             :checked="isAllSelected(activeModulePermissions)"
@@ -2164,15 +2269,6 @@ function getPermissionCountText(permissions: string[]) {
               {{ activeModuleTitle }}
             </span>
           </Checkbox>
-          <span
-            v-else-if="hasPermissionTree"
-            class="text-foreground text-sm font-medium"
-          >
-            已选 {{ activeSelectedCount }}
-            <span class="text-muted-foreground ml-2">
-              未选 {{ activeUnselectedCount }}
-            </span>
-          </span>
           <span
             v-else-if="activeModule"
             class="text-foreground text-base font-semibold"

@@ -1063,7 +1063,17 @@ function handleInlineExpand(keys: Array<number | string>) {
 }
 
 .user-org-selector__action-only .ant-tree-node-content-wrapper {
+  display: flex;
   flex: 1 1 auto;
+  min-width: 0;
+}
+
+.user-org-selector__action-only .ant-tree-treenode-motion {
+  width: 100%;
+}
+
+.user-org-selector__action-only .ant-tree-title {
+  flex: 1 1 0%;
   min-width: 0;
 }
 

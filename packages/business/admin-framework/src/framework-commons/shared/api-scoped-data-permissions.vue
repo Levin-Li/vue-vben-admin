@@ -75,7 +75,10 @@ const selectedPreview = computed(() => {
   if (!props.enabled) return '';
   const groups = props.groups
     .filter((group) => selectedGroups.value.has(displayName(group)))
-    .map((group) => displayName(group));
+    .map(
+      (group) =>
+        `${displayName(group)}（字段：${group.attributes.join('、') || '未配置字段'}）`,
+    );
   const fields = supportedAttributes.value.flatMap((attribute) => {
     const values = attribute.values
       .filter((value) => selectedValues(attribute).has(value.name))
@@ -85,7 +88,7 @@ const selectedPreview = computed(() => {
       : [];
   });
   return [
-    ...(groups.length > 0 ? [`信息组：${groups.join('、')}`] : []),
+    ...(groups.length > 0 ? [`信息组：\n${groups.join('\n')}`] : []),
     ...fields,
   ].join('\n');
 });

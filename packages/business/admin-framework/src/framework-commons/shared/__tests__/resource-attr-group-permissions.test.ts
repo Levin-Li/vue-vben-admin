@@ -84,10 +84,35 @@ describe('api 属性组授权', () => {
     const tooltip = wrapper
       .findAllComponents(Tooltip)
       .find((item) => item.props('mouseEnterDelay') === 0.7);
-    expect(tooltip?.props('title')).toBe('信息组：财务信息\n类型：客户');
+    expect(tooltip?.props('title')).toBe(
+      '信息组：\n财务信息（字段：合同金额、税率、结算账号）\n类型：客户',
+    );
     expect(tooltip?.props('overlayInnerStyle')).toEqual({
       whiteSpace: 'pre-line',
     });
+  });
+  it('预览逐个列出已选信息组的字段，空组显示未配置字段', () => {
+    const unconfiguredGroup = {
+      ...group,
+      attributes: [],
+      name: '通用信息',
+      permissionExpr: 'example:属性组:contract.common:试算',
+    };
+    const wrapper = mount(ApiScopedDataPermissions, {
+      props: {
+        operation: action,
+        enabled: true,
+        groups: [group, unconfiguredGroup],
+        selected: [`@${action}:@财务信息@通用信息`],
+      },
+    });
+    const tooltip = wrapper
+      .findAllComponents(Tooltip)
+      .find((item) => item.props('mouseEnterDelay') === 0.7);
+
+    expect(tooltip?.props('title')).toBe(
+      '信息组：\n财务信息（字段：合同金额、税率、结算账号）\n通用信息（字段：未配置字段）',
+    );
   });
   it('部分接口已有信息组时显示半选，下一次勾选表示全部选中', async () => {
     const wrapper = mount(ApiScopedDataPermissions, {
@@ -221,7 +246,7 @@ describe('api 属性组授权', () => {
         .findAllComponents(Tooltip)
         .find((item) => item.props('mouseEnterDelay') === 0.7)
         ?.props('title'),
-    ).toBe('信息组：财务信息');
+    ).toBe('信息组：\n财务信息（字段：合同金额、税率、结算账号）');
     picker?.vm.$emit('toggleGroup', '财务信息', false);
     await flushPromises();
     const revoked = wrapper.emitted('update:value')?.at(-1)?.[0] as string[];

@@ -1,5 +1,7 @@
 # 后台前端模块发布说明
 
+[2026-11-05 角色权限分配可见性发布记录](releases/20261105-role-permission-visibility.md)记录权限计数与筛选、信息权限提示、组织数据权限控件对齐、字段权限导入导出验证及包版本。
+
 [2026-11-04 管理前端增量发布记录](releases/20261104-all-changes.md)说明 Oak 6.0.30 静态字段契约、tarball 门禁及上传范围。
 
 [2026-11-03 公共导出 XLSX 格式修复发布记录](releases/20261103-xlsx-export-format.md)记录 Numbers 打开验收、四包版本及升级边界。

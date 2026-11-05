@@ -1851,6 +1851,13 @@ describe('标准 crud 的属性组策略', () => {
       vm.exportableFields.map((field: { key: string }) => field.key),
     ).toContain('amount');
     vm.exportSelectedFieldKeys = ['amount', 'name'];
+    await vm.handleExportConfirm();
+    const authorizedExport = new TextDecoder().decode(
+      mocks.download.mock.calls.at(-1)?.[0] as Uint8Array,
+    );
+    expect(authorizedExport).toContain('金额');
+    expect(authorizedExport).toContain('500');
+
     allowed = false;
     clearDataAttrPolicies();
     expect(
@@ -1860,12 +1867,71 @@ describe('标准 crud 的属性组策略', () => {
     expect(
       vm.exportableFields.map((field: { key: string }) => field.key),
     ).not.toContain('amount');
+    mocks.download.mockClear();
+    await vm.handleExportConfirm();
+    expect(mocks.download).toHaveBeenCalledOnce();
+    const unauthorizedExport = new TextDecoder().decode(
+      mocks.download.mock.calls[0]?.[0] as Uint8Array,
+    );
+    expect(unauthorizedExport).not.toContain('金额');
+    expect(unauthorizedExport).not.toContain('500');
     expect(
       vm.selectedExportFields.map((field: { key: string }) => field.key),
     ).not.toContain('amount');
     await vm.loadList();
     expect(vm.dataSource[0]).not.toHaveProperty('amount');
   });
+
+  it('批量导入仅提供有权字段映射，并忽略无权列继续导入', async () => {
+    let allowed = true;
+    const batchCreate = vi.fn().mockResolvedValue({});
+    const provider = async () => {
+      const result = policy();
+      const finance = result.groups[0];
+      if (finance) finance.allowed = allowed;
+      return result;
+    };
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { batchCreate },
+          dataAttrPolicyProvider: provider,
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    await vm.dataAttrAccess.ensure('batchCreate');
+    vm.importSheet = { headers: ['名称', '金额'], rows: [['合同甲', '500']] };
+    vm.importMappings = [
+      { fieldKey: 'name', header: '名称', converter: 'trim' },
+      { fieldKey: 'amount', header: '金额', converter: 'trim' },
+    ];
+
+    expect(
+      vm.importableFields.map((field: { key: string }) => field.key),
+    ).toContain('amount');
+    await vm.handleImportConfirm();
+    expect(batchCreate).toHaveBeenCalledWith([
+      { name: '合同甲', amount: '500' },
+    ]);
+
+    allowed = false;
+    await vm.dataAttrAccess.ensure('batchCreate', true);
+    expect(
+      vm.importableFields.map((field: { key: string }) => field.key),
+    ).not.toContain('amount');
+    vm.importMappings = [
+      { fieldKey: 'name', header: '名称', converter: 'trim' },
+    ];
+    batchCreate.mockClear();
+    await vm.handleImportConfirm();
+    expect(batchCreate).toHaveBeenCalledWith([{ name: '合同甲' }]);
+
+    wrapper.unmount();
+  });
+
   it('无组策略重复使用缓存，默认值保持原提交行为', async () => {
     const loader = vi.fn(async () => {
       const result = policy();
