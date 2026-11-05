@@ -1,4 +1,5 @@
 import SpringPatternMatchUtils from '../spring-pattern-match-utils';
+import { matchesPinyinFuzzySearch } from './pinyin-fuzzy-search';
 
 export type PatternMatchMode = 'all' | 'any';
 
@@ -88,7 +89,9 @@ export function filterPatternOptions(
   return values.filter((option) =>
     [option.value, option.label, option.description, option.group]
       .filter(Boolean)
-      .some((text) => String(text).toLowerCase().includes(normalizedKeyword)),
+      .some((text) =>
+        matchesPinyinFuzzySearch(normalizedKeyword, String(text)),
+      ),
   );
 }
 

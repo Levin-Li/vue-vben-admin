@@ -37,6 +37,11 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
+import {
+  getApiErrorMessage,
+  isApiErrorNotified,
+  notifyApiErrorOnce,
+} from '../../../api/api-error-message';
 import { resolveLoginRedirect } from '../../../router/login-redirect';
 import {
   isSupportedBehaviorCaptchaMode,
@@ -818,7 +823,7 @@ async function requestVerifyCode(options: RequestVerifyCodeOptions = {}) {
     if (isHmiRequest) {
       resetPasswordLoginChallenge();
     }
-    message.error(error?.message || '获取验证码失败');
+    notifyApiErrorOnce(error);
   } finally {
     verifyAssetLoading.value = false;
   }
@@ -884,13 +889,10 @@ async function completePasswordLogin(verifyCodeValue?: unknown) {
       ? verifyCodeValue.trim()
       : formState.verifyCode.trim();
   if (!verifyCode) {
-    message.warning(
-      isPasswordMfaMode.value
-        ? '请输入 MFA 验证码'
-        : isPasswordHmiMode.value
-          ? '请先完成行为验证码'
-          : '请输入验证码',
-    );
+    let warning = '请输入验证码';
+    if (isPasswordMfaMode.value) warning = '请输入 MFA 验证码';
+    else if (isPasswordHmiMode.value) warning = '请先完成行为验证码';
+    message.warning(warning);
     return;
   }
 
@@ -992,7 +994,7 @@ async function startPasswordLogin(
   } catch (error: any) {
     // 登录挑战失败必须给出可见反馈，不能静默清空状态导致用户无法判断验证码为何未展示。
     console.error('创建登录验证码挑战失败', error);
-    message.error(error?.message || '创建登录验证码挑战失败');
+    notifyApiErrorOnce(error);
     resetPasswordLoginChallenge();
   } finally {
     verifyAssetLoading.value = false;
@@ -1041,7 +1043,7 @@ async function loadOAuthPlatforms() {
     if (!loginPageActive || version !== loginOptionsVersion) return;
     oauthPlatforms.value = [];
     if (loginPageActive && version === loginOptionsVersion)
-      message.error(error?.message || '加载登录选项或第三方平台失败');
+      notifyApiErrorOnce(error);
   } finally {
     if (version === loginOptionsVersion) oauthPlatformsLoading.value = false;
   }
@@ -1128,10 +1130,9 @@ async function finishOAuthLoginTransaction(transactionId: string) {
         : undefined,
     );
   } catch (error: any) {
-    oauthLoginErrorMessage.value =
-      error?.message || '兑换第三方授权结果失败，请稍后重试';
+    oauthLoginErrorMessage.value = getApiErrorMessage(error);
     oauthLoginStatusMessage.value = oauthLoginErrorMessage.value;
-    message.error(oauthLoginErrorMessage.value);
+    notifyApiErrorOnce(error);
   } finally {
     oauthTransactionExchanging.value = false;
   }
@@ -1187,7 +1188,7 @@ async function pollOAuthLoginTransaction(transactionId: string) {
     if (errorText.includes('第三方登录事务已失效')) {
       clearOAuthPolling();
       clearOAuthResumeTransaction();
-      message.warning('第三方授权事务已失效');
+      if (!isApiErrorNotified(error)) notifyApiErrorOnce(error);
       oauthLoginErrorMessage.value = '';
       oauthLoginStatusMessage.value = '';
       oauthLoginModalOpen.value = false;
@@ -1286,10 +1287,9 @@ async function startOAuthLogin(platform: OAuthLoginPlatform) {
     beginOAuthLoginPolling(transactionId);
     openOAuthAuthorizeWindow(authorizeUrl);
   } catch (error: any) {
-    oauthLoginErrorMessage.value =
-      error?.message || '发起第三方授权失败，请稍后重试';
+    oauthLoginErrorMessage.value = getApiErrorMessage(error);
     oauthLoginStatusMessage.value = oauthLoginErrorMessage.value;
-    message.error(oauthLoginErrorMessage.value);
+    notifyApiErrorOnce(error);
   } finally {
     oauthTransactionSubmitting.value = false;
   }

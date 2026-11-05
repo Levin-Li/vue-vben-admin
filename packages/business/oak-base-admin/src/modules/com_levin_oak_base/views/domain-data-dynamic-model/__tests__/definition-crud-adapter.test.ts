@@ -31,7 +31,6 @@ function config() {
     context: () => 'actor',
     scopes: [{ label: '私人', value: 'PRIVATE' }],
     ownerAllowed: false,
-    ownerLoader: async () => [],
     rowActions: [],
   });
 }
@@ -91,6 +90,26 @@ describe('模型定义直接配置公共CRUD', () => {
     expect(
       value.fields.find((field) => field.key === 'createdFrom'),
     ).toMatchObject({ form: false, table: false });
+  });
+  it('私人模型所有者使用用户单选并保留权限控制', () => {
+    expect(
+      config().fields.find((field) => field.key === 'ownerId'),
+    ).toMatchObject({
+      type: 'user-tree-select',
+      form: false,
+    });
+    const allowed = definitionCrudConfig({
+      context: () => 'actor',
+      scopes: [{ label: '私人', value: 'PRIVATE' }],
+      ownerAllowed: true,
+      rowActions: [],
+    });
+    expect(
+      allowed.fields.find((field) => field.key === 'ownerId'),
+    ).toMatchObject({
+      type: 'user-tree-select',
+      form: true,
+    });
   });
   it('无可信组织时新建表单不预选私人或平台归属', async () => {
     const value = config();

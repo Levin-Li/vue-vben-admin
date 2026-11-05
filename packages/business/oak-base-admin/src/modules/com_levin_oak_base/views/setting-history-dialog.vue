@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { computed, ref, watch } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
@@ -73,7 +74,7 @@ async function loadHistory() {
     records.value = getListItems(result);
   } catch (error) {
     console.error(error);
-    message.error('历史数据加载失败');
+    notifyApiErrorOnce(error);
   } finally {
     loading.value = false;
   }
@@ -97,7 +98,7 @@ async function restoreHistory(history: Record<string, any>) {
     emit('restored');
   } catch (error) {
     console.error(error);
-    message.error('恢复历史数据失败');
+    notifyApiErrorOnce(error);
   } finally {
     restoringId.value = undefined;
   }
@@ -111,7 +112,7 @@ async function deleteHistory(history: Record<string, any>) {
     message.success('历史数据已删除');
   } catch (error) {
     console.error(error);
-    message.error('删除历史数据失败');
+    notifyApiErrorOnce(error);
   } finally {
     deletingId.value = undefined;
   }

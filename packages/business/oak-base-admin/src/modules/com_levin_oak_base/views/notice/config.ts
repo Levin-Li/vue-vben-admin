@@ -52,6 +52,13 @@ function buildNoticeAction(methodName: NoticeActionMethod) {
     });
 }
 
+// 流程动作必须由服务端明确列为当前可执行事件。
+function supportsNoticeEvent(eventName: string) {
+  return (record: Record<string, any>) =>
+    Array.isArray(record.supportEventsByCurrentStatus) &&
+    record.supportEventsByCurrentStatus.includes(eventName);
+}
+
 function buildNoticeActionPermission(methodName: NoticeActionMethod) {
   return buildApiMethodPermissions(noticeService, methodName);
 }
@@ -79,6 +86,11 @@ export const noticePageCrudConfig: CrudPageConfig = {
     orgTypeList: [],
     orderCode: 100,
   },
+  // 编辑和删除同时遵守后端状态条件及当前支持事件。
+  editVisibleOn:
+    "(status == 'Draft' || status == 'AuditRejected') && Array.isArray(__record.supportEventsByCurrentStatus) && __record.supportEventsByCurrentStatus.includes('编辑')",
+  deleteVisibleOn:
+    "(status == 'Draft' || status == 'AuditRejected') && Array.isArray(__record.supportEventsByCurrentStatus) && __record.supportEventsByCurrentStatus.includes('删除')",
   defaultQuery: {
     pageIndex: 1,
     pageSize: 10,
@@ -343,36 +355,48 @@ export const noticePageCrudConfig: CrudPageConfig = {
       flowFormFields: [],
       label: '提交审核',
       permission: buildNoticeActionPermission('auditCommit'),
+      visible: supportsNoticeEvent('提交审核'),
+      visibleOn: "(status == 'Draft' || status == 'AuditRejected')",
     },
     {
       handler: buildNoticeAction('auditReject'),
       flowFormFields: ['_operatorAction'],
       label: '审核拒绝',
       permission: buildNoticeActionPermission('auditReject'),
+      visible: supportsNoticeEvent('审核拒绝'),
+      visibleOn: "status == 'AuditPending'",
     },
     {
       handler: buildNoticeAction('auditApproved'),
       flowFormFields: [],
       label: '审核通过',
       permission: buildNoticeActionPermission('auditApproved'),
+      visible: supportsNoticeEvent('审核通过'),
+      visibleOn: "status == 'AuditPending'",
     },
     {
       handler: buildNoticeAction('publish'),
       flowFormFields: [],
       label: '发布',
       permission: buildNoticeActionPermission('publish'),
+      visible: supportsNoticeEvent('发布'),
+      visibleOn: "(status == 'Approved' || status == 'Offline')",
     },
     {
       handler: buildNoticeAction('offline'),
       flowFormFields: [],
       label: '下线',
       permission: buildNoticeActionPermission('offline'),
+      visible: supportsNoticeEvent('下线'),
+      visibleOn: "status == 'Published'",
     },
     {
       handler: buildNoticeAction('archived'),
       flowFormFields: [],
       label: '存档',
       permission: buildNoticeActionPermission('archived'),
+      visible: supportsNoticeEvent('存档'),
+      visibleOn: "status == 'Offline'",
     },
   ],
   title: '通知公告管理',

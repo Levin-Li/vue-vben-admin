@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { ref } from 'vue';
 
-import { Modal } from 'ant-design-vue';
+import { Modal, Select } from 'ant-design-vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WorkflowRequestPage from '../views/workflow-request/index.vue';
@@ -87,8 +87,18 @@ vi.mock('../views/crud-page.vue', () => ({
   default: {
     name: 'CrudPage',
     props: ['config'],
-    template:
-      '<div><slot name="row-actions" :record="{ id: \'request-1\' }" :reload="() => {}"/></div>',
+    data(this: { config: { defaultFormValues: Record<string, unknown> } }): {
+      formState: Record<string, unknown>;
+    } {
+      return {
+        formState: { ...this.config.defaultFormValues, title: '保留标题' },
+      };
+    },
+    template: `<div>
+      <slot name="form-field-tenantId" :form-state="formState" :editing-record="undefined" />
+      <slot name="form-field-orgId" :form-state="formState" :editing-record="undefined" />
+      <slot name="row-actions" :record="{ id: 'request-1' }" :reload="() => {}" />
+    </div>`,
   },
 }));
 
@@ -101,6 +111,74 @@ describe('流程申请宿主的显式组织选择', () => {
     calls.catalog.mockResolvedValue([
       { businessType: 'workflow-request', contractVersion: '1' },
     ]);
+  });
+
+  it('平台用户表单展示所选组织的租户且编辑不迁移', async () => {
+    const wrapper = mount(WorkflowRequestPage);
+    wrapper
+      .findComponent({ name: 'UserOrgSelector' })
+      .vm.$emit('update:selected-records', [
+        { id: 'org-a', kind: 'org', name: '研发', tenantId: 'tenant-a' },
+      ]);
+    await flushPromises();
+    const fields = wrapper
+      .findComponent({ name: 'CrudPage' })
+      .props('config').fields;
+    expect(
+      fields.find((field: { key: string }) => field.key === 'tenantId'),
+    ).toMatchObject({
+      label: '归属租户',
+      visibleForPlatformUser: true,
+      disabledOnEdit: true,
+      omitOnEdit: true,
+    });
+    wrapper.unmount();
+  });
+
+  it('新增表单换租户只清除草稿组织并保留列表范围和已填字段', async () => {
+    const wrapper = mount(WorkflowRequestPage);
+    wrapper
+      .findComponent({ name: 'UserOrgSelector' })
+      .vm.$emit('update:selected-records', [
+        { id: 'org-a', kind: 'org', name: '研发', tenantId: 'tenant-a' },
+      ]);
+    await flushPromises();
+    const crud = wrapper.findComponent({ name: 'CrudPage' });
+    const state = (crud.vm as any).formState;
+    crud.findComponent(Select).vm.$emit('update:value', 'tenant-b');
+    await flushPromises();
+    expect(state).toMatchObject({
+      tenantId: 'tenant-b',
+      orgId: undefined,
+      title: '保留标题',
+    });
+    const selectors = wrapper.findAllComponents({ name: 'UserOrgSelector' });
+    expect(selectors).toHaveLength(2);
+    selectors[1]!.vm.$emit('update:model-value', 'org-b');
+    await flushPromises();
+    expect(state.orgId).toBe('org-b');
+    await crud.props('config').apiService.create({
+      ...state,
+      amount: 1,
+      category: 'review',
+      documentsComplete: true,
+    });
+    expect(calls.post).toHaveBeenCalledWith('create', {
+      data: {
+        title: '保留标题',
+        amount: 1,
+        category: 'review',
+        documentsComplete: true,
+        tenantId: 'tenant-b',
+        orgId: 'org-b',
+      },
+      __skipGlobalUserOrgContext: true,
+    });
+    await crud.props('config').apiService.list({ pageSize: 10 });
+    expect(calls.get).toHaveBeenCalledWith('list', {
+      params: { pageSize: 10, tenantId: 'tenant-a', orgId: 'org-a' },
+    });
+    wrapper.unmount();
   });
 
   it('会话或授权未就绪时同步暂停两个业务面板，恢复后重新开放读取', async () => {

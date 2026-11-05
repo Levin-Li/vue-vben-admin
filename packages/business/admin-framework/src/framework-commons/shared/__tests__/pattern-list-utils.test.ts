@@ -76,6 +76,8 @@ describe('pattern-list-utils', () => {
     ];
 
     expect(filterPatternOptions(options, '后台')).toEqual([options[1]]);
+    expect(filterPatternOptions(options, 'houtai')).toEqual([options[1]]);
+    expect(filterPatternOptions(options, 'htjk')).toEqual([options[1]]);
     expect(filterPatternOptions(options, 'demo')).toEqual([options[0]]);
   });
 });

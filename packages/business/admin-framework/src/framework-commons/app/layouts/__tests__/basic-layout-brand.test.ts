@@ -233,6 +233,43 @@ describe('basic layout tenant site brand', () => {
     vi.useRealTimers();
   });
 
+  it('界面偏好范围选项支持拼音和原值搜索', async () => {
+    const wrapper = mount(Basic, {
+      global: {
+        stubs: {
+          Button: true,
+          Empty: true,
+          Popconfirm: true,
+          Tag: true,
+          AModal: { template: '<section><slot /></section>' },
+        },
+      },
+    });
+    await flushPromises();
+    const selects = wrapper
+      .findAllComponents({ name: 'ASelect' })
+      .filter((select) =>
+        String(select.props('placeholder') || '').startsWith('适用'),
+      );
+    expect(selects).toHaveLength(6);
+    for (const select of selects) {
+      const filter = select.props('filterOption') as (
+        input: string,
+        option: object,
+      ) => boolean;
+      expect(filter('sxxt', { label: '山西心跳', value: 'tenant-1' })).toBe(
+        true,
+      );
+      expect(filter('tenant-1', { label: '山西心跳', value: 'tenant-1' })).toBe(
+        true,
+      );
+      expect(filter('不存在', { label: '山西心跳', value: 'tenant-1' })).toBe(
+        false,
+      );
+    }
+    wrapper.unmount();
+  });
+
   it.each(['/index', '/profile'])(
     '绑定回跳 %s 保留业务路由并只恢复相应个人中心入口',
     async (path) => {

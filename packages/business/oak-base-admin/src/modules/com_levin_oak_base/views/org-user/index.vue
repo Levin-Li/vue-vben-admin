@@ -7,6 +7,19 @@ import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
 
 import {
+  matchesPinyinFuzzySearch,
+  UserOrgSelector,
+} from '@levin/admin-framework';
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
+import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
+import {
+  buildApiMethodPermissions,
+  buildCrudOperationPermissions,
+} from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
+import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
+import {
   Button,
   Empty,
   Form,
@@ -19,43 +32,34 @@ import {
   Select,
   Spin,
   Switch,
-  Tree,
-  TreeSelect,
   Tooltip,
+  Tree,
 } from 'ant-design-vue';
 
-import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
-import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
-import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { orgService } from '../../api/org-service';
 import { userService } from '../../api/user-service';
-
-import CrudPage from '../crud-page.vue';
+import { loadDomainScopeOptions } from '../../domain-scope-options';
 import {
   orgCategoryOptionsLoader,
   orgTypeOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
-import {
-  buildApiMethodPermissions,
-  buildCrudOperationPermissions,
-} from '@levin/admin-framework/framework-commons/shared/crud-permissions';
-import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
-import { loadDomainScopeOptions } from '../../domain-scope-options';
+import CrudPage from '../crud-page.vue';
 import { usePageRolePermissionRecords } from '../load-role-permission-records';
 import { getUserDataPermissionBadgeItems } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from '../user/config';
-import {
-  assertUserTenantOrg,
-  changeUserTenant,
-  tenantOrgChoices,
-} from './user-tenant-org';
 import {
   BriefAccountConflictError,
   mapBriefLoginAccount,
   preferredLoginAccount,
 } from './brief-account';
 import { assignBriefRolesAfterSave } from './brief-roles';
+import {
+  assertUserTenantOrg,
+  changeUserTenant,
+  disableOrgParentChoices,
+  tenantOrgChoices,
+} from './user-tenant-org';
 
 // 数据权限弹窗只接受字符串 ID，在页面边界规范化公共候选。
 async function loadStringDomainScopeOptions(keyword?: string) {
@@ -209,7 +213,7 @@ const filteredOrgTreeData = computed(() => {
 });
 
 const orgParentTreeData = computed(() =>
-  disableOrgTreeNode(orgTreeData.value, orgFormState.id),
+  disableOrgParentChoices(orgTreeData.value, orgFormState.id),
 );
 
 const orgTypeSelectOptions = computed(() =>
@@ -547,7 +551,7 @@ function filterOrgTreeNodes(nodes: OrgTreeNode[], keyword: string) {
     const children = node.children
       ? filterOrgTreeNodes(node.children, keyword)
       : [];
-    const matched = node.title.toLowerCase().includes(keyword);
+    const matched = matchesPinyinFuzzySearch(keyword, node.title);
 
     if (matched || children.length > 0) {
       result.push({
@@ -558,19 +562,6 @@ function filterOrgTreeNodes(nodes: OrgTreeNode[], keyword: string) {
 
     return result;
   }, []);
-}
-
-function disableOrgTreeNode(
-  nodes: OrgTreeNode[],
-  disabledId?: string,
-): OrgTreeNode[] {
-  return nodes.map((node) => ({
-    ...node,
-    children: node.children
-      ? disableOrgTreeNode(node.children, disabledId)
-      : undefined,
-    disabled: Boolean(disabledId && node.key === disabledId),
-  }));
 }
 
 function resetOrgForm(values: Record<string, any> = {}) {
@@ -675,18 +666,20 @@ async function loadOrgOptions() {
     orgTypeOptionsLoader(),
     orgCategoryOptionsLoader(),
   ]);
-  orgTypeOptions.value = types.status === 'fulfilled'
-    ? types.value.map((option) => ({
-        ...option,
-        value: String(option.value),
-      }))
-    : [];
-  orgCategoryOptions.value = categories.status === 'fulfilled'
-    ? categories.value.map((option) => ({
-        ...option,
-        value: String(option.value),
-      }))
-    : [];
+  orgTypeOptions.value =
+    types.status === 'fulfilled'
+      ? types.value.map((option) => ({
+          ...option,
+          value: String(option.value),
+        }))
+      : [];
+  orgCategoryOptions.value =
+    categories.status === 'fulfilled'
+      ? categories.value.map((option) => ({
+          ...option,
+          value: String(option.value),
+        }))
+      : [];
   if (categories.status === 'rejected')
     message.error('组织类别选项加载失败，请刷新组织后重试');
 }
@@ -1037,19 +1030,22 @@ onMounted(async () => {
           />
         </template>
         <template #form-field-orgId="{ formState }">
-          <TreeSelect
-            :value="formState.orgId"
-            :tree-data="
-              tenantOrgChoices(orgTreeData, String(formState.tenantId || ''))
+          <UserOrgSelector
+            :key="String(formState.tenantId || '')"
+            :model-value="formState.orgId"
+            :org-load-api="
+              async () =>
+                tenantOrgChoices(orgTreeData, String(formState.tenantId || ''))
             "
-            allow-clear
+            :selectable-types="['org']"
+            :max-select-count="1"
+            :disabled="!formState.tenantId"
             class="w-full"
             data-testid="org-user-org-select"
+            load-on-initial-value
             placeholder="请重新选择所选租户下的组织"
-            show-search
-            tree-default-expand-all
-            tree-node-filter-prop="label"
-            @update:value="selectUserOrg(formState, $event)"
+            value-mode="id"
+            @update:model-value="selectUserOrg(formState, $event)"
           />
         </template>
         <template #brief-extra="{ formState }">
@@ -1147,15 +1143,17 @@ onMounted(async () => {
         </div>
         <div class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
           <Form.Item label="上级组织">
-            <TreeSelect
-              v-model:value="orgFormState.parentId"
+            <UserOrgSelector
+              v-model="orgFormState.parentId"
+              :key="String(orgFormState.id || 'new')"
+              :org-load-api="async () => orgParentTreeData"
+              :selectable-types="['org']"
+              :max-select-count="1"
               allow-clear
               class="w-full"
+              load-on-initial-value
               placeholder="请选择上级组织"
-              show-search
-              :tree-data="orgParentTreeData"
-              tree-default-expand-all
-              tree-node-filter-prop="label"
+              value-mode="id"
             />
           </Form.Item>
           <Form.Item
@@ -1171,6 +1169,7 @@ onMounted(async () => {
               v-model:value="orgFormState.tenantId"
               :options="tenantOptions"
               placeholder="请选择归属租户"
+              :filter-option="filterCrudLocalSelectOption"
               show-search
             />
           </Form.Item>

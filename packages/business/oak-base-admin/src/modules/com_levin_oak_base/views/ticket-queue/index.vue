@@ -9,10 +9,16 @@ import type {
 
 import { computed, reactive, ref } from 'vue';
 
+import { useUserStore } from '@vben/runtime/stores';
+
+import { UserOrgSelector } from '@levin/admin-framework';
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { DEFAULT_CONTENT_MODAL_BODY_STYLE } from '@levin/admin-framework/framework-commons/shared/config-helpers';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
+import { isPlatformUser as isPlatformIdentity } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
   Button,
   Form,
@@ -25,12 +31,12 @@ import {
 
 import { roleService } from '../../api/role-service';
 import { ticketQueueService } from '../../api/ticket-queue-service';
-import { userService } from '../../api/user-service';
+import { tenantOptionsLoader } from '../api-module';
 import SupportScopeSelector from '../support-scope-selector.vue';
+import SupportUserSelector from '../support-user-selector.vue';
 import { createTicketQueueCrudConfig } from './config';
 import {
   buildQueueHandlerRoleQuery,
-  buildQueueHandlerUserQuery,
   isQueueHandlerRoleOption,
 } from './handler-options';
 
@@ -39,13 +45,61 @@ const { hasPermission } = useRbacAccess();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(ticketQueueService, method));
 const selectedScope = ref<UserOrgSelectorRecord>();
+const formScopeRecord = ref<UserOrgSelectorRecord>();
+const formTenantId = ref<string>();
+const tenantOptions = ref<{ label: string; value: string }[]>([]);
+const platformUser = computed(() =>
+  isPlatformIdentity(useUserStore().userInfo),
+);
+const activeFormScope = computed<SupportScope | undefined>(() => {
+  const org = formScopeRecord.value;
+  return org?.kind === 'org' &&
+    org.tenantId &&
+    org.tenantId === formTenantId.value
+    ? { tenantId: org.tenantId, orgId: org.id }
+    : undefined;
+});
+// 租户候选不授予组织权限，组织仍从授权树按租户读取。
+async function loadTenantOptions(keyword = '') {
+  try {
+    const options = await tenantOptionsLoader(keyword);
+    tenantOptions.value = options.map((item) => ({
+      label: item.label,
+      value: String(item.value),
+    }));
+  } catch (error) {
+    notifyApiErrorOnce(error);
+  }
+}
+function changeFormTenant(value?: string) {
+  if (value === formTenantId.value) return;
+  formTenantId.value = value;
+  formScopeRecord.value = undefined;
+  draft.tenantId = value || '';
+  draft.orgId = '';
+  draft.handlerUserIds = [];
+  draft.handlerRoleCodes = [];
+  roleOptions.value = [];
+  roleOptionsVersion += 1;
+}
+function changeFormOrganization(records: UserOrgSelectorRecord[]) {
+  const org = records[0];
+  if (org && (org.kind !== 'org' || org.tenantId !== formTenantId.value))
+    return;
+  formScopeRecord.value = org;
+  draft.tenantId = org?.tenantId || '';
+  draft.orgId = org?.id || '';
+  draft.handlerUserIds = [];
+  draft.handlerRoleCodes = [];
+  roleOptions.value = [];
+  roleOptionsVersion += 1;
+}
 const scopeGeneration = ref(0);
 const initialQuery = ref<Record<string, unknown>>({});
 let queryState: Record<string, unknown> = {};
 let reloadList: (() => Promise<unknown> | unknown) | undefined;
 let listVersion = 0;
 let detailVersion = 0;
-let userOptionsVersion = 0;
 let roleOptionsVersion = 0;
 
 function currentScope(orgId: unknown): SupportScope | undefined {
@@ -110,9 +164,7 @@ function changeScope(
   detailVersion += 1;
   listVersion += 1;
   editing.value = false;
-  userOptions.value = [];
   roleOptions.value = [];
-  userOptionsVersion += 1;
   roleOptionsVersion += 1;
   reloadList = undefined;
   scopeGeneration.value += 1;
@@ -130,25 +182,34 @@ const draft = reactive<QueueInput>({
   handlerUserIds: [],
   handlerRoleCodes: [],
 });
-const userOptions = ref<{ label: string; value: string }[]>([]);
 const roleOptions = ref<{ label: string; value: string }[]>([]);
 const canSave = computed(() => allowed('save') && Boolean(selectedScope.value));
+// 平台用户可先打开新增表单，再选择有权受理的租户和组织。
+const canCreate = computed(
+  () => allowed('save') && (platformUser.value || Boolean(selectedScope.value)),
+);
 const switchingIds = new Set<string>();
 
 async function open(record?: QueueRecord) {
   const version = ++detailVersion;
-  if (!canSave.value || (record && !allowed('retrieve'))) return;
+  if (
+    !allowed('save') ||
+    (record ? !canSave.value || !allowed('retrieve') : !canCreate.value)
+  )
+    return;
   try {
     const scope = currentScope(queryState.orgId);
-    if (!scope) return;
-    const source = record
-      ? await ticketQueueService.retrieve({ ...scope, id: record.id })
-      : undefined;
-    if (version !== detailVersion || !currentScope(queryState.orgId)) return;
+    if (!scope && (record || !platformUser.value)) return;
+    const source =
+      record && scope
+        ? await ticketQueueService.retrieve({ ...scope, id: record.id })
+        : undefined;
+    if (version !== detailVersion) return;
     Object.assign(
       draft,
       {
-        ...scope,
+        tenantId: scope?.tenantId || '',
+        orgId: scope?.orgId || '',
         id: undefined,
         optimisticLock: undefined,
         code: '',
@@ -159,42 +220,17 @@ async function open(record?: QueueRecord) {
       },
       source,
     );
+    formScopeRecord.value = selectedScope.value;
+    formTenantId.value = scope?.tenantId;
     editing.value = true;
-  } catch {
-    message.error('队列详情不可访问');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 
 // 候选项仅从当前组织及其租户读取；搜索失败不清除已选值。
-async function searchUsers(value = '') {
-  const scope = currentScope(queryState.orgId);
-  if (!scope) return;
-  const version = scopeGeneration.value;
-  const optionsVersion = ++userOptionsVersion;
-  try {
-    const result = (await userService.list(
-      buildQueueHandlerUserQuery(scope, value),
-    )) as { items: { id: string; name?: string; realName?: string }[] };
-    if (
-      version !== scopeGeneration.value ||
-      optionsVersion !== userOptionsVersion
-    )
-      return;
-    userOptions.value = (result.items || []).map((item) => ({
-      value: item.id,
-      label: item.realName || item.name || item.id,
-    }));
-  } catch {
-    if (
-      version === scopeGeneration.value &&
-      optionsVersion === userOptionsVersion
-    )
-      message.error('处理人选项不可访问');
-  }
-}
-
 async function searchRoles(value = '') {
-  const scope = currentScope(queryState.orgId);
+  const scope = activeFormScope.value;
   if (!scope) return;
   const version = scopeGeneration.value;
   const optionsVersion = ++roleOptionsVersion;
@@ -212,19 +248,22 @@ async function searchRoles(value = '') {
     roleOptions.value = (result.items || [])
       .filter((item) => isQueueHandlerRoleOption(item, scope.tenantId))
       .map((item) => ({ value: item.code, label: item.name || item.code }));
-  } catch {
+  } catch (error_) {
     if (
       version === scopeGeneration.value &&
       optionsVersion === roleOptionsVersion
     )
-      message.error('角色选项不可访问');
+      notifyApiErrorOnce(error_);
   }
 }
 
 async function save() {
-  if (!canSave.value || saving.value) return;
-  const scope = currentScope(queryState.orgId);
-  if (!scope) return;
+  if (!allowed('save') || saving.value) return;
+  const scope = activeFormScope.value;
+  if (!scope) {
+    message.error('请选择租户和受理组织');
+    return;
+  }
   if (!draft.code.trim() || !draft.name.trim()) {
     message.error('请填写队列编码和名称');
     return;
@@ -237,8 +276,8 @@ async function save() {
       editing.value = false;
       await reloadList?.();
     }
-  } catch {
-    message.error('保存失败，请核对范围、处理人和版本后重试');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     saving.value = false;
   }
@@ -258,8 +297,8 @@ async function switchEnabled(record: QueueRecord) {
       enabled: !record.enabled,
     });
     if (version === scopeGeneration.value) await reloadList?.();
-  } catch {
-    message.error('队列启停失败，请刷新后重试');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     switchingIds.delete(record.id);
   }
@@ -279,7 +318,7 @@ async function switchEnabled(record: QueueRecord) {
 
       <template #toolbar-extra="{ loadList, isListOperationVisible }">
         <Button
-          v-if="canSave && isListOperationVisible('queue:create')"
+          v-if="canCreate && isListOperationVisible('queue:create')"
           type="primary"
           @click="
             reloadList = loadList;
@@ -345,6 +384,52 @@ async function switchEnabled(record: QueueRecord) {
         :label-col="{ style: { width: '104px' } }"
         :wrapper-col="{ flex: 1 }"
       >
+        <!-- 新增时选择租户及授权组织；编辑保留原归属。 -->
+        <Form.Item v-if="platformUser" label="归属租户" required>
+          <Select
+            data-testid="form-tenant"
+            :value="formTenantId"
+            :disabled="Boolean(draft.id)"
+            :options="
+              tenantOptions.length > 0
+                ? tenantOptions
+                : formTenantId
+                  ? [
+                      {
+                        label: selectedScope?.tenantName || formTenantId,
+                        value: formTenantId,
+                      },
+                    ]
+                  : []
+            "
+            :filter-option="false"
+            allow-clear
+            show-search
+            placeholder="请选择归属租户"
+            @focus="loadTenantOptions()"
+            @search="loadTenantOptions"
+            @update:value="
+              (value) =>
+                changeFormTenant(value == null ? undefined : String(value))
+            "
+          />
+        </Form.Item>
+        <Form.Item v-if="platformUser" label="受理组织" required>
+          <UserOrgSelector
+            data-testid="form-organization"
+            :key="formTenantId"
+            :disabled="!formTenantId || Boolean(draft.id)"
+            :model-value="formScopeRecord"
+            :org-load-api="
+              () => rbacService.fetchAuthorizedOrgTreeByTenant(formTenantId!)
+            "
+            :selectable-types="['org']"
+            :max-select-count="1"
+            value-mode="record"
+            placeholder="请选择受理组织"
+            @update:selected-records="changeFormOrganization"
+          />
+        </Form.Item>
         <Form.Item label="队列编码" name="code" required>
           <Input v-model:value="draft.code" :maxlength="64" />
         </Form.Item>
@@ -352,18 +437,24 @@ async function switchEnabled(record: QueueRecord) {
           <Input v-model:value="draft.name" :maxlength="128" />
         </Form.Item>
         <Form.Item label="可处理用户" name="handlerUserIds">
-          <Select
-            v-model:value="draft.handlerUserIds"
-            mode="multiple"
-            show-search
-            :filter-option="false"
-            :options="userOptions"
-            @search="searchUsers"
-            @focus="searchUsers()"
+          <SupportUserSelector
+            data-testid="queue-handler-users"
+            :key="`${draft.tenantId}:${draft.orgId}`"
+            :model-value="draft.handlerUserIds"
+            :scope="activeFormScope"
+            multiple
+            @update:model-value="
+              draft.handlerUserIds = Array.isArray($event)
+                ? $event.filter(
+                    (item): item is string => typeof item === 'string',
+                  )
+                : []
+            "
           />
         </Form.Item>
         <Form.Item label="可处理角色" name="handlerRoleCodes">
           <Select
+            data-testid="queue-handler-roles"
             v-model:value="draft.handlerRoleCodes"
             mode="multiple"
             show-search

@@ -7,6 +7,10 @@ import type {
 import type { AdministrativeAreaLevel } from './administrative-area-data';
 
 import type { CrudExportConverter } from './crud-value-converter';
+import type {
+  UserOrgSelectorLoadUsers,
+  UserOrgSelectorResolveRecords,
+} from './user-org-selector-types';
 
 export type CrudFieldType =
   | 'area-cascader'
@@ -29,6 +33,7 @@ export type CrudFieldType =
   | 'switch'
   | 'tags'
   | 'tenant'
+  | 'user-tree-select'
   | 'time'
   | 'text'
   | 'textarea';
@@ -145,6 +150,18 @@ export interface CrudFieldConfig {
   layoutNewRow?: boolean;
   layoutOrder?: number;
   loadOptions?: CrudOptionLoader;
+  /** 表单租户变化时清除字段，候选由当前租户约束。 */
+  tenantDependent?: boolean;
+  tenantLoadOptions?: (
+    tenantId: string,
+    keyword?: string,
+  ) => Promise<SelectOption[]>;
+  /** 用户选择的业务范围加载器，接收当前展开组织。 */
+  userLoadApi?: UserOrgSelectorLoadUsers;
+  /** 用户候选是否启用；不配置时不额外限制。 */
+  userEnable?: boolean;
+  /** 编辑或查询已有用户 ID 时解析显示名称。 */
+  userResolveRecords?: UserOrgSelectorResolveRecords;
   maxLength?: number;
   /** 金额展示覆盖；money 可显式指定或排除金额语义，未配置时按字段名与标题识别。 */
   moneyDisplay?: {

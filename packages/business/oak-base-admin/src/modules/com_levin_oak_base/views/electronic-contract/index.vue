@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { h, ref } from 'vue';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
@@ -40,7 +41,7 @@ async function openPreview(record: Record<string, any>) {
     previewContract.value = payload as Record<string, any>;
     previewOpen.value = true;
   } catch (error_) {
-    message.error(error_ instanceof Error ? error_.message : '加载合同失败');
+    notifyApiErrorOnce(error_);
   }
 }
 
@@ -49,14 +50,20 @@ async function openSigningEntry(
   record: Record<string, any>,
   signerIndex: 0 | 1,
 ) {
+  let response: any;
   try {
-    const response = await electronicContractService.signingEntry({
+    response = await electronicContractService.signingEntry({
       id: String(record.id),
       signerIndex,
       tenantId: record.tenantId,
       orgId: record.orgId,
       ownerId: record.ownerId,
     });
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
+    return;
+  }
+  try {
     const payload =
       response && typeof response === 'object' && 'data' in response
         ? response.data

@@ -45,6 +45,14 @@ describe('service-resp', () => {
     });
   });
 
+  it('unwraps json text envelopes but preserves ordinary text', () => {
+    expect(unwrapServiceResp('{"code":0,"data":{"id":"1"}}')).toEqual({
+      id: '1',
+    });
+    expect(unwrapServiceResp('{"status":"ok"}')).toBe('{"status":"ok"}');
+    expect(unwrapServiceResp('not json')).toBe('not json');
+  });
+
   it('throws failed ServiceResp with backend message for non-business errors', () => {
     const serverErrorType = `server-dynamic-error-type-${Math.random()}`;
 

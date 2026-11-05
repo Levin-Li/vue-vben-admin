@@ -1,7 +1,5 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
-import { userOptionsLoader } from './api-module';
-
 // 主档各方使用独立的组织和负责人，负责人候选不依赖同方组织。
 type Party =
   | 'aftersales'
@@ -56,9 +54,7 @@ export function buildMasterPartyFields(
         layoutGroupTitle: '参与组织与负责人',
         layoutOrder: index * 20 + 20,
         disabledOnEdit: isPartyReassignmentDisabled,
-        loadOptions: userOptionsLoader,
-        remoteSearch: true,
-        type: 'select' as const,
+        type: 'user-tree-select' as const,
         search: false,
         table: true,
         width: 160,

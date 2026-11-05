@@ -70,6 +70,34 @@ describe('requestClient', () => {
     }
   });
 
+  it.each([undefined, null, '', 'server error', 42])(
+    'keeps the original error identity for a non-object response body: %s',
+    async (body) => {
+      let intercepted: unknown;
+      requestClient.addResponseInterceptor({
+        rejected: (error) => {
+          intercepted = error;
+          return Promise.reject(error);
+        },
+      });
+      mock.onGet('/test/non-object-error').reply(500, body);
+
+      const caught = await requestClient
+        .get('/test/non-object-error')
+        .catch((error: unknown) => error);
+      expect(intercepted).toBeDefined();
+      expect(caught).toBe(intercepted);
+    },
+  );
+
+  it('continues to throw object response data for business errors', async () => {
+    const body = { msg: '用户名或密码错误' };
+    mock.onGet('/test/business-error').reply(400, body);
+    await expect(requestClient.get('/test/business-error')).rejects.toEqual(
+      body,
+    );
+  });
+
   it('should successfully upload a file', async () => {
     const fileData = new Blob(['file contents'], { type: 'text/plain' });
 

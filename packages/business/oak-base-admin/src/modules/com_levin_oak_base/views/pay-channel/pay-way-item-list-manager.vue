@@ -5,8 +5,9 @@ import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Plus } from '@vben/runtime/icons';
 
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { uploadFileByFileStorageController } from '@levin/admin-framework/framework-commons/app/api/file-storage-service';
-
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import {
   Button,
   Form,
@@ -182,7 +183,7 @@ async function uploadLogo(options: any) {
   } catch (error) {
     console.error(error);
     options.onError?.(error);
-    message.error('logo上传失败');
+    notifyApiErrorOnce(error);
   }
 }
 
@@ -370,6 +371,7 @@ onMounted(async () => {
             v-model:value="draft.payWay"
             :options="payWayOptions"
             placeholder="请选择支付唤起方式"
+            :filter-option="filterCrudLocalSelectOption"
             show-search
           />
         </Form.Item>
@@ -379,6 +381,7 @@ onMounted(async () => {
             allow-clear
             :options="currencyCodeOptions"
             placeholder="请选择货币编码"
+            :filter-option="filterCrudLocalSelectOption"
             show-search
           />
         </Form.Item>

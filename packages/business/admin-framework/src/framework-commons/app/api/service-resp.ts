@@ -165,6 +165,21 @@ export function createServiceRespError(responseData: ServiceRespLike) {
 }
 
 export function unwrapServiceResp<T = any>(responseData: T): any {
+  // 有的响应以文本保留 JSON，仍按服务端响应协议判定成功或失败。
+  if (typeof responseData === 'string') {
+    try {
+      const parsed = JSON.parse(responseData);
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        typeof parsed.code === 'number'
+      ) {
+        responseData = parsed;
+      }
+    } catch {
+      // 非 JSON 文本保留原值，供调用方按原契约处理。
+    }
+  }
   if (!isServiceResp(responseData)) {
     return responseData;
   }

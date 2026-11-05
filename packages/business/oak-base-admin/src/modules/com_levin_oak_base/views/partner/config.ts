@@ -12,6 +12,7 @@ import {
   buildMasterPartyFields,
   customerPartnerParties,
 } from '../master-party-fields';
+import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
 
 // 路由同步仍读取页面元数据；合作关系字段拆分不改变该页面的稳定标识。
 export const pageMeta = {
@@ -73,6 +74,7 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
   {
     key: 'tenantId',
     label: '归属租户',
+    disabledOnEdit: true,
     layoutGroup: 'ownership',
     layoutGroupTitle: '管理归属',
     layoutOrder: 10,
@@ -93,6 +95,7 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
   },
   {
     key: 'legalSubjectId',
+    tenantDependent: true,
     label: '法律主体',
     help: '可暂不选择，后续补全；已关联的法律主体不能更换。',
     layoutGroup: 'basic',
@@ -153,6 +156,9 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
   { key: 'containsDisplayName', label: '名称', form: false, search: true },
   {
     key: 'parentOrgId',
+    tenantDependent: true,
+    tenantLoadOptions: (tenantId, keyword) =>
+      buildOrgAssignmentOptionsLoader(tenantId)(keyword),
     formCreate: true,
     formEdit: false,
     detail: false,
@@ -161,7 +167,7 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
     help: '可选；未选择时使用当前登录用户所属的内部组织。保存时创建对应类型的外部组织节点，不可选择已有外部节点。',
     layoutGroup: 'ownership',
     layoutOrder: 20,
-    type: 'select',
+    type: 'org-tree-select',
     placeholder: '留空使用当前用户所属组织，或搜索内部父组织',
   },
   // 主体组织由建档生成，五方负责人和职能组织分别维护。

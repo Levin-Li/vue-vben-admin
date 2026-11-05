@@ -556,7 +556,7 @@ onBeforeUnmount(() => {
                 v-if="field.kind === 'select'"
                 :disabled="disabled || field.readOnly"
                 :options="field.options"
-                :placeholder="`请选择${field.label}`"
+                  :placeholder="`请选择${field.label}`"
                 :value="getFieldValue(field.path)"
                 allow-clear
                 class="w-full"

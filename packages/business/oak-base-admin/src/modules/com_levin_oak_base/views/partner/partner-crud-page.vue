@@ -5,6 +5,9 @@ import type { QuickAddTarget } from '../../api/quick-partner-onboarding';
 
 import { computed, ref } from 'vue';
 
+import { useUserStore } from '@vben/runtime/stores';
+
+import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { Empty, Modal, Timeline, TimelineItem } from 'ant-design-vue';
 
 import CrudPage from '../crud-page.vue';
@@ -21,6 +24,8 @@ const props = defineProps<{
   config: CrudPageConfig;
   quickTarget?: QuickAddTarget;
 }>();
+const userStore = useUserStore();
+const requireTenant = computed(() => isPlatformUser(userStore.userInfo));
 const logOpen = ref(false);
 const logItems = ref<ReturnType<typeof buildPartnerCertificationLog>>([]);
 
@@ -60,6 +65,8 @@ const pageConfig = computed<CrudPageConfig>(() => ({
     >
       <LegalSubjectPicker
         v-model="formState.legalSubjectId"
+        :tenant-id="formState.tenantId"
+        :require-tenant="requireTenant"
         :disabled="isLegalSubjectPickerLocked(disabled, editingRecord)"
       />
     </template>

@@ -1,4 +1,9 @@
 <script lang="ts" setup>
+import { computed } from 'vue';
+
+import { useUserStore } from '@vben/runtime/stores';
+
+import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { Select } from 'ant-design-vue';
 
 import CrudPage from '../crud-page.vue';
@@ -7,6 +12,9 @@ import LegalSubjectPicker from '../partner/legal-subject-picker.vue';
 import QuickAdd from '../partner/quick-add.vue';
 import ChannelPartnerPicker from './channel-partner-picker.vue';
 import { customerPageCrudConfig } from './config';
+
+const userStore = useUserStore();
+const requireTenant = computed(() => isPlatformUser(userStore.userInfo));
 
 function updateType(formState: Record<string, any>, type?: unknown) {
   formState.type = type;
@@ -28,6 +36,8 @@ function updateType(formState: Record<string, any>, type?: unknown) {
     >
       <LegalSubjectPicker
         v-model="formState.legalSubjectId"
+        :tenant-id="formState.tenantId"
+        :require-tenant="requireTenant"
         :disabled="isLegalSubjectPickerLocked(disabled, editingRecord)"
       />
     </template>
@@ -49,6 +59,7 @@ function updateType(formState: Record<string, any>, type?: unknown) {
         v-model="formState.channelPartnerId"
         :disabled="disabled"
         :tenant-id="formState.tenantId"
+        :require-tenant="requireTenant"
       />
       <span v-else class="customer-channel-field-hidden"></span>
     </template>

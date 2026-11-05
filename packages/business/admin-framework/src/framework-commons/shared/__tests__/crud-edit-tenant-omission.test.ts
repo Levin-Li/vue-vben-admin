@@ -10,14 +10,14 @@ import {
 } from '../crud-page-display';
 import { omitExcludedCrudFields } from '../crud-submit-fields';
 
-describe('编辑租户字段默认不提', () => {
-  it('无设置和稀疏设置均为不提，设置面板与运行时默认相同', () => {
+describe('编辑租户字段默认展示', () => {
+  it('无设置和稀疏设置均默认展示并提交', () => {
     const saved = { key: 'tenantId' };
     const runtime = resolveRuntimeDisplayField(saved, { view: 'edit' });
-    expect(getDefaultFieldHidden(saved, { view: 'edit' })).toBe(true);
-    expect(initializeFieldHidden(saved, { view: 'edit' })).toBe(true);
-    expect(getDisplaySubmitMode(runtime)).toBe('hidden-omit');
-    expect([...resolveDisplaySubmitKeys([runtime])]).toEqual([]);
+    expect(getDefaultFieldHidden(saved, { view: 'edit' })).toBe(false);
+    expect(initializeFieldHidden(saved, { view: 'edit' })).toBe(false);
+    expect(getDisplaySubmitMode(runtime)).toBe('display-submit');
+    expect([...resolveDisplaySubmitKeys([runtime])]).toEqual(['tenantId']);
     expect(saved).toEqual({ key: 'tenantId' });
   });
 
@@ -28,19 +28,19 @@ describe('编辑租户字段默认不提', () => {
     },
   );
 
-  it('保留用户明确设置，不自动改写持久化配置', () => {
-    const saved = { hidden: false, key: 'tenantId' };
+  it('保留用户明确隐藏设置，不自动改写持久化配置', () => {
+    const saved = { hidden: true, key: 'tenantId' };
     expect(
       getDisplaySubmitMode(resolveRuntimeDisplayField(saved, { view: 'edit' })),
-    ).toBe('display-submit');
-    expect(saved).toEqual({ hidden: false, key: 'tenantId' });
+    ).toBe('hidden-omit');
+    expect(saved).toEqual({ hidden: true, key: 'tenantId' });
   });
 
   it.each([true, false])(
-    '平台身份 %s 的残留值和强制更新均被排除，JSON 单字段保存不会补回',
+    '平台身份 %s 显式排除时残留值及强制更新均被清除，JSON 单字段保存不补回',
     (isPlatformUser) => {
       const fields = [
-        { key: 'tenantId', label: '租户ID' },
+        { key: 'tenantId', label: '租户ID', hidden: true },
         { key: 'configData', label: '配置内容' },
       ];
       const allowed = resolveDisplaySubmitKeys(
@@ -73,7 +73,6 @@ describe('编辑租户字段默认不提', () => {
           isPlatformUser,
         ),
       ).toEqual(payload);
-      expect(transformed.tenantId).toBe('old-tenant');
     },
   );
 });

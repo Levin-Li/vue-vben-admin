@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
+import { matchesPinyinFuzzySearch } from '@levin/admin-framework';
 import { Button, Empty, Input, Select, Tag } from 'ant-design-vue';
 
 import {
@@ -44,9 +45,10 @@ const matchingDocuments = computed(() => {
       (!audience.value || document.audience === audience.value) &&
       (!moduleName.value || document.module === moduleName.value) &&
       (!query ||
-        `${document.title} ${document.module} ${document.content}`
-          .toLocaleLowerCase()
-          .includes(query)),
+        matchesPinyinFuzzySearch(
+          query,
+          `${document.title} ${document.module} ${document.content}`,
+        )),
   );
 });
 

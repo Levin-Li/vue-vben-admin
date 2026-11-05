@@ -1,13 +1,14 @@
 <script lang="ts" setup>
-import { computed, reactive, ref, watch } from 'vue';
-
 import type {
   TenantSiteDnsRecord,
   TenantSiteRecord,
 } from '../../api/tenant-site-service';
 
+import { computed, reactive, ref, watch } from 'vue';
+
 import { IconifyIcon } from '@vben/runtime/icons';
 
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import {
   Button,
   Drawer,
@@ -15,6 +16,7 @@ import {
   Form,
   Input,
   InputNumber,
+  message,
   Modal,
   Popconfirm,
   Select,
@@ -22,7 +24,6 @@ import {
   Spin,
   Table,
   Tag,
-  message,
 } from 'ant-design-vue';
 
 import { tenantSiteService } from '../../api/tenant-site-service';
@@ -425,6 +426,7 @@ watch(
               v-model:value="draft.recordType"
               :options="DNS_RECORD_TYPE_OPTIONS"
               placeholder="请选择解析类型"
+              :filter-option="filterCrudLocalSelectOption"
               show-search
             />
           </Form.Item>

@@ -1,8 +1,11 @@
+import type { UserTenantOrgNode } from '../user-tenant-org';
+
 import { describe, expect, it } from 'vitest';
 
 import {
   assertUserTenantOrg,
   changeUserTenant,
+  disableOrgParentChoices,
   tenantOrgChoices,
 } from '../user-tenant-org';
 
@@ -29,6 +32,30 @@ const tree = [
 ];
 
 describe('组织与用户表单的租户组织联动', () => {
+  it('上级组织选择禁用自身和后代，但保留其他组织', () => {
+    const choices = disableOrgParentChoices<UserTenantOrgNode>(
+      [
+        {
+          key: 'root',
+          label: '根',
+          children: [
+            {
+              key: 'self',
+              label: '自身',
+              children: [{ key: 'child', label: '后代' }],
+            },
+            { key: 'peer', label: '同级' },
+          ],
+        },
+      ],
+      'self',
+    );
+    expect(choices[0]?.disabled).toBe(false);
+    expect(choices[0]?.children?.[0]?.disabled).toBe(true);
+    expect(choices[0]?.children?.[0]?.children?.[0]?.disabled).toBe(true);
+    expect(choices[0]?.children?.[1]?.disabled).toBe(false);
+  });
+
   it('切换租户会清空旧组织，重新选择后只接受目标租户的授权组织', () => {
     const state: Record<string, any> = { tenantId: 'a', orgId: 'org-a-child' };
     changeUserTenant(state, 'b');

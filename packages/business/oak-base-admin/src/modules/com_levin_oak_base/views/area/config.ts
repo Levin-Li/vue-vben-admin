@@ -96,15 +96,6 @@ export const areaPageCrudConfig: CrudPageConfig = {
       type: 'select',
       width: 120,
     },
-    { key: 'containsPinyinName', label: '拼音名', form: false, search: true },
-    {
-      key: 'pinyinName',
-      label: '拼音名',
-      layoutGroup: 'basic',
-      layoutOrder: 60,
-      table: true,
-      width: 160,
-    },
     {
       key: 'gteCreateTime',
       label: '创建时间开始',

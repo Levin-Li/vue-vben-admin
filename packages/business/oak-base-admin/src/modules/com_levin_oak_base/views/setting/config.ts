@@ -325,14 +325,6 @@ export const settingPageCrudConfig: CrudPageConfig = {
       type: 'textarea',
     },
     {
-      key: 'pinyinName',
-      label: '拼音名',
-      layoutGroup: 'basic',
-      layoutOrder: 70,
-      table: true,
-      width: 160,
-    },
-    {
       key: 'orderCode',
       label: '排序代码',
       layoutGroup: 'status',

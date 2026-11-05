@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getApiErrorMessage, notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
 import type { SupportScope } from '../../api/support-workbench-types';
@@ -8,7 +9,7 @@ import type {
   WorkflowNotificationRouteRecord,
 } from '../../api/workflow-notification-route-service';
 
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { DEFAULT_CONTENT_MODAL_BODY_STYLE } from '@levin/admin-framework/framework-commons/shared/config-helpers';
@@ -50,9 +51,6 @@ const selectedScope = ref<UserOrgSelectorRecord>();
 const scopeGeneration = ref(0);
 const initialQuery = ref<Record<string, unknown>>({});
 const error = ref('');
-watch(error, (value) => {
-  if (value) message.error(value);
-});
 let queryState: Record<string, unknown> = {};
 let reloadList: (() => Promise<unknown> | unknown) | undefined;
 // 范围来自查询模型；重置后不沿用选择器旧记录的组织。
@@ -145,7 +143,10 @@ async function listRoutes(params: Record<string, unknown> = {}) {
     });
     return version === listVersion ? result : { items: [], totals: 0 };
   } catch (error_) {
-    if (version === listVersion) error.value = '工作流通知路由不可访问';
+    if (version === listVersion) {
+      error.value = getApiErrorMessage(error_);
+      notifyApiErrorOnce(error_);
+    }
     throw error_;
   }
 }
@@ -218,8 +219,8 @@ async function open(record?: WorkflowNotificationRouteRecord) {
         ? ['advanced']
         : [];
     opened.value = true;
-  } catch {
-    message.error('路由详情不可访问或已失效');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 function changeChannel() {
@@ -301,8 +302,8 @@ async function save() {
       : workflowNotificationRouteService.create(data));
     opened.value = false;
     await reloadList?.();
-  } catch {
-    message.error('路由保存失败，请刷新核对权限、范围和版本');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     busy.value = false;
   }
@@ -323,8 +324,8 @@ async function remove() {
     });
     removing.value = undefined;
     await reloadList?.();
-  } catch {
-    message.error('删除失败，请刷新核对权限和范围');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     busy.value = false;
   }
@@ -341,7 +342,8 @@ function loadChannels() {
     })
     .catch((error_) => {
       channelsPromise = undefined;
-      error.value = '通知渠道选项加载失败';
+      error.value = getApiErrorMessage(error_);
+      notifyApiErrorOnce(error_);
       throw error_;
     });
   return channelsPromise;

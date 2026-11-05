@@ -1,3 +1,5 @@
+import { matchesPinyinFuzzySearch } from '@levin/admin-framework';
+
 export function filterServicePluginOption(
   input: string,
   option?: { label?: unknown; value?: unknown },
@@ -7,7 +9,10 @@ export function filterServicePluginOption(
     return true;
   }
 
-  return [option?.label, option?.value].some((value) =>
-    String(value ?? '').toLowerCase().includes(keyword),
+  return (
+    matchesPinyinFuzzySearch(input, String(option?.label ?? '')) ||
+    String(option?.value ?? '')
+      .toLowerCase()
+      .includes(keyword)
   );
 }

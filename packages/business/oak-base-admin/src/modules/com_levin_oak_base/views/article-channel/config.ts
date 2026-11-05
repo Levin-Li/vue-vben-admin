@@ -117,14 +117,6 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     {
-      key: 'pinyinName',
-      label: '拼音名',
-      layoutGroup: 'basic',
-      layoutOrder: 20,
-      table: true,
-      width: 160,
-    },
-    {
       key: 'parentId',
       label: '父栏目',
       layoutGroup: 'basic',
@@ -147,6 +139,7 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'status',
+      form: false,
       label: '发布状态',
       layoutGroup: 'business',
       layoutGroupTitle: '发布与统计',

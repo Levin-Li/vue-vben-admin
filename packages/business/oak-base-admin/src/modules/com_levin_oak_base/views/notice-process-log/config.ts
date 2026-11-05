@@ -1,12 +1,12 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { noticeProcessLogService } from '../../api/notice-process-log-service';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
-  userOptionsLoader,
 } from '../api-module';
 
 const noticeProcessStatusOptionsLoader = buildEnumOptionsLoader(
@@ -22,6 +22,7 @@ export const pageMeta = {
 export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
   apiBase: '/NoticeProcessLog',
   domainObject: true,
+  apiModuleBase: OAK_BASE_API_MODULE,
   apiService: noticeProcessLogService,
   dataAttrTargets: standardCrudDataAttrTargets(noticeProcessLogService),
   defaultQuery: {
@@ -60,9 +61,7 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
       key: 'ownerId',
       label: '所属用户',
       layoutOrder: 30,
-      loadOptions: userOptionsLoader,
-      remoteSearch: true,
-      type: 'select',
+      type: 'user-tree-select',
     },
     {
       key: 'id',

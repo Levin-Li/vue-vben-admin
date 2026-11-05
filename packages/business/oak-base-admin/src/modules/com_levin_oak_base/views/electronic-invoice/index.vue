@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { computed, reactive, ref } from 'vue';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
@@ -82,12 +83,12 @@ async function submitRedIssue() {
     redIssueOpen.value = false;
     try {
       await reloadInvoices.value?.();
-    } catch {
-      message.warning('红冲已提交，但列表刷新失败');
+    } catch (error) {
+      notifyApiErrorOnce(error);
     }
   } catch (error) {
     console.error(error);
-    message.error('红冲申请提交失败');
+    notifyApiErrorOnce(error);
   } finally {
     redIssueSubmitting.value = false;
   }

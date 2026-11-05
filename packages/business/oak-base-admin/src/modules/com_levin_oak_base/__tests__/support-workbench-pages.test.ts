@@ -179,6 +179,42 @@ vi.mock(
     };
   },
 );
+
+// 公共选择器用轻量节点模拟交互，候选仍通过真实包装组件的范围加载器。
+vi.mock('@levin/admin-framework', async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return {
+    ...original,
+    UserOrgSelector: {
+      props: [
+        'modelValue',
+        'userLoadApi',
+        'orgLoadApi',
+        'multiple',
+        'disabled',
+      ],
+      emits: ['update:modelValue', 'update:selectedRecords'],
+      data: () => ({ options: [] as Record<string, any>[] }),
+      methods: {
+        async load(this: any) {
+          this.options = await (this.userLoadApi || this.orgLoadApi)({});
+        },
+        change(this: any, event: Event) {
+          const value = (event.target as HTMLSelectElement).value;
+          this.$emit('update:modelValue', this.multiple ? [value] : value);
+          if (this.orgLoadApi)
+            this.$emit(
+              'update:selectedRecords',
+              this.options
+                .filter((item: any) => item.id === value)
+                .map((item: any) => ({ ...item, kind: 'org' })),
+            );
+        },
+      },
+      template: `<select :disabled="disabled" @focus="load" @change="change"><option v-for="item in options" :key="item.id" :value="item.id">{{ item.realName || item.name || item.id }}</option></select>`,
+    },
+  };
+});
 vi.mock('../api/user-service', () => ({ userService: { list: mocks.users } }));
 vi.mock('../api/role-service', () => ({ roleService: { list: mocks.roles } }));
 vi.mock('@vben/runtime/stores', () => ({
@@ -187,7 +223,21 @@ vi.mock('@vben/runtime/stores', () => ({
 vi.mock('../views/api-module', () => ({
   moduleFetchEnumOptions: mocks.enumOptions,
   moduleFetchOptions: mocks.sourceOptions,
+  tenantOptionsLoader: async () => [
+    { label: '租户甲', value: 'tenant' },
+    { label: '租户乙', value: 'tenant-b' },
+  ],
 }));
+vi.mock(
+  '@levin/admin-framework/framework-commons/app/api/rbac-service',
+  () => ({
+    rbacService: {
+      fetchAuthorizedOrgTreeByTenant: async (tenantId: string) => [
+        { id: 'org-b', name: '乙组织', tenantId },
+      ],
+    },
+  }),
+);
 vi.mock('../views/support-scope-selector.vue', () => ({
   default: {
     emits: ['change'],
@@ -259,9 +309,9 @@ vi.mock('ant-design-vue', () => {
       template: `<label><input type="checkbox" :checked="checked" @change="$emit('update:checked', $event.target.checked)" /><slot /></label>`,
     },
     Select: {
-      props: ['value', 'options', 'mode'],
+      props: ['value', 'options', 'mode', 'disabled'],
       emits: ['update:value'],
-      template: `<select :value="value" @change="$emit('update:value', mode === 'multiple' ? [$event.target.value] : $event.target.value)"><option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option></select>`,
+      template: `<select :disabled="disabled" :value="value" @change="$emit('update:value', mode === 'multiple' ? [$event.target.value] : $event.target.value)"><option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option></select>`,
     },
     Modal: {
       props: ['open', 'title', 'footer'],
@@ -322,6 +372,7 @@ describe('邮件工单工作台业务入口', () => {
     mocks.sourceOptions.mockResolvedValue([]);
     mocks.users.mockResolvedValue({
       items: [{ id: 'user', realName: 'Queue handler' }],
+      totals: 1,
     });
     mocks.roles.mockResolvedValue({
       items: [{ code: 'R_HANDLER', name: 'Handler role', tenantId: 'tenant' }],
@@ -400,6 +451,119 @@ describe('邮件工单工作台业务入口', () => {
       supportEventsByCurrentStatus: ['回复'],
     });
   });
+  it.each([
+    { component: QueuePage, action: '编辑' },
+    { component: MailboxPage, action: '修改' },
+  ])('平台编辑 $action 时租户与组织不可迁移', async ({ component, action }) => {
+    const wrapper = mount(component);
+    await button(wrapper, '选择范围').trigger('click');
+    await flushPromises();
+    await button(wrapper, action).trigger('click');
+    await flushPromises();
+    expect(
+      (wrapper.get('[data-testid=form-tenant]').element as HTMLSelectElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      (
+        wrapper.get('[data-testid=form-organization]')
+          .element as HTMLSelectElement
+      ).disabled,
+    ).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('平台用户无需查询组织即可新增，未选表单组织不能保存', async () => {
+    mocks.userInfo = { platformUser: true, tenantId: '' };
+    const wrapper = mount(QueuePage);
+    await flushPromises();
+    await button(wrapper, '新建队列').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid=form-tenant]').exists()).toBe(true);
+    await button(wrapper, '确认').trigger('click');
+    await flushPromises();
+    expect(mocks.queue.save).not.toHaveBeenCalled();
+    await wrapper.get('[data-testid=form-tenant]').trigger('focus');
+    await flushPromises();
+    await wrapper.get('[data-testid=form-tenant]').setValue('tenant-b');
+    await wrapper.get('[data-testid=form-organization]').trigger('focus');
+    await flushPromises();
+    await wrapper.get('[data-testid=form-organization]').setValue('org-b');
+    const [code, name] = wrapper
+      .findAll('input')
+      .filter((input) => input.attributes('type') !== 'checkbox');
+    if (!code || !name) throw new Error('Missing queue fields');
+    await code.setValue('queue-b');
+    await name.setValue('Queue B');
+    await button(wrapper, '确认').trigger('click');
+    await flushPromises();
+    expect(mocks.queue.save).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-b', orgId: 'org-b' }),
+    );
+    wrapper.unmount();
+  });
+
+  it('平台新增队列切换租户后只提交目标租户授权组织', async () => {
+    mocks.userInfo = { platformUser: true, tenantId: 'tenant' };
+    const wrapper = mount(QueuePage);
+    await button(wrapper, '选择范围').trigger('click');
+    await flushPromises();
+    await button(wrapper, '新建队列').trigger('click');
+    await flushPromises();
+    const tenant = wrapper.get('[data-testid=form-tenant]');
+    await tenant.trigger('focus');
+    await flushPromises();
+    await tenant.setValue('tenant-b');
+    const organization = wrapper.get('[data-testid=form-organization]');
+    await organization.trigger('focus');
+    await flushPromises();
+    await organization.setValue('org-b');
+    const [code, name] = wrapper
+      .findAll('input')
+      .filter((input) => input.attributes('type') !== 'checkbox');
+    if (!code || !name) throw new Error('Missing queue fields');
+    await code.setValue('queue-b');
+    await name.setValue('Queue B');
+    await button(wrapper, '确认').trigger('click');
+    await flushPromises();
+    expect(mocks.queue.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-b',
+        orgId: 'org-b',
+        handlerUserIds: [],
+        handlerRoleCodes: [],
+      }),
+    );
+  });
+
+  it('平台新增邮箱切换租户后按目标授权组织查询候选', async () => {
+    mocks.userInfo = { platformUser: true, tenantId: 'tenant' };
+    const wrapper = mount(MailboxPage);
+    await flushPromises();
+    await button(wrapper, '选择范围').trigger('click');
+    await flushPromises();
+    await button(wrapper, '新增客服邮箱').trigger('click');
+    await flushPromises();
+    const tenant = wrapper.get('[data-testid=form-tenant]');
+    await tenant.trigger('focus');
+    await flushPromises();
+    await tenant.setValue('tenant-b');
+    const organization = wrapper.get('[data-testid=form-organization]');
+    await organization.trigger('focus');
+    await flushPromises();
+    await organization.setValue('org-b');
+    await wrapper.get('[data-testid=mailbox-assignee]').trigger('focus');
+    await flushPromises();
+    expect(mocks.users).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-b',
+        orgId: 'org-b',
+        orgIdList: ['org-b'],
+      }),
+      { __globalUserOrgContext: { tenantId: 'tenant-b', orgIds: ['org-b'] } },
+    );
+  });
+
   it.each([true, false])(
     '队列候选使用真实DTO范围且保存仍携带tenant，platform=%s',
     async (platformUser) => {
@@ -409,22 +573,27 @@ describe('邮件工单工作台业务入口', () => {
       await flushPromises();
       await button(wrapper, '新建队列').trigger('click');
       await flushPromises();
-      const [userSelect, roleSelect] = wrapper.findAll('select');
+      const userSelect = wrapper.find('[data-testid=queue-handler-users]');
+      const roleSelect = wrapper.find('[data-testid=queue-handler-roles]');
       if (!userSelect || !roleSelect)
         throw new Error('Missing handler selectors');
       await userSelect.trigger('focus');
       await roleSelect.trigger('focus');
       await flushPromises();
       const tenantScope = platformUser ? { tenantId: 'tenant' } : {};
-      expect(mocks.users).toHaveBeenCalledWith({
-        ...tenantScope,
-        orgId: 'org',
-        orgIdList: ['org'],
-        enable: true,
-        containsName: '',
-        pageIndex: 1,
-        pageSize: 100,
-      });
+      expect(mocks.users).toHaveBeenCalledWith(
+        {
+          ...tenantScope,
+          orgId: 'org',
+          orgIdList: ['org'],
+          enable: true,
+          containsName: '',
+          requireTotals: true,
+          pageIndex: 1,
+          pageSize: 100,
+        },
+        { __globalUserOrgContext: { tenantId: 'tenant', orgIds: ['org'] } },
+      );
       expect(mocks.roles).toHaveBeenCalledWith({
         ...tenantScope,
         containsPublicData: false,
@@ -483,24 +652,27 @@ describe('邮件工单工作台业务入口', () => {
       if (!channelSelect) throw new Error('Missing source channel');
       await channelSelect.setValue(channel);
       await flushPromises();
-      const fields = wrapper.findAll('section select');
-      const assignee = fields[3];
-      const source = fields[1];
+      const assignee = wrapper.find('[data-testid=mailbox-assignee]');
+      const source = wrapper.find('[data-testid=mailbox-source]');
       if (!source || !assignee)
         throw new Error('Missing mailbox source/assignee');
       await source.trigger('focus');
       await assignee.trigger('focus');
       await flushPromises();
       const tenantScope = platformUser ? { tenantId: 'tenant' } : {};
-      expect(mocks.users).toHaveBeenLastCalledWith({
-        ...tenantScope,
-        orgId: 'org',
-        orgIdList: ['org'],
-        enable: true,
-        containsName: '',
-        pageIndex: 1,
-        pageSize: 100,
-      });
+      expect(mocks.users).toHaveBeenLastCalledWith(
+        {
+          ...tenantScope,
+          orgId: 'org',
+          orgIdList: ['org'],
+          enable: true,
+          containsName: '',
+          requireTotals: true,
+          pageIndex: 1,
+          pageSize: 100,
+        },
+        { __globalUserOrgContext: { tenantId: 'tenant', orgIds: ['org'] } },
+      );
       expect(mocks.sourceOptions).toHaveBeenLastCalledWith(
         channel === 'LocalSmtp' ? '/Domain/list' : '/EmailRelayRoute/list',
         'name',
@@ -532,7 +704,7 @@ describe('邮件工单工作台业务入口', () => {
       mocks.route.query = { id: 'ticket-1' };
       mocks.ticket.retrieve.mockResolvedValue({
         id: 'ticket-1',
-        tenantId: 'tenant',
+        tenantId: platformUser ? 'tenant' : undefined,
         orgId: 'org',
         status: 'InProgress',
         optimisticLock: 6,
@@ -545,15 +717,19 @@ describe('邮件工单工作台业务入口', () => {
       const assignee = wrapper.find('section select');
       await assignee.trigger('focus');
       await flushPromises();
-      expect(mocks.users).toHaveBeenLastCalledWith({
-        ...(platformUser ? { tenantId: 'tenant' } : {}),
-        orgId: 'org',
-        orgIdList: ['org'],
-        enable: true,
-        containsName: '',
-        pageIndex: 1,
-        pageSize: 100,
-      });
+      expect(mocks.users).toHaveBeenLastCalledWith(
+        {
+          ...(platformUser ? { tenantId: 'tenant' } : {}),
+          orgId: 'org',
+          orgIdList: ['org'],
+          enable: true,
+          containsName: '',
+          requireTotals: true,
+          pageIndex: 1,
+          pageSize: 100,
+        },
+        { __globalUserOrgContext: { tenantId: 'tenant', orgIds: ['org'] } },
+      );
       expect(assignee.text()).toContain('Queue handler');
       expect(mocks.ticket.assign).not.toHaveBeenCalled();
     },
@@ -613,7 +789,7 @@ describe('邮件工单工作台业务入口', () => {
       await flushPromises();
       await button(wrapper, '新建队列').trigger('click');
       await flushPromises();
-      const roleSelect = wrapper.findAll('select')[1];
+      const roleSelect = wrapper.find('[data-testid=queue-handler-roles]');
       if (!roleSelect) throw new Error('Missing role selector');
       await roleSelect.trigger('focus');
       await flushPromises();
@@ -1122,46 +1298,51 @@ describe('邮件工单工作台业务入口', () => {
     ).toBe(false);
   });
 
-  it('核验服务端拒绝后清空旧外发，不提供重试或自动发送', async () => {
-    mocks.route.query = { id: 'ticket-1' };
-    mocks.ticket.messages.mockResolvedValue({
-      items: [
-        { id: 'message-out', body: '记录', outboundIntentId: 'intent-1' },
-      ],
-      totals: 1,
-    });
-    mocks.ticket.outbound.mockResolvedValue({
-      id: 'intent-1',
-      ticketId: 'ticket-1',
-      status: 'Unknown',
-      attemptCount: 1,
-      optimisticLock: 7,
-    });
-    mocks.ticket.resolveOutboundUnsent.mockRejectedValueOnce(
-      new Error('permission-revoked'),
-    );
-    const wrapper = mount(TicketPage);
-    await flushPromises();
-    await button(wrapper, '查看外发结果').trigger('click');
-    await flushPromises();
-    await button(wrapper, '核验工单邮件未受理').trigger('click');
-    await wrapper
-      .get('input[placeholder="无机密证据记录标识，禁止URL、token或原文"]')
-      .setValue('CASE-1');
-    await wrapper.get('input[type="checkbox"]').setValue(true);
-    await button(wrapper, '确认').trigger('click');
-    await flushPromises();
-    expect(mocks.notify.error).toHaveBeenCalledWith(
-      '核验失败，请重新读取当前外发状态与权限',
-    );
-    expect(
-      wrapper
-        .findAll('button')
-        .some((item) => item.text() === '重试发送前失败'),
-    ).toBe(false);
-    expect(mocks.ticket.retryOutbound).not.toHaveBeenCalled();
-    expect(mocks.ticket.reply).not.toHaveBeenCalled();
-  });
+  it.each([
+    [new Error('permission-revoked'), '发生服务器异常'],
+    [{ msg: '无权核验此工单' }, '无权核验此工单'],
+  ])(
+    '核验失败后显示服务端提示或统一兜底并清空旧外发',
+    async (failure, expected) => {
+      mocks.route.query = { id: 'ticket-1' };
+      mocks.ticket.messages.mockResolvedValue({
+        items: [
+          { id: 'message-out', body: '记录', outboundIntentId: 'intent-1' },
+        ],
+        totals: 1,
+      });
+      mocks.ticket.outbound.mockResolvedValue({
+        id: 'intent-1',
+        ticketId: 'ticket-1',
+        status: 'Unknown',
+        attemptCount: 1,
+        optimisticLock: 7,
+      });
+      mocks.ticket.resolveOutboundUnsent.mockRejectedValueOnce(failure);
+      const wrapper = mount(TicketPage);
+      await flushPromises();
+      await button(wrapper, '查看外发结果').trigger('click');
+      await flushPromises();
+      await button(wrapper, '核验工单邮件未受理').trigger('click');
+      await wrapper
+        .get('input[placeholder="无机密证据记录标识，禁止URL、token或原文"]')
+        .setValue('CASE-1');
+      await wrapper.get('input[type="checkbox"]').setValue(true);
+      await button(wrapper, '确认').trigger('click');
+      await flushPromises();
+      expect(mocks.notify.error).toHaveBeenCalledWith({
+        content: expected,
+        key: expect.stringMatching(/^api-error:\d+$/),
+      });
+      expect(
+        wrapper
+          .findAll('button')
+          .some((item) => item.text() === '重试发送前失败'),
+      ).toBe(false);
+      expect(mocks.ticket.retryOutbound).not.toHaveBeenCalled();
+      expect(mocks.ticket.reply).not.toHaveBeenCalled();
+    },
+  );
 
   it('切换范围后旧外发GET响应不恢复核验或重试内容', async () => {
     mocks.route.query = { id: 'ticket-1' };

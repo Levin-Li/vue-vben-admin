@@ -66,6 +66,27 @@ vi.mock('../api/support-mailbox-setting-service', () => ({
 vi.mock('../api/ticket-queue-service', () => ({
   ticketQueueService: mocks.queues,
 }));
+
+// 公共选择器用轻量节点模拟交互，候选仍通过真实包装组件的范围加载器。
+vi.mock('@levin/admin-framework', async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return {
+    ...original,
+    UserOrgSelector: {
+      props: ['modelValue', 'userLoadApi', 'multiple'],
+      emits: ['update:modelValue'],
+      data: () => ({ options: [] as Record<string, any>[] }),
+      methods: {
+        async load(this: any) { this.options = await this.userLoadApi({}); },
+        change(this: any, event: Event) {
+          const value = (event.target as HTMLSelectElement).value;
+          this.$emit('update:modelValue', this.multiple ? [value] : value);
+        },
+      },
+      template: `<select @focus="load" @change="change"><option v-for="item in options" :key="item.id" :value="item.id">{{ item.realName || item.name || item.id }}</option></select>`,
+    },
+  };
+});
 vi.mock('../api/user-service', () => ({ userService: mocks.users }));
 vi.mock('../views/api-module', () => ({
   moduleFetchOptions: mocks.sources,
@@ -237,7 +258,7 @@ describe('support mailbox rule positive component contracts', () => {
       totals: 2,
     });
     mocks.users.list.mockResolvedValue({
-      items: [{ id: 'user-a', realName: 'Authorized handler' }],
+      items: [{ id: 'user-a', realName: 'Authorized handler' }], totals: 1,
     });
     mocks.sources.mockImplementation(async (path: string) =>
       path === '/Domain/list' ? [domain] : [relay],

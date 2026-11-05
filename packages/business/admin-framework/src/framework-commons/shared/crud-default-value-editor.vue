@@ -10,6 +10,7 @@ import {
   findMatchingCrudChoiceOption,
   normalizeCrudChoiceOptions,
 } from './crud-choice-value';
+import { filterCrudLocalSelectOption } from './crud-local-search';
 
 const props = defineProps<{
   field?: CrudFieldConfig;
@@ -123,6 +124,7 @@ function updateChoice(value: unknown) {
     v-if="hasChoices"
     :value="selectedValue"
     :options="selectOptions"
+    :filter-option="filterCrudLocalSelectOption"
     :loading="loading"
     :not-found-content="loadFailed ? '选项加载失败' : '暂无选项'"
     option-filter-prop="label"

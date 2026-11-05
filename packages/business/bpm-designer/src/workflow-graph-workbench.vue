@@ -8,6 +8,7 @@ import type { WorkflowTaskGraph } from './workflow-task-graph';
 
 import { computed, ref, toRaw } from 'vue';
 
+import { UserOrgSelector } from '@levin/admin-framework';
 import {
   Alert,
   Button,
@@ -52,6 +53,32 @@ const emit = defineEmits<{
   refreshed: [value: WorkflowDefinitionVersion];
   'update:definition': [value: EditableGraph];
 }>();
+// 模拟办理人仅从设计器提供的候选中选择。
+const simulationUserRootId = '__workflow_simulation_users__';
+const loadSimulationUserRoot = async () => [
+  { id: simulationUserRootId, name: '可选办理人' },
+];
+
+const loadSimulationUsers = async () =>
+  (props.options.users || []).map((user) => ({
+    id: user.id,
+    name: user.label,
+  }));
+const resolveSimulationUsers = async (ids: string[]) =>
+  (props.options.users || [])
+    .filter((user) => ids.includes(user.id))
+    .map((user) => ({
+      id: user.id,
+      name: user.label,
+      kind: 'user' as const,
+    }));
+function allowedSimulationUser(value: unknown): string | undefined {
+  return typeof value === 'string' &&
+    props.options.users?.some((user) => user.id === value)
+    ? value
+    : undefined;
+}
+
 const service = computed(() => props.service ?? new WorkflowDesignerService());
 const busy = ref(false);
 const actionError = ref('');
@@ -502,23 +529,24 @@ async function run(
                     })
                 "
               />
-              <Select
+              <UserOrgSelector
                 v-else
-                :value="step.userId"
+                :key="JSON.stringify(options.users || [])"
+                :model-value="step.userId"
                 :disabled="!editable || busy"
+                :max-select-count="1"
+                :org-load-api="loadSimulationUserRoot"
+                :user-load-api="loadSimulationUsers"
+                :resolve-records="resolveSimulationUsers"
+                :selectable-types="['user']"
+                value-mode="id"
                 placeholder="办理人"
-                :options="
-                  options.users?.map((user) => ({
-                    label: user.label,
-                    value: user.id,
-                  }))
-                "
-                @update:value="
-                  (value) =>
+                @update:model-value="
+                  (value: unknown) =>
                     changeCases((graph) => {
                       graph.simulationPolicy!.cases[index]!.steps[
                         stepIndex
-                      ]!.userId = value == null ? undefined : String(value);
+                      ]!.userId = allowedSimulationUser(value);
                     })
                 "
               />

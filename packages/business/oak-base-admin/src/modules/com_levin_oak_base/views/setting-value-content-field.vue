@@ -11,6 +11,7 @@ import { IconifyIcon } from '@vben/runtime/icons';
 
 import { requestClient } from '@levin/admin-framework';
 import CodeEditorField from '@levin/admin-framework/framework-commons/shared/code-editor-field.vue';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
 import { normalizeJsonSchemaObject } from '@levin/admin-framework/framework-commons/shared/json-schema-form';
 import JsonSchemaFormField from '@levin/admin-framework/framework-commons/shared/json-schema-form-field.vue';
@@ -177,6 +178,7 @@ watch(
     :value="formState.valueContent"
     allow-clear
     class="w-full"
+    :filter-option="filterCrudLocalSelectOption"
     show-search
     @update:value="setValue"
   />

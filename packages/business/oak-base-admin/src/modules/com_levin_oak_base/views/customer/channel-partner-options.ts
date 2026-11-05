@@ -8,6 +8,7 @@ type ChannelPartner = {
   id?: number | string;
   legalSubjectName?: string;
   subjectOrgId?: number | string;
+  tenantId?: string;
   type?: string;
 };
 
@@ -21,7 +22,7 @@ export async function loadChannelPartnerPage(
     '/ChannelPartner/list',
     {
       enable: true,
-      id: keyword.trim() || undefined,
+      containsDisplayName: keyword.trim() || undefined,
       pageIndex,
       pageSize: PAGE_SIZE,
       tenantId,
@@ -35,7 +36,10 @@ export async function loadChannelPartnerPage(
         (partner) =>
           partner.id !== null &&
           partner.id !== undefined &&
-          partner.enable !== false,
+          partner.enable !== false &&
+          (!tenantId ||
+            !partner.tenantId ||
+            partner.tenantId === String(tenantId)),
       )
       .map((partner) => ({
         label: `${partner.displayName || `渠道伙伴 ${partner.id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '渠道'}`,

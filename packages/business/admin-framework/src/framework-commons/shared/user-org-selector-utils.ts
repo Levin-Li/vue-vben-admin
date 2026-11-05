@@ -250,7 +250,11 @@ export function buildUserOrgSelectorOrgTree(
     const matchLeafRule =
       (!options.onlyLeafNode || isLeaf) &&
       (!options.onlyNotLeafNode || !isLeaf);
-    const orgSelectable = allowSelectOrg && orgTypeMatched && matchLeafRule;
+    const orgSelectable =
+      allowSelectOrg &&
+      orgTypeMatched &&
+      matchLeafRule &&
+      item.disabled !== true;
     const canLoadUsers = allowSelectUser && orgTypeMatched;
 
     result.push(

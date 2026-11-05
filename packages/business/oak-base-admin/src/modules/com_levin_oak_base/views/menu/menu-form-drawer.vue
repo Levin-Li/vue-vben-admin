@@ -7,6 +7,7 @@ import { useUserStore } from '@vben/runtime/stores';
 
 import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 import { parseMenuFixedQuery } from '@levin/admin-framework/framework-commons/menu-fixed-query';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
   Button,
@@ -298,6 +299,13 @@ async function submit() {
     submitting.value = false;
   }
 }
+// 树控件的显示文本可能放在 title，而普通选择器使用 label。
+function filterTreeNode(input: string, node: Record<string, any>) {
+  return filterCrudLocalSelectOption(input, {
+    label: node.title ?? node.label,
+    value: node.value,
+  });
+}
 </script>
 
 <template>
@@ -324,6 +332,7 @@ async function submit() {
             allow-clear
             class="w-full"
             placeholder="请选择上级菜单"
+            :filter-tree-node="filterTreeNode"
             show-search
             tree-default-expand-all
             :tree-data="parentTreeData"
@@ -351,6 +360,7 @@ async function submit() {
           <Select
             :value="selectedPage?.value"
             :options="pageChoices"
+            :filter-option="filterCrudLocalSelectOption"
             show-search
             option-filter-prop="label"
             placeholder="选择要复用的已有页面"

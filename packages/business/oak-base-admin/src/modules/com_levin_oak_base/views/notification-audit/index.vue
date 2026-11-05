@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
 import type {
@@ -171,8 +172,8 @@ async function open(
     detail.value = result;
     detailScope.value = requestScope;
     opened.value = true;
-  } catch {
-    message.error('投递详情不可访问或已失效');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 function begin(value: 'resolveUnsent' | 'retry') {
@@ -211,8 +212,8 @@ async function submit() {
     action.value = undefined;
     await open(result, detailScope.value);
     await reloadList?.();
-  } catch {
-    message.error('人工处理失败，请刷新核对权限、状态和版本');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     processing.value = false;
   }
@@ -239,8 +240,8 @@ onMounted(async () => {
       label: item.label,
       value: String(item.value),
     }));
-  } catch {
-    message.error('投递状态选项加载失败');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 });
 </script>

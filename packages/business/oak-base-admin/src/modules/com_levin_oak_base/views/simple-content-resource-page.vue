@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { PermissionTreeNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
@@ -855,7 +856,7 @@ async function loadScriptMockUserOptions(keyword = '') {
     );
   } catch (error) {
     console.error(error);
-    message.error('加载模拟用户失败');
+    notifyApiErrorOnce(error);
   } finally {
     scriptMockUserLoading.value = false;
   }
@@ -984,7 +985,7 @@ async function openContentEditor(record: GenericRecord, reload?: ReloadList) {
   } catch (error) {
     contentOpen.value = false;
     console.error(error);
-    message.error('加载内容失败');
+    notifyApiErrorOnce(error);
   } finally {
     contentLoading.value = false;
   }
@@ -1038,7 +1039,7 @@ async function submitContent() {
     await reload?.();
   } catch (error) {
     console.error(error);
-    message.error('内容更新失败');
+    notifyApiErrorOnce(error);
   } finally {
     contentSubmitting.value = false;
   }
@@ -1349,7 +1350,7 @@ async function testScriptContent() {
     if (responseBody?.success === false) {
       scriptTestPassedDraftFingerprint.value = '';
       scriptTestStatus.value = 'failed';
-      message.warning('脚本测试执行失败');
+      notifyApiErrorOnce(responseBody);
     } else {
       // 只有运行时明确成功的当前草稿，才能解锁最终保存。
       scriptTestPassedDraftFingerprint.value = currentScriptDraftFingerprint.value;
@@ -1374,7 +1375,7 @@ async function testScriptContent() {
         },
       },
     );
-    message.error('脚本测试请求失败');
+    notifyApiErrorOnce(error);
   } finally {
     scriptTestLoading.value = false;
   }
@@ -1393,7 +1394,7 @@ async function ensurePermissionTreeLoaded() {
       })) || []) as PermissionTreeNode[];
   } catch (error) {
     console.error(error);
-    message.error('加载资源权限列表失败');
+    notifyApiErrorOnce(error);
   } finally {
     permissionLoading.value = false;
   }
@@ -1422,7 +1423,7 @@ async function openPermissionEditor(
   } catch (error) {
     permissionOpen.value = false;
     console.error(error);
-    message.error('加载所需权限失败');
+    notifyApiErrorOnce(error);
   } finally {
     permissionLoading.value = false;
   }
@@ -1463,7 +1464,7 @@ async function submitRequireAuthorizations() {
     await reload?.();
   } catch (error) {
     console.error(error);
-    message.error('所需权限更新失败');
+    notifyApiErrorOnce(error);
   } finally {
     permissionSubmitting.value = false;
   }

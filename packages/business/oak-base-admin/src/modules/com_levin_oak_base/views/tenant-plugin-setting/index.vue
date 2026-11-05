@@ -11,7 +11,9 @@ import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
 
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
@@ -330,7 +332,7 @@ async function loadSettings() {
   } catch (error) {
     console.error(error);
     errorMessage.value = '租户插件设置加载失败';
-    message.error(errorMessage.value);
+    notifyApiErrorOnce(error);
   } finally {
     loading.value = false;
   }
@@ -351,7 +353,7 @@ async function loadPlugins() {
   } catch (error) {
     console.error(error);
     providerSelectionModes.value = {};
-    message.error('服务插件或供应商选择模式加载失败，配置写入已禁用');
+    notifyApiErrorOnce(error);
   } finally {
     pluginsLoading.value = false;
   }
@@ -509,7 +511,7 @@ async function saveBasicSetting() {
     await loadSettings();
   } catch (error) {
     console.error(error);
-    message.error(item ? '基本信息保存失败' : '插件配置新增失败');
+    notifyApiErrorOnce(error);
   } finally {
     basicSubmitting.value = false;
   }
@@ -552,7 +554,7 @@ async function updateEnable(item: TenantPluginSettingItem, enable: boolean) {
     await loadSettings();
   } catch (error) {
     console.error(error);
-    message.error('配置状态更新失败');
+    notifyApiErrorOnce(error);
   } finally {
     delete enableUpdatingIds[item.id];
   }
@@ -646,7 +648,7 @@ async function saveEditValue() {
     await loadSettings();
   } catch (error) {
     console.error(error);
-    message.error('配置保存失败');
+    notifyApiErrorOnce(error);
   } finally {
     editValueSubmitting.value = false;
   }
@@ -880,6 +882,7 @@ onMounted(() => {
             :options="pluginOptions"
             :value="basicFormState.servicePluginId"
             placeholder="请选择服务插件"
+            :filter-option="filterCrudLocalSelectOption"
             show-search
             @update:value="
               handleBasicPluginChange(

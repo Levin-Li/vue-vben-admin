@@ -42,9 +42,8 @@ describe('orgPageCrudConfig', () => {
         expect.objectContaining({
           key: 'responsibleUserId',
           label: '组织负责人',
-          remoteSearch: true,
           search: true,
-          type: 'select',
+          type: 'user-tree-select',
         }),
       ]),
     );

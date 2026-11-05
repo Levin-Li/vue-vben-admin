@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { ProviderOnboardingGuidance } from '../provider-onboarding-guidance';
 import type { ProviderSelectionModes } from '../provider-selection-mode';
 
@@ -273,7 +274,7 @@ async function saveProviderConfig() {
     await reloadSettings.value?.();
   } catch (error) {
     console.error(error);
-    message.error('供应商配置保存失败');
+    notifyApiErrorOnce(error);
   } finally {
     providerConfigSaving.value = false;
   }
@@ -315,7 +316,7 @@ async function loadPlugins() {
   } catch (error) {
     console.error(error);
     providerSelectionModes.value = {};
-    message.error('加载服务插件或供应商选择模式失败，配置写入已禁用');
+    notifyApiErrorOnce(error);
   } finally {
     pluginsLoading.value = false;
   }

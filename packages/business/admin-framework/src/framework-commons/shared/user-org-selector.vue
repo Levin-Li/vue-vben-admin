@@ -13,14 +13,16 @@ import type {
   UserOrgTreeSelectNode,
 } from './user-org-selector-types';
 
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/runtime/icons';
 
 import { message, Tree, TreeSelect } from 'ant-design-vue';
 
 import { fetchCrudList } from '../api';
+import { notifyApiErrorOnce } from '../app/api/api-error-message';
 import { rbacService } from '../app/api/rbac-service';
+import { matchesPinyinFuzzySearch } from './pinyin-fuzzy-search';
 import {
   buildSelectedRecordGroupNode,
   buildUserOrgSelectorOrgTree,
@@ -74,6 +76,15 @@ const props = defineProps({
   },
   userLoadApi: {
     type: Function as PropType<UserOrgSelectorLoadUsers>,
+  },
+  userSearchApi: {
+    default: undefined,
+    type: Function as PropType<
+      (context: {
+        keyword: string;
+        orgId: string;
+      }) => Promise<Record<string, any>[]>
+    >,
   },
   loadOrgTree: {
     type: Function as PropType<UserOrgSelectorLoadOrgTree>,
@@ -182,6 +193,11 @@ const selectedRecordMap = ref(new Map<string, UserOrgSelectorRecord>());
 const loadedOrgNodeKeys = ref(new Set<string>());
 const loadingOrgNodeKeys = ref(new Set<string>());
 const hasLoadedOrgTree = ref(false);
+const searchUsersByOrg = ref(new Map<string, UserOrgTreeSelectNode[]>());
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+let searchGeneration = 0;
+let orgTreeLoadPromise: Promise<void> | undefined;
+let orgTreeGeneration = 0;
 
 const normalizedOrgTypes = computed(() =>
   normalizeSelectorTypes(props.orgTypes),
@@ -232,9 +248,19 @@ const displayTreeData = computed(() => {
     existingKeys,
   );
 
-  return selectedGroup
-    ? [selectedGroup, ...orgTreeData.value]
-    : orgTreeData.value;
+  function addSearchUsers(
+    nodes: UserOrgTreeSelectNode[],
+  ): UserOrgTreeSelectNode[] {
+    return nodes.map((node) => ({
+      ...node,
+      children: mergeChildrenByKey(
+        addSearchUsers(node.children || []),
+        searchUsersByOrg.value.get(node.key) || [],
+      ),
+    }));
+  }
+  const nodes = addSearchUsers(orgTreeData.value);
+  return selectedGroup ? [selectedGroup, ...nodes] : nodes;
 });
 
 const inlineTreeData = computed(() => {
@@ -247,9 +273,10 @@ const inlineTreeData = computed(() => {
   ): UserOrgTreeSelectNode[] {
     return nodes.flatMap((node) => {
       const children = filterNodes(node.children || []);
-      const matches = String(node.title || '')
-        .toLocaleLowerCase()
-        .includes(keyword);
+      const matches = matchesPinyinFuzzySearch(
+        keyword,
+        String(node.title || ''),
+      );
       return matches || children.length > 0
         ? [{ ...node, children: matches ? node.children : children }]
         : [];
@@ -263,6 +290,11 @@ onMounted(() => {
   // 内嵌树随手机抽屉挂载，打开后才读取授权候选，不再依赖第二层下拉事件。
   if (props.inline)
     void handleDropdownVisibleChange(true).catch(() => undefined);
+});
+
+onBeforeUnmount(() => {
+  searchGeneration++;
+  clearTimeout(searchTimer);
 });
 
 watch(
@@ -322,8 +354,14 @@ watch(
     props.showTenantNodes,
   ],
   () => {
+    orgTreeGeneration++;
+    searchGeneration++;
+    clearTimeout(searchTimer);
+    searchUsersByOrg.value = new Map();
     // 首次进入保持空候选，只有已打开过选择器时才随配置变化刷新。
-    if (hasLoadedOrgTree.value) {
+    if (hasLoadedOrgTree.value || orgTreeLoadPromise) {
+      hasLoadedOrgTree.value = false;
+      orgTreeData.value = [];
       void loadOrgTree();
     }
   },
@@ -343,7 +381,22 @@ async function handleDropdownVisibleChange(visible: boolean) {
   emit('dropdown-visible-change', visible);
 }
 
-async function loadOrgTree() {
+function loadOrgTree() {
+  if (orgTreeLoadPromise) return orgTreeLoadPromise;
+  const pending = (async () => {
+    let generation: number;
+    do {
+      generation = orgTreeGeneration;
+      await performLoadOrgTree(generation);
+    } while (generation !== orgTreeGeneration);
+  })().finally(() => {
+    if (orgTreeLoadPromise === pending) orgTreeLoadPromise = undefined;
+  });
+  orgTreeLoadPromise = pending;
+  return pending;
+}
+
+async function performLoadOrgTree(generation: number) {
   loading.value = true;
 
   try {
@@ -353,6 +406,8 @@ async function loadOrgTree() {
           assembleTree: true,
           rootOrgIdList: normalizedRootOrgIds.value,
         });
+
+    if (generation !== orgTreeGeneration) return;
 
     const orgNodes = buildUserOrgSelectorOrgTree(data || [], {
       maxLoadDeep: props.maxLoadDeep,
@@ -399,12 +454,16 @@ async function loadOrgTree() {
         (node) => node.kind === 'org' && node.selectable === true,
       ),
     );
-    treeExpandedKeys.value = [];
-    expandConfiguredOrgPaths();
+    const keyword = searchValue.value.trim().toLocaleLowerCase();
+    treeExpandedKeys.value = keyword
+      ? getSearchExpandedKeys(orgTreeData.value, keyword)
+      : [];
+    if (!keyword) expandConfiguredOrgPaths();
     loadedOrgNodeKeys.value = new Set();
   } catch (error) {
+    if (generation !== orgTreeGeneration) return;
     orgTreeData.value = [];
-    message.error('加载授权组织失败');
+    notifyApiErrorOnce(error);
     throw error;
   } finally {
     loading.value = false;
@@ -460,7 +519,7 @@ async function handleLoadData(treeNode: Record<string, any>) {
     mergeSelectedRecords(userNodes);
     loadedOrgNodeKeys.value = new Set([key, ...loadedOrgNodeKeys.value]);
   } catch (error) {
-    message.error(`加载“${node.name}”下的数据失败`);
+    notifyApiErrorOnce(error);
     throw error;
   } finally {
     const nextLoadingKeys = new Set(loadingOrgNodeKeys.value);
@@ -494,7 +553,7 @@ async function loadUsersForOrg(org: UserOrgSelectorRecord) {
     props.userApiModuleBase,
     {
       // 候选用户必须按当前展开组织查询，不能被全局选择状态反向覆盖。
-      skipGlobalUserOrgContext: true,
+      globalUserOrgContext: { orgIds: [org.id] },
     },
   );
 
@@ -670,6 +729,11 @@ function getRecordByKey(key: string) {
     return toRecord(node);
   }
 
+  for (const users of searchUsersByOrg.value.values()) {
+    const match = users.find((user) => user.key === key);
+    if (match) return toRecord(match);
+  }
+
   const decoded = decodeUserOrgSelectorKey(key);
 
   if (!decoded) {
@@ -785,8 +849,10 @@ function getSearchExpandedKeys(
   const expandedKeys = new Set<string>();
 
   for (const node of nodes) {
-    const nodeTitle = String(node.title || '').toLocaleLowerCase();
-    const isMatched = nodeTitle.includes(keyword);
+    const isMatched = matchesPinyinFuzzySearch(
+      keyword,
+      String(node.title || ''),
+    );
     const nextAncestorKeys = [...ancestorKeys, node.key];
 
     if (isMatched) {
@@ -856,7 +922,11 @@ function getNodeTitleParts(title: string) {
 }
 
 function handleSearch(value: string) {
-  const keyword = value.trim().toLocaleLowerCase();
+  const query = value.trim();
+  const keyword = query.toLocaleLowerCase();
+  const generation = ++searchGeneration;
+  clearTimeout(searchTimer);
+  searchUsersByOrg.value = new Map();
 
   if (!keyword) {
     searchValue.value = '';
@@ -871,6 +941,54 @@ function handleSearch(value: string) {
 
   searchValue.value = value;
   treeExpandedKeys.value = getSearchExpandedKeys(orgTreeData.value, keyword);
+  if (
+    props.userSearchApi &&
+    allowSelectUserByMode.value &&
+    keyword.length <= 128
+  ) {
+    searchTimer = setTimeout(() => void searchUsers(query, generation), 300);
+  }
+}
+
+async function searchUsers(keyword: string, generation: number) {
+  try {
+    if (!hasLoadedOrgTree.value) await loadOrgTree();
+    if (generation !== searchGeneration) return;
+    const results = new Map<string, UserOrgTreeSelectNode[]>();
+    const orgs = flattenUserOrgTreeNodes(orgTreeData.value).filter(
+      (node) => node.kind === 'org' && node.canLoadUsers,
+    );
+    for (const org of orgs) {
+      const users = await props.userSearchApi!({ orgId: org.id, keyword });
+      if (generation !== searchGeneration) return;
+      results.set(
+        org.key,
+        users
+          .filter((item) => !item.orgId || String(item.orgId) === org.id)
+          .map((item) => normalizeUserSelectorRecord(item, org))
+          .filter((item) => item.id)
+          .filter(
+            (item) =>
+              normalizedUserTypes.value.length === 0 ||
+              normalizedUserTypes.value.includes(String(item.type || '')),
+          )
+          .map((item) =>
+            toUserOrgTreeSelectNode(item, { isLeaf: true, selectable: true }),
+          ),
+      );
+    }
+    searchUsersByOrg.value = results;
+    treeExpandedKeys.value = getSearchExpandedKeys(
+      displayTreeData.value,
+      keyword,
+    );
+  } catch (error) {
+    if (generation === searchGeneration) notifyApiErrorOnce(error);
+  }
+}
+
+function filterTreeNode(input: string, node: Record<string, any>) {
+  return matchesPinyinFuzzySearch(input, String(node.title || ''));
 }
 
 function handleInlineSelect(keys: Array<number | string>) {
@@ -969,6 +1087,7 @@ function handleInlineExpand(keys: Array<number | string>) {
     v-else
     :allow-clear="allowClear"
     :disabled="disabled"
+    :filter-tree-node="filterTreeNode"
     :load-data="handleLoadData"
     :loading="loading"
     :multiple="effectiveMultiple"

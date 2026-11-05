@@ -1,18 +1,19 @@
 <script lang="ts" setup>
+import type { PayChannelServicePlugin } from './pay-channel-provider';
+
 import { computed, onMounted, ref, watch } from 'vue';
 
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
+import JsonSchemaEditorField from '@levin/admin-framework/framework-commons/shared/json-schema-editor-field.vue';
 import { Alert, Select } from 'ant-design-vue';
 
 import { servicePluginService } from '../../api/service-plugin-service';
-import JsonSchemaEditorField from '@levin/admin-framework/framework-commons/shared/json-schema-editor-field.vue';
-
 import {
   createPayChannelDetailInfo,
   getPayChannelPluginImplType,
   getPayChannelProviders,
   normalizePayChannelDetailInfo,
   reconcilePayChannelProviderSelection,
-  type PayChannelServicePlugin,
 } from './pay-channel-provider';
 
 const props = defineProps<{
@@ -33,12 +34,12 @@ const detailInfo = computed<Record<string, any>>(() =>
   normalizePayChannelDetailInfo(props.formState.detailInfo),
 );
 const selectedProviderCode = computed(() =>
-  String(props.formState.providerCode || detailInfo.value.providerCode || '').trim(),
+  String(
+    props.formState.providerCode || detailInfo.value.providerCode || '',
+  ).trim(),
 );
 const selectedProvider = computed(() =>
-  providers.value.find(
-    (item) => item.code === selectedProviderCode.value,
-  ),
+  providers.value.find((item) => item.code === selectedProviderCode.value),
 );
 const providerOptions = computed(() =>
   providers.value.map((item) => ({
@@ -162,6 +163,7 @@ onMounted(() => {
       :value="selectedProviderCode || undefined"
       allow-clear
       class="w-full"
+      :filter-option="filterCrudLocalSelectOption"
       show-search
       @update:value="selectProvider"
     />

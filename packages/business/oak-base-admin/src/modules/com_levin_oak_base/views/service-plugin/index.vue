@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type {
   ProviderSelectionMode,
   ProviderSelectionModes,
@@ -120,7 +121,7 @@ onMounted(async () => {
     modesReady.value = true;
   } catch (error) {
     console.error(error);
-    message.error('供应商选择模式加载失败，目录编辑已禁用');
+    notifyApiErrorOnce(error);
   }
 });
 
@@ -217,7 +218,7 @@ async function saveBaseConfig() {
     baseConfigOpen.value = false;
   } catch (error) {
     console.error(error);
-    message.error('基本配置保存失败，请刷新后重试');
+    notifyApiErrorOnce(error);
   } finally {
     baseConfigSaving.value = false;
   }
@@ -258,7 +259,7 @@ async function saveProviders() {
     providerListOpen.value = false;
   } catch (error) {
     console.error(error);
-    message.error('供应商信息保存失败，请刷新后重试');
+    notifyApiErrorOnce(error);
   } finally {
     providerListSaving.value = false;
   }

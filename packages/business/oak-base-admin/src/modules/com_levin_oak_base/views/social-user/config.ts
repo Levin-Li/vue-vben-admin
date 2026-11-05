@@ -1,12 +1,12 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { socialUserService } from '../../api/social-user-service';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
-  userOptionsLoader,
 } from '../api-module';
 
 const userSexOptionsLoader = buildEnumOptionsLoader(
@@ -22,6 +22,7 @@ export const pageMeta = {
 export const socialUserPageCrudConfig: CrudPageConfig = {
   apiBase: '/SocialUser',
   domainObject: true,
+  apiModuleBase: OAK_BASE_API_MODULE,
   apiService: socialUserService,
   dataAttrTargets: standardCrudDataAttrTargets(socialUserService),
   defaultFormValues: {
@@ -71,10 +72,9 @@ export const socialUserPageCrudConfig: CrudPageConfig = {
       label: '内部用户',
       layoutGroup: 'basic',
       layoutOrder: 20,
-      loadOptions: userOptionsLoader,
-      remoteSearch: true,
+
       search: true,
-      type: 'select',
+      type: 'user-tree-select',
     },
     {
       key: 'sourcePlatform',

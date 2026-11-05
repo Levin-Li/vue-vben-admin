@@ -102,3 +102,17 @@ describe('RbacService user info', () => {
     );
   });
 });
+
+describe('按租户读取授权组织', () => {
+  it('使用独立接口传递租户与树形参数', async () => {
+    mocks.requestGet.mockResolvedValueOnce([]);
+    await new RbacService().fetchAuthorizedOrgTreeByTenant('tenant-a');
+    expect(mocks.requestGet).toHaveBeenLastCalledWith(
+      expect.stringMatching(/\/rbac\/authorizedOrgListByTenant$/),
+      {
+        params: { tenantId: 'tenant-a', assembleTree: true },
+        __skipGlobalUserOrgContext: true,
+      },
+    );
+  });
+});

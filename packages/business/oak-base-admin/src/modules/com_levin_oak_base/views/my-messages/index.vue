@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { NoticeSourceInfo } from '../../api/notice-service';
 import type { MyMessageInfo } from '../../api/user-message-service';
 
@@ -125,7 +126,7 @@ async function loadMessages(nextPage = pageIndex.value) {
     console.error(error);
     if (version === listRequestVersion) {
       errorMessage.value = '我的消息加载失败，请重试';
-      message.error(errorMessage.value);
+      notifyApiErrorOnce(error);
     }
   } finally {
     if (version === listRequestVersion) loading.value = false;
@@ -148,7 +149,7 @@ async function openMessage(item: MyMessageInfo) {
     detailOpen.value = true;
   } catch (error) {
     console.error(error);
-    message.error('消息详情不可访问或已失效');
+    notifyApiErrorOnce(error);
   }
 }
 
@@ -173,7 +174,7 @@ async function markRead(ids: string[]) {
     }
   } catch (error) {
     console.error(error);
-    message.error('标记已读失败，请重试');
+    notifyApiErrorOnce(error);
   } finally {
     submitting.value = false;
   }

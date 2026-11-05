@@ -1,4 +1,8 @@
-import { authenticateResponseInterceptor, RequestClient } from '@vben/runtime/request';
+import {
+  authenticateResponseInterceptor,
+  RequestClient,
+} from '@vben/runtime/request';
+import { message } from 'ant-design-vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -181,6 +185,47 @@ describe('dynamic verify code interceptor', () => {
   beforeEach(() => {
     modalConfirm.mockClear();
     modalInstances.length = 0;
+  });
+
+  it('验证码申请业务失败时保留后端提示', async () => {
+    let modal: any;
+    modalConfirm.mockImplementationOnce((options: any) => {
+      modal = options;
+      return {
+        update: (next: any) => {
+          modal = { ...modal, ...next };
+        },
+      };
+    });
+    const client = new RequestClient({
+      adapter: async (config) => ({
+        config,
+        data:
+          config.headers?.['-DynamicVerifyCode-'] === 'Apply'
+            ? { code: 10_000, msg: '验证码发送次数已达上限' }
+            : null,
+        headers:
+          config.headers?.['-DynamicVerifyCode-'] === 'Apply'
+            ? {}
+            : {
+                '-DynamicVerifyCode-': 'Apply',
+                '-DynamicVerifyCode-Type': 'Sms',
+              },
+        status: 200,
+        statusText: 'OK',
+      }),
+      responseReturn: 'data',
+    });
+    client.addResponseInterceptor(createDynamicVerifyCodeInterceptor(client));
+    const pending = client.get('/protected').catch(() => undefined);
+    await vi.waitFor(() => expect(modal).toBeDefined());
+    const button = findNode(modal.content, 'button');
+    await expect(button.props.onClick()).rejects.toBeDefined();
+    expect(message.error).toHaveBeenCalledWith(
+      expect.objectContaining({ content: '验证码发送次数已达上限' }),
+    );
+    modal.onCancel();
+    await pending;
   });
 
   it('未触发二次验证的上传只复制条目，不读取或编码整个文件', async () => {

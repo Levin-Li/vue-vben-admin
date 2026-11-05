@@ -1,5 +1,7 @@
 # @levin/admin-framework
 
+[请求错误提示接入](docs/api-error-notification.md)说明后端消息、统一兜底及去重方法。
+
 [默认加密 API 路径使用指南](docs/url-acl-default-crypto-paths.md)列出主动加密路径、协议边界与最小验证方法。
 
 [标准 CRUD 简要表单接入指南](docs/crud-brief-form.md)说明页面指定字段、权限过滤、完整表单切换与部分成功处理。

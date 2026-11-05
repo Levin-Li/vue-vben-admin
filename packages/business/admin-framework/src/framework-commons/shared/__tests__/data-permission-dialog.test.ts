@@ -3,6 +3,7 @@ import { defineComponent } from 'vue';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { setCurrentGlobalDomainIds } from '../../app/global-domain-context-state';
 import DataPermissionDialog from '../data-permission-dialog.vue';
 
 const mocks = vi.hoisted(() => ({
@@ -129,7 +130,11 @@ vi.mock('ant-design-vue', () => {
     Tag: defineComponent({ template: '<span><slot /></span>' }),
     Tabs: tabs,
     Tooltip: defineComponent({ template: '<span><slot /></span>' }),
-    TreeSelect: defineComponent({ template: '<div><slot /></div>' }),
+    TreeSelect: defineComponent({
+      name: 'TreeSelectStub',
+      props: { filterTreeNode: { type: Function, default: undefined } },
+      template: '<div><slot /></div>',
+    }),
     Switch: defineComponent({
       name: 'SwitchStub',
       props: { checked: Boolean, disabled: Boolean },
@@ -321,6 +326,11 @@ describe('数据权限候选三档分配', () => {
     expect(options.find('input').exists()).toBe(true);
     expect(options.text()).not.toContain('更多领域候选项');
     expect(domain.text()).toContain('支付领域');
+    await options.find('input').setValue('zfly');
+    expect(domain.text()).toContain('支付领域');
+    await options.find('input').setValue('domain-pay');
+    expect(domain.text()).toContain('支付领域');
+    await options.find('input').setValue('');
     expect(wrapper.text()).toContain('甲租户');
     expect(
       choice(wrapper, '支付领域', '未设置')?.attributes('aria-pressed'),
@@ -343,6 +353,87 @@ describe('数据权限候选三档分配', () => {
       options.find('[data-testid="data-permission-footer"]').exists(),
     ).toBe(false);
     wrapper.unmount();
+  });
+
+  it('关闭并切换对象后不复用或回填旧范围候选', async () => {
+    mocks.domainOptions.mockResolvedValueOnce([
+      { label: '甲领域', value: 'a' },
+    ]);
+    const wrapper = await openDialog('role');
+    let resolveOld!: (value: Array<{ label: string; value: string }>) => void;
+    mocks.domainOptions.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveOld = resolve;
+        }),
+    );
+    await wrapper.find('section:first-of-type input').setValue('旧');
+    await wrapper.setProps({ open: false });
+    mocks.domainOptions.mockResolvedValueOnce([
+      { label: '乙领域', value: 'b' },
+    ]);
+    await wrapper.setProps({ record: { id: 'subject-2' }, open: true });
+    await flushPromises();
+    expect(wrapper.text()).toContain('乙领域');
+    expect(wrapper.text()).not.toContain('甲领域');
+    resolveOld([{ label: '旧领域', value: 'old' }]);
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('旧领域');
+    wrapper.unmount();
+  });
+
+  it('旧租户名称回显在切换对象后不能污染新范围', async () => {
+    let resolveOld!: (value: unknown) => void;
+    const oldTenant = new Promise((resolve) => {
+      resolveOld = resolve;
+    });
+    mocks.get.mockImplementation((url: string) =>
+      url.endsWith('/Tenant/list')
+        ? oldTenant
+        : Promise.resolve({ id: 'subject', tenantScopeList: ['same-id'] }),
+    );
+    const wrapper = mount(DataPermissionDialog, {
+      props: {
+        loadDomainOptions: mocks.domainOptions,
+        open: true,
+        record: { id: 'first' },
+        subjectType: 'role',
+      },
+    });
+    await flushPromises();
+    await wrapper.setProps({ open: false });
+    mocks.get.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith('/Tenant/list')
+          ? { items: [{ id: 'same-id', name: '新租户' }] }
+          : { id: 'subject', tenantScopeList: ['same-id'] },
+      ),
+    );
+    await wrapper.setProps({ record: { id: 'second' }, open: true });
+    await flushPromises();
+    expect(wrapper.text()).toContain('新租户');
+    resolveOld({ items: [{ id: 'same-id', name: '旧租户' }] });
+    await flushPromises();
+    expect(wrapper.text()).toContain('新租户');
+    expect(wrapper.text()).not.toContain('旧租户');
+    wrapper.unmount();
+  });
+
+  it('全局领域范围变更时清除旧范围候选', async () => {
+    mocks.domainOptions.mockResolvedValueOnce([
+      { label: '甲领域', value: 'a' },
+    ]);
+    const wrapper = await openDialog('role');
+    expect(wrapper.text()).toContain('甲领域');
+    mocks.domainOptions.mockResolvedValueOnce([
+      { label: '乙领域', value: 'b' },
+    ]);
+    setCurrentGlobalDomainIds(['domain-next']);
+    await flushPromises();
+    expect(wrapper.text()).toContain('乙领域');
+    expect(wrapper.text()).not.toContain('甲领域');
+    wrapper.unmount();
+    setCurrentGlobalDomainIds([]);
   });
 
   it('简单与高级模式共用一条允许禁止说明，不恢复其它常驻横幅', async () => {
@@ -840,6 +931,14 @@ describe('数据权限候选三档分配', () => {
       .find((button) => button.text() === '编辑')
       ?.trigger('click');
     expect(wrapper.text()).toContain('匹配表达式');
+    const filter = wrapper
+      .findComponent({ name: 'TreeSelectStub' })
+      .props('filterTreeNode') as (
+      keyword: string,
+      node: Record<string, unknown>,
+    ) => boolean;
+    expect(filter('sxxt', { title: '山西心跳', value: 'org-a' })).toBe(true);
+    expect(filter('org-a', { title: '山西心跳', value: 'org-a' })).toBe(true);
     wrapper.unmount();
   });
 

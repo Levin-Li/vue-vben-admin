@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getApiErrorMessage, notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
@@ -35,9 +36,6 @@ const selectedScopeRecord = ref<UserOrgSelectorRecord>();
 const scope = ref<SupportScope>();
 const scopeVersion = ref(0);
 const error = ref('');
-watch(error, (value) => {
-  if (value) message.error(value);
-});
 const detail = ref<InboxRecord>();
 const opened = ref(false);
 const mime = ref('');
@@ -69,6 +67,7 @@ async function open(id: string) {
   error.value = '';
   if (!allowed('retrieve')) {
     error.value = '邮件来源不可访问';
+    message.error(error.value);
     return;
   }
   try {
@@ -77,8 +76,11 @@ async function open(id: string) {
     detail.value = result;
     showHtmlSource.value = false;
     opened.value = true;
-  } catch {
-    if (current === detailVersion) error.value = '邮件来源不可访问或已失效';
+  } catch (error_) {
+    if (current === detailVersion) {
+      error.value = getApiErrorMessage(error_);
+      notifyApiErrorOnce(error_);
+    }
   }
 }
 function changeScope(record?: UserOrgSelectorRecord) {
@@ -107,6 +109,7 @@ async function loadDeepLink(value: unknown) {
   if (value === undefined) return;
   if (typeof value !== 'string' || !/^[A-Z0-9][\w.:-]{0,63}$/i.test(value)) {
     error.value = '邮件定位参数无效';
+    message.error(error.value);
     return;
   }
   await open(value);
@@ -138,8 +141,8 @@ async function download(blobId: string, preview = false) {
       link.click();
       URL.revokeObjectURL(url);
     }
-  } catch {
-    message.error('私有文件不可访问或已失效');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     pending.value = false;
   }
@@ -162,8 +165,8 @@ async function loadRules(page = 1) {
       .map((item) => ({ value: item.id, label: item.email }));
     ruleTotal.value = result.totals;
     rulePage.value = page;
-  } catch {
-    message.error('客服邮箱不可访问');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 async function beginIntake() {
@@ -188,8 +191,8 @@ async function intake() {
     intakeOpen.value = false;
     message.success('已转为工单');
     await router.push({ path: '/clob/V1/Ticket', query: { id: ticketId } });
-  } catch {
-    message.error('转工单失败，请核对收件范围和客服邮箱设置');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     pending.value = false;
   }

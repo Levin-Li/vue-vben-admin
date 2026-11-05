@@ -31,6 +31,23 @@ const mocks = vi.hoisted(() => ({
     attachmentDownload: vi.fn(),
   },
 }));
+vi.mock('@levin/admin-framework', async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return {
+    ...original,
+    UserOrgSelector: {
+      props: ['modelValue', 'userLoadApi', 'disabled'],
+      emits: ['update:modelValue'],
+      data: () => ({ options: [] as Record<string, any>[] }),
+      methods: {
+        async load(this: any) {
+          this.options = await this.userLoadApi({});
+        },
+      },
+      template: `<select :disabled="disabled" @focus="load" @change="$emit('update:modelValue', $event.target.value)"><option v-for="item in options" :key="item.id" :value="item.id">{{ item.realName || item.name }}</option></select>`,
+    },
+  };
+});
 vi.mock('../api/ticket-service', () => ({ ticketService: mocks.ticket }));
 vi.mock('../api/user-service', () => ({ userService: { list: mocks.users } }));
 vi.mock('@vben/runtime/stores', () => ({
@@ -210,6 +227,7 @@ describe('工单工作台授权交互阳性合同', () => {
     mocks.ticket.messages.mockResolvedValue({ items: [], totals: 0 });
     mocks.users.mockResolvedValue({
       items: [{ id: 'handler-1', realName: '授权处理人' }],
+      totals: 1,
     });
   });
   afterEach(() => {
@@ -260,15 +278,19 @@ describe('工单工作台授权交互阳性合同', () => {
       const select = wrapper.get('section select');
       await select.trigger('focus');
       await flushPromises();
-      expect(mocks.users).toHaveBeenCalledWith({
-        ...(platformUser ? { tenantId: 'tenant' } : {}),
-        orgId: 'org',
-        orgIdList: ['org'],
-        enable: true,
-        containsName: '',
-        pageIndex: 1,
-        pageSize: 100,
-      });
+      expect(mocks.users).toHaveBeenCalledWith(
+        {
+          ...(platformUser ? { tenantId: 'tenant' } : {}),
+          orgId: 'org',
+          orgIdList: ['org'],
+          enable: true,
+          containsName: '',
+          requireTotals: true,
+          pageIndex: 1,
+          pageSize: 100,
+        },
+        { __globalUserOrgContext: { tenantId: 'tenant', orgIds: ['org'] } },
+      );
       expect(select.text()).toContain('授权处理人');
       await select.setValue('handler-1');
       await wrapper.get('textarea').setValue('转交当前可用处理人');

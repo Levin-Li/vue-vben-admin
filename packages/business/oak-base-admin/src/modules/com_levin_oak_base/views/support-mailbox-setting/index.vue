@@ -10,22 +10,31 @@ import type {
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
+import { useUserStore } from '@vben/runtime/stores';
+
+import { UserOrgSelector } from '@levin/admin-framework';
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
+import { isPlatformUser as isPlatformIdentity } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { Button, Form, Input, message, Modal, Select } from 'ant-design-vue';
 
 import { supportMailboxSettingService } from '../../api/support-mailbox-setting-service';
 import { ticketQueueService } from '../../api/ticket-queue-service';
-import { userService } from '../../api/user-service';
 import { helpDocumentUrl } from '../../help-center';
-import { moduleFetchEnumOptions, moduleFetchOptions } from '../api-module';
+import {
+  moduleFetchEnumOptions,
+  moduleFetchOptions,
+  tenantOptionsLoader,
+} from '../api-module';
 import {
   buildMailboxSourceQuery,
-  buildSupportUserQuery,
   usableMailboxSource,
 } from '../support-options';
 import SupportScopeSelector from '../support-scope-selector.vue';
+import SupportUserSelector from '../support-user-selector.vue';
 import { createSupportMailboxSettingCrudConfig } from './config';
 
 // 保存只提交受控配置对象；启停使用独立命令与读取时的版本。
@@ -38,6 +47,37 @@ const allowed = (method: string) =>
 const selectedScopeRecord = ref<UserOrgSelectorRecord>();
 const scope = ref<SupportScope>();
 const selectedFormScopeRecord = ref<UserOrgSelectorRecord>();
+const formTenantId = ref<string>();
+const tenantOptions = ref<{ label: string; value: string }[]>([]);
+const platformUser = computed(() =>
+  isPlatformIdentity(useUserStore().userInfo),
+);
+// 租户仅用于缩小授权组织候选，服务端仍校验归属。
+async function loadTenantOptions(keyword = '') {
+  try {
+    const options = await tenantOptionsLoader(keyword);
+    tenantOptions.value = options.map((item) => ({
+      label: item.label,
+      value: String(item.value),
+    }));
+  } catch (error) {
+    notifyApiErrorOnce(error);
+  }
+}
+function changeFormTenant(value?: string) {
+  if (currentRecord.value || value === formTenantId.value) return;
+  formTenantId.value = value;
+  changeFormScope(undefined);
+}
+function selectFormOrganization(records: UserOrgSelectorRecord[]) {
+  const record = records[0];
+  if (
+    record &&
+    (record.kind !== 'org' || record.tenantId !== formTenantId.value)
+  )
+    return;
+  changeFormScope(record);
+}
 const formScope = computed<SupportScope | undefined>(() => {
   const record = selectedFormScopeRecord.value;
   return record?.kind === 'org' && record.tenantId
@@ -59,7 +99,6 @@ const draft = reactive<MailboxConfig>({
 const channels = ref<{ label: string; value: string }[]>([]);
 const priorities = ref<{ label: string; value: string }[]>([]);
 const queues = ref<{ label: string; value: string }[]>([]);
-const users = ref<{ label: string; value: string }[]>([]);
 const sources = ref<{ label: string; value: string }[]>([]);
 const canSave = computed(() =>
   allowed(currentRecord.value ? 'update' : 'create'),
@@ -103,7 +142,6 @@ function changeScope(record?: UserOrgSelectorRecord) {
   selectedFormScopeRecord.value = undefined;
   formScopeGeneration += 1;
   queues.value = [];
-  users.value = [];
   sources.value = [];
   listVersion += 1;
   scopeGeneration.value += 1;
@@ -124,7 +162,6 @@ function changeFormScope(record?: UserOrgSelectorRecord) {
   draft.emailRelayRouteId = undefined;
   draft.outboundConfigRef = undefined;
   queues.value = [];
-  users.value = [];
   sources.value = [];
 }
 async function open(record?: MailboxRecord) {
@@ -142,6 +179,7 @@ async function open(record?: MailboxRecord) {
     if (JSON.stringify(scope.value) !== selected) return;
     currentRecord.value = result;
     selectedFormScopeRecord.value = selectedScopeRecord.value;
+    formTenantId.value = selectedScopeRecord.value?.tenantId;
     formScopeGeneration += 1;
     Object.assign(
       draft,
@@ -159,8 +197,8 @@ async function open(record?: MailboxRecord) {
       currentRecord.value,
     );
     editing.value = true;
-  } catch {
-    message.error('客服邮箱设置不可访问');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 async function searchQueues(code = '') {
@@ -181,27 +219,8 @@ async function searchQueues(code = '') {
         value: item.id,
         label: `${item.name} (${item.code})`,
       }));
-  } catch {
-    if (generation === formScopeGeneration) message.error('工单队列不可访问');
-  }
-}
-async function searchUsers(containsName = '') {
-  const selected = formScope.value;
-  if (!selected) return;
-  const generation = formScopeGeneration;
-  try {
-    const result = (await userService.list(
-      buildSupportUserQuery(selected, containsName),
-    )) as { items: { id: string; name?: string; realName?: string }[] };
-    if (generation !== formScopeGeneration) return;
-    users.value = (result.items || []).map(
-      (item: { id: string; name?: string; realName?: string }) => ({
-        value: item.id,
-        label: item.realName || item.name || item.id,
-      }),
-    );
-  } catch {
-    if (generation === formScopeGeneration) message.error('处理人不可访问');
+  } catch (error_) {
+    if (generation === formScopeGeneration) notifyApiErrorOnce(error_);
   }
 }
 async function searchSources(search = '') {
@@ -225,8 +244,8 @@ async function searchSources(search = '') {
         label: item.label,
         value: String(item.value),
       }));
-  } catch {
-    if (generation === formScopeGeneration) message.error('邮件来源不可访问');
+  } catch (error_) {
+    if (generation === formScopeGeneration) notifyApiErrorOnce(error_);
   }
 }
 function changeChannel() {
@@ -291,9 +310,8 @@ async function save() {
     } else {
       await reloadList();
     }
-  } catch {
-    if (generation === formScopeGeneration)
-      message.error('保存失败，请核对邮箱来源、队列和版本');
+  } catch (error_) {
+    if (generation === formScopeGeneration) notifyApiErrorOnce(error_);
   } finally {
     saving.value = false;
   }
@@ -309,8 +327,8 @@ async function switchEnabled(record: MailboxRecord) {
       optimisticLock: record.optimisticLock,
     });
     await reloadList();
-  } catch {
-    message.error('启停失败，请刷新并核对客服邮箱设置');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 onMounted(async () => {
@@ -329,8 +347,8 @@ onMounted(async () => {
       label: item.label,
       value: String(item.value),
     }));
-  } catch {
-    message.error('配置选项加载失败，请刷新');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 });
 </script>
@@ -388,7 +406,54 @@ onMounted(async () => {
       layout="vertical"
       class="grid grid-cols-1 gap-x-4 md:grid-cols-2"
     >
-      <Form.Item v-if="!currentRecord" label="处理组织" required>
+      <!-- 平台用户先选择租户，再选择其授权组织；编辑固定原归属。 -->
+      <Form.Item v-if="platformUser" label="归属租户" required>
+        <Select
+          data-testid="form-tenant"
+          :value="formTenantId"
+          :disabled="Boolean(currentRecord)"
+          :options="
+            tenantOptions.length > 0
+              ? tenantOptions
+              : formTenantId
+                ? [
+                    {
+                      label:
+                        selectedFormScopeRecord?.tenantName || formTenantId,
+                      value: formTenantId,
+                    },
+                  ]
+                : []
+          "
+          :filter-option="false"
+          allow-clear
+          show-search
+          placeholder="请选择归属租户"
+          @focus="loadTenantOptions()"
+          @search="loadTenantOptions"
+          @update:value="
+            (value) =>
+              changeFormTenant(value == null ? undefined : String(value))
+          "
+        />
+      </Form.Item>
+      <Form.Item v-if="platformUser" label="处理组织" required>
+        <UserOrgSelector
+          data-testid="form-organization"
+          :key="formTenantId"
+          :disabled="!formTenantId || Boolean(currentRecord)"
+          :model-value="selectedFormScopeRecord"
+          :org-load-api="
+            () => rbacService.fetchAuthorizedOrgTreeByTenant(formTenantId!)
+          "
+          :selectable-types="['org']"
+          :max-select-count="1"
+          value-mode="record"
+          placeholder="请选择处理组织"
+          @update:selected-records="selectFormOrganization"
+        />
+      </Form.Item>
+      <Form.Item v-else-if="!currentRecord" label="处理组织" required>
         <SupportScopeSelector
           :model-value="selectedFormScopeRecord"
           @change="changeFormScope"
@@ -416,6 +481,7 @@ onMounted(async () => {
       >
         <Select
           v-if="draft.inboundChannel === 'LocalSmtp'"
+          data-testid="mailbox-source"
           v-model:value="draft.mailDomainId"
           :disabled="!formScope"
           show-search
@@ -426,6 +492,7 @@ onMounted(async () => {
         />
         <Select
           v-else
+          data-testid="mailbox-source"
           v-model:value="draft.emailRelayRouteId"
           :disabled="!formScope"
           show-search
@@ -448,15 +515,15 @@ onMounted(async () => {
         />
       </Form.Item>
       <Form.Item label="默认处理人">
-        <Select
-          v-model:value="draft.defaultAssigneeId"
-          :disabled="!formScope"
-          allow-clear
-          show-search
-          :filter-option="false"
-          :options="users"
-          @search="searchUsers"
-          @focus="searchUsers()"
+        <SupportUserSelector
+          data-testid="mailbox-assignee"
+          :key="`${formScope?.tenantId || ''}:${formScope?.orgId || ''}`"
+          :model-value="draft.defaultAssigneeId"
+          :scope="formScope"
+          @update:model-value="
+            draft.defaultAssigneeId =
+              typeof $event === 'string' ? $event : undefined
+          "
         />
       </Form.Item>
       <Form.Item label="默认优先级" required>

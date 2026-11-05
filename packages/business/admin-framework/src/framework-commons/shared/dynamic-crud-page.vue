@@ -96,7 +96,11 @@ import {
   fetchCrudList,
   updateCrudRecord,
 } from '../api';
-import { isApiErrorNotified } from '../app/api/api-error-message';
+import {
+  getApiErrorMessage,
+  isApiErrorNotified,
+  notifyApiErrorOnce,
+} from '../app/api/api-error-message';
 import {
   FILE_STORAGE_MULTI_UPLOAD_PATH,
   FILE_STORAGE_SINGLE_UPLOAD_PATH,
@@ -261,6 +265,11 @@ import { assertCrudMutationApplied } from './crud-mutation-result';
 import { shouldShowCrudOperationColumn } from './crud-operation-column-visibility';
 import { getCrudOrgLoadApi } from './crud-org-selector';
 import {
+  getCrudUserLoadApi,
+  getCrudUserResolveRecords,
+  getCrudUserSearchApi,
+} from './crud-user-selector';
+import {
   filterCrudOperationsByListTable,
   groupCrudOperationsByRecordRef,
 } from './crud-operation-placement';
@@ -371,6 +380,7 @@ import PageDisplaySettingsDrawer from './page-display-settings-drawer.vue';
 import RichTextEditorField from './rich-text-editor-field.vue';
 import {
   collectUserRoleIdentityValues,
+  isPlatformUser as resolvePlatformUser,
   isSuperAdminUser,
 } from './user-identity';
 
@@ -412,9 +422,21 @@ function getCrudErrorMessage(error: unknown, fallback: string) {
     fallback
   );
 }
+function isLocalCrudError(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    !(error as any).isAxiosError &&
+    !(error as any).response
+  );
+}
 function showCrudError(error: unknown, fallback: string) {
-  if (!isApiErrorNotified(error)) {
+  if (isApiErrorNotified(error)) {
+    return;
+  }
+  if (isLocalCrudError(error)) {
     message.error(getCrudErrorMessage(error, fallback));
+  } else {
+    notifyApiErrorOnce(error);
   }
 }
 interface ListTableRuntimeState {
@@ -777,17 +799,17 @@ async function savePageDisplaySettings(payload: {
           UI_SETTING_RETRIEVE_PATH,
           { params: { id: saved.id } },
         );
-    } catch {
+    } catch (error) {
       // 上传已成功但回查失败，清除旧时间并明确提示，避免误报上传失败。
       pageDisplayTitleRecord.value = { ...saved, lastUpdateTime: undefined };
-      message.warning('上传成功，但最新记录信息读取失败，请重新加载确认');
+      notifyApiErrorOnce(error);
     }
     // 保存目标可不同于当前登录人，重新解析当前上下文，避免把目标配置错误套用到当前页面。
     await loadPageDisplaySettings(true);
     message.success('当前配置已上传');
   } catch (error) {
     console.error('上传当前页面展示配置失败。', error);
-    message.error('上传当前配置失败，请稍后重试');
+    notifyApiErrorOnce(error);
   } finally {
     pageDisplaySettingSaving.value = false;
   }
@@ -986,24 +1008,7 @@ let listTableTabsDragState: null | {
   startY: number;
 } = null;
 
-const isPlatformUser = computed(() => {
-  const userInfo = userStore.userInfo as Record<string, any>;
-  let roles: any[] = [];
-
-  if (Array.isArray(userInfo?.roles)) {
-    roles = userInfo.roles;
-  } else if (Array.isArray(userInfo?.roleList)) {
-    roles = userInfo.roleList;
-  }
-
-  return (
-    userInfo?.platformUser === true ||
-    userInfo?.isPlatformUser === true ||
-    userInfo?.platformAdmin === true ||
-    userInfo?.isPlatformAdmin === true ||
-    roles.some((role) => String(role || '').startsWith('R_PLATFORM_'))
-  );
-});
+const isPlatformUser = computed(() => resolvePlatformUser(userStore.userInfo));
 
 function isFieldVisible(field: CrudFieldConfig) {
   if (field.key === 'editable') {
@@ -1031,8 +1036,25 @@ function isFieldDisabledOnEdit(field: CrudFieldConfig) {
   return field.disabledOnEdit === true;
 }
 
+// 平台用户的租户字段明确存在时，关联选择必须使用当前表单租户。
+function isTenantDependentField(field: CrudFieldConfig) {
+  return (
+    isPlatformUser.value &&
+    props.config.fields.some((item) => item.key === 'tenantId') &&
+    (field.tenantDependent === true ||
+      field.type === 'org-tree-select' ||
+      field.type === 'user-tree-select')
+  );
+}
+
+function formTenantId(field: CrudFieldConfig): string | undefined {
+  if (!isTenantDependentField(field)) return undefined;
+  return String(formState.tenantId || '').trim() || undefined;
+}
+
 function isFormFieldInteractionDisabled(field: CrudFieldConfig) {
   return (
+    (isTenantDependentField(field) && !formTenantId(field)) ||
     (!editingRecord.value && isFixedCrudFormField(field, menuFixedQuery)) ||
     isFieldDisabledOnEdit(field) ||
     getPageDisplayField(editingRecord.value ? 'edit' : 'create', field.key)
@@ -1051,6 +1073,22 @@ function getInteractionModelValue(value: any, disabled: boolean) {
 }
 
 function updateFormFieldInput(field: CrudFieldConfig, value: any) {
+  const tenantChanged =
+    field.key === 'tenantId' &&
+    formState.tenantId !== value &&
+    !isFormFieldInteractionDisabled(field);
+  if (tenantChanged) {
+    for (const dependent of props.config.fields.filter((item) =>
+      isTenantDependentField(item),
+    )) {
+      formState[dependent.key] = undefined;
+      optionRequestVersions[dependent.key] =
+        (optionRequestVersions[dependent.key] || 0) + 1;
+      optionState[dependent.key] = [];
+      optionLoadedState[dependent.key] = false;
+      optionLoadingState[dependent.key] = false;
+    }
+  }
   updateCrudFieldInput(
     formState,
     field.key,
@@ -1318,6 +1356,19 @@ function isPageDisplayRoleVisible(
 ) {
   if (view === 'detail') return true;
   const userInfo = userStore.userInfo as Record<string, unknown> | undefined;
+  const configured = pageDisplayConfig.value[view]?.fields.find(
+    (field) => field.key === key,
+  );
+  const sourceField = effectiveFields.value.find((field) => field.key === key);
+  // 缺省租户字段按平台身份判断；页面或用户明确设置角色时按角色限制。
+  if (
+    key === 'tenantId' &&
+    (view === 'create' || view === 'edit') &&
+    !Object.hasOwn(configured || {}, 'visibleRoleCodes') &&
+    sourceField?.defaultVisibleRoleCodes === undefined
+  ) {
+    return isPlatformUser.value;
+  }
   return isRoleVisibilitySatisfied(
     getPageDisplayField(view, key)?.visibleRoleCodes,
     collectUserRoleIdentityValues(userInfo || {}),
@@ -3589,6 +3640,7 @@ function isChoiceFormField(field: CrudFieldConfig) {
   return (
     field.type === 'area-cascader' ||
     field.type === 'org-tree-select' ||
+    field.type === 'user-tree-select' ||
     field.type === 'role-select' ||
     field.type === 'select' ||
     field.type === 'tags' ||
@@ -3875,6 +3927,16 @@ function resetForm(record?: GenericRecord) {
   for (const key of Object.keys(groupSubmitChecked))
     delete groupSubmitChecked[key];
   const nextState = buildEmptyState();
+  // 每次打开表单清除租户相关候选缓存，避免沿用上一条记录的范围。
+  for (const field of props.config.fields.filter((item) =>
+    isTenantDependentField(item),
+  )) {
+    optionRequestVersions[field.key] =
+      (optionRequestVersions[field.key] || 0) + 1;
+    optionState[field.key] = [];
+    optionLoadedState[field.key] = false;
+    optionLoadingState[field.key] = false;
+  }
 
   for (const key of Object.keys(formState)) {
     delete formState[key];
@@ -3949,8 +4011,18 @@ function resetForm(record?: GenericRecord) {
   initializeFormGroupCollapse();
 }
 
-async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
-  const loader = field.loadOptions || getDefaultOptionsLoader(field);
+async function loadFieldOptions(
+  field: CrudFieldConfig,
+  keyword = '',
+  forForm = false,
+) {
+  const tenantId = forForm ? formTenantId(field) : undefined;
+  if (forForm && isTenantDependentField(field) && !tenantId) return undefined;
+  const tenantLoader = field.tenantLoadOptions;
+  const loader =
+    tenantId && tenantLoader
+      ? (value?: string) => tenantLoader(tenantId, value)
+      : field.loadOptions || getDefaultOptionsLoader(field);
 
   if (!loader) {
     return undefined;
@@ -3975,7 +4047,7 @@ async function loadFieldOptions(field: CrudFieldConfig, keyword = '') {
     }
   } catch (error) {
     console.error(error);
-    message.warning(`${field.label}选项加载失败`);
+    notifyApiErrorOnce(error);
   } finally {
     if (
       shouldApplyFieldOptionsRequest(
@@ -3996,6 +4068,7 @@ async function hydrateInitialChoiceValue(
 ) {
   if (
     field.type === 'org-tree-select' ||
+    field.type === 'user-tree-select' ||
     !isChoiceFormField(field) ||
     isEmptyChoiceValue(state[field.key]) ||
     !(field.loadOptions || getDefaultOptionsLoader(field))
@@ -4332,7 +4405,7 @@ async function loadExportTemplates() {
     );
   } catch (error) {
     console.error(error);
-    message.warning('导出模板加载失败');
+    notifyApiErrorOnce(error);
   } finally {
     exportTemplateLoading.value = false;
   }
@@ -4372,7 +4445,7 @@ async function loadImportTemplates() {
     );
   } catch (error) {
     console.error(error);
-    message.warning('导入模板加载失败');
+    notifyApiErrorOnce(error);
   } finally {
     importTemplateLoading.value = false;
   }
@@ -4510,7 +4583,7 @@ async function saveExportTemplate(
     );
   } catch (error) {
     console.error(error);
-    message.error('导出模板保存失败');
+    notifyApiErrorOnce(error);
     throw error;
   } finally {
     exportTemplateSaving.value = false;
@@ -4844,7 +4917,7 @@ async function handleImportFileChange(file: File) {
     message.success(`已读取 ${sheet.rows.length} 行数据`);
   } catch (error) {
     console.error(error);
-    showCrudError(error, '导入文件解析失败');
+    message.error(getCrudErrorMessage(error, '导入文件解析失败'));
   }
 }
 
@@ -4983,7 +5056,7 @@ async function saveImportTemplate(
     selectedImportTemplateId.value = getCrudTemplateValue(refreshedTemplate);
   } catch (error) {
     console.error(error);
-    message.error('导入模板保存失败');
+    notifyApiErrorOnce(error);
     throw error;
   } finally {
     importTemplateSaving.value = false;
@@ -5386,8 +5459,11 @@ async function loadListWithRetry(contextRetryCount: number) {
     if (cursorMode.value) acceptCrudCursor(activeCursorState.value, {});
     selectedRowKeys.value = [];
     selectedRows.value = [];
-    listError.value = getCrudErrorMessage(error, '列表加载失败，请重试');
-    if (!isApiErrorNotified(error)) message.error(listError.value);
+    listError.value =
+      isLocalCrudError(error) && !isApiErrorNotified(error)
+        ? getCrudErrorMessage(error, '列表加载失败，请重试')
+        : getApiErrorMessage(error);
+    showCrudError(error, '列表加载失败，请重试');
     captureListTableState();
   } finally {
     if (isCurrent()) loading.value = false;
@@ -6595,8 +6671,8 @@ async function handleAreaCascaderDropdownVisibleChange(
     areaCascaderRestrictedOptions[field.key] = filterAdministrativeAreaOptions(
       await getCurrentOpenAreaCodes(context),
     );
-  } catch {
-    message.error('获取开通区域失败，请重试');
+  } catch (error) {
+    notifyApiErrorOnce(error);
     areaCascaderRestrictedOptions[field.key] = [];
   } finally {
     optionLoadingState[field.key] = false;
@@ -6645,6 +6721,7 @@ function getPlaceholder(field: CrudFieldConfig) {
   if (
     field.type === 'area-cascader' ||
     field.type === 'org-tree-select' ||
+    field.type === 'user-tree-select' ||
     field.type === 'role-select' ||
     field.type === 'select'
   ) {
@@ -6872,7 +6949,7 @@ async function uploadCrudFile(field: CrudFieldConfig, options: any) {
     options.onSuccess?.(normalizedUrl);
   } catch (error) {
     console.error(error);
-    message.error(`${field.label}上传失败`);
+    notifyApiErrorOnce(error);
     options.onError?.(error);
   }
 }
@@ -7049,7 +7126,9 @@ function renderUploadItem(
 }
 
 function isRemoteSearchField(field: CrudFieldConfig) {
-  return !!field.remoteSearch && !!field.loadOptions;
+  return (
+    !!field.remoteSearch && !!(field.loadOptions || field.tenantLoadOptions)
+  );
 }
 
 function handleSelectSearch(field: CrudFieldConfig, keyword: string) {
@@ -7062,7 +7141,7 @@ function handleSelectSearch(field: CrudFieldConfig, keyword: string) {
     return;
   }
 
-  void loadFieldOptions(field, keyword);
+  void loadFieldOptions(field, keyword, true);
 }
 
 function handleSearchSelectSearch(field: CrudFieldConfig, keyword: string) {
@@ -7078,10 +7157,11 @@ function handleSearchSelectSearch(field: CrudFieldConfig, keyword: string) {
   void loadFieldOptions(field, keyword);
 }
 
-function restoreRemoteFieldOptions(field: CrudFieldConfig) {
+function restoreRemoteFieldOptions(field: CrudFieldConfig, forForm = false) {
   if (
     !shouldReloadRemoteOptionsOnDropdownOpen(field) &&
-    !getDefaultOptionsLoader(field)
+    !getDefaultOptionsLoader(field) &&
+    !(forForm && field.tenantLoadOptions)
   ) {
     return;
   }
@@ -7091,18 +7171,19 @@ function restoreRemoteFieldOptions(field: CrudFieldConfig) {
     return;
   }
 
-  void loadFieldOptions(field, '');
+  void loadFieldOptions(field, '', forForm);
 }
 
 function handleSelectDropdownVisibleChange(
   field: CrudFieldConfig,
   open: boolean,
+  forForm = false,
 ) {
   if (!open) {
     return;
   }
 
-  restoreRemoteFieldOptions(field);
+  restoreRemoteFieldOptions(field, forForm);
 }
 
 function handleSelectChange(field: CrudFieldConfig, value: any) {
@@ -8464,7 +8545,10 @@ watch(
                 "
               />
               <UserOrgSelector
-                v-else-if="item.field.type === 'org-tree-select'"
+                v-else-if="
+                  item.field.type === 'org-tree-select' ||
+                  item.field.type === 'user-tree-select'
+                "
                 :model-value="
                   getInteractionModelValue(
                     searchState[item.field.key],
@@ -8478,9 +8562,30 @@ watch(
                 :multiple="Boolean(item.field.multiple)"
                 load-on-initial-value
                 :max-select-count="item.field.multiple ? 0 : 1"
-                :org-load-api="getCrudOrgLoadApi(item.field)"
+                :org-load-api="
+                  item.field.type === 'org-tree-select'
+                    ? getCrudOrgLoadApi(item.field)
+                    : undefined
+                "
+                :user-load-api="
+                  item.field.type === 'user-tree-select'
+                    ? getCrudUserLoadApi(item.field, config.apiModuleBase ?? '')
+                    : undefined
+                "
+                :user-search-api="item.field.type === 'user-tree-select' ? getCrudUserSearchApi(item.field, config.apiModuleBase ?? '') : undefined"
+                :resolve-records="
+                  item.field.type === 'user-tree-select'
+                    ? getCrudUserResolveRecords(
+                        item.field,
+                        config.apiModuleBase ?? '',
+                      )
+                    : undefined
+                "
+                :user-api-module-base="config.apiModuleBase ?? ''"
                 :placeholder="getPlaceholder(item.field)"
-                :selectable-types="['org']"
+                :selectable-types="[
+                  item.field.type === 'user-tree-select' ? 'user' : 'org',
+                ]"
                 value-mode="id"
               />
               <AutoComplete
@@ -9809,7 +9914,11 @@ watch(
                     "
                   />
                   <UserOrgSelector
-                    v-else-if="field.type === 'org-tree-select'"
+                    v-else-if="
+                      field.type === 'org-tree-select' ||
+                      field.type === 'user-tree-select'
+                    "
+                    :key="`${field.key}:${formTenantId(field) || ''}`"
                     :model-value="
                       getInteractionModelValue(
                         formState[field.key],
@@ -9823,9 +9932,45 @@ watch(
                     :multiple="Boolean(field.multiple)"
                     load-on-initial-value
                     :max-select-count="field.multiple ? 0 : 1"
-                    :org-load-api="getCrudOrgLoadApi(field)"
+                    :org-load-api="
+                      field.type === 'org-tree-select' || formTenantId(field)
+                        ? getCrudOrgLoadApi(
+                            field.type === 'user-tree-select'
+                              ? {
+                                  ...field,
+                                  loadOptions: undefined,
+                                  tenantLoadOptions: undefined,
+                                  options: undefined,
+                                }
+                              : field,
+                            formTenantId(field),
+                          )
+                        : undefined
+                    "
+                    :user-load-api="
+                      field.type === 'user-tree-select'
+                        ? getCrudUserLoadApi(
+                            field,
+                            config.apiModuleBase ?? '',
+                            formTenantId(field),
+                          )
+                        : undefined
+                    "
+                    :user-search-api="field.type === 'user-tree-select' ? getCrudUserSearchApi(field, config.apiModuleBase ?? '', formTenantId(field)) : undefined"
+                    :resolve-records="
+                      field.type === 'user-tree-select'
+                        ? getCrudUserResolveRecords(
+                            field,
+                            config.apiModuleBase ?? '',
+                            formTenantId(field),
+                          )
+                        : undefined
+                    "
+                    :user-api-module-base="config.apiModuleBase ?? ''"
                     :placeholder="getPlaceholder(field)"
-                    :selectable-types="['org']"
+                    :selectable-types="[
+                      field.type === 'user-tree-select' ? 'user' : 'org',
+                    ]"
                     value-mode="id"
                   />
                   <div
@@ -10097,9 +10242,10 @@ watch(
                     "
                     :loading="optionLoadingState[field.key]"
                     class="w-full"
-                    @blur="() => restoreRemoteFieldOptions(field)"
+                    @blur="() => restoreRemoteFieldOptions(field, true)"
                     @dropdown-visible-change="
-                      (open) => handleSelectDropdownVisibleChange(field, open)
+                      (open) =>
+                        handleSelectDropdownVisibleChange(field, open, true)
                     "
                     @search="handleSelectSearch(field, $event)"
                   />
@@ -10127,10 +10273,11 @@ watch(
                     :loading="optionLoadingState[field.key]"
                     class="w-full"
                     show-search
-                    @blur="() => restoreRemoteFieldOptions(field)"
+                    @blur="() => restoreRemoteFieldOptions(field, true)"
                     @change="(value) => handleSelectChange(field, value)"
                     @dropdown-visible-change="
-                      (open) => handleSelectDropdownVisibleChange(field, open)
+                      (open) =>
+                        handleSelectDropdownVisibleChange(field, open, true)
                     "
                     @search="handleSelectSearch(field, $event)"
                   />
@@ -10159,9 +10306,10 @@ watch(
                         : 'multiple'
                     "
                     show-search
-                    @blur="() => restoreRemoteFieldOptions(field)"
+                    @blur="() => restoreRemoteFieldOptions(field, true)"
                     @dropdown-visible-change="
-                      (open) => handleSelectDropdownVisibleChange(field, open)
+                      (open) =>
+                        handleSelectDropdownVisibleChange(field, open, true)
                     "
                     @search="handleSelectSearch(field, $event)"
                   />

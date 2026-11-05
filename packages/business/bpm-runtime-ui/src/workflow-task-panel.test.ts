@@ -1,9 +1,25 @@
-import { shallowMount } from '@vue/test-utils';
+import { flushPromises, shallowMount } from '@vue/test-utils';
 
 import { BehaviorCaptcha } from '@levin/admin-framework';
 import { describe, expect, it } from 'vitest';
 
 import WorkflowTaskPanel from './workflow-task-panel.vue';
+
+const workflowUserSelectorStub = {
+  name: 'TestWorkflowUserSelector',
+  props: [
+    'modelValue',
+    'orgLoadApi',
+    'userLoadApi',
+    'resolveRecords',
+    'selectableTypes',
+    'maxSelectCount',
+    'multiple',
+    'disabled',
+  ],
+  emits: ['update:modelValue'],
+  template: '<div data-test="workflow-user-selector"></div>',
+};
 
 // 行为测试保留真实v-model与点击，仅替换外观组件。
 const actionStubs = {
@@ -497,7 +513,12 @@ describe('workflowTaskPanel', () => {
     };
     const wrapper = shallowMount(WorkflowTaskPanel, {
       props: { task: { taskId: 't1', status: 'Todo', actions: [action] } },
-      global: { stubs: actionStubs },
+      global: {
+        stubs: {
+          ...actionStubs,
+          AsyncComponentWrapper: workflowUserSelectorStub,
+        },
+      },
     });
     await wrapper
       .findAll('button')
@@ -510,7 +531,11 @@ describe('workflowTaskPanel', () => {
     expect(wrapper.emitted('submit')).toBeUndefined();
     expect(wrapper.text()).toContain('请选择允许的处理人');
     await wrapper.find('textarea').setValue('请专业人员处理');
-    await wrapper.find('select').setValue('u1');
+    await flushPromises();
+    wrapper
+      .getComponent({ name: 'TestWorkflowUserSelector' })
+      .vm.$emit('update:modelValue', 'u1');
+    await flushPromises();
     await wrapper
       .findAll('button')
       .find((button) => button.text() === '确认转办')
@@ -520,6 +545,58 @@ describe('workflowTaskPanel', () => {
       comment: '请专业人员处理',
       targetUserId: 'u1',
       formData: {},
+    });
+  });
+
+  it('加签仅展示服务端候选并保留多选，非法值不能进入提交', async () => {
+    const action = {
+      code: 'add-sign',
+      label: '加签',
+      candidateUsers: [
+        { label: '甲', value: 'u1' },
+        { label: '乙', value: 'u2' },
+      ],
+      addSignPositions: [{ label: '前加签', value: 'before' }],
+    };
+    const wrapper = shallowMount(WorkflowTaskPanel, {
+      props: { task: { taskId: 'task', status: 'Todo', actions: [action] } },
+      global: {
+        stubs: {
+          ...actionStubs,
+          AsyncComponentWrapper: workflowUserSelectorStub,
+        },
+      },
+    });
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '加签')
+      ?.trigger('click');
+    await flushPromises();
+    const selector = wrapper.getComponent({ name: 'TestWorkflowUserSelector' });
+    expect(selector.props('selectableTypes')).toEqual(['user']);
+    expect(selector.props('multiple')).toBe(true);
+    expect(
+      await (
+        selector.props('userLoadApi') as (context: {
+          orgId: string;
+        }) => Promise<unknown>
+      )({ orgId: 'other' }),
+    ).toEqual([]);
+    expect(
+      await (
+        selector.props('resolveRecords') as (ids: string[]) => Promise<unknown>
+      )(['u1', 'unauthorized']),
+    ).toEqual([{ id: 'u1', kind: 'user', name: '甲' }]);
+    selector.vm.$emit('update:modelValue', ['u1', 'unauthorized', 'u2']);
+    await wrapper.find('select:not([data-test])').setValue('before');
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '确认加签')
+      ?.trigger('click');
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({
+      action,
+      targetUserIds: ['u1', 'u2'],
+      addSignPosition: 'before',
     });
   });
 

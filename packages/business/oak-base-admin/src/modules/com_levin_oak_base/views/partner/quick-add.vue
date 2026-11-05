@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { SelectOption } from '@levin/admin-framework';
 
 import type { BusinessRegistryCandidate } from '../../api/business-registry-service';
@@ -12,6 +13,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Plus } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
 
+import { UserOrgSelector } from '@levin/admin-framework';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
@@ -79,7 +81,6 @@ const tenantOptions = ref<ScopeOption[]>([]);
 const orgOptions = ref<ScopeOption[]>([]);
 const selectedOrg = ref<ScopeOption>();
 const tenantLoading = ref(false);
-const orgLoading = ref(false);
 const form = reactive({
   tenantId: '',
   parentOrgId: '',
@@ -128,7 +129,6 @@ function reset() {
   orgOptions.value = [];
   selectedOrg.value = undefined;
   tenantLoading.value = false;
-  orgLoading.value = false;
   searching.value = false;
   lookingUp.value = false;
 }
@@ -159,10 +159,10 @@ async function searchTenants(keyword = '') {
           value: String(option.value),
         }));
     }
-  } catch {
+  } catch (error_) {
     if (generation === tenantRequestGeneration) {
       tenantOptions.value = [];
-      message.warning('租户列表加载失败，请重试');
+      notifyApiErrorOnce(error_);
     }
   } finally {
     if (generation === tenantRequestGeneration) tenantLoading.value = false;
@@ -175,14 +175,13 @@ function changeTenant(tenantId: string) {
   selectedOrg.value = undefined;
   orgOptions.value = [];
   orgRequestGeneration++;
-  if (tenantId) void searchOrganizations();
+  if (tenantId) void searchOrganizations().catch(() => undefined);
 }
 
 async function searchOrganizations(keyword = '') {
   const tenantId = form.tenantId;
   if (!tenantId) return;
   const generation = ++orgRequestGeneration;
-  orgLoading.value = true;
   try {
     const options = await buildOrgAssignmentOptionsLoader(tenantId)(keyword);
     if (generation === orgRequestGeneration && tenantId === form.tenantId) {
@@ -202,14 +201,21 @@ async function searchOrganizations(keyword = '') {
           value: String(option.value),
         }));
     }
-  } catch {
+  } catch (error_) {
     if (generation === orgRequestGeneration) {
       orgOptions.value = [];
-      message.warning('内部父组织加载失败，请重试');
+      notifyApiErrorOnce(error_);
+      throw error_;
     }
-  } finally {
-    if (generation === orgRequestGeneration) orgLoading.value = false;
   }
+}
+
+// 打开组织树时重新读取当前租户候选，加载失败后仍可重试。
+async function loadSelectableOrganizations() {
+  const tenantId = form.tenantId;
+  await searchOrganizations();
+  if (tenantId !== form.tenantId) return [];
+  return orgOptions.value.map((org) => ({ id: org.value, name: org.label }));
 }
 
 function changeOrganization(orgId: string) {
@@ -269,9 +275,9 @@ async function search() {
     candidates.value = result.items || [];
     if (candidates.value.length === 0)
       message.info('未查到主体，请手工填写主体名称和统一社会信用代码');
-  } catch {
+  } catch (error_) {
     if (generation === requestGeneration)
-      message.warning('主体查询暂不可用，请手工填写主体名称和统一社会信用代码');
+      notifyApiErrorOnce(error_);
   } finally {
     if (generation === requestGeneration) searching.value = false;
   }
@@ -301,12 +307,12 @@ async function selectCandidate(index: string) {
       message.warning(
         '查询资料不完整或不一致，请人工核对主体名称和统一社会信用代码',
       );
-  } catch {
+  } catch (error_) {
     if (generation === requestGeneration) {
       form.legalSubjectName = candidate.name;
       form.creditCode = candidate.creditCode || '';
       source.value = 'manual';
-      message.warning('详情查询失败，请人工核对并补齐主体资料');
+      notifyApiErrorOnce(error_);
     }
   } finally {
     if (generation === requestGeneration) lookingUp.value = false;
@@ -384,17 +390,15 @@ async function submit() {
       `${targetTitle.value}快捷添加成功，登录账号：${result.loginName}`,
     );
   } catch (error) {
-    message.error(
-      error instanceof Error ? error.message : '快捷添加失败，请检查后重试',
-    );
+    notifyApiErrorOnce(error);
     return;
   } finally {
     saving.value = false;
   }
   try {
     await props.loadList();
-  } catch {
-    message.warning('快捷添加成功，但列表刷新失败，请手动刷新');
+  } catch (error) {
+    notifyApiErrorOnce(error);
   }
 }
 
@@ -467,18 +471,20 @@ const channelTypes = [
           />
         </Form.Item>
         <Form.Item label="内部父组织" required>
-          <Select
-            :value="form.parentOrgId"
+          <UserOrgSelector
+            :key="form.tenantId"
+            :model-value="form.parentOrgId || undefined"
             :disabled="!form.tenantId"
-            :loading="orgLoading"
-            :options="orgOptions"
+            :org-load-api="loadSelectableOrganizations"
+            :selectable-types="['org']"
+            :max-select-count="1"
             class="w-full"
             data-testid="quick-add-parent-org-select"
             placeholder="请选择所选租户下的内部组织"
-            show-search
-            :filter-option="false"
-            @search="searchOrganizations"
-            @update:value="changeOrganization(String($event || ''))"
+            value-mode="id"
+            @update:model-value="
+              changeOrganization(typeof $event === 'string' ? $event : '')
+            "
           />
         </Form.Item>
       </div>

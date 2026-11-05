@@ -1,12 +1,12 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { clientAppService } from '../../api/client-app-service';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   authorizedControllerPathOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
-  userOptionsLoader,
 } from '../api-module';
 
 function generateUuidPart(length: number) {
@@ -69,6 +69,7 @@ export const pageMeta = {
 export const clientAppPageCrudConfig: CrudPageConfig = {
   apiBase: '/ClientApp',
   domainObject: true,
+  apiModuleBase: OAK_BASE_API_MODULE,
   apiService: clientAppService,
   dataAttrTargets: standardCrudDataAttrTargets(clientAppService),
   defaultFormValues: {
@@ -148,12 +149,11 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
       label: '绑定服务账号',
       layoutGroup: 'basic',
       layoutOrder: 30,
-      loadOptions: userOptionsLoader,
-      remoteSearch: true,
+
       required: true,
       search: true,
       table: true,
-      type: 'select',
+      type: 'user-tree-select',
       width: 180,
     },
     {

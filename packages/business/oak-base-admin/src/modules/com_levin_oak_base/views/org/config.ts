@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { orgService } from '../../api/org-service';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
@@ -11,7 +12,6 @@ import {
   orgStateOptionsLoader,
   orgTypeOptionsLoader,
   tenantOptionsLoader,
-  userOptionsLoader,
 } from '../api-module';
 
 export const pageMeta = {
@@ -23,6 +23,7 @@ export const pageMeta = {
 export const orgPageCrudConfig: CrudPageConfig = {
   apiBase: '/Org',
   domainObject: true,
+  apiModuleBase: OAK_BASE_API_MODULE,
   apiService: orgService,
   dataAttrTargets: standardCrudDataAttrTargets(orgService),
   allowRetrieve: true,
@@ -110,6 +111,10 @@ export const orgPageCrudConfig: CrudPageConfig = {
     {
       key: 'parentId',
       label: '上级组织',
+      disabledOnEdit: ({ userInfo }) => {
+        const user = (userInfo || {}) as Record<string, unknown>;
+        return user.admin !== true && user.isAdmin !== true;
+      },
       layoutGroup: 'basic',
       layoutOrder: 30,
       search: true,
@@ -177,9 +182,7 @@ export const orgPageCrudConfig: CrudPageConfig = {
       label: '组织负责人',
       layoutOrder: 30,
       search: true,
-      loadOptions: userOptionsLoader,
-      remoteSearch: true,
-      type: 'select',
+      type: 'user-tree-select',
       width: 180,
     },
     {

@@ -1,3 +1,5 @@
+import { matchesPinyinFuzzySearch } from '@levin/admin-framework';
+
 export interface TenantCustomMenuItem {
   children?: TenantCustomMenuItem[];
   enable?: boolean;
@@ -383,10 +385,7 @@ export function filterTreeByLabel<T extends { children?: T[]; key: string }>(
       normalizedKeyword,
       getLabel,
     );
-    const matches = getLabel(item)
-      .trim()
-      .toLocaleLowerCase()
-      .includes(normalizedKeyword);
+    const matches = matchesPinyinFuzzySearch(normalizedKeyword, getLabel(item));
     if (!matches && !children.length) {
       return [];
     }

@@ -9,6 +9,7 @@ import {
   ResAuthorize,
   Service,
 } from '@levin/admin-framework';
+import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 
 import { OAK_BASE_API_MODULE } from './_module';
 
@@ -45,14 +46,7 @@ export function prepareWorkflowRequestScope(
 ): Partial<WorkflowRequestScope> {
   const tenantId = scope.tenantId?.trim();
   if (!tenantId) return scope.orgId ? { orgId: scope.orgId } : {};
-  if (
-    actor.platformUser === true ||
-    actor.isPlatformUser === true ||
-    actor.isSuperAdmin === true ||
-    actor.superAdmin === true ||
-    actor.platformAdmin === true ||
-    actor.isPlatformAdmin === true
-  ) {
+  if (isPlatformUser(actor)) {
     return { tenantId, ...(scope.orgId ? { orgId: scope.orgId } : {}) };
   }
   if (!actor.tenantId || actor.tenantId !== tenantId) {
@@ -78,6 +72,7 @@ export class WorkflowRequestService extends RequestService {
     private readonly selectedScope?: () => undefined | WorkflowRequestScope,
     private readonly currentActor: () => WorkflowRequestActor = () =>
       (useUserStore().userInfo ?? {}) as WorkflowRequestActor,
+    private readonly allowDraftScope = false,
   ) {
     super(OAK_BASE_API_MODULE);
   }
@@ -88,9 +83,22 @@ export class WorkflowRequestService extends RequestService {
     type: '业务数据-流程业务申请',
     action: '创建流程业务申请',
   })
-  create(data: WorkflowRequestInput) {
+  create(data: Partial<WorkflowRequestScope> & WorkflowRequestInput) {
+    // 草稿范围独立于列表范围；只接受完整的显式租户与组织，由服务端重新授权。
+    const hasDraftScope =
+      this.allowDraftScope && Boolean(data.tenantId || data.orgId);
+    if (hasDraftScope && (!data.tenantId || !data.orgId)) {
+      throw new Error('请选择归属租户和业务组织');
+    }
+    const scope = hasDraftScope
+      ? prepareWorkflowRequestScope(
+          { tenantId: data.tenantId, orgId: data.orgId },
+          this.currentActor(),
+        )
+      : this.requestScope();
     return this.post<string>('create', {
-      data: { ...toWorkflowRequestInput(data), ...this.requestScope() },
+      data: { ...toWorkflowRequestInput(data), ...scope },
+      ...(hasDraftScope ? { __skipGlobalUserOrgContext: true } : {}),
     });
   }
 

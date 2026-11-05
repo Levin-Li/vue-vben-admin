@@ -72,6 +72,7 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     {
       key: 'tenantId',
       label: '归属租户',
+      disabledOnEdit: true,
       layoutGroup: 'ownership',
       layoutGroupTitle: '管理归属',
       layoutOrder: 10,
@@ -92,6 +93,7 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     },
     {
       key: 'legalSubjectId',
+      tenantDependent: true,
       label: '法律主体',
       help: '可暂不选择，后续补全；已关联的法律主体不能更换。',
       layoutGroup: 'basic',
@@ -151,6 +153,7 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     },
     {
       key: 'channelPartnerId',
+      tenantDependent: true,
       disabledOnEdit: true,
       label: '渠道伙伴',
       help: '渠道客户必须关联有权访问的渠道伙伴。',
@@ -173,6 +176,9 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     },
     {
       key: 'parentOrgId',
+      tenantDependent: true,
+      tenantLoadOptions: (tenantId, keyword) =>
+        buildOrgAssignmentOptionsLoader(tenantId)(keyword),
       formCreate: true,
       formEdit: false,
       detail: false,
@@ -183,7 +189,7 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutOrder: 20,
       loadOptions: customerOrgOptionsLoader,
       remoteSearch: true,
-      type: 'select',
+      type: 'org-tree-select',
       placeholder: '留空使用当前用户所属组织，或搜索内部父组织',
     },
     // 主体组织由建档生成，五方负责人和职能组织分别维护。

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref, watch } from 'vue';
 
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import { Alert, Select } from 'ant-design-vue';
 
 import { channelPartnerService } from '../../api/channel-partner-service';
@@ -105,6 +106,7 @@ function handleScroll(event: Event) {
       class="w-full"
       option-filter-prop="label"
       placeholder="选择签约对方"
+      :filter-option="filterCrudLocalSelectOption"
       show-search
       @popup-scroll="handleScroll"
       @update:value="(value) => emit('update:modelValue', String(value || ''))"

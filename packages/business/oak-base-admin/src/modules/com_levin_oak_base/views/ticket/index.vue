@@ -16,6 +16,10 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useUserStore } from '@vben/runtime/stores';
 
+import {
+  getApiErrorMessage,
+  notifyApiErrorOnce,
+} from '@levin/admin-framework/framework-commons/app/api';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
@@ -34,11 +38,10 @@ import {
 } from 'ant-design-vue';
 
 import { ticketService } from '../../api/ticket-service';
-import { userService } from '../../api/user-service';
 import { helpDocumentUrl } from '../../help-center';
 import { moduleFetchEnumOptions } from '../api-module';
-import { buildSupportUserQuery } from '../support-options';
 import SupportScopeSelector from '../support-scope-selector.vue';
+import SupportUserSelector from '../support-user-selector.vue';
 import { createTicketCrudConfig } from './config';
 
 // 工单不提供通用新增/编辑；状态变化只提交真实业务命令与预期版本。
@@ -61,12 +64,21 @@ const initialQuery = ref<Record<string, unknown>>({});
 const crudPage = ref<{ reload: () => Promise<unknown> }>();
 let queryState: Record<string, unknown> = {};
 const detailScope = ref<SupportScope>();
+// 详情的租户字段可能被脱敏；优先使用打开详情时已校验的受理范围。
+const detailUserScope = computed<SupportScope | undefined>(() => {
+  const orgId = String(detail.value?.orgId || '').trim();
+  if (!orgId) return undefined;
+  if (detailScope.value) {
+    return detailScope.value.orgId === orgId ? detailScope.value : undefined;
+  }
+  const tenantId = String(
+    detail.value?.tenantId || userStore.userInfo?.tenantId || '',
+  ).trim();
+  return tenantId ? { tenantId, orgId } : undefined;
+});
 const statuses = ref<{ label: string; value: string }[]>([]);
 const directions = ref<{ label: string; value: string }[]>([]);
 const error = ref('');
-watch(error, (value) => {
-  if (value) message.error(value);
-});
 const detail = ref<TicketRecord>();
 const opened = ref(false);
 const messages = ref<TicketMessageRecord[]>([]);
@@ -81,7 +93,6 @@ const remark = ref('');
 const assigneeId = ref<string>();
 const evidence = ref('');
 const contactAcknowledged = ref(false);
-const userOptions = ref<{ label: string; value: string }[]>([]);
 const busy = ref(false);
 const replyOpen = ref(false);
 const body = ref('');
@@ -253,6 +264,7 @@ async function open(id: string, requestScope = currentScope(queryState.orgId)) {
   error.value = '';
   if (!allowed('retrieve')) {
     error.value = '工单来源不可访问';
+    message.error(error.value);
     return;
   }
   // 深链接也不能省略受理租户，保持与列表相同的范围前置条件。
@@ -264,8 +276,11 @@ async function open(id: string, requestScope = currentScope(queryState.orgId)) {
     detailScope.value = requestScope;
     opened.value = true;
     await loadMessages();
-  } catch {
-    if (current === detailVersion) error.value = '工单来源不可访问或已失效';
+  } catch (error_) {
+    if (current === detailVersion) {
+      error.value = getApiErrorMessage(error_);
+      notifyApiErrorOnce(error_);
+    }
   }
 }
 function changeScope(
@@ -299,6 +314,7 @@ async function deepLink(value: unknown) {
   if (value === undefined) return;
   if (typeof value !== 'string' || !/^[A-Z0-9][\w.:-]{0,63}$/i.test(value)) {
     error.value = '工单定位参数无效';
+    message.error(error.value);
     return;
   }
   await open(value);
@@ -316,26 +332,6 @@ function begin(method: NonNullable<typeof action.value>) {
   assigneeId.value = undefined;
   evidence.value = '';
   contactAcknowledged.value = false;
-  userOptions.value = [];
-}
-async function searchUsers(containsName = '') {
-  if (!detail.value) return;
-  const selected = detail.value.id;
-  try {
-    const result = (await userService.list(
-      buildSupportUserQuery(
-        { tenantId: detail.value.tenantId, orgId: detail.value.orgId },
-        containsName,
-      ),
-    )) as { items: { id: string; name?: string; realName?: string }[] };
-    if (detail.value?.id !== selected) return;
-    userOptions.value = (result.items || []).map((item) => ({
-      value: item.id,
-      label: item.realName || item.name || item.id,
-    }));
-  } catch {
-    message.error('处理人选项不可访问');
-  }
 }
 async function submitAction() {
   if (!detail.value || !action.value || busy.value) return;
@@ -382,8 +378,8 @@ async function submitAction() {
     action.value = undefined;
     await open(command.id, requestScope);
     await crudPage.value?.reload();
-  } catch {
-    message.error('工单操作失败，请刷新核对权限、状态和版本');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     busy.value = false;
   }
@@ -425,8 +421,8 @@ async function submitReply() {
     await open(request.id, detailScope.value);
     await crudPage.value?.reload();
     message.success('回复已保存，请查看外发受理状态');
-  } catch {
-    message.error('本次回复提交未确认，可重试相同请求');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     busy.value = false;
   }
@@ -459,10 +455,10 @@ async function readOutbound(intentId: string) {
       reviewConfirmed.value = false;
       reviewEvidence.value = '';
     }
-  } catch {
+  } catch (error_) {
     if (current !== outboundVersion || selected !== detailVersion) return;
     outbound.value = undefined;
-    message.error('外发结果不可访问');
+    notifyApiErrorOnce(error_);
   }
 }
 async function refreshOutbound(record?: TicketOutboundRecord) {
@@ -530,11 +526,11 @@ async function confirmUnsentReview() {
     reviewOpen.value = false;
     reviewSnapshot.value = undefined;
     message.success('未受理核验已记录；请刷新外发结果后再单独决定是否重试');
-  } catch {
+  } catch (error_) {
     if (current === outboundVersion && selected === detailVersion) {
       outbound.value = undefined;
       reviewOpen.value = false;
-      message.error('核验失败，请重新读取当前外发状态与权限');
+      notifyApiErrorOnce(error_);
     }
   } finally {
     busy.value = false;
@@ -560,10 +556,10 @@ async function retryOutbound() {
       return;
     }
     outbound.value = result;
-  } catch {
+  } catch (error_) {
     if (current === outboundVersion && selected === detailVersion) {
       outbound.value = undefined;
-      message.error('重试失败，请刷新核对外发状态和版本');
+      notifyApiErrorOnce(error_);
     }
   } finally {
     busy.value = false;
@@ -576,8 +572,8 @@ async function fullMessage(record: TicketMessageRecord) {
       ...locator(),
       messageId: record.id,
     });
-  } catch {
-    message.error('消息详情不可访问');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 async function download(blobId: string) {
@@ -596,8 +592,8 @@ async function download(blobId: string) {
     link.download = result.fileName;
     link.click();
     URL.revokeObjectURL(url);
-  } catch {
-    message.error('工单附件不可访问或已失效');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     busy.value = false;
   }
@@ -622,8 +618,9 @@ onMounted(async () => {
       label: item.label,
       value: String(item.value),
     }));
-  } catch {
-    error.value = '工单展示选项加载失败';
+  } catch (error_) {
+    error.value = getApiErrorMessage(error_);
+    notifyApiErrorOnce(error_);
   }
   await deepLink(route.query.id);
 });
@@ -820,13 +817,13 @@ watch(() => route.query.id, deepLink);
           layout="vertical"
         >
           <Form.Item v-if="action === 'assign'" label="目标处理人" required>
-            <Select
-              v-model:value="assigneeId"
-              show-search
-              :filter-option="false"
-              :options="userOptions"
-              @search="searchUsers"
-              @focus="searchUsers()"
+            <SupportUserSelector
+              :key="detail?.id"
+              :model-value="assigneeId"
+              :scope="detailUserScope"
+              @update:model-value="
+                assigneeId = typeof $event === 'string' ? $event : undefined
+              "
             />
           </Form.Item>
           <template v-if="action === 'confirmContact'">

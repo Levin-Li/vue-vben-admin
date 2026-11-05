@@ -31,17 +31,11 @@ import {
   globalOrgContextMultiple,
   isGlobalUserOrgContextEnabled,
 } from '../global-org-context-state';
-import { showApiErrorMessage } from './api-error-message';
+import { getApiErrorMessage, showApiErrorMessage } from './api-error-message';
 import { createDynamicVerifyCodeInterceptor } from './dynamic-verify-code';
 import { createMultipartRequestInterceptor } from './multipart-request';
 import { emitApiRequestEvent } from './request-events';
-import {
-  getHttpAuthorizationMessage,
-  getServiceRespMessage,
-  isBusinessErrorResponse,
-  isServiceResp,
-  unwrapServiceResp,
-} from './service-resp';
+import { unwrapServiceResp } from './service-resp';
 import {
   importCryptoKey,
   isAnonymousRbacCryptoPath,
@@ -63,6 +57,39 @@ const GLOBAL_CONTEXT_HEADERS = [
   'X-Oak-Owner-Id',
   'X-Oak-Owner-Id-List',
 ] as const;
+
+// 清理调用方提供的上下文头；HTTP 头名称不区分大小写。
+function clearGlobalContextHeaders(headers: Record<string, any>) {
+  const names = new Set(
+    GLOBAL_CONTEXT_HEADERS.map((name) => name.toLowerCase()),
+  );
+  for (const key of Object.keys(headers)) {
+    if (names.has(key.toLowerCase())) {
+      if (typeof headers.delete === 'function') headers.delete(key);
+      else Reflect.deleteProperty(headers, key);
+    }
+  }
+}
+
+function explicitContextIds(value: unknown): string[] {
+  if (!Array.isArray(value)) throw new Error('请求上下文标识列表无效');
+  const ids = value.map((item) => {
+    if (
+      typeof item !== 'string' ||
+      !item ||
+      /[,\s]/u.test(item) ||
+      [...item].some(
+        (char) =>
+          (char.codePointAt(0) ?? 0) < 32 || char.codePointAt(0) === 127,
+      )
+    ) {
+      throw new Error('请求上下文标识无效');
+    }
+    return item;
+  });
+  if (new Set(ids).size !== ids.length) throw new Error('请求上下文标识重复');
+  return ids;
+}
 
 function setContextHeader(
   headers: Record<string, any>,
@@ -127,10 +154,57 @@ function resolveClientCryptoSource(forceAnonymous = false) {
   return useAccessStore().accessToken || navigator.userAgent;
 }
 
+/** 仅明确的邀请公开 POST 可免会话；相邻业务及 OAuth 绑定仍须已有会话。 */
+function isPublicInvitationRequest(config: any) {
+  if (String(config?.method || 'GET').toUpperCase() !== 'POST') return false;
+  const path = String(config?.url || '');
+  try {
+    // Axios 对绝对 URL 忽略 baseURL；相对 URL 则受 baseURL 的目标源约束。
+    const target = /^(?:[a-z][a-z\d+.-]*:)?\/\//i.test(path)
+      ? new URL(path, window.location.origin)
+      : new URL(String(config?.baseURL || '/'), window.location.origin);
+    if (target.origin !== window.location.origin) return false;
+  } catch {
+    return false;
+  }
+  const route = dataAttrRequestPath(path, config?.baseURL).split('?')[0];
+  if (
+    route === '/com.levin.oak.base/V1/api/InvitationRegister/preview' ||
+    route === '/com.levin.oak.base/V1/api/InvitationRegister/redeem'
+  )
+    return true;
+  if (
+    route !== '/oauth/transactions' &&
+    route !== '/oauth/invitationRedeemOAuth'
+  )
+    return false;
+  // 只认可邀请用途的明确载荷；协商重试必须检查保留的原始明文。
+  let payload = config?.__urlAclPlainData ?? config?.data;
+  if (typeof payload === 'string') {
+    try {
+      payload = JSON.parse(payload);
+    } catch {
+      return false;
+    }
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+    return false;
+  return route === '/oauth/transactions'
+    ? payload.purpose === 'INVITE' &&
+        typeof payload.invitationToken === 'string' &&
+        !!payload.invitationToken.trim()
+    : typeof payload.token === 'string' &&
+        !!payload.token.trim() &&
+        typeof payload.transactionId === 'string' &&
+        !!payload.transactionId.trim();
+}
+
 /** 仅精确匿名接口使用未登录材料；登录页的后续本人接口必须携带新签发的 token。 */
 function isAnonymousCryptoContext(config: any) {
   return (
-    isClientCryptoRequest(config) && isAnonymousRbacCryptoPath(config?.url)
+    isClientCryptoRequest(config) &&
+    (isAnonymousRbacCryptoPath(config?.url) ||
+      isPublicInvitationRequest(config))
   );
 }
 
@@ -166,6 +240,7 @@ async function verifyClientResponseSignature(response: any) {
   if (actualHash !== bodyHash) throw new Error('响应签名摘要不匹配');
   const minute = Math.floor(Number(timestamp) / 60_000);
   const source =
+    response?.config?.__urlAclSignatureSource ||
     response?.config?.__urlAclCryptoSource ||
     resolveClientCryptoSource(isAnonymousCryptoContext(response?.config));
   const signingKey = await sha256(
@@ -231,7 +306,9 @@ async function signClientRequest(config: any) {
   const body =
     typeof bodyData === 'string' ? bodyData : JSON.stringify(bodyData ?? {});
   const domain = window.location.hostname.toLowerCase();
-  const source = resolveClientCryptoSource(isAnonymousCryptoContext(config));
+  const source = resolveClientCryptoSource(
+    isAnonymousCryptoContext(config) || isPublicInvitationRequest(config),
+  );
   const timestamp = String(Date.now());
   const nonce = crypto.randomUUID();
   const bodyHash = hex(await sha256(new TextEncoder().encode(body)));
@@ -271,8 +348,17 @@ async function secureClientRequest(config: any) {
       'logout',
       'completeInitialPasswordChange',
     ].some((name) => route === `/com.levin.oak.base/V1/api/rbac/${name}`);
-  if (!bootstrap && !publicLoginCatalog && !isAnonymousCryptoContext(config)) {
+  if (
+    !bootstrap &&
+    !publicLoginCatalog &&
+    !isPublicInvitationRequest(config) &&
+    !isAnonymousCryptoContext(config)
+  ) {
     assertDataAttrSessionReady();
+  }
+  if (isPublicInvitationRequest(config) && config.headers) {
+    Reflect.deleteProperty(config.headers, 'Authorization');
+    Reflect.deleteProperty(config.headers, 'authorization');
   }
   return signClientRequest(await encryptClientRequest(config));
 }
@@ -392,34 +478,6 @@ async function decryptClientResponse(response: any) {
   return response;
 }
 
-function getUnifiedErrorMessage(msg: string, error: any) {
-  const responseData = error?.response?.data ?? {};
-  const httpAuthorizationMessage = getHttpAuthorizationMessage(
-    error?.response?.status,
-    responseData,
-  );
-  if (httpAuthorizationMessage) {
-    return httpAuthorizationMessage;
-  }
-
-  if (isServiceResp(responseData)) {
-    return getServiceRespMessage(responseData);
-  }
-
-  const backendMessage =
-    responseData?.error ??
-    responseData?.msg ??
-    responseData?.message ??
-    responseData?.detailMsg ??
-    msg;
-
-  if (isBusinessErrorResponse(responseData)) {
-    return backendMessage || '业务处理失败';
-  }
-
-  return responseData?.errorType || backendMessage || '网络或服务器异常';
-}
-
 function applyCommonInterceptors(client: RequestClient) {
   client.addRequestInterceptor({ fulfilled: secureClientRequest });
   client.addRequestInterceptor(createMultipartRequestInterceptor());
@@ -467,6 +525,10 @@ function applyCommonInterceptors(client: RequestClient) {
 
           throw Object.assign({}, response, { response });
         } catch (error) {
+          // 解包业务失败时保留请求配置，以继承静默与单次提示覆盖设置。
+          if (error && typeof error === 'object') {
+            Object.assign(error, { config });
+          }
           emitApiRequestEvent({
             config,
             error,
@@ -490,12 +552,15 @@ function applyCommonInterceptors(client: RequestClient) {
   });
 
   client.addResponseInterceptor(
-    errorMessageResponseInterceptor((msg: string, error) => {
-      if (error?.config?.__silentError) {
+    errorMessageResponseInterceptor((_msg: string, error) => {
+      if (
+        error?.config?.__silentError ||
+        error?.response?.config?.__silentError
+      ) {
         return;
       }
 
-      showApiErrorMessage(getUnifiedErrorMessage(msg, error), error);
+      showApiErrorMessage(getApiErrorMessage(error), error);
     }),
   );
 }
@@ -548,19 +613,18 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 
       // 匿名认证入口必须保持无 token：它们按 User-Agent 派生 URL ACL 密钥，
       // 不能在加密后又由公共认证拦截器补回历史 Authorization。
-      if (isAnonymousCryptoContext(config)) {
+      if (
+        isAnonymousCryptoContext(config) ||
+        isPublicInvitationRequest(config)
+      ) {
         Reflect.deleteProperty(config.headers, 'Authorization');
         Reflect.deleteProperty(config.headers, 'authorization');
       } else {
         config.headers.Authorization = formatToken(accessStore.accessToken);
       }
       config.headers['Accept-Language'] = preferences.app.locale;
-      GLOBAL_CONTEXT_HEADERS.forEach((header) =>
-        Reflect.deleteProperty(config.headers, header),
-      );
-      if (isGlobalUserOrgContextEnabled() && currentGlobalTenantId.value) {
-        config.headers['X-Oak-Tenant-Id'] = currentGlobalTenantId.value;
-      }
+      clearGlobalContextHeaders(config.headers);
+      // 领域上下文独立于组织/用户覆盖，仍由全局状态提供。
       setContextHeader(
         config.headers,
         'X-Oak-Domain-Id',
@@ -568,7 +632,37 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
         currentGlobalDomainIds.value,
         globalDomainContextMultiple.value,
       );
-      if (isGlobalUserOrgContextEnabled()) {
+      const context = config.__globalUserOrgContext;
+      const hasExplicitContext =
+        context &&
+        typeof context === 'object' &&
+        ['tenantId', 'orgIds', 'ownerIds'].some((key) =>
+          Object.hasOwn(context, key),
+        );
+      if (!config.__skipGlobalUserOrgContext && hasExplicitContext) {
+        // 显式范围不继承顶部租户、组织或用户；服务端必须逐项授权。
+        if (context.tenantId !== undefined) {
+          config.headers['X-Oak-Tenant-Id'] = explicitContextIds([
+            context.tenantId,
+          ])[0];
+        }
+        if (context.orgIds !== undefined) {
+          const orgIds = explicitContextIds(context.orgIds);
+          if (orgIds.length > 0)
+            config.headers['X-Oak-Org-Id-List'] = orgIds.join(',');
+        }
+        if (context.ownerIds !== undefined) {
+          const ownerIds = explicitContextIds(context.ownerIds);
+          if (ownerIds.length > 0)
+            config.headers['X-Oak-Owner-Id-List'] = ownerIds.join(',');
+        }
+      } else if (
+        !config.__skipGlobalUserOrgContext &&
+        isGlobalUserOrgContextEnabled()
+      ) {
+        if (currentGlobalTenantId.value) {
+          config.headers['X-Oak-Tenant-Id'] = currentGlobalTenantId.value;
+        }
         setContextHeader(
           config.headers,
           'X-Oak-Org-Id',

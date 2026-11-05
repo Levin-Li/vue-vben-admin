@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type {
   DataModelDefinition,
   DataModelOperationParameter,
@@ -8,7 +9,7 @@ import type {
 import { computed, onMounted, ref } from 'vue';
 
 import DynamicCrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
-import { Alert, Button, message } from 'ant-design-vue';
+import { Alert, Button } from 'ant-design-vue';
 
 import { useModelMetadataContext } from '../domain-data-dynamic-model/model-metadata';
 import ScopeFields from './scope-fields.vue';
@@ -69,7 +70,7 @@ function queryReference(key: string): DataModelOperationParameter {
 onMounted(() => {
   void adapter
     .loadQueryContext()
-    .catch(() => message.error('查询候选加载失败，请刷新页面重试'));
+    .catch((error_) => notifyApiErrorOnce(error_));
 });
 async function changeScope(
   name: string,
@@ -78,8 +79,8 @@ async function changeScope(
 ) {
   try {
     await adapter.changeScope(name, value, state);
-  } catch {
-    message.error('归属候选加载失败，请重试');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 async function openCreate(code: 'CREATE' | `CUSTOM_${string}`) {

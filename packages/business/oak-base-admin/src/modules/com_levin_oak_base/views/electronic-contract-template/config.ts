@@ -8,7 +8,6 @@ import {
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
   tenantOptionsLoader,
-  userOptionsLoader,
   withModuleCrudConfig,
 } from '../api-module';
 import { normalizeTemplateVariables } from './template-variables';
@@ -95,9 +94,7 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'ownerId',
         label: '所属用户',
-        loadOptions: userOptionsLoader,
-        remoteSearch: true,
-        type: 'select',
+        type: 'user-tree-select',
         defaultHidden: { create: true },
       },
       {

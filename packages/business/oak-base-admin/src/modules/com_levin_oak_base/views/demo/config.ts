@@ -3,13 +3,13 @@ import type {
   CrudPageConfig,
 } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { demoService } from '../../api/demo-service';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
-  userOptionsLoader,
 } from '../api-module';
 
 // 四级对象只声明字段语义和映射；边框、缩进与请求组装由公共 CRUD 执行。
@@ -152,6 +152,7 @@ type NestedDemoPageConfig = Omit<CrudPageConfig, 'complexGroups'> & {
 export const demoPageCrudConfig: NestedDemoPageConfig = {
   apiBase: '/Demo',
   domainObject: true,
+  apiModuleBase: OAK_BASE_API_MODULE,
   apiService: demoService,
   dataAttrTargets: standardCrudDataAttrTargets(demoService),
   defaultFormValues: {
@@ -247,9 +248,7 @@ export const demoPageCrudConfig: NestedDemoPageConfig = {
       label: '所属用户',
       layoutGroup: 'basic',
       layoutOrder: 7,
-      loadOptions: userOptionsLoader,
-      remoteSearch: true,
-      type: 'select',
+      type: 'user-tree-select',
     },
     {
       key: '__tenant',

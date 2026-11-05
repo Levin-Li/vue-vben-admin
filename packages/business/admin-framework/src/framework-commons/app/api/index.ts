@@ -1,4 +1,7 @@
+export * from '../../api';
+export * from '../../api-authorize';
 export * from './api-doc-service';
+export * from './api-error-message';
 export * from './cache-service';
 export * from './core';
 export * from './data-attr-policy-service';
@@ -10,5 +13,3 @@ export * from './oauth-service';
 export * from './plugin-manager-service';
 export * from './rbac-service';
 export * from './request-events';
-export * from '../../api';
-export * from '../../api-authorize';

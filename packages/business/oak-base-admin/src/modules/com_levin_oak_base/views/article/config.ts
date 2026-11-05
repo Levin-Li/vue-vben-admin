@@ -200,6 +200,7 @@ export const articlePageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'status',
+      form: false,
       label: '发布状态',
       layoutGroup: 'business',
       layoutGroupTitle: '发布与统计',

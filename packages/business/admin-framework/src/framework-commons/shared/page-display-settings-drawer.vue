@@ -38,6 +38,8 @@ import ScriptWorkbenchDialog, {
 import PageDisplaySettingsDetailTab from './page-display-settings-detail-tab.vue';
 import PageDisplaySettingsListTab from './page-display-settings-list-tab.vue';
 import { OAK_BASE_API_MODULE, roleOptionsLoader } from './config-helpers';
+import { filterCrudLocalSelectOption } from './crud-local-search';
+import { matchesPinyinFuzzySearch } from './pinyin-fuzzy-search';
 import { normalizeCrudGroupDisplayStyle } from './crud-group-display';
 import {
   findDisplayRuleCycle,
@@ -486,7 +488,11 @@ function ensureFields(view: Exclude<View, 'list'>) {
             key: field.key,
             order: index,
             defaultValue: {},
-            visibleRoleCodes: getDefaultVisibleRoleCodes(field),
+            ...((view === 'create' || view === 'edit') &&
+            field.key === 'tenantId' &&
+            field.defaultVisibleRoleCodes === undefined
+              ? {}
+              : { visibleRoleCodes: getDefaultVisibleRoleCodes(field) }),
           },
   );
   if (
@@ -507,12 +513,21 @@ function ensureFields(view: Exclude<View, 'list'>) {
     }
     // 默认值编辑器渲染前补齐，避免切换页签才写入空对象并产生假修改。
     field.defaultValue ??= {};
-    field.visibleRoleCodes = initializeVisibleRoleCodes({
-      visibleRoleCodes: getDefaultVisibleRoleCodes(
-        allowed.find((source) => source.key === field.key) || field.key,
-      ),
-      ...field,
-    });
+    const sourceField = allowed.find((source) => source.key === field.key);
+    // 租户默认按平台身份判断；保留缺省属性，避免保存时变为角色限制。
+    if (
+      !(
+        (view === 'create' || view === 'edit') &&
+        field.key === 'tenantId' &&
+        sourceField?.defaultVisibleRoleCodes === undefined &&
+        !Object.hasOwn(field, 'visibleRoleCodes')
+      )
+    ) {
+      field.visibleRoleCodes = initializeVisibleRoleCodes({
+        visibleRoleCodes: getDefaultVisibleRoleCodes(sourceField || field.key),
+        ...field,
+      });
+    }
   }
   return holder.fields;
 }
@@ -664,7 +679,7 @@ function matchesFieldSearch(
     detailLabel,
   ].some(
     (value) =>
-      typeof value === 'string' && value.toLocaleLowerCase().includes(keyword),
+      typeof value === 'string' && matchesPinyinFuzzySearch(keyword, value),
   );
 }
 const filteredRows = computed(() =>
@@ -1770,6 +1785,7 @@ onUnmounted(() => {
       <Select
         v-model:value="scope.tenantId"
         :options="tenantScopeOptions"
+        :filter-option="filterCrudLocalSelectOption"
         placeholder="当前租户"
         allow-clear
         show-search
@@ -1778,6 +1794,7 @@ onUnmounted(() => {
       <Select
         v-model:value="scope.domain"
         :options="siteScopeOptions"
+        :filter-option="filterCrudLocalSelectOption"
         :disabled="!scope.tenantId"
         placeholder="当前域名站点（请先选择租户）"
         allow-clear
@@ -1786,6 +1803,7 @@ onUnmounted(() => {
       <Select
         v-model:value="scope.userType"
         :options="userTypeScopeOptions"
+        :filter-option="filterCrudLocalSelectOption"
         placeholder="未指定（匹配任意）"
         allow-clear
         show-search
@@ -1793,6 +1811,7 @@ onUnmounted(() => {
       <Select
         v-model:value="scope.userCategory"
         :options="userCategoryScopeOptions"
+        :filter-option="filterCrudLocalSelectOption"
         placeholder="未指定（匹配任意）"
         allow-clear
         show-search
@@ -1800,6 +1819,7 @@ onUnmounted(() => {
       <Select
         v-model:value="scope.orgCategory"
         :options="orgCategoryScopeOptions"
+        :filter-option="filterCrudLocalSelectOption"
         placeholder="未指定（匹配任意）"
         allow-clear
         show-search
@@ -1807,6 +1827,7 @@ onUnmounted(() => {
       <Select
         v-model:value="scope.orgType"
         :options="orgTypeScopeOptions"
+        :filter-option="filterCrudLocalSelectOption"
         placeholder="未指定（匹配任意）"
         allow-clear
         show-search
@@ -2533,7 +2554,13 @@ onUnmounted(() => {
                       mode="multiple"
                       :loading="roleVisibilityLoading"
                       :options="roleVisibilityOptions"
-                      placeholder="可见角色"
+                      :placeholder="
+                        (view === 'create' || view === 'edit') &&
+                        row.key === 'tenantId' &&
+                        !Object.hasOwn(row, 'visibleRoleCodes')
+                          ? '平台用户（默认）'
+                          : '可见角色'
+                      "
                       class="w-full"
                       @focus="loadRoleVisibilityOptions"
                       @dropdown-visible-change="

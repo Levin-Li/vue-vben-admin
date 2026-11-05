@@ -213,6 +213,7 @@ describe('menu display layout tree', () => {
       },
     ]);
     expect(collectExpandedTreeKeys(filtered)).toEqual(['group:system']);
+    expect(filterTreeByLabel(items, 'bbzx', searchableText)).toHaveLength(1);
     expect(
       filterTreeByLabel(items, '/report/center', searchableText),
     ).toHaveLength(1);

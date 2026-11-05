@@ -11,18 +11,18 @@ import { CanceledError } from '@vben/runtime/request';
 
 import { Button, Input, message, Modal } from 'ant-design-vue';
 
-import BehaviorCaptcha from '../views/_core/authentication/behavior-captcha.vue';
-import {
-  normalizeBehaviorCaptchaChallenge,
-  type BehaviorCaptchaChallenge,
-} from '../views/_core/authentication/behavior-captcha';
+import type { BehaviorCaptchaChallenge } from '../views/_core/authentication/behavior-captcha';
 
+import { normalizeBehaviorCaptchaChallenge } from '../views/_core/authentication/behavior-captcha';
+import BehaviorCaptcha from '../views/_core/authentication/behavior-captcha.vue';
+import { getApiErrorMessage, notifyApiErrorOnce } from './api-error-message';
 import { prepareMultipartReplay } from './multipart-request';
 import {
-  getServiceRespMessage,
+  createServiceRespError,
   isServiceResp,
   isServiceRespSuccessful,
 } from './service-resp';
+
 import './dynamic-verify-code.css';
 
 type DynamicVerifyRequestConfig = RequestClientConfig & {
@@ -387,10 +387,7 @@ function promptDynamicVerifyCode(
         })
         .catch((error: unknown) => {
           // 申请失败时保留弹窗和当前输入，让用户能看到限流等安全拒绝原因。
-          applyErrorMessage =
-            error instanceof Error && error.message
-              ? error.message
-              : '获取验证码失败，请稍后重试';
+          applyErrorMessage = getApiErrorMessage(error);
           throw error;
         })
         .finally(() => {
@@ -407,11 +404,9 @@ function promptDynamicVerifyCode(
         return await triggerApply(force);
       } catch (error: unknown) {
         // 所有动态挑战共用同一失败提示，确保短信、邮箱、图片、行为和 MFA 不会静默失败。
-        const typeLabel = getVerifyTypeLabel(getCurrentType());
-        const reason = applyErrorMessage || '请稍后重试';
-        applyErrorMessage = `获取${typeLabel}失败：${reason}`;
+        applyErrorMessage = getApiErrorMessage(error);
         updateModal();
-        message.error(applyErrorMessage);
+        notifyApiErrorOnce(error);
         throw error;
       }
     };
@@ -670,7 +665,9 @@ async function processDynamicVerifyCode(
         isServiceResp(codeResponse.data) &&
         !isServiceRespSuccessful(codeResponse.data)
       ) {
-        throw new Error(getServiceRespMessage(codeResponse.data));
+        throw Object.assign(createServiceRespError(codeResponse.data), {
+          config: codeResponse.config,
+        });
       }
 
       const paramName = getHeader(

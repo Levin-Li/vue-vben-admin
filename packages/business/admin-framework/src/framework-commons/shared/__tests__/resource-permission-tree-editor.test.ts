@@ -77,7 +77,8 @@ describe('资源权限树编辑器', () => {
       },
     });
 
-    await wrapper.get('[data-test="permission-search"]').setValue('查询列表');
+    // 已加载的权限名称支持拼音首字母筛选。
+    await wrapper.get('[data-test="permission-search"]').setValue('cxlb');
     await wrapper
       .get('[data-test="permission-node-backend-management"]')
       .setValue(true);

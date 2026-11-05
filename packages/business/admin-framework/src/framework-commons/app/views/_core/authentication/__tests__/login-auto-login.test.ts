@@ -3,6 +3,7 @@ import { defineComponent } from 'vue';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { showApiErrorMessage } from '../../../../api/api-error-message';
 // 在用例计时前加载页面，避免首次 SFC 转换挤占交互测试超时。
 import Login from '../login.vue';
 
@@ -16,6 +17,7 @@ const {
   getLoginOptionsApi,
   getVerifyCodeApi,
   messageWarning,
+  messageError,
   oauthService,
   startPasswordLoginApi,
 } = vi.hoisted(() => {
@@ -29,6 +31,7 @@ const {
     getLoginOptionsApi: vi.fn(),
     getVerifyCodeApi: vi.fn(),
     messageWarning: vi.fn(),
+    messageError: vi.fn(),
     oauthService: {
       cancelTransaction: vi.fn(),
       createTransaction: vi.fn(),
@@ -133,7 +136,7 @@ vi.mock('ant-design-vue', () => {
     }),
     Input,
     message: {
-      error: vi.fn(),
+      error: messageError,
       info: vi.fn(),
       success: vi.fn(),
       warning: messageWarning,
@@ -214,6 +217,7 @@ describe('login auto-login prompt', () => {
       enableThirdRegister: true,
     });
     messageWarning.mockReset();
+    messageError.mockReset();
     oauthService.createTransaction.mockReset();
     oauthService.cancelTransaction.mockReset();
     oauthService.exchangeTransaction.mockReset();
@@ -860,6 +864,33 @@ describe('login auto-login prompt', () => {
     expect(getVerifyCodeApi).not.toHaveBeenCalled();
 
     wrapper.unmount();
+  });
+
+  it.each([
+    ['后端已提示', true, '用户名或密码错误'],
+    ['后端没有提示', false, '发生服务器异常'],
+  ])('密码登录失败时只显示一次：%s', async (_label, notified, expected) => {
+    const responseData = notified ? { msg: expected } : {};
+    const failure = { response: { data: responseData } };
+    startPasswordLoginApi.mockImplementation(async () => {
+      if (notified) showApiErrorMessage(expected, failure);
+      throw responseData;
+    });
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const wrapper = mount(Login);
+    await wrapper
+      .find('input[placeholder="请输入手机号或邮箱"]')
+      .setValue('user');
+    await wrapper.find('input[placeholder="请输入登录密码"]').setValue('wrong');
+    await wrapper.find('button[type="primary"]').trigger('click');
+    await flushPromises();
+    expect(messageError).toHaveBeenCalledTimes(1);
+    expect(messageError).toHaveBeenCalledWith({
+      content: expected,
+      key: expect.stringMatching(/^api-error:\d+$/),
+    });
+    wrapper.unmount();
+    log.mockRestore();
   });
 
   it('shows MFA only after a successful password-login challenge', async () => {

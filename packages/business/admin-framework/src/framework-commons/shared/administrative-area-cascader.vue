@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue';
 
 import { Cascader, message } from 'ant-design-vue';
 
+import { notifyApiErrorOnce } from '../app/api/api-error-message';
 import {
   filterAdministrativeAreaOptions,
   formatAdministrativeArea,
@@ -115,9 +116,9 @@ async function handleDropdownVisibleChange(open: boolean) {
         await getCurrentOpenAreaCodes(openAreaContext.value),
       ),
     );
-  } catch {
+  } catch (error) {
     options.value = [];
-    message.error('获取开通区域失败，请重试');
+    notifyApiErrorOnce(error);
   } finally {
     loading.value = false;
   }

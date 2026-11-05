@@ -66,6 +66,7 @@ const treeSelectStub = {
   props: [
     'allowClear',
     'disabled',
+    'filterTreeNode',
     'dropdownMatchSelectWidth',
     'loadData',
     'loading',
@@ -129,6 +130,129 @@ describe('userOrgSelector', () => {
   beforeEach(() => {
     fetchCrudList.mockReset();
     fetchCrudList.mockResolvedValue({ items: [] });
+  });
+
+  it('组织树延迟加载完成后展开当前拼音搜索命中的路径', async () => {
+    let finishTree!: (items: Record<string, any>[]) => void;
+    const orgLoadApi = vi.fn(
+      () =>
+        new Promise<Record<string, any>[]>((resolve) => {
+          finishTree = resolve;
+        }),
+    );
+    const wrapper = mountSelector({ selectableTypes: ['org'], orgLoadApi });
+    const tree = wrapper.findComponent(treeSelectStub);
+    tree.vm.$emit('dropdown-visible-change', true);
+    await wrapper.vm.$nextTick();
+    tree.vm.$emit('search', 'xzb');
+    finishTree([
+      { id: 'root', name: '集团', children: [{ id: 'dept', name: '行政部' }] },
+    ]);
+    await flushPromises();
+    expect(tree.props('treeExpandedKeys')).toContain(
+      encodeUserOrgSelectorKey('org', 'root'),
+    );
+    wrapper.unmount();
+  });
+
+  it('搜索等待正在加载的授权组织树并丢弃已过期的搜索', async () => {
+    let finishTree!: (items: Record<string, any>[]) => void;
+    const orgLoadApi = vi.fn(
+      () =>
+        new Promise<Record<string, any>[]>((resolve) => {
+          finishTree = resolve;
+        }),
+    );
+    const userSearchApi = vi.fn(async ({ keyword }: { keyword: string }) => [
+      { id: 'user', name: `${keyword}用户` },
+    ]);
+    const wrapper = mountSelector({
+      selectableTypes: ['user'],
+      orgLoadApi,
+      userSearchApi,
+    });
+    const tree = wrapper.findComponent(treeSelectStub);
+    tree.vm.$emit('dropdown-visible-change', true);
+    await wrapper.vm.$nextTick();
+    vi.useFakeTimers();
+    tree.vm.$emit('search', '旧');
+    await vi.advanceTimersByTimeAsync(300);
+    tree.vm.$emit('search', '新');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(userSearchApi).not.toHaveBeenCalled();
+    finishTree([{ id: 'org', name: '组织' }]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(orgLoadApi).toHaveBeenCalledTimes(1);
+    expect(userSearchApi).toHaveBeenCalledTimes(1);
+    expect(userSearchApi).toHaveBeenCalledWith({ orgId: 'org', keyword: '新' });
+    vi.useRealTimers();
+    wrapper.unmount();
+  });
+
+  it('组织范围变化时丢弃正在加载的旧组织树', async () => {
+    let finishOld!: (items: Record<string, any>[]) => void;
+    const orgLoadApi = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Record<string, any>[]>((resolve) => {
+            finishOld = resolve;
+          }),
+      )
+      .mockResolvedValueOnce([{ id: 'new', name: '新组织' }]);
+    const wrapper = mountSelector({
+      selectableTypes: ['user'],
+      rootOrgIdList: ['old'],
+      orgLoadApi,
+    });
+    const tree = wrapper.findComponent(treeSelectStub);
+    tree.vm.$emit('dropdown-visible-change', true);
+    await wrapper.vm.$nextTick();
+    await wrapper.setProps({ rootOrgIdList: ['new'] });
+    finishOld([{ id: 'old', name: '旧组织' }]);
+    await flushPromises();
+    expect(orgLoadApi).toHaveBeenCalledTimes(2);
+    expect((tree.props('treeData') as any[]).map((item) => item.id)).toEqual([
+      'new',
+    ]);
+    wrapper.unmount();
+  });
+
+  it('搜索未展开的授权组织并丢弃过期结果', async () => {
+    let finishOld!: (value: Record<string, any>[]) => void;
+    const userSearchApi = vi.fn(({ keyword }: { keyword: string }) =>
+      keyword === '旧'
+        ? new Promise<Record<string, any>[]>((resolve) => {
+            finishOld = resolve;
+          })
+        : Promise.resolve([
+            { id: 'new', name: 'Alice' },
+            { id: 'bad', name: '新越权', orgId: 'other' },
+          ]),
+    );
+    const wrapper = mountSelector({
+      selectableTypes: ['user'],
+      orgLoadApi: async () => [{ id: 'org', name: '组织' }],
+      userSearchApi,
+    });
+    await openSelector(wrapper);
+    vi.useFakeTimers();
+    const tree = wrapper.findComponent(treeSelectStub);
+    tree.vm.$emit('search', '旧');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(userSearchApi).toHaveBeenCalledWith({ orgId: 'org', keyword: '旧' });
+    tree.vm.$emit('search', ' Alice ');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(userSearchApi).toHaveBeenCalledWith({
+      orgId: 'org',
+      keyword: 'Alice',
+    });
+    finishOld([{ id: 'old', name: '旧用户' }]);
+    await vi.advanceTimersByTimeAsync(0);
+    const data = tree.props('treeData') as any[];
+    expect(data[0].children.map((item: any) => item.id)).toEqual(['new']);
+    vi.useRealTimers();
+    wrapper.unmount();
   });
 
   it('defers organization loading until the user opens the selector', async () => {
@@ -489,7 +613,7 @@ describe('userOrgSelector', () => {
       '/User/list',
       expect.objectContaining({ enable: true, orgId: 'org-1' }),
       '',
-      { skipGlobalUserOrgContext: true },
+      { globalUserOrgContext: { orgIds: ['org-1'] } },
     );
     const treeData = wrapper
       .findComponent(treeSelectStub)
@@ -594,6 +718,17 @@ describe('userOrgSelector', () => {
     await openSelector(wrapper);
 
     const treeSelect = wrapper.findComponent(treeSelectStub);
+    const filter = treeSelect.props('filterTreeNode') as (
+      input: string,
+      node: { title: string },
+    ) => boolean;
+    expect(filter('ssmbtd', { title: '搜索目标团队' })).toBe(true);
+    expect(filter('不存在', { title: '搜索目标团队' })).toBe(false);
+    treeSelect.vm.$emit('search', 'ssmbtd');
+    await flushPromises();
+    expect(treeSelect.props('treeExpandedKeys')).toContain(
+      encodeUserOrgSelectorKey('org', 'department'),
+    );
     treeSelect.vm.$emit('search', '目标');
     await flushPromises();
 

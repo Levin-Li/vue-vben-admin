@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { computed, ref } from 'vue';
@@ -149,7 +150,7 @@ async function saveEditValue() {
     await reloadList.value?.();
   } catch (error) {
     console.error(error);
-    message.error('值更新失败');
+    notifyApiErrorOnce(error);
   } finally {
     savingValue.value = false;
   }

@@ -1,3 +1,5 @@
+import { isSuperAdminUser as isRuntimeSuperAdminUser } from '@vben/runtime/utils';
+
 function addRoleIdentityValue(values: Set<string>, role: unknown) {
   if (!role) {
     return;
@@ -23,7 +25,9 @@ function addRoleIdentityValue(values: Set<string>, role: unknown) {
   }
 }
 
-export function collectUserRoleIdentityValues(userInfo: Record<string, unknown>) {
+export function collectUserRoleIdentityValues(
+  userInfo: Record<string, unknown>,
+) {
   const values = new Set<string>();
 
   for (const role of Array.isArray(userInfo.roles) ? userInfo.roles : []) {
@@ -46,14 +50,36 @@ export function isSuperAdminUser(userInfo: unknown) {
 export function isPlatformUser(userInfo: unknown) {
   if (!userInfo || typeof userInfo !== 'object') return false;
   const user = userInfo as Record<string, unknown>;
-  return user.platformUser === true || user.isPlatformUser === true || isSuperAdminUser(user);
+  if (isSuperAdminUser(user)) return true;
+  // 服务端明确返回平台身份时，以该值为准；缺省时才从平台管理员和平台角色推断。
+  if (typeof user.platformUser === 'boolean') return user.platformUser;
+  if (typeof user.isPlatformUser === 'boolean') return user.isPlatformUser;
+  if (user.platformAdmin === true || user.isPlatformAdmin === true) return true;
+  const roles = [
+    ...(Array.isArray(user.roles) ? user.roles : []),
+    ...(Array.isArray(user.roleList) ? user.roleList : []),
+  ];
+  return roles.some((role) => {
+    if (typeof role === 'string') return role.startsWith('R_PLATFORM_');
+    if (!role || typeof role !== 'object') return false;
+    const record = role as Record<string, unknown>;
+    return [record.code, record.roleCode].some(
+      (code) => typeof code === 'string' && code.startsWith('R_PLATFORM_'),
+    );
+  });
 }
 
 export function isTenantAdminUser(userInfo: unknown) {
   if (!userInfo || typeof userInfo !== 'object') return false;
   const user = userInfo as Record<string, unknown>;
   const roles = collectUserRoleIdentityValues(user);
-  return user.tenantAdmin === true || user.isTenantAdmin === true || roles.has('TenantAdmin') || roles.has('R_TENANT_ADMIN') || roles.has('TENANT_ADMIN');
+  return (
+    user.tenantAdmin === true ||
+    user.isTenantAdmin === true ||
+    roles.has('TenantAdmin') ||
+    roles.has('R_TENANT_ADMIN') ||
+    roles.has('TENANT_ADMIN')
+  );
 }
 
 export function isTopSuperAdminUser(userInfo: unknown) {
@@ -74,4 +100,3 @@ export function isTopSuperAdminUser(userInfo: unknown) {
     roleValues.has('TopSuperAdmin')
   );
 }
-import { isSuperAdminUser as isRuntimeSuperAdminUser } from '@vben/runtime/utils';

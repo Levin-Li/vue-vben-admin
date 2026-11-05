@@ -10,6 +10,7 @@ import type {
 import { computed } from 'vue';
 
 import { UserOrgSelector } from '@levin/admin-framework';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import { Form, Select } from 'ant-design-vue';
 
 import { scopeFieldDescription } from './scope-field-description';
@@ -102,6 +103,7 @@ async function loadUsers(context: { orgId: string }) {
       "
       :allow-clear="field.nullable"
       :disabled="disabled || field.readOnly || field.serverManaged"
+      :filter-option="filterCrudLocalSelectOption"
       show-search
       option-filter-prop="label"
       :placeholder="`请选择${field.title}`"

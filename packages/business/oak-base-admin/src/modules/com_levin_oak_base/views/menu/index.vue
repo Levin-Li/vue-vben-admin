@@ -10,7 +10,9 @@ import { useRoute } from 'vue-router';
 import { Page } from '@vben/common-ui';
 import { IconifyIcon, Plus } from '@vben/runtime/icons';
 
+import { matchesPinyinFuzzySearch } from '@levin/admin-framework';
 import { useVbenVxeGrid } from '@levin/admin-framework/framework-commons/app/adapter/vxe-table';
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { getEnabledFrontendModules } from '@levin/admin-framework/framework-commons/app/options';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
@@ -141,9 +143,10 @@ const [Grid, gridApi] = useVbenVxeGrid({
           const visibleIds = new Set(
             rows
               .filter((item) =>
-                String(item.name || item.label || '')
-                  .toLowerCase()
-                  .includes(keyword),
+                matchesPinyinFuzzySearch(
+                  keyword,
+                  String(item.name || item.label || ''),
+                ),
               )
               .map((item) => item.id),
           );
@@ -421,7 +424,7 @@ async function moveMenu(row: MenuRecord, direction: MenuMoveDirection) {
     refresh();
   } catch (error) {
     console.error(error);
-    message.error('菜单排序更新失败，请刷新后重试');
+    notifyApiErrorOnce(error);
   } finally {
     menuOrderLoadingKey.value = '';
   }
@@ -498,7 +501,7 @@ async function ensurePermissionTreeLoaded() {
     })) || []) as PermissionTreeNode[];
   } catch (error) {
     console.error(error);
-    message.error('加载资源权限列表失败');
+    notifyApiErrorOnce(error);
   } finally {
     permissionLoading.value = false;
   }
@@ -667,7 +670,7 @@ async function updateMenuPublicAccess(row: MenuRecord, checked: boolean) {
   } catch (error) {
     row.publicAccess = previousValue;
     console.error(error);
-    message.error('公开访问状态更新失败');
+    notifyApiErrorOnce(error);
   } finally {
     publicAccessSwitchLoadingId.value = '';
   }
@@ -703,7 +706,7 @@ async function updateMenuEnable(row: MenuRecord, checked: boolean) {
   } catch (error) {
     row.enable = previousValue;
     console.error(error);
-    message.error('菜单状态更新失败');
+    notifyApiErrorOnce(error);
   } finally {
     enableSwitchLoadingId.value = '';
   }
@@ -842,10 +845,7 @@ function renderIcon(row: MenuRecord) {
       <div class="vben-menu-section flex h-full min-h-0 flex-col">
         <Grid>
           <template #toolbar-actions>
-            <div
-              aria-label="菜单可见性规则"
-              class="text-primary px-1 text-sm"
-            >
+            <div aria-label="菜单可见性规则" class="text-primary px-1 text-sm">
               {{ MENU_VISIBILITY_PERMISSION_HINT }}
             </div>
             <Input.Search

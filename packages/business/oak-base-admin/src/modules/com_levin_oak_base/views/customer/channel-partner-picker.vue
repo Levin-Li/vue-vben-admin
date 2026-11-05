@@ -5,6 +5,7 @@ import { Button, Select } from 'ant-design-vue';
 
 import { channelPartnerService } from '../../api/channel-partner-service';
 import { loadChannelPartnerPage } from './channel-partner-options';
+import { loadChannelReferencePage } from './channel-partner-reference';
 
 type Option = { label: string; value: number | string };
 type PartnerSummary = {
@@ -12,12 +13,14 @@ type PartnerSummary = {
   id?: number | string;
   legalSubjectName?: string;
   subjectOrgId?: number | string;
+  tenantId?: string;
   type?: string;
 };
 
 const props = defineProps<{
   disabled?: boolean;
   modelValue?: number | string;
+  requireTenant?: boolean;
   tenantId?: number | string;
 }>();
 const emit = defineEmits<{
@@ -31,18 +34,25 @@ const hasMore = ref(false);
 const loading = ref(false);
 const loadError = ref(false);
 let requestVersion = 0;
+let detailVersion = 0;
 
 // 分页读取当前用户可访问的渠道合作关系，避免将供应商关系作为客户渠道。
 async function loadPage(nextPage: number) {
   const version = ++requestVersion;
+  if (props.requireTenant && !props.tenantId) {
+    options.value = [];
+    return;
+  }
   loading.value = true;
   loadError.value = false;
   try {
-    const page = await loadChannelPartnerPage(
-      nextPage,
-      props.tenantId,
-      keyword.value,
-    );
+    const page = props.requireTenant
+      ? await loadChannelReferencePage(
+          String(props.tenantId),
+          nextPage,
+          keyword.value,
+        )
+      : await loadChannelPartnerPage(nextPage, props.tenantId, keyword.value);
     if (version !== requestVersion) return;
     const existing =
       nextPage === 1
@@ -69,18 +79,62 @@ function searchPartner(value: string) {
   void loadPage(1);
 }
 
+watch(
+  () => props.tenantId,
+  (_next, previous) => {
+    requestVersion++;
+    detailVersion++;
+    options.value = [];
+    pageIndex.value = 0;
+    hasMore.value = false;
+    if (previous && !props.disabled) emit('update:modelValue', undefined);
+    void loadPage(1);
+  },
+);
+
 // 回显仅接受服务端详情确认过的渠道关系。
 watch(
-  () => props.modelValue,
-  async (id) => {
-    if (id === undefined || id === null || id === '') return;
+  () => [props.modelValue, props.tenantId] as const,
+  async ([id]) => {
+    const version = ++detailVersion;
+    if (
+      (props.requireTenant && !props.tenantId) ||
+      id === undefined ||
+      id === null ||
+      id === ''
+    )
+      return;
     if (options.value.some((option) => option.value === id)) return;
     try {
-      const result = (await channelPartnerService.retrieve({ id })) as
-        | PartnerSummary
-        | { data: PartnerSummary };
+      // 平台租户回显走同一受控候选接口，避免依赖被脱敏的租户字段。
+      if (props.requireTenant && props.tenantId) {
+        const page = await loadChannelReferencePage(
+          String(props.tenantId),
+          1,
+          '',
+          String(id),
+        );
+        if (version === detailVersion && props.modelValue === id) {
+          options.value = [
+            ...page.options,
+            ...options.value.filter((option) => option.value !== id),
+          ];
+        }
+        return;
+      }
+      const result = (await channelPartnerService.retrieve({
+        id,
+        ...(props.tenantId ? { tenantId: props.tenantId } : {}),
+      })) as PartnerSummary | { data: PartnerSummary };
       const partner = 'data' in result ? result.data : result;
-      if (props.modelValue !== id) return;
+      if (
+        version !== detailVersion ||
+        props.modelValue !== id ||
+        (props.tenantId &&
+          partner.tenantId &&
+          partner.tenantId !== String(props.tenantId))
+      )
+        return;
       options.value = [
         {
           label: `${partner.displayName || `渠道伙伴 ${id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '渠道'}`,
@@ -95,18 +149,6 @@ watch(
   { immediate: true },
 );
 
-watch(
-  () => props.tenantId,
-  () => {
-    requestVersion++;
-    options.value = [];
-    pageIndex.value = 0;
-    hasMore.value = false;
-    if (!props.disabled) emit('update:modelValue', undefined);
-    void loadPage(1);
-  },
-);
-
 onMounted(() => {
   void loadPage(1);
 });
@@ -116,16 +158,17 @@ onMounted(() => {
   <div class="flex flex-col gap-2">
     <Select
       :value="modelValue"
-      :disabled="disabled"
+      :disabled="disabled || (requireTenant && !tenantId)"
       :loading="loading"
       :options="options"
       :filter-option="false"
       :show-search="true"
       class="w-full"
-      placeholder="选择渠道伙伴，可输入伙伴 ID 搜索"
+      placeholder="选择渠道伙伴，可输入名称搜索"
       @search="searchPartner"
       @update:value="
         (value) =>
+          !(requireTenant && !tenantId) &&
           emit(
             'update:modelValue',
             typeof value === 'string' || typeof value === 'number'

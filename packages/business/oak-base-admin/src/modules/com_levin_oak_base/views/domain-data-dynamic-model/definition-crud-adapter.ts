@@ -63,7 +63,6 @@ export function definitionManagementQuery(
 export function definitionCrudConfig(options: {
   context: () => string;
   ownerAllowed: boolean;
-  ownerLoader: NonNullable<CrudPageConfig['fields'][number]['loadOptions']>;
   rowActions: CrudRowAction[];
   scopes: Array<{ label: string; value: DataModelScopeKind }>;
 }): CrudPageConfig {
@@ -192,11 +191,9 @@ export function definitionCrudConfig(options: {
         {
           key: 'ownerId',
           label: '私人模型所有者',
-          type: 'select',
+          type: 'user-tree-select',
           form: options.ownerAllowed,
           table: false,
-          loadOptions: options.ownerLoader,
-          remoteSearch: true,
         },
         {
           key: 'enabled',

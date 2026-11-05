@@ -1,11 +1,12 @@
 import type { SelectOption } from '@levin/admin-framework';
-import type { DomainDnsRecord, DomainRecord } from '../api/domain-service';
-import type { TenantSiteRecord } from '../api/tenant-site-service';
 import type {
   CrudExportTemplateService,
   CrudOptionLoader,
   CrudPageConfig,
 } from '@levin/admin-framework/framework-commons/shared/types';
+
+import type { DomainDnsRecord, DomainRecord } from '../api/domain-service';
+import type { TenantSiteRecord } from '../api/tenant-site-service';
 import type {
   ProviderOnboardingGuidance,
   TenantSiteOption,
@@ -13,19 +14,16 @@ import type {
 } from './tenant-site-capability';
 
 import {
-  fetchCrudList,
   createCrudRecord,
-  updateCrudRecord,
   deleteCrudRecord,
+  fetchCrudList,
   fetchDictOptions,
   fetchEnumOptions,
   fetchOptions,
+  matchesPinyinFuzzySearch,
+  requestClient,
+  updateCrudRecord,
 } from '@levin/admin-framework';
-import { requestClient } from '@levin/admin-framework';
-import {
-  FILE_STORAGE_MULTI_UPLOAD_PATH,
-  FILE_STORAGE_SINGLE_UPLOAD_PATH,
-} from '@levin/admin-framework/framework-commons/app/api/file-storage-service';
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 
 import { buildTenantSiteCapabilityOptions } from './tenant-site-capability';
@@ -33,7 +31,10 @@ import { buildTenantSiteCapabilityOptions } from './tenant-site-capability';
 export const OAK_BASE_API_MODULE = '/com.levin.oak.base/V1/api';
 export const DEFAULT_CRUD_MODAL_WIDTH = 'min(80vw, 1280px)';
 export const DEFAULT_PERMISSION_DOMAIN = 'com.levin.oak.base';
-export { FILE_STORAGE_MULTI_UPLOAD_PATH, FILE_STORAGE_SINGLE_UPLOAD_PATH };
+export {
+  FILE_STORAGE_MULTI_UPLOAD_PATH,
+  FILE_STORAGE_SINGLE_UPLOAD_PATH,
+} from '@levin/admin-framework/framework-commons/app/api/file-storage-service';
 
 export function buildModulePermission(
   type: string,
@@ -238,7 +239,7 @@ export const tenantSiteDomainOptionsLoader = async (keyword?: string) => {
     if (
       normalizedKeyword &&
       !domain.toLowerCase().includes(normalizedKeyword) &&
-      !siteName.toLowerCase().includes(normalizedKeyword)
+      !matchesPinyinFuzzySearch(normalizedKeyword, siteName)
     ) {
       continue;
     }

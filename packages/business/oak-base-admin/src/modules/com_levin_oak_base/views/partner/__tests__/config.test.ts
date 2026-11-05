@@ -37,11 +37,17 @@ describe('合作关系公共资料', () => {
       expect(keys).not.toContain(key);
     expect(keys).not.toContain('ownerId');
     expect(
+      partnerCommonFields.find((field) => field.key === 'tenantId'),
+    ).toMatchObject({ visibleForPlatformUser: true, disabledOnEdit: true });
+    expect(
+      partnerCommonFields.find((field) => field.key === 'tenantId')?.omitOnEdit,
+    ).not.toBe(true);
+    expect(
       partnerCommonFields.find((field) => field.key === 'parentOrgId'),
     ).toMatchObject({
       formCreate: true,
       formEdit: false,
-      type: 'select',
+      type: 'org-tree-select',
     });
     expect(
       partnerCommonFields.find((field) => field.key === 'subjectOrgId'),

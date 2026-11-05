@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { computed, onMounted, reactive, ref } from 'vue';
 
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
@@ -203,7 +204,7 @@ async function runAction(action: () => Promise<any>, successText: string) {
     applySnapshot(snapshot);
     message.success(successText);
   } catch (error) {
-    message.error(error instanceof Error ? error.message : '支付模拟操作失败');
+    notifyApiErrorOnce(error);
   } finally {
     actionLoading.value = false;
   }

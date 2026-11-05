@@ -1,5 +1,6 @@
 export interface UserTenantOrgNode {
   children?: UserTenantOrgNode[];
+  disabled?: boolean;
   key: string;
   label: string;
   tenantId?: string;
@@ -52,4 +53,23 @@ export function assertUserTenantOrg(
     items.some((item) => item.key === orgId || visit(item.children || []));
   if (!visit(choices))
     throw new Error('所属组织不属于所选租户或不在当前授权范围');
+}
+
+/** 上级组织不能选择自身或后代；虚拟租户节点仅用于展示。 */
+export function disableOrgParentChoices<T extends UserTenantOrgNode>(
+  nodes: T[],
+  disabledId?: string,
+  disabledAncestor = false,
+): T[] {
+  return nodes.map((node) => {
+    const blocked =
+      disabledAncestor || Boolean(disabledId && node.key === disabledId);
+    return {
+      ...node,
+      children: node.children
+        ? disableOrgParentChoices(node.children, disabledId, blocked)
+        : undefined,
+      disabled: blocked || Boolean(node.disabled || node.virtual),
+    } as T;
+  });
 }

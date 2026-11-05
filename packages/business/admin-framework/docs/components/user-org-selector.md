@@ -29,6 +29,7 @@ import {
 - 允许选择用户时，用户不会预加载；用户展开某个组织后才加载该组织下的用户。
 - 默认用户加载器调用 `/User/list`，请求包含 `orgId`、`loadOrg=true`、`enable=true`、`pageIndex=1` 和 `pageSize=500`；可通过参数替换。
 - 树内的组织与用户使用不同的内部键，调用方只需使用组件输出的 ID 或记录，不应依赖内部键格式。
+- 已加载的组织和用户支持名称、拼音及拼音首字母搜索。公共 CRUD 用户字段还会在已授权组织内按名称远程搜索未展开的用户；远程搜索不支持拼音。自定义用户加载器不自动启用远程搜索，独立组件可通过 `userSearchApi` 显式提供受限搜索。
 
 ## 基础示例
 
@@ -232,7 +233,19 @@ const userLoadApi = async ({ org, orgId, userTypes }) => {
 
 公共 CRUD 将 `type: 'org-tree-select'` 字段接入本组件，固定使用 `selectableTypes=['org']`、`valueMode='id'`。单选字段只写入组织 ID，多选字段写入 ID 数组；字段被禁用时不得通过选择器修改。查询、新增和编辑中若已有 ID，使用 `loadOnInitialValue` 完成名称回显，未匹配 ID 保留原值。
 
+公共 CRUD 用户字段默认只加载启用用户；业务可显式设置 `userEnable: false` 查询停用用户。多个已有用户 ID 的回显按每批最多 100 个 ID。
+
 字段未声明候选来源时读取当前授权组织树；显式 `loadOptions` 或固定 `options` 则覆盖默认来源。这里选择的是业务字段值，不会改变顶部全局组织上下文；提交时仍由后端校验组织范围和权限。
+
+## 公共 CRUD 用户字段
+
+公共 CRUD 用户字段配置 `type: 'user-tree-select'`，查询和表单只允许选择用户，默认单选并提交用户 ID；业务明确需要多选时配置 `multiple: true`。组织节点用于浏览，不作为用户字段的选中值。配置 `apiModuleBase` 指向用户接口所属模块，例如 `/com.levin.oak.base/V1/api`；默认用户请求及已有 ID 的名称回显均使用该前缀。
+
+租户用户默认按展开的授权组织逐页请求 `/User/list` 的全部用户，不额外过滤启用状态；可通过 `userEnable` 显式筛选。若业务有更窄的用户候选范围，配置 `userLoadApi`，按传入的组织加载该范围内的用户，并配置 `userResolveRecords` 安全解析已有 ID。自定义加载器负责完整分页与授权范围，不能把只返回第一页的通用选项加载器直接用作白名单。服务端仍须校验最终提交的用户和组织范围。
+
+平台用户操作声明了 `tenantId` 的 CRUD 表单时，组织和用户字段依照所选租户加载，未选租户时不可选择；切换租户会清除组织、用户及声明 `tenantDependent: true` 的关联字段，并使旧候选请求失效。授权组织使用 `authorizedOrgListByTenant`；用户候选使用受控 `User/selectorCandidates` 接口，服务端校验资源权限、租户、授权组织、领域和密级，输出仅含用户 ID 与名称；用户回显也使用目标租户授权组织范围。需要按租户获取自定义候选的字段提供 `tenantLoadOptions(tenantId, keyword)`，组织候选须包含 `tenantId`；普通关联候选加载器须自行核验租户归属与授权。查询区域沿用原查询上下文。
+
+搜索只覆盖已展开并加载的组织用户，不支持跨组织远程搜索。需要跨组织远程搜索的业务应保留专门实现，直到选择器提供相应能力。
 
 ## 维护说明
 

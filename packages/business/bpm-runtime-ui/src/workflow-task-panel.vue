@@ -16,6 +16,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import {
   BehaviorCaptcha,
   normalizeBehaviorCaptchaChallenge,
+  UserOrgSelector,
 } from '@levin/admin-framework';
 import { workflowVerificationLabel } from '@levin/bpm-designer';
 // 审批表单、动作和轨迹在公共包内显式注册，独立宿主也能直接交互。
@@ -107,6 +108,52 @@ const verificationCode = ref('');
 const verificationType = ref<string>();
 const contextVersion = ref(0);
 const selectedAction = ref<WorkflowTaskAction>();
+// 工作流只返回 ID 和名称，不推测组织；选择器仅加载本次动作的候选人。
+const candidateGroupId = '__workflow_candidate_users__';
+const candidateSelectorKey = computed(() =>
+  JSON.stringify([
+    props.task.taskId,
+    selectedAction.value?.code,
+    selectedAction.value?.candidateUsers,
+  ]),
+);
+const loadCandidateGroup = async () => [
+  { id: candidateGroupId, name: '可选处理人' },
+];
+const loadCandidateUsers = async ({ orgId }: { orgId: string }) =>
+  orgId === candidateGroupId
+    ? (selectedAction.value?.candidateUsers || []).map((item) => ({
+        id: item.value,
+        name: item.label,
+      }))
+    : [];
+const resolveCandidateUsers = async (ids: string[]) => {
+  const requested = new Set(ids);
+  return (selectedAction.value?.candidateUsers || [])
+    .filter((item) => requested.has(item.value))
+    .map((item) => ({
+      id: item.value,
+      kind: 'user' as const,
+      name: item.label,
+    }));
+};
+function updateTargetUser(value: unknown) {
+  const allowed = selectedAction.value?.candidateUsers || [];
+  targetUserId.value =
+    typeof value === 'string' && allowed.some((item) => item.value === value)
+      ? value
+      : undefined;
+}
+function updateTargetUsers(value: unknown) {
+  const allowed = new Set(
+    (selectedAction.value?.candidateUsers || []).map((item) => item.value),
+  );
+  targetUserIds.value = Array.isArray(value)
+    ? value.filter(
+        (item): item is string => typeof item === 'string' && allowed.has(item),
+      )
+    : [];
+}
 const errors = ref<string[]>([]);
 const displayFormItems = computed(() =>
   workflowActionFormItems(props.task, selectedAction.value),
@@ -690,19 +737,34 @@ function submit() {
             label="目标处理人"
             required
           >
-            <ASelect
-              v-model:value="targetUserId"
-              :options="selectedAction.candidateUsers"
+            <UserOrgSelector
+              :key="candidateSelectorKey"
+              :model-value="targetUserId"
               :disabled="submitting"
+              :max-select-count="1"
+              :org-load-api="loadCandidateGroup"
+              :user-load-api="loadCandidateUsers"
+              :resolve-records="resolveCandidateUsers"
+              :selectable-types="['user']"
+              placeholder="请选择处理人"
+              value-mode="id"
+              @update:model-value="updateTargetUser"
             />
           </AFormItem>
           <template v-if="selectedAction.code === 'add-sign'">
             <AFormItem label="加签人员" required>
-              <ASelect
-                v-model:value="targetUserIds"
-                mode="multiple"
-                :options="selectedAction.candidateUsers"
+              <UserOrgSelector
+                :key="candidateSelectorKey"
+                :model-value="targetUserIds"
                 :disabled="submitting"
+                :org-load-api="loadCandidateGroup"
+                :user-load-api="loadCandidateUsers"
+                :resolve-records="resolveCandidateUsers"
+                :selectable-types="['user']"
+                :multiple="true"
+                placeholder="请选择加签人员"
+                value-mode="id"
+                @update:model-value="updateTargetUsers"
               />
             </AFormItem>
             <AFormItem label="加签顺序" required>

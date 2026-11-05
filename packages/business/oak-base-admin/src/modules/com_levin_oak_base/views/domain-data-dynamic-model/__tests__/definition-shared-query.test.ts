@@ -127,7 +127,6 @@ describe('模型管理真实公共查询链路', () => {
     const config = definitionCrudConfig({
       context: () => 'actor',
       ownerAllowed: true,
-      ownerLoader: async () => [],
       scopes: [{ label: '私人', value: 'PRIVATE' }],
       rowActions: [],
     });

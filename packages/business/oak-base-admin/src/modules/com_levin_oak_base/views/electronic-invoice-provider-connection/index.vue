@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { computed, reactive, ref } from 'vue';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
@@ -108,7 +109,7 @@ async function submitAuthorization() {
     await reloadConnections.value?.();
   } catch (error) {
     console.error(error);
-    message.error('确认开票授权失败');
+    notifyApiErrorOnce(error);
   } finally {
     authorizationSaving.value = false;
   }

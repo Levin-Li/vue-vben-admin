@@ -2,13 +2,13 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 
 import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 
+import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { userSettingService } from '../../api/user-setting-service';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
   tenantOptionsLoader,
-  userOptionsLoader,
 } from '../api-module';
 import { transformSettingCrudSubmit } from '../setting-crud-submit';
 
@@ -25,6 +25,7 @@ export const pageMeta = {
 export const userSettingPageCrudConfig: CrudPageConfig = {
   apiBase: '/UserSetting',
   domainObject: true,
+  apiModuleBase: OAK_BASE_API_MODULE,
   apiService: userSettingService,
   dataAttrTargets: standardCrudDataAttrTargets(userSettingService),
   defaultFormValues: {
@@ -67,9 +68,7 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       label: '所属用户',
       layoutGroup: 'basic',
       layoutOrder: 20,
-      loadOptions: userOptionsLoader,
-      remoteSearch: true,
-      type: 'select',
+      type: 'user-tree-select',
     },
     {
       key: 'id',

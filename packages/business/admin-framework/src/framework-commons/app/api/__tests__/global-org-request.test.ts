@@ -8,14 +8,17 @@ import {
   getDataAttrPolicyEpoch,
   suspendDataAttrPolicies,
 } from '../../../data-attr-policy';
+import { setCurrentGlobalDomainIds } from '../../global-domain-context-state';
 import {
   setCurrentGlobalUserOrgRecord,
   setCurrentGlobalUserOrgRecords,
   setGlobalUserOrgContextEnabled,
 } from '../../global-org-context-state';
+import { notifyApiErrorOnce } from '../api-error-message';
 import { baseRequestClient, requestClient } from '../request';
 
 const mocks = vi.hoisted(() => ({
+  error: vi.fn(),
   token: 'token',
   user: { superAdmin: false },
   get: vi.fn().mockResolvedValue({ items: [] }),
@@ -43,12 +46,19 @@ vi.mock('@vben/runtime/request', async () => ({
     }
   },
   authenticateResponseInterceptor: vi.fn(),
-  errorMessageResponseInterceptor: vi.fn(),
+  errorMessageResponseInterceptor: (
+    notify: (msg: string, error: any) => void,
+  ) => ({
+    rejected: (error: any) => {
+      notify('', error);
+      return Promise.reject(error);
+    },
+  }),
 }));
 vi.mock('@levin/admin-framework/framework-commons/app/store', () => ({
   useAuthStore: vi.fn(),
 }));
-vi.mock('ant-design-vue', () => ({ message: {} }));
+vi.mock('ant-design-vue', () => ({ message: { error: mocks.error } }));
 vi.mock('../dynamic-verify-code', () => ({
   createDynamicVerifyCodeInterceptor: vi.fn(),
 }));
@@ -57,6 +67,75 @@ vi.mock('../../../runtime', () => ({ requestClient: { get: mocks.get } }));
 
 const intercept = (config: any) =>
   (requestClient as any).interceptors[0].fulfilled(config);
+
+describe('公共请求失败提示', () => {
+  beforeEach(() => mocks.error.mockClear());
+
+  async function rejectBusinessResponse(config: Record<string, unknown>) {
+    const interceptors = (baseRequestClient as any).responseInterceptors;
+    const responseHandler = interceptors.at(-2);
+    const errorHandler = interceptors.at(-1);
+    const error = await responseHandler
+      .fulfilled({
+        config: { responseReturn: 'data', ...config },
+        data: { code: 10_000, msg: '后端提示' },
+        headers: {},
+        status: 200,
+      })
+      .catch((error_: unknown) => error_);
+    await errorHandler.rejected(error).catch(() => undefined);
+    return { error, errorHandler };
+  }
+
+  it('业务失败默认使用后端提示，多层拦截同一异常只提示一次', async () => {
+    const { error, errorHandler } = await rejectBusinessResponse({});
+    await errorHandler.rejected(error).catch(() => undefined);
+    expect(mocks.error).toHaveBeenCalledTimes(1);
+    expect(mocks.error).toHaveBeenCalledWith(
+      expect.objectContaining({ content: '后端提示' }),
+    );
+  });
+
+  it('请求显式覆盖时使用覆盖文案', async () => {
+    await rejectBusinessResponse({ errorMessageOverride: '特殊提示' });
+    expect(mocks.error).toHaveBeenCalledTimes(1);
+    expect(mocks.error).toHaveBeenCalledWith(
+      expect.objectContaining({ content: '特殊提示' }),
+    );
+  });
+
+  it('静默请求的 HTTP 200 业务失败不提示', async () => {
+    await rejectBusinessResponse({ __silentError: true });
+    expect(mocks.error).not.toHaveBeenCalled();
+  });
+
+  it.each([null, 'server failure'])(
+    '空或非对象响应 %s 在页面捕获后仍只提示一次',
+    async (body) => {
+      const runtime = await vi.importActual<
+        typeof import('@vben/runtime/request')
+      >('@vben/runtime/request');
+      const client = new runtime.RequestClient({
+        adapter: async (config) => {
+          throw Object.assign(new Error('Request failed'), {
+            config,
+            response: { config, data: body, status: 500 },
+          });
+        },
+      });
+      const interceptors = (baseRequestClient as any).responseInterceptors;
+      client.addResponseInterceptor(interceptors.at(-1));
+      const error = await client
+        .get('/failure')
+        .catch((error_: unknown) => error_);
+      notifyApiErrorOnce(error);
+      expect(mocks.error).toHaveBeenCalledTimes(1);
+      expect(mocks.error).toHaveBeenCalledWith(
+        expect.objectContaining({ content: '发生服务器异常' }),
+      );
+    },
+  );
+});
 
 describe('全局注入请求配置', () => {
   beforeEach(() => {
@@ -205,6 +284,81 @@ describe('全局注入请求配置', () => {
       'X-Oak-Owner-Id-List': 'user-a,user-b',
     });
     expect(result.headers['X-Oak-Owner-Id']).toBeUndefined();
+  });
+
+  it('显式租户和组织覆盖顶部范围，保留领域并清理不可信头', async () => {
+    setCurrentGlobalDomainIds('domain-a');
+    try {
+      const result = await intercept({
+        headers: {
+          'x-oak-tenant-id': 'forged',
+          'X-OAK-ORG-ID-LIST': 'forged',
+          'x-oak-owner-id': 'forged',
+        },
+        __globalUserOrgContext: {
+          tenantId: 'tenant-b',
+          orgIds: ['org-b', 'org-c'],
+        },
+      });
+      expect(result.headers).toMatchObject({
+        'X-Oak-Tenant-Id': 'tenant-b',
+        'X-Oak-Org-Id-List': 'org-b,org-c',
+        'X-Oak-Domain-Id': 'domain-a',
+      });
+      expect(result.headers['x-oak-tenant-id']).toBeUndefined();
+      expect(result.headers['X-OAK-ORG-ID-LIST']).toBeUndefined();
+      expect(result.headers['x-oak-owner-id']).toBeUndefined();
+      expect(result.headers['X-Oak-Owner-Id']).toBeUndefined();
+    } finally {
+      setCurrentGlobalDomainIds([]);
+    }
+  });
+
+  it('一个显式组织也使用列表头；空列表不继承顶部组织', async () => {
+    const one = await intercept({
+      headers: {},
+      __globalUserOrgContext: { tenantId: 'tenant-b', orgIds: ['org-b'] },
+    });
+    expect(one.headers['X-Oak-Org-Id-List']).toBe('org-b');
+    expect(one.headers['X-Oak-Org-Id']).toBeUndefined();
+    const empty = await intercept({
+      headers: {},
+      __globalUserOrgContext: { tenantId: 'tenant-b', orgIds: [] },
+    });
+    expect(empty.headers['X-Oak-Org-Id-List']).toBeUndefined();
+    expect(empty.headers['X-Oak-Org-Id']).toBeUndefined();
+  });
+
+  it('跳过标志移除租户组织用户但不影响领域，即使同时指定范围', async () => {
+    setCurrentGlobalDomainIds('domain-a');
+    try {
+      const result = await intercept({
+        headers: { 'x-oak-org-id': 'forged' },
+        __skipGlobalUserOrgContext: true,
+        __globalUserOrgContext: { tenantId: 'tenant-b', orgIds: ['org-b'] },
+      });
+      expect(result.headers['X-Oak-Domain-Id']).toBe('domain-a');
+      expect(result.headers['X-Oak-Tenant-Id']).toBeUndefined();
+      expect(result.headers['X-Oak-Org-Id-List']).toBeUndefined();
+      expect(result.headers['X-Oak-Owner-Id']).toBeUndefined();
+      expect(result.headers['x-oak-org-id']).toBeUndefined();
+    } finally {
+      setCurrentGlobalDomainIds([]);
+    }
+  });
+
+  it.each([
+    ['comma', ['org-a,org-b']],
+    ['whitespace', ['org-a\nforged']],
+    ['duplicate', ['org-a', 'org-a']],
+    ['not-list', 'org-a'],
+  ])('拒绝不合法的显式组织范围：%s', async (_name, orgIds) => {
+    await expect(
+      intercept({
+        headers: {},
+        __globalUserOrgContext: { tenantId: 'tenant-b', orgIds },
+      }),
+    ).rejects.toThrow();
   });
 
   it('候选查询完全跳过优先于强制覆盖，基础客户端不安装全局注入', async () => {

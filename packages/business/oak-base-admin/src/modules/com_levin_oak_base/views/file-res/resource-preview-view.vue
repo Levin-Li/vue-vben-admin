@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type {
   ArchiveEntryResult,
   FileResourceRecord,
@@ -151,7 +152,7 @@ async function loadRecords() {
     void prepareVideoPosters(items);
   } catch (error) {
     console.error(error);
-    message.error('文件资源加载失败');
+    notifyApiErrorOnce(error);
   } finally {
     loading.value = false;
   }
@@ -386,7 +387,7 @@ async function submitEditor() {
     await loadRecords();
   } catch (error) {
     console.error(error);
-    message.error(editorMode.value === 'create' ? '新增文件资源失败' : '更新文件资源失败');
+    notifyApiErrorOnce(error);
   } finally {
     editorSaving.value = false;
   }
@@ -408,7 +409,7 @@ async function deleteRecord(record: FileResourceRecord) {
     await loadRecords();
   } catch (error) {
     console.error(error);
-    message.error('删除文件资源失败');
+    notifyApiErrorOnce(error);
   }
 }
 
@@ -426,7 +427,7 @@ async function deleteSelectedRecords() {
     await loadRecords();
   } catch (error) {
     console.error(error);
-    message.error('批量删除文件资源失败');
+    notifyApiErrorOnce(error);
   }
 }
 
@@ -463,7 +464,7 @@ async function uploadEditorFile(options: any, target: 'cover' | 'path') {
   } catch (error) {
     console.error(error);
     options.onError?.(error);
-    message.error(target === 'cover' ? '封面图上传失败' : '文件上传失败');
+    notifyApiErrorOnce(error);
   }
 }
 

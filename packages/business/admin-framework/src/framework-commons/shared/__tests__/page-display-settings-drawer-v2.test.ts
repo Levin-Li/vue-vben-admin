@@ -94,6 +94,37 @@ function upload() {
 }
 
 describe('界面UI设置2', () => {
+  it('租户字段未修改角色时保存平台身份默认，避免写入超管角色', async () => {
+    const wrapper = mount(PageDisplaySettingsDrawerV2, {
+      attachTo: document.body,
+      props: {
+        code: '/clob/V1/User',
+        fields: [{ key: 'tenantId', label: '租户', search: true }],
+        detailFields: [{ key: 'tenantId', label: '租户' }],
+        modelValue: { version: 1 },
+        open: true,
+      },
+    });
+    try {
+      await flushPromises();
+      await clickTab('编辑表单');
+      fieldRow('tenantId').click();
+      await flushPromises();
+      expect(document.body.textContent).toContain('平台用户（默认）');
+      upload();
+      await flushPromises();
+      const payload = wrapper.emitted('save')?.at(-1)?.[0] as {
+        config: CrudPageDisplayConfig;
+      };
+      expect(
+        payload.config.edit?.fields.find((field) => field.key === 'tenantId'),
+      ).not.toHaveProperty('visibleRoleCodes');
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
   it('在整页设置中覆盖标签缓存并可恢复路由默认', async () => {
     const wrapper = mountEditor();
     try {

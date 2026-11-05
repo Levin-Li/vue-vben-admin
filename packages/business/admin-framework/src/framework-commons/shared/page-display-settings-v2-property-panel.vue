@@ -439,7 +439,14 @@ function scriptLabel(expression?: string) {
           :loading="roleLoading"
           :options="roleOptions"
           option-filter-prop="label"
-          placeholder="不限制"
+          :placeholder="
+            kind === 'field' &&
+            (view === 'create' || view === 'edit') &&
+            field.key === 'tenantId' &&
+            !Object.hasOwn(field, 'visibleRoleCodes')
+              ? '平台用户（默认）'
+              : '不限制'
+          "
           aria-label="可见角色"
           @update:value="patchProperty('visibleRoleCodes', $event)"
           @focus="emit('loadRoles')"

@@ -7,6 +7,11 @@ import { oauthService } from '@levin/admin-framework/framework-commons/app/api';
 import { useAuthStore } from '@levin/admin-framework/framework-commons/app/store';
 
 import {
+  getApiErrorMessage,
+  isApiErrorNotified,
+  notifyApiErrorOnce,
+} from '../../../api/api-error-message';
+import {
   authorizeInAppContext,
   buildInAppReturnUrl,
   detectEnterpriseContainer,
@@ -282,7 +287,7 @@ async function loadSocialBindings() {
       .filter((binding): binding is SocialBindingItem => Boolean(binding));
   } catch (error: any) {
     socialBindings.value = [];
-    message.error(error?.message || '加载第三方绑定列表失败');
+    notifyApiErrorOnce(error);
   } finally {
     loading.socialBindings = false;
   }
@@ -298,7 +303,7 @@ async function loadSocialPlatforms() {
       .filter((platform): platform is SocialPlatformItem => Boolean(platform));
   } catch (error: any) {
     socialPlatforms.value = [];
-    message.error(error?.message || '加载可绑定平台失败');
+    notifyApiErrorOnce(error);
   } finally {
     loading.socialPlatforms = false;
   }
@@ -333,10 +338,9 @@ async function finishSocialBindTransaction(transactionId: string) {
     await Promise.all([loadSocialBindings(), authStore.fetchUserInfo()]);
     message.success('第三方账号绑定成功');
   } catch (error: any) {
-    socialBindErrorMessage.value =
-      error?.message || '完成第三方账号绑定失败，请稍后重试';
+    socialBindErrorMessage.value = getApiErrorMessage(error);
     socialBindStatusMessage.value = socialBindErrorMessage.value;
-    message.error(socialBindErrorMessage.value);
+    notifyApiErrorOnce(error);
   } finally {
     socialBindExchanging.value = false;
   }
@@ -449,10 +453,9 @@ async function startSocialBinding(platform: SocialPlatformItem) {
   } catch (error: any) {
     clearSocialBindResumeTransaction();
     clearSocialBindPolling();
-    socialBindErrorMessage.value =
-      error?.message || '发起第三方账号绑定失败，请稍后重试';
+    socialBindErrorMessage.value = getApiErrorMessage(error);
     socialBindStatusMessage.value = socialBindErrorMessage.value;
-    message.error(socialBindErrorMessage.value);
+    notifyApiErrorOnce(error);
   } finally {
     socialBindSubmitting.value = false;
   }
@@ -570,12 +573,12 @@ async function initializeSocialBinding() {
           ) || null;
         beginSocialBindPolling(callback.transactionId);
       }
-    } catch {
+    } catch (error) {
       clearSocialBindResumeTransaction();
       clearSocialBindPolling();
       socialBindErrorMessage.value =
         '绑定授权或当前会话已失效，请确认已登录并重新发起账号绑定。';
-      message.warning(socialBindErrorMessage.value);
+      if (!isApiErrorNotified(error)) notifyApiErrorOnce(error);
       if (socialBindingPageActive)
         await Promise.all([loadSocialBindings(), loadSocialPlatforms()]);
     } finally {

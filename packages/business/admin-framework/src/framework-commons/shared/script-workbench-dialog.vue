@@ -4,6 +4,7 @@ import { computed, reactive, ref, watch } from 'vue';
 
 import JavaScriptCodeEditor from './javascript-code-editor.vue';
 import { evaluateJavaScriptExpression } from './javascript-expression';
+import { matchesPinyinFuzzySearch } from './pinyin-fuzzy-search';
 
 export interface ScriptWorkbenchVariable {
   defaultValue?: any;
@@ -79,7 +80,7 @@ const filteredGroups = computed(() => {
   return props.variableGroups.map((group) => ({
     ...group,
     variables: group.variables.filter((variable) =>
-      `${variable.label || variable.name} ${variable.name}`.toLowerCase().includes(keyword),
+      matchesPinyinFuzzySearch(keyword, `${variable.label || variable.name} ${variable.name}`),
     ),
   })).filter((group) => group.variables.length > 0);
 });

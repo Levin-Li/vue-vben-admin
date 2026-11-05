@@ -435,7 +435,6 @@ export function getDefaultFieldHidden(
   // 页面展示设置显式保存展示状态后仍可覆盖这个默认值。查询条件不应用此默认值。
   const isSystemHidden =
     ['editable', 'id', 'lastUpdateTime', 'orderCode'].includes(key) ||
-    (options.view === 'edit' && key === 'tenantId') ||
     (options.hideDomainId === true && key === 'domainId');
   return isSystemHidden;
 }

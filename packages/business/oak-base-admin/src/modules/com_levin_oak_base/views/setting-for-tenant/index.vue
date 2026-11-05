@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { TenantSettingItem } from './setting-for-tenant';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -175,7 +176,7 @@ async function loadSettings() {
   } catch (error) {
     console.error(error);
     errorMessage.value = props.loadErrorMessage;
-    message.error(props.loadErrorMessage);
+    notifyApiErrorOnce(error);
   } finally {
     loading.value = false;
   }

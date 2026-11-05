@@ -156,7 +156,11 @@ class RequestClient {
       });
       return response as T;
     } catch (error: any) {
-      throw error.response ? error.response.data : error;
+      const responseData = error?.response?.data;
+      // 响应体不可携带通知状态时保留原异常，避免页面重复提示同一次失败。
+      throw responseData !== null && typeof responseData === 'object'
+        ? responseData
+        : error;
     }
   }
 }

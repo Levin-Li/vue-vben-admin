@@ -82,6 +82,10 @@ describe('open area code tree selection', () => {
     expect(shouldFilterOpenAreaTree('市')).toBe(false);
     expect(shouldFilterOpenAreaTree('区')).toBe(false);
     expect(shouldFilterOpenAreaTree('唐山')).toBe(true);
+    expect(shouldFilterOpenAreaTree('a')).toBe(true);
+    expect(filterOpenAreaTree(sampleAreas, 'lys')).toMatchObject([
+      { code: '130000', children: [{ code: '130300', name: '另一市' }] },
+    ]);
   });
 
   it('keeps unknown historical codes while normalizing known codes', () => {

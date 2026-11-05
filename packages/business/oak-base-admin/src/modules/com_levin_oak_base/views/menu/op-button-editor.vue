@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { PermissionTreeNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 
 import type { MenuOpButton } from './types';
@@ -12,7 +13,6 @@ import {
   Button,
   Empty,
   Input,
-  message,
   Modal,
   Popconfirm,
   Spin,
@@ -124,7 +124,7 @@ async function ensurePermissionOptionsLoaded(silent = false) {
   } catch (error) {
     if (!silent) {
       console.error(error);
-      message.error('加载资源权限列表失败');
+      notifyApiErrorOnce(error);
     }
   } finally {
     permissionLoading.value = false;

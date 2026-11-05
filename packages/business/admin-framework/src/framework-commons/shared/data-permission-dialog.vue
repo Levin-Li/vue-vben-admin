@@ -28,8 +28,11 @@ import {
 
 import { buildModuleRequestPath } from '../api';
 import { rbacService } from '../app/api/rbac-service';
+import { globalDomainContextRevision } from '../app/global-domain-context-state';
+import { globalOrgContextRevision } from '../app/global-org-context-state';
 import { requestClient } from '../runtime';
 import { tenantDataScopeOptionsLoader } from './config-helpers';
+import { matchesPinyinFuzzySearch } from './pinyin-fuzzy-search';
 import {
   isPlatformUser,
   isSuperAdminUser,
@@ -118,9 +121,13 @@ const modeSnapshots = new Map<
 >();
 const allowAllInherited = new Set<ScopeKind>();
 const tenantOptions = ref<Option[]>([]);
+// 保留本次打开期间已加载项，远程搜索后仍能按本地拼音匹配。
+const loadedTenantOptions = ref<Option[]>([]);
+const loadedDomainOptions = ref<Option[]>([]);
 const tenantPage = ref(0);
 const tenantHasMore = ref(true);
 let candidateGeneration = 0;
+let contextGeneration = 0;
 const detail = ref<null | Record<string, any>>(null);
 const domainOptions = ref<Option[]>([]);
 const knownOptions = ref<Option[]>([]);
@@ -406,6 +413,15 @@ const advancedOrgTreeData = computed(() => [
   },
   ...toAdvancedOrgTreeData(orgTree.value),
 ]);
+// 高级组织起点使用已授权树的显示名和 ID 做本地匹配。
+function filterAdvancedOrgNode(input: string, node: Record<string, any>) {
+  return (
+    matchesPinyinFuzzySearch(input, String(node.title || '')) ||
+    String(node.value || '')
+      .toLowerCase()
+      .includes(input.trim().toLowerCase())
+  );
+}
 function findOrgName(nodes: OrgTreeNode[], id: string): null | string {
   for (const node of nodes) {
     if (String(node.id) === id)
@@ -466,8 +482,10 @@ function allRowOptions(tab: ScopeTab) {
     ...visibleScopeValues(tab.denyField),
   ].map((value) => ({ label: optionLabel(tab.kind, value), value }));
   let available: Option[] = orgOptions.value;
-  if (tab.kind === 'domain') available = domainOptions.value;
-  if (tab.kind === 'tenant') available = tenantOptions.value;
+  if (tab.kind === 'domain')
+    available = [...loadedDomainOptions.value, ...domainOptions.value];
+  if (tab.kind === 'tenant')
+    available = [...loadedTenantOptions.value, ...tenantOptions.value];
   return [
     ...new Map(
       [...builtinOptions(tab.kind), ...saved, ...available].map((item) => [
@@ -632,7 +650,7 @@ function dynamicOptions(tab: ScopeTab) {
     (item) =>
       !fixed.has(item.value) &&
       (!keyword ||
-        item.label.toLowerCase().includes(keyword) ||
+        matchesPinyinFuzzySearch(keyword, item.label) ||
         item.value.toLowerCase().includes(keyword)),
   );
 }
@@ -855,7 +873,7 @@ function tenantOptionLabel(label: string, value: string) {
     ? `${label}（ID ${value}）`
     : label;
 }
-async function loadTenantDisplayOptions(values: string[]) {
+async function loadTenantDisplayOptions(values: string[], generation: number) {
   const ids = values.filter((value) => !value.startsWith('_'));
   if (ids.length === 0) return;
   const result: any = await requestClient.get(
@@ -865,6 +883,7 @@ async function loadTenantDisplayOptions(values: string[]) {
       params: { idList: ids, pageIndex: 1, pageSize: Math.min(ids.length, 50) },
     },
   );
+  if (generation !== contextGeneration || !props.open) return;
   const items = result?.items || result?.records || result || [];
   if (Array.isArray(items)) {
     cacheOptions(
@@ -885,7 +904,7 @@ function fieldsChanged(tab: ScopeTab) {
       JSON.stringify(savedValues.value[field]),
   );
 }
-async function loadData() {
+async function loadData(generation: number) {
   if (!props.open) return;
   loading.value = true;
   errorMessage.value = '';
@@ -905,27 +924,35 @@ async function loadData() {
       rbacService.fetchAuthorizedOrgTree() as Promise<OrgTreeNode[]>,
       props.loadDomainOptions ? props.loadDomainOptions() : Promise.resolve([]),
     ]);
+    if (generation !== contextGeneration || !props.open) return;
     setDetailState(nextDetail);
     orgTree.value = nextOrgTree || [];
     domainOptions.value = nextDomainOptions || [];
+    loadedDomainOptions.value = [...domainOptions.value];
+    loadedTenantOptions.value = [];
     cacheOptions(domainOptions.value);
     tenantOptions.value = [];
     tenantPage.value = 0;
     tenantHasMore.value = true;
     if (isPlatformOperator.value) await loadMoreTenants();
     try {
-      await loadTenantDisplayOptions([
-        ...visibleScopeValues('tenantScopeList'),
-        ...visibleScopeValues('deniedTenantScopeList'),
-      ]);
+      await loadTenantDisplayOptions(
+        [
+          ...visibleScopeValues('tenantScopeList'),
+          ...visibleScopeValues('deniedTenantScopeList'),
+        ],
+        generation,
+      );
     } catch (error) {
+      if (generation !== contextGeneration) return;
       console.warn('租户范围名称回显失败', error);
     }
   } catch (error) {
+    if (generation !== contextGeneration) return;
     console.error(error);
     errorMessage.value = '加载数据权限信息失败，请稍后重试。';
   } finally {
-    loading.value = false;
+    if (generation === contextGeneration) loading.value = false;
   }
 }
 async function loadMoreTenants() {
@@ -947,11 +974,20 @@ async function loadMoreTenants() {
         [...tenantOptions.value, ...options].map((item) => [item.value, item]),
       ).values(),
     ];
+    loadedTenantOptions.value = [
+      ...new Map(
+        [...loadedTenantOptions.value, ...options].map((item) => [
+          item.value,
+          item,
+        ]),
+      ).values(),
+    ];
     cacheOptions(options);
     tenantPage.value += 1;
     tenantHasMore.value = options.length === 50;
     errorMessage.value = '';
   } catch (error) {
+    if (generation !== candidateGeneration) return;
     console.warn('租户候选加载失败', error);
     errorMessage.value = '租户候选加载失败，请重试。';
   } finally {
@@ -974,9 +1010,18 @@ async function searchCandidates(value: string) {
       const options = await props.loadDomainOptions(value);
       if (generation !== candidateGeneration) return;
       domainOptions.value = options;
+      loadedDomainOptions.value = [
+        ...new Map(
+          [...loadedDomainOptions.value, ...options].map((item) => [
+            item.value,
+            item,
+          ]),
+        ).values(),
+      ];
       cacheOptions(options);
       errorMessage.value = '';
     } catch (error) {
+      if (generation !== candidateGeneration) return;
       console.warn('领域候选加载失败', error);
       errorMessage.value = '领域候选加载失败，请重试。';
     } finally {
@@ -1162,7 +1207,8 @@ async function saveChanges(closeAfterSave = false) {
     );
     if (updated?.optimisticLock !== undefined && detail.value)
       detail.value.optimisticLock = updated.optimisticLock;
-    await loadData();
+    candidateGeneration += 1;
+    await loadData(++contextGeneration);
     message.success('数据权限已保存');
     emit('saved');
     if (closeAfterSave) emit('update:open', false);
@@ -1171,12 +1217,31 @@ async function saveChanges(closeAfterSave = false) {
   }
 }
 watch(
-  () => [props.open, props.record?.id, props.subjectType] as const,
+  () =>
+    [
+      props.open,
+      props.record?.id,
+      props.subjectType,
+      globalOrgContextRevision.value,
+      globalDomainContextRevision.value,
+    ] as const,
   ([open]) => {
+    // 切换对象或关闭时失效旧请求，避免历史候选跨权限上下文复用。
+    const generation = ++contextGeneration;
+    candidateGeneration += 1;
+    candidateLoading.value = false;
+    candidateKeyword.value = '';
+    loadedDomainOptions.value = [];
+    loadedTenantOptions.value = [];
+    domainOptions.value = [];
+    tenantOptions.value = [];
+    knownOptions.value = [];
     if (open) {
       advancedMode.value = false;
       advancedCandidateOpen.value = false;
-      void loadData();
+      void loadData(generation);
+    } else {
+      loading.value = false;
     }
   },
   { immediate: true },
@@ -1607,6 +1672,7 @@ watch(
           allow-clear
           class="w-full"
           :tree-data="advancedOrgTreeData"
+          :filter-tree-node="filterAdvancedOrgNode"
           placeholder="请选择起点根组织"
           show-search
           tree-default-expand-all

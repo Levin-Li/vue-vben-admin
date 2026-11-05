@@ -19,6 +19,7 @@ const {
   fetchUserInfo,
   getAdminUserSecurityService,
   getVerifyCodeApi,
+  messageError,
   oauthService,
   updateLoginInfoApi,
 } = vi.hoisted(() => {
@@ -26,6 +27,7 @@ const {
     fetchUserInfo: vi.fn(),
     getAdminUserSecurityService: vi.fn(),
     getVerifyCodeApi: vi.fn(),
+    messageError: vi.fn(),
     oauthService: {
       createTransaction: vi.fn(),
       createInAppTransaction: vi.fn(),
@@ -183,7 +185,7 @@ vi.mock('ant-design-vue', () => {
       },
     ),
     message: {
-      error: vi.fn(),
+      error: messageError,
       success: vi.fn(),
       warning: vi.fn(),
     },
@@ -201,6 +203,7 @@ describe('social-account-setting', () => {
     fetchUserInfo.mockReset();
     getAdminUserSecurityService.mockReset();
     getVerifyCodeApi.mockReset();
+    messageError.mockReset();
     modalConfirm.mockClear();
     oauthService.createTransaction.mockReset();
     oauthService.createInAppTransaction.mockReset();
@@ -247,6 +250,29 @@ describe('social-account-setting', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it.each([
+    ['后端已提示', true, '加载绑定失败'],
+    ['后端无提示', false, '发生服务器异常'],
+  ])('绑定列表请求失败只弹一次：%s', async (_label, notified, expected) => {
+    const { showApiErrorMessage } =
+      await import('../../../../api/api-error-message');
+    const data = notified ? { msg: expected } : {};
+    const failure = { response: { data } };
+    oauthService.getMyBindings.mockImplementation(async () => {
+      if (notified) showApiErrorMessage(expected, failure);
+      throw data;
+    });
+    const component = (await import('../social-account-setting.vue')).default;
+    const wrapper = mount(component);
+    await flushPromises();
+    expect(messageError).toHaveBeenCalledTimes(1);
+    expect(messageError).toHaveBeenCalledWith({
+      content: expected,
+      key: expect.stringMatching(/^api-error:\d+$/),
+    });
+    wrapper.unmount();
   });
 
   it('真实sourcePlatform绑定卡片和编码目录显示中文名称，请求保留编码', async () => {

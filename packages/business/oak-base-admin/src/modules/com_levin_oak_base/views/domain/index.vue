@@ -10,6 +10,7 @@ import { computed, reactive, ref } from 'vue';
 import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
 
+import { matchesPinyinFuzzySearch } from '@levin/admin-framework';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import {
@@ -227,7 +228,7 @@ function filterSelectOption(input: string, option: any) {
   const label = String(option?.label ?? '').toLowerCase();
   const value = String(option?.value ?? '').toLowerCase();
 
-  return label.includes(keyword) || value.includes(keyword);
+  return matchesPinyinFuzzySearch(input, label) || value.includes(keyword);
 }
 
 const isPlatformUser = computed(() => {

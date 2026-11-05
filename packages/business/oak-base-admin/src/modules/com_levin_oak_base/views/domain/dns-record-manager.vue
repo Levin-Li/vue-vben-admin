@@ -1,37 +1,31 @@
 <script lang="ts" setup>
-import { computed, reactive, ref, watch } from 'vue';
-
 import type { DomainDnsRecord, DomainRecord } from '../../api/domain-service';
 
-import { IconifyIcon } from '@vben/runtime/icons';
+import { computed, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
+import { IconifyIcon } from '@vben/runtime/icons';
+
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import {
+  Modal as AModal,
   Button,
   Drawer,
   Empty,
   Form,
   Input,
   InputNumber,
-  Modal as AModal,
+  message,
   Popconfirm,
   Select,
   Space,
   Spin,
   Table,
   Tag,
-  message,
 } from 'ant-design-vue';
 
 import { domainService } from '../../api/domain-service';
-
-function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-  const data = (error as any)?.response?.data;
-  return data?.msg || data?.detailMsg || data?.message || fallback;
-}
 
 const props = defineProps<{
   domain: DomainRecord | null;
@@ -152,7 +146,7 @@ async function fillPublicIpValue() {
       draft.value = publicIp;
     }
   } catch (error) {
-    message.warning('获取服务器公网IP失败，请手动填写解析值');
+    notifyApiErrorOnce(error);
     console.warn(error);
   } finally {
     if (requestSeq === publicIpRequestSeq) {
@@ -223,7 +217,7 @@ async function loadRecords() {
   } catch (error) {
     records.value = [];
     selectedRecordIds.value = [];
-    message.warning(getErrorMessage(error, '解析记录加载失败，请稍后重试'));
+    notifyApiErrorOnce(error);
   } finally {
     loading.value = false;
   }
@@ -540,6 +534,7 @@ watch(
               v-model:value="draft.recordType"
               :options="DNS_RECORD_TYPE_OPTIONS"
               placeholder="请选择解析类型"
+              :filter-option="filterCrudLocalSelectOption"
               show-search
             />
           </Form.Item>

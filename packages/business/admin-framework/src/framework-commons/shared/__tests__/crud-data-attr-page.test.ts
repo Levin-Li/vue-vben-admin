@@ -612,6 +612,32 @@ describe('更新保留原记录的租户定位上下文', () => {
 });
 
 describe('标准 crud 的属性组策略', () => {
+  it('保存请求没有服务端提示时使用统一兜底', async () => {
+    const create = vi.fn().mockRejectedValue({ response: { data: {} } });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          apiService: { create },
+          dataAttrTargets: {
+            create: { method: 'POST', path: '/Contract/create' },
+          },
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    await vm.handleCreate();
+    vm.formState.name = '保留草稿';
+    mocks.error.mockClear();
+    await vm.handleSubmit();
+    expect(mocks.error).toHaveBeenCalledTimes(1);
+    expect(mocks.error).toHaveBeenCalledWith(
+      expect.objectContaining({ content: '发生服务器异常' }),
+    );
+    expect(vm.formState.name).toBe('保留草稿');
+  });
+
   it('保存失败已由请求层提示时不重复弹错，并保留表单草稿', async () => {
     const failure = new Error('当前账号未归属租户组织，无法签发邀请链接');
     const create = vi.fn(async () => {
@@ -1531,6 +1557,138 @@ describe('标准 crud 的属性组策略', () => {
     expect(state.formState.orgId).toBe('org-1');
   });
 
+  it('平台表单切换租户清除关联字段并阻止未选租户时选择', async () => {
+    Object.assign(mocks.user.userInfo, {
+      platformUser: true,
+      roleList: ['R_PLATFORM_SA'],
+    });
+    configureDataAttrPolicyLoader(async (query) => {
+      const result = policy(
+        'operation' in query ? query.operation : 'contract:合同::操作',
+      );
+      Object.assign(result, {
+        restricted: false,
+        groups: [],
+        nodes: {},
+        requestRoots: [],
+        viewRoots: { request: [], response: [] },
+        responseRoot: null,
+      });
+      return { version: 1, policies: [result] };
+    });
+    let resolveOld!: (value: { label: string; value: string }[]) => void;
+    const tenantLoadOptions = vi.fn((tenantId: string) =>
+      tenantId === 'tenant-a'
+        ? new Promise<{ label: string; value: string }[]>((resolve) => {
+            resolveOld = resolve;
+          })
+        : Promise.resolve([{ label: '乙伙伴', value: 'partner-b' }]),
+    );
+    const wrapper = shallowMount(CrudPage, {
+      global: {
+        config: { errorHandler: () => {} },
+        renderStubDefaultSlot: true,
+      },
+      props: {
+        config: config({
+          fields: [
+            { key: 'tenantId', label: '租户', type: 'select' },
+            { key: 'orgId', label: '组织', type: 'org-tree-select' },
+            { key: 'ownerId', label: '用户', type: 'user-tree-select' },
+            {
+              key: 'partnerId',
+              label: '伙伴',
+              type: 'select',
+              tenantDependent: true,
+              tenantLoadOptions,
+            },
+          ],
+        }),
+      },
+    });
+    await flushPromises();
+    const state = setupState(wrapper);
+    await state.handleCreate();
+    await flushPromises();
+    const field = (key: string) =>
+      state.visibleFormFields.find((item: { key: string }) => item.key === key);
+    expect(state.isFormFieldInteractionDisabled(field('orgId'))).toBe(true);
+    state.updateFormFieldInput(field('tenantId'), 'tenant-a');
+    state.updateFormFieldInput(field('orgId'), 'org-a');
+    expect(state.isFormFieldInteractionDisabled(field('ownerId'))).toBe(false);
+    state.updateFormFieldInput(field('ownerId'), 'user-a');
+    expect(state.formState.ownerId).toBe('user-a');
+    state.updateFormFieldInput(field('partnerId'), 'partner-a');
+    expect(state.isFormFieldInteractionDisabled(field('orgId'))).toBe(false);
+    const oldRequest = state.loadFieldOptions(field('partnerId'), '', true);
+    state.updateFormFieldInput(field('tenantId'), 'tenant-b');
+    await state.loadFieldOptions(field('partnerId'), '', true);
+    resolveOld([{ label: '甲伙伴', value: 'partner-a' }]);
+    await oldRequest;
+    expect(state.optionState.partnerId).toEqual([
+      { label: '乙伙伴', value: 'partner-b' },
+    ]);
+    expect(state.formState.orgId).toBeUndefined();
+    expect(state.formState.ownerId).toBeUndefined();
+    expect(state.formState.partnerId).toBeUndefined();
+  });
+
+  it('用户字段在查询和表单使用仅用户单选，保持 ID 和自定义授权加载器', async () => {
+    Object.assign(mocks.user.userInfo, { admin: true, roleList: ['R_ADMIN'] });
+    configureDataAttrPolicyLoader(async (query) => {
+      const result = policy(
+        'operation' in query ? query.operation : 'contract:合同::操作',
+      );
+      result.restricted = false;
+      result.groups = [];
+      result.nodes = {};
+      result.requestRoots = [];
+      result.viewRoots = { request: [], response: [] };
+      result.responseRoot = null;
+      return { version: 1, policies: [result] };
+    });
+    const loader = vi.fn(async () => []);
+    const resolver = vi.fn(async () => []);
+    const wrapper = shallowMount(CrudPage, {
+      global: {
+        config: { errorHandler: () => {} },
+        renderStubDefaultSlot: true,
+      },
+      props: {
+        config: config({
+          fields: [
+            {
+              key: 'ownerId',
+              label: '负责人',
+              type: 'user-tree-select',
+              search: true,
+              form: true,
+              userLoadApi: loader,
+              userResolveRecords: resolver,
+            },
+          ],
+        }),
+      },
+    });
+    await flushPromises();
+    const selector = wrapper.findComponent(UserOrgSelector);
+    expect(selector.props('selectableTypes')).toEqual(['user']);
+    expect(selector.props('maxSelectCount')).toBe(1);
+    expect(selector.props('multiple')).toBe(false);
+    expect(selector.props('userLoadApi')).toBe(loader);
+    expect(selector.props('resolveRecords')).toBe(resolver);
+    selector.vm.$emit('update:modelValue', 'user-2');
+    const state = setupState(wrapper);
+    expect(state.searchState.ownerId).toBe('user-2');
+    await state.handleCreate();
+    await flushPromises();
+    state.updateFormFieldInput(state.visibleFormFields[0], 'user-3');
+    expect(state.formState.ownerId).toBe('user-3');
+    await state.handleEdit({ id: 'record-1', ownerId: 'user-1' });
+    await flushPromises();
+    expect(state.formState.ownerId).toBe('user-1');
+  });
+
   it('辅助选项失败在当前授权上下文只尝试一次，权限变化允许重试且停用页不加载', async () => {
     const loader = vi
       .fn()
@@ -2330,5 +2488,72 @@ describe('标准 CRUD 游标与默认分页兼容', () => {
     finishOld({ items: [{ id: 'unmounted' }] });
     await lastRequest;
     expect(vm.dataSource).toEqual([]);
+  });
+});
+
+describe('租户字段新增与编辑默认身份', () => {
+  it.each([false, true])(
+    '平台身份 %s 按默认角色决定租户字段可见性',
+    async (platformUser) => {
+      Object.assign(mocks.user.userInfo, { platformUser });
+      const wrapper = shallowMount(CrudPage, {
+        global: { config: { errorHandler: () => {} } },
+        props: {
+          config: config({
+            fields: [
+              {
+                key: 'tenantId',
+                label: '归属租户',
+                type: 'select',
+                disabledOnEdit: true,
+              },
+            ],
+          }),
+        },
+      });
+      await flushPromises();
+      const vm = setupState(wrapper);
+      expect(vm.isPageDisplayRoleVisible('create', 'tenantId')).toBe(
+        platformUser,
+      );
+      expect(vm.isPageDisplayRoleVisible('edit', 'tenantId')).toBe(
+        platformUser,
+      );
+      // 未修改角色的设置保存后，字段保留但不含 visibleRoleCodes。
+      vm.pageDisplayConfig.edit.fields = [{ key: 'tenantId', hidden: false }];
+      expect(vm.isPageDisplayRoleVisible('edit', 'tenantId')).toBe(
+        platformUser,
+      );
+      vm.editingRecord = { id: '1', tenantId: 'tenant-1' };
+      expect(
+        vm.isFieldDisabledOnEdit({ key: 'tenantId', disabledOnEdit: true }),
+      ).toBe(true);
+    },
+  );
+
+  it('显式角色设置优先，普通用户角色不能冒充平台身份', async () => {
+    Object.assign(mocks.user.userInfo, {
+      platformUser: false,
+      platformAdmin: true,
+      roles: ['R_PLATFORM_ADMIN'],
+    });
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({ fields: [{ key: 'tenantId', label: '租户' }] }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    expect(vm.isPageDisplayRoleVisible('edit', 'tenantId')).toBe(false);
+    Object.assign(mocks.user.userInfo, { platformUser: true, roles: [] });
+    vm.pageDisplayConfig.edit.fields = [
+      { key: 'tenantId', visibleRoleCodes: ['CUSTOM'] },
+    ];
+    expect(vm.isPageDisplayRoleVisible('edit', 'tenantId')).toBe(false);
+    vm.pageDisplayConfig.edit.fields = [
+      { key: 'tenantId', visibleRoleCodes: [] },
+    ];
+    expect(vm.isPageDisplayRoleVisible('edit', 'tenantId')).toBe(true);
   });
 });

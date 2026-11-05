@@ -16,7 +16,19 @@ vi.mock('@levin/admin-framework', () => ({
   RequestService: class {
     constructor(readonly basePath: string) {}
   },
-  UserOrgSelector: { template: '<div />' },
+  UserOrgSelector: {
+    name: 'UserOrgSelector',
+    props: [
+      'selectableTypes',
+      'maxSelectCount',
+      'orgLoadApi',
+      'userLoadApi',
+      'resolveRecords',
+      'modelValue',
+    ],
+    emits: ['update:modelValue'],
+    template: '<div />',
+  },
 }));
 const fields = [
   {
@@ -148,6 +160,10 @@ describe('模拟办理步骤表单', () => {
           version: version.value,
           service,
           options: {
+            users: [
+              { id: 'user_1', label: '用户一' },
+              { id: 'user_2', label: '用户二' },
+            ],
             stateBusinessObjects: [
               {
                 entityKey: 'example.Request',
@@ -184,6 +200,25 @@ describe('模拟办理步骤表单', () => {
       },
     });
     await flushPromises();
+    const selector = wrapper.findComponent({ name: 'UserOrgSelector' });
+    expect(selector.props('selectableTypes')).toEqual(['user']);
+    expect(selector.props('maxSelectCount')).toBe(1);
+    expect(
+      await (selector.props('userLoadApi') as () => Promise<unknown>)(),
+    ).toEqual([
+      { id: 'user_1', name: '用户一' },
+      { id: 'user_2', name: '用户二' },
+    ]);
+    selector.vm.$emit('update:modelValue', 'outside');
+    await flushPromises();
+    expect(
+      definition.value.simulationPolicy?.cases[0]?.steps[0]?.userId,
+    ).toBeUndefined();
+    selector.vm.$emit('update:modelValue', 'user_2');
+    await flushPromises();
+    expect(definition.value.simulationPolicy?.cases[0]?.steps[0]?.userId).toBe(
+      'user_2',
+    );
     const form = wrapper.findComponent(WorkflowSimulationForm);
     expect(form.props('fields').map((field) => field.key)).toEqual([
       'amount',

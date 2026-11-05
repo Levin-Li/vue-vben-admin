@@ -61,6 +61,30 @@ describe('user-org-selector-utils', () => {
     ]);
   });
 
+  it('preserves explicitly disabled organization nodes while retaining their children', () => {
+    const tree = buildUserOrgSelectorOrgTree(
+      [
+        {
+          id: 'parent',
+          name: '父组织',
+          disabled: true,
+          children: [{ id: 'child', name: '子组织' }],
+        },
+      ],
+      { orgTypes: [], selectableTypes: ['org'] },
+    );
+    expect(tree[0]).toMatchObject({
+      id: 'parent',
+      disabled: true,
+      selectable: false,
+    });
+    expect(tree[0]?.children?.[0]).toMatchObject({
+      id: 'child',
+      disabled: false,
+      selectable: true,
+    });
+  });
+
   it('keeps type-mismatched org nodes visible but disabled by default', () => {
     const tree = buildUserOrgSelectorOrgTree(
       [

@@ -65,6 +65,13 @@ describe('结算单标准 CRUD', () => {
       disabledOnEdit: true,
       omitOnEdit: true,
     });
+    expect(fields.find((field) => field.key === 'tenantId')).toMatchObject({
+      visibleForPlatformUser: true,
+      disabledOnEdit: true,
+    });
+    expect(
+      fields.find((field) => field.key === 'tenantId')?.omitOnEdit,
+    ).not.toBe(true);
     for (const key of [
       'payerLegalSubjectId',
       'payeeLegalSubjectId',
@@ -80,6 +87,7 @@ describe('结算单标准 CRUD', () => {
     }
     for (const key of ['salesUserId', 'financeUserId', 'payeeUserId'])
       expect(fields.find((field) => field.key === key)).toMatchObject({
+        type: 'user-tree-select',
         disabledOnEdit: true,
         omitOnEdit: true,
       });

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
-import { Input, Modal } from 'ant-design-vue';
+import { Input, Modal, Select } from 'ant-design-vue';
 
 import JsonSchemaFormField from '../json-schema-form-field.vue';
 
@@ -24,6 +24,22 @@ describe('json schema form field', () => {
     expect(source).not.toContain('max-width: 480px');
     expect(source).not.toContain('justify-self-center');
     expect(source).toContain('class="w-full"');
+  });
+
+  it.each([false, true])('枚举选项在弹窗和内联模式支持拼音与首字母：%s', async (inline) => {
+    const wrapper = mount(JsonSchemaFormField, {
+      props: { inline, modelValue: {}, schema: { type: 'object', properties: { status: { type: 'string', title: '状态', enum: ['待处理', '已完成'] } } } },
+    });
+    if (!inline) {
+      await wrapper.find('button').trigger('click');
+      await flushPromises();
+    }
+    const select = wrapper.findComponent(Select);
+    expect(select.exists()).toBe(true);
+    const filter = select.props('filterOption') as (input: string, option: { label: string; value: string }) => boolean;
+    expect(filter('dcl', { label: '待处理', value: '待处理' })).toBe(true);
+    expect(filter('yiwancheng', { label: '已完成', value: '已完成' })).toBe(true);
+    wrapper.unmount();
   });
 
   it('preserves json metadata when saving from the default popup editor', async () => {

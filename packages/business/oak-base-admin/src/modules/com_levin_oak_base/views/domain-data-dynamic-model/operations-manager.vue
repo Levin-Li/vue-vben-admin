@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type {
   DataModelActionType,
   DataModelDefinition,
@@ -516,7 +517,8 @@ async function save() {
     emit('saved', model);
     message.success('接口定义已保存，同步模型后生效');
   } catch (error) {
-    message.error(recordFailure(error, '接口定义保存失败，请刷新模型后重试'));
+    recordFailure(error, '接口定义保存失败，请刷新模型后重试');
+    notifyApiErrorOnce(error);
   } finally {
     saving.value = false;
   }

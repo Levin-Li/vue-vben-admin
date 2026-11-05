@@ -1,3 +1,4 @@
+import { matchesPinyinFuzzySearch } from '@levin/admin-framework';
 import { resolveOAuthPlatformName } from '@levin/admin-framework/framework-commons/app/views/_core/authentication/oauth-platform-name';
 
 /** 协议编码保持不变；仅为未由管理员改名的目录项显示中文平台名。 */
@@ -17,9 +18,10 @@ export function filterServiceProviderOption(
 ): boolean {
   const query = input.trim().toLocaleLowerCase();
   if (!query) return true;
-  return [option?.label, option?.value].some((value) =>
-    String(value ?? '')
+  return (
+    matchesPinyinFuzzySearch(input, String(option?.label ?? '')) ||
+    String(option?.value ?? '')
       .toLocaleLowerCase()
-      .includes(query),
+      .includes(query)
   );
 }

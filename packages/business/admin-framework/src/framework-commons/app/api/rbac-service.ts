@@ -322,6 +322,22 @@ export class RbacService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '公共数据-权限控制',
+    action: '获取指定租户授权组织列表',
+    onlyRequireAuthenticated: true,
+  })
+  async fetchAuthorizedOrgTreeByTenant(tenantId: string) {
+    return requestClient.get<any[]>(
+      this.buildRequestPath('authorizedOrgListByTenant'),
+      {
+        params: { tenantId, assembleTree: true },
+        __skipGlobalUserOrgContext: true,
+      },
+    );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '公共数据-权限控制',
     action: '获取授权的纯树形资源权限',
     onlyRequireAuthenticated: true,
   })

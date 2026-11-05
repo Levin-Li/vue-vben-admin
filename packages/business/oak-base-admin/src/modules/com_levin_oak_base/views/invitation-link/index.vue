@@ -10,7 +10,13 @@ import { computed, nextTick, ref } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
+import {
+  matchesPinyinFuzzySearch,
+  UserOrgSelector,
+} from '@levin/admin-framework';
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
 import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
@@ -28,24 +34,8 @@ import InvitationChannelPicker from './invitation-channel-picker.vue';
 
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
-const platformUser = computed(() => {
-  const user = userStore.userInfo as null | Record<string, any>;
-  // 与公共 CRUD 的平台身份判断一致；服务端仍逐次验证真实租户授权。
-  const roles = [
-    ...(Array.isArray(user?.roles) ? user.roles : []),
-    ...(Array.isArray(user?.roleList) ? user.roleList : []),
-  ];
-  return (
-    isPlatformUser(user) ||
-    user?.platformAdmin === true ||
-    user?.isPlatformAdmin === true ||
-    roles.some((role) =>
-      String(typeof role === 'string' ? role : role?.code || '').startsWith(
-        'R_PLATFORM_',
-      ),
-    )
-  );
-});
+// 所有页面复用同一平台身份解释，服务端继续校验租户授权。
+const platformUser = computed(() => isPlatformUser(userStore.userInfo));
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(invitationLinkService, method));
 const canInviteAdministrator = (target: InvitationTarget) =>
@@ -66,7 +56,9 @@ async function loadTenantOptions(keyword?: string) {
   const tenants = await invitationLinkService.targetTenants();
   const filter = (keyword || '').trim().toLowerCase();
   return tenants
-    .filter((tenant) => !filter || tenant.name.toLowerCase().includes(filter))
+    .filter(
+      (tenant) => !filter || matchesPinyinFuzzySearch(filter, tenant.name),
+    )
     .map((tenant) => ({ label: tenant.name, value: tenant.id }));
 }
 const createdUrl = ref('');
@@ -130,9 +122,7 @@ async function loadInvitationDictionaries(
     accountTypeOptions.value = account;
   } catch (error) {
     if (version === organizationRequestVersion) {
-      message.error(
-        error instanceof Error ? error.message : '获取字典选项失败',
-      );
+      notifyApiErrorOnce(error);
     }
   } finally {
     if (version === organizationRequestVersion) dictionaryLoading.value = false;
@@ -170,9 +160,7 @@ async function changeInvitationTenant(
       targetOrganizations.value = organizations;
   } catch (error) {
     if (version === organizationRequestVersion) {
-      message.error(
-        error instanceof Error ? error.message : '获取可邀请组织失败',
-      );
+      notifyApiErrorOnce(error);
     }
   } finally {
     if (version === organizationRequestVersion)
@@ -287,9 +275,16 @@ const pageConfig = computed(() => {
 
 async function copy(id: string) {
   if (!allowed('copyLink')) return;
+  let url: string;
   try {
     const result = await invitationLinkService.copyLink(id);
-    await navigator.clipboard.writeText(result.url);
+    url = result.url;
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
     message.success('链接已复制');
   } catch (error_) {
     message.error(error_ instanceof Error ? error_.message : '复制失败');
@@ -310,7 +305,7 @@ async function revoke() {
     await crudPage.value?.reload();
     message.success('链接已作废');
   } catch (error_) {
-    message.error(error_ instanceof Error ? error_.message : '作废失败');
+    notifyApiErrorOnce(error_);
   } finally {
     revoking.value = false;
   }
@@ -342,6 +337,7 @@ async function copyCreatedUrl() {
         allow-clear
         class="w-full"
         placeholder="请选择归属租户"
+        :filter-option="filterCrudLocalSelectOption"
         show-search
         option-filter-prop="label"
         @update:value="
@@ -355,27 +351,27 @@ async function copyCreatedUrl() {
       />
     </template>
     <template #form-field-targetOrgId="{ formState, disabled }">
-      <Select
+      <UserOrgSelector
+        :key="String(formState.tenantId || 'current')"
         :disabled="
           disabled ||
           organizationsLoading ||
           (platformUser && !formState.tenantId)
         "
-        :loading="organizationsLoading"
-        :options="
-          targetOrganizations.map((org) => ({ label: org.name, value: org.id }))
-        "
-        :value="formState.targetOrgId"
+        :max-select-count="1"
+        :model-value="formState.targetOrgId"
+        :org-load-api="async () => targetOrganizations"
+        :selectable-types="['org']"
         class="w-full"
+        load-on-initial-value
         placeholder="请选择邀请组织"
-        show-search
-        option-filter-prop="label"
-        @update:value="
-          (value) =>
+        value-mode="id"
+        @update:model-value="
+          (value: unknown) =>
             !disabled &&
             changeInvitationOrganization(
               formState,
-              value == null ? undefined : String(value),
+              typeof value === 'string' ? value : undefined,
             )
         "
       />

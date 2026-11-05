@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { ref, watch } from 'vue';
 
-import { message, Select } from 'ant-design-vue';
+import { Select } from 'ant-design-vue';
 
 import { invitationLinkService } from '../../api/invitation-link-service';
 
@@ -38,9 +39,7 @@ async function load(keyword = '') {
     }
   } catch (error) {
     if (version === requestVersion) {
-      message.error(
-        error instanceof Error ? error.message : '获取渠道伙伴失败',
-      );
+      notifyApiErrorOnce(error);
     }
   } finally {
     if (version === requestVersion) loading.value = false;

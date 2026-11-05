@@ -70,6 +70,32 @@ describe('流程申请业务 API', () => {
     });
   });
 
+  it('平台新增草稿可选另一授权租户组织并隔离顶部上下文，列表范围不变', async () => {
+    const service = new WorkflowRequestService(
+      () => ({ tenantId: 'tenant-a', orgId: 'org-a' }),
+      () => ({ superAdmin: true }),
+      true,
+    );
+    const input = {
+      title: '申请',
+      amount: 1,
+      category: 'review',
+      documentsComplete: true,
+    };
+    await service.create({ ...input, tenantId: 'tenant-b', orgId: 'org-b' });
+    expect(calls.post).toHaveBeenCalledWith('create', {
+      data: { ...input, tenantId: 'tenant-b', orgId: 'org-b' },
+      __skipGlobalUserOrgContext: true,
+    });
+    await service.list({ pageSize: 10 });
+    expect(calls.get).toHaveBeenCalledWith('list', {
+      params: { pageSize: 10, tenantId: 'tenant-a', orgId: 'org-a' },
+    });
+    expect(() => service.create({ ...input, tenantId: 'tenant-b' })).toThrow(
+      '请选择归属租户和业务组织',
+    );
+  });
+
   it('租户管理员四类请求核对同租户后省略受保护tenantId，保留业务组织定位', async () => {
     const scope = { tenantId: 'tenant-a', orgId: 'org-a' };
     const service = new WorkflowRequestService(
@@ -117,6 +143,29 @@ describe('流程申请业务 API', () => {
       unknown.retrieve({ id: 'record-a', tenantId: 'tenant-a' }),
     ).toThrow('不属于当前会话租户');
     expect(calls.get).not.toHaveBeenCalled();
+  });
+
+  it('服务端明确非平台身份时不因平台标记允许跨租户草稿', () => {
+    const service = new WorkflowRequestService(
+      () => ({ tenantId: 'tenant-a', orgId: 'org-a' }),
+      () => ({
+        platformUser: false,
+        platformAdmin: true,
+        tenantId: 'tenant-a',
+      }),
+      true,
+    );
+    expect(() =>
+      service.create({
+        title: '申请',
+        amount: 1,
+        category: 'review',
+        documentsComplete: true,
+        tenantId: 'tenant-b',
+        orgId: 'org-b',
+      }),
+    ).toThrow('不属于当前会话租户');
+    expect(calls.post).not.toHaveBeenCalled();
   });
 
   it('旧身份字段不能授予跨租户范围', () => {

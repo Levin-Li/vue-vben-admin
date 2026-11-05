@@ -46,6 +46,12 @@ describe('页面展示设置默认值编辑器', () => {
     await flushPromises();
     const select = wrapper.findComponent(Select);
     expect(loadOptions).toHaveBeenCalledOnce();
+    const filter = select.props('filterOption') as (
+      input: string,
+      option: { label: string; value: string },
+    ) => boolean;
+    expect(filter('dcl', { label: '待处理', value: '1' })).toBe(true);
+    expect(filter('unknown', { label: '待处理', value: '1' })).toBe(false);
     expect(select.props('options')).toEqual([
       { label: '当前值：9', value: '0' },
       { label: '待处理', value: '1', ordinal: 1 },

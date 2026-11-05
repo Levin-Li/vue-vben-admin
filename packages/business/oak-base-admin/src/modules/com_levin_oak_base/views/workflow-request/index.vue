@@ -1,18 +1,24 @@
 <script setup lang="ts">
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
-import type { WorkflowRequestRecord } from '../../api/workflow-request-service';
+import type {
+  WorkflowRequestActor,
+  WorkflowRequestRecord,
+} from '../../api/workflow-request-service';
 
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
 import { UserOrgSelector } from '@levin/admin-framework';
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
+import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { isDataAttrPolicyReady } from '@levin/admin-framework/framework-commons/data-attr-policy';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import CrudLayout from '@levin/admin-framework/framework-commons/shared/crud-layout.vue';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { isPlatformUser as isPlatformIdentity } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { WorkflowBusinessPanel } from '@levin/bpm-runtime-ui';
 import {
   Alert,
@@ -22,6 +28,7 @@ import {
   Form,
   message,
   Modal,
+  Select,
   Space,
 } from 'ant-design-vue';
 
@@ -31,6 +38,7 @@ import {
   WorkflowRequestService,
 } from '../../api/workflow-request-service';
 import { workflowRuntimeService } from '../../api/workflow-runtime-service';
+import { tenantOptionsLoader } from '../api-module';
 import CrudPage from '../crud-page.vue';
 import { workflowRequestPageConfig } from './config';
 
@@ -50,20 +58,69 @@ const selectedScope = computed(() =>
 const scopeKey = computed(() => JSON.stringify(selectedScope.value));
 const scopedRequestService = new WorkflowRequestService(
   () => selectedScope.value,
+  () => (userStore.userInfo ?? {}) as WorkflowRequestActor,
+  true,
 );
 const scopedConfig = computed(() => ({
   ...workflowRequestPageConfig,
   apiService: scopedRequestService,
+  defaultFormValues: {
+    ...workflowRequestPageConfig.defaultFormValues,
+    tenantId: selectedScope.value?.tenantId,
+    orgId: selectedScope.value?.orgId,
+  },
+  createSubmitKeys: [
+    'title',
+    'category',
+    'amount',
+    'documentsComplete',
+    'tenantId',
+    'orgId',
+  ],
+  // 新增草稿可另选授权范围，编辑继续固定原业务范围。
+  fields: [
+    {
+      key: 'tenantId',
+      label: '归属租户',
+      type: 'select' as const,
+      visibleForPlatformUser: true,
+      table: false,
+      search: false,
+      disabledOnEdit: true,
+      omitOnEdit: true,
+    },
+    {
+      key: 'orgId',
+      label: '业务组织',
+      type: 'org-tree-select' as const,
+      visibleForPlatformUser: true,
+      table: false,
+      search: false,
+      formEdit: false,
+      required: true,
+    },
+    ...workflowRequestPageConfig.fields,
+  ],
 }));
-const isPlatformUser = computed(() => {
-  const user = (userStore.userInfo ?? {}) as Record<string, unknown>;
-  return (
-    user.platformUser === true ||
-    user.isPlatformUser === true ||
-    user.superAdmin === true ||
-    user.isSuperAdmin === true
-  );
-});
+const isPlatformUser = computed(() => isPlatformIdentity(userStore.userInfo));
+// 草稿租户变更只清除草稿组织，不切换当前列表范围或丢弃已填业务字段。
+const formTenantOptions = ref<{ label: string; value: string }[]>([]);
+async function loadFormTenantOptions(keyword = '') {
+  try {
+    const options = await tenantOptionsLoader(keyword);
+    formTenantOptions.value = options.map((item) => ({
+      label: item.label,
+      value: String(item.value),
+    }));
+  } catch (error) {
+    notifyApiErrorOnce(error);
+  }
+}
+function changeFormTenant(formState: Record<string, any>, value?: string) {
+  if (formState.tenantId === value) return;
+  formState.tenantId = value;
+  formState.orgId = undefined;
+}
 const { hasPermission } = useRbacAccess();
 const canReadEligibility = computed(() =>
   hasPermission(
@@ -108,9 +165,6 @@ const contractVersions = ref<string[]>([]);
 const selectedContractVersion = ref<string>();
 const catalogLoading = ref(false);
 const catalogError = ref(false);
-watch(catalogError, (value) => {
-  if (value) message.error('契约版本加载失败，请刷新后重试。');
-});
 let catalogRequestVersion = 0;
 let reloadList: (() => Promise<unknown> | unknown) | undefined;
 
@@ -174,9 +228,7 @@ async function openWorkflow(
 }
 
 function showError(error: unknown) {
-  message.error(
-    error instanceof Error ? error.message : '流程操作失败，请重试。',
-  );
+  notifyApiErrorOnce(error);
 }
 
 async function refreshRecord() {
@@ -259,6 +311,55 @@ function changeOrganization(records: UserOrgSelectorRecord[]) {
       </template>
     </CrudLayout>
     <CrudPage v-if="selectedScope" :key="scopeKey" :config="scopedConfig">
+      <template #form-field-tenantId="{ formState, editingRecord }">
+        <Select
+          :value="editingRecord ? selectedScope.tenantId : formState.tenantId"
+          :disabled="Boolean(editingRecord)"
+          :options="
+            formTenantOptions.length > 0
+              ? formTenantOptions
+              : [
+                  {
+                    label: selectedOrg?.tenantName || selectedScope.tenantId,
+                    value: selectedScope.tenantId,
+                  },
+                ]
+          "
+          :filter-option="false"
+          show-search
+          placeholder="请选择归属租户"
+          @focus="loadFormTenantOptions()"
+          @search="loadFormTenantOptions"
+          @update:value="
+            (value) =>
+              !editingRecord &&
+              changeFormTenant(
+                formState,
+                value == null ? undefined : String(value),
+              )
+          "
+        />
+      </template>
+      <template #form-field-orgId="{ formState, editingRecord }">
+        <UserOrgSelector
+          :key="formState.tenantId"
+          :model-value="formState.orgId"
+          :disabled="Boolean(editingRecord) || !formState.tenantId"
+          :org-load-api="
+            () => rbacService.fetchAuthorizedOrgTreeByTenant(formState.tenantId)
+          "
+          :selectable-types="['org']"
+          :max-select-count="1"
+          load-on-initial-value
+          value-mode="id"
+          placeholder="请选择业务组织"
+          @update:model-value="
+            (value: unknown) => {
+              formState.orgId = typeof value === 'string' ? value : undefined;
+            }
+          "
+        />
+      </template>
       <template #row-actions="{ record, reload }">
         <Button
           v-if="hasPermission(detailPermission)"

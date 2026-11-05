@@ -118,14 +118,6 @@ export const urlExAclPageCrudConfig: CrudPageConfig = {
       width: 180,
     },
     {
-      key: 'pinyinName',
-      label: '拼音名',
-      layoutGroup: 'basic',
-      layoutOrder: 30,
-      table: true,
-      width: 160,
-    },
-    {
       key: 'interceptType',
       label: '拦截类型',
       layoutGroup: 'basic',

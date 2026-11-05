@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { computed, ref } from 'vue';
 
 import { uploadFileByFileStorageController } from '@levin/admin-framework/framework-commons/app/api/file-storage-service';
@@ -73,7 +74,7 @@ async function uploadNoticeContent(options: any) {
   } catch (error) {
     console.error(error);
     options.onError?.(error);
-    message.error(`${uploadLabel.value}上传失败`);
+    notifyApiErrorOnce(error);
   } finally {
     uploading.value = false;
   }

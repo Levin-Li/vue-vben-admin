@@ -326,6 +326,8 @@ describe('页面展示设置抽屉', () => {
         // 一个词分别命中第一行名称和末行别名，后者起初并没有挂载。
         await searchFields('用户');
         expect(renderedRows()).toHaveLength(2);
+        await searchFields('yh');
+        expect(renderedRows()).toHaveLength(2);
         for (const keyword of ['尾部字段', '用户别名', '  FiELD_24  ']) {
           await searchFields(keyword);
           expect(renderedRows()).toHaveLength(1);
@@ -859,7 +861,7 @@ describe('页面展示设置抽屉', () => {
   });
 
   it.each([undefined, { fields: [{ key: 'tenantId' }] }])(
-    '租户编辑设置缺省或稀疏时选中不提，新增查询保持展提',
+    '租户编辑设置缺省或稀疏时选中展提，新增查询保持展提',
     async (edit) => {
       const wrapper = mount(PageDisplaySettingsDrawer, {
         attachTo: document.body,
@@ -881,10 +883,11 @@ describe('页面展示设置抽屉', () => {
         );
         expect(group).toBeTruthy();
         if (!group) throw new Error('缺少租户字段展示设置');
+        expect(document.body.textContent).toContain('平台用户（默认）');
         expect(
           (
             group.querySelector(
-              'input[value="hidden-omit"]',
+              'input[value="display-submit"]',
             ) as HTMLInputElement
           ).checked,
         ).toBe(true);
@@ -895,9 +898,15 @@ describe('页面展示设置抽屉', () => {
         };
         expect(payload.config.edit.fields[0]).toMatchObject({
           key: 'tenantId',
-          hidden: true,
+          hidden: false,
         });
         expect(payload.config.edit.fields[0].submitWhenHidden).not.toBe(true);
+        expect(payload.config.edit.fields[0]).not.toHaveProperty(
+          'visibleRoleCodes',
+        );
+        expect(payload.config.create.fields[0]).not.toHaveProperty(
+          'visibleRoleCodes',
+        );
         expect(payload.config.create.fields[0].hidden).toBe(false);
         expect(payload.config.query.fields[0].hidden).toBe(false);
       } finally {

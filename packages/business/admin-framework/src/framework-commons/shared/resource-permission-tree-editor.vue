@@ -25,6 +25,7 @@ import {
   updateApiScopedGrant,
 } from './api-scoped-grant';
 import { PermissionTreeNodeType as PermissionTreeNodeTypeEnum } from './data-permission-types';
+import { matchesPinyinFuzzySearch } from './pinyin-fuzzy-search';
 import AttrGroupPermissions from './resource-attr-group-permissions.vue';
 import DataAttrPermissions, {
   mergeDataAttrs,
@@ -167,7 +168,7 @@ const filteredTypeList = computed(() => {
                 .join(' ')
                 .toLowerCase();
 
-              return haystacks.includes(normalizedKeyword);
+              return matchesPinyinFuzzySearch(normalizedKeyword, haystacks);
             },
           );
 
@@ -1430,7 +1431,7 @@ function filterPermissionViewTree(
         node.children,
         normalizedKeyword,
       );
-      const matched = node.pathText.includes(normalizedKeyword);
+      const matched = matchesPinyinFuzzySearch(normalizedKeyword, node.pathText);
 
       if (!matched && children.length === 0) {
         return null;
@@ -1806,7 +1807,7 @@ function filterMenuPermissionTree(
         node.children,
         normalizedKeyword,
       );
-      const matched = node.pathText.includes(normalizedKeyword);
+      const matched = matchesPinyinFuzzySearch(normalizedKeyword, node.pathText);
 
       if (!matched && children.length === 0) {
         return null;

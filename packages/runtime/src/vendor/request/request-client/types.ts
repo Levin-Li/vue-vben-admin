@@ -6,6 +6,8 @@ import type {
 } from 'axios';
 
 type ExtendOptions<T = any> = {
+  /** 仅覆盖本次请求的错误提示；空白值继续使用后端提示。 */
+  errorMessageOverride?: string;
   /**
    * 参数序列化方式。预置的有
    * - brackets: ids[]=1&ids[]=2&ids[]=3
@@ -45,8 +47,8 @@ type RequestClientOptions = CreateAxiosDefaults & ExtendOptions;
  * SSE 请求选项
  */
 interface SseRequestOptions extends RequestInit {
-  onMessage?: (message: string) => void;
   onEnd?: () => void;
+  onMessage?: (message: string) => void;
 }
 
 interface RequestInterceptorConfig {

@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { DataNode } from 'ant-design-vue/es/tree';
 
 import type {
@@ -1072,8 +1073,8 @@ async function saveLayout() {
     layout.optimisticLock = (layout.optimisticLock ?? 0) + 1;
     try {
       await layoutListReload.value?.();
-    } catch {
-      message.warning('菜单已保存，但列表刷新失败');
+    } catch (error) {
+      notifyApiErrorOnce(error);
     }
     message.success('菜单展示布局已保存');
   } finally {

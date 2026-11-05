@@ -1,5 +1,6 @@
 import type { AdministrativeAreaNode } from '@levin/admin-framework/framework-commons/shared/administrative-area-data';
 
+import { matchesPinyinFuzzySearch } from '@levin/admin-framework';
 import { normalizeAdministrativeAreaCode } from '@levin/admin-framework/framework-commons/shared/administrative-area-data';
 
 function normalizeCode(value: unknown) {
@@ -79,7 +80,7 @@ export function compactOpenAreaCodeList(
 export function shouldFilterOpenAreaTree(keyword: string) {
   const normalizedKeyword = keyword.trim();
   return (
-    normalizedKeyword.length >= 2 &&
+    (normalizedKeyword.length >= 2 || /^[a-z]$/i.test(normalizedKeyword)) &&
     !['区', '市', '省'].includes(normalizedKeyword)
   );
 }
@@ -96,7 +97,7 @@ export function filterOpenAreaTree(
   const filterNode = (
     node: AdministrativeAreaNode,
   ): AdministrativeAreaNode | undefined => {
-    if (node.name.includes(normalizedKeyword)) {
+    if (matchesPinyinFuzzySearch(normalizedKeyword, node.name)) {
       return node;
     }
 

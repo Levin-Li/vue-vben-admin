@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type {
   DataModelDefinition,
   DataModelField,
@@ -47,10 +48,7 @@ import {
 import { dataModelService } from '../../api/data-model-service';
 import { dictService } from '../../api/dict-service';
 import { menuService } from '../../api/menu-service';
-import {
-  confidentialLevelOptionsLoader,
-  userOptionsLoader,
-} from '../api-module';
+import { confidentialLevelOptionsLoader } from '../api-module';
 import { confidentialLevelOptions } from './confidential-level';
 import { definitionCrudConfig } from './definition-crud-adapter';
 import { validateFixedOptions } from './field-options';
@@ -240,7 +238,6 @@ const managementConfig = computed(() =>
   definitionCrudConfig({
     context: () => metadataContext.value,
     ownerAllowed: canChooseOwner.value,
-    ownerLoader: userOptionsLoader,
     scopes: availableScopes.value,
     rowActions: [
       {
@@ -357,8 +354,8 @@ async function openFields(model: DataModelDefinition) {
     fieldSourceFilter.value = 'BUSINESS';
     fieldsOpen.value = true;
     void loadConfidentialLevels();
-  } catch {
-    message.error('字段定义读取失败，请刷新后重试');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 
@@ -378,8 +375,8 @@ async function openOperations(model: DataModelDefinition) {
   operationsLoading.value = true;
   try {
     operationModel.value = await dataModelService.getDefinition(model.key);
-  } catch {
-    message.error('模型操作契约加载失败');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     operationsLoading.value = false;
   }
@@ -670,8 +667,8 @@ async function saveFields() {
     fieldsOpen.value = false;
     message.success('业务字段已保存');
     await load();
-  } catch {
-    message.error('字段保存失败，版本可能已变化，请重新打开字段管理');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     fieldsSaving.value = false;
   }
@@ -683,8 +680,8 @@ async function toggleModelEnabled(model: DataModelDefinition) {
     await dataModelService.setModelEnabled(model.key, model.enabled !== true);
     message.success(model.enabled ? '模型已禁用' : '模型已启用');
     await load();
-  } catch {
-    message.error('模型启用状态更新失败');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 
@@ -694,8 +691,8 @@ async function generateMenu(model: DataModelDefinition) {
   generatingMenu.value = model.key;
   try {
     await dataModelService.generateMenu(model.key);
-  } catch {
-    message.error('添加到菜单失败，请检查定义同步状态与菜单权限');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
     generatingMenu.value = undefined;
     return;
   }
@@ -720,28 +717,7 @@ async function deleteDefinition(model: DataModelDefinition) {
   try {
     await dataModelService.deleteModel(model.key, Number(model.version));
   } catch (error) {
-    const response =
-      error && typeof error === 'object' && 'response' in error
-        ? error.response
-        : undefined;
-    const data =
-      response && typeof response === 'object' && 'data' in response
-        ? response.data
-        : undefined;
-    const reason = [
-      error instanceof Error ? error.message : undefined,
-      data && typeof data === 'object' && 'message' in data
-        ? data.message
-        : undefined,
-    ]
-      .filter((part): part is string => typeof part === 'string')
-      .join(' ');
-    let feedback = '删除定义失败，请检查权限或菜单状态';
-    if (reason.includes('数据表已有记录'))
-      feedback = '数据表中已有记录，不能删除定义';
-    else if (reason.includes('定义版本已变化'))
-      feedback = '定义已更新，请刷新列表后重试';
-    message.error(feedback);
+    notifyApiErrorOnce(error);
     return;
   }
   let navigationUpdated = true;
@@ -768,8 +744,8 @@ async function openPreview(model: DataModelDefinition) {
   previewOpen.value = true;
   try {
     preview.value = await dataModelService.preview(model.key);
-  } catch {
-    message.error('结构差异预览失败');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   }
 }
 
@@ -792,8 +768,8 @@ async function sync() {
     previewOpen.value = false;
     message.success('数据库结构同步完成');
     await load();
-  } catch {
-    message.error('结构同步失败，请重新预览差异');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     syncing.value = false;
   }
@@ -812,8 +788,8 @@ async function migrateNaming() {
     namingOpen.value = false;
     message.success('字段命名已升级');
     await load();
-  } catch {
-    message.error('字段命名升级失败，请重新预览后重试');
+  } catch (error_) {
+    notifyApiErrorOnce(error_);
   } finally {
     namingBusy.value = false;
   }

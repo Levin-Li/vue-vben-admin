@@ -158,7 +158,15 @@ describe('邀请真实公共表单提交', () => {
           .find((select) =>
             select.props('options')?.some((item: any) => item.value === value),
           );
-      for (const value of ['org', 'Administrator', mode]) {
+      const organization = modal.findComponent({ name: 'UserOrgSelector' });
+      expect(organization.props('selectableTypes')).toEqual(['org']);
+      expect(organization.props('maxSelectCount')).toBe(1);
+      expect(await (organization.props('orgLoadApi') as any)()).toContainEqual({
+        id: 'org',
+        name: '测试组织',
+      });
+      organization.vm.$emit('update:modelValue', 'org');
+      for (const value of ['Administrator', mode]) {
         const select = findSelect(value);
         if (!select) throw new Error(`缺少选项 ${value}`);
         select.vm.$emit('update:value', value);
@@ -244,19 +252,20 @@ describe('邀请真实公共表单提交', () => {
         .find((select) =>
           select.props('options')?.some((item: any) => item.value === value),
         );
-    for (const value of ['tenant-a', 'org-a', 'Employee', 'ChannelCustomer']) {
+    for (const value of ['tenant-a', 'Employee', 'ChannelCustomer']) {
       const select = findSelect(value);
       if (!select) throw new Error(`缺少选择项 ${value}`);
       select.vm.$emit('update:value', value);
       await flushPromises();
     }
+    const organization = modal.findComponent({ name: 'UserOrgSelector' });
+    organization.vm.$emit('update:modelValue', 'org-a');
+    await flushPromises();
     const firstChannel = findSelect('channel-org-a');
     if (!firstChannel) throw new Error('未加载甲组织授权渠道');
     firstChannel.vm.$emit('update:value', 'channel-org-a');
     await flushPromises();
-    const organization = findSelect('org-b');
-    if (!organization) throw new Error('缺少乙组织');
-    organization.vm.$emit('update:value', 'org-b');
+    organization.vm.$emit('update:modelValue', 'org-b');
     await flushPromises();
     const secondChannel = findSelect('channel-org-b');
     if (!secondChannel) throw new Error('未加载乙组织授权渠道');
@@ -330,6 +339,40 @@ describe('邀请真实公共表单提交', () => {
     },
     20_000,
   );
+
+  it('服务端明确非平台身份时不启用平台租户选择', async () => {
+    mocks.user.userInfo = {
+      id: 'issuer',
+      tenantId: 'tenant',
+      orgId: 'org',
+      platformUser: false,
+      platformAdmin: true,
+    } as any;
+    wrapper = mount(InvitationLinkPage, {
+      attachTo: document.body,
+      global: {
+        plugins: [createPinia()],
+        stubs: { Page: { template: '<div><slot /></div>' }, ATable: true },
+      },
+    });
+    await flushPromises();
+    const action = wrapper
+      .findAllComponents(Button)
+      .find((button) => button.text() === '创建会员用户邀请');
+    if (!action) throw new Error('缺少会员邀请入口');
+    await action.trigger('click');
+    await flushPromises();
+    expect(
+      mocks.post.mock.calls.some(([path]) =>
+        String(path).endsWith('/targetOrganizations'),
+      ),
+    ).toBe(true);
+    expect(
+      mocks.post.mock.calls.some(([path]) =>
+        String(path).endsWith('/targetTenants'),
+      ),
+    ).toBe(false);
+  });
 
   it.each([true, false])(
     '内部邀请按管理员权限 %s 控制账号身份选项',
@@ -439,8 +482,10 @@ describe('邀请真实公共表单提交', () => {
     if (!tenant) throw new Error('缺少租户选择');
     tenant.vm.$emit('update:value', 'tenant-a');
     await flushPromises();
+    modal
+      .findComponent({ name: 'UserOrgSelector' })
+      .vm.$emit('update:modelValue', 'org-tenant-a');
     for (const value of [
-      'org-tenant-a',
       'organizationCategory-tenant-a',
       'accountType-tenant-a',
     ]) {
@@ -462,8 +507,13 @@ describe('邀请真实公共表单提交', () => {
           .some((select) => select.props('value') === oldValue),
       ).toBe(false);
     }
+    const newOrganization = modal.findComponent({ name: 'UserOrgSelector' });
+    expect(newOrganization.props('modelValue')).toBeUndefined();
+    expect(await (newOrganization.props('orgLoadApi') as any)()).toEqual([
+      { id: 'org-tenant-b', name: '可邀请组织' },
+    ]);
+    newOrganization.vm.$emit('update:modelValue', 'org-tenant-b');
     for (const value of [
-      'org-tenant-b',
       'organizationCategory-tenant-b',
       'accountType-tenant-b',
       'Employee',
@@ -560,16 +610,11 @@ describe('邀请真实公共表单提交', () => {
     await flushPromises();
     resolveOld([{ id: 'org-a', name: '甲组织' }]);
     await flushPromises();
-    const organization = modal
-      .findAllComponents(Select)
-      .find((select) =>
-        select.props('options')?.some((item: any) => item.value === 'org-b'),
-      );
-    if (!organization) throw new Error('缺少所选租户组织');
-    expect(organization.props('options')).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ value: 'org-a' })]),
-    );
-    organization.vm.$emit('update:value', 'org-b');
+    const organization = modal.findComponent({ name: 'UserOrgSelector' });
+    expect(await (organization.props('orgLoadApi') as any)()).toEqual([
+      { id: 'org-b', name: '乙组织' },
+    ]);
+    organization.vm.$emit('update:modelValue', 'org-b');
     await flushPromises();
     const save = document.body.querySelector<HTMLButtonElement>(
       '.ant-modal-footer button.ant-btn-primary',
@@ -618,11 +663,9 @@ describe('邀请真实公共表单提交', () => {
       '新增会员用户邀请链接',
     );
     const selects = modal.findAllComponents(Select);
-    const targetOrganization = selects.find((select) =>
-      select.props('options')?.some((option: any) => option.value === 'org-b'),
-    );
-    if (!targetOrganization) throw new Error('缺少邀请目标组织选择控件');
-    targetOrganization.vm.$emit('update:value', 'org-b');
+    const targetOrganization = modal.findComponent({ name: 'UserOrgSelector' });
+    expect(targetOrganization.exists()).toBe(true);
+    targetOrganization.vm.$emit('update:modelValue', 'org-b');
     const usage = selects.find((select) =>
       select
         .props('options')
@@ -711,13 +754,11 @@ describe('邀请真实公共表单提交', () => {
       if (!select) throw new Error(`缺少实际选择控件：${value}`);
       select.vm.$emit('update:value', value);
     }
-    const customerOrganization = customerModal
-      .findAllComponents(Select)
-      .find((select) =>
-        select.props('options')?.some((option: any) => option.value === 'org'),
-      );
-    if (!customerOrganization) throw new Error('缺少客户邀请目标组织选择控件');
-    customerOrganization.vm.$emit('update:value', 'org');
+    const customerOrganization = customerModal.findComponent({
+      name: 'UserOrgSelector',
+    });
+    expect(customerOrganization.exists()).toBe(true);
+    customerOrganization.vm.$emit('update:modelValue', 'org');
     const customerDate = customerModal
       .findAllComponents(DatePicker)
       .find((picker) => !picker.props('showTime'));

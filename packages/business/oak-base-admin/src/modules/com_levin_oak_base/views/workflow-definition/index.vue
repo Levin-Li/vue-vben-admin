@@ -18,6 +18,7 @@ import { computed, onMounted, reactive, ref, toRaw, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
 import {
@@ -1179,6 +1180,7 @@ onMounted(() => {
             :loading="directoryLoading"
             :disabled="directoryLoading || !!directoryError"
             show-search
+            :filter-option="filterCrudLocalSelectOption"
             option-filter-prop="label"
             placeholder="选择可绑定的业务实体"
           />

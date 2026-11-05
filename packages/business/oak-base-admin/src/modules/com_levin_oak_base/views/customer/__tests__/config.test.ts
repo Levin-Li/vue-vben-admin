@@ -18,7 +18,7 @@ vi.mock('../../api-module', () => ({
     return async (keyword?: string) => {
       if (args[0] === '/Org/list') {
         optionSearchTerms.push(keyword ?? '');
-        return orgOptions;
+        return args[3].pageIndex === 1 ? orgOptions : [];
       }
       return [];
     };
@@ -53,7 +53,7 @@ describe('独立客户页面', () => {
       label: '新客户组织的内部父级',
       formCreate: true,
       formEdit: false,
-      type: 'select',
+      type: 'org-tree-select',
     });
     expect(field('subjectOrgId')).toMatchObject({
       label: '主体方组织',
@@ -62,6 +62,11 @@ describe('独立客户页面', () => {
       omitOnEdit: true,
     });
     expect(field('parentOrgId')?.required).not.toBe(true);
+    expect(field('tenantId')).toMatchObject({
+      visibleForPlatformUser: true,
+      disabledOnEdit: true,
+    });
+    expect(field('tenantId')?.omitOnEdit).not.toBe(true);
     expect(field('ownerId')).toBeUndefined();
     expect(optionLoaderCalls).toContainEqual([
       '/Org/list',

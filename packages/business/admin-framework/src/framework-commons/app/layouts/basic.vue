@@ -62,6 +62,7 @@ import {
   getAdminUserMessageService,
 } from '../../runtime';
 import { getAdministrativeAreaOptions } from '../../shared/administrative-area-data';
+import { filterCrudLocalSelectOption } from '../../shared/crud-local-search';
 import { getUserDropdownMenuItems } from '../../shared/user-dropdown-menu-service';
 import { formatPersonalMessageSummary } from '../../shared/user-message-summary';
 import { resolvePersonalMessageSourceRoute } from '../../shared/user-message-target';
@@ -74,6 +75,7 @@ import {
   saveAdminUiPreferencesSetting,
 } from '../admin-ui-preferences-setting';
 import AgentPanel from '../ai-agent/agent-panel.vue';
+import { notifyApiErrorOnce } from '../api/api-error-message';
 import { getFrontendBuildInfo } from '../frontend-build-versions';
 import { currentGlobalDomainIds } from '../global-domain-context-state';
 import {
@@ -482,8 +484,8 @@ async function handleSaveAdminUiPreferences() {
     );
     message.success('界面设置上传成功');
     adminUiPreferencesUploadModalOpen.value = false;
-  } catch {
-    message.error('界面设置上传失败');
+  } catch (error) {
+    notifyApiErrorOnce(error);
   } finally {
     adminUiPreferencesUploadLoading.value = false;
   }
@@ -516,8 +518,8 @@ async function handleLoadAdminUiPreferences() {
     } else {
       message.warning('无适配设置');
     }
-  } catch {
-    message.error('加载界面设置失败');
+  } catch (error) {
+    notifyApiErrorOnce(error);
   } finally {
     adminUiPreferencesLoadLoading.value = false;
   }
@@ -537,8 +539,8 @@ async function syncNationalAdministrativeAreas() {
       `国家行政编码全量上传完成：新增 ${result?.createdCount || 0} 条，跳过 ${result?.skippedCount || 0} 条`,
     );
     syncNationalAdministrativeAreasModalOpen.value = false;
-  } catch {
-    message.error('国家行政编码上传失败');
+  } catch (error) {
+    notifyApiErrorOnce(error);
   } finally {
     syncNationalAdministrativeAreasLoading.value = false;
   }
@@ -986,6 +988,7 @@ watch(
           <Select
             v-model:value="adminUiPreferencesScope.tenantId"
             :options="adminUiPreferencesScopeOptions.tenants"
+            :filter-option="filterCrudLocalSelectOption"
             allow-clear
             placeholder="适用租户（留空匹配任意）"
             show-search
@@ -994,6 +997,7 @@ watch(
           <Select
             v-model:value="adminUiPreferencesScope.domain"
             :options="adminUiPreferencesScopeOptions.sites"
+            :filter-option="filterCrudLocalSelectOption"
             :disabled="!adminUiPreferencesScope.tenantId"
             allow-clear
             placeholder="适用站点（留空匹配任意；请先选择租户）"
@@ -1002,6 +1006,7 @@ watch(
           <Select
             v-model:value="adminUiPreferencesScope.userType"
             :options="adminUiPreferencesScopeOptions.userTypes"
+            :filter-option="filterCrudLocalSelectOption"
             allow-clear
             placeholder="适用用户类型（留空匹配任意）"
             show-search
@@ -1009,6 +1014,7 @@ watch(
           <Select
             v-model:value="adminUiPreferencesScope.userCategory"
             :options="adminUiPreferencesScopeOptions.userCategories"
+            :filter-option="filterCrudLocalSelectOption"
             allow-clear
             placeholder="适用用户类别（留空匹配任意）"
             show-search
@@ -1016,6 +1022,7 @@ watch(
           <Select
             v-model:value="adminUiPreferencesScope.orgCategory"
             :options="adminUiPreferencesScopeOptions.orgCategories"
+            :filter-option="filterCrudLocalSelectOption"
             allow-clear
             placeholder="适用组织类别（留空匹配任意）"
             show-search
@@ -1023,6 +1030,7 @@ watch(
           <Select
             v-model:value="adminUiPreferencesScope.orgType"
             :options="adminUiPreferencesScopeOptions.orgTypes"
+            :filter-option="filterCrudLocalSelectOption"
             allow-clear
             placeholder="适用组织类型（留空匹配任意）"
             show-search

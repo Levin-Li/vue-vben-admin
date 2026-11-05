@@ -3,6 +3,7 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 import { roleOptionsLoader } from '@levin/admin-framework/framework-commons/shared/config-helpers';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 
+import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import { userService } from '../../api/user-service';
 import {
@@ -77,22 +78,6 @@ const jobPostOptionsLoader = (keyword?: string) =>
     ),
   );
 
-const userOptionsLoader = (keyword?: string) =>
-  moduleFetchOptions(
-    '/User/list',
-    'name',
-    'id',
-    withOptionSearchParams(
-      {
-        enable: true,
-        pageIndex: 1,
-        pageSize: 500,
-      },
-      'containsName',
-      keyword,
-    ),
-  );
-
 export const pageMeta = {
   name: 'User',
   title: '用户管理',
@@ -102,6 +87,7 @@ export const pageMeta = {
 export const userPageCrudConfig: CrudPageConfig = {
   apiBase: '/User',
   domainObject: true,
+  apiModuleBase: OAK_BASE_API_MODULE,
   apiService: userService,
   dataAttrTargets: standardCrudDataAttrTargets(userService),
   allowRetrieve: true,
@@ -625,22 +611,12 @@ export const userPageCrudConfig: CrudPageConfig = {
       type: 'textarea',
     },
     {
-      key: 'pinyinName',
-      label: '拼音名',
-      layoutGroup: 'profile',
-      layoutGroupTitle: '个人资料',
-      layoutOrder: 20,
-      placeholder: '简拼或全拼，逗号隔开',
-    },
-    {
       key: 'referrerId',
       label: '推荐人',
       layoutGroup: 'profile',
       layoutGroupTitle: '个人资料',
       layoutOrder: 30,
-      loadOptions: userOptionsLoader,
-      remoteSearch: true,
-      type: 'select',
+      type: 'user-tree-select',
     },
     {
       key: 'referrerName',

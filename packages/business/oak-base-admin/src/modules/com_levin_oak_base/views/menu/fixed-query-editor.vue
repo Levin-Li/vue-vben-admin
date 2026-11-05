@@ -11,6 +11,7 @@ import { parseMenuFixedQuery } from '@levin/admin-framework/framework-commons/me
 import { requestClient } from '@levin/admin-framework/framework-commons/runtime';
 import { getAdministrativeAreaCascaderOptions } from '@levin/admin-framework/framework-commons/shared/administrative-area-data';
 import { normalizeCrudChoiceOptions } from '@levin/admin-framework/framework-commons/shared/crud-choice-value';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import { buildCrudQueryItems } from '@levin/admin-framework/framework-commons/shared/crud-query-items';
 import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
 import { normalizeJsonSchemaObject } from '@levin/admin-framework/framework-commons/shared/json-schema-form';
@@ -57,7 +58,9 @@ const rawDraft = ref<any>({});
 const schema = ref<Record<string, any>>();
 const config = ref<CrudPageConfig>();
 const selected = ref<string[]>([]);
-const extensionRows = ref<Array<{ key: string; type: string; value: string }>>([]);
+const extensionRows = ref<Array<{ key: string; type: string; value: string }>>(
+  [],
+);
 const values = reactive<Record<string, any>>({});
 const options = reactive<Record<string, any[]>>({});
 const optionErrors = reactive<Record<string, string>>({});
@@ -86,16 +89,18 @@ const items = computed(() =>
       .toSorted((a, b) => (a.searchOrder ?? 0) - (b.searchOrder ?? 0)),
   ),
 );
-const extensionFieldOptions = computed(() =>
-  [...new Map(
+const extensionFieldOptions = computed(() => [
+  ...new Map(
     (config.value?.fields || []).map((field) => [
       field.key,
       { label: `${field.label}（${field.key}）`, value: field.key },
     ]),
-  ).values()],
-);
+  ).values(),
+]);
 const canEditFormQuery = computed(
-  () => Boolean(props.paramsEditor?.trim()) || typeof props.loadConfig === 'function',
+  () =>
+    Boolean(props.paramsEditor?.trim()) ||
+    typeof props.loadConfig === 'function',
 );
 function getExtensionFieldType(key: string) {
   return String(
@@ -170,15 +175,17 @@ async function edit(extension = false) {
   Object.keys(pending).forEach((key) => delete pending[key]);
   try {
     if (extension) {
-      extensionRows.value = Object.entries(rawDraft.value).map(([key, value]) => ({
-        key,
-        type: isKnownExtensionField(key)
-          ? getExtensionFieldType(key)
-          : typeof value === 'number'
-            ? 'number'
-            : 'text',
-        value: typeof value === 'string' ? value : JSON.stringify(value),
-      }));
+      extensionRows.value = Object.entries(rawDraft.value).map(
+        ([key, value]) => ({
+          key,
+          type: isKnownExtensionField(key)
+            ? getExtensionFieldType(key)
+            : typeof value === 'number'
+              ? 'number'
+              : 'text',
+          value: typeof value === 'string' ? value : JSON.stringify(value),
+        }),
+      );
       return;
     }
     if (!extension && props.paramsEditor?.trim()) {
@@ -328,6 +335,13 @@ function save() {
     message.error((error_ as Error).message);
   }
 }
+// 树控件的显示文本可能放在 title，而普通选择器使用 label。
+function filterTreeNode(input: string, node: Record<string, any>) {
+  return filterCrudLocalSelectOption(input, {
+    label: node.title ?? node.label,
+    value: node.value,
+  });
+}
 </script>
 
 <template>
@@ -451,6 +465,7 @@ function save() {
                 :multiple="!!item.field.multiple"
                 :disabled="!selected.includes(item.key)"
                 tree-default-expand-all
+                :filter-tree-node="filterTreeNode"
                 show-search
                 tree-node-filter-prop="label"
                 class="w-full"
@@ -474,7 +489,9 @@ function save() {
                 :options="options[item.key]"
                 :disabled="!selected.includes(item.key)"
                 show-search
-                :filter-option="item.field.remoteSearch ? false : undefined"
+                :filter-option="
+                  item.field.remoteSearch ? false : filterCrudLocalSelectOption
+                "
                 option-filter-prop="label"
                 class="w-full"
                 @search="
@@ -527,7 +544,10 @@ function save() {
       <template v-else-if="editorMode === 'query' && editingExtension">
         <div>
           <div class="mb-2 flex justify-end">
-            <Button size="small" @click="extensionRows.push({ key: '', type: 'text', value: '' })">
+            <Button
+              size="small"
+              @click="extensionRows.push({ key: '', type: 'text', value: '' })"
+            >
               新增条件
             </Button>
           </div>
@@ -540,16 +560,26 @@ function save() {
               v-model:value="row.key"
               show-search
               :options="extensionFieldOptions"
+              :filter-option="filterCrudLocalSelectOption"
               placeholder="字段名"
             />
-            <Input v-if="isKnownExtensionField(row.key)" :value="getExtensionFieldType(row.key)" disabled />
+            <Input
+              v-if="isKnownExtensionField(row.key)"
+              :value="getExtensionFieldType(row.key)"
+              disabled
+            />
             <Select
               v-else
               v-model:value="row.type"
-              :options="[{ label: '文本', value: 'text' }, { label: '数字', value: 'number' }]"
+              :options="[
+                { label: '文本', value: 'text' },
+                { label: '数字', value: 'number' },
+              ]"
             />
             <Input v-model:value="row.value" placeholder="值" />
-            <Button danger size="small" @click="extensionRows.splice(index, 1)">删除</Button>
+            <Button danger size="small" @click="extensionRows.splice(index, 1)"
+              >删除</Button
+            >
           </div>
         </div>
       </template>

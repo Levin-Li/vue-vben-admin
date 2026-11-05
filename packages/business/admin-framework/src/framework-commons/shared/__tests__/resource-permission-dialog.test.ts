@@ -73,7 +73,7 @@ describe('资源授权保存属性组', () => {
     await flushPromises();
     expect(
       wrapper.findComponent({ name: 'PermissionModal' }).props('width'),
-    ).toBe('max(1200px, 90vw)');
+    ).toBe('max(1080px, 85vw)');
     expect(
       wrapper.findComponent({ name: 'PermissionModal' }).attributes('style'),
     ).toContain('max-width: none');

@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { fileResService } from '../../api/file-res-service';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
@@ -8,7 +9,6 @@ import {
   FILE_STORAGE_MULTI_UPLOAD_PATH,
   FILE_STORAGE_SINGLE_UPLOAD_PATH,
   tenantOptionsLoader,
-  userOptionsLoader,
 } from '../api-module';
 
 const fileResTypeOptionsLoader = buildEnumOptionsLoader(
@@ -27,6 +27,7 @@ export const pageMeta = {
 export const fileResPageCrudConfig: CrudPageConfig = {
   apiBase: '/FileRes',
   domainObject: true,
+  apiModuleBase: OAK_BASE_API_MODULE,
   apiService: fileResService,
   dataAttrTargets: standardCrudDataAttrTargets(fileResService),
   defaultFormValues: {
@@ -76,9 +77,7 @@ export const fileResPageCrudConfig: CrudPageConfig = {
       label: '所属用户',
       layoutGroup: 'ownership',
       layoutOrder: 30,
-      loadOptions: userOptionsLoader,
-      remoteSearch: true,
-      type: 'select',
+      type: 'user-tree-select',
     },
     {
       key: 'id',

@@ -3,6 +3,7 @@ import { computed, reactive } from 'vue';
 
 import { Button, Form, Input, InputNumber, Select, Switch } from 'ant-design-vue';
 
+import { filterCrudLocalSelectOption } from './crud-local-search';
 import {
   getJsonSchemaPathValue,
   setJsonSchemaPathValue,
@@ -148,7 +149,7 @@ function activeBranchSchema(node: Extract<JsonSchemaFormNode, { kind: 'branch' }
         </section>
 
         <Form.Item v-else :class="{ 'runtime-schema-full': isFullWidth(node) }" :extra="node.description" :label="node.label" :required="node.required">
-          <Select v-if="node.kind === 'select'" :disabled="disabled || node.readOnly" :options="node.options" :value="valueAt(node.path)" allow-clear @update:value="updateAt(node.path, $event)" />
+          <Select v-if="node.kind === 'select'" :disabled="disabled || node.readOnly" :options="node.options" :filter-option="filterCrudLocalSelectOption" :value="valueAt(node.path)" allow-clear show-search @update:value="updateAt(node.path, $event)" />
           <Switch v-else-if="node.kind === 'boolean'" :checked="!!valueAt(node.path)" :disabled="disabled || node.readOnly" @update:checked="updateAt(node.path, $event)" />
           <InputNumber v-else-if="node.kind === 'number'" :disabled="disabled || node.readOnly" :value="valueAt(node.path)" class="w-full" @update:value="updateAt(node.path, $event)" />
           <Input.TextArea v-else-if="node.kind === 'json'" :disabled="disabled || node.readOnly" :value="jsonDrafts[node.pathKey] ?? JSON.stringify(valueAt(node.path) ?? {}, null, 2)" :auto-size="{ minRows: 3, maxRows: 8 }" @update:value="updateJsonAt(node, $event)" />

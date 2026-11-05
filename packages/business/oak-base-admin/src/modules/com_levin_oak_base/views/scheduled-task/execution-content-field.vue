@@ -3,19 +3,21 @@ import type { DefaultOptionType } from 'ant-design-vue/es/select';
 
 import { computed, ref, watch } from 'vue';
 
+import { matchesPinyinFuzzySearch } from '@levin/admin-framework';
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import CodeEditorField from '@levin/admin-framework/framework-commons/shared/code-editor-field.vue';
 import {
   Alert,
   Button,
   Input,
   InputNumber,
+  message,
   Modal,
   Select,
   Space,
   Spin,
   Tabs,
   Tooltip,
-  message,
 } from 'ant-design-vue';
 
 import { scheduledTaskService } from '../../api/scheduled-task-service';
@@ -185,7 +187,7 @@ function filterOption(input: string, option?: DefaultOptionType) {
   const value = String(option?.value || '').toLowerCase();
   const className = String(option?.className || '').toLowerCase();
   return (
-    label.includes(keyword) ||
+    matchesPinyinFuzzySearch(input, label) ||
     value.includes(keyword) ||
     className.includes(keyword)
   );
@@ -271,7 +273,7 @@ async function runGroovyDebug() {
       },
     );
     groovyDebugTab.value = 'result';
-    message.error(error?.message || 'Groovy 调试执行失败');
+    notifyApiErrorOnce(error);
   } finally {
     groovyDebugLoading.value = false;
   }

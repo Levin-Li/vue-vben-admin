@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 
+import { UserOrgSelector } from '@levin/admin-framework';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import { Alert, Button, Card, Form, Select } from 'ant-design-vue';
 
 import { oakBaseGet, oakBasePost } from '../../api/_module';
@@ -30,7 +32,8 @@ const options = reactive<
 const values = reactive<ScopeValues>({});
 
 function normalizeOptions(payload: any): ScopeOption[] {
-  const list = payload?.data?.items || payload?.items || payload?.data || payload || [];
+  const list =
+    payload?.data?.items || payload?.items || payload?.data || payload || [];
   return Array.isArray(list)
     ? list.map((item) => ({
         label: String(item.name || item.nickname || item.account || item.id),
@@ -56,11 +59,32 @@ async function loadOptions() {
     options.domainId = normalizeOptions(domains);
     options.orgId = normalizeOptions(orgs);
     options.ownerId = normalizeOptions(users);
-  } catch (cause: unknown) {
-    error.value = cause instanceof Error ? cause.message : '加载候选失败。';
+  } catch (error_: unknown) {
+    error.value = error_ instanceof Error ? error_.message : '加载候选失败。';
   } finally {
     loadingOptions.value = false;
   }
+}
+
+// 使用已加载的验收候选，不引入额外组织或用户数据。
+const userRootId = '__scope_candidate_users__';
+const loadOrganizations = async () =>
+  options.orgId.map((item) => ({ id: item.value, name: item.label }));
+const loadUserRoot = async () => [{ id: userRootId, name: '可选用户' }];
+const loadCandidateUsers = async () =>
+  options.ownerId.map((item) => ({ id: item.value, name: item.label }));
+const resolveCandidateUsers = async (ids: string[]) =>
+  options.ownerId
+    .filter((item) => ids.includes(item.value))
+    .map((item) => ({
+      id: item.value,
+      name: item.label,
+      kind: 'user' as const,
+    }));
+function selectCandidate(key: 'orgId' | 'ownerId', value: unknown) {
+  const id = typeof value === 'string' ? value : undefined;
+  values[key] =
+    id && options[key].some((item) => item.value === id) ? id : undefined;
 }
 
 async function submit() {
@@ -71,17 +95,20 @@ async function submit() {
   try {
     // submitted* 保留浏览器显式参数；同名顶层字段由后端 @InjectVar 实际改写或回退。
     const scope = { ...values };
-    const response: any = await oakBasePost('/namedScopeVariableAcceptance/echo', {
-      ...scope,
-      submittedDomainId: scope.domainId,
-      submittedOrgId: scope.orgId,
-      submittedOwnerId: scope.ownerId,
-      submittedOwnerIdList: scope.ownerIdList,
-      submittedTenantId: scope.tenantId,
-    });
+    const response: any = await oakBasePost(
+      '/namedScopeVariableAcceptance/echo',
+      {
+        ...scope,
+        submittedDomainId: scope.domainId,
+        submittedOrgId: scope.orgId,
+        submittedOwnerId: scope.ownerId,
+        submittedOwnerIdList: scope.ownerIdList,
+        submittedTenantId: scope.tenantId,
+      },
+    );
     result.value = JSON.stringify(response?.data ?? response, null, 2);
-  } catch (cause: unknown) {
-    error.value = cause instanceof Error ? cause.message : '验收请求失败。';
+  } catch (error_: unknown) {
+    error.value = error_ instanceof Error ? error_.message : '验收请求失败。';
   } finally {
     loading.value = false;
   }
@@ -121,7 +148,7 @@ onMounted(loadOptions);
             v-model:value="values.tenantId"
             allow-clear
             show-search
-            :filter-option="true"
+            :filter-option="filterCrudLocalSelectOption"
             :loading="loadingOptions"
             :options="options.tenantId"
             placeholder="不选时可验证 Header / Host 回退"
@@ -132,47 +159,62 @@ onMounted(loadOptions);
             v-model:value="values.domainId"
             allow-clear
             show-search
-            :filter-option="true"
+            :filter-option="filterCrudLocalSelectOption"
             :loading="loadingOptions"
             :options="options.domainId"
             placeholder="不选时使用顶部全局领域 Header"
           />
         </Form.Item>
         <Form.Item label="显式组织">
-          <Select
-            v-model:value="values.orgId"
-            allow-clear
-            show-search
-            :filter-option="true"
-            :loading="loadingOptions"
-            :options="options.orgId"
+          <UserOrgSelector
+            :key="JSON.stringify(options.orgId)"
+            :model-value="values.orgId"
+            :org-load-api="loadOrganizations"
+            load-on-initial-value
+            :selectable-types="['org']"
+            :max-select-count="1"
+            :disabled="loadingOptions"
+            value-mode="id"
             placeholder="不选时使用顶部全局组织 Header"
+            @update:model-value="selectCandidate('orgId', $event)"
           />
         </Form.Item>
         <Form.Item label="显式个人">
-          <Select
-            v-model:value="values.ownerId"
-            allow-clear
-            show-search
-            :filter-option="true"
-            :loading="loadingOptions"
-            :options="options.ownerId"
+          <UserOrgSelector
+            :key="JSON.stringify(options.ownerId)"
+            :model-value="values.ownerId"
+            :org-load-api="loadUserRoot"
+            :user-load-api="loadCandidateUsers"
+            :resolve-records="resolveCandidateUsers"
+            :selectable-types="['user']"
+            :max-select-count="1"
+            :disabled="loadingOptions"
+            value-mode="id"
             placeholder="不选时使用顶部全局用户 Header"
+            @update:model-value="selectCandidate('ownerId', $event)"
           />
         </Form.Item>
       </Form>
       <div class="flex flex-wrap gap-3">
         <Button :loading="loadingOptions" @click="loadOptions">刷新候选</Button>
-        <Button :disabled="loading" @click="clearExplicitValues">清空显式参数</Button>
-        <Button type="primary" :loading="loading" @click="submit">提交并查看最终解析值</Button>
+        <Button :disabled="loading" @click="clearExplicitValues">
+          清空显式参数
+        </Button>
+        <Button type="primary" :loading="loading" @click="submit">
+          提交并查看最终解析值
+        </Button>
       </div>
     </Card>
     <Alert v-if="error" show-icon type="error" :message="error" />
     <Card v-if="result" title="后端真实解析结果">
       <p class="text-muted-foreground mb-3">
-        对比 submitted、headers 和 resolved：同维度显式参数应优先；显式为空时才会使用经服务端授权的 Header 候选。
+        对比 submitted、headers 和
+        resolved：同维度显式参数应优先；显式为空时才会使用经服务端授权的 Header
+        候选。
       </p>
-      <pre class="max-h-96 overflow-auto whitespace-pre-wrap break-all">{{ result }}</pre>
+      <pre class="max-h-96 overflow-auto whitespace-pre-wrap break-all">{{
+        result
+      }}</pre>
     </Card>
   </div>
 </template>

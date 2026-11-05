@@ -224,6 +224,7 @@ export const simpleApiPageCrudConfig: CrudPageConfig = {
     { key: 'groupName', label: '分组名称', table: true, width: 140 },
     {
       key: 'status',
+      form: false,
       label: '状态',
       loadOptions: simpleStatusOptionsLoader,
       table: true,

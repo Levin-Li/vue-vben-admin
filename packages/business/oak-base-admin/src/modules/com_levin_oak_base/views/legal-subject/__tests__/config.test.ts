@@ -1,3 +1,8 @@
+import {
+  buildCrudComplexGroupInitialState,
+  buildCrudComplexGroupPayload,
+} from '@levin/admin-framework/framework-commons/shared/crud-complex-groups';
+import { resolveCrudDataAttrPath } from '@levin/admin-framework/framework-commons/shared/crud-data-attr-access';
 import { resolveDetailFields } from '@levin/admin-framework/framework-commons/shared/detail-display';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -17,14 +22,64 @@ vi.mock('../../api-module', () => ({
 }));
 
 describe('法律主体管理页面', () => {
+  it('收款账户与开票账号分别回显、提交并按各自字段组授权', () => {
+    const config = legalSubjectPageCrudConfig;
+    const groups = config.complexGroups;
+    const initial = buildCrudComplexGroupInitialState(groups, {
+      bankAccount: {
+        bankName: '虚构收款银行',
+        bankAccountName: '测试主体',
+        bankAccount: 'test-account-1',
+      },
+      invoiceInfo: { bankName: '虚构开票银行', bankAccount: 'test-account-2' },
+    });
+    expect(initial.flatValues).toMatchObject({
+      settlementBankName: '虚构收款银行',
+      settlementBankAccount: 'test-account-1',
+      invoiceBankAccount: 'test-account-2',
+    });
+    const payload = buildCrudComplexGroupPayload(
+      groups,
+      initial.enabled,
+      initial.flatValues,
+    );
+    expect(payload.bankAccount).toMatchObject({
+      bankAccount: 'test-account-1',
+    });
+    expect(payload.invoiceInfo).toMatchObject({
+      bankAccount: 'test-account-2',
+    });
+    expect(
+      buildCrudComplexGroupPayload(groups, {}, initial.flatValues),
+    ).toEqual({});
+
+    const bankField = config.fields.find(
+      (field) => field.key === 'settlementBankAccount',
+    );
+    const invoiceField = config.fields.find(
+      (field) => field.key === 'invoiceBankAccount',
+    );
+    if (!bankField || !invoiceField) throw new Error('银行字段未配置');
+    expect(resolveCrudDataAttrPath(bankField, config)).toBe(
+      'bankAccount.bankAccount',
+    );
+    expect(resolveCrudDataAttrPath(invoiceField, config)).toBe(
+      'invoiceInfo.bankAccount',
+    );
+    expect(bankField).toMatchObject({
+      table: false,
+      export: false,
+      required: true,
+    });
+  });
+
   it('分别配置主体方、维护方组织与负责人，不保留单组织归属', () => {
     const field = (key: string) =>
       legalSubjectPageCrudConfig.fields.find((item) => item.key === key);
     for (const party of ['subject', 'maintain']) {
       expect(field(`${party}OrgId`)).toMatchObject({ type: 'org-tree-select' });
       expect(field(`${party}UserId`)).toMatchObject({
-        type: 'select',
-        remoteSearch: true,
+        type: 'user-tree-select',
       });
     }
     expect(field('orgId')).toBeUndefined();

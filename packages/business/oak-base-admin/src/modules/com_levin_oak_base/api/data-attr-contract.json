@@ -44508,6 +44508,20 @@
       }
     }
   }, {
+    "id" : "8c27f407-f52b-329a-9c44-53d406ee561d",
+    "operation" : "com.levin.oak.base:业务数据-渠道伙伴引用候选::查询渠道伙伴引用候选",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/ChannelPartnerCandidates/list" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "c8b1ac7a-5471-3e64-8e14-928824c0431c",
     "operation" : "com.levin.oak.base:系统数据-客户端应用::清除缓存",
     "methods" : [ "GET" ],
@@ -219377,6 +219391,34 @@
     },
     "nodes" : { }
   }, {
+    "id" : "b52aa74e-11e7-35b1-84df-c0e5f5d394d1",
+    "operation" : "com.levin.oak.base:业务数据-业务引用候选::查询法律主体引用候选",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/ReferenceCandidates/legalSubjects" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "12bab754-03c8-3026-b17e-eb85a1c2b156",
+    "operation" : "com.levin.oak.base:业务数据-业务引用候选::查询伙伴引用候选",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/ReferenceCandidates/partners" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "bfa47f71-e765-309d-8cbc-0337b196733a",
     "operation" : "com.levin.oak.base:业务数据-机器人通知群::清除缓存",
     "methods" : [ "GET" ],
@@ -296058,6 +296100,20 @@
       }
     }
   }, {
+    "id" : "4f45aafa-fd81-3f0d-9ab6-b140d314faba",
+    "operation" : "com.levin.oak.base:系统数据-用户::查询列表",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/User/selectorCandidates" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "db7bec8f-51ea-3668-8c4f-af18aa8ba194",
     "operation" : "com.levin.oak.base:系统数据-用户::更新",
     "methods" : [ "PUT" ],
@@ -308549,6 +308605,1778 @@
       "id" : "com.levin.oak.base.entities.Org#组织联系资料",
       "name" : "组织联系资料",
       "permission" : "com.levin.oak.base:DataAttrGroup:23dad07ff48596c9bbfee3032ff02113cfb9623290d30272d898818befe19da0:access",
+      "entityPermission" : "com.levin.oak.base:通用数据-权限控制:DataAttrGroup@8c98d5d3b88357298406c4926782b460f64de31e79ad958579a0f3d2c8efccd8:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
+      "id" : "com.levin.oak.base.entities.User#用户数据权限范围",
+      "name" : "用户数据权限范围",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.User#用户机密等级",
+      "name" : "用户机密等级",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.User#用户登录标识",
+      "name" : "用户登录标识",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.User#用户组织归属",
+      "name" : "用户组织归属",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.User#用户角色配置",
+      "name" : "用户角色配置",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    } ],
+    "requestRoots" : [ ],
+    "responseRoot" : "n0",
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ "n3" ]
+    },
+    "nodes" : {
+      "n0" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "bizError",
+          "wireName" : "bizError",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "code",
+          "wireName" : "code",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "data",
+          "wireName" : "data",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n2",
+          "caseInsensitive" : null
+        }, {
+          "name" : "detailMsg",
+          "wireName" : "detailMsg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "errorType",
+          "wireName" : "errorType",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "httpStatusCode",
+          "wireName" : "httpStatusCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "interactions",
+          "wireName" : "interactions",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n17",
+          "caseInsensitive" : null
+        }, {
+          "name" : "msg",
+          "wireName" : "msg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "sign",
+          "wireName" : "sign",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "status",
+          "wireName" : "status",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "successful",
+          "wireName" : "successful",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "traceId",
+          "wireName" : "traceId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n1" : {
+        "kind" : "value",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n10" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "action",
+          "wireName" : "action",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "afterStatus",
+          "wireName" : "afterStatus",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "beforeStatus",
+          "wireName" : "beforeStatus",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "extInfo",
+          "wireName" : "extInfo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n6",
+          "caseInsensitive" : null
+        }, {
+          "name" : "occurTime",
+          "wireName" : "occurTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "operator",
+          "wireName" : "operator",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "remark",
+          "wireName" : "remark",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n11" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "email",
+          "wireName" : "email",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "idCard",
+          "wireName" : "idCard",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "idType",
+          "wireName" : "idType",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "legalIdBackImageUrl",
+          "wireName" : "legalIdBackImageUrl",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "legalIdFrontImageUrl",
+          "wireName" : "legalIdFrontImageUrl",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "mobilePhone",
+          "wireName" : "mobilePhone",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n12" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "bankAccount",
+          "wireName" : "bankAccount",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "bankName",
+          "wireName" : "bankName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "invoiceEmail",
+          "wireName" : "invoiceEmail",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "taxNo",
+          "wireName" : "taxNo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "taxRegisteredAddress",
+          "wireName" : "taxRegisteredAddress",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "taxRegisteredPhone",
+          "wireName" : "taxRegisteredPhone",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n13" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "admin",
+          "wireName" : "admin",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "aliOpenId",
+          "wireName" : "aliOpenId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "areaCode",
+          "wireName" : "areaCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "avatar",
+          "wireName" : "avatar",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "birthday",
+          "wireName" : "birthday",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "category",
+          "wireName" : "category",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "confidentialDataAccessLevel",
+          "wireName" : "confidentialDataAccessLevel",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户机密等级" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "confidentialLevel",
+          "wireName" : "confidentialLevel",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户机密等级" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "createTime",
+          "wireName" : "createTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "creator",
+          "wireName" : "creator",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "deniedDomainScopeList",
+          "wireName" : "deniedDomainScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户数据权限范围" ],
+          "nodeId" : "n14",
+          "caseInsensitive" : null
+        }, {
+          "name" : "deniedOrgScopeList",
+          "wireName" : "deniedOrgScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户数据权限范围" ],
+          "nodeId" : "n14",
+          "caseInsensitive" : null
+        }, {
+          "name" : "deniedTenantScopeList",
+          "wireName" : "deniedTenantScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户数据权限范围" ],
+          "nodeId" : "n14",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainId",
+          "wireName" : "domainId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainList",
+          "wireName" : "domainList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n8",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainScopeList",
+          "wireName" : "domainScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户数据权限范围" ],
+          "nodeId" : "n14",
+          "caseInsensitive" : null
+        }, {
+          "name" : "editable",
+          "wireName" : "editable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "email",
+          "wireName" : "email",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户登录标识" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "enable",
+          "wireName" : "enable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "exInfo",
+          "wireName" : "exInfo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n6",
+          "caseInsensitive" : null
+        }, {
+          "name" : "expiredTime",
+          "wireName" : "expiredTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "id",
+          "wireName" : "id",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "jobPost",
+          "wireName" : "jobPost",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n15",
+          "caseInsensitive" : null
+        }, {
+          "name" : "jobPostCode",
+          "wireName" : "jobPostCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "joinDate",
+          "wireName" : "joinDate",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastLoginTime",
+          "wireName" : "lastLoginTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastUpdateTime",
+          "wireName" : "lastUpdateTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "level",
+          "wireName" : "level",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lockExpiredTime",
+          "wireName" : "lockExpiredTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "loginName",
+          "wireName" : "loginName",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户登录标识" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "nickname",
+          "wireName" : "nickname",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "optimisticLock",
+          "wireName" : "optimisticLock",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orderCode",
+          "wireName" : "orderCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "org",
+          "wireName" : "org",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orgId",
+          "wireName" : "orgId",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户组织归属" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orgName",
+          "wireName" : "orgName",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户组织归属" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orgScopeList",
+          "wireName" : "orgScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户数据权限范围" ],
+          "nodeId" : "n14",
+          "caseInsensitive" : null
+        }, {
+          "name" : "platformAdmin",
+          "wireName" : "platformAdmin",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "platformUser",
+          "wireName" : "platformUser",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "referrerId",
+          "wireName" : "referrerId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "referrerName",
+          "wireName" : "referrerName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "registerIp",
+          "wireName" : "registerIp",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "registerSource",
+          "wireName" : "registerSource",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "remark",
+          "wireName" : "remark",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "roleList",
+          "wireName" : "roleList",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户角色配置" ],
+          "nodeId" : "n8",
+          "caseInsensitive" : null
+        }, {
+          "name" : "sex",
+          "wireName" : "sex",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "signature",
+          "wireName" : "signature",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "staffNo",
+          "wireName" : "staffNo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "state",
+          "wireName" : "state",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "superAdmin",
+          "wireName" : "superAdmin",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tagList",
+          "wireName" : "tagList",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n8",
+          "caseInsensitive" : null
+        }, {
+          "name" : "telephone",
+          "wireName" : "telephone",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户登录标识" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantAdmin",
+          "wireName" : "tenantAdmin",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantId",
+          "wireName" : "tenantId",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户组织归属" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantName",
+          "wireName" : "tenantName",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户组织归属" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantScopeList",
+          "wireName" : "tenantScopeList",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.User#用户数据权限范围" ],
+          "nodeId" : "n14",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantUser",
+          "wireName" : "tenantUser",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "topSuperAdmin",
+          "wireName" : "topSuperAdmin",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "type",
+          "wireName" : "type",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "wxOpenId",
+          "wireName" : "wxOpenId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n14" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n1",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n15" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "code",
+          "wireName" : "code",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "createTime",
+          "wireName" : "createTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "creator",
+          "wireName" : "creator",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainId",
+          "wireName" : "domainId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "editable",
+          "wireName" : "editable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "enable",
+          "wireName" : "enable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "id",
+          "wireName" : "id",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastUpdateTime",
+          "wireName" : "lastUpdateTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "optimisticLock",
+          "wireName" : "optimisticLock",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orderCode",
+          "wireName" : "orderCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "remark",
+          "wireName" : "remark",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantId",
+          "wireName" : "tenantId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantName",
+          "wireName" : "tenantName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "type",
+          "wireName" : "type",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n16" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "address",
+          "wireName" : "address",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "areaCode",
+          "wireName" : "areaCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "contactName",
+          "wireName" : "contactName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "contactPhone",
+          "wireName" : "contactPhone",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "nationCode",
+          "wireName" : "nationCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "zipCode",
+          "wireName" : "zipCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n17" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n18",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n18" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "actions",
+          "wireName" : "actions",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n19",
+          "caseInsensitive" : null
+        }, {
+          "name" : "info",
+          "wireName" : "info",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "level",
+          "wireName" : "level",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "title",
+          "wireName" : "title",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n19" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n20",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n2" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n3",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n20" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "args",
+          "wireName" : "args",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "cmd",
+          "wireName" : "cmd",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "icon",
+          "wireName" : "icon",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n3" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "bankAccount",
+          "wireName" : "bankAccount",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.Org#组织结算账户" ],
+          "nodeId" : "n4",
+          "caseInsensitive" : null
+        }, {
+          "name" : "bankAccountHash",
+          "wireName" : "bankAccountHash",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.Org#组织结算账户" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "category",
+          "wireName" : "category",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "children",
+          "wireName" : "children",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n5",
+          "caseInsensitive" : null
+        }, {
+          "name" : "code",
+          "wireName" : "code",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "confidentialLevel",
+          "wireName" : "confidentialLevel",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.Org#组织机密等级" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "contractEmail",
+          "wireName" : "contractEmail",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.Org#组织联系资料" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "contractPerson",
+          "wireName" : "contractPerson",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.Org#组织联系资料" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "contractPhone",
+          "wireName" : "contractPhone",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.Org#组织联系资料" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "createTime",
+          "wireName" : "createTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "creator",
+          "wireName" : "creator",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainId",
+          "wireName" : "domainId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "editable",
+          "wireName" : "editable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "enable",
+          "wireName" : "enable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "exInfo",
+          "wireName" : "exInfo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n6",
+          "caseInsensitive" : null
+        }, {
+          "name" : "expiredTime",
+          "wireName" : "expiredTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "id",
+          "wireName" : "id",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastUpdateTime",
+          "wireName" : "lastUpdateTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "legalSubject",
+          "wireName" : "legalSubject",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n7",
+          "caseInsensitive" : null
+        }, {
+          "name" : "legalSubjectId",
+          "wireName" : "legalSubjectId",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.Org#组织业务归属" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "level",
+          "wireName" : "level",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "logo",
+          "wireName" : "logo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "nodeData",
+          "wireName" : "nodeData",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "nodePath",
+          "wireName" : "nodePath",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.Org#组织层级" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "optimisticLock",
+          "wireName" : "optimisticLock",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orderCode",
+          "wireName" : "orderCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "parent",
+          "wireName" : "parent",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "parentId",
+          "wireName" : "parentId",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.Org#组织层级" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "remark",
+          "wireName" : "remark",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "responsibilityCode",
+          "wireName" : "responsibilityCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "responsibleUser",
+          "wireName" : "responsibleUser",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n13",
+          "caseInsensitive" : null
+        }, {
+          "name" : "responsibleUserId",
+          "wireName" : "responsibleUserId",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.Org#组织业务归属" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "shortName",
+          "wireName" : "shortName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "state",
+          "wireName" : "state",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantId",
+          "wireName" : "tenantId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantName",
+          "wireName" : "tenantName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "type",
+          "wireName" : "type",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n4" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "bankAccount",
+          "wireName" : "bankAccount",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "bankAccountName",
+          "wireName" : "bankAccountName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "bankBranchCode",
+          "wireName" : "bankBranchCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "bankName",
+          "wireName" : "bankName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "reservedPhone",
+          "wireName" : "reservedPhone",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n5" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n3",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n6" : {
+        "kind" : "map",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : null,
+        "valueNodeId" : "n1",
+        "selectorNodeId" : null
+      },
+      "n7" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "bankAccount",
+          "wireName" : "bankAccount",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#银行账户" ],
+          "nodeId" : "n4",
+          "caseInsensitive" : null
+        }, {
+          "name" : "bankAccountHash",
+          "wireName" : "bankAccountHash",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "businessPremises",
+          "wireName" : "businessPremises",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n8",
+          "caseInsensitive" : null
+        }, {
+          "name" : "certificationLog",
+          "wireName" : "certificationLog",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n9",
+          "caseInsensitive" : null
+        }, {
+          "name" : "certificationStatus",
+          "wireName" : "certificationStatus",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "cityCode",
+          "wireName" : "cityCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "confidentialLevel",
+          "wireName" : "confidentialLevel",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "contactInfo",
+          "wireName" : "contactInfo",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#联系人信息" ],
+          "nodeId" : "n11",
+          "caseInsensitive" : null
+        }, {
+          "name" : "createTime",
+          "wireName" : "createTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "creator",
+          "wireName" : "creator",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "domainId",
+          "wireName" : "domainId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "editable",
+          "wireName" : "editable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "enable",
+          "wireName" : "enable",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "expiredTime",
+          "wireName" : "expiredTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "id",
+          "wireName" : "id",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "identityImg",
+          "wireName" : "identityImg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n8",
+          "caseInsensitive" : null
+        }, {
+          "name" : "identityType",
+          "wireName" : "identityType",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "invoiceInfo",
+          "wireName" : "invoiceInfo",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#开票信息" ],
+          "nodeId" : "n12",
+          "caseInsensitive" : null
+        }, {
+          "name" : "invoiceInfoHash",
+          "wireName" : "invoiceInfoHash",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastStatusDesc",
+          "wireName" : "lastStatusDesc",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastStatusTime",
+          "wireName" : "lastStatusTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "lastUpdateTime",
+          "wireName" : "lastUpdateTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "legalInfo",
+          "wireName" : "legalInfo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n11",
+          "caseInsensitive" : null
+        }, {
+          "name" : "logo",
+          "wireName" : "logo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "maintainOrg",
+          "wireName" : "maintainOrg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "maintainOrgId",
+          "wireName" : "maintainOrgId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "maintainUser",
+          "wireName" : "maintainUser",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n13",
+          "caseInsensitive" : null
+        }, {
+          "name" : "maintainUserId",
+          "wireName" : "maintainUserId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "optimisticLock",
+          "wireName" : "optimisticLock",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "orderCode",
+          "wireName" : "orderCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "remark",
+          "wireName" : "remark",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "shippingInfo",
+          "wireName" : "shippingInfo",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.entities.LegalSubject#邮寄信息" ],
+          "nodeId" : "n16",
+          "caseInsensitive" : null
+        }, {
+          "name" : "shippingInfoHash",
+          "wireName" : "shippingInfoHash",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "shortName",
+          "wireName" : "shortName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectName",
+          "wireName" : "subjectName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectOrg",
+          "wireName" : "subjectOrg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectOrgId",
+          "wireName" : "subjectOrgId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectType",
+          "wireName" : "subjectType",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectUser",
+          "wireName" : "subjectUser",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n13",
+          "caseInsensitive" : null
+        }, {
+          "name" : "subjectUserId",
+          "wireName" : "subjectUserId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "supportCertificationEventsByCurrentStatus",
+          "wireName" : "supportCertificationEventsByCurrentStatus",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n8",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantId",
+          "wireName" : "tenantId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "tenantName",
+          "wireName" : "tenantName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "unifiedCreditNo",
+          "wireName" : "unifiedCreditNo",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n8" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n1",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n9" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n10",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      }
+    }
+  }, {
+    "id" : "8cd2e648-ecf0-37d4-8cf3-c70e20e5a8fd",
+    "operation" : "com.levin.oak.base:通用数据-权限控制::获取指定租户的授权组织列表",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/rbac/authorizedOrgListByTenant" ],
+    "restricted" : true,
+    "groups" : [ {
+      "id" : "com.levin.oak.base.entities.LegalSubject#开票信息",
+      "name" : "开票信息",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.LegalSubject#联系人信息",
+      "name" : "联系人信息",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.LegalSubject#邮寄信息",
+      "name" : "邮寄信息",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.LegalSubject#银行账户",
+      "name" : "银行账户",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.Org#组织业务归属",
+      "name" : "组织业务归属",
+      "permission" : "com.levin.oak.base:DataAttrGroup:a66af4fd625df593f2aef08704cbbd57f2931627c40a898373beb7935650bf61:access",
+      "entityPermission" : "com.levin.oak.base:通用数据-权限控制:DataAttrGroup@9bff79beb48ddd7824c9846d2eeaf48db3552331147e626260de9721b041e755:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
+      "id" : "com.levin.oak.base.entities.Org#组织层级",
+      "name" : "组织层级",
+      "permission" : "com.levin.oak.base:DataAttrGroup:029b8f7bbcbc99476995846f49382ed0d93a3f03e34c4aeb3867dc9ab119144d:access",
+      "entityPermission" : "com.levin.oak.base:通用数据-权限控制:DataAttrGroup@f59efe8c1a8c612b1e4cf467f4a65f2ca938b9f4c57b20726e3e209ef94f6745:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
+      "id" : "com.levin.oak.base.entities.Org#组织机密等级",
+      "name" : "组织机密等级",
+      "permission" : "com.levin.oak.base:DataAttrGroup:5c97a1f7f76f93b2169f39edb1dc03b7c4303d6fb79657282810de049b25dad1:access",
+      "entityPermission" : "com.levin.oak.base:通用数据-权限控制:DataAttrGroup@037760add6ab0d0c7727865405e9b5213b0cd5c7f3c799930104d835ed316f59:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
+      "id" : "com.levin.oak.base.entities.Org#组织结算账户",
+      "name" : "组织结算账户",
+      "permission" : "com.levin.oak.base:DataAttrGroup:86fb27d6bc026c1ca1026a348bbdc8e771bdda63302c4c939c7ff122f4163b63:access",
+      "entityPermission" : "com.levin.oak.base:通用数据-权限控制:DataAttrGroup@3aa1890abeaa8f0f9ed0eb93c18bbdb1bd029caeb8dbc9286baebc7623962b8b:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
+      "id" : "com.levin.oak.base.entities.Org#组织联系资料",
+      "name" : "组织联系资料",
+      "permission" : "com.levin.oak.base:DataAttrGroup:73be29161756eeb6b4054a349395e136898324c5e3c405c56b0880e59dc34c63:access",
       "entityPermission" : "com.levin.oak.base:通用数据-权限控制:DataAttrGroup@8c98d5d3b88357298406c4926782b460f64de31e79ad958579a0f3d2c8efccd8:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true

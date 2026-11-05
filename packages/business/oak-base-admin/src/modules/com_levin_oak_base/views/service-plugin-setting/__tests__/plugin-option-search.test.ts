@@ -11,6 +11,8 @@ describe('service plugin option search', () => {
   it('matches plugin labels case-insensitively', () => {
     expect(filterServicePluginOption('google mfa', option)).toBe(true);
     expect(filterServicePluginOption('验证码', option)).toBe(true);
+    expect(filterServicePluginOption('yzm', option)).toBe(true);
+    expect(filterServicePluginOption('yanzhengma', option)).toBe(true);
     expect(filterServicePluginOption('cloudflare', option)).toBe(false);
   });
 

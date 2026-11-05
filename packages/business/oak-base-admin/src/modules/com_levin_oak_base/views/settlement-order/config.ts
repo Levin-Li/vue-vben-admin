@@ -12,9 +12,9 @@ import {
   buildModuleOptionsLoader,
   legalSubjectOptionsLoader,
   tenantOptionsLoader,
-  userOptionsLoader,
   withModuleCrudConfig,
 } from '../api-module';
+import { loadReferenceCandidates } from '../reference-candidate-options';
 import {
   canRunSettlementAction,
   positiveMoney,
@@ -38,6 +38,22 @@ const partnerOptions = buildModuleOptionsLoader(
   { pageIndex: 1, pageSize: 50 },
   'containsDisplayName',
 );
+
+// 平台跨租户候选由受控接口按已授权组织和目标租户限定。
+async function loadTenantEntityOptions(
+  tenantId: string,
+  keyword: string | undefined,
+  path: string,
+  _label: string,
+  _search: string,
+) {
+  const result = await loadReferenceCandidates(
+    path === '/Partner/list' ? 'partners' : 'legalSubjects',
+    tenantId,
+    keyword,
+  );
+  return result.items.map((item) => ({ label: item.name, value: item.id }));
+}
 
 const financialContentFields = [
   { key: 'payeeBankAccount', label: '收款账户' },
@@ -158,6 +174,7 @@ export function buildSettlementPageConfig(
       {
         key: 'tenantId',
         label: '归属租户',
+        disabledOnEdit: true,
         type: 'select',
         loadOptions: tenantOptionsLoader,
         visibleForPlatformUser: true,
@@ -168,6 +185,15 @@ export function buildSettlementPageConfig(
       },
       {
         key: 'partnerId',
+        tenantDependent: true,
+        tenantLoadOptions: (tenantId, keyword) =>
+          loadTenantEntityOptions(
+            tenantId,
+            keyword,
+            '/Partner/list',
+            'displayName',
+            'containsDisplayName',
+          ),
         label: '合作伙伴',
         type: 'select',
         loadOptions: partnerOptions,
@@ -182,6 +208,15 @@ export function buildSettlementPageConfig(
       },
       {
         key: 'payerLegalSubjectId',
+        tenantDependent: true,
+        tenantLoadOptions: (tenantId, keyword) =>
+          loadTenantEntityOptions(
+            tenantId,
+            keyword,
+            '/LegalSubject/list',
+            'subjectName',
+            'containsSubjectName',
+          ),
         label: '付款主体',
         type: 'select',
         loadOptions: legalSubjectOptionsLoader,
@@ -197,6 +232,15 @@ export function buildSettlementPageConfig(
       },
       {
         key: 'payeeLegalSubjectId',
+        tenantDependent: true,
+        tenantLoadOptions: (tenantId, keyword) =>
+          loadTenantEntityOptions(
+            tenantId,
+            keyword,
+            '/LegalSubject/list',
+            'subjectName',
+            'containsSubjectName',
+          ),
         label: '收款主体',
         type: 'select',
         loadOptions: legalSubjectOptionsLoader,
@@ -228,9 +272,7 @@ export function buildSettlementPageConfig(
       {
         key: 'salesUserId',
         label: '销售负责人',
-        type: 'select',
-        loadOptions: userOptionsLoader,
-        remoteSearch: true,
+        type: 'user-tree-select',
         disabledOnEdit: true,
         omitOnEdit: true,
         search: true,
@@ -255,9 +297,7 @@ export function buildSettlementPageConfig(
       {
         key: 'financeUserId',
         label: '财务负责人',
-        type: 'select',
-        loadOptions: userOptionsLoader,
-        remoteSearch: true,
+        type: 'user-tree-select',
         disabledOnEdit: true,
         omitOnEdit: true,
         search: true,
@@ -284,9 +324,7 @@ export function buildSettlementPageConfig(
       {
         key: 'payeeUserId',
         label: '收款方对接人',
-        type: 'select',
-        loadOptions: userOptionsLoader,
-        remoteSearch: true,
+        type: 'user-tree-select',
         disabledOnEdit: true,
         omitOnEdit: true,
         search: true,

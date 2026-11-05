@@ -30,6 +30,8 @@ describe('服务插件供应商展示名', () => {
   it('供应商可按中文展示名或稳定编码搜索', () => {
     const option = { label: '钉钉', value: 'DINGTALK_V2' };
     expect(filterServiceProviderOption('钉钉', option)).toBe(true);
+    expect(filterServiceProviderOption('dd', option)).toBe(true);
+    expect(filterServiceProviderOption('dingding', option)).toBe(true);
     expect(filterServiceProviderOption('dingtalk_v2', option)).toBe(true);
     expect(filterServiceProviderOption('飞书', option)).toBe(false);
   });

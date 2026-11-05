@@ -1,5 +1,6 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
+import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { memberUserService } from '../../api/member-user-service';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
@@ -9,7 +10,6 @@ import {
   languageCodeOptionsLoader,
   nationCodeOptionsLoader,
   tenantOptionsLoader,
-  userOptionsLoader,
 } from '../api-module';
 
 const memberUserStateOptionsLoader = buildEnumOptionsLoader(
@@ -37,6 +37,7 @@ export const pageMeta = {
 export const memberUserPageCrudConfig: CrudPageConfig = {
   apiBase: '/MemberUser',
   domainObject: true,
+  apiModuleBase: OAK_BASE_API_MODULE,
   apiService: memberUserService,
   dataAttrTargets: standardCrudDataAttrTargets(memberUserService),
   defaultFormValues: {
@@ -301,19 +302,11 @@ export const memberUserPageCrudConfig: CrudPageConfig = {
       type: 'textarea',
     },
     {
-      key: 'pinyinName',
-      label: '拼音名',
-      layoutGroup: 'basic',
-      layoutOrder: 40,
-    },
-    {
       key: 'referrerId',
       label: '推荐人',
       layoutGroup: 'content',
       layoutOrder: 60,
-      loadOptions: userOptionsLoader,
-      remoteSearch: true,
-      type: 'select',
+      type: 'user-tree-select',
     },
     {
       key: 'enable',
