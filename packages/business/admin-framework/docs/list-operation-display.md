@@ -14,6 +14,7 @@
 
 - 框架固定键：`builtin:create`、`tool:export`、`tool:import`、`tool:refresh`、`tool:fullscreen`、`tool:columns`、`settings:display`、`settings:display-v2`。
 - 自定义 `rowActions` 中的列表级/批量动作通过稳定 `displayKey` 登记，配置键分别为 `toolbar:<displayKey>`、`batch:<displayKey>`。名称改变不影响关联。没有声明稳定键的动作保留原运行逻辑，但不会猜测名称、位置或 handler 作为持久化键。
+- 工具栏动作默认使用普通按钮。业务确需突出主操作时，可在 `CrudRowAction` 中声明 `buttonType: 'primary'`；该动作使用当前主题主色，其它动作不受影响。`danger` 仍按原语义优先呈现危险状态。
 - `toolbar-extra` 等插槽按钮在 `CrudPageConfig.listOperations` 中登记 `{key, label, placement}`，使用插槽提供的 `isListOperationVisible(key, 原条件)` 控制展示。`placement` 为 `left` 或 `right`，仅描述真实按钮位置；登记不自动生成业务按钮。
 - 当前域名页“申请域名”已通过 `domain:apply` 接入。其他扩展按钮需采用同一契约，不能扫描任意插槽 DOM 自动赋身份。不要复用或覆盖框架保留键。
 

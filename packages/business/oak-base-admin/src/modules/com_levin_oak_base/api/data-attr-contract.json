@@ -32746,17 +32746,17 @@
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/ChannelPartner/list" ],
     "restricted" : true,
     "groups" : [ {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:3876685f8ee93f6ba056cd260c592b65187d312604a31ff2ab3294e1f8bc6e8a:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@b0ed1f71555158004a586b4fd0fa73147d9a3047ee179ead5eed07cc923d5403:access",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:d6401b8d40d712cb90cd6ea978bf637674423b47c67cd994e1b009bcd2759a0e:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@8b3e4a65ec9aed9fb2038252e7cb4eeb395e21f85d2b93634d9b9da4f1ea0087:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:4f77da4645730d2cd0d5379ae2f8d254b236092955d98d7c0c283bc5d6a4c543:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@c6e47e80bbe70c3d0b2cdb895c60b513a07ada7beb545c46405a9f898667bb0c:access",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:6e2e641e35c09a59e4938af7bc19e1a90a6f2d0fa1c1092397438d2740715cc7:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@83bc787675813acc9230687867854d1431a57c64c9aa7e843c3d60c593a20b42:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -33045,7 +33045,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -33486,7 +33486,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n14",
           "caseInsensitive" : null
         }, {
@@ -33794,7 +33794,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -34039,7 +34039,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n14",
           "caseInsensitive" : null
         }, {
@@ -35473,7 +35473,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n33",
           "caseInsensitive" : null
         }, {
@@ -35718,7 +35718,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n38",
           "caseInsensitive" : null
         }, {
@@ -37571,17 +37571,17 @@
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/ChannelPartner/retrieve" ],
     "restricted" : true,
     "groups" : [ {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:c0d79121c08351d34590085324e3863785393e7d748a55ca58bc8c158747bc61:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@b0ed1f71555158004a586b4fd0fa73147d9a3047ee179ead5eed07cc923d5403:access",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:45272bd31227b6d507965420864015962fff134954c565b0427ba8f9a4a19c0b:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@8b3e4a65ec9aed9fb2038252e7cb4eeb395e21f85d2b93634d9b9da4f1ea0087:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:f9071aaa96d8e744735ad408e99da2404ded6f3630edaced0646e5e01ef52e2f:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@c6e47e80bbe70c3d0b2cdb895c60b513a07ada7beb545c46405a9f898667bb0c:access",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:36107c74a0ec2697cb1f03b5578f3c838f70cfee416ddd55e595d65a9607ffd2:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@83bc787675813acc9230687867854d1431a57c64c9aa7e843c3d60c593a20b42:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -38667,7 +38667,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -38912,7 +38912,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -39756,10 +39756,24 @@
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/ChannelPartner/saveChannelPartner" ],
     "restricted" : true,
     "groups" : [ {
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:9dea618ab0af13bbcb9d6a16b87e89c0b9ac042f726261642b2e6688fac63eef:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@8b3e4a65ec9aed9fb2038252e7cb4eeb395e21f85d2b93634d9b9da4f1ea0087:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
       "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人资料",
       "name" : "合作联系人资料",
       "permission" : "com.levin.oak.base:DataAttrGroup:fecb01f11edc136538901f9e4d24954c84383b4623073d0fcc7ab7db288522b3:access",
       "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@b0ed1f71555158004a586b4fd0fa73147d9a3047ee179ead5eed07cc923d5403:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:22e21cc1101f76956dad8466f0b129e6b5ed1c320501d4e7eec538fe04f84da6:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@83bc787675813acc9230687867854d1431a57c64c9aa7e843c3d60c593a20b42:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -39784,8 +39798,22 @@
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
       "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
       "name" : "合作联系人资料",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -39978,7 +40006,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n3",
           "caseInsensitive" : null
         }, {
@@ -40188,7 +40216,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n7",
           "caseInsensitive" : null
         }, {
@@ -40705,7 +40733,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n3",
           "caseInsensitive" : null
         }, {
@@ -40915,7 +40943,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n7",
           "caseInsensitive" : null
         }, {
@@ -41161,10 +41189,24 @@
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/ChannelPartner/updateChannelPartner" ],
     "restricted" : true,
     "groups" : [ {
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:bf52657c68cf38b07603cab054fabb0cc6ca4f0734edb81a73927b9954d3944a:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@8b3e4a65ec9aed9fb2038252e7cb4eeb395e21f85d2b93634d9b9da4f1ea0087:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
       "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人资料",
       "name" : "合作联系人资料",
       "permission" : "com.levin.oak.base:DataAttrGroup:5855ad0b81aa6145f11bd7dfe3b16e284e5ec82335c2404f0f05d6d98b7cdf05:access",
       "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@b0ed1f71555158004a586b4fd0fa73147d9a3047ee179ead5eed07cc923d5403:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:3afd03dfca656eefdd784c820d49172abdba0b227afca33f37e74a2249ffa89c:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-渠道伙伴:DataAttrGroup@83bc787675813acc9230687867854d1431a57c64c9aa7e843c3d60c593a20b42:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -41252,8 +41294,22 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
       "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
       "name" : "合作联系人资料",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -41481,7 +41537,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n3",
           "caseInsensitive" : null
         }, {
@@ -41691,7 +41747,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n7",
           "caseInsensitive" : null
         }, {
@@ -41863,7 +41919,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n19",
           "caseInsensitive" : null
         }, {
@@ -42108,7 +42164,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n24",
           "caseInsensitive" : null
         }, {
@@ -44058,7 +44114,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n3",
           "caseInsensitive" : null
         }, {
@@ -44268,7 +44324,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n7",
           "caseInsensitive" : null
         }, {
@@ -44822,15 +44878,15 @@
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/Customer/list" ],
     "restricted" : true,
     "groups" : [ {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -45921,7 +45977,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n12",
           "caseInsensitive" : null
         }, {
@@ -46166,7 +46222,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n17",
           "caseInsensitive" : null
         }, {
@@ -47447,15 +47503,15 @@
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/Customer/retrieve" ],
     "restricted" : true,
     "groups" : [ {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -48537,7 +48593,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -48782,7 +48838,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -50012,15 +50068,15 @@
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/Customer/updateCustomer" ],
     "restricted" : true,
     "groups" : [ {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -51102,7 +51158,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -51347,7 +51403,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -128050,17 +128106,17 @@
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/InvitationLink/targetChannels" ],
     "restricted" : true,
     "groups" : [ {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:dfca82596b9c87a52bdb1d0369f227535f929d362a4433f32ffb72a3a63da08c:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-邀请链接:DataAttrGroup@d89ebf9a8ea217ae14391bb9225a793ba1dddc4e4851f1566b9cb1abade0e281:access",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:5396d30e697d586e19e3f716bb4c7c4b8d97ab416544520102ce0e67e3771281:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-邀请链接:DataAttrGroup@b9f879d984dd5e44dbde78b0a13db62248a13f9e1b24c22df98e234b3d68967d:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:6908de3ab7588f1ed1ff96d73c4fc9658d495d690ad23c82450994915b22ae72:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-邀请链接:DataAttrGroup@4c21071b5457305f54083d44072744a5ff88b52124acf8fec571912aeffabcce:access",
+      "id" : "com.levin.oak.base.entities.ChannelPartner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:1b1b8167f8b4fa6f980ed015c3478bc2b095ce07afb4bc7282f4a71e1410460f:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-邀请链接:DataAttrGroup@5c005af4e5b700056e36e959536610c2007d5ffea427be303132e6b953948e9e:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -128349,7 +128405,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -128797,7 +128853,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n15",
           "caseInsensitive" : null
         }, {
@@ -129143,7 +129199,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -129584,7 +129640,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n15",
           "caseInsensitive" : null
         }, {
@@ -129807,7 +129863,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -130052,7 +130108,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.ChannelPartner#合作邮寄" ],
           "nodeId" : "n15",
           "caseInsensitive" : null
         }, {
@@ -172023,17 +172079,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:21890eb95758edce9d7c698e2abbbf22429631e85a5600f3d661dfbc5983d0f8:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@3762dd8c98e65d1d6c7aa08bacd4a9f3beff47fd8d093bf98fa66a756a30dea9:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:5fef3630930ec5238768f96671c651436f7c437db39b152709842e026db41024:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@95f7576a962f255fae9f374d9baef58f7378763af376599969ef1d3583ba03a6:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:436bd5978834cf7565763a71904d795c5245c6f91900bb7cf9f01527afbbb4f0:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@01dc9c7105d7d58be0202832e4b2ca2f0e15b5f43fb57b8fbff6c973ec51b59e:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:ea574c83434031ab8baba285a0b880ee40aef4365cdc7a09c73a6bd4c84ae020:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@bbaf1e65cb766126b994ad91da776466c43d5e28c7d7470f2c7b0d282590c499:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -173056,7 +173112,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -173301,7 +173357,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -174201,17 +174257,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:dcfea47a47eabcae525a1d62e2d2f711624e940ce51e0b7598beaad46c6e048f:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@3762dd8c98e65d1d6c7aa08bacd4a9f3beff47fd8d093bf98fa66a756a30dea9:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:9697354082af9acceeeb674bffe50a746218f4ac9de2e0e05a4b2fe96dd91bcb:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@95f7576a962f255fae9f374d9baef58f7378763af376599969ef1d3583ba03a6:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:e2ef85f1557087b85310e894a98500a05d5659355ac9010699e681eb15f201d9:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@01dc9c7105d7d58be0202832e4b2ca2f0e15b5f43fb57b8fbff6c973ec51b59e:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:6cd0ed809f23e3fa130e5612a729382632e1a3c667d9a8d3ddcc247223efbb60:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@bbaf1e65cb766126b994ad91da776466c43d5e28c7d7470f2c7b0d282590c499:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -174437,7 +174493,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -174864,7 +174920,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n13",
           "caseInsensitive" : null
         }, {
@@ -175156,7 +175212,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -175401,7 +175457,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n13",
           "caseInsensitive" : null
         }, {
@@ -176828,7 +176884,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n32",
           "caseInsensitive" : null
         }, {
@@ -177073,7 +177129,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n37",
           "caseInsensitive" : null
         }, {
@@ -178968,17 +179024,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:d1a571a35083494dc4d8c830f6c4d24800c1d8432a681b79eecd7e067a33aaaa:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@3762dd8c98e65d1d6c7aa08bacd4a9f3beff47fd8d093bf98fa66a756a30dea9:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:1d61042e27158bc980598717d6e2df1ad6599773444bb4ffc33509407ce82c84:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@95f7576a962f255fae9f374d9baef58f7378763af376599969ef1d3583ba03a6:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:6f9ec718a71fc3f96690a2ae8145227ee77257da3bc155f995f81ab47d8aaab7:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@01dc9c7105d7d58be0202832e4b2ca2f0e15b5f43fb57b8fbff6c973ec51b59e:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:9e14a6e52bf580a7cc49989777d057f2aef7d0b764416fb017c37bf3ae3d68d7:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@bbaf1e65cb766126b994ad91da776466c43d5e28c7d7470f2c7b0d282590c499:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -180001,7 +180057,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -180246,7 +180302,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -181146,17 +181202,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:e59a4d4f0d39e2f2914e468dff49f7c2c6af0b332bcbdbe8e65671f85d0ff234:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@3762dd8c98e65d1d6c7aa08bacd4a9f3beff47fd8d093bf98fa66a756a30dea9:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:1a0669b2c63ba955fe8d563400b7db8fc6da279363a46eedb45e2799d113fd8e:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@95f7576a962f255fae9f374d9baef58f7378763af376599969ef1d3583ba03a6:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:b1dfb0b710aec5f5835d9605dedb5e985ec1713d18ae41d43bb5ad7f9a1a0d52:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@01dc9c7105d7d58be0202832e4b2ca2f0e15b5f43fb57b8fbff6c973ec51b59e:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:f98b59004b300559fc4a31916d43f0043fcb42dad4792c6215cc79378353e88e:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@bbaf1e65cb766126b994ad91da776466c43d5e28c7d7470f2c7b0d282590c499:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -182179,7 +182235,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -182424,7 +182480,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -183324,17 +183380,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:a430e1b674c3c1f5e704a66151db8f3c231267bed3f37b1ab7841954c2eff7da:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@3762dd8c98e65d1d6c7aa08bacd4a9f3beff47fd8d093bf98fa66a756a30dea9:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:91e39bed1966cab1badb07696d66949d53879d7073cd475870d7a3f869299321:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@95f7576a962f255fae9f374d9baef58f7378763af376599969ef1d3583ba03a6:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:68b7dae765a53b344c744e35cc4877246c4527f05038406d33d2664f76b717db:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@01dc9c7105d7d58be0202832e4b2ca2f0e15b5f43fb57b8fbff6c973ec51b59e:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:bab20cff867d333b23c8c8ef50fd0b6f9a0f0e79243f5c2e4438dbee24d436c3:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@bbaf1e65cb766126b994ad91da776466c43d5e28c7d7470f2c7b0d282590c499:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -184357,7 +184413,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -184602,7 +184658,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -185502,17 +185558,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:e5cde993fe47bacf2a4fdbc9e9778e590234d733220ce33d10c4fa53626ff6a6:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@3762dd8c98e65d1d6c7aa08bacd4a9f3beff47fd8d093bf98fa66a756a30dea9:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:0e7e6bad30ae1d851faa575cf37b0975d910a9060338dc1b45559d8a336ab9a1:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@95f7576a962f255fae9f374d9baef58f7378763af376599969ef1d3583ba03a6:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:fd245550b3b73ba23365d39a4780b8297dbb46f0b8ac80cf3ce68ab41e402975:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@01dc9c7105d7d58be0202832e4b2ca2f0e15b5f43fb57b8fbff6c973ec51b59e:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:8fd70cfe24ef9a1a4c239fc2a6ee89f0c6c4055f5b182e81a5457220ffa45ffa:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@bbaf1e65cb766126b994ad91da776466c43d5e28c7d7470f2c7b0d282590c499:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -186535,7 +186591,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -186780,7 +186836,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -187680,17 +187736,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:505eb2b0fbcbd067e8f5b4037898d5e158541dff0eae85414acc613738730bee:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@3762dd8c98e65d1d6c7aa08bacd4a9f3beff47fd8d093bf98fa66a756a30dea9:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:4a905808a7b2ed4c7e397cd9d370e5a59480a3d8993e722d48fec43b2f7f15f7:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@95f7576a962f255fae9f374d9baef58f7378763af376599969ef1d3583ba03a6:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:50d31b496c14692960790c09298d6a0620a4843d93441d3255544a085c3d512a:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@01dc9c7105d7d58be0202832e4b2ca2f0e15b5f43fb57b8fbff6c973ec51b59e:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:4857fc6d30f1b3d343c823c1be639b5338f524e23fd4e7637368a50063d35110:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@bbaf1e65cb766126b994ad91da776466c43d5e28c7d7470f2c7b0d282590c499:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -188713,7 +188769,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -188958,7 +189014,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -189858,17 +189914,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:4901e5900ab167e5db176ed6e3c6a837a5daab7efe72c2e5b9554e8218b11821:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@3762dd8c98e65d1d6c7aa08bacd4a9f3beff47fd8d093bf98fa66a756a30dea9:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:bd577418f043b7c3da43a24496e668316e0c085cdf1fba5b8d2a8c6c321daa21:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@95f7576a962f255fae9f374d9baef58f7378763af376599969ef1d3583ba03a6:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:f491a82e6e501f01aa8df0ad4fef12529b19d551b7ebfd46e536d694b62e51e5:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@01dc9c7105d7d58be0202832e4b2ca2f0e15b5f43fb57b8fbff6c973ec51b59e:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:98ac7f58940d3e0f1846e06c270c9832745bbfac90014b71b4ffc50207bebfe3:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@bbaf1e65cb766126b994ad91da776466c43d5e28c7d7470f2c7b0d282590c499:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -190101,7 +190157,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -190535,7 +190591,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n14",
           "caseInsensitive" : null
         }, {
@@ -190865,7 +190921,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -191292,7 +191348,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n14",
           "caseInsensitive" : null
         }, {
@@ -191508,7 +191564,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -191753,7 +191809,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n14",
           "caseInsensitive" : null
         }, {
@@ -193419,17 +193475,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:90cb9b698bd09929d71db1334d7f76f1ff7db73bec54b7d075cd4d9c856fb6e1:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@3762dd8c98e65d1d6c7aa08bacd4a9f3beff47fd8d093bf98fa66a756a30dea9:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:b3ba1eeb28821eafe24338edd12dfb22395d699a83ac3fc60dacffc5316d7188:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@95f7576a962f255fae9f374d9baef58f7378763af376599969ef1d3583ba03a6:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:4c7eaaddc4798c9e71098ba437fec42ee552b93ad50798e973d45393fb5ffc0d:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@01dc9c7105d7d58be0202832e4b2ca2f0e15b5f43fb57b8fbff6c973ec51b59e:access",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:9c1ca51b979b31e46fb269920d45dcca67265917332f5eb3aef543a47b9efb1b:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-合作伙伴:DataAttrGroup@bbaf1e65cb766126b994ad91da776466c43d5e28c7d7470f2c7b0d282590c499:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -194452,7 +194508,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -194697,7 +194753,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -227211,15 +227267,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -228240,7 +228296,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -228485,7 +228541,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -229764,15 +229820,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -230793,7 +230849,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -231038,7 +231094,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -232331,15 +232387,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -233360,7 +233416,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -233605,7 +233661,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -234884,15 +234940,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -235913,7 +235969,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -236158,7 +236214,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -237437,15 +237493,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -238466,7 +238522,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -238711,7 +238767,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -239990,15 +240046,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -242313,7 +242369,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n15",
           "caseInsensitive" : null
         }, {
@@ -242558,7 +242614,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n18",
           "caseInsensitive" : null
         }, {
@@ -244716,7 +244772,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n32",
           "caseInsensitive" : null
         }, {
@@ -244961,7 +245017,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n37",
           "caseInsensitive" : null
         }, {
@@ -245342,15 +245398,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -248292,7 +248348,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -248537,7 +248593,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n19",
           "caseInsensitive" : null
         }, {
@@ -250695,7 +250751,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n33",
           "caseInsensitive" : null
         }, {
@@ -250940,7 +250996,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n38",
           "caseInsensitive" : null
         }, {
@@ -251312,15 +251368,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -252341,7 +252397,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -252586,7 +252642,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -253865,15 +253921,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -254894,7 +254950,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -255139,7 +255195,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -256418,15 +256474,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -257447,7 +257503,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -257692,7 +257748,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -258971,15 +259027,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -260000,7 +260056,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -260245,7 +260301,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -261524,15 +261580,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -262553,7 +262609,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -262798,7 +262854,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -264660,15 +264716,15 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
-      "name" : "合作联系人资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.Partner#合作邮寄资料",
-      "name" : "合作邮寄资料",
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -266317,7 +266373,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n14",
           "caseInsensitive" : null
         }, {
@@ -266562,7 +266618,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n19",
           "caseInsensitive" : null
         }, {
@@ -273201,17 +273257,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.SupplierPartner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:34360ff5f1b79006190b8242f26b9ca908c6b1aca61e4cf2956101d7eebab07c:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@91bd5b30511cb526c766d875de555a654c7094592627130a4b7573154bb15bec:access",
+      "id" : "com.levin.oak.base.entities.SupplierPartner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:b2ef586bc5fda4523eb6bea5293c02db87c3158bba973b3c1b384eb62c1963bf:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@5247efa24f0d2e5d68ef911ed265fb7f50945a85dedbb92b8d7ed31e4230785b:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.SupplierPartner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:619dd09ebf1b24051f8cac6978b9d09398d63af16f93d7b83bfa3af67daecfef:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@70205e640e8e2d8d4d729abf802b34f3ff6a1c40b8a4b4c05a060db227f72a7e:access",
+      "id" : "com.levin.oak.base.entities.SupplierPartner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:f361e5d63340c2d72a8a5fc54aaa123ca163865f45d5a15f02275a8d8396a90d:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@078eecbcf9eb87eaf40d10f51b4f0e7442c1695c369f6a8452af5575f680fea1:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -273437,7 +273493,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -273878,7 +273934,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄" ],
           "nodeId" : "n14",
           "caseInsensitive" : null
         }, {
@@ -274186,7 +274242,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人" ],
           "nodeId" : "n6",
           "caseInsensitive" : null
         }, {
@@ -274431,7 +274487,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄" ],
           "nodeId" : "n14",
           "caseInsensitive" : null
         }, {
@@ -275865,7 +275921,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人" ],
           "nodeId" : "n33",
           "caseInsensitive" : null
         }, {
@@ -276110,7 +276166,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄" ],
           "nodeId" : "n38",
           "caseInsensitive" : null
         }, {
@@ -278026,17 +278082,17 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
-      "id" : "com.levin.oak.base.entities.SupplierPartner#合作联系人资料",
-      "name" : "合作联系人资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:b92a4c39434171c227905f7d02b63d836b60cd28533b4bfebf2f71e88cd8c79e:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@91bd5b30511cb526c766d875de555a654c7094592627130a4b7573154bb15bec:access",
+      "id" : "com.levin.oak.base.entities.SupplierPartner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:cf552ee5119838124d5cd0485fb199288438da613fac9a159fc2a25878132d27:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@5247efa24f0d2e5d68ef911ed265fb7f50945a85dedbb92b8d7ed31e4230785b:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
-      "id" : "com.levin.oak.base.entities.SupplierPartner#合作邮寄资料",
-      "name" : "合作邮寄资料",
-      "permission" : "com.levin.oak.base:DataAttrGroup:575d52299892328026b0b7d572b66899fb2d63be21bae5b3f94014b67de74ff8:access",
-      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@70205e640e8e2d8d4d729abf802b34f3ff6a1c40b8a4b4c05a060db227f72a7e:access",
+      "id" : "com.levin.oak.base.entities.SupplierPartner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:3998e7b08c1d3ab2cbc3af0f568e655b759b625da9b3520683bd8c94e4bba3fe:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@078eecbcf9eb87eaf40d10f51b4f0e7442c1695c369f6a8452af5575f680fea1:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -279059,7 +279115,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人" ],
           "nodeId" : "n11",
           "caseInsensitive" : null
         }, {
@@ -279304,7 +279360,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄" ],
           "nodeId" : "n16",
           "caseInsensitive" : null
         }, {
@@ -280148,8 +280204,22 @@
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/SupplierPartner/saveSupplierPartner" ],
     "restricted" : true,
     "groups" : [ {
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
       "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
       "name" : "合作联系人资料",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -280176,10 +280246,24 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
+      "id" : "com.levin.oak.base.entities.SupplierPartner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:a754db63ab29673747c118a451597fd8e53c97d90edc73ecbbbe3f7495aeacad:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@5247efa24f0d2e5d68ef911ed265fb7f50945a85dedbb92b8d7ed31e4230785b:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
       "id" : "com.levin.oak.base.entities.SupplierPartner#合作联系人资料",
       "name" : "合作联系人资料",
       "permission" : "com.levin.oak.base:DataAttrGroup:04639c631d99bdea5ffaa2490babd0d6658d1b9e88a58601a7c88b22a10d491e:access",
       "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@91bd5b30511cb526c766d875de555a654c7094592627130a4b7573154bb15bec:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
+      "id" : "com.levin.oak.base.entities.SupplierPartner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:1bf33d9b2fac9e722a7a43280457b60af6ff417bd98ace2e8fbf99f4180b0b58:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@078eecbcf9eb87eaf40d10f51b4f0e7442c1695c369f6a8452af5575f680fea1:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -280370,7 +280454,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人" ],
           "nodeId" : "n3",
           "caseInsensitive" : null
         }, {
@@ -280580,7 +280664,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄" ],
           "nodeId" : "n7",
           "caseInsensitive" : null
         }, {
@@ -281097,7 +281181,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n3",
           "caseInsensitive" : null
         }, {
@@ -281307,7 +281391,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n7",
           "caseInsensitive" : null
         }, {
@@ -281616,8 +281700,22 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
+      "id" : "com.levin.oak.base.entities.Partner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
       "id" : "com.levin.oak.base.entities.Partner#合作联系人资料",
       "name" : "合作联系人资料",
+      "permission" : null,
+      "entityPermission" : null,
+      "confidentialLevel" : 2147483647,
+      "authorizable" : false
+    }, {
+      "id" : "com.levin.oak.base.entities.Partner#合作邮寄",
+      "name" : "合作邮寄",
       "permission" : null,
       "entityPermission" : null,
       "confidentialLevel" : 2147483647,
@@ -281644,10 +281742,24 @@
       "confidentialLevel" : 2147483647,
       "authorizable" : false
     }, {
+      "id" : "com.levin.oak.base.entities.SupplierPartner#合作联系人",
+      "name" : "合作联系人",
+      "permission" : "com.levin.oak.base:DataAttrGroup:3a62a90e234595bca71d9f70c8cab5702ff9b6ada40d94c3c919909c0311423b:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@5247efa24f0d2e5d68ef911ed265fb7f50945a85dedbb92b8d7ed31e4230785b:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
       "id" : "com.levin.oak.base.entities.SupplierPartner#合作联系人资料",
       "name" : "合作联系人资料",
       "permission" : "com.levin.oak.base:DataAttrGroup:fb88943b6b844bf0385df0f9b307b23467835fe958dc9fca1f6f8961a4c41e15:access",
       "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@91bd5b30511cb526c766d875de555a654c7094592627130a4b7573154bb15bec:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    }, {
+      "id" : "com.levin.oak.base.entities.SupplierPartner#合作邮寄",
+      "name" : "合作邮寄",
+      "permission" : "com.levin.oak.base:DataAttrGroup:a182118b222da5a91d580412e59dbf8c207cad1fa3241910379f9d704599b36a:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-供应伙伴:DataAttrGroup@078eecbcf9eb87eaf40d10f51b4f0e7442c1695c369f6a8452af5575f680fea1:access",
       "confidentialLevel" : -2147483648,
       "authorizable" : true
     }, {
@@ -281873,7 +281985,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人" ],
           "nodeId" : "n3",
           "caseInsensitive" : null
         }, {
@@ -282083,7 +282195,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄" ],
           "nodeId" : "n7",
           "caseInsensitive" : null
         }, {
@@ -282255,7 +282367,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作联系人" ],
           "nodeId" : "n19",
           "caseInsensitive" : null
         }, {
@@ -282500,7 +282612,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.SupplierPartner#合作邮寄" ],
           "nodeId" : "n24",
           "caseInsensitive" : null
         }, {
@@ -284450,7 +284562,7 @@
           "name" : "contactInfo",
           "wireName" : "contactInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作联系人" ],
           "nodeId" : "n3",
           "caseInsensitive" : null
         }, {
@@ -284660,7 +284772,7 @@
           "name" : "shippingInfo",
           "wireName" : "shippingInfo",
           "aliases" : [ ],
-          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄资料" ],
+          "groupIds" : [ "com.levin.oak.base.entities.Partner#合作邮寄" ],
           "nodeId" : "n7",
           "caseInsensitive" : null
         }, {

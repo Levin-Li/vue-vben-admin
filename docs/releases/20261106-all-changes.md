@@ -3,3 +3,5 @@
 本批涉及组织及用户选择器、跨租户候选、本地拼音搜索、邀请链接、客户、伙伴、法律主体和结算单等页面。前端定向回归 71 文件、620 项通过，新增法律主体账户分组另有 9 项通过；业务包类型检查及页面契约门禁通过。
 
 隔离界面已验证邀请签发、客户和供应伙伴创建、法律主体独立收款账户与开票账号回显、结算单创建；完整邀请凭据注册、正式 HTTPS、外部 OAuth 和真实供应商未验证。标准发布器完成实际 tarball、文档、精确依赖和独立消费者构建门禁，上传成功 7 包：`@vben/runtime`、`@vben/common-ui`、`@vben/layouts` 均为 `6.0.6`；`@levin/admin-framework`、`@levin/bpm-designer`、`@levin/bpm-runtime-ui` 均为 `6.0.26`；`@levin/oak-base-admin` 为 `6.0.33`。Git 结果见本批提交历史。
+
+补充交付将邀请链接的五个创建入口改为主题主色按钮，并保持它们到五个独立后端接口的映射。邀请页面回归 36 项、后端邀请创建与注册回归、业务包类型检查和新增代码 ESLint 均通过；真实浏览器页面仍待目标部署环境确认。标准发布器已按依赖闭包完成 tarball、静态字段契约和独立消费者门禁，并上传 `@levin/admin-framework`、`@levin/bpm-designer`、`@levin/bpm-runtime-ui` 的 `6.0.27` 及 `@levin/oak-base-admin` 的 `6.0.34`。

@@ -8572,7 +8572,14 @@ watch(
                     ? getCrudUserLoadApi(item.field, config.apiModuleBase ?? '')
                     : undefined
                 "
-                :user-search-api="item.field.type === 'user-tree-select' ? getCrudUserSearchApi(item.field, config.apiModuleBase ?? '') : undefined"
+                :user-search-api="
+                  item.field.type === 'user-tree-select'
+                    ? getCrudUserSearchApi(
+                        item.field,
+                        config.apiModuleBase ?? '',
+                      )
+                    : undefined
+                "
                 :resolve-records="
                   item.field.type === 'user-tree-select'
                     ? getCrudUserResolveRecords(
@@ -8826,6 +8833,7 @@ watch(
               v-for="action in getToolbarActions()"
               :key="action.label"
               :danger="action.danger"
+              :type="action.buttonType"
               @click="runRowAction(action, {})"
             >
               {{ action.label }}
@@ -9956,7 +9964,15 @@ watch(
                           )
                         : undefined
                     "
-                    :user-search-api="field.type === 'user-tree-select' ? getCrudUserSearchApi(field, config.apiModuleBase ?? '', formTenantId(field)) : undefined"
+                    :user-search-api="
+                      field.type === 'user-tree-select'
+                        ? getCrudUserSearchApi(
+                            field,
+                            config.apiModuleBase ?? '',
+                            formTenantId(field),
+                          )
+                        : undefined
+                    "
                     :resolve-records="
                       field.type === 'user-tree-select'
                         ? getCrudUserResolveRecords(

@@ -376,6 +376,8 @@ export interface CrudPageDisplayConfig {
 export interface CrudRowAction {
   action?: string;
   actionData?: string;
+  /** 工具栏操作显式指定按钮主题；未声明时保留普通按钮。 */
+  buttonType?: 'dashed' | 'default' | 'link' | 'primary' | 'text';
   badgeCount?: (record: Record<string, any>) => number;
   /** 独立的小角标；数量小于 1 时隐藏，label 用作悬停提示。 */
   badgeItems?: (record: Record<string, any>) => Array<{

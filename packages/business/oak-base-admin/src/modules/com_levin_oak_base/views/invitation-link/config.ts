@@ -113,6 +113,7 @@ export function invitationCreateActions(
     if (!meta) throw new Error(`邀请接口缺少操作声明：${method}`);
     return {
       ...meta,
+      buttonType: 'primary',
       label: meta.label || method,
       displayKey: `invitation:${method}`,
       permission: buildApiMethodPermissions(invitationLinkService, method),

@@ -1,6 +1,8 @@
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { buildCrudQueryItems } from '@levin/admin-framework/framework-commons/shared/crud-query-items';
 import { describe, expect, it } from 'vitest';
 
+import { invitationLinkService } from '../../../api/invitation-link-service';
 import {
   createInvitationLinkCrudConfig,
   invitationCreateActions,
@@ -276,6 +278,27 @@ describe('邀请链接公共 CRUD 配置', () => {
       partnerField?.formVisibleWhen?.({ customerType: 'ChannelCustomer' }),
     ).toBe(true);
   });
+
+  it.each([
+    ['Internal', 'createInternal'],
+    ['Member', 'createMember'],
+    ['Customer', 'createCustomer'],
+    ['SupplierPartner', 'createSupplierPartner'],
+    ['ChannelPartner', 'createChannelPartner'],
+  ] as const)('目标 %s 固定提交到独立接口 %s', (target, method) => {
+    const config = createInvitationLinkCrudConfig({
+      apiService,
+      canCreate: true,
+      canInviteChildAdmin: false,
+      target,
+    });
+    expect(config.createPermission).toEqual(
+      buildApiMethodPermissions(invitationLinkService, method),
+    );
+    expect(config.dataAttrTargets?.create?.path).toContain(
+      `/InvitationLink/${method}`,
+    );
+  });
   it('五个签发动作来自API元数据且不显示泛化新增', () => {
     const actions = invitationCreateActions(async () => {});
     expect(actions.map((action) => action.label)).toEqual([
@@ -288,6 +311,7 @@ describe('邀请链接公共 CRUD 配置', () => {
     expect(
       actions.every(
         (action) =>
+          action.buttonType === 'primary' &&
           action.opRefTargetType === 'None' &&
           action.successMessage === false &&
           action.successAction === 'None' &&
