@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
+import { useUserStore } from '@vben/runtime/stores';
+
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
 import { Alert } from 'ant-design-vue';
 
 import { settlementOrderService } from '../../api/settlement-order-service';
 import { settlementFinancialPermission } from './config';
+import { requestTenant } from './request-tenant';
 
 const props = defineProps<{
   disabled?: boolean;
@@ -16,6 +19,9 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: unknown] }>();
 const { hasPermission } = useRbacAccess();
+const userStore = useUserStore();
+const scopedTenant = (tenantId?: string) =>
+  requestTenant(userStore.userInfo, tenantId);
 const loadedId = ref('');
 const loadedContent = ref<unknown>();
 const loading = ref(false);
@@ -56,6 +62,7 @@ watch(
     try {
       const data = await settlementOrderService.readFinancialDetails({
         id: props.id,
+        tenantId: scopedTenant(props.tenantId),
       });
       if (current !== version) return;
       if (

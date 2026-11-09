@@ -4,10 +4,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SettlementContentEditor from '../content-editor.vue';
 
-const { allowed, read } = vi.hoisted(() => ({
+const { allowed, read, identity } = vi.hoisted(() => ({
   allowed: vi.fn(),
   read: vi.fn(),
+  identity: { platformUser: true, tenantUser: false },
 }));
+vi.mock('@vben/runtime/stores', () => ({
+  useUserStore: () => ({ userInfo: identity }),
+}));
+vi.mock(
+  '@levin/admin-framework/framework-commons/shared/user-identity',
+  () => ({
+    isPlatformUser: (user: { platformUser: boolean }) => user.platformUser,
+  }),
+);
 vi.mock('@levin/admin-framework/framework-commons/rbac-access', () => ({
   useRbacAccess: () => ({ hasPermission: allowed }),
 }));
@@ -33,8 +43,29 @@ vi.mock(
     },
   }),
 );
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  identity.platformUser = true;
+  identity.tenantUser = false;
+});
 describe('结算业务内容授权回显', () => {
+  it('租户超级管理员不传租户，由服务端注入', async () => {
+    identity.platformUser = true;
+    identity.tenantUser = true;
+    allowed.mockReturnValue(true);
+    read.mockResolvedValue({ settlementContent: {} });
+    mount(SettlementContentEditor, { props: { id: 's1', tenantId: 't1' } });
+    await flushPromises();
+    expect(read).toHaveBeenCalledWith({ id: 's1', tenantId: undefined });
+  });
+  it('普通租户用户不传租户，由服务端注入', async () => {
+    identity.platformUser = false;
+    allowed.mockReturnValue(true);
+    read.mockResolvedValue({ settlementContent: {} });
+    mount(SettlementContentEditor, { props: { id: 's1', tenantId: 't1' } });
+    await flushPromises();
+    expect(read).toHaveBeenCalledWith({ id: 's1', tenantId: undefined });
+  });
   it('没有独立财务权限时不请求原 JSON，不提供覆盖入口', async () => {
     allowed.mockReturnValue(false);
     const wrapper = mount(SettlementContentEditor, { props: { id: 's1' } });
@@ -79,6 +110,7 @@ describe('结算业务内容授权回显', () => {
     ]);
     expect(read).toHaveBeenLastCalledWith({
       id: 'new',
+      tenantId: 't2',
     });
     expect(editor.props('modelValue')).toEqual({
       orders: ['current'],

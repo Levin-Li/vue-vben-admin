@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { CrudFormInitialMode } from './types';
+import { crudInitialModeOptions, resolveCrudInitialMode } from './crud-form-initial-mode';
 import type { UiSettingRuntimeRecord } from '../app/api/ui-setting-runtime';
 import PageDisplaySettingTitle from './page-display-setting-title.vue';
 import {
@@ -556,6 +558,11 @@ function editHolder() {
 function formHolder(view: FormView) {
   ensureFields(view);
   return draft.value[view]!;
+}
+
+// 显式选择覆盖旧版开关，未交互时保留原始设置。
+function setInitialMode(view: FormView, value: CrudFormInitialMode) {
+  formHolder(view).initialMode = value;
 }
 
 function ensureGroups(view: GroupView) {
@@ -1955,14 +1962,15 @@ onUnmounted(() => {
               </Tooltip>
               <Tooltip
                 v-if="view === 'create' || view === 'edit'"
-                title="开启后，表单首次打开默认进入快捷填写；不满足快捷填写条件时自动保持普通表单。"
+                title="选择表单首次打开的视图；填写期间仍可切换。"
               >
-                <Form.Item label="快捷填写" class="mb-0">
-                  <Switch
-                    v-model:checked="formHolder(view as FormView).quickFill"
-                    aria-label="快捷填写"
-                    checked-children="开启"
-                    un-checked-children="关闭"
+                <Form.Item label="首次填写模式" class="mb-0">
+                  <Select
+                    :value="resolveCrudInitialMode(formHolder(view as FormView))"
+                    :options="crudInitialModeOptions"
+                    aria-label="首次填写模式"
+                    class="w-[120px]"
+                    @update:value="setInitialMode(view as FormView, $event as CrudFormInitialMode)"
                   />
                 </Form.Item>
               </Tooltip>

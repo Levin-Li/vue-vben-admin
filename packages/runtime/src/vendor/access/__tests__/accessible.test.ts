@@ -7,6 +7,50 @@ import { resetStaticRoutes } from '../../utils/helpers/reset-routes';
 import { generateAccessible } from '../accessible';
 
 describe('generateAccessible', () => {
+  it('registers declared aliases only for authorized backend routes', async () => {
+    const page = defineComponent({ template: '<div>page</div>' });
+    const makeRouter = () =>
+      createRouter({
+        history: createMemoryHistory(),
+        routes: [
+          {
+            path: '/',
+            name: 'root',
+            component: defineComponent({ template: '<router-view />' }),
+            children: [],
+          },
+        ],
+      });
+    const staticRoutes: any[] = [
+      { path: '/new', alias: '/old', component: page },
+    ];
+    const router = makeRouter();
+    await generateAccessible('backend', {
+      router,
+      routes: staticRoutes,
+      pageMap: { '/page.vue': page },
+      fetchMenuListAsync: async () => [
+        {
+          path: '/new',
+          name: 'New',
+          component: '/views/page.vue',
+          meta: { title: 'New' },
+        },
+      ],
+    });
+    const resolved = router.resolve('/old?x=1#section');
+    expect(resolved.name).toBe('New');
+    expect(resolved.query.x).toBe('1');
+    expect(resolved.hash).toBe('#section');
+    const denied = makeRouter();
+    await generateAccessible('backend', {
+      router: denied,
+      routes: staticRoutes,
+      pageMap: { '/page.vue': page },
+      fetchMenuListAsync: async () => [],
+    });
+    expect(denied.resolve('/old').matched).toHaveLength(0);
+  });
   it('preserves a top-level group route view when it owns a default child page', async () => {
     const rootComponent = defineComponent({ template: '<router-view />' });
     const routeView = defineComponent({ template: '<router-view />' });

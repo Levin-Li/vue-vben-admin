@@ -10,6 +10,8 @@ import type { SettlementActionMethod } from './actions';
 
 import { computed, onBeforeUnmount, reactive, ref } from 'vue';
 
+import { useUserStore } from '@vben/runtime/stores';
+
 import { fileStorageService } from '@levin/admin-framework/framework-commons/app/api/file-storage-service';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
@@ -43,8 +45,12 @@ import {
 } from './config';
 import SettlementContentEditor from './content-editor.vue';
 import { uploadSettlementProof } from './proof-upload';
+import { requestTenant } from './request-tenant';
 
 const { hasPermission } = useRbacAccess();
+const userStore = useUserStore();
+const scopedTenant = (tenantId?: string) =>
+  requestTenant(userStore.userInfo, tenantId);
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(settlementOrderService, method));
 const action = ref<SettlementActionMethod>();
@@ -111,6 +117,7 @@ async function openAction(
   const version = ++selectionVersion;
   const latest = await settlementOrderService.retrieve({
     id: record.id,
+    tenantId: scopedTenant(record.tenantId),
   });
   if (version !== selectionVersion) return;
   if (!allowed(method) || !canRunSettlementAction(method, latest))
@@ -195,6 +202,7 @@ async function submitAction() {
   actionError.value = '';
   const command: SettlementCommand = {
     id: record.id,
+    tenantId: scopedTenant(record.tenantId),
     optimisticLock: record.optimisticLock,
     remark: form.remark || undefined,
   };
@@ -306,6 +314,7 @@ async function openFinancial(record: SettlementRecord) {
   try {
     const data = await settlementOrderService.readFinancialDetails({
       id: record.id,
+      tenantId: scopedTenant(record.tenantId),
     });
     if (version === financialVersion && financialOpen.value)
       financial.value = data;

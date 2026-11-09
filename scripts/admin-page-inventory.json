@@ -541,6 +541,13 @@
       "reason": "使用 SettingCrudPage；继续按接口和字段规则验收"
     },
     {
+      "resource": "DataMaskingSetting",
+      "title": "数据脱敏设置",
+      "view": "./views/data-masking-setting/index.vue",
+      "classification": "shared-crud",
+      "reason": "使用公共 CrudPage，规则字段由注册接口目录中的响应与请求字段勾选"
+    },
+    {
       "resource": "UrlExAcl",
       "title": "访问控制",
       "view": "./views/url-ex-acl/index.vue",
@@ -555,8 +562,8 @@
       "reason": "使用 CrudPage；继续按接口和字段规则验收"
     },
     {
-      "resource": "UserSetting",
-      "title": "用户设置",
+      "resource": "UserPersonalSetting",
+      "title": "用户个性化设置",
       "view": "./views/user-setting/index.vue",
       "classification": "shared-crud",
       "reason": "使用 SettingCrudPage；继续按接口和字段规则验收"

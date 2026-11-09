@@ -15,7 +15,7 @@ describe('渠道客户选择渠道伙伴', () => {
           id: 'channel-1',
           tenantId: 'tenant-1',
           enable: true,
-          displayName: '甲公司',
+          name: '甲公司',
           subjectOrgId: 'org-1',
           type: 'Dealer',
         },
@@ -37,7 +37,7 @@ describe('渠道客户选择渠道伙伴', () => {
     });
     expect(list).toHaveBeenCalledWith('/ChannelPartner/list', {
       enable: true,
-      containsDisplayName: 'channel-1',
+      containsName: 'channel-1',
       pageIndex: 2,
       pageSize: 50,
       tenantId: 'tenant-1',

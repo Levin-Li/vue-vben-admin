@@ -4,6 +4,10 @@ import {
 } from '@levin/admin-framework/framework-commons/shared/crud-complex-groups';
 import { resolveCrudDataAttrPath } from '@levin/admin-framework/framework-commons/shared/crud-data-attr-access';
 import { resolveDetailFields } from '@levin/admin-framework/framework-commons/shared/detail-display';
+import {
+  getJsonSchemaSourceInput,
+  resolveJsonSchemaSource,
+} from '@levin/admin-framework/framework-commons/shared/json-schema-source';
 import { describe, expect, it, vi } from 'vitest';
 
 import { buildCertificationActionPayload } from '../certification-payload';
@@ -22,6 +26,28 @@ vi.mock('../../api-module', () => ({
 }));
 
 describe('法律主体管理页面', () => {
+  it('通用扩展信息使用独立分组和 JSON 内容自描述编辑器', () => {
+    const field = legalSubjectPageCrudConfig.fields.find(
+      (item) => item.key === 'extensionInfo',
+    );
+    expect(field).toMatchObject({
+      jsonSchemaEditor: true,
+      jsonSchemaMode: 'popup',
+      layoutGroup: 'extension',
+      table: false,
+      export: false,
+    });
+    if (!field) throw new Error('缺少法律主体扩展信息字段');
+    const source = getJsonSchemaSourceInput(field, {
+      '@JsonSchema': JSON.stringify({
+        type: 'object',
+        properties: { memo: { type: 'string' } },
+      }),
+      memo: '虚构扩展值',
+    });
+    expect(resolveJsonSchemaSource(source)?.kind).toBe('inline');
+  });
+
   it('收款账户与开票账号分别回显、提交并按各自字段组授权', () => {
     const config = legalSubjectPageCrudConfig;
     const groups = config.complexGroups;
@@ -73,10 +99,10 @@ describe('法律主体管理页面', () => {
     });
   });
 
-  it('分别配置主体方、维护方组织与负责人，不保留单组织归属', () => {
+  it('分别配置主体方、商务对接部门与负责人，不保留单组织归属', () => {
     const field = (key: string) =>
       legalSubjectPageCrudConfig.fields.find((item) => item.key === key);
-    for (const party of ['subject', 'maintain']) {
+    for (const party of ['subject', 'business']) {
       expect(field(`${party}OrgId`)).toMatchObject({ type: 'org-tree-select' });
       expect(field(`${party}UserId`)).toMatchObject({
         type: 'user-tree-select',
@@ -107,13 +133,13 @@ describe('法律主体管理页面', () => {
     const record = {
       subjectOrgId: 'org-1',
       subjectUserId: 'user-1',
-      maintainOrgId: 'org-2',
-      maintainUserId: 'user-2',
+      businessOrgId: 'org-2',
+      businessUserId: 'user-2',
       tenantName: '租户',
       subjectOrg: {},
       subjectUser: {},
-      maintainOrg: {},
-      maintainUser: {},
+      businessOrg: {},
+      businessUser: {},
       invoiceInfoHash: 'hash',
       shippingInfoHash: 'hash',
       bankAccountHash: 'hash',
@@ -132,8 +158,8 @@ describe('法律主体管理页面', () => {
     expect(fields.map((field) => field.key)).toEqual([
       'subjectOrgId',
       'subjectUserId',
-      'maintainOrgId',
-      'maintainUserId',
+      'businessOrgId',
+      'businessUserId',
       'lastStatusTime',
       'lastStatusDesc',
       'lastUpdateTime',

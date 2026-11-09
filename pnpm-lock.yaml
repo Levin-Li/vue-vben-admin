@@ -147,6 +147,9 @@ catalogs:
     '@vueuse/motion':
       specifier: ^3.0.3
       version: 3.0.3
+    '@vxe-ui/core':
+      specifier: 4.3.1
+      version: 4.3.1
     ant-design-vue:
       specifier: ^4.2.6
       version: 4.2.6
@@ -1392,6 +1395,9 @@ importers:
       '@vueuse/motion':
         specifier: 'catalog:'
         version: 3.0.3(magicast@0.5.2)(vue@3.5.27(typescript@5.9.3))
+      '@vxe-ui/core':
+        specifier: 'catalog:'
+        version: 4.3.1(vue@3.5.27(typescript@5.9.3))
       axios:
         specifier: 'catalog:'
         version: 1.13.5

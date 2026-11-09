@@ -7,14 +7,12 @@ import {
   DEFAULT_CRUD_MODAL_WIDTH,
   withModuleCrudConfig,
 } from '../api-module';
-import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
 import {
   partnerCommonComplexGroups,
   partnerCommonFields,
 } from '../partner/config';
 
 // 独立子类型入口承载本类合作关系的权限与业务字段。
-const channelOrgOptionsLoader = buildOrgAssignmentOptionsLoader();
 
 export const pageMeta = {
   name: 'ChannelPartner',
@@ -41,16 +39,7 @@ export const channelPartnerPageCrudConfig: CrudPageConfig =
     modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
     title: '渠道伙伴',
     fields: [
-      ...partnerCommonFields.map((field) =>
-        field.key === 'parentOrgId'
-          ? {
-              ...field,
-              label: '新渠道伙伴组织的内部父级',
-              loadOptions: channelOrgOptionsLoader,
-              remoteSearch: true,
-            }
-          : field,
-      ),
+      ...partnerCommonFields,
       {
         key: 'type',
         label: '渠道类型',

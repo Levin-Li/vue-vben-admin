@@ -57,6 +57,8 @@ export function createTicketQueueCrudConfig(options: {
         label: '受理组织',
         type: 'org-tree-select',
         search: true,
+        // 受理组织由选择器及服务端按授权范围限定，普通受理员工也须能选择。
+        defaultVisibleRoleCodes: [],
         table: false,
         form: false,
         detail: false,

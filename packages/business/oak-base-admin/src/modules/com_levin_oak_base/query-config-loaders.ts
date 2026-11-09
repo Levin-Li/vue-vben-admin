@@ -200,6 +200,10 @@ export const oakBaseQueryConfigLoaders: NonNullable<
     import('./views/ui-setting/config').then(
       (module) => module.uiSettingPageCrudConfig,
     ),
+  '/system/com_levin_oak_base/data-masking-setting/index.vue': () =>
+    import('./views/data-masking-setting/config').then(
+      (module) => module.dataMaskingSettingPageCrudConfig,
+    ),
   '/system/com_levin_oak_base/url-ex-acl/index.vue': () =>
     import('./views/url-ex-acl/config').then(
       (module) => module.urlExAclPageCrudConfig,

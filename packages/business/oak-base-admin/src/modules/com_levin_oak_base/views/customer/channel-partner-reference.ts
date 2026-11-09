@@ -16,9 +16,9 @@ export async function loadChannelReferencePage(
   const orgIds = await authorizedOrganizationIds(tenantId);
   if (orgIds.length === 0) return { hasMore: false, options: [] };
   // ID 回显与交互搜索互斥，仅发送允许的候选字段。
-  const query: { containsDisplayName?: string; idList?: string[] } = {};
+  const query: { containsName?: string; idList?: string[] } = {};
   if (id) query.idList = [id];
-  else if (keyword.trim()) query.containsDisplayName = keyword.trim();
+  else if (keyword.trim()) query.containsName = keyword.trim();
   const response = await requestClient.post<{
     items: Candidate[];
     totals: number;

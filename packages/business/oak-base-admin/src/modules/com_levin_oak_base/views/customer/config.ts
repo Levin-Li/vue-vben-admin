@@ -17,7 +17,10 @@ import {
   buildMasterPartyFields,
   customerPartnerParties,
 } from '../master-party-fields';
-import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
+import {
+  partnerCommonComplexGroups,
+  partnerCommonFields,
+} from '../partner/config';
 
 // 客户仅引用已有法律主体，主体资料仍在法律主体页面维护。
 const legalSubjectOptionsLoader = buildModuleOptionsLoader(
@@ -36,8 +39,6 @@ const investmentRelationOptionsLoader = buildEnumOptionsLoader(
 const levelOptionsLoader = buildDictOptionsLoader(
   'com.levin.oak.base.entities.Customer.level',
 );
-// 所选内部组织作为新客户节点的父级。
-const customerOrgOptionsLoader = buildOrgAssignmentOptionsLoader();
 
 export const pageMeta = {
   name: 'Customer',
@@ -59,6 +60,8 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
   }),
   createPath: '/Customer/saveCustomer',
   updatePath: '/Customer/updateCustomer',
+  // 资料分组沿用伙伴的字段权限映射；旧联系人字段仍独立保留。
+  complexGroups: partnerCommonComplexGroups,
   defaultFormValues: { enable: true },
   transformSubmit: (values) => {
     // 直接客户不得携带渠道关联；服务端仍独立校验不可变字段与渠道权限。
@@ -123,20 +126,26 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       width: 130,
     },
     {
-      key: 'customerName',
-      label: '名称',
-      help: '将作为自动创建的客户组织名称。',
+      key: 'name',
+      label: '完整名称',
+      help: '客户合作关系的完整名称，同一租户内不可重复。',
       layoutGroup: 'basic',
       layoutOrder: 15,
-      formCreate: true,
-      formEdit: false,
       required: true,
       table: true,
       detail: true,
-      search: false,
       width: 220,
       validator: (value) =>
-        String(value ?? '').trim() ? undefined : '请输入名称',
+        String(value ?? '').trim() ? undefined : '请输入完整名称',
+    },
+    { key: 'containsName', label: '完整名称', form: false, search: true },
+    {
+      key: 'shortName',
+      label: '简称',
+      layoutGroup: 'basic',
+      layoutOrder: 17,
+      table: true,
+      width: 140,
     },
     {
       key: 'type',
@@ -174,27 +183,84 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       table: true,
       width: 180,
     },
+    // 客户认证状态由服务端事件推进，普通表单只展示和筛选。
     {
-      key: 'parentOrgId',
-      tenantDependent: true,
-      tenantLoadOptions: (tenantId, keyword) =>
-        buildOrgAssignmentOptionsLoader(tenantId)(keyword),
-      formCreate: true,
-      formEdit: false,
-      detail: false,
-      table: false,
-      label: '新客户组织的内部父级',
-      help: '可选；未选择时使用当前登录用户所属的内部组织。保存时创建客户外部组织节点，不可选择已有外部节点。',
-      layoutGroup: 'ownership',
-      layoutOrder: 20,
-      loadOptions: customerOrgOptionsLoader,
-      remoteSearch: true,
-      type: 'org-tree-select',
-      placeholder: '留空使用当前用户所属组织，或搜索内部父组织',
+      key: 'certificationStatus',
+      label: '认证状态',
+      form: false,
+      search: true,
+      table: true,
+      type: 'select',
+      loadOptions: buildEnumOptionsLoader(
+        'com.levin.oak.base.entities.enums.CertificationStatus',
+      ),
+      width: 140,
     },
-    // 主体组织由建档生成，五方负责人和职能组织分别维护。
+    // 主体方在“新增我的客户”由服务端确认；普通新增仅录入商务对接方。
     ...buildMasterPartyFields(customerPartnerParties, true),
     ...buildMasterDetailMetadata(customerPartnerParties),
+    ...(partnerCommonFields || []).filter(
+      (field) =>
+        field.complexGroupKey === 'settlementBank' ||
+        field.complexGroupKey === 'invoice' ||
+        field.key === 'extensionInfo',
+    ),
+    {
+      key: 'partyContactName',
+      label: '对方联系人姓名',
+      complexGroupKey: 'partyContact',
+      layoutGroup: 'contact',
+      table: false,
+      export: false,
+    },
+    {
+      key: 'partyContactMobile',
+      label: '对方联系人电话',
+      complexGroupKey: 'partyContact',
+      layoutGroup: 'contact',
+      table: false,
+      export: false,
+    },
+    {
+      key: 'partyContactEmail',
+      label: '对方联系人邮箱',
+      complexGroupKey: 'partyContact',
+      layoutGroup: 'contact',
+      table: false,
+      export: false,
+    },
+    {
+      key: 'shippingContactName',
+      label: '收件人',
+      complexGroupKey: 'shipping',
+      layoutGroup: 'contact',
+      table: false,
+      export: false,
+    },
+    {
+      key: 'shippingContactPhone',
+      label: '收件电话',
+      complexGroupKey: 'shipping',
+      layoutGroup: 'contact',
+      table: false,
+      export: false,
+    },
+    {
+      key: 'shippingAddress',
+      label: '收寄地址',
+      complexGroupKey: 'shipping',
+      layoutGroup: 'contact',
+      table: false,
+      export: false,
+    },
+    {
+      key: 'shippingZipCode',
+      label: '邮政编码',
+      complexGroupKey: 'shipping',
+      layoutGroup: 'contact',
+      table: false,
+      export: false,
+    },
     {
       key: 'contactName',
       label: '联系人姓名',

@@ -4,23 +4,15 @@ import type { CrudFieldConfig } from './types';
 export function resolveCrudQuickFill(
   fields: CrudFieldConfig[],
   writableKeys: ReadonlySet<string>,
-  complexMappedKeys: ReadonlySet<string> = new Set(),
+  _complexMappedKeys: ReadonlySet<string> = new Set(),
+  prerequisiteKeys: ReadonlySet<string> = new Set(),
 ) {
   const writable = fields.filter((field) => writableKeys.has(field.key));
-  const required = writable.filter((field) => field.required === true);
-  const requiredKeys = new Set(required.map((field) => field.key));
-  const hasComplex = fields.some(
-    (field) =>
-      field.complexValue === true ||
-      Boolean(field.complexGroupKey) ||
-      field.type === 'json' ||
-      complexMappedKeys.has(field.key),
+  const required = writable.filter(
+    (field) => field.required === true || prerequisiteKeys.has(field.key),
   );
-  const eligible =
-    !hasComplex &&
-    writable.length > 7 &&
-    required.length > 0 &&
-    required.length <= 4;
+  const requiredKeys = new Set(required.map((field) => field.key));
+  const eligible = required.length > 0;
   const remaining = fields.filter((field) => !requiredKeys.has(field.key));
   return {
     eligible,

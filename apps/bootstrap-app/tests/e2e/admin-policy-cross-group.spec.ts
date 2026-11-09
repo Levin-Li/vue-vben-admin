@@ -7,7 +7,7 @@ test('switching CRUD pages across business groups does not expose field policy i
 }) => {
   test.setTimeout(120_000);
   await loginViaCurrentPasswordChallenge(page);
-  await page.goto('/clob/V1/UserSetting', { waitUntil: 'domcontentloaded' });
+  await page.goto('/clob/V1/UserPersonalSetting', { waitUntil: 'domcontentloaded' });
   await expect(
     page.getByRole('columnheader', { name: '分组名称' }),
   ).toBeVisible();

@@ -251,14 +251,14 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       type: 'image',
       multiple: true,
     },
-    // 主体方和维护方独立赋予访问资格，资料权限仍由服务端判断。
+    // 主体方和商务对接方独立赋予访问资格，资料权限仍由服务端判断。
     ...buildMasterPartyFields([
       ['subject', '主体方'],
-      ['maintain', '维护方'],
+      ['business', '商务对接方'],
     ]),
     ...buildMasterDetailMetadata([
       ['subject', '主体方'],
-      ['maintain', '维护方'],
+      ['business', '商务对接方'],
     ]),
     {
       key: 'confidentialLevel',
@@ -606,6 +606,23 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       layoutOrder: 380,
       maxLength: 32,
       width: 140,
+    },
+    // 通用扩展信息由 JSON 内的 @JsonSchema 自描述编辑器，缺失时使用普通 JSON 编辑。
+    {
+      key: 'extensionInfo',
+      label: '扩展信息',
+      help: 'JSON 内容可用 @JsonSchema 自描述编辑器；未配置时按普通 JSON 编辑。',
+      type: 'json',
+      jsonSchemaEditor: true,
+      jsonSchemaMode: 'popup',
+      complexValue: true,
+      fullRow: true,
+      table: false,
+      export: false,
+      detail: false,
+      layoutGroup: 'extension',
+      layoutGroupTitle: '扩展信息',
+      layoutOrder: 400,
     },
     {
       key: 'enable',

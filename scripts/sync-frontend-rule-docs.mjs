@@ -122,6 +122,8 @@ export function syncPackageDocuments(
   );
   // 已发布包的 Agent 入口由同一模板生成，重新构建不能丢失直接使用指南链接。
   const usageDocuments = {
+    '@vben/runtime':
+      '公开入口与使用方式见 [运行时使用指南](docs/运行时使用指南.md)。',
     '@levin/bpm-designer':
       '[工作流设计器使用指南](docs/工作流设计器使用指南.md) 说明组件入口、受支持节点、宿主候选数据边界和最小验证。\n\n[流程设计器设计与实现](docs/流程设计器设计与实现.md) 说明版本化配置、组件边界、条件与业务操作参数契约。',
     '@levin/bpm-runtime-ui':

@@ -11,6 +11,13 @@ import {
 } from '../config';
 
 describe('结算单标准 CRUD', () => {
+  it('负责人列只展示授权摘要名称，不回退用户 ID', () => {
+    for (const party of ['business', 'finance', 'payee']) {
+      const field = settlementOrderPageCrudConfig.fields.find((item) => item.key === `${party}UserId`);
+      expect(field?.tableValue?.({ [`${party}UserId`]: 'private-id' })).toBe('');
+      expect(field?.tableValue?.({ [`${party}User`]: { name: '授权用户' } })).toBe('授权用户');
+    }
+  });
   it('按实体未指定 Schema 的注解使用通用 JSON 编辑，不预设业务属性', () => {
     expect(
       settlementOrderPageCrudConfig.fields.find(
@@ -61,6 +68,7 @@ describe('结算单标准 CRUD', () => {
   it('完整展示合作关系、交易双方和销售财务归属，创建后身份只读', () => {
     const fields = settlementOrderPageCrudConfig.fields;
     expect(fields.find((field) => field.key === 'partnerId')).toMatchObject({
+      label: '结算目标',
       required: true,
       disabledOnEdit: true,
       omitOnEdit: true,
@@ -76,7 +84,7 @@ describe('结算单标准 CRUD', () => {
       'payerLegalSubjectId',
       'payeeLegalSubjectId',
       'payeeOrgId',
-      'salesOrgId',
+      'businessOrgId',
       'financeOrgId',
     ]) {
       expect(fields.find((field) => field.key === key)).toMatchObject({
@@ -85,7 +93,7 @@ describe('结算单标准 CRUD', () => {
         omitOnEdit: true,
       });
     }
-    for (const key of ['salesUserId', 'financeUserId', 'payeeUserId'])
+    for (const key of ['businessUserId', 'financeUserId', 'payeeUserId'])
       expect(fields.find((field) => field.key === key)).toMatchObject({
         type: 'user-tree-select',
         disabledOnEdit: true,
@@ -108,8 +116,8 @@ describe('结算单标准 CRUD', () => {
   it('创建表单保留两种付款方向和独立负责人，普通编辑不提交交易身份', () => {
     const common = {
       partnerId: 'partner-1',
-      salesOrgId: 'sales-org',
-      salesUserId: 'sales-user',
+      businessOrgId: 'sales-org',
+      businessUserId: 'sales-user',
       financeOrgId: 'finance-org',
       financeUserId: 'finance-user',
       payeeOrgId: 'payee-org',
@@ -144,8 +152,8 @@ describe('结算单标准 CRUD', () => {
       '/SettlementOrder/listByRoles',
     );
     for (const key of [
-      'salesOrgId',
-      'salesUserId',
+      'businessOrgId',
+      'businessUserId',
       'financeOrgId',
       'financeUserId',
       'payeeOrgId',
@@ -249,8 +257,8 @@ describe('结算单标准 CRUD', () => {
           partnerId: 'partner',
           payerLegalSubjectId: 'payer',
           payeeLegalSubjectId: 'payee',
-          salesOrgId: 'sales-org',
-          salesUserId: 'sales-user',
+          businessOrgId: 'sales-org',
+          businessUserId: 'sales-user',
           financeOrgId: 'finance-org',
           financeUserId: 'finance-user',
           payeeOrgId: 'payee-org',

@@ -406,6 +406,10 @@ describe('oak base admin routes', () => {
 
     expect(actualPaths).toEqual(expectedPaths);
     expect(new Set(actualPaths)).toHaveLength(actualPaths.length);
+    const personalSettingRoute = groupedCrudRoutes.find(
+      (route) => route.path === '/clob/V1/UserPersonalSetting',
+    );
+    expect(personalSettingRoute?.alias).toBe('/clob/V1/UserSetting');
     expect(
       root?.children?.filter((route) => route.meta?.crudResource),
     ).toHaveLength(0);

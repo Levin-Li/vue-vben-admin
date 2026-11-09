@@ -5,6 +5,7 @@ import {
   buildDictOptionsLoader,
   buildEnumOptionsLoader,
   buildModuleOptionsLoader,
+  confidentialLevelOptionsLoader,
   tenantOptionsLoader,
 } from '../api-module';
 import {
@@ -12,7 +13,6 @@ import {
   buildMasterPartyFields,
   customerPartnerParties,
 } from '../master-party-fields';
-import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
 
 // 路由同步仍读取页面元数据；合作关系字段拆分不改变该页面的稳定标识。
 export const pageMeta = {
@@ -67,10 +67,108 @@ export const partnerCommonComplexGroups: CrudPageConfig['complexGroups'] = [
       invoiceEmail: 'invoiceEmail',
     },
   },
+  {
+    key: 'partyContact',
+    title: '对方联系人资料',
+    submitKey: 'contactInfo',
+    fieldMappings: {
+      partyContactName: 'name',
+      partyContactMobile: 'mobilePhone',
+      partyContactEmail: 'email',
+    },
+  },
+  {
+    key: 'shipping',
+    title: '收寄信息',
+    submitKey: 'shippingInfo',
+    fieldMappings: {
+      shippingContactName: 'contactName',
+      shippingContactPhone: 'contactPhone',
+      shippingAddress: 'address',
+      shippingZipCode: 'zipCode',
+    },
+  },
 ];
 
 // 两类合作关系复用公共资料字段，页面分别声明子类型字段。
 export const partnerCommonFields: CrudPageConfig['fields'] = [
+  {
+    key: 'partyContactName',
+    label: '对方联系人姓名',
+    complexGroupKey: 'partyContact',
+    layoutGroup: 'contact',
+    table: false,
+    export: false,
+  },
+  {
+    key: 'partyContactMobile',
+    label: '对方联系人电话',
+    complexGroupKey: 'partyContact',
+    layoutGroup: 'contact',
+    table: false,
+    export: false,
+  },
+  {
+    key: 'partyContactEmail',
+    label: '对方联系人邮箱',
+    complexGroupKey: 'partyContact',
+    layoutGroup: 'contact',
+    table: false,
+    export: false,
+  },
+  {
+    key: 'shippingContactName',
+    label: '收件人',
+    complexGroupKey: 'shipping',
+    layoutGroup: 'contact',
+    table: false,
+    export: false,
+  },
+  {
+    key: 'shippingContactPhone',
+    label: '收件电话',
+    complexGroupKey: 'shipping',
+    layoutGroup: 'contact',
+    table: false,
+    export: false,
+  },
+  {
+    key: 'shippingAddress',
+    label: '收寄地址',
+    complexGroupKey: 'shipping',
+    layoutGroup: 'contact',
+    table: false,
+    export: false,
+  },
+  {
+    key: 'shippingZipCode',
+    label: '邮政编码',
+    complexGroupKey: 'shipping',
+    layoutGroup: 'contact',
+    table: false,
+    export: false,
+  },
+  {
+    key: 'confidentialLevel',
+    label: '机密等级',
+    layoutGroup: 'business',
+    layoutOrder: 50,
+    loadOptions: confidentialLevelOptionsLoader,
+    search: true,
+    table: true,
+    type: 'select',
+    valueType: 'number',
+    width: 120,
+  },
+  {
+    key: 'expiredTime',
+    label: '有效期至',
+    layoutGroup: 'business',
+    layoutOrder: 60,
+    table: true,
+    type: 'datetime',
+    width: 180,
+  },
   {
     key: 'tenantId',
     label: '归属租户',
@@ -139,12 +237,14 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
     width: 140,
   },
   {
-    key: 'displayName',
-    label: '名称',
+    key: 'name',
+    label: '完整名称',
+    help: '合作伙伴的完整名称，同一租户内不可重复。',
     required: true,
     table: true,
     layoutGroup: 'basic',
-    layoutOrder: 20,
+    layoutOrder: 10,
+    width: 220,
   },
   {
     key: 'shortName',
@@ -153,24 +253,8 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
     layoutGroup: 'basic',
     layoutOrder: 30,
   },
-  { key: 'containsDisplayName', label: '名称', form: false, search: true },
-  {
-    key: 'parentOrgId',
-    tenantDependent: true,
-    tenantLoadOptions: (tenantId, keyword) =>
-      buildOrgAssignmentOptionsLoader(tenantId)(keyword),
-    formCreate: true,
-    formEdit: false,
-    detail: false,
-    table: false,
-    label: '新伙伴组织的内部父级',
-    help: '可选；未选择时使用当前登录用户所属的内部组织。保存时创建对应类型的外部组织节点，不可选择已有外部节点。',
-    layoutGroup: 'ownership',
-    layoutOrder: 20,
-    type: 'org-tree-select',
-    placeholder: '留空使用当前用户所属组织，或搜索内部父组织',
-  },
-  // 主体组织由建档生成，五方负责人和职能组织分别维护。
+  { key: 'containsName', label: '完整名称', form: false, search: true },
+  // 主体方在“新增我的伙伴”由服务端确认；普通新增仅录入商务对接方。
   ...buildMasterPartyFields(customerPartnerParties, true),
   ...buildMasterDetailMetadata(customerPartnerParties),
   {
@@ -352,6 +436,23 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
     table: false,
     export: false,
     layoutOrder: 70,
+  },
+  // 伙伴子类型共用根实体扩展字段；编辑器只读取 JSON 内容的自描述 Schema。
+  {
+    key: 'extensionInfo',
+    label: '扩展信息',
+    help: 'JSON 内容可用 @JsonSchema 自描述编辑器；未配置时按普通 JSON 编辑。',
+    type: 'json',
+    jsonSchemaEditor: true,
+    jsonSchemaMode: 'popup',
+    complexValue: true,
+    fullRow: true,
+    table: false,
+    export: false,
+    detail: false,
+    layoutGroup: 'extension',
+    layoutGroupTitle: '扩展信息',
+    layoutOrder: 400,
   },
   {
     key: 'createTime',

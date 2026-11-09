@@ -11,7 +11,7 @@ import {
 
 type Option = { label: string; value: number | string };
 type PartnerSummary = {
-  displayName?: string;
+  name?: string;
   id?: number | string;
   legalSubjectId?: number | string;
   legalSubjectName?: string;
@@ -150,7 +150,7 @@ watch(
       ];
       relationOptions.value = [
         {
-          label: `${partner.displayName || `合作关系 ${id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '供应伙伴'}`,
+          label: `${partner.name || `合作关系 ${id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '供应伙伴'}`,
           value: id,
         },
       ];

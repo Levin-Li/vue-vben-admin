@@ -4,11 +4,10 @@ import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/share
 
 import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
-import { userSettingService } from '../../api/user-setting-service';
+import { userPersonalSettingService } from '../../api/user-personal-setting-service';
 import {
   buildEnumOptionsLoader,
   DEFAULT_CRUD_MODAL_WIDTH,
-  tenantOptionsLoader,
 } from '../api-module';
 import { transformSettingCrudSubmit } from '../setting-crud-submit';
 
@@ -17,17 +16,17 @@ const userSettingValueTypeOptionsLoader = buildEnumOptionsLoader(
 );
 
 export const pageMeta = {
-  name: 'UserSetting',
-  title: '用户设置管理',
-  description: '维护用户设置。',
+  name: 'UserPersonalSetting',
+  title: '用户个性化设置',
+  description: '维护用户个性化设置。',
 } as const;
 
 export const userSettingPageCrudConfig: CrudPageConfig = {
-  apiBase: '/UserSetting',
+  apiBase: '/UserPersonalSetting',
   domainObject: true,
   apiModuleBase: OAK_BASE_API_MODULE,
-  apiService: userSettingService,
-  dataAttrTargets: standardCrudDataAttrTargets(userSettingService),
+  apiService: userPersonalSettingService,
+  dataAttrTargets: standardCrudDataAttrTargets(userPersonalSettingService),
   defaultFormValues: {
     editable: true,
     enable: true,
@@ -40,36 +39,6 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
     pageSize: 10,
   },
   fields: [
-    {
-      key: 'tenantId',
-      label: '归属租户',
-      layoutGroup: 'basic',
-      layoutGroupTitle: '设置标识与归属',
-      layoutOrder: 10,
-      loadOptions: tenantOptionsLoader,
-      remoteSearch: true,
-      search: true,
-      type: 'select',
-      visibleForPlatformUser: true,
-    },
-    {
-      key: '__tenant',
-      detail: false,
-      label: '归属租户',
-      fixed: 'left',
-      form: false,
-      table: true,
-      type: 'tenant',
-      visibleForPlatformUser: true,
-      width: 180,
-    },
-    {
-      key: 'ownerId',
-      label: '所属用户',
-      layoutGroup: 'basic',
-      layoutOrder: 20,
-      type: 'user-tree-select',
-    },
     {
       key: 'id',
       label: '设置ID',
@@ -248,6 +217,6 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
   ],
   formMaxColumns: 3,
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
-  title: '用户设置管理',
+  title: '用户个性化设置',
   transformSubmit: transformSettingCrudSubmit,
 };

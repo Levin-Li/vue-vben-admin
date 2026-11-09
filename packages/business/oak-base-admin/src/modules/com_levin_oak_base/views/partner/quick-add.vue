@@ -38,6 +38,10 @@ const props = defineProps<{
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
 const platformUser = computed(() => isPlatformUser(userStore.userInfo));
+const adminUser = computed(() => {
+  const user = (userStore.userInfo || {}) as Record<string, unknown>;
+  return user.admin === true || user.isAdmin === true;
+});
 const service = computed(() => {
   if (props.target === 'Customer') return customerService;
   if (props.target === 'SupplierPartner') return supplierPartnerService;
@@ -46,10 +50,9 @@ const service = computed(() => {
 // 平台用户还需读取租户与内部组织候选；缺少候选权限时入口无法完成归属选择。
 const canCreate = computed(
   () =>
-    hasPermission(buildApiMethodPermissions(service.value, 'quickAdd')) &&
-    (!platformUser.value ||
-      (hasPermission(buildApiMethodPermissions(tenantService, 'list')) &&
-        hasPermission(buildApiMethodPermissions(orgService, 'list')))),
+    hasPermission(buildApiMethodPermissions(service.value, adminUser.value ? 'quickAdd' : 'quickAddMine')) &&
+    hasPermission(buildApiMethodPermissions(orgService, 'list')) &&
+    (!platformUser.value || hasPermission(buildApiMethodPermissions(tenantService, 'list'))),
 );
 const canSearch = computed(
   () =>
@@ -135,6 +138,11 @@ function reset() {
 
 function openForm() {
   reset();
+  if (!platformUser.value) {
+    const user = (userStore.userInfo || {}) as Record<string, unknown>;
+    form.tenantId = String(user.tenantId || '');
+    if (form.tenantId) void searchOrganizations().catch(() => undefined);
+  }
   open.value = true;
   if (platformUser.value) void searchTenants();
 }
@@ -320,16 +328,14 @@ async function selectCandidate(index: string) {
 }
 
 function payload(): QuickAddPayload | undefined {
-  // 只有平台用户提交显式归属；租户用户继续由服务端确定自身租户和内部组织。
-  if (platformUser.value) {
-    if (!form.tenantId || !form.parentOrgId) {
-      message.warning('请选择归属租户和内部父组织');
-      return;
-    }
-    if (!matchesQuickAddOrg(form, selectedOrg.value)) {
-      message.warning('内部父组织不属于所选租户，请重新选择');
-      return;
-    }
+  // 所有用户都须选择可访问的主体方组织；个人商务对接部门由服务端取本人所属组织。
+  if (!form.tenantId || !form.parentOrgId) {
+    message.warning('请选择归属租户和主体方组织');
+    return;
+  }
+  if (!matchesQuickAddOrg(form, selectedOrg.value)) {
+    message.warning('主体方组织不属于所选租户，请重新选择');
+    return;
   }
 
   const legalSubjectName = form.legalSubjectName.trim();
@@ -357,9 +363,8 @@ function payload(): QuickAddPayload | undefined {
     return;
   }
   return {
-    ...(platformUser.value
-      ? { tenantId: form.tenantId, parentOrgId: form.parentOrgId }
-      : {}),
+    ...(platformUser.value ? { tenantId: form.tenantId } : {}),
+    parentOrgId: form.parentOrgId,
     legalSubjectName,
     subjectType: form.subjectType,
     creditCode,
@@ -383,7 +388,9 @@ async function submit() {
   if (!data) return;
   saving.value = true;
   try {
-    const result = await service.value.quickAdd(data);
+    const result = adminUser.value
+      ? await service.value.quickAdd(data)
+      : await service.value.quickAddMine(data);
     open.value = false;
     reset();
     message.success(
@@ -454,9 +461,9 @@ const channelTypes = [
       data-form-name="快捷添加客户与伙伴"
       layout="vertical"
     >
-      <!-- 平台用户显式选择归属，普通租户用户仍使用当前租户和内部组织。 -->
-      <div v-if="platformUser" class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-        <Form.Item label="归属租户" required>
+      <!-- 平台用户选择租户；所有用户选择可访问的主体方组织。 -->
+      <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+        <Form.Item v-if="platformUser" label="归属租户" required>
           <Select
             :value="form.tenantId"
             :loading="tenantLoading"
@@ -470,7 +477,7 @@ const channelTypes = [
             @update:value="changeTenant(String($event || ''))"
           />
         </Form.Item>
-        <Form.Item label="内部父组织" required>
+        <Form.Item label="主体方组织" required>
           <UserOrgSelector
             :key="form.tenantId"
             :model-value="form.parentOrgId || undefined"

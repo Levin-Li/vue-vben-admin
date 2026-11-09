@@ -35,7 +35,7 @@ const commonFields = [
 ] as const;
 const relationFields = [
   ...commonFields,
-  'displayName',
+  'name',
   'shortName',
   'type',
   'level',
@@ -45,7 +45,7 @@ const relationFields = [
   'certificationStatus',
 ] as const;
 const relationFilters = {
-  containsDisplayName: { kind: 'text', maxLength: 128 },
+  containsName: { kind: 'text', maxLength: 256 },
   level: { kind: 'text', maxLength: 64 },
   groupName: { kind: 'text', maxLength: 128 },
   enable: { kind: 'boolean' },

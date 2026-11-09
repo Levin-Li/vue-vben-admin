@@ -12,6 +12,54 @@ import {
   normalizeSelectorTypes,
 } from '../user-org-selector-utils';
 
+describe('组织树重复节点', () => {
+  it('平铺后代与嵌套后代同时返回时只保留树中的一份', () => {
+    const child = { id: 'child', name: '子部门' };
+    const tree = buildUserOrgSelectorOrgTree(
+      [child, { id: 'parent', name: '父部门', children: [child] }],
+      { orgTypes: [] },
+    );
+    expect(tree.map((node) => node.value)).toEqual(['org:parent']);
+    expect(tree[0]?.children?.map((node) => node.value)).toEqual(['org:child']);
+  });
+
+  it('深度限制使嵌套后代不渲染时，仍保留授权的平铺节点', () => {
+    const grandchild = { id: 'grandchild', name: '三级' };
+    const child = { id: 'child', name: '二级', children: [grandchild] };
+    const parent = { id: 'parent', name: '一级', children: [child] };
+    const depthOne = buildUserOrgSelectorOrgTree([grandchild, child, parent], {
+      orgTypes: [],
+      maxLoadDeep: 1,
+    });
+    expect(depthOne.map((node) => node.id)).toEqual([
+      'parent',
+      'grandchild',
+      'child',
+    ]);
+    const depthTwo = buildUserOrgSelectorOrgTree([grandchild, child, parent], {
+      orgTypes: [],
+      maxLoadDeep: 2,
+    });
+    expect(depthTwo.map((node) => node.id)).toEqual(['parent', 'grandchild']);
+    expect(depthTwo[0]?.children?.map((node) => node.id)).toEqual(['child']);
+  });
+
+  it('类型过滤提升匹配子节点且不会重复显示', () => {
+    const child = { id: 'child', name: '部门', orgType: 'Department' };
+    const parent = {
+      id: 'parent',
+      name: '公司',
+      orgType: 'Company',
+      children: [child],
+    };
+    const tree = buildUserOrgSelectorOrgTree([child, parent], {
+      orgTypes: ['Department'],
+      onlyShowTypeMatchNode: true,
+    });
+    expect(tree.map((node) => node.id)).toEqual(['child']);
+  });
+});
+
 describe('user-org-selector-utils', () => {
   it('maps users and organization types to stable node icons', () => {
     expect(getUserOrgSelectorNodeIcon({ kind: 'user' })).toBe(

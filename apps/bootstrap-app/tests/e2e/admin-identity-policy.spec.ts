@@ -49,7 +49,7 @@ test('switching cached user management tabs does not report an unavailable field
   page,
 }) => {
   await loginViaCurrentPasswordChallenge(page);
-  await page.goto('/clob/V1/UserSetting', { waitUntil: 'domcontentloaded' });
+  await page.goto('/clob/V1/UserPersonalSetting', { waitUntil: 'domcontentloaded' });
   await expect(
     page.getByRole('columnheader', { name: '分组名称' }),
   ).toBeVisible();
@@ -57,8 +57,8 @@ test('switching cached user management tabs does not report an unavailable field
   for (let index = 0; index < 3; index++) {
     await page.getByRole('menuitem', { name: '用户管理' }).click();
     await expect(page).toHaveURL(/\/clob\/V1\/User$/);
-    await page.getByRole('menuitem', { name: '用户设置' }).click();
-    await expect(page).toHaveURL(/\/clob\/V1\/UserSetting$/);
+    await page.getByRole('menuitem', { name: '用户个性化设置' }).click();
+    await expect(page).toHaveURL(/\/clob\/V1\/UserPersonalSetting$/);
     await expect(
       page.getByText('当前操作未显示或没有权限，不能读取字段策略'),
     ).toHaveCount(0);
@@ -70,7 +70,7 @@ test('switching identity administration pages does not expose stale policy cance
 }) => {
   test.setTimeout(90_000);
   await loginViaCurrentPasswordChallenge(page);
-  await page.goto('/clob/V1/UserSetting', { waitUntil: 'domcontentloaded' });
+  await page.goto('/clob/V1/UserPersonalSetting', { waitUntil: 'domcontentloaded' });
   await expect(
     page.getByRole('columnheader', { name: '分组名称' }),
   ).toBeVisible();
@@ -99,7 +99,7 @@ test('switching identity administration pages does not expose stale policy cance
     '角色管理',
     '社交用户',
     '用户管理',
-    '用户设置',
+    '用户个性化设置',
     '邀请链接',
     '组织与用户',
   ]) {

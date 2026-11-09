@@ -416,6 +416,12 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '系统设置',
   },
   {
+    icon: 'lucide:shield-ellipsis',
+    name: 'DataMaskingSetting',
+    resource: 'DataMaskingSetting',
+    title: '数据脱敏设置',
+  },
+  {
     icon: 'lucide:panels-top-left',
     name: 'UiSetting',
     resource: 'UiSetting',
@@ -514,9 +520,9 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   },
   {
     icon: 'lucide:user-cog',
-    name: 'UserSetting',
-    resource: 'UserSetting',
-    title: '用户设置',
+    name: 'UserPersonalSetting',
+    resource: 'UserPersonalSetting',
+    title: '用户个性化设置',
   },
 ];
 
@@ -600,6 +606,7 @@ export const oakBaseAdminResourceViewMap: Record<
     import('./views/service-plugin-setting/index.vue'),
   TenantPluginSetting: () => import('./views/tenant-plugin-setting/index.vue'),
   Setting: () => import('./views/setting/index.vue'),
+  DataMaskingSetting: () => import('./views/data-masking-setting/index.vue'),
   UiSetting: () => import('./views/ui-setting/index.vue'),
   SettingHistoryData: () => import('./views/setting-history-data/index.vue'),
   GlobalOrgSelectorSetting: () =>
@@ -617,7 +624,7 @@ export const oakBaseAdminResourceViewMap: Record<
   UrlExAcl: () => import('./views/url-ex-acl/index.vue'),
   User: () => import('./views/user/index.vue'),
   InvitationLink: () => import('./views/invitation-link/index.vue'),
-  UserSetting: () => import('./views/user-setting/index.vue'),
+  UserPersonalSetting: () => import('./views/user-setting/index.vue'),
 };
 
 // 前端导航仅重排已授权菜单，页面地址和权限保持原值。
@@ -655,7 +662,7 @@ const menuGroups = [
       'OrgUser',
       'RbacPermissionItem',
       'Menu',
-      'UserSetting',
+      'UserPersonalSetting',
       'SocialUser',
     ],
   ],
@@ -719,6 +726,7 @@ const menuGroups = [
       'OpenArea',
       'Dict',
       'Setting',
+      'DataMaskingSetting',
       'RobotNotifyGroup',
       'JobPost',
       'PlatformDomain',
@@ -810,6 +818,9 @@ export function createOakBaseAdminCrudRoutes(
           const path = `/clob/V1/${item.routePath || item.resource}`;
 
           return {
+            alias: item.resource === 'UserPersonalSetting'
+              ? '/clob/V1/UserSetting'
+              : undefined,
             component,
             meta: {
               crudResource: item.permissionResource || item.resource,

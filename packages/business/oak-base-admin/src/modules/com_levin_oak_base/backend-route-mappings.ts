@@ -82,6 +82,7 @@ const CRUD_PAGE_DIRECTORY_OVERRIDES: Readonly<Record<string, string>> = {
   EContractTemplate: 'electronic-contract-template',
   EInvoice: 'electronic-invoice',
   EInvoiceProviderConnection: 'electronic-invoice-provider-connection',
+  UserPersonalSetting: 'user-setting',
 };
 const CRUD_ROUTE_PATH_PREFIX = '/clob/V1';
 

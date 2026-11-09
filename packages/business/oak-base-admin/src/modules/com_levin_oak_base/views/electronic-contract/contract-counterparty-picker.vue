@@ -56,9 +56,7 @@ async function loadMore() {
       ...records
         .filter((item) => item?.id !== null && item?.id !== undefined)
         .map((item) => ({
-          label: String(
-            item.name || item.displayName || item.subjectName || item.id,
-          ),
+          label: String(item.name || item.subjectName || item.id),
           value: String(item.id),
         })),
     ];

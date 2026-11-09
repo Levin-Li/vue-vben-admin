@@ -51,7 +51,7 @@ describe('禁提交互和请求资格独立', () => {
     expect(
       resolveCrudQuickFill(
         fields,
-        new Set(fields.slice(0, 7).map((field) => field.key)),
+        new Set(fields.slice(1).map((field) => field.key)),
         new Set(),
       ).eligible,
     ).toBe(false);

@@ -29,7 +29,7 @@ describe('目标租户渠道伙伴候选', () => {
     });
     expect(post).toHaveBeenCalledWith(
       '/module/ChannelPartnerCandidates/list',
-      { containsDisplayName: 'c1' },
+      { containsName: 'c1' },
       {
         baseURL: '',
         params: {

@@ -1355,18 +1355,18 @@ describe('页面展示设置抽屉', () => {
   it.each([
     ['create', '新增表单'],
     ['edit', '编辑表单'],
-  ] as const)('%s 的快捷填写默认关闭，开启后保存回显', async (view, title) => {
+  ] as const)('%s 首次填写模式默认自动，选择快捷后保存回显', async (view, title) => {
     const wrapper = mountDrawer(false);
     await flushPromises();
     getTab(title).click();
     await flushPromises();
-    const quickFill = () =>
+    const initialMode = () =>
       wrapper
-        .findAllComponents(Switch)
-        .find((component) => component.attributes('aria-label') === '快捷填写');
-    expect(quickFill()).toBeDefined();
-    expect(quickFill()?.props('checked')).toBeFalsy();
-    quickFill()?.vm.$emit('update:checked', true);
+        .findAllComponents(Select)
+        .find((component) => component.attributes('aria-label') === '首次填写模式');
+    expect(initialMode()).toBeDefined();
+    expect(initialMode()?.props('value')).toBe('auto');
+    initialMode()?.vm.$emit('update:value', 'quick');
     await nextTick();
     getUploadButton().click();
     await nextTick();
@@ -1375,11 +1375,11 @@ describe('页面展示设置抽屉', () => {
         config: Record<string, any>;
       }
     ).config;
-    expect(saved[view].quickFill).toBe(true);
+    expect(saved[view].initialMode).toBe('quick');
     await wrapper.setProps({ open: false });
     await wrapper.setProps({ open: true, modelValue: saved });
     await flushPromises();
-    expect(quickFill()?.props('checked')).toBe(true);
+    expect(initialMode()?.props('value')).toBe('quick');
     wrapper.unmount();
     document.body.innerHTML = '';
   });

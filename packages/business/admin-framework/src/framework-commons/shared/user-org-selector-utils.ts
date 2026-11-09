@@ -194,24 +194,58 @@ export function buildUserOrgSelectorOrgTree(
     orgLoadMode?: UserOrgSelectorOrgLoadMode;
     orgTypes: string[];
   },
+  seen = new Set<string>(),
 ): UserOrgTreeSelectNode[] {
   const depth = options.depth ?? 1;
   const maxLoadDeep = options.maxLoadDeep ?? 0;
 
-  return items.reduce<UserOrgTreeSelectNode[]>((result, item) => {
+  // 授权接口可能同时返回树根和它的平铺后代，优先保留树中的父子关系。
+  const nestedIds = new Set<string>();
+  if (depth === 1) {
+    const visited = new WeakSet<object>();
+    const collect = (item: Record<string, any>) => {
+      if (visited.has(item)) return;
+      visited.add(item);
+      for (const child of getRawChildren(item)) {
+        const id = normalizeOrgSelectorRecord(child).id;
+        if (id) nestedIds.add(id);
+        collect(child);
+      }
+    };
+    items.forEach(collect);
+  }
+
+  // 先处理真实根节点，再补充因深度限制未被构建的平铺节点。
+  const orderedItems =
+    depth === 1
+      ? [
+          ...items.filter(
+            (item) => !nestedIds.has(normalizeOrgSelectorRecord(item).id),
+          ),
+          ...items.filter((item) =>
+            nestedIds.has(normalizeOrgSelectorRecord(item).id),
+          ),
+        ]
+      : items;
+  return orderedItems.reduce<UserOrgTreeSelectNode[]>((result, item) => {
     const record = normalizeOrgSelectorRecord(item);
 
-    if (!record.id) {
+    if (!record.id || seen.has(record.id)) {
       return result;
     }
+    seen.add(record.id);
 
     const rawChildren = getRawChildren(item);
     const canBuildChildren = maxLoadDeep <= 0 || depth < maxLoadDeep;
     const children = canBuildChildren
-      ? buildUserOrgSelectorOrgTree(rawChildren, {
-          ...options,
-          depth: depth + 1,
-        })
+      ? buildUserOrgSelectorOrgTree(
+          rawChildren,
+          {
+            ...options,
+            depth: depth + 1,
+          },
+          seen,
+        )
       : [];
     const orgTypeMatched = isUserOrgSelectorTypeMatched(
       record.type,

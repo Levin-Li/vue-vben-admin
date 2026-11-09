@@ -1,4 +1,6 @@
 # @levin/oak-base-admin
+[用户个性化设置使用指南](docs/用户个性化设置使用指南.md)说明本人范围、操作与旧菜单地址。
+
 
 [用户管理重置密码使用指南](docs/用户管理重置密码使用指南.md)说明独立重置入口、权限与前端请求加密。
 
@@ -13,6 +15,8 @@
 [机器人通知群管理页使用指南](docs/robot-notify-group.md)说明基础设置中的配置入口、权限、Webhook 安全和最小验证。
 
 Levin Oak 基础后台前端业务模块，提供 `com.levin.oak.base` 的基础管理页面、API service、页面注册表、后端菜单路由映射和国际化资源。本包依赖 `@levin/admin-framework` 的基础组件和公共运行时能力。
+
+数据脱敏设置页面的操作与安全边界见 [数据脱敏设置页面指南](docs/data-masking-setting.md)。
 
 ## 安装
 

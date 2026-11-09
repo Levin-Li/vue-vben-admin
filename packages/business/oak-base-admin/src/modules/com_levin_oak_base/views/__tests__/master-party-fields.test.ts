@@ -1,33 +1,24 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   buildMasterPartyFields,
   customerPartnerParties,
 } from '../master-party-fields';
 
-const { users } = vi.hoisted(() => ({
-  users: vi.fn(async () => [
-    { label: '跨部门负责人', value: 'user-2', orgId: 'another-org' },
-  ]),
-}));
-vi.mock('../api-module', () => ({ userOptionsLoader: users }));
-
 // 同方组织不能被前端作为负责人候选的额外限制。
 describe('主档参与组织与负责人', () => {
-  it('客户和伙伴的五方均使用独立用户选择，保留跨部门候选', async () => {
+  it('客户和伙伴的五方均使用用户树选择，不增加同方组织过滤', () => {
     const fields = buildMasterPartyFields(customerPartnerParties, true);
     for (const party of [
       'subject',
-      'sales',
+      'business',
       'presales',
       'aftersales',
       'finance',
     ]) {
       const user = fields.find((field) => field.key === `${party}UserId`);
-      expect(await user?.loadOptions?.('负责人')).toEqual([
-        { label: '跨部门负责人', value: 'user-2', orgId: 'another-org' },
-      ]);
-      expect(users).toHaveBeenLastCalledWith('负责人');
+      expect(user?.type).toBe('user-tree-select');
+      expect(user).not.toHaveProperty('loadOptions');
     }
     expect(fields.every((field) => field.search === false)).toBe(true);
     expect(fields.some((field) => field.key === 'orgId')).toBe(false);
@@ -37,7 +28,7 @@ describe('主档参与组织与负责人', () => {
   it('自身外部节点只读而职能组织可编辑，表格显示各自关联对象名称', () => {
     const fields = buildMasterPartyFields(customerPartnerParties, true);
     const subject = fields.find((field) => field.key === 'subjectOrgId');
-    const sales = fields.find((field) => field.key === 'salesOrgId');
+    const sales = fields.find((field) => field.key === 'businessOrgId');
     const financeUser = fields.find((field) => field.key === 'financeUserId');
     expect(subject).toMatchObject({
       formCreate: false,
@@ -46,7 +37,7 @@ describe('主档参与组织与负责人', () => {
     });
     expect(typeof sales?.disabledOnEdit).toBe('function');
     expect(
-      sales?.tableValue?.({ salesOrgId: 'o1', salesOrg: { name: '销售一部' } }),
+      sales?.tableValue?.({ businessOrgId: 'o1', businessOrg: { name: '销售一部' } }),
     ).toBe('销售一部');
     expect(
       financeUser?.tableValue?.({
@@ -54,6 +45,7 @@ describe('主档参与组织与负责人', () => {
         financeUser: { name: '财务负责人' },
       }),
     ).toBe('财务负责人');
+    expect(financeUser?.tableValue?.({ financeUserId: 'u1' })).toBe('');
   });
   it('普通用户只读参与方分派，可信管理员可编辑但不能换绑主体节点', () => {
     const fields = buildMasterPartyFields(customerPartnerParties, true);

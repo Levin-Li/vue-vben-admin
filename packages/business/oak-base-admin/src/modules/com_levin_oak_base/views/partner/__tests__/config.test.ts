@@ -2,12 +2,9 @@ import { resolveDetailFields } from '@levin/admin-framework/framework-commons/sh
 import { describe, expect, it, vi } from 'vitest';
 
 import { channelPartnerPageCrudConfig } from '../../channel-partner/config';
+import { customerPageCrudConfig } from '../../customer/config';
 import { supplierPartnerPageCrudConfig } from '../../supplier-partner/config';
 import { partnerCommonFields } from '../config';
-
-const { optionLoaderCalls } = vi.hoisted(() => ({
-  optionLoaderCalls: [] as any[],
-}));
 
 vi.mock('../../../api/supplier-partner-service', () => ({
   supplierPartnerService: {},
@@ -15,13 +12,14 @@ vi.mock('../../../api/supplier-partner-service', () => ({
 vi.mock('../../../api/channel-partner-service', () => ({
   channelPartnerService: {},
 }));
+vi.mock('../../../api/customer-service', () => ({
+  customerService: {},
+}));
 vi.mock('../../api-module', () => ({
   buildDictOptionsLoader: () => async () => [],
   buildEnumOptionsLoader: () => async () => [],
-  buildModuleOptionsLoader: (...args: any[]) => {
-    optionLoaderCalls.push(args);
-    return async () => [];
-  },
+  buildModuleOptionsLoader: () => async () => [],
+  confidentialLevelOptionsLoader: async () => [],
   DEFAULT_CRUD_MODAL_WIDTH: 960,
   tenantOptionsLoader: async () => [],
   userOptionsLoader: async () => [],
@@ -29,10 +27,50 @@ vi.mock('../../api-module', () => ({
 }));
 
 describe('合作关系公共资料', () => {
-  it('保留行业与业务名称，移除旧身份字段', () => {
+  it('三个伙伴子类型共用自描述 JSON 扩展信息字段', () => {
+    for (const config of [
+      customerPageCrudConfig,
+      supplierPartnerPageCrudConfig,
+      channelPartnerPageCrudConfig,
+    ]) {
+      expect(
+        config.fields.find((field) => field.key === 'extensionInfo'),
+      ).toMatchObject({
+        jsonSchemaEditor: true,
+        jsonSchemaMode: 'popup',
+        layoutGroup: 'extension',
+        table: false,
+        export: false,
+      });
+    }
+  });
+
+  it('渠道与供应伙伴均提供受控联系人、收寄及有效期字段', () => {
+    for (const config of [
+      channelPartnerPageCrudConfig,
+      supplierPartnerPageCrudConfig,
+    ]) {
+      expect(
+        config.complexGroups
+          ?.filter((group) =>
+            ['contactInfo', 'shippingInfo'].includes(group.submitKey || ''),
+          )
+          .map((group) => group.submitKey),
+      ).toEqual(['contactInfo', 'shippingInfo']);
+      for (const key of [
+        'partyContactName',
+        'shippingAddress',
+        'confidentialLevel',
+        'expiredTime',
+      ])
+        expect(config.fields.some((field) => field.key === key)).toBe(true);
+    }
+  });
+  it('保留完整名称、简称及行业，移除旧业务名称', () => {
     const keys = partnerCommonFields.map((field) => field.key);
-    for (const key of ['industries', 'displayName', 'shortName'])
+    for (const key of ['industries', 'name', 'shortName'])
       expect(keys).toContain(key);
+    expect(keys).not.toContain('displayName');
     for (const key of ['category', 'subCategory', 'externalOrgId'])
       expect(keys).not.toContain(key);
     expect(keys).not.toContain('ownerId');
@@ -43,12 +81,15 @@ describe('合作关系公共资料', () => {
       partnerCommonFields.find((field) => field.key === 'tenantId')?.omitOnEdit,
     ).not.toBe(true);
     expect(
-      partnerCommonFields.find((field) => field.key === 'parentOrgId'),
+      partnerCommonFields.find((field) => field.key === 'name'),
     ).toMatchObject({
-      formCreate: true,
-      formEdit: false,
-      type: 'org-tree-select',
+      label: '完整名称',
+      required: true,
+      table: true,
     });
+    expect(
+      partnerCommonFields.find((field) => field.key === 'parentOrgId'),
+    ).toBeUndefined();
     expect(
       partnerCommonFields.find((field) => field.key === 'subjectOrgId'),
     ).toMatchObject({
@@ -56,10 +97,6 @@ describe('合作关系公共资料', () => {
       disabledOnEdit: true,
       omitOnEdit: true,
     });
-    expect(
-      partnerCommonFields.find((field) => field.key === 'parentOrgId')
-        ?.required,
-    ).not.toBe(true);
     expect(
       partnerCommonFields.find((field) => field.key === 'legalSubjectId')
         ?.required,
@@ -76,13 +113,12 @@ describe('合作关系公共资料', () => {
       supplierPartnerPageCrudConfig,
       channelPartnerPageCrudConfig,
     ]) {
+      expect(config.fields.find((field) => field.key === 'name')?.label).toBe(
+        '完整名称',
+      );
       expect(
-        config.fields.find((field) => field.key === 'displayName')?.label,
-      ).toBe('名称');
-      expect(
-        config.fields.find((field) => field.key === 'containsDisplayName')
-          ?.label,
-      ).toBe('名称');
+        config.fields.find((field) => field.key === 'containsName')?.label,
+      ).toBe('完整名称');
     }
   });
 
@@ -101,7 +137,7 @@ describe('合作关系公共资料', () => {
     expect(channelPartnerPageCrudConfig.detailPath).toBeUndefined();
   });
 
-  it('供应与渠道页面只选择新外部组织的内部父级', () => {
+  it('供应与渠道普通新增不选择新外部组织的父级', () => {
     const supplierTypeField = supplierPartnerPageCrudConfig.fields.find(
       (field) => field.key === 'type',
     );
@@ -111,55 +147,15 @@ describe('合作关系公共资料', () => {
     });
     expect(supplierTypeField?.help).toBeUndefined();
     expect(
-      supplierPartnerPageCrudConfig.fields.find(
+      supplierPartnerPageCrudConfig.fields.some(
         (field) => field.key === 'parentOrgId',
       ),
-    ).toMatchObject({ label: '新供应伙伴组织的内部父级' });
+    ).toBe(false);
     expect(
-      channelPartnerPageCrudConfig.fields.find(
+      channelPartnerPageCrudConfig.fields.some(
         (field) => field.key === 'parentOrgId',
       ),
-    ).toMatchObject({ label: '新渠道伙伴组织的内部父级' });
-    expect(optionLoaderCalls.filter((args) => args[0] === '/Org/list')).toEqual(
-      [
-        [
-          '/Org/list',
-          'name',
-          'id',
-          {
-            pageIndex: 1,
-            pageSize: 500,
-            inType: [
-              'Company',
-              'Branch',
-              'Department',
-              'Team',
-              'Group',
-              'TempOrg',
-            ],
-          },
-          'containsName',
-        ],
-        [
-          '/Org/list',
-          'name',
-          'id',
-          {
-            pageIndex: 1,
-            pageSize: 500,
-            inType: [
-              'Company',
-              'Branch',
-              'Department',
-              'Team',
-              'Group',
-              'TempOrg',
-            ],
-          },
-          'containsName',
-        ],
-      ],
-    );
+    ).toBe(false);
   });
   it.each([supplierPartnerPageCrudConfig, channelPartnerPageCrudConfig])(
     '伙伴详情不重复显示五方关联对象及内部字段',
@@ -173,7 +169,7 @@ describe('合作关系公共资料', () => {
       };
       for (const party of [
         'subject',
-        'sales',
+        'business',
         'presales',
         'aftersales',
         'finance',

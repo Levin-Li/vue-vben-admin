@@ -836,7 +836,7 @@ function uiSettingAdapter(): CrudLifecycleAdapter {
 function userSettingAdapter(): CrudLifecycleAdapter {
   return buildSimpleCrudAdapter({
     async create(page, run) {
-      const value = run.value('验收用户设置');
+      const value = run.value('验收用户个性化设置');
       const modal = await openCreateModal(page);
       await selectFirstFormOption(page, modal, '请选择归属租户');
       await selectFirstFormOption(page, modal, '请选择所属用户');
@@ -847,10 +847,10 @@ function userSettingAdapter(): CrudLifecycleAdapter {
       await expect(rowContainingRunValue(page, value)).toBeVisible();
       return { key: value, label: value };
     },
-    route: '/clob/V1/UserSetting',
+    route: '/clob/V1/UserPersonalSetting',
     async update(page, record, run) {
       const modal = await editRow(page, record);
-      const updated = run.value('验收用户设置已更新');
+      const updated = run.value('验收用户个性化设置已更新');
       await fillFormText(modal, '请输入分类名称', updated);
       await submitModal(page, modal, '更新成功');
       await expect(rowContainingRunValue(page, updated)).toBeVisible();
@@ -1404,7 +1404,7 @@ export const firstSimpleCrudPageAdapters: Readonly<
   UrlExAcl: urlExAclAdapter(),
   UiSetting: uiSettingAdapter(),
   User: userAdapter(),
-  UserSetting: userSettingAdapter(),
+  UserPersonalSetting: userSettingAdapter(),
 };
 
 /**

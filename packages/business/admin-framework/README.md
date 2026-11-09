@@ -4,7 +4,7 @@
 
 [默认加密 API 路径使用指南](docs/url-acl-default-crypto-paths.md)列出主动加密路径、协议边界与最小验证方法。
 
-[标准 CRUD 简要表单接入指南](docs/crud-brief-form.md)说明页面指定字段、权限过滤、完整表单切换与部分成功处理。
+[标准 CRUD 填写模式接入指南](docs/crud-brief-form.md)说明简要、向导、快捷与普通模式、权限过滤和状态保留。
 
 JSON Schema 编辑器的 `:xxx` 属性引用见 [使用指南](docs/json-schema-editor-reference.md)。
 

@@ -9,8 +9,8 @@ describe('结算动作请求契约', () => {
       .spyOn(settlementOrderService as any, 'get')
       .mockResolvedValue({ items: [] });
     const params = {
-      salesOrgId: 'sales-org',
-      salesUserId: 'sales-user',
+      businessOrgId: 'sales-org',
+      businessUserId: 'sales-user',
       financeOrgId: 'finance-org',
       financeUserId: 'finance-user',
       payeeOrgId: 'payee-org',
@@ -40,6 +40,7 @@ describe('结算动作请求契约', () => {
     expect(post).toHaveBeenNthCalledWith(1, 'registerPayment', {
       data: {
         id: 's1',
+        tenantId: 't1',
         optimisticLock: 3,
         remark: undefined,
         amount: '12.0001',
@@ -62,13 +63,14 @@ describe('结算动作请求契约', () => {
     expect(post).toHaveBeenCalledWith('returnInvoice', {
       data: {
         id: 's1',
+        tenantId: undefined,
         optimisticLock: 4,
         remark: undefined,
         reason: '抬头有误',
       },
     });
   });
-  it('财务详情和动作预读仅提交记录ID，范围来自当前会话', async () => {
+  it('财务详情提交租户定位且不透传其他范围字段', async () => {
     const get = vi
       .spyOn(settlementOrderService as any, 'get')
       .mockResolvedValue({ id: 's1' });
@@ -79,7 +81,7 @@ describe('结算动作请求契约', () => {
     } as Parameters<typeof settlementOrderService.readFinancialDetails>[0]);
     await settlementOrderService.retrieve({ id: 's1' });
     expect(get).toHaveBeenNthCalledWith(1, 'readFinancialDetails', {
-      params: { id: 's1' },
+      params: { id: 's1', tenantId: '伪造租户' },
     });
     expect(get).toHaveBeenNthCalledWith(2, 'retrieve', {
       params: { id: 's1' },

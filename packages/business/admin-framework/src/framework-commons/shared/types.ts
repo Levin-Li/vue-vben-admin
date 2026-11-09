@@ -275,10 +275,14 @@ export interface CrudPageDisplayGroupedViewConfig {
   unassignedOrder?: number;
 }
 
+export type CrudFormInitialMode = 'auto' | 'brief' | 'wizard' | 'quick' | 'normal';
+
 export interface CrudPageDisplayFormViewConfig extends CrudPageDisplayGroupedViewConfig {
   modalMaxHeight?: string;
   modalMaxWidth?: string;
-  /** 表单首次打开时是否默认进入快捷填写；默认关闭。 */
+  /** 首次打开表单的模式；未设置时采用自动规则。 */
+  initialMode?: CrudFormInitialMode;
+  /** 旧版快捷开关；仅在未设置 initialMode 时兼容读取。 */
   quickFill?: boolean;
 }
 

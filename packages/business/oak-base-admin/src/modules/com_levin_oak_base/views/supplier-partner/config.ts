@@ -7,14 +7,12 @@ import {
   DEFAULT_CRUD_MODAL_WIDTH,
   withModuleCrudConfig,
 } from '../api-module';
-import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
 import {
   partnerCommonComplexGroups,
   partnerCommonFields,
 } from '../partner/config';
 
 // 独立子类型入口承载本类合作关系的权限与业务字段。
-const supplierOrgOptionsLoader = buildOrgAssignmentOptionsLoader();
 
 export const pageMeta = {
   name: 'SupplierPartner',
@@ -41,16 +39,7 @@ export const supplierPartnerPageCrudConfig: CrudPageConfig =
     modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
     title: '供应伙伴',
     fields: [
-      ...partnerCommonFields.map((field) =>
-        field.key === 'parentOrgId'
-          ? {
-              ...field,
-              label: '新供应伙伴组织的内部父级',
-              loadOptions: supplierOrgOptionsLoader,
-              remoteSearch: true,
-            }
-          : field,
-      ),
+      ...partnerCommonFields,
       {
         key: 'type',
         label: '供应商类型',

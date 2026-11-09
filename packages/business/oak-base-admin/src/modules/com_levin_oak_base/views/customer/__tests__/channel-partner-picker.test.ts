@@ -30,7 +30,7 @@ describe('客户渠道租户范围', () => {
     mocked.load.mockReset().mockResolvedValue({ options: [], hasMore: false });
     mocked.retrieve
       .mockReset()
-      .mockResolvedValue({ id: 'partner-a', displayName: '授权渠道' });
+      .mockResolvedValue({ id: 'partner-a', name: '授权渠道' });
     const wrapper = shallowMount(ChannelPartnerPicker, {
       props: { tenantId: 'tenant-a', modelValue: 'partner-a' },
       global: { stubs: { ASelect: SelectStub } },

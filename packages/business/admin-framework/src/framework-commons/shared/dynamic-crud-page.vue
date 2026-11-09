@@ -318,6 +318,8 @@ import {
 } from './crud-permissions';
 import { buildCrudQueryItems } from './crud-query-items';
 import { resolveCrudQuickFill } from './crud-quick-fill';
+import { resolveCrudFormMode } from './crud-form-initial-mode';
+import { buildCrudWizardSteps, findCrudWizardStep } from './crud-form-wizard';
 import {
   buildCrudDeleteParams,
   buildCrudRetrieveParams,
@@ -1669,13 +1671,16 @@ const submittableFormFields = computed(() =>
 );
 
 const quickFillRequested = ref(false);
-const quickFillMore = ref(false);
 const briefRequested = ref(false);
+const fullFormLayout = ref<'normal' | 'wizard'>('normal');
+const wizardStep = ref(0);
 const briefPlan = computed(() => {
   const view = editingRecord.value ? 'edit' : 'create';
   const requested = props.config.briefFields?.[view] || [];
   const fields = visibleFormFields.value.filter(
-    (field) => !unsubmittedGroupKeys.value.has(field.key),
+    (field) =>
+      !unsubmittedGroupKeys.value.has(field.key) &&
+      isComplexGroupEnabled(field),
   );
   return resolveCrudBriefFill(
     fields,
@@ -1689,14 +1694,32 @@ const briefActive = computed(
     briefPlan.value.eligible &&
     !focusedJsonFieldKey.value,
 );
-const quickFillPlan = computed(() =>
-  resolveCrudQuickFill(
-    visibleFormFields.value.filter(
-      (field) => !unsubmittedGroupKeys.value.has(field.key),
-    ),
+const quickFillPlan = computed(() => {
+  const fields = visibleFormFields.value.filter(
+      (field) =>
+        !unsubmittedGroupKeys.value.has(field.key) &&
+        isComplexGroupEnabled(field),
+    );
+  // 必填候选仅因尚未选择租户而暂不可交互时，同时展示可选的租户前置项。
+  const tenant = fields.find((field) => field.key === 'tenantId');
+  const canChooseTenant = tenant && !isFormFieldInteractionDisabled(tenant);
+  const canFillAfterTenant = (field: CrudFieldConfig) =>
+    field.required === true &&
+    isTenantDependentField(field) &&
+    !(!editingRecord.value && isFixedCrudFormField(field, menuFixedQuery)) &&
+    !isFieldDisabledOnEdit(field) &&
+    getPageDisplayField(editingRecord.value ? 'edit' : 'create', field.key)
+      .disabled !== true;
+  const needsTenant = Boolean(canChooseTenant && fields.some(canFillAfterTenant));
+  return resolveCrudQuickFill(
+    fields,
     new Set(
       visibleFormFields.value
-        .filter((field) => !isFormFieldInteractionDisabled(field))
+        .filter(
+          (field) =>
+            !isFormFieldInteractionDisabled(field) ||
+            (needsTenant && canFillAfterTenant(field)),
+        )
         .map((field) => field.key),
     ),
     new Set(
@@ -1704,22 +1727,57 @@ const quickFillPlan = computed(() =>
         Object.keys(group.fieldMappings),
       ),
     ),
-  ),
-);
+    needsTenant ? new Set(['tenantId']) : new Set(),
+  );
+});
 const quickFillActive = computed(
   () =>
     !briefActive.value &&
+    !focusedJsonFieldKey.value &&
     quickFillRequested.value &&
     quickFillPlan.value.eligible,
 );
 const compactFormActive = computed(
   () => briefActive.value || quickFillActive.value,
 );
+const wizardSteps = computed(() =>
+  buildCrudWizardSteps(
+    visibleFormFields.value.filter(
+      (field) =>
+        !unsubmittedGroupKeys.value.has(field.key) &&
+        isComplexGroupEnabled(field),
+    ),
+  ),
+);
+const wizardActive = computed(
+  () =>
+    !focusedJsonFieldKey.value &&
+    !compactFormActive.value &&
+    fullFormLayout.value === 'wizard' &&
+    wizardSteps.value.length >= 3,
+);
 const displayedFormFields = computed(() => {
   if (briefActive.value) return briefPlan.value.orderedFields;
   if (quickFillActive.value) return quickFillPlan.value.orderedFields;
+  if (wizardActive.value)
+    return wizardSteps.value[wizardStep.value]?.fields || [];
   return visibleFormFields.value;
 });
+
+/** 初始模式只在打开表单时选择；手动切换不写回展示设置。 */
+function initializeFormMode(view: 'create' | 'edit') {
+  const plan = resolveCrudFormMode(pageDisplayConfig.value[view], {
+    view,
+    brief: briefPlan.value.eligible,
+    wizard: wizardSteps.value.length >= 3,
+    quick: quickFillPlan.value.eligible,
+  });
+  fullFormLayout.value = plan.layout;
+  wizardStep.value = 0;
+  briefRequested.value = plan.compact === 'brief';
+  quickFillRequested.value = plan.compact === 'quick';
+  if (plan.reason) message.info(plan.reason);
+}
 
 function setBriefRequested(value: boolean) {
   if (briefActive.value && !value) {
@@ -1742,11 +1800,17 @@ function setQuickFillRequested(value: boolean) {
   quickFillRequested.value = value;
 }
 
+function setWizardRequested(value: boolean) {
+  if (!setBriefRequested(false)) return;
+  quickFillRequested.value = false;
+  fullFormLayout.value = value ? 'wizard' : 'normal';
+}
+
 function showCompleteForm() {
   if (briefActive.value) {
     setBriefRequested(false);
   } else {
-    quickFillMore.value = !quickFillMore.value;
+    setQuickFillRequested(false);
   }
 }
 
@@ -1785,9 +1849,6 @@ const displayedFormBlocks = computed(() => {
 
   return nestCrudFormBlocks(blocks, props.config.complexGroups || []);
 });
-watch(quickFillActive, () => {
-  quickFillMore.value = false;
-});
 
 const unsubmittedGroupFields = computed(() =>
   getUnsubmittedCrudGroupFields(activeFormFields.value, groupSubmitChecked),
@@ -1795,6 +1856,9 @@ const unsubmittedGroupFields = computed(() =>
 const unsubmittedGroupKeys = computed(
   () => new Set(unsubmittedGroupFields.value.map((field) => field.key)),
 );
+watch(wizardSteps, (steps) => {
+  wizardStep.value = Math.min(wizardStep.value, Math.max(0, steps.length - 1));
+});
 
 function changeGroupSubmitChecked(field: CrudFieldConfig, checked: boolean) {
   const group = field.displayGroup;
@@ -3766,9 +3830,12 @@ async function revealInvalidFormField(field: CrudFieldConfig) {
   if (briefActive.value && !briefPlan.value.selectedKeys.has(field.key)) {
     setBriefRequested(false);
   }
-  if (quickFillActive.value) {
-    quickFillMore.value = true;
-  } else {
+  if (quickFillActive.value) setQuickFillRequested(false);
+  if (fullFormLayout.value === 'wizard') {
+    const step = findCrudWizardStep(wizardSteps.value, field.key);
+    if (step >= 0) wizardStep.value = step;
+  }
+  if (!compactFormActive.value) {
     if (field.displayGroup?.key)
       pageDisplayGroupExpandedRows[field.displayGroup.key] = 'all';
     if (field.complexGroupKey)
@@ -3837,8 +3904,9 @@ function serializeSubmittableFormValue(
   }
 }
 
-function validateFormFields() {
+function validateFormFields(keys?: ReadonlySet<string>) {
   for (const field of submittableFormFields.value) {
+    if (keys && !keys.has(field.key)) continue;
     if (
       !isComplexGroupEnabled(field) ||
       unsubmittedGroupKeys.value.has(field.key)
@@ -3917,13 +3985,10 @@ function initializeComplexFormValues(
 }
 
 function resetForm(record?: GenericRecord) {
-  const view = record ? 'edit' : 'create';
-  briefRequested.value =
-    Boolean(props.config.briefFields?.[view]?.length) &&
-    pageDisplayConfig.value[view]?.quickFill !== true;
-  quickFillRequested.value =
-    !briefRequested.value && pageDisplayConfig.value[view]?.quickFill === true;
-  quickFillMore.value = false;
+  briefRequested.value = false;
+  quickFillRequested.value = false;
+  fullFormLayout.value = 'normal';
+  wizardStep.value = 0;
   for (const key of Object.keys(groupSubmitChecked))
     delete groupSubmitChecked[key];
   const nextState = buildEmptyState();
@@ -5565,13 +5630,14 @@ async function handleCreate() {
   focusedJsonFieldKey.value = undefined;
   editingRecord.value = null;
   resetForm();
-  if (briefActive.value) props.config.briefOnEnter?.(formState, null);
   if (defaults) {
     for (const field of initialFormFields.value) {
       if (Object.hasOwn(defaults, field.key))
         formState[field.key] = normalizeFormValue(field, defaults[field.key]);
     }
   }
+  initializeFormMode('create');
+  if (briefActive.value) props.config.briefOnEnter?.(formState, null);
   captureFormSnapshot();
   modalOpen.value = true;
   for (const field of visibleFormFields.value)
@@ -5607,6 +5673,7 @@ async function handleEdit(record: GenericRecord) {
   focusedJsonFieldKey.value = undefined;
   editingRecord.value = record;
   resetForm(record);
+  initializeFormMode('edit');
   if (briefActive.value) props.config.briefOnEnter?.(formState, record);
   captureFormSnapshot();
   modalOpen.value = true;
@@ -5720,6 +5787,17 @@ async function handleDelete(record: GenericRecord) {
   } catch (error) {
     showCrudError(error, '删除失败');
   }
+}
+
+function handleFormOk() {
+  if (wizardActive.value && wizardStep.value < wizardSteps.value.length - 1) {
+    const keys = new Set(
+      wizardSteps.value[wizardStep.value]?.fields.map((field) => field.key),
+    );
+    if (validateFormFields(keys)) wizardStep.value += 1;
+    return;
+  }
+  void handleSubmit();
 }
 
 async function handleSubmit() {
@@ -8806,6 +8884,7 @@ watch(
             <slot
               name="toolbar-before-create"
               :is-list-operation-visible="isListOperationVisible"
+              :open-create="handleCreate"
               :editing-record="editingRecord"
               :form-state="formState"
               :load-list="loadList"
@@ -9644,12 +9723,15 @@ watch(
       :mask-closable="false"
       :modal-render="renderFormModal"
       :open="modalOpen"
+      :ok-text="
+        wizardActive && wizardStep < wizardSteps.length - 1 ? '下一步' : '保存'
+      "
       :style="[modalStyle, modalGradientVariables]"
       :wrap-class-name="formModalWrapClass"
       :width="modalWidth"
       destroy-on-close
       @cancel="requestFormClose"
-      @ok="handleSubmit"
+      @ok="handleFormOk"
     >
       <template #title>
         <div class="vben-crud-modal-title">
@@ -9664,6 +9746,15 @@ watch(
             }}
           </span>
           <Checkbox
+            v-if="wizardSteps.length >= 3 && !focusedJsonFieldKey"
+            class="shrink-0 whitespace-nowrap font-normal"
+            :checked="wizardActive"
+            :disabled="submitting"
+            @update:checked="setWizardRequested($event)"
+          >
+            向导
+          </Checkbox>
+          <Checkbox
             v-if="briefPlan.eligible"
             class="shrink-0 whitespace-nowrap font-normal"
             :checked="briefActive"
@@ -9673,10 +9764,11 @@ watch(
             简要表单
           </Checkbox>
           <Checkbox
-            v-if="quickFillPlan.eligible"
+            v-if="!focusedJsonFieldKey"
             class="shrink-0 whitespace-nowrap font-normal"
             :checked="quickFillActive"
-            :disabled="submitting"
+            :disabled="submitting || !quickFillPlan.eligible"
+            :title="quickFillPlan.eligible ? undefined : '没有可填写的必填字段'"
             @update:checked="setQuickFillRequested($event)"
           >
             快捷填写
@@ -9690,6 +9782,15 @@ watch(
         autocomplete="off"
         :style="formContainerStyle"
       >
+        <div v-if="wizardActive" class="mb-4 flex items-center gap-3">
+          <Button v-if="wizardStep > 0" size="small" @click="wizardStep -= 1">
+            上一步
+          </Button>
+          <span>
+            {{ wizardStep + 1 }} / {{ wizardSteps.length }} ·
+            {{ wizardSteps[wizardStep]?.title }}
+          </span>
+        </div>
         <div
           ref="formFieldsContainer"
           class="grid gap-x-4 gap-y-4"
@@ -9760,19 +9861,14 @@ watch(
                   "
                   class="vben-crud-quick-fill-divider"
                 >
-                  <Button
-                    type="link"
-                    :aria-expanded="quickFillActive && quickFillMore"
-                    @click="showCompleteForm"
-                  >
+                  <Button type="link" @click="showCompleteForm">
                     <template #icon>
                       <ChevronDown
                         class="vben-crud-toggle-icon"
-                        :class="{ 'is-expanded': quickFillMore }"
                         aria-hidden="true"
                       />
                     </template>
-                    {{ quickFillActive && quickFillMore ? '收起更多' : '更多' }}
+                    更多
                   </Button>
                 </div>
                 <div
@@ -9829,13 +9925,12 @@ watch(
                 </div>
                 <Form.Item
                   v-if="
-                    compactFormActive ||
+                    compactFormActive || wizardActive ||
                     (isComplexGroupFieldVisible(field) &&
                       isPageDisplayGroupFieldVisible(field))
                   "
                   v-show="
                     !compactFormActive ||
-                    quickFillMore ||
                     (briefActive
                       ? briefPlan.selectedKeys.has(field.key)
                       : quickFillPlan.requiredKeys.has(field.key))
@@ -10359,6 +10454,17 @@ watch(
               </template>
             </template>
           </CrudFormBlockTree>
+          <div
+            v-if="
+              compactFormActive &&
+              !(briefActive
+                ? briefPlan.firstOptionalKey
+                : quickFillPlan.firstOptionalKey)
+            "
+            class="vben-crud-quick-fill-divider"
+          >
+            <Button type="link" @click="showCompleteForm">更多</Button>
+          </div>
           <slot
             v-if="briefActive"
             name="brief-extra"

@@ -75,7 +75,7 @@ pnpm run plan:packages -- --only=@levin/oak-base-admin
 
 ## 包说明
 
-当前可发布包为九个：`@vben-core/foundation`、`@vben-core/ui`、`@vben/runtime`、`@vben/common-ui`、`@vben/layouts`、`@levin/admin-framework`、`@levin/oak-base-admin`、`@levin/bpm-designer`、`@levin/bpm-runtime-ui`。源码归属和旧入口映射见 [聚合包使用与迁移指南](frontend-package-consolidation.md)。`pnpm run list:packages` 显示可发布包全集；正式发布只处理本次候选，不要求额外执行全仓 `pnpm build` 或独立消费者构建。
+当前可发布包为九个：`@vben-core/foundation`、`@vben-core/ui`、`@vben/runtime`、`@vben/common-ui`、`@vben/layouts`、`@levin/admin-framework`、`@levin/oak-base-admin`、`@levin/bpm-designer`、`@levin/bpm-runtime-ui`。源码归属和旧入口映射见 [聚合包使用与迁移指南](frontend-package-consolidation.md)。 运行时包历史迁移资料的源码副本见 [运行时迁移资料](../packages/runtime/docs/聚合包使用与迁移指南.md)，该资料不进入发布包。`pnpm run list:packages` 显示可发布包全集；正式发布只处理本次候选，不要求额外执行全仓 `pnpm build` 或独立消费者构建。
 
 - `@levin/admin-framework`：公共后台框架包，提供模块契约、运行时注入、CRUD 辅助能力、页面注册表和可复用后台 UI。
 - `@levin/oak-base-admin`：基础后台模块包，拥有自己的 API 辅助方法、页面源码、路由和国际化资源。

@@ -8,7 +8,7 @@ type LegalSubjectOptionRecord = {
 };
 
 type PartnerOptionRecord = {
-  displayName?: string;
+  name?: string;
   enable?: boolean;
   id?: number | string;
   legalSubjectId?: number | string;
@@ -76,7 +76,7 @@ export async function loadIssuerRelationPage(
           partner.enable !== false,
       )
       .map((partner) => ({
-        label: `${partner.displayName || `合作关系 ${partner.id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '供应伙伴'}`,
+        label: `${partner.name || `合作关系 ${partner.id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '供应伙伴'}`,
         value: partner.id as number | string,
       })),
   };

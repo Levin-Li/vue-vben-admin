@@ -9,7 +9,7 @@ import { loadChannelReferencePage } from './channel-partner-reference';
 
 type Option = { label: string; value: number | string };
 type PartnerSummary = {
-  displayName?: string;
+  name?: string;
   id?: number | string;
   legalSubjectName?: string;
   subjectOrgId?: number | string;
@@ -137,7 +137,7 @@ watch(
         return;
       options.value = [
         {
-          label: `${partner.displayName || `渠道伙伴 ${id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '渠道'}`,
+          label: `${partner.name || `渠道伙伴 ${id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '渠道'}`,
           value: id,
         },
         ...options.value,

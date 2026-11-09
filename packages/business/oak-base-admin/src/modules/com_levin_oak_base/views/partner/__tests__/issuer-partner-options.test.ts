@@ -34,7 +34,7 @@ describe('发票销方两步选择', () => {
         {
           id: 'partner-1',
           legalSubjectId: 'subject-1',
-          displayName: '甲公司',
+          name: '甲公司',
           subjectOrgId: 'org-1',
           type: 'Goods',
           enable: true,
@@ -42,7 +42,7 @@ describe('发票销方两步选择', () => {
         {
           id: 'partner-2',
           legalSubjectId: 'subject-1',
-          displayName: '甲公司',
+          name: '甲公司',
           subjectOrgId: 'org-2',
           type: 'RawMaterials',
           enable: true,

@@ -35,6 +35,15 @@ export class CustomerService extends RequestService {
     return this.post('saveCustomer', { ...options, data });
   }
 
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客户',
+    action: '新增我的客户',
+  })
+  async createMine(data?: any, options?: any) {
+    return this.post('saveMyCustomer', { ...options, data });
+  }
+
   @CRUD.ListTable({ refEntityClass: 'com.levin.oak.base.entities.Customer' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
@@ -52,6 +61,15 @@ export class CustomerService extends RequestService {
   })
   quickAdd(data: QuickAddPayload) {
     return this.post<QuickAddResult>('quickAdd', { data });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客户',
+    action: '快捷添加',
+  })
+  quickAddMine(data: QuickAddPayload) {
+    return this.post<QuickAddResult>('quickAddMine', { data });
   }
 
   @CRUD.Op({ confirmText: 'None' })

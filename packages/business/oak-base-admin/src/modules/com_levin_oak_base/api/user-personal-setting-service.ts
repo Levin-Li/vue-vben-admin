@@ -3,21 +3,22 @@ import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
 
 @Service({
-  basePath: '/UserSetting',
-  controllerClass: 'com.levin.oak.base.controller.BizUserSettingController',
-  description: '用户设置管理',
-  title: '用户设置',
-  type: '系统数据-用户设置',
+  basePath: '/UserPersonalSetting',
+  controllerClass: 'com.levin.oak.base.controller.BizUserPersonalSettingController',
+  description: '仅维护当前登录用户的个性化设置',
+  title: '用户个性化设置',
+  type: '系统数据-用户个性化设置',
 })
-export class UserSettingService extends RequestService {
+export class UserPersonalSettingService extends RequestService {
   constructor() {
     super(OAK_BASE_API_MODULE);
   }
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-用户设置',
+    type: '系统数据-用户个性化设置',
     res: '',
+    onlyRequireAuthenticated: true,
     action: '批量新增',
   })
   async batchCreate(data?: any, options?: any) {
@@ -29,8 +30,9 @@ export class UserSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-用户设置',
+    type: '系统数据-用户个性化设置',
     res: '',
+    onlyRequireAuthenticated: true,
     action: '批量删除',
   })
   @CRUD.Op({
@@ -45,8 +47,9 @@ export class UserSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-用户设置',
+    type: '系统数据-用户个性化设置',
     res: '',
+    onlyRequireAuthenticated: true,
     action: '批量更新',
   })
   async batchUpdate(data?: any, options?: any) {
@@ -58,8 +61,9 @@ export class UserSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-用户设置',
+    type: '系统数据-用户个性化设置',
     res: '',
+    onlyRequireAuthenticated: true,
     action: '清除缓存',
   })
   async clearCache(params?: any, options?: any) {
@@ -71,8 +75,9 @@ export class UserSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-用户设置',
+    type: '系统数据-用户个性化设置',
     res: '',
+    onlyRequireAuthenticated: true,
     action: '新增',
   })
   @CRUD.Op({
@@ -87,8 +92,9 @@ export class UserSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-用户设置',
+    type: '系统数据-用户个性化设置',
     res: '',
+    onlyRequireAuthenticated: true,
     action: '删除',
   })
   @CRUD.Op()
@@ -101,12 +107,13 @@ export class UserSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-用户设置',
+    type: '系统数据-用户个性化设置',
     res: '',
+    onlyRequireAuthenticated: true,
     action: '查询列表',
   })
   @CRUD.ListTable({
-    refEntityClass: 'com.levin.oak.base.entities.UserSetting',
+    refEntityClass: 'com.levin.oak.base.entities.UserPersonalSetting',
   })
   async list(params?: any, options?: any) {
     return this.get('list', {
@@ -117,8 +124,9 @@ export class UserSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-用户设置',
+    type: '系统数据-用户个性化设置',
     res: '',
+    onlyRequireAuthenticated: true,
     action: '查看详情',
   })
   @CRUD.Op({
@@ -133,8 +141,9 @@ export class UserSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-用户设置',
+    type: '系统数据-用户个性化设置',
     res: '',
+    onlyRequireAuthenticated: true,
     action: '统计',
   })
   async stat(params?: any, options?: any) {
@@ -146,8 +155,9 @@ export class UserSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-用户设置',
+    type: '系统数据-用户个性化设置',
     res: '',
+    onlyRequireAuthenticated: true,
     action: '更新',
   })
   @CRUD.Op()
@@ -159,4 +169,4 @@ export class UserSettingService extends RequestService {
   }
 }
 
-export const userSettingService = new UserSettingService();
+export const userPersonalSettingService = new UserPersonalSettingService();

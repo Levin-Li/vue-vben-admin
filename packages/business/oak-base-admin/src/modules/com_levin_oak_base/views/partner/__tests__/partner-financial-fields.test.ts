@@ -8,10 +8,12 @@ import { partnerCommonComplexGroups, partnerCommonFields } from '../config';
 describe('合作伙伴财务资料', () => {
   it('两类合作关系共享无角色前缀的嵌套资料分组', () => {
     expect(
-      partnerCommonComplexGroups?.map(({ submitKey, title }) => ({
-        submitKey,
-        title,
-      })),
+      partnerCommonComplexGroups
+        ?.filter(({ key }) => ['settlementBank', 'invoice'].includes(key))
+        .map(({ submitKey, title }) => ({
+          submitKey,
+          title,
+        })),
     ).toEqual([
       { submitKey: 'bankAccount', title: '结算账户信息' },
       { submitKey: 'invoiceInfo', title: '开票信息' },
@@ -26,10 +28,17 @@ describe('合作伙伴财务资料', () => {
 
   it('财务子字段不展示在列表和导出中', () => {
     const fields = partnerCommonFields.filter(
-      ({ complexGroupKey }) => !!complexGroupKey,
+      ({ complexGroupKey }) =>
+        complexGroupKey === 'settlementBank' || complexGroupKey === 'invoice',
     );
 
     expect(fields).toHaveLength(12);
+    expect(
+      fields.some(
+        ({ complexGroupKey }) =>
+          complexGroupKey === 'partyContact' || complexGroupKey === 'shipping',
+      ),
+    ).toBe(false);
     expect(
       fields.every(
         ({ table, export: exported }) => table === false && exported === false,

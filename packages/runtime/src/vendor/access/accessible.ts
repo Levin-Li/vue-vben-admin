@@ -28,6 +28,30 @@ async function generateAccessible(
   // 生成路由
   const accessibleRoutes = await generateRoutes(mode, options);
 
+  // Backend menus supply only authorized routes; carry declared frontend aliases
+  // onto those routes rather than registering aliases for unauthorized pages.
+  const aliases = new Map<string, string | string[]>();
+  const collectAliases = (routes: RouteRecordRaw[], parent = '') => {
+    for (const route of routes) {
+      const path = route.path.startsWith('/')
+        ? route.path
+        : `${parent}/${route.path}`.replaceAll(/\/{2,}/g, '/');
+      if (route.alias) aliases.set(path, route.alias);
+      if (route.children) collectAliases(route.children, path);
+    }
+  };
+  collectAliases(options.routes);
+  const applyAliases = (routes: RouteRecordRaw[], parent = '') => {
+    for (const route of routes) {
+      const path = route.path.startsWith('/')
+        ? route.path
+        : `${parent}/${route.path}`.replaceAll(/\/{2,}/g, '/');
+      if (aliases.has(path) && !route.alias) route.alias = aliases.get(path);
+      if (route.children) applyAliases(route.children, path);
+    }
+  };
+  applyAliases(accessibleRoutes);
+
   const root = router.getRoutes().find((item) => item.path === '/');
 
   // 获取已有的路由名称列表

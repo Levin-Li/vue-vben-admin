@@ -3,26 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { customerPageCrudConfig } from '../config';
 
-const { optionLoaderCalls, orgOptions, optionSearchTerms } = vi.hoisted(() => ({
-  optionLoaderCalls: [] as any[],
-  orgOptions: [] as any[],
-  optionSearchTerms: [] as string[],
-}));
-
 vi.mock('../../../api/customer-service', () => ({ customerService: {} }));
 vi.mock('../../api-module', () => ({
   buildDictOptionsLoader: () => async () => [],
   buildEnumOptionsLoader: () => async () => [],
-  buildModuleOptionsLoader: (...args: any[]) => {
-    optionLoaderCalls.push(args);
-    return async (keyword?: string) => {
-      if (args[0] === '/Org/list') {
-        optionSearchTerms.push(keyword ?? '');
-        return args[3].pageIndex === 1 ? orgOptions : [];
-      }
-      return [];
-    };
-  },
+  buildModuleOptionsLoader: () => async () => [],
   confidentialLevelOptionsLoader: async () => [],
   DEFAULT_CRUD_MODAL_WIDTH: 960,
   tenantOptionsLoader: async () => [],
@@ -31,6 +16,68 @@ vi.mock('../../api-module', () => ({
 }));
 
 describe('独立客户页面', () => {
+  it('客户完整名称、简称和公共资料可独立维护', () => {
+    for (const key of [
+      'name',
+      'shortName',
+      'industries',
+      'investmentRelation',
+      'groupName',
+      'expiredTime',
+    ]) {
+      const field = customerPageCrudConfig.fields.find(
+        (item) => item.key === key,
+      );
+      expect(field, key).toBeDefined();
+      expect(field?.form).not.toBe(false);
+      expect(field?.formEdit).not.toBe(false);
+    }
+    const fullName = customerPageCrudConfig.fields.find(
+      (item) => item.key === 'name',
+    );
+    expect(fullName).toMatchObject({ required: true, table: true });
+    expect(
+      customerPageCrudConfig.fields.some((item) => item.key === 'displayName'),
+    ).toBe(false);
+    expect(
+      customerPageCrudConfig.fields.find((item) => item.key === 'containsName'),
+    ).toMatchObject({ search: true, form: false });
+    expect(
+      customerPageCrudConfig.fields.some((item) => item.key === 'customerName'),
+    ).toBe(false);
+  });
+  it('对方联系人和财务、收寄资料使用独立的授权资料组', () => {
+    const groups = customerPageCrudConfig.complexGroups || [];
+    expect(
+      groups.filter((group) => group.submitKey === 'contactInfo'),
+    ).toHaveLength(1);
+    expect(
+      groups.filter((group) => group.submitKey === 'shippingInfo'),
+    ).toHaveLength(1);
+    expect(groups.map((group) => group.submitKey)).toEqual(
+      expect.arrayContaining([
+        'bankAccount',
+        'invoiceInfo',
+        'contactInfo',
+        'shippingInfo',
+      ]),
+    );
+    for (const key of [
+      'partyContactName',
+      'shippingAddress',
+      'settlementBankAccount',
+      'invoiceTaxNo',
+    ]) {
+      expect(
+        customerPageCrudConfig.fields.find((field) => field.key === key),
+      ).toMatchObject({ table: false, export: false });
+    }
+    expect(
+      customerPageCrudConfig.fields.some(
+        (field) => field.key === 'contactName',
+      ),
+    ).toBe(true);
+  });
   it('使用客户业务保存接口并独立维护联系人和运营字段', () => {
     const field = (key: string) =>
       customerPageCrudConfig.fields.find((item) => item.key === key);
@@ -49,36 +96,21 @@ describe('独立客户页面', () => {
       table: true,
     });
     expect(field('type')).toMatchObject({ disabledOnEdit: true });
-    expect(field('parentOrgId')).toMatchObject({
-      label: '新客户组织的内部父级',
-      formCreate: true,
-      formEdit: false,
-      type: 'org-tree-select',
-    });
+    expect(field('parentOrgId')).toBeUndefined();
     expect(field('subjectOrgId')).toMatchObject({
       label: '主体方组织',
       formCreate: false,
       disabledOnEdit: true,
       omitOnEdit: true,
     });
-    expect(field('parentOrgId')?.required).not.toBe(true);
+    expect(field('businessOrgId')).toMatchObject({ label: '商务对接部门' });
+    expect(field('businessUserId')).toMatchObject({ label: '商务对接人' });
     expect(field('tenantId')).toMatchObject({
       visibleForPlatformUser: true,
       disabledOnEdit: true,
     });
     expect(field('tenantId')?.omitOnEdit).not.toBe(true);
     expect(field('ownerId')).toBeUndefined();
-    expect(optionLoaderCalls).toContainEqual([
-      '/Org/list',
-      'name',
-      'id',
-      {
-        pageIndex: 1,
-        pageSize: 500,
-        inType: ['Company', 'Branch', 'Department', 'Team', 'Group', 'TempOrg'],
-      },
-      'containsName',
-    ]);
     expect(field('channelPartnerId')).toMatchObject({ disabledOnEdit: true });
     expect(field('channelPartnerName')).toMatchObject({
       form: false,
@@ -102,38 +134,16 @@ describe('独立客户页面', () => {
     expect(field('subCategory')).toBeUndefined();
   });
 
-  it('无论是否选择内部父级都要求客户名称', () => {
+  it('普通新增与新增我的都要求完整名称', () => {
     const nameField = customerPageCrudConfig.fields.find(
-      (item) => item.key === 'customerName',
+      (item) => item.key === 'name',
     );
     expect(nameField).toMatchObject({
-      formCreate: true,
-      formEdit: false,
       required: true,
     });
-    expect(nameField?.validator?.('', {})).toBe('请输入名称');
+    expect(nameField?.validator?.('', {})).toBe('请输入完整名称');
     expect(nameField?.validator?.('甲客户', {})).toBeUndefined();
-    expect(nameField?.validator?.('   ', {})).toBe('请输入名称');
-    expect(nameField?.validator?.('', { parentOrgId: 'internal-org' })).toBe(
-      '请输入名称',
-    );
-  });
-
-  it('内部父级选项保留远程搜索，并排除外部节点', async () => {
-    orgOptions.splice(
-      0,
-      orgOptions.length,
-      { label: '总部', value: 'internal-1', type: 'Company' },
-      { label: '其他客户', value: 'external-1', type: 'Customer' },
-    );
-    const field = customerPageCrudConfig.fields.find(
-      (item) => item.key === 'parentOrgId',
-    );
-    expect(await field?.loadOptions?.('总部')).toEqual([
-      { label: '内部父组织 · 总部', value: 'internal-1', type: 'Company' },
-    ]);
-    expect(optionSearchTerms).toContain('总部');
-    orgOptions.length = 0;
+    expect(nameField?.validator?.('   ', {})).toBe('请输入完整名称');
   });
 
   it('渠道客户要求渠道伙伴，直接客户提交时移除该关联', async () => {
@@ -170,7 +180,7 @@ describe('独立客户页面', () => {
     };
     for (const party of [
       'subject',
-      'sales',
+      'business',
       'presales',
       'aftersales',
       'finance',
@@ -186,18 +196,14 @@ describe('独立客户页面', () => {
       true,
     );
   });
-  it('客户业务名称用于列表和详情识别，仍仅新增可写且不生成无效查询', () => {
+  it('客户完整名称用于列表和详情识别，旧组织名称字段不再作为新增输入', () => {
     expect(
-      customerPageCrudConfig.fields.find(
-        (field) => field.key === 'customerName',
-      ),
+      customerPageCrudConfig.fields.find((field) => field.key === 'name'),
     ).toMatchObject({
-      label: '名称',
-      formCreate: true,
-      formEdit: false,
+      label: '完整名称',
+      required: true,
       table: true,
       detail: true,
-      search: false,
       width: 220,
     });
   });

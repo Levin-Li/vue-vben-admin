@@ -31,13 +31,25 @@ export const settlementFinancialPermission = buildApiMethodPermissions(
   settlementOrderService,
   'readFinancialDetails',
 );
-const partnerOptions = buildModuleOptionsLoader(
-  '/Partner/list',
-  'displayName',
-  'id',
-  { pageIndex: 1, pageSize: 50 },
-  'containsDisplayName',
-);
+// 各子类型独立授权；没有某类列表权限时仍保留其他已授权候选。
+const targetLoaders = [
+  ['/Customer/list', '客户'],
+  ['/SupplierPartner/list', '供应商'],
+  ['/ChannelPartner/list', '渠道'],
+].map(([path, label]) => ({
+  label,
+  load: buildModuleOptionsLoader(path!, 'name', 'id',
+    { pageIndex: 1, pageSize: 50 }, 'containsName'),
+}));
+
+async function partnerOptions(keyword?: string) {
+  const results = await Promise.allSettled(targetLoaders.map(({ load }) => load(keyword)));
+  const options = results.flatMap((result, index) => result.status === 'fulfilled'
+    ? result.value.map((option) => ({ ...option, label: `${targetLoaders[index]!.label} · ${option.label}` }))
+    : []);
+  if (results.every((result) => result.status === 'rejected')) throw new Error('结算目标加载失败');
+  return options;
+}
 
 // 平台跨租户候选由受控接口按已授权组织和目标租户限定。
 async function loadTenantEntityOptions(
@@ -96,8 +108,8 @@ export function validateSettlementSave(
       payeeLegalSubjectId: _payeeLegalSubjectId,
       payeeOrgId: _payeeOrgId,
       payeeUserId: _payeeUserId,
-      salesOrgId: _salesOrgId,
-      salesUserId: _salesUserId,
+      businessOrgId: _businessOrgId,
+      businessUserId: _businessUserId,
       financeOrgId: _financeOrgId,
       financeUserId: _financeUserId,
       ...editable
@@ -191,10 +203,10 @@ export function buildSettlementPageConfig(
             tenantId,
             keyword,
             '/Partner/list',
-            'displayName',
-            'containsDisplayName',
+            'name',
+            'containsName',
           ),
-        label: '合作伙伴',
+        label: '结算目标',
         type: 'select',
         loadOptions: partnerOptions,
         remoteSearch: true,
@@ -254,10 +266,10 @@ export function buildSettlementPageConfig(
         layoutGroup: 'identity',
         layoutOrder: 30,
       },
-      // 销售和财务属于付款方；负责人候选不按同方组织过滤。
+      // 商务和财务属于我方；负责人候选不按同方组织过滤。
       {
-        key: 'salesOrgId',
-        label: '销售组织',
+        key: 'businessOrgId',
+        label: '商务对接部门',
         type: 'org-tree-select',
         required: true,
         disabledOnEdit: true,
@@ -266,12 +278,13 @@ export function buildSettlementPageConfig(
         table: true,
         width: 180,
         layoutGroup: 'participants',
-        layoutGroupTitle: '付款方销售与财务',
+        layoutGroupTitle: '我方商务与财务',
         layoutOrder: 10,
       },
       {
-        key: 'salesUserId',
-        label: '销售负责人',
+        key: 'businessUserId',
+        label: '商务对接人',
+        tableValue: (record: Record<string, any>) => record.businessUser?.name || '',
         type: 'user-tree-select',
         disabledOnEdit: true,
         omitOnEdit: true,
@@ -297,6 +310,7 @@ export function buildSettlementPageConfig(
       {
         key: 'financeUserId',
         label: '财务负责人',
+        tableValue: (record: Record<string, any>) => record.financeUser?.name || '',
         type: 'user-tree-select',
         disabledOnEdit: true,
         omitOnEdit: true,
@@ -306,7 +320,7 @@ export function buildSettlementPageConfig(
         layoutGroup: 'participants',
         layoutOrder: 40,
       },
-      // 收款方组织及对接人独立于付款方销售、财务归属。
+      // 收款方组织及对接人独立于我方商务、财务归属。
       {
         key: 'payeeOrgId',
         label: '收款方组织',
@@ -324,6 +338,7 @@ export function buildSettlementPageConfig(
       {
         key: 'payeeUserId',
         label: '收款方对接人',
+        tableValue: (record: Record<string, any>) => record.payeeUser?.name || '',
         type: 'user-tree-select',
         disabledOnEdit: true,
         omitOnEdit: true,

@@ -16,6 +16,8 @@ export interface SettlementRecord {
     operator?: string;
     remark?: string;
   }[];
+  businessOrgId?: string;
+  businessUserId?: string;
   currencyCode?: string;
   endTime?: string;
   financeOrgId?: string;
@@ -33,8 +35,6 @@ export interface SettlementRecord {
   payerInvoiceInfo?: Record<string, unknown>;
   payerLegalSubjectId?: string;
   paymentDocuments?: Record<string, unknown>[];
-  salesOrgId?: string;
-  salesUserId?: string;
   settlementAmount?: number | string;
   settlementContent?: Record<string, unknown>;
   startTime?: string;
@@ -46,6 +46,7 @@ export interface SettlementCommand {
   id: string;
   optimisticLock: number;
   remark?: string;
+  tenantId?: string;
 }
 export interface SettlementPaymentCommand extends SettlementCommand {
   amount: string;
@@ -54,6 +55,8 @@ export interface SettlementPaymentCommand extends SettlementCommand {
   requestKey: string;
 }
 export interface SettlementSaveRequest {
+  businessOrgId?: string;
+  businessUserId?: string;
   currencyCode?: string;
   endTime: string;
   financeOrgId?: string;
@@ -65,8 +68,6 @@ export interface SettlementSaveRequest {
   payeeOrgId?: string;
   payeeUserId?: string;
   payerLegalSubjectId?: string;
-  salesOrgId?: string;
-  salesUserId?: string;
   settlementAmount: number | string;
   settlementContent: Record<string, unknown>;
   startTime: string;
@@ -75,8 +76,8 @@ export interface SettlementSaveRequest {
 
 // 流程命令仅保留定位、版本和本动作字段，避免透传列表记录或目标状态。
 export function settlementCommand(data: SettlementCommand): SettlementCommand {
-  const { id, optimisticLock, remark } = data;
-  return { id, optimisticLock, remark };
+  const { id, optimisticLock, remark, tenantId } = data;
+  return { id, optimisticLock, remark, tenantId };
 }
 @Service({
   basePath: '/SettlementOrder',
@@ -218,13 +219,13 @@ export class SettlementOrderService extends RequestService {
     action: '查看结算资料',
   })
   async readFinancialDetails(
-    payload: Pick<SettlementCommand, 'id'>,
+    payload: Pick<SettlementCommand, 'id' | 'tenantId'>,
     options?: any,
   ): Promise<SettlementRecord> {
-    // 财务范围由服务端会话判定，查询参数只提交单据 ID。
+    // 租户仅用于定位，服务端仍按当前会话验证租户和数据范围。
     return this.get('readFinancialDetails', {
       ...options,
-      params: { id: payload.id },
+      params: { id: payload.id, tenantId: payload.tenantId },
     });
   }
   @CRUD.Op({
@@ -257,7 +258,7 @@ export class SettlementOrderService extends RequestService {
     action: '查看详情',
   })
   async retrieve(
-    payload: Pick<SettlementCommand, 'id'>,
+    payload: Pick<SettlementCommand, 'id' | 'tenantId'>,
     options?: any,
   ): Promise<SettlementRecord> {
     return this.get('retrieve', { ...options, params: payload });

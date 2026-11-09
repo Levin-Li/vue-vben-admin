@@ -35,7 +35,7 @@ describe('crud form layout', () => {
 
     expect(source).toContain('style.gridColumn');
     expect(source).toMatch(
-      /'vben-crud-form-item-new-row':\s*!quickFillActive\s*&&\s*field.layoutNewRow/,
+      /'vben-crud-form-item-new-row':\s*!compactFormActive\s*&&\s*field.layoutNewRow/,
     );
     expect(source).toContain('grid-column-start: 1 !important');
     expect(spanClassBlock).toContain('shouldFormItemSpanTwoColumns(field)');
@@ -147,7 +147,7 @@ describe('crud form layout', () => {
 
     expect(crudSource.match(/<UserOrgSelector/g)).toHaveLength(2);
     expect(crudSource.match(/load-on-initial-value/g)).toHaveLength(2);
-    expect(crudSource.match(/:selectable-types="\['org'\]"/g)).toHaveLength(2);
+    expect(crudSource.match(/:selectable-types="\[\s*(?:item\.)?field\.type === 'user-tree-select' \? 'user' : 'org',?\s*\]"/g)).toHaveLength(2);
     expect(selectorSource).toContain(
       'popup-class-name="user-org-selector__dropdown"',
     );

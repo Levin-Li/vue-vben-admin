@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { userSettingService } from '../../api/user-setting-service';
+import { userPersonalSettingService } from '../../api/user-personal-setting-service';
 import SettingForTenantPage from '../setting-for-tenant/index.vue';
 </script>
 
@@ -7,7 +7,7 @@ import SettingForTenantPage from '../setting-for-tenant/index.vue';
   <SettingForTenantPage
     empty-description="暂无我的设置"
     load-error-message="我的设置加载失败"
-    :service="userSettingService"
+    :service="userPersonalSettingService"
     title="我的设置"
   />
 </template>

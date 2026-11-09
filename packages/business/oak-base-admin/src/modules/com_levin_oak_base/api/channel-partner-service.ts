@@ -39,6 +39,15 @@ export class ChannelPartnerService extends RequestService {
     return this.post('saveChannelPartner', { ...options, data });
   }
 
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-渠道伙伴',
+    action: '新增我的渠道伙伴',
+  })
+  async createMine(data?: any, options?: any) {
+    return this.post('saveMyChannelPartner', { ...options, data });
+  }
+
   @CRUD.ListTable({
     refEntityClass: 'com.levin.oak.base.entities.ChannelPartner',
   })
@@ -58,6 +67,15 @@ export class ChannelPartnerService extends RequestService {
   })
   quickAdd(data: QuickAddPayload) {
     return this.post<QuickAddResult>('quickAdd', { data });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-渠道伙伴',
+    action: '快捷添加',
+  })
+  quickAddMine(data: QuickAddPayload) {
+    return this.post<QuickAddResult>('quickAddMine', { data });
   }
 
   @CRUD.Op({ confirmText: 'None' })

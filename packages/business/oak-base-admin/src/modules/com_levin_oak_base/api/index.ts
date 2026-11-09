@@ -72,11 +72,12 @@ export * from './ticket-queue-service';
 export * from './ticket-service';
 export * from './traffic-control-rule-service';
 export * from './ui-setting-service';
+export * from './data-masking-setting-service';
 export * from './url-ex-acl-service';
 export * from './user-message-service';
 export * from './user-service';
 
-export * from './user-setting-service';
+export * from './user-personal-setting-service';
 export * from './workflow-definition-service';
 export * from './workflow-definition-version-service';
 export * from './workflow-expense-service';

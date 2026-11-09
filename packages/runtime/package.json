@@ -1,6 +1,6 @@
 {
   "name": "@vben/runtime",
-  "version": "6.0.6",
+  "version": "6.0.7",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
     "dist",
     "src",
     "docs",
+    "!docs/聚合包使用与迁移指南.md",
     "package-version.mjs",
     "package-version.d.mts"
   ],
@@ -94,6 +95,7 @@
     "@vben-core/foundation": "workspace:*",
     "@vueuse/core": "catalog:",
     "@vueuse/motion": "catalog:",
+    "@vxe-ui/core": "catalog:",
     "axios": "catalog:",
     "echarts": "catalog:",
     "pinia": "catalog:",

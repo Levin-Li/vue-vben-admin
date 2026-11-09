@@ -78,7 +78,7 @@ describe('电子合同新增表单专用字段', () => {
       data: { items: [{ id: 'customer-1', name: '客户甲' }] },
     });
     mocks.supplierList.mockResolvedValue({
-      data: { items: [{ id: 'supplier-1', displayName: '供应商乙' }] },
+      data: { items: [{ id: 'supplier-1', name: '供应商乙' }] },
     });
     const wrapper = mount(ContractCounterpartyPicker, {
       props: { kind: 'Customer', modelValue: 'customer-1' },

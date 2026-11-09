@@ -3,7 +3,7 @@ import { moduleFetchCrudList } from '../api-module';
 const PAGE_SIZE = 50;
 
 type ChannelPartner = {
-  displayName?: string;
+  name?: string;
   enable?: boolean;
   id?: number | string;
   legalSubjectName?: string;
@@ -22,7 +22,7 @@ export async function loadChannelPartnerPage(
     '/ChannelPartner/list',
     {
       enable: true,
-      containsDisplayName: keyword.trim() || undefined,
+      containsName: keyword.trim() || undefined,
       pageIndex,
       pageSize: PAGE_SIZE,
       tenantId,
@@ -42,7 +42,7 @@ export async function loadChannelPartnerPage(
             partner.tenantId === String(tenantId)),
       )
       .map((partner) => ({
-        label: `${partner.displayName || `渠道伙伴 ${partner.id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '渠道'}`,
+        label: `${partner.name || `渠道伙伴 ${partner.id}`} · 组织 ${partner.subjectOrgId || '未配置'} · ${partner.type || '渠道'}`,
         value: partner.id as number | string,
       })),
   };

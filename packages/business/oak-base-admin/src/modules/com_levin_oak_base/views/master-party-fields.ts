@@ -6,13 +6,13 @@ type Party =
   | 'finance'
   | 'maintain'
   | 'presales'
-  | 'sales'
+  | 'business'
   | 'subject';
 type PartyDefinition = readonly [Party, string];
 
 export const customerPartnerParties: readonly PartyDefinition[] = [
   ['subject', '主体方'],
-  ['sales', '销售'],
+  ['business', '商务'],
   ['presales', '售前'],
   ['aftersales', '售后'],
   ['finance', '财务'],
@@ -33,7 +33,7 @@ export function buildMasterPartyFields(
     return [
       {
         key: `${party}OrgId`,
-        label: `${label}组织`,
+        label: party === 'business' ? '商务对接部门' : `${label}组织`,
         layoutGroup: 'participants',
         layoutGroupTitle: '参与组织与负责人',
         layoutOrder: index * 20 + 10,
@@ -49,7 +49,7 @@ export function buildMasterPartyFields(
       },
       {
         key: `${party}UserId`,
-        label: `${label}负责人`,
+        label: party === 'business' ? '商务对接人' : `${label}负责人`,
         layoutGroup: 'participants',
         layoutGroupTitle: '参与组织与负责人',
         layoutOrder: index * 20 + 20,
@@ -59,7 +59,7 @@ export function buildMasterPartyFields(
         table: true,
         width: 160,
         tableValue: (record: Record<string, any>) =>
-          record[`${party}User`]?.name || record[`${party}UserId`] || '',
+          record[`${party}User`]?.name || '',
       },
     ];
   });

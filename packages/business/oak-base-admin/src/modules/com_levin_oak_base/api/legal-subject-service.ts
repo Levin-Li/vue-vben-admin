@@ -39,6 +39,15 @@ export class LegalSubjectService extends RequestService {
     return this.post('create', { ...options, data });
   }
 
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-法律主体',
+    action: '新增我的法律主体',
+  })
+  async createMine(data?: any, options?: any) {
+    return this.post('createMine', { ...options, data });
+  }
+
   @CRUD.Op()
   @ResAuthorize({
     domain: 'com.levin.oak.base',
