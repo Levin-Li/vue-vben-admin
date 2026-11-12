@@ -7,6 +7,8 @@
 
 [新租户管理员创建指南](docs/tenant-admin-creation.md)说明管理员创建与验证步骤。
 
+[用户个性化设置使用指南](docs/用户个性化设置使用指南.md)说明本人范围、加载失败恢复与操作步骤。
+
 工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。
 
 邮件、个人消息、支持邮箱、工单与通知投递：[工作台使用指南](docs/communication-workbench.md)。

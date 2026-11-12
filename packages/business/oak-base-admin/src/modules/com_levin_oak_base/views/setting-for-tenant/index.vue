@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { TenantSettingItem } from './setting-for-tenant';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -7,6 +6,10 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/runtime/icons';
 
+import {
+  getApiErrorMessage,
+  notifyApiErrorOnce,
+} from '@levin/admin-framework/framework-commons/app/api';
 import {
   Button,
   Empty,
@@ -20,6 +23,7 @@ import {
 
 import { settingService } from '../../api/setting-service';
 import SettingValueContentField from '../setting-value-content-field.vue';
+import { loadSettingListWithRetry } from './load-setting-list';
 import {
   buildTenantSettingCategories,
   buildTenantSettingUpdatePayload,
@@ -161,21 +165,32 @@ async function loadSettings() {
   errorMessage.value = '';
 
   try {
-    const result = await (props.service || settingService).list({
-      enable: true,
-      isContainsPublicData: true,
-      orderBy: 'orderCode',
-      orderDir: 'Asc',
-      pageIndex: 1,
-      pageSize: 2000,
-    });
+    // 列表读取无写入副作用，暂时性网络或服务错误只补发一次；中间失败保持静默。
+    const result = await loadSettingListWithRetry(() =>
+      (props.service || settingService).list(
+        {
+          enable: true,
+          isContainsPublicData: true,
+          orderBy: 'orderCode',
+          orderDir: 'Asc',
+          pageIndex: 1,
+          pageSize: 2000,
+        },
+        { __silentError: true },
+      ),
+    );
 
     settings.value = normalizeSettingList(result);
     resetDraftState(settings.value);
     ensureActiveTabs();
   } catch (error) {
     console.error(error);
-    errorMessage.value = props.loadErrorMessage;
+    // 只展示服务端面向用户的提示，不把异常详情或堆栈写入页面。
+    const publicMessage = getApiErrorMessage(error);
+    errorMessage.value =
+      publicMessage === '发生服务器异常'
+        ? props.loadErrorMessage
+        : `${props.loadErrorMessage}：${publicMessage}`;
     notifyApiErrorOnce(error);
   } finally {
     loading.value = false;
