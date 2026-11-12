@@ -128,7 +128,7 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     {
       key: 'name',
       label: '完整名称',
-      help: '客户合作关系的完整名称，同一租户内不可重复。',
+      help: '客户合作关系的完整名称，不可重复。',
       layoutGroup: 'basic',
       layoutOrder: 15,
       required: true,

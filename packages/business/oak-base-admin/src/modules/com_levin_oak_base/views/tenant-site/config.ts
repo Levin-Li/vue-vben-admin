@@ -58,7 +58,8 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'orgId',
-      label: '所属组织',
+      label: '登录组织范围',
+      help: '未设置时不限制组织；设置后，仅该组织及其下级组织的租户用户可从此域名登录。平台账号不受此限制。',
       layoutGroup: 'ownership',
       layoutGroupTitle: '归属信息',
       layoutOrder: 15,

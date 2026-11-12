@@ -65,7 +65,8 @@ describe('tenant page configuration', () => {
     );
   });
 
-  it('asks for an initial administrator secret only when creating a tenant', () => {
+  it('uses the default admin login and checks the initial secret only when creating a tenant', () => {
+    expect(tenantPageCrudConfig.fields.some((field) => field.key === 'loginName')).toBe(false);
     expect(tenantPageCrudConfig.fields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -75,8 +76,18 @@ describe('tenant page configuration', () => {
           detail: false,
           required: true,
           type: 'password',
+          maxLength: 128,
         }),
       ]),
     );
+
+    const password = tenantPageCrudConfig.fields.find((field) => field.key === 'adminInitialPassword');
+    expect(password?.validator?.('Aa123', {})).toContain('6至128字符');
+    expect(password?.validator?.('aaaaaa1', {})).toContain('大写字母');
+    expect(password?.validator?.('AAAAAA1', {})).toContain('小写字母');
+    expect(password?.validator?.('AaBbCc', {})).toContain('数字');
+    expect(password?.validator?.('Aa1234', {})).toBeUndefined();
+    expect(password?.validator?.(`Aa1${'x'.repeat(125)}`, {})).toBeUndefined();
+    expect(password?.validator?.(`Aa1${'x'.repeat(126)}`, {})).toContain('6至128字符');
   });
 });

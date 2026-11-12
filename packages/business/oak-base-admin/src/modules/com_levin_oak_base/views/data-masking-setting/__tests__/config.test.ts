@@ -31,8 +31,8 @@ describe('数据脱敏设置页面', () => {
       ).toBeDefined();
     }
     const rule = {
-      outputOperation: 'Order.list',
-      outputFieldPath: 'data.items[*].id',
+      entityClass: 'example.Order',
+      fieldName: 'id',
       treatment: 'HIDE',
     };
     const payload = { valueContent: [rule] };

@@ -239,7 +239,7 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
   {
     key: 'name',
     label: '完整名称',
-    help: '合作伙伴的完整名称，同一租户内不可重复。',
+    help: '合作伙伴的完整名称，不可重复。',
     required: true,
     table: true,
     layoutGroup: 'basic',

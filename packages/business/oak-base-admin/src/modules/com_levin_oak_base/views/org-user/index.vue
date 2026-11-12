@@ -152,6 +152,8 @@ const orgSubmitting = ref(false);
 const orgKeyword = ref('');
 const selectedOrgId = ref('');
 const hoveredOrgId = ref('');
+const confirmingOrgId = ref('');
+const orgEditLoading = ref(false);
 const expandedOrgKeys = ref<string[]>([]);
 const orgTreeData = ref<OrgTreeNode[]>([]);
 const orgTypeOptions = ref<Array<{ label: string; value: string }>>([]);
@@ -723,7 +725,7 @@ async function openEditOrgModal(id = selectedOrgId.value) {
   selectedOrgId.value = id;
   orgModalMode.value = 'edit';
   orgBriefMode.value = true;
-  orgTreeLoading.value = true;
+  orgEditLoading.value = true;
 
   // 详情请求显式携带树节点租户，供后端校验组织归属。
   const tenantId = getOrgTenantId(id);
@@ -743,8 +745,10 @@ async function openEditOrgModal(id = selectedOrgId.value) {
       type: org?.type || 'Department',
     });
     orgModalOpen.value = true;
+  } catch {
+    message.error('组织详情加载失败，请重试');
   } finally {
-    orgTreeLoading.value = false;
+    orgEditLoading.value = false;
   }
 }
 
@@ -944,7 +948,8 @@ onMounted(async () => {
               <div
                 :class="{
                   'user-org-tree-node--actions-visible':
-                    hoveredOrgId === String(node.key),
+                    hoveredOrgId === String(node.key) ||
+                    confirmingOrgId === String(node.key),
                 }"
                 class="user-org-tree-node"
                 tabindex="0"
@@ -965,10 +970,7 @@ onMounted(async () => {
                   </Tooltip>
                   <span class="min-w-0 truncate">{{ node.title }}</span>
                 </span>
-                <span
-                  v-if="!node.virtual && hoveredOrgId === String(node.key)"
-                  class="user-org-tree-actions"
-                >
+                <span v-if="!node.virtual" class="user-org-tree-actions">
                   <Tooltip title="新增下级组织">
                     <Button
                       aria-label="新增下级组织"
@@ -982,6 +984,9 @@ onMounted(async () => {
                   <Tooltip title="编辑组织">
                     <Button
                       aria-label="编辑组织"
+                      :loading="
+                        orgEditLoading && selectedOrgId === String(node.key)
+                      "
                       size="small"
                       type="text"
                       @click.stop="openEditOrgModal(String(node.key))"
@@ -992,6 +997,9 @@ onMounted(async () => {
                   <Popconfirm
                     title="确认删除当前组织节点吗？"
                     @confirm="deleteOrg(String(node.key))"
+                    @open-change="
+                      confirmingOrgId = $event ? String(node.key) : ''
+                    "
                   >
                     <Tooltip title="删除组织">
                       <Button
@@ -1345,6 +1353,13 @@ onMounted(async () => {
   background: hsl(var(--popover));
   box-shadow: 0 4px 10px hsl(var(--foreground) / 12%);
   transform: translateY(-50%);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.user-org-tree-node--actions-visible .user-org-tree-actions {
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .user-org-tree-actions :deep(.ant-btn) {

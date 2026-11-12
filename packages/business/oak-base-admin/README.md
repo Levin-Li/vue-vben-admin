@@ -1,4 +1,8 @@
 # @levin/oak-base-admin
+
+[租户站点登录组织范围指南](docs/tenant-site-org-login.md)说明“登录组织范围”字段与验证步骤。
+
+[新租户管理员创建指南](docs/tenant-admin-creation.md)说明创建表单、账号口令规则与验证步骤。
 [用户个性化设置使用指南](docs/用户个性化设置使用指南.md)说明本人范围、操作与旧菜单地址。
 
 

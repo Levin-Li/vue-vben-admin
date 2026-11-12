@@ -499,7 +499,7 @@ catalogs:
       specifier: 4.12.35
       version: 4.12.35
     vxe-table:
-      specifier: ^4.17.46
+      specifier: 4.17.48
       version: 4.17.48
     watermark-js-plus:
       specifier: ^1.6.3

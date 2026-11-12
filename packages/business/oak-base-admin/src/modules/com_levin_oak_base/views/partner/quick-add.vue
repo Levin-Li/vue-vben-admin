@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { SelectOption } from '@levin/admin-framework';
 
 import type { BusinessRegistryCandidate } from '../../api/business-registry-service';
@@ -10,14 +9,23 @@ import type {
 
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 
-import { Plus } from '@vben/runtime/icons';
+import { IconifyIcon, Plus } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
 
 import { UserOrgSelector } from '@levin/admin-framework';
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
-import { Button, Form, Input, message, Modal, Select } from 'ant-design-vue';
+import {
+  Button,
+  Form,
+  Input,
+  message,
+  Modal,
+  Select,
+  Tooltip,
+} from 'ant-design-vue';
 
 import { businessRegistryService } from '../../api/business-registry-service';
 import { channelPartnerService } from '../../api/channel-partner-service';
@@ -35,6 +43,9 @@ const props = defineProps<{
   visible?: boolean;
 }>();
 
+const NOT_LEGAL_SUBJECT_HELP =
+  '“非法人”指没有法人资格，不是“非法经营”。个人独资企业、合伙企业（含有限合伙）属于非法人组织，可以依法经营；GP/LP 是合伙人身份，不是主体类型。普通个人不属于非法人组织；个体工商户请选择“个体户”。此快捷新增暂不支持自然人。';
+
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
 const platformUser = computed(() => isPlatformUser(userStore.userInfo));
@@ -50,9 +61,15 @@ const service = computed(() => {
 // 平台用户还需读取租户与内部组织候选；缺少候选权限时入口无法完成归属选择。
 const canCreate = computed(
   () =>
-    hasPermission(buildApiMethodPermissions(service.value, adminUser.value ? 'quickAdd' : 'quickAddMine')) &&
+    hasPermission(
+      buildApiMethodPermissions(
+        service.value,
+        adminUser.value ? 'quickAdd' : 'quickAddMine',
+      ),
+    ) &&
     hasPermission(buildApiMethodPermissions(orgService, 'list')) &&
-    (!platformUser.value || hasPermission(buildApiMethodPermissions(tenantService, 'list'))),
+    (!platformUser.value ||
+      hasPermission(buildApiMethodPermissions(tenantService, 'list'))),
 );
 const canSearch = computed(
   () =>
@@ -284,8 +301,7 @@ async function search() {
     if (candidates.value.length === 0)
       message.info('未查到主体，请手工填写主体名称和统一社会信用代码');
   } catch (error_) {
-    if (generation === requestGeneration)
-      notifyApiErrorOnce(error_);
+    if (generation === requestGeneration) notifyApiErrorOnce(error_);
   } finally {
     if (generation === requestGeneration) searching.value = false;
   }
@@ -559,13 +575,34 @@ const channelTypes = [
             }}
           </div>
         </Form.Item>
-        <Form.Item label="主体类型" required>
+        <Form.Item required>
+          <template #label>
+            <span class="inline-flex items-center gap-1">
+              主体类型
+              <Tooltip
+                :title="NOT_LEGAL_SUBJECT_HELP"
+                :trigger="['hover', 'focus']"
+              >
+                <button
+                  aria-label="主体类型说明"
+                  class="inline-flex items-center text-gray-500"
+                  type="button"
+                >
+                  <IconifyIcon icon="lucide:circle-help" />
+                </button>
+              </Tooltip>
+            </span>
+          </template>
           <Select
             v-model:value="form.subjectType"
             :options="[
               { label: '法人（公司、机关事业单位）', value: 'Legal' },
               { label: '个体户', value: 'Individual' },
-              { label: '非法人组织', value: 'NotLegal' },
+              {
+                label: '非法人组织',
+                title: NOT_LEGAL_SUBJECT_HELP,
+                value: 'NotLegal',
+              },
             ]"
             class="w-full"
           />

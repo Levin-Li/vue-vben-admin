@@ -23,6 +23,23 @@ function flattenCrudRoutes(children: any[] | undefined): any[] {
 }
 
 describe('oak base admin routes', () => {
+  it('将两项设置的授权菜单放入既有业务分组', () => {
+    for (const [resource, groupTitle, groupIcon] of [
+      ['UserPersonalSetting', '用户&权限', 'lucide:shield-check'],
+      ['DataMaskingSetting', '基础&设置', 'lucide:settings-2'],
+    ]) {
+      const mapping = oakBaseAdminBackendRouteMappings.find(
+        (item) => item.resource === resource,
+      );
+      expect(mapping?.menuGroup).toEqual({
+        icon: groupIcon,
+        parentPath: '/clob/V1/index',
+        path: `/clob/V1/index/groups/${groupTitle}`,
+        title: groupTitle,
+      });
+      expect(mapping?.path).toBe(`/clob/V1/${resource}`);
+    }
+  });
   it('keeps standard CRUD tabs mounted across tab switches', () => {
     const root = createOakBaseAdminModule().routes?.[0];
     const setting = flattenCrudRoutes(root?.children).find(

@@ -50,6 +50,16 @@ describe('组织与用户页面组织树', () => {
     expect(source).toContain('aria-label="删除组织"');
     expect(source).toContain('tabindex="0"');
     expect(source).toContain('@focusout="handleOrgNodeFocusOut"');
+    expect(source).toContain('v-if="!node.virtual"');
+    expect(source).toContain('confirmingOrgId === String(node.key)');
+    expect(source).toMatch(
+      /@open-change="\s*confirmingOrgId = \$event \? String\(node\.key\) : ''\s*"/,
+    );
+    expect(source).toContain(
+      '.user-org-tree-node--actions-visible .user-org-tree-actions',
+    );
+    expect(source).toContain('visibility: hidden;');
+    expect(source).toContain('visibility: visible;');
   });
 
   it('为租户组织维护请求传递树节点租户上下文', () => {

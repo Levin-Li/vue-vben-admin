@@ -15,6 +15,18 @@ export interface MaskingOperationCatalogItem {
   responseFields: string[];
 }
 
+export interface MaskingEntityCatalogItem {
+  ambiguousOperations: string[];
+  coverage: {
+    methods: string[];
+    operation: string;
+    outputFieldPath: string;
+    paths: string[];
+  }[];
+  entityClass: string;
+  fieldName: string;
+}
+
 @Service({
   basePath: '/DataMaskingSetting',
   controllerClass:
@@ -53,6 +65,11 @@ export class DataMaskingSettingService extends RequestService {
   })
   async delete(params?: any, options?: any) {
     return this.deleteRequest('delete', { ...options, params });
+  }
+
+  // 实体字段目录由服务端依据模型注解与已注册接口生成。
+  async entityCatalog(): Promise<MaskingEntityCatalogItem[]> {
+    return this.get('entityCatalog');
   }
 
   @CRUD.ListTable({

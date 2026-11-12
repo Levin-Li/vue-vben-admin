@@ -199,6 +199,26 @@ function createCrudBackendRouteMapping(
     ...(oakWorkflowResources.includes(item.resource)
       ? { menuGroup: oakWorkflowMenuGroup }
       : {}),
+    ...(item.resource === 'UserPersonalSetting'
+      ? {
+          menuGroup: {
+            icon: 'lucide:shield-check',
+            parentPath: '/clob/V1/index',
+            path: '/clob/V1/index/groups/用户&权限',
+            title: '用户&权限',
+          },
+        }
+      : {}),
+    ...(item.resource === 'DataMaskingSetting'
+      ? {
+          menuGroup: {
+            icon: 'lucide:settings-2',
+            parentPath: '/clob/V1/index',
+            path: '/clob/V1/index/groups/基础&设置',
+            title: '基础&设置',
+          },
+        }
+      : {}),
     operations: getPageOperations(item.permissionResource || item.resource),
     // 个人消息由登录态和服务端精确受众校验；没有菜单时仍允许从通知铃铛进入。
     ...(item.resource === 'MyMessages'

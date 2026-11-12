@@ -13,7 +13,7 @@ import { validateMaskingRuleContent } from './rules';
 export const pageMeta = {
   name: 'DataMaskingSetting',
   title: '数据脱敏设置',
-  description: '按适用范围配置接口字段处理规则。',
+  description: '按适用范围为多个实体配置字段脱敏规则。',
 } as const;
 
 export const dataMaskingSettingPageCrudConfig: CrudPageConfig = {

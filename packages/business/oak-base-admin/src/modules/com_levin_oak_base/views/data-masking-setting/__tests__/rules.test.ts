@@ -4,12 +4,12 @@ import { validateMaskingRuleContent } from '../rules';
 
 describe('数据脱敏字段规则', () => {
   it('拒绝没有字段或不完整的可还原 ID 配置', () => {
-    expect(() => validateMaskingRuleContent([])).toThrow('至少勾选');
+    expect(() => validateMaskingRuleContent([])).toThrow('至少选择');
     expect(() =>
       validateMaskingRuleContent([
         {
-          outputOperation: 'Order.list',
-          outputFieldPath: 'data.items[*].id',
+          entityClass: 'example.Order',
+          fieldName: 'id',
           treatment: 'REVERSIBLE_ID',
         },
       ]),
@@ -19,8 +19,8 @@ describe('数据脱敏字段规则', () => {
   it('保留完整的可还原 ID 规则', () => {
     const content = [
       {
-        outputOperation: 'Order.list',
-        outputFieldPath: 'data.items[*].id',
+        entityClass: 'example.Order',
+        fieldName: 'id',
         treatment: 'REVERSIBLE_ID',
         inputOperation: 'Order.detail',
         inputFieldPath: 'id',
@@ -35,8 +35,8 @@ describe('数据脱敏字段规则', () => {
     expect(() =>
       validateMaskingRuleContent([
         {
-          outputOperation: 'Order.list',
-          outputFieldPath: 'data.items[*].id',
+          entityClass: 'example.Order',
+          fieldName: 'id',
           treatment: 'REVERSIBLE_ID',
           inputOperation: 'Order.detail',
           inputFieldPath: 'id',
@@ -45,5 +45,20 @@ describe('数据脱敏字段规则', () => {
         },
       ]),
     ).toThrow('86400');
+  });
+
+  it('拒绝同一实体字段重复配置并允许多个实体', () => {
+    const first = {
+      entityClass: 'example.Order',
+      fieldName: 'id',
+      treatment: 'HIDE',
+    };
+    expect(() => validateMaskingRuleContent([first, first])).toThrow('重复');
+    expect(
+      validateMaskingRuleContent([
+        first,
+        { entityClass: 'example.User', fieldName: 'name', treatment: 'MASK' },
+      ]),
+    ).toHaveLength(2);
   });
 });

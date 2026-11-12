@@ -65178,6 +65178,20 @@
     },
     "nodes" : { }
   }, {
+    "id" : "037b77a1-ffe3-3c49-9e01-a5d813510f57",
+    "operation" : "com.levin.oak.base:平台数据-数据脱敏设置::读取实体字段脱敏覆盖目录",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/DataMaskingSetting/entityCatalog" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "3a430ee8-246c-397a-a7c7-e28e795fead5",
     "operation" : "com.levin.oak.base:系统数据-数据脱敏设置::查询列表",
     "methods" : [ "GET" ],

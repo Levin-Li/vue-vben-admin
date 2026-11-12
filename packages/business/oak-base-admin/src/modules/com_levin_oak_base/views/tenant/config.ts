@@ -145,6 +145,19 @@ export const tenantPageCrudConfig: CrudPageConfig = {
       detail: false,
       required: true,
       type: 'password',
+      maxLength: 128,
+      placeholder: '6至128位，包含大小写字母和数字',
+      validator: (value) => {
+        // 与服务端一致，在提交前检查长度及三种必需字符，避免提交后才提示。
+        const password = String(value ?? '');
+        if (password.length < 6 || password.length > 128) {
+          return '管理员初始口令长度必须为6至128字符';
+        }
+        if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+          return '管理员初始口令须包含大写字母、小写字母和数字';
+        }
+        return undefined;
+      },
     },
     {
       key: 'inNationCode',

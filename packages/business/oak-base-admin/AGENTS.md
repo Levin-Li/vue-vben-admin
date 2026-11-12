@@ -3,6 +3,10 @@
 <INSTRUCTIONS>
 本文件随 @levin/oak-base-admin npm 发布包分发。使用本包进行二次开发、扩展、配置、升级或发布的子项目，必须先读取并遵循 [模块开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。规范仅约束公开入口、兼容扩展、安全、测试和升级，不要求采用发布方代码包名、目录或业务实现。
 
+[租户站点登录组织范围指南](docs/tenant-site-org-login.md)说明登录组织范围与验证步骤。
+
+[新租户管理员创建指南](docs/tenant-admin-creation.md)说明管理员创建与验证步骤。
+
 工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。
 
 邮件、个人消息、支持邮箱、工单与通知投递：[工作台使用指南](docs/communication-workbench.md)。
