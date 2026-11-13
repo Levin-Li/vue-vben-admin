@@ -7,6 +7,6 @@ describe('电子合同签署入口权限', () => {
   it('uses the dedicated action instead of ordinary detail access', () => {
     expect(
       buildApiMethodPermissions(electronicContractService, 'signingEntry'),
-    ).toEqual(['com.levin.oak.base:业务数据:电子合同:领取签署入口']);
+    ).toEqual(['com.levin.oak.base:业务数据-电子合同:电子合同:领取签署入口']);
   });
 });

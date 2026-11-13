@@ -207,12 +207,12 @@ describe('结算单标准 CRUD', () => {
         >[0],
       ),
     ).toMatchObject({
-      type: '业务数据',
+      type: '业务数据-结算单',
       res: '结算单',
       action: '查看结算资料',
     });
     expect(settlementFinancialPermission).toEqual([
-      'com.levin.oak.base:业务数据:结算单:查看结算资料',
+      'com.levin.oak.base:业务数据-结算单:结算单:查看结算资料',
     ]);
   });
   it('拒绝非法结算时间、空 JSON 和普通编辑金额调整，不恢复排除字段', () => {

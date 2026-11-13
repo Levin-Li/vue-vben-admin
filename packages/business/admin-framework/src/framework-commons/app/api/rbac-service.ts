@@ -238,12 +238,12 @@ function normalizeAuthorizedOrgOptions(data: any[]): any[] {
   controllerClass: 'com.levin.oak.base.web.controller.rbac.RbacController',
   description: '授权管理',
   title: '授权管理',
-  type: '公共数据-权限控制',
+  type: '通用数据-权限控制',
 })
 export class RbacService extends RequestService {
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '查询授权的控制器路径',
     ignored: true,
   })
@@ -260,7 +260,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '完成初始密码修改',
     onlyRequireAuthenticated: true,
   })
@@ -275,7 +275,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '完成密码登录验证码挑战',
     ignored: true,
   })
@@ -288,7 +288,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取授权的组织选项',
     onlyRequireAuthenticated: true,
   })
@@ -301,7 +301,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取授权的组织列表',
     onlyRequireAuthenticated: true,
   })
@@ -321,7 +321,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取指定租户授权组织列表',
     onlyRequireAuthenticated: true,
   })
@@ -337,7 +337,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取授权的纯树形资源权限',
     onlyRequireAuthenticated: true,
   })
@@ -354,7 +354,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取授权的树形资源权限',
     onlyRequireAuthenticated: true,
   })
@@ -374,7 +374,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取授权的资源权限列表',
     onlyRequireAuthenticated: true,
   })
@@ -386,7 +386,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取授权的菜单列表',
     onlyRequireAuthenticated: true,
   })
@@ -404,7 +404,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '验证码图片链接',
     ignored: true,
   })
@@ -422,7 +422,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取公开登录选项',
     ignored: true,
   })
@@ -434,7 +434,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取租户信息',
     ignored: true,
   })
@@ -449,7 +449,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取租户站点信息',
     ignored: true,
   })
@@ -464,7 +464,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '用户信息',
     onlyRequireAuthenticated: true,
   })
@@ -477,7 +477,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '获取验证码',
     ignored: true,
   })
@@ -490,7 +490,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '用户登录',
     ignored: true,
   })
@@ -503,7 +503,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '用户登出',
     ignored: true,
   })
@@ -515,7 +515,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '用户注册并登录',
     ignored: true,
   })
@@ -528,7 +528,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '创建密码登录验证码挑战',
     ignored: true,
   })
@@ -541,7 +541,7 @@ export class RbacService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-权限控制',
+    type: '通用数据-权限控制',
     action: '修改登录信息',
     onlyRequireAuthenticated: true,
   })

@@ -29,7 +29,7 @@ function normalizeUploadUrl(result: any) {
     'com.levin.oak.base.web.controller.commons.FileStorageController',
   description: '文件存储服务',
   title: '文件存储',
-  type: '公共数据-文件存储',
+  type: '通用数据-文件存储',
 })
 export class FileStorageService extends RequestService {
   // 各上传路径统一由控制器 API service 生成，页面无需拼接模块前缀。
@@ -47,7 +47,7 @@ export class FileStorageService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-文件存储',
+    type: '通用数据-文件存储',
     action: '获取OSS的上传凭证',
   })
   async getOssUploadCredential(params?: any, options?: any) {
@@ -63,7 +63,7 @@ export class FileStorageService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-文件存储',
+    type: '通用数据-文件存储',
     action: '上传单个文件',
   })
   async uploadFile(
@@ -87,7 +87,7 @@ export class FileStorageService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-文件存储',
+    type: '通用数据-文件存储',
     action: '上传多个文件',
   })
   async uploadFiles(file: Blob | File, options?: any) {
@@ -96,7 +96,7 @@ export class FileStorageService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-文件存储',
+    type: '通用数据-文件存储',
     action: '上传本地长期文件',
   })
   async uploadLocalPermanent(file: Blob | File, options?: any) {
@@ -106,7 +106,7 @@ export class FileStorageService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '公共数据-文件存储',
+    type: '通用数据-文件存储',
     action: '上传本地临时文件',
   })
   async uploadLocalTemporary(file: Blob | File, options?: any) {

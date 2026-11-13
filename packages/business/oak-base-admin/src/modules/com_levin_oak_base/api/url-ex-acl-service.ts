@@ -6,8 +6,8 @@ import { OAK_BASE_API_MODULE } from './_module';
   basePath: '/UrlExAcl',
   controllerClass: 'com.levin.oak.base.controller.BizUrlExAclController',
   description: 'Url扩展拦截管理',
-  title: 'Url扩展拦截',
-  type: '专家数据-Url扩展拦截',
+  title: 'URL访问控制',
+  type: '专家数据-URL访问控制',
 })
 export class UrlExAclService extends RequestService {
   constructor() {
@@ -16,7 +16,7 @@ export class UrlExAclService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-Url扩展拦截',
+    type: '专家数据-URL访问控制',
     res: '',
     action: '批量新增',
   })
@@ -29,7 +29,7 @@ export class UrlExAclService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-Url扩展拦截',
+    type: '专家数据-URL访问控制',
     res: '',
     action: '批量删除',
   })
@@ -45,7 +45,7 @@ export class UrlExAclService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-Url扩展拦截',
+    type: '专家数据-URL访问控制',
     res: '',
     action: '批量更新',
   })
@@ -58,7 +58,7 @@ export class UrlExAclService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-Url扩展拦截',
+    type: '专家数据-URL访问控制',
     res: '',
     action: '清除缓存',
   })
@@ -71,7 +71,7 @@ export class UrlExAclService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-Url扩展拦截',
+    type: '专家数据-URL访问控制',
     res: '',
     action: '新增',
   })
@@ -87,7 +87,7 @@ export class UrlExAclService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-Url扩展拦截',
+    type: '专家数据-URL访问控制',
     res: '',
     action: '删除',
   })
@@ -101,7 +101,7 @@ export class UrlExAclService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-Url扩展拦截',
+    type: '专家数据-URL访问控制',
     res: '',
     action: '查询列表',
   })
@@ -117,7 +117,7 @@ export class UrlExAclService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-Url扩展拦截',
+    type: '专家数据-URL访问控制',
     res: '',
     action: '查看详情',
   })
@@ -133,7 +133,7 @@ export class UrlExAclService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-Url扩展拦截',
+    type: '专家数据-URL访问控制',
     res: '',
     action: '统计',
   })
@@ -146,7 +146,7 @@ export class UrlExAclService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-Url扩展拦截',
+    type: '专家数据-URL访问控制',
     res: '',
     action: '更新',
   })

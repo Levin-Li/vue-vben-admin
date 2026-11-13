@@ -46,8 +46,8 @@ export interface DomainSslCertRecord {
   basePath: '/DomainSslCert',
   controllerClass: 'com.levin.oak.base.controller.BizDomainSslCertController',
   description: 'SSL证书管理',
-  title: 'SSL证书',
-  type: '系统数据-SSL证书',
+  title: '域名SSL证书',
+  type: '系统数据-域名SSL证书',
 })
 export class DomainSslCertService extends RequestService {
   constructor() {
@@ -56,7 +56,7 @@ export class DomainSslCertService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-SSL证书',
+    type: '系统数据-域名SSL证书',
     action: '新增',
   })
   async create(data?: any, options?: any) {
@@ -68,7 +68,7 @@ export class DomainSslCertService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-SSL证书',
+    type: '系统数据-域名SSL证书',
     action: '查询列表',
   })
   async list(params?: any, options?: any) {
@@ -80,7 +80,7 @@ export class DomainSslCertService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-SSL证书',
+    type: '系统数据-域名SSL证书',
     action: '查看详情',
   })
   async retrieve(params?: DomainSslCertRetrieve, options?: any) {
@@ -92,7 +92,7 @@ export class DomainSslCertService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-SSL证书',
+    type: '系统数据-域名SSL证书',
     action: '申请SSL',
   })
   async applySslCert(data?: DomainSslCertApply, options?: any) {
@@ -104,7 +104,7 @@ export class DomainSslCertService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-SSL证书',
+    type: '系统数据-域名SSL证书',
     action: '申请SSL',
   })
   async applyForDnsRecord(data?: DomainSslCertDnsRecordApply, options?: any) {
@@ -116,7 +116,7 @@ export class DomainSslCertService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-SSL证书',
+    type: '系统数据-域名SSL证书',
     action: '配置SSL',
   })
   async configManualSslCert(data?: DomainSslCertManualConfig, options?: any) {
@@ -128,7 +128,7 @@ export class DomainSslCertService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-SSL证书',
+    type: '系统数据-域名SSL证书',
     action: '下载证书',
   })
   async downloadCert(data?: DomainSslCertDownload) {

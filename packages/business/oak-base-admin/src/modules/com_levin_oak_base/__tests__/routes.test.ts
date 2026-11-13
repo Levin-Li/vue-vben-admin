@@ -121,7 +121,7 @@ describe('oak base admin routes', () => {
       mapping?.operations?.find(
         (item) => item.opName === 'readFinancialDetails',
       )?.requireAuthorizations,
-    ).toEqual(['com.levin.oak.base:业务数据:结算单:查看结算资料']);
+    ).toEqual(['com.levin.oak.base:业务数据-结算单:结算单:查看结算资料']);
   });
 
   it('供应商与渠道页归入既有客户与伙伴分组且不再注册混合页', () => {

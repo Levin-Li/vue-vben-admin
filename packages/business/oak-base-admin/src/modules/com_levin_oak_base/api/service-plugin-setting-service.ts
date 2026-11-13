@@ -7,7 +7,7 @@ import { OAK_BASE_API_MODULE } from './_module';
   controllerClass: 'com.levin.oak.base.controller.BizServicePluginSettingController',
   description: '服务插件设置管理',
   title: '服务插件设置',
-  type: '专家数据-服务插件设置',
+  type: '系统数据-服务插件设置',
 })
 export class ServicePluginSettingService extends RequestService {
   constructor() {
@@ -16,7 +16,7 @@ export class ServicePluginSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-服务插件设置',
+    type: '系统数据-服务插件设置',
     action: '批量新增',
   })
   async batchCreate(data?: any, options?: any) {
@@ -28,7 +28,7 @@ export class ServicePluginSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-服务插件设置',
+    type: '系统数据-服务插件设置',
     action: '批量删除',
   })
   @CRUD.Op({
@@ -43,7 +43,7 @@ export class ServicePluginSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-服务插件设置',
+    type: '系统数据-服务插件设置',
     action: '批量更新',
   })
   async batchUpdate(data?: any, options?: any) {
@@ -55,7 +55,7 @@ export class ServicePluginSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-服务插件设置',
+    type: '系统数据-服务插件设置',
     action: '新增',
   })
   @CRUD.Op({
@@ -70,7 +70,7 @@ export class ServicePluginSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-服务插件设置',
+    type: '系统数据-服务插件设置',
     action: '删除',
   })
   @CRUD.Op()
@@ -83,7 +83,7 @@ export class ServicePluginSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-服务插件设置',
+    type: '系统数据-服务插件设置',
     action: '查询列表',
   })
   @CRUD.ListTable({
@@ -98,7 +98,7 @@ export class ServicePluginSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-服务插件设置',
+    type: '系统数据-服务插件设置',
     action: '查看详情',
   })
   @CRUD.Op({
@@ -113,7 +113,7 @@ export class ServicePluginSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-服务插件设置',
+    type: '系统数据-服务插件设置',
     action: '统计',
   })
   async stat(params?: any, options?: any) {
@@ -125,7 +125,7 @@ export class ServicePluginSettingService extends RequestService {
 
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '专家数据-服务插件设置',
+    type: '系统数据-服务插件设置',
     action: '更新',
   })
   @CRUD.Op()

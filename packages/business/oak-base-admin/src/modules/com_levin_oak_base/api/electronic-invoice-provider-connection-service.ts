@@ -11,8 +11,8 @@ import { OAK_BASE_API_MODULE } from './_module';
   basePath: '/EInvoiceProviderConnection',
   controllerClass:
     'com.levin.oak.base.controller.BizEInvoiceProviderConnectionController',
-  title: '开票授权',
-  type: '系统数据-电子发票供应商连接',
+  title: '电子发票开票方通道授权',
+  type: '系统数据-电子发票开票方通道授权',
 })
 export class ElectronicInvoiceProviderConnectionService extends RequestService {
   constructor() {
@@ -27,7 +27,7 @@ export class ElectronicInvoiceProviderConnectionService extends RequestService {
   @CRUD.Op({ label: '确认授权' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子发票供应商连接',
+    type: '系统数据-电子发票开票方通道授权',
     action: '确认商户授权',
   })
   async completeAuthorization(data?: any, options?: any) {
@@ -37,7 +37,7 @@ export class ElectronicInvoiceProviderConnectionService extends RequestService {
   @CRUD.Op({ label: '发起授权', opRefTargetType: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子发票供应商连接',
+    type: '系统数据-电子发票开票方通道授权',
     action: '开通供应商连接',
   })
   async create(data?: any, options?: any) {
@@ -49,7 +49,7 @@ export class ElectronicInvoiceProviderConnectionService extends RequestService {
   })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '系统数据-电子发票供应商连接',
+    type: '系统数据-电子发票开票方通道授权',
     action: '查询列表',
   })
   async list(params?: any, options?: any) {

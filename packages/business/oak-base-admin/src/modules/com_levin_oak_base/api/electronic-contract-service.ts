@@ -276,7 +276,7 @@ export class ElectronicContractService extends RequestService {
   // 签署地址只在明确领取时获取，避免将地址写入合同详情或列表。
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据',
+    type: '业务数据-电子合同',
     res: '电子合同',
     action: '领取签署入口',
   })

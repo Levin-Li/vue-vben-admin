@@ -214,7 +214,7 @@ export class SettlementOrderService extends RequestService {
   @CRUD.Op({ label: '查看结算资料', confirmText: 'None' })
   @ResAuthorize({
     domain: 'com.levin.oak.base',
-    type: '业务数据',
+    type: '业务数据-结算单',
     res: '结算单',
     action: '查看结算资料',
   })

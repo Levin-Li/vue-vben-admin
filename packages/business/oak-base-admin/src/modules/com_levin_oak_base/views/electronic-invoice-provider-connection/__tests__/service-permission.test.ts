@@ -11,13 +11,15 @@ describe('开票授权展示名称', () => {
         'create',
       ),
     ).toEqual([
-      'com.levin.oak.base:系统数据-电子发票供应商连接::开通供应商连接',
+      'com.levin.oak.base:系统数据-电子发票开票方通道授权::开通供应商连接',
     ]);
     expect(
       buildApiMethodPermissions(
         electronicInvoiceProviderConnectionService,
         'completeAuthorization',
       ),
-    ).toEqual(['com.levin.oak.base:系统数据-电子发票供应商连接::确认商户授权']);
+    ).toEqual([
+      'com.levin.oak.base:系统数据-电子发票开票方通道授权::确认商户授权',
+    ]);
   });
 });
