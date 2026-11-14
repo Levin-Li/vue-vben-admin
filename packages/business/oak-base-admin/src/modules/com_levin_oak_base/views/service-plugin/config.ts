@@ -61,6 +61,27 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       title: '表格3',
     },
   ],
+  detailExtraFields: [
+    { key: 'logo', label: '插件标志' },
+    { key: 'domain', label: '域名' },
+    { key: 'icon', label: '图标' },
+    {
+      key: 'pluginType',
+      label: '插件接口类型',
+      layoutOrder: -39,
+    },
+    {
+      key: 'pluginImplType',
+      label: '插件实现类型',
+      layoutOrder: -38,
+    },
+    { key: 'providerList', label: '供应商列表' },
+    { key: 'allowMultipleConfigurations', label: '允许多条配置并存' },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    { key: 'orderCode', label: '排序代码' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+  ],
   fields: [
     {
       key: 'id',
@@ -83,6 +104,7 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       required: true,
       table: true,
       width: 180,
+      layoutOrder: -50,
     },
     {
       key: 'containsCategoryName',
@@ -95,6 +117,7 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       label: '分类名称',
       table: true,
       width: 140,
+      layoutOrder: -30,
     },
     {
       key: 'containsGroupName',
@@ -120,6 +143,7 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       form: false,
       table: true,
       width: 140,
+      layoutOrder: -40,
     },
     {
       key: 'logo',
@@ -137,6 +161,7 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: -10,
     },
     {
       key: 'enable',
@@ -177,6 +202,7 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       form: false,
       table: true,
       width: 180,
+      layoutOrder: -20,
     },
     {
       key: 'exInfo',
@@ -198,6 +224,7 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
     {
       key: 'lastUpdateTime',
@@ -206,6 +233,7 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1010,
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,

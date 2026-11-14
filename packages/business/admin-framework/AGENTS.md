@@ -15,6 +15,8 @@ API 属性组权限的轻量分配、后端元数据契约与保存语义见 [�
 
 标准 CRUD 标签缓存接入与失效边界见 [标签缓存接入指南](docs/crud-tab-cache.md)。
 
+标准 CRUD 详情字段开发期声明、排序及检查见 [详情字段使用指南](docs/crud-detail-static-fields.md)。
+
 标准 CRUD 金额字段的四位分组、默认单位和页面覆盖见 [金额展示使用说明](docs/crud-money-display.md)。
 
 标准 CRUD 本地下拉的文本、拼音与首字母搜索见 [本地选项搜索使用说明](docs/crud-local-search.md)。

@@ -38,11 +38,28 @@ export const channelPartnerPageCrudConfig: CrudPageConfig =
     complexGroups: partnerCommonComplexGroups,
     modalWidth: DEFAULT_CRUD_MODAL_WIDTH,
     title: '渠道伙伴',
+    // 单独声明详情字段，保留表格、查询和提交配置。
+    detailExtraFields: [
+      { key: 'bankAccount', label: '结算账户信息', detail: false },
+      { key: 'invoiceInfo', label: '开票信息', detail: false },
+      { key: 'contactInfo', label: '合作联系人', detail: false },
+      { key: 'shippingInfo', label: '合作邮寄', detail: false },
+      {
+        key: 'editable',
+        label: '是否可编辑',
+        layoutGroup: 'maintenance',
+        layoutGroupOrder: 90,
+        layoutGroupTitle: '补充与维护',
+        layoutOrder: 15,
+        type: 'switch',
+      },
+    ],
     fields: [
       ...partnerCommonFields,
       {
         key: 'type',
         label: '渠道类型',
+        layoutGroupTitle: '基础信息',
         required: true,
         search: true,
         table: true,
@@ -50,8 +67,9 @@ export const channelPartnerPageCrudConfig: CrudPageConfig =
         loadOptions: buildEnumOptionsLoader(
           'com.levin.oak.base.entities.ChannelPartner$Type',
         ),
-        layoutGroup: 'business',
-        layoutOrder: 10,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutOrder: 45,
       },
     ],
   });

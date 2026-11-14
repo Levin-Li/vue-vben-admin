@@ -3,10 +3,10 @@ import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/sh
 // 主档各方使用独立的组织和负责人，负责人候选不依赖同方组织。
 type Party =
   | 'aftersales'
+  | 'business'
   | 'finance'
   | 'maintain'
   | 'presales'
-  | 'business'
   | 'subject';
 type PartyDefinition = readonly [Party, string];
 
@@ -35,6 +35,7 @@ export function buildMasterPartyFields(
         key: `${party}OrgId`,
         label: party === 'business' ? '商务对接部门' : `${label}组织`,
         layoutGroup: 'participants',
+        layoutGroupOrder: 30,
         layoutGroupTitle: '参与组织与负责人',
         layoutOrder: index * 20 + 10,
         type: 'org-tree-select' as const,
@@ -51,6 +52,7 @@ export function buildMasterPartyFields(
         key: `${party}UserId`,
         label: party === 'business' ? '商务对接人' : `${label}负责人`,
         layoutGroup: 'participants',
+        layoutGroupOrder: 30,
         layoutGroupTitle: '参与组织与负责人',
         layoutOrder: index * 20 + 20,
         disabledOnEdit: isPartyReassignmentDisabled,
@@ -105,16 +107,20 @@ export function buildMasterDetailMetadata(
       type: 'datetime',
       form: false,
       table: false,
-      layoutGroup: 'management',
-      layoutGroupTitle: '管理信息',
+      layoutGroup: 'basic',
+      layoutGroupOrder: 10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 150,
     },
     {
       key: 'lastStatusDesc',
       label: '最近状态说明',
       form: false,
       table: false,
-      layoutGroup: 'management',
-      layoutGroupTitle: '管理信息',
+      layoutGroup: 'maintenance',
+      layoutGroupOrder: 90,
+      layoutGroupTitle: '补充与维护',
+      layoutOrder: 80,
     },
     {
       key: 'lastUpdateTime',
@@ -122,6 +128,10 @@ export function buildMasterDetailMetadata(
       type: 'datetime',
       form: false,
       table: false,
+      layoutGroup: 'audit',
+      layoutGroupOrder: 100,
+      layoutGroupTitle: '维护时间',
+      layoutOrder: 20,
     },
   ];
 }

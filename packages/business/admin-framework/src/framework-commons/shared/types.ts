@@ -144,6 +144,8 @@ export interface CrudFieldConfig {
   jsonSchemaInline?: boolean;
   jsonSchemaMode?: 'inline' | 'popup';
   layoutGroup?: string;
+  /** 页面开发期声明的组间顺序；同组字段应使用一致值。 */
+  layoutGroupOrder?: number;
   /** 显式保留少字段分组的展示标题；用于复杂对象或有独立信息意义的业务区域。 */
   layoutGroupForceDisplay?: boolean;
   layoutGroupTitle?: string;
@@ -602,9 +604,11 @@ export interface CrudPageConfig {
   editPermission?: string | string[];
   editVisibleOn?: string;
   exportTemplateService?: CrudExportTemplateService;
-  fields: CrudFieldConfig[];
+  /** 仅补充详情响应字段，不改变新增、编辑、查询和列表字段。 */
+  detailExtraFields?: CrudFieldConfig[];
   /** 详情返回对象字段契约；无记录时用于详情设置候选。 */
   detailFields?: CrudFieldConfig[];
+  fields: CrudFieldConfig[];
   formMaxColumns?: number;
   /** 可清空的初始查询模型；不会作为隐藏固定参数反复合并进请求。 */
   initialQuery?: Record<string, any>;

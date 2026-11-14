@@ -138,6 +138,23 @@ export function verifyTarballModuleDevelopmentStandard(
   if (!readme.includes('docs/MODULE-DEVELOPMENT-STANDARD.md')) {
     throw new Error(`${packageInfo.name} ${location}README 未引用模块使用规范`);
   }
+
+  // 框架新增详情字段指南必须由两个包内入口直接可达，防止构建同步覆盖 AGENTS 链接。
+  if (packageInfo.name === '@levin/admin-framework') {
+    const guide = 'docs/crud-detail-static-fields.md';
+    const agentPath = 'package/AGENTS.md';
+    if (!entries.split(/\r?\n/).includes(`package/${guide}`)) {
+      throw new Error(`${packageInfo.name} ${location}缺少详情字段使用指南`);
+    }
+    const agents = execFileSync('tar', ['-xOf', tarballPath, agentPath], {
+      encoding: 'utf8',
+    });
+    if (!agents.includes(guide) || !readme.includes(guide)) {
+      throw new Error(
+        `${packageInfo.name} ${location}AGENTS 或 README 未引用详情字段指南`,
+      );
+    }
+  }
 }
 
 export function verifyTarballProjectDocs(packageInfo, tarballPath, location) {
@@ -326,8 +343,8 @@ export function verifyTarballStandaloneInstall(
     const installEnv = { ...process.env, ...extraEnv };
     // pnpm run会注入小写配置；两种大小写均清理，让消费者.npmrc保留私服scope并使用指定公共源。
     for (const key of Object.keys(installEnv)) {
-      if (/^NPM_CONFIG_(FALLBACK_REGISTRY|REGISTRY|USERCONFIG)$/i.test(key)) {
-        delete installEnv[key];
+      if (/^NPM_CONFIG_(?:FALLBACK_REGISTRY|REGISTRY|USERCONFIG)$/i.test(key)) {
+        Reflect.deleteProperty(installEnv, key);
       }
     }
 
@@ -424,8 +441,8 @@ export function verifyTarballStandaloneViteBuild(
     const installEnv = { ...process.env, ...extraEnv };
     // pnpm run会注入小写配置；两种大小写均清理，让消费者.npmrc保留私服scope并使用指定公共源。
     for (const key of Object.keys(installEnv)) {
-      if (/^NPM_CONFIG_(FALLBACK_REGISTRY|REGISTRY|USERCONFIG)$/i.test(key)) {
-        delete installEnv[key];
+      if (/^NPM_CONFIG_(?:FALLBACK_REGISTRY|REGISTRY|USERCONFIG)$/i.test(key)) {
+        Reflect.deleteProperty(installEnv, key);
       }
     }
 

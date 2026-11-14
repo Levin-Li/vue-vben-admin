@@ -32,22 +32,38 @@ export const settlementFinancialPermission = buildApiMethodPermissions(
   'readFinancialDetails',
 );
 // 各子类型独立授权；没有某类列表权限时仍保留其他已授权候选。
-const targetLoaders = [
-  ['/Customer/list', '客户'],
-  ['/SupplierPartner/list', '供应商'],
-  ['/ChannelPartner/list', '渠道'],
-].map(([path, label]) => ({
+const targetLoaders = (
+  [
+    ['/Customer/list', '客户'],
+    ['/SupplierPartner/list', '供应商'],
+    ['/ChannelPartner/list', '渠道'],
+  ] as const
+).map(([path, label]) => ({
   label,
-  load: buildModuleOptionsLoader(path!, 'name', 'id',
-    { pageIndex: 1, pageSize: 50 }, 'containsName'),
+  load: buildModuleOptionsLoader(
+    path,
+    'name',
+    'id',
+    { pageIndex: 1, pageSize: 50 },
+    'containsName',
+  ),
 }));
 
 async function partnerOptions(keyword?: string) {
-  const results = await Promise.allSettled(targetLoaders.map(({ load }) => load(keyword)));
-  const options = results.flatMap((result, index) => result.status === 'fulfilled'
-    ? result.value.map((option) => ({ ...option, label: `${targetLoaders[index]!.label} · ${option.label}` }))
-    : []);
-  if (results.every((result) => result.status === 'rejected')) throw new Error('结算目标加载失败');
+  const results = await Promise.allSettled(
+    targetLoaders.map(({ load }) => load(keyword)),
+  );
+  const options = results.flatMap((result, index) => {
+    const loader = targetLoaders[index];
+    return result.status === 'fulfilled' && loader
+      ? result.value.map((option) => ({
+          ...option,
+          label: `${loader.label} · ${option.label}`,
+        }))
+      : [];
+  });
+  if (results.every((result) => result.status === 'rejected'))
+    throw new Error('结算目标加载失败');
   return options;
 }
 
@@ -174,6 +190,55 @@ export function buildSettlementPageConfig(
     updatePath: '/SettlementOrder/updateSettlementOrder',
     defaultFormValues: { currencyCode: 'CNY' },
     modalWidth: 1080,
+    // 财务资料由专用财务详情操作展示。
+    detailExtraFields: [
+      { key: 'tenantName', label: '租户名称', detail: false },
+      {
+        key: 'confidentialLevel',
+        label: '机密等级',
+        layoutGroup: 'identity',
+        layoutOrder: 50,
+        layoutGroupTitle: '合作关系与结算主体',
+      },
+      { key: 'partner', label: '结算目标', detail: false },
+      { key: 'payerLegalSubject', label: '付款方法律主体', detail: false },
+      { key: 'payeeLegalSubject', label: '收款方法律主体', detail: false },
+      { key: 'payeeOrg', label: '收款方组织', detail: false },
+      { key: 'payeeUser', label: '收款方对接人', detail: false },
+      { key: 'businessOrg', label: '商务对接部门', detail: false },
+      { key: 'businessUser', label: '商务对接人', detail: false },
+      { key: 'financeOrg', label: '财务组织', detail: false },
+      { key: 'financeUser', label: '财务方负责人', detail: false },
+      { key: 'actionLog', label: '流程日志', detail: false },
+      {
+        key: 'supportEventsByCurrentStatus',
+        label: '当前状态可执行动作',
+        detail: false,
+      },
+      { key: 'domainId', label: '领域标识' },
+      { key: 'creator', label: '创建者' },
+      {
+        key: 'createTime',
+        label: '创建时间',
+        type: 'datetime',
+        layoutOrder: 1000,
+      },
+      {
+        key: 'lastUpdateTime',
+        label: '更新时间',
+        type: 'datetime',
+        layoutOrder: 1010,
+      },
+      { key: 'orderCode', label: '排序代码' },
+      { key: 'enable', label: '是否启用' },
+      { key: 'editable', label: '是否可编辑' },
+      { key: 'remark', label: '备注' },
+      { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+      { key: 'payeeBankAccount', label: '收款账户快照', detail: false },
+      { key: 'payerInvoiceInfo', label: '付款方开票资料快照', detail: false },
+      { key: 'invoiceDocuments', label: '发票单据', detail: false },
+      { key: 'paymentDocuments', label: '付款单据', detail: false },
+    ],
     fields: [
       {
         key: 'id',
@@ -284,7 +349,8 @@ export function buildSettlementPageConfig(
       {
         key: 'businessUserId',
         label: '商务对接人',
-        tableValue: (record: Record<string, any>) => record.businessUser?.name || '',
+        tableValue: (record: Record<string, any>) =>
+          record.businessUser?.name || '',
         type: 'user-tree-select',
         disabledOnEdit: true,
         omitOnEdit: true,
@@ -310,7 +376,8 @@ export function buildSettlementPageConfig(
       {
         key: 'financeUserId',
         label: '财务负责人',
-        tableValue: (record: Record<string, any>) => record.financeUser?.name || '',
+        tableValue: (record: Record<string, any>) =>
+          record.financeUser?.name || '',
         type: 'user-tree-select',
         disabledOnEdit: true,
         omitOnEdit: true,
@@ -338,7 +405,8 @@ export function buildSettlementPageConfig(
       {
         key: 'payeeUserId',
         label: '收款方对接人',
-        tableValue: (record: Record<string, any>) => record.payeeUser?.name || '',
+        tableValue: (record: Record<string, any>) =>
+          record.payeeUser?.name || '',
         type: 'user-tree-select',
         disabledOnEdit: true,
         omitOnEdit: true,
@@ -453,6 +521,9 @@ export function buildSettlementPageConfig(
         loadOptions: buildEnumOptionsLoader(
           'com.levin.oak.base.entities.enums.SettlementStatus',
         ),
+        layoutGroup: 'identity',
+        layoutOrder: 45,
+        layoutGroupTitle: '合作关系与结算主体',
       },
       {
         key: 'inStatus',

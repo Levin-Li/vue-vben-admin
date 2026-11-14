@@ -36,6 +36,7 @@ export const settingHistoryDataPageCrudConfig: CrudPageConfig = {
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       visibleForPlatformUser: true,
+      layoutOrder: -40,
     },
     {
       key: 'containsTitle',
@@ -54,6 +55,7 @@ export const settingHistoryDataPageCrudConfig: CrudPageConfig = {
         'com.levin.oak.base.entities.SettingHistoryData.bizType',
       ),
       width: 240,
+      layoutOrder: -20,
     },
     {
       key: 'bizDataId',
@@ -78,13 +80,20 @@ export const settingHistoryDataPageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'datetime',
     },
-    { key: 'title', label: '标题', table: true, width: 280 },
+    {
+      key: 'title',
+      label: '标题',
+      table: true,
+      width: 280,
+      layoutOrder: -30,
+    },
     {
       key: 'createTime',
       label: '版本时间',
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
     { key: 'remark', label: '备注', table: true, width: 200 },
     {

@@ -1,5 +1,7 @@
 # @levin/admin-framework
 
+[标准 CRUD 详情字段使用指南](docs/crud-detail-static-fields.md)说明详情响应字段的开发期声明、检查门禁和未声明字段的展示边界。
+
 [请求错误提示接入](docs/api-error-notification.md)说明后端消息、统一兜底及去重方法。
 
 [默认加密 API 路径使用指南](docs/url-acl-default-crypto-paths.md)列出主动加密路径、协议边界与最小验证方法。

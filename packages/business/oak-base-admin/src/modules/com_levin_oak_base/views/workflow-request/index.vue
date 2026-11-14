@@ -82,6 +82,7 @@ const scopedConfig = computed(() => ({
     {
       key: 'tenantId',
       label: '归属租户',
+      layoutOrder: -30,
       type: 'select' as const,
       visibleForPlatformUser: true,
       table: false,
@@ -92,6 +93,7 @@ const scopedConfig = computed(() => ({
     {
       key: 'orgId',
       label: '业务组织',
+      layoutOrder: -20,
       type: 'org-tree-select' as const,
       visibleForPlatformUser: true,
       table: false,

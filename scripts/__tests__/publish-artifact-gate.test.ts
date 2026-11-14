@@ -304,6 +304,45 @@ describe('publish artifact gate', () => {
     ).not.toThrow();
   });
 
+  it('框架 tarball 必须同时从 AGENTS 与 README 链接详情字段指南', () => {
+    const info = {
+      dir: createTemporaryDirectory(),
+      name: '@levin/admin-framework',
+    };
+    const common = {
+      'docs/MODULE-DEVELOPMENT-STANDARD.md': '# 模块规范\n',
+      'docs/crud-detail-static-fields.md': '# 详情字段\n',
+      'README.md':
+        '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n[详情字段](docs/crud-detail-static-fields.md)\n',
+    };
+    expect(() =>
+      verifyTarballModuleDevelopmentStandard(
+        info,
+        createTarball(
+          {},
+          {
+            ...common,
+            'AGENTS.md': '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n',
+          },
+        ),
+        '本地 tarball',
+      ),
+    ).toThrow('AGENTS 或 README 未引用详情字段指南');
+    expect(() =>
+      verifyTarballModuleDevelopmentStandard(
+        info,
+        createTarball(
+          {},
+          {
+            ...common,
+            'AGENTS.md': '[详情字段](docs/crud-detail-static-fields.md)\n',
+          },
+        ),
+        '本地 tarball',
+      ),
+    ).not.toThrow();
+  });
+
   it('packs workspace dependencies as published versions', () => {
     const destination = createTemporaryDirectory();
     const tarballPath = packWorkspacePackage(packageInfo, destination);

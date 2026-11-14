@@ -161,16 +161,24 @@ export const settingPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+  ],
   fields: [
     {
       key: 'tenantId',
       label: '归属租户',
-      layoutOrder: 10,
+      layoutOrder: 1,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
       type: 'select',
       visibleForPlatformUser: true,
+      layoutGroup: 'basic',
+      layoutGroupTitle: '设置标识',
     },
     {
       key: '__tenant',
@@ -275,9 +283,9 @@ export const settingPageCrudConfig: CrudPageConfig = {
     {
       key: 'valueType',
       label: '值类型',
-      layoutGroup: 'content',
-      layoutGroupTitle: '配置内容',
-      layoutOrder: 10,
+      layoutGroup: 'basic',
+      layoutGroupTitle: '设置标识',
+      layoutOrder: 25,
       loadOptions: settingValueTypeOptionsLoader,
       table: true,
       type: 'select',
@@ -363,6 +371,7 @@ export const settingPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
     {
       key: 'lastUpdateTime',
@@ -371,6 +380,7 @@ export const settingPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1010,
     },
     {
       key: 'remark',

@@ -38,6 +38,16 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    { key: 'tenantId', label: '租户Id', detail: false },
+    { key: 'ownerId', label: '拥有者Id', detail: false },
+    { key: 'ownerName', label: '拥有者名称' },
+    { key: 'owner', label: '所有者', detail: false },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+  ],
   fields: [
     {
       key: 'id',
@@ -198,6 +208,7 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
     {
       key: 'lastUpdateTime',
@@ -206,6 +217,7 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1010,
     },
     {
       key: 'remark',

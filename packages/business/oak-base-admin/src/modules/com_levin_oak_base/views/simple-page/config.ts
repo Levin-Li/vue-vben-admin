@@ -67,6 +67,20 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    { key: 'contentHashcode', label: '内容hash码', detail: false },
+    { key: 'actionLog', label: '流程日志', detail: false },
+    {
+      key: 'supportEventsByCurrentStatus',
+      label: '当前状态可执行动作',
+      detail: false,
+    },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    { key: 'remark', label: '备注' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+  ],
   fields: [
     {
       key: 'tenantId',
@@ -76,6 +90,7 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'select',
       visibleForPlatformUser: true,
+      layoutOrder: -90,
     },
     {
       key: '__tenant',
@@ -150,7 +165,14 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'datetime',
     },
-    { key: 'name', label: '名称', required: true, table: true, width: 180 },
+    {
+      key: 'name',
+      label: '名称',
+      required: true,
+      table: true,
+      width: 180,
+      layoutOrder: -80,
+    },
     {
       key: 'type',
       label: '页面类型',
@@ -159,6 +181,7 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'select',
       width: 120,
+      layoutOrder: -70,
     },
     { key: 'domain', label: '域名', table: true, width: 140 },
     {
@@ -169,6 +192,7 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
       type: 'select',
       valueType: 'number',
       width: 120,
+      layoutOrder: -40,
     },
     { key: 'icon', label: '图标', type: 'image' },
     {
@@ -178,6 +202,7 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'select',
       width: 140,
+      layoutOrder: -60,
     },
     { key: 'groupName', label: '分组名称', table: true, width: 140 },
     {
@@ -188,6 +213,7 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'select',
       width: 120,
+      layoutOrder: -50,
     },
     { key: 'versionName', label: '版本号', table: true, width: 120 },
     { key: 'path', label: '访问路径', table: true, width: 220 },
@@ -233,6 +259,7 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
     {
       key: 'lastUpdateTime',
@@ -241,6 +268,7 @@ export const simplePagePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1010,
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,

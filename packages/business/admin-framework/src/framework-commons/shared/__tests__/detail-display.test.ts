@@ -4,8 +4,8 @@ import {
   buildDetailDisplayEntries,
   flattenCrudComplexDetailRecord,
   formatDetailDisplayValue,
-  resolveDetailFields,
   isDetailJsonValue,
+  resolveDetailFields,
 } from '../detail-display';
 
 const fields = [
@@ -348,5 +348,74 @@ describe('detail display rules', () => {
         metadata,
       ).map((field) => field.key),
     ).toEqual(['containsName', 'name']);
+  });
+
+  it('标准 CRUD 详情仅显示开发期声明的字段，不回退英文键名', () => {
+    const fields = [
+      { key: 'name', label: '名称' },
+      { key: 'creator', label: '创建者', detail: false },
+    ];
+    const record = { name: '示例', creator: null, enable: true };
+    const resolved = resolveDetailFields(record, fields, fields, false);
+    expect(resolved.map((field) => field.key)).toEqual(['name']);
+    expect(
+      buildDetailDisplayEntries(record, resolved, fields, true, false).map(
+        (entry) => entry.label,
+      ),
+    ).toEqual(['名称']);
+  });
+
+  it('标准 CRUD 详情按静态声明排序而非接口属性顺序', () => {
+    const fields = [
+      { key: 'tenantId', label: '租户', layoutGroup: 'basic', layoutOrder: 10 },
+      { key: 'name', label: '名称', layoutGroup: 'basic', layoutOrder: 20 },
+      {
+        key: 'bizTime',
+        label: '业务时间',
+        layoutGroup: 'basic',
+        layoutOrder: 30,
+      },
+    ];
+    const response = { bizTime: '2026-11-15', name: '示例', tenantId: 't1' };
+    const resolved = resolveDetailFields(response, fields, fields, false);
+
+    expect(resolved.map((field) => field.key)).toEqual([
+      'tenantId',
+      'name',
+      'bizTime',
+    ]);
+    expect(
+      buildDetailDisplayEntries(response, resolved, fields, true, false).map(
+        (entry) => entry.key,
+      ),
+    ).toEqual(['tenantId', 'name', 'bizTime']);
+  });
+
+  it('标准详情保留用户设置已排好的字段顺序', () => {
+    const configured = [
+      {
+        key: 'audit',
+        label: '审计',
+        layoutGroup: 'audit',
+        layoutGroupOrder: 90,
+      },
+      {
+        key: 'name',
+        label: '名称',
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+      },
+    ];
+    const response = { name: '示例', audit: '记录' };
+    expect(
+      buildDetailDisplayEntries(
+        response,
+        configured,
+        configured,
+        true,
+        false,
+        true,
+      ).map((entry) => entry.key),
+    ).toEqual(['audit', 'name']);
   });
 });

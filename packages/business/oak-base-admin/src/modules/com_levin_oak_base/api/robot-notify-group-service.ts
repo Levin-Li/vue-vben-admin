@@ -125,6 +125,21 @@ export class RobotNotifyGroupService extends RequestService {
     });
   }
 
+  @CRUD.Op({ confirmText: 'None' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-机器人通知群',
+    action: '测试发送',
+  })
+  async sendTest(data: {
+    content: string;
+    id: string;
+    orgId?: string;
+    tenantId?: string;
+  }): Promise<boolean> {
+    return this.post('sendTest', { data: toGenericSupportRequestScope(data) });
+  }
+
   @ResAuthorize({
     domain: 'com.levin.oak.base',
     type: '业务数据-机器人通知群',

@@ -45,6 +45,67 @@ export const menuPageCrudConfig: CrudPageConfig = {
     pageSize: 10,
   },
   description: '菜单默认按当前租户可见数据维护，权限字段支持按行输入。',
+  // 单独声明详情字段，保留表格、查询和提交配置。
+  detailExtraFields: [
+    {
+      key: 'tenantName',
+      label: '租户名称',
+      detail: false,
+    },
+    {
+      key: 'publicAccess',
+      label: '公开访问',
+      type: 'switch',
+    },
+    {
+      key: 'opButtonList',
+      label: '操作按钮列表',
+      detail: false,
+    },
+    {
+      key: 'viewPath',
+      label: '页面注册路径',
+    },
+    {
+      key: 'sourceFilePath',
+      label: '前端源码位置',
+    },
+    {
+      key: 'paramsEditor',
+      label: '参数编辑器',
+      detail: false,
+    },
+    {
+      key: 'parent',
+      label: '父对象',
+      detail: false,
+    },
+    {
+      key: 'children',
+      label: '子节点',
+      detail: false,
+    },
+    {
+      key: 'nodePath',
+      label: '树节点路径',
+      detail: false,
+    },
+    {
+      key: 'domainId',
+      label: '领域标识',
+      detail: false,
+    },
+    {
+      key: 'creator',
+      label: '创建者',
+      detail: false,
+    },
+    {
+      key: 'optimisticLock',
+      label: '乐观锁版本号',
+      detail: false,
+    },
+  ],
   fields: [
     {
       key: 'tenantId',

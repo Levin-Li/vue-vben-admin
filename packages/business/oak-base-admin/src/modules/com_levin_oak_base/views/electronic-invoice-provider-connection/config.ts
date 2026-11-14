@@ -161,6 +161,10 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       {
         key: 'tenantId',
         label: '归属租户',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 5,
         loadOptions: tenantOptionsLoader,
         remoteSearch: true,
         search: true,
@@ -170,6 +174,10 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       {
         key: 'id',
         label: '授权ID',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 10,
         form: false,
         search: true,
         table: true,
@@ -178,6 +186,10 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       {
         key: 'legalSubjectId',
         label: '法律主体',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 15,
         required: true,
         search: true,
         table: true,
@@ -191,6 +203,10 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       {
         key: 'providerCode',
         label: '供应商',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 20,
         required: true,
         loadOptions: async () => electronicInvoiceProviderOptions,
         search: true,
@@ -205,6 +221,7 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       {
         key: 'simulation',
         label: '启用模拟器',
+        layoutOrder: 900,
         type: 'switch',
         valueType: 'boolean',
         form: true,
@@ -222,6 +239,10 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       {
         key: 'status',
         label: '授权状态',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 25,
         search: true,
         table: true,
         form: false,
@@ -236,6 +257,10 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       {
         key: 'invoiceTypeList',
         label: '允许票种',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 30,
         form: false,
         table: true,
         width: 180,
@@ -245,6 +270,10 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       {
         key: 'expiredTime',
         label: '授权有效期',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 35,
         form: false,
         table: true,
         type: 'datetime',
@@ -267,6 +296,7 @@ export const electronicInvoiceProviderConnectionPageCrudConfig: CrudPageConfig =
       {
         key: 'createTime',
         label: '创建时间',
+        layoutOrder: 905,
         form: false,
         table: true,
         type: 'datetime',

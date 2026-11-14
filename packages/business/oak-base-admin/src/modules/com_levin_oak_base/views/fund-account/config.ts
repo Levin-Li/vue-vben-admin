@@ -47,12 +47,60 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  // 单独声明详情字段，保留表格、查询和提交配置。
+  detailExtraFields: [
+    {
+      key: 'tenantName',
+      label: '租户名称',
+      detail: false,
+    },
+    {
+      key: 'orgId',
+      label: '组织标识',
+      detail: false,
+    },
+    {
+      key: 'orgName',
+      label: '组织名称',
+      detail: false,
+    },
+    {
+      key: 'ownerId',
+      label: '所有者标识',
+      detail: false,
+    },
+    {
+      key: 'ownerName',
+      label: '拥有者名称',
+    },
+    {
+      key: 'owner',
+      label: '所有者',
+      detail: false,
+    },
+    {
+      key: 'domainId',
+      label: '领域标识',
+      detail: false,
+    },
+    {
+      key: 'creator',
+      label: '创建者',
+      detail: false,
+    },
+    {
+      key: 'optimisticLock',
+      label: '乐观锁版本号',
+      detail: false,
+    },
+  ],
   fields: [
     {
       key: 'tenantId',
       label: '归属租户',
       layoutGroup: 'basic',
-      layoutGroupTitle: '账户信息',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
       layoutOrder: 5,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -74,6 +122,10 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'id',
       label: '账户ID',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 10,
       fixed: 'left',
       form: false,
       search: true,
@@ -83,8 +135,10 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '账户名称',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 10,
+      layoutGroupOrder: -10,
+      layoutOrder: 15,
       required: true,
       search: true,
       table: true,
@@ -102,8 +156,10 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'status',
       label: '账户状态',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 20,
+      layoutGroupOrder: -10,
+      layoutOrder: 25,
       loadOptions: fundAccountStatusOptionsLoader,
       table: true,
       type: 'select',
@@ -121,8 +177,10 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'currencyType',
       label: '货币类型',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 30,
+      layoutGroupOrder: -10,
+      layoutOrder: 20,
       disabledOnEdit: true,
       loadOptions: currencyTypeOptionsLoader,
       omitOnEdit: true,
@@ -134,8 +192,10 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'currencyCode',
       label: '货币代码',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 40,
+      layoutGroupOrder: -10,
+      layoutOrder: 35,
       disabledOnEdit: true,
       loadOptions: currencyCodeOptionsLoader,
       omitOnEdit: true,
@@ -189,8 +249,10 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'confidentialLevel',
       label: '机密等级',
-      layoutGroup: 'business',
-      layoutOrder: 50,
+      layoutGroupTitle: '基础信息',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutOrder: 30,
       loadOptions: confidentialLevelOptionsLoader,
       type: 'select',
       valueType: 'number',
@@ -235,6 +297,7 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'createTime',
       label: '创建时间',
+      layoutOrder: 900,
       form: false,
       table: true,
       type: 'datetime',
@@ -243,6 +306,7 @@ export const fundAccountPageCrudConfig: CrudPageConfig = {
     {
       key: 'lastUpdateTime',
       label: '更新时间',
+      layoutOrder: 905,
       form: false,
       table: true,
       type: 'datetime',

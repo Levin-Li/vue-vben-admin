@@ -30,11 +30,21 @@ describe('用户选择器使用正确的模块路径', () => {
     settlementOrderPageCrudConfig,
     socialUserPageCrudConfig,
     userPageCrudConfig,
-    userSettingPageCrudConfig,
   ])('$title 指向基础模块', (config) => {
     expect(config.apiModuleBase).toBe('/com.levin.oak.base/V1/api');
     expect(
       config.fields.some((field) => field.type === 'user-tree-select'),
     ).toBe(true);
+  });
+
+  it('用户个性化设置使用基础模块，由服务端固定本人归属', () => {
+    expect(userSettingPageCrudConfig.apiModuleBase).toBe(
+      '/com.levin.oak.base/V1/api',
+    );
+    expect(
+      userSettingPageCrudConfig.fields.some(
+        (field) => field.key === 'ownerId' || field.type === 'user-tree-select',
+      ),
+    ).toBe(false);
   });
 });

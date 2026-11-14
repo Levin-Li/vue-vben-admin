@@ -82,12 +82,41 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  // 单独声明详情字段，保留表格、查询和提交配置。
+  detailExtraFields: [
+    {
+      key: 'tenantName',
+      label: '租户名称',
+      detail: false,
+    },
+    {
+      key: 'orgName',
+      label: '组织名称',
+      detail: false,
+    },
+    {
+      key: 'domainId',
+      label: '领域标识',
+      detail: false,
+    },
+    {
+      key: 'creator',
+      label: '创建者',
+      detail: false,
+    },
+    {
+      key: 'optimisticLock',
+      label: '乐观锁版本号',
+      detail: false,
+    },
+  ],
   fields: [
     {
       key: 'tenantId',
       label: '归属租户',
       layoutGroup: 'basic',
-      layoutGroupTitle: '应用信息',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
       layoutOrder: 5,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -109,13 +138,19 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'orgId',
       label: '所属组织',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 6,
+      layoutGroupOrder: -10,
+      layoutOrder: 10,
       type: 'org-tree-select',
     },
     {
       key: 'id',
       label: '记录ID',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 15,
       fixed: 'left',
       form: false,
       search: true,
@@ -125,8 +160,10 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '应用名称',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 10,
+      layoutGroupOrder: -10,
+      layoutOrder: 20,
       required: true,
       search: true,
       table: true,
@@ -135,10 +172,12 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'appId',
       label: '应用ID',
+      layoutGroupTitle: '基础信息',
       // 后端将应用 ID 定义为记录主键；保留列键以兼容已保存的列设置。
       form: false,
       layoutGroup: 'basic',
-      layoutOrder: 20,
+      layoutGroupOrder: -10,
+      layoutOrder: 25,
       sortField: 'id',
       table: true,
       tableValue: (record) => record.id,
@@ -147,8 +186,10 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'serviceUserId',
       label: '绑定服务账号',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 30,
+      layoutGroupOrder: -10,
+      layoutOrder: 45,
 
       required: true,
       search: true,
@@ -159,8 +200,10 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'signType',
       label: '签名类型',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 40,
+      layoutGroupOrder: -10,
+      layoutOrder: 30,
       options: [{ label: 'HMAC_SHA256', value: 'HMAC_SHA256' }],
       required: true,
       table: true,
@@ -170,8 +213,10 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '过期时间',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 50,
+      layoutGroupOrder: -10,
+      layoutOrder: 35,
       search: true,
       table: true,
       type: 'datetime',
@@ -180,12 +225,14 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'appSignSecret',
       label: '签名密钥',
+      layoutGroupTitle: '基础信息',
       disabledOnEdit: true,
       fullRow: true,
       help: '新增时由前端自动生成，编辑时不允许修改。',
       layoutGroup: 'basic',
+      layoutGroupOrder: -10,
       layoutNewRow: true,
-      layoutOrder: 60,
+      layoutOrder: 50,
       type: 'password',
     },
     // 两项访问白名单共同定义应用的安全边界，保留独立分组以避免与主体资料混排。
@@ -265,6 +312,7 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'createTime',
       label: '创建时间',
+      layoutOrder: 900,
       form: false,
       table: true,
       type: 'datetime',
@@ -273,6 +321,7 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'lastUpdateTime',
       label: '更新时间',
+      layoutOrder: 905,
       form: false,
       table: true,
       type: 'datetime',
@@ -281,6 +330,10 @@ export const clientAppPageCrudConfig: CrudPageConfig = {
     {
       key: 'lastAccessTime',
       label: '最后访问时间',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 40,
       form: false,
       table: true,
       type: 'datetime',

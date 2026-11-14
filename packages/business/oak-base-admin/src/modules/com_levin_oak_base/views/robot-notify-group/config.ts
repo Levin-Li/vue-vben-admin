@@ -25,6 +25,19 @@ export function canManageRobotWebhook(userInfo: unknown) {
   );
 }
 
+/** 仅对具备凭据维护身份且当前行已启用、地址非空的记录提供测试入口。 */
+export function canTestSendRobotNotifyGroup(
+  record: Record<string, any>,
+  canManage: boolean,
+) {
+  return (
+    canManage &&
+    record.enable === true &&
+    typeof record.webhookUrl === 'string' &&
+    record.webhookUrl.trim().length > 0
+  );
+}
+
 export const pageMeta = {
   name: 'RobotNotifyGroup',
   title: '机器人通知群',
@@ -44,6 +57,38 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
   defaultQuery: { pageIndex: 1, pageSize: 10 },
   description:
     '同一租户、组织和业务类型只配置一个通知群；精确配置优先，公共配置作为发送回退。',
+  // 按详情响应模型补充公共审计字段，不改变新增、编辑及列表的字段契约。
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    { key: 'orgName', label: '组织名称', detail: false },
+    { key: 'domainId', label: '领域标识', detail: false },
+    {
+      key: 'creator',
+      label: '创建者',
+      layoutGroup: 'maintenance',
+      layoutGroupTitle: '补充与维护',
+      layoutOrder: 40,
+    },
+    {
+      key: 'createTime',
+      label: '创建时间',
+      type: 'datetime',
+      layoutGroup: 'audit',
+      layoutGroupTitle: '维护时间',
+      layoutOrder: 10,
+    },
+    {
+      key: 'lastUpdateTime',
+      label: '更新时间',
+      type: 'datetime',
+      layoutGroup: 'audit',
+      layoutGroupTitle: '维护时间',
+      layoutOrder: 20,
+    },
+    { key: 'orderCode', label: '排序代码', detail: false },
+    { key: 'editable', label: '是否可编辑', detail: false },
+    { key: 'remark', label: '备注', detail: false },
+  ],
   // 识别信息在前、接入凭据居中、维护开关与描述在后；布局仅是开发默认，用户UI设置优先。
   formMaxColumns: 2,
   fields: [
@@ -51,8 +96,9 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       key: 'tenantId',
       label: '所属租户',
       layoutGroup: 'basic',
+      layoutGroupOrder: 10,
       layoutGroupTitle: '基础信息',
-      layoutOrder: 30,
+      layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -74,8 +120,9 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       key: 'orgId',
       label: '所属组织',
       layoutGroup: 'basic',
+      layoutGroupOrder: 10,
       layoutGroupTitle: '基础信息',
-      layoutOrder: 40,
+      layoutOrder: 20,
       search: true,
       table: true,
       type: 'org-tree-select',
@@ -87,6 +134,10 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       form: false,
       label: '通知群 ID',
       table: false,
+      layoutGroup: 'basic',
+      layoutGroupOrder: 10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 30,
     },
     {
       key: 'optimisticLock',
@@ -100,8 +151,9 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       key: 'name',
       label: '名称',
       layoutGroup: 'basic',
+      layoutGroupOrder: 10,
       layoutGroupTitle: '基础信息',
-      layoutOrder: 10,
+      layoutOrder: 40,
       maxLength: 128,
       required: true,
       search: true,
@@ -112,8 +164,9 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       key: 'bizType',
       label: '业务类型',
       layoutGroup: 'basic',
+      layoutGroupOrder: 10,
       layoutGroupTitle: '基础信息',
-      layoutOrder: 20,
+      layoutOrder: 50,
       maxLength: 384,
       required: true,
       search: true,
@@ -133,10 +186,11 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       key: 'platformType',
       help: '文本发送无需选择；发送卡片时必须选择与 Webhook 地址一致的机器人平台。',
       label: '平台类型',
-      layoutGroup: 'connection',
-      layoutGroupTitle: '机器人接入',
+      layoutGroup: 'basic',
+      layoutGroupOrder: 10,
+      layoutGroupTitle: '基础信息',
       layoutGroupForceDisplay: true,
-      layoutOrder: 10,
+      layoutOrder: 60,
       loadOptions: platformOptionsLoader,
       required: false,
       table: true,
@@ -148,7 +202,8 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       fullRow: true,
       label: '描述',
       layoutGroup: 'maintenance',
-      layoutGroupTitle: '补充维护',
+      layoutGroupOrder: 90,
+      layoutGroupTitle: '补充与维护',
       layoutOrder: 30,
       maxLength: 1024,
       table: false,
@@ -162,6 +217,7 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       help: '待配置记录可暂为空；启用前必须填写。地址包含发送凭据，仅平台或租户管理员可编辑，列表和详情不展示完整地址。',
       label: 'Webhook 地址',
       layoutGroup: 'connection',
+      layoutGroupOrder: 20,
       layoutGroupTitle: '机器人接入',
       layoutGroupForceDisplay: true,
       layoutOrder: 20,
@@ -175,7 +231,8 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       key: 'orgShared',
       label: '组织共享',
       layoutGroup: 'maintenance',
-      layoutGroupTitle: '补充维护',
+      layoutGroupOrder: 90,
+      layoutGroupTitle: '补充与维护',
       layoutOrder: 10,
       table: true,
       type: 'switch',
@@ -186,7 +243,8 @@ export const robotNotifyGroupPageCrudConfig: CrudPageConfig = {
       key: 'enable',
       label: '是否启用',
       layoutGroup: 'maintenance',
-      layoutGroupTitle: '补充维护',
+      layoutGroupOrder: 90,
+      layoutGroupTitle: '补充与维护',
       layoutOrder: 20,
       search: true,
       table: true,

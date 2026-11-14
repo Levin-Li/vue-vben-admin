@@ -23,6 +23,21 @@ export const scheduledLogPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    {
+      key: 'orgId',
+      label: '组织标识',
+      layoutOrder: -30,
+    },
+    {
+      key: 'orgName',
+      label: '组织名称',
+      layoutOrder: -20,
+    },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+  ],
   fields: [
     {
       key: 'tenantId',
@@ -32,6 +47,7 @@ export const scheduledLogPageCrudConfig: CrudPageConfig = {
       search: true,
       type: 'select',
       visibleForPlatformUser: true,
+      layoutOrder: -40,
     },
     {
       key: '__tenant',
@@ -52,14 +68,23 @@ export const scheduledLogPageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       width: 180,
+      layoutOrder: -10,
     },
-    { key: 'taskId', label: '任务ID', search: true, table: true, width: 180 },
+    {
+      key: 'taskId',
+      label: '任务ID',
+      search: true,
+      table: true,
+      width: 180,
+      layoutOrder: -9,
+    },
     {
       key: 'executionCycle',
       label: '执行周期',
       search: true,
       table: true,
       width: 180,
+      layoutOrder: -7,
     },
     {
       key: 'gteCreateTime',
@@ -90,6 +115,7 @@ export const scheduledLogPageCrudConfig: CrudPageConfig = {
       type: 'switch',
       valueType: 'boolean',
       width: 100,
+      layoutOrder: -8,
     },
     {
       key: 'executionResult',
@@ -105,6 +131,7 @@ export const scheduledLogPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,

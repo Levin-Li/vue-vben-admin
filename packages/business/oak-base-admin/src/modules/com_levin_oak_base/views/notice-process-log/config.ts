@@ -29,6 +29,14 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    { key: 'orgName', label: '组织名称', layoutOrder: 30 },
+    { key: 'ownerName', label: '拥有者名称', layoutOrder: 50 },
+    { key: 'owner', label: '所有者', detail: false },
+    { key: 'domainId', label: '领域标识', layoutOrder: 90 },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+  ],
   fields: [
     {
       key: 'tenantId',
@@ -60,7 +68,7 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
     {
       key: 'ownerId',
       label: '所属用户',
-      layoutOrder: 30,
+      layoutOrder: 40,
       type: 'user-tree-select',
     },
     {
@@ -71,11 +79,12 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       width: 180,
+      layoutOrder: 60,
     },
     {
       key: 'noticeId',
       label: '通知ID',
-      layoutOrder: 40,
+      layoutOrder: 70,
       required: true,
       search: true,
       table: true,
@@ -93,7 +102,7 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
     {
       key: 'status',
       label: '处理状态',
-      layoutOrder: 50,
+      layoutOrder: 80,
       loadOptions: noticeProcessStatusOptionsLoader,
       required: true,
       table: true,
@@ -104,7 +113,7 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
       key: 'remark',
       label: '备注',
       fullRow: true,
-      layoutOrder: 60,
+      layoutOrder: 100,
       required: true,
       type: 'textarea',
     },
@@ -115,6 +124,7 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 110,
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,

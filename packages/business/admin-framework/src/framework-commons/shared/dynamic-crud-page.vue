@@ -367,6 +367,7 @@ import { evaluateCrudVisibleOn } from './crud-visible-on';
 import {
   buildDetailDisplayEntries,
   flattenCrudComplexDetailRecord,
+  getUndeclaredDetailKeys,
   resolveDetailFields,
 } from './detail-display';
 import DetailDisplayPanel from './detail-display-panel.vue';
@@ -516,10 +517,18 @@ const menuFixedQuery = parseMenuFixedQuery(route.meta.fixedQuery);
 const effectiveFields = computed(() =>
   resolveEditableCrudFields(props.config.fields),
 );
+const effectiveDetailFields = computed(() => {
+  const fields = props.config.detailFields || props.config.fields;
+  const definitions = new Map(fields.map((field) => [field.key, field]));
+  for (const field of props.config.detailExtraFields || []) {
+    definitions.set(field.key, { ...definitions.get(field.key), ...field });
+  }
+  return [...definitions.values()];
+});
 
 watch(
-  effectiveFields,
-  (fields) => {
+  [effectiveFields, effectiveDetailFields],
+  ([fields, detailFields]) => {
     for (const field of fields) {
       if (field.search)
         formElementRegistry.register({
@@ -548,21 +557,20 @@ watch(
           fieldKeys: [field.key],
           view: 'edit',
         });
-      if (field.detail !== false)
-        formElementRegistry.register({
-          formId: 'crud-detail',
-          formName: '详情表单',
-          key: field.key,
-          label: field.label,
-          fieldKeys: [field.key],
-          view: 'detail',
-        });
+    }
+    for (const field of detailFields) {
+      if (field.detail === false) continue;
+      formElementRegistry.register({
+        formId: 'crud-detail',
+        formName: '详情表单',
+        key: field.key,
+        label: field.label,
+        fieldKeys: [field.key],
+        view: 'detail',
+      });
     }
   },
   { immediate: true },
-);
-const effectiveDetailFields = computed(
-  () => props.config.detailFields || props.config.fields,
 );
 
 type ExportTemplateSaveScope =
@@ -591,6 +599,7 @@ const actionResultTitle = ref('');
 const actionResultHideEmptyValues = ref(false);
 const actionResultData = ref<any>(null);
 const actionResultUsesRetrievePolicy = ref(false);
+const warnedUndeclaredDetailKeys = new Set<string>();
 const latestDetailRecord = ref<{
   record: GenericRecord;
   source: string | undefined;
@@ -1509,7 +1518,9 @@ function applyPageDisplayFields(
   const hasStoredFieldOrder =
     (pageDisplayConfig.value[view]?.fields?.length || 0) > 0;
   const staticFieldOrder = new Map(
-    sortFormLayoutFields([...fields]).map((field, index) => [field.key, index]),
+    (view === 'query' ? fields : sortFormLayoutFields([...fields])).map(
+      (field, index) => [field.key, index],
+    ),
   );
   return [...fields]
     .filter((field) =>
@@ -5747,6 +5758,19 @@ async function handleRetrieve(record: GenericRecord) {
         );
 
   const response = dataAttrAccess.pruneOutput('retrieve', rawResponse);
+  if ((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV) {
+    const missing = getUndeclaredDetailKeys(
+      flattenCrudComplexDetailRecord(response, props.config.complexGroups),
+      effectiveFields.value,
+      effectiveDetailFields.value,
+    );
+    for (const key of missing) {
+      const identity = `${pageDisplaySettingCode.value}:${key}`;
+      if (warnedUndeclaredDetailKeys.has(identity)) continue;
+      warnedUndeclaredDetailKeys.add(identity);
+      console.warn(`标准 CRUD 详情字段未声明：${identity}`);
+    }
+  }
   if (response && typeof response === 'object' && !Array.isArray(response)) {
     latestDetailRecord.value = {
       source: pageDisplaySettingCode.value,
@@ -8084,6 +8108,7 @@ const detailSettingsFields = computed(() => {
     flattenCrudComplexDetailRecord(record, props.config.complexGroups),
     effectiveFields.value,
     effectiveDetailFields.value,
+    false,
   );
   const known = new Set(fields.map((field) => field.key));
   for (const field of effectiveDetailFields.value) {
@@ -8115,6 +8140,7 @@ function getDetailDisplayFields() {
         flattenedDetailData.value,
         effectiveFields.value,
         effectiveDetailFields.value,
+        !actionResultUsesRetrievePolicy.value,
       ),
       'detail',
     )
@@ -8147,9 +8173,12 @@ const actionResultEntries = computed((): DetailDisplayEntry[] => {
         flattenedDetailData.value,
         effectiveFields.value,
         effectiveDetailFields.value,
+        !actionResultUsesRetrievePolicy.value,
       ),
     ],
     pageDisplayConfig.value.detail?.showEmptyValues !== false,
+    !actionResultUsesRetrievePolicy.value,
+    actionResultUsesRetrievePolicy.value,
   ) as DetailDisplayEntry[];
 });
 

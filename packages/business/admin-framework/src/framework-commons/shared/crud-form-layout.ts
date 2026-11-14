@@ -98,8 +98,11 @@ export function getFormGridContentMaxWidth(columns: number) {
 }
 
 export function getFormModalRecommendedMaxWidth(columns: number) {
-  const safeColumns = clampInteger(columns, 1, 5) as
-    keyof typeof FORM_MODAL_RECOMMENDED_MAX_WIDTH_BY_COLUMN;
+  const safeColumns = clampInteger(
+    columns,
+    1,
+    5,
+  ) as keyof typeof FORM_MODAL_RECOMMENDED_MAX_WIDTH_BY_COLUMN;
 
   return FORM_MODAL_RECOMMENDED_MAX_WIDTH_BY_COLUMN[safeColumns];
 }
@@ -138,32 +141,47 @@ export function getFormFieldColumnSpan(
   return Math.min(Math.max(field.span || 1, 1), columns);
 }
 
-export function sortFormLayoutFields(fields: CrudFieldConfig[]) {
+export function sortFormLayoutFields(fields: CrudFieldConfig[]): CrudFieldConfig[] {
   const groupOrder = new Map<string, number>();
+  const groupFirstIndex = new Map<string, number>();
   for (const [index, field] of fields.entries()) {
     if (field.layoutGroup && !groupOrder.has(field.layoutGroup)) {
       groupOrder.set(field.layoutGroup, index);
+      groupFirstIndex.set(field.layoutGroup, index);
+    }
+    if (field.layoutGroup && field.layoutGroupOrder !== undefined) {
+      groupOrder.set(field.layoutGroup, field.layoutGroupOrder);
     }
   }
 
   return fields
     .map((field, index) => ({
       field,
+      grouped: Boolean(field.layoutGroup),
       groupIndex: field.layoutGroup
         ? (groupOrder.get(field.layoutGroup) ?? fields.length)
-        : fields.length + index / 1000,
+        : 0,
       index,
       order: field.layoutOrder ?? index,
     }))
-    .sort((a, b) => {
+    .toSorted((a, b) => {
+      if (a.grouped !== b.grouped) return a.grouped ? -1 : 1;
+
       const groupDiff = a.groupIndex - b.groupIndex;
 
       if (groupDiff !== 0) {
         return groupDiff;
       }
 
+      if (a.grouped && a.field.layoutGroup !== b.field.layoutGroup) {
+        return (
+          (groupFirstIndex.get(a.field.layoutGroup || '') ?? a.index) -
+          (groupFirstIndex.get(b.field.layoutGroup || '') ?? b.index)
+        );
+      }
+
       const orderDiff = a.order - b.order;
-      return orderDiff !== 0 ? orderDiff : a.index - b.index;
+      return orderDiff === 0 ? a.index - b.index : orderDiff;
     })
     .map((entry) => entry.field);
 }
@@ -223,9 +241,10 @@ export function resolveFormColumnCount({
   viewportWidth: number;
 }) {
   const totalWeight = fields.length;
-  const normalizedConfiguredMaxColumns = Number.isFinite(configuredMaxColumns)
-    ? configuredMaxColumns!
-    : 5;
+  const normalizedConfiguredMaxColumns =
+    configuredMaxColumns !== undefined && Number.isFinite(configuredMaxColumns)
+      ? configuredMaxColumns
+      : 5;
   const maxColumns = getResponsiveFormColumnLimit(
     Math.min(Math.max(normalizedConfiguredMaxColumns, 1), 5),
     viewportWidth,

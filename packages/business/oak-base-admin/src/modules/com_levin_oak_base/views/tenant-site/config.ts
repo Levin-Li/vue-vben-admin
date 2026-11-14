@@ -31,6 +31,21 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
   },
   description:
     '租户站点只保存站点配置和完整域名字符串，域名资产、解析和证书在域名管理中维护。',
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    {
+      key: 'orgName',
+      label: '组织名称',
+      layoutGroup: 'ownership',
+      layoutOrder: 16,
+      layoutGroupTitle: '归属信息',
+    },
+    { key: 'brand', label: '品牌', detail: false },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+    { key: 'siteInfo', label: '站点展示信息', detail: false },
+  ],
   fields: [
     {
       key: 'tenantId',
@@ -78,7 +93,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       label: '品牌',
       layoutGroup: 'basic',
       layoutGroupTitle: '基础信息',
-      layoutOrder: 10,
+      layoutOrder: 30,
       loadOptions: brandOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -89,7 +104,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       label: '站点名称',
       layoutGroup: 'basic',
       layoutGroupTitle: '基础信息',
-      layoutOrder: 20,
+      layoutOrder: 10,
       required: true,
       search: true,
       table: true,
@@ -100,7 +115,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       label: '站点类型',
       layoutGroup: 'basic',
       layoutGroupTitle: '基础信息',
-      layoutOrder: 30,
+      layoutOrder: 20,
       search: true,
       table: true,
       width: 140,
@@ -139,9 +154,9 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
     {
       key: 'expiredTime',
       label: '站点到期时间',
-      layoutGroup: 'status',
-      layoutGroupTitle: '状态与排序',
-      layoutOrder: 10,
+      layoutGroup: 'basic',
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 50,
       table: true,
       type: 'datetime',
       width: 180,
@@ -202,6 +217,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
     {
       key: 'lastUpdateTime',
@@ -210,6 +226,7 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1010,
     },
     {
       key: 'remark',

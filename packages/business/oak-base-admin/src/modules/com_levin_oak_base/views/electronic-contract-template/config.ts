@@ -76,10 +76,106 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
         sealPositionRules: values.sealPositionRules,
       };
     },
+    // 单独声明详情字段，保留表格、查询和提交配置。
+    detailExtraFields: [
+      {
+        key: 'tenantName',
+        label: '租户名称',
+        detail: false,
+      },
+      {
+        key: 'orgName',
+        label: '组织名称',
+        detail: false,
+      },
+      {
+        key: 'ownerName',
+        label: '拥有者名称',
+      },
+      {
+        key: 'owner',
+        label: '所有者',
+        detail: false,
+      },
+      {
+        key: 'domain',
+        label: '适用域名',
+      },
+      {
+        key: 'lastStatusTime',
+        label: '最后一次状态变更时间',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 50,
+        type: 'datetime',
+      },
+      {
+        key: 'lastStatusDesc',
+        label: '最后状态描述',
+      },
+      {
+        key: 'actionLog',
+        label: '流程日志',
+        detail: false,
+      },
+      {
+        key: 'supportEventsByCurrentStatus',
+        label: '当前状态可执行事件列表',
+        detail: false,
+      },
+      {
+        key: 'domainId',
+        label: '领域标识',
+        detail: false,
+      },
+      {
+        key: 'creator',
+        label: '创建者',
+        detail: false,
+      },
+      {
+        key: 'lastUpdateTime',
+        label: '更新时间',
+        layoutOrder: 925,
+        type: 'datetime',
+      },
+      {
+        key: 'orderCode',
+        label: '排序代码',
+        layoutOrder: 900,
+      },
+      {
+        key: 'enable',
+        label: '是否启用',
+        layoutOrder: 905,
+        type: 'switch',
+      },
+      {
+        key: 'editable',
+        label: '是否可编辑',
+        layoutOrder: 910,
+        type: 'switch',
+      },
+      {
+        key: 'remark',
+        label: '备注',
+        layoutOrder: 915,
+      },
+      {
+        key: 'optimisticLock',
+        label: '乐观锁版本号',
+        detail: false,
+      },
+    ],
     fields: [
       {
         key: 'tenantId',
         label: '使用租户',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 5,
         loadOptions: tenantOptionsLoader,
         remoteSearch: true,
         search: true,
@@ -89,11 +185,19 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'orgId',
         label: '使用组织',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 10,
         type: 'org-tree-select',
       },
       {
         key: 'ownerId',
         label: '所属用户',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 15,
         type: 'user-tree-select',
         defaultHidden: { create: true },
       },
@@ -116,6 +220,10 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'templateNo',
         label: '模板编号',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 30,
         formCreate: false,
         help: '新增时由系统根据上传文件自动生成。',
         table: true,
@@ -124,6 +232,10 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'name',
         label: '模板名称',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 25,
         placeholder: '如：客户服务合同',
         required: true,
         search: true,
@@ -133,6 +245,10 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'category',
         label: '合同用途',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 35,
         allowInput: true,
         loadOptions: categoryOptionsLoader,
         placeholder: '选择或输入，如：销售合同',
@@ -144,6 +260,10 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'confidentialLevel',
         label: '机密等级',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 45,
         defaultHidden: { create: true },
         loadOptions: confidentialLevelOptionsLoader,
         type: 'select',
@@ -196,6 +316,10 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'status',
         label: '模板状态',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 40,
         form: false,
         loadOptions: statusOptionsLoader,
         search: true,
@@ -206,6 +330,7 @@ export const electronicContractTemplatePageCrudConfig: CrudPageConfig =
       {
         key: 'createTime',
         label: '创建时间',
+        layoutOrder: 920,
         form: false,
         table: true,
         type: 'datetime',

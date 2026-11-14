@@ -78,6 +78,16 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    { key: 'userCategoryList', label: '用户类别包含列表' },
+    { key: 'orgTypeList', label: '用户组织类型包含列表' },
+    { key: 'orgCategoryList', label: '用户组织类别包含列表' },
+    { key: 'exInfoEditor', label: '扩展信息编辑器', detail: false },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+  ],
   fields: [
     {
       key: '__tenant',
@@ -370,6 +380,7 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
     {
       key: 'lastUpdateTime',
@@ -378,6 +389,7 @@ export const trafficControlRulePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1010,
     },
   ],
   formMaxColumns: 4,

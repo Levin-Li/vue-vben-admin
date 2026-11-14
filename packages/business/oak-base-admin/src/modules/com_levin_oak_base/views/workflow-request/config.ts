@@ -53,6 +53,36 @@ export const workflowRequestPageConfig: CrudPageConfig = {
   allowDelete: false,
   defaultFormValues: { amount: 0, documentsComplete: false },
   defaultQuery: { pageIndex: 1, pageSize: 10 },
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    { key: 'tenantId', label: '租户Id', detail: false },
+    { key: 'orgId', label: '组织Id', detail: false },
+    {
+      key: 'orgName',
+      label: '组织名称',
+      layoutOrder: -10,
+    },
+    { key: 'ownerId', label: '申请人标识' },
+    { key: 'owner', label: '所有者', detail: false },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    {
+      key: 'createTime',
+      label: '创建时间',
+      type: 'datetime',
+      layoutOrder: 1000,
+    },
+    {
+      key: 'lastUpdateTime',
+      label: '更新时间',
+      type: 'datetime',
+      layoutOrder: 1010,
+    },
+    { key: 'orderCode', label: '排序代码' },
+    { key: 'enable', label: '是否启用' },
+    { key: 'editable', label: '是否可编辑' },
+    { key: 'remark', label: '备注' },
+  ],
   fields: [
     {
       key: 'id',

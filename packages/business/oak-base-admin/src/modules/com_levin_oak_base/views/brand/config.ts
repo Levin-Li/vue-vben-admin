@@ -24,11 +24,40 @@ export const brandPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  // 单独声明详情字段，保留表格、查询和提交配置。
+  detailExtraFields: [
+    {
+      key: 'tenantName',
+      label: '租户名称',
+      detail: false,
+    },
+    {
+      key: 'orgName',
+      label: '组织名称',
+      detail: false,
+    },
+    {
+      key: 'domainId',
+      label: '领域标识',
+      detail: false,
+    },
+    {
+      key: 'creator',
+      label: '创建者',
+      detail: false,
+    },
+    {
+      key: 'optimisticLock',
+      label: '乐观锁版本号',
+      detail: false,
+    },
+  ],
   fields: [
     {
       key: 'tenantId',
       label: '归属租户',
       layoutGroup: 'basic',
+      layoutGroupOrder: -10,
       layoutGroupTitle: '品牌信息',
       layoutOrder: 5,
       loadOptions: tenantOptionsLoader,
@@ -52,6 +81,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
       key: 'orgId',
       label: '所属组织',
       layoutGroup: 'basic',
+      layoutGroupOrder: -10,
       layoutOrder: 6,
       type: 'org-tree-select',
     },
@@ -68,6 +98,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
       key: 'name',
       label: '品牌名称',
       layoutGroup: 'basic',
+      layoutGroupOrder: -10,
       layoutOrder: 10,
       required: true,
       search: true,
@@ -78,6 +109,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
       key: 'ownerName',
       label: '持有人名称',
       layoutGroup: 'basic',
+      layoutGroupOrder: -10,
       layoutOrder: 20,
       search: true,
       table: true,
@@ -99,7 +131,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'logo',
-      label: 'Logo',
+      label: '品牌图标',
       layoutGroup: 'media',
       layoutGroupTitle: '品牌素材',
       layoutNewRow: true,
@@ -120,6 +152,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
       key: 'title',
       label: '标题',
       layoutGroup: 'basic',
+      layoutGroupOrder: -10,
       layoutOrder: 30,
     },
     {
@@ -155,6 +188,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
       label: '品牌内容',
       fullRow: true,
       layoutGroup: 'basic',
+      layoutGroupOrder: -10,
       layoutOrder: 40,
       type: 'textarea',
     },
@@ -199,6 +233,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
     {
       key: 'createTime',
       label: '创建时间',
+      layoutOrder: 900,
       form: false,
       table: true,
       type: 'datetime',
@@ -207,6 +242,7 @@ export const brandPageCrudConfig: CrudPageConfig = {
     {
       key: 'lastUpdateTime',
       label: '更新时间',
+      layoutOrder: 905,
       form: false,
       table: true,
       type: 'datetime',

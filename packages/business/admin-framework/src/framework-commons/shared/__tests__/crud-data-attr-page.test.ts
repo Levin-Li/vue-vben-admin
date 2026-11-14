@@ -355,6 +355,67 @@ describe('标准 CRUD 操作与接口路径的授权边界', () => {
 });
 
 describe('详情尊重字段的身份可见性', () => {
+  it('标准详情不展示接口额外返回的英文键，开发诊断不包含字段值', async () => {
+    configureDataAttrPolicyLoader(async () => ({
+      version: 1,
+      policies: [
+        {
+          ...policy(),
+          restricted: false,
+          groups: [],
+          nodes: {},
+          requestRoots: [],
+          responseRoot: null,
+          viewRoots: { request: [], response: [] },
+        },
+      ],
+    }));
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const wrapper = shallowMount(CrudPage, {
+        global: { config: { errorHandler: () => {} } },
+        props: {
+          config: config({
+            apiService: {
+              retrieve: vi.fn(async () => ({
+                creator: 'secret-sentinel',
+                enable: true,
+                name: '记录',
+              })),
+            },
+            dataAttrTargets: {
+              retrieve: { method: 'GET', path: '/Contract/retrieve' },
+            },
+            fields: [{ key: 'name', label: '名称' }],
+            detailExtraFields: [{ key: 'creator', label: '创建者' }],
+          }),
+        },
+      });
+      await flushPromises();
+      const vm = setupState(wrapper);
+      await vm.handleRetrieve({ id: '1' });
+      await flushPromises();
+      const detailLabels = vm
+        .getDetailDisplayFields()
+        .map((field: { key: string; label: string }) => [
+          field.key,
+          field.label,
+        ]);
+      expect(detailLabels).toHaveLength(2);
+      expect(detailLabels).toEqual(
+        expect.arrayContaining([
+          ['name', '名称'],
+          ['creator', '创建者'],
+        ]),
+      );
+      expect(warning.mock.calls.flat().join(' ')).not.toContain(
+        'secret-sentinel',
+      );
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
   it.each([false, true])(
     '平台身份为 %s 时只按可见字段加载租户选项',
     async (platformUser) => {
@@ -415,6 +476,42 @@ describe('详情尊重字段的身份可见性', () => {
       expect(tenantOptions).toHaveBeenCalledTimes(platformUser ? 1 : 0);
     },
   );
+});
+
+describe('查询顺序与表单布局分离', () => {
+  it('查询继续按 searchOrder 排列，不受基础信息 layoutOrder 影响', async () => {
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          fields: [
+            {
+              key: 'category',
+              label: '类别',
+              search: true,
+              searchOrder: 20,
+              layoutGroup: 'basic',
+              layoutOrder: 10,
+            },
+            {
+              key: 'name',
+              label: '名称',
+              search: true,
+              searchOrder: 10,
+              layoutGroup: 'basic',
+              layoutOrder: 20,
+            },
+          ],
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    expect(vm.searchFields.map((field: { key: string }) => field.key)).toEqual([
+      'name',
+      'category',
+    ]);
+  });
 });
 
 describe('显式只读记录不能通过自定义更新入口绕过', () => {

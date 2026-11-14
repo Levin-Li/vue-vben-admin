@@ -42,10 +42,51 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     pageSize: 10,
   },
   description: '集中维护域名证书申请、手动配置、下载和本地证书文件生成。',
+  // 单独声明详情字段，保留表格、查询和提交配置。
+  detailExtraFields: [
+    { key: 'sslApplyToken', label: 'SSL证书申请Token', detail: false },
+    {
+      key: 'name',
+      label: '名称',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 15,
+    },
+    {
+      key: 'tenantName',
+      label: '租户名称',
+      detail: false,
+    },
+    {
+      key: 'localSaveDir',
+      label: 'SSL证书本地保存目录',
+      detail: false,
+    },
+    {
+      key: 'domainId',
+      label: '领域标识',
+      detail: false,
+    },
+    {
+      key: 'creator',
+      label: '创建者',
+      detail: false,
+    },
+    {
+      key: 'optimisticLock',
+      label: '乐观锁版本号',
+      detail: false,
+    },
+  ],
   fields: [
     {
       key: 'tenantId',
       label: '所属租户',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 5,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -66,6 +107,10 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'id',
       label: '证书ID',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 10,
       fixed: 'left',
       form: false,
       table: true,
@@ -80,6 +125,10 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'domain',
       label: '证书域名',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 20,
       required: true,
       table: true,
       width: 240,
@@ -93,6 +142,10 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'rootDomain',
       label: '根域名',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 25,
       formCreate: false,
       table: true,
       width: 200,
@@ -100,6 +153,10 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'sslApplyApi',
       label: 'SSL申请API',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 35,
       formCreate: false,
       options: sslApplyApiOptions,
       table: true,
@@ -108,6 +165,10 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'sslApplyStatus',
       label: '申请状态',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 30,
       formCreate: false,
       options: applyStatusOptions,
       search: true,
@@ -118,6 +179,10 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'sslCertExpiredTime',
       label: '证书到期时间',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 40,
       formCreate: false,
       table: true,
       type: 'datetime',
@@ -165,6 +230,7 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'createTime',
       label: '创建时间',
+      layoutOrder: 900,
       form: false,
       table: true,
       type: 'datetime',
@@ -173,6 +239,7 @@ export const domainSslCertPageCrudConfig: CrudPageConfig = {
     {
       key: 'lastUpdateTime',
       label: '更新时间',
+      layoutOrder: 905,
       form: false,
       table: true,
       type: 'datetime',

@@ -234520,6 +234520,20 @@
     },
     "nodes" : { }
   }, {
+    "id" : "68423742-2e8f-3fdf-882e-f4e846521b56",
+    "operation" : "com.levin.oak.base:业务数据-机器人通知群::测试发送",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/RobotNotifyGroup/sendTest" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "b2430345-89cf-3dd3-a3e8-b1c620d90f7a",
     "operation" : "com.levin.oak.base:业务数据-机器人通知群::统计",
     "methods" : [ "GET" ],

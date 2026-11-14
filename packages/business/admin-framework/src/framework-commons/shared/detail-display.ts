@@ -51,6 +51,7 @@ export function resolveDetailFields(
   record: unknown,
   metadata: CrudFieldConfig[],
   declared?: CrudFieldConfig[],
+  includeUndeclared = true,
 ) {
   // 无实际响应时，查询专用字段不作为详情契约的默认候选。
   const isDetailCandidate = (field: CrudFieldConfig) =>
@@ -62,13 +63,35 @@ export function resolveDetailFields(
   const fallbackFields = (declared?.length ? declared : metadata).filter(
     (field) => isDetailCandidate(field),
   );
+  const hasRecord =
+    record && typeof record === 'object' && !Array.isArray(record);
+  const responseKeys = hasRecord ? Object.keys(record) : undefined;
+  const preferredFields = declared?.length ? declared : metadata;
   const keys =
-    record && typeof record === 'object' && !Array.isArray(record)
-      ? Object.keys(record)
-      : fallbackFields.map((field) => field.key);
+    responseKeys && !includeUndeclared
+      ? [
+          ...new Set(
+            [...preferredFields, ...metadata].map((field) => field.key),
+          ),
+        ].filter((key) => responseKeys.includes(key))
+      : responseKeys || fallbackFields.map((field) => field.key);
   return keys
+    .filter((key) => includeUndeclared || definitions.has(key))
     .map((key) => definitions.get(key) || { key, label: key })
     .filter((field) => field.detail !== false);
+}
+
+/** 只返回字段名用于开发期诊断，不读取或记录响应值。 */
+export function getUndeclaredDetailKeys(
+  record: unknown,
+  metadata: CrudFieldConfig[],
+  declared?: CrudFieldConfig[],
+) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return [];
+  const keys = new Set(
+    [...metadata, ...(declared || [])].map((field) => field.key),
+  );
+  return Object.keys(record).filter((key) => !keys.has(key));
 }
 
 export type DetailDisplayEntryKind = 'array' | 'json' | 'qrcode' | 'scalar';
@@ -288,16 +311,24 @@ export function buildDetailDisplayEntries(
   fields: CrudFieldConfig[],
   allFields: CrudFieldConfig[] = fields,
   showEmptyValues = true,
+  includeUndeclared = true,
+  fieldsAlreadyOrdered = false,
 ) {
   const configuredKeys = new Set(allFields.map((field) => field.key));
   const fieldMap = new Map(fields.map((field) => [field.key, field]));
   const fieldOrderMap = new Map(
-    sortFormLayoutFields(fields).map((field, index) => [field.key, index]),
+    (fieldsAlreadyOrdered ? fields : sortFormLayoutFields(fields)).map(
+      (field, index) => [field.key, index],
+    ),
   );
 
   // 已配置却不可见的字段不能退回为无配置字段展示。
   return Object.entries(data)
-    .filter(([key]) => !configuredKeys.has(key) || fieldMap.has(key))
+    .filter(([key]) =>
+      includeUndeclared
+        ? !configuredKeys.has(key) || fieldMap.has(key)
+        : fieldMap.has(key),
+    )
     .map(([key, value], index) => {
       const field = fieldMap.get(key);
       return {

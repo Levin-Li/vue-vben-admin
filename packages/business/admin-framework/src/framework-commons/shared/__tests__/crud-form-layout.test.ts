@@ -10,8 +10,8 @@ import {
   getFormFieldColumnSpan,
   getFormGridContentMaxWidth,
   getFormModalRecommendedMaxWidth,
-  resolveFormModalMaxWidth,
   resolveFormColumnCount,
+  resolveFormModalMaxWidth,
   resolveSearchCollapsedCount,
   sortFormLayoutFields,
 } from '../crud-form-layout';
@@ -72,12 +72,12 @@ describe('crud form layout', () => {
     );
     expect(source).not.toContain('shouldConstrainFormItemWidth');
     expect(source).toContain(
-      "maxWidth: `${getFormGridContentMaxWidth(formColumnCount.value)}px`",
+      `maxWidth: \`\${getFormGridContentMaxWidth(formColumnCount.value)}px\``,
     );
     expect(source).not.toContain('justify-self-center');
     expect(source).toContain('class="w-full"');
     expect(source).toContain(
-      'return `min(80vw, ${resolvedModalMaxWidthPx.value}px)`',
+      `return \`min(80vw, \${resolvedModalMaxWidthPx.value}px)\``,
     );
 
     const defaultJsonField: CrudFieldConfig = {
@@ -147,7 +147,11 @@ describe('crud form layout', () => {
 
     expect(crudSource.match(/<UserOrgSelector/g)).toHaveLength(2);
     expect(crudSource.match(/load-on-initial-value/g)).toHaveLength(2);
-    expect(crudSource.match(/:selectable-types="\[\s*(?:item\.)?field\.type === 'user-tree-select' \? 'user' : 'org',?\s*\]"/g)).toHaveLength(2);
+    expect(
+      crudSource.match(
+        /:selectable-types="\[\s*(?:item\.)?field\.type === 'user-tree-select' \? 'user' : 'org',?\s*\]"/g,
+      ),
+    ).toHaveLength(2);
     expect(selectorSource).toContain(
       'popup-class-name="user-org-selector__dropdown"',
     );
@@ -170,7 +174,9 @@ describe('crud form layout', () => {
     expect(helpers).toContain(
       "DEFAULT_DETAIL_MODAL_WIDTH = 'min(80vw, 1080px)'",
     );
-    expect(source).toContain('detailModalConfig?.modalMaxWidth || DEFAULT_DETAIL_MODAL_WIDTH');
+    expect(source).toContain(
+      'detailModalConfig?.modalMaxWidth || DEFAULT_DETAIL_MODAL_WIDTH',
+    );
     expect(source).not.toContain("detailModalConfig?.modalMaxWidth || '80vw'");
   });
 
@@ -194,7 +200,9 @@ describe('crud form layout', () => {
       'packages/business/admin-framework/src/framework-commons/shared/dynamic-crud-page.vue',
       'utf8',
     );
-    expect(source).toContain("(pageDisplayGroupExpandedRows[groupKey] ?? 'all') === 'all'");
+    expect(source).toContain(
+      "(pageDisplayGroupExpandedRows[groupKey] ?? 'all') === 'all'",
+    );
     expect(source).toContain("? '收起' : '展开'");
     expect(source).not.toContain("'展开全部'");
   });
@@ -248,7 +256,9 @@ describe('crud form layout', () => {
     );
 
     expect(source).toContain('const configuredFormModalWidth = computed(');
-    expect(source).toContain('configuredMaxWidth: isDefaultCrudModalWidth(configuredWidth)');
+    expect(source).toContain(
+      'configuredMaxWidth: isDefaultCrudModalWidth(configuredWidth)',
+    );
     expect(source).toContain('maxWidth: modalMaxWidth.value');
     expect(source).not.toContain(
       'activeFormModalConfig.value?.modalMaxWidth || modalMaxWidth.value',
@@ -426,6 +436,72 @@ describe('crud form layout', () => {
       'enabled',
       'code',
       'ownerId',
+    ]);
+  });
+
+  it('按静态组顺序及未分组字段的显式顺序排列', () => {
+    const fields: CrudFieldConfig[] = [
+      {
+        key: 'audit',
+        label: '审计',
+        layoutGroup: 'audit',
+        layoutGroupOrder: 30,
+      },
+      {
+        key: 'time',
+        label: '业务时间',
+        layoutGroup: 'basic',
+        layoutOrder: 30,
+        layoutGroupOrder: 10,
+      },
+      {
+        key: 'tenant',
+        label: '租户',
+        layoutGroup: 'basic',
+        layoutOrder: 10,
+        layoutGroupOrder: 10,
+      },
+      { key: 'remark', label: '备注', layoutOrder: 20 },
+      { key: 'name', label: '名称', layoutOrder: 10 },
+    ];
+
+    expect(sortFormLayoutFields(fields).map((field) => field.key)).toEqual([
+      'tenant',
+      'time',
+      'audit',
+      'name',
+      'remark',
+    ]);
+  });
+
+  it('组顺序相同时保持两个分组连续', () => {
+    const fields: CrudFieldConfig[] = [
+      {
+        key: 'a2',
+        label: 'A2',
+        layoutGroup: 'a',
+        layoutGroupOrder: 10,
+        layoutOrder: 20,
+      },
+      {
+        key: 'b1',
+        label: 'B1',
+        layoutGroup: 'b',
+        layoutGroupOrder: 10,
+        layoutOrder: 10,
+      },
+      {
+        key: 'a1',
+        label: 'A1',
+        layoutGroup: 'a',
+        layoutGroupOrder: 10,
+        layoutOrder: 10,
+      },
+    ];
+    expect(sortFormLayoutFields(fields).map((field) => field.key)).toEqual([
+      'a1',
+      'a2',
+      'b1',
     ]);
   });
 });

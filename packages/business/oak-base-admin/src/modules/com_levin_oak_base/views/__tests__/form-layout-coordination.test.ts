@@ -8,6 +8,8 @@ import {
   resolveFormColumnCount,
   sortFormLayoutFields,
 } from '@levin/admin-framework/framework-commons/shared/crud-form-layout';
+// 本源码检查测试复用工作区已有的 TypeScript 工具，不引入业务包运行时依赖。
+// eslint-disable-next-line n/no-extraneous-import
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
@@ -253,7 +255,10 @@ function collectCoordinationIssues(
 ) {
   const groups = new Map<string, CrudFieldConfig[]>();
   for (const field of getFormFields(fields, mode)) {
-    const key = field.layoutGroup || '';
+    // 普通布局组不覆盖复杂对象自身的展示分组。
+    const key = field.complexGroupKey
+      ? `complex:${field.complexGroupKey}`
+      : field.layoutGroup || '';
     groups.set(key, [...(groups.get(key) || []), field]);
   }
   return [...groups.values()].flatMap((group) =>
@@ -305,6 +310,8 @@ function isCompactHighComponent(field: CrudFieldConfig) {
 function isAllowedFullRowHighComponent(file: string, field: CrudFieldConfig) {
   const reviewedWideJsonFields: Record<string, string[]> = {
     'backend-fixed-job': ['configData'],
+    // 脱敏规则使用包含实体和字段选择的内嵌编辑器。
+    'data-masking-setting': ['valueContent'],
     domain: ['nameservers', 'exInfo'],
     // 合同填写项使用多列变量编辑器，整行宽度用于同时展示变量名、标题和必填操作。
     'electronic-contract-template': ['templateFieldSchema'],

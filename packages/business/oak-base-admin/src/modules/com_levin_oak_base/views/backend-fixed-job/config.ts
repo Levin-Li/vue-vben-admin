@@ -64,6 +64,10 @@ export const backendFixedJobPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '名称',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 5,
       required: true,
       maxLength: 128,
       table: true,
@@ -72,6 +76,7 @@ export const backendFixedJobPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
+      layoutOrder: 905,
       search: true,
       table: true,
       type: 'switch',
@@ -81,6 +86,10 @@ export const backendFixedJobPageCrudConfig: CrudPageConfig = {
     {
       key: 'id',
       label: '定时任务类名',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 10,
       search: true,
       table: true,
       fullRow: true,
@@ -90,6 +99,7 @@ export const backendFixedJobPageCrudConfig: CrudPageConfig = {
     {
       key: 'remark',
       label: '描述',
+      layoutOrder: 900,
       table: true,
       type: 'textarea',
       fullRow: true,
@@ -115,6 +125,7 @@ export const backendFixedJobPageCrudConfig: CrudPageConfig = {
     {
       key: 'createTime',
       label: '创建时间',
+      layoutOrder: 920,
       type: 'datetime',
       form: false,
       table: true,
@@ -123,6 +134,7 @@ export const backendFixedJobPageCrudConfig: CrudPageConfig = {
     {
       key: 'lastUpdateTime',
       label: '更新时间',
+      layoutOrder: 925,
       type: 'datetime',
       form: false,
       table: true,
@@ -130,8 +142,20 @@ export const backendFixedJobPageCrudConfig: CrudPageConfig = {
     },
     { key: 'domainId', label: '领域标识', form: false },
     { key: 'creator', label: '创建者', form: false },
-    { key: 'orderCode', label: '排序代码', type: 'number', form: false },
-    { key: 'editable', label: '是否可编辑', type: 'switch', form: false },
+    {
+      key: 'orderCode',
+      label: '排序代码',
+      layoutOrder: 915,
+      type: 'number',
+      form: false,
+    },
+    {
+      key: 'editable',
+      label: '是否可编辑',
+      layoutOrder: 910,
+      type: 'switch',
+      form: false,
+    },
     { key: 'optimisticLock', label: '乐观锁版本号', form: false },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,

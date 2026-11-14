@@ -32,13 +32,50 @@ export const areaPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  // 单独声明详情字段，保留表格、查询和提交配置。
+  detailExtraFields: [
+    {
+      key: 'postalCode',
+      label: '邮编',
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 35,
+    },
+    {
+      key: 'parent',
+      label: '父区域',
+      detail: false,
+    },
+    {
+      key: 'children',
+      label: '子区域',
+      detail: false,
+    },
+    {
+      key: 'domainId',
+      label: '领域标识',
+      detail: false,
+    },
+    {
+      key: 'creator',
+      label: '创建者',
+      detail: false,
+    },
+    {
+      key: 'optimisticLock',
+      label: '乐观锁版本号',
+      detail: false,
+    },
+  ],
   fields: [
     {
       key: 'id',
       label: '区域编码',
       layoutGroup: 'basic',
-      layoutGroupTitle: '区域信息',
-      layoutOrder: 10,
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 5,
       disabledOnEdit: true,
       fixed: 'left',
       required: true,
@@ -51,8 +88,10 @@ export const areaPageCrudConfig: CrudPageConfig = {
     {
       key: 'code',
       label: '自定义编码',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 20,
+      layoutGroupOrder: -10,
+      layoutOrder: 10,
       search: true,
       table: true,
       width: 140,
@@ -60,8 +99,10 @@ export const areaPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '名称',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 30,
+      layoutGroupOrder: -10,
+      layoutOrder: 15,
       required: true,
       table: true,
       width: 160,
@@ -69,8 +110,10 @@ export const areaPageCrudConfig: CrudPageConfig = {
     {
       key: 'parentId',
       label: '父区域',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 40,
+      layoutGroupOrder: -10,
+      layoutOrder: 20,
       loadOptions: areaOptionsLoader,
       remoteSearch: true,
       search: true,
@@ -88,8 +131,10 @@ export const areaPageCrudConfig: CrudPageConfig = {
     {
       key: 'type',
       label: '类型',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 50,
+      layoutGroupOrder: -10,
+      layoutOrder: 25,
       loadOptions: areaTypeOptionsLoader,
       required: true,
       table: true,
@@ -113,8 +158,10 @@ export const areaPageCrudConfig: CrudPageConfig = {
     {
       key: 'icon',
       label: '图标',
+      layoutGroupTitle: '基础信息',
       layoutGroup: 'basic',
-      layoutOrder: 70,
+      layoutGroupOrder: -10,
+      layoutOrder: 30,
       type: 'image',
     },
     {
@@ -158,6 +205,7 @@ export const areaPageCrudConfig: CrudPageConfig = {
     {
       key: 'createTime',
       label: '创建时间',
+      layoutOrder: 900,
       form: false,
       table: true,
       type: 'datetime',
@@ -166,6 +214,7 @@ export const areaPageCrudConfig: CrudPageConfig = {
     {
       key: 'lastUpdateTime',
       label: '更新时间',
+      layoutOrder: 905,
       form: false,
       table: true,
       type: 'datetime',

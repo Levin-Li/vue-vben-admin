@@ -4,10 +4,25 @@ import { describe, expect, it } from 'vitest';
 import { robotNotifyGroupService } from '../../api/robot-notify-group-service';
 import {
   canManageRobotWebhook,
+  canTestSendRobotNotifyGroup,
   robotNotifyGroupPageCrudConfig,
 } from './config';
 
 describe('机器人通知群页面配置', () => {
+  it('测试发送仅对有地址且已启用的当前行可见', () => {
+    const configured = {
+      enable: true,
+      webhookUrl: 'https://open.feishu.cn/hook',
+    };
+    expect(canTestSendRobotNotifyGroup(configured, true)).toBe(true);
+    expect(
+      canTestSendRobotNotifyGroup({ ...configured, webhookUrl: ' ' }, true),
+    ).toBe(false);
+    expect(
+      canTestSendRobotNotifyGroup({ ...configured, enable: false }, true),
+    ).toBe(false);
+    expect(canTestSendRobotNotifyGroup(configured, false)).toBe(false);
+  });
   it('基础识别前置、接入独立、维护后置且采用可回落的两列布局', () => {
     const config = robotNotifyGroupPageCrudConfig;
     expect(config.formMaxColumns).toBe(2);
@@ -20,8 +35,15 @@ describe('机器人通知群页面配置', () => {
           (left, right) => Number(left.layoutOrder) - Number(right.layoutOrder),
         )
         .map((field) => field.key);
-    expect(ordered('basic')).toEqual(['name', 'bizType', 'tenantId', 'orgId']);
-    expect(ordered('connection')).toEqual(['platformType', 'webhookUrl']);
+    expect(ordered('basic')).toEqual([
+      'tenantId',
+      'orgId',
+      'id',
+      'name',
+      'bizType',
+      'platformType',
+    ]);
+    expect(ordered('connection')).toEqual(['webhookUrl']);
     for (const field of config.fields.filter((field) => field.layoutGroup)) {
       expect(field.layoutGroupTitle).toBeTruthy();
     }
@@ -63,6 +85,13 @@ describe('机器人通知群页面配置', () => {
         >[0],
       ).action,
     ).toBe('更新');
+    expect(
+      getResAuthorizeMeta(
+        robotNotifyGroupService.sendTest as Parameters<
+          typeof getResAuthorizeMeta
+        >[0],
+      ).action,
+    ).toBe('测试发送');
     expect(
       robotNotifyGroupPageCrudConfig.fields.find(
         (field) => field.key === 'webhookUrl',

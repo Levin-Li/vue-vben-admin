@@ -28,15 +28,25 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    { key: 'servicePlugin', label: '关联插件', detail: false },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    { key: 'editable', label: '是否可编辑' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+  ],
   fields: [
     {
       key: 'tenantId',
       label: '归属租户',
-      layoutOrder: 10,
+      layoutOrder: 1,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       type: 'select',
       visibleForPlatformUser: true,
+      layoutGroup: 'basic',
+      layoutGroupTitle: '插件设置',
     },
     {
       key: '__tenant',
@@ -148,6 +158,7 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 150,
+      layoutOrder: 1000,
     },
     {
       key: 'lastUpdateTime',
@@ -156,6 +167,7 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 150,
+      layoutOrder: 1010,
     },
     {
       key: 'remark',

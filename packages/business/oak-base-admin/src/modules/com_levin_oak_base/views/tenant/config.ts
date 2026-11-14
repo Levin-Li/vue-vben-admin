@@ -39,6 +39,12 @@ export const tenantPageCrudConfig: CrudPageConfig = {
     pageSize: 10,
   },
   description: '创建租户时设置管理员初始口令，并通过受控渠道交付给管理员。',
+  detailExtraFields: [
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+    { key: 'siteInfo', label: '站点展示信息', detail: false },
+  ],
   fields: [
     {
       key: 'id',
@@ -153,7 +159,11 @@ export const tenantPageCrudConfig: CrudPageConfig = {
         if (password.length < 6 || password.length > 128) {
           return '管理员初始口令长度必须为6至128字符';
         }
-        if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+        if (
+          !/[A-Z]/.test(password) ||
+          !/[a-z]/.test(password) ||
+          !/\d/.test(password)
+        ) {
           return '管理员初始口令须包含大写字母、小写字母和数字';
         }
         return undefined;
@@ -397,6 +407,7 @@ export const tenantPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
     {
       key: 'lastUpdateTime',
@@ -405,6 +416,7 @@ export const tenantPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1010,
     },
     {
       key: 'remark',

@@ -42,6 +42,12 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
     orderCode: 1000,
   },
   defaultQuery: { pageIndex: 1, pageSize: 10 },
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+  ],
   fields: [
     {
       key: 'tenantId',
@@ -128,7 +134,7 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
       key: 'orgType',
       label: '组织类型',
       layoutGroup: 'scope',
-      layoutOrder: 60,
+      layoutOrder: 41,
       help: '留空表示匹配任意组织类型',
       loadOptions: orgTypeOptionsLoader,
       search: true,
@@ -140,7 +146,7 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
       key: 'userCategory',
       label: '用户类别',
       layoutGroup: 'scope',
-      layoutOrder: 70,
+      layoutOrder: 51,
       help: '留空表示匹配任意用户类别',
       loadOptions: userCategoryOptionsLoader,
       search: true,
@@ -188,6 +194,7 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
     {
       key: 'lastUpdateTime',
@@ -196,6 +203,7 @@ export const tenantCustomMenuPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1010,
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,

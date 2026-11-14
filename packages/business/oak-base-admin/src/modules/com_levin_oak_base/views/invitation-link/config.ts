@@ -311,6 +311,55 @@ export function createInvitationLinkCrudConfig(options: {
     allowDelete: false,
     allowRetrieve: true,
     allowExport: false,
+    // 单独声明详情字段，保留表格、查询和提交配置。
+    detailExtraFields: [
+      {
+        key: 'organizationCategoryName',
+        label: '组织类别名称',
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 130,
+      },
+      {
+        key: 'accountTypeName',
+        label: '用户类型名称',
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 80,
+      },
+      {
+        key: 'url',
+        label: '邀请链接',
+        layoutGroup: 'content',
+        layoutGroupOrder: 30,
+        layoutGroupTitle: '邀请设置',
+        layoutOrder: 50,
+      },
+      {
+        key: 'revokedAt',
+        label: '作废时间',
+        type: 'datetime',
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 200,
+      },
+      {
+        key: 'remainingRegistrations',
+        label: '剩余可用次数',
+        layoutGroup: 'content',
+        layoutGroupOrder: 30,
+        layoutGroupTitle: '邀请设置',
+        layoutOrder: 40,
+      },
+      {
+        key: 'requiresExternalOrganization',
+        label: '是否需要外部组织',
+        detail: false,
+      },
+    ],
     fields: [
       ...(options.isPlatformUser
         ? [
@@ -327,6 +376,10 @@ export function createInvitationLinkCrudConfig(options: {
                 ? options.loadTenantOptions
                 : undefined,
               required: true,
+              layoutGroup: 'basic',
+              layoutGroupOrder: 10,
+              layoutGroupTitle: '基础信息',
+              layoutOrder: 10,
             },
           ]
         : []),
@@ -342,6 +395,10 @@ export function createInvitationLinkCrudConfig(options: {
         search: false,
         table: false,
         required: true,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 20,
       },
       {
         key: 'targetOrgName',
@@ -352,6 +409,10 @@ export function createInvitationLinkCrudConfig(options: {
         table: true,
         detail: true,
         width: 180,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 30,
       },
       {
         key: 'targetType',
@@ -362,6 +423,10 @@ export function createInvitationLinkCrudConfig(options: {
         table: true,
         form: false,
         width: 140,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 50,
       },
       {
         key: 'userType',
@@ -374,6 +439,10 @@ export function createInvitationLinkCrudConfig(options: {
         form: target !== 'Member',
         required: target !== 'Member',
         width: 130,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 60,
       },
       {
         key: 'organizationCategory',
@@ -382,6 +451,10 @@ export function createInvitationLinkCrudConfig(options: {
         form: external,
         search: false,
         table: false,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 120,
       },
       {
         key: 'accountType',
@@ -390,6 +463,10 @@ export function createInvitationLinkCrudConfig(options: {
         form: external,
         search: false,
         table: false,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 70,
       },
       {
         key: 'registrationChannel',
@@ -401,6 +478,10 @@ export function createInvitationLinkCrudConfig(options: {
         required: true,
         width: 160,
         defaultValue: 'Either',
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 150,
       },
       {
         key: 'usageMode',
@@ -412,6 +493,10 @@ export function createInvitationLinkCrudConfig(options: {
         required: true,
         defaultValue: 'Single',
         width: 120,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 160,
       },
       {
         key: 'expiresAfter',
@@ -446,6 +531,10 @@ export function createInvitationLinkCrudConfig(options: {
           value !== 'CreateChildOrg'
             ? '管理员必须创建新子组织'
             : undefined,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 170,
       },
       {
         key: 'childOrgType',
@@ -456,6 +545,10 @@ export function createInvitationLinkCrudConfig(options: {
         table: false,
         formVisibleWhen: (state) => state.organizationMode === 'CreateChildOrg',
         required: !external,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 180,
       },
       {
         key: 'customerType',
@@ -468,6 +561,10 @@ export function createInvitationLinkCrudConfig(options: {
         form: target === 'Customer',
         table: false,
         required: target === 'Customer',
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 90,
       },
       {
         key: 'channelPartnerId',
@@ -477,6 +574,10 @@ export function createInvitationLinkCrudConfig(options: {
         table: false,
         formVisibleWhen: (state) => state.customerType === 'ChannelCustomer',
         required: target === 'Customer',
+        layoutGroup: 'content',
+        layoutGroupOrder: 30,
+        layoutGroupTitle: '邀请设置',
+        layoutOrder: 10,
       },
       {
         key: 'supplierPartnerType',
@@ -486,6 +587,10 @@ export function createInvitationLinkCrudConfig(options: {
         form: target === 'SupplierPartner',
         table: false,
         required: target === 'SupplierPartner',
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 100,
       },
       {
         key: 'channelPartnerType',
@@ -495,6 +600,10 @@ export function createInvitationLinkCrudConfig(options: {
         form: target === 'ChannelPartner',
         table: false,
         required: target === 'ChannelPartner',
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 110,
       },
       {
         key: 'expiresAt',
@@ -525,6 +634,10 @@ export function createInvitationLinkCrudConfig(options: {
             ? '到期日期须为今天起366天内的有效日期'
             : undefined;
         },
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 190,
       },
       {
         key: 'maxRegistrations',
@@ -539,6 +652,10 @@ export function createInvitationLinkCrudConfig(options: {
           Number(value) > 10_000
             ? '限定人数须为1到10000的整数'
             : undefined,
+        layoutGroup: 'content',
+        layoutGroupOrder: 30,
+        layoutGroupTitle: '邀请设置',
+        layoutOrder: 20,
       },
       {
         key: 'successCount',
@@ -546,6 +663,10 @@ export function createInvitationLinkCrudConfig(options: {
         form: false,
         table: true,
         width: 110,
+        layoutGroup: 'content',
+        layoutGroupOrder: 30,
+        layoutGroupTitle: '邀请设置',
+        layoutOrder: 30,
       },
       {
         key: 'status',
@@ -554,6 +675,10 @@ export function createInvitationLinkCrudConfig(options: {
         table: true,
         width: 120,
         tableValue: (record) => statuses[record.status] || record.status,
+        layoutGroup: 'basic',
+        layoutGroupOrder: 10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 140,
       },
       {
         key: 'createdAt',
@@ -562,8 +687,21 @@ export function createInvitationLinkCrudConfig(options: {
         form: false,
         table: true,
         width: 190,
+        layoutGroup: 'audit',
+        layoutGroupOrder: 100,
+        layoutGroupTitle: '维护时间',
+        layoutOrder: 10,
       },
-      { key: 'id', label: '链接ID', form: false, table: false, detail: true },
+      {
+        key: 'id',
+        label: '链接ID',
+        form: false,
+        table: false,
+        detail: true,
+        layoutGroup: 'basic',
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 40,
+      },
     ] as InvitationCrudField[],
   };
 }

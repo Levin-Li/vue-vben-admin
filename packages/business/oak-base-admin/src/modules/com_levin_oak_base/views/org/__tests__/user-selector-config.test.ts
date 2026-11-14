@@ -17,7 +17,6 @@ import { orgPageCrudConfig } from '../config';
 
 describe('管理页面用户选择字段', () => {
   it.each([
-    [userSettingPageCrudConfig, 'ownerId'],
     [fileResPageCrudConfig, 'ownerId'],
     [noticeProcessLogPageCrudConfig, 'ownerId'],
     [electronicContractTemplatePageCrudConfig, 'ownerId'],
@@ -31,6 +30,17 @@ describe('管理页面用户选择字段', () => {
     expect(config.fields.find((field) => field.key === key)).toMatchObject({
       type: 'user-tree-select',
     });
+  });
+
+  it('用户个性化设置的归属由服务端固定为本人', () => {
+    expect(
+      userSettingPageCrudConfig.fields.find((field) => field.key === 'ownerId'),
+    ).toBeUndefined();
+    expect(
+      userSettingPageCrudConfig.detailExtraFields?.find(
+        (field) => field.key === 'ownerId',
+      ),
+    ).toMatchObject({ detail: false });
   });
 
   it('保留客户和伙伴五组组织与负责人字段', () => {

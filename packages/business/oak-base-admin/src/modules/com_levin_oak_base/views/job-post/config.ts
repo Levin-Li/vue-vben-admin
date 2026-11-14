@@ -32,6 +32,29 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  // 单独声明详情字段，保留表格、查询和提交配置。
+  detailExtraFields: [
+    {
+      key: 'tenantName',
+      label: '租户名称',
+      detail: false,
+    },
+    {
+      key: 'domainId',
+      label: '领域标识',
+      detail: false,
+    },
+    {
+      key: 'creator',
+      label: '创建者',
+      detail: false,
+    },
+    {
+      key: 'optimisticLock',
+      label: '乐观锁版本号',
+      detail: false,
+    },
+  ],
   fields: [
     {
       key: 'tenantId',
@@ -62,14 +85,13 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
       search: true,
       table: true,
       width: 180,
+      layoutOrder: 20,
     },
     { key: 'containsCode', label: '编码', form: false, search: true },
     { key: 'containsName', label: '名称', form: false, search: true },
     {
       key: 'code',
-      layoutGroup: 'basic',
-      layoutGroupTitle: '岗位信息',
-      layoutOrder: 10,
+      layoutOrder: 40,
       label: '编码',
       required: true,
       table: true,
@@ -78,8 +100,7 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     {
       key: 'name',
       label: '名称',
-      layoutGroup: 'basic',
-      layoutOrder: 20,
+      layoutOrder: 30,
       required: true,
       table: true,
       width: 160,
@@ -96,8 +117,7 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     {
       key: 'type',
       label: '类型',
-      layoutGroup: 'basic',
-      layoutOrder: 30,
+      layoutOrder: 50,
       loadOptions: jobPostTypeOptionsLoader,
       required: true,
       table: true,
@@ -121,9 +141,7 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     {
       key: 'enable',
       label: '是否启用',
-      layoutGroup: 'business',
-      layoutGroupTitle: '状态设置',
-      layoutOrder: 10,
+      layoutOrder: 80,
       search: true,
       table: true,
       type: 'switch',
@@ -133,8 +151,7 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     {
       key: 'editable',
       label: '是否可编辑',
-      layoutGroup: 'business',
-      layoutOrder: 20,
+      layoutOrder: 90,
       search: true,
       table: true,
       type: 'switch',
@@ -144,15 +161,14 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     {
       key: 'orderCode',
       label: '排序代码',
-      layoutGroup: 'business',
-      layoutOrder: 30,
+      layoutOrder: 70,
       type: 'number',
     },
     {
       key: 'remark',
       label: '备注',
       fullRow: true,
-      layoutOrder: 10,
+      layoutOrder: 100,
       type: 'textarea',
     },
     {
@@ -162,6 +178,7 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 110,
     },
     {
       key: 'lastUpdateTime',
@@ -170,6 +187,7 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 120,
     },
   ],
   modalWidth: DEFAULT_CRUD_MODAL_WIDTH,

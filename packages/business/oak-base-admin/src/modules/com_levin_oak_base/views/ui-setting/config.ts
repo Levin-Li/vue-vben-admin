@@ -56,6 +56,12 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
     pageIndex: 1,
     pageSize: 10,
   },
+  detailExtraFields: [
+    { key: 'tenantName', label: '租户名称', detail: false },
+    { key: 'domainId', label: '领域标识' },
+    { key: 'creator', label: '创建者' },
+    { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
+  ],
   fields: [
     {
       key: 'tenantId',
@@ -99,6 +105,7 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       loadOptions: orgCategoryOptionsLoader,
       search: true,
       type: 'select',
+      layoutOrder: 50,
     },
     {
       key: 'orgType',
@@ -107,6 +114,7 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       loadOptions: orgTypeOptionsLoader,
       search: true,
       type: 'select',
+      layoutOrder: 30,
     },
     {
       key: 'userCategory',
@@ -115,6 +123,7 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       loadOptions: userCategoryOptionsLoader,
       search: true,
       type: 'select',
+      layoutOrder: 60,
     },
     {
       key: 'userType',
@@ -123,6 +132,7 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       loadOptions: userTypeOptionsLoader,
       search: true,
       type: 'select',
+      layoutOrder: 40,
     },
     {
       key: 'name',
@@ -162,7 +172,7 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       key: 'orgCategory',
       label: '组织类别',
       layoutGroup: 'scope',
-      layoutOrder: 30,
+      layoutOrder: 50,
       loadOptions: orgCategoryOptionsLoader,
       table: true,
       type: 'select',
@@ -172,7 +182,7 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       key: 'orgType',
       label: '组织类型',
       layoutGroup: 'scope',
-      layoutOrder: 40,
+      layoutOrder: 30,
       loadOptions: orgTypeOptionsLoader,
       table: true,
       type: 'select',
@@ -182,7 +192,7 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       key: 'userCategory',
       label: '用户类别',
       layoutGroup: 'scope',
-      layoutOrder: 50,
+      layoutOrder: 60,
       loadOptions: userCategoryOptionsLoader,
       table: true,
       type: 'select',
@@ -192,7 +202,7 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       key: 'userType',
       label: '用户类型',
       layoutGroup: 'scope',
-      layoutOrder: 60,
+      layoutOrder: 40,
       loadOptions: userTypeOptionsLoader,
       table: true,
       type: 'select',
@@ -254,6 +264,7 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1000,
     },
     {
       key: 'lastUpdateTime',
@@ -262,6 +273,7 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'datetime',
       width: 180,
+      layoutOrder: 1010,
     },
     {
       key: 'remark',
