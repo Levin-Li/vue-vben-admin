@@ -30,6 +30,20 @@ export function isReferenceDocument(path) {
   // 先排除凭据及过程记录，再选择与 Maven 相同的使用方文档白名单。
   const normalized = path.replaceAll('\\', '/');
   const name = basename(path);
+  const frontendRules = new Set([
+    '前端API开发规则.md',
+    '前端查询表单规则.md',
+    '前端模块开发规则.md',
+    '前端表单运行时规则.md',
+    '前端页面上传规则.md',
+    '前端页面开发规则.md',
+    '前端页面操作规则.md',
+    '前端页面校验规则.md',
+    '表单字段三段式分组与排序规范.md',
+    '页面开发与页面展示设置专题.md',
+  ]);
+  if (normalized.startsWith('frontend/admin/') && frontendRules.has(name))
+    return true;
   if (
     /(?:secrets?|credentials?|passwords?|tokens?|\.env|\.pem|\.key)(?:[.\-_]|$)/i.test(
       name,

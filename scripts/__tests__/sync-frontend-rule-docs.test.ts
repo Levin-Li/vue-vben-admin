@@ -47,6 +47,9 @@ function fixture() {
   put('openspec/changes/demo/verification.md', 'run output');
   put('openspec/config.yaml', 'schema: spec-driven');
   put('frontend/admin/AGENTS.md', '# Rules');
+  put('frontend/admin/前端页面开发规则.md', '# 页面开发规则');
+  put('frontend/admin/前端查询表单规则.md', '# 查询规则');
+  put('frontend/admin/表单字段三段式分组与排序规范.md', '# 排序规范');
   put('frontend/admin/docs/design.md', '# Frontend');
   put(
     'frontend/admin/packages/example/package.json',
@@ -69,6 +72,9 @@ describe('published reference documents', () => {
       ([path]: [string, string]) => path,
     );
     expect(paths).toContain('docs/design.md');
+    expect(paths).toContain('frontend/admin/前端页面开发规则.md');
+    expect(paths).toContain('frontend/admin/前端查询表单规则.md');
+    expect(paths).toContain('frontend/admin/表单字段三段式分组与排序规范.md');
     expect(paths).toContain('openspec/changes/demo/business-binding-design.md');
     expect(paths).toContain('openspec/changes/demo/definition-json-schema.md');
     expect(paths).not.toContain('docs/images/diagram.svg');
@@ -122,6 +128,12 @@ describe('published reference documents', () => {
     );
     const paths = packed[0].files.map(({ path }: { path: string }) => path);
     expect(paths).toContain('docs/project-reference/docs/design.md');
+    expect(paths).toContain(
+      'docs/project-reference/frontend/admin/前端页面开发规则.md',
+    );
+    expect(paths).toContain(
+      'docs/project-reference/frontend/admin/前端查询表单规则.md',
+    );
     expect(paths).toContain(
       'docs/project-reference/openspec/changes/demo/business-binding-design.md',
     );
