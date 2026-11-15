@@ -34,13 +34,21 @@ export class TicketQueueService extends RequestService {
     action: '查询工单受理队列',
   })
   async list(
-    params: SupportScope & {
+    params: Pick<SupportScope, 'tenantId'> & {
       code?: string;
+      orgId?: string;
       pageIndex: number;
       pageSize: number;
     },
   ): Promise<SupportPage<QueueRecord>> {
-    return this.get('list', { params: toGenericSupportRequestScope(params) });
+    const scope = toGenericSupportRequestScope(params);
+    return this.get('list', {
+      params: scope,
+      // 显式租户条件不能继承全局选择器上的其它组织条件。
+      ...(scope.tenantId && !scope.orgId && !Object.hasOwn(scope, 'orgIdList')
+        ? { __skipGlobalUserOrgContext: true }
+        : {}),
+    });
   }
 
   @CRUD.Op({ label: '查看工单受理队列' })

@@ -130,6 +130,35 @@ export function definitionCrudConfig(options: {
     },
     fields: (
       [
+        // 归属 ID 由服务端从可信身份确定，只在列表和详情回显。
+        {
+          key: 'tenantId',
+          label: '归属租户',
+          detail: true,
+          fixed: 'left',
+          form: false,
+          layoutGroup: 'basic',
+          layoutGroupOrder: -10,
+          layoutGroupTitle: '基础信息',
+          layoutOrder: 1,
+          sortable: false,
+          type: 'tenant',
+          visibleForPlatformUser: true,
+          width: 180,
+        },
+        {
+          key: 'orgId',
+          label: '归属组织',
+          detail: true,
+          fixed: 'left',
+          form: false,
+          layoutGroup: 'basic',
+          layoutGroupOrder: -10,
+          layoutGroupTitle: '基础信息',
+          layoutOrder: 2,
+          sortable: false,
+          width: 150,
+        },
         {
           key: 'key',
           label: '模型标识',

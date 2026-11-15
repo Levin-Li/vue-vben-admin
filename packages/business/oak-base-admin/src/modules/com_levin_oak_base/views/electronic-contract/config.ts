@@ -177,7 +177,6 @@ export const electronicContractPageCrudConfig: CrudPageConfig =
     editVisibleOn: "status == 'Draft' && !__record.templateId",
     // 单独声明详情字段，保留表格、查询和提交配置。
     detailExtraFields: [
-      { key: 'orgId', label: '组织标识', detail: false },
       { key: 'ownerId', label: '所有者标识', detail: false },
       {
         key: 'tenantName',
@@ -329,6 +328,7 @@ export const electronicContractPageCrudConfig: CrudPageConfig =
     fields: [
       {
         key: 'tenantId',
+        disabledOnEdit: true,
         label: '归属租户',
         layoutGroup: 'basic',
         layoutGroupOrder: -10,
@@ -337,8 +337,47 @@ export const electronicContractPageCrudConfig: CrudPageConfig =
         loadOptions: tenantOptionsLoader,
         remoteSearch: true,
         search: true,
+        searchOrder: -20,
         type: 'select',
         visibleForPlatformUser: true,
+      },
+      {
+        key: '__tenant',
+        detail: false,
+        label: '归属租户',
+        fixed: 'left',
+        form: false,
+        table: true,
+        type: 'tenant',
+        visibleForPlatformUser: true,
+        width: 180,
+      },
+      {
+        key: 'orgId',
+        label: '所属组织',
+        detail: true,
+        // 普通草稿按原组织定位；创建时才选择归属。
+        disabledOnEdit: true,
+        fixed: 'left',
+        layoutGroup: 'basic',
+        layoutGroupOrder: -10,
+        layoutGroupTitle: '基础信息',
+        layoutOrder: 6,
+        table: true,
+        tableValue: (record) => record.orgName || record.orgId,
+        type: 'org-tree-select',
+        width: 150,
+      },
+      {
+        key: 'orgIdList',
+        label: '所属组织',
+        detail: false,
+        form: false,
+        multiple: true,
+        search: true,
+        searchOrder: -10,
+        tenantDependent: true,
+        type: 'org-tree-select',
       },
       {
         key: 'id',

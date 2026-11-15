@@ -78,6 +78,10 @@ export const tenantSitePageCrudConfig: CrudPageConfig = {
       layoutGroup: 'ownership',
       layoutGroupTitle: '归属信息',
       layoutOrder: 15,
+      search: true,
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      width: 180,
       type: 'org-tree-select',
     },
     {

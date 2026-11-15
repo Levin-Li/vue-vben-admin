@@ -23,6 +23,7 @@ import {
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
+import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
   Alert,
   Button,
@@ -668,6 +669,16 @@ watch(() => route.query.id, deepLink);
           <Descriptions :column="2">
             <Descriptions.Item label="工单状态">
               {{ stateLabel(detail.status) }}
+            </Descriptions.Item>
+            <!-- 归属采用详情响应中保留的字段，避免用会话范围回填脱敏值。 -->
+            <Descriptions.Item
+              v-if="isPlatformUser(userStore.userInfo) && detail.tenantId"
+              label="归属租户"
+            >
+              {{ detail.tenantId }}
+            </Descriptions.Item>
+            <Descriptions.Item v-if="detail.orgId" label="受理组织">
+              {{ detail.orgId }}
             </Descriptions.Item>
             <Descriptions.Item label="客服邮箱">
               {{ detail.supportEmail }}

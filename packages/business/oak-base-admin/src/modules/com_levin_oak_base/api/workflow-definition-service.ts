@@ -12,6 +12,7 @@ import {
 } from '@levin/admin-framework';
 
 import { OAK_BASE_API_MODULE } from './_module';
+import { toGenericSupportRequestScope } from './support-request-scope';
 
 export interface WorkflowDefinitionRecord {
   bindingSnapshot?: WorkflowStateBinding;
@@ -107,11 +108,16 @@ export class WorkflowDefinitionService extends RequestService {
       businessEntityKey?: string;
       businessType?: string;
       containsName?: string;
+      orgId?: string;
       pageIndex?: number;
       pageSize?: number;
+      tenantId?: string;
     } = {},
   ) {
-    return this.get<WorkflowPage<WorkflowDefinitionRecord>>('list', { params });
+    // 将授权组织单选同步到优先匹配的组织范围列表。
+    return this.get<WorkflowPage<WorkflowDefinitionRecord>>('list', {
+      params: toGenericSupportRequestScope(params),
+    });
   }
 }
 

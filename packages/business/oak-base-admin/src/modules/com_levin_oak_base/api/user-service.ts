@@ -12,6 +12,7 @@ import {
 } from '@levin/admin-framework';
 
 import { OAK_BASE_API_MODULE } from './_module';
+import { toGenericSupportRequestScope } from './support-request-scope';
 import { withUserPageScope } from './user-page-scope';
 
 @Service({
@@ -96,7 +97,8 @@ export class UserService extends RequestService {
   async list(params?: any, options?: any) {
     return this.get('list', {
       ...options,
-      params,
+      // 同步单组织与优先匹配的组织列表范围。
+      params: params?.orgId ? toGenericSupportRequestScope(params) : params,
     });
   }
 

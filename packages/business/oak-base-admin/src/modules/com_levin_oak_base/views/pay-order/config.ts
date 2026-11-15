@@ -50,13 +50,6 @@ export const payOrderPageCrudConfig: CrudPageConfig = {
   detailExtraFields: [
     { key: 'tenantName', label: '租户名称', detail: false },
     {
-      key: 'orgId',
-      label: '组织标识',
-      layoutGroup: 'basic',
-      layoutGroupTitle: '基础信息',
-      layoutOrder: 20,
-    },
-    {
       key: 'orgName',
       label: '组织名称',
       layoutGroup: 'basic',
@@ -318,6 +311,19 @@ export const payOrderPageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'tenant',
       visibleForPlatformUser: true,
+      width: 180,
+    },
+    {
+      key: 'orgId',
+      label: '所属组织',
+      layoutGroup: 'basic',
+      layoutGroupOrder: 10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 20,
+      search: true,
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      type: 'org-tree-select',
       width: 180,
     },
     {

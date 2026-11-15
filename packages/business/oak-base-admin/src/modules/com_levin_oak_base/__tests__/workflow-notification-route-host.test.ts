@@ -2,7 +2,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, h, reactive } from 'vue';
 
-import { Button, Modal } from 'ant-design-vue';
+import { Button, Modal, Select } from 'ant-design-vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WorkflowNotificationRoutePage from '../views/workflow-notification-route/index.vue';
@@ -33,7 +33,11 @@ vi.mock(
     buildApiMethodPermissions: (_service: unknown, method: string) => [method],
   }),
 );
+vi.mock('@vben/runtime/stores', () => ({
+  useUserStore: () => ({ userInfo: { platformUser: true } }),
+}));
 vi.mock('../views/api-module', () => ({
+  tenantOptionsLoader: async () => [{ label: '甲租户', value: 'tenant-1' }],
   moduleFetchEnumOptions: async () => [
     { label: '站内', value: 'Station' },
     { label: '飞书', value: 'FeishuWebhook' },
@@ -135,7 +139,7 @@ describe('通知路由真实公共CRUD接入', () => {
       config.fields
         .filter((field: any) => field.search)
         .map((field: any) => field.key),
-    ).toEqual(['orgId', 'eventName', 'channel']);
+    ).toEqual(['tenantId', 'orgId', 'eventName', 'channel']);
     const result = await config.apiService.list({
       pageIndex: 3,
       pageSize: 50,
@@ -217,6 +221,52 @@ describe('通知路由真实公共CRUD接入', () => {
       eventName: undefined,
       channel: undefined,
     });
+    wrapper.unmount();
+  });
+
+  it('允许只选租户查询和创建，详情显示记录原归属', async () => {
+    api.retrieve.mockResolvedValue({
+      ...record,
+      tenantId: 'tenant-1',
+      tenantName: '甲租户',
+      orgId: 'org-1',
+      orgName: '研发',
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage, {
+      attachTo: document.body,
+    });
+    await flushPromises();
+    api.states.at(-1).tenantId = 'tenant-1';
+    await crud(wrapper).props('config').apiService.list(api.states.at(-1));
+    expect(api.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+    );
+    expect(api.list.mock.lastCall?.[0]).not.toHaveProperty('orgId');
+
+    await required(findButton(wrapper, '新增通知路由')).trigger('click');
+    const modal = required(editor(wrapper));
+    const tenant = modal
+      .findAllComponents(Select)
+      .find((item) => item.attributes('data-testid') === 'route-form-tenant');
+    expect(required(tenant).props('value')).toBe('tenant-1');
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(api.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        orgId: undefined,
+      }),
+    );
+
+    await required(findButton(wrapper, '查看')).trigger('click');
+    await flushPromises();
+    expect(
+      document.body.querySelector('[data-testid=route-tenant]')?.textContent,
+    ).toBe('甲租户');
+    expect(
+      document.body.querySelector('[data-testid=route-org]')?.textContent,
+    ).toBe('研发');
+    expect(api.update).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 

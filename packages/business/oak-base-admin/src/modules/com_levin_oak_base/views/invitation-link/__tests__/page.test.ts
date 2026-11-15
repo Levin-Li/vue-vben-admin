@@ -16,6 +16,7 @@ const {
   permissionAllowed,
   targetOrganizations,
   targetTenants,
+  queryTenants,
   targetDictionaryOptions,
   targetChannels,
   user,
@@ -30,6 +31,7 @@ const {
   permissionAllowed: vi.fn(),
   targetOrganizations: vi.fn(),
   targetTenants: vi.fn(),
+  queryTenants: vi.fn(),
   targetDictionaryOptions: vi.fn(),
   targetChannels: vi.fn(),
   user: { userInfo: { tenantId: 'tenant', orgId: 'org' } },
@@ -55,6 +57,7 @@ vi.mock('../../../api/invitation-link-service', () => ({
     createMember: vi.fn(),
     targetOrganizations,
     targetTenants,
+    queryTenants,
     targetDictionaryOptions,
     targetChannels,
     createSupplierPartner: vi.fn(),
@@ -189,6 +192,38 @@ describe('邀请链接页面公共 CRUD 行为', () => {
       id: 'created',
       url: 'https://example.test/invite?token=created',
     });
+  });
+
+  it('只读平台账号用邀请查看权限加载租户筛选，保留独立的签发候选', async () => {
+    user.userInfo = {
+      ...user.userInfo,
+      platformUser: true,
+    } as typeof user.userInfo;
+    permissionAllowed.mockImplementation((method: string) => method === 'list');
+    queryTenants.mockResolvedValue([
+      { name: '甲租户', id: 'tenant-a' },
+      { name: '乙租户', id: 'tenant-b' },
+    ]);
+    const wrapper = mount(InvitationLinkPage);
+    await flushPromises();
+    const config = wrapper
+      .findComponent({ name: 'CrudPageStub' })
+      .props('config') as any;
+    const field = config.fields.find(
+      (item: { key: string }) => item.key === 'tenantId',
+    );
+    expect(config.allowCreate).toBe(false);
+    expect(field).toMatchObject({ table: true, search: true });
+    expect(await field.loadOptions('甲')).toEqual([
+      { label: '甲租户', value: 'tenant-a' },
+    ]);
+    expect(queryTenants).toHaveBeenCalledOnce();
+    expect(targetTenants).not.toHaveBeenCalled();
+    await config.apiService.list({ tenantId: 'tenant-a' });
+    expect(list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-a' }),
+    );
+    wrapper.unmount();
   });
 
   it('翻页后仍能复制旧链接', async () => {

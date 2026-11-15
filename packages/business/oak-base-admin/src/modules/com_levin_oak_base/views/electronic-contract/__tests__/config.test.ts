@@ -55,13 +55,16 @@ describe('electronic contract page config', () => {
     );
   });
 
-  it('uses the standard CRUD create form and submits only template creation fields', async () => {
+  it('按模板新增时提交租户和组织归属，不提交查询范围或普通草稿字段', async () => {
     expect(electronicContractPageCrudConfig.allowCreate).toBe(true);
     expect(electronicContractPageCrudConfig.createPath).toBe(
       '/EContract/createFromTemplate',
     );
     const result = await electronicContractPageCrudConfig.transformSubmit?.(
       {
+        tenantId: 'tenant-a',
+        orgId: 'org-a',
+        orgIdList: ['org-b'],
         contractNo: 'C-1',
         name: '测试合同',
         templateId: 'template-1',
@@ -75,6 +78,8 @@ describe('electronic contract page config', () => {
       null,
     );
     expect(result).toEqual({
+      tenantId: 'tenant-a',
+      orgId: 'org-a',
       contractNo: 'C-1',
       name: '测试合同',
       templateId: 'template-1',
@@ -98,6 +103,8 @@ describe('electronic contract page config', () => {
     expect(
       fields.filter((field) => field.table).map((field) => field.key),
     ).toEqual([
+      '__tenant',
+      'orgId',
       'contractNo',
       'name',
       'category',

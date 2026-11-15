@@ -131,6 +131,7 @@ export const articleChannelPageCrudConfig: CrudPageConfig = {
   fields: [
     {
       key: 'tenantId',
+      disabledOnEdit: true,
       label: '归属租户',
       layoutGroup: 'basic',
       layoutGroupOrder: -10,

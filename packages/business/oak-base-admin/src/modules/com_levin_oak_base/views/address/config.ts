@@ -43,11 +43,6 @@ export const addressPageCrudConfig: CrudPageConfig = {
       detail: false,
     },
     {
-      key: 'orgId',
-      label: '组织标识',
-      detail: false,
-    },
-    {
       key: 'orgName',
       label: '组织名称',
       detail: false,
@@ -98,6 +93,7 @@ export const addressPageCrudConfig: CrudPageConfig = {
   fields: [
     {
       key: 'tenantId',
+      disabledOnEdit: true,
       label: '归属租户',
       layoutGroup: 'basic',
       layoutGroupOrder: -10,
@@ -106,6 +102,7 @@ export const addressPageCrudConfig: CrudPageConfig = {
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
+      searchOrder: -20,
       type: 'select',
       visibleForPlatformUser: true,
     },
@@ -119,6 +116,34 @@ export const addressPageCrudConfig: CrudPageConfig = {
       type: 'tenant',
       visibleForPlatformUser: true,
       width: 180,
+    },
+    {
+      key: 'orgId',
+      label: '所属组织',
+      detail: true,
+      // 更新接口复用同一入参定位旧记录；未分离旧组织范围与目标组织前，普通编辑只读展示原组织。
+      disabledOnEdit: true,
+      fixed: 'left',
+      omitOnEdit: true,
+      layoutGroup: 'basic',
+      layoutGroupOrder: -10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 6,
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      type: 'org-tree-select',
+      width: 150,
+    },
+    {
+      key: 'orgIdList',
+      label: '所属组织',
+      detail: false,
+      form: false,
+      multiple: true,
+      search: true,
+      searchOrder: -10,
+      tenantDependent: true,
+      type: 'org-tree-select',
     },
     {
       key: 'id',

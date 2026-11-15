@@ -260,6 +260,17 @@ export function buildSettlementPageConfig(
         layoutGroupTitle: '合作关系与结算主体',
         layoutOrder: 5,
       },
+      // 租户列沿用公共租户名称回显。
+      {
+        key: '__tenant',
+        detail: false,
+        label: '归属租户',
+        form: false,
+        table: true,
+        type: 'tenant',
+        visibleForPlatformUser: true,
+        width: 180,
+      },
       {
         key: 'partnerId',
         tenantDependent: true,
@@ -341,6 +352,8 @@ export function buildSettlementPageConfig(
         omitOnEdit: true,
         search: true,
         table: true,
+        tableValue: (record) =>
+          record.businessOrg?.name || record.businessOrgId,
         width: 180,
         layoutGroup: 'participants',
         layoutGroupTitle: '我方商务与财务',
@@ -369,6 +382,7 @@ export function buildSettlementPageConfig(
         omitOnEdit: true,
         search: true,
         table: true,
+        tableValue: (record) => record.financeOrg?.name || record.financeOrgId,
         width: 180,
         layoutGroup: 'participants',
         layoutOrder: 30,
@@ -397,6 +411,7 @@ export function buildSettlementPageConfig(
         omitOnEdit: true,
         search: true,
         table: true,
+        tableValue: (record) => record.payeeOrg?.name || record.payeeOrgId,
         width: 180,
         layoutGroup: 'payee',
         layoutGroupTitle: '收款方对接',

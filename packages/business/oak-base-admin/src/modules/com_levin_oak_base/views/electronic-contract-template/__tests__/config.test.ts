@@ -128,11 +128,19 @@ describe('电子合同模板 CRUD 配置', () => {
     ).toContain('重复');
   });
 
-  it('默认列表只显示基础列，并去掉旧模型字段', () => {
+  it('默认列表显示租户、组织及基础列，并去掉旧模型字段', () => {
     const fields = electronicContractTemplatePageCrudConfig.fields;
     expect(
       fields.filter((field) => field.table).map((field) => field.key),
-    ).toEqual(['templateNo', 'name', 'category', 'status', 'createTime']);
+    ).toEqual([
+      '__tenant',
+      'orgId',
+      'templateNo',
+      'name',
+      'category',
+      'status',
+      'createTime',
+    ]);
     expect(fields.map((field) => field.key)).not.toEqual(
       expect.arrayContaining([
         'contractCategory',

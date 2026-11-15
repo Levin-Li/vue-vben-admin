@@ -514,6 +514,46 @@ describe('查询顺序与表单布局分离', () => {
   });
 });
 
+describe('平台租户与组织查询联动', () => {
+  it('切换查询租户时清除旧组织并为组织候选传递当前租户', async () => {
+    Object.assign(mocks.user.userInfo, { platformUser: true });
+    const orgField = {
+      key: 'orgIdList',
+      label: '所属组织',
+      multiple: true,
+      search: true,
+      type: 'org-tree-select' as const,
+    };
+    const wrapper = shallowMount(CrudPage, {
+      global: { config: { errorHandler: () => {} } },
+      props: {
+        config: config({
+          fields: [
+            {
+              key: 'tenantId',
+              label: '所属租户',
+              search: true,
+              type: 'select',
+              visibleForPlatformUser: true,
+            },
+            orgField,
+          ],
+        }),
+      },
+    });
+    await flushPromises();
+    const vm = setupState(wrapper);
+    vm.searchState.tenantId = 'tenant-a';
+    vm.searchState.orgIdList = ['org-a'];
+    expect(vm.queryTenantId(orgField)).toBe('tenant-a');
+
+    vm.updateSearchFieldInput({ key: 'tenantId' }, 'tenant-b');
+    expect(vm.searchState.tenantId).toBe('tenant-b');
+    expect(vm.searchState.orgIdList).toBeUndefined();
+    expect(vm.queryTenantId(orgField)).toBe('tenant-b');
+  });
+});
+
 describe('显式只读记录不能通过自定义更新入口绕过', () => {
   function unrestrictedPolicy() {
     return {

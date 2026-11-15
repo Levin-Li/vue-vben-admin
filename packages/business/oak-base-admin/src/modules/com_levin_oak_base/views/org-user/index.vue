@@ -369,6 +369,9 @@ const userConfig = computed(() => {
     defaultQuery: {
       ...userPageCrudConfig.defaultQuery,
       orgId: selectedOrgId.value,
+      ...(isPlatformUser.value
+        ? { tenantId: getOrgTenantId(selectedOrgId.value) }
+        : {}),
     },
     fields: userPageCrudConfig.fields.map((field) => {
       if (field.key === 'orgId') return { ...field, search: false };

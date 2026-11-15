@@ -43,6 +43,7 @@ export const servicePluginSettingPageCrudConfig: CrudPageConfig = {
       layoutOrder: 1,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
+      search: true,
       type: 'select',
       visibleForPlatformUser: true,
       layoutGroup: 'basic',

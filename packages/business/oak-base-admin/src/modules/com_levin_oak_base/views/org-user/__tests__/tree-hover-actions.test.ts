@@ -80,6 +80,13 @@ describe('组织与用户页面组织树', () => {
     expect(source).toContain('tenantId: orgFormState.tenantId || undefined,');
   });
 
+  it('平台用户的内嵌用户列表使用所选组织节点的租户范围', () => {
+    const source = readFileSync(pagePath, 'utf8');
+    expect(source).toMatch(
+      /defaultQuery: \{\s*\.\.\.userPageCrudConfig.defaultQuery,\s*orgId: selectedOrgId.value,\s*\.\.\.\(isPlatformUser.value\s*\? \{ tenantId: getOrgTenantId\(selectedOrgId.value\) \}\s*: \{\}\),/,
+    );
+  });
+
   it('仅为平台用户新增根级组织提供必填租户选择', () => {
     const source = readFileSync(pagePath, 'utf8');
 

@@ -195,6 +195,17 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
     visibleForPlatformUser: true,
   },
   {
+    key: '__tenant',
+    detail: false,
+    label: '归属租户',
+    fixed: 'left',
+    form: false,
+    table: true,
+    type: 'tenant',
+    visibleForPlatformUser: true,
+    width: 180,
+  },
+  {
     key: 'id',
     label: '合作关系ID',
     fixed: 'left',

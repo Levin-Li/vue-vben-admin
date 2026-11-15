@@ -72,7 +72,7 @@ async function loadTenantOptions(keyword = '') {
   }
 }
 function changeFormTenant(value?: string) {
-  if (value === formTenantId.value) return;
+  if (draft.id || value === formTenantId.value) return;
   formTenantId.value = value;
   formScopeRecord.value = undefined;
   draft.tenantId = value || '';
@@ -83,6 +83,7 @@ function changeFormTenant(value?: string) {
   roleOptionsVersion += 1;
 }
 function changeFormOrganization(records: UserOrgSelectorRecord[]) {
+  if (draft.id) return;
   const org = records[0];
   if (org && (org.kind !== 'org' || org.tenantId !== formTenantId.value))
     return;
@@ -102,16 +103,29 @@ let listVersion = 0;
 let detailVersion = 0;
 let roleOptionsVersion = 0;
 
-function currentScope(orgId: unknown): SupportScope | undefined {
+function currentScope(state: Record<string, unknown>):
+  | undefined
+  | {
+      orgId?: string;
+      tenantId: string;
+    } {
+  const { orgId } = state;
+  const tenantId =
+    platformUser.value && typeof state.tenantId === 'string'
+      ? state.tenantId.trim()
+      : '';
   const record = selectedScope.value;
-  if (
-    orgId &&
-    (typeof orgId !== 'string' || record?.id !== orgId || !record.tenantId)
-  )
-    throw new Error('受理组织已变化，请重新选择');
-  return typeof orgId === 'string' && record?.id === orgId && record.tenantId
-    ? { tenantId: record.tenantId, orgId: record.id }
-    : undefined;
+  if (orgId) {
+    if (
+      !record ||
+      record.id !== orgId ||
+      !record.tenantId ||
+      (tenantId && tenantId !== record.tenantId)
+    )
+      throw new Error('受理组织已变化，请重新选择');
+    return { tenantId: record.tenantId, orgId: record.id };
+  }
+  return tenantId ? { tenantId } : undefined;
 }
 
 // 公共查询插槽必须携带实际查询模型，不能从页面本地控件臆造请求范围。
@@ -126,8 +140,10 @@ function searchScopeState(slot: unknown): Record<string, unknown> {
 
 function scopeSelection(state: Record<string, unknown>) {
   queryState = state;
-  return state.orgId === selectedScope.value?.id
-    ? selectedScope.value
+  const record = selectedScope.value;
+  return state.orgId === record?.id &&
+    (!state.tenantId || state.tenantId === record?.tenantId)
+    ? record
     : undefined;
 }
 
@@ -135,7 +151,7 @@ function scopeSelection(state: Record<string, unknown>) {
 async function listQueues(params: Record<string, unknown> = {}) {
   const version = ++listVersion;
   if (!allowed('list')) return { items: [], totals: 0 };
-  const scope = currentScope(params.orgId);
+  const scope = currentScope(params);
   if (!scope) return { items: [], totals: 0 };
   const result = await ticketQueueService.list({
     ...scope,
@@ -157,8 +173,14 @@ function changeScope(
   record: undefined | UserOrgSelectorRecord,
   state: Record<string, unknown>,
 ) {
-  selectedScope.value =
-    record?.kind === 'org' && record.tenantId ? record : undefined;
+  if (
+    record &&
+    (record.kind !== 'org' ||
+      !record.tenantId ||
+      (state.tenantId && state.tenantId !== record.tenantId))
+  )
+    return;
+  selectedScope.value = record;
   initialQuery.value = { ...state, orgId: selectedScope.value?.id };
   queryState = initialQuery.value;
   detailVersion += 1;
@@ -172,6 +194,7 @@ function changeScope(
 
 // 单个 save 接口同时负责新增和编辑，保留其乐观锁与受控候选项。
 const editing = ref(false);
+const readOnly = ref(false);
 const saving = ref(false);
 const draft = reactive<QueueInput>({
   tenantId: '',
@@ -183,27 +206,31 @@ const draft = reactive<QueueInput>({
   handlerRoleCodes: [],
 });
 const roleOptions = ref<{ label: string; value: string }[]>([]);
-const canSave = computed(() => allowed('save') && Boolean(selectedScope.value));
+const canSave = computed(() => allowed('save'));
 // 平台用户可先打开新增表单，再选择有权受理的租户和组织。
 const canCreate = computed(
   () => allowed('save') && (platformUser.value || Boolean(selectedScope.value)),
 );
 const switchingIds = new Set<string>();
 
-async function open(record?: QueueRecord) {
+async function open(record?: QueueRecord, viewOnly = false) {
   const version = ++detailVersion;
   if (
-    !allowed('save') ||
-    (record ? !canSave.value || !allowed('retrieve') : !canCreate.value)
+    record
+      ? !allowed('retrieve') || (!viewOnly && !canSave.value)
+      : !canCreate.value
   )
     return;
   try {
-    const scope = currentScope(queryState.orgId);
-    if (!scope && (record || !platformUser.value)) return;
-    const source =
-      record && scope
-        ? await ticketQueueService.retrieve({ ...scope, id: record.id })
-        : undefined;
+    const scope = record ?? currentScope(queryState);
+    if (!scope && !platformUser.value) return;
+    const source = record
+      ? await ticketQueueService.retrieve({
+          tenantId: record.tenantId,
+          orgId: record.orgId,
+          id: record.id,
+        })
+      : undefined;
     if (version !== detailVersion) return;
     Object.assign(
       draft,
@@ -220,8 +247,29 @@ async function open(record?: QueueRecord) {
       },
       source,
     );
-    formScopeRecord.value = selectedScope.value;
-    formTenantId.value = scope?.tenantId;
+    // 列表按租户总览时仍从详情取原归属，不能拿查询组织替代记录组织。
+    const selected = scopeSelection(queryState);
+    const actualScope = source ?? scope;
+    formScopeRecord.value =
+      source && selected?.id !== source.orgId
+        ? {
+            id: source.orgId,
+            kind: 'org',
+            name:
+              actualScope &&
+              'orgName' in actualScope &&
+              typeof actualScope.orgName === 'string'
+                ? actualScope.orgName
+                : source.orgId,
+            tenantId: source.tenantId,
+            tenantName:
+              'tenantName' in source && typeof source.tenantName === 'string'
+                ? source.tenantName
+                : undefined,
+          }
+        : selected;
+    formTenantId.value = actualScope?.tenantId;
+    readOnly.value = viewOnly;
     editing.value = true;
   } catch (error_) {
     notifyApiErrorOnce(error_);
@@ -258,7 +306,7 @@ async function searchRoles(value = '') {
 }
 
 async function save() {
-  if (!allowed('save') || saving.value) return;
+  if (readOnly.value || !allowed('save') || saving.value) return;
   const scope = activeFormScope.value;
   if (!scope) {
     message.error('请选择租户和受理组织');
@@ -288,10 +336,9 @@ async function switchEnabled(record: QueueRecord) {
   switchingIds.add(record.id);
   const version = scopeGeneration.value;
   try {
-    const scope = currentScope(queryState.orgId);
-    if (!scope) return;
     await ticketQueueService.setEnabled({
-      ...scope,
+      tenantId: record.tenantId,
+      orgId: record.orgId,
       id: record.id,
       optimisticLock: record.optimisticLock,
       enabled: !record.enabled,
@@ -309,7 +356,29 @@ async function switchEnabled(record: QueueRecord) {
   <div class="flex min-w-0 flex-col gap-2">
     <CrudPage :key="scopeGeneration" :config="crudConfig">
       <template #search-field-orgId="slot">
+        <UserOrgSelector
+          v-if="
+            platformUser &&
+            typeof searchScopeState(slot).tenantId === 'string' &&
+            searchScopeState(slot).tenantId
+          "
+          :key="String(searchScopeState(slot).tenantId)"
+          :model-value="scopeSelection(searchScopeState(slot))"
+          :load-org-tree="
+            () =>
+              rbacService.fetchAuthorizedOrgTreeByTenant(
+                String(searchScopeState(slot).tenantId),
+              )
+          "
+          :selectable-types="['org']"
+          value-mode="record"
+          placeholder="选择授权组织"
+          @update:selected-records="
+            changeScope($event[0], searchScopeState(slot))
+          "
+        />
         <SupportScopeSelector
+          v-else
           :model-value="scopeSelection(searchScopeState(slot))"
           placeholder="选择受理组织"
           @change="changeScope($event, searchScopeState(slot))"
@@ -330,6 +399,14 @@ async function switchEnabled(record: QueueRecord) {
       </template>
 
       <template #row-actions="{ record, reload }">
+        <Button
+          v-if="allowed('retrieve')"
+          size="small"
+          type="link"
+          @click="open(record as QueueRecord, true)"
+        >
+          查看
+        </Button>
         <Button
           v-if="canSave && allowed('retrieve')"
           size="small"
@@ -355,13 +432,18 @@ async function switchEnabled(record: QueueRecord) {
       </template>
 
       <template #emptyText>
-        {{ selectedScope ? '暂无受理队列' : '选择受理组织后查看队列' }}
+        {{
+          selectedScope || queryState.tenantId
+            ? '暂无受理队列'
+            : '选择受理租户或组织后查看队列'
+        }}
       </template>
     </CrudPage>
 
     <Modal
       v-model:open="editing"
-      title="保存工单受理队列"
+      :title="readOnly ? '工单受理队列详情' : '保存工单受理队列'"
+      :footer="readOnly ? null : undefined"
       width="960px"
       :body-style="DEFAULT_CONTENT_MODAL_BODY_STYLE"
       :confirm-loading="saving"
@@ -374,6 +456,7 @@ async function switchEnabled(record: QueueRecord) {
         data-form-name="工单受理队列编辑"
         name="ticketQueueEdit"
         layout="horizontal"
+        :disabled="readOnly"
         class="grid gap-x-4"
         style="
           grid-template-columns: repeat(
@@ -396,7 +479,7 @@ async function switchEnabled(record: QueueRecord) {
                 : formTenantId
                   ? [
                       {
-                        label: selectedScope?.tenantName || formTenantId,
+                        label: formScopeRecord?.tenantName || formTenantId,
                         value: formTenantId,
                       },
                     ]
@@ -430,6 +513,9 @@ async function switchEnabled(record: QueueRecord) {
             @update:selected-records="changeFormOrganization"
           />
         </Form.Item>
+        <Form.Item v-else label="受理组织">
+          <span>{{ formScopeRecord?.name || draft.orgId }}</span>
+        </Form.Item>
         <Form.Item label="队列编码" name="code" required>
           <Input v-model:value="draft.code" :maxlength="64" />
         </Form.Item>
@@ -442,6 +528,7 @@ async function switchEnabled(record: QueueRecord) {
             :key="`${draft.tenantId}:${draft.orgId}`"
             :model-value="draft.handlerUserIds"
             :scope="activeFormScope"
+            :disabled="readOnly"
             multiple
             @update:model-value="
               draft.handlerUserIds = Array.isArray($event)

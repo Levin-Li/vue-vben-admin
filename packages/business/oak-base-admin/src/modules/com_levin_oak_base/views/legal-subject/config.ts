@@ -146,6 +146,8 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     {
       key: 'tenantId',
       label: '归属租户',
+      disabledOnEdit: true,
+      omitOnEdit: true,
       layoutGroup: 'basic',
       layoutGroupOrder: 10,
       layoutGroupTitle: '基础信息',
@@ -155,6 +157,17 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       search: true,
       type: 'select',
       visibleForPlatformUser: true,
+    },
+    {
+      key: '__tenant',
+      detail: false,
+      label: '归属租户',
+      fixed: 'left',
+      form: false,
+      table: true,
+      type: 'tenant',
+      visibleForPlatformUser: true,
+      width: 180,
     },
     {
       key: 'id',

@@ -43,6 +43,18 @@ describe('electronic invoice provider connection page config', () => {
     );
   });
 
+  it('显示归属租户，开票授权的安全摘要不提供组织范围', () => {
+    const fields = electronicInvoiceProviderConnectionPageCrudConfig.fields;
+    expect(fields.find((field) => field.key === '__tenant')).toMatchObject({
+      form: false,
+      table: true,
+      visibleForPlatformUser: true,
+    });
+    expect(fields.some((field) => /^orgId(?:List)?$/.test(field.key))).toBe(
+      false,
+    );
+  });
+
   it('requires a legal subject and does not ask for a partner relation', async () => {
     const fields = electronicInvoiceProviderConnectionPageCrudConfig.fields;
     expect(fields).toEqual(

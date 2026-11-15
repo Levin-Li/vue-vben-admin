@@ -21,6 +21,9 @@ const mocks = vi.hoisted(() => ({
   makeUrl: vi.fn(),
   revokeUrl: vi.fn(),
 }));
+vi.mock('@vben/runtime/stores', () => ({
+  useUserStore: () => ({ userInfo: { platformUser: true } }),
+}));
 vi.mock('vue-router', () => ({
   useRoute: () => mocks.route,
   useRouter: () => ({ push: mocks.push }),

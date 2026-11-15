@@ -304,7 +304,7 @@ describe('publish artifact gate', () => {
     ).not.toThrow();
   });
 
-  it('框架 tarball 必须同时从 AGENTS 与 README 链接详情字段指南', () => {
+  it('框架 tarball 必须同时从 AGENTS 与 README 链接详情及组织选择器指南', () => {
     const info = {
       dir: createTemporaryDirectory(),
       name: '@levin/admin-framework',
@@ -312,8 +312,9 @@ describe('publish artifact gate', () => {
     const common = {
       'docs/MODULE-DEVELOPMENT-STANDARD.md': '# 模块规范\n',
       'docs/crud-detail-static-fields.md': '# 详情字段\n',
+      'docs/components/user-org-selector.md': '# 用户与组织选择器\n',
       'README.md':
-        '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n[详情字段](docs/crud-detail-static-fields.md)\n',
+        '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n[详情字段](docs/crud-detail-static-fields.md)\n[组织选择器](docs/components/user-org-selector.md)\n',
     };
     expect(() =>
       verifyTarballModuleDevelopmentStandard(
@@ -327,7 +328,7 @@ describe('publish artifact gate', () => {
         ),
         '本地 tarball',
       ),
-    ).toThrow('AGENTS 或 README 未引用详情字段指南');
+    ).toThrow('AGENTS 或 README 未引用使用指南');
     expect(() =>
       verifyTarballModuleDevelopmentStandard(
         info,
@@ -336,6 +337,59 @@ describe('publish artifact gate', () => {
           {
             ...common,
             'AGENTS.md': '[详情字段](docs/crud-detail-static-fields.md)\n',
+          },
+        ),
+        '本地 tarball',
+      ),
+    ).toThrow('docs/components/user-org-selector.md');
+    expect(() =>
+      verifyTarballModuleDevelopmentStandard(
+        info,
+        createTarball(
+          {},
+          {
+            ...common,
+            'AGENTS.md':
+              '[详情字段](docs/crud-detail-static-fields.md)\n[组织选择器](docs/components/user-org-selector.md)\n',
+          },
+        ),
+        '本地 tarball',
+      ),
+    ).not.toThrow();
+  });
+
+  it('oak tarball 必须同时从 AGENTS 与 README 链接邀请链接指南', () => {
+    const info = {
+      dir: createTemporaryDirectory(),
+      name: '@levin/oak-base-admin',
+    };
+    const common = {
+      'docs/MODULE-DEVELOPMENT-STANDARD.md': '# 模块规范\n',
+      'docs/invitation-registration.md': '# 邀请链接\n',
+      'README.md':
+        '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n[邀请链接](docs/invitation-registration.md)\n',
+    };
+    expect(() =>
+      verifyTarballModuleDevelopmentStandard(
+        info,
+        createTarball(
+          {},
+          {
+            ...common,
+            'AGENTS.md': '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n',
+          },
+        ),
+        '本地 tarball',
+      ),
+    ).toThrow('AGENTS 或 README 未引用邀请链接使用指南');
+    expect(() =>
+      verifyTarballModuleDevelopmentStandard(
+        info,
+        createTarball(
+          {},
+          {
+            ...common,
+            'AGENTS.md': '[邀请链接](docs/invitation-registration.md)\n',
           },
         ),
         '本地 tarball',

@@ -495,6 +495,8 @@ async function listDefinitions(params: Record<string, unknown> = {}) {
       typeof params.containsName === 'string'
         ? params.containsName.trim() || undefined
         : undefined,
+    tenantId: typeof params.tenantId === 'string' ? params.tenantId : undefined,
+    orgId: typeof params.orgId === 'string' ? params.orgId : undefined,
     ...businessObjectQuery(params.businessObject),
   });
   if (request !== listRequest) return list;

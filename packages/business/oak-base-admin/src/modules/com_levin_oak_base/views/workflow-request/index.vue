@@ -69,40 +69,6 @@ const scopedConfig = computed(() => ({
     tenantId: selectedScope.value?.tenantId,
     orgId: selectedScope.value?.orgId,
   },
-  createSubmitKeys: [
-    'title',
-    'category',
-    'amount',
-    'documentsComplete',
-    'tenantId',
-    'orgId',
-  ],
-  // 新增草稿可另选授权范围，编辑继续固定原业务范围。
-  fields: [
-    {
-      key: 'tenantId',
-      label: '归属租户',
-      layoutOrder: -30,
-      type: 'select' as const,
-      visibleForPlatformUser: true,
-      table: false,
-      search: false,
-      disabledOnEdit: true,
-      omitOnEdit: true,
-    },
-    {
-      key: 'orgId',
-      label: '业务组织',
-      layoutOrder: -20,
-      type: 'org-tree-select' as const,
-      visibleForPlatformUser: true,
-      table: false,
-      search: false,
-      formEdit: false,
-      required: true,
-    },
-    ...workflowRequestPageConfig.fields,
-  ],
 }));
 const isPlatformUser = computed(() => isPlatformIdentity(userStore.userInfo));
 // 草稿租户变更只清除草稿组织，不切换当前列表范围或丢弃已填业务字段。

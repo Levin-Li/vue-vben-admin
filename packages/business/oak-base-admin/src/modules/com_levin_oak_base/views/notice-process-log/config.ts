@@ -41,6 +41,7 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      disabledOnEdit: true,
       layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -64,6 +65,10 @@ export const noticeProcessLogPageCrudConfig: CrudPageConfig = {
       label: '所属组织',
       layoutOrder: 20,
       type: 'org-tree-select',
+      search: true,
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      width: 180,
     },
     {
       key: 'ownerId',

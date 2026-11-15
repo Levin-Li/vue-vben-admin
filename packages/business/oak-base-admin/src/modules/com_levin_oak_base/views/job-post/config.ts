@@ -59,6 +59,7 @@ export const jobPostPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      disabledOnEdit: true,
       layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,

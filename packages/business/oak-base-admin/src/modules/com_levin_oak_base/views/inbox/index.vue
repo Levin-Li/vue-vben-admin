@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { getApiErrorMessage, notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
@@ -9,8 +8,15 @@ import type { SupportScope } from '../../api/support-workbench-types';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { useUserStore } from '@vben/runtime/stores';
+
+import {
+  getApiErrorMessage,
+  notifyApiErrorOnce,
+} from '@levin/admin-framework/framework-commons/app/api';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
   Alert,
   Button,
@@ -28,6 +34,7 @@ import { inboxPageCrudConfig } from './config';
 
 // 邮件正文与会话头只按授权详情读取，HTML 作为文本展示，不执行外部内容。
 const { hasPermission } = useRbacAccess();
+const userStore = useUserStore();
 const route = useRoute();
 const router = useRouter();
 const allowed = (method: string) =>
@@ -230,6 +237,21 @@ watch(
   >
     <template v-if="detail">
       <Descriptions :column="1">
+        <Descriptions.Item
+          v-if="
+            isPlatformUser(userStore.userInfo) &&
+            (detail.tenantName || detail.tenantId)
+          "
+          label="所属租户"
+        >
+          {{ detail.tenantName || detail.tenantId }}
+        </Descriptions.Item>
+        <Descriptions.Item
+          v-if="detail.orgName || detail.orgId"
+          label="受理组织"
+        >
+          {{ detail.orgName || detail.orgId }}
+        </Descriptions.Item>
         <Descriptions.Item label="发件人">
           {{ detail.fromEmail }}
         </Descriptions.Item>

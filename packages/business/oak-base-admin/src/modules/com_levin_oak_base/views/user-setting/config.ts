@@ -40,7 +40,6 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
   },
   detailExtraFields: [
     { key: 'tenantName', label: '租户名称', detail: false },
-    { key: 'tenantId', label: '租户Id', detail: false },
     { key: 'ownerId', label: '拥有者Id', detail: false },
     { key: 'ownerName', label: '拥有者名称' },
     { key: 'owner', label: '所有者', detail: false },
@@ -49,6 +48,21 @@ export const userSettingPageCrudConfig: CrudPageConfig = {
     { key: 'optimisticLock', label: '乐观锁版本号', detail: false },
   ],
   fields: [
+    // 平台身份可区分本人设置的租户归属，查询和写入继续使用本人会话范围。
+    {
+      key: 'tenantId',
+      label: '归属租户',
+      type: 'tenant',
+      table: true,
+      detail: true,
+      form: false,
+      search: false,
+      visibleForPlatformUser: true,
+      defaultVisibleRoleCodes: [],
+      sortable: false,
+      width: 180,
+      layoutOrder: -20,
+    },
     {
       key: 'id',
       label: '设置ID',

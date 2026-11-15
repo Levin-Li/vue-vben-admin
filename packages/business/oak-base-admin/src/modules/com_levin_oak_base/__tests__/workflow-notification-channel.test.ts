@@ -74,6 +74,7 @@ describe('三家机器人通知渠道合同', () => {
       };
       await new WorkflowNotificationRouteService().create(input);
       expect(calls.post).toHaveBeenCalledWith('create', {
+        __skipGlobalUserOrgContext: true,
         data: {
           ...base,
           processKey: undefined,

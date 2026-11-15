@@ -108,6 +108,7 @@ export const domainPageCrudConfig: CrudPageConfig = {
   fields: [
     {
       key: 'tenantId',
+      disabledOnEdit: true,
       label: '所属租户',
       layoutGroup: 'basic',
       layoutGroupOrder: -10,

@@ -55,12 +55,27 @@ export function createSupportMailboxSettingCrudConfig(options: {
       { key: 'mailbox:create', label: '新增客服邮箱', placement: 'left' },
     ],
     fields: [
+      // 归属租户仅向平台人员展示；筛选仍使用经授权的业务范围选择器。
+      {
+        key: '__tenant',
+        label: '归属租户',
+        type: 'tenant',
+        form: false,
+        detail: false,
+        table: true,
+        visibleForPlatformUser: true,
+        sortable: false,
+        width: 180,
+      },
       {
         key: 'orgId',
         label: '受理组织',
         type: 'org-tree-select',
         search: true,
-        table: false,
+        table: true,
+        tableValue: (record) => record.orgName || record.orgId,
+        sortable: false,
+        width: 180,
         form: false,
         detail: false,
       },

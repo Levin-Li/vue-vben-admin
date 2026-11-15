@@ -1,7 +1,14 @@
 <script lang="ts" setup>
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
-import { computed, reactive, ref, watch } from 'vue';
+import {
+  computed,
+  onBeforeUnmount,
+  reactive,
+  ref,
+  shallowRef,
+  watch,
+} from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
@@ -37,6 +44,9 @@ const {
   refresh: refreshRolePermissionRecords,
 } = usePageRolePermissionRecords(() => currentUser.userInfo);
 const selectedOrg = ref<UserOrgSelectorRecord>();
+const initialQuery = shallowRef<Record<string, unknown>>();
+let observedQuery: Record<string, unknown> | undefined;
+let stopQueryScopeWatch: (() => void) | undefined;
 const selectedScope = computed(() =>
   selectedOrg.value?.tenantId
     ? { orgId: selectedOrg.value.id, tenantId: selectedOrg.value.tenantId }
@@ -74,6 +84,7 @@ const userListConfig = computed(() => {
   return {
     ...userPageCrudConfig,
     apiService: scopedUserService,
+    initialQuery: initialQuery.value,
     rowActions: [
       ...(userPageCrudConfig.rowActions || []),
       {
@@ -228,22 +239,29 @@ function handleSaved() {
   pageKey.value += 1;
 }
 
+// 切换授权范围时关闭旧记录动作，保留当前查询条件供重新挂载的 CRUD 使用。
 function changeOrganization(
   value: undefined | UserOrgSelectorRecord | UserOrgSelectorRecord[],
-  reset = false,
+  query?: Record<string, unknown>,
 ) {
   const record = Array.isArray(value) ? value[0] : value;
-  if (record && (record.kind !== 'org' || !record.tenantId)) {
-    message.error('请选择带有租户归属的已授权组织。');
+  const tenantId = queryTenantId(query);
+  if (
+    record &&
+    (record.kind !== 'org' ||
+      !record.tenantId ||
+      (tenantId && record.tenantId !== tenantId))
+  ) {
+    message.error('请选择当前查询租户下的已授权组织。');
     return;
   }
   if (
-    !reset &&
+    query &&
     record?.id === selectedOrg.value?.id &&
     record?.tenantId === selectedOrg.value?.tenantId
   )
     return;
-  // 切换组织重新挂载CRUD及其流程抽屉，不保留旧记录表单或旧异步响应。
+
   scopeGeneration++;
   selectedRecord.value = null;
   dialogOpen.value = false;
@@ -253,15 +271,52 @@ function changeOrganization(
   roleOptions.value = [];
   clearPasswordForm();
   passwordSubmitting.value = false;
+
+  stopQueryScopeWatch?.();
+  observedQuery = undefined;
+  initialQuery.value = query ? { ...query, orgId: record?.id } : undefined;
   selectedOrg.value = record;
+  if (!query) pageKey.value += 1;
 }
-const loadAuthorizedOrganizations = () =>
-  rbacService.fetchAuthorizedOrgTree({ assembleTree: true });
+
+// 查询租户由公共查询表单管理；即使组织选择器折叠，仍监听该查询模型。
+function queryTenantId(query?: Record<string, unknown>) {
+  return typeof query?.tenantId === 'string' ? query.tenantId : undefined;
+}
+
+function observeQueryScope(query: Record<string, unknown>) {
+  if (observedQuery !== query) {
+    stopQueryScopeWatch?.();
+    observedQuery = query;
+    stopQueryScopeWatch = watch(
+      () => queryTenantId(query),
+      (tenantId) => {
+        if (
+          selectedOrg.value &&
+          (tenantId !== selectedOrg.value.tenantId ||
+            query.orgId !== selectedOrg.value.id)
+        )
+          changeOrganization(undefined, query);
+      },
+    );
+  }
+  return selectedOrg.value;
+}
+
+// 从授权接口获取候选，并用查询租户重建选择器以丢弃旧候选。
+function loadAuthorizedOrganizations(query: Record<string, unknown>) {
+  const tenantId = queryTenantId(query);
+  return tenantId
+    ? rbacService.fetchAuthorizedOrgTreeByTenant(tenantId)
+    : rbacService.fetchAuthorizedOrgTree({ assembleTree: true });
+}
+
 watch(
   () => JSON.stringify(currentUser.userInfo),
-  () => changeOrganization(undefined, true),
+  () => changeOrganization(undefined),
   { flush: 'sync' },
 );
+onBeforeUnmount(() => stopQueryScopeWatch?.());
 
 watch(dialogOpen, (open) => {
   if (!open) {
@@ -272,16 +327,20 @@ watch(dialogOpen, (open) => {
 
 <template>
   <CrudPage :key="scopeKey" :config="userListConfig">
-    <template #search-field-orgId>
+    <template #search-field-orgId="{ disabled, searchState }">
       <UserOrgSelector
-        :model-value="selectedOrg"
+        :key="queryTenantId(searchState)"
+        :model-value="observeQueryScope(searchState)"
+        :disabled="disabled"
         :selectable-types="['org']"
         :multiple="false"
         value-mode="record"
-        :load-org-tree="loadAuthorizedOrganizations"
+        :load-org-tree="() => loadAuthorizedOrganizations(searchState)"
         placeholder="当前默认组织，可选择一个已授权组织"
         class="w-full"
-        @update:selected-records="changeOrganization"
+        @update:selected-records="
+          !disabled && changeOrganization($event, searchState)
+        "
       />
     </template>
   </CrudPage>

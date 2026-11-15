@@ -105,6 +105,7 @@ export const globalOrgSelectorSettingPageCrudConfig: CrudPageConfig = {
   fields: [
     {
       key: 'tenantId',
+      disabledOnEdit: true,
       label: '归属租户',
       layoutGroup: 'scope',
       layoutGroupOrder: -10,

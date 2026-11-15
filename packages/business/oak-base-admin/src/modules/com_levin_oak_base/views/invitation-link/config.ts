@@ -44,6 +44,7 @@ export const pageOperations = [
     apiMethods: [invitationLinkService.targetOrganizations],
   },
   { opName: 'list', apiMethods: [invitationLinkService.list] },
+  { opName: 'queryTenants', apiMethods: [invitationLinkService.queryTenants] },
   { opName: 'retrieve', apiMethods: [invitationLinkService.retrieve] },
   {
     opName: 'createInternal',
@@ -370,7 +371,7 @@ export function createInvitationLinkCrudConfig(options: {
               form: true,
               defaultVisibleRoleCodes: [],
               search: options.canSelectTenant === true,
-              table: options.canSelectTenant === true,
+              table: true,
               detail: true,
               loadOptions: options.canSelectTenant
                 ? options.loadTenantOptions

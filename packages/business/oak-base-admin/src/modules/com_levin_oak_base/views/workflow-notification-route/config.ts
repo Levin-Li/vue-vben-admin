@@ -13,6 +13,7 @@ import { buildApiMethodPermissions } from '@levin/admin-framework/framework-comm
 
 import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { workflowNotificationRouteService } from '../../api/workflow-notification-route-service';
+import { tenantOptionsLoader } from '../api-module';
 
 export const pageMeta = {
   name: 'WorkflowNotificationRoute',
@@ -107,12 +108,38 @@ export function createWorkflowNotificationRouteCrudConfig(options: {
       { key: 'notification:create', label: '新增通知路由', placement: 'left' },
     ],
     fields: [
+      // 归属租户仅向平台人员展示；筛选仍使用经授权的业务范围选择器。
+      {
+        key: '__tenant',
+        label: '归属租户',
+        type: 'tenant',
+        form: false,
+        detail: false,
+        table: true,
+        visibleForPlatformUser: true,
+        sortable: false,
+        width: 180,
+      },
+      {
+        key: 'tenantId',
+        label: '归属租户',
+        type: 'tenant',
+        search: true,
+        loadOptions: tenantOptionsLoader,
+        table: false,
+        form: false,
+        detail: false,
+        visibleForPlatformUser: true,
+      },
       {
         key: 'orgId',
         label: '业务范围',
         type: 'org-tree-select',
         search: true,
-        table: false,
+        table: true,
+        tableValue: (record) => record.orgName || record.orgId,
+        sortable: false,
+        width: 180,
         form: false,
         detail: false,
         loadOptions: async () => [],

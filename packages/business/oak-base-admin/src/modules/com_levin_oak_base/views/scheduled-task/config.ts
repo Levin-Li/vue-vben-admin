@@ -1,6 +1,7 @@
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 
 import { scheduledTaskService } from '../../api/scheduled-task-service';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
@@ -75,13 +76,6 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
   detailExtraFields: [
     { key: 'tenantName', label: '租户名称', detail: false },
     {
-      key: 'orgId',
-      label: '组织标识',
-      layoutGroup: 'basic',
-      layoutOrder: 2,
-      layoutGroupTitle: '任务信息',
-    },
-    {
       key: 'orgName',
       label: '组织名称',
       layoutGroup: 'basic',
@@ -124,6 +118,21 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
       type: 'tenant',
       visibleForPlatformUser: true,
       width: 180,
+    },
+    // 使用后台返回的组织名称，缺少名称时显示实际组织标识。
+    {
+      key: 'orgId',
+      label: '归属组织',
+      type: 'org-tree-select',
+      search: true,
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      width: 180,
+      // 组织受限的管理员必须保留旧记录的独立组织范围，编辑只开放给超级管理员。
+      disabledOnEdit: ({ userInfo }) => !isSuperAdminUser(userInfo),
+      layoutGroup: 'basic',
+      layoutGroupTitle: '任务信息',
+      layoutOrder: 2,
     },
     {
       key: 'id',

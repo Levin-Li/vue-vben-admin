@@ -9,6 +9,7 @@ import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { workflowDefinitionService } from '../../api/workflow-definition-service';
 import { workflowDefinitionVersionService } from '../../api/workflow-definition-version-service';
 import { workflowManagementService } from '../../api/workflow-management-service';
+import { tenantOptionsLoader } from '../api-module';
 
 export const pageMeta = {
   name: 'WorkflowDefinition',
@@ -68,7 +69,7 @@ export function createWorkflowDefinitionCrudConfig(options: {
       },
     },
     // 选择器值明确映射至实体键或旧版类型，不作为业务赋值字段。
-    dataAttrConditionKeys: ['businessObject'],
+    dataAttrConditionKeys: ['businessObject', 'tenantId', 'orgId'],
     allowCreate: false,
     allowEdit: false,
     allowDelete: false,
@@ -98,6 +99,31 @@ export function createWorkflowDefinitionCrudConfig(options: {
         table: false,
         form: false,
         detail: false,
+      },
+      // 查询范围取列表契约，绑定新增继续采用后端确定的全局范围。
+      {
+        key: 'tenantId',
+        label: '归属租户',
+        type: 'select',
+        loadOptions: tenantOptionsLoader,
+        remoteSearch: true,
+        search: true,
+        table: false,
+        form: false,
+        detail: false,
+        visibleForPlatformUser: true,
+      },
+      {
+        key: 'orgId',
+        label: '归属组织',
+        type: 'org-tree-select',
+        search: true,
+        table: true,
+        tableValue: (record) => record.orgName || record.orgId,
+        form: false,
+        detail: false,
+        sortable: false,
+        width: 180,
       },
       {
         key: 'name',

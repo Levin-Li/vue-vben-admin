@@ -17,6 +17,7 @@ export interface InboxRecord {
   inReplyToHeader?: string;
   messageIdHeader?: string;
   orgId?: string;
+  orgName?: string;
   parseStatus?: string;
   processError?: string;
   rawMimeFileId?: string;
@@ -26,6 +27,7 @@ export interface InboxRecord {
   status?: string;
   subject?: string;
   tenantId?: string;
+  tenantName?: string;
   textContent?: string;
 }
 

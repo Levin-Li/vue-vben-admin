@@ -66,6 +66,7 @@ beforeEach(() => {
   );
   mocks.get.mockResolvedValue([]);
   mocks.post.mockImplementation(async (path: string) => {
+    if (path.endsWith('/queryTenants')) return [];
     if (path.endsWith('/targetDictionaryOptions')) return [];
     if (path.endsWith('/list')) return { items: [], total: 0 };
     if (path.endsWith('/targetOrganizations'))
@@ -213,7 +214,7 @@ describe('邀请真实公共表单提交', () => {
       platformUser: true,
     } as any;
     mocks.post.mockImplementation(async (path: string, options: any) => {
-      if (path.endsWith('/targetTenants'))
+      if (path.endsWith('/targetTenants') || path.endsWith('/queryTenants'))
         return [{ id: 'tenant-a', name: '租户甲' }];
       if (path.endsWith('/targetOrganizations'))
         return [
@@ -304,7 +305,7 @@ describe('邀请真实公共表单提交', () => {
         ...identity,
       } as any;
       mocks.post.mockImplementation(async (path: string) => {
-        if (path.endsWith('/targetTenants'))
+        if (path.endsWith('/targetTenants') || path.endsWith('/queryTenants'))
           return [{ id: 'tenant-a', name: '租户甲' }];
         if (path.endsWith('/list')) return { items: [], total: 0 };
         return [];
@@ -437,7 +438,7 @@ describe('邀请真实公共表单提交', () => {
       platformUser: true,
     } as any;
     mocks.post.mockImplementation(async (path: string, options: any) => {
-      if (path.endsWith('/targetTenants'))
+      if (path.endsWith('/targetTenants') || path.endsWith('/queryTenants'))
         return [
           { id: 'tenant-a', name: '租户甲' },
           { id: 'tenant-b', name: '租户乙' },
@@ -561,7 +562,7 @@ describe('邀请真实公共表单提交', () => {
       },
     );
     mocks.post.mockImplementation(async (path: string, options: any) => {
-      if (path.endsWith('/targetTenants'))
+      if (path.endsWith('/targetTenants') || path.endsWith('/queryTenants'))
         return [
           { id: 'tenant-a', name: '租户甲' },
           { id: 'tenant-b', name: '租户乙' },

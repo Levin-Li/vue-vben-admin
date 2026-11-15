@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
 import type {
   AuditDetail,
   AuditRecord,
   AuditReview,
-  SupportScope,
 } from '../../api/support-workbench-types';
 
 import { computed, onMounted, ref } from 'vue';
 
+import { useUserStore } from '@vben/runtime/stores';
+
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
+import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
   Alert,
   Button,
@@ -29,6 +31,7 @@ import {
 } from 'ant-design-vue';
 
 import { notificationAuditService } from '../../api/notification-audit-service';
+import { tenantService } from '../../api/tenant-service';
 import { moduleFetchEnumOptions } from '../api-module';
 import SupportScopeSelector from '../support-scope-selector.vue';
 import { normalizeNotificationChannels } from '../workflow-notification-route/config';
@@ -38,10 +41,14 @@ import { createNotificationAuditCrudConfig } from './config';
 const { hasPermission } = useRbacAccess();
 const allowed = (method: string) =>
   hasPermission(buildApiMethodPermissions(notificationAuditService, method));
+const userStore = useUserStore();
 const selectedScope = ref<UserOrgSelectorRecord>();
 const scopeGeneration = ref(0);
+const scopeComponentKey = ref(0);
 const initialQuery = ref<Record<string, unknown>>({});
-let queryState: Record<string, unknown> = {};
+let listTenantId: string | undefined;
+let listOrgId: string | undefined;
+let listScopeReady = false;
 let reloadList: (() => Promise<unknown> | unknown) | undefined;
 const statuses = ref<{ label: string; value: string }[]>([]);
 const channels = ref<{ label: string; value: string }[]>([]);
@@ -53,7 +60,7 @@ const channelLabel = (value: string) =>
 const outcomeLabel = (value: string) =>
   outcomes.value.find((item) => item.value === value)?.label || '结果不可用';
 const detail = ref<AuditDetail>();
-const detailScope = ref<SupportScope>();
+const detailTenantId = ref<string>();
 const opened = ref(false);
 const action = ref<'resolveUnsent' | 'retry'>();
 const processing = ref(false);
@@ -90,30 +97,15 @@ let detailVersion = 0;
 const crudConfig = computed(() =>
   createNotificationAuditCrudConfig({
     apiService: { list: listRecords },
+    canQueryTenant:
+      isPlatformUser(userStore.userInfo) &&
+      hasPermission(buildApiMethodPermissions(tenantService, 'list')),
     initialQuery: initialQuery.value,
     statuses: statuses.value,
     statusLabel,
     channelLabel,
   }),
 );
-// 范围由当前查询模型和已选组织共同确认，禁止复用已变化的组织标识。
-function currentScope(orgId: unknown): SupportScope | undefined {
-  const record = selectedScope.value;
-  if (
-    orgId &&
-    (typeof orgId !== 'string' ||
-      record?.kind !== 'org' ||
-      record.id !== orgId ||
-      !record.tenantId)
-  )
-    throw new Error('业务范围已变化，请重新选择组织');
-  return typeof orgId === 'string' &&
-    record?.kind === 'org' &&
-    record.id === orgId &&
-    record.tenantId
-    ? { tenantId: record.tenantId, orgId: record.id }
-    : undefined;
-}
 function searchScopeState(slot: unknown): Record<string, unknown> {
   if (!slot || typeof slot !== 'object' || !('searchState' in slot))
     throw new Error('业务范围查询插槽未提供查询模型');
@@ -123,54 +115,89 @@ function searchScopeState(slot: unknown): Record<string, unknown> {
   return state as Record<string, unknown>;
 }
 function scopeSelection(state: Record<string, unknown>) {
-  queryState = state;
   return state.orgId === selectedScope.value?.id
     ? selectedScope.value
     : undefined;
 }
-// 公共 CRUD 负责查询、分页与加载反馈；适配层仅传实际接口接受的参数。
+// 切换有效查询范围时关闭旧详情，并阻止旧请求结果重新打开。
+function invalidateDetails() {
+  listScopeReady = false;
+  detailVersion += 1;
+  detail.value = undefined;
+  detailTenantId.value = undefined;
+  opened.value = false;
+  action.value = undefined;
+  reloadList = undefined;
+}
+
+// 仅使用已应用的查询范围。详情和人工操作复用返回列表的租户。
 async function listRecords(params: Record<string, unknown> = {}) {
   const current = ++listVersion;
   if (!allowed('list')) return { items: [], totals: 0 };
+  const orgId =
+    typeof params.orgId === 'string' ? params.orgId || undefined : undefined;
+  const selectedOrg = selectedScope.value;
+  if (orgId && selectedOrg?.id !== orgId)
+    throw new Error('业务范围已变化，请重新选择组织');
+
+  const selectedTenantId = orgId ? selectedOrg?.tenantId : undefined;
+  const queriedTenantId =
+    typeof params.tenantId === 'string'
+      ? params.tenantId || undefined
+      : undefined;
+  const tenantId = isPlatformUser(userStore.userInfo)
+    ? queriedTenantId || selectedTenantId
+    : undefined;
+  if (orgId && tenantId && selectedTenantId !== tenantId)
+    throw new Error('业务范围已变化，请重新选择组织');
+
+  if (tenantId !== listTenantId || orgId !== listOrgId) {
+    invalidateDetails();
+    scopeGeneration.value += 1;
+    listTenantId = tenantId;
+    listOrgId = orgId;
+  }
   const result = await notificationAuditService.list({
-    ...currentScope(params.orgId),
+    ...(tenantId ? { tenantId } : {}),
+    ...(orgId ? { orgId } : {}),
     status: typeof params.status === 'string' ? params.status : undefined,
     pageIndex: Number(params.pageIndex) || 1,
     pageSize: Number(params.pageSize) || 20,
   });
-  return current === listVersion ? result : { items: [], totals: 0 };
+  if (current !== listVersion) return { items: [], totals: 0 };
+  listScopeReady = true;
+  return result;
 }
-// 选择条件只更新表单；切换组织立即清理旧范围的列表和详情。
+
+// 组织选择使用服务端返回的租户归属，清空组织保留已选租户。
 function changeScope(
   record: undefined | UserOrgSelectorRecord,
   state: Record<string, unknown>,
 ) {
   selectedScope.value = record?.kind === 'org' ? record : undefined;
-  initialQuery.value = { ...state, orgId: selectedScope.value?.id };
-  queryState = initialQuery.value;
-  detailVersion += 1;
-  detail.value = undefined;
-  detailScope.value = undefined;
-  opened.value = false;
-  action.value = undefined;
-  reloadList = undefined;
+  initialQuery.value = {
+    ...state,
+    ...(isPlatformUser(userStore.userInfo) && selectedScope.value?.tenantId
+      ? { tenantId: selectedScope.value.tenantId }
+      : {}),
+    orgId: selectedScope.value?.id,
+  };
+  invalidateDetails();
   listVersion += 1;
   scopeGeneration.value += 1;
+  scopeComponentKey.value += 1;
 }
-async function open(
-  record: AuditRecord,
-  requestScope = currentScope(queryState.orgId),
-) {
-  if (!allowed('retrieve')) return;
+async function open(record: AuditRecord, tenantId = listTenantId) {
+  if (!listScopeReady || !allowed('retrieve')) return;
   const current = ++detailVersion;
   try {
     const result = await notificationAuditService.retrieve({
       id: record.id,
-      tenantId: requestScope?.tenantId,
+      tenantId,
     });
     if (current !== detailVersion) return;
     detail.value = result;
-    detailScope.value = requestScope;
+    detailTenantId.value = tenantId;
     opened.value = true;
   } catch (error_) {
     notifyApiErrorOnce(error_);
@@ -198,7 +225,7 @@ async function submit() {
   processing.value = true;
   const req: AuditReview = {
     id: detail.value.delivery.id,
-    tenantId: detailScope.value?.tenantId,
+    tenantId: detailTenantId.value,
     optimisticLock: detail.value.delivery.optimisticLock,
     reason: reason.value,
     ...(method === 'resolveUnsent'
@@ -210,7 +237,7 @@ async function submit() {
     const result = await notificationAuditService[method](req);
     if (generation !== scopeGeneration.value) return;
     action.value = undefined;
-    await open(result, detailScope.value);
+    await open(result, detailTenantId.value);
     await reloadList?.();
   } catch (error_) {
     notifyApiErrorOnce(error_);
@@ -247,7 +274,7 @@ onMounted(async () => {
 </script>
 <template>
   <div class="flex min-w-0 flex-col gap-2">
-    <CrudPage :key="scopeGeneration" :config="crudConfig">
+    <CrudPage :key="scopeComponentKey" :config="crudConfig">
       <template #search-field-orgId="slot">
         <SupportScopeSelector
           :model-value="scopeSelection(searchScopeState(slot))"

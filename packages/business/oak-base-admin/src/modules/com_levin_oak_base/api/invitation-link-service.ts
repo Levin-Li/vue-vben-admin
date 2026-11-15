@@ -202,6 +202,15 @@ export class InvitationLinkService extends RequestService {
     type: '业务数据-邀请链接',
     action: '查看我的邀请链接',
   })
+  async queryTenants() {
+    return this.post<InvitationTargetTenant[]>('queryTenants');
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-邀请链接',
+    action: '查看我的邀请链接',
+  })
   async retrieve(id: string) {
     return this.post<InvitationLinkInfo>('retrieve', { data: { id } });
   }

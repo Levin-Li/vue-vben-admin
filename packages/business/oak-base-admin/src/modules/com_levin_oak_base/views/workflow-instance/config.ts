@@ -52,6 +52,7 @@ export function createWorkflowInstanceCrudConfig(options: {
   apiService: CrudApiService;
   initialDefinitionId?: string;
   loadDefinitions: () => Promise<Array<{ label: string; value: string }>>;
+  retainedQuery?: Record<string, unknown>;
   showOrganization: boolean;
 }): CrudPageConfig {
   return {
@@ -73,7 +74,11 @@ export function createWorkflowInstanceCrudConfig(options: {
     recordKey: 'instanceId',
     paginationMode: 'cursor',
     defaultQuery: { pageSize: 20 },
-    initialQuery: { definitionId: options.initialDefinitionId },
+    initialQuery: {
+      ...options.retainedQuery,
+      definitionId:
+        options.initialDefinitionId ?? options.retainedQuery?.definitionId,
+    },
     allowCreate: false,
     allowEdit: false,
     allowDelete: false,
@@ -81,20 +86,30 @@ export function createWorkflowInstanceCrudConfig(options: {
     // 实例接口不提供完整授权总数或全量读取，不能伪装标准全量导出。
     allowExport: false,
     fields: [
-      ...(options.showOrganization
-        ? [
-            {
-              key: 'orgId',
-              label: '业务范围',
-              type: 'org-tree-select' as const,
-              search: true,
-              table: false,
-              form: false,
-              detail: false,
-              loadOptions: async () => [],
-            },
-          ]
-        : []),
+      // 接口只返回授权的业务标识，范围筛选允许选择授权租户或组织。
+      {
+        key: '__tenant',
+        label: '归属租户',
+        type: 'tenant',
+        table: true,
+        form: false,
+        detail: false,
+        sortable: false,
+        visibleForPlatformUser: true,
+        width: 180,
+      },
+      {
+        key: 'orgId',
+        label: '业务组织',
+        type: 'org-tree-select',
+        search: options.showOrganization,
+        table: true,
+        form: false,
+        detail: false,
+        loadOptions: async () => [],
+        sortable: false,
+        width: 180,
+      },
       {
         key: 'keyword',
         label: '关键词',

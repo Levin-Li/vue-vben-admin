@@ -12,6 +12,7 @@ import UserPage from '../views/user/index.vue';
 const calls = vi.hoisted(() => ({
   request: vi.fn(),
   organizations: vi.fn(),
+  organizationsByTenant: vi.fn(),
   unmounted: vi.fn(),
   actor: {} as Record<string, unknown>,
 }));
@@ -27,7 +28,10 @@ vi.mock('@levin/admin-framework', async (importOriginal) => {
     await importOriginal<typeof import('@levin/admin-framework')>();
   return {
     ...actual,
-    rbacService: { fetchAuthorizedOrgTree: calls.organizations },
+    rbacService: {
+      fetchAuthorizedOrgTree: calls.organizations,
+      fetchAuthorizedOrgTreeByTenant: calls.organizationsByTenant,
+    },
     UserOrgSelector: {
       name: 'UserOrgSelector',
       props: ['loadOrgTree'],
@@ -55,15 +59,18 @@ vi.mock(
   () => ({ default: { template: '<div />' } }),
 );
 vi.mock('../views/crud-page.vue', async () => {
-  const { onBeforeUnmount } = await import('vue');
+  const { onBeforeUnmount, reactive } = await import('vue');
   return {
     default: {
       name: 'CrudPage',
       props: ['config'],
-      setup() {
+      setup(props: { config: { initialQuery?: Record<string, unknown> } }) {
+        const query = reactive({ ...props.config.initialQuery });
         onBeforeUnmount(calls.unmounted);
+        return { query };
       },
-      template: '<div>用户列表<slot name="search-field-orgId" /></div>',
+      template:
+        '<div>用户列表<slot name="search-field-orgId" :search-state="query" /></div>',
     },
   };
 });
@@ -79,6 +86,9 @@ describe('普通用户原页面选择授权组织', () => {
     calls.request.mockResolvedValue({ items: [], totals: 0 });
     calls.organizations.mockResolvedValue([
       { id: 'child', tenantId: 'tenant', kind: 'org' },
+    ]);
+    calls.organizationsByTenant.mockImplementation(async (tenantId) => [
+      { id: `${tenantId}-org`, tenantId, kind: 'org' },
     ]);
   });
 
@@ -137,6 +147,67 @@ describe('普通用户原页面选择授权组织', () => {
         params: { pageIndex: 1, orgIdList: ['child'] },
       }),
     );
+    wrapper.unmount();
+  });
+
+  it('平台按查询租户加载组织，切换租户清除旧组织且保留其他查询', async () => {
+    calls.actor = reactive({ id: 'operator', platformUser: true });
+    const wrapper = mount(UserPage);
+    const query = () =>
+      (
+        wrapper.findComponent({ name: 'CrudPage' }).vm as unknown as {
+          query: Record<string, unknown>;
+        }
+      ).query;
+
+    Object.assign(query(), { tenantId: 'tenant-a', containsName: '申请人' });
+    await flushPromises();
+    const picker = wrapper.findComponent({ name: 'UserOrgSelector' });
+    await expect(picker.props('loadOrgTree')()).resolves.toEqual([
+      { id: 'tenant-a-org', tenantId: 'tenant-a', kind: 'org' },
+    ]);
+    expect(calls.organizationsByTenant).toHaveBeenCalledWith('tenant-a');
+    expect(calls.organizations).not.toHaveBeenCalled();
+
+    picker.vm.$emit('update:selectedRecords', [
+      { id: 'tenant-a-org', tenantId: 'tenant-a', kind: 'org' },
+    ]);
+    await flushPromises();
+    expect(query()).toEqual({
+      tenantId: 'tenant-a',
+      orgId: 'tenant-a-org',
+      containsName: '申请人',
+    });
+    const selectedPage = wrapper.findComponent({ name: 'CrudPage' });
+    await selectedPage.props('config').apiService.list(query());
+    expect(calls.request).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        params: {
+          tenantId: 'tenant-a',
+          orgId: 'tenant-a-org',
+          orgIdList: ['tenant-a-org'],
+          containsName: '申请人',
+        },
+      }),
+    );
+
+    Object.assign(query(), { orgId: undefined, tenantId: 'tenant-b' });
+    await flushPromises();
+    const nextPage = wrapper.findComponent({ name: 'CrudPage' });
+    expect(nextPage.vm).not.toBe(selectedPage.vm);
+    await nextPage.props('config').apiService.list(query());
+    expect(calls.request).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        params: {
+          tenantId: 'tenant-b',
+          orgId: undefined,
+          containsName: '申请人',
+        },
+      }),
+    );
+    const nextPicker = wrapper.findComponent({ name: 'UserOrgSelector' });
+    await nextPicker.props('loadOrgTree')();
+    expect(calls.organizationsByTenant).toHaveBeenLastCalledWith('tenant-b');
     wrapper.unmount();
   });
 

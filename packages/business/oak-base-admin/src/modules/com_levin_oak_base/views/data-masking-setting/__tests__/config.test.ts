@@ -40,4 +40,23 @@ describe('数据脱敏设置页面', () => {
       await dataMaskingSettingPageCrudConfig.transformSubmit?.(payload, null),
     ).toBe(payload);
   });
+
+  it('租户归属覆盖平台查询、列表和新增，组织匹配条件不伪装为组织归属', () => {
+    const fields = dataMaskingSettingPageCrudConfig.fields;
+    expect(fields.find((field) => field.key === 'tenantId')).toMatchObject({
+      search: true,
+      type: 'select',
+      visibleForPlatformUser: true,
+    });
+    expect(fields.find((field) => field.key === '__tenant')).toMatchObject({
+      table: true,
+      type: 'tenant',
+      visibleForPlatformUser: true,
+    });
+    expect(fields.find((field) => field.key === 'orgId')).toBeUndefined();
+    expect(fields.find((field) => field.key === 'orgCategory')?.search).toBe(
+      true,
+    );
+    expect(fields.find((field) => field.key === 'orgType')?.search).toBe(true);
+  });
 });

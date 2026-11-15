@@ -7,6 +7,7 @@ import { buildApiMethodPermissions } from '@levin/admin-framework/framework-comm
 
 import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { ticketQueueService } from '../../api/ticket-queue-service';
+import { tenantOptionsLoader } from '../api-module';
 
 export const pageMeta = {
   name: 'TicketQueue',
@@ -52,6 +53,29 @@ export function createTicketQueueCrudConfig(options: {
       { key: 'queue:create', label: '新建队列', placement: 'left' },
     ],
     fields: [
+      // 归属租户仅向平台人员展示；筛选仍使用经授权的业务范围选择器。
+      {
+        key: '__tenant',
+        label: '归属租户',
+        type: 'tenant',
+        form: false,
+        detail: false,
+        table: true,
+        visibleForPlatformUser: true,
+        sortable: false,
+        width: 180,
+      },
+      {
+        key: 'tenantId',
+        label: '归属租户',
+        type: 'tenant',
+        search: true,
+        loadOptions: tenantOptionsLoader,
+        table: false,
+        form: false,
+        detail: false,
+        visibleForPlatformUser: true,
+      },
       {
         key: 'orgId',
         label: '受理组织',
@@ -59,7 +83,10 @@ export function createTicketQueueCrudConfig(options: {
         search: true,
         // 受理组织由选择器及服务端按授权范围限定，普通受理员工也须能选择。
         defaultVisibleRoleCodes: [],
-        table: false,
+        table: true,
+        tableValue: (record) => record.orgName || record.orgId,
+        sortable: false,
+        width: 180,
         form: false,
         detail: false,
         loadOptions: async () => [],

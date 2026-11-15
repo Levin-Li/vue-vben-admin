@@ -6,6 +6,7 @@ import {
 } from '@levin/admin-framework';
 
 import { OAK_BASE_API_MODULE } from './_module';
+import { toGenericSupportRequestScope } from './support-request-scope';
 
 @Service({
   basePath: '/MemberUser',
@@ -109,7 +110,7 @@ export class MemberUserService extends RequestService {
   async list(params?: any, options?: any) {
     return this.get('list', {
       ...options,
-      params,
+      params: params ? toGenericSupportRequestScope(params) : params,
     });
   }
 

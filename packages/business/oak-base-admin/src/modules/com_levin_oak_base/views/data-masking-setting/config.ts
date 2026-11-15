@@ -73,6 +73,7 @@ export const dataMaskingSettingPageCrudConfig: CrudPageConfig = {
       layoutOrder: 5,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
+      search: true,
       type: 'select',
       visibleForPlatformUser: true,
     },

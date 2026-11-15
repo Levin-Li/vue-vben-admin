@@ -130,6 +130,7 @@ vi.mock(
             >,
             rows: [] as Record<string, unknown>[],
             channels: [] as { label: string; value: string }[],
+            tenants: [] as { label: string; value: string }[],
             pageIndex: 1,
           };
         },
@@ -137,6 +138,10 @@ vi.mock(
           this.channels =
             (await this.config.fields
               .find((field) => field.key === 'channel')
+              ?.loadOptions?.()) ?? [];
+          this.tenants =
+            (await this.config.fields
+              .find((field) => field.key === 'tenantId')
               ?.loadOptions?.()) ?? [];
           await this.loadList();
         },
@@ -165,10 +170,11 @@ vi.mock(
           },
         },
         template: `<main>
+          <select v-if="config.fields.some(field => field.key === 'tenantId' && field.search)" aria-label="归属租户" v-model="query.tenantId"><option value="">当前租户范围</option><option v-for="item in tenants" :key="item.value" :value="item.value">{{ item.label }}</option></select>
           <slot name="search-field-orgId" :search-state="query" />
-          <select v-if="config.fields.some(field => field.key === 'eventName' && field.search)" v-model="query.eventName"><option value="">全部事件</option><option v-for="item in config.fields.find(field => field.key === 'eventName').options" :key="item.value" :value="item.value">{{ item.label }}</option></select>
-          <select v-if="config.fields.some(field => field.key === 'channel' && field.search)" v-model="query.channel"><option value="">全部渠道</option><option v-for="item in channels" :key="item.value" :value="item.value">{{ item.label }}</option></select>
-          <select v-if="config.fields.some(field => field.key === 'status' && field.search)" v-model="query.status"><option value="">全部状态</option><option v-for="item in config.fields.find(field => field.key === 'status').options" :key="item.value" :value="item.value">{{ item.label }}</option></select>
+          <select v-if="config.fields.some(field => field.key === 'eventName' && field.search)" aria-label="流程事件" v-model="query.eventName"><option value="">全部事件</option><option v-for="item in config.fields.find(field => field.key === 'eventName').options" :key="item.value" :value="item.value">{{ item.label }}</option></select>
+          <select v-if="config.fields.some(field => field.key === 'channel' && field.search)" aria-label="通知渠道" v-model="query.channel"><option value="">全部渠道</option><option v-for="item in channels" :key="item.value" :value="item.value">{{ item.label }}</option></select>
+          <select v-if="config.fields.some(field => field.key === 'status' && field.search)" aria-label="投递状态" v-model="query.status"><option value="">全部状态</option><option v-for="item in config.fields.find(field => field.key === 'status').options" :key="item.value" :value="item.value">{{ item.label }}</option></select>
           <button @click="search">查询</button><button @click="reset">重置</button>
           <slot name="toolbar-extra" :load-list="loadList" :is-list-operation-visible="() => true" />
           <Table :data-source="rows" :columns="[]" @change="changePage" />
@@ -852,8 +858,8 @@ describe('邮件工单工作台业务入口', () => {
     await button(wrapper, '选择范围').trigger('click');
     await flushPromises();
     const initialCalls = mocks.workflowRoute.list.mock.calls.length;
-    const [eventSelect, channelSelect] = wrapper.findAll('select');
-    if (!eventSelect || !channelSelect) throw new Error('缺少事件或渠道筛选');
+    const eventSelect = wrapper.get('select[aria-label="流程事件"]');
+    const channelSelect = wrapper.get('select[aria-label="通知渠道"]');
     await eventSelect.setValue('TaskProcessed');
     await channelSelect.setValue('Email');
     await flushPromises();
@@ -894,8 +900,9 @@ describe('邮件工单工作台业务入口', () => {
     const initialCalls = mocks.audit.list.mock.calls.length;
     await button(wrapper, '选择范围').trigger('click');
     await flushPromises();
-    expect(wrapper.find('select').html()).toContain('Unknown');
-    await wrapper.find('select').setValue('Unknown');
+    const status = wrapper.get('select[aria-label="投递状态"]');
+    expect(status.html()).toContain('Unknown');
+    await status.setValue('Unknown');
     await flushPromises();
     expect(mocks.audit.list).toHaveBeenCalledTimes(initialCalls + 1);
     expect(wrapper.text()).not.toContain('通知投递详情');
@@ -1017,6 +1024,37 @@ describe('邮件工单工作台业务入口', () => {
       enabled: true,
     });
   });
+  it('按租户查询队列后按记录组织查看、编辑和启停', async () => {
+    const wrapper = mount(QueuePage);
+    await flushPromises();
+    await wrapper.get('select[aria-label="归属租户"]').setValue('tenant');
+    await button(wrapper, '查询').trigger('click');
+    await flushPromises();
+    expect(mocks.queue.list).toHaveBeenLastCalledWith({
+      tenantId: 'tenant',
+      pageIndex: 1,
+      pageSize: 20,
+    });
+    await button(wrapper, '编辑').trigger('click');
+    await flushPromises();
+    expect(mocks.queue.retrieve).toHaveBeenCalledWith({
+      tenantId: 'tenant',
+      orgId: 'org',
+      id: 'queue',
+    });
+    await button(wrapper, '启用').trigger('click');
+    await flushPromises();
+    expect(mocks.queue.setEnabled).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant',
+        orgId: 'org',
+        id: 'queue',
+        optimisticLock: 7,
+      }),
+    );
+    wrapper.unmount();
+  });
+
   it('邮箱启用调用独立动作，撤销动作权限隐藏操作', async () => {
     mocks.allowed.delete('enable');
     mocks.allowed.delete('update');
@@ -1059,6 +1097,42 @@ describe('邮件工单工作台业务入口', () => {
     });
     expect(mocks.audit.retry).not.toHaveBeenCalled();
   });
+  it('平台审计可单选租户并沿用该范围打开详情和提交核验', async () => {
+    const wrapper = mount(AuditPage);
+    await flushPromises();
+    await wrapper.get('select[aria-label="归属租户"]').setValue('tenant-b');
+    await button(wrapper, '查询').trigger('click');
+    await flushPromises();
+    expect(mocks.audit.list).toHaveBeenLastCalledWith({
+      tenantId: 'tenant-b',
+      status: undefined,
+      pageIndex: 1,
+      pageSize: 20,
+    });
+
+    await button(wrapper, '查看详情').trigger('click');
+    await flushPromises();
+    expect(mocks.audit.retrieve).toHaveBeenLastCalledWith({
+      id: 'delivery',
+      tenantId: 'tenant-b',
+    });
+    await button(wrapper, '核验未受理').trigger('click');
+    await wrapper
+      .get('input[placeholder="无机密核验记录标识，禁止邮箱或 URL"]')
+      .setValue('CASE-2');
+    await wrapper.get('input[type="checkbox"]').setValue(true);
+    await button(wrapper, '确认').trigger('click');
+    await flushPromises();
+    expect(mocks.audit.resolveUnsent).toHaveBeenCalledWith({
+      id: 'delivery',
+      tenantId: 'tenant-b',
+      optimisticLock: 9,
+      reason: 'VerifiedUnsent',
+      verifiedUnsent: true,
+      verificationRef: 'CASE-2',
+    });
+  });
+
   it('已耗尽的确定失败投递不提供重试', async () => {
     mocks.audit.retrieve.mockResolvedValue({
       delivery: { ...delivery, status: 'TerminalFailed', exhausted: true },
@@ -1387,10 +1461,16 @@ describe('邮件工单工作台业务入口', () => {
       subject: '测试邮件',
       htmlContent: '<script>alert(1)</script>',
       rawMimeFileId: 'private',
+      orgId: 'org-original',
+      orgName: '授权受理组',
+      tenantId: 'tenant-original',
+      tenantName: '授权归属租户',
     });
     const wrapper = mount(InboxPage);
     await flushPromises();
     expect(mocks.inbox.retrieve).toHaveBeenCalledWith({ id: 'inbox-1' });
+    expect(wrapper.text()).toContain('授权受理组');
+    expect(wrapper.text()).toContain('授权归属租户');
     expect(wrapper.text()).toContain('<script>alert(1)</script>');
     expect(wrapper.find('script').exists()).toBe(false);
     expect(mocks.inbox.intake).not.toHaveBeenCalled();

@@ -56,8 +56,10 @@ export const inboxPageCrudConfig: CrudPageConfig = {
     },
     {
       key: 'orgName',
-      label: '组织名称',
-      detail: false,
+      label: '受理组织',
+      layoutGroup: 'basic',
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 30,
     },
     {
       key: 'ownerId',
@@ -197,9 +199,11 @@ export const inboxPageCrudConfig: CrudPageConfig = {
       label: '受理组织',
       type: 'org-tree-select',
       search: true,
-      table: false,
       form: false,
       detail: false,
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      width: 180,
     },
     {
       key: 'id',

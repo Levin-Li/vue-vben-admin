@@ -1,5 +1,7 @@
 # Published Package AGENTS.md
 
+[2026-11-15 全页面租户与组织字段补漏发布记录](docs/releases/20261115-crud-tenant-org-coverage.md)列出本次全视图核对、包版本、验证及部署边界。
+
 [2026-11-15 管理前端全部可交付变更发布记录](docs/releases/20261115-all-changes.md)列出本批包版本、验证和部署边界。
 
 <INSTRUCTIONS>

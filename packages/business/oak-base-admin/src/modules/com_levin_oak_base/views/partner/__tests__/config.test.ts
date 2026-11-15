@@ -1,7 +1,9 @@
+import { omitExcludedCrudFields } from '@levin/admin-framework/framework-commons/shared/crud-submit-fields';
 import { resolveDetailFields } from '@levin/admin-framework/framework-commons/shared/detail-display';
 import { describe, expect, it, vi } from 'vitest';
 
 import { channelPartnerPageCrudConfig } from '../../channel-partner/config';
+import { createModeFields } from '../../create-mode-fields';
 import { customerPageCrudConfig } from '../../customer/config';
 import { supplierPartnerPageCrudConfig } from '../../supplier-partner/config';
 import { partnerCommonFields } from '../config';
@@ -27,6 +29,56 @@ vi.mock('../../api-module', () => ({
 }));
 
 describe('合作关系公共资料', () => {
+  it.each([channelPartnerPageCrudConfig, supplierPartnerPageCrudConfig])(
+    '普通新增提交商务对接方，新增我的保留服务端配置的主体方',
+    (config) => {
+      const payload = {
+        businessOrgId: 'sales',
+        businessUserId: 'sales-user',
+        financeOrgId: 'finance',
+        name: '伙伴',
+        subjectOrgId: 'subject',
+      };
+      const businessFields = createModeFields(config.fields, false);
+      expect(
+        businessFields.find((field) => field.key === 'businessOrgId'),
+      ).toMatchObject({
+        formCreate: true,
+        required: true,
+        type: 'org-tree-select',
+      });
+      expect(
+        businessFields.find((field) => field.key === 'businessUserId'),
+      ).toMatchObject({
+        formCreate: true,
+        required: true,
+        type: 'user-tree-select',
+      });
+      expect(
+        omitExcludedCrudFields(
+          payload,
+          businessFields.filter(
+            (field) => field.form === false || field.formCreate === false,
+          ),
+        ),
+      ).toEqual({
+        businessOrgId: 'sales',
+        businessUserId: 'sales-user',
+        name: '伙伴',
+      });
+
+      const mineFields = createModeFields(config.fields, true);
+      expect(
+        omitExcludedCrudFields(
+          payload,
+          mineFields.filter(
+            (field) => field.form === false || field.formCreate === false,
+          ),
+        ),
+      ).toEqual({ name: '伙伴' });
+    },
+  );
+
   it('三个伙伴子类型共用自描述 JSON 扩展信息字段', () => {
     for (const config of [
       customerPageCrudConfig,

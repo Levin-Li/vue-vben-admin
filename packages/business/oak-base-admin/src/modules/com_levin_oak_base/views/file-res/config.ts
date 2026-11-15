@@ -81,6 +81,7 @@ export const fileResPageCrudConfig: CrudPageConfig = {
   fields: [
     {
       key: 'tenantId',
+      disabledOnEdit: true,
       label: '归属租户',
       layoutGroup: 'ownership',
       layoutGroupOrder: -20,
@@ -89,6 +90,7 @@ export const fileResPageCrudConfig: CrudPageConfig = {
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
       search: true,
+      searchOrder: -20,
       type: 'select',
       visibleForPlatformUser: true,
     },
@@ -109,6 +111,21 @@ export const fileResPageCrudConfig: CrudPageConfig = {
       layoutGroup: 'ownership',
       layoutGroupOrder: -20,
       layoutOrder: 20,
+      fixed: 'left',
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      type: 'org-tree-select',
+      width: 150,
+    },
+    {
+      key: 'orgIdList',
+      label: '所属组织',
+      detail: false,
+      form: false,
+      multiple: true,
+      search: true,
+      searchOrder: -10,
+      tenantDependent: true,
       type: 'org-tree-select',
     },
     {

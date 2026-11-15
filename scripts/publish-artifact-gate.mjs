@@ -139,19 +139,43 @@ export function verifyTarballModuleDevelopmentStandard(
     throw new Error(`${packageInfo.name} ${location}README 未引用模块使用规范`);
   }
 
-  // 框架新增详情字段指南必须由两个包内入口直接可达，防止构建同步覆盖 AGENTS 链接。
+  // 框架公共指南必须由两个包内入口直接可达，防止构建同步覆盖 AGENTS 链接。
   if (packageInfo.name === '@levin/admin-framework') {
-    const guide = 'docs/crud-detail-static-fields.md';
     const agentPath = 'package/AGENTS.md';
-    if (!entries.split(/\r?\n/).includes(`package/${guide}`)) {
-      throw new Error(`${packageInfo.name} ${location}缺少详情字段使用指南`);
-    }
     const agents = execFileSync('tar', ['-xOf', tarballPath, agentPath], {
       encoding: 'utf8',
     });
+    for (const guide of [
+      'docs/crud-detail-static-fields.md',
+      'docs/components/user-org-selector.md',
+    ]) {
+      if (!entries.split(/\r?\n/).includes(`package/${guide}`)) {
+        throw new Error(
+          `${packageInfo.name} ${location}缺少使用指南：${guide}`,
+        );
+      }
+      if (!agents.includes(guide) || !readme.includes(guide)) {
+        throw new Error(
+          `${packageInfo.name} ${location}AGENTS 或 README 未引用使用指南：${guide}`,
+        );
+      }
+    }
+  }
+  if (packageInfo.name === '@levin/oak-base-admin') {
+    const guide = 'docs/invitation-registration.md';
+    if (!entries.split(/\r?\n/).includes(`package/${guide}`)) {
+      throw new Error(`${packageInfo.name} ${location}缺少邀请链接使用指南`);
+    }
+    const agents = execFileSync(
+      'tar',
+      ['-xOf', tarballPath, 'package/AGENTS.md'],
+      {
+        encoding: 'utf8',
+      },
+    );
     if (!agents.includes(guide) || !readme.includes(guide)) {
       throw new Error(
-        `${packageInfo.name} ${location}AGENTS 或 README 未引用详情字段指南`,
+        `${packageInfo.name} ${location}AGENTS 或 README 未引用邀请链接使用指南`,
       );
     }
   }

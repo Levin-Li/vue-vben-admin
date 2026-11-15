@@ -111,6 +111,17 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       visibleForPlatformUser: true,
     },
     {
+      key: '__tenant',
+      detail: false,
+      label: '归属租户',
+      fixed: 'left',
+      form: false,
+      table: true,
+      type: 'tenant',
+      visibleForPlatformUser: true,
+      width: 180,
+    },
+    {
       key: 'id',
       label: '客户ID',
       layoutGroup: 'basic',

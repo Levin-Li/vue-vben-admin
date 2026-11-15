@@ -15,6 +15,21 @@ describe('electronicInvoicePageCrudConfig', () => {
     );
   });
 
+  it('查询组织范围并回显归属，开票时由销方决定组织', () => {
+    const fields = electronicInvoicePageCrudConfig.fields;
+    const org = fields.find((field) => field.key === 'orgId');
+    expect(org).toMatchObject({ detail: true, form: false, table: true });
+    expect(org?.tableValue?.({ orgId: 'org-a', orgName: '销方组织' })).toBe(
+      '销方组织',
+    );
+    expect(fields.find((field) => field.key === 'orgIdList')).toMatchObject({
+      form: false,
+      multiple: true,
+      search: true,
+      tenantDependent: true,
+    });
+  });
+
   it('requires buyer details and invoice lines', async () => {
     await expect(
       electronicInvoicePageCrudConfig.transformSubmit?.(
@@ -112,6 +127,8 @@ describe('electronicInvoicePageCrudConfig', () => {
     expect(
       fields.filter((field) => field.table).map((field) => field.key),
     ).toEqual([
+      '__tenant',
+      'orgId',
       'id',
       'partnerId',
       'amountWithTax',

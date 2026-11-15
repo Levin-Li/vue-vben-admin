@@ -7,7 +7,7 @@ import type {
 
 import type { WorkflowManagedInstance } from '../../api/workflow-management-service';
 
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { useUserStore } from '@vben/runtime/stores';
@@ -44,10 +44,11 @@ import {
   workflowInstanceStatusLabel as statusLabel,
 } from './config';
 
-// 当前会话和授权组织共同确定管理范围，范围切换时清除全部旧数据。
+// 当前会话与授权租户或组织共同确定管理范围，切换时清除旧数据。
 const userStore = useUserStore();
 const { hasPermission } = useRbacAccess();
-const selectedOrg = ref<UserOrgSelectorRecord>();
+const selectedRange = ref<UserOrgSelectorRecord>();
+const retainedQuery = shallowRef<Record<string, unknown>>({});
 const route = useRoute();
 const routeDefinitionId = computed(() =>
   typeof route.query.definitionId === 'string'
@@ -57,7 +58,8 @@ const routeDefinitionId = computed(() =>
 watch(
   () => JSON.stringify(userStore.userInfo),
   () => {
-    selectedOrg.value = undefined;
+    selectedRange.value = undefined;
+    retainedQuery.value = {};
   },
   { flush: 'sync' },
 );
@@ -74,11 +76,13 @@ const isPlatformActor = computed(() => {
 });
 const tenantId = computed(() =>
   isPlatformActor.value
-    ? selectedOrg.value?.tenantId
+    ? selectedRange.value?.tenantId
     : userStore.userInfo?.tenantId,
 );
 const orgId = computed(() =>
-  isPlatformActor.value ? selectedOrg.value?.id : undefined,
+  isPlatformActor.value && selectedRange.value?.kind === 'org'
+    ? selectedRange.value.id
+    : undefined,
 );
 const canQuery = computed(() =>
   hasPermission(
@@ -113,10 +117,25 @@ const scopeKey = computed(() =>
     canDetail.value,
   ]),
 );
-function changeOrganization(
+// 租户节点只提供租户条件；组织节点同时提供已有租户和组织。
+function changeRange(
   value: undefined | UserOrgSelectorRecord | UserOrgSelectorRecord[],
+  slot: unknown,
 ) {
-  selectedOrg.value = Array.isArray(value) ? value[0] : value;
+  const record = Array.isArray(value) ? value[0] : value;
+  if (
+    record &&
+    (record.kind === 'user' || (record.kind === 'tenant' && !record.tenantId))
+  )
+    return;
+
+  const searchState =
+    slot && typeof slot === 'object' && 'searchState' in slot
+      ? slot.searchState
+      : undefined;
+  if (searchState && typeof searchState === 'object')
+    retainedQuery.value = { ...searchState };
+  selectedRange.value = record;
 }
 
 // 查询、表格和游标分页交给标准CRUD；页面仅适配真实管理接口。
@@ -132,6 +151,7 @@ const crudConfig = computed(() =>
     apiService: { list: listInstances },
     showOrganization: isPlatformActor.value,
     initialDefinitionId: routeDefinitionId.value,
+    retainedQuery: retainedQuery.value,
     loadDefinitions: async () => {
       const choices = [...definitions.value];
       const id = routeDefinitionId.value;
@@ -241,16 +261,17 @@ onBeforeUnmount(() => {
       :key="scopeKey + (routeDefinitionId || '')"
       :config="crudConfig"
     >
-      <template #search-field-orgId>
+      <template #search-field-orgId="slot">
         <UserOrgSelector
-          :model-value="selectedOrg"
-          :selectable-types="['org']"
+          :model-value="selectedRange"
+          :disabled="slot.disabled"
+          :selectable-types="['tenant', 'org']"
           value-mode="record"
           :multiple="false"
           :show-tenant-nodes="true"
           :load-org-tree="loadWorkflowRequestOrgTree"
-          placeholder="全部授权范围"
-          @update:selected-records="changeOrganization"
+          placeholder="全部授权范围，可选租户或组织"
+          @update:selected-records="!slot.disabled && changeRange($event, slot)"
         />
       </template>
       <template v-if="canDetail" #row-actions="{ record }">
@@ -289,6 +310,16 @@ onBeforeUnmount(() => {
             </DescriptionsItem>
             <DescriptionsItem label="业务编号">
               {{ selected.businessId || '—' }}
+            </DescriptionsItem>
+            <!-- 只展示授权详情响应中的业务归属。 -->
+            <DescriptionsItem
+              v-if="isPlatformActor && selected.tenantId"
+              label="归属租户"
+            >
+              {{ selected.tenantId }}
+            </DescriptionsItem>
+            <DescriptionsItem v-if="selected.orgId" label="业务组织">
+              {{ selected.orgId }}
             </DescriptionsItem>
             <DescriptionsItem label="执行状态">
               {{ statusLabel(selected.executionStatus || selected.status) }}

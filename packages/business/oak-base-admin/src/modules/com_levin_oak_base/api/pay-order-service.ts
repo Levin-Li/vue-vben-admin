@@ -1,6 +1,7 @@
 import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
 import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
+import { toGenericSupportRequestScope } from './support-request-scope';
 
 @Service({
   basePath: '/PayOrder',
@@ -91,7 +92,7 @@ export class PayOrderService extends RequestService {
   async list(params?: any, options?: any) {
     return this.get('list', {
       ...options,
-      params,
+      params: params ? toGenericSupportRequestScope(params) : params,
     });
   }
 

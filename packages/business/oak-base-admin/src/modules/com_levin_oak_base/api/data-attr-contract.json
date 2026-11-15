@@ -141169,6 +141169,20 @@
     },
     "nodes" : { }
   }, {
+    "id" : "8dc7c416-d6ad-35e2-9aa1-ce8e562f68f6",
+    "operation" : "com.levin.oak.base:业务数据-邀请链接::查看我的邀请链接",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/InvitationLink/queryTenants" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "5cc967b4-c592-3601-b1b3-266ecb92b03c",
     "operation" : "com.levin.oak.base:业务数据-邀请链接::查看我的邀请链接",
     "methods" : [ "POST" ],

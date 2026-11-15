@@ -43,6 +43,8 @@ export interface WorkflowNotificationRouteRecord extends WorkflowNotificationRou
   editable?: boolean;
   id: string;
   optimisticLock: number;
+  orgName?: string;
+  tenantName?: string;
 }
 
 /** 只序列化当前路由合同；邮件/站内精确受众来自引擎，不开放外部邮箱或秘密字段。 */
@@ -102,6 +104,7 @@ export class WorkflowNotificationRouteService extends RequestService {
   async create(data: WorkflowNotificationRouteInput): Promise<string> {
     return this.post('create', {
       data: { ...toWorkflowNotificationRouteInput(data), editable: true },
+      ...(data.tenantId ? { __skipGlobalUserOrgContext: true } : {}),
     });
   }
   @CRUD.ListTable({
@@ -121,7 +124,14 @@ export class WorkflowNotificationRouteService extends RequestService {
     pageSize: number;
     tenantId?: string;
   }): Promise<SupportPage<WorkflowNotificationRouteRecord>> {
-    return this.get('list', { params: toGenericSupportRequestScope(params) });
+    const scope = toGenericSupportRequestScope(params);
+    return this.get('list', {
+      params: scope,
+      // 显式租户条件不能继承全局选择器上的其它组织条件。
+      ...(scope.tenantId && !scope.orgId && !Object.hasOwn(scope, 'orgIdList')
+        ? { __skipGlobalUserOrgContext: true }
+        : {}),
+    });
   }
   @CRUD.Op({ label: '删除' })
   @ResAuthorize({
@@ -134,8 +144,12 @@ export class WorkflowNotificationRouteService extends RequestService {
     orgId?: string;
     tenantId?: string;
   }): Promise<void> {
+    const scope = toGenericSupportRequestScope(params);
     return this.deleteRequest('delete', {
-      params: toGenericSupportRequestScope(params),
+      params: scope,
+      ...(scope.tenantId && !scope.orgId
+        ? { __skipGlobalUserOrgContext: true }
+        : {}),
     });
   }
   @CRUD.Op({ label: '查看详情' })
@@ -149,8 +163,12 @@ export class WorkflowNotificationRouteService extends RequestService {
     orgId?: string;
     tenantId?: string;
   }): Promise<WorkflowNotificationRouteRecord> {
+    const scope = toGenericSupportRequestScope(params);
     return this.get('retrieve', {
-      params: toGenericSupportRequestScope(params),
+      params: scope,
+      ...(scope.tenantId && !scope.orgId
+        ? { __skipGlobalUserOrgContext: true }
+        : {}),
     });
   }
   @CRUD.Op({ label: '更新' })
@@ -167,6 +185,9 @@ export class WorkflowNotificationRouteService extends RequestService {
         optimisticLock: data.optimisticLock,
       },
       autoForceUpdateField: false,
+      ...(data.tenantId && !data.orgId
+        ? { __skipGlobalUserOrgContext: true }
+        : {}),
     });
   }
 }

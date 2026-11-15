@@ -31,5 +31,7 @@ API 属性组权限的轻量分配、后端元数据契约与保存语义见 [�
 
 本地长期与临时上传 API 见 [本地文件上传 API 使用指南](docs/local-file-storage-upload.md)。
 
+标准 CRUD 租户与组织选择及查询联动见 [用户与组织选择器使用指南](docs/components/user-org-selector.md)。
+
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。
 </INSTRUCTIONS>

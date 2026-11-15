@@ -1,5 +1,5 @@
 {
-  "version": "6.0.41",
+  "version": "6.0.42",
   "documents": [
     {
       "id": "system-user-manual",
@@ -130,7 +130,7 @@
       "type": "开发指南",
       "source": "frontend/admin/packages/business/oak-base-admin/docs/communication-workbench.md",
       "pages": [],
-      "sha256": "fb80d31ba4a27d51be005117a92b4e67686b68deee7fa55c9bb9c770543da059"
+      "sha256": "3613dd4c477e85a4f6cbb903570f0c5749eb64f7dceafb951a3a5a6eeee8be2e"
     },
     {
       "id": "invitation-registration-admin",
@@ -145,7 +145,7 @@
           "view": "invitation-link"
         }
       ],
-      "sha256": "fdd61f522c117eda8a693559e2fad7ccfd7c7e0eca1f619daecf59dd66ec4523"
+      "sha256": "242be5e567c6c924605b1efdc4b7a5015a86008cb314b9df7515fb07e2e7bea1"
     }
   ]
 }

@@ -55,6 +55,7 @@ vi.mock('@vben/runtime/stores', () => ({
 vi.mock('@levin/admin-framework', () => ({
   UserOrgSelector: {
     name: 'UserOrgSelector',
+    props: ['selectableTypes'],
     emits: ['update:selectedRecords'],
     template: '<div>授权组织</div>',
   },
@@ -274,7 +275,11 @@ describe('管理侧运行实例', () => {
     await button(wrapper, '展开').trigger('click');
     await flushPromises();
     const selector = wrapper.findComponent({ name: 'UserOrgSelector' });
-    selector.vm.$emit('update:selectedRecords', { id: 'o1', tenantId: 't1' });
+    selector.vm.$emit('update:selectedRecords', {
+      id: 'o1',
+      tenantId: 't1',
+      kind: 'org',
+    });
     await flushPromises();
     await button(wrapper, '查看实例').trigger('click');
     await flushPromises();
@@ -282,7 +287,11 @@ describe('管理侧运行实例', () => {
     await flushPromises();
     wrapper
       .findComponent({ name: 'UserOrgSelector' })
-      .vm.$emit('update:selectedRecords', { id: 'o2', tenantId: 't2' });
+      .vm.$emit('update:selectedRecords', {
+        id: 'o2',
+        tenantId: 't2',
+        kind: 'org',
+      });
     await flushPromises();
     staleList.resolve({
       items: [{ ...row, businessTitle: '旧范围敏感数据' }],
@@ -298,6 +307,33 @@ describe('管理侧运行实例', () => {
     expect(
       wrapper.findComponent({ name: 'WorkflowProcessDiagram' }).exists(),
     ).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('平台可按授权租户查询并查看实例，租户节点不提交组织条件', async () => {
+    state.actor = reactive({ platformUser: true, roleList: ['R_PLATFORM_SA'] });
+    const wrapper = mountPage();
+    await flushPromises();
+    await button(wrapper, '展开').trigger('click');
+    await flushPromises();
+    const selector = wrapper.findComponent({ name: 'UserOrgSelector' });
+    expect(selector.props('selectableTypes')).toEqual(['tenant', 'org']);
+    selector.vm.$emit('update:selectedRecords', {
+      id: 't1',
+      kind: 'tenant',
+      tenantId: 't1',
+    });
+    await flushPromises();
+    expect(state.instances).toHaveBeenLastCalledWith(
+      expect.objectContaining({ tenantId: 't1', orgId: undefined }),
+    );
+    await button(wrapper, '查看实例').trigger('click');
+    await flushPromises();
+    expect(state.instance).toHaveBeenLastCalledWith({
+      instanceId: 'i1',
+      tenantId: 't1',
+      orgId: undefined,
+    });
     wrapper.unmount();
   });
 

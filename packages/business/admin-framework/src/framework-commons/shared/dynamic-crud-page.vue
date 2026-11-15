@@ -1063,6 +1063,18 @@ function formTenantId(field: CrudFieldConfig): string | undefined {
   return String(formState.tenantId || '').trim() || undefined;
 }
 
+// 查询租户只收窄当前组织候选；是否有权查询目标范围仍由服务端校验。
+function queryTenantId(field: CrudFieldConfig): string | undefined {
+  if (
+    !isPlatformUser.value ||
+    field.type !== 'org-tree-select' ||
+    !props.config.fields.some((item) => item.key === 'tenantId' && item.search)
+  ) {
+    return undefined;
+  }
+  return String(searchState.tenantId || '').trim() || undefined;
+}
+
 function isFormFieldInteractionDisabled(field: CrudFieldConfig) {
   return (
     (isTenantDependentField(field) && !formTenantId(field)) ||
@@ -1109,6 +1121,17 @@ function updateFormFieldInput(field: CrudFieldConfig, value: any) {
 }
 
 function updateSearchFieldInput(field: CrudFieldConfig, value: any) {
+  if (
+    field.key === 'tenantId' &&
+    searchState.tenantId !== value &&
+    !isSearchFieldInteractionDisabled(field)
+  ) {
+    for (const dependent of props.config.fields.filter(
+      (item) => item.search && item.type === 'org-tree-select',
+    )) {
+      searchState[dependent.key] = undefined;
+    }
+  }
   updateCrudFieldInput(
     searchState,
     field.key,
@@ -8656,6 +8679,7 @@ watch(
                   item.field.type === 'org-tree-select' ||
                   item.field.type === 'user-tree-select'
                 "
+                :key="`${item.field.key}:${queryTenantId(item.field) || ''}`"
                 :model-value="
                   getInteractionModelValue(
                     searchState[item.field.key],
@@ -8671,7 +8695,7 @@ watch(
                 :max-select-count="item.field.multiple ? 0 : 1"
                 :org-load-api="
                   item.field.type === 'org-tree-select'
-                    ? getCrudOrgLoadApi(item.field)
+                    ? getCrudOrgLoadApi(item.field, queryTenantId(item.field))
                     : undefined
                 "
                 :user-load-api="

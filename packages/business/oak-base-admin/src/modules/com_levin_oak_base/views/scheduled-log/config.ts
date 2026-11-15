@@ -26,11 +26,6 @@ export const scheduledLogPageCrudConfig: CrudPageConfig = {
   detailExtraFields: [
     { key: 'tenantName', label: '租户名称', detail: false },
     {
-      key: 'orgId',
-      label: '组织标识',
-      layoutOrder: -30,
-    },
-    {
       key: 'orgName',
       label: '组织名称',
       layoutOrder: -20,
@@ -59,6 +54,18 @@ export const scheduledLogPageCrudConfig: CrudPageConfig = {
       type: 'tenant',
       visibleForPlatformUser: true,
       width: 180,
+    },
+    // 使用后台返回的组织名称，缺少名称时显示实际组织标识。
+    {
+      key: 'orgId',
+      label: '归属组织',
+      type: 'org-tree-select',
+      search: true,
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      width: 180,
+      form: false,
+      layoutOrder: -30,
     },
     {
       key: 'id',

@@ -7,6 +7,7 @@ import { buildApiMethodPermissions } from '@levin/admin-framework/framework-comm
 
 import { OAK_BASE_API_MODULE } from '../../api/_module';
 import { notificationAuditService } from '../../api/notification-audit-service';
+import { tenantOptionsLoader } from '../api-module';
 
 export const pageMeta = {
   name: 'NotificationAudit',
@@ -17,6 +18,7 @@ export const pageMeta = {
 // 普通审计列表交给公共 CRUD；详情时间线和人工处理仍由页面专用流程承载。
 export function createNotificationAuditCrudConfig(options: {
   apiService: CrudApiService;
+  canQueryTenant: boolean;
   channelLabel: (value: string) => string;
   initialQuery?: Record<string, unknown>;
   statuses: { label: string; value: string }[];
@@ -48,6 +50,18 @@ export function createNotificationAuditCrudConfig(options: {
     // 独立审计接口没有受控全量导出，不将单页结果冒充完整导出。
     allowExport: false,
     fields: [
+      {
+        key: 'tenantId',
+        label: '归属租户',
+        type: 'select',
+        search: options.canQueryTenant,
+        loadOptions: options.canQueryTenant ? tenantOptionsLoader : undefined,
+        remoteSearch: true,
+        visibleForPlatformUser: true,
+        table: false,
+        form: false,
+        detail: false,
+      },
       {
         key: 'orgId',
         label: '业务范围',

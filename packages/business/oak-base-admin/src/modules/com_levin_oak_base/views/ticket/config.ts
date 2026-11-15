@@ -41,12 +41,27 @@ export function createTicketCrudConfig(options: {
     allowExport: false,
     listOperations: [{ key: 'ticket:help', label: '帮助', placement: 'right' }],
     fields: [
+      // 归属租户仅向平台人员展示；筛选仍使用经授权的业务范围选择器。
+      {
+        key: '__tenant',
+        label: '归属租户',
+        type: 'tenant',
+        form: false,
+        detail: false,
+        table: true,
+        visibleForPlatformUser: true,
+        sortable: false,
+        width: 180,
+      },
       {
         key: 'orgId',
         label: '业务范围',
         type: 'org-tree-select',
         search: true,
-        table: false,
+        table: true,
+        tableValue: (record) => record.orgName || record.orgId,
+        sortable: false,
+        width: 180,
         form: false,
         detail: false,
         loadOptions: async () => [],

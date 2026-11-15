@@ -178,6 +178,7 @@ describe('模型定义直接配置公共CRUD', () => {
       scopeKind: 'PLATFORM',
       version: 0,
       tenantId: 'evil',
+      orgId: 'forged-org',
     });
     expect(service.save).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -188,6 +189,7 @@ describe('模型定义直接配置公共CRUD', () => {
       }),
     );
     expect(service.save.mock.calls[0]![0]).not.toHaveProperty('tenantId');
+    expect(service.save.mock.calls[0]![0]).not.toHaveProperty('orgId');
     await value.prepareCreate!();
     await value.apiService!.create!({
       key: 'new',

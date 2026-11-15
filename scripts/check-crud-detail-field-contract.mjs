@@ -47,7 +47,7 @@ const reviewedBoundaries = new Map([
   ],
 ]);
 
-function* files(directory) {
+export function* files(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) yield* files(path);
@@ -55,7 +55,7 @@ function* files(directory) {
   }
 }
 
-function parseModule(path) {
+export function parseModule(path) {
   if (!modules.has(path)) {
     modules.set(
       path,
@@ -132,7 +132,7 @@ function unwrap(node) {
   return node;
 }
 
-function constant(node, visited = new Set()) {
+export function constant(node, visited = new Set()) {
   node = unwrap(node);
   if (!node || !ts.isIdentifier(node)) return node;
   const declaration = binding(node);
@@ -140,13 +140,13 @@ function constant(node, visited = new Set()) {
   return constant(declaration, new Set([declaration, ...visited]));
 }
 
-function string(node) {
+export function string(node) {
   node = constant(node);
   return node && ts.isStringLiteralLike(node) ? node.text : undefined;
 }
 
 // 按 TypeScript 展开顺序取值，拒绝可能覆盖关键信息的动态属性。
-function property(object, name, visited = new Set()) {
+export function property(object, name, visited = new Set()) {
   object = constant(object);
   if (!object || !ts.isObjectLiteralExpression(object) || visited.has(object)) {
     throw new Error(`不能静态解析属性 ${name}`);
@@ -180,7 +180,7 @@ function property(object, name, visited = new Set()) {
   }
 }
 
-function* array(node, visited = new Set()) {
+export function* array(node, visited = new Set()) {
   node = constant(node);
   if (!node || !ts.isArrayLiteralExpression(node) || visited.has(node)) {
     throw new Error('详情字段列表包含无法静态展开的表达式');
@@ -204,19 +204,19 @@ function* array(node, visited = new Set()) {
   }
 }
 
-// 通过页面绑定的服务和控制器继承链定位实际的 retrieve 返回类型。
-function serviceController(node) {
+// 通过页面服务实例或方法绑定定位控制器。
+export function serviceController(node, operation = 'retrieve') {
   let instance = constant(node);
-  // 页面可单独接管列表，同时原样绑定服务的 retrieve。
+  // 页面可以接管部分操作，同时保留其他服务方法的原样绑定。
   if (instance && ts.isObjectLiteralExpression(instance)) {
-    const method = constant(property(instance, 'retrieve'));
+    const method = constant(property(instance, operation));
     if (
       method &&
       ts.isCallExpression(method) &&
       ts.isPropertyAccessExpression(method.expression) &&
       method.expression.name.text === 'bind' &&
       ts.isPropertyAccessExpression(method.expression.expression) &&
-      method.expression.expression.name.text === 'retrieve' &&
+      method.expression.expression.name.text === operation &&
       method.arguments.length === 1 &&
       method.arguments[0].getText() ===
         method.expression.expression.expression.getText()
@@ -243,7 +243,7 @@ function serviceController(node) {
   throw new Error('apiService 缺少可解析的 @Service.controllerClass');
 }
 
-function serviceMetadata(declaration) {
+export function serviceMetadata(declaration) {
   for (const decorator of ts.getDecorators(declaration) ?? []) {
     const call = decorator.expression;
     if (ts.isCallExpression(call) && call.expression.getText() === 'Service') {
@@ -254,12 +254,12 @@ function serviceMetadata(declaration) {
   }
 }
 
-function getRetrievePath(service) {
-  const retrieve = service.declaration.members.find(
+export function getServiceOperation(service, operation = 'retrieve') {
+  const serviceMethod = service.declaration.members.find(
     (member) =>
-      ts.isMethodDeclaration(member) && member.name.getText() === 'retrieve',
+      ts.isMethodDeclaration(member) && member.name.getText() === operation,
   );
-  if (!retrieve) return;
+  if (!serviceMethod) return;
   // 只识别服务方法中唯一的字面量请求路径，动态 HTTP 分派需要人工复核。
   const calls = [];
   function visit(node) {
@@ -276,7 +276,7 @@ function getRetrievePath(service) {
     }
     ts.forEachChild(node, visit);
   }
-  if (retrieve.body) visit(retrieve.body);
+  if (serviceMethod.body) visit(serviceMethod.body);
   if (calls.length === 1) return calls[0];
 }
 
@@ -289,7 +289,7 @@ function resolveService(config, apiRoot) {
   }
   if (serviceNode) {
     const service = serviceController(serviceNode);
-    const retrieve = getRetrievePath(service);
+    const retrieve = getServiceOperation(service);
     if (retrieve?.path !== 'retrieve') {
       throw new Error('页面服务的 retrieve 请求路径无法验证');
     }
@@ -314,7 +314,7 @@ function resolveService(config, apiRoot) {
         if (!ts.isClassDeclaration(declaration)) continue;
         const service = serviceMetadata(declaration);
         if (service && endpoint === `${service.basePath}/retrieve`) {
-          const retrieve = getRetrievePath(service);
+          const retrieve = getServiceOperation(service);
           if (retrieve?.method === 'get' && retrieve.path === 'retrieve')
             candidates.push(service);
         }
@@ -325,7 +325,7 @@ function resolveService(config, apiRoot) {
   throw new Error('无法为默认详情 GET 路径唯一定位控制器');
 }
 
-function javaIndex(directory, include) {
+export function javaIndex(directory, include) {
   return new Map(
     [...files(directory)]
       .filter((path) => include(path))
@@ -338,11 +338,27 @@ function javaIndex(directory, include) {
   );
 }
 
-function javaParent(source) {
-  return source.match(/\bclass\s+\w+\s+extends\s+([\w.]+)/)?.[1];
+export function javaParent(source) {
+  const declaration = source.match(/\bclass\s+\w+/);
+  if (!declaration) return;
+  const start = declaration.index + declaration[0].length;
+  const end = source.indexOf('{', start);
+  if (end === -1) return;
+  let header = source.slice(start, end).trimStart();
+  if (header.startsWith('<')) {
+    let depth = 0;
+    for (let index = 0; index < header.length; index++) {
+      if (header[index] === '<') depth++;
+      if (header[index] === '>' && --depth === 0) {
+        header = header.slice(index + 1);
+        break;
+      }
+    }
+  }
+  return header.match(/^\s*extends\s+([\w.]+)/)?.[1];
 }
 
-function javaType(index, source, name) {
+export function javaType(index, source, name) {
   if (name.includes('.')) return index.get(name);
   const pkg = source.match(/^\s*package\s+([\w.]+)\s*;/m)?.[1];
   const imports = [...source.matchAll(/^\s*import\s+([\w.*]+)\s*;/gm)].map(
@@ -359,7 +375,7 @@ function javaType(index, source, name) {
   if (wildcardMatches.length === 1) return wildcardMatches[0];
 }
 
-function javaSource(path) {
+export function javaSource(path) {
   if (!path) throw new Error('无法定位 Java 源文件');
   return readFileSync(path, 'utf8').replaceAll(
     /("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g,
@@ -390,8 +406,13 @@ function retrieveModel(controllerIndex, infoIndex, path) {
   throw new Error('无法定位控制器继承链中的 retrieve');
 }
 
-// 识别生成 DTO 的顶层字段，读取注解及继承属性，排除明确不序列化的字段。
-export function responseFields(index, path, visited = new Set()) {
+// 识别生成 DTO 的顶层字段，按请求或响应场景读取可用属性。
+export function responseFields(
+  index,
+  path,
+  visited = new Set(),
+  mode = 'response',
+) {
   if (visited.has(path)) throw new Error('响应模型继承链存在循环');
   const source = javaSource(path);
   const parent = javaParent(source);
@@ -400,6 +421,7 @@ export function responseFields(index, path, visited = new Set()) {
         index,
         javaType(index, source, parent),
         new Set([path, ...visited]),
+        mode,
       )
     : new Map();
   const declaration = source.match(/\bclass\s+\w[^{}]*\{/);
@@ -433,9 +455,14 @@ export function responseFields(index, path, visited = new Set()) {
       /@(?:[\w.]+\.)?JsonIgnore\b(?!\s*\(\s*(?:value\s*=\s*)?false)/.test(
         member,
       ) ||
-      /@(?:[\w.]+\.)?JsonProperty\([^)]*access\s*=\s*[\w.]*WRITE_ONLY/.test(
-        member,
-      )
+      (mode === 'response'
+        ? /@(?:[\w.]+\.)?JsonProperty\([^)]*access\s*=\s*[\w.]*WRITE_ONLY/
+        : /@(?:[\w.]+\.)?JsonProperty\([^)]*access\s*=\s*[\w.]*READ_ONLY/
+      ).test(member) ||
+      (mode === 'request' &&
+        /@InjectVar\([^)]*\bisOverride\s*=\s*(?:true|"true")\s*[,)]/.test(
+          member,
+        ))
     ) {
       fields.delete(key);
       continue;
@@ -447,7 +474,10 @@ export function responseFields(index, path, visited = new Set()) {
     const title = member.match(
       /@Schema\([\s\S]*?\btitle\s*=\s*"((?:\\.|[^"\\])*)"/,
     )?.[1];
-    fields.set(serializedKey, title);
+    fields.set(
+      serializedKey,
+      mode === 'request' ? { declaration: path, annotations: member } : title,
+    );
   }
   return fields;
 }
@@ -476,7 +506,7 @@ export function declarations(config) {
   return { map, unsupported };
 }
 
-function pageConfigs(file) {
+export function pageConfigs(file) {
   const configs = [];
   function visit(node) {
     if (

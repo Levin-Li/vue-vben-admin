@@ -55,6 +55,7 @@ describe('审计报告只读页面', () => {
       'gteCreateTime',
       'lteCreateTime',
       'tenantId',
+      'orgIdList',
     ]);
     expect(keys).not.toContain('content');
   });
@@ -89,7 +90,12 @@ describe('审计报告只读页面', () => {
   it('报告正文保留编辑器声明，但不混入记录详情', () => {
     expect(
       auditReportPageCrudConfig.fields.find((field) => field.key === 'content'),
-    ).toMatchObject({ type: 'json', detail: false, fullRow: true, form: false });
+    ).toMatchObject({
+      type: 'json',
+      detail: false,
+      fullRow: true,
+      form: false,
+    });
     expect(
       auditReportPageCrudConfig.fields.find((field) => field.key === 'editor'),
     ).toMatchObject({ detail: false, form: false });

@@ -51,9 +51,9 @@ const organizationCategoryOptions = ref<
 const accountTypeOptions = ref<Array<{ label: string; value: string }>>([]);
 const dictionaryLoading = ref(false);
 let organizationRequestVersion = 0;
-async function loadTenantOptions(keyword?: string) {
-  // 候选只来自邀请服务返回的可访问租户，搜索在当前选项中完成。
-  const tenants = await invitationLinkService.targetTenants();
+async function loadQueryTenantOptions(keyword?: string) {
+  // 候选来自查看邀请链接权限，搜索在当前授权选项中完成。
+  const tenants = await invitationLinkService.queryTenants();
   const filter = (keyword || '').trim().toLowerCase();
   return tenants
     .filter(
@@ -241,10 +241,8 @@ const pageConfig = computed(() => {
     target,
     targetOrganizations: defaultOrganizations.value,
     isPlatformUser: platformUser.value,
-    canSelectTenant: Object.values(createMethodByTarget).some((name) =>
-      allowed(name),
-    ),
-    loadTenantOptions,
+    canSelectTenant: allowed('list'),
+    loadTenantOptions: loadQueryTenantOptions,
     canInviteChildAdmin: allowed('canInviteChildAdmin'),
     canCreate: allowed(method),
     createActions: invitationCreateActions(openInvitation),

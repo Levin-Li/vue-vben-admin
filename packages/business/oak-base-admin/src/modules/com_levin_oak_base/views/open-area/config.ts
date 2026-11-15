@@ -73,6 +73,7 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '所属租户',
+      disabledOnEdit: true,
       layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -103,6 +104,9 @@ export const openAreaPageCrudConfig: CrudPageConfig = {
       layoutGroup: 'basic',
       layoutGroupOrder: 10,
       layoutGroupTitle: '基础信息',
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      width: 180,
     },
     {
       key: 'id',

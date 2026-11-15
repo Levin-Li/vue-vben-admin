@@ -51,11 +51,6 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
       detail: false,
     },
     {
-      key: 'orgId',
-      label: '组织标识',
-      detail: false,
-    },
-    {
       key: 'orgName',
       label: '组织名称',
       detail: false,
@@ -93,6 +88,7 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      disabledOnEdit: true,
       layoutOrder: 10,
       loadOptions: tenantOptionsLoader,
       remoteSearch: true,
@@ -112,6 +108,19 @@ export const importExportTemplatePageCrudConfig: CrudPageConfig = {
       table: true,
       type: 'tenant',
       visibleForPlatformUser: true,
+      width: 180,
+    },
+    {
+      key: 'orgId',
+      label: '所属组织',
+      layoutGroup: 'basic',
+      layoutGroupOrder: 10,
+      layoutGroupTitle: '基础信息',
+      layoutOrder: 20,
+      search: true,
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      type: 'org-tree-select',
       width: 180,
     },
     {

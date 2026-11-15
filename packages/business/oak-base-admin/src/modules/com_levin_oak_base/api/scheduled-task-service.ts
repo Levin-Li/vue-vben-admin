@@ -1,6 +1,7 @@
 import { CRUD, ResAuthorize, Service } from '@levin/admin-framework';
 import { RequestService } from '@levin/admin-framework';
 import { OAK_BASE_API_MODULE } from './_module';
+import { toGenericSupportRequestScope } from './support-request-scope';
 
 @Service({
   basePath: '/ScheduledTask',
@@ -104,7 +105,8 @@ export class ScheduledTaskService extends RequestService {
   async list(params?: any, options?: any) {
     return this.get('list', {
       ...options,
-      params,
+      // 同步单组织与优先匹配的组织列表范围。
+      params: params?.orgId ? toGenericSupportRequestScope(params) : params,
     });
   }
 

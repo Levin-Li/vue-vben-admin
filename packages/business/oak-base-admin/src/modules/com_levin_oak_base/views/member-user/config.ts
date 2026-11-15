@@ -191,6 +191,7 @@ export const memberUserPageCrudConfig: CrudPageConfig = {
     {
       key: 'tenantId',
       label: '归属租户',
+      disabledOnEdit: true,
       layoutGroup: 'basic',
       layoutGroupOrder: 10,
       layoutGroupTitle: '基础信息',
@@ -220,6 +221,10 @@ export const memberUserPageCrudConfig: CrudPageConfig = {
       layoutOrder: 20,
       type: 'org-tree-select',
       layoutGroupTitle: '基础信息',
+      search: true,
+      table: true,
+      tableValue: (record) => record.orgName || record.orgId,
+      width: 180,
     },
     {
       key: 'id',

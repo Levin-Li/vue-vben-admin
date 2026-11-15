@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
+import type {
+  UserOrgSelectorRecord,
+  UserOrgSelectorSelectableType,
+} from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
 import { ref, watch } from 'vue';
 
@@ -11,10 +14,12 @@ const props = withDefaults(
   defineProps<{
     modelValue?: UserOrgSelectorRecord;
     placeholder?: string;
+    selectableTypes?: UserOrgSelectorSelectableType[];
   }>(),
   {
     modelValue: undefined,
     placeholder: '选择受理组织',
+    selectableTypes: () => ['org'],
   },
 );
 const emit = defineEmits<{ change: [undefined | UserOrgSelectorRecord] }>();
@@ -36,7 +41,7 @@ function change(records: UserOrgSelectorRecord[]) {
 <template>
   <UserOrgSelector
     :model-value="selected"
-    :selectable-types="['org']"
+    :selectable-types="selectableTypes"
     value-mode="record"
     :multiple="false"
     :show-tenant-nodes="true"
