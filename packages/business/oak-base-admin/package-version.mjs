@@ -1,6 +1,6 @@
 // 由框架包元数据生成脚本生成，记录此包本次构建或打包时间。
 export const packageVersion = {
-  buildTime: '2026-11-15T06:01:56.896Z',
+  buildTime: '2026-11-17T06:04:15.709Z',
   name: '@levin/oak-base-admin',
-  version: '6.0.43',
+  version: '6.0.44',
 };

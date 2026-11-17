@@ -1,5 +1,7 @@
 # Published Package AGENTS.md
 
+[2026-11-17 组织字段与关联列常量发布记录](docs/releases/20261117-org-join-constants.md)记录版本、校验和数据迁移边界。
+
 [2026-11-15 前端页面开发规则发布记录](docs/releases/20261115-page-rules-release.md)说明规则正文随包交付、版本及验证。
 
 [2026-11-15 全页面租户与组织字段补漏发布记录](docs/releases/20261115-crud-tenant-org-coverage.md)列出本次全视图核对、包版本、验证及部署边界。

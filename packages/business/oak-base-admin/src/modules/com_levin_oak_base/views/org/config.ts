@@ -294,7 +294,7 @@ export const orgPageCrudConfig: CrudPageConfig = {
     },
     // 主职能是可选分类；字典选项由管理员维护，不推导组织层级或权限。
     {
-      key: 'responsibilityCode',
+      key: 'responsibility',
       label: '组织职能',
       layoutGroup: 'basic',
       layoutGroupOrder: 10,

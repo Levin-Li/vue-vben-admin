@@ -61,7 +61,7 @@ describe('orgPageCrudConfig', () => {
     expect(orgPageCrudConfig.fields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          key: 'responsibilityCode',
+          key: 'responsibility',
           label: '组织职能',
           loadOptions: orgResponsibilityOptionsLoader,
           search: true,
@@ -72,7 +72,7 @@ describe('orgPageCrudConfig', () => {
     );
     expect(
       orgPageCrudConfig.fields.find(
-        (field) => field.key === 'responsibilityCode',
+        (field) => field.key === 'responsibility',
       ),
     ).not.toHaveProperty('required', true);
   });
