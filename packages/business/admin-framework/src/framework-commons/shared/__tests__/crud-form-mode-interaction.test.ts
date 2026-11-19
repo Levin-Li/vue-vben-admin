@@ -255,12 +255,24 @@ describe('标准表单首次模式交互', () => {
     const modal = await open(wizardFields());
     const wizard = modal
       .findAllComponents({ name: 'ACheckbox' })
-      .find((item) => item.text().includes('向导'));
+      .find((item) => item.text().includes('分步填写'));
     if (!wizard) throw new Error('缺少向导选项');
     wizard.vm.$emit('update:checked', true);
     await flushPromises();
     expect(document.body.textContent).toContain('1 / 3');
-    modal.vm.$emit('ok');
+    const steps = document.querySelector('[aria-label="填写步骤"]');
+    expect(steps?.querySelectorAll('li')).toHaveLength(3);
+    expect(
+      steps?.querySelector('[aria-current="step"]')?.textContent,
+    ).toContain('基本信息');
+    expect(
+      modal.findAllComponents(Button).some((item) => item.text() === '上一步'),
+    ).toBe(false);
+    const next = modal
+      .findAllComponents(Button)
+      .find((item) => item.text() === '下一步');
+    if (!next) throw new Error('缺少底部下一步按钮');
+    await next.trigger('click');
     await flushPromises();
     expect(document.body.textContent).toContain('1 / 3');
     const name = modal
@@ -268,9 +280,12 @@ describe('标准表单首次模式交互', () => {
       .find((item) => item.props('label') === '名称');
     if (!name) throw new Error('缺少向导名称字段');
     await name.get('input').setValue('客户甲');
-    modal.vm.$emit('ok');
+    await next.trigger('click');
     await flushPromises();
     expect(document.body.textContent).toContain('2 / 3');
+    expect(
+      steps?.querySelector('[aria-current="step"]')?.textContent,
+    ).toContain('联系人信息');
     const quick = modal
       .findAllComponents({ name: 'ACheckbox' })
       .find((item) => item.text().includes('快捷填写'));
@@ -304,7 +319,7 @@ describe('标准表单首次模式交互', () => {
     const modal = await open(wizardFields(), { apiService: { create } });
     const wizard = modal
       .findAllComponents({ name: 'ACheckbox' })
-      .find((item) => item.text().includes('向导'));
+      .find((item) => item.text().includes('分步填写'));
     if (!wizard) throw new Error('缺少向导选项');
     wizard.vm.$emit('update:checked', true);
     await flushPromises();

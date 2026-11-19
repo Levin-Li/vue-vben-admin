@@ -40,11 +40,7 @@ export function resolveCrudFormMode(
   } else if (mode === 'quick') {
     if (options.quick) compact = 'quick';
     else reason = '没有可填写的必填字段，已显示完整表单';
-  } else if (
-    mode === 'auto' &&
-    options.view === 'create' &&
-    options.quick
-  ) {
+  } else if (mode === 'auto' && options.view === 'create' && options.quick) {
     compact = 'quick';
   }
   return { layout, compact, reason } as const;
@@ -53,7 +49,7 @@ export function resolveCrudFormMode(
 export const crudInitialModeOptions = [
   { label: '默认', value: 'auto' },
   { label: '简要表单', value: 'brief' },
-  { label: '向导', value: 'wizard' },
+  { label: '分步填写', value: 'wizard' },
   { label: '快捷', value: 'quick' },
   { label: '普通', value: 'normal' },
 ];
