@@ -104,8 +104,8 @@ export function createPersonalWorkflowCrudConfig(
         table: true,
         form: false,
         sortable: false,
-        width: 150,
-        tableMaxWidth: 150,
+        width: 180,
+        tableMaxWidth: 180,
       },
       {
         key: 'definitionName',
@@ -113,8 +113,8 @@ export function createPersonalWorkflowCrudConfig(
         table: true,
         form: false,
         sortable: false,
-        width: 120,
-        tableMaxWidth: 120,
+        width: 150,
+        tableMaxWidth: 150,
       },
       {
         key: 'initiatorName',
@@ -122,8 +122,8 @@ export function createPersonalWorkflowCrudConfig(
         table: true,
         form: false,
         sortable: false,
-        width: 80,
-        tableMaxWidth: 80,
+        width: 100,
+        tableMaxWidth: 100,
       },
       ...(taskList
         ? [
@@ -133,8 +133,8 @@ export function createPersonalWorkflowCrudConfig(
               table: true,
               form: false,
               sortable: false,
-              width: 90,
-              tableMaxWidth: 90,
+              width: 110,
+              tableMaxWidth: 110,
             },
           ]
         : []),
@@ -144,8 +144,8 @@ export function createPersonalWorkflowCrudConfig(
         table: true,
         form: false,
         sortable: false,
-        width: 85,
-        tableMaxWidth: 85,
+        width: 100,
+        tableMaxWidth: 100,
         tableValue: (record) =>
           taskList && record.status === 'Completed'
             ? '已处理'
@@ -166,8 +166,8 @@ export function createPersonalWorkflowCrudConfig(
         table: true,
         form: false,
         sortable: false,
-        width: 130,
-        tableMaxWidth: 130,
+        width: 150,
+        tableMaxWidth: 150,
         tableValue: (record) => displayRelevantTime(record.relevantTime),
       },
       ...(taskList

@@ -1348,81 +1348,134 @@ defineExpose({ refresh });
 </template>
 
 <style scoped>
+@media (max-width: 600px) {
+  .levin-workflow-runtime-workbench .workflow-workbench-search label,
+  .levin-workflow-runtime-workbench
+    .workflow-workbench-search
+    label:not(:first-child) {
+    flex: 1 1 100%;
+  }
+}
+
+.workflow-workbench-tabs :deep(.ant-table-body > table) {
+  width: max(100%, 890px) !important;
+  table-layout: fixed !important;
+}
+
+/* 个人工作台每行只有少量动作，收紧操作列以优先显示业务信息。 */
+.workflow-workbench-tabs
+  :deep(.ant-table-body > table > colgroup > col:last-child) {
+  width: 100px !important;
+}
+
+/* 限定长文本在本列内截断，避免覆盖环节、状态和时间。 */
+.workflow-workbench-tabs
+  :deep(.ant-table-tbody > tr > td:not(.ant-table-cell-fix-right)) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-workbench-tabs
+  :deep(.ant-table-tbody > tr > td:not(.ant-table-cell-fix-right) > span) {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-workbench-tabs
+  :deep(
+    .ant-table-tbody > tr > td:not(.ant-table-cell-fix-right) > span > span
+  ) {
+  max-width: 100%;
+}
+
 .workflow-workbench-heading {
   display: flex;
   flex-wrap: wrap;
+  gap: 12px;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
   margin-bottom: 20px;
 }
+
 .workflow-workbench-heading h1 {
   margin: 0 0 6px;
-  color: hsl(var(--foreground));
   font-size: 22px;
   font-weight: 600;
+  color: hsl(var(--foreground));
 }
+
 .workflow-workbench-heading p {
   margin: 0;
   color: hsl(var(--muted-foreground));
 }
+
 .workflow-workbench-search {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
   gap: 12px;
+  align-items: end;
   margin-bottom: 16px;
 }
+
 .workflow-workbench-search label {
   display: grid;
   gap: 6px;
   min-width: 180px;
   color: hsl(var(--foreground));
 }
+
 .workflow-workbench-search label:first-child {
   flex: 1 1 240px;
 }
+
 .workflow-workbench-search label:not(:first-child) {
   flex: 0 1 190px;
 }
+
 .workflow-workbench-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
+
 .workflow-workbench-tabs {
   padding: 0 16px 16px;
   background: hsl(var(--background));
   border-radius: 8px;
 }
+
 .workflow-detail-container,
 .levin-workflow-instance-detail {
   margin-top: 24px;
 }
+
 .workflow-detail-heading {
   display: flex;
+  gap: 12px;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
 }
+
 .workflow-detail-heading h2 {
   margin: 0;
-  color: hsl(var(--foreground));
   font-size: 18px;
   font-weight: 600;
+  color: hsl(var(--foreground));
 }
+
 .workflow-instance-layout > :deep(.ant-col:first-child) {
   order: 2;
   margin-top: 16px;
 }
+
 .workflow-instance-layout > :deep(.ant-col:nth-child(2)) {
   order: 1;
   margin-top: 0;
 }
-@media (max-width: 600px) {
-  .workflow-workbench-search label,
-  .workflow-workbench-search label:not(:first-child) {
-    flex: 1 1 100%;
-  }
-}
+
+/* 长业务标题不能撑开表格正文；窄屏仍保留表格自身的横向滚动。 */
 </style>
