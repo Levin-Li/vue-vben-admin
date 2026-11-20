@@ -54,6 +54,9 @@ export default defineComponent({
             slots['row-actions']?.({ record }),
           ]),
         ),
+        ...(rows.value.length === 0 && slots.emptyText
+          ? [slots.emptyText()]
+          : []),
         h(
           Space,
           {},

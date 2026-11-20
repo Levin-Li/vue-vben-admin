@@ -16,14 +16,12 @@ import { servicePluginSettingPageCrudConfig } from '../config';
 
 describe('插件供应商选择模式', () => {
   it('列表与配置选项使用一致的中文名称，未知值不显示内部编码', () => {
-    expect(getProviderSelectionModeLabel('SINGLE_ACTIVE')).toBe(
-      '单一启用供应商',
-    );
+    expect(getProviderSelectionModeLabel('SINGLE_ACTIVE')).toBe('唯一启用');
     expect(getProviderSelectionModeLabel('MULTI_CHOICE')).toBe(
-      '使用时选择供应商',
+      '多家启用-使用指定',
     );
     expect(getProviderSelectionModeLabel('MULTI_ACTIVE_BALANCED')).toBe(
-      '多家供应商自动分配',
+      '多家启用-自动分配',
     );
     expect(getProviderSelectionModeLabel('OTHER')).toBe('未知模式');
   });

@@ -149,6 +149,45 @@ describe('状态图上下文编辑', () => {
       { eq: [{ variable: 'category' }, { literal: 0 }] },
     ]);
   });
+  it('按业务时间类型选择控件并保持日期时间语义', async () => {
+    const cases = [
+      { type: 'date', input: 'date', value: '2026-11-20', expected: '2026-11-20' },
+      { type: 'time', input: 'time', value: '09:30', expected: '09:30' },
+      {
+        type: 'localDatetime',
+        input: 'datetime-local',
+        value: '2026-11-20T09:30',
+        expected: '2026-11-20T09:30',
+      },
+      {
+        type: 'datetime',
+        input: 'datetime-local',
+        value: '2026-11-20T09:30',
+        expected: new Date('2026-11-20T09:30').toISOString(),
+      },
+    ] as const;
+    for (const item of cases) {
+      const wrapper = mount(WorkflowConditionEditor, {
+        props: {
+          modelValue: { gt: [{ variable: 'expiry' }, { literal: '' }] },
+          variables: {
+            expiry: {
+              source: 'business.expiry',
+              readAt: 'node',
+              type: item.type,
+            },
+          },
+        },
+      });
+      const input = wrapper.get('input[aria-label="条件比较值"]');
+      expect(input.attributes('type')).toBe(item.input);
+      await input.setValue(item.value);
+      expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([
+        { gt: [{ variable: 'expiry' }, { literal: item.expected }] },
+      ]);
+      wrapper.unmount();
+    }
+  });
   it('发布版本的只读图关闭新增和属性编辑', () => {
     const { wrapper, value } = setup(true);
     expect(wrapper.find('.add-node').exists()).toBe(false);

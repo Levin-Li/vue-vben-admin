@@ -1,7 +1,9 @@
 import type { WorkflowRuntimeService } from './workflow-runtime-service';
 
 import { flushPromises, mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
 
+import { Select } from 'ant-design-vue';
 import { describe, expect, it, vi } from 'vitest';
 
 import WorkflowStartWorkbench from './workflow-start-workbench.vue';
@@ -64,9 +66,15 @@ function setup(overrides = {}) {
 }
 async function choose(wrapper: ReturnType<typeof setup>['wrapper']) {
   await flushPromises();
-  await wrapper.get('[aria-label="选择流程资料审核"]').trigger('click');
+  await choosePurpose(wrapper);
   await flushPromises();
   await wrapper.get('[aria-label="选择记录申请甲"]').trigger('click');
+  await flushPromises();
+}
+async function choosePurpose(wrapper: ReturnType<typeof setup>['wrapper']) {
+  wrapper
+    .getComponent(Select)
+    .vm.$emit('change', JSON.stringify(['request', '2', 'review']));
   await flushPromises();
 }
 
@@ -80,7 +88,7 @@ describe('独立发起流程与业务对象启动命令共用', () => {
       pageSize: 20,
     });
     expect(api.businessRecords).not.toHaveBeenCalled();
-    await wrapper.get('[aria-label="选择流程资料审核"]').trigger('click');
+    await choosePurpose(wrapper);
     await flushPromises();
     expect(api.businessRecords).toHaveBeenCalledWith({
       tenantId: 't1',
@@ -115,7 +123,12 @@ describe('独立发起流程与业务对象启动命令共用', () => {
     });
     await wrapper.setProps({ tenantId: undefined });
     await flushPromises();
-    await wrapper.get('[aria-label="选择流程资料审核"]').trigger('click');
+    wrapper
+      .getComponent(Select)
+      .vm.$emit(
+        'change',
+        JSON.stringify(['request', 'state-graph-v4', 'review']),
+      );
     await flushPromises();
     expect(api.businessRecords).toHaveBeenLastCalledWith({
       tenantId: undefined,
@@ -217,7 +230,7 @@ describe('独立发起流程与业务对象启动命令共用', () => {
         }),
     );
     await flushPromises();
-    await wrapper.get('[aria-label="选择流程资料审核"]').trigger('click');
+    await choosePurpose(wrapper);
     await wrapper.setProps({ canReadRecords: false });
     finishRecords({ items: [record], pageIndex: 1, hasMore: false });
     await flushPromises();
@@ -228,9 +241,7 @@ describe('独立发起流程与业务对象启动命令共用', () => {
     expect(wrapper.text()).toContain(
       '当前没有查询手动流程目录或发起流程的权限',
     );
-    expect(wrapper.find('[aria-label="选择流程资料审核"]').exists()).toBe(
-      false,
-    );
+    expect(wrapper.find('[aria-label="选择手动流程"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
@@ -263,7 +274,64 @@ describe('独立发起流程与业务对象启动命令共用', () => {
     finishCatalog({ items: [purpose], pageIndex: 1, hasMore: false });
     await flushPromises();
     expect(wrapper.text()).not.toContain('资料审核');
-    expect(wrapper.text()).toContain('当前没有有权发起的手动流程');
+    expect(wrapper.getComponent(Select).props('options')).toEqual([]);
+    wrapper.unmount();
+  });
+
+  it('下拉搜索覆盖服务端目录，翻页保留关键词并丢弃过期响应', async () => {
+    const { wrapper, api, button } = setup();
+    await choose(wrapper);
+    let finishOld!: (value: {
+      hasMore: boolean;
+      items: (typeof purpose)[];
+      pageIndex: number;
+    }) => void;
+    vi.useFakeTimers();
+    api.manualStarts.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishOld = resolve;
+        }),
+    );
+    wrapper.getComponent(Select).vm.$emit('search', '中');
+    wrapper.getComponent(Select).vm.$emit('search', '旧');
+    await nextTick();
+    expect(wrapper.text()).not.toContain('2. 选择业务记录');
+    expect(api.manualStarts).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(250);
+    api.manualStarts.mockResolvedValueOnce({
+      items: [purpose],
+      pageIndex: 1,
+      hasMore: true,
+    });
+    wrapper.getComponent(Select).vm.$emit('search', '审核');
+    finishOld({ items: [], pageIndex: 1, hasMore: false });
+    vi.advanceTimersByTime(250);
+    vi.useRealTimers();
+    await flushPromises();
+    expect(api.manualStarts).toHaveBeenLastCalledWith({
+      tenantId: 't1',
+      keyword: '审核',
+      pageIndex: 1,
+      pageSize: 20,
+    });
+    expect(wrapper.getComponent(Select).props('options')).toHaveLength(1);
+    await button('下一页流程')?.trigger('click');
+    await flushPromises();
+    expect(api.manualStarts).toHaveBeenLastCalledWith({
+      tenantId: 't1',
+      keyword: '审核',
+      pageIndex: 2,
+      pageSize: 20,
+    });
+    wrapper.getComponent(Select).vm.$emit('search', '');
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await flushPromises();
+    expect(api.manualStarts).toHaveBeenLastCalledWith({
+      tenantId: 't1',
+      pageIndex: 1,
+      pageSize: 20,
+    });
     wrapper.unmount();
   });
 

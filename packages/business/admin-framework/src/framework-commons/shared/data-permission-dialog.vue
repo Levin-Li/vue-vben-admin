@@ -1,7 +1,9 @@
 <script lang="ts" setup>
 import type {
+  DataPermissionLoadedTarget,
+  DataPermissionLoadTarget,
   DataPermissionPreviewPayload,
-  DataPermissionSubjectType,
+  DataPermissionSaveTarget,
   OrgTreeNode,
 } from './data-permission-types';
 
@@ -65,12 +67,11 @@ interface ScopeTab {
 }
 
 const props = defineProps<{
-  loadDomainOptions?: (keyword?: string) => Promise<Option[]>;
+  loadTarget?: DataPermissionLoadTarget;
   open: boolean;
   previewPayload?: DataPermissionPreviewPayload;
-  record: null | Record<string, any>;
-  roleRecords?: Array<Record<string, any>>;
-  subjectType: DataPermissionSubjectType;
+  reloadKey?: unknown;
+  saveTarget?: DataPermissionSaveTarget;
 }>();
 const emit = defineEmits<{ saved: []; 'update:open': [boolean] }>();
 const scopeTabs: ScopeTab[] = [
@@ -129,6 +130,7 @@ const tenantHasMore = ref(true);
 let candidateGeneration = 0;
 let contextGeneration = 0;
 const detail = ref<null | Record<string, any>>(null);
+const loadedTarget = ref<DataPermissionLoadedTarget>();
 const domainOptions = ref<Option[]>([]);
 const knownOptions = ref<Option[]>([]);
 const errorMessage = ref('');
@@ -152,29 +154,19 @@ const savedValues = ref<Record<ScopeField, null | string[]>>({
   orgScopeList: [],
   tenantScopeList: [],
 });
-const isUser = computed(() => props.subjectType === 'user');
-// 详情字段缺失时沿用列表记录的角色与租户，继承规则仅供回显。
+const isUser = computed(
+  () =>
+    loadedTarget.value?.canInherit ?? props.previewPayload?.canInherit ?? false,
+);
+const runtimeEnv = (import.meta as ImportMeta & { env: Record<string, any> })
+  .env;
+const { apiURL } = useAppConfig(runtimeEnv, Boolean(runtimeEnv.PROD));
+// 调用方归一化继承规则，公共弹窗只负责回显。
 const inheritedRoleScopes = computed(() => {
-  const user = { ...props.record, ...detail.value };
-  const codes = new Set(
-    (Array.isArray(user.roleList) ? user.roleList : []).map(String),
-  );
-  const tenantId = user.tenantId && String(user.tenantId);
-  const roles = (props.roleRecords || []).filter(
-    (role) =>
-      codes.has(String(role.code)) &&
-      (!role.tenantId || String(role.tenantId) === tenantId),
-  );
   const values = {} as Record<ScopeField, string[]>;
   for (const tab of scopeTabs)
     for (const field of [tab.allowField, tab.denyField])
-      values[field] = [
-        ...new Set(
-          roles.flatMap((role) =>
-            Array.isArray(role[field]) ? role[field].map(String) : [],
-          ),
-        ),
-      ];
+      values[field] = loadedTarget.value?.inheritedScopes?.[field] || [];
   return values;
 });
 function visibleScopeValues(field: ScopeField): string[] {
@@ -183,14 +175,8 @@ function visibleScopeValues(field: ScopeField): string[] {
     ? inheritedRoleScopes.value[field]
     : own || [];
 }
-const runtimeEnv = (import.meta as ImportMeta & { env: Record<string, any> })
-  .env;
-const { apiURL } = useAppConfig(runtimeEnv, Boolean(runtimeEnv.PROD));
-const apiBase = computed(() =>
-  buildModuleRequestPath(isUser.value ? '/User' : '/Role', apiURL),
-);
-const modalTitle = computed(() =>
-  isUser.value ? '用户数据权限分配' : '角色数据权限分配',
+const modalTitle = computed(
+  () => `${loadedTarget.value?.label || '目标'}数据权限分配`,
 );
 const isPlatformOperator = computed(() => isPlatformUser(userStore.userInfo));
 // 全域预设和脚本规则沿用超级管理员专属边界，平台普通用户只获得平台页可见性。
@@ -463,11 +449,19 @@ function orgRuleLabel(value: string) {
 function builtinOptions(kind: ScopeKind): Option[] {
   if (kind === 'tenant')
     return tenantBuiltinOptions.filter(
-      (item) => item.value !== '_ALL_' || isSuperAdmin.value,
+      (item) =>
+        item.value !== '_ALL_' ||
+        isSuperAdmin.value ||
+        visibleScopeValues('tenantScopeList').includes('_ALL_') ||
+        visibleScopeValues('deniedTenantScopeList').includes('_ALL_'),
     );
   if (kind === 'domain')
     return domainBuiltinOptions.filter(
-      (item) => item.value !== '_ALL_' || isSuperAdmin.value,
+      (item) =>
+        item.value !== '_ALL_' ||
+        isSuperAdmin.value ||
+        visibleScopeValues('domainScopeList').includes('_ALL_') ||
+        visibleScopeValues('deniedDomainScopeList').includes('_ALL_'),
     );
   return orgOptions.value.filter(
     (item) => item.value !== '_ALL_ROOT_|SelfAndAllChild' || isSuperAdmin.value,
@@ -648,6 +642,7 @@ function dynamicOptions(tab: ScopeTab) {
   const fixed = new Set(fixedOptions(tab).map((item) => item.value));
   return allRowOptions(tab).filter(
     (item) =>
+      item.value !== allTokens(tab)[0] &&
       !fixed.has(item.value) &&
       (!keyword ||
         matchesPinyinFuzzySearch(keyword, item.label) ||
@@ -910,22 +905,25 @@ async function loadData(generation: number) {
   errorMessage.value = '';
   try {
     if (props.previewPayload) {
+      loadedTarget.value = {
+        canInherit: Boolean(props.previewPayload.canInherit),
+        detail: props.previewPayload.detail,
+        label: props.previewPayload.canInherit ? '用户' : '角色',
+      };
       setDetailState(props.previewPayload.detail);
       orgTree.value = props.previewPayload.orgTree;
       tenantHasMore.value = false;
       return;
     }
-    if (!props.record?.id) return;
+    if (!props.loadTarget) throw new Error('缺少数据权限目标加载回调');
     const [nextDetail, nextOrgTree, nextDomainOptions] = await Promise.all([
-      requestClient.get<Record<string, any>>(`${apiBase.value}/retrieve`, {
-        baseURL: '',
-        params: { id: props.record.id },
-      }),
+      props.loadTarget(),
       rbacService.fetchAuthorizedOrgTree() as Promise<OrgTreeNode[]>,
-      props.loadDomainOptions ? props.loadDomainOptions() : Promise.resolve([]),
+      rbacService.fetchAuthorizedPlatformDomainOptions(),
     ]);
     if (generation !== contextGeneration || !props.open) return;
-    setDetailState(nextDetail);
+    loadedTarget.value = nextDetail;
+    setDetailState(nextDetail.detail);
     orgTree.value = nextOrgTree || [];
     domainOptions.value = nextDomainOptions || [];
     loadedDomainOptions.value = [...domainOptions.value];
@@ -1003,11 +1001,12 @@ async function searchCandidates(value: string) {
     tenantPage.value = 0;
     tenantHasMore.value = true;
     await loadMoreTenants();
-  } else if (activeKey.value === 'domain' && props.loadDomainOptions) {
+  } else if (activeKey.value === 'domain') {
     const generation = candidateGeneration;
     candidateLoading.value = true;
     try {
-      const options = await props.loadDomainOptions(value);
+      const options =
+        await rbacService.fetchAuthorizedPlatformDomainOptions(value);
       if (generation !== candidateGeneration) return;
       domainOptions.value = options;
       loadedDomainOptions.value = [
@@ -1087,9 +1086,7 @@ async function loadAdvancedCandidates(reset = true) {
     const keyword = advancedKeyword.value.trim();
     let options: Option[] = [];
     if (advancedCandidateKind.value === 'domain') {
-      options = props.loadDomainOptions
-        ? await props.loadDomainOptions(keyword)
-        : [];
+      options = await rbacService.fetchAuthorizedPlatformDomainOptions(keyword);
     } else if (advancedCandidateKind.value === 'tenant') {
       const loaded = await tenantDataScopeOptionsLoader(
         keyword,
@@ -1200,11 +1197,8 @@ async function saveChanges(closeAfterSave = false) {
       if (closeAfterSave) emit('update:open', false);
       return;
     }
-    const updated: any = await requestClient.put(
-      `${apiBase.value}/update`,
-      payload,
-      { baseURL: '' },
-    );
+    if (!props.saveTarget) throw new Error('缺少数据权限目标保存回调');
+    const updated = await props.saveTarget(payload);
     if (updated?.optimisticLock !== undefined && detail.value)
       detail.value.optimisticLock = updated.optimisticLock;
     candidateGeneration += 1;
@@ -1220,8 +1214,7 @@ watch(
   () =>
     [
       props.open,
-      props.record?.id,
-      props.subjectType,
+      props.reloadKey,
       globalOrgContextRevision.value,
       globalDomainContextRevision.value,
     ] as const,
@@ -1236,6 +1229,8 @@ watch(
     domainOptions.value = [];
     tenantOptions.value = [];
     knownOptions.value = [];
+    loadedTarget.value = undefined;
+    detail.value = null;
     if (open) {
       advancedMode.value = false;
       advancedCandidateOpen.value = false;
@@ -1488,7 +1483,12 @@ watch(
                               'data-permission-choice--unset':
                                 fixedChoice(tab, item) === 'none',
                             }"
-                            :disabled="isTabReadOnly(tab) || !isTabCustom(tab)"
+                            :disabled="
+                              isTabReadOnly(tab) ||
+                              !isTabCustom(tab) ||
+                              (item.value === allTokens(tab)[0] &&
+                                !isSuperAdmin)
+                            "
                             :options="choiceOptions"
                             :value="fixedChoice(tab, item)"
                             @change="

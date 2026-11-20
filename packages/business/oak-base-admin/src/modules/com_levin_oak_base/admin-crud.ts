@@ -45,7 +45,7 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     icon: 'lucide:bell-ring',
     name: 'WorkflowNotificationRoute',
     resource: 'WorkflowNotificationRoute',
-    title: '工作流通知路由',
+    title: '工作流通知渠道',
   },
   {
     icon: 'lucide:ticket',

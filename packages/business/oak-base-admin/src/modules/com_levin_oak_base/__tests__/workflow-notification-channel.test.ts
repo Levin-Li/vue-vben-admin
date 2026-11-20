@@ -44,6 +44,10 @@ const base = {
 };
 describe('三家机器人通知渠道合同', () => {
   beforeEach(() => vi.clearAllMocks());
+  it('快捷启停不提交或清空目标配置', async () => {
+    await new WorkflowNotificationRouteService().update({ id: 'route-1', optimisticLock: 3, enable: false, tenantId: 'tenant-1', orgId: 'org-1' });
+    expect(calls.put).toHaveBeenCalledWith('update', { data: { id: 'route-1', optimisticLock: 3, enable: false, tenantId: 'tenant-1', orgId: 'org-1' }, autoForceUpdateField: false });
+  });
   it('精确消费后端三家枚举，不补造渠道或接受URL选项', () => {
     expect(
       normalizeNotificationChannels([
@@ -53,9 +57,9 @@ describe('三家机器人通知渠道合同', () => {
         { label: '外部URL', value: 'https://evil.example' },
       ]),
     ).toEqual([
-      { label: '飞书 Webhook', value: 'FeishuWebhook' },
-      { label: '企业微信 Webhook', value: 'WeComWebhook' },
-      { label: '钉钉 Webhook', value: 'DingTalkWebhook' },
+      { label: '飞书机器人', value: 'FeishuWebhook' },
+      { label: '企业微信机器人', value: 'WeComWebhook' },
+      { label: '钉钉机器人', value: 'DingTalkWebhook' },
     ]);
     expect(normalizeNotificationChannels([])).toEqual([]);
   });

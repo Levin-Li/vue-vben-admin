@@ -1,7 +1,9 @@
 <script lang="ts" setup>
-import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
+import type { UserOrgSelectorModelValue } from '@levin/admin-framework';
 import type { PermissionTreeNode } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
+
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 
 import type {
   SimpleContentEditorMeta,
@@ -13,7 +15,7 @@ import { computed, ref, watch } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
-import { requestClient } from '@levin/admin-framework';
+import { requestClient, UserOrgSelector } from '@levin/admin-framework';
 import {
   Button,
   Checkbox,
@@ -31,13 +33,14 @@ import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rb
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import CodeEditorField from '@levin/admin-framework/framework-commons/shared/code-editor-field.vue';
 import { buildCrudOperationPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
+import { getCrudUserSearchApi } from '@levin/admin-framework/framework-commons/shared/crud-user-selector';
 import { evaluateCrudVisibleOn } from '@levin/admin-framework/framework-commons/shared/crud-visible-on';
 import { PermissionTreeNodeType } from '@levin/admin-framework/framework-commons/shared/data-permission-types';
 import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
 import ResourcePermissionTreeEditor from '@levin/admin-framework/framework-commons/shared/resource-permission-tree-editor.vue';
 import { isTopSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 
-import { userService } from '../api/user-service';
+import { OAK_BASE_API_MODULE } from './api-module';
 import CrudPage from './crud-page.vue';
 import {
   getRequireAuthorizationCount,
@@ -105,8 +108,14 @@ const scriptTestResponseSchemaText = ref('{}');
 const scriptTestInputOpen = ref(false);
 const scriptTestParamValues = ref<Record<string, string>>({});
 const scriptMockLoginUserId = ref<string>();
-const scriptMockUserLoading = ref(false);
-const scriptMockUserOptions = ref<{ label: string; value: string }[]>([]);
+const scriptMockUserSearchApi = getCrudUserSearchApi(
+  {
+    key: 'scriptMockLoginUserId',
+    label: '模拟登录用户',
+    type: 'user-tree-select',
+  },
+  OAK_BASE_API_MODULE,
+);
 const scriptRequestParams = ref<ScriptParamDefinition[]>([]);
 const scriptResponseParams = ref<ScriptParamDefinition[]>([]);
 const scriptTestTimeoutMs = ref(3000);
@@ -814,52 +823,14 @@ function openScriptTestInputDialog() {
     return;
   }
   scriptTestInputOpen.value = true;
-  void loadScriptMockUserOptions();
 }
 
 function closeScriptTestInputDialog() {
   scriptTestInputOpen.value = false;
 }
 
-function normalizeUserListResult(result: any) {
-  if (Array.isArray(result)) {
-    return result;
-  }
-  if (Array.isArray(result?.items)) {
-    return result.items;
-  }
-  if (Array.isArray(result?.list)) {
-    return result.list;
-  }
-  if (Array.isArray(result?.records)) {
-    return result.records;
-  }
-  if (Array.isArray(result?.data)) {
-    return result.data;
-  }
-  return [];
-}
-
-async function loadScriptMockUserOptions(keyword = '') {
-  scriptMockUserLoading.value = true;
-  try {
-    const result = await userService.list({
-      pageIndex: 1,
-      pageSize: 20,
-      ...(keyword ? { containsName: keyword } : {}),
-    });
-    scriptMockUserOptions.value = normalizeUserListResult(result).map(
-      (item: any) => ({
-        label: `${item.name || item.nickname || item.loginName || item.id}`,
-        value: item.id,
-      }),
-    );
-  } catch (error) {
-    console.error(error);
-    notifyApiErrorOnce(error);
-  } finally {
-    scriptMockUserLoading.value = false;
-  }
+function setScriptMockLoginUser(value: UserOrgSelectorModelValue) {
+  scriptMockLoginUserId.value = typeof value === 'string' ? value : undefined;
 }
 
 function initScriptWorkbench(record: GenericRecord) {
@@ -1831,16 +1802,18 @@ async function submitRequireAuthorizations() {
     <div class="simple-script-test-input-dialog">
       <div class="simple-script-test-login-row">
         <span class="simple-script-test-label">模拟登录用户</span>
-        <Select
-          v-model:value="scriptMockLoginUserId"
+        <UserOrgSelector
+          :model-value="scriptMockLoginUserId"
           allow-clear
           class="simple-script-test-user-select"
-          :filter-option="false"
-          :loading="scriptMockUserLoading"
-          :options="scriptMockUserOptions"
+          load-on-initial-value
+          :max-select-count="1"
           placeholder="不选择则使用当前登录态，未登录时为空"
-          show-search
-          @search="loadScriptMockUserOptions"
+          :selectable-types="['user']"
+          :user-api-module-base="OAK_BASE_API_MODULE"
+          :user-search-api="scriptMockUserSearchApi"
+          value-mode="id"
+          @update:model-value="setScriptMockLoginUser"
         />
       </div>
 

@@ -22,10 +22,12 @@ vi.mock('../api/workflow-runtime-service', () => ({
 }));
 // 页面在真实宿主中由认证 Store 与路由提供当前上下文，测试固定这两个边界。
 vi.mock('@vben/runtime/stores', () => ({
+  useAccessStore: () => ({ getMenuByPath: () => undefined }),
   useUserStore: () => ({ userInfo: { id: 'user-1' } }),
 }));
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {} }),
+  useRouter: () => ({ push: vi.fn() }),
 }));
 vi.mock('@levin/admin-framework/framework-commons/rbac-access', () => ({
   useRbacAccess: () => ({ hasPermission: permission.has }),

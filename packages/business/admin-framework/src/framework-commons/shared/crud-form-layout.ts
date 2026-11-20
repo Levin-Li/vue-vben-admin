@@ -107,6 +107,39 @@ export function getFormModalRecommendedMaxWidth(columns: number) {
   return FORM_MODAL_RECOMMENDED_MAX_WIDTH_BY_COLUMN[safeColumns];
 }
 
+// 分步侧栏在桌面横向占用的宽度（含侧栏与表单间距）；窄屏导航位于表单上方。
+export function getWizardNavigationWidth(
+  active: boolean,
+  viewportWidth: number,
+) {
+  return active && viewportWidth >= 768 ? 168 : 0;
+}
+
+/** 保持普通表单列数，仅在视口无法容纳侧栏及最小列宽时回落。 */
+export function resolveWizardFormColumns(
+  normalColumns: number,
+  normalFormWidth: number,
+  viewportWidth: number,
+  navigationWidth: number,
+) {
+  if (!navigationWidth) return normalColumns;
+  const availableFormWidth = Math.min(
+    normalFormWidth,
+    viewportWidth - 32 - navigationWidth,
+  );
+  // 弹窗正文两侧留白不得占用字段自身的最小宽度。
+  const usableWidth = Math.max(0, availableFormWidth - 48);
+  return Math.min(
+    normalColumns,
+    getContainerColumnCount(
+      usableWidth,
+      MIN_FORM_COLUMN_WIDTH,
+      normalColumns,
+      FORM_GRID_COLUMN_GAP,
+    ),
+  );
+}
+
 /** 非严格页面宽度是上限，随有效表单列数收敛；严格宽度保留页面明确意图。 */
 export function resolveFormModalMaxWidth({
   configuredMaxWidth,

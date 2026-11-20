@@ -13,13 +13,29 @@ export const pageMeta = {
   description: '维护服务插件。',
 } as const;
 
+// 历史空值等同“允许”，普通编辑其它字段时不把它回填成显式 true。
+export function preserveUnsetPluginConfigurationRule(
+  values: Record<string, any>,
+  record: null | Record<string, any>,
+) {
+  const payload = { ...values };
+  if (
+    (record?.__originalAllowMultipleConfigurations === null ||
+      record?.__originalAllowMultipleConfigurations === undefined) &&
+    payload.allowMultipleConfigurations === true
+  ) {
+    delete payload.allowMultipleConfigurations;
+  }
+  return payload;
+}
+
 export const servicePluginPageCrudConfig: CrudPageConfig = {
   apiBase: '/ServicePlugin',
   domainObject: true,
   apiService: servicePluginService,
   dataAttrTargets: fixedCrudDataAttrTargets(servicePluginService, {
     create: { method: 'POST', path: 'create' },
-    update: { method: 'PUT', path: 'update' },
+    update: { method: 'POST', path: 'update' },
     delete: { method: 'DELETE', path: 'delete' },
     retrieve: { method: 'GET', path: 'retrieve' },
   }),
@@ -76,7 +92,6 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       layoutOrder: -38,
     },
     { key: 'providerList', label: '供应商列表' },
-    { key: 'allowMultipleConfigurations', label: '允许多条配置并存' },
     { key: 'domainId', label: '领域标识' },
     { key: 'creator', label: '创建者' },
     { key: 'orderCode', label: '排序代码' },
@@ -193,14 +208,25 @@ export const servicePluginPageCrudConfig: CrudPageConfig = {
       label: '基本配置',
       fullRow: true,
       type: 'json',
-      jsonSchemaEditor: true,
+      jsonSchemaEditor: false,
       jsonSchema: ':configEditor',
+    },
+    {
+      key: 'allowMultipleConfigurations',
+      label: '允许多条配置并存',
+      formCreate: false,
+      formEdit: true,
+      formVisibleForSuperAdmin: true,
+      type: 'switch',
+      valueType: 'boolean',
     },
     {
       key: 'providerSelectionMode',
       label: '供应商选择模式',
-      form: false,
+      formCreate: false,
+      formEdit: true,
       table: true,
+      type: 'select',
       width: 180,
       layoutOrder: -20,
     },

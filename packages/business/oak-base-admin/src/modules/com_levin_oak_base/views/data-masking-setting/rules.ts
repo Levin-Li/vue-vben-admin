@@ -2,10 +2,28 @@ export interface MaskingFieldRule {
   binding?: 'SESSION' | 'USER';
   entityClass: string;
   fieldName: string;
-  inputFieldPath?: string;
-  inputOperation?: string;
+  schemaVersion: 2;
   treatment: 'HIDE' | 'MASK' | 'REVERSIBLE_ID';
   validSeconds?: number;
+}
+
+export function isLegacyMaskingRule(rule: MaskingFieldRule) {
+  if (!rule || typeof rule !== 'object') return true;
+  const rawRule = rule as unknown as Record<string, unknown>;
+  return (
+    rule.schemaVersion !== 2 ||
+    [
+      'inputOperation',
+      'inputFieldPath',
+      'outputOperation',
+      'outputFieldPath',
+    ].some(
+      (key) =>
+        rawRule[key] !== null &&
+        rawRule[key] !== undefined &&
+        rawRule[key] !== '',
+    )
+  );
 }
 
 export function validateMaskingRuleContent(value: unknown) {
@@ -14,11 +32,17 @@ export function validateMaskingRuleContent(value: unknown) {
     throw new Error('请至少选择一个实体字段');
   }
 
-  // 可还原 ID 缺少输入位置或有效期时禁止保存不完整的安全规则。
+  // 旧规则不会被静默转换；管理员须明确重新选择实体字段。
   const selectedFields = new Set<string>();
   for (const rule of rules) {
+    if (isLegacyMaskingRule(rule)) {
+      throw new Error('检测到旧版脱敏规则，请移除旧字段后重新配置');
+    }
     if (!rule.entityClass || !rule.fieldName || !rule.treatment) {
       throw new Error('实体字段规则缺少实体、字段或处理方式');
+    }
+    if (!['HIDE', 'MASK', 'REVERSIBLE_ID'].includes(rule.treatment)) {
+      throw new Error('不支持的脱敏处理方式');
     }
     const key = `${rule.entityClass}\u0000${rule.fieldName}`;
     if (selectedFields.has(key)) {
@@ -27,17 +51,13 @@ export function validateMaskingRuleContent(value: unknown) {
     selectedFields.add(key);
     if (
       rule.treatment === 'REVERSIBLE_ID' &&
-      (!rule.inputOperation ||
-        !rule.inputFieldPath ||
-        !rule.binding ||
+      (!['SESSION', 'USER'].includes(rule.binding ?? '') ||
         typeof rule.validSeconds !== 'number' ||
         !Number.isInteger(rule.validSeconds) ||
         rule.validSeconds <= 0 ||
         rule.validSeconds > 86_400)
     ) {
-      throw new Error(
-        '可还原 ID 需要输入接口、输入字段、绑定范围和有效秒数（1 至 86400）',
-      );
+      throw new Error('可还原 ID 需要绑定范围和有效秒数（1 至 86400）');
     }
   }
   return value;

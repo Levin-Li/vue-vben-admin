@@ -13,6 +13,47 @@ const mocks = vi.hoisted(() => ({
   put: vi.fn(),
   superAdmin: true,
 }));
+let activeRoleRecords: Array<Record<string, any>> = [];
+function targetCallbacks(record: Record<string, any>, type: 'role' | 'user') {
+  const path = `/com.levin.oak.base/V1/api/${type === 'user' ? 'User' : 'Role'}`;
+  return {
+    loadTarget: async () => {
+      const detail = await mocks.get(`${path}/retrieve`, {
+        baseURL: '',
+        params: { id: record.id },
+      });
+      const source = { ...record, ...detail };
+      const codes = new Set(
+        (Array.isArray(source.roleList) ? source.roleList : []).map(String),
+      );
+      const roles = activeRoleRecords.filter(
+        (role) =>
+          codes.has(String(role.code)) &&
+          (!role.tenantId || String(role.tenantId) === String(source.tenantId)),
+      );
+      const inheritedScopes: Record<string, string[]> = {};
+      for (const field of [
+        'domainScopeList',
+        'deniedDomainScopeList',
+        'tenantScopeList',
+        'deniedTenantScopeList',
+        'orgScopeList',
+        'deniedOrgScopeList',
+      ])
+        inheritedScopes[field] = [
+          ...new Set(roles.flatMap((role) => role[field] || [])),
+        ];
+      return {
+        canInherit: type === 'user',
+        detail,
+        inheritedScopes,
+        label: type === 'user' ? '用户' : '角色',
+      };
+    },
+    saveTarget: (payload: Record<string, any>) =>
+      mocks.put(`${path}/update`, payload, { baseURL: '' }),
+  };
+}
 vi.mock('@vben/runtime/hooks', () => ({
   useAppConfig: () => ({ apiURL: '/com.levin.oak.base/V1/api' }),
 }));
@@ -28,7 +69,10 @@ vi.mock('../../runtime', () => ({
   requestClient: { get: mocks.get, put: mocks.put },
 }));
 vi.mock('../../app/api/rbac-service', () => ({
-  rbacService: { fetchAuthorizedOrgTree: vi.fn().mockResolvedValue([]) },
+  rbacService: {
+    fetchAuthorizedOrgTree: vi.fn().mockResolvedValue([]),
+    fetchAuthorizedPlatformDomainOptions: mocks.domainOptions,
+  },
 }));
 const tenantDataScopeOptionsLoader = vi.hoisted(() =>
   vi.fn().mockResolvedValue([]),
@@ -152,6 +196,7 @@ beforeEach(() => {
   mocks.superAdmin = true;
   mocks.put.mockResolvedValue({});
   mocks.domainOptions.mockResolvedValue([]);
+  activeRoleRecords = [];
   tenantDataScopeOptionsLoader.mockResolvedValue([]);
 });
 
@@ -160,6 +205,7 @@ async function openDialog(
   detailOverrides: Record<string, unknown> = {},
   roleRecords: Array<Record<string, unknown>> = [],
 ) {
+  activeRoleRecords = roleRecords;
   mocks.get.mockResolvedValue({
     id: 'subject-1',
     optimisticLock: 7,
@@ -174,11 +220,8 @@ async function openDialog(
   });
   const wrapper = mount(DataPermissionDialog, {
     props: {
-      loadDomainOptions: mocks.domainOptions,
+      ...targetCallbacks({ id: 'subject-1' }, subjectType),
       open: false,
-      record: { id: 'subject-1' },
-      roleRecords,
-      subjectType,
     },
   });
   await wrapper.setProps({ open: true });
@@ -187,6 +230,35 @@ async function openDialog(
 }
 
 describe('数据权限候选三档分配', () => {
+  it('预览模式只使用预览数据并模拟保存', async () => {
+    const wrapper = mount(DataPermissionDialog, {
+      props: {
+        open: true,
+        previewPayload: {
+          detail: {
+            id: 'preview-role',
+            domainScopeList: [],
+            deniedDomainScopeList: [],
+            tenantScopeList: [],
+            deniedTenantScopeList: [],
+            orgScopeList: [],
+            deniedOrgScopeList: [],
+          },
+          orgTree: [],
+        },
+      },
+    });
+    await flushPromises();
+    await choice(wrapper, '无领域', '允许')?.trigger('click');
+    await wrapper
+      .find('[data-testid="data-permission-footer"] button')
+      .trigger('click');
+    expect(wrapper.emitted('saved')).toHaveLength(1);
+    expect(mocks.get).not.toHaveBeenCalled();
+    expect(mocks.put).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
   it('弹窗主体高度增加到 720px，空用户规则仍显示未设置', async () => {
     const wrapper = await openDialog('user', {
       domainScopeList: null,
@@ -257,6 +329,9 @@ describe('数据权限候选三档分配', () => {
   });
 
   it('详情未返回角色字段时仍可从列表记录还原继承规则', async () => {
+    activeRoleRecords = [
+      { code: 'R_A', tenantId: 'tenant-1', tenantScopeList: ['tenant-a'] },
+    ];
     mocks.get.mockResolvedValue({
       id: 'subject-1',
       optimisticLock: 7,
@@ -265,12 +340,11 @@ describe('数据权限候选三档分配', () => {
     });
     const wrapper = mount(DataPermissionDialog, {
       props: {
+        ...targetCallbacks(
+          { id: 'subject-1', roleList: ['R_A'], tenantId: 'tenant-1' },
+          'user',
+        ),
         open: false,
-        record: { id: 'subject-1', roleList: ['R_A'], tenantId: 'tenant-1' },
-        roleRecords: [
-          { code: 'R_A', tenantId: 'tenant-1', tenantScopeList: ['tenant-a'] },
-        ],
-        subjectType: 'user',
       },
     });
     await wrapper.setProps({ open: true });
@@ -288,11 +362,11 @@ describe('数据权限候选三档分配', () => {
       deniedTenantScopeList: null,
     });
     expect(wrapper.find('[aria-label="租户允许规则数"]').exists()).toBe(false);
-    await wrapper.setProps({
-      roleRecords: [
-        { code: 'R_A', tenantId: 'tenant-1', tenantScopeList: ['tenant-a'] },
-      ],
-    });
+    activeRoleRecords = [
+      { code: 'R_A', tenantId: 'tenant-1', tenantScopeList: ['tenant-a'] },
+    ];
+    await wrapper.setProps({ reloadKey: 1 });
+    await flushPromises();
     expect(wrapper.find('[aria-label="租户允许规则数"]').text()).toBe('1');
     expect(wrapper.find('[aria-label="tenant-a访问设置"]').exists()).toBe(true);
     wrapper.unmount();
@@ -372,7 +446,10 @@ describe('数据权限候选三档分配', () => {
     mocks.domainOptions.mockResolvedValueOnce([
       { label: '乙领域', value: 'b' },
     ]);
-    await wrapper.setProps({ record: { id: 'subject-2' }, open: true });
+    await wrapper.setProps({
+      ...targetCallbacks({ id: 'subject-2' }, 'role'),
+      open: true,
+    });
     await flushPromises();
     expect(wrapper.text()).toContain('乙领域');
     expect(wrapper.text()).not.toContain('甲领域');
@@ -394,10 +471,8 @@ describe('数据权限候选三档分配', () => {
     );
     const wrapper = mount(DataPermissionDialog, {
       props: {
-        loadDomainOptions: mocks.domainOptions,
+        ...targetCallbacks({ id: 'first' }, 'role'),
         open: true,
-        record: { id: 'first' },
-        subjectType: 'role',
       },
     });
     await flushPromises();
@@ -409,7 +484,10 @@ describe('数据权限候选三档分配', () => {
           : { id: 'subject', tenantScopeList: ['same-id'] },
       ),
     );
-    await wrapper.setProps({ record: { id: 'second' }, open: true });
+    await wrapper.setProps({
+      ...targetCallbacks({ id: 'second' }, 'role'),
+      open: true,
+    });
     await flushPromises();
     expect(wrapper.text()).toContain('新租户');
     resolveOld({ items: [{ id: 'same-id', name: '旧租户' }] });
@@ -864,6 +942,44 @@ describe('数据权限候选三档分配', () => {
     wrapper.unmount();
   });
 
+  it('非超级管理员以中文只读预设回显用户继承的全部领域', async () => {
+    mocks.superAdmin = false;
+    mocks.platformUser = true;
+    const wrapper = await openDialog(
+      'user',
+      {
+        roleList: ['R_ALL'],
+        domainScopeList: null,
+        deniedDomainScopeList: null,
+      },
+      [{ code: 'R_ALL', domainScopeList: ['_ALL_'] }],
+    );
+    const allOption = wrapper.find('[aria-label="全部领域访问设置"]');
+    expect(allOption.exists()).toBe(true);
+    expect(allOption.find('[aria-pressed="true"]').text()).toBe('允许');
+    expect(allOption.find('button').attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[aria-label="_ALL_访问设置"]').exists()).toBe(false);
+    expect(mocks.put).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('普通候选接口返回全量令牌时不生成可编辑的动态选项', async () => {
+    mocks.superAdmin = false;
+    mocks.platformUser = true;
+    mocks.domainOptions.mockResolvedValueOnce([
+      { label: '_ALL_', value: '_ALL_' },
+    ]);
+    const wrapper = await openDialog('role', {
+      domainScopeList: [],
+      deniedDomainScopeList: [],
+    });
+    expect(wrapper.find('[aria-label="_ALL_访问设置"]').exists()).toBe(false);
+    expect(wrapper.find('[aria-label="全部领域访问设置"]').exists()).toBe(
+      false,
+    );
+    wrapper.unmount();
+  });
+
   it('标签允许与拒绝角标实时计数，零数量不显示', async () => {
     const wrapper = await openDialog('role');
     expect(wrapper.find('[aria-label="领域允许规则数"]').text()).toBe('1');
@@ -1014,10 +1130,8 @@ describe('数据权限候选三档分配', () => {
     });
     const wrapper = mount(DataPermissionDialog, {
       props: {
-        loadDomainOptions: mocks.domainOptions,
+        ...targetCallbacks({ id: 'subject-1' }, 'user'),
         open: false,
-        record: { id: 'subject-1' },
-        subjectType: 'user',
       },
     });
     await wrapper.setProps({ open: true });
@@ -1046,10 +1160,8 @@ describe('数据权限候选三档分配', () => {
     });
     const wrapper = mount(DataPermissionDialog, {
       props: {
-        loadDomainOptions: mocks.domainOptions,
+        ...targetCallbacks({ id: 'subject-1' }, 'user'),
         open: false,
-        record: { id: 'subject-1' },
-        subjectType: 'user',
       },
     });
     await wrapper.setProps({ open: true });

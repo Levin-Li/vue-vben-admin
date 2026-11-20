@@ -5,6 +5,12 @@ import type {
   WorkflowVariable,
 } from './types';
 
+import {
+  workflowTemporalInputType,
+  workflowTemporalInputValue,
+  workflowTemporalLiteral,
+} from './workflow-temporal-input';
+
 // 业务操作和只读校验器共享同一参数契约，始终输出显式 variable/literal 引用。
 const props = withDefaults(
   defineProps<{
@@ -51,6 +57,7 @@ function changeLiteral(key: string, value: string) {
   if (type === 'boolean') literal = value === 'true';
   if (type === 'integer' || type === 'decimal')
     literal = value === '' ? null : Number(value);
+  if (type === 'datetime') literal = workflowTemporalLiteral(type, value);
   if (type === 'stringSet')
     literal = value.split('\n').filter((item) => item.length > 0);
   set(key, { literal });
@@ -149,18 +156,21 @@ function changeLiteral(key: string, value: string) {
         <input
           v-else
           :disabled="readonly"
-          :value="modelValue[key]?.literal"
+          :value="
+            workflowTemporalInputValue(parameter.type, modelValue[key]?.literal)
+          "
           :aria-label="`${parameter.title}参数值`"
           :type="
             ['decimal', 'integer'].includes(parameter.type)
               ? 'number'
-              : parameter.type === 'date'
-                ? 'date'
-                : parameter.type === 'datetime'
-                  ? 'datetime-local'
-                  : 'text'
+              : workflowTemporalInputType(parameter.type)
           "
-          :step="parameter.type === 'integer' ? '1' : 'any'"
+          :step="
+            parameter.type === 'integer' ||
+            ['time', 'localDatetime', 'datetime'].includes(parameter.type)
+              ? '1'
+              : 'any'
+          "
           @input="changeLiteral(key, ($event.target as HTMLInputElement).value)"
         />
       </label>

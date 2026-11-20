@@ -221,10 +221,12 @@ import {
   getFormFieldColumnSpan,
   getFormGridContentMaxWidth,
   getFormModalRecommendedMaxWidth,
+  getWizardNavigationWidth,
   MAX_SEARCH_COLUMN_COUNT,
   MIN_SEARCH_COLUMN_WIDTH,
   resolveFormColumnCount,
   resolveFormModalMaxWidth,
+  resolveWizardFormColumns,
   shouldFormFieldSpanFullRow,
   sortFormLayoutFields,
 } from './crud-form-layout';
@@ -682,7 +684,7 @@ const PageDisplaySettingsDrawerV2 = defineAsyncComponent(
 const pageDisplaySettingsV2Open = ref(false);
 const pageDisplaySettingSaving = ref(false);
 const pageDisplayConfig = ref<CrudPageDisplayConfig>(
-  resolveCrudPageDisplayDefaults(),
+  resolveCrudPageDisplayDefaults(undefined, props.config.defaultQueryAutoSearch),
 );
 // 服务端页面设置覆盖当前标签的缓存资格；缺省仍沿用路由开发时声明。
 watch(
@@ -763,6 +765,7 @@ async function loadPageDisplaySettings(force = false, updateTitle = false) {
     pageDisplayScopeLoadVersion.value += 1;
     pageDisplayConfig.value = resolveCrudPageDisplayDefaults(
       setting?.valueContent?.pageDisplay as CrudPageDisplayConfig | undefined,
+      props.config.defaultQueryAutoSearch,
     );
     if (force && !setting) {
       message.warning('无适配设置');
@@ -2993,19 +2996,26 @@ function getSearchItemStyle(item: SearchFieldItem) {
     : undefined;
 }
 
+const wizardNavigationWidth = computed(() =>
+  getWizardNavigationWidth(wizardActive.value, viewportWidth.value),
+);
+
 const formColumnCount = computed(() => {
-  return resolveFormColumnCount({
+  // 先按普通表单计算列数，再仅在视口不足以容纳导航时安全回落。
+  const normalWidth = getModalAvailableWidth();
+  const normalColumns = resolveFormColumnCount({
     configuredMaxColumns: props.config.formMaxColumns,
     fields: visibleFormFields.value,
-    // 桌面分步侧栏占用表单宽度，窄屏侧栏在上方则无需扣减。
-    modalAvailableWidth: Math.max(
-      0,
-      getModalAvailableWidth() -
-        (wizardActive.value && viewportWidth.value > 767 ? 224 : 0),
-    ),
+    modalAvailableWidth: normalWidth,
     viewportHeight: viewportHeight.value,
     viewportWidth: viewportWidth.value,
   });
+  return resolveWizardFormColumns(
+    normalColumns,
+    normalWidth,
+    viewportWidth.value,
+    wizardNavigationWidth.value,
+  );
 });
 
 const formGridStyle = computed(() => ({
@@ -3090,18 +3100,25 @@ const resolvedModalMaxWidthPx = computed(() => {
   );
   const configuredWidth = configuredFormModalWidth.value;
 
-  return resolveFormModalMaxWidth({
-    configuredMaxWidth: isDefaultCrudModalWidth(configuredWidth)
-      ? undefined
-      : getConfiguredModalMaxWidthPx(configuredWidth),
-    recommendedWidth,
-    strict:
-      activeFormModalConfig.value?.modalMaxWidth === undefined &&
-      props.config.modalWidthStrict,
-  });
+  // 配置宽度约束原表单；分步导航作为额外空间，外层仍受视口约束。
+  return (
+    resolveFormModalMaxWidth({
+      configuredMaxWidth: isDefaultCrudModalWidth(configuredWidth)
+        ? undefined
+        : getConfiguredModalMaxWidthPx(configuredWidth),
+      recommendedWidth,
+      strict:
+        activeFormModalConfig.value?.modalMaxWidth === undefined &&
+        props.config.modalWidthStrict,
+    }) + wizardNavigationWidth.value
+  );
 });
 
 const modalMaxWidth = computed(() => {
+  // 左侧导航使用额外屏幕空间，留出两侧安全边距；普通表单保留原上限。
+  if (wizardNavigationWidth.value > 0) {
+    return `min(calc(100vw - 32px), ${resolvedModalMaxWidthPx.value}px)`;
+  }
   return `min(80vw, ${resolvedModalMaxWidthPx.value}px)`;
 });
 
@@ -10758,33 +10775,47 @@ watch(
 .vben-crud-step-layout {
   display: flex;
   align-items: flex-start;
-  gap: 24px;
+  gap: 16px;
 }
 .vben-crud-step-layout > form {
   min-width: 0;
   flex: 1;
 }
 .vben-crud-step-nav {
-  flex: 0 0 200px;
+  flex: 0 0 152px;
   border-right: 1px solid hsl(var(--border));
-  padding-right: 16px;
+  padding-right: 8px;
 }
 .vben-crud-step-nav ol {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .vben-crud-step-nav li {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 8px;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px;
   border-radius: 6px;
   color: hsl(var(--muted-foreground));
+}
+.vben-crud-step-nav li:not(:last-child)::after {
+  position: absolute;
+  z-index: 1;
+  top: calc(50% + 12px);
+  left: 18px;
+  width: 2px;
+  height: calc(100% - 18px);
+  background: hsl(var(--border));
+  content: '';
+}
+.vben-crud-step-nav li.is-complete::after {
+  background: hsl(var(--primary) / 55%);
 }
 .vben-crud-step-nav li.is-current {
   color: hsl(var(--primary));
@@ -10795,13 +10826,16 @@ watch(
   color: hsl(var(--foreground));
 }
 .vben-crud-step-number {
+  position: relative;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 26px;
-  height: 26px;
+  flex: 0 0 24px;
+  height: 24px;
   border: 1px solid currentColor;
   border-radius: 50%;
+  background: hsl(var(--background));
 }
 .is-current .vben-crud-step-number {
   color: white;
@@ -10812,6 +10846,14 @@ watch(
   color: hsl(var(--primary));
 }
 @media (max-width: 767px) {
+  .vben-crud-modal-title {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px 12px;
+  }
+  .vben-crud-modal-title > span:first-child {
+    flex: 0 0 100%;
+  }
   .vben-crud-step-layout {
     flex-direction: column;
     gap: 16px;
@@ -10828,6 +10870,9 @@ watch(
   }
   .vben-crud-step-nav li {
     min-height: 36px;
+  }
+  .vben-crud-step-nav li::after {
+    display: none;
   }
 }
 

@@ -1,14 +1,11 @@
 <script lang="ts" setup>
-import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
-import type {
-  ProviderSelectionMode,
-  ProviderSelectionModes,
-} from '../provider-selection-mode';
+import type { ProviderSelectionModes } from '../provider-selection-mode';
 
 import { computed, onMounted, ref } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
   Alert,
@@ -16,7 +13,6 @@ import {
   Input,
   message,
   Modal,
-  Select,
   Switch,
   Table,
   Tooltip,
@@ -30,8 +26,10 @@ import {
   parseProviderSelectionModesResponse,
 } from '../provider-selection-mode';
 import { resolveServiceProviderName } from '../service-provider-display-name';
-import SettingValueContentField from '../setting-value-content-field.vue';
-import { servicePluginPageCrudConfig } from './config';
+import {
+  preserveUnsetPluginConfigurationRule,
+  servicePluginPageCrudConfig,
+} from './config';
 
 interface ServicePluginProvider {
   allowMultipleConfigurations?: boolean | null;
@@ -43,20 +41,10 @@ interface ServicePluginProvider {
 }
 
 interface ServicePluginRecord {
-  allowMultipleConfigurations?: boolean | null;
-  baseConfig?: Record<string, any>;
-  configEditor?: string;
-  enable?: boolean;
   id?: string;
   name?: string;
   optimisticLock?: number;
-  pluginImplType?: string;
-  pluginType?: string;
   providerList?: ServicePluginProvider[];
-  providerSelectionMode?:
-    | 'MULTI_ACTIVE_BALANCED'
-    | 'MULTI_CHOICE'
-    | 'SINGLE_ACTIVE';
 }
 
 const providerListOpen = ref(false);
@@ -70,30 +58,11 @@ const providerListSaving = ref(false);
 const providerSelectionModes = ref<ProviderSelectionModes>({});
 const providerSelectionModeOptions = ref<Record<string, string[]>>({});
 const modesReady = ref(false);
-const baseConfigOpen = ref(false);
-const baseConfigSaving = ref(false);
-const baseConfigPlugin = ref<ServicePluginRecord>();
-// 打开基本配置时统一设置模式；表单保留同一单选默认值和明确类型。
-const baseConfigFormState = ref<
-  Record<string, any> & {
-    allowMultipleConfigurations: boolean;
-    providerSelectionMode: ProviderSelectionMode;
-  }
->({
-  allowMultipleConfigurations: true,
-  providerSelectionMode: 'SINGLE_ACTIVE',
-  editor: 'json',
-  valueContent: {},
-  valueType: 'Json',
-});
+const editingPluginId = ref('');
 
 const providerListTitle = computed(() => {
   const pluginName = selectedPlugin.value?.name;
   return pluginName ? `供应商列表 - ${pluginName}` : '供应商列表';
-});
-const baseConfigModeOptions = computed(() => {
-  const pluginId = baseConfigPlugin.value?.id;
-  return pluginId ? providerSelectionModeOptions.value[pluginId] || [] : [];
 });
 const selectedModeLabel = computed(() => {
   const mode = getProviderSelectionMode(
@@ -108,7 +77,7 @@ const selectedModeLabel = computed(() => {
   return '模式目录未加载';
 });
 
-onMounted(async () => {
+async function loadModeCatalog() {
   try {
     const [modes, options] = await Promise.all([
       servicePluginService.providerSelectionModes(),
@@ -123,7 +92,51 @@ onMounted(async () => {
     console.error(error);
     notifyApiErrorOnce(error);
   }
+}
+
+onMounted(() => {
+  void loadModeCatalog();
 });
+
+// 普通编辑读取完整记录；模式候选只使用该插件声明支持的值。
+const editPageConfig = computed(() => ({
+  ...servicePluginPageCrudConfig,
+  loadEditRecord: async (record: Record<string, any>) => {
+    const detail = (await servicePluginService.retrieve({
+      id: record.id,
+    })) as Record<string, any>;
+    editingPluginId.value = String(detail.id || record.id);
+    return {
+      ...detail,
+      __originalAllowMultipleConfigurations: detail.allowMultipleConfigurations,
+      allowMultipleConfigurations: detail.allowMultipleConfigurations !== false,
+      providerSelectionMode:
+        detail.providerSelectionMode ||
+        getProviderSelectionMode(
+          providerSelectionModes.value,
+          editingPluginId.value,
+        ) ||
+        'SINGLE_ACTIVE',
+    };
+  },
+  transformSubmit: preserveUnsetPluginConfigurationRule,
+  fields: servicePluginPageCrudConfig.fields.map((field) =>
+    field.key === 'providerSelectionMode'
+      ? {
+          ...field,
+          loadOptions: async () => {
+            if (!modesReady.value) await loadModeCatalog();
+            return (
+              providerSelectionModeOptions.value[editingPluginId.value] || []
+            ).map((mode) => ({
+              label: getProviderSelectionModeLabel(mode),
+              value: mode,
+            }));
+          },
+        }
+      : field,
+  ),
+}));
 
 const providerColumns = [
   { dataIndex: 'name', key: 'name', title: '供应商名称', width: 180 },
@@ -149,79 +162,6 @@ function openProviderList(record: ServicePluginRecord) {
     ...provider,
   }));
   providerListOpen.value = true;
-}
-
-function cloneJsonValue(value: any): Record<string, any> {
-  if (value === undefined || value === null || value === '') {
-    return {};
-  }
-  // 配置表单可持有 Vue reactive proxy，按 JSON 请求语义克隆。
-  // eslint-disable-next-line unicorn/prefer-structured-clone
-  return JSON.parse(JSON.stringify(value));
-}
-
-function openBaseConfig(record: ServicePluginRecord) {
-  baseConfigPlugin.value = record;
-  baseConfigFormState.value = {
-    allowMultipleConfigurations: record.allowMultipleConfigurations !== false,
-    editor: record.configEditor?.trim() || 'json',
-    id: record.id,
-    name: `${record.name || record.id || '服务插件'} - 基本配置`,
-    providerSelectionMode:
-      record.providerSelectionMode ||
-      getProviderSelectionMode(providerSelectionModes.value, record.id) ||
-      'SINGLE_ACTIVE',
-    valueContent: cloneJsonValue(record.baseConfig),
-    valueType: 'Json',
-  };
-  baseConfigOpen.value = true;
-}
-
-async function saveBaseConfig() {
-  const plugin = baseConfigPlugin.value;
-  if (!plugin?.id || baseConfigSaving.value) {
-    return;
-  }
-
-  baseConfigSaving.value = true;
-  try {
-    const baseConfig = cloneJsonValue(baseConfigFormState.value.valueContent);
-    const updateConfigurationRule = canManageConfigurationRules.value;
-    await servicePluginService.update({
-      autoForceUpdateField: false,
-      forceUpdateFields: [
-        'baseConfig',
-        'providerSelectionMode',
-        ...(updateConfigurationRule ? ['allowMultipleConfigurations'] : []),
-      ],
-      ...(updateConfigurationRule
-        ? {
-            allowMultipleConfigurations:
-              baseConfigFormState.value.allowMultipleConfigurations,
-          }
-        : {}),
-      baseConfig,
-      id: plugin.id,
-      optimisticLock: plugin.optimisticLock,
-      providerSelectionMode: baseConfigFormState.value.providerSelectionMode,
-    });
-    plugin.baseConfig = baseConfig;
-    if (updateConfigurationRule) {
-      plugin.allowMultipleConfigurations =
-        baseConfigFormState.value.allowMultipleConfigurations;
-    }
-    plugin.providerSelectionMode =
-      baseConfigFormState.value.providerSelectionMode;
-    providerSelectionModes.value[plugin.id] = plugin.providerSelectionMode;
-    plugin.optimisticLock = Number(plugin.optimisticLock || 0) + 1;
-    message.success('基本配置已保存');
-    baseConfigOpen.value = false;
-  } catch (error) {
-    console.error(error);
-    notifyApiErrorOnce(error);
-  } finally {
-    baseConfigSaving.value = false;
-  }
 }
 
 async function saveProviders() {
@@ -267,7 +207,7 @@ async function saveProviders() {
 </script>
 
 <template>
-  <CrudPage :config="servicePluginPageCrudConfig">
+  <CrudPage :config="editPageConfig">
     <!-- 列表展示中文名称，底层数据仍保留原有模式编码。 -->
     <template #table-cell-providerSelectionMode="{ value }">
       {{ getProviderSelectionModeLabel(value) }}
@@ -282,9 +222,6 @@ async function saveProviders() {
       </Tooltip>
     </template>
     <template #row-actions="{ record }">
-      <Button size="small" type="link" @click="openBaseConfig(record)">
-        基本配置
-      </Button>
       <Button
         :disabled="
           !modesReady ||
@@ -345,47 +282,5 @@ async function saveProviders() {
         </template>
       </template>
     </Table>
-  </Modal>
-
-  <Modal
-    v-model:open="baseConfigOpen"
-    :confirm-loading="baseConfigSaving"
-    :mask-closable="false"
-    destroy-on-close
-    ok-text="保存"
-    title="基本配置"
-    width="min(80vw, 1120px)"
-    @ok="saveBaseConfig"
-  >
-    <!-- 插件级数量规则只控制配置记录数量，不改变供应商选择模式。 -->
-    <div class="mb-3 flex items-center gap-3">
-      <span class="shrink-0">允许多条配置并存</span>
-      <Switch
-        v-model:checked="baseConfigFormState.allowMultipleConfigurations"
-        :disabled="!canManageConfigurationRules"
-        checked-children="允许"
-        un-checked-children="仅一条"
-      />
-    </div>
-    <div class="mb-3 flex items-center gap-3">
-      <span class="shrink-0">供应商选择模式</span>
-      <Select
-        v-model:value="baseConfigFormState.providerSelectionMode"
-        class="flex-1"
-      >
-        <Select.Option
-          v-for="mode in baseConfigModeOptions"
-          :key="mode"
-          :value="mode"
-        >
-          {{ getProviderSelectionModeLabel(mode) }}
-        </Select.Option>
-      </Select>
-    </div>
-    <SettingValueContentField
-      :key="baseConfigFormState.id"
-      inline
-      :form-state="baseConfigFormState"
-    />
   </Modal>
 </template>

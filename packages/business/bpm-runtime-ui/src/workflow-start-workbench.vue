@@ -15,6 +15,7 @@ import {
   Alert as AAlert,
   Button as AButton,
   Empty as AEmpty,
+  Select as ASelect,
   Space as ASpace,
   Table as ATable,
 } from 'ant-design-vue';
@@ -56,6 +57,24 @@ const recordsPageSummary = computed(
     `第 ${records.value.pageIndex} 页 · 本页 ${records.value.items.length} 条`,
 );
 const selectedPurpose = ref<WorkflowManualStart>();
+const catalogKeyword = ref('');
+const selectedPurposeKey = ref<string>();
+function purposeKey(item: WorkflowManualStart) {
+  return JSON.stringify([
+    item.businessType,
+    item.contractVersion,
+    item.purposeKey,
+  ]);
+}
+const catalogOptions = computed(() =>
+  catalog.value.items.map((item) => ({
+    value: purposeKey(item),
+    label:
+      item.definitionName === item.purposeName
+        ? item.definitionName
+        : `${item.definitionName} · ${item.purposeName}`,
+  })),
+);
 const selectedRecord = ref<WorkflowStartRecord>();
 // 展示标题不属于启动载荷，命令只提交明确的业务引用和范围。
 const selectedReference = computed(() => {
@@ -76,6 +95,7 @@ const catalogError = ref(false);
 const recordsError = ref(false);
 let catalogGeneration = 0;
 let recordsGeneration = 0;
+let catalogSearchTimer: ReturnType<typeof setTimeout> | undefined;
 
 // 对象/用途切换和撤权立即清除旧引用，迟到响应无法恢复已撤销的选择。
 function clearRecords() {
@@ -86,9 +106,12 @@ function clearRecords() {
   recordsError.value = false;
 }
 async function loadCatalog(pageIndex = 1) {
+  clearTimeout(catalogSearchTimer);
+  catalogSearchTimer = undefined;
   const generation = ++catalogGeneration;
   clearRecords();
   selectedPurpose.value = undefined;
+  selectedPurposeKey.value = undefined;
   catalog.value = { items: [], pageIndex, hasMore: false };
   catalogError.value = false;
   catalogLoading.value = false;
@@ -97,6 +120,7 @@ async function loadCatalog(pageIndex = 1) {
   try {
     const result = await props.service.manualStarts({
       tenantId: props.tenantId,
+      ...(catalogKeyword.value ? { keyword: catalogKeyword.value } : {}),
       pageIndex,
       pageSize: 20,
     });
@@ -150,15 +174,30 @@ async function loadRecords(pageIndex = 1) {
     if (generation === recordsGeneration) recordsLoading.value = false;
   }
 }
-function selectPurpose(item: WorkflowManualStart) {
-  if (
-    !props.canReadCatalog ||
-    !props.canStart ||
-    !catalog.value.items.includes(item)
-  )
-    return;
+function selectPurpose(value: unknown) {
+  clearRecords();
+  selectedPurpose.value = undefined;
+  selectedPurposeKey.value = undefined;
+  const key = typeof value === 'string' ? value : undefined;
+  const item = catalog.value.items.find(
+    (candidate) => purposeKey(candidate) === key,
+  );
+  if (!props.canReadCatalog || !props.canStart || !item) return;
+  selectedPurposeKey.value = key;
   selectedPurpose.value = item;
   void loadRecords();
+}
+function searchCatalog(keyword: string) {
+  catalogKeyword.value = keyword.trim();
+  clearTimeout(catalogSearchTimer);
+  catalogGeneration++;
+  clearRecords();
+  selectedPurpose.value = undefined;
+  selectedPurposeKey.value = undefined;
+  catalog.value = { items: [], pageIndex: 1, hasMore: false };
+  catalogError.value = false;
+  catalogLoading.value = true;
+  catalogSearchTimer = setTimeout(() => void loadCatalog(), 250);
 }
 function selectRecord(item: WorkflowStartRecord) {
   if (
@@ -188,6 +227,7 @@ watch(
   { immediate: true, flush: 'sync' },
 );
 onBeforeUnmount(() => {
+  clearTimeout(catalogSearchTimer);
   catalogGeneration++;
   recordsGeneration++;
 });
@@ -201,7 +241,7 @@ onBeforeUnmount(() => {
       type="info"
       message="当前没有查询手动流程目录或发起流程的权限。"
     />
-    <!-- 选择流程仍是专用操作，列表复用标准CRUD分区与表格样式。 -->
+    <!-- 下拉选项由服务端按关键词和授权范围分页提供。 -->
     <CrudLayout
       v-else
       form-id="workflow-start-catalog"
@@ -213,38 +253,20 @@ onBeforeUnmount(() => {
           刷新流程
         </AButton>
       </template>
-      <ATable
-        :data-source="catalog.items"
+      <ASelect
+        :value="selectedPurposeKey"
         :loading="catalogLoading"
-        :pagination="false"
-        :scroll="{ x: 600 }"
-        :row-key="
-          (item: WorkflowManualStart) =>
-            `${item.businessType}:${item.contractVersion}:${item.purposeKey}`
-        "
+        :options="catalogOptions"
+        :filter-option="false"
+        aria-label="选择手动流程"
+        placeholder="搜索并选择流程"
+        class="w-full"
+        show-search
+        allow-clear
+        @search="searchCatalog"
+        @change="selectPurpose"
       >
-        <ATable.Column
-          title="流程名称"
-          data-index="definitionName"
-          key="definitionName"
-        />
-        <ATable.Column
-          title="办理事项"
-          data-index="purposeName"
-          key="purposeName"
-        />
-        <ATable.Column title="操作" key="actions" fixed="right" :width="120">
-          <template #default="{ record: item }">
-            <AButton
-              :aria-label="`选择流程${item.purposeName}`"
-              :type="selectedPurpose === item ? 'primary' : 'link'"
-              @click="selectPurpose(item)"
-            >
-              选择
-            </AButton>
-          </template>
-        </ATable.Column>
-        <template #emptyText>
+        <template #notFoundContent>
           <AEmpty
             :description="
               catalogError
@@ -257,7 +279,7 @@ onBeforeUnmount(() => {
             </AButton>
           </AEmpty>
         </template>
-      </ATable>
+      </ASelect>
       <!-- API只有页码和继续信号，不展示未经授权计算的总数。 -->
       <template #footer>
         <ASpace wrap>

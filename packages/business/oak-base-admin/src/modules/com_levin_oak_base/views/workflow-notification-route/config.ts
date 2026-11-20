@@ -17,9 +17,8 @@ import { tenantOptionsLoader } from '../api-module';
 
 export const pageMeta = {
   name: 'WorkflowNotificationRoute',
-  title: '工作流通知路由',
-  description:
-    '配置当前授权范围工作流事件的精确个人渠道与三家群机器人逻辑目标。',
+  title: '工作流通知渠道',
+  description: '选择工作流事件、通知方式和适用流程；按当前授权范围发送通知。',
 } as const;
 // 页面操作逐一关联实际服务方法，专用表单不新增权限语义。
 export const pageOperations = [
@@ -52,6 +51,13 @@ const supportedChannels = new Set<NotificationChannel>([
   'Station',
   ...robotWebhookChannels,
 ]);
+const channelLabels: Record<NotificationChannel, string> = {
+  Station: '站内通知',
+  Email: '邮件通知',
+  FeishuWebhook: '飞书机器人',
+  WeComWebhook: '企业微信机器人',
+  DingTalkWebhook: '钉钉机器人',
+};
 /** 选项来自服务端枚举，浏览器不补造渠道或存储Webhook地址。 */
 export function normalizeNotificationChannels(
   options: SelectOption[],
@@ -59,7 +65,12 @@ export function normalizeNotificationChannels(
   return options.flatMap((item) =>
     typeof item.value === 'string' &&
     supportedChannels.has(item.value as NotificationChannel)
-      ? [{ label: item.label, value: item.value as NotificationChannel }]
+      ? [
+          {
+            label: channelLabels[item.value as NotificationChannel],
+            value: item.value as NotificationChannel,
+          },
+        ]
       : [],
   );
 }
@@ -105,7 +116,7 @@ export function createWorkflowNotificationRouteCrudConfig(options: {
     // 导出接口未提供全量受控读取，避免将单页数据误作完整导出。
     allowExport: false,
     listOperations: [
-      { key: 'notification:create', label: '新增通知路由', placement: 'left' },
+      { key: 'notification:create', label: '新增通知渠道', placement: 'left' },
     ],
     fields: [
       // 归属租户仅向平台人员展示；筛选仍使用经授权的业务范围选择器。
@@ -123,9 +134,10 @@ export function createWorkflowNotificationRouteCrudConfig(options: {
       {
         key: 'tenantId',
         label: '归属租户',
-        type: 'tenant',
+        type: 'select',
         search: true,
         loadOptions: tenantOptionsLoader,
+        remoteSearch: true,
         table: false,
         form: false,
         detail: false,
@@ -194,11 +206,13 @@ export function createWorkflowNotificationRouteCrudConfig(options: {
       {
         key: 'enable',
         label: '是否启用',
+        type: 'switch',
+        search: true,
+        placeholder: '请选择是否启用',
         table: true,
         form: false,
         sortable: false,
         width: 110,
-        tableValue: (record) => (record.enable ? '已启用' : '已停用'),
       },
     ],
   };

@@ -129,6 +129,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout(
     redirect: boolean = true,
     remoteLogout: boolean = true,
+    preserveNewSession: boolean = false,
   ) {
     // A logout endpoint's own 401 must not await the operation that is awaiting it.
     if (logoutInFlight) return remoteLogout ? logoutInFlight : undefined;
@@ -143,6 +144,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Assign before invoking the endpoint: another expired response shares this transition.
     logoutInFlight = Promise.resolve()
       .then(async () => {
+        if (preserveNewSession && accessStore.accessToken) return;
         if (hadAccessToken) {
           try {
             await logoutApi();
@@ -151,9 +153,11 @@ export const useAuthStore = defineStore('auth', () => {
           }
         }
         const { resetRoutes } = await import('../router');
+        if (preserveNewSession && accessStore.accessToken) return;
         clearPreviousUserAccessState(accessStore, resetRoutes, () =>
           tabbarStore.$reset(),
         );
+        if (preserveNewSession && accessStore.accessToken) return;
         userStore.setUserInfo(null);
         resetAllStores();
         accessStore.setLoginExpired(false);

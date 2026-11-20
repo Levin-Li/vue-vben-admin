@@ -20,7 +20,7 @@ const crudPageSource = readFileSync(
 );
 const explicitForceUpdateSources = [
   'packages/business/admin-framework/src/framework-commons/shared/data-permission-dialog.vue',
-  'packages/business/admin-framework/src/framework-commons/shared/resource-permission-dialog.vue',
+  'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/role/index.vue',
   'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/menu/index.vue',
   'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/menu/menu-form-drawer.vue',
   'packages/business/oak-base-admin/src/modules/com_levin_oak_base/views/open-area/index.vue',

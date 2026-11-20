@@ -410,7 +410,7 @@ async function submit() {
     open.value = false;
     reset();
     message.success(
-      `${targetTitle.value}快捷添加成功，登录账号：${result.loginName}`,
+      `${targetTitle.value}快捷新增成功，登录账号：${result.loginName}`,
     );
   } catch (error) {
     notifyApiErrorOnce(error);
@@ -452,7 +452,7 @@ const channelTypes = [
     @click="openForm"
   >
     <Plus class="size-4" />
-    快捷添加
+    快捷新增
   </Button>
 
   <!-- 工商资料只辅助录入，人工补录始终可用；提交由服务端重新校验。 -->
@@ -463,9 +463,9 @@ const channelTypes = [
     :keyboard="!saving"
     :mask-closable="false"
     :ok-button-props="{ disabled: searching || lookingUp || !canCreate }"
-    :title="`快捷添加${targetTitle}`"
+    :title="`快捷新增${targetTitle}`"
     width="640px"
-    ok-text="确认添加"
+    ok-text="确认新增"
     @cancel="closeForm"
     @ok="submit"
   >
@@ -474,7 +474,7 @@ const channelTypes = [
       :name="`quick-onboarding-${target}`"
       class="mt-4"
       data-form-id="quick-partner-onboarding"
-      data-form-name="快捷添加客户与伙伴"
+      data-form-name="快捷新增客户与伙伴"
       layout="vertical"
     >
       <!-- 平台用户选择租户；所有用户选择可访问的主体方组织。 -->

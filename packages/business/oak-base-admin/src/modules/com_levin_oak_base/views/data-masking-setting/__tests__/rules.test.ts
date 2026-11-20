@@ -10,10 +10,11 @@ describe('数据脱敏字段规则', () => {
         {
           entityClass: 'example.Order',
           fieldName: 'id',
+          schemaVersion: 2,
           treatment: 'REVERSIBLE_ID',
         },
       ]),
-    ).toThrow('输入接口');
+    ).toThrow('绑定范围');
   });
 
   it('保留完整的可还原 ID 规则', () => {
@@ -21,9 +22,8 @@ describe('数据脱敏字段规则', () => {
       {
         entityClass: 'example.Order',
         fieldName: 'id',
+        schemaVersion: 2,
         treatment: 'REVERSIBLE_ID',
-        inputOperation: 'Order.detail',
-        inputFieldPath: 'id',
         binding: 'USER',
         validSeconds: 1800,
       },
@@ -37,9 +37,8 @@ describe('数据脱敏字段规则', () => {
         {
           entityClass: 'example.Order',
           fieldName: 'id',
+          schemaVersion: 2,
           treatment: 'REVERSIBLE_ID',
-          inputOperation: 'Order.detail',
-          inputFieldPath: 'id',
           binding: 'USER',
           validSeconds: 86_401,
         },
@@ -51,14 +50,34 @@ describe('数据脱敏字段规则', () => {
     const first = {
       entityClass: 'example.Order',
       fieldName: 'id',
+      schemaVersion: 2,
       treatment: 'HIDE',
     };
     expect(() => validateMaskingRuleContent([first, first])).toThrow('重复');
     expect(
       validateMaskingRuleContent([
         first,
-        { entityClass: 'example.User', fieldName: 'name', treatment: 'MASK' },
+        {
+          entityClass: 'example.User',
+          fieldName: 'name',
+          schemaVersion: 2,
+          treatment: 'MASK',
+        },
       ]),
     ).toHaveLength(2);
+  });
+
+  it('旧版及夹带旧接口字段的配置必须重新配置', () => {
+    const oldRule = {
+      entityClass: 'example.Order',
+      fieldName: 'id',
+      treatment: 'HIDE',
+    };
+    expect(() => validateMaskingRuleContent([oldRule])).toThrow('重新配置');
+    expect(() =>
+      validateMaskingRuleContent([
+        { ...oldRule, schemaVersion: 2, inputOperation: 'Order.read' },
+      ]),
+    ).toThrow('重新配置');
   });
 });

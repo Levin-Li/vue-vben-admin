@@ -123,9 +123,12 @@ export interface WorkflowTaskView {
   businessType?: string;
   canSave?: boolean;
   detailComponentKey?: string;
+  definitionId?: string;
+  definitionName?: string;
   effectStatus?: string;
   executionStatus?: string;
   formItems?: WorkflowFormItem[];
+  initiatorName?: string;
   notifications?: WorkflowNotification[];
   operationBlockedReason?: string;
   orgId?: string;
@@ -137,6 +140,7 @@ export interface WorkflowTaskView {
   /** 固定版本模型标识，任务图不按第三版树或第四版状态图解释。 */
   processSchemaVersion?: number;
   requiredFields?: string[];
+  relevantTime?: string;
   stateVisitId?: string;
   status?: string;
   taskDefinitionKey?: string;
@@ -157,7 +161,10 @@ export interface WorkflowRuntimePage<T> {
 
 export interface WorkflowRuntimePageQuery {
   cursor?: string;
+  flowId?: string;
+  keyword?: string;
   size?: number;
+  timeFrom?: string;
 }
 
 export interface WorkflowInstanceView {
@@ -170,9 +177,12 @@ export interface WorkflowInstanceView {
   businessTitle?: string;
   businessType?: string;
   definitionVersionId?: string;
+  definitionId?: string;
+  definitionName?: string;
   effectStatus?: string;
   executionStatus?: string;
   instanceId: string;
+  initiatorName?: string;
   lastError?: string;
   operationBlockedReason?: string;
   orgId?: string;
@@ -183,6 +193,7 @@ export interface WorkflowInstanceView {
   processDiagramNodes?: WorkflowDiagramNode[];
   /** 固定版本模型标识，任务图不按第三版树或第四版状态图解释。 */
   processSchemaVersion?: number;
+  relevantTime?: string;
   purposeKey?: string;
   roundId?: string;
   /** 平台用途运行记录标识，显式重提必须引用它而不是引擎实例标识。 */
@@ -279,6 +290,7 @@ export interface WorkflowStartPage<T> {
   pageIndex: number;
 }
 export interface WorkflowStartPageQuery {
+  keyword?: string;
   pageIndex?: number;
   pageSize?: number;
   tenantId?: string;

@@ -4,18 +4,18 @@ import type {
   RbacMenuNode,
   RbacModuleNode,
 } from './data-permission-types';
+import type {
+  ResourcePermissionLoadedTarget,
+  ResourcePermissionLoadTarget,
+  ResourcePermissionSaveTarget,
+} from './resource-permission-types';
 
 import { computed, ref, watch } from 'vue';
 
-import { useAppConfig } from '@vben/runtime/hooks';
-
 import { Alert, message, Modal, Spin } from 'ant-design-vue';
 
-import { buildModuleRequestPath } from '../api';
 import { rbacService } from '../app/api/rbac-service';
-import { requestClient } from '../runtime';
 import { parseApiScopedGrant } from './api-scoped-grant';
-import { OAK_BASE_API_MODULE } from './config-helpers';
 import {
   collectKnownPermissionTreeValues,
   collectKnownPermissionValues,
@@ -27,16 +27,13 @@ import ResourcePermissionTreeEditor from './resource-permission-tree-editor.vue'
 
 const props = withDefaults(
   defineProps<{
-    apiBase?: string;
+    loadTarget: ResourcePermissionLoadTarget;
     open: boolean;
-    permissionField?: string;
-    record: null | Record<string, any>;
+    saveTarget: ResourcePermissionSaveTarget;
     subjectLabel?: string;
     title?: string;
   }>(),
   {
-    apiBase: '/Role',
-    permissionField: 'permissionList',
     subjectLabel: '主体',
     title: '资源权限分配',
   },
@@ -47,14 +44,7 @@ const emit = defineEmits<{
   'update:open': [boolean];
 }>();
 
-const runtimeEnv = (import.meta as ImportMeta & { env: Record<string, any> })
-  .env;
-const { apiURL } = useAppConfig(runtimeEnv, Boolean(runtimeEnv.PROD));
-const apiBase = computed(() =>
-  buildModuleRequestPath(props.apiBase, apiURL || OAK_BASE_API_MODULE),
-);
-
-const detail = ref<null | Record<string, any>>(null);
+const detail = ref<null | ResourcePermissionLoadedTarget>(null);
 const errorMessage = ref('');
 const loading = ref(false);
 const modules = ref<RbacModuleNode[]>([]);
@@ -90,7 +80,7 @@ function closeDialog() {
 }
 
 async function loadData() {
-  if (!props.open || !props.record?.id) {
+  if (!props.open) {
     return;
   }
 
@@ -100,12 +90,7 @@ async function loadData() {
   try {
     const [detailResp, permissionTreeResp, modulesResp, menuTreeResp] =
       await Promise.all([
-        requestClient.get<Record<string, any>>(`${apiBase.value}/retrieve`, {
-          baseURL: '',
-          params: {
-            id: props.record.id,
-          },
-        }),
+        props.loadTarget(),
         rbacService.fetchAuthorizedPermissionTree(),
         rbacService.fetchAuthorizedResourceModules(),
         rbacService.getAuthorizedMenuList(),
@@ -117,7 +102,7 @@ async function loadData() {
     menuTree.value = (menuTreeResp || []) as RbacMenuNode[];
 
     const permissionState = splitMappedAndUnmappedPermissions(
-      detailResp[props.permissionField] || [],
+      detailResp.permissions || [],
       modules.value,
       permissionTree.value,
     );
@@ -161,20 +146,14 @@ async function handleSave() {
       selected,
       unmappedPermissions.value,
     );
-    const payload: Record<string, any> = {
-      autoForceUpdateField: false,
-      forceUpdateFields: [props.permissionField],
+    const changes = {
       id: detail.value.id,
-      [props.permissionField]: permissions,
+      permissions,
+      ...(detail.value.optimisticLock === undefined
+        ? {}
+        : { optimisticLock: detail.value.optimisticLock }),
     };
-
-    if (detail.value.optimisticLock !== undefined) {
-      payload.optimisticLock = detail.value.optimisticLock;
-    }
-
-    await requestClient.put(`${apiBase.value}/update`, payload, {
-      baseURL: '',
-    });
+    await props.saveTarget(changes);
     message.success('资源权限保存成功');
     emit('saved');
     closeDialog();
@@ -184,8 +163,8 @@ async function handleSave() {
 }
 
 watch(
-  () => [props.open, props.record?.id] as const,
-  ([open]) => {
+  () => props.open,
+  (open) => {
     if (open) {
       loadData();
     }

@@ -7,9 +7,9 @@ export type ProviderSelectionModes = Record<string, ProviderSelectionMode>;
 
 // 将接口使用的稳定编码转换为管理员可直接理解的名称。
 export function getProviderSelectionModeLabel(mode: unknown): string {
-  if (mode === 'SINGLE_ACTIVE') return '单一启用供应商';
-  if (mode === 'MULTI_CHOICE') return '使用时选择供应商';
-  if (mode === 'MULTI_ACTIVE_BALANCED') return '多家供应商自动分配';
+  if (mode === 'SINGLE_ACTIVE') return '唯一启用';
+  if (mode === 'MULTI_CHOICE') return '多家启用-使用指定';
+  if (mode === 'MULTI_ACTIVE_BALANCED') return '多家启用-自动分配';
   return '未知模式';
 }
 

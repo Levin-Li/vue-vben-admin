@@ -73,6 +73,7 @@ export function createWorkflowInstanceCrudConfig(options: {
     dataAttrConditionKeys: ['tenantId', 'orgId', 'size', 'cursor'],
     recordKey: 'instanceId',
     paginationMode: 'cursor',
+    defaultQueryAutoSearch: true,
     defaultQuery: { pageSize: 20 },
     initialQuery: {
       ...options.retainedQuery,

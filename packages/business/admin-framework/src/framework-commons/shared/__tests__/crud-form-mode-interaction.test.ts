@@ -314,6 +314,44 @@ describe('标准表单首次模式交互', () => {
     );
   });
 
+  it('分步侧栏不将桌面普通表单的多列挤成单列', async () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 1440,
+    });
+    try {
+      const modal = await open(wizardFields());
+      const wizard = modal
+        .findAllComponents({ name: 'ACheckbox' })
+        .find((item) => item.text().includes('分步填写'));
+      if (!wizard) throw new Error('缺少分步填写开关');
+      wizard.vm.$emit('update:checked', true);
+      await flushPromises();
+      const grid = document.querySelector<HTMLElement>(
+        '.vben-crud-step-layout .grid',
+      );
+      expect(grid?.style.gridTemplateColumns).toBe('repeat(2, minmax(0, 1fr))');
+      expect(String(modal.props('width'))).toContain('1128px');
+      const name = modal
+        .findAllComponents(Form.Item)
+        .find((item) => item.props('label') === '名称');
+      if (!name) throw new Error('缺少名称字段');
+      await name.get('input').setValue('字段保持');
+      modal.vm.$emit('ok');
+      await flushPromises();
+      expect(
+        document.querySelector<HTMLElement>('.vben-crud-step-layout .grid')
+          ?.style.gridTemplateColumns,
+      ).toBe('repeat(2, minmax(0, 1fr))');
+    } finally {
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        value: originalWidth,
+      });
+    }
+  });
+
   it('向导最终保存会校验早期步骤并跳回错误字段', async () => {
     const create = vi.fn(async () => 'created');
     const modal = await open(wizardFields(), { apiService: { create } });

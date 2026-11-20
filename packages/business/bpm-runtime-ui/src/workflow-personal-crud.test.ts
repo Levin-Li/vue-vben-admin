@@ -38,9 +38,15 @@ describe('个人流程标准CRUD配置', () => {
       ).toBe(result);
       expect(load).toHaveBeenCalledWith({ cursor: 'page-one', size: 20 });
       expect(config.fields.some((field) => field.search)).toBe(false);
-      expect(config.fields.some((field) => /time|date/i.test(field.key))).toBe(
-        false,
+      expect(config.fields.some((field) => field.key === 'relevantTime')).toBe(
+        true,
       );
+      expect(
+        config.fields.some(
+          (field) =>
+            field.key === 'instanceId' || field.key === 'processInstanceId',
+        ),
+      ).toBe(false);
       expect(config.recordKey).toBe(
         tab === 'todo' || tab === 'done' ? 'taskId' : 'instanceId',
       );

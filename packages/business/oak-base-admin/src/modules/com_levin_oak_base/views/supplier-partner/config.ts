@@ -26,7 +26,7 @@ export const supplierPartnerPageCrudConfig: CrudPageConfig =
     domainObject: true,
     apiService: supplierPartnerService,
     listOperations: [
-      { key: 'SupplierPartner:quickAdd', label: '快捷添加', placement: 'left' },
+      { key: 'SupplierPartner:quickAdd', label: '快捷新增', placement: 'left' },
     ],
     dataAttrTargets: fixedCrudDataAttrTargets(supplierPartnerService, {
       retrieve: { method: 'GET', path: 'retrieve' },

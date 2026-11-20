@@ -592,6 +592,8 @@ export interface CrudPageConfig {
   createSubmitKeys?: string[];
   defaultFormValues?: Record<string, any>;
   defaultQuery?: Record<string, any>;
+  /** 未保存查询展示偏好时，是否默认随查询条件变化自动查询。 */
+  defaultQueryAutoSearch?: boolean;
   deletePath?: string;
   deletePermission?: string | string[];
   deleteVisibleOn?: string;

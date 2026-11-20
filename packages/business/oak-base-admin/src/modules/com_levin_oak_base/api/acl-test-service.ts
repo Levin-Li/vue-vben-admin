@@ -40,7 +40,7 @@ export class AclTestService extends RequestService {
 
   @ResAuthorize({ ignored: true })
   async sign(data: string, headers: Record<string, string>) {
-    // 签名拒绝的 401 不代表登录过期；此入口独立发送，不参与会话刷新或重试。
+    // 签名拒绝返回 403，兼容旧版 401；此入口独立发送，不参与会话刷新或重试。
     const response = await fetch(this.buildRequestPath('sign'), {
       body: data,
       cache: 'no-store',

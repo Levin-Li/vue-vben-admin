@@ -6,6 +6,12 @@ import type {
 
 import { Form, Input, InputNumber, Select } from 'ant-design-vue';
 
+import {
+  workflowTemporalInputType,
+  workflowTemporalInputValue,
+  workflowTemporalLiteral,
+} from './workflow-temporal-input';
+
 const props = withDefaults(
   defineProps<{
     fields: WorkflowBusinessObjectField[];
@@ -95,17 +101,13 @@ function booleanValue(key: string) {
       />
       <Input
         v-else
-        :value="modelValue[field.key] as string"
-        :type="
-          field.type === 'date'
-            ? 'date'
-            : field.type === 'datetime'
-              ? 'datetime-local'
-              : 'text'
-        "
+        :value="workflowTemporalInputValue(field.type, modelValue[field.key])"
+        :type="workflowTemporalInputType(field.type)"
         :disabled="readonly"
         :aria-label="`模拟办理 ${field.title}`"
-        @update:value="update(field.key, $event)"
+        @update:value="
+          update(field.key, workflowTemporalLiteral(field.type, $event))
+        "
       />
     </Form.Item>
   </div>

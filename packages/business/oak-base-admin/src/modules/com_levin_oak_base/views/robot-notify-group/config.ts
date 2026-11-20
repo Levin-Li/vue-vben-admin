@@ -13,7 +13,7 @@ const platformOptionsLoader = buildModuleEnumOptionsLoader(
   'com.levin.oak.base.entities.RobotNotifyGroup$PlatformType',
 );
 
-/** 与后端 Webhook 字段的 DataMasking 角色保持一致，组织共享不授予凭据权限。 */
+/** 前端仅按维护身份优化控件显隐；Webhook 凭据仍须由服务端独立保护。 */
 export function canManageRobotWebhook(userInfo: unknown) {
   if (!userInfo || typeof userInfo !== 'object') return false;
   const roles = collectUserRoleIdentityValues(

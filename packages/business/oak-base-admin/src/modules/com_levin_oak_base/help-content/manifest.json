@@ -9,7 +9,7 @@
       "type": "使用手册",
       "source": "docs/使用手册.md",
       "pages": [],
-      "sha256": "47af912d501635fb18c017e6b960a31042341c0b5dd55086607dd97580b05607"
+      "sha256": "59da932c1f8098125b42ec5d6e275960504185a22ca6a0588dc93d4615867957"
     },
     {
       "id": "mail-ticket-guide",
@@ -110,7 +110,7 @@
           "view": "my-workflow"
         }
       ],
-      "sha256": "aa91496e39d3e502217cab81a49d3f02f862758e03c588ef5a0bdc768c2e87af"
+      "sha256": "227b7867d1789d4f86ea40a41300878c49b2325b4bf763f9326dc9e8a0920149"
     },
     {
       "id": "domain-provider-guide",
@@ -130,7 +130,7 @@
       "type": "开发指南",
       "source": "frontend/admin/packages/business/oak-base-admin/docs/communication-workbench.md",
       "pages": [],
-      "sha256": "3613dd4c477e85a4f6cbb903570f0c5749eb64f7dceafb951a3a5a6eeee8be2e"
+      "sha256": "31cd17159bf4f6fee54625a41083d12295e885ea614d74343a6f97b706a84f13"
     },
     {
       "id": "invitation-registration-admin",

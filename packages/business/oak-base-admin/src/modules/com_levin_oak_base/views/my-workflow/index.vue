@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
-import { useUserStore } from '@vben/runtime/stores';
+import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { WorkflowRuntimeWorkbench } from '@levin/bpm-runtime-ui';
-import { Alert, message } from 'ant-design-vue';
+import { Alert, Button, message } from 'ant-design-vue';
 
 import {
   workflowOperationPermissions,
@@ -25,6 +25,12 @@ const detailComponents = {
 };
 const { hasPermission } = useRbacAccess();
 const userStore = useUserStore();
+const accessStore = useAccessStore();
+const router = useRouter();
+// 入口只指向当前菜单已授权的发起页面，实际业务能力仍由该页逐项检查。
+const canOpenStart = computed(() =>
+  Boolean(accessStore.getMenuByPath('/clob/V1/WorkflowStart')),
+);
 
 // 仅消费单个有界定位符，身份、租户和令牌始终取当前登录会话。
 const route = useRoute();
@@ -193,5 +199,15 @@ const loadCopyRecipients = (instanceId: string, keyword: string) =>
     :can-view-pending-attachments="canViewPendingAttachments"
     :can-delete-pending-attachment="canDeletePendingAttachment"
     @error="showError"
-  />
+  >
+    <template #header-action>
+      <Button
+        v-if="canOpenStart"
+        type="primary"
+        @click="router.push('/clob/V1/WorkflowStart')"
+      >
+        发起流程
+      </Button>
+    </template>
+  </WorkflowRuntimeWorkbench>
 </template>

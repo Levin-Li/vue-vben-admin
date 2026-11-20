@@ -7,24 +7,13 @@ import {
 
 import { OAK_BASE_API_MODULE } from './_module';
 
-export interface MaskingOperationCatalogItem {
-  methods: string[];
-  operation: string;
-  paths: string[];
-  requestFields: string[];
-  responseFields: string[];
-}
-
 export interface MaskingEntityCatalogItem {
-  ambiguousOperations: string[];
-  coverage: {
-    methods: string[];
-    operation: string;
-    outputFieldPath: string;
-    paths: string[];
-  }[];
   entityClass: string;
+  /** 服务端实体模型声明的展示名称，旧服务可不返回。 */
+  entityTitle?: string;
   fieldName: string;
+  /** 服务端实体字段声明的展示名称，旧服务可不返回。 */
+  fieldTitle?: string;
 }
 
 @Service({
@@ -38,11 +27,6 @@ export interface MaskingEntityCatalogItem {
 export class DataMaskingSettingService extends RequestService {
   constructor() {
     super(OAK_BASE_API_MODULE);
-  }
-
-  // 目录只包含后端已注册的接口和可配置字段，由管理页面按需读取。
-  async catalog(): Promise<MaskingOperationCatalogItem[]> {
-    return this.get('catalog');
   }
 
   @CRUD.Op()

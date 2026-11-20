@@ -1,8 +1,12 @@
 # @levin/admin-framework
 
+[标准 CRUD 自动查询指南](docs/crud-auto-search.md)说明页面默认配置及已保存设置的优先级。
+
 [标准 CRUD 详情字段使用指南](docs/crud-detail-static-fields.md)说明详情响应字段的开发期声明、检查门禁和未声明字段的展示边界。
 
 [请求错误提示接入](docs/api-error-notification.md)说明后端消息、统一兜底及去重方法。
+
+[会话复核与 HTTP 状态](docs/session-http-status.md)说明 401 复核、403 和服务异常的处理。
 
 [默认加密 API 路径使用指南](docs/url-acl-default-crypto-paths.md)列出主动加密路径、协议边界与最小验证方法。
 

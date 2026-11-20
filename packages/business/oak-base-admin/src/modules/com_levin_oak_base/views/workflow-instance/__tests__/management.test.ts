@@ -248,12 +248,45 @@ describe('管理侧运行实例', () => {
       expect.objectContaining({ cursor: 'cursor-2' }),
     );
     expect(wrapper.text()).toContain('第 2 页');
-    await button(wrapper, '查询').trigger('click');
+    expect(
+      wrapper.findAll('button').some((item) => item.text().trim() === '查询'),
+    ).toBe(false);
+    await wrapper.get('input[placeholder="流程或业务关键词"]').setValue('报销');
     await flushPromises();
     expect(state.instances).toHaveBeenLastCalledWith(
-      expect.objectContaining({ cursor: undefined }),
+      expect.objectContaining({
+        cursor: undefined,
+        keyword: '报销',
+        tenantId: 't1',
+      }),
     );
     expect(wrapper.text()).toContain('第 1 页');
+    wrapper.unmount();
+  });
+
+  it('自动查询时丢弃旧关键词的迟到响应', async () => {
+    const staleList = deferred();
+    state.instances
+      .mockResolvedValueOnce(page)
+      .mockImplementationOnce(() => staleList.promise)
+      .mockResolvedValueOnce({
+        items: [{ ...row, businessTitle: '新查询结果' }],
+        hasMore: false,
+      });
+    const wrapper = mountPage();
+    await flushPromises();
+    const keyword = wrapper.get('input[placeholder="流程或业务关键词"]');
+    await keyword.setValue('旧');
+    await flushPromises();
+    await keyword.setValue('新');
+    await flushPromises();
+    staleList.resolve({
+      items: [{ ...row, businessTitle: '旧查询结果' }],
+      hasMore: false,
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain('新查询结果');
+    expect(wrapper.text()).not.toContain('旧查询结果');
     wrapper.unmount();
   });
 

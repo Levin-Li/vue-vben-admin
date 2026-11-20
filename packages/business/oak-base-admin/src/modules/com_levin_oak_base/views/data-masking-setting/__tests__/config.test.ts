@@ -33,6 +33,7 @@ describe('数据脱敏设置页面', () => {
     const rule = {
       entityClass: 'example.Order',
       fieldName: 'id',
+      schemaVersion: 2,
       treatment: 'HIDE',
     };
     const payload = { valueContent: [rule] };

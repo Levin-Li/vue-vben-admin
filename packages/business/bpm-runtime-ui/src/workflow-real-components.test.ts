@@ -44,6 +44,99 @@ vi.mock('@levin/admin-framework', () => ({
 }));
 
 describe('运行时公开组件独立挂载', () => {
+  it('搜索条件提交给服务端并重置游标，流程选项空页可继续读取', async () => {
+    const api = {
+      todo: vi.fn().mockResolvedValue({ items: [], hasMore: false }),
+      flowOptions: vi
+        .fn()
+        .mockResolvedValueOnce({
+          items: [],
+          hasMore: true,
+          nextCursor: 'next-flow',
+        })
+        .mockResolvedValueOnce({
+          items: [{ value: 'f1', label: '合同审批' }],
+          hasMore: false,
+        }),
+    };
+    const wrapper = mount(WorkflowRuntimeWorkbench, {
+      props: {
+        service: api as unknown as WorkflowRuntimeService,
+        canViewDone: false,
+        canViewStarted: false,
+        canViewCopied: false,
+      },
+    });
+    await flushPromises();
+    expect(api.todo).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cursor: undefined,
+        timeFrom: expect.any(String),
+      }),
+    );
+
+    await wrapper
+      .get('input[placeholder="搜索业务标题或发起人"]')
+      .setValue('合同');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().replaceAll(/\s/g, '') === '查询')
+      ?.trigger('click');
+    await flushPromises();
+    expect(api.todo).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cursor: undefined,
+        keyword: '合同',
+        timeFrom: expect.any(String),
+      }),
+    );
+
+    const flow = wrapper.findAllComponents({ name: 'ASelect' })[0];
+    if (!flow) throw new Error('未找到流程选择框');
+    flow.vm.$emit('focus');
+    await flushPromises();
+    expect(api.flowOptions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ tab: 'todo', cursor: undefined }),
+    );
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '加载更多流程')
+      ?.trigger('click');
+    await flushPromises();
+    expect(api.flowOptions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ tab: 'todo', cursor: 'next-flow' }),
+    );
+    expect(flow.props('options')).toEqual([{ value: 'f1', label: '合同审批' }]);
+
+    flow.vm.$emit('update:value', 'f1');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().replaceAll(/\s/g, '') === '查询')
+      ?.trigger('click');
+    await flushPromises();
+    expect(api.todo).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cursor: undefined,
+        keyword: '合同',
+        flowId: 'f1',
+      }),
+    );
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().replaceAll(/\s/g, '') === '重置')
+      ?.trigger('click');
+    await flushPromises();
+    expect(api.todo).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cursor: undefined,
+        keyword: undefined,
+        timeFrom: expect.any(String),
+      }),
+    );
+    wrapper.unmount();
+  });
+
   it('空的过滤页仍可沿游标继续读取，并能返回前页', async () => {
     const api = {
       todo: vi
@@ -73,19 +166,30 @@ describe('运行时公开组件独立挂载', () => {
     });
     await flushPromises();
     expect(wrapper.text()).toContain('第 1 页 · 本页 0 条');
+    expect(wrapper.text()).toContain(
+      '本页没有符合条件的记录，可继续查看下一页',
+    );
     await wrapper.get('.ant-space-item:last-child button').trigger('click');
     await flushPromises();
-    expect(api.todo).toHaveBeenNthCalledWith(2, {
-      cursor: 'next-1',
-      size: 20,
-    });
+    expect(api.todo).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        cursor: 'next-1',
+        size: 20,
+        timeFrom: expect.any(String),
+      }),
+    );
     expect(wrapper.text()).toContain('后续任务');
     await wrapper.get('.ant-space-item:nth-child(2) button').trigger('click');
     await flushPromises();
-    expect(api.todo).toHaveBeenNthCalledWith(3, {
-      cursor: undefined,
-      size: 20,
-    });
+    expect(api.todo).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        cursor: undefined,
+        size: 20,
+        timeFrom: expect.any(String),
+      }),
+    );
     expect(wrapper.text()).toContain('第 1 页 · 本页 0 条');
     wrapper.unmount();
   });
@@ -128,19 +232,33 @@ describe('运行时公开组件独立挂载', () => {
     expect(wrapper.findComponent(WorkflowTaskPanel).exists()).toBe(false);
     await wrapper.findAll('[role="tab"]')[1]?.trigger('click');
     await flushPromises();
-    expect(api.done).toHaveBeenCalledWith({ cursor: undefined, size: 20 });
+    expect(api.done).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: undefined,
+        size: 20,
+        timeFrom: expect.any(String),
+      }),
+    );
     await wrapper.findAll('[role="tab"]')[0]?.trigger('click');
     await flushPromises();
-    expect(api.todo).toHaveBeenNthCalledWith(3, {
-      cursor: 'todo-2',
-      size: 20,
-    });
+    expect(api.todo).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        cursor: undefined,
+        size: 20,
+        timeFrom: expect.any(String),
+      }),
+    );
     wrapper.vm.refresh();
     await flushPromises();
-    expect(api.todo).toHaveBeenNthCalledWith(4, {
-      cursor: undefined,
-      size: 20,
-    });
+    expect(api.todo).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({
+        cursor: undefined,
+        size: 20,
+        timeFrom: expect.any(String),
+      }),
+    );
     expect(wrapper.text()).toContain('第 1 页');
     expect(wrapper.text()).not.toContain('第二页任务');
     wrapper.unmount();
@@ -223,7 +341,9 @@ describe('运行时公开组件独立挂载', () => {
     await wrapper.setProps({ canLoadCopyRecipients: true });
     await flushPromises();
     expect(wrapper.text()).toContain('发送抄送');
-    const search = wrapper.get('.ant-select-selection-search-input');
+    const search = wrapper.get(
+      '.levin-workflow-instance-detail .ant-select-selection-search-input',
+    );
     await search.setValue('王');
     await flushPromises();
     expect(loadCopyRecipients).not.toHaveBeenCalled();
@@ -363,7 +483,7 @@ describe('运行时公开组件独立挂载', () => {
     expect(wrapper.text()).toContain('普通候选的报销');
     expect(wrapper.text()).not.toContain('流程列表加载失败');
     expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual([
-      expect.stringContaining('待办'),
+      expect.stringContaining('待我处理'),
       expect.stringContaining('抄送'),
     ]);
     wrapper.unmount();
@@ -573,7 +693,7 @@ describe('运行时公开组件独立挂载', () => {
     await flushPromises();
     await wrapper
       .findAll('[role="tab"]')
-      .find((tab) => tab.text().includes('已办'))
+      .find((tab) => tab.text().includes('我已处理'))
       ?.trigger('click');
     await flushPromises();
     const buttons = wrapper.findAll('[aria-label^="查看采购申请"]');
@@ -581,7 +701,6 @@ describe('运行时公开组件独立挂载', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]?.textContent).toContain('采购申请甲');
     expect(rows[1]?.textContent).toContain('采购申请乙');
-    expect(rows[1]?.textContent).toContain('p2');
     expect(rows[1]?.textContent).toContain('已处理');
     await buttons[1]?.trigger('click');
     await flushPromises();
@@ -634,7 +753,9 @@ describe('运行时公开组件独立挂载', () => {
     await findButton('通过')?.trigger('click');
     await findButton('确认通过')?.trigger('click');
     expect(api.complete).not.toHaveBeenCalled();
-    await wrapper.find('input').setValue('资料核验完成');
+    await wrapper
+      .find('.levin-workflow-task-panel input')
+      .setValue('资料核验完成');
     await wrapper.find('textarea').setValue('同意办理');
     await findButton('确认通过')?.trigger('click');
     await flushPromises();

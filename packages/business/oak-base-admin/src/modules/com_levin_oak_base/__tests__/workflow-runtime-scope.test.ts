@@ -140,9 +140,9 @@ describe('oak运行时业务范围连接器', () => {
   );
 
   it.each(cases)(
-    '$method跨租户或会话归属未知时不发送任何网络请求',
+    '$method已知跨租户时不发送任何网络请求',
     ({ method, input }) => {
-      for (const actor of [{ tenantId: 'tenant-b' }, {}]) {
+      for (const actor of [{ tenantId: 'tenant-b' }]) {
         const service = new OakWorkflowRuntimeService(undefined, () => actor);
         expect(() => Reflect.apply(service[method], service, [input])).toThrow(
           '不属于当前会话租户',
@@ -150,6 +150,17 @@ describe('oak运行时业务范围连接器', () => {
       }
       expect(calls.get).not.toHaveBeenCalled();
       expect(calls.post).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(cases)(
+    '$method资料隐藏租户时不传租户，由服务端认证范围校验',
+    async ({ method, verb, field, input }) => {
+      const service = new OakWorkflowRuntimeService(undefined, () => ({}));
+      await Reflect.apply(service[method], service, [input]);
+      expect(calls[verb].mock.calls.at(-1)?.[1]?.[field]).not.toHaveProperty(
+        'tenantId',
+      );
     },
   );
 
@@ -199,6 +210,18 @@ describe('oak运行时业务范围连接器', () => {
 
 // 新目录和记录选择器延续当前租户的受保护参数处理，不能把外租户选择静默删除。
 describe('发起页选择器范围', () => {
+  it('资料隐藏租户时目录查询省略租户，由服务端确认范围', async () => {
+    const service = new OakWorkflowRuntimeService(undefined, () => ({}));
+    await service.manualStarts({
+      tenantId: 'tenant-a',
+      pageIndex: 1,
+      pageSize: 20,
+    });
+    expect(calls.get).toHaveBeenLastCalledWith(
+      'workflow-runtime/manualStarts',
+      { params: { pageIndex: 1, pageSize: 20 } },
+    );
+  });
   it('普通租户省略tenantId但保留分页和技术契约，平台保留明确选择', async () => {
     calls.get.mockClear();
     const service = new OakWorkflowRuntimeService(undefined, () => ({

@@ -113,34 +113,6 @@
     },
     "nodes" : { }
   }, {
-    "id" : "65ef0a66-441f-3808-b02e-fb3246b3194d",
-    "operation" : null,
-    "methods" : [ "GET" ],
-    "pathPatterns" : [ "/com.levin.oak.base/V1/admin/test" ],
-    "restricted" : false,
-    "groups" : [ ],
-    "requestRoots" : [ ],
-    "responseRoot" : null,
-    "viewRoots" : {
-      "request" : [ ],
-      "response" : [ ]
-    },
-    "nodes" : { }
-  }, {
-    "id" : "fabfa574-38a2-3111-9af7-24f343153545",
-    "operation" : null,
-    "methods" : [ "POST" ],
-    "pathPatterns" : [ "/com.levin.oak.base/V1/admin/test2" ],
-    "restricted" : false,
-    "groups" : [ ],
-    "requestRoots" : [ ],
-    "responseRoot" : null,
-    "viewRoots" : {
-      "request" : [ ],
-      "response" : [ ]
-    },
-    "nodes" : { }
-  }, {
     "id" : "c482d184-4612-3978-91d2-db2c5a4402a7",
     "operation" : "com.levin.oak.base:系统数据-访问日志::新增",
     "methods" : [ "POST" ],
@@ -65112,20 +65084,6 @@
     "operation" : "com.levin.oak.base:系统数据-每日访问统计::查询 IP 或用户访问 Top 20",
     "methods" : [ "GET" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/DailyAccessStat/top20" ],
-    "restricted" : false,
-    "groups" : [ ],
-    "requestRoots" : [ ],
-    "responseRoot" : null,
-    "viewRoots" : {
-      "request" : [ ],
-      "response" : [ ]
-    },
-    "nodes" : { }
-  }, {
-    "id" : "aed4d2a7-ac10-3d39-a733-e3f3ce3b6dd9",
-    "operation" : "com.levin.oak.base:平台数据-数据脱敏设置::读取可配置脱敏的接口字段目录",
-    "methods" : [ "GET" ],
-    "pathPatterns" : [ "/com.levin.oak.base/V1/api/DataMaskingSetting/catalog" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],

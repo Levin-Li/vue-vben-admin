@@ -10,6 +10,21 @@ import { workflowStatusLabel } from './workflow-task-form';
 
 type PersonalTab = 'copied' | 'done' | 'started' | 'todo';
 
+/** 把服务端实际时间转换为当前浏览器的本地时间，不推断缺失时间。 */
+function displayRelevantTime(value: unknown): string {
+  if (typeof value !== 'string' || !value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
 /** 操作槽接收通用记录；只在必需DTO标识完整时进入专用办理逻辑。 */
 export function isPersonalWorkflowTask(
   value: unknown,
@@ -36,7 +51,7 @@ export function isPersonalWorkflowInstance(
   );
 }
 
-/** 四分栏契约没有时间和关键词字段；只配置真实返回列和接口支持的游标。 */
+/** 每栏只展示服务端实际返回的业务信息与当前范围内的流程事实。 */
 export function createPersonalWorkflowCrudConfig(
   tab: PersonalTab,
   load: (query: {
@@ -47,9 +62,12 @@ export function createPersonalWorkflowCrudConfig(
 ): CrudPageConfig {
   const taskList = tab === 'todo' || tab === 'done';
   return {
-    title: { todo: '待办', done: '已办', started: '我发起', copied: '抄送' }[
-      tab
-    ],
+    title: {
+      todo: '待我处理',
+      done: '我已处理',
+      started: '我发起的',
+      copied: '抄送我的',
+    }[tab],
     apiBase:
       options?.path ?? `/com.levin.oak.base/V1/api/workflow-runtime/${tab}`,
     dataAttrTargets: {
@@ -82,11 +100,27 @@ export function createPersonalWorkflowCrudConfig(
     fields: [
       {
         key: 'businessTitle',
-        label: '关联业务',
+        label: '业务事项',
         table: true,
         form: false,
         sortable: false,
         width: 240,
+      },
+      {
+        key: 'definitionName',
+        label: '流程',
+        table: true,
+        form: false,
+        sortable: false,
+        width: 160,
+      },
+      {
+        key: 'initiatorName',
+        label: '发起人',
+        table: true,
+        form: false,
+        sortable: false,
+        width: 120,
       },
       ...(taskList
         ? [
@@ -99,16 +133,7 @@ export function createPersonalWorkflowCrudConfig(
               width: 180,
             },
           ]
-        : [
-            {
-              key: 'purposeKey',
-              label: '流程用途',
-              table: true,
-              form: false,
-              sortable: false,
-              width: 160,
-            },
-          ]),
+        : []),
       {
         key: taskList ? 'status' : 'executionStatus',
         label: taskList ? '任务状态' : '执行状态',
@@ -126,12 +151,18 @@ export function createPersonalWorkflowCrudConfig(
               ),
       },
       {
-        key: taskList ? 'processInstanceId' : 'instanceId',
-        label: '流程实例',
+        key: 'relevantTime',
+        label: {
+          todo: '到达时间',
+          done: '处理时间',
+          started: '发起时间',
+          copied: '抄送时间',
+        }[tab],
         table: true,
         form: false,
         sortable: false,
-        width: 220,
+        width: 170,
+        tableValue: (record) => displayRelevantTime(record.relevantTime),
       },
       ...(taskList
         ? []

@@ -9,10 +9,12 @@ import type {
   WorkflowInstanceView,
   WorkflowOption,
   WorkflowRuntimePage,
+  WorkflowRuntimePageQuery,
   WorkflowTaskSubmitPayload,
   WorkflowTaskView,
   WorkflowVerificationChallenge,
 } from './types';
+import type { WorkflowPersonalPeriod } from './workflow-personal-filters';
 
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
@@ -24,6 +26,7 @@ import {
   Card as ACard,
   Col as ACol,
   Empty as AEmpty,
+  Input as AInput,
   List as AList,
   ListItem as AListItem,
   Row as ARow,
@@ -41,6 +44,7 @@ import {
   isPersonalWorkflowInstance,
   isPersonalWorkflowTask,
 } from './workflow-personal-crud';
+import { personalPeriodStart } from './workflow-personal-filters';
 import WorkflowProcessDiagram from './workflow-process-diagram.vue';
 import { WorkflowRuntimeService } from './workflow-runtime-service';
 import WorkflowStateEvents from './workflow-state-events.vue';
@@ -138,15 +142,29 @@ const activeKey = ref(
 );
 const loading = ref(false);
 type TabKey = 'copied' | 'done' | 'started' | 'todo';
+const searchText = ref('');
+const selectedFlow = ref<string>();
+const period = ref<WorkflowPersonalPeriod>('halfYear');
+const filters = ref<WorkflowRuntimePageQuery>({
+  timeFrom: personalPeriodStart('halfYear'),
+});
+const flowOptions = ref<WorkflowOption[]>([]);
+const flowKeyword = ref('');
+const flowCursor = ref<string>();
+const flowHasMore = ref(false);
+const flowLoading = ref(false);
+let flowOptionsVersion = 0;
 // 四个分栏由各自的标准CRUD维护游标；刷新通过代际重新挂载，避免两份页码状态。
 const listEpoch = ref(0);
 const tabs = computed(() => [
-  ...(canViewTodo.value ? [{ key: 'todo' as const, label: '待办' }] : []),
-  ...(canViewDone.value ? [{ key: 'done' as const, label: '已办' }] : []),
+  ...(canViewTodo.value ? [{ key: 'todo' as const, label: '待我处理' }] : []),
+  ...(canViewDone.value ? [{ key: 'done' as const, label: '我已处理' }] : []),
   ...(canViewStarted.value
-    ? [{ key: 'started' as const, label: '我发起' }]
+    ? [{ key: 'started' as const, label: '我发起的' }]
     : []),
-  ...(canViewCopied.value ? [{ key: 'copied' as const, label: '抄送' }] : []),
+  ...(canViewCopied.value
+    ? [{ key: 'copied' as const, label: '抄送我的' }]
+    : []),
 ]);
 const listConfigs = computed(() =>
   Object.fromEntries(
@@ -175,6 +193,7 @@ const uploadingFile = ref(false);
 const downloadingFile = ref<string>();
 const deletingFile = ref<string>();
 const instanceDetail = ref<HTMLElement>();
+const taskDetail = ref<HTMLElement>();
 const submitting = ref(false);
 const retrying = ref<string>();
 const sendingCopy = ref(false);
@@ -184,6 +203,7 @@ const loadingCopyOptions = ref(false);
 let copyOptionsVersion = 0;
 const errorMessage = ref('');
 const listLoadError = ref(false);
+const listHasMore = ref(false);
 // 邮件链接只定位授权详情；链接本身不包含身份或办理命令。
 const targetMessage = ref('');
 const targetSelected = ref(false);
@@ -205,11 +225,69 @@ watch(activeKey, () => {
   ++refreshVersion;
   loading.value = false;
   clearSelection();
-  // 已访问分栏保留自己的游标，重新进入时按当前会话再次读取；首次挂载由CRUD加载。
-  const existing = listRefs[activeKey.value as TabKey];
-  if (existing) void existing.reload();
-  else void loadTarget();
+  // 切换分栏时重新按默认半年查询，旧页、候选和迟到响应不能进入当前分栏。
+  resetFilters();
+  void loadTarget();
 });
+
+function resetFilters() {
+  searchText.value = '';
+  selectedFlow.value = undefined;
+  period.value = 'halfYear';
+  flowOptions.value = [];
+  flowCursor.value = undefined;
+  flowHasMore.value = false;
+  flowLoading.value = false;
+  flowKeyword.value = '';
+  ++flowOptionsVersion;
+  applyFilters();
+}
+
+function applyFilters() {
+  ++refreshVersion;
+  filters.value = {
+    keyword: searchText.value.trim() || undefined,
+    flowId: selectedFlow.value || undefined,
+    timeFrom: personalPeriodStart(period.value),
+  };
+  clearSelection();
+  clearPages();
+}
+
+/** 候选只来自当前分栏受权记录；空页也保留继续读取入口。 */
+async function loadFlowOptions(keyword = '', append = false) {
+  const key = activeKey.value as TabKey;
+  if (!tabs.value.some((item) => item.key === key)) return;
+  if (append && (!flowHasMore.value || !flowCursor.value)) return;
+  const version = ++flowOptionsVersion;
+  flowLoading.value = true;
+  if (!append) {
+    flowKeyword.value = keyword;
+    flowCursor.value = undefined;
+    flowHasMore.value = false;
+    flowOptions.value = [];
+  }
+  try {
+    const page = await service.value.flowOptions({
+      tab: key,
+      keyword: flowKeyword.value || undefined,
+      cursor: append ? flowCursor.value : undefined,
+      size: 20,
+    });
+    if (version !== flowOptionsVersion || activeKey.value !== key) return;
+    const options = append ? [...flowOptions.value, ...page.items] : page.items;
+    flowOptions.value = options.filter(
+      (item, index) =>
+        options.findIndex((x) => x.value === item.value) === index,
+    );
+    flowCursor.value = page.nextCursor;
+    flowHasMore.value = page.hasMore;
+  } catch (error) {
+    if (version === flowOptionsVersion) emit('error', error);
+  } finally {
+    if (version === flowOptionsVersion) flowLoading.value = false;
+  }
+}
 
 async function loadPendingAttachments(taskId: string) {
   const version = ++pendingVersion;
@@ -431,12 +509,14 @@ async function loadPage(key: TabKey, query: { cursor?: string; size: number }) {
   const version = ++refreshVersion;
   loading.value = true;
   listLoadError.value = false;
+  listHasMore.value = false;
   clearSelection();
   try {
     const result: WorkflowRuntimePage<WorkflowInstanceView | WorkflowTaskView> =
-      await service.value[key](query);
+      await service.value[key]({ ...query, ...filters.value });
     if (version !== refreshVersion || activeKey.value !== key || !allowed())
       return { items: [], hasMore: false };
+    listHasMore.value = result.hasMore;
     return result;
   } catch (error) {
     if (version === refreshVersion) {
@@ -534,6 +614,7 @@ function refresh() {
 
 // 当前用户权限重新载入或撤销时丢弃旧详情，并重新按最新授权加载列表。
 watch([canViewTodo, canViewDone, canViewStarted, canViewCopied], () => {
+  resetFilters();
   refresh();
 });
 
@@ -558,11 +639,13 @@ function retryListRecord(record: unknown) {
   if (isPersonalWorkflowInstance(record)) void retry(record);
 }
 
-function selectTask(task: WorkflowTaskView) {
+async function selectTask(task: WorkflowTaskView) {
   ++targetVersion;
   targetSelected.value = false;
   targetMessage.value = '';
   selectedTask.value = task;
+  await nextTick();
+  taskDetail.value?.scrollIntoView?.({ block: 'start' });
 }
 
 async function selectInstance(instance: WorkflowInstanceView) {
@@ -870,6 +953,13 @@ defineExpose({ refresh });
 
 <template>
   <section class="levin-workflow-runtime-workbench">
+    <header class="workflow-workbench-heading">
+      <div>
+        <h1>我的流程</h1>
+        <p>处理待办事项，跟进我参与的流程</p>
+      </div>
+      <slot name="header-action"></slot>
+    </header>
     <AAlert
       v-if="targetMessage"
       class="mb-3"
@@ -882,8 +972,66 @@ defineExpose({ refresh });
       type="info"
       :message="verificationMessage"
     />
+    <!-- 搜索只传给服务端，候选继续读取不会仅局限于当前结果页。 -->
+    <div class="workflow-workbench-search">
+      <label>
+        <span>关键词</span>
+        <AInput
+          v-model:value="searchText"
+          allow-clear
+          :maxlength="80"
+          placeholder="搜索业务标题或发起人"
+          @press-enter="applyFilters"
+        />
+      </label>
+      <label>
+        <span>流程</span>
+        <ASelect
+          v-model:value="selectedFlow"
+          allow-clear
+          show-search
+          :filter-option="false"
+          :options="flowOptions"
+          :loading="flowLoading"
+          placeholder="全部流程"
+          @focus="loadFlowOptions()"
+          @search="loadFlowOptions($event)"
+        />
+      </label>
+      <label>
+        <span>时间</span>
+        <ASelect
+          v-model:value="period"
+          :options="[
+            { label: '近 7 天', value: 'week' },
+            { label: '近 30 天', value: 'month' },
+            { label: '近半年', value: 'halfYear' },
+            { label: '近一年', value: 'year' },
+            { label: '全部时间', value: 'all' },
+          ]"
+        />
+      </label>
+      <div class="workflow-workbench-actions">
+        <AButton type="primary" @click="applyFilters">查询</AButton>
+        <AButton @click="resetFilters">重置</AButton>
+        <AButton
+          v-if="flowHasMore"
+          :loading="flowLoading"
+          @click="loadFlowOptions(flowKeyword, true)"
+        >
+          加载更多流程
+        </AButton>
+      </div>
+    </div>
+    <AAlert
+      v-if="activeKey === 'copied'"
+      class="mb-3"
+      type="info"
+      show-icon
+      message="部分较早的抄送仅在选择“全部时间”时显示。"
+    />
     <!-- 每个授权分栏使用真正的公共CRUD，办理详情仍由工作台专用面板承载。 -->
-    <ATabs v-model:active-key="activeKey">
+    <ATabs v-model:active-key="activeKey" class="workflow-workbench-tabs">
       <ATabPane v-for="tab in tabs" :key="tab.key" :tab="tab.label">
         <CrudPage
           :ref="(instance) => registerList(tab.key, instance)"
@@ -921,7 +1069,9 @@ defineExpose({ refresh });
               :description="
                 listLoadError && activeKey === tab.key
                   ? '流程列表加载失败，请重试。'
-                  : `暂无${tab.label}记录`
+                  : listHasMore
+                    ? '本页没有符合条件的记录，可继续查看下一页。'
+                    : `暂无${tab.label}记录`
               "
             >
               <AButton
@@ -936,88 +1086,94 @@ defineExpose({ refresh });
         </CrudPage>
       </ATabPane>
     </ATabs>
-    <ARow
+    <div
       v-if="
         selectedTask &&
         (targetSelected || activeKey === 'todo' || activeKey === 'done')
       "
-      class="mt-4"
-      :gutter="16"
+      ref="taskDetail"
+      class="workflow-detail-container"
     >
-      <!-- 办理面板先占完整宽度，避免并行流程图被固定侧栏裁掉。 -->
-      <ACol :span="24">
-        <AAlert
-          v-if="errorMessage"
-          class="mb-3"
-          type="error"
-          :message="errorMessage"
-        />
-        <WorkflowStateEvents
-          :instance-id="selectedTask.processInstanceId"
-          :visit-id="selectedTask.stateVisitId"
-          :events="selectedTask.allowedStateEvents"
-          :execute="(command) => service.triggerStateEvent(command)"
-          @completed="operationCompleted"
-          @error="emit('error', $event)"
-        />
-        <WorkflowTaskPanel
-          :task="selectedTask"
-          :can-complete="canComplete"
-          :can-save-task="canSaveTask"
-          :submitting="submitting"
-          :detail-components="detailComponents"
-          :attachments="[...attachedFiles, ...pendingFiles]"
-          :can-upload-attachment="canUploadAttachment"
-          :can-download-attachment="canDownloadAttachment"
-          :can-delete-pending-attachment="canDeletePendingAttachment"
-          :uploading-attachment="uploadingFile"
-          :downloading-attachment-id="downloadingFile"
-          :deleting-attachment-id="deletingFile"
-          :verification-challenge="verificationChallenge"
-          @prepare-verification="prepareVerification"
-          @verification-invalidated="invalidateVerification"
-          @submit="complete"
-          @save="saveTask"
-          @upload-attachment="uploadAttachment"
-          @download-attachment="downloadAttachment"
-          @delete-pending-attachment="deletePendingAttachment"
-        />
-      </ACol>
-      <ACol
-        v-if="
-          selectedTask.processInstanceId &&
-          selectedTask.businessType &&
-          selectedTask.businessId
-        "
-        :span="24"
-        class="mt-4"
-      >
-        <WorkflowInstanceOperations
-          :instance-id="selectedTask.processInstanceId"
-          :business-reference="{
-            businessType: selectedTask.businessType,
-            businessId: selectedTask.businessId,
-            tenantId: selectedTask.tenantId,
-            orgId: selectedTask.orgId,
-          }"
-          :dispatch-id="selectedTask.pendingDispatchId"
-          :allowed-actions="selectedTask.allowedOperations"
-          :permissions="{
-            withdraw: canWithdraw,
-            terminate: canTerminate,
-            recover: canRecover,
-          }"
-          :execute="executeOperation"
-          @completed="operationCompleted"
-          @error="emit('error', $event)"
-        />
-      </ACol>
-      <ACol :span="24" class="mt-4">
-        <ACard size="small" title="流程图">
-          <WorkflowProcessDiagram :task="selectedTask" />
-        </ACard>
-      </ACol>
-    </ARow>
+      <div class="workflow-detail-heading">
+        <h2>{{ activeKey === 'todo' ? '办理详情' : '流程详情' }}</h2>
+        <AButton @click="clearSelection">关闭</AButton>
+      </div>
+      <ARow class="mt-4" :gutter="16">
+        <!-- 办理面板先占完整宽度，避免并行流程图被固定侧栏裁掉。 -->
+        <ACol :span="24">
+          <AAlert
+            v-if="errorMessage"
+            class="mb-3"
+            type="error"
+            :message="errorMessage"
+          />
+          <WorkflowStateEvents
+            :instance-id="selectedTask.processInstanceId"
+            :visit-id="selectedTask.stateVisitId"
+            :events="selectedTask.allowedStateEvents"
+            :execute="(command) => service.triggerStateEvent(command)"
+            @completed="operationCompleted"
+            @error="emit('error', $event)"
+          />
+          <WorkflowTaskPanel
+            :task="selectedTask"
+            :can-complete="canComplete"
+            :can-save-task="canSaveTask"
+            :submitting="submitting"
+            :detail-components="detailComponents"
+            :attachments="[...attachedFiles, ...pendingFiles]"
+            :can-upload-attachment="canUploadAttachment"
+            :can-download-attachment="canDownloadAttachment"
+            :can-delete-pending-attachment="canDeletePendingAttachment"
+            :uploading-attachment="uploadingFile"
+            :downloading-attachment-id="downloadingFile"
+            :deleting-attachment-id="deletingFile"
+            :verification-challenge="verificationChallenge"
+            @prepare-verification="prepareVerification"
+            @verification-invalidated="invalidateVerification"
+            @submit="complete"
+            @save="saveTask"
+            @upload-attachment="uploadAttachment"
+            @download-attachment="downloadAttachment"
+            @delete-pending-attachment="deletePendingAttachment"
+          />
+        </ACol>
+        <ACol
+          v-if="
+            selectedTask.processInstanceId &&
+            selectedTask.businessType &&
+            selectedTask.businessId
+          "
+          :span="24"
+          class="mt-4"
+        >
+          <WorkflowInstanceOperations
+            :instance-id="selectedTask.processInstanceId"
+            :business-reference="{
+              businessType: selectedTask.businessType,
+              businessId: selectedTask.businessId,
+              tenantId: selectedTask.tenantId,
+              orgId: selectedTask.orgId,
+            }"
+            :dispatch-id="selectedTask.pendingDispatchId"
+            :allowed-actions="selectedTask.allowedOperations"
+            :permissions="{
+              withdraw: canWithdraw,
+              terminate: canTerminate,
+              recover: canRecover,
+            }"
+            :execute="executeOperation"
+            @completed="operationCompleted"
+            @error="emit('error', $event)"
+          />
+        </ACol>
+        <ACol :span="24" class="mt-4">
+          <ACard size="small" title="流程图">
+            <WorkflowProcessDiagram :task="selectedTask" />
+          </ACard>
+        </ACol>
+      </ARow>
+    </div>
     <div
       v-if="
         selectedInstance &&
@@ -1026,13 +1182,17 @@ defineExpose({ refresh });
       ref="instanceDetail"
       class="levin-workflow-instance-detail mt-4"
     >
+      <div class="workflow-detail-heading">
+        <h2>流程详情</h2>
+        <AButton @click="clearSelection">关闭</AButton>
+      </div>
       <AAlert
         v-if="errorMessage"
         class="mb-3"
         type="error"
         :message="errorMessage"
       />
-      <ARow :gutter="16">
+      <ARow :gutter="16" class="workflow-instance-layout">
         <ACol :span="24">
           <ACard size="small" title="流程图">
             <WorkflowProcessDiagram :task="selectedInstance" />
@@ -1186,3 +1346,83 @@ defineExpose({ refresh });
     </div>
   </section>
 </template>
+
+<style scoped>
+.workflow-workbench-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.workflow-workbench-heading h1 {
+  margin: 0 0 6px;
+  color: hsl(var(--foreground));
+  font-size: 22px;
+  font-weight: 600;
+}
+.workflow-workbench-heading p {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+}
+.workflow-workbench-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.workflow-workbench-search label {
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+  color: hsl(var(--foreground));
+}
+.workflow-workbench-search label:first-child {
+  flex: 1 1 240px;
+}
+.workflow-workbench-search label:not(:first-child) {
+  flex: 0 1 190px;
+}
+.workflow-workbench-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.workflow-workbench-tabs {
+  padding: 0 16px 16px;
+  background: hsl(var(--background));
+  border-radius: 8px;
+}
+.workflow-detail-container,
+.levin-workflow-instance-detail {
+  margin-top: 24px;
+}
+.workflow-detail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.workflow-detail-heading h2 {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 18px;
+  font-weight: 600;
+}
+.workflow-instance-layout > :deep(.ant-col:first-child) {
+  order: 2;
+  margin-top: 16px;
+}
+.workflow-instance-layout > :deep(.ant-col:nth-child(2)) {
+  order: 1;
+  margin-top: 0;
+}
+@media (max-width: 600px) {
+  .workflow-workbench-search label,
+  .workflow-workbench-search label:not(:first-child) {
+    flex: 1 1 100%;
+  }
+}
+</style>

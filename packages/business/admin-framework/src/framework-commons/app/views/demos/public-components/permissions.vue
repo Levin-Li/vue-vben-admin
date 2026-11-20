@@ -324,6 +324,7 @@ const rolePreviewPayload: DataPermissionPreviewPayload = {
 };
 
 const userPreviewPayload: DataPermissionPreviewPayload = {
+  canInherit: true,
   detail: {
     id: 'user-zhang',
     loginName: 'zhangsan',
@@ -424,10 +425,9 @@ function formatJson(value: unknown) {
     </div>
 
     <DataPermissionDialog
+      :key="dataPermissionSubjectType"
       v-model:open="dataPermissionOpen"
       :preview-payload="dataPermissionPreviewPayload"
-      :record="dataPermissionPreviewPayload.detail"
-      :subject-type="dataPermissionSubjectType"
     />
   </Page>
 </template>

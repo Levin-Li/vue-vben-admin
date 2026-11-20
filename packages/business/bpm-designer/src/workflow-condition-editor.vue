@@ -9,6 +9,11 @@ import type {
 import { computed } from 'vue';
 
 import WorkflowParameterEditor from './workflow-parameter-editor.vue';
+import {
+  workflowTemporalInputType,
+  workflowTemporalInputValue,
+  workflowTemporalLiteral,
+} from './workflow-temporal-input';
 
 // 条件编辑器递归表达规则树，不接收或执行脚本字符串。
 defineOptions({ name: 'WorkflowConditionEditor' });
@@ -155,6 +160,10 @@ function updateLiteral(event: Event) {
   if (variableType.value === 'boolean') literalValue = value === 'true';
   if (variableType.value === 'integer' || variableType.value === 'decimal')
     literalValue = value === '' ? null : Number(value);
+  if (
+    ['date', 'datetime', 'localDatetime', 'time'].includes(variableType.value)
+  )
+    literalValue = workflowTemporalLiteral(variableType.value, value);
   updateLeaf(variable.value, literalValue);
 }
 function updateCollection(event: Event) {
@@ -166,6 +175,8 @@ function updateCollection(event: Event) {
     if (variableType.value === 'boolean' && value === 'false') return false;
     if (variableType.value === 'integer' || variableType.value === 'decimal')
       return Number(value);
+    if (variableType.value === 'datetime')
+      return workflowTemporalLiteral(variableType.value, value);
     return value;
   });
   updateLeaf(variable.value, values);
@@ -369,12 +380,15 @@ function updateDependency(patch: { outcome?: string; purposeKey?: string }) {
             :type="
               ['integer', 'decimal'].includes(variableType)
                 ? 'number'
-                : variableType === 'date'
-                  ? 'date'
-                  : 'text'
+                : workflowTemporalInputType(variableType)
             "
-            :step="variableType === 'integer' ? '1' : 'any'"
-            :value="literal"
+            :step="
+              variableType === 'integer' ||
+              ['time', 'localDatetime', 'datetime'].includes(variableType)
+                ? '1'
+                : 'any'
+            "
+            :value="workflowTemporalInputValue(variableType, literal)"
             @input="updateLiteral"
           />
         </template>

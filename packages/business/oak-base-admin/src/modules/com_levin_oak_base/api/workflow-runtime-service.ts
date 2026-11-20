@@ -42,6 +42,15 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   ) {
     return super.attachments(...args);
   }
+  /** 仅加载当前账号有权发起流程的业务实体标识。 */
+  @ResAuthorize({
+    domain: 'WorkflowRuntime',
+    type: '业务数据-工作流运行时',
+    action: '发起业务流程',
+  })
+  boundBusinessTypes() {
+    return this.get<string[]>('workflow-runtime/bound-business-types');
+  }
   @ResAuthorize({
     domain: 'WorkflowRuntime',
     type: '业务数据-工作流运行时',
@@ -52,6 +61,7 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
   ) {
     return super.businessRecords(this.selectionScope(args[0]));
   }
+
   @ResAuthorize({
     domain: 'WorkflowRuntime',
     type: '业务数据-工作流运行时',
@@ -314,6 +324,7 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
     const scope = prepareWorkflowRequestScope(
       { tenantId, orgId },
       tenantId ? this.currentActor() : {},
+      true,
     );
     return { ...command, ...scope };
   }
@@ -326,6 +337,7 @@ export class OakWorkflowRuntimeService extends WorkflowRuntimeService {
       ...prepareWorkflowRequestScope(
         { tenantId },
         tenantId ? this.currentActor() : {},
+        true,
       ),
     };
   }

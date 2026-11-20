@@ -333,12 +333,13 @@ function convertLeafRoute(
         pageName: item.name || mapping.name,
         pageOperations: item.opButtonList || mapping.operations || [],
         replacePath: item.replacePath || undefined,
-        title:
-          item.label ||
-          item.name ||
-          mapping.title ||
-          normalizedPath ||
-          '未命名页面',
+        title: mapping.preferLocalTitle
+          ? mapping.title
+          : item.label ||
+            item.name ||
+            mapping.title ||
+            normalizedPath ||
+            '未命名页面',
       },
       name: toRouteName(routePath),
       path: routePath,

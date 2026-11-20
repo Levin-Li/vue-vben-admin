@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RbacService } from '../rbac-service';
+
 const mocks = vi.hoisted(() => ({
   requestGet: vi.fn(),
 }));
@@ -14,9 +16,7 @@ vi.mock('../request', () => ({
   },
 }));
 
-import { RbacService } from '../rbac-service';
-
-describe('RbacService user info', () => {
+describe('rbac 用户信息', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -113,6 +113,30 @@ describe('按租户读取授权组织', () => {
         params: { tenantId: 'tenant-a', assembleTree: true },
         __skipGlobalUserOrgContext: true,
       },
+    );
+  });
+});
+
+describe('数据权限授权领域候选', () => {
+  it('读取全部已授权领域并统一转换为选项', async () => {
+    mocks.requestGet.mockResolvedValueOnce([
+      { id: 'domain-1', name: '支付领域' },
+    ]);
+    await expect(
+      new RbacService().fetchAuthorizedPlatformDomainOptions(),
+    ).resolves.toEqual([{ label: '支付领域', value: 'domain-1' }]);
+    expect(mocks.requestGet).toHaveBeenLastCalledWith(
+      '/rbac/authorizedPlatformDomainList',
+      { params: {} },
+    );
+  });
+
+  it('搜索时仅传入去除空格的关键词', async () => {
+    mocks.requestGet.mockResolvedValueOnce([]);
+    await new RbacService().fetchAuthorizedPlatformDomainOptions('  支付  ');
+    expect(mocks.requestGet).toHaveBeenLastCalledWith(
+      '/rbac/authorizedPlatformDomainList',
+      { params: { keyword: '支付' } },
     );
   });
 });

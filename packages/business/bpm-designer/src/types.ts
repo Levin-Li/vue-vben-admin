@@ -27,8 +27,10 @@ export type WorkflowValueType =
   | 'decimal'
   | 'enum'
   | 'integer'
+  | 'localDatetime'
   | 'string'
-  | 'stringSet';
+  | 'stringSet'
+  | 'time';
 export interface WorkflowFormField {
   conditionable?: boolean;
   editable?: boolean;

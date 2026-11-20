@@ -4,15 +4,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MyWorkflow from '../index.vue';
 
-const { query, task, instance } = vi.hoisted(() => ({
+const { query, task, instance, menu, push } = vi.hoisted(() => ({
   query: {} as Record<string, unknown>,
   task: vi.fn(),
   instance: vi.fn(),
+  menu: vi.fn(),
+  push: vi.fn(),
 }));
 vi.mock('@vben/runtime/stores', () => ({
+  useAccessStore: () => ({ getMenuByPath: menu }),
   useUserStore: () => ({ userInfo: { id: 'current-user' } }),
 }));
-vi.mock('vue-router', () => ({ useRoute: () => ({ query }) }));
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query }),
+  useRouter: () => ({ push }),
+}));
 vi.mock('@levin/admin-framework/framework-commons/rbac-access', () => ({
   useRbacAccess: () => ({ hasPermission: () => true }),
 }));
@@ -48,11 +54,12 @@ vi.mock('@levin/bpm-runtime-ui', () => ({
       'canViewTargetTask',
       'canViewTargetInstance',
     ],
-    template: '<div />',
+    template: '<div><slot name="header-action" /></div>',
   },
 }));
 vi.mock('ant-design-vue', () => ({
   Alert: { props: ['message'], template: '<div>{{ message }}</div>' },
+  Button: { template: '<button><slot /></button>' },
   message: { error: vi.fn() },
 }));
 
@@ -60,6 +67,19 @@ vi.mock('ant-design-vue', () => ({
 describe('我的工作流邮件路由', () => {
   beforeEach(() => {
     for (const key of Object.keys(query)) Reflect.deleteProperty(query, key);
+    menu.mockReset();
+    push.mockReset();
+  });
+  it('仅在发起流程菜单已授权时提供跳转入口', async () => {
+    const denied = mount(MyWorkflow);
+    expect(denied.find('button').exists()).toBe(false);
+    denied.unmount();
+    menu.mockReturnValue({ path: '/clob/V1/WorkflowStart' });
+    const allowed = mount(MyWorkflow);
+    await allowed.get('button').trigger('click');
+    expect(menu).toHaveBeenCalledWith('/clob/V1/WorkflowStart');
+    expect(push).toHaveBeenCalledWith('/clob/V1/WorkflowStart');
+    allowed.unmount();
   });
   it('只把任务定位符传给工作台，忽略路由身份和令牌', () => {
     Object.assign(query, {

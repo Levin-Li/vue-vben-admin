@@ -53,6 +53,8 @@ export function workflowCrudReference(
     !orgId.trim()
   )
     return undefined;
-  if (!platform && actor.tenantId !== tenantId) return undefined;
+  // 租户字段可能被资料权限隐藏；服务端仍按认证会话重验记录归属。
+  if (!platform && actor.tenantId && actor.tenantId !== tenantId)
+    return undefined;
   return { businessId, businessType, tenantId, orgId };
 }

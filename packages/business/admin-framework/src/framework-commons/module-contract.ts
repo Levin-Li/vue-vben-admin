@@ -55,6 +55,8 @@ export interface AdminBackendRouteMapping {
   onlyRequireAuthenticated?: boolean;
   operations?: AdminPageOperation[];
   path: string;
+  /** 页面文案明确改名时，仅此映射优先使用本地标题；其它自定义菜单名仍由后端决定。 */
+  preferLocalTitle?: boolean;
   resource: string;
   sourceFilePath: string;
   title: string;

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type {
   DataModelActionType,
   DataModelDefinition,
@@ -10,6 +9,7 @@ import type { EditableConditionNode } from '../data-model-record/condition-tree'
 
 import { computed, ref, watch } from 'vue';
 
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
 import {
   Alert,
@@ -56,6 +56,16 @@ const conditionEnabled = ref(false);
 const editingIndex = ref(-1);
 const customKey = ref('');
 const assignments = ref<Array<{ field: string; value: unknown }>>([]);
+const draftRowIds = new WeakMap<object, number>();
+let nextDraftRowId = 0;
+function draftRowKey(record: object): number {
+  let id = draftRowIds.get(record);
+  if (id === undefined) {
+    id = ++nextDraftRowId;
+    draftRowIds.set(record, id);
+  }
+  return id;
+}
 const invalidJson = ref<Record<string, boolean>>({});
 const requestJson = ref('{}');
 const responseJson = ref('{}');
@@ -722,7 +732,7 @@ async function save() {
           class="col-span-full"
           :columns="queryColumns"
           :data-source="draft.queryInputs || []"
-          row-key="key"
+          :row-key="draftRowKey"
           :pagination="false"
           :scroll="{ x: 900 }"
         >
@@ -798,7 +808,7 @@ async function save() {
           class="col-span-full"
           :columns="assignmentColumns"
           :data-source="assignments"
-          row-key="field"
+          :row-key="draftRowKey"
           :pagination="false"
         >
           <template #bodyCell="{ column, record, index }">

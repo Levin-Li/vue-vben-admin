@@ -159,6 +159,11 @@ export namespace RbacApi {
     rootOrgIdList?: string[];
   }
 
+  export interface AuthorizedPlatformDomainOption {
+    id: string;
+    name: string;
+  }
+
   export interface AuthorizedResourceModulesParams {
     isShowSysDefaultRes?: boolean;
   }
@@ -350,6 +355,26 @@ export class RbacService extends RequestService {
         params,
       },
     );
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '通用数据-权限控制',
+    action: '获取当前用户可选的平台领域',
+    onlyRequireAuthenticated: true,
+  })
+  async fetchAuthorizedPlatformDomainOptions(keyword = '') {
+    const items = await requestClient.get<
+      RbacApi.AuthorizedPlatformDomainOption[]
+    >(this.buildRequestPath('authorizedPlatformDomainList'), {
+      params: keyword.trim() ? { keyword: keyword.trim() } : {},
+    });
+    return Array.isArray(items)
+      ? items.map((item) => ({
+          label: String(item.name || item.id),
+          value: String(item.id),
+        }))
+      : [];
   }
 
   @ResAuthorize({

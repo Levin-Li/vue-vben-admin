@@ -105,7 +105,29 @@ export interface RbacMenuOpButton {
 
 export type DataPermissionSubjectType = 'role' | 'user';
 
+export type DataPermissionScopeField =
+  | 'deniedDomainScopeList'
+  | 'deniedOrgScopeList'
+  | 'deniedTenantScopeList'
+  | 'domainScopeList'
+  | 'orgScopeList'
+  | 'tenantScopeList';
+
+export interface DataPermissionLoadedTarget {
+  canInherit: boolean;
+  detail: Record<string, any>;
+  inheritedScopes?: Partial<Record<DataPermissionScopeField, string[]>>;
+  label: string;
+}
+
+export type DataPermissionLoadTarget =
+  () => Promise<DataPermissionLoadedTarget>;
+export type DataPermissionSaveTarget = (
+  changes: Record<string, any>,
+) => Promise<Record<string, any>>;
+
 export interface DataPermissionPreviewPayload {
+  canInherit?: boolean;
   detail: Record<string, any>;
   expressionTypes?: string[];
   modules?: RbacModuleNode[];

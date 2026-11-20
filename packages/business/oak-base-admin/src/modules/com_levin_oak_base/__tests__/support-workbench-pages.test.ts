@@ -146,6 +146,9 @@ vi.mock(
           await this.loadList();
         },
         methods: {
+          reload() {
+            return this.loadList();
+          },
           async loadList() {
             const result = await this.config.apiService.list({
               ...this.appliedQuery,
@@ -178,7 +181,7 @@ vi.mock(
           <button @click="search">查询</button><button @click="reset">重置</button>
           <slot name="toolbar-extra" :load-list="loadList" :is-list-operation-visible="() => true" />
           <Table :data-source="rows" :columns="[]" @change="changePage" />
-          <div v-for="record in rows" :key="record.id"><span v-for="field in config.fields.filter(field => field.table)" :key="field.key">{{ field.tableValue ? field.tableValue(record) : record[field.key] }}</span><slot name="row-actions" :record="record" :reload="loadList" /></div>
+          <div v-for="record in rows" :key="record.id"><span v-for="field in config.fields.filter(field => field.table)" :key="field.key">{{ field.tableValue ? field.tableValue(record) : record[field.key] }}</span><button v-for="action in (config.rowActions || []).filter(item => !item.visible || item.visible(record))" :key="action.displayKey" @click="action.handler(record)">{{ action.label }}</button><slot name="row-actions" :record="record" :reload="loadList" /></div>
           <slot v-if="!rows.length" name="emptyText" />
         </main>`,
       }),
@@ -225,6 +228,7 @@ vi.mock('../api/user-service', () => ({ userService: { list: mocks.users } }));
 vi.mock('../api/role-service', () => ({ roleService: { list: mocks.roles } }));
 vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({ userInfo: mocks.userInfo }),
+  useAccessStore: () => ({ accessCodes: [] }),
 }));
 vi.mock('../views/api-module', () => ({
   moduleFetchEnumOptions: mocks.enumOptions,
@@ -813,13 +817,13 @@ describe('邮件工单工作台业务入口', () => {
     const wrapper = mount(WorkflowRoutePage);
     await flushPromises();
     expect(wrapper.text()).toContain('任务完成');
-    expect(wrapper.text()).toContain('当前范围暂无通知路由');
-    expect(wrapper.text()).toContain('飞书 Webhook');
-    expect(wrapper.text()).toContain('企业微信 Webhook');
-    expect(wrapper.text()).toContain('钉钉 Webhook');
+    expect(wrapper.text()).toContain('当前范围暂无通知渠道');
+    expect(wrapper.text()).toContain('飞书机器人');
+    expect(wrapper.text()).toContain('企业微信机器人');
+    expect(wrapper.text()).toContain('钉钉机器人');
     await button(wrapper, '选择范围').trigger('click');
     await flushPromises();
-    await button(wrapper, '新增通知路由').trigger('click');
+    await button(wrapper, '新增通知渠道').trigger('click');
     await flushPromises();
     const channelSelect = wrapper
       .findAll('select')
@@ -828,14 +832,14 @@ describe('邮件工单工作台业务入口', () => {
           select
             .findAll('option')
             .some((option) => option.attributes('value') === 'FeishuWebhook') &&
-          select.element.closest('[name="workflowNotificationRouteEdit"]'),
+          select.element.closest('[name="workflowNotificationRouteCreate"]'),
       );
     if (!channelSelect) throw new Error('渠道选择器不存在');
     await channelSelect.setValue('FeishuWebhook');
     await flushPromises();
     await wrapper
-      .get('input[placeholder="tenant:租户标识:已部署目标名称"]')
-      .setValue('tenant:tenant:ops');
+      .get('input[placeholder="管理员提供的目标名称，例如 approval-alerts"]')
+      .setValue('ops');
     await button(wrapper, '确认').trigger('click');
     await flushPromises();
     expect(mocks.workflowRoute.create).toHaveBeenCalledWith(
@@ -926,9 +930,9 @@ describe('邮件工单工作台业务入口', () => {
     await flushPromises();
     await button(wrapper, '选择范围').trigger('click');
     await flushPromises();
-    await button(wrapper, '新增通知路由').trigger('click');
+    await button(wrapper, '新增通知渠道').trigger('click');
     const selects = wrapper.findAll(
-      '[name="workflowNotificationRouteEdit"] select',
+      '[name="workflowNotificationRouteCreate"] select',
     );
     const channelSelect = selects.find((select) =>
       select
@@ -939,18 +943,19 @@ describe('邮件工单工作台业务入口', () => {
     await channelSelect.setValue('FeishuWebhook');
     await flushPromises();
     await wrapper
-      .get('input[placeholder="tenant:租户标识:已部署目标名称"]')
+      .get('input[placeholder="管理员提供的目标名称，例如 approval-alerts"]')
       .setValue('tenant:other:ops');
     await button(wrapper, '确认').trigger('click');
     expect(mocks.workflowRoute.create).not.toHaveBeenCalled();
     expect(mocks.notify.error).toHaveBeenCalledWith(
-      '机器人目标必须与当前路由作用域的逻辑配置引用一致',
+      '请填写管理员提供的同范围机器人目标名称（如 approval-alerts）',
     );
   });
 
   it('编辑路由保留高级匹配配置并使用任务完成事件值', async () => {
     const route = {
       id: 'route-1',
+      editable: true,
       tenantId: 'tenant',
       orgId: 'org',
       processKey: 'approval',
@@ -971,7 +976,7 @@ describe('邮件工单工作台业务入口', () => {
     await flushPromises();
     await button(wrapper, '编辑').trigger('click');
     await flushPromises();
-    expect(wrapper.text()).toContain('高级匹配与覆盖');
+    expect(wrapper.text()).toContain('更多匹配设置（可选）');
     await button(wrapper, '确认').trigger('click');
     await flushPromises();
     expect(mocks.workflowRoute.update).toHaveBeenCalledWith(
@@ -995,7 +1000,7 @@ describe('邮件工单工作台业务入口', () => {
     });
     const wrapper = mount(AuditPage);
     await flushPromises();
-    expect(wrapper.text()).toContain('飞书 Webhook');
+    expect(wrapper.text()).toContain('飞书机器人');
     expect(mocks.enumOptions).toHaveBeenCalledWith(
       'com.levin.oak.base.entities.NotificationDelivery$Channel',
     );

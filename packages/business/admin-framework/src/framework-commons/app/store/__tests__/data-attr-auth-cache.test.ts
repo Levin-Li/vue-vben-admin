@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetAllStores } from '@vben/runtime/stores';
 
 import {
   registerDataAttrStaticContract,
@@ -25,7 +26,8 @@ const mocks = vi.hoisted(() => ({
   currentUser: undefined as any,
 }));
 vi.mock('../../api/session-role-options', () => ({}));
-vi.mock('vue-router', () => ({ useRouter: () => ({}) }));
+vi.mock('vue-router', () => ({ useRouter: () => ({ currentRoute: { value: { path: '/', fullPath: '/' } }, replace: vi.fn() }) }));
+vi.mock('../../router', () => ({ resetRoutes: vi.fn() }));
 vi.mock('@vben/runtime/constants', () => ({ LOGIN_PATH: '/auth/login' }));
 vi.mock('@vben/runtime/stores', () => ({
   resetAllStores: vi.fn(),
@@ -97,6 +99,17 @@ beforeEach(() => {
 });
 
 describe('会话属性组缓存', () => {
+  it('旧会话自动退出尚未执行时新账号登录，不清除新会话', async () => {
+    mocks.token = '';
+    vi.mocked(resetAllStores).mockClear();
+    mocks.setUserInfo.mockClear();
+    const pending = useAuthStore().logout(true, false, true);
+    mocks.token = 'new-session';
+    await pending;
+    expect(resetAllStores).not.toHaveBeenCalled();
+    expect(mocks.setUserInfo).not.toHaveBeenCalled();
+  });
+
   it('路由权限缓存命中保留epoch和无组策略，不重复元数据HTTP', async () => {
     const auth = useAuthStore();
     await auth.ensureAccessCodesLoaded();

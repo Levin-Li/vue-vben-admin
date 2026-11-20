@@ -9,6 +9,38 @@ import ResourcePermissionDialog from '../resource-permission-dialog.vue';
 const action = 'example:合同::试算';
 const group = 'example:属性组:finance:试算';
 const mocks = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), tree: vi.fn() }));
+const targetCallbacks = {
+  loadTarget: async () => {
+    const detail = await mocks.get('/com.levin.oak.base/V1/api/Role/retrieve', {
+      baseURL: '',
+      params: { id: 'role' },
+    });
+    return {
+      id: detail.id,
+      name: detail.name || '角色',
+      optimisticLock: detail.optimisticLock,
+      permissions: detail.permissionList || [],
+    };
+  },
+  saveTarget: (changes: {
+    id: string;
+    optimisticLock?: number;
+    permissions: string[];
+  }) =>
+    mocks.put(
+      '/com.levin.oak.base/V1/api/Role/update',
+      {
+        autoForceUpdateField: false,
+        forceUpdateFields: ['permissionList'],
+        id: changes.id,
+        ...(changes.optimisticLock === undefined
+          ? {}
+          : { optimisticLock: changes.optimisticLock }),
+        permissionList: changes.permissions,
+      },
+      { baseURL: '' },
+    ),
+};
 vi.mock('@vben/runtime/hooks', () => ({
   useAppConfig: () => ({ apiURL: '/com.levin.oak.base/V1/api' }),
 }));
@@ -68,7 +100,7 @@ describe('资源授权保存属性组', () => {
       },
     ]);
     const wrapper = mount(ResourcePermissionDialog, {
-      props: { open: true, record: { id: 'role' } },
+      props: { ...targetCallbacks, open: true },
     });
     await flushPromises();
     expect(

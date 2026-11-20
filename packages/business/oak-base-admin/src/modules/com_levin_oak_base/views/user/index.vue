@@ -21,21 +21,12 @@ import DataPermissionDialog from '@levin/admin-framework/framework-commons/share
 import { Input, message, Modal, Select } from 'ant-design-vue';
 
 import { UserService, userService } from '../../api/user-service';
-import { loadDataPermissionDomainOptions } from '../../domain-scope-options';
+import { createDataPermissionCallbacks } from '../../data-permission-adapter';
 import CrudPage from '../crud-page.vue';
 import { usePageRolePermissionRecords } from '../load-role-permission-records';
 import { getUserDataPermissionBadgeItems } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from './config';
 import { canShowPasswordResetAction } from './password-reset-visibility';
-
-// 数据权限弹窗只接受字符串 ID，在页面边界规范化公共候选。
-async function loadStringDomainScopeOptions(keyword?: string) {
-  const options = await loadDataPermissionDomainOptions(keyword);
-  return options.map((option) => ({
-    label: String(option.label),
-    value: String(option.value),
-  }));
-}
 
 const pageKey = ref(0);
 const currentUser = useUserStore();
@@ -63,6 +54,17 @@ const scopeKey = computed(() =>
 let scopeGeneration = 0;
 const dialogOpen = ref(false);
 const selectedRecord = ref<null | Record<string, any>>(null);
+function dataPermissionCallbacks() {
+  if (!selectedRecord.value) throw new Error('未选择用户');
+  return createDataPermissionCallbacks(
+    selectedRecord.value,
+    'user',
+    () => permissionRoleRecords.value,
+  );
+}
+const loadDataPermissionTarget = () => dataPermissionCallbacks().loadTarget();
+const saveDataPermissionTarget = (changes: Record<string, any>) =>
+  dataPermissionCallbacks().saveTarget(changes);
 const roleModalOpen = ref(false);
 const roleSubmitting = ref(false);
 const roleOptionsLoading = ref(false);
@@ -347,11 +349,11 @@ watch(dialogOpen, (open) => {
 
   <DataPermissionDialog
     v-if="selectedRecord"
+    :key="selectedRecord.id"
     v-model:open="dialogOpen"
-    :record="selectedRecord"
-    :role-records="permissionRoleRecords"
-    :load-domain-options="loadStringDomainScopeOptions"
-    subject-type="user"
+    :load-target="loadDataPermissionTarget"
+    :reload-key="permissionRoleRecords"
+    :save-target="saveDataPermissionTarget"
     @saved="handleSaved"
   />
 

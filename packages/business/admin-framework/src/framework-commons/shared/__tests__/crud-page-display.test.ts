@@ -1035,6 +1035,23 @@ describe('运行与设置面板共用默认配置', () => {
     expect(defaults.detail?.showEmptyValues).toBe(true);
     expect(defaults.keepAlive).toBeUndefined();
   });
+  it('页面自动查询默认值不覆盖用户保存的选择', () => {
+    expect(
+      resolveCrudPageDisplayDefaults(undefined, true).query?.autoSearch,
+    ).toBe(true);
+    expect(
+      resolveCrudPageDisplayDefaults(
+        { version: 1, query: { fields: [], autoSearch: false } },
+        true,
+      ).query?.autoSearch,
+    ).toBe(false);
+    expect(
+      resolveCrudPageDisplayDefaults(
+        { version: 1, query: { fields: [], autoSearch: true } },
+        false,
+      ).query?.autoSearch,
+    ).toBe(true);
+  });
   it('保留显式值，补齐缺项且不修改原配置', () => {
     const config = {
       version: 1 as const,

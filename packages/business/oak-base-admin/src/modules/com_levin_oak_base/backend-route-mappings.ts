@@ -220,6 +220,9 @@ function createCrudBackendRouteMapping(
         }
       : {}),
     operations: getPageOperations(item.permissionResource || item.resource),
+    ...(item.resource === 'WorkflowNotificationRoute'
+      ? { preferLocalTitle: true }
+      : {}),
     // 个人消息由登录态和服务端精确受众校验；没有菜单时仍允许从通知铃铛进入。
     ...(item.resource === 'MyMessages'
       ? { onlyRequireAuthenticated: true }

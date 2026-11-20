@@ -1,14 +1,13 @@
 <script lang="ts" setup>
-import type {
-  MaskingEntityCatalogItem,
-  MaskingOperationCatalogItem,
-} from '../../api/data-masking-setting-service';
+import type { MaskingEntityCatalogItem } from '../../api/data-masking-setting-service';
 import type { MaskingFieldRule } from './rules';
 
 import { computed, onMounted, ref, watch } from 'vue';
 
 import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
+import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
 import {
+  Alert,
   Button,
   Checkbox,
   Empty,
@@ -18,13 +17,13 @@ import {
 } from 'ant-design-vue';
 
 import { dataMaskingSettingService } from '../../api/data-masking-setting-service';
+import { isLegacyMaskingRule } from './rules';
 
 const props = defineProps<{
   disabled?: boolean;
   formState: Record<string, any>;
 }>();
 
-const catalog = ref<MaskingOperationCatalogItem[]>([]);
 const entityCatalog = ref<MaskingEntityCatalogItem[]>([]);
 const loading = ref(false);
 const entityToAdd = ref<string>();
@@ -34,19 +33,27 @@ const rules = computed<MaskingFieldRule[]>(() => {
   const content = props.formState.valueContent;
   return Array.isArray(content) ? content : [];
 });
+const hasLegacyRules = computed(() =>
+  rules.value.some((rule) => isLegacyMaskingRule(rule)),
+);
+function displayName(title: string | undefined, fallback: string) {
+  const name = title?.trim();
+  return name && name !== fallback ? `${name}（${fallback}）` : fallback;
+}
+function entityDisplayName(entityClass: string) {
+  const name = entityClass.split('.').at(-1) || entityClass;
+  const title = entityCatalog.value.find(
+    (item) => item.entityClass === entityClass && item.entityTitle?.trim(),
+  )?.entityTitle;
+  return displayName(title, name);
+}
 const availableEntities = computed(() =>
   [...new Set(entityCatalog.value.map((item) => item.entityClass))]
     .filter((entityClass) => !selectedEntities.value.includes(entityClass))
     .map((entityClass) => ({
-      label: entityClass.split('.').at(-1) || entityClass,
+      label: entityDisplayName(entityClass),
       value: entityClass,
     })),
-);
-const operationOptions = computed(() =>
-  catalog.value.map((item) => ({
-    label: `${item.methods.join(',') || 'ANY'} ${item.paths[0] || item.operation}`,
-    value: item.operation,
-  })),
 );
 
 // 切换新增或编辑记录时，恢复这条记录已经选定的实体。
@@ -54,7 +61,7 @@ watch(
   () => props.formState.valueContent,
   () => {
     selectedEntities.value = [
-      ...new Set(rules.value.map((rule) => rule.entityClass).filter(Boolean)),
+      ...new Set(rules.value.map((rule) => rule?.entityClass).filter(Boolean)),
     ];
     entityToAdd.value = undefined;
   },
@@ -75,7 +82,7 @@ function ruleFor(
   fieldName: string,
 ): MaskingFieldRule | undefined {
   return rules.value.find(
-    (rule) => rule.entityClass === entityClass && rule.fieldName === fieldName,
+    (rule) => rule?.entityClass === entityClass && rule.fieldName === fieldName,
   );
 }
 
@@ -93,7 +100,7 @@ function addEntity() {
 function removeEntity(entityClass: string) {
   const formState = props.formState;
   formState.valueContent = writableRules().filter(
-    (rule) => rule.entityClass !== entityClass,
+    (rule) => rule?.entityClass !== entityClass,
   );
   selectedEntities.value = selectedEntities.value.filter(
     (item) => item !== entityClass,
@@ -103,12 +110,13 @@ function removeEntity(entityClass: string) {
 function toggleField(entityClass: string, fieldName: string, checked: boolean) {
   const items = writableRules();
   const index = items.findIndex(
-    (rule) => rule.entityClass === entityClass && rule.fieldName === fieldName,
+    (rule) => rule?.entityClass === entityClass && rule.fieldName === fieldName,
   );
   if (checked && index === -1) {
     items.push({
       entityClass,
       fieldName,
+      schemaVersion: 2,
       treatment: 'HIDE',
     });
   } else if (!checked && index !== -1) {
@@ -116,25 +124,21 @@ function toggleField(entityClass: string, fieldName: string, checked: boolean) {
   }
 }
 
-function inputFieldOptions(rule: MaskingFieldRule) {
-  return (
-    catalog.value.find((item) => item.operation === rule.inputOperation)
-      ?.requestFields || []
-  ).map((path) => ({ label: path, value: path }));
-}
-
-function setInputOperation(rule: MaskingFieldRule, operation: string) {
-  rule.inputOperation = operation;
-  rule.inputFieldPath = undefined;
+function setTreatment(
+  rule: MaskingFieldRule,
+  treatment: MaskingFieldRule['treatment'],
+) {
+  rule.treatment = treatment;
+  if (treatment !== 'REVERSIBLE_ID') {
+    delete rule.binding;
+    delete rule.validSeconds;
+  }
 }
 
 onMounted(async () => {
   loading.value = true;
   try {
-    [entityCatalog.value, catalog.value] = await Promise.all([
-      dataMaskingSettingService.entityCatalog(),
-      dataMaskingSettingService.catalog(),
-    ]);
+    entityCatalog.value = await dataMaskingSettingService.entityCatalog();
   } catch (error) {
     notifyApiErrorOnce(error);
   } finally {
@@ -146,6 +150,12 @@ onMounted(async () => {
 <template>
   <Spin :spinning="loading">
     <div class="rule-editor">
+      <Alert
+        v-if="hasLegacyRules"
+        type="warning"
+        message="检测到旧版脱敏规则，请移除旧实体后重新添加并配置字段；无法移除时请删除该设置并新建。旧规则不会自动转换。"
+        show-icon
+      />
       <!-- 一个配置可以包含多个实体，字段来自服务端验证过的实体目录。 -->
       <div class="entity-add-row">
         <Select
@@ -153,7 +163,7 @@ onMounted(async () => {
           :disabled="disabled"
           :options="availableEntities"
           class="rule-full"
-          option-filter-prop="label"
+          :filter-option="filterCrudLocalSelectOption"
           placeholder="选择要脱敏的实体"
           show-search
         />
@@ -173,7 +183,7 @@ onMounted(async () => {
         class="entity-card"
       >
         <div class="entity-heading">
-          <strong>{{ entityClass.split('.').at(-1) || entityClass }}</strong>
+          <strong>{{ entityDisplayName(entityClass) }}</strong>
           <Button
             :disabled="disabled"
             danger
@@ -196,77 +206,36 @@ onMounted(async () => {
         >
           <Checkbox
             :checked="!!ruleFor(entityClass, field.fieldName)"
-            :disabled="disabled || field.coverage.length === 0"
+            :disabled="disabled"
             @change="
               toggleField(entityClass, field.fieldName, $event.target.checked)
             "
           >
-            {{ field.fieldName }}
+            {{ displayName(field.fieldTitle, field.fieldName) }}
           </Checkbox>
-          <span class="coverage-summary">
-            {{
-              field.coverage.length > 0
-                ? `覆盖 ${field.coverage.length} 个接口字段`
-                : '没有明确映射，暂不可配置'
-            }}
-            {{
-              field.ambiguousOperations?.length
-                ? `；另有 ${field.ambiguousOperations.length} 个接口映射有歧义`
-                : ''
-            }}
-          </span>
-
           <template
             v-for="rule in rules.filter(
               (item) =>
-                item.entityClass === entityClass &&
+                item?.entityClass === entityClass &&
                 item.fieldName === field.fieldName,
             )"
             :key="rule.fieldName"
           >
             <Select
-              v-model:value="rule.treatment"
+              :value="rule.treatment"
               :disabled="disabled"
               :options="[
                 { label: '隐藏', value: 'HIDE' },
                 { label: '普通遮盖', value: 'MASK' },
                 { label: '可还原 ID', value: 'REVERSIBLE_ID' },
               ]"
+              @change="setTreatment(rule, $event)"
             />
-            <details class="coverage-details">
-              <summary>查看实际覆盖接口</summary>
-              <div
-                v-for="item in field.coverage"
-                :key="item.operation + item.outputFieldPath"
-              >
-                {{ item.methods.join(',') || 'ANY' }}
-                {{ item.paths[0] || item.operation }} ·
-                {{ item.outputFieldPath }}
-              </div>
-            </details>
-
-            <!-- 可还原 ID 才显示回传用途和有效期，不扩大接口输入权限。 -->
+            <!-- 可还原 ID 绑定主体和有效期，无需逐接口配置。 -->
             <div
               v-if="rule.treatment === 'REVERSIBLE_ID'"
               class="reversible-fields"
             >
-              <Select
-                :value="rule.inputOperation"
-                :disabled="disabled"
-                :options="operationOptions"
-                placeholder="接收 ID 的接口"
-                show-search
-                option-filter-prop="label"
-                @change="setInputOperation(rule, String($event))"
-              />
-              <Select
-                v-model:value="rule.inputFieldPath"
-                :disabled="disabled || !rule.inputOperation"
-                :options="inputFieldOptions(rule)"
-                placeholder="接收 ID 的请求字段"
-                show-search
-                option-filter-prop="label"
-              />
               <Select
                 v-model:value="rule.binding"
                 :disabled="disabled"
@@ -318,8 +287,7 @@ onMounted(async () => {
   border: 1px solid var(--ant-color-border, #d9d9d9);
   border-radius: 8px;
 }
-.entity-class,
-.coverage-summary {
+.entity-class {
   color: var(--ant-color-text-secondary, #666);
   font-size: 12px;
 }
@@ -331,11 +299,6 @@ onMounted(async () => {
   padding: 12px;
   border: 1px solid var(--ant-color-border, #d9d9d9);
   border-radius: 8px;
-}
-.coverage-details {
-  grid-column: 1 / -1;
-  font-size: 12px;
-  overflow-wrap: anywhere;
 }
 .reversible-fields {
   display: grid;

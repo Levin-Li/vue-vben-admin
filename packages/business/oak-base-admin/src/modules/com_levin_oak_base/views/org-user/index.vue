@@ -38,7 +38,7 @@ import {
 
 import { orgService } from '../../api/org-service';
 import { userService } from '../../api/user-service';
-import { loadDomainScopeOptions } from '../../domain-scope-options';
+import { createDataPermissionCallbacks } from '../../data-permission-adapter';
 import {
   orgCategoryOptionsLoader,
   orgTypeOptionsLoader,
@@ -61,25 +61,16 @@ import {
   tenantOrgChoices,
 } from './user-tenant-org';
 
-// 数据权限弹窗只接受字符串 ID，在页面边界规范化公共候选。
-async function loadStringDomainScopeOptions(keyword?: string) {
-  const options = await loadDomainScopeOptions(keyword);
-  return options.map((option) => ({
-    label: String(option.label),
-    value: String(option.value),
-  }));
-}
-
 interface OrgTreeNode {
   children?: OrgTreeNode[];
   disabled?: boolean;
   key: string;
   label: string;
   tenantId?: string;
-  virtual?: boolean;
   title: string;
   type?: string;
   value: string;
+  virtual?: boolean;
 }
 
 interface StringSelectOption {
@@ -138,6 +129,17 @@ const ORG_TYPE_LABEL_MAP: Record<string, string> = {
 const dialogOpen = ref(false);
 const pageKey = ref(0);
 const selectedRecord = ref<null | Record<string, any>>(null);
+function dataPermissionCallbacks() {
+  if (!selectedRecord.value) throw new Error('未选择用户');
+  return createDataPermissionCallbacks(
+    selectedRecord.value,
+    'user',
+    () => permissionRoleRecords.value,
+  );
+}
+const loadDataPermissionTarget = () => dataPermissionCallbacks().loadTarget();
+const saveDataPermissionTarget = (changes: Record<string, any>) =>
+  dataPermissionCallbacks().saveTarget(changes);
 const roleModalOpen = ref(false);
 const roleSubmitting = ref(false);
 const roleOptionsLoading = ref(false);
@@ -552,7 +554,8 @@ function selectUserOrg(formState: Record<string, any>, value: unknown) {
 }
 
 function filterOrgTreeNodes(nodes: OrgTreeNode[], keyword: string) {
-  return nodes.reduce<OrgTreeNode[]>((result, node) => {
+  const result: OrgTreeNode[] = [];
+  for (const node of nodes) {
     const children = node.children
       ? filterOrgTreeNodes(node.children, keyword)
       : [];
@@ -564,9 +567,8 @@ function filterOrgTreeNodes(nodes: OrgTreeNode[], keyword: string) {
         children,
       });
     }
-
-    return result;
-  }, []);
+  }
+  return result;
 }
 
 function resetOrgForm(values: Record<string, any> = {}) {
@@ -602,7 +604,7 @@ async function loadRoleOptions(keyword = '') {
 async function openRoleModal(record: Record<string, any>) {
   roleFormState.id = String(record.id || '');
   roleFormState.roleList = Array.isArray(record.roleList)
-    ? record.roleList.map((role) => String(role))
+    ? record.roleList.map(String)
     : [];
   roleModalOpen.value = true;
   await loadRoleOptions();
@@ -940,7 +942,7 @@ onMounted(async () => {
         <div class="user-org-tree-scroll">
           <Tree
             v-if="filteredOrgTreeData.length > 0"
-            v-model:expandedKeys="expandedOrgKeys"
+            v-model:expanded-keys="expandedOrgKeys"
             :selected-keys="selectedOrgId ? [selectedOrgId] : []"
             :tree-data="filteredOrgTreeData"
             block-node
@@ -1091,11 +1093,11 @@ onMounted(async () => {
 
     <DataPermissionDialog
       v-if="selectedRecord"
+      :key="selectedRecord.id"
       v-model:open="dialogOpen"
-      :record="selectedRecord"
-      :role-records="permissionRoleRecords"
-      :load-domain-options="loadStringDomainScopeOptions"
-      subject-type="user"
+      :load-target="loadDataPermissionTarget"
+      :reload-key="permissionRoleRecords"
+      :save-target="saveDataPermissionTarget"
       @saved="handleSaved"
     />
 

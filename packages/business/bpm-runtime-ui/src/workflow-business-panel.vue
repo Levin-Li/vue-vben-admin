@@ -119,7 +119,10 @@ async function refresh() {
   const version = ++requestVersion;
   loading.value = true;
   loadError.value = false;
-  const reference = { ...props.businessReference };
+  const reference = {
+    ...props.businessReference,
+    ...(props.purposeKey ? { purposeKey: props.purposeKey } : {}),
+  };
   try {
     const results = await Promise.all([
       props.showEligibility === false

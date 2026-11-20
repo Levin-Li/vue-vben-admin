@@ -42,7 +42,7 @@ vi.mock('../../api-module', () => ({
   ),
 }));
 
-describe('快捷添加的内部父组织候选', () => {
+describe('快捷新增的内部父组织候选', () => {
   it('按租户读取授权树，只保留完整、启用、正常的内部组织', async () => {
     vi.mocked(rbacService.fetchAuthorizedOrgTreeByTenant).mockResolvedValueOnce(
       [

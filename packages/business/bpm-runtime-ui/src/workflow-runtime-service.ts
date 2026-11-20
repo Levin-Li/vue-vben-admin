@@ -6,6 +6,7 @@ import type {
   WorkflowInstanceOperationCommand,
   WorkflowInstanceView,
   WorkflowManualStart,
+  WorkflowOption,
   WorkflowRoundState,
   WorkflowRuntimePage,
   WorkflowRuntimePageQuery,
@@ -109,6 +110,19 @@ export class WorkflowRuntimeService extends RequestService {
     return this.get<WorkflowEligibility[]>(
       'workflow-runtime/business/eligibility',
       { params: reference },
+    );
+  }
+
+  /** 流程候选按当前会话和分栏权限分页，不能从当前页推断全部流程。 */
+  async flowOptions(query: {
+    cursor?: string;
+    keyword?: string;
+    size?: number;
+    tab: 'copied' | 'done' | 'started' | 'todo';
+  }) {
+    return this.get<WorkflowRuntimePage<WorkflowOption>>(
+      'workflow-runtime/flow-options',
+      { params: query },
     );
   }
 

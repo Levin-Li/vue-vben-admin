@@ -27,6 +27,7 @@ export function getComplexObjectDisplayGroupKey(key: string) {
 /** 运行页面和设置面板共用的视图默认值，不修改传入的配置。 */
 export function resolveCrudPageDisplayDefaults(
   config?: CrudPageDisplayConfig,
+  defaultQueryAutoSearch = false,
 ): CrudPageDisplayConfig {
   const resolved = {
     ...config,
@@ -39,7 +40,7 @@ export function resolveCrudPageDisplayDefaults(
     list: { actions: [], headers: [], ...config?.list },
   } satisfies CrudPageDisplayConfig;
   if (typeof resolved.keepAlive !== 'boolean') delete resolved.keepAlive;
-  resolved.query.autoSearch ??= false;
+  resolved.query.autoSearch ??= defaultQueryAutoSearch;
   resolved.edit.autoForceUpdateField ??= true;
   resolved.detail.showEmptyValues ??= true;
   resolved.list.defaultMinColumnWidth ??= 60;

@@ -387,7 +387,12 @@ describe('手动流程授权选择服务', () => {
   it('按正式控制器路径传递分页和显式契约，不提交用户身份', async () => {
     requestCalls.get.mockClear();
     const service = new WorkflowRuntimeService();
-    await service.manualStarts({ tenantId: 't1', pageIndex: 2, pageSize: 20 });
+    await service.manualStarts({
+      tenantId: 't1',
+      keyword: '审核',
+      pageIndex: 2,
+      pageSize: 20,
+    });
     await service.businessRecords({
       tenantId: 't1',
       businessType: 'request',
@@ -398,7 +403,9 @@ describe('手动流程授权选择服务', () => {
     expect(requestCalls.get).toHaveBeenNthCalledWith(
       1,
       'workflow-runtime/manualStarts',
-      { params: { tenantId: 't1', pageIndex: 2, pageSize: 20 } },
+      {
+        params: { tenantId: 't1', keyword: '审核', pageIndex: 2, pageSize: 20 },
+      },
     );
     expect(requestCalls.get).toHaveBeenNthCalledWith(
       2,

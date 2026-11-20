@@ -10,9 +10,11 @@ import {
   getFormFieldColumnSpan,
   getFormGridContentMaxWidth,
   getFormModalRecommendedMaxWidth,
+  getWizardNavigationWidth,
   resolveFormColumnCount,
   resolveFormModalMaxWidth,
   resolveSearchCollapsedCount,
+  resolveWizardFormColumns,
   sortFormLayoutFields,
 } from '../crud-form-layout';
 
@@ -263,6 +265,18 @@ describe('crud form layout', () => {
     expect(source).not.toContain(
       'activeFormModalConfig.value?.modalMaxWidth || modalMaxWidth.value',
     );
+  });
+
+  it('分步导航扩展弹窗时保留普通表单多列，并只在视口不足时回落', () => {
+    const navigation = getWizardNavigationWidth(true, 1440);
+    expect(navigation).toBe(168);
+    expect(resolveWizardFormColumns(3, 1120, 1440, navigation)).toBe(3);
+    expect(resolveWizardFormColumns(3, 1120, 1000, navigation)).toBe(3);
+    expect(resolveWizardFormColumns(3, 1120, 950, navigation)).toBe(2);
+    expect(resolveWizardFormColumns(1, 560, 1440, navigation)).toBe(1);
+    expect(getWizardNavigationWidth(true, 760)).toBe(0);
+    expect(resolveWizardFormColumns(1, 560, 760, 0)).toBe(1);
+    expect(getWizardNavigationWidth(false, 1440)).toBe(0);
   });
 
   it('allows four form columns on desktop-width modals', () => {

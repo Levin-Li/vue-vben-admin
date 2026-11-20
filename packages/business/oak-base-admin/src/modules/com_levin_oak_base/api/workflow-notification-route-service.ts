@@ -118,6 +118,7 @@ export class WorkflowNotificationRouteService extends RequestService {
   })
   async list(params: {
     channel?: NotificationChannel;
+    enable?: boolean;
     eventName?: WorkflowNotificationEventName;
     orgId?: string;
     pageIndex: number;
@@ -177,10 +178,26 @@ export class WorkflowNotificationRouteService extends RequestService {
     type: '业务数据-工作流通知路由',
     action: '更新',
   })
-  async update(data: WorkflowNotificationRouteRecord): Promise<void> {
+  async update(
+    data:
+      | WorkflowNotificationRouteRecord
+      | {
+          enable: boolean;
+          id: string;
+          optimisticLock: number;
+          orgId?: string;
+          tenantId?: string;
+        },
+  ): Promise<void> {
     return this.put('update', {
       data: {
-        ...toWorkflowNotificationRouteInput(data),
+        ...('channel' in data
+          ? toWorkflowNotificationRouteInput(data)
+          : {
+              tenantId: data.tenantId,
+              orgId: data.orgId,
+              enable: data.enable,
+            }),
         id: data.id,
         optimisticLock: data.optimisticLock,
       },

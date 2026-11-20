@@ -17,6 +17,8 @@ const state = vi.hoisted(() => ({
   actor: {} as Record<string, unknown>,
   access: { accessToken: 'token', accessCodes: [] as string[] },
   catalog: vi.fn(),
+  objects: vi.fn(),
+  manualStarts: vi.fn(),
   permission: vi.fn(),
 }));
 vi.mock('@vben/runtime/stores', () => ({
@@ -38,7 +40,11 @@ vi.mock(
   () => ({ buildApiMethodPermissions: (_: unknown, name: string) => [name] }),
 );
 vi.mock('../api/workflow-runtime-service', () => ({
-  workflowRuntimeService: { catalog: state.catalog },
+  workflowRuntimeService: {
+    catalog: state.catalog,
+    manualStarts: state.manualStarts,
+    boundBusinessTypes: state.objects,
+  },
 }));
 vi.mock('../api/session-directories', () => ({
   getSessionWorkflowCatalog: state.catalog,
@@ -114,6 +120,45 @@ describe('原业务页通用流程入口', () => {
     state.access = reactive({ accessToken: 'token', accessCodes: [] });
     state.permission.mockReturnValue(true);
     state.catalog.mockResolvedValue([capability('Article')]);
+    state.objects.mockResolvedValue([]);
+    state.manualStarts.mockResolvedValue({
+      items: [],
+      hasMore: false,
+      pageIndex: 1,
+    });
+  });
+
+  it('状态流程按选中记录租户分页加载并选择定义', async () => {
+    state.catalog.mockResolvedValue([]);
+    state.objects.mockResolvedValue(['com.example.Address']);
+    state.manualStarts.mockResolvedValue({
+      items: [
+        {
+          businessType: 'com.example.Address',
+          contractVersion: 'task-graph-v5',
+          purposeKey: 'def1',
+          definitionName: '地址审批',
+        },
+      ],
+      hasMore: false,
+      pageIndex: 1,
+    });
+    const wrapper = mountEntry('/Address');
+    await flushPromises();
+    expect(wrapper.text()).toContain('业务流程');
+    await wrapper.get('button').trigger('click');
+    await flushPromises();
+    expect(state.manualStarts).toHaveBeenCalledWith({
+      tenantId: 'tenant',
+      pageIndex: 1,
+      pageSize: 20,
+    });
+    const select = wrapper.findComponent(Select);
+    select.vm.$emit('update:value', 'def1');
+    await flushPromises();
+    expect(
+      wrapper.findComponent({ name: 'WorkflowBusinessPanel' }).exists(),
+    ).toBe(true);
   });
 
   it('目录映射支持专用User/EContract和同名已登记资源，未知资源和专用样例不重复接入', () => {
@@ -177,6 +222,14 @@ describe('原业务页通用流程入口', () => {
   });
 
   it('普通主体仅补本人租户，平台主体缺行归属或跨租户引用时隐藏入口', () => {
+    expect(
+      workflowCrudReference(record, 'id', 'Article', { id: 'redacted-user' }),
+    ).toEqual({
+      businessId: 'a1',
+      businessType: 'Article',
+      tenantId: 'tenant',
+      orgId: 'org',
+    });
     expect(
       workflowCrudReference(
         { id: 'a1', orgId: 'org' },

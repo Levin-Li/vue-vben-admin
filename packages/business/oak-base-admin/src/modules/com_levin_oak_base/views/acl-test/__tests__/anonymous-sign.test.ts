@@ -27,7 +27,7 @@ describe('签名测试独立匿名请求', () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
-  it.each([200, 401])(
+  it.each([200, 403, 401])(
     'hTTP %s 只发送一次且不触发登录客户端',
     async (status) => {
       const authRequest = vi.fn();
@@ -58,7 +58,7 @@ describe('签名测试独立匿名请求', () => {
       await (status === 200
         ? expect(result).resolves.toEqual({ message: '回显成功' })
         : expect(result).rejects.toThrow(
-            '签名请求被拒绝（HTTP 401）：签名错误',
+            `签名请求被拒绝（HTTP ${status}）：签名错误`,
           ));
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledWith(

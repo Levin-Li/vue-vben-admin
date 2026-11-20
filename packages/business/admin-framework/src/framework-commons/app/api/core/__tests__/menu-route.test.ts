@@ -136,6 +136,25 @@ describe('menu route conversion', () => {
     expect(route?.meta?.title).toBe('自定义菜单');
   });
 
+  it('allows one renamed page to prefer its local display title without changing the path', () => {
+    const mapping = {
+      ...testBackendRouteMappings[0],
+      preferLocalTitle: true,
+      title: '工作流通知渠道',
+    };
+    const route = convertMenuNodeForTest(
+      {
+        name: '工作流通知路由',
+        pageType: 'LocalPage-本地页面',
+        path: mapping.path,
+      },
+      [mapping],
+    );
+
+    expect(route?.meta?.title).toBe('工作流通知渠道');
+    expect(route?.path).toBe(mapping.path);
+  });
+
   it('falls back to the local page title when the menu label is empty', () => {
     const route = convertMenuNodeForTest(
       {

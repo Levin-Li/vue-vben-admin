@@ -160,7 +160,7 @@ export class ServicePluginService extends RequestService {
   })
   @CRUD.Op()
   async update(data?: any, options?: any) {
-    return this.put('update', {
+    return this.post('update', {
       ...options,
       data,
     });

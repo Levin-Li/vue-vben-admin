@@ -39,17 +39,22 @@ export interface WorkflowRequestActor {
   tenantId?: null | string;
 }
 
-/** 生成请求的租户字段受注入保护；同租户普通主体应省略，跨租户引用必须拒绝而不是丢弃。 */
+/** 普通主体省略受保护租户字段；已知跨租户拒绝，隐藏租户仅在调用方允许时交由服务端校验。 */
 export function prepareWorkflowRequestScope(
   scope: Partial<WorkflowRequestScope>,
   actor: WorkflowRequestActor,
+  allowHiddenTenant = false,
 ): Partial<WorkflowRequestScope> {
   const tenantId = scope.tenantId?.trim();
   if (!tenantId) return scope.orgId ? { orgId: scope.orgId } : {};
   if (isPlatformUser(actor)) {
     return { tenantId, ...(scope.orgId ? { orgId: scope.orgId } : {}) };
   }
-  if (!actor.tenantId || actor.tenantId !== tenantId) {
+  // 会话资料可能隐藏租户；普通主体不提交租户，由服务端从认证会话确定并验证实际记录。
+  if (
+    (!actor.tenantId && !allowHiddenTenant) ||
+    (actor.tenantId && actor.tenantId !== tenantId)
+  ) {
     throw new Error('流程业务申请：业务引用不属于当前会话租户，已阻止请求。');
   }
   return scope.orgId ? { orgId: scope.orgId } : {};

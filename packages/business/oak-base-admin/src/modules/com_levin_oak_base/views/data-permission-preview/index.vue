@@ -165,6 +165,7 @@ const rolePreviewPayload: DataPermissionPreviewPayload = {
 };
 
 const userPreviewPayload: DataPermissionPreviewPayload = {
+  canInherit: true,
   detail: {
     id: 'user-zhangsan',
     loginName: 'zhangsan',
@@ -228,10 +229,9 @@ const cardTitle = computed(() =>
     </Card>
 
     <DataPermissionDialog
+      :key="subjectType"
       v-model:open="open"
       :preview-payload="previewPayload"
-      :record="previewPayload.detail"
-      :subject-type="subjectType"
     />
   </Page>
 </template>

@@ -2,7 +2,6 @@ import type { RequestClientOptions } from '@vben/runtime/request';
 
 import { useAppConfig } from '@vben/runtime/hooks';
 import {
-  authenticateResponseInterceptor,
   errorMessageResponseInterceptor,
   RequestClient,
 } from '@vben/runtime/request';
@@ -32,6 +31,11 @@ import {
   isGlobalUserOrgContextEnabled,
 } from '../global-org-context-state';
 import { getApiErrorMessage, showApiErrorMessage } from './api-error-message';
+import {
+  createSessionRecheck,
+  createSessionRecovery,
+  isExplicitSessionExpired,
+} from './auth-session-recheck';
 import { createDynamicVerifyCodeInterceptor } from './dynamic-verify-code';
 import { createMultipartRequestInterceptor } from './multipart-request';
 import { emitApiRequestEvent } from './request-events';
@@ -585,26 +589,90 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     ) {
       accessStore.setLoginExpired(true);
     } else {
-      await authStore.logout(true, false);
+      await authStore.logout(true, false, true);
     }
-  }
-
-  /**
-   * 刷新token逻辑
-   */
-  async function doRefreshToken() {
-    const accessStore = useAccessStore();
-    const { refreshTokenApi } = await import('./core/auth');
-    const resp = await refreshTokenApi();
-    const newToken =
-      typeof resp === 'string' ? resp : resp?.data || resp?.accessToken || '';
-    accessStore.setAccessToken(newToken);
-    return newToken;
   }
 
   function formatToken(token: null | string) {
     return token || null;
   }
+
+  // 只在会话确认失效后按既有配置尝试刷新。
+  const recoverSession = createSessionRecovery({
+    currentToken: () => useAccessStore().accessToken,
+    refreshEnabled: () => preferences.app.enableRefreshToken,
+    refresh: async () => {
+      const { refreshTokenApi } = await import('./core/auth');
+      const resp = await refreshTokenApi();
+      return typeof resp === 'string'
+        ? resp
+        : resp?.data || resp?.accessToken || '';
+    },
+    setToken: (token) => useAccessStore().setAccessToken(token),
+    reauthenticate: doReAuthenticate,
+  });
+
+  // 使用当前可信全局上下文，保持与本人信息正常请求一致。
+  const probeSession = async (token: string) => {
+    const headers: Record<string, any> = {
+      Authorization: token,
+      'Accept-Language': preferences.app.locale,
+    };
+    setContextHeader(
+      headers,
+      'X-Oak-Domain-Id',
+      'X-Oak-Domain-Id-List',
+      currentGlobalDomainIds.value,
+      globalDomainContextMultiple.value,
+    );
+    if (isGlobalUserOrgContextEnabled()) {
+      if (currentGlobalTenantId.value)
+        headers['X-Oak-Tenant-Id'] = currentGlobalTenantId.value;
+      setContextHeader(
+        headers,
+        'X-Oak-Org-Id',
+        'X-Oak-Org-Id-List',
+        currentGlobalOrgIds.value,
+        globalOrgContextMultiple.value,
+        (values) => values.join(','),
+      );
+      setContextHeader(
+        headers,
+        'X-Oak-Owner-Id',
+        'X-Oak-Owner-Id-List',
+        currentGlobalOwnerIds.value,
+        globalOrgContextMultiple.value,
+        (values) => values.join(','),
+      );
+    }
+    try {
+      return await baseRequestClient.instance.get('/rbac/userInfo', {
+        headers,
+        __silentError: true,
+      } as any);
+    } catch (error: any) {
+      // Axios 的错误响应不会进入成功分支，必须先验证签名并解密后才能判定登录失效。
+      if (error?.response) await decryptClientResponse(error.response);
+      throw error;
+    }
+  };
+
+  // 探测走独立客户端，避免用户信息 401 再次进入本拦截器。
+  const recheck = createSessionRecheck({
+    currentToken: () => useAccessStore().accessToken,
+    probe: probeSession,
+    reauthenticate: recoverSession,
+  });
+
+  // 重试再遇 401 时仍核验会话，但不能第二次刷新或重复重放。
+  const recheckAfterRetry = createSessionRecheck({
+    currentToken: () => useAccessStore().accessToken,
+    probe: probeSession,
+    reauthenticate: async (token) => {
+      if (useAccessStore().accessToken === token) await doReAuthenticate();
+      return undefined;
+    },
+  });
 
   // 请求头处理
   client.addRequestInterceptor({
@@ -688,16 +756,89 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   addCryptoNegotiationInterceptor(client);
   addSignatureNegotiationInterceptor(client);
 
-  // token过期的处理
-  client.addResponseInterceptor(
-    authenticateResponseInterceptor({
-      client,
-      doReAuthenticate,
-      doRefreshToken,
-      enableRefreshToken: preferences.app.enableRefreshToken,
-      formatToken,
-    }),
-  );
+  // 无令牌的并发请求共享同一次登录跳转。
+  let anonymousRecovery: Promise<void> | undefined;
+  // 业务 401 不是会话失效的充分证据；探测失败保持原请求错误。
+  client.addResponseInterceptor({
+    rejected: async (error: any) => {
+      const config = error?.config ?? error?.response?.config;
+      const current = useAccessStore().accessToken;
+      const header =
+        config?.headers?.get?.('Authorization') ??
+        config?.headers?.Authorization ??
+        config?.headers?.authorization;
+      const path =
+        dataAttrRequestPath(String(config?.url || ''), config?.baseURL).split(
+          '?',
+        )[0] || '';
+      const publicPath =
+        isAnonymousRbacCryptoPath(path) ||
+        isAnonymousCryptoContext(config) ||
+        isPublicInvitationRequest(config) ||
+        /\/rbac\/(?:logout|refresh|login|loginVerifyChallenge)(?:\/|$)/.test(
+          path,
+        );
+      if (
+        error?.response?.status === 401 &&
+        !current &&
+        !header &&
+        !publicPath
+      ) {
+        anonymousRecovery ??= doReAuthenticate().finally(() => {
+          anonymousRecovery = undefined;
+        });
+        await anonymousRecovery;
+      }
+      if (
+        error?.response?.status === 401 &&
+        current &&
+        header === current &&
+        !isAnonymousRbacCryptoPath(path) &&
+        !isAnonymousCryptoContext(config) &&
+        !isPublicInvitationRequest(config)
+      ) {
+        let refreshed: string | undefined;
+        if (/\/rbac\/userInfo$/.test(path)) {
+          // 本人信息自身的错误响应同样必须先通过响应签名及解密校验。
+          try {
+            await decryptClientResponse(error.response);
+          } catch {
+            throw error;
+          }
+          if (
+            isExplicitSessionExpired(error) &&
+            useAccessStore().accessToken === current
+          )
+            refreshed = config.__isRetryRequest
+              ? await recheckAfterRetry(current)
+              : await recoverSession(current);
+        } else if (
+          !/\/rbac\/(?:logout|refresh|login|loginVerifyChallenge)(?:\/|$)/.test(
+            path,
+          )
+        ) {
+          refreshed = config.__isRetryRequest
+            ? await recheckAfterRetry(current)
+            : await recheck(current);
+        }
+        // 仅保留原有显式开启 refresh 的重试能力；不把旧会话请求发给新账号。
+        if (
+          refreshed &&
+          useAccessStore().accessToken === refreshed &&
+          !config.__isRetryRequest
+        ) {
+          // 加密或签名请求必须恢复明文并重新生成随机数，普通请求保留原始正文。
+          const retry =
+            config.__urlAclCrypto || config.__urlAclSignature
+              ? resetSecurityRequestForRetry(config)
+              : { ...config };
+          retry.__isRetryRequest = true;
+          return client.request(config.url, retry);
+        }
+      }
+      throw error;
+    },
+  });
 
   applyCommonInterceptors(client);
 

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { CrudPageConfig } from '@levin/admin-framework/framework-commons/shared/types';
 import type { WorkflowBusinessType } from '@levin/bpm-designer';
-import type { WorkflowBusinessReference } from '@levin/bpm-runtime-ui';
+import type {
+  WorkflowBusinessReference,
+  WorkflowManualStart,
+} from '@levin/bpm-runtime-ui';
 
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
@@ -12,7 +15,7 @@ import { isDataAttrPolicyReady } from '@levin/admin-framework/framework-commons/
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { WorkflowBusinessPanel } from '@levin/bpm-runtime-ui';
-import { Alert, Drawer, message, Select } from 'ant-design-vue';
+import { Alert, Button, Drawer, message, Select } from 'ant-design-vue';
 
 import { getSessionWorkflowCatalog } from '../api/session-directories';
 import { workflowRuntimeService } from '../api/workflow-runtime-service';
@@ -34,6 +37,21 @@ const ready = computed(
   () => Boolean(accessStore.accessToken) && isDataAttrPolicyReady(),
 );
 const catalog = ref<WorkflowBusinessType[]>([]);
+const stateObjects = ref<string[]>([]);
+const stateObject = computed(() => {
+  const resource = /^\/?([A-Z][A-Za-z0-9]*)\/?$/.exec(
+    props.config.apiBase,
+  )?.[1];
+  return stateObjects.value.find((item) => item.split('.').pop() === resource);
+});
+const statePage = ref(1);
+const stateMore = ref(false);
+const stateLoading = ref(false);
+const stateChoices = ref<WorkflowManualStart[]>([]);
+const stateSelected = ref<string>();
+const stateChoice = computed(() =>
+  stateChoices.value.find((item) => item.purposeKey === stateSelected.value),
+);
 const contracts = computed(() =>
   workflowCrudContracts(props.config.apiBase, catalog.value),
 );
@@ -65,6 +83,9 @@ function close() {
   selected.value = undefined;
   selectedContract.value = undefined;
   reload = undefined;
+  stateSelected.value = undefined;
+  stateChoices.value = [];
+  stateMore.value = false;
 }
 
 // 角色、账号或资源变化立即卸载旧面板；迟到目录响应不能恢复旧范围。
@@ -84,18 +105,28 @@ watch(
     const request = ++generation;
     close();
     catalog.value = [];
+    stateObjects.value = [];
     if (
       !ready.value ||
-      !permits('catalog') ||
       (!canEligibility.value && !canHistory.value) ||
       props.config.apiBase === '/WorkflowRequest'
     )
       return;
-    try {
-      const result = await getSessionWorkflowCatalog();
-      if (request === generation) catalog.value = result;
-    } catch {
-      // 工作流未安装或目录无权时，普通业务 CRUD 继续可用，入口保持隐藏。
+    if (permits('catalog')) {
+      try {
+        const result = await getSessionWorkflowCatalog();
+        if (request === generation) catalog.value = result;
+      } catch {
+        // 工作流未安装或目录无权时，普通业务 CRUD 继续可用。
+      }
+    }
+    if (permits('boundBusinessTypes')) {
+      try {
+        const result = await workflowRuntimeService.boundBusinessTypes();
+        if (request === generation) stateObjects.value = result;
+      } catch {
+        // 目录无权或不可用时不展示状态流程入口。
+      }
     }
   },
   { immediate: true, flush: 'sync' },
@@ -103,7 +134,12 @@ watch(
 
 function rowReference(record: Record<string, unknown>) {
   const current = contracts.value[0];
-  if (!current || !ready.value || (!canEligibility.value && !canHistory.value))
+  const object = stateObject.value;
+  if (
+    (!current && !object) ||
+    !ready.value ||
+    (!canEligibility.value && !canHistory.value)
+  )
     return undefined;
   // 后端在读取资格、启动与历史时独立重验当前业务读取权；前端还须具备原页面详情权。
   if (
@@ -115,8 +151,8 @@ function rowReference(record: Record<string, unknown>) {
     return undefined;
   return workflowCrudReference(
     record,
-    current.defaultBinding?.identityField || props.config.recordKey || 'id',
-    current.businessType,
+    current?.defaultBinding?.identityField || props.config.recordKey || 'id',
+    current?.businessType || object!,
     (userStore.userInfo ?? {}) as Record<string, unknown>,
   );
 }
@@ -125,8 +161,37 @@ function open(record: Record<string, unknown>, refresh: () => unknown) {
   if (!target) return;
   close();
   selected.value = target;
-  selectedContract.value = String(contracts.value[0]?.contractVersion);
+  selectedContract.value = contracts.value[0]
+    ? String(contracts.value[0].contractVersion)
+    : undefined;
   reload = refresh;
+  if (stateObject.value && permits('manualStarts')) void loadStatePage(1);
+}
+async function loadStatePage(pageIndex: number) {
+  const current = selected.value;
+  const object = stateObject.value;
+  if (!current || !object) return;
+  stateLoading.value = true;
+  stateSelected.value = undefined;
+  try {
+    const page = await workflowRuntimeService.manualStarts({
+      tenantId: current.tenantId,
+      pageIndex,
+      pageSize: 20,
+    });
+    if (selected.value !== current) return;
+    statePage.value = pageIndex;
+    stateMore.value = page.hasMore;
+    stateChoices.value = page.items.filter(
+      (item) =>
+        item.businessType === object &&
+        ['state-graph-v4', 'task-graph-v5'].includes(item.contractVersion),
+    );
+  } catch (error) {
+    if (selected.value === current) showError(error);
+  } finally {
+    if (selected.value === current) stateLoading.value = false;
+  }
 }
 async function changed() {
   await reload?.();
@@ -143,7 +208,7 @@ onBeforeUnmount(() => {
 
 <template>
   <slot
-    :supported="contracts.length > 0"
+    :supported="contracts.length > 0 || !!stateObject"
     :can-open="rowReference"
     :open="open"
   ></slot>
@@ -166,6 +231,53 @@ onBeforeUnmount(() => {
         aria-label="业务流程契约"
         class="mb-4 w-full"
       />
+      <template v-if="stateObject && permits('manualStarts')">
+        <p>选择此记录适用的已发布流程（第 {{ statePage }} 页）</p>
+        <Select
+          v-model:value="stateSelected"
+          class="mb-4 w-full"
+          show-search
+          allow-clear
+          :loading="stateLoading"
+          placeholder="选择流程"
+          :options="
+            stateChoices.map((item) => ({
+              value: item.purposeKey,
+              label: item.definitionName,
+            }))
+          "
+        />
+        <Button
+          :disabled="statePage <= 1 || stateLoading"
+          @click="loadStatePage(statePage - 1)"
+        >
+          上一页
+        </Button>
+        <Button
+          :disabled="!stateMore || stateLoading"
+          @click="loadStatePage(statePage + 1)"
+        >
+          下一页
+        </Button>
+        <WorkflowBusinessPanel
+          v-if="stateChoice"
+          :key="stateChoice.purposeKey"
+          :business-reference="{
+            ...selected,
+            businessType: stateChoice.businessType,
+            contractVersion: stateChoice.contractVersion,
+          }"
+          :contract-version="stateChoice.contractVersion"
+          :purpose-key="stateChoice.purposeKey"
+          :service="workflowRuntimeService"
+          :ready="ready"
+          :show-history="canHistory"
+          :show-eligibility="canEligibility"
+          :can-start="permits('start') && canEligibility"
+          @error="showError"
+          @started="changed"
+        />
+      </template>
       <WorkflowBusinessPanel
         v-if="reference"
         :key="`${reference.tenantId}:${reference.orgId}:${reference.businessId}:${selectedContract}`"

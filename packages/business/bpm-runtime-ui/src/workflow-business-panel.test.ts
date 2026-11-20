@@ -63,6 +63,27 @@ function setup(
 }
 
 describe('业务流程资格与发起', () => {
+  it('选择定义时资格查询携带定义标识', async () => {
+    const { api, wrapper } = setup();
+    await wrapper.setProps({
+      purposeKey: 'def1',
+      contractVersion: 'task-graph-v5',
+      businessReference: {
+        businessType: 'com.example.Address',
+        businessId: '1',
+        contractVersion: 'task-graph-v5',
+      },
+    });
+    await flushPromises();
+    expect(api.eligibility).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        businessType: 'com.example.Address',
+        contractVersion: 'task-graph-v5',
+        purposeKey: 'def1',
+      }),
+    );
+    wrapper.unmount();
+  });
   it('未就绪不读取，恢复后读取；退出清除旧结果且权限撤销不追加请求', async () => {
     const { api, wrapper } = setup();
     await flushPromises();

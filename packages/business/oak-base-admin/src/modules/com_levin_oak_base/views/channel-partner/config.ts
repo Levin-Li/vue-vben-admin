@@ -26,7 +26,7 @@ export const channelPartnerPageCrudConfig: CrudPageConfig =
     domainObject: true,
     apiService: channelPartnerService,
     listOperations: [
-      { key: 'ChannelPartner:quickAdd', label: '快捷添加', placement: 'left' },
+      { key: 'ChannelPartner:quickAdd', label: '快捷新增', placement: 'left' },
     ],
     dataAttrTargets: fixedCrudDataAttrTargets(channelPartnerService, {
       retrieve: { method: 'GET', path: 'retrieve' },

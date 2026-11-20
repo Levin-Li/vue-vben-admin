@@ -1,19 +1,13 @@
 <script lang="ts" setup>
+import type { ResourcePermissionChanges } from '@levin/admin-framework/framework-commons/shared/resource-permission-types';
+
 import DataPermissionDialog from '@levin/admin-framework/framework-commons/shared/data-permission-dialog.vue';
 import ResourcePermissionDialog from '@levin/admin-framework/framework-commons/shared/resource-permission-dialog.vue';
 
-import { loadDataPermissionDomainOptions } from '../../domain-scope-options';
+import { roleService } from '../../api/role-service';
+import { createDataPermissionCallbacks } from '../../data-permission-adapter';
 import CrudPage from '../crud-page.vue';
 import { useRolePageConfig } from './config';
-
-// 数据权限弹窗只接受字符串 ID，在页面边界规范化公共候选。
-async function loadStringDomainScopeOptions(keyword?: string) {
-  const options = await loadDataPermissionDomainOptions(keyword);
-  return options.map((option) => ({
-    label: String(option.label),
-    value: String(option.value),
-  }));
-}
 
 const {
   config,
@@ -24,6 +18,48 @@ const {
   selectedDataPermissionRecord,
   selectedResourcePermissionRecord,
 } = useRolePageConfig();
+
+// 目标定位留在角色页面，弹窗只通过回调取得归一化详情和提交变更。
+function dataPermissionCallbacks() {
+  if (!selectedDataPermissionRecord.value) throw new Error('未选择角色');
+  return createDataPermissionCallbacks(
+    selectedDataPermissionRecord.value,
+    'role',
+  );
+}
+
+const loadDataPermissionTarget = () => dataPermissionCallbacks().loadTarget();
+const saveDataPermissionTarget = (changes: Record<string, any>) =>
+  dataPermissionCallbacks().saveTarget(changes);
+
+async function loadResourcePermissionTarget() {
+  const id = selectedResourcePermissionRecord.value?.id;
+  if (!id) throw new Error('未选择角色');
+  const detail = (await roleService.retrieve({ id })) as Record<string, any>;
+  return {
+    code: detail.code,
+    id: String(detail.id),
+    name: String(detail.name || ''),
+    optimisticLock: detail.optimisticLock,
+    permissions: Array.isArray(detail.permissionList)
+      ? detail.permissionList.map(String)
+      : [],
+  };
+}
+
+async function saveResourcePermissionTarget(
+  changes: ResourcePermissionChanges,
+) {
+  return roleService.update({
+    autoForceUpdateField: false,
+    forceUpdateFields: ['permissionList'],
+    id: changes.id,
+    ...(changes.optimisticLock === undefined
+      ? {}
+      : { optimisticLock: changes.optimisticLock }),
+    permissionList: changes.permissions,
+  });
+}
 </script>
 
 <template>
@@ -31,20 +67,20 @@ const {
     <CrudPage :key="pageKey" :config="config" />
     <ResourcePermissionDialog
       v-if="selectedResourcePermissionRecord"
+      :key="selectedResourcePermissionRecord.id"
       v-model:open="resourcePermissionDialogOpen"
-      api-base="/Role"
-      permission-field="permissionList"
-      :record="selectedResourcePermissionRecord"
+      :load-target="loadResourcePermissionTarget"
+      :save-target="saveResourcePermissionTarget"
       subject-label="角色"
       title="角色资源权限分配"
       @saved="handleSaved"
     />
     <DataPermissionDialog
       v-if="selectedDataPermissionRecord"
+      :key="selectedDataPermissionRecord.id"
       v-model:open="dataPermissionDialogOpen"
-      :record="selectedDataPermissionRecord"
-      :load-domain-options="loadStringDomainScopeOptions"
-      subject-type="role"
+      :load-target="loadDataPermissionTarget"
+      :save-target="saveDataPermissionTarget"
       @saved="handleSaved"
     />
   </div>
