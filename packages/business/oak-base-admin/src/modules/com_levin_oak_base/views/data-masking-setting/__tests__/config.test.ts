@@ -1,3 +1,4 @@
+import { resolveCrudQuickFill } from '@levin/admin-framework/framework-commons/shared/crud-quick-fill';
 import { describe, expect, it } from 'vitest';
 
 import { oakBaseAdminCrudResources } from '../../../admin-crud';
@@ -40,6 +41,37 @@ describe('数据脱敏设置页面', () => {
     expect(
       await dataMaskingSettingPageCrudConfig.transformSubmit?.(payload, null),
     ).toBe(payload);
+  });
+
+  it('新增快捷填写包含必需的字段规则并拒绝空规则和旧规则', () => {
+    const fields = dataMaskingSettingPageCrudConfig.fields;
+    const field = fields.find((item) => item.key === 'valueContent');
+    expect(field?.required).toBe(true);
+    const plan = resolveCrudQuickFill(
+      fields,
+      new Set(fields.map((item) => item.key)),
+    );
+    expect(plan.requiredKeys.has('valueContent')).toBe(true);
+    expect(() =>
+      dataMaskingSettingPageCrudConfig.transformSubmit?.(
+        { valueContent: [] },
+        null,
+      ),
+    ).toThrow('至少选择');
+    expect(() =>
+      dataMaskingSettingPageCrudConfig.transformSubmit?.(
+        {
+          valueContent: [
+            {
+              entityClass: 'example.Order',
+              fieldName: 'id',
+              treatment: 'HIDE',
+            },
+          ],
+        },
+        null,
+      ),
+    ).toThrow('重新配置');
   });
 
   it('租户归属覆盖平台查询、列表和新增，组织匹配条件不伪装为组织归属', () => {

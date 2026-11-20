@@ -14,6 +14,8 @@ export interface MaskingEntityCatalogItem {
   fieldName: string;
   /** 服务端实体字段声明的展示名称，旧服务可不返回。 */
   fieldTitle?: string;
+  /** 存在可明确识别的实体请求字段映射时才允许配置可还原 ID。 */
+  hasInputMapping: boolean;
 }
 
 @Service({

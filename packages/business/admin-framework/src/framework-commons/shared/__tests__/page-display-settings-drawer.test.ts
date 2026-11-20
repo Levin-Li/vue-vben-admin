@@ -88,6 +88,57 @@ async function searchFields(keyword: string) {
 }
 
 describe('页面展示设置抽屉', () => {
+  it('按新增和编辑分别保存必填，同时保留旧的全视图必填', async () => {
+    const wrapper = mount(PageDisplaySettingsDrawer, {
+      attachTo: document.body,
+      props: {
+        code: '/test',
+        fields: [
+          { key: 'type', label: '类型', requiredByView: { create: true } },
+          { key: 'name', label: '名称', required: true },
+          {
+            key: 'duplicate',
+            label: '分视图',
+            formEdit: false,
+            required: true,
+          },
+          { key: 'duplicate', label: '分视图', formCreate: false },
+        ],
+        modelValue: {
+          version: 1,
+          create: { fields: [{ key: 'type', required: false }] },
+          edit: { fields: [{ key: 'type', required: false }] },
+        },
+        open: true,
+      },
+    });
+    await flushPromises();
+    getTab('新增表单').click();
+    await flushPromises();
+    getTab('编辑表单').click();
+    await flushPromises();
+    getUploadButton().click();
+    await flushPromises();
+    const saved = wrapper.emitted('save')?.at(-1)?.[0] as any;
+    const create = saved.config.create.fields;
+    const edit = saved.config.edit.fields;
+    expect(create.find((field: any) => field.key === 'type').required).toBe(
+      true,
+    );
+    expect(edit.find((field: any) => field.key === 'type').required).not.toBe(
+      true,
+    );
+    expect(create.find((field: any) => field.key === 'name').required).toBe(
+      true,
+    );
+    expect(edit.find((field: any) => field.key === 'name').required).toBe(true);
+    expect(
+      create.find((field: any) => field.key === 'duplicate').required,
+    ).toBe(true);
+    expect(
+      edit.find((field: any) => field.key === 'duplicate').required,
+    ).not.toBe(true);
+  });
   it('关闭时不加载编辑目录，首次打开初始化一次', async () => {
     for (const loader of [
       fetchOptions,

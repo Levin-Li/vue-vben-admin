@@ -94,6 +94,69 @@ function upload() {
 }
 
 describe('界面UI设置2', () => {
+  it('按新增和编辑分别保存必填，同时保留旧的全视图必填', async () => {
+    const wrapper = mount(PageDisplaySettingsDrawerV2, {
+      attachTo: document.body,
+      props: {
+        code: '/test',
+        fields: [
+          { key: 'type', label: '类型', requiredByView: { create: true } },
+          { key: 'name', label: '名称', required: true },
+          {
+            key: 'duplicate',
+            label: '分视图',
+            formEdit: false,
+            required: true,
+          },
+          { key: 'duplicate', label: '分视图', formCreate: false },
+        ],
+        detailFields: [
+          { key: 'type', label: '类型' },
+          { key: 'name', label: '名称' },
+          { key: 'duplicate', label: '分视图' },
+        ],
+        modelValue: {
+          version: 1,
+          create: { fields: [{ key: 'type', required: false }] },
+          edit: { fields: [{ key: 'type', required: false }] },
+        },
+        open: true,
+      },
+    });
+    try {
+      await flushPromises();
+      await clickTab('新增表单');
+      await clickTab('编辑表单');
+      setLeftAlias('type', '验收类型');
+      await flushPromises();
+      upload();
+      await flushPromises();
+      const saved = wrapper.emitted('save')?.at(-1)?.[0] as any;
+      const create = saved.config.create.fields;
+      const edit = saved.config.edit.fields;
+      expect(create.find((field: any) => field.key === 'type').required).toBe(
+        true,
+      );
+      expect(edit.find((field: any) => field.key === 'type').required).not.toBe(
+        true,
+      );
+      expect(create.find((field: any) => field.key === 'name').required).toBe(
+        true,
+      );
+      expect(edit.find((field: any) => field.key === 'name').required).toBe(
+        true,
+      );
+      expect(
+        create.find((field: any) => field.key === 'duplicate').required,
+      ).toBe(true);
+      expect(
+        edit.find((field: any) => field.key === 'duplicate').required,
+      ).not.toBe(true);
+    } finally {
+      wrapper.unmount();
+      document.body.innerHTML = '';
+    }
+  });
   it('租户字段未修改角色时保存平台身份默认，避免写入超管角色', async () => {
     const wrapper = mount(PageDisplaySettingsDrawerV2, {
       attachTo: document.body,

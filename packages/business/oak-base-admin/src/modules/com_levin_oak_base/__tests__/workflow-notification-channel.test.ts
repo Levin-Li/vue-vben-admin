@@ -45,8 +45,23 @@ const base = {
 describe('三家机器人通知渠道合同', () => {
   beforeEach(() => vi.clearAllMocks());
   it('快捷启停不提交或清空目标配置', async () => {
-    await new WorkflowNotificationRouteService().update({ id: 'route-1', optimisticLock: 3, enable: false, tenantId: 'tenant-1', orgId: 'org-1' });
-    expect(calls.put).toHaveBeenCalledWith('update', { data: { id: 'route-1', optimisticLock: 3, enable: false, tenantId: 'tenant-1', orgId: 'org-1' }, autoForceUpdateField: false });
+    await new WorkflowNotificationRouteService().update({
+      id: 'route-1',
+      optimisticLock: 3,
+      enable: false,
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+    });
+    expect(calls.put).toHaveBeenCalledWith('update', {
+      data: {
+        id: 'route-1',
+        optimisticLock: 3,
+        enable: false,
+        tenantId: 'tenant-1',
+        orgId: 'org-1',
+      },
+      autoForceUpdateField: false,
+    });
   });
   it('精确消费后端三家枚举，不补造渠道或接受URL选项', () => {
     expect(
@@ -132,6 +147,8 @@ describe('三家机器人通知渠道合同', () => {
       'TaskReminder',
       'TaskDeadline',
       'TaskProcessed',
+      'NodeEntered',
+      'NodeCompleted',
     ]);
     await new WorkflowNotificationRouteService().update({
       ...base,
@@ -145,6 +162,32 @@ describe('三家机器人通知渠道合同', () => {
         optimisticLock: 8,
       },
       autoForceUpdateField: false,
+    });
+  });
+  it('平台及租户机器人群候选均使用表单显式范围，不注入全局组织', async () => {
+    const service = new WorkflowNotificationRouteService();
+    await service.robotGroupCandidates({ channel: 'WeComWebhook' });
+    expect(calls.get).toHaveBeenCalledWith('robot-group-candidates', {
+      params: { channel: 'WeComWebhook' },
+      __skipGlobalUserOrgContext: true,
+    });
+    await service.robotGroupCandidates({
+      channel: 'WeComWebhook',
+      tenantId: '',
+      orgId: '',
+    });
+    expect(calls.get).toHaveBeenLastCalledWith('robot-group-candidates', {
+      params: { channel: 'WeComWebhook' },
+      __skipGlobalUserOrgContext: true,
+    });
+    await service.robotGroupCandidates({
+      channel: 'WeComWebhook',
+      tenantId: 't1',
+      orgId: 'o1',
+    });
+    expect(calls.get).toHaveBeenLastCalledWith('robot-group-candidates', {
+      params: { channel: 'WeComWebhook', tenantId: 't1', orgId: 'o1' },
+      __skipGlobalUserOrgContext: true,
     });
   });
 });

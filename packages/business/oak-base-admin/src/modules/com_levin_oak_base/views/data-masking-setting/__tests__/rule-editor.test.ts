@@ -15,21 +15,25 @@ vi.mock('../../../api/data-masking-setting-service', () => ({
         entityTitle: '订单',
         fieldName: 'id',
         fieldTitle: '订单编号',
+        hasInputMapping: true,
       },
       {
         entityClass: 'example.Order',
         entityTitle: '订单',
         fieldName: 'secret',
+        hasInputMapping: false,
       },
       {
         entityClass: 'example.User',
         entityTitle: '用户',
         fieldName: 'name',
         fieldTitle: '姓名',
+        hasInputMapping: true,
       },
       {
         entityClass: 'example.Legacy',
         fieldName: 'legacyId',
+        hasInputMapping: false,
       },
     ]),
   },
@@ -144,6 +148,42 @@ describe('实体优先脱敏规则编辑', () => {
       formState.valueContent,
     );
     expect(formState.valueContent[0]).not.toHaveProperty('inputOperation');
+    wrapper.unmount();
+  });
+
+  it('无请求字段映射时禁止新增可还原规则，已有规则可改为隐藏', async () => {
+    const formState = reactive({
+      valueContent: [
+        {
+          entityClass: 'example.Order',
+          fieldName: 'secret',
+          schemaVersion: 2,
+          treatment: 'REVERSIBLE_ID',
+          binding: 'USER',
+          validSeconds: 3600,
+        },
+      ],
+    });
+    const wrapper = mount(RuleEditor, { props: { formState } });
+    await flushPromises();
+    expect(wrapper.text()).toContain('当前字段缺少请求映射');
+    const treatment = wrapper
+      .findAllComponents(Select)
+      .find((item) =>
+        (item.props('options') as undefined | { value?: string }[])?.some(
+          (option) => option.value === 'REVERSIBLE_ID',
+        ),
+      );
+    expect(treatment).toBeDefined();
+    expect(treatment?.props('options')).toContainEqual({
+      label: '可还原 ID（缺少请求字段映射）',
+      value: 'REVERSIBLE_ID',
+      disabled: true,
+    });
+    treatment?.vm.$emit('change', 'HIDE');
+    await flushPromises();
+    expect(formState.valueContent[0]?.treatment).toBe('HIDE');
+    expect(wrapper.text()).not.toContain('当前字段缺少请求映射');
     wrapper.unmount();
   });
 

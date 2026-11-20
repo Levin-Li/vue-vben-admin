@@ -27,3 +27,9 @@ import { Button, Form, Input, Table } from 'ant-design-vue';
 组件不查询数据、不判断权限、不生成新增/删除等操作，也不改变分页方式。页面须自行完成 API 授权、手动查询、重置不请求、范围切换清理、异步响应隔离以及原有错误提示。示例仅展示结构，按钮和表格参数必须接入真实业务逻辑。
 
 最小验证：在宽/窄容器下检查查询换行及表头间距；执行查询、重置、分页和范围切换，核对实际请求及权限；卸载页面时观察器会释放。
+
+## 页面专用表单接入展示设置
+
+与 `DynamicCrudPage` 同级的业务弹窗可通过组件引用调用 `registerExternalFormElements`，按 `formId`、`formName`、`view`、字段 `key`、`label` 和实际接口字段 `fieldKeys` 声明字段；设置 `isolateDisplay: true` 后，同一视图中不同 `formId` 的同名字段分别保存。页面实例更换或重新挂载后需要重新登记。未启用该属性的既有表单继续使用原有字段键。
+
+页面可用 `getExternalFormDisplayField(view, formId, key)` 读取字段设置，用 `getExternalFormDisplayGroup(view, groupKey)` 读取引用的分组；宿主负责按设置实现标题、顺序、可见性、角色、表达式和提交行为。登记与读取只负责展示配置，宿主仍须为实际新增、编辑、详情接口分别加载属性权限，在读取和提交前重验授权与范围，不能用隐藏控件代替服务端校验。最小验证包括同名字段隔离、上传回显、权限撤销及未授权字段不提交。

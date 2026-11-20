@@ -17,6 +17,8 @@ export type NotificationChannel =
   | 'Station'
   | 'WeComWebhook';
 export type WorkflowNotificationEventName =
+  | 'NodeCompleted'
+  | 'NodeEntered'
   | 'TaskCreated'
   | 'TaskDeadline'
   | 'TaskProcessed'
@@ -35,7 +37,7 @@ export interface WorkflowNotificationRouteInput {
   priority: number;
   processKey?: string;
   remark?: string;
-  targetConfig: { configRef?: string };
+  targetConfig: { configRef?: string; groupId?: string };
   tenantId?: string;
   workflowDefinitionVersionId?: string;
 }
@@ -68,6 +70,10 @@ export function toWorkflowNotificationRouteInput(
   const robot = ['DingTalkWebhook', 'FeishuWebhook', 'WeComWebhook'].includes(
     channel,
   );
+  const targetConfig: WorkflowNotificationRouteInput['targetConfig'] = {};
+  if (robot && data.targetConfig.groupId)
+    targetConfig.groupId = data.targetConfig.groupId;
+  else if (robot) targetConfig.configRef = data.targetConfig.configRef;
   return {
     tenantId,
     orgId,
@@ -81,7 +87,7 @@ export function toWorkflowNotificationRouteInput(
     enable,
     remark,
     matchCondition,
-    targetConfig: robot ? { configRef: data.targetConfig.configRef } : {},
+    targetConfig,
   };
 }
 @Service({
@@ -170,6 +176,24 @@ export class WorkflowNotificationRouteService extends RequestService {
       ...(scope.tenantId && !scope.orgId
         ? { __skipGlobalUserOrgContext: true }
         : {}),
+    });
+  }
+  /** 根据服务端授权查询通知群候选，响应不包含 Webhook。 */
+  async robotGroupCandidates(params: {
+    channel: NotificationChannel;
+    orgId?: string;
+    tenantId?: string;
+  }): Promise<{ channel: string; id: string; name: string }[]> {
+    // 平台历史记录的空字符串表示未限定范围，不得传成非空查询参数。
+    const scope = {
+      channel: params.channel,
+      ...(params.tenantId?.trim() ? { tenantId: params.tenantId } : {}),
+      ...(params.orgId?.trim() ? { orgId: params.orgId } : {}),
+    };
+    return this.get('robot-group-candidates', {
+      params: scope,
+      // 平台空租户和空组织也是明确范围，不能由全局组织上下文补入其它组织。
+      __skipGlobalUserOrgContext: true,
     });
   }
   @CRUD.Op({ label: '更新' })

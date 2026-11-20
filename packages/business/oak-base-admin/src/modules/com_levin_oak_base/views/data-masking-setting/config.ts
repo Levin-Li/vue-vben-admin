@@ -225,6 +225,7 @@ export const dataMaskingSettingPageCrudConfig: CrudPageConfig = {
       layoutGroup: 'rules',
       layoutGroupTitle: '字段规则',
       layoutOrder: 10,
+      required: true,
       fullRow: true,
       layoutNewRow: true,
       table: false,

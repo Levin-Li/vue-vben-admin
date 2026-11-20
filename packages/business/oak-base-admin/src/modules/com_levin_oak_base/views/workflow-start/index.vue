@@ -100,14 +100,9 @@ function showError(error: unknown) {
         未选择组织时查询平台全局状态流程；选择组织后查询该业务范围。
       </template>
     </CrudLayout>
-    <p
-      v-if="!tenantId && !isPlatformActor"
-      class="text-muted-foreground text-sm"
-    >
-      请先确认当前业务租户范围，再选择手动流程。
-    </p>
+    <!-- 普通用户的租户资料可能不返回；省略时由服务端认证会话确定范围。 -->
     <WorkflowStartWorkbench
-      v-if="(tenantId || isPlatformActor) && workflowReady"
+      v-if="workflowReady"
       :tenant-id="tenantId"
       :key="actorKey"
       :service="workflowRuntimeService"

@@ -124,6 +124,47 @@ const wizardFields = () => [
 ];
 
 describe('标准表单首次模式交互', () => {
+  it('新增快捷填写包含新增必填字段并拒绝空值', async () => {
+    const create = vi.fn().mockResolvedValue({ id: 'created' });
+    const modal = await open(
+      [
+        { key: 'name', label: '名称', required: true },
+        { key: 'type', label: '设置项类型', requiredByView: { create: true } },
+        { key: 'note', label: '备注' },
+      ],
+      { apiService: { create } },
+    );
+    const type = modal
+      .findAllComponents(Form.Item)
+      .find((item) => item.props('label') === '设置项类型');
+    expect(type?.isVisible()).toBe(true);
+    expect(type?.props('required')).toBe(true);
+    const name = modal
+      .findAllComponents(Form.Item)
+      .find((item) => item.props('label') === '名称');
+    if (!name || !type) throw new Error('缺少必填字段');
+    await name.get('input').setValue('测试');
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(create).not.toHaveBeenCalled();
+    await type.get('input').setValue('test');
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'test' }),
+    );
+  });
+
+  it('编辑时新增专用必填不限制现有字段', async () => {
+    const modal = await openEdit([
+      { key: 'name', label: '名称', required: true },
+      { key: 'type', label: '设置项类型', requiredByView: { create: true } },
+    ]);
+    const type = modal
+      .findAllComponents(Form.Item)
+      .find((item) => item.props('label') === '设置项类型');
+    expect(type?.props('required')).toBe(false);
+  });
   it('平台用户快捷填写展示租户前置项和暂不可选的必填目标', async () => {
     const modal = await open([
       { key: 'tenantId', label: '归属租户' },

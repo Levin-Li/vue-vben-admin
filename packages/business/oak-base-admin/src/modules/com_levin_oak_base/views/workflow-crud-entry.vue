@@ -25,7 +25,11 @@ import {
 } from './workflow-crud-resource';
 
 // 工作流适配只存在于业务包，公共 CRUD 与运行组件都不反向依赖业务模块。
-const props = defineProps<{ config: CrudPageConfig }>();
+const props = defineProps<{
+  canReadRecord?: boolean;
+  config: CrudPageConfig;
+  stateBusinessType?: string;
+}>();
 const userStore = useUserStore();
 const accessStore = useAccessStore();
 const { hasPermission } = useRbacAccess();
@@ -39,6 +43,9 @@ const ready = computed(
 const catalog = ref<WorkflowBusinessType[]>([]);
 const stateObjects = ref<string[]>([]);
 const stateObject = computed(() => {
+  // 动态模型没有实体控制器名，必须与授权目录中的稳定业务键精确匹配。
+  if (props.stateBusinessType)
+    return stateObjects.value.find((item) => item === props.stateBusinessType);
   const resource = /^\/?([A-Z][A-Za-z0-9]*)\/?$/.exec(
     props.config.apiBase,
   )?.[1];
@@ -93,6 +100,8 @@ watch(
   () =>
     JSON.stringify([
       props.config.apiBase,
+      props.stateBusinessType,
+      props.canReadRecord,
       userStore.userInfo,
       accessStore.accessCodes,
       globalOrgContextRevision.value,
@@ -142,7 +151,9 @@ function rowReference(record: Record<string, unknown>) {
   )
     return undefined;
   // 后端在读取资格、启动与历史时独立重验当前业务读取权；前端还须具备原页面详情权。
-  if (
+  if (props.stateBusinessType) {
+    if (props.canReadRecord !== true) return undefined;
+  } else if (
     !props.config.apiService?.retrieve ||
     !hasPermission(
       buildApiMethodPermissions(props.config.apiService, 'retrieve'),

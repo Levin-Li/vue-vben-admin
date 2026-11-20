@@ -3,8 +3,6 @@
 <INSTRUCTIONS>
 本文件随 @levin/admin-framework npm 发布包分发。使用本包进行二次开发、扩展、配置、升级或发布的子项目，必须先读取并遵循 [模块开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。规范仅约束公开入口、兼容扩展、安全、测试和升级，不要求采用发布方代码包名、目录或业务实现。
 
-请求认证状态与会话复核见 [使用指南](docs/session-http-status.md)。
-
 全局选择器 Header 与授权契约见 [docs/global-selector-header-contract.md](docs/global-selector-header-contract.md)；业务应用公共启动入口及界面偏好加载见 [docs/admin-bootstrap.md](docs/admin-bootstrap.md)。
 
 个人消息服务与可信来源导航：[接入指南](docs/personal-message-integration.md)。
@@ -16,8 +14,6 @@ API 属性组权限的轻量分配、后端元数据契约与保存语义见 [�
 公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。
 
 标准 CRUD 标签缓存接入与失效边界见 [标签缓存接入指南](docs/crud-tab-cache.md)。
-
-标准 CRUD 查询条件变化时的默认行为与设置优先级见 [自动查询指南](docs/crud-auto-search.md)。
 
 标准 CRUD 详情字段开发期声明、排序及检查见 [详情字段使用指南](docs/crud-detail-static-fields.md)。
 
@@ -36,8 +32,6 @@ API 属性组权限的轻量分配、后端元数据契约与保存语义见 [�
 本地长期与临时上传 API 见 [本地文件上传 API 使用指南](docs/local-file-storage-upload.md)。
 
 标准 CRUD 租户与组织选择及查询联动见 [用户与组织选择器使用指南](docs/components/user-org-selector.md)。
-
-角色与用户的数据权限分配见 [数据权限分配使用指南](docs/data-permission-checklist.md)。
 
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。
 </INSTRUCTIONS>

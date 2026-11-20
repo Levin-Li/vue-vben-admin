@@ -6,6 +6,10 @@ import type { VNode } from 'vue';
 import type { UiSettingRuntimeRecord } from '../app/api/ui-setting-runtime';
 import type { NormalizedCrudAction } from './crud-action-model';
 import type { CrudCursorState } from './crud-cursor-pagination';
+import type {
+  CrudFormElementDeclaration,
+  CrudFormElementView,
+} from './crud-form-elements';
 import type { CrudImportMapping, ParsedImportSheet } from './crud-import';
 import type { SearchFieldItem } from './crud-query-items';
 import type { CompactTableExpandedSide } from './crud-table-columns';
@@ -115,8 +119,8 @@ import {
   UI_SETTING_RETRIEVE_PATH,
 } from '../app/api/ui-setting-runtime';
 import { getCurrentTenantSiteInfo } from '../app/tenant-site-admin-ui-base-setting';
-import { mergeFixedQuery, parseMenuFixedQuery } from '../menu-fixed-query';
 import { getDataAttrPolicyEpoch } from '../data-attr-policy';
+import { mergeFixedQuery, parseMenuFixedQuery } from '../menu-fixed-query';
 import { useRbacAccess } from '../rbac-access';
 import { requestClient } from '../runtime';
 import {
@@ -209,13 +213,16 @@ import CrudFormBlockTree from './crud-form-block-tree.vue';
 import {
   createCrudFormElementRegistry,
   CRUD_FORM_ELEMENT_REGISTRY_KEY,
+  resolveExternalCrudFormDisplayField,
 } from './crud-form-elements';
 import {
   isCrudFormFieldConditionMet,
+  isCrudFormFieldRequired,
   shouldShowCrudFormField,
   shouldSubmitCrudFormField,
 } from './crud-form-field-visibility';
 import { resolveCrudFormGroupCollapse } from './crud-form-group-collapse';
+import { resolveCrudFormMode } from './crud-form-initial-mode';
 import {
   getContainerColumnCount,
   getFormFieldColumnSpan,
@@ -231,6 +238,7 @@ import {
   sortFormLayoutFields,
 } from './crud-form-layout';
 import { snapshotCrudFormValues } from './crud-form-snapshot';
+import { buildCrudWizardSteps, findCrudWizardStep } from './crud-form-wizard';
 import { getCrudGroupTitleClass } from './crud-group-display';
 import {
   buildGroupSubmitConfirmation,
@@ -265,16 +273,11 @@ import {
 } from './crud-money-display';
 import { assertCrudMutationApplied } from './crud-mutation-result';
 import { shouldShowCrudOperationColumn } from './crud-operation-column-visibility';
-import { getCrudOrgLoadApi } from './crud-org-selector';
-import {
-  getCrudUserLoadApi,
-  getCrudUserResolveRecords,
-  getCrudUserSearchApi,
-} from './crud-user-selector';
 import {
   filterCrudOperationsByListTable,
   groupCrudOperationsByRecordRef,
 } from './crud-operation-placement';
+import { getCrudOrgLoadApi } from './crud-org-selector';
 import {
   buildOrganizationScriptContext,
   buildTenantScriptContext,
@@ -320,8 +323,6 @@ import {
 } from './crud-permissions';
 import { buildCrudQueryItems } from './crud-query-items';
 import { resolveCrudQuickFill } from './crud-quick-fill';
-import { resolveCrudFormMode } from './crud-form-initial-mode';
-import { buildCrudWizardSteps, findCrudWizardStep } from './crud-form-wizard';
 import {
   buildCrudDeleteParams,
   buildCrudRetrieveParams,
@@ -334,7 +335,6 @@ import {
   shouldReloadRemoteOptionsOnDropdownOpen,
 } from './crud-select-options';
 import { omitExcludedCrudFields } from './crud-submit-fields';
-import UserOrgSelector from './user-org-selector.vue';
 import {
   buildTableColumnPreference,
   getTableColumnPreferenceStorageKey,
@@ -364,6 +364,11 @@ import {
   buildCrudTooltipText,
   CRUD_TOOLTIP_MOUSE_ENTER_DELAY,
 } from './crud-tooltip-preview';
+import {
+  getCrudUserLoadApi,
+  getCrudUserResolveRecords,
+  getCrudUserSearchApi,
+} from './crud-user-selector';
 import { formatCrudExportValue } from './crud-value-converter';
 import { evaluateCrudVisibleOn } from './crud-visible-on';
 import {
@@ -385,9 +390,10 @@ import PageDisplaySettingsDrawer from './page-display-settings-drawer.vue';
 import RichTextEditorField from './rich-text-editor-field.vue';
 import {
   collectUserRoleIdentityValues,
-  isPlatformUser as resolvePlatformUser,
   isSuperAdminUser,
+  isPlatformUser as resolvePlatformUser,
 } from './user-identity';
+import UserOrgSelector from './user-org-selector.vue';
 
 import './crud-group-display.css';
 import './crud-layout.css';
@@ -671,10 +677,10 @@ const listTableTabsHandleTooltipOpen = ref(false);
 const hiddenTableColumnKeys = ref<string[]>([]);
 const orderedTableColumnKeys = ref<string[]>([]);
 const temporaryTableColumnWidths = ref<Record<string, number>>({});
-const temporaryResizeBaseline = ref<{
+const temporaryResizeBaseline = ref<null | {
   targetKey: string;
   widths: number[];
-} | null>(null);
+}>(null);
 const columnSettingsOpen = ref(false);
 const pageDisplaySettingsOpen = ref(false);
 // 两版编辑抽屉仅在点击后挂载，普通页面只解析实际应用的展示配置。
@@ -684,7 +690,10 @@ const PageDisplaySettingsDrawerV2 = defineAsyncComponent(
 const pageDisplaySettingsV2Open = ref(false);
 const pageDisplaySettingSaving = ref(false);
 const pageDisplayConfig = ref<CrudPageDisplayConfig>(
-  resolveCrudPageDisplayDefaults(undefined, props.config.defaultQueryAutoSearch),
+  resolveCrudPageDisplayDefaults(
+    undefined,
+    props.config.defaultQueryAutoSearch,
+  ),
 );
 // 服务端页面设置覆盖当前标签的缓存资格；缺省仍沿用路由开发时声明。
 watch(
@@ -1666,13 +1675,21 @@ const formFields = computed(() =>
 
 const initialFormFields = computed(() =>
   sortFormLayoutFields(
-    formFields.value.filter((field) =>
-      shouldShowCrudFormField(
-        field,
-        editingRecord.value ? 'edit' : 'create',
-        userStore.userInfo,
-      ),
-    ),
+    formFields.value
+      .filter((field) =>
+        shouldShowCrudFormField(
+          field,
+          editingRecord.value ? 'edit' : 'create',
+          userStore.userInfo,
+        ),
+      )
+      .map((field) => ({
+        ...field,
+        required: isCrudFormFieldRequired(
+          field,
+          editingRecord.value ? 'edit' : 'create',
+        ),
+      })),
   ),
 );
 const activeFormFields = computed(() =>
@@ -5604,6 +5621,21 @@ defineExpose({
   reload: loadList,
   openCreate: handleCreate,
   isFormOpen: () => modalOpen.value,
+  // 供同页面专用表单登记字段并读取其独立展示配置；权限仍由调用方按实际接口校验。
+  registerExternalFormElements: (elements: CrudFormElementDeclaration[]) =>
+    elements.forEach((element) => formElementRegistry.register(element)),
+  getExternalFormDisplayField: (
+    view: CrudFormElementView,
+    formId: string,
+    key: string,
+  ) =>
+    resolveExternalCrudFormDisplayField(
+      pageDisplayConfig.value[view]?.fields,
+      formId,
+      key,
+    ),
+  getExternalFormDisplayGroup: (view: CrudFormElementView, key: string) =>
+    pageDisplayConfig.value[view]?.groups?.find((item) => item.key === key),
 });
 
 // 初始化完成后固定本次字段集合，后续 UI 显隐变化不重置用户修改基准。

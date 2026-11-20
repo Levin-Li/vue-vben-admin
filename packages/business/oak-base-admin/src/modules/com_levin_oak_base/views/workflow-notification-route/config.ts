@@ -40,6 +40,8 @@ export const workflowNotificationEvents: {
   { label: '任务提醒', value: 'TaskReminder' },
   { label: '任务到期', value: 'TaskDeadline' },
   { label: '任务完成', value: 'TaskProcessed' },
+  { label: '节点进入', value: 'NodeEntered' },
+  { label: '节点完成', value: 'NodeCompleted' },
 ];
 export const robotWebhookChannels: readonly NotificationChannel[] = [
   'FeishuWebhook',

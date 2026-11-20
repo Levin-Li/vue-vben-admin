@@ -128,6 +128,39 @@ describe('原业务页通用流程入口', () => {
     });
   });
 
+  it('动态模型按明确实体键和模型详情授权显示流程入口', async () => {
+    state.catalog.mockResolvedValue([]);
+    state.objects.mockResolvedValue(['data-model:expense']);
+    const mountDynamic = (canReadRecord: boolean) =>
+      mount(WorkflowCrudEntry, {
+        props: {
+          config: {
+            title: '动态记录',
+            apiBase: '/DataModel/expense',
+            fields: [],
+          },
+          stateBusinessType: 'data-model:expense',
+          canReadRecord,
+        },
+        slots: {
+          default: ({ canOpen, supported }: any) =>
+            h(
+              'button',
+              { disabled: !canOpen(record) },
+              supported ? '业务流程' : '不支持',
+            ),
+        },
+      });
+    const allowed = mountDynamic(true);
+    await flushPromises();
+    expect(allowed.get('button').attributes('disabled')).toBeUndefined();
+    const denied = mountDynamic(false);
+    await flushPromises();
+    expect(denied.get('button').attributes('disabled')).toBeDefined();
+    allowed.unmount();
+    denied.unmount();
+  });
+
   it('状态流程按选中记录租户分页加载并选择定义', async () => {
     state.catalog.mockResolvedValue([]);
     state.objects.mockResolvedValue(['com.example.Address']);

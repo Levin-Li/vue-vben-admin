@@ -5,6 +5,14 @@ import { isSuperAdminUser } from './user-identity';
 
 export type CrudFormMode = 'create' | 'edit';
 
+/** 页面静态必填不能被视图配置或用户设置放宽。 */
+export function isCrudFormFieldRequired(
+  field: Pick<CrudFieldConfig, 'required' | 'requiredByView'>,
+  mode: CrudFormMode,
+) {
+  return field.required === true || field.requiredByView?.[mode] === true;
+}
+
 export function isCrudFormFieldConditionMet(
   field: CrudFieldConfig,
   formState: Record<string, any>,

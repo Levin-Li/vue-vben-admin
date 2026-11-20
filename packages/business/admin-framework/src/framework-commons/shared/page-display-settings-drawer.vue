@@ -1,8 +1,32 @@
 <script lang="ts" setup>
-import type { CrudFormInitialMode } from './types';
-import { crudInitialModeOptions, resolveCrudInitialMode } from './crud-form-initial-mode';
 import type { UiSettingRuntimeRecord } from '../app/api/ui-setting-runtime';
-import PageDisplaySettingTitle from './page-display-setting-title.vue';
+import type { CrudFormElementDeclaration } from './crud-form-elements';
+import type { ScriptWorkbenchVariableGroup } from './script-workbench-dialog.vue';
+import type {
+  CrudFieldConfig,
+  CrudFormInitialMode,
+  CrudPageDisplayActionCandidate,
+  CrudPageDisplayActionConfig,
+  CrudPageDisplayConfig,
+  CrudPageDisplayFieldConfig,
+  CrudPageDisplayGroupConfig,
+  CrudPageDisplayGroupedViewConfig,
+  CrudPageDisplayHeaderConfig,
+} from './types';
+
+import {
+  computed,
+  defineComponent,
+  h,
+  nextTick,
+  onUnmounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue';
+
+import { IconifyIcon } from '@vben/runtime/icons';
+
 import {
   AutoComplete,
   Button,
@@ -16,66 +40,47 @@ import {
   Radio,
   Select,
   Switch,
-  Tag,
   Tabs,
+  Tag,
   Tooltip,
 } from 'ant-design-vue';
-import { IconifyIcon } from '@vben/runtime/icons';
-import {
-  computed,
-  defineComponent,
-  h,
-  nextTick,
-  onUnmounted,
-  reactive,
-  ref,
-  watch,
-} from 'vue';
 
 import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
-import CrudDefaultValueEditor from './crud-default-value-editor.vue';
-import ScriptWorkbenchDialog, {
-  type ScriptWorkbenchVariableGroup,
-} from './script-workbench-dialog.vue';
-import PageDisplaySettingsDetailTab from './page-display-settings-detail-tab.vue';
-import PageDisplaySettingsListTab from './page-display-settings-list-tab.vue';
 import { OAK_BASE_API_MODULE, roleOptionsLoader } from './config-helpers';
-import { filterCrudLocalSelectOption } from './crud-local-search';
-import { matchesPinyinFuzzySearch } from './pinyin-fuzzy-search';
+import CrudDefaultValueEditor from './crud-default-value-editor.vue';
+import { externalCrudFormDisplayKey, stringifyCrudDisplaySnapshot } from './crud-form-elements';
+import { isCrudFormFieldRequired } from './crud-form-field-visibility';
+import {
+  crudInitialModeOptions,
+  resolveCrudInitialMode,
+} from './crud-form-initial-mode';
 import { normalizeCrudGroupDisplayStyle } from './crud-group-display';
+import { filterCrudLocalSelectOption } from './crud-local-search';
 import {
   findDisplayRuleCycle,
-  getDisplaySubmitMode,
-  setDisplaySubmitMode,
   getDefaultFieldHidden,
   getDefaultVisibleRoleCodes,
-  isEligibleStaticDisplayGroup,
-  initializeVisibleRoleCodes,
+  getDisplaySubmitMode,
   initializeFieldHidden,
-  initializeHeaderVisibility,
+  initializeVisibleRoleCodes,
+  isEligibleStaticDisplayGroup,
   moveDisplayFieldToGroupEnd,
   reconcileCrudPageDisplayActions,
   reconcileCrudPageDisplayHeaders,
   releaseDisplayGroupFields,
   resolveCrudPageDisplayDefaults,
-  resolveDefaultTableColumnWidth,
+  setDisplaySubmitMode,
   sortDisplayGroups,
   supportsInlineChoiceOptions,
 } from './crud-page-display';
-import type {
-  CrudFieldConfig,
-  CrudPageDisplayActionCandidate,
-  CrudPageDisplayActionConfig,
-  CrudPageDisplayConfig,
-  CrudPageDisplayFieldConfig,
-  CrudPageDisplayGroupedViewConfig,
-  CrudPageDisplayGroupConfig,
-  CrudPageDisplayHeaderConfig,
-} from './types';
-import type { CrudFormElementDeclaration } from './crud-form-elements';
+import PageDisplaySettingTitle from './page-display-setting-title.vue';
+import PageDisplaySettingsDetailTab from './page-display-settings-detail-tab.vue';
+import PageDisplaySettingsListTab from './page-display-settings-list-tab.vue';
+import { matchesPinyinFuzzySearch } from './pinyin-fuzzy-search';
+import ScriptWorkbenchDialog from './script-workbench-dialog.vue';
 
 type FormView = 'create' | 'detail' | 'edit';
-type View = FormView | 'list' | 'query';
+type View = 'list' | 'query' | FormView;
 type GroupView = Exclude<View, 'list'>;
 type DrawerDisplayGroup = CrudPageDisplayGroupConfig & {
   developmentDefault?: boolean;
@@ -92,24 +97,24 @@ type Scope = {
 const props = defineProps<{
   actionCandidates?: CrudPageDisplayActionCandidate[];
   code: string;
+  detailFields?: CrudFieldConfig[];
   domainObject?: boolean;
-  initialScope?: Scope;
   fields: CrudFieldConfig[];
   formElements?: CrudFormElementDeclaration[];
-  detailFields?: CrudFieldConfig[];
+  initialScope?: Scope;
   modelValue?: CrudPageDisplayConfig;
   open: boolean;
   saving?: boolean;
   scopeLoadVersion?: number;
+  scriptTestContext?: Record<string, any>;
   settingRecord?: null | UiSettingRuntimeRecord;
   showOperationColumn?: boolean;
-  scriptTestContext?: Record<string, any>;
 }>();
 
 const emit = defineEmits<{
   load: [];
-  'update:open': [value: boolean];
   save: [value: { config: CrudPageDisplayConfig; scope: Scope }];
+  'update:open': [value: boolean];
 }>();
 
 const activeKey = ref<View>('query');
@@ -163,6 +168,7 @@ const orgCategoryScopeOptions = ref<Array<{ label: string; value: string }>>(
 );
 const orgTypeScopeOptions = ref<Array<{ label: string; value: string }>>([]);
 let cachedScopeOptions:
+  | undefined
   | {
       orgCategories: Array<{ label: string; value: string }>;
       orgTypes: Array<{ label: string; value: string }>;
@@ -171,8 +177,7 @@ let cachedScopeOptions:
       tenants: Array<{ label: string; value: string }>;
       userCategories: Array<{ label: string; value: string }>;
       userTypes: Array<{ label: string; value: string }>;
-    }
-  | undefined;
+    };
 let scopeOptionsRequestVersion = 0;
 const roleVisibilityOptions = ref<Array<{ label: string; value: string }>>([]);
 const roleVisibilityLoading = ref(false);
@@ -185,7 +190,7 @@ let previewResizeObserver: null | ResizeObserver = null;
 let observedPreviewElement: HTMLElement | null = null;
 
 function currentSnapshot() {
-  return JSON.stringify({
+  return stringifyCrudDisplaySnapshot({
     config: draft.value,
     scope: normalizeScope(scope.value),
   });
@@ -448,13 +453,21 @@ function getAllowedFields(view: Exclude<View, 'list'>) {
   });
   const known = new Set(fields.map((field) => field.key));
   for (const element of props.formElements || []) {
-    if (element.view !== view || known.has(element.key)) continue;
+    if (element.view !== view) continue;
+    // 标准 CRUD 沿用原有字段键；外部表单按 formId 命名空间隔离。
+    const key = element.isolateDisplay
+      ? externalCrudFormDisplayKey(element.formId, element.key)
+      : element.key;
+    if (known.has(key)) continue;
     fields.push({
-      key: element.key,
-      label: element.label,
+      key,
+      label: element.isolateDisplay
+        ? `${element.formName} · ${element.label}`
+        : element.label,
       search: view === 'query',
       form: view !== 'query',
     });
+    known.add(key);
   }
   return fields;
 }
@@ -509,7 +522,7 @@ function ensureFields(view: Exclude<View, 'list'>) {
     // 后端已必填字段固定保留必填标记，设置界面不得将其取消。
     if (
       (view === 'create' || view === 'edit') &&
-      isSourceFieldRequired(field.key)
+      isSourceFieldRequired(field.key, view)
     ) {
       field.required = true;
     }
@@ -808,6 +821,14 @@ function getSourceFieldTitle(key: string) {
     virtual?.title ||
     virtual?.label ||
     props.fields.find((field) => field.key === key)?.label ||
+    (() => {
+      const element = props.formElements?.find(
+        (item) =>
+          item.isolateDisplay &&
+          externalCrudFormDisplayKey(item.formId, item.key) === key,
+      );
+      return element ? `${element.formName} · ${element.label}` : undefined;
+    })() ||
     key
   );
 }
@@ -818,8 +839,16 @@ function getSourceField(key: string, view: View) {
   );
 }
 
-function isSourceFieldRequired(key: string) {
-  return props.fields.some((field) => field.key === key && field.required);
+function isSourceFieldRequired(key: string, view: 'create' | 'edit') {
+  return props.fields.some(
+    (field) =>
+      field.key === key &&
+      field.form !== false &&
+      (view === 'create'
+        ? field.formCreate !== false
+        : field.formEdit !== false) &&
+      isCrudFormFieldRequired(field, view),
+  );
 }
 
 function getSourceLayoutGroupTitle(key: string) {
@@ -1054,7 +1083,7 @@ function dropAt(
 
 function restoreDevelopmentDefaultGroups(view: GroupView) {
   const defaults = getDevelopmentDefaultGroups(view);
-  if (!defaults.length) {
+  if (defaults.length === 0) {
     message.warning(`${viewTitle(view)}没有满足条件的开发默认分组。`);
     return;
   }
@@ -1577,7 +1606,7 @@ function changedViews(): View[] {
 
 function validateDisplayConfig(
   views: View[],
-): { message: string; view: View } | undefined {
+): undefined | { message: string; view: View } {
   ensureHeaders();
   for (const view of views.filter(
     (view): view is Exclude<View, 'list'> => view !== 'list',
@@ -1596,10 +1625,7 @@ function validateDisplayConfig(
       };
     }
     if (header.visible?.mode !== 'hidden') titles.add(title);
-    if (
-      header.virtual === true &&
-      !/^[A-Za-z][A-Za-z0-9_.-]{0,127}$/.test(header.key)
-    ) {
+    if (header.virtual === true && !/^[A-Z][\w.-]{0,127}$/i.test(header.key)) {
       return { message: `虚拟字段“${title}”的字段编码无效。`, view: 'list' };
     }
     if (
@@ -1658,7 +1684,7 @@ const uploadTooltip = computed(() => {
 
 function save() {
   // 当前页签即使未编辑，也不能上传已加载的无效配置。
-  const viewsToValidate = [...new Set([...changedViews(), activeKey.value])];
+  const viewsToValidate = [...new Set([activeKey.value, ...changedViews()])];
   const validationError = validateDisplayConfig(viewsToValidate);
   if (validationError) {
     activeKey.value = validationError.view;
@@ -1717,7 +1743,7 @@ watch(
   () => [props.modelValue, props.initialScope] as const,
   ([modelValue]) => {
     if (!props.open) return;
-    const savedSnapshot = JSON.stringify({
+    const savedSnapshot = stringifyCrudDisplaySnapshot({
       config: modelValue || { version: 1 },
       scope: normalizeScope(props.initialScope),
     });
@@ -1769,7 +1795,7 @@ onUnmounted(() => {
 <template>
   <Drawer
     :open="open"
-    :width="'min(90vw, 1800px)'"
+    width="min(90vw, 1800px)"
     :body-style="{
       display: 'flex',
       flexDirection: 'column',
@@ -1849,8 +1875,9 @@ onUnmounted(() => {
             :disabled="saving"
             :loading="saving"
             @click="save"
-            >上传设置</Button
           >
+            上传设置
+          </Button>
         </Tooltip>
       </div>
     </div>
@@ -1873,16 +1900,16 @@ onUnmounted(() => {
                 title="展示字段清单"
                 trigger="hover"
               >
-                <template #content
-                  ><div class="flex max-w-80 flex-wrap gap-2">
+                <template #content>
+                  <div class="flex max-w-80 flex-wrap gap-2">
                     <span
                       v-for="item in getRowsForView(view)"
                       :key="item.key"
                       class="border-border rounded border px-2 py-1 text-sm"
                       >{{ previewLabel(item) }}</span
                     >
-                  </div></template
-                >
+                  </div>
+                </template>
                 <Button>展示字段清单</Button>
               </Popover>
               <Tooltip
@@ -1927,17 +1954,18 @@ onUnmounted(() => {
                 placement="bottomLeft"
                 title="展示字段清单"
                 trigger="hover"
-                ><template #content
-                  ><div class="flex max-w-80 flex-wrap gap-2">
+              >
+                <template #content>
+                  <div class="flex max-w-80 flex-wrap gap-2">
                     <span
                       v-for="item in getRowsForView(view)"
                       :key="item.key"
                       class="border-border rounded border px-2 py-1 text-sm"
                       >{{ previewLabel(item) }}</span
                     >
-                  </div></template
-                ><Button>展示字段清单</Button></Popover
-              >
+                  </div> </template
+                ><Button>展示字段清单</Button>
+              </Popover>
               <Tooltip
                 title="留空沿用当前页面配置；支持 960px、80vw 等 CSS 长度。"
               >
@@ -1966,11 +1994,18 @@ onUnmounted(() => {
               >
                 <Form.Item label="首次填写模式" class="mb-0">
                   <Select
-                    :value="resolveCrudInitialMode(formHolder(view as FormView))"
+                    :value="
+                      resolveCrudInitialMode(formHolder(view as FormView))
+                    "
                     :options="crudInitialModeOptions"
                     aria-label="首次填写模式"
                     class="w-[120px]"
-                    @update:value="setInitialMode(view as FormView, $event as CrudFormInitialMode)"
+                    @update:value="
+                      setInitialMode(
+                        view as FormView,
+                        $event as CrudFormInitialMode,
+                      )
+                    "
                   />
                 </Form.Item>
               </Tooltip>
@@ -2019,9 +2054,9 @@ onUnmounted(() => {
             </span>
           </div>
           <template v-if="isGroupableView(view)">
-            <Button type="primary" class="px-4" @click="addGroup"
-              >+ 添加分组</Button
-            >
+            <Button type="primary" class="px-4" @click="addGroup">
+              + 添加分组
+            </Button>
             <Tooltip
               title="移除当前表单的运行时分组覆盖，并按开发阶段的有效分组重新组织草稿；上传后才保存。"
             >
@@ -2060,107 +2095,119 @@ onUnmounted(() => {
               :style="{ gridTemplateColumns: getFieldConfigGridTemplate(view) }"
             >
               <template v-if="view === 'list'">
-                <Tooltip title="调整字段在当前展示列表中的前后顺序。"
-                  ><span
+                <Tooltip title="调整字段在当前展示列表中的前后顺序。">
+                  <span
                     aria-hidden="true"
                     class="page-display-settings-fixed-cell page-display-settings-fixed-header-cell page-display-settings-fixed-header-control-cell bg-primary-background-lightest sticky left-0 z-30"
-                  ></span
-                ></Tooltip>
+                  ></span>
+                </Tooltip>
                 <div
                   class="page-display-settings-fixed-cell page-display-settings-fixed-header-cell bg-primary-background-lightest sticky left-[86px] z-30"
                 >
-                  <Tooltip title="当前配置所对应的数据字段。"
-                    ><span>字段</span></Tooltip
-                  >
+                  <Tooltip title="当前配置所对应的数据字段。">
+                    <span>字段</span>
+                  </Tooltip>
                 </div>
-                <Tooltip title="当前列表列的标题别名；留空时沿用字段名称。"
-                  ><span>标题别名</span></Tooltip
-                >
-                <Tooltip title="用于转换每行单元格显示内容。"
-                  ><span>展示值脚本</span></Tooltip
-                >
+                <Tooltip title="当前列表列的标题别名；留空时沿用字段名称。">
+                  <span>标题别名</span>
+                </Tooltip>
+                <Tooltip title="用于转换每行单元格显示内容。">
+                  <span>展示值脚本</span>
+                </Tooltip>
                 <Tooltip
                   title="列表列当前的基础宽度；留空时使用当前页面已有配置。"
-                  ><span>列宽</span></Tooltip
                 >
+                  <span>列宽</span>
+                </Tooltip>
                 <Tooltip
                   title="列表列允许收缩前的最小像素宽度；留空时不额外限制。"
-                  ><span>最小列宽</span></Tooltip
                 >
+                  <span>最小列宽</span>
+                </Tooltip>
                 <Tooltip
                   title="该列允许扩展的最大像素宽度；留空时使用列表默认最大列宽。"
-                  ><span>最大列宽</span></Tooltip
                 >
+                  <span>最大列宽</span>
+                </Tooltip>
                 <Tooltip
                   title="控制整列是否显示，或使用脚本按当前上下文决定是否显示。"
-                  ><span>是否展示</span></Tooltip
                 >
+                  <span>是否展示</span>
+                </Tooltip>
                 <Tooltip
                   title="留空继承列表默认超宽展示；可单独设为截断或换行。"
-                  ><span>超宽展示样式</span></Tooltip
                 >
+                  <span>超宽展示样式</span>
+                </Tooltip>
                 <Tooltip
                   title="只有当前用户拥有任一选中角色时，才会看到该列表列。"
-                  ><span>可见角色</span></Tooltip
                 >
-                <Tooltip title="表头脚本控制列标题是否显示。"
-                  ><span>显示脚本</span></Tooltip
-                >
+                  <span>可见角色</span>
+                </Tooltip>
+                <Tooltip title="表头脚本控制列标题是否显示。">
+                  <span>显示脚本</span>
+                </Tooltip>
               </template>
               <template v-else>
-                <Tooltip title="调整字段在当前表单中的前后顺序。"
-                  ><span>调整</span></Tooltip
-                >
-                <Tooltip title="当前配置所对应的数据字段。"
-                  ><span>字段</span></Tooltip
-                >
-                <Tooltip title="当前表单字段的标题别名；留空时沿用字段名称。"
-                  ><span>标题别名</span></Tooltip
-                >
+                <Tooltip title="调整字段在当前表单中的前后顺序。">
+                  <span>调整</span>
+                </Tooltip>
+                <Tooltip title="当前配置所对应的数据字段。">
+                  <span>字段</span>
+                </Tooltip>
+                <Tooltip title="当前表单字段的标题别名；留空时沿用字段名称。">
+                  <span>标题别名</span>
+                </Tooltip>
                 <Tooltip
                   v-if="view === 'detail'"
                   title="初始化表单时为字段预填的值。"
-                  ><span>默认值</span></Tooltip
                 >
+                  <span>默认值</span>
+                </Tooltip>
                 <Tooltip
                   v-if="view !== 'detail'"
                   title="初始化表单时为字段预填的值。"
-                  ><span>默认值</span></Tooltip
                 >
+                  <span>默认值</span>
+                </Tooltip>
                 <Tooltip
                   title="选择字段所属的展示分组；选择后字段会移动到该分组末尾。"
-                  ><span>所属分组</span></Tooltip
                 >
+                  <span>所属分组</span>
+                </Tooltip>
                 <Tooltip
                   title="默认使用原控件；布尔、字典、枚举和固定选项可选择平铺展示。"
-                  ><span>展示方式</span></Tooltip
                 >
+                  <span>展示方式</span>
+                </Tooltip>
                 <Tooltip
                   title="只有当前用户拥有任一选中角色时，才会看到该字段。"
-                  ><span>可见角色</span></Tooltip
                 >
+                  <span>可见角色</span>
+                </Tooltip>
                 <Tooltip
                   :title="
                     view === 'detail'
                       ? '控制详情字段是否展示。'
                       : '控制字段是否展示及参与提交；权限、条件和分组提交选择仍然有效。'
                   "
-                  ><span>{{
+                >
+                  <span>{{
                     view === 'detail' ? '是否展示' : '展示与提交'
-                  }}</span></Tooltip
-                >
-                <Tooltip v-if="false" title="初始化表单时为字段预填的值。"
-                  ><span>默认值</span></Tooltip
-                >
-                <Tooltip title="编写脚本决定字段是否展示。"
-                  ><span>显示脚本</span></Tooltip
-                >
-                <Tooltip title="依赖字段展示时当前字段才展示。"
-                  ><span>依赖显示项</span></Tooltip
-                >
-                <Tooltip title="互斥字段展示时当前字段隐藏。"
-                  ><span>互斥项</span></Tooltip
-                >
+                  }}</span>
+                </Tooltip>
+                <Tooltip v-if="false" title="初始化表单时为字段预填的值。">
+                  <span>默认值</span>
+                </Tooltip>
+                <Tooltip title="编写脚本决定字段是否展示。">
+                  <span>显示脚本</span>
+                </Tooltip>
+                <Tooltip title="依赖字段展示时当前字段才展示。">
+                  <span>依赖显示项</span>
+                </Tooltip>
+                <Tooltip title="互斥字段展示时当前字段隐藏。">
+                  <span>互斥项</span>
+                </Tooltip>
               </template>
             </div>
             <template
@@ -2184,22 +2231,24 @@ onUnmounted(() => {
                   class="border-primary bg-primary/10 flex w-full flex-wrap items-center gap-2 border-b px-3 py-2"
                 >
                   <template v-if="rowGroup.group">
-                    <Tooltip title="上移分组"
-                      ><Button
+                    <Tooltip title="上移分组">
+                      <Button
                         size="small"
                         :disabled="!canMoveRowGroup(rowGroup, -1)"
                         @click="moveRowGroup(rowGroup, -1)"
-                        >↑</Button
-                      ></Tooltip
-                    >
-                    <Tooltip title="下移分组"
-                      ><Button
+                      >
+                        ↑
+                      </Button>
+                    </Tooltip>
+                    <Tooltip title="下移分组">
+                      <Button
                         size="small"
                         :disabled="!canMoveRowGroup(rowGroup, 1)"
                         @click="moveRowGroup(rowGroup, 1)"
-                        >↓</Button
-                      ></Tooltip
-                    >
+                      >
+                        ↓
+                      </Button>
+                    </Tooltip>
                     <span class="min-w-5 text-right text-sm font-medium"
                       >分组 {{ groupIndex + 1 }}：</span
                     >
@@ -2286,32 +2335,35 @@ onUnmounted(() => {
                         />
                       </template>
                     </div>
-                    <Tooltip title="删除分组后，其中字段将回到默认分组。"
-                      ><Button
+                    <Tooltip title="删除分组后，其中字段将回到默认分组。">
+                      <Button
                         danger
                         size="small"
                         @click="removeGroup(rowGroup.group)"
-                        >删除分组</Button
-                      ></Tooltip
-                    >
+                      >
+                        删除分组
+                      </Button>
+                    </Tooltip>
                   </template>
                   <template v-else>
-                    <Tooltip title="上移默认分组"
-                      ><Button
+                    <Tooltip title="上移默认分组">
+                      <Button
                         size="small"
                         :disabled="!canMoveRowGroup(rowGroup, -1)"
                         @click="moveRowGroup(rowGroup, -1)"
-                        >↑</Button
-                      ></Tooltip
-                    >
-                    <Tooltip title="下移默认分组"
-                      ><Button
+                      >
+                        ↑
+                      </Button>
+                    </Tooltip>
+                    <Tooltip title="下移默认分组">
+                      <Button
                         size="small"
                         :disabled="!canMoveRowGroup(rowGroup, 1)"
                         @click="moveRowGroup(rowGroup, 1)"
-                        >↓</Button
-                      ></Tooltip
-                    >
+                      >
+                        ↓
+                      </Button>
+                    </Tooltip>
                     <span class="min-w-5 text-right text-sm font-medium"
                       >{{ groupIndex + 1 }}.</span
                     >
@@ -2319,7 +2371,7 @@ onUnmounted(() => {
                   </template>
                 </div>
                 <div
-                  v-if="isGroupableView(view) && !rowGroup.rows.length"
+                  v-if="isGroupableView(view) && rowGroup.rows.length === 0"
                   class="border-border text-muted-foreground w-full border-b px-4 py-3 text-sm"
                 >
                   暂无字段，可通过字段行的分组选择器归入此分组。
@@ -2346,21 +2398,23 @@ onUnmounted(() => {
                         : ''
                     "
                   >
-                    <Tooltip title="上移字段"
-                      ><Button
+                    <Tooltip title="上移字段">
+                      <Button
                         size="small"
                         :disabled="!canMoveRow(row, -1)"
                         @click="moveRow(row, -1)"
-                        >↑</Button
-                      ></Tooltip
-                    ><Tooltip title="下移字段"
-                      ><Button
+                      >
+                        ↑
+                      </Button> </Tooltip
+                    ><Tooltip title="下移字段">
+                      <Button
                         size="small"
                         :disabled="!canMoveRow(row, 1)"
                         @click="moveRow(row, 1)"
-                        >↓</Button
-                      ></Tooltip
-                    >
+                      >
+                        ↓
+                      </Button>
+                    </Tooltip>
                   </div>
                   <div
                     :class="
@@ -2520,8 +2574,8 @@ onUnmounted(() => {
                         (open) => open && loadRoleVisibilityOptions()
                       "
                     />
-                    <Tooltip title="编写脚本决定当前列是否展示。"
-                      ><Button
+                    <Tooltip title="编写脚本决定当前列是否展示。">
+                      <Button
                         size="small"
                         :aria-label="
                           getScriptButtonLabel(
@@ -2532,15 +2586,18 @@ onUnmounted(() => {
                         @click="
                           editHeaderScript(row as CrudPageDisplayHeaderConfig)
                         "
-                        ><IconifyIcon
+                      >
+                        <IconifyIcon
                           class="size-3.5"
                           :icon="
                             getScriptButtonIcon(
                               (row as CrudPageDisplayHeaderConfig).visible
                                 ?.expression,
                             )
-                          " /></Button
-                    ></Tooltip>
+                          "
+                        />
+                      </Button>
+                    </Tooltip>
                   </template>
                   <template v-else>
                     <Radio.Group
@@ -2586,24 +2643,24 @@ onUnmounted(() => {
                       "
                     >
                       <Radio.Button value="display-submit">
-                        <Tooltip title="展示控件并参与提交"
-                          ><span>展提</span></Tooltip
-                        >
+                        <Tooltip title="展示控件并参与提交">
+                          <span>展提</span>
+                        </Tooltip>
                       </Radio.Button>
                       <Radio.Button value="hidden-submit">
-                        <Tooltip title="不展示控件仍参与提交"
-                          ><span>隐提</span></Tooltip
-                        >
+                        <Tooltip title="不展示控件仍参与提交">
+                          <span>隐提</span>
+                        </Tooltip>
                       </Radio.Button>
                       <Radio.Button value="disabled-submit">
-                        <Tooltip title="展示控件但不可修改仍参与提交"
-                          ><span>禁提</span></Tooltip
-                        >
+                        <Tooltip title="展示控件但不可修改仍参与提交">
+                          <span>禁提</span>
+                        </Tooltip>
                       </Radio.Button>
                       <Radio.Button value="hidden-omit">
-                        <Tooltip title="不展示控件也不参与校验和提交"
-                          ><span>不提</span></Tooltip
-                        >
+                        <Tooltip title="不展示控件也不参与校验和提交">
+                          <span>不提</span>
+                        </Tooltip>
                       </Radio.Button>
                     </Radio.Group>
                     <Switch
@@ -2614,19 +2671,22 @@ onUnmounted(() => {
                       class="w-[57px] min-w-[57px]"
                       @change="(value) => (row.hidden = !value)"
                     />
-                    <Tooltip title="编写脚本决定字段是否展示。"
-                      ><Button
+                    <Tooltip title="编写脚本决定字段是否展示。">
+                      <Button
                         size="small"
                         :aria-label="
                           getScriptButtonLabel(row.visibility?.expression)
                         "
                         @click="editVisibilityScript(row)"
-                        ><IconifyIcon
+                      >
+                        <IconifyIcon
                           class="size-3.5"
                           :icon="
                             getScriptButtonIcon(row.visibility?.expression)
-                          " /></Button
-                    ></Tooltip>
+                          "
+                        />
+                      </Button>
+                    </Tooltip>
                     <Select
                       :value="getDependencyKeys(row)"
                       mode="multiple"
@@ -2663,7 +2723,7 @@ onUnmounted(() => {
                 }}）
               </Button>
             </div>
-            <template v-if="view === 'list' && filteredActionRows.length">
+            <template v-if="view === 'list' && filteredActionRows.length > 0">
               <div
                 v-for="action in filteredActionRows"
                 :key="action.key"

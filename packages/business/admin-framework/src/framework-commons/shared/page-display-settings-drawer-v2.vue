@@ -1,14 +1,13 @@
 <!-- 第二版独立副本：来源 stable/page-display-settings-performance-20260912，后续界面修改仅维护本文件。 -->
 <script lang="ts" setup>
-import type { CrudFormInitialMode } from './types';
-import { crudInitialModeOptions, resolveCrudInitialMode } from './crud-form-initial-mode';
 import type { UiSettingRuntimeRecord } from '../app/api/ui-setting-runtime';
-import PageDisplaySettingTitle from './page-display-setting-title.vue';
-import type { ScriptWorkbenchVariableGroup } from './script-workbench-dialog.vue';
+import type { CrudFormElementDeclaration } from './crud-form-elements';
 import type { CrudListOperationCandidate } from './crud-list-operations';
+import type { ScriptWorkbenchVariableGroup } from './script-workbench-dialog.vue';
 import type {
-  CrudFieldConfig,
   CrudComplexGroupConfig,
+  CrudFieldConfig,
+  CrudFormInitialMode,
   CrudPageDisplayActionCandidate,
   CrudPageDisplayActionConfig,
   CrudPageDisplayConfig,
@@ -17,7 +16,6 @@ import type {
   CrudPageDisplayGroupedViewConfig,
   CrudPageDisplayHeaderConfig,
 } from './types';
-import type { CrudFormElementDeclaration } from './crud-form-elements';
 
 import {
   computed,
@@ -50,14 +48,19 @@ import {
 
 import { fetchDictOptions, fetchEnumOptions, fetchOptions } from '../api';
 import { OAK_BASE_API_MODULE, roleOptionsLoader } from './config-helpers';
-import { filterCrudLocalSelectOption } from './crud-local-search';
-import { matchesPinyinFuzzySearch } from './pinyin-fuzzy-search';
+import { externalCrudFormDisplayKey, stringifyCrudDisplaySnapshot } from './crud-form-elements';
+import { isCrudFormFieldRequired } from './crud-form-field-visibility';
+import {
+  crudInitialModeOptions,
+  resolveCrudInitialMode,
+} from './crud-form-initial-mode';
 import { normalizeCrudGroupDisplayStyle } from './crud-group-display';
 import { DEFAULT_LIST_OPERATIONS } from './crud-list-operations';
+import { filterCrudLocalSelectOption } from './crud-local-search';
 import {
   findDisplayRuleCycle,
-  getDefaultFieldHidden,
   getComplexObjectDisplayGroupKey,
+  getDefaultFieldHidden,
   getDefaultVisibleRoleCodes,
   getDisplaySubmitMode,
   initializeFieldHidden,
@@ -71,9 +74,11 @@ import {
   sortDisplayGroups,
   supportsInlineChoiceOptions,
 } from './crud-page-display';
+import PageDisplaySettingTitle from './page-display-setting-title.vue';
 import PageDisplaySettingsDetailTab from './page-display-settings-detail-tab-v2.vue';
 import PageDisplaySettingsListTab from './page-display-settings-list-tab-v2.vue';
 import PageDisplaySettingsV2PropertyPanel from './page-display-settings-v2-property-panel.vue';
+import { matchesPinyinFuzzySearch } from './pinyin-fuzzy-search';
 import ScriptWorkbenchDialog from './script-workbench-dialog.vue';
 
 type FormView = 'create' | 'detail' | 'edit';
@@ -94,20 +99,20 @@ type Scope = {
 const props = defineProps<{
   actionCandidates?: CrudPageDisplayActionCandidate[];
   code: string;
+  complexGroups?: CrudComplexGroupConfig[];
   defaultKeepAlive?: boolean;
   detailFields?: CrudFieldConfig[];
   domainObject?: boolean;
   fields: CrudFieldConfig[];
-  complexGroups?: CrudComplexGroupConfig[];
   formElements?: CrudFormElementDeclaration[];
   initialScope?: Scope;
-  modelValue?: CrudPageDisplayConfig;
   listOperationCandidates?: CrudListOperationCandidate[];
+  modelValue?: CrudPageDisplayConfig;
   open: boolean;
   saving?: boolean;
   scopeLoadVersion?: number;
-  settingRecord?: null | UiSettingRuntimeRecord;
   scriptTestContext?: Record<string, any>;
+  settingRecord?: null | UiSettingRuntimeRecord;
   showOperationColumn?: boolean;
 }>();
 
@@ -208,7 +213,7 @@ let previewResizeObserver: null | ResizeObserver = null;
 let observedPreviewElement: HTMLElement | null = null;
 
 function currentSnapshot() {
-  return JSON.stringify({
+  return stringifyCrudDisplaySnapshot({
     config: draft.value,
     scope: normalizeScope(scope.value),
   });
@@ -454,9 +459,9 @@ function isGroupableView(view: View): view is GroupView {
 function getFieldConfigGridTemplate(view: View) {
   return view === 'list'
     ? '66px 110px 190px 120px 124px 124px 124px 120px 200px 200px 100px'
-    : view === 'detail'
+    : (view === 'detail'
       ? '66px 160px 190px 170px 160px 150px 200px 60px 100px 220px 200px'
-      : '52px 120px 150px 170px 110px 110px 220px 200px 110px 220px 200px';
+      : '52px 120px 150px 170px 110px 110px 220px 200px 110px 220px 200px');
 }
 
 function getAllowedFields(view: Exclude<View, 'list'>) {
@@ -480,13 +485,21 @@ function getAllowedFields(view: Exclude<View, 'list'>) {
   });
   const known = new Set(fields.map((field) => field.key));
   for (const element of props.formElements || []) {
-    if (element.view !== view || known.has(element.key)) continue;
+    if (element.view !== view) continue;
+    // 标准 CRUD 沿用原有字段键；外部表单按 formId 命名空间隔离。
+    const key = element.isolateDisplay
+      ? externalCrudFormDisplayKey(element.formId, element.key)
+      : element.key;
+    if (known.has(key)) continue;
     fields.push({
-      key: element.key,
-      label: element.label,
+      key,
+      label: element.isolateDisplay
+        ? `${element.formName} · ${element.label}`
+        : element.label,
       search: view === 'query',
       form: view !== 'query',
     });
+    known.add(key);
   }
   return fields;
 }
@@ -556,7 +569,7 @@ function ensureFields(view: Exclude<View, 'list'>) {
     // 后端已必填字段固定保留必填标记，设置界面不得将其取消。
     if (
       (view === 'create' || view === 'edit') &&
-      isSourceFieldRequired(field.key)
+      isSourceFieldRequired(field.key, view)
     ) {
       field.required = true;
     }
@@ -859,12 +872,28 @@ function getSourceFieldTitle(key: string) {
     virtual?.title ||
     virtual?.label ||
     props.fields.find((field) => field.key === key)?.label ||
+    (() => {
+      const element = props.formElements?.find(
+        (item) =>
+          item.isolateDisplay &&
+          externalCrudFormDisplayKey(item.formId, item.key) === key,
+      );
+      return element ? `${element.formName} · ${element.label}` : undefined;
+    })() ||
     key
   );
 }
 
-function isSourceFieldRequired(key: string) {
-  return props.fields.some((field) => field.key === key && field.required);
+function isSourceFieldRequired(key: string, view: 'create' | 'edit') {
+  return props.fields.some(
+    (field) =>
+      field.key === key &&
+      field.form !== false &&
+      (view === 'create'
+        ? field.formCreate !== false
+        : field.formEdit !== false) &&
+      isCrudFormFieldRequired(field, view),
+  );
 }
 
 function getSourceLayoutGroupTitle(key: string) {
@@ -1894,9 +1923,9 @@ function getRowAlias(
 
 function isConfiguredVisible(
   item:
+    | CrudPageDisplayActionConfig
     | CrudPageDisplayFieldConfig
-    | CrudPageDisplayHeaderConfig
-    | CrudPageDisplayActionConfig,
+    | CrudPageDisplayHeaderConfig,
   view: View,
 ) {
   // 这里只反映配置开关，不执行角色或脚本判断；左侧标记不承担状态修改职责。
@@ -1912,7 +1941,7 @@ function visibilityBadgeClass(visible: boolean) {
 }
 
 function updateListVisibility(
-  item: CrudPageDisplayHeaderConfig | CrudPageDisplayActionConfig,
+  item: CrudPageDisplayActionConfig | CrudPageDisplayHeaderConfig,
   checked: boolean,
 ) {
   // 列表有独立状态列，直接修改当前行草稿；保留脚本和其它条件，仍由上传统一保存。
@@ -2021,9 +2050,9 @@ watch(
     if (initialSnapshot.value === currentSnapshot()) {
       initializeDraftFromProps();
     } else if (
-      JSON.stringify(modelValue) === JSON.stringify(draft.value) &&
-      JSON.stringify(normalizeScope(props.initialScope)) ===
-        JSON.stringify(normalizeScope(scope.value))
+      stringifyCrudDisplaySnapshot(modelValue) === stringifyCrudDisplaySnapshot(draft.value) &&
+      stringifyCrudDisplaySnapshot(normalizeScope(props.initialScope)) ===
+        stringifyCrudDisplaySnapshot(normalizeScope(scope.value))
     ) {
       initialSnapshot.value = currentSnapshot();
     }
@@ -2162,11 +2191,10 @@ onMounted(() => {
         size="small"
         type="link"
         @click="draft.keepAlive = undefined"
-        >恢复路由默认</Button
       >
-      <span class="text-muted-foreground"
-        >保留查询、分页和列表状态；全局标签缓存关闭时不生效。</span
-      >
+        恢复路由默认
+      </Button>
+      <span class="text-muted-foreground">保留查询、分页和列表状态；全局标签缓存关闭时不生效。</span>
     </div>
     <Tabs v-model:active-key="activeKey">
       <Tabs.TabPane key="query" tab="查询表单" />
@@ -2193,8 +2221,7 @@ onMounted(() => {
                       v-for="item in getRowsForView(view)"
                       :key="item.key"
                       class="border-border rounded border px-2 py-1 text-sm"
-                      >{{ previewLabel(item) }}</span
-                    >
+                      >{{ previewLabel(item) }}</span>
                   </div>
                 </template>
                 <Button>展示字段清单</Button>
@@ -2248,10 +2275,9 @@ onMounted(() => {
                       v-for="item in getRowsForView(view)"
                       :key="item.key"
                       class="border-border rounded border px-2 py-1 text-sm"
-                      >{{ previewLabel(item) }}</span
-                    >
-                  </div> </template
-                ><Button>展示字段清单</Button>
+                      >{{ previewLabel(item) }}</span>
+                  </div>
+</template><Button>展示字段清单</Button>
               </Popover>
               <Tooltip
                 title="留空沿用当前页面配置；支持 960px、80vw 等 CSS 长度。"
@@ -2281,11 +2307,18 @@ onMounted(() => {
               >
                 <Form.Item label="首次填写模式" class="mb-0">
                   <Select
-                    :value="resolveCrudInitialMode(formHolder(view as FormView))"
+                    :value="
+                      resolveCrudInitialMode(formHolder(view as FormView))
+                    "
                     :options="crudInitialModeOptions"
                     aria-label="首次填写模式"
                     class="w-[120px]"
-                    @update:value="setInitialMode(view as FormView, $event as CrudFormInitialMode)"
+                    @update:value="
+                      setInitialMode(
+                        view as FormView,
+                        $event as CrudFormInitialMode,
+                      )
+                    "
                   />
                 </Form.Item>
               </Tooltip>
@@ -2322,8 +2355,9 @@ onMounted(() => {
               size="small"
               :aria-label="`配置${operation.label}显示脚本`"
               @click="editListOperationScript(operation)"
-              >{{ operation.label }}</Button
             >
+              {{ operation.label }}
+            </Button>
           </Tooltip>
         </section>
 
@@ -2368,9 +2402,7 @@ onMounted(() => {
                 恢复开发默认分组
               </Button>
             </Tooltip>
-            <span class="text-muted-foreground text-sm"
-              >字段未归入任何分组时显示在默认分组。</span
-            >
+            <span class="text-muted-foreground text-sm">字段未归入任何分组时显示在默认分组。</span>
           </template>
         </div>
 
@@ -2435,14 +2467,12 @@ onMounted(() => {
                               ↓
                             </button>
                           </div>
-                          <span class="shrink-0 font-medium"
-                            >分组
+                          <span class="shrink-0 font-medium">分组
                             {{
                               rowGroups.findIndex(
                                 (group) => group.key === rowGroup.key,
                               ) + 1
-                            }}：</span
-                          >
+                            }}：</span>
                           <button
                             v-if="rowGroup.group"
                             type="button"
@@ -2451,12 +2481,8 @@ onMounted(() => {
                           >
                             {{ rowGroup.group.title || rowGroup.key }}
                           </button>
-                          <span v-else class="flex-1 font-medium"
-                            >默认分组</span
-                          >
-                          <span class="text-muted-foreground"
-                            >{{ rowGroup.rows.length }} 项</span
-                          >
+                          <span v-else class="flex-1 font-medium">默认分组</span>
+                          <span class="text-muted-foreground">{{ rowGroup.rows.length }} 项</span>
                           <Tooltip
                             v-if="
                               rowGroup.group &&
@@ -2510,8 +2536,7 @@ onMounted(() => {
                           <span
                             class="text-muted-foreground cursor-grab"
                             aria-label="拖动排序"
-                            >⠿</span
-                          >
+                            >⠿</span>
                           <div class="flex shrink-0 flex-col">
                             <button
                               type="button"
@@ -2565,8 +2590,7 @@ onMounted(() => {
                             :aria-label="`${row.key}配置为${isConfiguredVisible(row, view) ? '展示' : '隐藏'}`"
                             >{{
                               isConfiguredVisible(row, view) ? '展示' : '隐藏'
-                            }}</span
-                          >
+                            }}</span>
                         </div>
                       </td>
                       <td class="px-2 py-2">
@@ -2661,8 +2685,7 @@ onMounted(() => {
                         <span
                           class="text-muted-foreground cursor-grab"
                           aria-label="拖动排序"
-                          >⠿</span
-                        >
+                          >⠿</span>
                         <div class="flex shrink-0 flex-col">
                           <button
                             type="button"
@@ -2692,8 +2715,7 @@ onMounted(() => {
                             data-test="page-display-v2-action-label"
                             class="border-primary/20 bg-primary/5 text-primary inline-block max-w-full cursor-default break-words rounded border px-2 py-0.5 text-xs font-medium"
                             title="操作按钮名称（仅标识，不执行操作）"
-                            >{{ action.label }}</span
-                          >
+                            >{{ action.label }}</span>
                           <div class="text-muted-foreground break-all text-xs">
                             {{ action.key }}
                           </div>

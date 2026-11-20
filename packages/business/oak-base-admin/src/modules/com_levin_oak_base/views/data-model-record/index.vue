@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import type {
   DataModelDefinition,
   DataModelOperationParameter,
@@ -8,10 +7,12 @@ import type {
 
 import { computed, onMounted, ref } from 'vue';
 
+import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import DynamicCrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
 import { Alert, Button } from 'ant-design-vue';
 
 import { useModelMetadataContext } from '../domain-data-dynamic-model/model-metadata';
+import WorkflowCrudEntry from '../workflow-crud-entry.vue';
 import ScopeFields from './scope-fields.vue';
 import { createDynamicCrudAdapter } from './standard-crud-adapter';
 
@@ -68,9 +69,7 @@ function queryReference(key: string): DataModelOperationParameter {
   };
 }
 onMounted(() => {
-  void adapter
-    .loadQueryContext()
-    .catch((error_) => notifyApiErrorOnce(error_));
+  void adapter.loadQueryContext().catch((error_) => notifyApiErrorOnce(error_));
 });
 async function changeScope(
   name: string,
@@ -90,59 +89,72 @@ async function openCreate(code: 'CREATE' | `CUSTOM_${string}`) {
 </script>
 
 <template>
-  <DynamicCrudPage
+  <WorkflowCrudEntry
     v-if="
       model.operations?.some((operation) => adapter.allowed(operation.code))
     "
-    ref="page"
     :config="adapter.config"
-    embedded
+    :state-business-type="`data-model:${model.key}`"
+    :can-read-record="adapter.allowed('DETAIL')"
+    v-slot="workflow"
   >
-    <template #toolbar-extra>
-      <Button
-        v-if="adapter.allowed('CREATE')"
-        type="primary"
-        @click="openCreate('CREATE')"
+    <DynamicCrudPage ref="page" :config="adapter.config" embedded>
+      <template v-if="workflow.supported" #row-actions="{ record, reload }">
+        <Button
+          v-if="workflow.canOpen(record)"
+          type="link"
+          size="small"
+          @click="workflow.open(record, reload)"
+        >
+          业务流程
+        </Button>
+      </template>
+      <template #toolbar-extra>
+        <Button
+          v-if="adapter.allowed('CREATE')"
+          type="primary"
+          @click="openCreate('CREATE')"
+        >
+          新增
+        </Button>
+        <Button
+          v-for="operation in adapter.customCreates"
+          :key="operation.code"
+          @click="openCreate(operation.code as `CUSTOM_${string}`)"
+        >
+          {{ operation.title }}
+        </Button>
+      </template>
+      <template
+        v-for="parameter in formReferences"
+        :key="parameter.name"
+        #[`form-field-${parameter.name}`]="{ formState, disabled }"
       >
-        新增
-      </Button>
-      <Button
-        v-for="operation in adapter.customCreates"
-        :key="operation.code"
-        @click="openCreate(operation.code as `CUSTOM_${string}`)"
+        <ScopeFields
+          control-only
+          :field="formReference(parameter.name)"
+          :model-value="formState[parameter.name]"
+          :options="adapter.form.context?.options || {}"
+          :disabled="disabled"
+          @update:model-value="changeScope(parameter.name, $event, formState)"
+        />
+      </template>
+      <template
+        v-for="input in queryReferences"
+        :key="input.key"
+        #[`search-field-${input.key}`]="slot"
       >
-        {{ operation.title }}
-      </Button>
-    </template>
-    <template
-      v-for="parameter in formReferences"
-      :key="parameter.name"
-      #[`form-field-${parameter.name}`]="{ formState, disabled }"
-    >
-      <ScopeFields
-        control-only
-        :field="formReference(parameter.name)"
-        :model-value="formState[parameter.name]"
-        :options="adapter.form.context?.options || {}"
-        :disabled="disabled"
-        @update:model-value="changeScope(parameter.name, $event, formState)"
-      />
-    </template>
-    <template
-      v-for="input in queryReferences"
-      :key="input.key"
-      #[`search-field-${input.key}`]="slot"
-    >
-      <ScopeFields
-        control-only
-        :field="queryReference(input.key)"
-        :option-key="input.field as keyof DataModelRecordScope"
-        :model-value="queryValue(slot, input.key)"
-        :options="adapter.queryContext.value?.options || {}"
-        :disabled="slot.disabled"
-        @update:model-value="queryState(slot)[input.key] = $event"
-      />
-    </template>
-  </DynamicCrudPage>
+        <ScopeFields
+          control-only
+          :field="queryReference(input.key)"
+          :option-key="input.field as keyof DataModelRecordScope"
+          :model-value="queryValue(slot, input.key)"
+          :options="adapter.queryContext.value?.options || {}"
+          :disabled="slot.disabled"
+          @update:model-value="queryState(slot)[input.key] = $event"
+        />
+      </template>
+    </DynamicCrudPage>
+  </WorkflowCrudEntry>
   <Alert v-else type="info" message="当前模型未开放操作或当前用户未获授权" />
 </template>

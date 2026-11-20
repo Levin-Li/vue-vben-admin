@@ -1,3 +1,4 @@
+import { isCrudFormFieldRequired } from '@levin/admin-framework/framework-commons/shared/crud-form-field-visibility';
 import { describe, expect, it } from 'vitest';
 
 import { oakBaseAdminCrudResources } from '../../../admin-crud';
@@ -5,6 +6,15 @@ import { oakBaseAdminBackendRouteMappings } from '../../../backend-route-mapping
 import { uiSettingPageCrudConfig } from '../config';
 
 describe('uiSettingPageCrudConfig', () => {
+  it('requires type only for creation, following the request DTOs', () => {
+    const field = uiSettingPageCrudConfig.fields.find(
+      (item) => item.key === 'type',
+    );
+    if (!field) throw new Error('设置项类型字段不存在');
+    expect(field.maxLength).toBe(32);
+    expect(isCrudFormFieldRequired(field, 'create')).toBe(true);
+    expect(isCrudFormFieldRequired(field, 'edit')).toBe(false);
+  });
   it('keeps valueContent out of the create and ordinary edit forms', () => {
     const valueContentField = uiSettingPageCrudConfig.fields.find(
       (field) => field.key === 'valueContent',
@@ -51,10 +61,12 @@ describe('uiSettingPageCrudConfig', () => {
   });
 
   it('keeps new UI settings editable when the hidden editable field is omitted', () => {
-    expect(uiSettingPageCrudConfig.transformSubmit?.(
-      { code: '全局组织与用户选择器' },
-      null,
-    )).toMatchObject({
+    expect(
+      uiSettingPageCrudConfig.transformSubmit?.(
+        { code: '全局组织与用户选择器' },
+        null,
+      ),
+    ).toMatchObject({
       code: '全局组织与用户选择器',
       editable: true,
     });

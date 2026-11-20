@@ -1,4 +1,12 @@
 <script setup lang="ts">
+import type {
+  CrudFormElementDeclaration,
+  CrudFormElementView,
+} from '@levin/admin-framework/framework-commons/shared/crud-form-elements';
+import type {
+  CrudPageDisplayFieldConfig,
+  CrudPageDisplayGroupConfig,
+} from '@levin/admin-framework/framework-commons/shared/types';
 import type { UserOrgSelectorRecord } from '@levin/admin-framework/framework-commons/shared/user-org-selector-types';
 
 import type { WorkflowDefinitionRecord } from '../../api/workflow-definition-service';
@@ -9,7 +17,7 @@ import type {
   WorkflowNotificationRouteRecord,
 } from '../../api/workflow-notification-route-service';
 
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import { useAccessStore, useUserStore } from '@vben/runtime/stores';
 
@@ -19,15 +27,29 @@ import {
   notifyApiErrorOnce,
 } from '@levin/admin-framework/framework-commons/app/api';
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
+import { getCurrentTenantSiteInfo } from '@levin/admin-framework/framework-commons/app/tenant-site-admin-ui-base-setting';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { DEFAULT_CONTENT_MODAL_BODY_STYLE } from '@levin/admin-framework/framework-commons/shared/config-helpers';
 import { useCrudDataAttrAccess } from '@levin/admin-framework/framework-commons/shared/crud-data-attr-access';
 import { canMutateCrudRecord } from '@levin/admin-framework/framework-commons/shared/crud-editable-access';
+import { externalCrudFormDisplayKey } from '@levin/admin-framework/framework-commons/shared/crud-form-elements';
 import { filterCrudLocalSelectOption } from '@levin/admin-framework/framework-commons/shared/crud-local-search';
+import {
+  buildOrganizationScriptContext,
+  buildTenantScriptContext,
+  isDisplayGroupVisible,
+  isRoleVisibilitySatisfied,
+  resolveDisplayStates,
+  resolveDisplaySubmitKeys,
+} from '@levin/admin-framework/framework-commons/shared/crud-page-display';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import CrudPage from '@levin/admin-framework/framework-commons/shared/dynamic-crud-page.vue';
+import { evaluateJavaScriptExpression } from '@levin/admin-framework/framework-commons/shared/javascript-expression';
 import JsonEditorField from '@levin/admin-framework/framework-commons/shared/json-editor-field.vue';
-import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
+import {
+  collectUserRoleIdentityValues,
+  isPlatformUser,
+} from '@levin/admin-framework/framework-commons/shared/user-identity';
 import {
   Alert,
   Button,
@@ -42,6 +64,7 @@ import {
   Switch,
 } from 'ant-design-vue';
 
+import { tenantService } from '../../api/tenant-service';
 import { workflowDefinitionService } from '../../api/workflow-definition-service';
 import { workflowDefinitionVersionService } from '../../api/workflow-definition-version-service';
 import { workflowNotificationRouteService } from '../../api/workflow-notification-route-service';
@@ -72,12 +95,64 @@ const scopeGeneration = ref(0);
 const initialQuery = ref<Record<string, unknown>>({});
 const error = ref('');
 let queryState: Record<string, unknown> = {};
-const crudPage = ref<{ reload: () => Promise<unknown> }>();
+const crudPage = ref<{
+  getExternalFormDisplayField?: (
+    view: CrudFormElementView,
+    formId: string,
+    key: string,
+  ) => CrudPageDisplayFieldConfig | undefined;
+  getExternalFormDisplayGroup?: (
+    view: CrudFormElementView,
+    key: string,
+  ) => CrudPageDisplayGroupConfig | undefined;
+  registerExternalFormElements?: (
+    elements: CrudFormElementDeclaration[],
+  ) => void;
+  reload: () => Promise<unknown>;
+}>();
+const routeFormFields = [
+  ['tenantId', '归属租户'],
+  ['orgId', '归属组织'],
+  ['eventName', '发生事件'],
+  ['channel', '通知方式'],
+  ['processKey', '适用流程定义'],
+  ['targetConfig', '机器人通知群'],
+  ['workflowDefinitionVersionId', '适用版本'],
+  ['nodeKey', '适用节点'],
+  ['forceOverride', '强制覆盖'],
+  ['matchCondition', '附加条件'],
+  ['priority', '优先级'],
+  ['enable', '是否启用'],
+  ['remark', '备注'],
+] as const;
+const routeFormNames = {
+  create: '新增',
+  edit: '编辑',
+  detail: '详情',
+} as const;
+const externalFormElements: CrudFormElementDeclaration[] = (
+  ['create', 'edit', 'detail'] as const
+).flatMap((view) =>
+  routeFormFields.map(([key, label]) => ({
+    view,
+    key,
+    label,
+    fieldKeys: [key],
+    isolateDisplay: true,
+    formId: `workflow-notification-route-${view}`,
+    formName: `工作流通知渠道${routeFormNames[view]}`,
+  })),
+);
+watch(
+  crudPage,
+  (page) => page?.registerExternalFormElements?.(externalFormElements),
+  { immediate: true },
+);
 const reloadList = () => crudPage.value?.reload();
-const canEditRecord = (record: WorkflowNotificationRouteRecord) =>
+const canEditRecord = (record: object) =>
   canMutateCrudRecord(
     [{ key: 'editable', label: '可编辑' }],
-    record,
+    record as Record<string, unknown>,
     user.userInfo,
   );
 // 范围来自查询模型；重置后不沿用选择器旧记录的组织。
@@ -114,6 +189,10 @@ function searchScopeState(slot: unknown): Record<string, unknown> {
     throw new Error('业务范围查询模型无效');
   return state as Record<string, unknown>;
 }
+// 动态表格单元格插槽的运行时参数包含记录；公共组件声明将其合并到表单插槽类型。
+function tableCellRecord(slot: unknown): WorkflowNotificationRouteRecord {
+  return (slot as { record: WorkflowNotificationRouteRecord }).record;
+}
 function scopeSelection(state: Record<string, unknown>) {
   queryState = state;
   const record = selectedScope.value;
@@ -135,16 +214,16 @@ const crudConfig = computed(() => ({
       handler: async (record: WorkflowNotificationRouteRecord) =>
         open(record, true),
       visible: () => allowed('retrieve'),
-      successMessage: false,
+      successMessage: false as const,
       reloadAfterAction: false,
     },
     {
       label: '编辑',
       displayKey: 'notification:update',
       handler: async (record: WorkflowNotificationRouteRecord) => open(record),
-      visible: (record: WorkflowNotificationRouteRecord) =>
+      visible: (record: Record<string, unknown>) =>
         canEditRecord(record) && allowed('update') && allowed('retrieve'),
-      successMessage: false,
+      successMessage: false as const,
       reloadAfterAction: false,
     },
     {
@@ -154,9 +233,9 @@ const crudConfig = computed(() => ({
       handler: async (record: WorkflowNotificationRouteRecord) => {
         if (canEditRecord(record) && allowed('remove')) removing.value = record;
       },
-      visible: (record: WorkflowNotificationRouteRecord) =>
+      visible: (record: Record<string, unknown>) =>
         canEditRecord(record) && allowed('remove'),
-      successMessage: false,
+      successMessage: false as const,
       reloadAfterAction: false,
     },
   ],
@@ -165,6 +244,14 @@ const quickPolicyConfig = computed(() => ({
   ...crudConfig.value,
   dataAttrTargets: {
     ...crudConfig.value.dataAttrTargets,
+    create: {
+      method: 'POST' as const,
+      path: `${crudConfig.value.apiModuleBase}/WorkflowNotificationRoute/create`,
+    },
+    retrieve: {
+      method: 'GET' as const,
+      path: `${crudConfig.value.apiModuleBase}/WorkflowNotificationRoute/retrieve`,
+    },
     update: {
       method: 'PUT' as const,
       path: `${crudConfig.value.apiModuleBase}/WorkflowNotificationRoute/update`,
@@ -175,7 +262,8 @@ const quickAccess = useCrudDataAttrAccess(
   () => quickPolicyConfig.value,
   () => `${crudConfig.value.apiBase}/list`,
   () => JSON.stringify([user.userInfo, accessStore.accessCodes]),
-  (operation) => operation === 'update' && allowed('update'),
+  (operation) =>
+    ['create', 'retrieve', 'update'].includes(operation) && allowed(operation),
 );
 const enableBusy = ref(new Set<string>());
 async function updateEnabled(
@@ -234,15 +322,222 @@ const draft = reactive<WorkflowNotificationRouteInput>({
   enable: true,
   targetConfig: {},
 });
+let formPolicyCheckpoint = 0;
+const formView = computed<CrudFormElementView>(() => {
+  if (readOnly.value) return 'detail';
+  return current.value ? 'edit' : 'create';
+});
+function formSetting(key: string) {
+  const view = formView.value;
+  return crudPage.value?.getExternalFormDisplayField?.(
+    view,
+    `workflow-notification-route-${view}`,
+    key,
+  );
+}
+function formFieldAllowed(key: string) {
+  if (key === 'tenantId' && !platformUser.value) return false;
+  if (current.value && !quickAccess.allowed('retrieve', 'output', key))
+    return false;
+  return (
+    readOnly.value ||
+    quickAccess.allowed(current.value ? 'update' : 'create', 'input', key)
+  );
+}
+// 与公共 CRUD 使用相同的角色、组、依赖和表达式规则；权限不满足始终排除。
+const formDisplay = computed(() => {
+  const view = formView.value;
+  const formId = `workflow-notification-route-${view}`;
+  const roles = collectUserRoleIdentityValues(
+    (user.userInfo || {}) as Record<string, unknown>,
+  );
+  const context = {
+    form: draft,
+    user: user.userInfo || {},
+    org: buildOrganizationScriptContext(
+      user.userInfo as Record<string, any> | undefined,
+    ),
+    tenant: buildTenantScriptContext(
+      getCurrentTenantSiteInfo() as Record<string, any> | undefined,
+      user.userInfo as Record<string, any> | undefined,
+    ),
+  };
+  const evaluate = (expression?: string) => {
+    if (!expression?.trim()) return true;
+    try {
+      return Boolean(evaluateJavaScriptExpression(expression, context));
+    } catch {
+      return false;
+    }
+  };
+  const items: CrudPageDisplayFieldConfig[] = [];
+  const excluded = new Set<string>();
+  const expressionResults: Record<string, boolean> = {};
+  for (const [key] of routeFormFields) {
+    const id = externalCrudFormDisplayKey(formId, key);
+    const item = { key: id, ...formSetting(key) };
+    const group =
+      item.layoutGroup && item.layoutGroupExcluded !== true
+        ? crudPage.value?.getExternalFormDisplayGroup?.(view, item.layoutGroup)
+        : undefined;
+    if (
+      !formFieldAllowed(key) ||
+      !isRoleVisibilitySatisfied(item.visibleRoleCodes, roles) ||
+      !isDisplayGroupVisible(
+        group,
+        evaluate(group?.visibility?.expression),
+        roles,
+      )
+    )
+      excluded.add(id);
+    expressionResults[id] = evaluate(item.visibility?.expression);
+    items.push(item);
+  }
+  // 其他表单或无权字段不属于当前候选，依赖它们时必须保持隐藏。
+  const known = new Set(items.map((item) => item.key));
+  for (const item of items) {
+    for (const key of [
+      ...(item.visibility?.dependsOn?.fieldKeys || []),
+      ...(item.visibility?.exclusiveWith?.fieldKeys || []),
+    ]) {
+      if (!known.has(key)) excluded.add(key);
+    }
+  }
+  return {
+    states: resolveDisplayStates(items, expressionResults, excluded),
+    submit: resolveDisplaySubmitKeys(items, expressionResults, excluded),
+  };
+});
+function formFieldVisible(key: string) {
+  return (
+    formDisplay.value.states[
+      externalCrudFormDisplayKey(
+        `workflow-notification-route-${formView.value}`,
+        key,
+      )
+    ] === 'VISIBLE'
+  );
+}
+function formFieldSubmittable(key: string) {
+  return formDisplay.value.submit.has(
+    externalCrudFormDisplayKey(
+      `workflow-notification-route-${formView.value}`,
+      key,
+    ),
+  );
+}
+function formFieldLabel(key: string, fallback: string) {
+  return formSetting(key)?.label || fallback;
+}
+const advancedFormKeys = new Set([
+  'forceOverride',
+  'matchCondition',
+  'nodeKey',
+  'priority',
+  'workflowDefinitionVersionId',
+]);
+// 基础和高级区域独立排序；仅显示当前区域中有可见字段的配置分组。
+function formRegionLayout(region: 'advanced' | 'basic') {
+  const fields = routeFormFields
+    .map(([key], index) => ({ key, index, setting: formSetting(key) }))
+    .filter(({ key }) => advancedFormKeys.has(key) === (region === 'advanced'))
+    .filter(
+      ({ key }) =>
+        formFieldVisible(key) &&
+        (key !== 'tenantId' || platformUser.value) &&
+        (key !== 'targetConfig' || isRobot.value),
+    );
+  const groups = new Map<
+    string,
+    {
+      fields: typeof fields;
+      index: number;
+      key: string;
+      order: number;
+      title: string;
+    }
+  >();
+  for (const field of fields) {
+    const groupKey = field.setting?.layoutGroupExcluded
+      ? ''
+      : field.setting?.layoutGroup || '';
+    const config = groupKey
+      ? crudPage.value?.getExternalFormDisplayGroup?.(formView.value, groupKey)
+      : undefined;
+    const group = groups.get(groupKey) || {
+      key: groupKey,
+      title: config?.title || groupKey,
+      order: config?.order ?? field.index,
+      index: field.index,
+      fields: [],
+    };
+    group.fields.push(field);
+    groups.set(groupKey, group);
+  }
+  const ordered = [...groups.values()].toSorted(
+    (a, b) => a.order - b.order || a.index - b.index,
+  );
+  const entries: { key: string; kind: 'field' | 'group'; title?: string }[] =
+    [];
+  ordered.forEach((group) => {
+    if (group.key)
+      entries.push({ kind: 'group', key: group.key, title: group.title });
+    group.fields
+      .toSorted(
+        (a, b) =>
+          (a.setting?.order ?? a.index) - (b.setting?.order ?? b.index) ||
+          a.index - b.index,
+      )
+      .forEach((field) => {
+        entries.push({ kind: 'field', key: field.key });
+      });
+  });
+  return entries;
+}
+function formFieldDisabled(key: string) {
+  return readOnly.value || formSetting(key)?.disabled === true;
+}
 const configRef = ref('');
+const robotGroupId = ref('');
+const robotGroups = ref<{ label: string; value: string }[]>([]);
+const robotGroupsLoading = ref(false);
+const robotGroupsError = ref('');
 const definitions = ref<WorkflowDefinitionRecord[]>([]);
 const versions = ref<ManagedWorkflowVersion[]>([]);
-const nodeOptions = ref<{ label: string; value: string }[]>([]);
+type RouteGraphNode = {
+  id: string;
+  name: string;
+  notifications?: Array<{ event?: string }>;
+  type?: string;
+};
+const nodeGraph = ref<{ nodes?: RouteGraphNode[]; schemaVersion?: number }>();
+// 路由节点必须能产生当前事件：schema4 不发送任务事件，生命周期需节点已配置通知。
+const nodeOptions = computed(() => {
+  const graph = nodeGraph.value;
+  const lifecycle =
+    draft.eventName === 'NodeEntered' || draft.eventName === 'NodeCompleted';
+  return (graph?.nodes ?? [])
+    .filter((node) => {
+      if (!node.id || ![4, 5].includes(Number(graph?.schemaVersion)))
+        return false;
+      if (lifecycle)
+        return (
+          Array.isArray(node.notifications) &&
+          node.notifications.some((item) => item?.event === draft.eventName)
+        );
+      return graph?.schemaVersion === 5 && node.type === 'userTask';
+    })
+    .map((node) => ({ label: node.name || node.id, value: node.id }));
+});
 const definitionsLoading = ref(false);
 const versionsLoading = ref(false);
 const definitionError = ref('');
 const canBrowseDefinitions = computed(() =>
   hasPermission(buildApiMethodPermissions(workflowDefinitionService, 'list')),
+);
+// 租户下拉与路由维护是独立权限；没有目录权限时不发起辅助请求。
+const canBrowseTenants = computed(() =>
+  hasPermission(buildApiMethodPermissions(tenantService, 'list')),
 );
 const canBrowseVersions = computed(() =>
   hasPermission(
@@ -314,23 +609,6 @@ const formTenantId = computed(() => {
     return String(user.userInfo.tenantId);
   return undefined;
 });
-const robotTargetName = computed({
-  get: () => {
-    const prefix = formTenantId.value
-      ? `tenant:${formTenantId.value}:`
-      : 'platform:';
-    return configRef.value.startsWith(prefix)
-      ? configRef.value.slice(prefix.length)
-      : '';
-  },
-  set: (name: string) => {
-    const prefix = formTenantId.value
-      ? `tenant:${formTenantId.value}:`
-      : 'platform:';
-    configRef.value = name.trim() ? `${prefix}${name.trim()}` : '';
-  },
-});
-
 let definitionRequest = 0;
 let versionRequest = 0;
 async function loadDefinitionOptions() {
@@ -368,7 +646,7 @@ async function loadDefinitionOptions() {
 async function loadVersionOptions() {
   const request = ++versionRequest;
   versions.value = [];
-  nodeOptions.value = [];
+  nodeGraph.value = undefined;
   const definition = definitions.value.find(
     (item) => item.processKey === draft.processKey,
   );
@@ -400,7 +678,7 @@ async function loadVersionOptions() {
   }
 }
 async function loadNodeOptions() {
-  nodeOptions.value = [];
+  nodeGraph.value = undefined;
   if (!draft.workflowDefinitionVersionId || !canReadVersion.value) return;
   const versionId = draft.workflowDefinitionVersionId;
   try {
@@ -408,12 +686,7 @@ async function loadNodeOptions() {
       id: versionId,
     });
     if (versionId !== draft.workflowDefinitionVersionId) return;
-    const graph = version.lowflowDefinition as
-      | undefined
-      | { nodes?: Array<{ id: string; name: string; type?: string }> };
-    nodeOptions.value = (graph?.nodes ?? [])
-      .filter((node) => node.type === 'userTask' && node.id)
-      .map((node) => ({ label: node.name || node.id, value: node.id }));
+    nodeGraph.value = version.lowflowDefinition as typeof nodeGraph.value;
   } catch (error_) {
     notifyApiErrorOnce(error_);
   }
@@ -428,6 +701,11 @@ function changeVersion(value?: string) {
   draft.workflowDefinitionVersionId = value || '';
   draft.nodeKey = '';
   void loadNodeOptions();
+}
+function changeEvent() {
+  // 不把旧事件的节点静默复用于新事件；保留已保存历史仅用于打开时回显。
+  draft.nodeKey = '';
+  appliedFormDefaults.add('nodeKey');
 }
 const formTenantOptions = computed(() => {
   if (
@@ -446,6 +724,10 @@ const formTenantOptions = computed(() => {
 let tenantOptionsVersion = 0;
 async function loadTenantOptions(keyword = '') {
   const version = ++tenantOptionsVersion;
+  if (!canBrowseTenants.value) {
+    tenantOptions.value = [];
+    return;
+  }
   try {
     const options = await tenantOptionsLoader(keyword);
     if (version === tenantOptionsVersion)
@@ -457,8 +739,11 @@ async function loadTenantOptions(keyword = '') {
     if (version === tenantOptionsVersion) notifyApiErrorOnce(error_);
   }
 }
-function changeFormTenant(value?: string) {
+let tenantDefaultTouched = false;
+function changeFormTenant(value?: string, automatic = false) {
+  if (!automatic) tenantDefaultTouched = true;
   if (current.value || !platformUser.value || value === draft.tenantId) return;
+  defaultOrgRequest++;
   draft.tenantId = value;
   draft.orgId = undefined;
   formScopeRecord.value = undefined;
@@ -466,6 +751,7 @@ function changeFormTenant(value?: string) {
 }
 function changeFormOrganization(records: UserOrgSelectorRecord[]) {
   if (current.value) return;
+  defaultOrgRequest++;
   const org = records[0];
   if (
     org &&
@@ -474,6 +760,7 @@ function changeFormOrganization(records: UserOrgSelectorRecord[]) {
     return;
   formScopeRecord.value = org;
   draft.orgId = org?.id;
+  robotGroupId.value = '';
 }
 function loadFormOrgTree() {
   const tenantId = formTenantId.value;
@@ -490,6 +777,253 @@ const conditionValue = computed({
 });
 const advancedKeys = ref<string[]>([]);
 const isRobot = computed(() => robotWebhookChannels.includes(draft.channel));
+// 仅在新增的同一次表单生命周期应用一次默认值，避免重新显示时覆盖用户输入。
+const appliedFormDefaults = new Set<string>();
+watch(
+  () => ({
+    opened: opened.value,
+    editing: Boolean(current.value),
+    channels: channels.value,
+    tenants: tenantOptions.value,
+    definitions: definitions.value,
+    versions: versions.value,
+    nodes: nodeOptions.value,
+    groups: robotGroups.value,
+    fields: routeFormFields.map(([key]) => ({
+      key,
+      allowed: formFieldAllowed(key),
+      visible: formFieldVisible(key),
+      configured: formSetting(key)?.defaultValue,
+    })),
+  }),
+  ({ opened: isOpen, editing, fields }) => {
+    if (!isOpen || editing || readOnly.value) return;
+    for (const { key, allowed: permitted, visible, configured } of fields) {
+      if (
+        !permitted ||
+        appliedFormDefaults.has(key) ||
+        !configured ||
+        !Object.hasOwn(configured, 'value')
+      )
+        continue;
+      if (configured.applyWhen === 'initialize-or-first-visible' && !visible)
+        continue;
+      const value = configured.value;
+      if (
+        key === 'eventName' &&
+        typeof value === 'string' &&
+        workflowNotificationEvents.some((item) => item.value === value)
+      ) {
+        draft.eventName = value as WorkflowNotificationRouteInput['eventName'];
+      } else if (key === 'channel' && typeof value === 'string') {
+        if (channels.value.length === 0) continue;
+        if (channels.value.some((item) => item.value === value))
+          draft.channel = value as NotificationChannel;
+      } else if (key === 'priority') {
+        // 展示设置文本控件返回字符串，只接受有符号十进制整数及合法范围。
+        let parsed = Number.NaN;
+        if (typeof value === 'number') parsed = value;
+        else if (typeof value === 'string' && /^-?\d+$/.test(value.trim()))
+          parsed = Number(value.trim());
+        if (
+          !Number.isInteger(parsed) ||
+          parsed < -2_147_483_648 ||
+          parsed > 2_147_483_647
+        )
+          continue;
+        draft.priority = parsed;
+      } else if (key === 'enable' || key === 'forceOverride') {
+        if (
+          value !== true &&
+          value !== false &&
+          value !== 'true' &&
+          value !== 'false'
+        )
+          continue;
+        draft[key] = value === true || value === 'true';
+      } else if (key === 'remark' && typeof value === 'string') {
+        draft.remark = value;
+      } else if (
+        key === 'tenantId' &&
+        platformUser.value &&
+        typeof value === 'string'
+      ) {
+        // 只允许使用当前账号有权选择的租户；已有范围不覆盖。
+        if (
+          tenantDefaultTouched ||
+          draft.tenantId ||
+          !tenantOptions.value.some((item) => item.value === value)
+        )
+          continue;
+        changeFormTenant(value, true);
+      } else if (key === 'processKey' && typeof value === 'string') {
+        // 默认流程必须存在于当前主体可查询的目录中。
+        if (
+          draft.processKey ||
+          !definitions.value.some((item) => item.processKey === value)
+        )
+          continue;
+        changeProcess(value);
+      } else if (
+        key === 'workflowDefinitionVersionId' &&
+        typeof value === 'string'
+      ) {
+        // 版本仅可来自所选流程的授权版本目录。
+        if (
+          draft.workflowDefinitionVersionId ||
+          !versions.value.some((item) => item.id === value)
+        )
+          continue;
+        changeVersion(value);
+      } else if (key === 'nodeKey' && typeof value === 'string') {
+        if (
+          draft.nodeKey ||
+          !nodeOptions.value.some((item) => item.value === value)
+        )
+          continue;
+        draft.nodeKey = value;
+      } else if (
+        key === 'targetConfig' &&
+        isRobot.value &&
+        value &&
+        (typeof value === 'string' ||
+          (typeof value === 'object' && !Array.isArray(value)))
+      ) {
+        // 机器人目标必须匹配当前范围和渠道的候选。
+        const groupId =
+          typeof value === 'string'
+            ? value
+            : (value as Record<string, unknown>).groupId;
+        if (
+          robotGroupId.value ||
+          typeof groupId !== 'string' ||
+          !robotGroups.value.some((item) => item.value === groupId)
+        )
+          continue;
+        robotGroupId.value = groupId;
+        configRef.value = '';
+      } else if (
+        key === 'matchCondition' &&
+        value &&
+        (typeof value === 'string' ||
+          (typeof value === 'object' && !Array.isArray(value)))
+      ) {
+        // 默认匹配条件与保存时使用同一严格校验。
+        try {
+          const json =
+            typeof value === 'string' ? value : JSON.stringify(value);
+          readCondition(json);
+          conditionText.value = json;
+        } catch {
+          continue;
+        }
+      } else {
+        // 范围、流程级联及通知群默认值必须先由受权候选解析，不能直接写入。
+        continue;
+      }
+      appliedFormDefaults.add(key);
+    }
+  },
+  { flush: 'post' },
+);
+let defaultOrgRequest = 0;
+// 组织默认值必须经当前租户的授权组织树核验，并防止迟到响应覆盖用户选择。
+watch(
+  () =>
+    [
+      opened.value,
+      current.value,
+      formTenantId.value,
+      draft.orgId,
+      formFieldAllowed('orgId'),
+      formFieldVisible('orgId'),
+      formSetting('orgId')?.defaultValue,
+    ] as const,
+  async ([isOpen, editing, tenantId, orgId, allowed, visible, configured]) => {
+    const request = ++defaultOrgRequest;
+    if (
+      !isOpen ||
+      editing ||
+      readOnly.value ||
+      !tenantId ||
+      orgId ||
+      !allowed ||
+      !configured ||
+      typeof configured.value !== 'string' ||
+      (configured.applyWhen === 'initialize-or-first-visible' && !visible) ||
+      appliedFormDefaults.has('orgId')
+    )
+      return;
+    try {
+      const tree = await rbacService.fetchAuthorizedOrgTreeByTenant(tenantId);
+      if (
+        request !== defaultOrgRequest ||
+        !opened.value ||
+        formTenantId.value !== tenantId ||
+        draft.orgId
+      )
+        return;
+      const find = (
+        nodes: Record<string, any>[],
+      ): Record<string, any> | undefined => {
+        for (const node of nodes) {
+          if (
+            String(node.id || '') === configured.value &&
+            String(node.tenantId || '') === tenantId
+          )
+            return node;
+          const child = find(Array.isArray(node.children) ? node.children : []);
+          if (child) return child;
+        }
+      };
+      const org = find(Array.isArray(tree) ? tree : []);
+      if (!org) return;
+      changeFormOrganization([
+        {
+          id: String(org.id),
+          name: String(org.name || org.id),
+          kind: 'org',
+          tenantId,
+          raw: org,
+        },
+      ]);
+      appliedFormDefaults.add('orgId');
+    } catch (error_) {
+      if (request === defaultOrgRequest) notifyApiErrorOnce(error_);
+    }
+  },
+  { flush: 'post' },
+);
+let robotGroupRequest = 0;
+// 候选仅在打开机器人表单后加载，范围和渠道变化会使迟到响应失效。
+watch(
+  () => [opened.value, draft.channel, formTenantId.value, draft.orgId] as const,
+  async ([visible, channel, tenantId, orgId]) => {
+    const request = ++robotGroupRequest;
+    robotGroups.value = [];
+    robotGroupsError.value = '';
+    if (!visible || !robotWebhookChannels.includes(channel)) return;
+    robotGroupsLoading.value = true;
+    try {
+      const groups =
+        await workflowNotificationRouteService.robotGroupCandidates({
+          channel,
+          tenantId,
+          orgId,
+        });
+      if (request === robotGroupRequest)
+        robotGroups.value = groups.map((group) => ({
+          label: group.name,
+          value: group.id,
+        }));
+    } catch (error_) {
+      if (request === robotGroupRequest)
+        robotGroupsError.value = getApiErrorMessage(error_) || '通知群加载失败';
+    } finally {
+      if (request === robotGroupRequest) robotGroupsLoading.value = false;
+    }
+  },
+);
 const canSave = computed(
   () =>
     !readOnly.value &&
@@ -588,6 +1122,19 @@ async function open(
   )
     return;
   try {
+    appliedFormDefaults.clear();
+    tenantDefaultTouched = false;
+    // 在打开表单前加载实际接口的字段策略；身份或授权变更时不能沿用旧策略。
+    const policyVersion = quickAccess.checkpoint();
+    await Promise.all(
+      record
+        ? [
+            quickAccess.ensure('retrieve'),
+            ...(viewOnly ? [] : [quickAccess.ensure('update')]),
+          ]
+        : [quickAccess.ensure('create')],
+    );
+    quickAccess.assertCheckpoint(policyVersion);
     const result = record
       ? await workflowNotificationRouteService.retrieve({
           ...routeRecordScope(record),
@@ -601,6 +1148,10 @@ async function open(
       return;
     current.value = result;
     readOnly.value = viewOnly;
+    formPolicyCheckpoint = policyVersion;
+    const visibleResult = result
+      ? quickAccess.pruneOutput('retrieve', result)
+      : undefined;
     const scope = result ?? currentScope(queryState);
     formScopeRecord.value =
       !result && scope?.orgId === selectedScope.value?.id
@@ -622,7 +1173,7 @@ async function open(
         targetConfig: {},
         remark: '',
       },
-      result,
+      visibleResult,
     );
     const storedRef = result?.targetConfig?.configRef;
     configRef.value =
@@ -630,6 +1181,7 @@ async function open(
       validRobotConfigRef(storedRef, result?.tenantId)
         ? storedRef
         : '';
+    robotGroupId.value = result?.targetConfig?.groupId || '';
     conditionText.value = JSON.stringify(result?.matchCondition || {}, null, 2);
     advancedKeys.value =
       result &&
@@ -642,6 +1194,8 @@ async function open(
         ? ['advanced']
         : [];
     opened.value = true;
+    if (!result && platformUser.value && formSetting('tenantId')?.defaultValue)
+      void loadTenantOptions();
     void loadDefinitionOptions();
   } catch (error_) {
     notifyApiErrorOnce(error_);
@@ -649,12 +1203,15 @@ async function open(
 }
 function changeChannel() {
   configRef.value = '';
+  robotGroupId.value = '';
   draft.targetConfig = {};
 }
 // 匹配条件只保存有限的精确值JSON，不执行浏览器表达式或脚本。
-function readCondition(): WorkflowNotificationRouteInput['matchCondition'] {
-  if (conditionText.value.length > 8192) throw new Error('匹配条件过长');
-  const value = JSON.parse(conditionText.value || '{}') as unknown;
+function readCondition(
+  text = conditionText.value,
+): WorkflowNotificationRouteInput['matchCondition'] {
+  if (text.length > 8192) throw new Error('匹配条件过长');
+  const value = JSON.parse(text || '{}') as unknown;
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new Error('匹配条件必须是对象');
   const entries = Object.entries(value);
@@ -691,21 +1248,27 @@ async function save() {
   }
   if (
     isRobot.value &&
+    formFieldVisible('targetConfig') &&
+    !robotGroups.value.some((item) => item.value === robotGroupId.value) &&
     !validRobotConfigRef(configRef.value, formTenantId.value)
   ) {
-    message.error(
-      '请填写管理员提供的同范围机器人目标名称（如 approval-alerts）',
-    );
+    message.error('请选择当前范围内可用的机器人通知群');
     return;
   }
   let matchCondition;
   try {
-    matchCondition = readCondition();
+    matchCondition = formFieldSubmittable('matchCondition')
+      ? readCondition()
+      : undefined;
   } catch (error_) {
     message.error(error_ instanceof Error ? error_.message : '匹配条件无效');
     return;
   }
   busy.value = true;
+  const targetConfig: WorkflowNotificationRouteInput['targetConfig'] = {};
+  if (isRobot.value && robotGroupId.value)
+    targetConfig.groupId = robotGroupId.value;
+  else if (isRobot.value) targetConfig.configRef = configRef.value;
   const data: WorkflowNotificationRouteInput = {
     tenantId: draft.tenantId,
     orgId: draft.orgId,
@@ -719,16 +1282,64 @@ async function save() {
     enable: draft.enable,
     remark: draft.remark || '',
     matchCondition,
-    targetConfig: isRobot.value ? { configRef: configRef.value } : {},
+    targetConfig,
   };
   try {
+    // 仅提交仍有字段权限且未被表单展示配置隐藏的值，提交前重验授权快照。
+    const operation = current.value ? 'update' : 'create';
+    await quickAccess.ensure(operation);
+    quickAccess.assertCheckpoint(formPolicyCheckpoint);
+    const filtered = Object.fromEntries(
+      Object.entries(data).filter(([key]) => formFieldSubmittable(key)),
+    );
+    // 定位范围不能因字段隐藏或无权而静默删除，否则请求可能落入更宽范围。
+    const scope = current.value
+      ? routeRecordScope(current.value)
+      : {
+          ...(data.tenantId ? { tenantId: data.tenantId } : {}),
+          ...(data.orgId ? { orgId: data.orgId } : {}),
+        };
+    for (const key of Object.keys(scope)) {
+      const setting = formSetting(key);
+      if (setting?.hidden && !setting.submitWhenHidden)
+        throw new Error('业务范围字段已设为不提交，请先调整展示设置');
+    }
+    quickAccess.assertInput(operation, scope);
+    for (const [key, label] of routeFormFields) {
+      if (!formFieldSubmittable(key) || !formSetting(key)?.required) continue;
+      const value = filtered[key];
+      const empty =
+        value === undefined ||
+        value === null ||
+        value === '' ||
+        (Array.isArray(value) && value.length === 0) ||
+        (typeof value === 'object' &&
+          !Array.isArray(value) &&
+          Object.keys(value).length === 0);
+      if (empty) throw new Error(`请填写${formFieldLabel(key, label)}`);
+    }
+    const payload = quickAccess.pruneInput(operation, {
+      ...filtered,
+      ...scope,
+    }) as WorkflowNotificationRouteInput;
+    for (const [key, value] of Object.entries(scope)) {
+      if (({ ...payload } as Record<string, unknown>)[key] !== value)
+        throw new Error('业务范围权限不可用，请重新确认');
+    }
+    quickAccess.assertValueAssignment(
+      operation,
+      { ...payload },
+      { ...current.value },
+    );
+    quickAccess.assertInput(operation, payload);
+    quickAccess.assertCheckpoint(formPolicyCheckpoint);
     await (current.value
       ? workflowNotificationRouteService.update({
-          ...data,
+          ...payload,
           id: current.value.id,
           optimisticLock: current.value.optimisticLock,
         })
-      : workflowNotificationRouteService.create(data));
+      : workflowNotificationRouteService.create(payload));
     opened.value = false;
     await reloadList?.();
   } catch (error_) {
@@ -824,30 +1435,25 @@ onMounted(() => {
           新增通知渠道
         </Button>
       </template>
-      <template #table-cell-enable="{ record }">
+      <template #table-cell-enable="slot">
         <Switch
           v-if="
-            typeof record.enable === 'boolean' &&
-            Number.isInteger(record.optimisticLock) &&
-            canEditRecord(record) &&
+            typeof tableCellRecord(slot).enable === 'boolean' &&
+            Number.isInteger(tableCellRecord(slot).optimisticLock) &&
+            canEditRecord(tableCellRecord(slot)) &&
             allowed('update') &&
             quickAccess.allowed('update', 'input', 'enable')
           "
-          :checked="record.enable"
-          :loading="enableBusy.has(record.id)"
+          :checked="tableCellRecord(slot).enable"
+          :loading="enableBusy.has(tableCellRecord(slot).id)"
           checked-children="启用"
           un-checked-children="禁用"
-          @change="
-            updateEnabled(
-              record as WorkflowNotificationRouteRecord,
-              Boolean($event),
-            )
-          "
+          @change="updateEnabled(tableCellRecord(slot), Boolean($event))"
         />
         <span v-else>{{
-          record.enable === true
+          tableCellRecord(slot).enable === true
             ? '启用'
-            : record.enable === false
+            : tableCellRecord(slot).enable === false
               ? '禁用'
               : '—'
         }}</span>
@@ -886,105 +1492,251 @@ onMounted(() => {
         :label-col="{ style: { width: '128px' } }"
         :wrapper-col="{ flex: 1 }"
       >
-        <!-- 归属仅在新增时可选；查看与编辑均回显服务端读取的原归属。 -->
-        <Form.Item v-if="platformUser" label="归属租户" name="tenantId">
-          <span v-if="current" data-testid="route-tenant">{{
-            current.tenantName || current.tenantId || '平台'
-          }}</span>
-          <Select
-            v-else
-            data-testid="route-form-tenant"
-            :value="draft.tenantId"
-            :options="formTenantOptions"
-            :filter-option="false"
-            allow-clear
-            show-search
-            placeholder="未选择时归属平台"
-            @focus="loadTenantOptions()"
-            @search="loadTenantOptions"
-            @update:value="
-              (value) =>
-                changeFormTenant(value == null ? undefined : String(value))
-            "
-          />
-        </Form.Item>
-        <Form.Item label="归属组织" name="orgId">
-          <span v-if="current" data-testid="route-org">{{
-            current.orgName || current.orgId || '未限定组织'
-          }}</span>
-          <UserOrgSelector
-            v-else
-            :key="formTenantId"
-            :disabled="platformUser && !formTenantId"
-            :model-value="formScopeRecord"
-            :load-org-tree="loadFormOrgTree"
-            :selectable-types="['org']"
-            value-mode="record"
-            placeholder="未选择时不限定组织"
-            @update:selected-records="changeFormOrganization"
-          />
-        </Form.Item>
-        <Form.Item label="发生事件" name="eventName" required>
-          <Select
-            v-model:value="draft.eventName"
-            :options="workflowNotificationEvents"
-          />
-        </Form.Item>
-        <Form.Item label="通知方式" name="channel" required>
-          <Select
-            v-model:value="draft.channel"
-            :options="channels"
-            @change="changeChannel"
-          />
-        </Form.Item>
-        <Form.Item
-          label="适用流程定义"
-          name="processKey"
-          class="col-span-full"
-          help="精确匹配所选流程；不选时匹配当前范围内的所有流程。"
-        >
-          <Select
-            data-testid="route-process"
-            :value="draft.processKey || undefined"
-            :options="definitionOptions"
-            :loading="definitionsLoading"
-            :disabled="!canBrowseDefinitions || definitionsLoading"
-            :filter-option="filterCrudLocalSelectOption"
-            allow-clear
-            show-search
-            placeholder="所有流程定义（默认）"
-            @update:value="
-              changeProcess(typeof $event === 'string' ? $event : undefined)
-            "
-          />
-        </Form.Item>
-        <Alert
-          v-if="!canBrowseDefinitions || definitionError"
-          class="col-span-full"
-          type="info"
-          :message="
-            definitionError ||
-            '当前账号没有流程定义查看权限，可保留默认的所有流程；如需指定流程，请联系管理员授予查看权限。'
+        <div
+          class="col-span-full grid gap-x-4"
+          style="
+            grid-template-columns: repeat(
+              auto-fit,
+              minmax(min(100%, 400px), 1fr)
+            );
           "
-        />
-        <Form.Item
-          v-if="isRobot"
-          label="机器人目标名称"
-          class="col-span-full"
-          required
         >
-          <Input
-            v-model:value="robotTargetName"
-            :maxlength="64"
-            placeholder="管理员提供的目标名称，例如 approval-alerts"
-          />
-        </Form.Item>
-        <Alert
-          v-if="isRobot && !formTenantId"
-          class="col-span-full"
-          type="info"
-          message="平台机器人路由不匹配租户工作流；租户流程须选择实际租户所属组织和同作用域目标。"
-        />
+          <template
+            v-for="entry in formRegionLayout('basic')"
+            :key="`${entry.kind}:${entry.key}`"
+          >
+            <div
+              v-if="entry.kind === 'group'"
+              class="col-span-full border-b py-2 font-medium"
+            >
+              {{ entry.title }}
+            </div>
+            <!-- 归属仅在新增时可选；查看与编辑均回显服务端读取的原归属。 -->
+            <div v-if="entry.kind === 'field' && entry.key === 'tenantId'">
+              <Form.Item
+                v-if="platformUser && formFieldVisible('tenantId')"
+                :label="formFieldLabel('tenantId', '归属租户')"
+                :required="formSetting('tenantId')?.required === true"
+                name="tenantId"
+              >
+                <span v-if="current" data-testid="route-tenant">{{
+                  current.tenantName || current.tenantId || '平台'
+                }}</span>
+                <Select
+                  v-else
+                  data-testid="route-form-tenant"
+                  :disabled="formFieldDisabled('tenantId') || !canBrowseTenants"
+                  :value="draft.tenantId"
+                  :options="formTenantOptions"
+                  :filter-option="false"
+                  allow-clear
+                  show-search
+                  placeholder="未选择时归属平台"
+                  @focus="loadTenantOptions()"
+                  @search="loadTenantOptions"
+                  @update:value="
+                    (value) =>
+                      changeFormTenant(
+                        value == null ? undefined : String(value),
+                      )
+                  "
+                />
+                <p
+                  v-if="!current && !canBrowseTenants"
+                  class="text-muted-foreground text-xs"
+                >
+                  当前账号无租户查询权限，可保留平台范围；如需选择租户请联系管理员。
+                </p>
+              </Form.Item>
+            </div>
+            <div v-if="entry.kind === 'field' && entry.key === 'orgId'">
+              <Form.Item
+                v-if="formFieldVisible('orgId')"
+                :label="formFieldLabel('orgId', '归属组织')"
+                :required="formSetting('orgId')?.required === true"
+                name="orgId"
+              >
+                <span v-if="current" data-testid="route-org">{{
+                  current.orgName || current.orgId || '未限定组织'
+                }}</span>
+                <UserOrgSelector
+                  v-else
+                  :key="formTenantId"
+                  :disabled="
+                    formFieldDisabled('orgId') ||
+                    (platformUser && !formTenantId)
+                  "
+                  :model-value="formScopeRecord"
+                  :load-org-tree="loadFormOrgTree"
+                  :selectable-types="['org']"
+                  value-mode="record"
+                  placeholder="未选择时不限定组织"
+                  @update:selected-records="changeFormOrganization"
+                />
+              </Form.Item>
+            </div>
+            <div v-if="entry.kind === 'field' && entry.key === 'eventName'">
+              <Form.Item
+                v-if="formFieldVisible('eventName')"
+                :label="formFieldLabel('eventName', '发生事件')"
+                name="eventName"
+                required
+              >
+                <Select
+                  v-model:value="draft.eventName"
+                  :disabled="formFieldDisabled('eventName')"
+                  :options="workflowNotificationEvents"
+                  @change="changeEvent"
+                />
+              </Form.Item>
+            </div>
+            <div v-if="entry.kind === 'field' && entry.key === 'channel'">
+              <Form.Item
+                v-if="formFieldVisible('channel')"
+                :label="formFieldLabel('channel', '通知方式')"
+                name="channel"
+                required
+              >
+                <Select
+                  v-model:value="draft.channel"
+                  :disabled="formFieldDisabled('channel')"
+                  :options="channels"
+                  @change="changeChannel"
+                />
+              </Form.Item>
+            </div>
+            <div
+              v-if="entry.kind === 'field' && entry.key === 'processKey'"
+              class="col-span-full"
+            >
+              <Form.Item
+                v-if="formFieldVisible('processKey')"
+                :label="formFieldLabel('processKey', '适用流程定义')"
+                :required="formSetting('processKey')?.required === true"
+                name="processKey"
+                help="精确匹配所选流程；不选时匹配当前范围内的所有流程。"
+              >
+                <Select
+                  data-testid="route-process"
+                  :value="draft.processKey || undefined"
+                  :options="definitionOptions"
+                  :loading="definitionsLoading"
+                  :disabled="
+                    formFieldDisabled('processKey') ||
+                    !canBrowseDefinitions ||
+                    definitionsLoading
+                  "
+                  :filter-option="filterCrudLocalSelectOption"
+                  allow-clear
+                  show-search
+                  placeholder="所有流程定义（默认）"
+                  @update:value="
+                    changeProcess(
+                      typeof $event === 'string' ? $event : undefined,
+                    )
+                  "
+                />
+              </Form.Item>
+            </div>
+            <Alert
+              v-if="
+                entry.kind === 'field' &&
+                entry.key === 'processKey' &&
+                formFieldVisible('processKey') &&
+                (!canBrowseDefinitions || definitionError)
+              "
+              class="col-span-full"
+              type="info"
+              :message="
+                definitionError ||
+                '当前账号没有流程定义查看权限，可保留默认的所有流程；如需指定流程，请联系管理员授予查看权限。'
+              "
+            />
+            <div
+              v-if="entry.kind === 'field' && entry.key === 'targetConfig'"
+              class="col-span-full"
+            >
+              <Form.Item
+                v-if="isRobot && formFieldVisible('targetConfig')"
+                :label="formFieldLabel('targetConfig', '机器人通知群')"
+                required
+              >
+                <Select
+                  :value="robotGroupId || undefined"
+                  :disabled="formFieldDisabled('targetConfig')"
+                  :options="robotGroups"
+                  :loading="robotGroupsLoading"
+                  :filter-option="filterCrudLocalSelectOption"
+                  show-search
+                  allow-clear
+                  placeholder="请选择已配置的机器人通知群"
+                  @update:value="
+                    robotGroupId = typeof $event === 'string' ? $event : ''
+                  "
+                  @change="configRef = ''"
+                />
+                <p
+                  v-if="robotGroupsError"
+                  class="text-muted-foreground text-xs"
+                >
+                  {{ robotGroupsError }}
+                </p>
+                <p
+                  v-else-if="!robotGroupsLoading && robotGroups.length === 0"
+                  class="text-muted-foreground text-xs"
+                >
+                  当前范围没有可用通知群，请先配置机器人通知群。
+                </p>
+                <p v-if="configRef" class="text-muted-foreground text-xs">
+                  当前使用原有机器人目标；选择通知群后将改用所选通知群。
+                </p>
+              </Form.Item>
+            </div>
+            <Alert
+              v-if="
+                entry.kind === 'field' &&
+                entry.key === 'targetConfig' &&
+                isRobot &&
+                formFieldVisible('targetConfig') &&
+                !formTenantId
+              "
+              class="col-span-full"
+              type="info"
+              message="平台机器人路由不匹配租户工作流；租户流程须选择实际租户所属组织和同作用域目标。"
+            />
+
+            <div v-if="entry.kind === 'field' && entry.key === 'enable'">
+              <Form.Item
+                v-if="formFieldVisible('enable')"
+                :label="formFieldLabel('enable', '是否启用')"
+                :required="formSetting('enable')?.required === true"
+                name="enable"
+              >
+                <Switch
+                  v-model:checked="draft.enable"
+                  :disabled="formFieldDisabled('enable')"
+                />
+              </Form.Item>
+            </div>
+            <div
+              v-if="entry.kind === 'field' && entry.key === 'remark'"
+              class="col-span-full"
+            >
+              <Form.Item
+                v-if="formFieldVisible('remark')"
+                :label="formFieldLabel('remark', '备注')"
+                :required="formSetting('remark')?.required === true"
+                name="remark"
+              >
+                <Input.TextArea
+                  v-model:value="draft.remark"
+                  :disabled="formFieldDisabled('remark')"
+                  :maxlength="512"
+                />
+              </Form.Item>
+            </div>
+          </template>
+        </div>
         <Collapse v-model:active-key="advancedKeys" class="col-span-full mb-4">
           <Collapse.Panel key="advanced" header="更多匹配设置（可选）">
             <div
@@ -999,83 +1751,142 @@ onMounted(() => {
               <p class="text-muted-foreground col-span-full text-xs">
                 版本和节点都按所选值精确匹配，留空表示全部。优先级数值越小越先；覆盖会替代较低匹配层级的通知渠道。
               </p>
-              <Form.Item label="适用版本" name="workflowDefinitionVersionId">
-                <Select
-                  data-testid="route-version"
-                  :value="draft.workflowDefinitionVersionId || undefined"
-                  :options="versionOptions"
-                  :loading="versionsLoading"
-                  :disabled="
-                    !draft.processKey || !canBrowseVersions || versionsLoading
-                  "
-                  :filter-option="filterCrudLocalSelectOption"
-                  allow-clear
-                  show-search
-                  placeholder="全部版本（默认）"
-                  @update:value="
-                    changeVersion(
-                      typeof $event === 'string' ? $event : undefined,
-                    )
-                  "
-                />
-              </Form.Item>
-              <Form.Item label="适用节点" name="nodeKey">
-                <Select
-                  data-testid="route-node"
-                  :value="draft.nodeKey || undefined"
-                  :options="selectableNodes"
-                  :disabled="
-                    !draft.workflowDefinitionVersionId || !canReadVersion
-                  "
-                  :filter-option="filterCrudLocalSelectOption"
-                  allow-clear
-                  show-search
-                  placeholder="全部节点（默认）"
-                  @update:value="
-                    draft.nodeKey = typeof $event === 'string' ? $event : ''
-                  "
-                />
-              </Form.Item>
-              <Form.Item
-                label="强制覆盖"
-                name="forceOverride"
-                help="替代较低匹配层级的路由"
+              <template
+                v-for="entry in formRegionLayout('advanced')"
+                :key="`${entry.kind}:${entry.key}`"
               >
-                <Switch v-model:checked="draft.forceOverride" />
-              </Form.Item>
-              <Form.Item
-                label="附加条件（精确相等）"
-                name="matchCondition"
-                class="col-span-full"
-                help="留空匹配全部；只按字段值精确相等匹配，数组表示任一值。不支持大于、包含或脚本。"
-              >
-                <JsonEditorField
-                  v-model="conditionValue"
-                  :disabled="readOnly"
-                  title="精确匹配条件"
-                />
-              </Form.Item>
-              <Form.Item
-                label="优先级"
-                name="priority"
-                help="数值越小越先；默认 100 通常无需修改。"
-              >
-                <InputNumber
-                  v-model:value="draft.priority"
-                  :precision="0"
-                  :min="-2147483648"
-                  :max="2147483647"
-                />
-              </Form.Item>
+                <div
+                  v-if="entry.kind === 'group'"
+                  class="col-span-full border-b py-2 font-medium"
+                >
+                  {{ entry.title }}
+                </div>
+
+                <div
+                  v-if="
+                    entry.kind === 'field' &&
+                    entry.key === 'workflowDefinitionVersionId'
+                  "
+                >
+                  <Form.Item
+                    v-if="formFieldVisible('workflowDefinitionVersionId')"
+                    :label="
+                      formFieldLabel('workflowDefinitionVersionId', '适用版本')
+                    "
+                    :required="
+                      formSetting('workflowDefinitionVersionId')?.required ===
+                      true
+                    "
+                    name="workflowDefinitionVersionId"
+                  >
+                    <Select
+                      data-testid="route-version"
+                      :value="draft.workflowDefinitionVersionId || undefined"
+                      :options="versionOptions"
+                      :loading="versionsLoading"
+                      :disabled="
+                        formFieldDisabled('workflowDefinitionVersionId') ||
+                        !draft.processKey ||
+                        !canBrowseVersions ||
+                        versionsLoading
+                      "
+                      :filter-option="filterCrudLocalSelectOption"
+                      allow-clear
+                      show-search
+                      placeholder="全部版本（默认）"
+                      @update:value="
+                        changeVersion(
+                          typeof $event === 'string' ? $event : undefined,
+                        )
+                      "
+                    />
+                  </Form.Item>
+                </div>
+                <div v-if="entry.kind === 'field' && entry.key === 'nodeKey'">
+                  <Form.Item
+                    v-if="formFieldVisible('nodeKey')"
+                    :label="formFieldLabel('nodeKey', '适用节点')"
+                    :required="formSetting('nodeKey')?.required === true"
+                    name="nodeKey"
+                  >
+                    <Select
+                      data-testid="route-node"
+                      :value="draft.nodeKey || undefined"
+                      :options="selectableNodes"
+                      :disabled="
+                        formFieldDisabled('nodeKey') ||
+                        !draft.workflowDefinitionVersionId ||
+                        !canReadVersion
+                      "
+                      :filter-option="filterCrudLocalSelectOption"
+                      allow-clear
+                      show-search
+                      placeholder="全部节点（默认）"
+                      @update:value="
+                        draft.nodeKey = typeof $event === 'string' ? $event : ''
+                      "
+                    />
+                  </Form.Item>
+                </div>
+                <div
+                  v-if="entry.kind === 'field' && entry.key === 'forceOverride'"
+                >
+                  <Form.Item
+                    v-if="formFieldVisible('forceOverride')"
+                    :label="formFieldLabel('forceOverride', '强制覆盖')"
+                    :required="formSetting('forceOverride')?.required === true"
+                    name="forceOverride"
+                    help="替代较低匹配层级的路由"
+                  >
+                    <Switch
+                      v-model:checked="draft.forceOverride"
+                      :disabled="formFieldDisabled('forceOverride')"
+                    />
+                  </Form.Item>
+                </div>
+                <div
+                  v-if="
+                    entry.kind === 'field' && entry.key === 'matchCondition'
+                  "
+                  class="col-span-full"
+                >
+                  <Form.Item
+                    v-if="formFieldVisible('matchCondition')"
+                    :label="
+                      formFieldLabel('matchCondition', '附加条件（精确相等）')
+                    "
+                    :required="formSetting('matchCondition')?.required === true"
+                    name="matchCondition"
+                    help="留空匹配全部；只按字段值精确相等匹配，数组表示任一值。不支持大于、包含或脚本。"
+                  >
+                    <JsonEditorField
+                      v-model="conditionValue"
+                      :disabled="formFieldDisabled('matchCondition')"
+                      title="精确匹配条件"
+                    />
+                  </Form.Item>
+                </div>
+                <div v-if="entry.kind === 'field' && entry.key === 'priority'">
+                  <Form.Item
+                    v-if="formFieldVisible('priority')"
+                    :label="formFieldLabel('priority', '优先级')"
+                    :required="formSetting('priority')?.required === true"
+                    name="priority"
+                    help="数值越小越先；默认 100 通常无需修改。"
+                  >
+                    <InputNumber
+                      v-model:value="draft.priority"
+                      :disabled="formFieldDisabled('priority')"
+                      :precision="0"
+                      :min="-2147483648"
+                      :max="2147483647"
+                    />
+                  </Form.Item>
+                </div>
+              </template>
             </div>
           </Collapse.Panel>
         </Collapse>
-        <Form.Item label="是否启用" name="enable">
-          <Switch v-model:checked="draft.enable" />
-        </Form.Item>
-        <Form.Item label="备注" name="remark" class="col-span-full">
-          <Input.TextArea v-model:value="draft.remark" :maxlength="512" />
-        </Form.Item>
       </Form>
     </Modal>
     <Modal

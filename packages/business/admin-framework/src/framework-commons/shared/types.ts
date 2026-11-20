@@ -183,6 +183,8 @@ export interface CrudFieldConfig {
   /** 后端属性是否有实际字段；纯计算 getter 明确标记 false。 */
   hasBackingField?: boolean;
   required?: boolean;
+  /** 在新增或编辑视图分别声明必填；required=true 仍约束两个视图。 */
+  requiredByView?: Partial<Record<'create' | 'edit', boolean>>;
   search?: boolean;
   searchOrder?: number;
   searchParamName?: string;

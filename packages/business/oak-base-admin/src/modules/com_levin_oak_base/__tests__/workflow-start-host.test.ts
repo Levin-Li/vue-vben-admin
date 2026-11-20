@@ -133,4 +133,19 @@ describe('发起流程宿主范围与权限', () => {
     });
     wrapper.unmount();
   });
+  it('普通用户资料未返回租户时仍由服务端会话确定范围', async () => {
+    state.actor = { id: 'tenant-user' };
+    const wrapper = mount(WorkflowStart);
+    await flushPromises();
+    expect(wrapper.findComponent({ name: 'UserOrgSelector' }).exists()).toBe(
+      false,
+    );
+    expect(
+      wrapper
+        .findComponent({ name: 'WorkflowStartWorkbench' })
+        .props('tenantId'),
+    ).toBeUndefined();
+    expect(wrapper.text()).not.toContain('请先确认当前业务租户范围');
+    wrapper.unmount();
+  });
 });

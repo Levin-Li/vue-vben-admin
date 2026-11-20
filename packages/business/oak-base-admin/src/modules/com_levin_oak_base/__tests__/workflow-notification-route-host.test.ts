@@ -2,7 +2,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, h, reactive } from 'vue';
 
-import { Button, Collapse, Form, Input, Modal, Select, Switch } from 'ant-design-vue';
+import { Button, Collapse, Form, Modal, Select, Switch } from 'ant-design-vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WorkflowNotificationRoutePage from '../views/workflow-notification-route/index.vue';
@@ -20,18 +20,39 @@ const api = vi.hoisted(() => ({
   definitionList: vi.fn(),
   versionList: vi.fn(),
   versionRetrieve: vi.fn(),
+  robotGroupCandidates: vi.fn(),
+  authorizedOrgTree: vi.fn(),
+  tenantOptions: vi.fn(),
   userInfo: { platformUser: true } as Record<string, unknown>,
   fieldAllowed: true,
   ensure: vi.fn(),
   assertInput: vi.fn(),
   assertCheckpoint: vi.fn(),
+  assertValueAssignment: vi.fn(),
+  deniedFields: new Set<string>(),
+  displayFields: new Map<string, any>(),
+  displayGroups: new Map<string, any>(),
 }));
-vi.mock('@levin/admin-framework/framework-commons/shared/crud-data-attr-access', () => ({
-  useCrudDataAttrAccess: () => ({ allowed: () => api.fieldAllowed, ensure: api.ensure, checkpoint: () => 1, assertCheckpoint: api.assertCheckpoint, assertInput: api.assertInput }),
-}));
+vi.mock(
+  '@levin/admin-framework/framework-commons/shared/crud-data-attr-access',
+  () => ({
+    useCrudDataAttrAccess: () => ({
+      allowed: (_operation: string, _direction: string, field: string) =>
+        api.fieldAllowed && !api.deniedFields.has(field),
+      ensure: api.ensure,
+      checkpoint: () => 1,
+      assertCheckpoint: api.assertCheckpoint,
+      assertInput: api.assertInput,
+      assertValueAssignment: api.assertValueAssignment,
+      pruneOutput: (_operation: string, value: unknown) => value,
+      pruneInput: (_operation: string, value: unknown) => value,
+    }),
+  }),
+);
 vi.mock('../api/workflow-notification-route-service', () => ({
   workflowNotificationRouteService: api,
 }));
+vi.mock('../api/tenant-service', () => ({ tenantService: { kind: 'tenant' } }));
 vi.mock('../api/workflow-definition-service', () => ({
   workflowDefinitionService: { list: api.definitionList },
 }));
@@ -50,15 +71,26 @@ vi.mock('@levin/admin-framework/framework-commons/rbac-access', () => ({
 vi.mock(
   '@levin/admin-framework/framework-commons/shared/crud-permissions',
   () => ({
-    buildApiMethodPermissions: (_service: unknown, method: string) => [method],
+    buildApiMethodPermissions: (service: any, method: string) => [
+      service?.kind === 'tenant' ? 'tenant-list' : method,
+    ],
   }),
 );
 vi.mock('@vben/runtime/stores', () => ({
   useUserStore: () => ({ userInfo: api.userInfo }),
   useAccessStore: () => ({ accessCodes: [] }),
 }));
+vi.mock(
+  '@levin/admin-framework/framework-commons/app/api/rbac-service',
+  () => ({
+    rbacService: {
+      fetchAuthorizedOrgTreeByTenant: api.authorizedOrgTree,
+      fetchAuthorizedOrgTree: api.authorizedOrgTree,
+    },
+  }),
+);
 vi.mock('../views/api-module', () => ({
-  tenantOptionsLoader: async () => [{ label: '甲租户', value: 'tenant-1' }],
+  tenantOptionsLoader: api.tenantOptions,
   moduleFetchEnumOptions: async () => [
     { label: '站内', value: 'Station' },
     { label: '飞书', value: 'FeishuWebhook' },
@@ -84,7 +116,18 @@ vi.mock(
       props: ['config'],
       setup(props, { slots, expose }) {
         const state = reactive({ ...props.config.initialQuery });
-        expose({ state, reload: api.reload });
+        expose({
+          state,
+          reload: api.reload,
+          registerExternalFormElements: vi.fn(),
+          getExternalFormDisplayField: (
+            view: string,
+            _formId: string,
+            key: string,
+          ) => api.displayFields.get(`${view}:${key}`),
+          getExternalFormDisplayGroup: (view: string, key: string) =>
+            api.displayGroups.get(`${view}:${key}`),
+        });
         api.states.push(state);
         return () =>
           h('main', [
@@ -94,10 +137,8 @@ vi.mock(
               isListOperationVisible: () => true,
             }),
             ...api.records.map((record) =>
-              h(
-                'section',
-                { 'data-row': record.id },
-                [...(props.config.rowActions
+              h('section', { 'data-row': record.id }, [
+                ...(props.config.rowActions
                   ?.filter(
                     (action: any) => !action.visible || action.visible(record),
                   )
@@ -111,8 +152,9 @@ vi.mock(
                       },
                       () => action.label,
                     ),
-                  ) ?? []), ...(slots['table-cell-enable']?.({ record }) ?? [])],
-              ),
+                  ) ?? []),
+                ...(slots['table-cell-enable']?.({ record }) ?? []),
+              ]),
             ),
           ]);
       },
@@ -146,8 +188,20 @@ const editor = (wrapper: ReturnType<typeof mount>) =>
 describe('通知路由真实公共CRUD接入', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    api.robotGroupCandidates.mockResolvedValue([
+      { id: 'group-1', name: '审批群', channel: 'FeishuWebhook' },
+    ]);
+    api.tenantOptions.mockResolvedValue([
+      { label: '甲租户', value: 'tenant-1' },
+    ]);
+    api.authorizedOrgTree.mockResolvedValue([
+      { id: 'org-1', name: '授权组织', tenantId: 'tenant-1' },
+    ]);
     api.denied.clear();
     api.fieldAllowed = true;
+    api.deniedFields.clear();
+    api.displayFields.clear();
+    api.displayGroups.clear();
     api.ensure.mockResolvedValue({});
     api.assertInput.mockImplementation(() => {});
     api.assertCheckpoint.mockImplementation(() => {});
@@ -228,7 +282,554 @@ describe('通知路由真实公共CRUD接入', () => {
     wrapper.unmount();
   });
 
-  it('机器人只填写目标名称，保存时自动带入平台逻辑引用', async () => {
+  it('新增表单不显示也不提交无权或按表单设置隐藏的字段', async () => {
+    api.deniedFields.add('remark');
+    api.displayFields.set('create:processKey', { hidden: true });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    const labels = modal
+      .findAllComponents(Form.Item)
+      .map((item) => item.props('label'));
+    expect(labels).not.toContain('适用流程定义');
+    expect(labels).not.toContain('备注');
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(api.create).toHaveBeenCalledOnce();
+    expect(api.create.mock.calls[0]?.[0]).not.toHaveProperty('remark');
+    expect(api.create.mock.calls[0]?.[0]).not.toHaveProperty('processKey');
+    wrapper.unmount();
+  });
+
+  it('专用表单应用自己的标题和禁用设置', async () => {
+    api.displayFields.set('create:eventName', {
+      label: '触发时机',
+      disabled: true,
+      order: 5,
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    expect(
+      modal.findAllComponents(Form.Item).map((item) => item.props('label')),
+    ).toContain('触发时机');
+    const event = modal
+      .findAllComponents(Select)
+      .find((item) =>
+        item
+          .props('options')
+          ?.some(
+            (option) => 'value' in option && option.value === 'TaskCreated',
+          ),
+      );
+    expect(required(event).props('disabled')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('新增表单按字段类型应用配置的默认值', async () => {
+    api.displayFields.set('create:eventName', {
+      defaultValue: { value: 'TaskProcessed' },
+    });
+    api.displayFields.set('create:priority', { defaultValue: { value: 32 } });
+    api.displayFields.set('create:remark', {
+      defaultValue: { value: '默认备注' },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    expect(
+      required(editor(wrapper)).findComponent(Form).props('model'),
+    ).toMatchObject({
+      eventName: 'TaskProcessed',
+      priority: 32,
+      remark: '默认备注',
+    });
+    wrapper.unmount();
+  });
+
+  it('展示设置文本中的整数、布尔和 JSON 默认值按类型安全应用', async () => {
+    api.displayFields.set('create:priority', { defaultValue: { value: '37' } });
+    api.displayFields.set('create:forceOverride', {
+      defaultValue: { value: 'true' },
+    });
+    api.displayFields.set('create:matchCondition', {
+      defaultValue: { value: '{"kind":"safe"}' },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    expect(modal.findComponent(Form).props('model')).toMatchObject({
+      priority: 37,
+      forceOverride: true,
+    });
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(api.create).toHaveBeenCalledWith(
+      expect.objectContaining({ matchCondition: { kind: 'safe' } }),
+    );
+    wrapper.unmount();
+  });
+
+  it('配置分组和排序只影响各自区域，基础字段保持在高级折叠区之外', async () => {
+    api.displayGroups.set('create:review', {
+      key: 'review',
+      title: '验收分组',
+      order: 1,
+    });
+    api.displayFields.set('create:eventName', {
+      layoutGroup: 'review',
+      order: 2,
+    });
+    api.displayFields.set('create:channel', {
+      layoutGroup: 'review',
+      order: 1,
+    });
+    api.displayFields.set('create:nodeKey', {
+      layoutGroup: 'review',
+      order: 1,
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    modal.findComponent(Collapse).vm.$emit('update:activeKey', ['advanced']);
+    await flushPromises();
+    const items = modal.findAllComponents(Form.Item);
+    const field = (label: string) =>
+      required(items.find((item) => item.props('label') === label));
+    // 排序必须改变 DOM 顺序，让键盘焦点与视觉顺序一致。
+    expect(
+      field('通知方式').element.compareDocumentPosition(
+        field('发生事件').element,
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(field('通知方式').element.closest('.ant-collapse')).toBeNull();
+    expect(field('适用节点').element.closest('.ant-collapse')).not.toBeNull();
+    expect(document.body.textContent?.match(/验收分组/g)).toHaveLength(2);
+    wrapper.unmount();
+  });
+
+  it('级联默认值只使用授权候选，且逐级加载流程、版本和节点', async () => {
+    api.displayFields.set('create:processKey', {
+      defaultValue: { value: 'leave-process' },
+    });
+    api.displayFields.set('create:workflowDefinitionVersionId', {
+      defaultValue: { value: 'version-1' },
+    });
+    api.displayFields.set('create:nodeKey', {
+      defaultValue: { value: 'approve-task' },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    await flushPromises();
+    expect(
+      required(editor(wrapper)).findComponent(Form).props('model'),
+    ).toMatchObject({
+      processKey: 'leave-process',
+      workflowDefinitionVersionId: 'version-1',
+      nodeKey: 'approve-task',
+    });
+    wrapper.unmount();
+  });
+
+  it('状态图仅列出已配置对应生命周期通知的节点并支持默认值', async () => {
+    api.versionRetrieve.mockResolvedValue({
+      id: 'version-1',
+      lowflowDefinition: {
+        schemaVersion: 4,
+        nodes: [
+          { id: 'draft', name: '草稿' },
+          {
+            id: 'review',
+            name: '审批',
+            notifications: [{ event: 'NodeEntered' }],
+          },
+          {
+            id: 'done',
+            name: '完成',
+            terminal: true,
+            notifications: [{ event: 'NodeCompleted' }],
+          },
+        ],
+      },
+    });
+    api.displayFields.set('create:processKey', {
+      defaultValue: { value: 'leave-process' },
+    });
+    api.displayFields.set('create:eventName', {
+      defaultValue: { value: 'NodeEntered' },
+    });
+    api.displayFields.set('create:workflowDefinitionVersionId', {
+      defaultValue: { value: 'version-1' },
+    });
+    api.displayFields.set('create:nodeKey', {
+      defaultValue: { value: 'review' },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    modal.findComponent(Collapse).vm.$emit('update:activeKey', ['advanced']);
+    await flushPromises();
+    const select = required(
+      modal
+        .findAllComponents(Select)
+        .find((item) => item.attributes('data-testid') === 'route-node'),
+    );
+    expect(select.props('options')).toEqual([
+      { label: '审批', value: 'review' },
+    ]);
+    expect(select.props('value')).toBe('review');
+    const event = required(
+      modal
+        .findAllComponents(Select)
+        .find((item) =>
+          item
+            .props('options')
+            ?.some(
+              (option) => 'value' in option && option.value === 'NodeCompleted',
+            ),
+        ),
+    );
+    event.vm.$emit('update:value', 'NodeCompleted');
+    event.vm.$emit('change', 'NodeCompleted');
+    await flushPromises();
+    expect(select.props('value')).toBeUndefined();
+    expect(select.props('options')).toEqual([{ label: '完成', value: 'done' }]);
+    event.vm.$emit('update:value', 'TaskCreated');
+    event.vm.$emit('change', 'TaskCreated');
+    await flushPromises();
+    expect(select.props('options')).toEqual([]);
+    wrapper.unmount();
+  });
+
+  it('历史节点进入事件编辑时保持事件与节点，不会被默认任务事件覆盖', async () => {
+    const historical = {
+      ...record,
+      eventName: 'NodeEntered',
+      processKey: 'leave-process',
+      workflowDefinitionVersionId: 'version-1',
+      nodeKey: 'review',
+    };
+    api.records = [historical];
+    api.retrieve.mockResolvedValue(historical);
+    api.versionRetrieve.mockResolvedValue({
+      id: 'version-1',
+      lowflowDefinition: {
+        schemaVersion: 4,
+        nodes: [
+          {
+            id: 'review',
+            name: '审批',
+            notifications: [{ event: 'NodeEntered' }],
+          },
+        ],
+      },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '编辑')).trigger('click');
+    await flushPromises();
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    expect(modal.findComponent(Form).props('model')).toMatchObject({
+      eventName: 'NodeEntered',
+      nodeKey: 'review',
+    });
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(api.update).toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'NodeEntered', nodeKey: 'review' }),
+    );
+    wrapper.unmount();
+  });
+
+  it('租户及组织默认值只从授权目录和该租户组织树选取', async () => {
+    api.displayFields.set('create:tenantId', {
+      defaultValue: { value: 'tenant-1' },
+    });
+    api.displayFields.set('create:orgId', { defaultValue: { value: 'org-1' } });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    await flushPromises();
+    expect(
+      required(editor(wrapper)).findComponent(Form).props('model'),
+    ).toMatchObject({ tenantId: 'tenant-1', orgId: 'org-1' });
+    expect(api.authorizedOrgTree).toHaveBeenCalledWith('tenant-1');
+    wrapper.unmount();
+  });
+
+  it('无租户列表权限时不加载租户候选并说明限制', async () => {
+    api.denied.add('tenant-list');
+    api.displayFields.set('create:tenantId', {
+      defaultValue: { value: 'tenant-1' },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    const select = required(
+      modal
+        .findAllComponents(Select)
+        .find((item) => item.attributes('data-testid') === 'route-form-tenant'),
+    );
+    expect(select.props('disabled')).toBe(true);
+    expect(api.tenantOptions).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('当前账号无租户查询权限');
+    wrapper.unmount();
+  });
+
+  it('不使用属于其他租户的组织默认值', async () => {
+    api.displayFields.set('create:tenantId', {
+      defaultValue: { value: 'tenant-1' },
+    });
+    api.displayFields.set('create:orgId', { defaultValue: { value: 'org-1' } });
+    api.authorizedOrgTree.mockResolvedValue([
+      { id: 'org-1', name: '其他组织', tenantId: 'tenant-2' },
+    ]);
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    await flushPromises();
+    expect(
+      required(required(editor(wrapper)).findComponent(Form).props('model'))
+        .orgId,
+    ).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('未授权的流程默认值不会写入表单', async () => {
+    api.displayFields.set('create:processKey', {
+      defaultValue: { value: 'other-process' },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    expect(
+      required(required(editor(wrapper)).findComponent(Form).props('model'))
+        .processKey,
+    ).toBe('');
+    wrapper.unmount();
+  });
+
+  it('机器人默认目标只允许当前渠道返回的群', async () => {
+    api.displayFields.set('create:channel', {
+      defaultValue: { value: 'FeishuWebhook' },
+    });
+    api.displayFields.set('create:targetConfig', {
+      defaultValue: { value: { groupId: 'group-1' } },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    const group = required(editor(wrapper))
+      .findAllComponents(Select)
+      .find((item) =>
+        item
+          .props('options')
+          ?.some((option) => 'value' in option && option.value === 'group-1'),
+      );
+    expect(required(group).props('value')).toBe('group-1');
+    wrapper.unmount();
+  });
+
+  it('精确匹配条件默认值按保存校验提交', async () => {
+    api.displayFields.set('create:matchCondition', {
+      defaultValue: { value: { kind: 'normal' } },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    required(editor(wrapper)).vm.$emit('ok');
+    await flushPromises();
+    expect(api.create).toHaveBeenCalledWith(
+      expect.objectContaining({ matchCondition: { kind: 'normal' } }),
+    );
+    wrapper.unmount();
+  });
+
+  it('首次可见时应用默认值，隐藏再显示不覆盖用户输入', async () => {
+    api.displayFields.set('create:remark', {
+      defaultValue: {
+        value: '首次默认',
+        applyWhen: 'initialize-or-first-visible',
+      },
+      visibility: { expression: 'form.channel === "Email"' },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    const form = modal.findComponent(Form);
+    const model = required(form.props('model'));
+    expect(model.remark).toBe('');
+    model.channel = 'Email';
+    await flushPromises();
+    expect(model.remark).toBe('首次默认');
+    model.remark = '用户填写';
+    model.channel = 'Station';
+    await flushPromises();
+    model.channel = 'Email';
+    await flushPromises();
+    expect(model.remark).toBe('用户填写');
+    wrapper.unmount();
+  });
+
+  it('表单打开后授权变化会拒绝保存', async () => {
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    api.assertCheckpoint.mockImplementation(() => {
+      throw new Error('权限上下文已变化');
+    });
+    required(editor(wrapper)).vm.$emit('ok');
+    await flushPromises();
+    expect(api.create).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('详情无读取权限的字段不可见，编辑不提交该字段', async () => {
+    api.deniedFields.add('remark');
+    api.retrieve.mockResolvedValue({ ...record, remark: '敏感备注' });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '编辑')).trigger('click');
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    expect(
+      modal.findAllComponents(Form.Item).map((item) => item.props('label')),
+    ).not.toContain('备注');
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(api.update).toHaveBeenCalledOnce();
+    expect(api.update.mock.calls[0]?.[0]).not.toHaveProperty('remark');
+    wrapper.unmount();
+  });
+
+  it('无权提交已固定的组织范围时拒绝更新而不是静默扩大范围', async () => {
+    api.records = [{ ...record, tenantId: 'tenant-1', orgId: 'org-1' }];
+    api.retrieve.mockResolvedValue({
+      ...record,
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+    });
+    api.deniedFields.add('orgId');
+    api.assertInput.mockImplementation((_operation, payload) => {
+      if (payload.orgId) throw new Error('组织范围无权提交');
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '编辑')).trigger('click');
+    await flushPromises();
+    required(editor(wrapper)).vm.$emit('ok');
+    await flushPromises();
+    expect(api.assertInput).toHaveBeenCalledWith('update', {
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+    });
+    expect(api.update).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('范围字段设为不提交时不能静默扩大更新范围', async () => {
+    api.records = [{ ...record, tenantId: 'tenant-1', orgId: 'org-1' }];
+    api.retrieve.mockResolvedValue({
+      ...record,
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+    });
+    api.displayFields.set('edit:orgId', {
+      hidden: true,
+      submitWhenHidden: false,
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '编辑')).trigger('click');
+    await flushPromises();
+    required(editor(wrapper)).vm.$emit('ok');
+    await flushPromises();
+    expect(api.update).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('专用表单依赖与表达式使用完整表单身份并在条件不满足时隐藏', async () => {
+    api.displayFields.set('create:processKey', { hidden: true });
+    api.displayFields.set('create:nodeKey', {
+      visibility: {
+        dependsOn: {
+          fieldKeys: ['form:workflow-notification-route-create:processKey'],
+        },
+      },
+    });
+    api.displayFields.set('create:remark', {
+      visibility: { expression: 'form.channel === "Email"' },
+    });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    modal.findComponent(Collapse).vm.$emit('update:activeKey', ['advanced']);
+    await flushPromises();
+    const labels = modal
+      .findAllComponents(Form.Item)
+      .map((item) => item.props('label'));
+    expect(labels).not.toContain('适用节点');
+    expect(labels).not.toContain('备注');
+    wrapper.unmount();
+  });
+
+  it('隐藏但允许提交的字段仍受授权约束，必填设置生效', async () => {
+    api.displayFields.set('create:remark', {
+      hidden: true,
+      submitWhenHidden: true,
+    });
+    api.displayFields.set('create:processKey', { required: true });
+    const wrapper = mount(WorkflowNotificationRoutePage);
+    await flushPromises();
+    await required(findButton(wrapper, '新增通知渠道')).trigger('click');
+    await flushPromises();
+    const modal = required(editor(wrapper));
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(api.create).not.toHaveBeenCalled();
+    const process = required(
+      modal
+        .findAllComponents(Select)
+        .find((item) => item.attributes('data-testid') === 'route-process'),
+    );
+    process.vm.$emit('update:value', 'leave-process');
+    await flushPromises();
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(api.create).toHaveBeenCalledWith(
+      expect.objectContaining({ remark: '', processKey: 'leave-process' }),
+    );
+    wrapper.unmount();
+  });
+
+  it('机器人选择已授权通知群并保存群标识', async () => {
     const wrapper = mount(WorkflowNotificationRoutePage);
     await flushPromises();
     await required(findButton(wrapper, '新增通知渠道')).trigger('click');
@@ -248,25 +849,27 @@ describe('通知路由真实公共CRUD接入', () => {
     await flushPromises();
     const target = required(
       modal
-        .findAllComponents(Input)
+        .findAllComponents(Select)
         .find((item) =>
-          String(item.props('placeholder')).includes('approval-alerts'),
+          String(item.props('placeholder')).includes('机器人通知群'),
         ),
     );
-    target.vm.$emit('update:value', 'ops');
+    expect(target.props('value')).toBeUndefined();
+    target.vm.$emit('update:value', 'group-1');
+    target.vm.$emit('change', 'group-1');
     await flushPromises();
     modal.vm.$emit('ok');
     await flushPromises();
     expect(api.create).toHaveBeenCalledWith(
       expect.objectContaining({
         channel: 'FeishuWebhook',
-        targetConfig: { configRef: 'platform:ops' },
+        targetConfig: { groupId: 'group-1' },
       }),
     );
     wrapper.unmount();
   });
 
-  it('租户机器人编辑回显目标名称并保持租户作用域', async () => {
+  it('旧机器人引用不自动映射为通知群', async () => {
     api.retrieve.mockResolvedValue({
       ...record,
       tenantId: 'tenant-1',
@@ -278,21 +881,12 @@ describe('通知路由真实公共CRUD接入', () => {
     await required(findButton(wrapper, '编辑')).trigger('click');
     await flushPromises();
     const modal = required(editor(wrapper));
-    const target = required(
-      modal
-        .findAllComponents(Input)
-        .find((item) =>
-          String(item.props('placeholder')).includes('approval-alerts'),
-        ),
-    );
-    expect(target.props('value')).toBe('ops');
-    target.vm.$emit('update:value', 'new-ops');
     modal.vm.$emit('ok');
     await flushPromises();
     expect(api.update).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: 'tenant-1',
-        targetConfig: { configRef: 'tenant:tenant-1:new-ops' },
+        targetConfig: { configRef: 'tenant:tenant-1:ops' },
       }),
     );
     wrapper.unmount();
@@ -553,7 +1147,9 @@ describe('通知路由真实公共CRUD接入', () => {
     await flushPromises();
     const actions = crud(wrapper).props('config').rowActions;
     expect(actions.map((action: any) => action.displayKey)).toEqual([
-      'notification:retrieve', 'notification:update', 'notification:remove',
+      'notification:retrieve',
+      'notification:update',
+      'notification:remove',
     ]);
     expect(actions[2].danger).toBe(true);
     expect(actions[1].visible({ ...record, editable: undefined })).toBe(false);
@@ -566,12 +1162,24 @@ describe('通知路由真实公共CRUD接入', () => {
   it('启停检查字段权限并只提交状态和版本，失败保留原值', async () => {
     const wrapper = mount(WorkflowNotificationRoutePage);
     await flushPromises();
-    const toggle = required(wrapper.findAllComponents(Switch).find((item) => item.props('checked') === true));
+    const toggle = required(
+      wrapper
+        .findAllComponents(Switch)
+        .find((item) => item.props('checked') === true),
+    );
     api.update.mockRejectedValueOnce(new Error('版本冲突'));
     toggle.vm.$emit('change', false);
     await flushPromises();
-    expect(api.assertInput).toHaveBeenCalledWith('update', { id: 'route-1', optimisticLock: 4, enable: false });
-    expect(api.update).toHaveBeenCalledWith({ id: 'route-1', optimisticLock: 4, enable: false });
+    expect(api.assertInput).toHaveBeenCalledWith('update', {
+      id: 'route-1',
+      optimisticLock: 4,
+      enable: false,
+    });
+    expect(api.update).toHaveBeenCalledWith({
+      id: 'route-1',
+      optimisticLock: 4,
+      enable: false,
+    });
     expect(toggle.props('checked')).toBe(true);
     expect(api.reload).not.toHaveBeenCalled();
     api.update.mockResolvedValueOnce(undefined);
@@ -588,8 +1196,14 @@ describe('通知路由真实公共CRUD接入', () => {
   it('授权在等待期间撤销时不提交启停', async () => {
     const wrapper = mount(WorkflowNotificationRoutePage);
     await flushPromises();
-    api.assertCheckpoint.mockImplementation(() => { throw new Error('授权变更'); });
-    required(wrapper.findAllComponents(Switch).find((item) => item.props('checked') === true)).vm.$emit('change', false);
+    api.assertCheckpoint.mockImplementation(() => {
+      throw new Error('授权变更');
+    });
+    required(
+      wrapper
+        .findAllComponents(Switch)
+        .find((item) => item.props('checked') === true),
+    ).vm.$emit('change', false);
     await flushPromises();
     expect(api.update).not.toHaveBeenCalled();
     wrapper.unmount();
@@ -598,9 +1212,22 @@ describe('通知路由真实公共CRUD接入', () => {
     const wrapper = mount(WorkflowNotificationRoutePage);
     await flushPromises();
     let resolvePolicy!: (value: object) => void;
-    api.ensure.mockReturnValueOnce(new Promise((resolve) => { resolvePolicy = resolve; }));
-    required(wrapper.findAllComponents(Switch).find((item) => item.props('checked') === true)).vm.$emit('change', false);
-    wrapper.findComponent({ name: 'SupportScopeSelector' }).vm.$emit('change', { id: 'org-1', tenantId: 'tenant-1', kind: 'org', name: '研发' });
+    api.ensure.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePolicy = resolve;
+      }),
+    );
+    required(
+      wrapper
+        .findAllComponents(Switch)
+        .find((item) => item.props('checked') === true),
+    ).vm.$emit('change', false);
+    wrapper.findComponent({ name: 'SupportScopeSelector' }).vm.$emit('change', {
+      id: 'org-1',
+      tenantId: 'tenant-1',
+      kind: 'org',
+      name: '研发',
+    });
     await flushPromises();
     resolvePolicy({});
     await flushPromises();

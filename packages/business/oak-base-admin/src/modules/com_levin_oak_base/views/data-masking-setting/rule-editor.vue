@@ -126,8 +126,16 @@ function toggleField(entityClass: string, fieldName: string, checked: boolean) {
 
 function setTreatment(
   rule: MaskingFieldRule,
-  treatment: MaskingFieldRule['treatment'],
+  treatment: unknown,
+  field: MaskingEntityCatalogItem,
 ) {
+  if (
+    treatment !== 'HIDE' &&
+    treatment !== 'MASK' &&
+    treatment !== 'REVERSIBLE_ID'
+  )
+    return;
+  if (treatment === 'REVERSIBLE_ID' && !field.hasInputMapping) return;
   rule.treatment = treatment;
   if (treatment !== 'REVERSIBLE_ID') {
     delete rule.binding;
@@ -176,7 +184,7 @@ onMounted(async () => {
         description="请添加实体并选择字段"
       />
 
-      <!-- 每个实体展示已映射的字符串字段及其实际接口覆盖。 -->
+      <!-- 目录只包含有响应映射的实体字段。 -->
       <section
         v-for="entityClass in selectedEntities"
         :key="entityClass"
@@ -227,9 +235,24 @@ onMounted(async () => {
               :options="[
                 { label: '隐藏', value: 'HIDE' },
                 { label: '普通遮盖', value: 'MASK' },
-                { label: '可还原 ID', value: 'REVERSIBLE_ID' },
+                {
+                  label: field.hasInputMapping
+                    ? '可还原 ID'
+                    : '可还原 ID（缺少请求字段映射）',
+                  value: 'REVERSIBLE_ID',
+                  disabled: !field.hasInputMapping,
+                },
               ]"
-              @change="setTreatment(rule, $event)"
+              @change="setTreatment(rule, $event, field)"
+            />
+            <Alert
+              v-if="
+                rule.treatment === 'REVERSIBLE_ID' && !field.hasInputMapping
+              "
+              class="rule-full"
+              type="warning"
+              message="当前字段缺少请求映射，请改用隐藏或普通遮盖后再保存。"
+              show-icon
             />
             <!-- 可还原 ID 绑定主体和有效期，无需逐接口配置。 -->
             <div

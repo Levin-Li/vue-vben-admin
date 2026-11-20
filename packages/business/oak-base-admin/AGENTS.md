@@ -11,8 +11,6 @@
 
 工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。
 
-实体字段数据脱敏的配置、规则升级与安全边界见 [数据脱敏设置页面指南](docs/data-masking-setting.md)。
-
 邮件、个人消息、支持邮箱、工单与通知投递：[工作台使用指南](docs/communication-workbench.md)。
 
 服务插件的单选/多选供应商配置与 OAuth 登录、绑定入口见 [供应商选择模式接入指南](docs/provider-selection-modes.md)。
@@ -23,9 +21,9 @@
 
 法律主体、合作伙伴一对多关系和电子发票合作关系选择见 [法律主体与合作伙伴页面接入指南](docs/partner-legal-subject-relations.md)。
 
-客户、供应伙伴与渠道伙伴的 [快捷新增使用指南](docs/快捷添加客户与伙伴使用指南.md) 说明主体查询、人工补录、管理员账号与失败回滚。
+客户、供应伙伴与渠道伙伴的 [快捷添加使用指南](docs/快捷添加客户与伙伴使用指南.md) 说明主体查询、人工补录、管理员账号与失败回滚。
 
-快捷新增的 [设计](docs/快捷添加客户与伙伴设计.md)、[实现说明](docs/快捷添加客户与伙伴实现说明.md) 和 [开发指南](docs/快捷添加客户与伙伴开发指南.md) 说明界面决策、接口落点与扩展边界。
+快捷添加的 [设计](docs/快捷添加客户与伙伴设计.md)、[实现说明](docs/快捷添加客户与伙伴实现说明.md) 和 [开发指南](docs/快捷添加客户与伙伴开发指南.md) 说明界面决策、接口落点与扩展边界。
 
 邀请链接查看租户筛选与签发权限边界见 [邀请链接使用指南](docs/invitation-registration.md)。
 

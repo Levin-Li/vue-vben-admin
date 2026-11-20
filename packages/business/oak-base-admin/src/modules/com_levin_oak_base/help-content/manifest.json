@@ -1,5 +1,5 @@
 {
-  "version": "6.0.45",
+  "version": "6.0.46",
   "documents": [
     {
       "id": "system-user-manual",
@@ -110,7 +110,7 @@
           "view": "my-workflow"
         }
       ],
-      "sha256": "227b7867d1789d4f86ea40a41300878c49b2325b4bf763f9326dc9e8a0920149"
+      "sha256": "0bbbaabe6fee5c9d8210282659b6d5f1d622321086a3acd298504dc0998bf495"
     },
     {
       "id": "domain-provider-guide",
@@ -130,7 +130,7 @@
       "type": "开发指南",
       "source": "frontend/admin/packages/business/oak-base-admin/docs/communication-workbench.md",
       "pages": [],
-      "sha256": "31cd17159bf4f6fee54625a41083d12295e885ea614d74343a6f97b706a84f13"
+      "sha256": "ab5895d171c4520dbf42606bad3bdcca4aa0f89fb7505e4e042901891eb3d1ee"
     },
     {
       "id": "invitation-registration-admin",

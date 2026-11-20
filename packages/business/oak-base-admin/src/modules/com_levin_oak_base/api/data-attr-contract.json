@@ -321609,6 +321609,20 @@
     },
     "nodes" : { }
   }, {
+    "id" : "c356867b-b565-3424-a99b-e69ca774985e",
+    "operation" : "com.levin.oak.base:业务数据-工作流通知路由::查询工作流可用机器人通知群",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/WorkflowNotificationRoute/robot-group-candidates" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "adafbbdd-1b32-3aa4-98a3-3e116440c7b1",
     "operation" : "com.levin.oak.base:业务数据-工作流通知路由::统计",
     "methods" : [ "GET" ],
@@ -332292,6 +332306,20 @@
     },
     "nodes" : { }
   }, {
+    "id" : "83b92b8d-63a2-3f00-9685-fbe715a9954e",
+    "operation" : "WorkflowRuntime:业务数据-工作流运行时::发起业务流程",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/workflow-runtime/bound-business-types" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "481b5823-ac77-3f75-95a0-e864550039b3",
     "operation" : "WorkflowRuntime:业务数据-工作流运行时::查询流程业务能力目录",
     "methods" : [ "GET" ],
@@ -332474,7 +332502,7 @@
     },
     "nodes" : { }
   }, {
-    "id" : "ef8dd1ec-5965-3aa5-b86d-d6cbf81f87fa",
+    "id" : "06603234-de7e-35d5-b6e4-3736f3da7be6",
     "operation" : "WorkflowRuntime:业务数据-工作流运行时::查询我收到的流程抄送",
     "methods" : [ "GET" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/workflow-runtime/copied" ],
@@ -332516,10 +332544,24 @@
     },
     "nodes" : { }
   }, {
-    "id" : "a5e5904b-ea7f-3734-875e-0515acc78934",
+    "id" : "1031b80c-f37e-33a1-ac9c-0cb6dea8df4c",
     "operation" : "WorkflowRuntime:业务数据-工作流运行时::查询我的工作流已办",
     "methods" : [ "GET" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/workflow-runtime/done" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "072cc9eb-77f5-3282-b2f7-f6fc143edeac",
+    "operation" : "WorkflowRuntime:业务数据-工作流运行时::查询个人流程筛选选项",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/workflow-runtime/flow-options" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],
@@ -332572,7 +332614,7 @@
     },
     "nodes" : { }
   }, {
-    "id" : "9968b6ad-f210-35c8-8cc9-bede463389d5",
+    "id" : "9a8fcd89-13d0-3a1b-83d9-208c328ac402",
     "operation" : "WorkflowRuntime:业务数据-工作流运行时::查询我发起的工作流",
     "methods" : [ "GET" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/workflow-runtime/started" ],
@@ -332642,7 +332684,7 @@
     },
     "nodes" : { }
   }, {
-    "id" : "51fd53e1-5dab-3825-846f-183df20f7861",
+    "id" : "39de18de-b4d3-327e-980c-0883760a458e",
     "operation" : "WorkflowRuntime:业务数据-工作流运行时::查询我的工作流待办",
     "methods" : [ "GET" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/workflow-runtime/todo" ],

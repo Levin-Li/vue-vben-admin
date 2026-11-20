@@ -157,6 +157,8 @@ export const uiSettingPageCrudConfig: CrudPageConfig = {
       label: '设置项类型',
       layoutGroup: 'scope',
       layoutOrder: 19,
+      requiredByView: { create: true },
+      maxLength: 32,
       table: true,
       width: 140,
     },

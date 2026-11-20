@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   isCrudFormFieldConditionMet,
+  isCrudFormFieldRequired,
   shouldShowCrudFormField,
   shouldSubmitCrudFormField,
 } from '../crud-form-field-visibility';
@@ -14,6 +15,17 @@ const editableField = {
 };
 
 describe('crud form field visibility', () => {
+  it('resolves per-view requirements without weakening legacy required', () => {
+    const createOnly = { requiredByView: { create: true } };
+    expect(isCrudFormFieldRequired(createOnly, 'create')).toBe(true);
+    expect(isCrudFormFieldRequired(createOnly, 'edit')).toBe(false);
+    const editOnly = { requiredByView: { edit: true } };
+    expect(isCrudFormFieldRequired(editOnly, 'create')).toBe(false);
+    expect(isCrudFormFieldRequired(editOnly, 'edit')).toBe(true);
+    const legacy = { required: true, requiredByView: { edit: false } };
+    expect(isCrudFormFieldRequired(legacy, 'create')).toBe(true);
+    expect(isCrudFormFieldRequired(legacy, 'edit')).toBe(true);
+  });
   it('uses current form values for conditional create fields', () => {
     const field = {
       key: 'maxRegistrations',
