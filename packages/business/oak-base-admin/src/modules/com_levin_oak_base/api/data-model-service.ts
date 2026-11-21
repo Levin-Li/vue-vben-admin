@@ -63,7 +63,14 @@ export interface DataModelFilter {
 export type DataModelConditionDefinition =
   | { child: DataModelConditionDefinition; type: 'NOT' }
   | { children: DataModelConditionDefinition[]; type: 'AND' | 'OR' }
-  | { key: string; type: 'PARAM' };
+  | { key: string; type: 'PARAM' }
+  | { key: string; type: 'VARIABLE'; variable: DataModelContextVariable };
+
+export type DataModelContextVariable =
+  | 'authorizedOrgIds'
+  | 'currentOrgId'
+  | 'currentTenantId'
+  | 'currentUserId';
 
 export interface DataModelDefinition {
   createdAt?: string;
