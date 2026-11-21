@@ -1,3 +1,5 @@
+[2026-11-21 数据脱敏配置发布记录](docs/releases/20261121-data-masking.md)说明版本、tarball 校验和验证边界。
+
 # Published Package AGENTS.md
 
 [2026-11-19 公共表单分步填写发布记录](docs/releases/20261119-crud-stepper.md)说明版本、验证与页面验收限制。

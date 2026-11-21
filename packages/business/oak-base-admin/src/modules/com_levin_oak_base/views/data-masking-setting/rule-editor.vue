@@ -113,6 +113,11 @@ function toggleField(entityClass: string, fieldName: string, checked: boolean) {
     (rule) => rule?.entityClass === entityClass && rule.fieldName === fieldName,
   );
   if (checked && index === -1) {
+    const field = entityCatalog.value.find(
+      (item) =>
+        item.entityClass === entityClass && item.fieldName === fieldName,
+    );
+    if (!field || field.configurable === false) return;
     items.push({
       entityClass,
       fieldName,
@@ -135,8 +140,14 @@ function setTreatment(
     treatment !== 'REVERSIBLE_ID'
   )
     return;
+  if (field.configurable === false) return;
   if (treatment === 'REVERSIBLE_ID' && !field.hasInputMapping) return;
+  const previous = rule.treatment;
   rule.treatment = treatment;
+  if (treatment === 'REVERSIBLE_ID' && previous !== 'REVERSIBLE_ID') {
+    rule.binding = 'SESSION';
+    rule.validSeconds = null;
+  }
   if (treatment !== 'REVERSIBLE_ID') {
     delete rule.binding;
     delete rule.validSeconds;
@@ -207,78 +218,97 @@ onMounted(async () => {
           description="该实体没有可配置字段"
         />
 
-        <div
-          v-for="field in fieldsFor(entityClass)"
-          :key="field.fieldName"
-          class="rule-card"
-        >
-          <Checkbox
-            :checked="!!ruleFor(entityClass, field.fieldName)"
-            :disabled="disabled"
-            @change="
-              toggleField(entityClass, field.fieldName, $event.target.checked)
-            "
+        <div class="field-grid">
+          <div
+            v-for="field in fieldsFor(entityClass)"
+            :key="field.fieldName"
+            class="rule-card"
           >
-            {{ displayName(field.fieldTitle, field.fieldName) }}
-          </Checkbox>
-          <template
-            v-for="rule in rules.filter(
-              (item) =>
-                item?.entityClass === entityClass &&
-                item.fieldName === field.fieldName,
-            )"
-            :key="rule.fieldName"
-          >
-            <Select
-              :value="rule.treatment"
-              :disabled="disabled"
-              :options="[
-                { label: '隐藏', value: 'HIDE' },
-                { label: '普通遮盖', value: 'MASK' },
-                {
-                  label: field.hasInputMapping
-                    ? '可还原 ID'
-                    : '可还原 ID（缺少请求字段映射）',
-                  value: 'REVERSIBLE_ID',
-                  disabled: !field.hasInputMapping,
-                },
-              ]"
-              @change="setTreatment(rule, $event, field)"
-            />
+            <!-- 字段和三个设置保持同一行，窄容器可横向滚动。 -->
+            <div class="rule-line">
+              <Checkbox
+                class="rule-check"
+                :checked="!!ruleFor(entityClass, field.fieldName)"
+                :disabled="
+                  disabled ||
+                  (field.configurable === false &&
+                    !ruleFor(entityClass, field.fieldName))
+                "
+                :title="displayName(field.fieldTitle, field.fieldName)"
+                @change="
+                  toggleField(
+                    entityClass,
+                    field.fieldName,
+                    $event.target.checked,
+                  )
+                "
+              >
+                {{ displayName(field.fieldTitle, field.fieldName) }}
+              </Checkbox>
+              <span
+                v-if="field.configurable === false"
+                class="unsupported-reason"
+              >
+                {{ field.unsupportedReason || '暂不支持此字段' }}
+              </span>
+              <template
+                v-for="rule in rules.filter(
+                  (item) =>
+                    item?.entityClass === entityClass &&
+                    item.fieldName === field.fieldName,
+                )"
+                :key="rule.fieldName"
+              >
+                <Select
+                  class="rule-treatment"
+                  :value="rule.treatment"
+                  :disabled="disabled || field.configurable === false"
+                  :options="[
+                    { label: '隐藏', value: 'HIDE' },
+                    { label: '普通遮盖', value: 'MASK' },
+                    {
+                      label: field.hasInputMapping
+                        ? '可还原 ID'
+                        : '可还原 ID（缺少请求字段映射）',
+                      value: 'REVERSIBLE_ID',
+                      disabled: !field.hasInputMapping,
+                    },
+                  ]"
+                  @change="setTreatment(rule, $event, field)"
+                />
+                <template v-if="rule.treatment === 'REVERSIBLE_ID'">
+                  <Select
+                    v-model:value="rule.binding"
+                    class="rule-binding"
+                    :disabled="disabled || field.configurable === false"
+                    :options="[
+                      { label: '当前用户', value: 'USER' },
+                      { label: '当前登录会话', value: 'SESSION' },
+                    ]"
+                    placeholder="绑定范围"
+                  />
+                  <InputNumber
+                    v-model:value="rule.validSeconds"
+                    class="rule-timeout"
+                    addon-after="秒"
+                    :disabled="disabled || field.configurable === false"
+                    :min="1"
+                    :max="86400"
+                    placeholder="默认不过期"
+                  />
+                </template>
+              </template>
+            </div>
             <Alert
               v-if="
-                rule.treatment === 'REVERSIBLE_ID' && !field.hasInputMapping
+                ruleFor(entityClass, field.fieldName)?.treatment ===
+                  'REVERSIBLE_ID' && !field.hasInputMapping
               "
-              class="rule-full"
               type="warning"
               message="当前字段缺少请求映射，请改用隐藏或普通遮盖后再保存。"
               show-icon
             />
-            <!-- 可还原 ID 绑定主体和有效期，无需逐接口配置。 -->
-            <div
-              v-if="rule.treatment === 'REVERSIBLE_ID'"
-              class="reversible-fields"
-            >
-              <Select
-                v-model:value="rule.binding"
-                :disabled="disabled"
-                :options="[
-                  { label: '当前用户', value: 'USER' },
-                  { label: '当前登录会话', value: 'SESSION' },
-                ]"
-                placeholder="绑定范围"
-              />
-              <InputNumber
-                v-model:value="rule.validSeconds"
-                addon-after="秒"
-                :disabled="disabled"
-                :min="1"
-                :max="86400"
-                class="rule-full"
-                placeholder="有效秒数"
-              />
-            </div>
-          </template>
+          </div>
         </div>
       </section>
     </div>
@@ -314,19 +344,54 @@ onMounted(async () => {
   color: var(--ant-color-text-secondary, #666);
   font-size: 12px;
 }
-.rule-card {
+.field-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  align-items: center;
-  padding: 12px;
+}
+.rule-card {
+  min-width: 0;
+  padding: 8px;
+  overflow-x: auto;
   border: 1px solid var(--ant-color-border, #d9d9d9);
   border-radius: 8px;
 }
-.reversible-fields {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px;
+.rule-line {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 492px;
+}
+.rule-check {
+  flex: 1 0 95px;
+  min-width: 95px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rule-check :deep(span:last-child) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rule-treatment {
+  flex: 0 0 104px;
+  width: 104px;
+}
+.rule-binding {
+  flex: 0 0 130px;
+  width: 130px;
+}
+.rule-timeout {
+  flex: 0 0 145px;
+  width: 145px;
+}
+.unsupported-reason {
+  color: var(--ant-color-text-disabled, #999);
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .field-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

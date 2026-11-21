@@ -31,6 +31,22 @@ describe('数据脱敏字段规则', () => {
     expect(validateMaskingRuleContent(content)).toBe(content);
   });
 
+  it('无独立有效期的可还原规则可以保存', () => {
+    for (const validSeconds of [null, undefined]) {
+      const content = [
+        {
+          entityClass: 'example.Order',
+          fieldName: 'id',
+          schemaVersion: 2,
+          treatment: 'REVERSIBLE_ID',
+          binding: 'SESSION',
+          validSeconds,
+        },
+      ];
+      expect(validateMaskingRuleContent(content)).toBe(content);
+    }
+  });
+
   it('拒绝超过服务端一天上限的有效期', () => {
     expect(() =>
       validateMaskingRuleContent([

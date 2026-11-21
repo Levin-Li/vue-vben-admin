@@ -8,6 +8,8 @@ import {
 import { OAK_BASE_API_MODULE } from './_module';
 
 export interface MaskingEntityCatalogItem {
+  /** 图片及复杂字段可出现在目录中，但不允许配置脱敏。 */
+  configurable?: boolean;
   entityClass: string;
   /** 服务端实体模型声明的展示名称，旧服务可不返回。 */
   entityTitle?: string;
@@ -16,6 +18,8 @@ export interface MaskingEntityCatalogItem {
   fieldTitle?: string;
   /** 存在可明确识别的实体请求字段映射时才允许配置可还原 ID。 */
   hasInputMapping: boolean;
+  /** 不可配置字段的原因，由服务端目录提供。 */
+  unsupportedReason?: string;
 }
 
 @Service({

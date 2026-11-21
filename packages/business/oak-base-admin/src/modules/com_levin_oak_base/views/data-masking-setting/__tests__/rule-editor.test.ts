@@ -24,6 +24,24 @@ vi.mock('../../../api/data-masking-setting-service', () => ({
         hasInputMapping: false,
       },
       {
+        entityClass: 'example.Order',
+        entityTitle: '订单',
+        fieldName: 'image',
+        fieldTitle: '图片',
+        hasInputMapping: false,
+        configurable: false,
+        unsupportedReason: '图片字段暂不支持',
+      },
+      {
+        entityClass: 'example.Order',
+        entityTitle: '订单',
+        fieldName: 'details',
+        fieldTitle: '复杂对象',
+        hasInputMapping: false,
+        configurable: false,
+        unsupportedReason: '复杂对象暂不支持',
+      },
+      {
         entityClass: 'example.User',
         entityTitle: '用户',
         fieldName: 'name',
@@ -151,6 +169,120 @@ describe('实体优先脱敏规则编辑', () => {
     wrapper.unmount();
   });
 
+  it('新选可还原 ID 默认绑定当前会话且无独立有效期', async () => {
+    const formState = reactive({
+      valueContent: [
+        {
+          entityClass: 'example.Order',
+          fieldName: 'id',
+          schemaVersion: 2,
+          treatment: 'HIDE',
+        },
+      ],
+    });
+    const wrapper = mount(RuleEditor, { props: { formState } });
+    await flushPromises();
+    const treatment = wrapper
+      .findAllComponents(Select)
+      .find((item) =>
+        (item.props('options') as undefined | { value?: string }[])?.some(
+          (option) => option.value === 'REVERSIBLE_ID',
+        ),
+      );
+    treatment?.vm.$emit('change', 'REVERSIBLE_ID');
+    await flushPromises();
+    expect(formState.valueContent[0]).toMatchObject({
+      treatment: 'REVERSIBLE_ID',
+      binding: 'SESSION',
+      validSeconds: null,
+    });
+    expect(wrapper.find('input[placeholder="默认不过期"]').exists()).toBe(true);
+    expect(validateMaskingRuleContent(formState.valueContent)).toBe(
+      formState.valueContent,
+    );
+    wrapper.unmount();
+  });
+
+  it('图片和复杂对象字段灰显且不会加入规则', async () => {
+    const formState = reactive({ valueContent: [] as unknown[] });
+    const wrapper = mount(RuleEditor, { props: { formState } });
+    await flushPromises();
+    wrapper.findComponent(Select).vm.$emit('update:value', 'example.Order');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((item) => item.text() === '添加实体')
+      ?.trigger('click');
+    await flushPromises();
+    for (const label of ['图片', '复杂对象']) {
+      const field = wrapper
+        .findAllComponents(Checkbox)
+        .find((item) => item.text().includes(label));
+      expect(field?.props('disabled')).toBe(true);
+      field?.vm.$emit('change', { target: { checked: true } });
+    }
+    expect(wrapper.text()).toContain('图片字段暂不支持');
+    expect(wrapper.text()).toContain('复杂对象暂不支持');
+    expect(formState.valueContent).toEqual([]);
+    wrapper.unmount();
+  });
+
+  it('已选字段变为不支持后仍可取消，不能重新勾选', async () => {
+    const formState = reactive({
+      valueContent: [
+        {
+          entityClass: 'example.Order',
+          fieldName: 'image',
+          schemaVersion: 2,
+          treatment: 'HIDE',
+        },
+      ],
+    });
+    const wrapper = mount(RuleEditor, { props: { formState } });
+    await flushPromises();
+    const field = wrapper
+      .findAllComponents(Checkbox)
+      .find((item) => item.text().includes('图片'));
+    expect(field?.props('disabled')).toBe(false);
+    field?.vm.$emit('change', { target: { checked: false } });
+    await flushPromises();
+    expect(formState.valueContent).toEqual([]);
+    expect(field?.props('disabled')).toBe(true);
+    field?.vm.$emit('change', { target: { checked: true } });
+    expect(formState.valueContent).toEqual([]);
+    wrapper.unmount();
+  });
+
+  it('编辑已有可还原规则不覆盖原绑定或有效期', async () => {
+    const formState = reactive({
+      valueContent: [
+        {
+          entityClass: 'example.Order',
+          fieldName: 'id',
+          schemaVersion: 2,
+          treatment: 'REVERSIBLE_ID',
+          binding: 'USER',
+          validSeconds: 1200,
+        },
+      ],
+    });
+    const wrapper = mount(RuleEditor, { props: { formState } });
+    await flushPromises();
+    const treatment = wrapper
+      .findAllComponents(Select)
+      .find((item) =>
+        (item.props('options') as undefined | { value?: string }[])?.some(
+          (option) => option.value === 'REVERSIBLE_ID',
+        ),
+      );
+    treatment?.vm.$emit('change', 'REVERSIBLE_ID');
+    expect(formState.valueContent[0]).toMatchObject({
+      binding: 'USER',
+      validSeconds: 1200,
+    });
+    wrapper.unmount();
+  });
+
   it('无请求字段映射时禁止新增可还原规则，已有规则可改为隐藏', async () => {
     const formState = reactive({
       valueContent: [
@@ -203,7 +335,8 @@ describe('实体优先脱敏规则编辑', () => {
     expect(
       wrapper
         .findAllComponents(Checkbox)
-        .some((item) => item.props('disabled')),
+        .find((item) => item.text().includes('id'))
+        ?.props('disabled'),
     ).toBe(false);
     wrapper
       .findAllComponents(Checkbox)

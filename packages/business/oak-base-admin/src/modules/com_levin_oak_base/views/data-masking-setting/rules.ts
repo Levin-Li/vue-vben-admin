@@ -4,7 +4,7 @@ export interface MaskingFieldRule {
   fieldName: string;
   schemaVersion: 2;
   treatment: 'HIDE' | 'MASK' | 'REVERSIBLE_ID';
-  validSeconds?: number;
+  validSeconds?: null | number;
 }
 
 export function isLegacyMaskingRule(rule: MaskingFieldRule) {
@@ -52,12 +52,16 @@ export function validateMaskingRuleContent(value: unknown) {
     if (
       rule.treatment === 'REVERSIBLE_ID' &&
       (!['SESSION', 'USER'].includes(rule.binding ?? '') ||
-        typeof rule.validSeconds !== 'number' ||
-        !Number.isInteger(rule.validSeconds) ||
-        rule.validSeconds <= 0 ||
-        rule.validSeconds > 86_400)
+        (rule.validSeconds !== null &&
+          rule.validSeconds !== undefined &&
+          (typeof rule.validSeconds !== 'number' ||
+            !Number.isInteger(rule.validSeconds) ||
+            rule.validSeconds <= 0 ||
+            rule.validSeconds > 86_400)))
     ) {
-      throw new Error('可还原 ID 需要绑定范围和有效秒数（1 至 86400）');
+      throw new Error(
+        '可还原 ID 需要绑定范围；有效秒数留空表示不过期，或填写 1 至 86400',
+      );
     }
   }
   return value;
