@@ -13,14 +13,13 @@ export function buildCrudWizardSteps(
   const steps: CrudWizardStep[] = [];
   const grouped = new Map<string, CrudWizardStep>();
   let ungrouped: CrudWizardStep | undefined;
-  let ungroupedIndex = 0;
   for (const field of fields) {
     // 静态布局键不代表运行时一定显示分组，步骤只使用最终展示组。
     const group = field.displayGroup?.key?.trim();
     if (!group) {
       if (!ungrouped) {
         ungrouped = {
-          key: `ungrouped:${ungroupedIndex++}`,
+          key: 'ungrouped:0',
           title: '其他信息',
           fields: [],
         };
@@ -29,7 +28,6 @@ export function buildCrudWizardSteps(
       ungrouped.fields.push(field);
       continue;
     }
-    ungrouped = undefined;
     let step = grouped.get(group);
     if (!step) {
       step = {

@@ -46,4 +46,32 @@ describe('向导有效步骤', () => {
     expect(steps).toHaveLength(1);
     expect(steps[0]?.fields.map((field) => field.key)).toEqual(['a', 'b', 'c']);
   });
+
+  it('合并被展示组隔开的未分组字段并保持相对顺序', () => {
+    const steps = buildCrudWizardSteps([
+      { key: 'a', label: '甲', displayGroup: { key: 'base', title: '基础' } },
+      { key: 'b', label: '乙' },
+      { key: 'c', label: '丙', displayGroup: { key: 'content', title: '内容' } },
+      { key: 'd', label: '丁' },
+      { key: 'e', label: '戊', displayGroup: { key: 'base' } },
+      { key: 'f', label: '己' },
+    ]);
+    expect(steps.map((step) => step.title)).toEqual(['基础', '其他信息', '内容']);
+    expect(steps.map((step) => step.fields.map((field) => field.key))).toEqual([
+      ['a', 'e'],
+      ['b', 'd', 'f'],
+      ['c'],
+    ]);
+    expect(findCrudWizardStep(steps, 'f')).toBe(1);
+  });
+
+  it('合并后不足三个有效步骤时不满足向导资格', () => {
+    const steps = buildCrudWizardSteps([
+      { key: 'a', label: '甲' },
+      { key: 'b', label: '乙', displayGroup: { key: 'base' } },
+      { key: 'c', label: '丙' },
+    ]);
+    expect(steps).toHaveLength(2);
+    expect(steps[0]?.fields.map((field) => field.key)).toEqual(['a', 'c']);
+  });
 });
