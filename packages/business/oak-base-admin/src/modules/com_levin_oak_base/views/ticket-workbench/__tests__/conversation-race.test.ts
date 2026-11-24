@@ -9,12 +9,14 @@ const mock = vi.hoisted(() => ({
   screenshot: vi.fn(),
   attachmentDownload: vi.fn(),
   createInternal: vi.fn(),
+  markTicketRead: vi.fn(),
   queueChoices: vi.fn(),
+  categoryOptions: vi.fn().mockResolvedValue([]),
   message: vi.fn(),
   workbench: vi.fn(),
   retrieve: vi.fn(),
   messages: vi.fn(),
-  unreadTickets: vi.fn(),
+  unreadTicketCounts: vi.fn(),
   tagOptions: vi.fn(),
   notify: vi.fn(),
 }));
@@ -56,6 +58,113 @@ describe('工单会话异步隔离', () => {
     ticketHelpContext.value = undefined;
   });
 
+  it('每张工单显示个人未读数量，打开后刷新为已读', async () => {
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    const ticket = { id: 'a', title: '未读工单', status: 'New' };
+    mock.workbench.mockResolvedValue({ items: [ticket], totals: 1 });
+    mock.retrieve.mockResolvedValue(ticket);
+    mock.messages.mockResolvedValue({
+      items: [{ id: 'm', body: '消息', authorUserId: 'other' }],
+      totals: 1,
+    });
+    mock.unreadTicketCounts
+      .mockResolvedValueOnce({ a: 3 })
+      .mockResolvedValueOnce({ a: 3 })
+      .mockResolvedValue({});
+    mock.markTicketRead.mockResolvedValue(undefined);
+    mock.tagOptions.mockResolvedValue([]);
+    const wrapper = mount(Workbench, {
+      props: { mode: 'submitted' },
+      global: { stubs: { SupportUserSelector: true, Modal: true } },
+    });
+    await wrapper.find('button').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[aria-label="3 条未读消息"]').text()).toBe('3');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('未读工单'))!
+      .trigger('click');
+    await flushPromises();
+    expect(mock.markTicketRead).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'a', messageIds: ['m'] }),
+    );
+    expect(wrapper.find('[aria-label="3 条未读消息"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('已有处理人时显示转派和对应颜色状态', async () => {
+    const ticket = {
+      id: 'a',
+      title: '已分派工单',
+      status: 'Assigned',
+      assigneeId: 'other',
+      supportEventsByCurrentStatus: ['分派'],
+    };
+    mock.workbench.mockResolvedValue({ items: [ticket], totals: 1 });
+    mock.retrieve.mockResolvedValue(ticket);
+    mock.messages.mockResolvedValue({ items: [], totals: 0 });
+    mock.unreadTicketCounts.mockResolvedValue({});
+    mock.tagOptions.mockResolvedValue([]);
+    const wrapper = mount(Workbench, {
+      props: { mode: 'handling' },
+      global: { stubs: { SupportUserSelector: true, Modal: true } },
+    });
+    await wrapper.find('button').trigger('click');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('已分派工单'))!
+      .trigger('click');
+    await flushPromises();
+    expect(
+      wrapper
+        .findAll('button')
+        .some((button) => button.text().replace(/\s/g, '') === '转派'),
+    ).toBe(true);
+    expect(
+      wrapper.find('.ticket-workbench__heading .ant-tag-blue').exists(),
+    ).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('切换工单不会丢弃同一组织尚在加载的分类名称', async () => {
+    let resolveCategories!: (
+      value: Array<{ code: string; name: string }>,
+    ) => void;
+    mock.categoryOptions.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCategories = resolve;
+        }),
+    );
+    const ticket = {
+      id: 'a',
+      title: '分类工单',
+      status: 'New',
+      category: 'page',
+    };
+    mock.workbench.mockResolvedValue({ items: [ticket], totals: 1 });
+    mock.retrieve.mockResolvedValue(ticket);
+    mock.messages.mockResolvedValue({ items: [], totals: 0 });
+    mock.unreadTicketCounts.mockResolvedValue({});
+    mock.tagOptions.mockResolvedValue([]);
+    const wrapper = mount(Workbench, {
+      props: { mode: 'handling' },
+      global: { stubs: { SupportUserSelector: true, Modal: true } },
+    });
+    await wrapper.find('button').trigger('click');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('分类工单'))!
+      .trigger('click');
+    await flushPromises();
+    resolveCategories([{ code: 'page', name: '页面问题' }]);
+    await flushPromises();
+    expect(wrapper.text()).toContain('分类：页面问题');
+    wrapper.unmount();
+  });
+
   it('移除截图后预览消失，提交不再携带截图', async () => {
     mock.workbench.mockResolvedValue({ items: [], totals: 0 });
     mock.queueChoices.mockResolvedValue({ items: [], totals: 0 });
@@ -67,7 +176,7 @@ describe('工单会话异步隔离', () => {
       status: 'New',
     });
     mock.messages.mockResolvedValue({ items: [], totals: 0 });
-    mock.unreadTickets.mockResolvedValue([]);
+    mock.unreadTicketCounts.mockResolvedValue({});
     const modalStub = {
       name: 'Modal',
       props: ['open', 'title'],
@@ -163,7 +272,7 @@ describe('工单会话异步隔离', () => {
           : [],
       totals: id === 'a' ? 1 : 0,
     }));
-    mock.unreadTickets.mockResolvedValue([]);
+    mock.unreadTicketCounts.mockResolvedValue({});
     mock.tagOptions.mockResolvedValue([]);
     const createUrl = vi.fn(() => 'blob:test');
     vi.stubGlobal('URL', {
@@ -238,7 +347,7 @@ describe('工单会话异步隔离', () => {
           : [],
       totals: id === 'a' ? 1 : 0,
     }));
-    mock.unreadTickets.mockResolvedValue([]);
+    mock.unreadTicketCounts.mockResolvedValue({});
     mock.tagOptions.mockResolvedValue([]);
     const createUrl = vi.fn(() => 'blob:test');
     const revokeUrl = vi.fn();

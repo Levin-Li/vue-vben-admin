@@ -331,23 +331,25 @@ describe('工单工作台授权交互阳性合同', () => {
   it.each([
     {
       method: 'start' as const,
-      label: '开始处理',
+      label: '我来处理',
+      event: '开始处理',
       beforeStatus: 'Assigned',
       afterStatus: 'InProgress',
     },
     {
       method: 'reopen' as const,
       label: '重开',
+      event: '重开',
       beforeStatus: 'Resolved',
       afterStatus: 'InProgress',
     },
   ])(
     '$label刷新服务端日志与支持事件，后续分派使用新版本',
-    async ({ method, label, beforeStatus, afterStatus }) => {
+    async ({ method, label, event, beforeStatus, afterStatus }) => {
       mocks.ticket.retrieve.mockResolvedValue({
         ...initial,
         status: beforeStatus,
-        supportEventsByCurrentStatus: [label],
+        supportEventsByCurrentStatus: [event],
       });
       const wrapper = await openScopedTicket();
       expect(hasButton(wrapper, label)).toBe(true);
@@ -356,13 +358,14 @@ describe('工单工作台授权交互阳性合同', () => {
       mocks.ticket.retrieve.mockResolvedValue({
         ...initial,
         status: afterStatus,
+        assigneeId: method === 'start' ? 'handler-1' : undefined,
         optimisticLock: 7,
         supportEventsByCurrentStatus: ['分派'],
         actionLog: [
           {
             occurTime: '2026-10-07T10:00:00',
             operator: '处理人',
-            action: label,
+            action: event,
             beforeStatus,
             afterStatus,
             remark: '服务端最新日志',
@@ -382,7 +385,9 @@ describe('工单工作台授权交互阳性合同', () => {
       expect(wrapper.text()).toContain('处理中');
       expect(mocks.ticket.retrieve).toHaveBeenCalledTimes(2);
       expect(mocks.ticket.messages).toHaveBeenCalledTimes(2);
-      await button(wrapper, '分派').trigger('click');
+      await button(wrapper, method === 'start' ? '转派' : '分派').trigger(
+        'click',
+      );
       const select = wrapper.get('section select');
       await select.trigger('focus');
       await flushPromises();
@@ -514,7 +519,7 @@ describe('工单工作台授权交互阳性合同', () => {
 
   it('操作弹窗打开后撤销方法权限，确认也不发送状态命令', async () => {
     const wrapper = await openScopedTicket();
-    await button(wrapper, '开始处理').trigger('click');
+    await button(wrapper, '我来处理').trigger('click');
     mocks.allowed.delete('start');
     await button(wrapper, '确认').trigger('click');
     await flushPromises();

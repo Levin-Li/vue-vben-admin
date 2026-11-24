@@ -108,7 +108,7 @@ const reviewConfirmed = ref(false);
 const reviewEvidence = ref('');
 const stateActions = [
   { method: 'assign', event: '分派', label: '分派' },
-  { method: 'start', event: '开始处理', label: '开始处理' },
+  { method: 'start', event: '开始处理', label: '我来处理' },
   { method: 'resolve', event: '解决', label: '解决' },
   { method: 'reopen', event: '重开', label: '重开' },
   { method: 'close', event: '关闭', label: '关闭' },
@@ -696,7 +696,11 @@ watch(() => route.query.id, deepLink);
                 v-if="allowed(item.method) && supported(item.event)"
                 @click="begin(item.method)"
               >
-                {{ item.label }}
+                {{
+                  item.method === 'assign' && detail.assigneeId
+                    ? '转派'
+                    : item.label
+                }}
               </Button>
             </template>
             <Button
@@ -815,7 +819,15 @@ watch(() => route.query.id, deepLink);
       </Modal>
       <Modal
         :open="Boolean(action)"
-        :title="action === 'confirmContact' ? '核验固定联系人' : '执行工单操作'"
+        :title="
+          action === 'confirmContact'
+            ? '核验固定联系人'
+            : action === 'assign'
+              ? detail?.assigneeId
+                ? '转派工单'
+                : '分派工单'
+              : '执行工单操作'
+        "
         :confirm-loading="busy"
         @cancel="action = undefined"
         @ok="submitAction"

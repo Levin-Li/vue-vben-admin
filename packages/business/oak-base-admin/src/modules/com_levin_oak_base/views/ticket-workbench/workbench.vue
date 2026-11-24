@@ -32,6 +32,7 @@ import {
   Pagination,
   Select,
   Tag,
+  Tooltip,
 } from 'ant-design-vue';
 
 import { ticketService } from '../../api/ticket-service';
@@ -69,6 +70,9 @@ const assigneeId = ref<string>();
 const title = ref('');
 const description = ref('');
 const createTags = ref<string[]>([]);
+const createCategory = ref<string>();
+const categoryFilter = ref<string>();
+const categoryItems = ref<Array<{ code: string; name: string }>>([]);
 const tagOptions = ref<string[]>([]);
 const tagFilterDraft = ref('');
 const tagFilter = ref('');
@@ -80,9 +84,10 @@ const selectedId = ref('');
 const messageViewport = ref<HTMLElement>();
 const expandedMessage = ref<TicketMessageRecord>();
 const drafts = new Map<string, { body: string; note: boolean }>();
-const unreadIds = ref(new Set<string>());
+const unreadCounts = ref<Record<string, number>>({});
 const screenshotUrl = ref('');
 let generation = 0;
+let scopeVersion = 0;
 let timer: ReturnType<typeof setInterval> | undefined;
 let refreshing = false;
 let refreshAgain = false;
@@ -113,9 +118,16 @@ const labels: Record<string, string> = {
   Resolved: '已解决',
   Closed: '已关闭',
 };
+const statusColors: Record<string, string> = {
+  New: 'orange',
+  Assigned: 'blue',
+  InProgress: 'processing',
+  Resolved: 'success',
+  Closed: 'default',
+};
 const actions = [
   { method: 'assign', event: '分派', label: '分派' },
-  { method: 'start', event: '开始处理', label: '开始处理' },
+  { method: 'start', event: '开始处理', label: '我来处理' },
   { method: 'resolve', event: '解决', label: '解决' },
   { method: 'reopen', event: '重开', label: '重开' },
   { method: 'close', event: '关闭', label: '关闭' },
@@ -129,10 +141,18 @@ const queueOptions = computed(() =>
 const configuredTagOptions = computed(() =>
   tagOptions.value.map((value) => ({ value, label: value })),
 );
+const categoryOptions = computed(() =>
+  categoryItems.value.map((item) => ({ value: item.code, label: item.name })),
+);
+const categoryName = (value?: string) =>
+  categoryItems.value.find((item) => item.code === value)?.name ||
+  value ||
+  '未分类';
 
 // 仅在已选授权组织内查询；切换组织时使旧请求失效。
 function changeScope(value?: UserOrgSelectorRecord) {
   generation += 1;
+  scopeVersion += 1;
   closeScreenshot();
   expandedMessage.value = undefined;
   scope.value = value;
@@ -140,27 +160,43 @@ function changeScope(value?: UserOrgSelectorRecord) {
   current.value = undefined;
   list.value = [];
   messages.value = [];
-  unreadIds.value = new Set();
+  unreadCounts.value = {};
   queues.value = [];
   queueId.value = undefined;
   drafts.clear();
   body.value = '';
   note.value = false;
   tagOptions.value = [];
+  categoryItems.value = [];
+  createCategory.value = undefined;
+  categoryFilter.value = undefined;
   pageIndex.value = 1;
   void refresh();
   void loadTagOptions();
+  void loadCategories();
+}
+
+async function loadCategories() {
+  const selected = queryScope.value;
+  if (!selected || !allowed('categoryOptions')) return;
+  const version = scopeVersion;
+  try {
+    const options = await ticketService.categoryOptions(selected);
+    if (version === scopeVersion) categoryItems.value = options || [];
+  } catch (error) {
+    if (version === scopeVersion) notifyApiErrorOnce(error);
+  }
 }
 
 async function loadTagOptions() {
   const selected = queryScope.value;
   if (!selected || !allowed('tagOptions')) return;
-  const version = generation;
+  const version = scopeVersion;
   try {
     const options = await ticketService.tagOptions(selected);
-    if (version === generation) tagOptions.value = options || [];
+    if (version === scopeVersion) tagOptions.value = options || [];
   } catch (error) {
-    if (version === generation) notifyApiErrorOnce(error);
+    if (version === scopeVersion) notifyApiErrorOnce(error);
   }
 }
 
@@ -181,6 +217,7 @@ async function refresh() {
       pageIndex: pageIndex.value,
       pageSize: 20,
       tag: tagFilter.value || undefined,
+      category: categoryFilter.value,
     });
     if (version !== generation) return;
     list.value = page.items || [];
@@ -189,14 +226,14 @@ async function refresh() {
     const visibleIds = [
       ...new Set([...list.value.map((item) => item.id), ...(id ? [id] : [])]),
     ];
-    if (visibleIds.length && allowed('unreadTickets')) {
-      const unread = await ticketService.unreadTickets({
+    if (visibleIds.length && allowed('unreadTicketCounts')) {
+      const unread = await ticketService.unreadTicketCounts({
         ...selected,
         ticketIds: visibleIds,
       });
       if (version !== generation || id !== selectedId.value) return;
-      unreadIds.value = new Set(unread);
-    } else unreadIds.value = new Set();
+      unreadCounts.value = unread || {};
+    } else unreadCounts.value = {};
     if (id) {
       const [detail, conversation] = await Promise.all([
         ticketService.retrieve({ ...selected, id }),
@@ -237,7 +274,7 @@ async function refresh() {
       }
       if (
         !document.hidden &&
-        unreadIds.value.has(id) &&
+        (unreadCounts.value[id] || 0) > 0 &&
         messages.value.length &&
         allowed('markTicketRead')
       ) {
@@ -247,12 +284,12 @@ async function refresh() {
           messageIds: messages.value.map((item) => item.id),
         });
         if (version !== generation || id !== selectedId.value) return;
-        const unread = await ticketService.unreadTickets({
+        const unread = await ticketService.unreadTicketCounts({
           ...selected,
           ticketIds: visibleIds,
         });
         if (version !== generation || id !== selectedId.value) return;
-        unreadIds.value = new Set(unread);
+        unreadCounts.value = unread || {};
         emitFrameworkEvent('personal-message', 'read.changed', {});
       }
     }
@@ -262,7 +299,7 @@ async function refresh() {
       list.value = [];
       current.value = undefined;
       messages.value = [];
-      unreadIds.value = new Set();
+      unreadCounts.value = {};
       selectedId.value = '';
       expandedMessage.value = undefined;
       closeScreenshot();
@@ -339,6 +376,7 @@ async function createTicket() {
       queueId: queueId.value,
       title: title.value,
       body: description.value,
+      category: createCategory.value,
       sourcePagePath: ticketHelpContext.value?.path,
       sourcePageTitle: ticketHelpContext.value?.title,
       screenshotBase64: ticketHelpContext.value?.screenshotBase64,
@@ -349,6 +387,7 @@ async function createTicket() {
     description.value = '';
     queueId.value = undefined;
     createTags.value = [];
+    createCategory.value = undefined;
     ticketHelpContext.value = undefined;
     preserveCurrentDraft();
     body.value = '';
@@ -379,6 +418,40 @@ function applyTagFilter() {
   pageIndex.value = 1;
   generation += 1;
   void refresh();
+}
+
+function applyCategoryFilter(value: unknown) {
+  categoryFilter.value = typeof value === 'string' ? value : undefined;
+  preserveCurrentDraft();
+  selectedId.value = '';
+  current.value = undefined;
+  messages.value = [];
+  closeScreenshot();
+  expandedMessage.value = undefined;
+  pageIndex.value = 1;
+  generation += 1;
+  void refresh();
+}
+
+async function changeCategory(value: unknown) {
+  const selected = queryScope.value;
+  const ticket = current.value;
+  if (!selected || !ticket) return;
+  const version = generation;
+  try {
+    const updated = await ticketService.updateCategory({
+      ...selected,
+      id: ticket.id,
+      optimisticLock: ticket.optimisticLock,
+      category: typeof value === 'string' ? value : undefined,
+    });
+    if (version === generation && current.value?.id === ticket.id) {
+      current.value = updated;
+      void refresh();
+    }
+  } catch (error) {
+    if (version === generation) notifyApiErrorOnce(error);
+  }
 }
 
 function openTagEditor() {
@@ -564,6 +637,7 @@ onActivated(startTimer);
 onDeactivated(stopTimer);
 onBeforeUnmount(() => {
   generation += 1;
+  scopeVersion += 1;
   targetVersion += 1;
   stopTimer();
   closeScreenshot();
@@ -592,11 +666,12 @@ watch(
     if (path !== expectedPath || value === undefined) return;
     const version = ++targetVersion;
     generation += 1;
+    scopeVersion += 1;
     selectedId.value = '';
     current.value = undefined;
     messages.value = [];
     list.value = [];
-    unreadIds.value = new Set();
+    unreadCounts.value = {};
     body.value = '';
     closeScreenshot();
     expandedMessage.value = undefined;
@@ -700,6 +775,16 @@ watch(
         enter-button="筛选"
         @search="applyTagFilter"
       />
+      <Select
+        :value="categoryFilter"
+        :options="categoryOptions"
+        placeholder="全部分类"
+        not-found-content="暂无分类，请联系管理员配置"
+        allow-clear
+        style="width: 160px"
+        @focus="loadCategories"
+        @change="applyCategoryFilter"
+      />
     </div>
     <div class="ticket-workbench__columns">
       <section class="ticket-workbench__list" aria-label="工单列表">
@@ -722,16 +807,25 @@ watch(
             <span class="ticket-workbench__row-heading">
               <strong
                 ><span
-                  v-if="unreadIds.has(item.id)"
+                  v-if="(unreadCounts[item.id] || 0) > 0"
                   class="ticket-workbench__unread"
-                  aria-label="有未读消息"
-                ></span
+                  :aria-label="`${unreadCounts[item.id]} 条未读消息`"
+                  >{{
+                    (unreadCounts[item.id] || 0) > 99
+                      ? '99+'
+                      : unreadCounts[item.id]
+                  }}</span
                 >{{ item.title }}</strong
               >
-              <Tag>{{ labels[item.status] || item.status }}</Tag>
+              <Tag :color="statusColors[item.status]">{{
+                labels[item.status] || item.status
+              }}</Tag>
             </span>
             <small v-if="item.lastActivityTime"
               >最近活动 {{ messageTime(item.lastActivityTime) }}</small
+            >
+            <small v-if="item.category"
+              >分类：{{ categoryName(item.category) }}</small
             >
             <span v-if="item.tags?.length" class="ticket-workbench__tags">
               <Tag v-for="tag in item.tags" :key="tag">{{ tag }}</Tag>
@@ -749,12 +843,29 @@ watch(
       <section class="ticket-workbench__conversation" aria-label="工单交流">
         <template v-if="current">
           <header>
-            <strong>{{ current.title }}</strong>
-            <Tag>{{ labels[current.status] || current.status }}</Tag>
+            <div class="ticket-workbench__heading">
+              <strong>{{ current.title }}</strong>
+              <Tag :color="statusColors[current.status]">{{
+                labels[current.status] || current.status
+              }}</Tag>
+            </div>
             <div v-if="current.sourcePageTitle || current.sourcePagePath">
               来源：{{ current.sourcePageTitle || current.sourcePagePath }}
             </div>
             <div>
+              <span>分类：</span>
+              <Select
+                v-if="allowed('updateCategory')"
+                :value="current.category || undefined"
+                :options="categoryOptions"
+                placeholder="未分类"
+                not-found-content="暂无分类，请联系管理员配置"
+                allow-clear
+                style="width: 150px"
+                @focus="loadCategories"
+                @change="changeCategory"
+              />
+              <span v-else>{{ categoryName(current.category) }}</span>
               <Tag v-for="tag in current.tags || []" :key="tag">{{ tag }}</Tag>
               <Button
                 v-if="allowed('updateTags')"
@@ -776,7 +887,11 @@ watch(
                 size="small"
                 :loading="sending"
                 @click="confirmAction(action)"
-                >{{ action.label }}</Button
+                >{{
+                  action.method === 'assign' && current.assigneeId
+                    ? '转派'
+                    : action.label
+                }}</Button
               >
             </template>
           </div>
@@ -796,7 +911,13 @@ watch(
               </div>
               <div class="ticket-workbench__message-content">
                 <div class="ticket-workbench__message-meta">
-                  <strong>{{ senderName(item) }}</strong>
+                  <Tooltip
+                    v-if="item.authorUserId"
+                    :title="`租户：${item.authorTenantName || '不可用'}；组织：${item.authorOrgName || '未授权或不可用'}`"
+                  >
+                    <strong tabindex="0">{{ senderName(item) }}</strong>
+                  </Tooltip>
+                  <strong v-else>{{ senderName(item) }}</strong>
                   <span>用户 ID：{{ item.authorUserId || '—' }}</span>
                   <time>{{ messageTime(item.occurredTime) }}</time>
                   <span
@@ -917,7 +1038,7 @@ watch(
     </Modal>
     <Modal
       v-model:open="assignOpen"
-      title="分派工单"
+      :title="current?.assigneeId ? '转派工单' : '分派工单'"
       :confirm-loading="sending"
       @ok="performAction('assign')"
     >
@@ -972,6 +1093,16 @@ watch(
         <Form.Item class="ticket-workbench__form-wide" label="工单主题" required
           ><Input v-model:value="title" :maxlength="512"
         /></Form.Item>
+        <Form.Item class="ticket-workbench__form-wide" label="工单分类">
+          <Select
+            v-model:value="createCategory"
+            :options="categoryOptions"
+            placeholder="选择分类（可留空）"
+            not-found-content="暂无分类，请联系管理员配置"
+            allow-clear
+            @focus="loadCategories"
+          />
+        </Form.Item>
         <Form.Item class="ticket-workbench__form-wide" label="问题描述" required
           ><Input.TextArea
             v-model:value="description"
@@ -1157,12 +1288,18 @@ watch(
   gap: 4px;
 }
 .ticket-workbench__unread {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
   margin-right: 6px;
-  border-radius: 50%;
+  border-radius: 10px;
+  color: #fff;
   background: var(--color-error, #d9363e);
+  font-size: 12px;
+  line-height: 20px;
   vertical-align: middle;
 }
 .ticket-workbench__conversation {
@@ -1177,6 +1314,12 @@ watch(
 .ticket-workbench__conversation header {
   padding-bottom: 12px;
   border-bottom: 1px solid hsl(var(--border));
+}
+.ticket-workbench__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 .ticket-workbench__conversation header > strong {
   font-size: 17px;

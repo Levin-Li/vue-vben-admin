@@ -302966,6 +302966,20 @@
     },
     "nodes" : { }
   }, {
+    "id" : "a42f97ef-88db-3ad5-95a6-79abf797b403",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::查询工单标签选项",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/categoryOptions" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "4e057842-8260-35c5-8d95-c0a5ed4a853a",
     "operation" : "com.levin.oak.base:业务数据-客服工单::关闭客服工单",
     "methods" : [ "POST" ],
@@ -303040,29 +303054,739 @@
     "operation" : "com.levin.oak.base:业务数据-客服工单::查看工单消息",
     "methods" : [ "GET" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/message" ],
-    "restricted" : false,
-    "groups" : [ ],
+    "restricted" : true,
+    "groups" : [ {
+      "id" : "com.levin.oak.base.biz.bo.ticket.TicketMessageView#发送人组织归属",
+      "name" : "发送人组织归属",
+      "permission" : "com.levin.oak.base:DataAttrGroup:b0bd7a0f9912f724d33209fee00626d5f9eb790a2677b11ff9c790bba9a542b2:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-客服工单:DataAttrGroup@26dee6ab02fbeffd94e494757725bd5eee03479352e1fdefa3327d8078b43218:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    } ],
     "requestRoots" : [ ],
-    "responseRoot" : null,
+    "responseRoot" : "n0",
     "viewRoots" : {
       "request" : [ ],
-      "response" : [ ]
+      "response" : [ "n2" ]
     },
-    "nodes" : { }
+    "nodes" : {
+      "n0" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "bizError",
+          "wireName" : "bizError",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "code",
+          "wireName" : "code",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "data",
+          "wireName" : "data",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n2",
+          "caseInsensitive" : null
+        }, {
+          "name" : "detailMsg",
+          "wireName" : "detailMsg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "errorType",
+          "wireName" : "errorType",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "httpStatusCode",
+          "wireName" : "httpStatusCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "interactions",
+          "wireName" : "interactions",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n4",
+          "caseInsensitive" : null
+        }, {
+          "name" : "msg",
+          "wireName" : "msg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "sign",
+          "wireName" : "sign",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "status",
+          "wireName" : "status",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "successful",
+          "wireName" : "successful",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "traceId",
+          "wireName" : "traceId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n1" : {
+        "kind" : "value",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n2" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "attachmentFileIds",
+          "wireName" : "attachmentFileIds",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "authorName",
+          "wireName" : "authorName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "authorOrgName",
+          "wireName" : "authorOrgName",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.biz.bo.ticket.TicketMessageView#发送人组织归属" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "authorTenantName",
+          "wireName" : "authorTenantName",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.biz.bo.ticket.TicketMessageView#发送人组织归属" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "authorUserId",
+          "wireName" : "authorUserId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "body",
+          "wireName" : "body",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "bodyTruncated",
+          "wireName" : "bodyTruncated",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "createTime",
+          "wireName" : "createTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "direction",
+          "wireName" : "direction",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "externalSenderEmail",
+          "wireName" : "externalSenderEmail",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "id",
+          "wireName" : "id",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "occurredTime",
+          "wireName" : "occurredTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "outboundIntentId",
+          "wireName" : "outboundIntentId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "sourceInboxId",
+          "wireName" : "sourceInboxId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n3" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n1",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n4" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n5",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n5" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "actions",
+          "wireName" : "actions",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n6",
+          "caseInsensitive" : null
+        }, {
+          "name" : "info",
+          "wireName" : "info",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "level",
+          "wireName" : "level",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "title",
+          "wireName" : "title",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n6" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n7",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n7" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "args",
+          "wireName" : "args",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "cmd",
+          "wireName" : "cmd",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "icon",
+          "wireName" : "icon",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      }
+    }
   }, {
     "id" : "01d84ac8-5899-3e82-a42b-d6d913e2f87b",
     "operation" : "com.levin.oak.base:业务数据-客服工单::查询工单消息",
     "methods" : [ "GET" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/messages" ],
-    "restricted" : false,
-    "groups" : [ ],
+    "restricted" : true,
+    "groups" : [ {
+      "id" : "com.levin.oak.base.biz.bo.ticket.TicketMessageView#发送人组织归属",
+      "name" : "发送人组织归属",
+      "permission" : "com.levin.oak.base:DataAttrGroup:eaf94abba98fe8561626b401c32d354eca707def19e8485087a7cd1114f57349:access",
+      "entityPermission" : "com.levin.oak.base:业务数据-客服工单:DataAttrGroup@26dee6ab02fbeffd94e494757725bd5eee03479352e1fdefa3327d8078b43218:access",
+      "confidentialLevel" : -2147483648,
+      "authorizable" : true
+    } ],
     "requestRoots" : [ ],
-    "responseRoot" : null,
+    "responseRoot" : "n0",
     "viewRoots" : {
       "request" : [ ],
-      "response" : [ ]
+      "response" : [ "n3" ]
     },
-    "nodes" : { }
+    "nodes" : {
+      "n0" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "bizError",
+          "wireName" : "bizError",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "code",
+          "wireName" : "code",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "data",
+          "wireName" : "data",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n2",
+          "caseInsensitive" : null
+        }, {
+          "name" : "detailMsg",
+          "wireName" : "detailMsg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "errorType",
+          "wireName" : "errorType",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "httpStatusCode",
+          "wireName" : "httpStatusCode",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "interactions",
+          "wireName" : "interactions",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n6",
+          "caseInsensitive" : null
+        }, {
+          "name" : "msg",
+          "wireName" : "msg",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "sign",
+          "wireName" : "sign",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "status",
+          "wireName" : "status",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "successful",
+          "wireName" : "successful",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "traceId",
+          "wireName" : "traceId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n1" : {
+        "kind" : "value",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n2" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "empty",
+          "wireName" : "empty",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "first",
+          "wireName" : "first",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n3",
+          "caseInsensitive" : null
+        }, {
+          "name" : "items",
+          "wireName" : "items",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n5",
+          "caseInsensitive" : null
+        }, {
+          "name" : "pageIndex",
+          "wireName" : "pageIndex",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "pageSize",
+          "wireName" : "pageSize",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "pageToken",
+          "wireName" : "pageToken",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "total",
+          "wireName" : "total",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "totals",
+          "wireName" : "totals",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n3" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "attachmentFileIds",
+          "wireName" : "attachmentFileIds",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n4",
+          "caseInsensitive" : null
+        }, {
+          "name" : "authorName",
+          "wireName" : "authorName",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "authorOrgName",
+          "wireName" : "authorOrgName",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.biz.bo.ticket.TicketMessageView#发送人组织归属" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "authorTenantName",
+          "wireName" : "authorTenantName",
+          "aliases" : [ ],
+          "groupIds" : [ "com.levin.oak.base.biz.bo.ticket.TicketMessageView#发送人组织归属" ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "authorUserId",
+          "wireName" : "authorUserId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "body",
+          "wireName" : "body",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "bodyTruncated",
+          "wireName" : "bodyTruncated",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "createTime",
+          "wireName" : "createTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "direction",
+          "wireName" : "direction",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "externalSenderEmail",
+          "wireName" : "externalSenderEmail",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "id",
+          "wireName" : "id",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "occurredTime",
+          "wireName" : "occurredTime",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "outboundIntentId",
+          "wireName" : "outboundIntentId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "sourceInboxId",
+          "wireName" : "sourceInboxId",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n4" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n1",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n5" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n3",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n6" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n7",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n7" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "actions",
+          "wireName" : "actions",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n8",
+          "caseInsensitive" : null
+        }, {
+          "name" : "info",
+          "wireName" : "info",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "level",
+          "wireName" : "level",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "title",
+          "wireName" : "title",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n8" : {
+        "kind" : "array",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ ],
+        "elementNodeId" : "n9",
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      },
+      "n9" : {
+        "kind" : "object",
+        "caseInsensitive" : false,
+        "locale" : "und",
+        "fields" : [ {
+          "name" : "args",
+          "wireName" : "args",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "cmd",
+          "wireName" : "cmd",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "icon",
+          "wireName" : "icon",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        }, {
+          "name" : "name",
+          "wireName" : "name",
+          "aliases" : [ ],
+          "groupIds" : [ ],
+          "nodeId" : "n1",
+          "caseInsensitive" : null
+        } ],
+        "elementNodeId" : null,
+        "valueNodeId" : null,
+        "selectorNodeId" : null
+      }
+    }
   }, {
     "id" : "c5d7d6a9-c8cc-351a-8bc9-c2c2397561da",
     "operation" : "com.levin.oak.base:业务数据-客服工单::查看工单外发结果",
@@ -303246,10 +303970,38 @@
     },
     "nodes" : { }
   }, {
+    "id" : "293a6850-be62-3e75-8e1f-1a721f7cae8e",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::查询工单未读",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/unreadTicketCounts" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "c1597970-d1d5-3cb3-9c9f-f23a608794c7",
     "operation" : "com.levin.oak.base:业务数据-客服工单::查询工单未读",
     "methods" : [ "POST" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/unreadTickets" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "3036662e-a8e0-3608-b278-d1ee08d392aa",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::修改工单标签",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/updateCategory" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],

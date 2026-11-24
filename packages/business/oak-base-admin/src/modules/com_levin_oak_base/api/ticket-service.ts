@@ -24,6 +24,7 @@ export interface TicketCommand extends TicketLocator {
   remark?: string;
 }
 export interface TicketRecord extends TicketLocator {
+  category?: string;
   actionLog?: {
     action: string;
     afterStatus?: string;
@@ -52,6 +53,8 @@ export interface TicketRecord extends TicketLocator {
   title: string;
 }
 export interface TicketMessageRecord {
+  authorTenantName?: string;
+  authorOrgName?: string;
   attachmentFileIds?: string[];
   authorName?: string;
   authorUserId?: string;
@@ -67,6 +70,7 @@ export interface TicketMessageRecord {
 }
 export interface InternalTicketInput {
   body: string;
+  category?: string;
   queueId: string;
   requesterOrgId: string;
   screenshotBase64?: string;
@@ -165,6 +169,7 @@ export class TicketService extends RequestService {
     params: TicketScope & {
       pageIndex: number;
       pageSize: number;
+      category?: string;
       tag?: string;
       view: 'handling' | 'submitted';
     },
@@ -182,6 +187,32 @@ export class TicketService extends RequestService {
   })
   async tagOptions(params: TicketScope & { orgId: string }): Promise<string[]> {
     return this.get('tagOptions', { params });
+  }
+
+  @CRUD.Op({ label: '查询工单分类选项' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '查询工单标签选项',
+  })
+  async categoryOptions(
+    params: TicketScope & { orgId: string },
+  ): Promise<Array<{ code: string; name: string }>> {
+    return this.get('categoryOptions', { params });
+  }
+
+  @CRUD.Op({ label: '修改工单分类' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '修改工单标签',
+  })
+  async updateCategory(
+    data: TicketCommand & { category?: string },
+  ): Promise<TicketRecord> {
+    return this.post('updateCategory', {
+      data: { ...toTicketCommand(data), category: data.category },
+    });
   }
 
   @CRUD.Op({ label: '修改工单标签' })
@@ -208,6 +239,18 @@ export class TicketService extends RequestService {
     data: TicketScope & { ticketIds: string[] },
   ): Promise<string[]> {
     return this.post('unreadTickets', { data });
+  }
+
+  @CRUD.Op({ label: '查询工单未读数量' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '查询工单未读',
+  })
+  async unreadTicketCounts(
+    data: TicketScope & { ticketIds: string[] },
+  ): Promise<Record<string, number>> {
+    return this.post('unreadTicketCounts', { data });
   }
 
   @CRUD.Op({ label: '确认工单消息已读' })
