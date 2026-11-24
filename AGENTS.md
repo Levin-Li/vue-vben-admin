@@ -1,3 +1,5 @@
+[2026-11-24 公共 CRUD 与快捷新增修复发布记录](docs/releases/20261124-crud-quick-form.md)说明版本和验证边界。
+
 [2026-11-21 数据脱敏配置发布记录](docs/releases/20261121-data-masking.md)说明版本、tarball 校验和验证边界。
 
 # Published Package AGENTS.md
