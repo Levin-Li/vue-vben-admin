@@ -8999,15 +8999,21 @@ watch(
               :form-state="formState"
               :load-list="loadList"
             ></slot>
-            <Button
+            <Tooltip
               v-if="crudHelpAction && hasPermission(crudHelpAction.permissions)"
-              type="link"
-              @click="
-                crudHelpAction.open({ path: route.path, title: config.title })
-              "
+              title="我要帮助"
+              :trigger="['hover', 'focus']"
             >
-              我要帮助
-            </Button>
+              <Button
+                type="link"
+                aria-label="我要帮助"
+                @click="
+                  crudHelpAction.open({ path: route.path, title: config.title })
+                "
+              >
+                <IconifyIcon icon="lucide:circle-help" class="size-4" />
+              </Button>
+            </Tooltip>
             <Button
               v-if="
                 config.createButtonVisible !== false &&

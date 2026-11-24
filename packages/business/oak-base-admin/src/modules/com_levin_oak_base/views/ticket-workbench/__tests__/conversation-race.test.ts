@@ -92,6 +92,95 @@ describe('工单会话异步隔离', () => {
     wrapper.unmount();
   });
 
+  it('停在最新消息时跨分页收到新消息会跟随到新页', async () => {
+    let arrived = false;
+    const ticket = { id: 'a', title: '分页工单', status: 'New' };
+    const firstPage = Array.from({ length: 100 }, (_, i) => ({
+      id: `m${i}`,
+      body: `消息${i}`,
+      authorUserId: 'other',
+    }));
+    mock.workbench.mockResolvedValue({ items: [ticket], totals: 1 });
+    mock.retrieve.mockResolvedValue(ticket);
+    mock.messages.mockImplementation(async ({ pageIndex }) => ({
+      items:
+        pageIndex === 2
+          ? [{ id: 'new', body: '跨页新消息', authorUserId: 'other' }]
+          : firstPage,
+      totals: arrived ? 101 : 100,
+    }));
+    mock.unreadTicketCounts.mockResolvedValue({});
+    mock.tagOptions.mockResolvedValue([]);
+    const wrapper = mount(Workbench, {
+      props: { mode: 'submitted' },
+      global: { stubs: { SupportUserSelector: true, Modal: true } },
+    });
+    await wrapper.find('button').trigger('click');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('分页工单'))!
+      .trigger('click');
+    await flushPromises();
+    arrived = true;
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().replace(/\s/g, '') === '刷新')!
+      .trigger('click');
+    await flushPromises();
+    expect(mock.messages).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'a', pageIndex: 2 }),
+    );
+    expect(wrapper.text()).toContain('跨页新消息');
+    wrapper.unmount();
+  });
+
+  it('底部收到排序在旧消息之前的新消息时仍跟随底部', async () => {
+    let arrived = false;
+    const ticket = { id: 'a', title: '顺序测试', status: 'New' };
+    const last = { id: 'last', body: '最后一条', authorUserId: 'other' };
+    mock.workbench.mockResolvedValue({ items: [ticket], totals: 1 });
+    mock.retrieve.mockResolvedValue(ticket);
+    mock.messages.mockImplementation(async () => ({
+      items: arrived
+        ? [{ id: 'older', body: '新到旧序消息', authorUserId: 'other' }, last]
+        : [last],
+      totals: arrived ? 2 : 1,
+    }));
+    mock.unreadTicketCounts.mockResolvedValue({});
+    mock.tagOptions.mockResolvedValue([]);
+    const wrapper = mount(Workbench, {
+      props: { mode: 'submitted' },
+      global: { stubs: { SupportUserSelector: true, Modal: true } },
+    });
+    await wrapper.find('button').trigger('click');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('顺序测试'))!
+      .trigger('click');
+    await flushPromises();
+    const viewport = wrapper.get('.ticket-workbench__messages')
+      .element as HTMLElement;
+    Object.defineProperty(viewport, 'scrollHeight', {
+      configurable: true,
+      value: 500,
+    });
+    Object.defineProperty(viewport, 'clientHeight', {
+      configurable: true,
+      value: 200,
+    });
+    viewport.scrollTop = 300;
+    arrived = true;
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().replace(/\s/g, '') === '刷新')!
+      .trigger('click');
+    await flushPromises();
+    expect(viewport.scrollTop).toBe(500);
+    wrapper.unmount();
+  });
+
   it('已有处理人时显示转派和对应颜色状态', async () => {
     const ticket = {
       id: 'a',
@@ -198,12 +287,9 @@ describe('工单会话异步隔离', () => {
       screenshotBase64: 'cG5n',
     };
     await flushPromises();
-    expect(wrapper.find('img[alt="提交前截图预览"]').exists()).toBe(true);
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('移除截图'))!
-      .trigger('click');
-    expect(wrapper.find('img[alt="提交前截图预览"]').exists()).toBe(false);
+    expect(wrapper.find('img[alt="图片 1"]').exists()).toBe(true);
+    await wrapper.get('button[aria-label="移除图片 1"]').trigger('click');
+    expect(wrapper.find('img[alt="图片 1"]').exists()).toBe(false);
     await wrapper
       .findAll('button')
       .find((button) => button.text().includes('选择组织'))!
@@ -228,9 +314,59 @@ describe('工单会话异步隔离', () => {
       expect.objectContaining({
         title: '测试主题',
         body: '测试问题',
-        screenshotBase64: undefined,
+        screenshotsBase64: undefined,
       }),
     );
+    wrapper.unmount();
+  });
+
+  it.each([
+    { total: 1, expected: 'q1' },
+    { total: 2, expected: undefined },
+    { total: 0, expected: undefined },
+  ])('分类匹配 $total 个小组时正确选择', async ({ total, expected }) => {
+    mock.workbench.mockResolvedValue({ items: [], totals: 0 });
+    mock.categoryOptions.mockResolvedValue([
+      { code: 'page', name: '页面问题' },
+    ]);
+    mock.tagOptions.mockResolvedValue([]);
+    mock.queueChoices.mockResolvedValue({
+      items: total
+        ? [{ id: 'q1', name: '小组一', code: 'q1', orgId: 'org' }]
+        : [],
+      totals: total,
+    });
+    const modal = {
+      name: 'AModal',
+      props: ['open'],
+      template: '<section v-if="open"><slot /></section>',
+    };
+    const wrapper = mount(Workbench, {
+      props: { mode: 'submitted' },
+      global: { stubs: { SupportUserSelector: true, AModal: modal } },
+    });
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('发起工单'))!
+      .trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('选择组织'))!
+      .trigger('click');
+    await flushPromises();
+    const category = wrapper
+      .findAllComponents(Select)
+      .find((select) => select.props('placeholder') === '选择分类（可留空）')!;
+    category.vm.$emit('update:value', 'page');
+    category.vm.$emit('change', 'page');
+    await flushPromises();
+    expect(mock.queueChoices).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'page' }),
+    );
+    const queue = wrapper
+      .findAllComponents(Select)
+      .find((select) => select.props('placeholder') === '搜索受理小组')!;
+    expect(queue.props('value')).toBe(expected);
     wrapper.unmount();
   });
 
@@ -292,7 +428,7 @@ describe('工单会话异步隔离', () => {
     await flushPromises();
     await wrapper
       .findAll('button')
-      .find((button) => button.text().includes('查看截图'))!
+      .find((button) => button.text().includes('查看图片 1'))!
       .trigger('click');
     await wrapper
       .findAll('button')

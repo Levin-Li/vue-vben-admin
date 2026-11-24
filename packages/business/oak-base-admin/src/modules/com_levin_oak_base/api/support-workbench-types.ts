@@ -10,6 +10,7 @@ export interface SupportPage<T> {
   totals: number;
 }
 export interface QueueRecord extends SupportScope {
+  supportedCategoryCodes?: string[];
   code: string;
   enabled: boolean;
   handlerRoleCodes: string[];
@@ -19,6 +20,7 @@ export interface QueueRecord extends SupportScope {
   optimisticLock: number;
 }
 export interface QueueInput extends SupportScope {
+  supportedCategoryCodes?: string[];
   code: string;
   enabled: boolean;
   handlerRoleCodes: string[];

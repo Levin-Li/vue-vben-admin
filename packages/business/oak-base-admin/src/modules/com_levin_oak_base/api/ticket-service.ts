@@ -74,6 +74,7 @@ export interface InternalTicketInput {
   queueId: string;
   requesterOrgId: string;
   screenshotBase64?: string;
+  screenshotsBase64?: string[];
   sourcePagePath?: string;
   sourcePageTitle?: string;
   tags?: string[];
@@ -150,6 +151,7 @@ export class TicketService extends RequestService {
     action: '查询工单受理小组选项',
   })
   async queueChoices(params: {
+    category?: string;
     keyword?: string;
     pageIndex: number;
     pageSize: number;

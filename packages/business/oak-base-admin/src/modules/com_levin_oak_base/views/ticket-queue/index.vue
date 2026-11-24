@@ -12,6 +12,7 @@ import { computed, reactive, ref } from 'vue';
 import { useUserStore } from '@vben/runtime/stores';
 
 import { UserOrgSelector } from '@levin/admin-framework';
+import { ticketService } from '../../api/ticket-service';
 import { notifyApiErrorOnce } from '@levin/admin-framework/framework-commons/app/api';
 import { rbacService } from '@levin/admin-framework/framework-commons/app/api/rbac-service';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
@@ -79,6 +80,8 @@ function changeFormTenant(value?: string) {
   draft.orgId = '';
   draft.handlerUserIds = [];
   draft.handlerRoleCodes = [];
+  draft.supportedCategoryCodes = [];
+  categoryOptions.value = [];
   roleOptions.value = [];
   roleOptionsVersion += 1;
 }
@@ -92,6 +95,8 @@ function changeFormOrganization(records: UserOrgSelectorRecord[]) {
   draft.orgId = org?.id || '';
   draft.handlerUserIds = [];
   draft.handlerRoleCodes = [];
+  draft.supportedCategoryCodes = [];
+  categoryOptions.value = [];
   roleOptions.value = [];
   roleOptionsVersion += 1;
 }
@@ -204,8 +209,10 @@ const draft = reactive<QueueInput>({
   enabled: false,
   handlerUserIds: [],
   handlerRoleCodes: [],
+  supportedCategoryCodes: [],
 });
 const roleOptions = ref<{ label: string; value: string }[]>([]);
+const categoryOptions = ref<{ label: string; value: string }[]>([]);
 const canSave = computed(() => allowed('save'));
 // 平台用户可先打开新增表单，再选择有权受理的租户和组织。
 const canCreate = computed(
@@ -244,9 +251,13 @@ async function open(record?: QueueRecord, viewOnly = false) {
         enabled: false,
         handlerUserIds: [],
         handlerRoleCodes: [],
+        supportedCategoryCodes: [],
       },
       source,
     );
+    draft.supportedCategoryCodes = Array.isArray(source?.supportedCategoryCodes)
+      ? [...source.supportedCategoryCodes]
+      : [];
     // 列表按租户总览时仍从详情取原归属，不能拿查询组织替代记录组织。
     const selected = scopeSelection(queryState);
     const actualScope = source ?? scope;
@@ -271,8 +282,29 @@ async function open(record?: QueueRecord, viewOnly = false) {
     formTenantId.value = actualScope?.tenantId;
     readOnly.value = viewOnly;
     editing.value = true;
+    void loadCategories();
   } catch (error_) {
     notifyApiErrorOnce(error_);
+  }
+}
+
+async function loadCategories() {
+  const scope = activeFormScope.value;
+  if (!scope) return;
+  const tenantId = scope.tenantId;
+  const orgId = scope.orgId;
+  try {
+    const items = await ticketService.categoryOptions(scope);
+    if (
+      activeFormScope.value?.tenantId === tenantId &&
+      activeFormScope.value?.orgId === orgId
+    )
+      categoryOptions.value = items.map((item) => ({
+        label: item.name,
+        value: item.code,
+      }));
+  } catch (error) {
+    notifyApiErrorOnce(error);
   }
 }
 
@@ -558,6 +590,20 @@ async function switchEnabled(record: QueueRecord) {
             :options="roleOptions"
             @search="searchRoles"
             @focus="searchRoles()"
+          />
+        </Form.Item>
+        <Form.Item
+          label="支持的工单分类"
+          name="supportedCategoryCodes"
+          extra="不选时只受理未指定分类的工单；同一分类可由多个小组支持。"
+        >
+          <Select
+            v-model:value="draft.supportedCategoryCodes"
+            mode="multiple"
+            :options="categoryOptions"
+            placeholder="选择支持的分类"
+            :disabled="readOnly || !activeFormScope"
+            @focus="loadCategories"
           />
         </Form.Item>
         <Form.Item label="是否受理" name="enabled">

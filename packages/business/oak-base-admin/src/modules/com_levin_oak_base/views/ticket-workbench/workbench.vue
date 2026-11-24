@@ -39,6 +39,7 @@ import { ticketService } from '../../api/ticket-service';
 import SupportScopeSelector from '../support-scope-selector.vue';
 import SupportUserSelector from '../support-user-selector.vue';
 import { ticketHelpContext } from './help-context';
+import TicketImagePicker from './ticket-image-picker.vue';
 
 const props = defineProps<{ mode: 'handling' | 'submitted' }>();
 const route = useRoute();
@@ -70,6 +71,8 @@ const assigneeId = ref<string>();
 const title = ref('');
 const description = ref('');
 const createTags = ref<string[]>([]);
+const createImages = ref<string[]>([]);
+const imageBusy = ref(false);
 const createCategory = ref<string>();
 const categoryFilter = ref<string>();
 const categoryItems = ref<Array<{ code: string; name: string }>>([]);
@@ -92,6 +95,7 @@ let timer: ReturnType<typeof setInterval> | undefined;
 let refreshing = false;
 let refreshAgain = false;
 let targetVersion = 0;
+let queueSearchVersion = 0;
 let needsLatestPage = false;
 let forceScrollToLatest = false;
 const currentUserId = computed(() => String(userStore.userInfo?.id || ''));
@@ -141,6 +145,15 @@ const queueOptions = computed(() =>
 const configuredTagOptions = computed(() =>
   tagOptions.value.map((value) => ({ value, label: value })),
 );
+watch(
+  ticketHelpContext,
+  (context) => {
+    createImages.value = context?.screenshotBase64
+      ? [context.screenshotBase64]
+      : [];
+  },
+  { immediate: true },
+);
 const categoryOptions = computed(() =>
   categoryItems.value.map((item) => ({ value: item.code, label: item.name })),
 );
@@ -153,6 +166,7 @@ const categoryName = (value?: string) =>
 function changeScope(value?: UserOrgSelectorRecord) {
   generation += 1;
   scopeVersion += 1;
+  queueSearchVersion += 1;
   closeScreenshot();
   expandedMessage.value = undefined;
   scope.value = value;
@@ -245,6 +259,23 @@ async function refresh() {
         }),
       ]);
       if (version !== generation || id !== selectedId.value) return;
+      const viewport = messageViewport.value;
+      const shouldScroll =
+        !viewport ||
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 80;
+      const previousLastPage = Math.max(1, Math.ceil(messageTotal.value / 100));
+      const nextLastPage = Math.max(1, Math.ceil(conversation.totals / 100));
+      if (
+        !needsLatestPage &&
+        messageTotal.value > 0 &&
+        messagePage.value === previousLastPage &&
+        nextLastPage > previousLastPage &&
+        shouldScroll
+      ) {
+        messagePage.value = nextLastPage;
+        forceScrollToLatest = true;
+        return;
+      }
       if (needsLatestPage && conversation.totals > 100) {
         needsLatestPage = false;
         const lastPage = Math.ceil(conversation.totals / 100);
@@ -254,17 +285,16 @@ async function refresh() {
         }
       }
       needsLatestPage = false;
-      const viewport = messageViewport.value;
-      const shouldScroll =
-        !viewport ||
-        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 80;
       const lastId = messages.value.at(-1)?.id;
+      const previousMessageTotal = messageTotal.value;
       current.value = detail;
       messages.value = conversation.items || [];
       messageTotal.value = conversation.totals || 0;
       if (
         (forceScrollToLatest || shouldScroll) &&
-        (forceScrollToLatest || lastId !== messages.value.at(-1)?.id)
+        (forceScrollToLatest ||
+          lastId !== messages.value.at(-1)?.id ||
+          previousMessageTotal !== messageTotal.value)
       ) {
         await nextTick();
         if (version === generation && messageViewport.value) {
@@ -340,24 +370,47 @@ function preserveCurrentDraft() {
   if (selectedId.value)
     drafts.set(selectedId.value, { body: body.value, note: note.value });
 }
-async function searchQueues(keyword = '') {
+async function searchQueues(keyword = '', autoSelect = false) {
   const selected = queryScope.value;
   if (!selected) return;
-  const version = generation;
+  const version = ++queueSearchVersion;
+  const selectedScopeVersion = scopeVersion;
+  const category = createCategory.value;
   try {
     const page = await ticketService.queueChoices({
       tenantId: selected.tenantId,
       requesterOrgId: selected.orgId,
       keyword,
+      category,
       pageIndex: 1,
       pageSize: 100,
     });
-    if (version === generation) queues.value = page.items || [];
+    if (
+      version !== queueSearchVersion ||
+      selectedScopeVersion !== scopeVersion ||
+      category !== createCategory.value
+    )
+      return;
+    queues.value = page.items || [];
+    if (autoSelect && category)
+      queueId.value =
+        page.totals === 1 && queues.value.length === 1
+          ? queues.value[0]?.id
+          : undefined;
   } catch (error) {
-    if (version === generation) notifyApiErrorOnce(error);
+    if (version === queueSearchVersion && selectedScopeVersion === scopeVersion)
+      notifyApiErrorOnce(error);
   }
 }
+
+function changeCreateCategory(value: unknown) {
+  createCategory.value = typeof value === 'string' ? value : undefined;
+  queueId.value = undefined;
+  queues.value = [];
+  void searchQueues('', Boolean(createCategory.value));
+}
 async function createTicket() {
+  if (imageBusy.value || sending.value) return;
   const selected = queryScope.value;
   if (
     !selected ||
@@ -365,7 +418,7 @@ async function createTicket() {
     !title.value.trim() ||
     !description.value.trim()
   ) {
-    message.error('请选择发起组织、受理小组并填写主题和问题描述');
+    message.error('请选择发起组织、受理小组并填写工单标题和问题描述');
     return;
   }
   sending.value = true;
@@ -379,7 +432,9 @@ async function createTicket() {
       category: createCategory.value,
       sourcePagePath: ticketHelpContext.value?.path,
       sourcePageTitle: ticketHelpContext.value?.title,
-      screenshotBase64: ticketHelpContext.value?.screenshotBase64,
+      screenshotsBase64: createImages.value.length
+        ? [...createImages.value]
+        : undefined,
       tags: createTags.value,
     });
     createOpen.value = false;
@@ -389,6 +444,7 @@ async function createTicket() {
     createTags.value = [];
     createCategory.value = undefined;
     ticketHelpContext.value = undefined;
+    createImages.value = [];
     preserveCurrentDraft();
     body.value = '';
     note.value = false;
@@ -484,6 +540,7 @@ async function saveTags() {
 
 function openBlankTicket() {
   ticketHelpContext.value = undefined;
+  createImages.value = [];
   createOpen.value = true;
 }
 
@@ -754,8 +811,9 @@ watch(
 
 <template>
   <div class="ticket-workbench">
-    <div class="ticket-workbench__toolbar">
+    <div class="ticket-workbench__toolbar ticket-workbench__primary-toolbar">
       <SupportScopeSelector
+        class="ticket-workbench__scope"
         :model-value="scope"
         placeholder="选择当前组织"
         @change="changeScope"
@@ -844,15 +902,9 @@ watch(
         <template v-if="current">
           <header>
             <div class="ticket-workbench__heading">
-              <strong>{{ current.title }}</strong>
               <Tag :color="statusColors[current.status]">{{
                 labels[current.status] || current.status
               }}</Tag>
-            </div>
-            <div v-if="current.sourcePageTitle || current.sourcePagePath">
-              来源：{{ current.sourcePageTitle || current.sourcePagePath }}
-            </div>
-            <div>
               <span>分类：</span>
               <Select
                 v-if="allowed('updateCategory')"
@@ -874,6 +926,12 @@ watch(
                 @click="openTagEditor"
                 >编辑标签</Button
               >
+            </div>
+            <div
+              v-if="current.sourcePageTitle || current.sourcePagePath"
+              class="ticket-workbench__source"
+            >
+              来源：{{ current.sourcePageTitle || current.sourcePagePath }}
             </div>
           </header>
           <div v-if="mode === 'handling'" class="ticket-workbench__toolbar">
@@ -943,12 +1001,12 @@ watch(
                     "
                   >
                     <Button
-                      v-for="blobId in item.attachmentFileIds || []"
+                      v-for="(blobId, index) in item.attachmentFileIds || []"
                       :key="blobId"
                       type="link"
                       size="small"
                       @click="viewScreenshot(blobId)"
-                      >查看截图</Button
+                      >查看图片 {{ index + 1 }}</Button
                     >
                   </template>
                   <template
@@ -1063,7 +1121,7 @@ watch(
     <Modal
       v-model:open="createOpen"
       title="发起工单"
-      :confirm-loading="sending"
+      :confirm-loading="sending || imageBusy"
       @ok="createTicket"
     >
       <Form
@@ -1074,26 +1132,13 @@ watch(
         data-form-name="发起工单"
         layout="vertical"
       >
-        <Form.Item label="发起组织" required
+        <Form.Item class="ticket-workbench__form-wide" label="发起组织" required
           ><SupportScopeSelector
             :model-value="scope"
             placeholder="选择发起组织"
             @change="changeScope"
         /></Form.Item>
-        <Form.Item label="受理小组" required
-          ><Select
-            v-model:value="queueId"
-            show-search
-            :filter-option="false"
-            :options="queueOptions"
-            placeholder="搜索受理小组"
-            @focus="searchQueues()"
-            @search="searchQueues"
-        /></Form.Item>
-        <Form.Item class="ticket-workbench__form-wide" label="工单主题" required
-          ><Input v-model:value="title" :maxlength="512"
-        /></Form.Item>
-        <Form.Item class="ticket-workbench__form-wide" label="工单分类">
+        <Form.Item label="工单分类">
           <Select
             v-model:value="createCategory"
             :options="categoryOptions"
@@ -1101,13 +1146,24 @@ watch(
             not-found-content="暂无分类，请联系管理员配置"
             allow-clear
             @focus="loadCategories"
+            @change="changeCreateCategory"
           />
         </Form.Item>
-        <Form.Item class="ticket-workbench__form-wide" label="问题描述" required
-          ><Input.TextArea
-            v-model:value="description"
-            :rows="5"
-            :maxlength="100000"
+        <Form.Item label="受理小组" required
+          ><Select
+            v-model:value="queueId"
+            show-search
+            :filter-option="false"
+            :options="queueOptions"
+            placeholder="搜索受理小组"
+            :not-found-content="
+              createCategory ? '暂无支持该分类的受理小组' : '暂无受理小组'
+            "
+            @focus="searchQueues()"
+            @search="searchQueues"
+        /></Form.Item>
+        <Form.Item class="ticket-workbench__form-wide" label="工单标题" required
+          ><Input v-model:value="title" :maxlength="512"
         /></Form.Item>
         <Form.Item
           class="ticket-workbench__form-wide"
@@ -1123,6 +1179,12 @@ watch(
             @focus="loadTagOptions"
           />
         </Form.Item>
+        <Form.Item class="ticket-workbench__form-wide" label="问题描述" required
+          ><Input.TextArea
+            v-model:value="description"
+            :rows="5"
+            :maxlength="100000"
+        /></Form.Item>
         <Form.Item
           v-if="ticketHelpContext?.path"
           class="ticket-workbench__form-wide"
@@ -1131,23 +1193,18 @@ watch(
           {{ ticketHelpContext.title }}（{{ ticketHelpContext.path }}）
         </Form.Item>
         <Form.Item
-          v-if="ticketHelpContext?.screenshotBase64"
           class="ticket-workbench__form-wide"
-          label="页面截图"
+          label="问题截图"
+          extra="最多 5 张，每张转换后不超过 2 MB；点击图片查看大图。"
         >
-          <img
-            class="ticket-workbench__preview"
-            :src="`data:image/png;base64,${ticketHelpContext.screenshotBase64}`"
-            alt="提交前截图预览"
+          <TicketImagePicker
+            v-model="createImages"
+            :active="createOpen"
+            @busy-change="imageBusy = $event"
           />
-          <Button
-            type="link"
-            @click="ticketHelpContext.screenshotBase64 = undefined"
-            >移除截图</Button
-          >
         </Form.Item>
         <p
-          v-else-if="ticketHelpContext?.captureError"
+          v-if="ticketHelpContext?.captureError"
           class="ticket-workbench__form-wide"
         >
           {{ ticketHelpContext.captureError }}
@@ -1204,6 +1261,15 @@ watch(
   align-items: center;
   gap: 12px;
 }
+.ticket-workbench__primary-toolbar {
+  flex-wrap: wrap;
+}
+.ticket-workbench__scope {
+  width: 380px;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 380px;
+}
 .ticket-workbench__search {
   width: 220px;
   max-width: 100%;
@@ -1227,7 +1293,9 @@ watch(
   background: hsl(var(--card));
 }
 .ticket-workbench__list h3 {
-  margin: 0 8px 14px;
+  margin: 0 0 4px;
+  padding: 0 8px 14px;
+  border-bottom: 1px solid hsl(var(--border));
   font-size: 15px;
   font-weight: 600;
 }
@@ -1321,8 +1389,10 @@ watch(
   align-items: center;
   gap: 10px;
 }
-.ticket-workbench__conversation header > strong {
-  font-size: 17px;
+.ticket-workbench__source {
+  margin-top: 8px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
 }
 .ticket-workbench__messages {
   flex: 1;

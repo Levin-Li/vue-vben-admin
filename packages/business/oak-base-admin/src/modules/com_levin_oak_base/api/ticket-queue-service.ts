@@ -80,6 +80,7 @@ export class TicketQueueService extends RequestService {
       enabled,
       handlerUserIds,
       handlerRoleCodes,
+      supportedCategoryCodes,
     } = data;
     return this.post('save', {
       data: {
@@ -92,6 +93,9 @@ export class TicketQueueService extends RequestService {
         enabled,
         handlerUserIds,
         handlerRoleCodes,
+        ...(supportedCategoryCodes === undefined
+          ? {}
+          : { supportedCategoryCodes }),
       },
     });
   }

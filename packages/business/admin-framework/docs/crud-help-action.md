@@ -1,6 +1,6 @@
 # 标准 CRUD 帮助入口接入
 
-业务模块可从 `@levin/admin-framework/framework-commons/shared/crud-help-action` 导入 `registerCrudHelpAction`，在模块初始化时登记 `{ permissions, open }`。标准 CRUD 工具栏在新增操作之前按链接样式显示“我要帮助”，仅当入口已登记且当前用户满足所列权限时显示。未登记时不显示入口；重复登记以后一次为准。
+业务模块可从 `@levin/admin-framework/framework-commons/shared/crud-help-action` 导入 `registerCrudHelpAction`，在模块初始化时登记 `{ permissions, open }`。标准 CRUD 工具栏在新增操作之前显示帮助图标，悬停或键盘聚焦时提示“我要帮助”，仅当入口已登记且当前用户满足所列权限时显示。未登记时不显示入口；重复登记以后一次为准。
 
 点击后 `open` 接收当前页面的 `path` 和 `title`，不包含查询参数。接入方负责打开自己的帮助流程、处理异步失败，并对所收集的任何业务数据实施权限检查和隐私保护；前端显示条件不能代替服务端授权。框架本身不截屏、不上传页面内容，也不创建工单。
 
