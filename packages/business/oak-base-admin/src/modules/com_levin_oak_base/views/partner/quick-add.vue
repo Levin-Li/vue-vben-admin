@@ -294,22 +294,6 @@ watch(
 );
 onBeforeUnmount(() => clearTimeout(searchTimer));
 
-// 手机号和邮箱可用验证码登录；普通登录名必须提供密码。
-const ordinaryLoginName = computed(() => {
-  const account = form.loginAccount.trim();
-  if (!account) return false;
-  const at = account.indexOf('@');
-  const domain = account.slice(at + 1);
-  const dot = domain.lastIndexOf('.');
-  const email =
-    at > 0 &&
-    at === account.lastIndexOf('@') &&
-    dot > 0 &&
-    dot < domain.length - 1 &&
-    !/\s/.test(account);
-  return !/^1[3-9]\d{9}$/.test(account) && !email;
-});
-
 // 搜索只返回候选；选定候选后才执行一次详情调用。
 async function search() {
   clearTimeout(searchTimer);
@@ -401,8 +385,8 @@ function payload(): QuickAddPayload | undefined {
     message.warning('请填写简称和登录账号');
     return;
   }
-  if (ordinaryLoginName.value && !form.password.trim()) {
-    message.warning('普通登录名必须设置密码');
+  if (!form.password.trim()) {
+    message.warning('请填写登录密码');
     return;
   }
   if (props.target === 'SupplierPartner' && !form.supplierType) {
@@ -666,28 +650,23 @@ const channelTypes = [
             placeholder="不填默认为管理员"
           />
         </Form.Item>
-        <Form.Item label="登录账号" required>
-          <Input
-            v-model:value="form.loginAccount"
-            :maxlength="128"
-            placeholder="手机号、邮箱或普通登录名"
-          />
-        </Form.Item>
-        <Form.Item
-          label="密码"
-          :required="ordinaryLoginName"
-          class="sm:col-span-2"
-        >
-          <Input.Password
-            v-model:value="form.password"
-            autocomplete="new-password"
-            :placeholder="
-              ordinaryLoginName
-                ? '普通登录名必须设置密码'
-                : '手机号或邮箱可不填，使用验证码登录'
-            "
-          />
-        </Form.Item>
+        <!-- 登录凭据在桌面同一行，窄屏按顺序换行。 -->
+        <div class="col-span-full grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+          <Form.Item label="登录账号" required>
+            <Input
+              v-model:value="form.loginAccount"
+              :maxlength="128"
+              placeholder="手机号、邮箱或普通登录名"
+            />
+          </Form.Item>
+          <Form.Item label="密码" required>
+            <Input.Password
+              v-model:value="form.password"
+              autocomplete="new-password"
+              placeholder="请输入登录密码"
+            />
+          </Form.Item>
+        </div>
       </div>
     </Form>
   </Modal>
