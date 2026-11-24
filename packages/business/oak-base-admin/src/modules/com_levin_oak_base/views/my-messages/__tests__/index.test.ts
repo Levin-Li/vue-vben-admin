@@ -12,6 +12,7 @@ const {
   markRead,
   push,
   myDetail,
+  resolveTicket,
   replace,
   context,
 } = vi.hoisted(() => ({
@@ -22,6 +23,7 @@ const {
   push: vi.fn(),
   replace: vi.fn(),
   myDetail: vi.fn(),
+  resolveTicket: vi.fn(),
   context: {
     route: { query: {} as Record<string, unknown> },
     accessToken: 'token',
@@ -46,6 +48,9 @@ vi.mock('@vben/runtime/stores', async () => {
   return { useAccessStore: () => state, useUserStore: () => state };
 });
 vi.mock('../../../api/notice-service', () => ({ noticeService: { myDetail } }));
+vi.mock('../../../api/ticket-service', () => ({
+  ticketService: { resolveNotification: resolveTicket },
+}));
 enableAutoUnmount(afterEach);
 vi.mock('@vben/common-ui', () => ({
   Page: { template: '<div><slot /></div>' },
@@ -117,6 +122,26 @@ describe('我的消息页面', () => {
     retrieve.mockResolvedValue(firstMessage);
     unreadCount.mockResolvedValue(1);
     markRead.mockResolvedValue(undefined);
+    resolveTicket.mockResolvedValue({ id: 'ticket-1', view: 'handling' });
+  });
+
+  it('工单通知先由服务端核验并进入受理工作台', async () => {
+    context.route.query = { ticketId: 'ticket-1' };
+    mountPage();
+    await flushPromises();
+    expect(resolveTicket).toHaveBeenCalledWith('ticket-1');
+    expect(replace).toHaveBeenCalledWith({
+      path: '/clob/V1/MyHandlingTickets',
+      query: { id: 'ticket-1' },
+    });
+  });
+
+  it('工单定位失败时不会导航到来源', async () => {
+    context.route.query = { ticketId: 'ticket-1' };
+    resolveTicket.mockRejectedValue(new Error('forbidden'));
+    mountPage();
+    await flushPromises();
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it('以服务端未读筛选和分页加载，切换全部时重新查询', async () => {

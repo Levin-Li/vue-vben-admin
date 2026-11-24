@@ -11,8 +11,8 @@ import { tenantOptionsLoader } from '../api-module';
 
 export const pageMeta = {
   name: 'TicketQueue',
-  title: '工单受理队列',
-  description: '维护授权组织的工单受理队列与处理人范围。',
+  title: '工单受理小组',
+  description: '维护授权组织的工单受理小组与处理人范围。',
 } as const;
 
 // 专用保存与启停接口分别声明权限；公共 CRUD 只接管列表能力。
@@ -50,7 +50,7 @@ export function createTicketQueueCrudConfig(options: {
     // 专用接口未声明全量导出，不能将当前分页伪装成完整结果。
     allowExport: false,
     listOperations: [
-      { key: 'queue:create', label: '新建队列', placement: 'left' },
+      { key: 'queue:create', label: '新建小组', placement: 'left' },
     ],
     fields: [
       // 归属租户仅向平台人员展示；筛选仍使用经授权的业务范围选择器。
@@ -93,7 +93,7 @@ export function createTicketQueueCrudConfig(options: {
       },
       {
         key: 'code',
-        label: '队列编码',
+        label: '小组编码',
         search: true,
         table: true,
         form: false,
@@ -102,7 +102,7 @@ export function createTicketQueueCrudConfig(options: {
       },
       {
         key: 'name',
-        label: '队列名称',
+        label: '小组名称',
         table: true,
         form: false,
         sortable: false,

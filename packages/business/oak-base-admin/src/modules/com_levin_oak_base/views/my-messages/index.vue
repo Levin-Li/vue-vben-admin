@@ -28,6 +28,7 @@ import {
 } from 'ant-design-vue';
 
 import { noticeService } from '../../api/notice-service';
+import { ticketService } from '../../api/ticket-service';
 import { userMessageService } from '../../api/user-message-service';
 import NoticeContentViewer from './notice-content-viewer.vue';
 
@@ -51,6 +52,7 @@ const PAGE_SIZE = 20;
 let listRequestVersion = 0;
 let detailRequestVersion = 0;
 let noticeRequestVersion = 0;
+let ticketTargetVersion = 0;
 const noticeSource = ref<NoticeSourceInfo>();
 const noticeSourceOpen = ref(false);
 const noticeSourceLoading = ref(false);
@@ -240,11 +242,40 @@ function closeNoticeSource() {
   noticeSourceOpen.value = false;
   noticeSourceLoading.value = false;
 }
+
+// 工单通知仅携带 ID；跳转前由服务端确认当前身份和双方组织资格。
+async function openTicketSource(value: unknown) {
+  const version = ++ticketTargetVersion;
+  if (value === undefined) return;
+  if (typeof value !== 'string' || !/^[A-Z0-9][\w.:-]{0,63}$/i.test(value)) {
+    message.error('工单来源定位参数无效');
+    return;
+  }
+  if (!accessStore.accessToken || !userStore.userInfo?.id) return;
+  try {
+    const target = await ticketService.resolveNotification(value);
+    if (version !== ticketTargetVersion || route.query.ticketId !== value)
+      return;
+    if (target.id !== value || !['submitted', 'handling'].includes(target.view))
+      throw new Error('工单定位结果无效');
+    await router.replace({
+      path:
+        target.view === 'submitted'
+          ? '/clob/V1/MyTickets'
+          : '/clob/V1/MyHandlingTickets',
+      query: { id: value },
+    });
+  } catch {
+    if (version === ticketTargetVersion) message.error('工单不可访问或已失效');
+  }
+}
 onMounted(() => {
   void loadMessages(1);
   void loadNoticeSource(route.query.noticeId);
+  void openTicketSource(route.query.ticketId);
 });
 watch(() => route.query.noticeId, loadNoticeSource);
+watch(() => route.query.ticketId, openTicketSource);
 watch(
   () => [
     accessStore.accessToken,
@@ -266,12 +297,14 @@ watch(
     if (accessStore.accessToken && userStore.userInfo?.id) {
       void loadMessages(1);
       void loadNoticeSource(route.query.noticeId);
+      void openTicketSource(route.query.ticketId);
     }
   },
 );
 onBeforeUnmount(() => {
   listRequestVersion += 1;
   detailRequestVersion += 1;
+  ticketTargetVersion += 1;
   closeNoticeSource();
 });
 </script>

@@ -302994,10 +302994,38 @@
     },
     "nodes" : { }
   }, {
+    "id" : "5b1f750d-6778-3e6d-8566-7491f5f6c25b",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::发起系统内工单",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/createInternal" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "2e8eb1f7-5fd1-3cde-b4a0-99e0c53fceca",
     "operation" : "com.levin.oak.base:业务数据-客服工单::查询客服工单",
     "methods" : [ "GET" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/list" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "9dc7add2-d793-3e78-ac21-952b2db6f1b9",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::确认工单消息已读",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/markTicketRead" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],
@@ -303050,6 +303078,20 @@
     },
     "nodes" : { }
   }, {
+    "id" : "9a611b3c-c3f8-319c-b433-b6bd1e38c48d",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::查询工单受理小组选项",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/queueChoices" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "451730be-d105-3833-8810-369d8173a80b",
     "operation" : "com.levin.oak.base:业务数据-客服工单::重开客服工单",
     "methods" : [ "POST" ],
@@ -303078,10 +303120,38 @@
     },
     "nodes" : { }
   }, {
+    "id" : "4ec8de7b-3359-37d9-ad81-759c11e73687",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::站内回复工单",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/replyInternal" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "ef5379f6-34a2-3b11-91a8-9d4cc1489a04",
     "operation" : "com.levin.oak.base:业务数据-客服工单::解决客服工单",
     "methods" : [ "POST" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/resolve" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "7c0782c3-7b7b-3457-8afe-c3b3ea584da8",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::定位工单通知",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/resolveNotification" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],
@@ -303134,10 +303204,80 @@
     },
     "nodes" : { }
   }, {
+    "id" : "031f7421-7e29-3efa-a553-cbe866e7f919",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::下载工单截图",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/screenshot" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
     "id" : "6cb3410e-77aa-335c-8cc0-78e4ef9723b3",
     "operation" : "com.levin.oak.base:业务数据-客服工单::开始处理工单",
     "methods" : [ "POST" ],
     "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/start" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "65829f8d-5eea-3353-9c3c-5c61d4c9a1b9",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::查询工单标签选项",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/tagOptions" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "c1597970-d1d5-3cb3-9c9f-f23a608794c7",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::查询工单未读",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/unreadTickets" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "bc785dad-5764-33c3-a439-57ff4bef84a0",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::修改工单标签",
+    "methods" : [ "POST" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/updateTags" ],
+    "restricted" : false,
+    "groups" : [ ],
+    "requestRoots" : [ ],
+    "responseRoot" : null,
+    "viewRoots" : {
+      "request" : [ ],
+      "response" : [ ]
+    },
+    "nodes" : { }
+  }, {
+    "id" : "904d1d80-3328-3377-baba-970cde38098c",
+    "operation" : "com.levin.oak.base:业务数据-客服工单::查询个人工单工作台",
+    "methods" : [ "GET" ],
+    "pathPatterns" : [ "/com.levin.oak.base/V1/api/TicketAction/workbench" ],
     "restricted" : false,
     "groups" : [ ],
     "requestRoots" : [ ],

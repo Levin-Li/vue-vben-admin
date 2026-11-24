@@ -271,7 +271,7 @@ async function save() {
       : !draft.emailRelayRouteId)
   ) {
     message.error(
-      '请填写客服邮箱地址，并选择收件方式、收件来源、工单队列和优先级',
+      '请填写客服邮箱地址，并选择收件方式、收件来源、工单受理小组和优先级',
     );
     return;
   }
@@ -502,14 +502,18 @@ onMounted(async () => {
           @focus="searchSources()"
         />
       </Form.Item>
-      <Form.Item label="工单队列" required>
+      <Form.Item
+        label="工单受理小组"
+        extra="选择当前租户和处理组织下已启用的小组，可按小组编码搜索；无结果时请清空搜索，或检查是否已创建并启用小组。"
+        required
+      >
         <Select
           v-model:value="draft.queueId"
           :disabled="!formScope"
           show-search
           :filter-option="false"
           :options="queues"
-          placeholder="搜索工单队列"
+          placeholder="搜索工单受理小组"
           @search="searchQueues"
           @focus="searchQueues()"
         />

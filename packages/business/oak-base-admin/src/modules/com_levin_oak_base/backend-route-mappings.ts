@@ -16,6 +16,8 @@ import { pageMeta as dailyAccessStatPageMeta } from './views/daily-access-stat/c
 import { pageMeta as dataModelRecordPageMeta } from './views/data-model-record-page/config';
 import { pageMeta as dataModelPageMeta } from './views/domain-data-dynamic-model/config';
 import { pageMeta as notificationAuditPageMeta } from './views/notification-audit/config';
+import { pageMeta as myTicketsPageMeta } from './views/my-tickets/config';
+import { pageMeta as myHandlingTicketsPageMeta } from './views/my-handling-tickets/config';
 import { pageMeta as robotNotifyGroupPageMeta } from './views/robot-notify-group/config';
 import { pageMeta as supportMailboxSettingPageMeta } from './views/support-mailbox-setting/config';
 import { pageMeta as ticketQueuePageMeta } from './views/ticket-queue/config';
@@ -51,6 +53,8 @@ const pageMetaModules: Record<string, PageMeta> = {
   './views/data-model-record-page/config.ts': dataModelRecordPageMeta,
   './views/daily-access-stat/config.ts': dailyAccessStatPageMeta,
   './views/notification-audit/config.ts': notificationAuditPageMeta,
+  './views/my-tickets/config.ts': myTicketsPageMeta,
+  './views/my-handling-tickets/config.ts': myHandlingTicketsPageMeta,
   './views/robot-notify-group/config.ts': robotNotifyGroupPageMeta,
   './views/support-mailbox-setting/config.ts': supportMailboxSettingPageMeta,
   './views/ticket-queue/config.ts': ticketQueuePageMeta,
@@ -216,6 +220,17 @@ function createCrudBackendRouteMapping(
             parentPath: '/clob/V1/index',
             path: '/clob/V1/index/groups/基础&设置',
             title: '基础&设置',
+          },
+        }
+      : {}),
+    ...(['MyTickets', 'MyHandlingTickets'].includes(item.resource)
+      ? {
+          fullPathKey: false,
+          menuGroup: {
+            icon: 'lucide:circle-user-round',
+            parentPath: '/clob/V1/index',
+            path: '/clob/V1/index/groups/个人&中心',
+            title: '个人&中心',
           },
         }
       : {}),

@@ -50,12 +50,12 @@ describe('个人消息工作流定位', () => {
 
 describe('个人消息邮件工单来源路由', () => {
   it.each([
-    ['Inbox', '/clob/V1/Inbox'],
-    ['Ticket', '/clob/V1/Ticket'],
-  ])('合法%s来源只导航固定详情页面', (sourceType, path) => {
+    ['Inbox', '/clob/V1/Inbox', 'id'],
+    ['Ticket', '/clob/V1/MyMessages', 'ticketId'],
+  ])('合法%s来源只导航固定详情页面', (sourceType, path, key) => {
     expect(
       resolvePersonalMessageSourceRoute({ sourceType, sourceId: 'record-1' }),
-    ).toEqual({ path, query: { id: 'record-1' } });
+    ).toEqual({ path, query: { [key]: 'record-1' } });
   });
   it.each(['javascript:alert(1)', 'https://evil.example', '', 'a'.repeat(65)])(
     '非法来源标识不生成链接',

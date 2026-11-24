@@ -48,8 +48,10 @@ export function resolvePersonalMessageSourceRoute(message: {
       path: '/clob/V1/MyMessages',
       query: { noticeId: message.sourceId },
     };
-  return {
-    path: message.sourceType === 'Inbox' ? '/clob/V1/Inbox' : '/clob/V1/Ticket',
-    query: { id: message.sourceId },
-  };
+  if (message.sourceType === 'Ticket')
+    return {
+      path: '/clob/V1/MyMessages',
+      query: { ticketId: message.sourceId },
+    };
+  return { path: '/clob/V1/Inbox', query: { id: message.sourceId } };
 }

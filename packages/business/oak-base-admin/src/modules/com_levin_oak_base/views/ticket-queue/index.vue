@@ -313,7 +313,7 @@ async function save() {
     return;
   }
   if (!draft.code.trim() || !draft.name.trim()) {
-    message.error('请填写队列编码和名称');
+    message.error('请填写小组编码和名称');
     return;
   }
   saving.value = true;
@@ -394,7 +394,7 @@ async function switchEnabled(record: QueueRecord) {
             open();
           "
         >
-          新建队列
+          新建小组
         </Button>
       </template>
 
@@ -434,15 +434,15 @@ async function switchEnabled(record: QueueRecord) {
       <template #emptyText>
         {{
           selectedScope || queryState.tenantId
-            ? '暂无受理队列'
-            : '选择受理租户或组织后查看队列'
+            ? '暂无受理小组'
+            : '选择受理租户或组织后查看小组'
         }}
       </template>
     </CrudPage>
 
     <Modal
       v-model:open="editing"
-      :title="readOnly ? '工单受理队列详情' : '保存工单受理队列'"
+      :title="readOnly ? '工单受理小组详情' : '保存工单受理小组'"
       :footer="readOnly ? null : undefined"
       width="960px"
       :body-style="DEFAULT_CONTENT_MODAL_BODY_STYLE"
@@ -453,7 +453,7 @@ async function switchEnabled(record: QueueRecord) {
       <Form
         id="ticket-queue-edit"
         data-form-id="ticket-queue-edit"
-        data-form-name="工单受理队列编辑"
+        data-form-name="工单受理小组编辑"
         name="ticketQueueEdit"
         layout="horizontal"
         :disabled="readOnly"
@@ -516,10 +516,19 @@ async function switchEnabled(record: QueueRecord) {
         <Form.Item v-else label="受理组织">
           <span>{{ formScopeRecord?.name || draft.orgId }}</span>
         </Form.Item>
-        <Form.Item label="队列编码" name="code" required>
-          <Input v-model:value="draft.code" :maxlength="64" />
+        <Form.Item
+          label="小组编码"
+          name="code"
+          extra="用于区分受理小组，例如 tech-support；同一租户和组织内不能重复，保存时自动转为小写。"
+          required
+        >
+          <Input
+            v-model:value="draft.code"
+            :maxlength="64"
+            placeholder="例如 tech-support"
+          />
         </Form.Item>
-        <Form.Item label="队列名称" name="name" required>
+        <Form.Item label="小组名称" name="name" required>
           <Input v-model:value="draft.name" :maxlength="128" />
         </Form.Item>
         <Form.Item label="可处理用户" name="handlerUserIds">

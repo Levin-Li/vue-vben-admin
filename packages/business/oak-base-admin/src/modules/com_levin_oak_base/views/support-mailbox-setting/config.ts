@@ -11,7 +11,7 @@ import { supportMailboxSettingService } from '../../api/support-mailbox-setting-
 export const pageMeta = {
   name: 'SupportMailboxSetting',
   title: '客服邮箱设置',
-  description: '设置客服邮箱收到邮件后由哪个工单队列处理。',
+  description: '设置客服邮箱收到邮件后由哪个工单受理小组处理。',
 } as const;
 
 export const pageOperations = [
@@ -98,7 +98,7 @@ export function createSupportMailboxSettingCrudConfig(options: {
       },
       {
         key: 'queueId',
-        label: '工单队列',
+        label: '工单受理小组',
         table: true,
         form: false,
         sortable: false,

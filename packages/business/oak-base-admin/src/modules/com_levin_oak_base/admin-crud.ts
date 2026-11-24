@@ -57,7 +57,7 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     icon: 'lucide:users-round',
     name: 'TicketQueue',
     resource: 'TicketQueue',
-    title: '工单受理队列',
+    title: '工单受理小组',
   },
   {
     icon: 'lucide:mail-check',
@@ -452,6 +452,20 @@ export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
     title: '我的消息',
   },
   {
+    icon: 'lucide:message-circle-plus',
+    name: 'MyTickets',
+    resource: 'MyTickets',
+    permissionResource: 'Ticket',
+    title: '我提交的工单',
+  },
+  {
+    icon: 'lucide:clipboard-list',
+    name: 'MyHandlingTickets',
+    resource: 'MyHandlingTickets',
+    permissionResource: 'Ticket',
+    title: '待我处理的工单',
+  },
+  {
     icon: 'lucide:user-cog',
     name: 'MySetting',
     resource: 'MySetting',
@@ -614,6 +628,8 @@ export const oakBaseAdminResourceViewMap: Record<
   SettingForTenant: () => import('./views/setting-for-tenant/index.vue'),
   MySetting: () => import('./views/my-setting/index.vue'),
   MyMessages: () => import('./views/my-messages/index.vue'),
+  MyTickets: () => import('./views/my-tickets/index.vue'),
+  MyHandlingTickets: () => import('./views/my-handling-tickets/index.vue'),
   SimpleApi: () => import('./views/simple-api/index.vue'),
   SimpleForm: () => import('./views/simple-form/index.vue'),
   SimplePage: () => import('./views/simple-page/index.vue'),
@@ -757,7 +773,11 @@ const menuGroups = [
       'I18nRes',
     ],
   ],
-  ['个人&中心', 'lucide:circle-user-round', ['MySetting', 'MyMessages']],
+  [
+    '个人&中心',
+    'lucide:circle-user-round',
+    ['MySetting', 'MyMessages', 'MyTickets', 'MyHandlingTickets'],
+  ],
   [
     '运维&审计',
     'lucide:clipboard-check',
@@ -818,12 +838,16 @@ export function createOakBaseAdminCrudRoutes(
           const path = `/clob/V1/${item.routePath || item.resource}`;
 
           return {
-            alias: item.resource === 'UserPersonalSetting'
-              ? '/clob/V1/UserSetting'
-              : undefined,
+            alias:
+              item.resource === 'UserPersonalSetting'
+                ? '/clob/V1/UserSetting'
+                : undefined,
             component,
             meta: {
               crudResource: item.permissionResource || item.resource,
+              ...(['MyTickets', 'MyHandlingTickets'].includes(item.resource)
+                ? { fullPathKey: false }
+                : {}),
               icon: item.icon,
               keepAlive: true,
               title: item.title,

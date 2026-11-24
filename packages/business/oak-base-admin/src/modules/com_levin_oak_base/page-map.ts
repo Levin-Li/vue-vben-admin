@@ -28,6 +28,10 @@ export const oakBaseAdminPageMap: AdminPageMap = {
     import('./views/ticket-queue/index.vue'),
   '/system/com_levin_oak_base/ticket/index.vue': () =>
     import('./views/ticket/index.vue'),
+  '/system/com_levin_oak_base/my-tickets/index.vue': () =>
+    import('./views/my-tickets/index.vue'),
+  '/system/com_levin_oak_base/my-handling-tickets/index.vue': () =>
+    import('./views/my-handling-tickets/index.vue'),
   '/system/com_levin_oak_base/workflow-notification-route/index.vue': () =>
     import('./views/workflow-notification-route/index.vue'),
 };

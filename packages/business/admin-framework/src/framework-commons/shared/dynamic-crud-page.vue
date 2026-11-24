@@ -15,6 +15,7 @@ import type { SearchFieldItem } from './crud-query-items';
 import type { CompactTableExpandedSide } from './crud-table-columns';
 import type { CrudTemplateSaveScope } from './crud-template-service';
 import type { CrudExportConverter } from './crud-value-converter';
+import { crudHelpAction } from './crud-help-action';
 import type { DetailDisplayEntry } from './detail-display';
 import type {
   CrudDynamicText,
@@ -8998,6 +8999,15 @@ watch(
               :form-state="formState"
               :load-list="loadList"
             ></slot>
+            <Button
+              v-if="crudHelpAction && hasPermission(crudHelpAction.permissions)"
+              type="link"
+              @click="
+                crudHelpAction.open({ path: route.path, title: config.title })
+              "
+            >
+              我要帮助
+            </Button>
             <Button
               v-if="
                 config.createButtonVisible !== false &&

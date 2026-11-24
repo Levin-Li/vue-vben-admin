@@ -3,6 +3,8 @@ import type { AdminFrontendModule } from '@levin/admin-framework';
 import type { RouteRecordRaw } from 'vue-router';
 
 import type { CreateOakBaseAdminCrudRoutesOptions } from './admin-crud';
+import { registerCrudHelpAction } from '@levin/admin-framework/framework-commons/shared/crud-help-action';
+import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 
 import {
   addLayoutHeaderExtensionAreaItem,
@@ -22,6 +24,7 @@ import { oakBaseAgentSkills } from './agent-skills';
 import { workflowAgentSkills } from './agent-workflow-skills';
 import { OAK_BASE_API_MODULE, OAK_BASE_MODULE_NAME } from './api-module';
 import { oakBrowserAgentTransport } from './api/ai-browser-agent-service';
+import { ticketService } from './api/ticket-service';
 import { registerOakDataAttrContract } from './api/register-data-attr-contract';
 import { registerOakSessionDirectories } from './api/session-directories';
 import { oakBaseAdminBackendRouteMappings } from './backend-route-mappings';
@@ -29,6 +32,8 @@ import GlobalPlatformDomainSelector from './global-platform-domain-selector.vue'
 import { oakBaseAdminLocales } from './locales';
 import { oakBaseAdminPageMap } from './page-map';
 import { oakBaseQueryConfigLoaders } from './query-config-loaders';
+import { ticketHelpContext } from './views/ticket-workbench/help-context';
+import { captureVisiblePage } from './views/ticket-workbench/capture-page';
 import {
   aclTestRoute,
   helpCenterRoute,
@@ -62,6 +67,32 @@ export function createOakBaseAdminModule(
     queryConfigLoaders: oakBaseQueryConfigLoaders,
     routes,
     setup: (context) => {
+      // 标准 CRUD 的帮助动作由业务模块注册，框架不依赖工单实现。
+      let captureInFlight = false;
+      registerCrudHelpAction({
+        permissions: buildApiMethodPermissions(ticketService, 'createInternal'),
+        open: async (source) => {
+          if (captureInFlight) return;
+          captureInFlight = true;
+          let screenshotBase64: string | undefined;
+          let captureError: string | undefined;
+          try {
+            try {
+              screenshotBase64 = await captureVisiblePage();
+            } catch {
+              captureError = '自动截图失败，可继续提交工单。';
+            }
+            ticketHelpContext.value = {
+              ...source,
+              screenshotBase64,
+              captureError,
+            };
+            await context.router.push('/clob/V1/MyTickets?create=1');
+          } finally {
+            captureInFlight = false;
+          }
+        },
+      });
       // 字段结构在开发阶段确定，页面与子组件共同消费本地契约。
       registerOakDataAttrContract();
       // 会话统一加载目录，业务页面只消费内存结果。

@@ -36,17 +36,24 @@ export interface TicketRecord extends TicketLocator {
   confirmedContactBy?: string;
   confirmedContactEmail?: string;
   confirmedContactTime?: string;
+  lastActivityTime?: string;
   optimisticLock: number;
   priority: string;
   queueId: string;
-  requesterEmail: string;
+  requesterEmail?: string;
+  requesterId?: string;
+  requesterOrgId?: string;
+  sourcePagePath?: string;
+  sourcePageTitle?: string;
   status: string;
-  supportEmail: string;
+  supportEmail?: string;
   supportEventsByCurrentStatus?: string[];
+  tags?: string[];
   title: string;
 }
 export interface TicketMessageRecord {
   attachmentFileIds?: string[];
+  authorName?: string;
   authorUserId?: string;
   body: string;
   bodyTruncated: boolean;
@@ -57,6 +64,30 @@ export interface TicketMessageRecord {
   occurredTime?: string;
   outboundIntentId?: string;
   sourceInboxId?: string;
+}
+export interface InternalTicketInput {
+  body: string;
+  queueId: string;
+  requesterOrgId: string;
+  screenshotBase64?: string;
+  sourcePagePath?: string;
+  sourcePageTitle?: string;
+  tags?: string[];
+  tenantId?: string;
+  title: string;
+}
+export interface TicketQueueChoice {
+  code: string;
+  id: string;
+  name: string;
+  orgId: string;
+}
+export interface TicketNotificationTarget {
+  id: string;
+  orgId: string;
+  orgName: string;
+  tenantId: string;
+  view: 'handling' | 'submitted';
 }
 export interface TicketOutboundRecord {
   attemptCount: number;
@@ -96,6 +127,151 @@ function toTicketCommand(data: TicketCommand): TicketCommand {
 export class TicketService extends RequestService {
   constructor() {
     super(OAK_BASE_API_MODULE);
+  }
+
+  @CRUD.Op({ label: '发起系统内工单' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '发起系统内工单',
+  })
+  async createInternal(data: InternalTicketInput): Promise<string> {
+    return this.post('createInternal', { data });
+  }
+
+  @CRUD.Op({ label: '查询工单受理小组选项' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '查询工单受理小组选项',
+  })
+  async queueChoices(params: {
+    keyword?: string;
+    pageIndex: number;
+    pageSize: number;
+    requesterOrgId: string;
+    tenantId?: string;
+  }): Promise<SupportPage<TicketQueueChoice>> {
+    return this.get('queueChoices', { params });
+  }
+
+  @CRUD.Op({ label: '查询个人工单工作台' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '查询个人工单工作台',
+  })
+  async workbench(
+    params: TicketScope & {
+      pageIndex: number;
+      pageSize: number;
+      tag?: string;
+      view: 'handling' | 'submitted';
+    },
+  ): Promise<SupportPage<TicketRecord>> {
+    return this.get('workbench', {
+      params: toGenericSupportRequestScope(params),
+    });
+  }
+
+  @CRUD.Op({ label: '查询工单标签选项' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '查询工单标签选项',
+  })
+  async tagOptions(params: TicketScope & { orgId: string }): Promise<string[]> {
+    return this.get('tagOptions', { params });
+  }
+
+  @CRUD.Op({ label: '修改工单标签' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '修改工单标签',
+  })
+  async updateTags(
+    data: TicketCommand & { tags: string[] },
+  ): Promise<TicketRecord> {
+    return this.post('updateTags', {
+      data: { ...toTicketCommand(data), tags: data.tags },
+    });
+  }
+
+  @CRUD.Op({ label: '查询工单未读' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '查询工单未读',
+  })
+  async unreadTickets(
+    data: TicketScope & { ticketIds: string[] },
+  ): Promise<string[]> {
+    return this.post('unreadTickets', { data });
+  }
+
+  @CRUD.Op({ label: '确认工单消息已读' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '确认工单消息已读',
+  })
+  async markTicketRead(
+    data: TicketLocator & { messageIds: string[] },
+  ): Promise<void> {
+    return this.post('markTicketRead', { data });
+  }
+
+  @CRUD.Op({ label: '定位工单通知' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '定位工单通知',
+    onlyRequireAuthenticated: true,
+  })
+  async resolveNotification(id: string): Promise<TicketNotificationTarget> {
+    return this.get('resolveNotification', { params: { id } });
+  }
+
+  @CRUD.Op({ label: '站内回复工单' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '站内回复工单',
+  })
+  async replyInternal(
+    data: TicketCommand & { body: string; internalNote?: boolean },
+  ): Promise<void> {
+    return this.post('replyInternal', {
+      data: {
+        ...toTicketCommand(data),
+        body: data.body,
+        internalNote: Boolean(data.internalNote),
+      },
+    });
+  }
+
+  @CRUD.Op({ label: '下载工单截图' })
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-客服工单',
+    action: '下载工单截图',
+  })
+  async screenshot(params: TicketLocator & { blobId: string }): Promise<Blob> {
+    const response = await requestClient.request<any>(
+      this.buildRequestPath('screenshot'),
+      {
+        baseURL: '',
+        method: 'GET',
+        params: toGenericSupportRequestScope(params),
+        responseReturn: 'raw',
+        responseType: 'blob',
+      },
+    );
+    const contentType = String(response.headers?.['content-type'] || '');
+    if (!/application\/octet-stream/i.test(contentType))
+      throw new Error('工单截图不可访问');
+    return new Blob([response.data], { type: 'image/png' });
   }
 
   @CRUD.Op({ label: '分派客服工单' })

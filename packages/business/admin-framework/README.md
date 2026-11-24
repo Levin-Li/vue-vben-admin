@@ -1,5 +1,7 @@
 # @levin/admin-framework
 
+[标准 CRUD 帮助入口接入指南](docs/crud-help-action.md)说明帮助链接注册及权限边界。
+
 [标准 CRUD 自动查询指南](docs/crud-auto-search.md)说明页面默认配置及已保存设置的优先级。
 
 [标准 CRUD 详情字段使用指南](docs/crud-detail-static-fields.md)说明详情响应字段的开发期声明、检查门禁和未声明字段的展示边界。

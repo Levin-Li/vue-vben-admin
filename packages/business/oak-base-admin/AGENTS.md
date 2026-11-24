@@ -1,5 +1,7 @@
 # Published Package AGENTS.md
 
+系统内工单：[设计](docs/internal-ticket-workbench-design.md)、[实现与扩展](docs/internal-ticket-workbench-implementation.md)。
+
 <INSTRUCTIONS>
 本文件随 @levin/oak-base-admin npm 发布包分发。使用本包进行二次开发、扩展、配置、升级或发布的子项目，必须先读取并遵循 [模块开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。规范仅约束公开入口、兼容扩展、安全、测试和升级，不要求采用发布方代码包名、目录或业务实现。
 

@@ -1,5 +1,7 @@
 # @levin/oak-base-admin
 
+系统内工单工作台：[设计](docs/internal-ticket-workbench-design.md)、[实现与扩展](docs/internal-ticket-workbench-implementation.md)。
+
 [租户站点登录组织范围指南](docs/tenant-site-org-login.md)说明“登录组织范围”字段与验证步骤。
 
 [新租户管理员创建指南](docs/tenant-admin-creation.md)说明创建表单、账号口令规则与验证步骤。

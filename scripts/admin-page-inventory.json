@@ -254,6 +254,20 @@
       "reason": "个人消息阅读和处理"
     },
     {
+      "resource": "MyTickets",
+      "title": "我提交的工单",
+      "view": "./views/my-tickets/index.vue",
+      "classification": "message",
+      "reason": "本人提交的工单列表与双向交流"
+    },
+    {
+      "resource": "MyHandlingTickets",
+      "title": "待我处理的工单",
+      "view": "./views/my-handling-tickets/index.vue",
+      "classification": "message",
+      "reason": "受理小组工单处理与双向交流"
+    },
+    {
       "resource": "MySetting",
       "title": "我的设置",
       "view": "./views/my-setting/index.vue",
@@ -521,7 +535,7 @@
     },
     {
       "resource": "TicketQueue",
-      "title": "工单受理队列",
+      "title": "工单受理小组",
       "view": "./views/ticket-queue/index.vue",
       "classification": "shared-crud",
       "reason": "列表、查询、分页、列设置与刷新使用公共 CrudPage；保存及启停保留专用受控接口"

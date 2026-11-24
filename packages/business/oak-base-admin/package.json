@@ -97,6 +97,7 @@
     "@levin/bpm-designer": "workspace:*",
     "@levin/bpm-runtime-ui": "workspace:*",
     "ai": "6.0.309",
-    "docx-preview": "^0.4.0"
+    "docx-preview": "^0.4.0",
+    "html2canvas": "^1.4.1"
   }
 }
