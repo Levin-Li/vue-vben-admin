@@ -483,7 +483,7 @@ const channelTypes = [
     :mask-closable="false"
     :ok-button-props="{ disabled: searching || lookingUp || !canCreate }"
     :title="`快捷新增${targetTitle}`"
-    width="640px"
+    :width="'min(1080px, calc(100vw - 32px))'"
     ok-text="确认新增"
     @cancel="closeForm"
     @ok="submit"
@@ -491,10 +491,10 @@ const channelTypes = [
     <Form
       :id="`quick-onboarding-${target}`"
       :name="`quick-onboarding-${target}`"
-      class="mt-4"
+      class="quick-onboarding-form mt-4"
       data-form-id="quick-partner-onboarding"
       data-form-name="快捷新增客户与伙伴"
-      layout="vertical"
+      layout="horizontal"
     >
       <!-- 平台用户选择租户；所有用户选择可访问的主体方组织。 -->
       <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
@@ -671,3 +671,38 @@ const channelTypes = [
     </Form>
   </Modal>
 </template>
+
+<style scoped>
+/* 桌面保留完整标签宽度，输入项占据剩余空间。 */
+.quick-onboarding-form :deep(.ant-form-item-row) {
+  flex-wrap: nowrap;
+}
+
+.quick-onboarding-form :deep(.ant-form-item-label) {
+  flex: 0 0 144px;
+  max-width: 144px;
+  white-space: normal;
+}
+
+.quick-onboarding-form :deep(.ant-form-item-control) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* 窄屏纵向展示标签和控件，避免输入区域被挤压。 */
+@media (max-width: 639px) {
+  .quick-onboarding-form :deep(.ant-form-item-row) {
+    flex-wrap: wrap;
+  }
+
+  .quick-onboarding-form :deep(.ant-form-item-label) {
+    flex: 0 0 100%;
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .quick-onboarding-form :deep(.ant-form-item-control) {
+    flex: 0 0 100%;
+  }
+}
+</style>
