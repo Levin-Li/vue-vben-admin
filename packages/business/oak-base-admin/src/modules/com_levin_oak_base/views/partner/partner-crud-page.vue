@@ -51,13 +51,17 @@ const pageConfig = computed<CrudPageConfig>(() => ({
   fields: createModeFields(props.config.fields, mineMode.value),
   listOperations: [
     ...(props.config.listOperations || []),
-    ...(props.quickTarget
+    ...(props.quickTarget === 'SupplierPartner'
       ? [
           {
             key: `${props.quickTarget}:createMine`,
-            label: `新增我的${props.quickTarget === 'SupplierPartner' ? '供应伙伴' : '渠道伙伴'}`,
+            label: '新增我的供应伙伴',
             placement: 'left' as const,
           },
+        ]
+      : []),
+    ...(props.quickTarget
+      ? [
           {
             key: `${props.quickTarget}:createBusiness`,
             label: '新增',
@@ -97,7 +101,7 @@ const pageConfig = computed<CrudPageConfig>(() => ({
       />
       <Button
         v-if="
-          quickTarget &&
+          quickTarget === 'SupplierPartner' &&
           isListOperationVisible(`${quickTarget}:createMine`) &&
           hasPermission(
             buildApiMethodPermissions(config.apiService, 'createMine'),
@@ -105,9 +109,7 @@ const pageConfig = computed<CrudPageConfig>(() => ({
         "
         type="primary"
         @click="openCreateMode(true, openCreate)"
-        >新增我的{{
-          quickTarget === 'SupplierPartner' ? '供应伙伴' : '渠道伙伴'
-        }}</Button
+        >新增我的供应伙伴</Button
       >
       <Button
         v-if="

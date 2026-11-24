@@ -34,6 +34,10 @@ import { orgService } from '../../api/org-service';
 import { supplierPartnerService } from '../../api/supplier-partner-service';
 import { tenantService } from '../../api/tenant-service';
 import { tenantOptionsLoader } from '../api-module';
+import {
+  subjectTypeOptionsLoader,
+  toQuickAddSubjectTypeOptions,
+} from '../legal-subject/subject-type-options';
 import { buildOrgAssignmentOptionsLoader } from '../org-assignment-options';
 import { changeQuickAddTenant, matchesQuickAddOrg } from './quick-add-scope';
 
@@ -101,6 +105,9 @@ const tenantOptions = ref<ScopeOption[]>([]);
 const orgOptions = ref<ScopeOption[]>([]);
 const selectedOrg = ref<ScopeOption>();
 const tenantLoading = ref(false);
+const subjectTypeOptions = ref<SelectOption[]>([]);
+const subjectTypeLoading = ref(false);
+let subjectTypeRequest = 0;
 const form = reactive({
   tenantId: '',
   parentOrgId: '',
@@ -161,7 +168,27 @@ function openForm() {
     if (form.tenantId) void searchOrganizations().catch(() => undefined);
   }
   open.value = true;
+  void loadSubjectTypes();
   if (platformUser.value) void searchTenants();
+}
+
+// 加载失败时不使用硬编码选项，允许重新打开弹窗重试。
+async function loadSubjectTypes() {
+  const request = ++subjectTypeRequest;
+  subjectTypeOptions.value = [];
+  subjectTypeLoading.value = true;
+  try {
+    const options = await subjectTypeOptionsLoader('');
+    if (request !== subjectTypeRequest) return;
+    if (!options.length) throw new Error('主体类型枚举为空');
+    subjectTypeOptions.value = toQuickAddSubjectTypeOptions(options);
+  } catch (error) {
+    if (request !== subjectTypeRequest) return;
+    notifyApiErrorOnce(error);
+    message.warning('主体类型加载失败，请重新打开重试');
+  } finally {
+    if (request === subjectTypeRequest) subjectTypeLoading.value = false;
+  }
 }
 
 function closeForm() {
@@ -358,6 +385,14 @@ function payload(): QuickAddPayload | undefined {
   const creditCode = form.creditCode.trim().toUpperCase();
   const shortName = form.shortName.trim();
   const loginAccount = form.loginAccount.trim();
+  if (
+    !subjectTypeOptions.value.some(
+      (option) => option.value === form.subjectType && !option.disabled,
+    )
+  ) {
+    message.warning('请选择可用的主体类型');
+    return;
+  }
   if (!legalSubjectName || !/^[0-9A-Z]{18}$/.test(creditCode)) {
     message.warning('请填写主体名称和18位统一社会信用代码');
     return;
@@ -595,15 +630,8 @@ const channelTypes = [
           </template>
           <Select
             v-model:value="form.subjectType"
-            :options="[
-              { label: '法人（公司、机关事业单位）', value: 'Legal' },
-              { label: '个体户', value: 'Individual' },
-              {
-                label: '非法人组织',
-                title: NOT_LEGAL_SUBJECT_HELP,
-                value: 'NotLegal',
-              },
-            ]"
+            :options="subjectTypeOptions"
+            :loading="subjectTypeLoading"
             class="w-full"
           />
         </Form.Item>

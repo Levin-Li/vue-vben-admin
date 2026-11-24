@@ -1796,14 +1796,9 @@ const quickFillActive = computed(
 const compactFormActive = computed(
   () => briefActive.value || quickFillActive.value,
 );
+// 步骤保留未提交字段的操作入口；校验和提交仍使用独立的可提交字段集合。
 const wizardSteps = computed(() =>
-  buildCrudWizardSteps(
-    visibleFormFields.value.filter(
-      (field) =>
-        !unsubmittedGroupKeys.value.has(field.key) &&
-        isComplexGroupEnabled(field),
-    ),
-  ),
+  buildCrudWizardSteps(visibleFormFields.value),
 );
 const wizardActive = computed(
   () =>

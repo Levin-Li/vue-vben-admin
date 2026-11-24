@@ -124,6 +124,69 @@ const wizardFields = () => [
 ];
 
 describe('标准表单首次模式交互', () => {
+  it('分步填写保留未勾选的复杂信息入口并按勾选状态校验提交', async () => {
+    const create = vi.fn().mockResolvedValue({ id: 'created' });
+    const fields = wizardFields().map((field) => ({
+      ...field,
+      required: false,
+    }));
+    fields.push({
+      key: 'bankName',
+      label: '开户行',
+      required: true,
+      layoutGroup: 'c',
+      layoutGroupTitle: '其他信息',
+      complexGroupKey: 'bank',
+    } as any);
+    const modal = await open(fields, {
+      apiService: { create },
+      complexGroups: [
+        {
+          key: 'bank',
+          title: '银行账户',
+          submitKey: 'bankAccount',
+          fieldMappings: { bankName: 'name' },
+        },
+      ],
+    });
+    const wizard = modal
+      .findAllComponents({ name: 'ACheckbox' })
+      .find((item) => item.text().includes('分步填写'));
+    if (!wizard) throw new Error('缺少分步填写开关');
+    wizard.vm.$emit('update:checked', true);
+    await flushPromises();
+    modal.vm.$emit('ok');
+    await flushPromises();
+    modal.vm.$emit('ok');
+    await flushPromises();
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(
+      document.querySelector('[data-crud-complex-group="bank"]'),
+    ).not.toBeNull();
+    expect(document.body.textContent).toContain('4 / 4');
+    const checkbox = modal
+      .findAllComponents({ name: 'ACheckbox' })
+      .find((item) => item.text().includes('银行账户'));
+    if (!checkbox) throw new Error('缺少银行账户勾选框');
+    checkbox.vm.$emit('update:checked', true);
+    await flushPromises();
+    expect(document.body.textContent).toContain('4 / 4');
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(create).not.toHaveBeenCalled();
+    const bank = modal
+      .findAllComponents(Form.Item)
+      .find((item) => item.props('label') === '开户行');
+    if (!bank) throw new Error('缺少开户行字段');
+    await bank.get('input').setValue('测试银行');
+    modal.vm.$emit('ok');
+    await flushPromises();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ bankAccount: { name: '测试银行' } }),
+    );
+  });
+
   it('新增快捷填写包含新增必填字段并拒绝空值', async () => {
     const create = vi.fn().mockResolvedValue({ id: 'created' });
     const modal = await open(

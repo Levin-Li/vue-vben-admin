@@ -22,9 +22,7 @@ import {
   validateSubjectIdentity,
 } from './subject-identity';
 
-const subjectTypeOptionsLoader = buildEnumOptionsLoader(
-  'com.levin.oak.base.entities.enums.LegalSubjectType',
-);
+import { subjectTypeOptionsLoader } from './subject-type-options';
 const identityTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.enums.IdentityType',
 );
