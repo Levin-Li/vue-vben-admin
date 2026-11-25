@@ -319,12 +319,12 @@ onBeforeUnmount(() => { exportGeneration += 1; runtime.value.dispose(); });
         :title="component.title"
       >
         <Spin :spinning="state.components[component.id]?.loading || false">
-          <Alert
+          <!-- 图表单独显示失败状态，不影响其他组件。 -->
+          <div
             v-if="state.components[component.id]?.error"
-            type="error"
-            message="报表加载失败或无权访问"
-            show-icon
-          />
+            role="alert"
+            class="text-destructive p-3"
+          >报表加载失败或无权访问</div>
           <template v-else-if="state.components[component.id]?.result">
             <div v-if="exportComponent" class="report-export">
               <Button size="small" @click="openExport(component)">导出</Button>

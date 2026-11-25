@@ -21,3 +21,4 @@
 
 [项目设计和开发参考资料](docs/project-reference/INDEX.md) 为非规范性参考，不构成下游项目的强制要求。
 </INSTRUCTIONS>
+[2026-11-25 已完成能力发布记录](docs/releases/20261125-completed-features.md)说明发布范围和未完成能力边界。

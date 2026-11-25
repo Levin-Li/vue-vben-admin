@@ -21371,7 +21371,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketQueueActionController",
       "method": "setEnabled",
       "action": "启用或停用工单受理队列",
-      "line": 99,
+      "line": 103,
       "parameters": [
         {
           "name": "data",
@@ -21390,7 +21390,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "createInternal",
       "action": "发起系统内工单",
-      "line": 132,
+      "line": 137,
       "parameters": [
         {
           "name": "data",
@@ -21409,11 +21409,11 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "queueChoices",
       "action": "查询工单受理小组选项",
-      "line": 142,
+      "line": 147,
       "parameters": [
         {
           "name": "params",
-          "type": "{\n    keyword?: string;\n    pageIndex: number;\n    pageSize: number;\n    requesterOrgId: string;\n    tenantId?: string;\n  }",
+          "type": "{\n    category?: string;\n    keyword?: string;\n    pageIndex: number;\n    pageSize: number;\n    requesterOrgId: string;\n    tenantId?: string;\n  }",
           "optional": false
         }
       ],
@@ -21428,11 +21428,11 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "workbench",
       "action": "查询个人工单工作台",
-      "line": 158,
+      "line": 164,
       "parameters": [
         {
           "name": "params",
-          "type": "TicketScope & {\n      pageIndex: number;\n      pageSize: number;\n      tag?: string;\n      view: 'handling' | 'submitted';\n    }",
+          "type": "TicketScope & {\n      pageIndex: number;\n      pageSize: number;\n      category?: string;\n      tag?: string;\n      view: 'handling' | 'submitted';\n    }",
           "optional": false
         }
       ],
@@ -21447,7 +21447,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "tagOptions",
       "action": "查询工单标签选项",
-      "line": 177,
+      "line": 184,
       "parameters": [
         {
           "name": "params",
@@ -21464,9 +21464,47 @@
       "owner": "TicketService",
       "title": "客服工单",
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
+      "method": "categoryOptions",
+      "action": "查询工单标签选项",
+      "line": 194,
+      "parameters": [
+        {
+          "name": "params",
+          "type": "TicketScope & { orgId: string }",
+          "optional": false
+        }
+      ],
+      "permissionMetadata": true,
+      "dynamic": false,
+      "executable": false
+    },
+    {
+      "file": "packages/business/oak-base-admin/src/modules/com_levin_oak_base/api/ticket-service.ts",
+      "owner": "TicketService",
+      "title": "客服工单",
+      "controllerClass": "com.levin.oak.base.controller.TicketActionController",
+      "method": "updateCategory",
+      "action": "修改工单标签",
+      "line": 206,
+      "parameters": [
+        {
+          "name": "data",
+          "type": "TicketCommand & { category?: string }",
+          "optional": false
+        }
+      ],
+      "permissionMetadata": true,
+      "dynamic": false,
+      "executable": false
+    },
+    {
+      "file": "packages/business/oak-base-admin/src/modules/com_levin_oak_base/api/ticket-service.ts",
+      "owner": "TicketService",
+      "title": "客服工单",
+      "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "updateTags",
       "action": "修改工单标签",
-      "line": 187,
+      "line": 220,
       "parameters": [
         {
           "name": "data",
@@ -21485,7 +21523,26 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "unreadTickets",
       "action": "查询工单未读",
-      "line": 201,
+      "line": 234,
+      "parameters": [
+        {
+          "name": "data",
+          "type": "TicketScope & { ticketIds: string[] }",
+          "optional": false
+        }
+      ],
+      "permissionMetadata": true,
+      "dynamic": false,
+      "executable": false
+    },
+    {
+      "file": "packages/business/oak-base-admin/src/modules/com_levin_oak_base/api/ticket-service.ts",
+      "owner": "TicketService",
+      "title": "客服工单",
+      "controllerClass": "com.levin.oak.base.controller.TicketActionController",
+      "method": "unreadTicketCounts",
+      "action": "查询工单未读",
+      "line": 246,
       "parameters": [
         {
           "name": "data",
@@ -21504,7 +21561,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "markTicketRead",
       "action": "确认工单消息已读",
-      "line": 213,
+      "line": 258,
       "parameters": [
         {
           "name": "data",
@@ -21523,7 +21580,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "resolveNotification",
       "action": "定位工单通知",
-      "line": 225,
+      "line": 270,
       "parameters": [
         {
           "name": "id",
@@ -21542,7 +21599,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "replyInternal",
       "action": "站内回复工单",
-      "line": 236,
+      "line": 281,
       "parameters": [
         {
           "name": "data",
@@ -21561,7 +21618,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "screenshot",
       "action": "下载工单截图",
-      "line": 254,
+      "line": 299,
       "parameters": [
         {
           "name": "params",
@@ -21580,7 +21637,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "assign",
       "action": "分派客服工单",
-      "line": 277,
+      "line": 322,
       "parameters": [
         {
           "name": "data",
@@ -21599,7 +21656,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "attachmentDownload",
       "action": "下载工单附件",
-      "line": 291,
+      "line": 336,
       "parameters": [
         {
           "name": "params",
@@ -21618,7 +21675,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "close",
       "action": "关闭客服工单",
-      "line": 324,
+      "line": 369,
       "parameters": [
         {
           "name": "data",
@@ -21637,7 +21694,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "confirmContact",
       "action": "核验工单联系人",
-      "line": 334,
+      "line": 379,
       "parameters": [
         {
           "name": "data",
@@ -21656,7 +21713,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "list",
       "action": "查询客服工单",
-      "line": 349,
+      "line": 394,
       "parameters": [
         {
           "name": "params",
@@ -21675,7 +21732,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "message",
       "action": "查看工单消息",
-      "line": 366,
+      "line": 411,
       "parameters": [
         {
           "name": "params",
@@ -21694,7 +21751,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "messages",
       "action": "查询工单消息",
-      "line": 380,
+      "line": 425,
       "parameters": [
         {
           "name": "params",
@@ -21713,7 +21770,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "outbound",
       "action": "查看工单外发结果",
-      "line": 394,
+      "line": 439,
       "parameters": [
         {
           "name": "params",
@@ -21732,7 +21789,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "reopen",
       "action": "重开客服工单",
-      "line": 408,
+      "line": 453,
       "parameters": [
         {
           "name": "data",
@@ -21751,7 +21808,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "reply",
       "action": "发送工单邮件回复",
-      "line": 418,
+      "line": 463,
       "parameters": [
         {
           "name": "data",
@@ -21770,7 +21827,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "resolve",
       "action": "解决客服工单",
-      "line": 447,
+      "line": 492,
       "parameters": [
         {
           "name": "data",
@@ -21789,7 +21846,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "resolveOutboundUnsent",
       "action": "核验工单邮件未受理",
-      "line": 457,
+      "line": 502,
       "parameters": [
         {
           "name": "data",
@@ -21808,7 +21865,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "retrieve",
       "action": "查看客服工单",
-      "line": 490,
+      "line": 535,
       "parameters": [
         {
           "name": "params",
@@ -21827,7 +21884,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "retryOutbound",
       "action": "重试工单发送前失败",
-      "line": 502,
+      "line": 547,
       "parameters": [
         {
           "name": "data",
@@ -21846,7 +21903,7 @@
       "controllerClass": "com.levin.oak.base.controller.TicketActionController",
       "method": "start",
       "action": "开始处理工单",
-      "line": 514,
+      "line": 559,
       "parameters": [
         {
           "name": "data",

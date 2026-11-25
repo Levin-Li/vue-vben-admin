@@ -261,9 +261,12 @@ async function submit() {
     :mask-closable="false"
   >
     <Spin :spinning="loading">
-      <Form v-if="relation" layout="vertical">
+      <!-- 主体信息使用稳定表单标识，宽屏分列、窄屏单列。 -->
+      <Form v-if="relation" :id="`partner-subject-info-${record.id}`" :name="`partner-subject-info-${record.id}`"
+        data-form-id="partner-subject-info" data-form-name="伙伴主体信息"
+        class="grid grid-cols-1 gap-x-4 sm:grid-cols-2" layout="vertical">
         <template v-if="subject">
-          <p>证照、开票、联系人等完整资料请在法律主体页面维护。</p>
+          <p class="sm:col-span-2">证照、开票、联系人等完整资料请在法律主体页面维护。</p>
           <Form.Item label="认证状态">{{
             statusLabels[subject.certificationStatus] || '状态不可见'
           }}</Form.Item>

@@ -968,7 +968,9 @@ defineExpose({ refresh });
     />
     <!-- 搜索只传给服务端，候选继续读取不会仅局限于当前结果页。 -->
     <div class="vben-crud-section workflow-workbench-search">
-      <AForm :label-col="{ style: { width: '88px' } }">
+      <AForm id="workflow-workbench-search" name="workflow-workbench-search"
+        data-form-id="workflow-workbench-search" data-form-name="工作流工作台查询"
+        :label-col="{ style: { width: '88px' } }">
         <div class="workflow-workbench-search-grid">
           <AForm.Item label="关键词" class="mb-0 min-w-0">
             <AInput
