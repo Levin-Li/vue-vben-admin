@@ -1121,6 +1121,7 @@ watch(
     <Modal
       v-model:open="createOpen"
       title="发起工单"
+      :width="960"
       :confirm-loading="sending || imageBusy"
       @ok="createTicket"
     >
@@ -1132,83 +1133,98 @@ watch(
         data-form-name="发起工单"
         layout="vertical"
       >
-        <Form.Item class="ticket-workbench__form-wide" label="发起组织" required
-          ><SupportScopeSelector
-            :model-value="scope"
-            placeholder="选择发起组织"
-            @change="changeScope"
-        /></Form.Item>
-        <Form.Item label="工单分类">
-          <Select
-            v-model:value="createCategory"
-            :options="categoryOptions"
-            placeholder="选择分类（可留空）"
-            not-found-content="暂无分类，请联系管理员配置"
-            allow-clear
-            @focus="loadCategories"
-            @change="changeCreateCategory"
-          />
-        </Form.Item>
-        <Form.Item label="受理小组" required
-          ><Select
-            v-model:value="queueId"
-            show-search
-            :filter-option="false"
-            :options="queueOptions"
-            placeholder="搜索受理小组"
-            :not-found-content="
-              createCategory ? '暂无支持该分类的受理小组' : '暂无受理小组'
-            "
-            @focus="searchQueues()"
-            @search="searchQueues"
-        /></Form.Item>
-        <Form.Item class="ticket-workbench__form-wide" label="工单标题" required
-          ><Input v-model:value="title" :maxlength="512"
-        /></Form.Item>
-        <Form.Item
-          class="ticket-workbench__form-wide"
-          label="工单标签"
-          extra="可选择系统标签或输入自定义标签，最多10个，每个最多32个字符。"
-        >
-          <Select
-            v-model:value="createTags"
-            mode="tags"
-            :options="configuredTagOptions"
-            :max-count="10"
-            placeholder="选择或输入标签"
-            @focus="loadTagOptions"
-          />
-        </Form.Item>
-        <Form.Item class="ticket-workbench__form-wide" label="问题描述" required
-          ><Input.TextArea
-            v-model:value="description"
-            :rows="5"
-            :maxlength="100000"
-        /></Form.Item>
-        <Form.Item
-          v-if="ticketHelpContext?.path"
-          class="ticket-workbench__form-wide"
-          label="来源页面"
-        >
-          {{ ticketHelpContext.title }}（{{ ticketHelpContext.path }}）
-        </Form.Item>
-        <Form.Item
-          class="ticket-workbench__form-wide"
-          label="问题截图"
-          extra="最多 5 张，每张转换后不超过 2 MB；点击图片查看大图。"
-        >
-          <TicketImagePicker
-            v-model="createImages"
-            :active="createOpen"
-            @busy-change="imageBusy = $event"
-          />
-        </Form.Item>
-        <p
-          v-if="ticketHelpContext?.captureError"
-          class="ticket-workbench__form-wide"
-        >
-          {{ ticketHelpContext.captureError }}
-        </p>
+        <div class="ticket-workbench__create-column">
+          <Form.Item
+            class="ticket-workbench__form-wide"
+            label="发起组织"
+            required
+            ><SupportScopeSelector
+              :model-value="scope"
+              placeholder="选择发起组织"
+              @change="changeScope"
+          /></Form.Item>
+          <div class="ticket-workbench__category-row">
+            <Form.Item label="工单分类">
+              <Select
+                v-model:value="createCategory"
+                :options="categoryOptions"
+                placeholder="选择分类（可留空）"
+                not-found-content="暂无分类，请联系管理员配置"
+                allow-clear
+                @focus="loadCategories"
+                @change="changeCreateCategory"
+              />
+            </Form.Item>
+            <Form.Item label="受理小组" required
+              ><Select
+                v-model:value="queueId"
+                show-search
+                :filter-option="false"
+                :options="queueOptions"
+                placeholder="搜索受理小组"
+                :not-found-content="
+                  createCategory ? '暂无支持该分类的受理小组' : '暂无受理小组'
+                "
+                @focus="searchQueues()"
+                @search="searchQueues"
+            /></Form.Item>
+          </div>
+          <Form.Item
+            class="ticket-workbench__form-wide"
+            label="工单标题"
+            required
+            ><Input v-model:value="title" :maxlength="512"
+          /></Form.Item>
+          <Form.Item
+            class="ticket-workbench__form-wide"
+            label="工单标签"
+            extra="可选择系统标签或输入自定义标签，最多10个，每个最多32个字符。"
+          >
+            <Select
+              v-model:value="createTags"
+              mode="tags"
+              :options="configuredTagOptions"
+              :max-count="10"
+              placeholder="选择或输入标签"
+              @focus="loadTagOptions"
+            />
+          </Form.Item>
+        </div>
+        <div class="ticket-workbench__create-column">
+          <Form.Item
+            class="ticket-workbench__form-wide"
+            label="问题描述"
+            required
+            ><Input.TextArea
+              v-model:value="description"
+              :rows="5"
+              :maxlength="100000"
+          /></Form.Item>
+          <Form.Item
+            v-if="ticketHelpContext?.path"
+            class="ticket-workbench__form-wide"
+            label="来源页面"
+          >
+            {{ ticketHelpContext.title }}（{{ ticketHelpContext.path }}）
+          </Form.Item>
+          <Form.Item
+            class="ticket-workbench__form-wide"
+            label="问题截图"
+            extra="最多 5 张，每张转换后不超过 2 MB；点击图片查看大图。"
+          >
+            <TicketImagePicker
+              v-model="createImages"
+              :active="createOpen"
+              @busy-change="imageBusy = $event"
+            />
+          </Form.Item>
+          <p
+            v-if="ticketHelpContext?.captureError"
+            class="ticket-workbench__form-wide"
+          >
+            {{ ticketHelpContext.captureError }}
+          </p>
+        </div>
       </Form>
     </Modal>
     <Modal
@@ -1238,8 +1254,18 @@ watch(
 <style scoped>
 .ticket-workbench__create-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-  column-gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.ticket-workbench__create-column {
+  min-width: 0;
+}
+
+.ticket-workbench__category-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .ticket-workbench__form-wide {
@@ -1480,6 +1506,12 @@ watch(
   max-width: 100%;
   max-height: 320px;
   object-fit: contain;
+}
+@media (max-width: 600px) {
+  .ticket-workbench__create-form {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
 }
 @media (max-width: 700px) {
   .ticket-workbench__columns {

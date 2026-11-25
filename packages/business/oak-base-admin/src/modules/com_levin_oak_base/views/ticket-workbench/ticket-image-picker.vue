@@ -161,7 +161,9 @@ onBeforeUnmount(() => {
       type="file"
       accept="image/png,image/jpeg,image/webp"
       multiple
-      hidden
+      class="ticket-image-picker__input"
+      tabindex="-1"
+      aria-hidden="true"
       @change="changed"
     />
     <span
@@ -192,6 +194,9 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+.ticket-image-picker__input {
+  display: none !important;
 }
 .ticket-image-picker__card,
 .ticket-image-picker__add {
