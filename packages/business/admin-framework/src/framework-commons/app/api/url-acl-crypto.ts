@@ -38,6 +38,8 @@ export function isClientCryptoPath(url: unknown) {
 
   if (OAK_USER_ORG_API_PATH_PATTERN.test(path)) return true;
 
+  if (/(?:^|\/)com\.levin\.oak\.base\/v1\/api\/aimodelsetting\/modelconfig$/.test(path)) return true;
+
   if (!RBAC_API_PATH_PATTERN.test(path)) return false;
 
   // 图片验证码由浏览器 img 直连加载，不能携带自定义加密头或接收 JSON 加密信封。

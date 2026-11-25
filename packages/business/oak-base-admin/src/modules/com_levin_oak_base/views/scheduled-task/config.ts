@@ -339,6 +339,7 @@ export const scheduledTaskPageCrudConfig: CrudPageConfig = {
     {
       key: 'parallelExecution',
       label: '允许并发执行',
+      help: '开启后，同一任务的不同周期可以同时执行；关闭后，上一周期尚未结束时，新到期的周期将跳过。',
       layoutGroup: 'business',
       layoutOrder: 50,
       search: true,

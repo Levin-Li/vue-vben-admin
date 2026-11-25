@@ -95,6 +95,10 @@ describe('published reference documents', () => {
     ['@levin/admin-framework', 'initial-password-change.md'],
     ['@levin/admin-framework', 'api-attribute-group-permissions.md'],
     ['@levin/oak-base-admin', 'communication-workbench.md'],
+    ['@levin/oak-base-admin', 'report-center.md'],
+    ['@levin/oak-base-admin', 'report-center-design.md'],
+    ['@levin/oak-base-admin', 'report-center-implementation.md'],
+    ['@levin/oak-base-admin', 'report-center-development.md'],
     ['@vben/layouts', 'notification.md'],
   ])('构建重新同步后%s仍直接索引其功能使用指南', (name, guide) => {
     const options = fixture();

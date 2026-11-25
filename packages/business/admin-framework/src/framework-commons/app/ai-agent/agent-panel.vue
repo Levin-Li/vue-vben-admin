@@ -9,6 +9,7 @@ import type {
 import type { PendingAgentWrite } from './skills';
 
 import {
+  computed,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -17,7 +18,11 @@ import {
   watch,
 } from 'vue';
 
-import { loadAgentProviders, runAgentTurn } from './chat';
+import {
+  getAgentConfigurationComponent,
+  loadAgentProviders,
+  runAgentTurn,
+} from './chat';
 import { confirmAgentWrite } from './skills';
 
 const props = defineProps<{
@@ -28,13 +33,23 @@ const props = defineProps<{
   userId?: string;
 }>();
 const open = ref(false);
+const settingsOpen = ref(false);
+const configurationComponent = getAgentConfigurationComponent();
 const draft = ref('');
 const providerCode = ref('');
 const availableProviders = ref<AgentAvailableProvider[]>([]);
+const providerUnavailable = computed(
+  () =>
+    Boolean(providerCode.value) &&
+    !availableProviders.value.some(
+      (item) => item.providerCode === providerCode.value,
+    ),
+);
 const providerStatus = ref('');
 const providersLoading = ref(false);
 const busy = ref(false);
 const progress = ref('');
+const streamingText = ref('');
 const messages = ref<AgentMessage[]>([]);
 const pendingWrite = ref<PendingAgentWrite>();
 const continuation = shallowRef<AgentWriteContinuation>();
@@ -72,8 +87,10 @@ function clearConversation() {
   providerStatus.value = '';
   providersLoading.value = false;
   progress.value = '';
+  streamingText.value = '';
   busy.value = false;
   open.value = false;
+  settingsOpen.value = false;
 }
 
 async function refreshProviders() {
@@ -87,18 +104,16 @@ async function refreshProviders() {
     providerStatus.value =
       availableProviders.value.length > 0
         ? ''
-        : '当前租户或域名没有可用的网页模型，请管理员在服务插件设置管理中启用 AI 插件并配置网页直连';
-    if (
-      !availableProviders.value.some(
-        (item) => item.providerCode === providerCode.value,
-      )
-    ) {
+        : '当前范围没有可用的网页模型，请在 AI 助手模型配置中设置';
+    if (!providerCode.value) {
       providerCode.value = availableProviders.value[0]?.providerCode || '';
+    } else if (providerUnavailable.value) {
+      providerStatus.value =
+        '所选模型在当前范围不可用，请检查配置或手动选择其他模型';
     }
   } catch {
     if (identity !== activeContextKey()) return;
     availableProviders.value = [];
-    providerCode.value = '';
     providerStatus.value = '网页直连配置查询失败，请重新打开AI助手后重试';
   } finally {
     if (identity === activeContextKey()) providersLoading.value = false;
@@ -149,7 +164,9 @@ async function send() {
   // 未取得可用配置时保留输入，避免发送空供应商并产生误导性的聊天错误。
   if (
     !pendingWrite.value &&
-    (providersLoading.value || availableProviders.value.length === 0)
+    (providersLoading.value ||
+      availableProviders.value.length === 0 ||
+      providerUnavailable.value)
   )
     return;
   draft.value = '';
@@ -180,6 +197,7 @@ async function send() {
     pendingWrite.value = result.pendingWrite;
     continuation.value = result.continueAfterWrite;
     pendingWriteStatus.value = 'preview';
+    streamingText.value = '';
     messages.value.push(result.message);
   };
   await scrollToLatest();
@@ -281,6 +299,15 @@ async function send() {
         reportProgress,
         signal,
         reportTrace,
+        (text) => {
+          if (
+            currentTurn === turnSequence &&
+            startingIdentity === activeContextKey()
+          ) {
+            streamingText.value = text;
+            void scrollToLatest();
+          }
+        },
       );
       acceptResult(result);
     }
@@ -308,6 +335,7 @@ async function send() {
     if (currentTurn === turnSequence) {
       busy.value = false;
       progress.value = '';
+      streamingText.value = '';
       await scrollToLatest();
     }
   }
@@ -333,9 +361,18 @@ async function send() {
           <strong>AI助手</strong>
           <small>业务处理与故障诊断</small>
         </div>
-        <button type="button" aria-label="收起AI助手" @click="open = false">
-          收起
-        </button>
+        <div>
+          <button
+            v-if="configurationComponent"
+            type="button"
+            @click="settingsOpen = true"
+          >
+            模型配置
+          </button>
+          <button type="button" aria-label="收起AI助手" @click="open = false">
+            收起
+          </button>
+        </div>
       </header>
 
       <!-- 供应商只是模型引擎选择，是否已配置由后端校验。 -->
@@ -349,6 +386,9 @@ async function send() {
           aria-label="选择模型接入"
         >
           <option value="">系统默认</option>
+          <option v-if="providerUnavailable" :value="providerCode">
+            {{ providerCode }}（不可用）
+          </option>
           <option
             v-for="item in availableProviders"
             :key="item.providerCode"
@@ -380,6 +420,10 @@ async function send() {
           }}</span>
           <p>{{ item.content }}</p>
           <small v-if="item.source">数据来源：{{ item.source }}</small>
+        </article>
+        <article v-if="streamingText" class="agent-message from-agent">
+          <span class="agent-speaker">AI助手</span>
+          <p>{{ streamingText }}</p>
         </article>
         <p v-if="busy" class="agent-progress" role="status">{{ progress }}</p>
       </div>
@@ -424,13 +468,21 @@ async function send() {
             busy ||
             !draft.trim() ||
             (!pendingWrite &&
-              (providersLoading || availableProviders.length === 0))
+              (providersLoading ||
+                availableProviders.length === 0 ||
+                providerUnavailable))
           "
         >
           发送
         </button>
       </form>
     </section>
+    <component
+      v-if="settingsOpen && configurationComponent"
+      :is="configurationComponent"
+      @close="settingsOpen = false"
+      @saved="refreshProviders"
+    />
   </div>
 </template>
 

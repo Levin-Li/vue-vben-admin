@@ -7,6 +7,7 @@ const partyField =
 export function createModeFields(
   fields: CrudPageConfig['fields'],
   mine: boolean,
+  selectPlatformSubject = false,
 ): CrudPageConfig['fields'] {
   return fields.map((field) => {
     if (field.key === 'parentOrgId') return { ...field, formCreate: false };
@@ -14,10 +15,13 @@ export function createModeFields(
 
     const business =
       field.key === 'businessOrgId' || field.key === 'businessUserId';
+    const subject =
+      field.key === 'subjectOrgId' || field.key === 'subjectUserId';
+    const enabled = (!mine && business) || (mine && selectPlatformSubject && subject);
     return {
       ...field,
-      formCreate: !mine && business,
-      required: !mine && business,
+      formCreate: enabled,
+      required: enabled,
     };
   });
 }

@@ -1,7 +1,5 @@
 # @levin/oak-base-admin
 
-系统内工单工作台：[设计](docs/internal-ticket-workbench-design.md)、[实现与扩展](docs/internal-ticket-workbench-implementation.md)。
-
 [租户站点登录组织范围指南](docs/tenant-site-org-login.md)说明“登录组织范围”字段与验证步骤。
 
 [新租户管理员创建指南](docs/tenant-admin-creation.md)说明创建表单、账号口令规则与验证步骤。
@@ -64,6 +62,8 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 使用本模块的子项目必须遵循 [模块开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。[项目设计和开发参考资料](docs/project-reference/INDEX.md) 提供发布方的设计、需求及规则背景，不构成下游强制约束。
 
 邮件、个人消息、支持邮箱配置、工单与投递审计：[工作台使用指南](docs/communication-workbench.md)。
+
+系统内工单工作台：[设计](docs/internal-ticket-workbench-design.md)、[实现与扩展](docs/internal-ticket-workbench-implementation.md)。
 右上角在线文档入口、文档命名和构建登记：[文档中心使用指南](docs/文档中心使用指南.md)。
 服务插件按模式选择供应商：[供应商选择模式接入指南](docs/provider-selection-modes.md)。
 服务插件配置指南：[使用说明](docs/服务插件配置指南使用说明.md)。
@@ -84,3 +84,7 @@ export const enabledFrontendModules: AdminFrontendModule[] = [
 ## 性能监控
 
 网络访问、OS、Java 和数据库四个标签的指标口径与权限要求见 [使用指南](docs/daily-access-monitor.md)。
+
+[报表设计页面使用指南](docs/report-center.md)说明报表配置入口、权限及当前限制。
+
+报表中心另提供[设计](docs/report-center-design.md)、[实现说明](docs/report-center-implementation.md)及[开发指南](docs/report-center-development.md)。

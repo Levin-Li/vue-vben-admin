@@ -1,3 +1,5 @@
+import type { Component } from 'vue';
+
 import type { PendingAgentWrite } from './skills';
 
 import {
@@ -51,11 +53,17 @@ export interface AgentModelTransport {
     messages: Array<{ content: string; role: string }>,
     providerCode: string,
     signal?: AbortSignal,
+    onText?: (text: string) => void,
   ) => Promise<string>;
+  configurationComponent?: Component;
   listProviders: (signal?: AbortSignal) => Promise<AgentAvailableProvider[]>;
 }
 
 let modelTransport: AgentModelTransport | undefined;
+
+export function getAgentConfigurationComponent() {
+  return modelTransport?.configurationComponent;
+}
 
 // 模型端点由业务模块注册，公共聊天窗不拼接任何模块专属 API 路径。
 export function registerAdminAgentModelTransport(
@@ -110,13 +118,31 @@ async function chat(
   messages: Array<{ content: string; name?: string; role: string }>,
   providerCode: string,
   signal?: AbortSignal,
+  onText?: (text: string) => void,
 ): Promise<string> {
   if (JSON.stringify(messages).length > 100_000)
     throw new Error('本轮上下文达到大小上限，请缩小范围');
+  let streamKind: 'internal' | 'pending' | 'text' = 'pending';
+  let streamed = '';
+  onText?.('');
   const response = await requireTransport().chat(
     messages,
     providerCode,
     signal,
+    onText
+      ? (text) => {
+          streamed = text;
+          if (streamKind === 'pending') {
+            const start = streamed.trimStart();
+            if (!start) return;
+            streamKind =
+              start.startsWith('{') || start.startsWith('`')
+                ? 'internal'
+                : 'text';
+          }
+          if (streamKind === 'text') onText(streamed);
+        }
+      : undefined,
   );
   const answer = response?.trim();
   if (!answer) throw new Error('模型未返回有效回复');
@@ -132,6 +158,7 @@ export async function runAgentTurn(
   onProgress: (progress: string) => void,
   signal?: AbortSignal,
   onTrace?: (trace: AgentExecutionTrace) => void,
+  onText?: (text: string) => void,
 ): Promise<AgentTurnResult> {
   // 大目录只提供有界的摘要，模型需要参数说明时可按 ID 发现完整 Schema。
   const skills = listAdminAgentSkills(superAdmin);
@@ -212,6 +239,11 @@ export async function runAgentTurn(
             : conversation,
           providerCode,
           abort,
+          /启用|停用|配置|修改|更新|创建|删除|处理|保存|提交|发布/.test(
+            operationalText,
+          )
+            ? undefined
+            : onText,
         );
         abort?.throwIfAborted();
 

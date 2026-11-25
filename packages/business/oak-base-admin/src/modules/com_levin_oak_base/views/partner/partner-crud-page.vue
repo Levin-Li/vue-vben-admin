@@ -22,11 +22,18 @@ import {
 import { isLegalSubjectPickerLocked } from './legal-subject-edit-lock';
 import LegalSubjectPicker from './legal-subject-picker.vue';
 import QuickAdd from './quick-add.vue';
+import SubjectInfoAction from './subject-info-action.vue';
+import OwnershipRowAction from './ownership-row-action.vue';
+import { ownershipFieldsReadOnlyOnEdit, ownershipSelectorFields, partnerOwnershipGroups } from './ownership-groups';
+import OwnershipCreateSelector from './ownership-create-selector.vue';
+import { supplierPartnerService } from '../../api/supplier-partner-service';
+import { channelPartnerService } from '../../api/channel-partner-service';
 
 const props = defineProps<{
   config: CrudPageConfig;
   quickTarget?: QuickAddTarget;
 }>();
+const ownershipFields = ownershipSelectorFields(partnerOwnershipGroups);
 const userStore = useUserStore();
 const { hasPermission } = useRbacAccess();
 const requireTenant = computed(() => isPlatformUser(userStore.userInfo));
@@ -48,7 +55,7 @@ const pageConfig = computed<CrudPageConfig>(() => ({
     mineMode.value && props.quickTarget
       ? `/${props.quickTarget}/saveMy${props.quickTarget}`
       : String(props.config.createPath),
-  fields: createModeFields(props.config.fields, mineMode.value),
+  fields: ownershipFieldsReadOnlyOnEdit(createModeFields(props.config.fields, mineMode.value), partnerOwnershipGroups),
   listOperations: [
     ...(props.config.listOperations || []),
     ...(props.quickTarget === 'SupplierPartner'
@@ -90,6 +97,21 @@ const pageConfig = computed<CrudPageConfig>(() => ({
 
 <template>
   <CrudPage :config="pageConfig">
+    <template v-for="item in ownershipFields" :key="item.field" #[`form-field-${item.field}`]="{ formState, disabled }">
+      <OwnershipCreateSelector :form-state="formState" :field="item.field" :org-field="item.orgField" :user-field="item.userField" :disabled="disabled" />
+    </template>
+    <template #row-actions="{ record, reload }">
+      <OwnershipRowAction v-if="quickTarget" :record="record" :reload="reload"
+        :service="quickTarget === 'SupplierPartner' ? supplierPartnerService : channelPartnerService"
+        :resource="quickTarget" :label="quickTarget === 'SupplierPartner' ? '供应伙伴' : '渠道伙伴'"
+        :descriptors="partnerOwnershipGroups" />
+      <SubjectInfoAction
+        v-if="quickTarget"
+        :record="record"
+        :reload="reload"
+        :target="quickTarget"
+      />
+    </template>
     <template
       #toolbar-before-create="{ loadList, isListOperationVisible, openCreate }"
     >

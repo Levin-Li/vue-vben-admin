@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({ started: false, get: vi.fn() }));
-vi.mock('../api/_module', () => ({ oakBaseGet: state.get }));
+vi.mock('../api/_module', () => ({ oakBasePost: state.get }));
 vi.mock('@levin/oak-base-admin/ai-sdk-browser', () => {
   state.started = true;
   // 模拟浏览器模块下载悬挂，不能等待这个 Promise 才响应停止或超时。
@@ -25,7 +25,7 @@ it.each(['停止', '超时'])(
     vi.useFakeTimers();
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
-    state.get.mockResolvedValue([
+    state.get.mockResolvedValue({ directory: { providers: [
       {
         apiKey: 'test-browser-key',
         baseUrl: 'https://api.deepseek.com/v1',
@@ -35,7 +35,7 @@ it.each(['停止', '超时'])(
         providerName: 'DeepSeek',
         timeoutSeconds: 1,
       },
-    ]);
+    ] } });
     const { oakBrowserAgentTransport } =
       await import('../api/ai-browser-agent-service');
     const controller = new AbortController();

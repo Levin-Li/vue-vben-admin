@@ -9,7 +9,7 @@
       "type": "使用手册",
       "source": "docs/使用手册.md",
       "pages": [],
-      "sha256": "59da932c1f8098125b42ec5d6e275960504185a22ca6a0588dc93d4615867957"
+      "sha256": "0ebdb5e20eb6b3a06455a4988d067e961f8f01869f2c225b6d496c59f0097360"
     },
     {
       "id": "mail-ticket-guide",
@@ -130,7 +130,7 @@
       "type": "开发指南",
       "source": "frontend/admin/packages/business/oak-base-admin/docs/communication-workbench.md",
       "pages": [],
-      "sha256": "ab5895d171c4520dbf42606bad3bdcca4aa0f89fb7505e4e042901891eb3d1ee"
+      "sha256": "b8e8e5cc1838a15faff056382ab5214be309c09b4d265e9579cca19361c9f126"
     },
     {
       "id": "invitation-registration-admin",

@@ -193,6 +193,7 @@ export function buildUserOrgSelectorOrgTree(
     onlyShowTypeMatchNode?: boolean;
     orgLoadMode?: UserOrgSelectorOrgLoadMode;
     orgTypes: string[];
+    orgCategories?: string[];
   },
   seen = new Set<string>(),
 ): UserOrgTreeSelectNode[] {
@@ -250,7 +251,7 @@ export function buildUserOrgSelectorOrgTree(
     const orgTypeMatched = isUserOrgSelectorTypeMatched(
       record.type,
       options.orgTypes,
-    );
+    ) && isUserOrgSelectorTypeMatched(item.category, options.orgCategories || []);
 
     if (
       options.onlyShowTypeMatchNode &&

@@ -5,7 +5,6 @@ import { orgService } from '../../api/org-service';
 import { standardCrudDataAttrTargets } from '../../api/standard-crud-data-attr-targets';
 import {
   confidentialLevelOptionsLoader,
-  legalSubjectOptionsLoader,
   orgCategoryOptionsLoader,
   orgLevelOptionsLoader,
   orgResponsibilityOptionsLoader,
@@ -25,6 +24,11 @@ export const orgPageCrudConfig: CrudPageConfig = {
   domainObject: true,
   apiModuleBase: OAK_BASE_API_MODULE,
   apiService: orgService,
+    // 仅转换已获授权的类别字段，空值以空字符串满足数据库非 NULL 约束。
+    transformSubmit: (values) =>
+      Object.hasOwn(values, 'category') && values.category == null
+        ? { ...values, category: '' }
+        : values,
   dataAttrTargets: standardCrudDataAttrTargets(orgService),
   allowRetrieve: true,
   defaultFormValues: {
@@ -78,7 +82,6 @@ export const orgPageCrudConfig: CrudPageConfig = {
       layoutOrder: 150,
     },
     { key: 'bankAccountHash', label: '专用银行账户哈希值', detail: false },
-    { key: 'legalSubject', label: '法律主体', detail: false },
     { key: 'responsibleUser', label: '组织负责人', detail: false },
     { key: 'transientExInfo', label: '临时扩展信息', detail: false },
     {
@@ -230,19 +233,6 @@ export const orgPageCrudConfig: CrudPageConfig = {
       layoutGroupTitle: '基础信息',
     },
     {
-      key: 'legalSubjectId',
-      label: '关联法律主体',
-      layoutOrder: 100,
-      search: true,
-      loadOptions: legalSubjectOptionsLoader,
-      remoteSearch: true,
-      type: 'select',
-      width: 220,
-      layoutGroup: 'contact',
-      layoutGroupOrder: 40,
-      layoutGroupTitle: '联系信息',
-    },
-    {
       key: 'responsibleUserId',
       label: '组织负责人',
       layoutOrder: 110,
@@ -288,7 +278,6 @@ export const orgPageCrudConfig: CrudPageConfig = {
       layoutGroupOrder: 10,
       layoutOrder: 90,
       loadOptions: orgCategoryOptionsLoader,
-      required: true,
       type: 'select',
       layoutGroupTitle: '基础信息',
     },

@@ -7,6 +7,7 @@ import ResourcePermissionDialog from '@levin/admin-framework/framework-commons/s
 import { roleService } from '../../api/role-service';
 import { createDataPermissionCallbacks } from '../../data-permission-adapter';
 import CrudPage from '../crud-page.vue';
+import { isGeneratedReportMenuPath } from '../report-center/report-menu-permission';
 import { useRolePageConfig } from './config';
 
 const {
@@ -71,6 +72,7 @@ async function saveResourcePermissionTarget(
       v-model:open="resourcePermissionDialogOpen"
       :load-target="loadResourcePermissionTarget"
       :save-target="saveResourcePermissionTarget"
+      :auto-include-menu-ancestors="isGeneratedReportMenuPath"
       subject-label="角色"
       title="角色资源权限分配"
       @saved="handleSaved"

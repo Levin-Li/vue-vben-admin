@@ -26,5 +26,5 @@ export function getLegalSubjectStatus(record: Record<string, unknown>): string {
     record.legalSubjectId === undefined ||
     record.legalSubjectId === ''
     ? '待完善'
-    : '已关联';
+    : '已绑定';
 }

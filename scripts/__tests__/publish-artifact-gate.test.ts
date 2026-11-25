@@ -366,8 +366,12 @@ describe('publish artifact gate', () => {
     const common = {
       'docs/MODULE-DEVELOPMENT-STANDARD.md': '# 模块规范\n',
       'docs/invitation-registration.md': '# 邀请链接\n',
+      'docs/report-center.md': '# 报表使用指南\n',
+      'docs/report-center-design.md': '# 报表设计\n',
+      'docs/report-center-implementation.md': '# 报表实现\n',
+      'docs/report-center-development.md': '# 报表开发\n',
       'README.md':
-        '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n[邀请链接](docs/invitation-registration.md)\n',
+        '[模块规范](docs/MODULE-DEVELOPMENT-STANDARD.md)\n[邀请链接](docs/invitation-registration.md)\n[使用](docs/report-center.md)\n[设计](docs/report-center-design.md)\n[实现](docs/report-center-implementation.md)\n[开发](docs/report-center-development.md)\n',
     };
     expect(() =>
       verifyTarballModuleDevelopmentStandard(
@@ -389,12 +393,17 @@ describe('publish artifact gate', () => {
           {},
           {
             ...common,
-            'AGENTS.md': '[邀请链接](docs/invitation-registration.md)\n',
+            'AGENTS.md': '[邀请链接](docs/invitation-registration.md)\n[使用](docs/report-center.md)\n[设计](docs/report-center-design.md)\n[实现](docs/report-center-implementation.md)\n[开发](docs/report-center-development.md)\n',
           },
         ),
         '本地 tarball',
       ),
     ).not.toThrow();
+    const { 'docs/report-center-design.md': _omitted, ...withoutDesign } = common;
+    expect(() => verifyTarballModuleDevelopmentStandard(info, createTarball({}, {
+      ...withoutDesign,
+      'AGENTS.md': '[邀请链接](docs/invitation-registration.md)\n[使用](docs/report-center.md)\n[设计](docs/report-center-design.md)\n[实现](docs/report-center-implementation.md)\n[开发](docs/report-center-development.md)\n',
+    }), '本地 tarball')).toThrow('缺少报表文档');
   });
 
   it('packs workspace dependencies as published versions', () => {

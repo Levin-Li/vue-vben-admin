@@ -14,7 +14,6 @@ import {
   tryOnUnmounted,
   useDebounceFn,
   useResizeObserver,
-  useTimeoutFn,
   useWindowSize,
 } from '@vueuse/core';
 
@@ -27,6 +26,11 @@ type EchartsThemeType = 'dark' | 'light' | null;
 function useEcharts(chartRef: Ref<EchartsUIType>) {
   let chartInstance: echarts.ECharts | null = null;
   let cacheOptions: EChartsOption = {};
+  let disposed = false;
+  let revision = 0;
+  let pending:
+    | undefined
+    | { resolve: (value: null) => void; timer?: ReturnType<typeof setTimeout> };
 
   const { isDark } = usePreferences();
   const { height, width } = useWindowSize();
@@ -58,80 +62,92 @@ function useEcharts(chartRef: Ref<EchartsUIType>) {
   });
 
   const initCharts = (t?: EchartsThemeType) => {
-    const el = chartRef?.value?.$el;
+    const el = getChartEl();
     if (!el) {
       return;
     }
-    chartInstance = echarts.init(el, t || isDark.value ? 'dark' : null);
+    chartInstance = echarts.init(el, t ?? (isDark.value ? 'dark' : null));
 
     return chartInstance;
   };
+
+  function cancelPending() {
+    const old = pending;
+    pending = undefined;
+    if (!old) return;
+    if (old.timer) clearTimeout(old.timer);
+    old.resolve(null);
+  }
 
   const renderEcharts = (
     options: EChartsOption,
     clear = true,
   ): Promise<Nullable<echarts.ECharts>> => {
+    revision += 1;
+    cancelPending();
     cacheOptions = options;
-    const currentOptions = {
-      ...options,
-      ...getOptions.value,
-    };
-    return new Promise((resolve) => {
-      if (chartRef.value?.offsetHeight === 0) {
-        useTimeoutFn(async () => {
-          resolve(await renderEcharts(currentOptions));
-        }, 30);
-        return;
-      }
-      nextTick(() => {
+    if (disposed) return Promise.resolve(null);
+    return new Promise((resolve, reject) => {
+      const job = {
+        resolve: () => resolve(null),
+        timer: undefined as ReturnType<typeof setTimeout> | undefined,
+      };
+      pending = job;
+      const attempt = () => {
+        if (disposed || pending !== job) return;
         const el = getChartEl();
         if (isElHidden(el)) {
-          useTimeoutFn(async () => {
-            resolve(await renderEcharts(currentOptions));
-          }, 30);
+          job.timer = setTimeout(attempt, 100);
           return;
         }
-        useTimeoutFn(() => {
+        try {
           if (!chartInstance || chartInstance?.getDom() !== el) {
             chartInstance?.dispose();
             const instance = initCharts();
-            if (!instance) return;
+            if (!instance) {
+              pending = undefined;
+              resolve(null);
+              return;
+            }
           }
           clear && chartInstance?.clear();
-          chartInstance?.setOption(currentOptions);
+          chartInstance?.setOption({ ...options, ...getOptions.value });
+          if (chartInstance) cacheOptions = chartInstance.getOption() as EChartsOption;
+          pending = undefined;
           resolve(chartInstance);
-        }, 30);
-      });
+        } catch (error) {
+          pending = undefined;
+          reject(error);
+        }
+      };
+      void nextTick(attempt);
     });
   };
+
+  /** 取消未完成渲染并清空旧数据，避免条件变化时保留过期图表。 */
+  function clearEcharts() {
+    revision += 1;
+    cancelPending();
+    cacheOptions = {};
+    chartInstance?.clear();
+  }
 
   const updateData = (
     option: EChartsOption,
     notMerge = false, // false = 合并（保留动画），true = 完全替换
     lazyUpdate = false, // true 时不立即重绘，适合短时间内多次调用
   ): Promise<echarts.ECharts | null> => {
-    return new Promise((resolve) => {
-      nextTick(() => {
-        if (!chartInstance) {
-          // 还没初始化 → 当作首次渲染
-          renderEcharts(option).then(resolve);
-          return;
-        }
+    // 新更新立即使旧的隐藏等待失效；异步回调不得覆盖更晚的调用。
+    cancelPending();
+    const current = ++revision;
+    return nextTick().then(() => {
+      if (disposed || current !== revision) return null;
+      if (!chartInstance) return renderEcharts(option);
 
-        // 合并你原有的全局配置（比如 backgroundColor）
-        const finalOption = {
-          ...option,
-          ...getOptions.value,
-        };
-
-        chartInstance.setOption(finalOption, {
-          notMerge,
-          lazyUpdate,
-          // silent: true,     // 如果追求极致性能可开启（关闭所有事件）
-        });
-
-        resolve(chartInstance);
-      });
+      chartInstance.setOption({ ...option, ...getOptions.value }, { notMerge, lazyUpdate });
+      // ECharts 返回合并后的完整配置，主题重建时不能只使用最后一次局部更新。
+      cacheOptions = chartInstance.getOption() as EChartsOption;
+      return chartInstance;
     });
   };
 
@@ -157,18 +173,23 @@ function useEcharts(chartRef: Ref<EchartsUIType>) {
   watch(isDark, () => {
     if (chartInstance) {
       chartInstance.dispose();
-      initCharts();
-      renderEcharts(cacheOptions);
-      resize();
+      chartInstance = null;
+      // 隐藏容器等到可见再重建，失败不产生未处理的异步拒绝。
+      void renderEcharts(cacheOptions).then(() => resize()).catch(() => {});
     }
   });
 
   tryOnUnmounted(() => {
     // 销毁实例，释放资源
+    disposed = true;
+    revision += 1;
+    cancelPending();
     chartInstance?.dispose();
+    chartInstance = null;
   });
   return {
     renderEcharts,
+    clearEcharts,
     resize,
     updateData,
     getChartInstance: () => chartInstance,

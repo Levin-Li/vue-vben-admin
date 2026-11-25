@@ -16,6 +16,49 @@ beforeEach(() => {
 });
 
 describe('系统 Agent 对话编排', () => {
+  it('流式展示普通文本且不展示技能协议', async () => {
+    const updates: string[] = [];
+    modelChat.mockImplementationOnce(
+      async (_messages, _provider, _signal, onText) => {
+        onText('你好');
+        onText('你好世界');
+        return '你好世界';
+      },
+    );
+    await runAgentTurn(
+      [{ role: 'User', content: '你好' }],
+      '/',
+      false,
+      'deepseek',
+      vi.fn(),
+      undefined,
+      undefined,
+      (text) => updates.push(text),
+    );
+    expect(updates).toContain('你好');
+    expect(updates).toContain('你好世界');
+    updates.length = 0;
+    modelChat.mockImplementationOnce(
+      async (_messages, _provider, _signal, onText) => {
+        onText('{');
+        onText('{"type":"skill_schema","skill":"missing"}');
+        return '{"type":"skill_schema","skill":"missing"}';
+      },
+    );
+    await expect(
+      runAgentTurn(
+        [{ role: 'User', content: '你好' }],
+        '/',
+        false,
+        'deepseek',
+        vi.fn(),
+        undefined,
+        undefined,
+        (text) => updates.push(text),
+      ),
+    ).rejects.toThrow();
+    expect(updates).toEqual(['']);
+  });
   it.each([
     '你好，请只回复连接成功，不要查询或修改系统数据。',
     '请正常聊天，无需执行配置。',

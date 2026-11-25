@@ -42,6 +42,7 @@ export interface AgentSkill {
   permission: string;
   preview?: (args: Record<string, unknown>) => Promise<PendingAgentWrite>;
   risk: 'confirm' | 'read';
+  sourceBindings?: readonly { controllerClass: string; method: string }[];
   writeIntent?: readonly string[];
 }
 

@@ -30,6 +30,7 @@ const props = withDefaults(
     loadTarget: ResourcePermissionLoadTarget;
     open: boolean;
     saveTarget: ResourcePermissionSaveTarget;
+    autoIncludeMenuAncestors?: (menuPath: string) => boolean;
     subjectLabel?: string;
     title?: string;
   }>(),
@@ -206,6 +207,7 @@ watch(
           :menu-tree="menuTree"
           :modules="modules"
           :permission-tree="permissionTree"
+          :auto-include-menu-ancestors="autoIncludeMenuAncestors"
         />
       </Spin>
     </div>

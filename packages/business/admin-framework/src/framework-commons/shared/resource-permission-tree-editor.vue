@@ -14,7 +14,7 @@ import { computed, h, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/runtime/icons';
 
-import { Checkbox, Modal, Radio, Tooltip } from 'ant-design-vue';
+import { Checkbox, message, Modal, Radio, Tooltip } from 'ant-design-vue';
 
 import { RbacPermissionMatchUtils } from '../rbac-permission-match';
 import ApiScopedDataPermissions from './api-scoped-data-permissions.vue';
@@ -36,6 +36,7 @@ const props = withDefaults(
     menuTree?: RbacMenuNode[];
     modules?: RbacModuleNode[];
     permissionTree?: PermissionTreeNode[];
+    autoIncludeMenuAncestors?: (menuPath: string) => boolean;
     selectionMode?: 'multiple' | 'single';
     value: string[];
   }>(),
@@ -73,6 +74,7 @@ interface MenuPermissionNode {
   depth: number;
   id: string;
   moduleId: string;
+  menuPath?: string;
   pathText: string;
   permissionExpr: string;
   permissions: string[];
@@ -1190,6 +1192,7 @@ function handleToggle(
   parentPermissionExpr = '',
   isOperation = false,
   keepParentSelectionIndependent = false,
+  additionalPermissions: string[] = [],
 ) {
   const normalizedPermissionExpr = normalizePermissionExpr(permissionExpr);
   if (
@@ -1220,6 +1223,7 @@ function handleToggle(
   let next = [
     ...new Set([
       normalizedPermissionExpr,
+      ...additionalPermissions.map(normalizePermissionExpr).filter(isValidPermissionExpr),
       ...(isOperation
         ? linkedResources(normalizedPermissionExpr).map(
             (resource) => resource.expression,
@@ -1260,7 +1264,7 @@ function handlePermissionNodeToggle(
   checked: boolean,
 ) {
   if (isManualMenuPermissionNode(node)) {
-    handleToggle(node.permissionExpr, checked, '', false, true);
+    handleToggle(node.permissionExpr, checked, '', false, true, menuAncestors(node.id, node.remark, node.permissionExpr, checked));
     return;
   }
 
@@ -1274,6 +1278,29 @@ function handlePermissionNodeToggle(
     checked ? node.permissions : [...node.permissions, ...ranges],
     checked,
   );
+}
+
+// 仅对调用方显式声明的菜单补充祖先展示权限，不影响其他菜单的独立选择。
+function menuAncestors(id: string, path: string, leafPermission: string, checked: boolean) {
+  if (!checked || isSingleSelection.value || !props.autoIncludeMenuAncestors?.(path)) return [];
+  function find(nodes: PermissionViewNode[], ancestors: string[]): string[] | undefined {
+    for (const node of nodes) {
+      if (node.id === id && node.remark === path && node.nodeType === PermissionTreeNodeTypeEnum.Menu
+          && normalizePermissionExpr(node.permissionExpr) === normalizePermissionExpr(leafPermission)) return ancestors;
+      const permission = normalizePermissionExpr(node.permissionExpr);
+      const parts = permission.split(':');
+      const menuDisplay = parts.length === 4 && parts[1] === MENU_PERMISSION_TYPE && parts[3] === MENU_DISPLAY_ACTION;
+      const next = [PermissionTreeNodeTypeEnum.Menu, PermissionTreeNodeTypeEnum.Group].includes(node.nodeType as PermissionTreeNodeTypeEnum)
+        && permission && isValidPermissionExpr(permission) && menuDisplay ? [...ancestors, permission] : ancestors;
+      const found = find(node.children, next);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  // 旧菜单树可能只能按显示名称合成权限，不能作为祖先权限的权威来源。
+  const found = find(buildPermissionViewTree(props.permissionTree || []), []);
+  if (!found) message.warning('未找到对应菜单的权限信息，请核对上级菜单权限');
+  return found || [];
 }
 
 function handleTogglePermissions(permissions: string[], checked: boolean) {
@@ -1746,6 +1773,7 @@ function buildMenuPermissionTree(
         depth,
         id: menuItem.id || `${parentPath || 'menu'}-${index}`,
         moduleId,
+        menuPath: String(menuItem.path || ''),
         pathText: [parentPath, title, permissionExpr]
           .filter(Boolean)
           .join(' ')
@@ -1791,7 +1819,7 @@ function convertMenuPermissionTreeToViewTree(
         .toLowerCase(),
       permissionExpr: node.selfPermission || node.permissionExpr,
       permissions: node.permissions,
-      remark: '',
+      remark: node.menuPath || '',
       title: node.title,
     };
   });
@@ -2853,6 +2881,7 @@ function getPermissionCountText(permissions: string[]) {
                     '',
                     false,
                     true,
+                    menuAncestors(node.id, node.menuPath || '', node.selfPermission, ($event.target as HTMLInputElement).checked),
                   )
                 "
               >

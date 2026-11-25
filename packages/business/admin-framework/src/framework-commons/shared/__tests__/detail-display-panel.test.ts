@@ -56,12 +56,13 @@ describe('公共详情展示', () => {
         index === 0 ? null : index === 1 ? false : index === 2 ? 0 : '内容',
     }));
     const wrapper = mount(DetailDisplayPanel, {
-      props: { entries, hideEmptyValues: false },
+      props: { entries, hideEmptyValues: true },
     });
-    await wrapper.setProps({ hideEmptyValues: true });
-    expect(wrapper.find('[data-detail-key="k0"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('字段0');
     expect(wrapper.find('[data-detail-key="k1"]').exists()).toBe(true);
     expect(wrapper.find('[data-detail-key="k2"]').exists()).toBe(true);
+    await wrapper.setProps({ hideEmptyValues: false });
+    expect(wrapper.text()).toContain('字段0');
     wrapper.unmount();
   });
   it('保留标签与二维码，并通过独立查看器阅读 JSON', async () => {

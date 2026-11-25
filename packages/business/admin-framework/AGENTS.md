@@ -1,7 +1,5 @@
 # Published Package AGENTS.md
 
-标准 CRUD 帮助入口注册与权限边界见 [帮助入口接入指南](docs/crud-help-action.md)。
-
 <INSTRUCTIONS>
 本文件随 @levin/admin-framework npm 发布包分发。使用本包进行二次开发、扩展、配置、升级或发布的子项目，必须先读取并遵循 [模块开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。规范仅约束公开入口、兼容扩展、安全、测试和升级，不要求采用发布方代码包名、目录或业务实现。
 
@@ -16,6 +14,8 @@ API 属性组权限的轻量分配、后端元数据契约与保存语义见 [�
 公共 CRUD 新增时生成的隐藏必需字段见 [CRUD 隐藏字段提交指南](docs/crud-create-hidden-fields.md)。
 
 标准 CRUD 标签缓存接入与失效边界见 [标签缓存接入指南](docs/crud-tab-cache.md)。
+
+标准 CRUD 帮助入口注册与权限边界见 [帮助入口接入指南](docs/crud-help-action.md)。
 
 标准 CRUD 详情字段开发期声明、排序及检查见 [详情字段使用指南](docs/crud-detail-static-fields.md)。
 

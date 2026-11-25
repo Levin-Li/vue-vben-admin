@@ -2,6 +2,13 @@
   "version": 1,
   "routes": [
     {
+      "resource": "ReportDefinitionManagement",
+      "title": "报表设计",
+      "view": "./views/report-center/index.vue",
+      "classification": "designer",
+      "reason": "报表数据集和页面布局设计；真实端到端验证仍待完成"
+    },
+    {
       "resource": "AccessLog",
       "title": "访问日志",
       "view": "./views/access-log/index.vue",
@@ -637,6 +644,11 @@
     "/system/com_levin_oak_base/data-permission-preview"
   ],
   "embedded": [
+    {
+      "view": "./views/report-view/index.vue",
+      "parent": "ReportDefinitionManagement",
+      "reason": "具体报表菜单的运行页，运行接口默认关闭，真实认证和数据范围仍待验收"
+    },
     {
       "view": "./views/acl-test/index.vue",
       "parent": "independent",

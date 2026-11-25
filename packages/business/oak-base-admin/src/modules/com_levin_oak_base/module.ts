@@ -16,6 +16,8 @@ import {
 import { packageVersion } from '../../../package-version.mjs';
 import { createOakBaseAdminCrudRoutes } from './admin-crud';
 import { adminAgentSkills } from './agent-admin-skills';
+import { agentApiCatalogSkill } from './agent-api-catalog-skill';
+import { generatedBusinessSkills } from './agent-generated-business-skills';
 import { contentAgentSkills } from './agent-content-skills';
 import { customerAgentSkills } from './agent-customer-skills';
 import { financeAgentSkills } from './agent-finance-skills';
@@ -106,6 +108,8 @@ export function createOakBaseAdminModule(
         ...workflowAgentSkills,
         ...messageAgentSkills,
         ...adminAgentSkills,
+        agentApiCatalogSkill,
+        ...generatedBusinessSkills,
       ]);
       // 网页 Agent 读取独立网页配置后，由浏览器直接请求模型端点。
       registerAdminAgentModelTransport(oakBrowserAgentTransport);

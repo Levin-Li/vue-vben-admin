@@ -8,7 +8,7 @@
 
 ## 安装与入口
 
-安装 `@levin/admin-framework`，以 `configureAdminApplication` 启动管理端并完成登录。全局布局自动挂载悬浮“AI助手”入口；展开后可选择当前租户已配置的供应商并输入任务。路由切换保留当前 SPA 会话，退出登录或身份切换时清除聊天内容。模型调用先读取后端 AI 插件已保存的网页配置，再由基础业务模块的 AI SDK 模型客户端通过受控浏览器原生 fetch 直接请求供应商；后端不转发模型消息。未开启网页直连或配置不完整时显示无可用模型，不能回退本系统后端聊天接口。
+安装 `@levin/admin-framework`，以 `configureAdminApplication` 启动管理端并完成登录。全局布局自动挂载悬浮“AI助手”入口；展开后可选择当前租户已配置的供应商并输入任务。路由切换保留当前 SPA 会话，退出登录或身份切换时清除聊天内容。模型调用先通过现有接口加密读取个人、组织、租户和平台逐级匹配的模型配置，再由基础业务模块的 AI SDK 模型客户端通过受控浏览器原生 fetch 直接请求供应商；后端不转发模型消息。没有可用配置或配置不完整时显示无可用模型，不能回退本系统后端聊天接口。
 
 ## 技能开发
 
@@ -50,14 +50,16 @@ registerAdminAgentSkills('example.module', skills);
 
 ## 模型传输扩展
 
-业务模块登记模型传输时，先通过受控配置 API 取得已保存的网页端点、独立网页凭证和别名映射。基础业务模块现使用 `ai@6.0.309` 的 `generateText` 与官方 `@ai-sdk/openai-compatible@2.0.85` 的 `createOpenAICompatible`，明确传入供应商模型对象，并注入受控独立原生 fetch 请求供应商 HTTPS API。此路径不使用默认 AI Gateway，不要求 Vercel 账号或托管服务；自动重试设为 0，遥测关闭。不得复用携带业务 Token/Cookie 的业务 HTTP 客户端向供应商发请求；不跟随重定向，限制超时与响应大小，脱敏上游错误。供应商 CORS 必须允许页面来源，页面 CSP 的 `connect-src` 须允许供应商；失败时明确报错，不通过后端代理或关闭浏览器保护绕过。Claude Code CLI 无法在纯网页运行，不得以普通 Claude 模型 API 冒充。
+业务模块登记模型传输时，先通过受控配置 API 取得已保存的网页端点、独立网页凭证和别名映射。基础业务模块现使用 `ai@6.0.309` 的 `streamText` 与官方 `@ai-sdk/openai-compatible@2.0.85` 的 `createOpenAICompatible`，明确传入供应商模型对象，并注入受控独立原生 fetch 请求供应商 HTTPS API。此路径不使用默认 AI Gateway，不要求 Vercel 账号或托管服务；自动重试设为 0，遥测关闭。不得复用携带业务 Token/Cookie 的业务 HTTP 客户端向供应商发请求；不跟随重定向，限制超时与响应大小，脱敏上游错误。供应商 CORS 必须允许页面来源，页面 CSP 的 `connect-src` 须允许供应商；失败时明确报错，不通过后端代理或关闭浏览器保护绕过。Claude Code CLI 无法在纯网页运行，不得以普通 Claude 模型 API 冒充。
 
 最小验证还需在浏览器 Network 检查供应商实际请求目的地、系统认证隔离、配置无持久缓存及作用域切换失效；模拟 CORS/CSP、认证与超时失败，确认没有请求本系统后端 `chat`/`stream`。
 
 ## AI SDK 能力与采用范围
 
-[AI SDK](https://ai-sdk.dev/docs/introduction)按 [Apache-2.0](https://github.com/vercel/ai/blob/main/LICENSE)免费开源，模型供应商费用另计。它提供文本/流式生成、结构化输出、工具与 Agent 等能力；多模态和嵌入取决于供应商。当前接入仅统一文本模型客户端，现有 8 步循环、显式技能和写入确认继续由平台控制，未采用 `ToolLoopAgent`，也不表示已有流式 UI、图片生成或 RAG。接入兼容供应商参见[官方适配器文档](https://ai-sdk.dev/providers/openai-compatible-providers)。
+[AI SDK](https://ai-sdk.dev/docs/introduction)按 [Apache-2.0](https://github.com/vercel/ai/blob/main/LICENSE)免费开源，模型供应商费用另计。它提供文本/流式生成、结构化输出、工具与 Agent 等能力；多模态和嵌入取决于供应商。当前接入仅统一文本模型客户端，现有 8 步循环、显式技能和写入确认继续由平台控制，未采用 `ToolLoopAgent`，普通聊天已支持流式展示，不表示已有图片生成或 RAG。接入兼容供应商参见[官方适配器文档](https://ai-sdk.dev/providers/openai-compatible-providers)。
 
 ### 网页模型未启用的排查
 
-管理员在“服务插件设置管理”选择当前租户/域名的 AI 供应商设置，启用插件及供应商，开启“启用网页直连”，填写“网页专用 API Key”、有效 HTTPS 端点及启用的模型别名，并选择有效默认模型别名。网页密钥独立于后端 API Key，不自动复用。没有可用配置时，AI助手保留输入并显示配置提示，不请求模型；配置保存后收起并重新打开助手可刷新空目录。选择“系统默认”会使用当前授权目录首项；显式选择的模型失效时提示刷新，不静默切换供应商。
+在 AI 助手模型配置中选择有权管理的范围，填写供应商 HTTPS 地址、API Key 与模型映射。配置按个人、当前组织、当前租户、平台逐级匹配。没有可用配置时助手提示配置；选择“系统默认”时使用当前授权目录首项，显式选择的供应商失效时不静默切换。
+
+流式输出需要供应商支持兼容的流式协议。普通回复逐步展示；为避免错误暗示业务操作成功，包含修改意图的请求等待完整结果及校验后显示。技能候选不会按普通聊天展示，停止会取消在途模型请求。

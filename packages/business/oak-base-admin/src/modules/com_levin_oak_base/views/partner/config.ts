@@ -230,7 +230,7 @@ export const partnerCommonFields: CrudPageConfig['fields'] = [
     loadOptions: legalSubjectOptionsLoader,
     remoteSearch: true,
     search: true,
-    table: true,
+    table: false,
     type: 'select',
     width: 220,
   },

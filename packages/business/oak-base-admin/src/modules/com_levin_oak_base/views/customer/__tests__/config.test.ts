@@ -93,7 +93,7 @@ describe('独立客户页面', () => {
     expect(field('legalSubjectId')?.disabledOnEdit).not.toBe(true);
     expect(field('legalSubjectName')).toMatchObject({
       form: false,
-      table: true,
+      table: false,
     });
     expect(field('type')).toMatchObject({ disabledOnEdit: true });
     expect(field('parentOrgId')).toBeUndefined();
@@ -103,8 +103,8 @@ describe('独立客户页面', () => {
       disabledOnEdit: true,
       omitOnEdit: true,
     });
-    expect(field('businessOrgId')).toMatchObject({ label: '商务对接部门' });
-    expect(field('businessUserId')).toMatchObject({ label: '商务对接人' });
+    expect(field('businessOrgId')).toMatchObject({ label: '商务组织' });
+    expect(field('businessUserId')).toMatchObject({ label: '商务人员' });
     expect(field('tenantId')).toMatchObject({
       visibleForPlatformUser: true,
       disabledOnEdit: true,

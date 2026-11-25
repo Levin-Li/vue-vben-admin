@@ -49,6 +49,11 @@ describe('uRL ACL 前端加密协议', () => {
     expect(isClientCryptoPath('/Tenant/list')).toBe(false);
   });
 
+  it('AI 模型配置接口使用既有主动加密且不扩大到其他路径', () => {
+    expect(isClientCryptoPath('/com.levin.oak.base/V1/api/AiModelSetting/modelConfig')).toBe(true);
+    expect(isClientCryptoPath('/com.levin.oak.base/V1/api/AiModelSetting/list')).toBe(false);
+  });
+
   it('匿名登录和租户上下文 API 不依赖当前页面路由判断', () => {
     expect(isAnonymousRbacCryptoPath('/Rbac/login')).toBe(true);
     expect(isAnonymousRbacCryptoPath('/Rbac/loginVerifyChallenge')).toBe(true);

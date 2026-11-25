@@ -20,7 +20,7 @@ describe('法律主体待完善展示', () => {
     const linked = { legalSubjectId: 'subject-1', legalSubjectName: '甲公司' };
     expect(withLegalSubjectStatus(linked)).toEqual({
       ...linked,
-      legalSubjectStatus: '已关联',
+      legalSubjectStatus: '已绑定',
     });
     expect(withLegalSubjectStatus({ id: 'hidden' })).toEqual({
       id: 'hidden',

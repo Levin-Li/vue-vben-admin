@@ -3,6 +3,29 @@ import type { UserOrgSelectorLoadOrgTree } from './user-org-selector-types';
 
 import { rbacService } from '../app/api/rbac-service';
 
+/** 登录资料未暴露租户时，只从服务端授权组织树解析目标组织的租户。 */
+export async function getAuthorizedOrgTenantId(orgId: string): Promise<string> {
+  if (!orgId) throw new Error('请选择可访问的组织');
+  const tree = await rbacService.fetchAuthorizedOrgTree({ assembleTree: true });
+  const matches = new Set<string>();
+  let missingTenant = false;
+  const visited = new WeakSet<object>();
+  const visit = (nodes: Record<string, any>[]) => {
+    for (const node of nodes || []) {
+      if (!node || typeof node !== 'object' || visited.has(node)) continue;
+      visited.add(node);
+      if (String(node.id || '') === orgId) {
+        const tenant = String(node.tenantId || '').trim();
+        if (tenant) matches.add(tenant); else missingTenant = true;
+      }
+      if (Array.isArray(node.children)) visit(node.children);
+    }
+  };
+  visit(tree || []);
+  if (missingTenant || matches.size !== 1) throw new Error('所选组织的授权租户不可确定');
+  return [...matches][0]!;
+}
+
 // 严格使用服务端返回的租户归属，缺失归属的节点不可选。
 export function filterTenantOrganizations(
   items: Record<string, any>[],

@@ -13,6 +13,15 @@ import {
 } from '../user-org-selector-utils';
 
 describe('组织树重复节点', () => {
+  it('按组织类型及类别筛选分销节点，并保留其嵌套后代', () => {
+    const tree = buildUserOrgSelectorOrgTree([{ id: 'root', type: 'Team', children: [
+      { id: 'distributor', type: 'ChannelPartner', category: 'Distributor' },
+      { id: 'other-channel', type: 'ChannelPartner', category: 'Other' },
+      { id: 'missing-category', type: 'ChannelPartner' },
+    ] }], { orgTypes: ['ChannelPartner'], orgCategories: ['Distributor'], onlyShowTypeMatchNode: true, selectableTypes: ['org', 'user'] });
+    expect(tree.map((node) => node.id)).toEqual(['distributor']);
+    expect(tree[0]?.canLoadUsers).toBe(true);
+  });
   it('平铺后代与嵌套后代同时返回时只保留树中的一份', () => {
     const child = { id: 'child', name: '子部门' };
     const tree = buildUserOrgSelectorOrgTree(

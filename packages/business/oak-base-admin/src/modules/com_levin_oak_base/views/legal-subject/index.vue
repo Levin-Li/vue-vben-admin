@@ -12,9 +12,13 @@ import { createModeFields } from '../create-mode-fields';
 import CrudPage from '../crud-page.vue';
 import { buildCertificationActionPayload } from './certification-payload';
 import { legalSubjectPageCrudConfig } from './config';
+import OwnershipRowAction from '../partner/ownership-row-action.vue';
+import { legalSubjectOwnershipGroups, ownershipFieldsReadOnlyOnEdit, ownershipSelectorFields } from '../partner/ownership-groups';
+import OwnershipCreateSelector from '../partner/ownership-create-selector.vue';
 
 type LegalSubjectRecord = Record<string, any>;
 const { hasPermission } = useRbacAccess();
+const ownershipFields = ownershipSelectorFields(legalSubjectOwnershipGroups);
 const mineMode = ref(false);
 
 // 两个普通建档按钮复用同一表单，但创建路径与可填写的参与方字段各自独立。
@@ -36,7 +40,11 @@ const pageConfig = computed<CrudPageConfig>(() => ({
   createButtonVisible: false,
   createPath: () =>
     mineMode.value ? '/LegalSubject/createMine' : '/LegalSubject/create',
-  fields: createModeFields(legalSubjectPageCrudConfig.fields, mineMode.value),
+  fields: ownershipFieldsReadOnlyOnEdit(createModeFields(legalSubjectPageCrudConfig.fields, mineMode.value).map((field) =>
+    !mineMode.value && ['subjectOrgId', 'subjectUserId'].includes(field.key)
+      ? { ...field, formCreate: true, required: false }
+      : field,
+  ), legalSubjectOwnershipGroups),
   listOperations: [
     ...(legalSubjectPageCrudConfig.listOperations || []),
     {
@@ -111,6 +119,13 @@ const pageConfig = computed<CrudPageConfig>(() => ({
 
 <template>
   <CrudPage :config="pageConfig">
+    <template v-for="item in ownershipFields" :key="item.field" #[`form-field-${item.field}`]="{ formState, disabled }">
+      <OwnershipCreateSelector :form-state="formState" :field="item.field" :org-field="item.orgField" :user-field="item.userField" :disabled="disabled" />
+    </template>
+    <template #row-actions="{ record, reload }">
+      <OwnershipRowAction :record="record" :reload="reload" :service="legalSubjectService"
+        resource="LegalSubject" label="法律主体" :descriptors="legalSubjectOwnershipGroups" />
+    </template>
     <template #toolbar-before-create="{ isListOperationVisible, openCreate }">
       <!-- 主体方由服务端确认，商务对接方只在普通新增表单中选择。 -->
       <Button

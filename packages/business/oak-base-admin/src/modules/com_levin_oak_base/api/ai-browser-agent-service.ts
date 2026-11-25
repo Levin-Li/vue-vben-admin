@@ -1,6 +1,7 @@
 import type { AgentModelTransport } from '@levin/admin-framework';
 
-import { oakBaseGet } from './_module';
+import { oakBasePost } from './_module';
+import { defineAsyncComponent } from 'vue';
 
 interface BrowserProviderConfig {
   apiKey: string;
@@ -35,15 +36,21 @@ async function loadBrowserRuntime(signal: AbortSignal) {
 }
 
 // 配置只在当前调用栈内使用；不写入状态、存储、日志或模型消息。
-// 对应后端 com.levin.oak.base.ai.web.AiBrowserConfigController。
+// 对应现有网页模型配置入口；凭证只在当前调用栈使用。
 async function loadConfigs(signal?: AbortSignal) {
   signal?.throwIfAborted();
   try {
-    const configs = await oakBaseGet<BrowserProviderConfig[]>(
-      '/client/ai/chat/browser-config',
-      { signal, __silentError: true, __sensitiveResponse: true },
+    const result = await oakBasePost<{ directory?: { providers?: BrowserProviderConfig[] } }>(
+      '/AiModelSetting/modelConfig',
+      { operation: 'resolve' },
+      {
+        signal,
+        __silentError: true,
+        __sensitiveResponse: true,
+      },
     );
     signal?.throwIfAborted();
+    const configs = result?.directory?.providers;
     if (!Array.isArray(configs)) throw new Error('网页模型响应无效');
     return configs.filter((config) => PROVIDERS.has(config?.providerCode));
   } catch {
@@ -70,48 +77,8 @@ function completionUrl(baseUrl: string) {
   return url.href;
 }
 
-async function readResponse(response: Response, signal: AbortSignal) {
-  const length = Number(response.headers.get('content-length'));
-  if (length > MAX_RESPONSE_BYTES) {
-    await response.body?.cancel().catch(() => undefined);
-    throw new Error('模型回复超过大小限制');
-  }
-  if (!response.body) throw new Error('模型未返回有效回复');
-  const reader = response.body.getReader();
-  // 中断时主动取消流读取，响应头已到达后仍受同一个超时和会话边界控制。
-  const cancelRead = () => {
-    void reader.cancel().catch(() => undefined);
-  };
-  signal.addEventListener('abort', cancelRead, { once: true });
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      signal.throwIfAborted();
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_RESPONSE_BYTES) throw new Error('模型回复超过大小限制');
-      chunks.push(value);
-    }
-    const bytes = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    signal.throwIfAborted();
-    return new Response(bytes, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } finally {
-    signal.removeEventListener('abort', cancelRead);
-    await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
-  }
-}
-
 export const oakBrowserAgentTransport: AgentModelTransport = {
+  configurationComponent: defineAsyncComponent(() => import('../components/ai-model-configuration.vue')),
   async listProviders(signal) {
     const configs = await loadConfigs(signal);
     return configs.map(({ providerCode, providerName, modelAliases }) => ({
@@ -120,7 +87,7 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
       modelAliases: modelAliases.map(({ alias }) => alias),
     }));
   },
-  async chat(messages, providerCode, signal) {
+  async chat(messages, providerCode, signal, onText) {
     const configs = await loadConfigs(signal);
     // “系统默认”只在当前授权目录中选择首项，显式失效的供应商不能自动替换。
     const config = providerCode
@@ -129,7 +96,7 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
     if (!config) {
       throw new Error(
         configs.length === 0
-          ? '当前租户或域名没有可用的网页模型，请管理员在服务插件设置管理中启用 AI 插件并配置网页直连'
+          ? '当前范围没有可用的网页模型，请在 AI 助手设置中配置'
           : '所选网页模型在当前范围未启用，请刷新模型列表后重试',
       );
     }
@@ -148,7 +115,7 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
       signal?.throwIfAborted();
       const url = completionUrl(config.baseUrl);
       // 仅在合法模型调用时加载包内浏览器产物，目录读取和模块初始化不加载 SDK。
-      const { createOpenAICompatible, generateText, wrapLanguageModel } =
+      const { createOpenAICompatible, streamText, wrapLanguageModel } =
         await loadBrowserRuntime(controller.signal);
       controller.signal.throwIfAborted();
       // 模型与供应商均显式指定，SDK 只负责协议生成和解析，不启用 Gateway。
@@ -161,7 +128,7 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
           const { max_tokens: maxTokens, ...rest } = body;
           return {
             ...rest,
-            stream: false,
+            stream: true,
             ...(config.providerCode === 'deepseek'
               ? { max_tokens: maxTokens, reasoning_effort: 'none' }
               : { max_completion_tokens: maxTokens }),
@@ -198,8 +165,30 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
             await response.body?.cancel().catch(() => undefined);
             throw new Error('网页模型响应无效');
           }
-          // 先限制浏览器解压后的响应字节，再交给 SDK 的协议 Schema 解析。
-          return readResponse(response, controller.signal);
+          if (
+            Number(response.headers.get('content-length')) > MAX_RESPONSE_BYTES
+          ) {
+            await response.body?.cancel().catch(() => undefined);
+            throw new Error('模型回复超过大小限制');
+          }
+          // SDK 直接消费响应流；解压后的字节仍须在每个分片上限流。
+          if (!response.body) throw new Error('模型未返回有效回复');
+          let total = 0;
+          const bounded = response.body.pipeThrough(
+            new TransformStream({
+              transform(chunk, stream) {
+                total += chunk.byteLength;
+                if (total > MAX_RESPONSE_BYTES)
+                  throw new Error('模型回复超过大小限制');
+                stream.enqueue(chunk);
+              },
+            }),
+            { signal: controller.signal },
+          );
+          return new Response(bounded, {
+            status: response.status,
+            headers: response.headers,
+          });
         },
       });
 
@@ -214,7 +203,7 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
           }),
         },
       });
-      const result = await generateText({
+      const result = streamText({
         model: languageModel,
         messages: messages.map(({ content, role }) => {
           // 角色只能来自平台会话类型；保留可信系统消息在循环中的原始顺序。
@@ -231,6 +220,9 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
         allowSystemInMessages: true,
         maxOutputTokens: 4096,
         maxRetries: 0,
+        onError: () => {
+          /* 不记录供应商错误，外层统一脱敏。 */
+        },
         abortSignal: controller.signal,
         experimental_telemetry: {
           isEnabled: false,
@@ -239,7 +231,36 @@ export const oakBrowserAgentTransport: AgentModelTransport = {
         },
       });
       controller.signal.throwIfAborted();
-      const answer = result.text;
+      let raw = '';
+      let visible = '';
+      let pending = '';
+      for await (const chunk of result.textStream) {
+        controller.signal.throwIfAborted();
+        raw += chunk;
+        if (raw.length > 24_000) throw new Error('模型回复超过大小限制');
+        pending += chunk;
+        let match = pending.indexOf(config.apiKey);
+        while (match !== -1) {
+          visible += `${pending.slice(0, match)}[凭证已隐藏]`;
+          pending = pending.slice(match + config.apiKey.length);
+          match = pending.indexOf(config.apiKey);
+        }
+        let keep = Math.min(config.apiKey.length - 1, pending.length);
+        while (keep > 0 && !config.apiKey.startsWith(pending.slice(-keep)))
+          keep--;
+        visible += pending.slice(0, pending.length - keep);
+        pending = keep ? pending.slice(-keep) : '';
+        onText?.(visible);
+      }
+      const finishReason = await result.finishReason;
+      if (finishReason === 'error' || finishReason === 'other') {
+        throw new Error('模型流未正常完成');
+      }
+      const answer = (visible + pending).replaceAll(
+        config.apiKey,
+        '[凭证已隐藏]',
+      );
+      onText?.(answer);
       if (!answer.trim()) throw new Error('网页模型响应无效');
       return answer.replaceAll(config.apiKey, '[凭证已隐藏]');
     } catch {

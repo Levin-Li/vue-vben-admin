@@ -42,9 +42,9 @@ describe('主档参与组织与负责人', () => {
     expect(
       financeUser?.tableValue?.({
         financeUserId: 'u1',
-        financeUser: { name: '财务负责人' },
+        financeUser: { name: '财务人员' },
       }),
-    ).toBe('财务负责人');
+    ).toBe('财务人员');
     expect(financeUser?.tableValue?.({ financeUserId: 'u1' })).toBe('');
   });
   it('普通用户只读参与方分派，可信管理员可编辑但不能换绑主体节点', () => {

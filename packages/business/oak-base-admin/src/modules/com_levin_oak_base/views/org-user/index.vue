@@ -782,11 +782,6 @@ async function submitOrgForm() {
     message.warning('请输入组织名称');
     return;
   }
-  if (!String(orgFormState.category || '').trim()) {
-    message.warning('请选择组织类别');
-    return;
-  }
-
   if (
     orgModalMode.value === 'create' &&
     isPlatformUser.value &&
@@ -801,7 +796,8 @@ async function submitOrgForm() {
 
   try {
     const payload: Record<string, any> = {
-      category: orgFormState.category || undefined,
+      // 空类别使用空字符串，兼容数据库非 NULL 约束并支持清空已有类别。
+      category: orgFormState.category || '',
       code: orgFormState.code || undefined,
       enable: orgFormState.enable,
       id: orgFormState.id || undefined,
@@ -1193,7 +1189,7 @@ onMounted(async () => {
               placeholder="请选择组织类型"
             />
           </Form.Item>
-          <Form.Item label="组织类别" required>
+          <Form.Item label="组织类别">
             <Select
               v-model:value="orgFormState.category"
               allow-clear
@@ -1301,9 +1297,24 @@ onMounted(async () => {
   overflow: visible !important;
 }
 
-.user-org-tree :deep(.ant-tree-node-content-wrapper) {
+/* 限制整行和标题的可用宽度，避免长名称把操作栏推到侧栏外。 */
+.user-org-sidebar :deep(.user-org-tree .ant-tree-treenode) {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.user-org-sidebar :deep(.user-org-tree .ant-tree-node-content-wrapper) {
+  width: 0;
+  flex: 1 1 0;
   min-width: 0;
   overflow: visible;
+}
+
+.user-org-sidebar :deep(.user-org-tree .ant-tree-title) {
+  display: block;
+  width: 100%;
+  min-width: 0;
 }
 
 .user-org-tree-node {

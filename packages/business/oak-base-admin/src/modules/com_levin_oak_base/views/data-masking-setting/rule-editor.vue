@@ -154,6 +154,11 @@ function setTreatment(
   }
 }
 
+function setValidSeconds(rule: MaskingFieldRule, value: number | string | null | undefined) {
+  // 空值表示不过期；非法数字保留为 NaN，由保存校验拒绝而不是意外变成不过期。
+  rule.validSeconds = value === null || value === undefined || value === '' ? null : Number(value);
+}
+
 onMounted(async () => {
   loading.value = true;
   try {
@@ -288,7 +293,8 @@ onMounted(async () => {
                     placeholder="绑定范围"
                   />
                   <InputNumber
-                    v-model:value="rule.validSeconds"
+                    :value="rule.validSeconds ?? undefined"
+                    @update:value="setValidSeconds(rule, $event)"
                     class="rule-timeout"
                     addon-after="秒"
                     :disabled="disabled || field.configurable === false"

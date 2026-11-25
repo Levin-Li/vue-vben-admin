@@ -5,7 +5,7 @@ import { computed, ref } from 'vue';
 
 import { useUserStore } from '@vben/runtime/stores';
 
-import { isPlatformUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
+import { isPlatformUser, isSuperAdminUser } from '@levin/admin-framework/framework-commons/shared/user-identity';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import {
@@ -28,10 +28,15 @@ import {
 import { isLegalSubjectPickerLocked } from '../partner/legal-subject-edit-lock';
 import LegalSubjectPicker from '../partner/legal-subject-picker.vue';
 import QuickAdd from '../partner/quick-add.vue';
+import SubjectInfoAction from '../partner/subject-info-action.vue';
+import OwnershipRowAction from '../partner/ownership-row-action.vue';
+import { ownershipFieldsReadOnlyOnEdit, ownershipSelectorFields, partnerOwnershipGroups } from '../partner/ownership-groups';
+import OwnershipCreateSelector from '../partner/ownership-create-selector.vue';
 import ChannelPartnerPicker from './channel-partner-picker.vue';
 import { customerPageCrudConfig } from './config';
 
 const userStore = useUserStore();
+const ownershipFields = ownershipSelectorFields(partnerOwnershipGroups);
 const { hasPermission } = useRbacAccess();
 const requireTenant = computed(() => isPlatformUser(userStore.userInfo));
 const mineMode = ref(false);
@@ -50,7 +55,8 @@ const pageConfig = computed<CrudPageConfig>(() => ({
   createButtonVisible: false,
   createPath: () =>
     mineMode.value ? '/Customer/saveMyCustomer' : '/Customer/saveCustomer',
-  fields: createModeFields(customerPageCrudConfig.fields, mineMode.value),
+  fields: ownershipFieldsReadOnlyOnEdit(createModeFields(customerPageCrudConfig.fields, mineMode.value,
+    requireTenant.value && isSuperAdminUser(userStore.userInfo)), partnerOwnershipGroups),
   listOperations: [
     ...(customerPageCrudConfig.listOperations || []),
     { key: 'Customer:createMine', label: '新增我的客户', placement: 'left' },
@@ -74,6 +80,14 @@ function updateType(formState: Record<string, any>, type?: unknown) {
 
 <template>
   <CrudPage :config="pageConfig">
+    <template v-for="item in ownershipFields" :key="item.field" #[`form-field-${item.field}`]="{ formState, disabled }">
+      <OwnershipCreateSelector :form-state="formState" :field="item.field" :org-field="item.orgField" :user-field="item.userField" :disabled="disabled" />
+    </template>
+    <template #row-actions="{ record, reload }">
+      <OwnershipRowAction :record="record" :reload="reload" :service="customerService"
+        resource="Customer" label="客户" :descriptors="partnerOwnershipGroups" />
+      <SubjectInfoAction :record="record" :reload="reload" target="Customer" />
+    </template>
     <template
       #toolbar-before-create="{ loadList, isListOperationVisible, openCreate }"
     >

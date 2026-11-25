@@ -1,8 +1,8 @@
 # @levin/admin-framework
 
-[标准 CRUD 帮助入口接入指南](docs/crud-help-action.md)说明帮助链接注册及权限边界。
-
 [标准 CRUD 自动查询指南](docs/crud-auto-search.md)说明页面默认配置及已保存设置的优先级。
+
+[标准 CRUD 帮助入口接入指南](docs/crud-help-action.md)说明帮助链接注册及权限边界。
 
 [标准 CRUD 详情字段使用指南](docs/crud-detail-static-fields.md)说明详情响应字段的开发期声明、检查门禁和未声明字段的展示边界。
 
@@ -17,6 +17,10 @@
 JSON Schema 编辑器的 `:xxx` 属性引用见 [使用指南](docs/json-schema-editor-reference.md)。
 
 角色与用户数据权限分配的操作与继承语义见 [数据权限分配使用指南](docs/data-permission-checklist.md)。
+
+组织与人员归属的授权、统一提交和失败处理见 [绑定归属面板接入](docs/party-ownership-panel.md)。
+
+资源权限编辑器的可选菜单祖先补全策略见 [菜单祖先选择策略](docs/resource-permission-menu-ancestors.md)。
 
 Levin 后台基础组件和公共运行时框架包，面向第三方后台系统提供应用启动、布局、路由、权限、菜单同步、通用 CRUD、页面注册、页面覆盖、事件总线、顶部栏扩展区和窗口级可拖拽悬浮面板等基础能力。
 

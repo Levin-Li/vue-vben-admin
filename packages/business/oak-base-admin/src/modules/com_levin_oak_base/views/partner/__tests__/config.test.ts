@@ -184,7 +184,7 @@ describe('合作关系公共资料', () => {
         legalSubjectId: 'subject-1',
         legalSubjectName: '甲公司',
       }),
-    ).toBe('已关联');
+    ).toBe('已绑定');
     expect(supplierPartnerPageCrudConfig.detailPath).toBeUndefined();
     expect(channelPartnerPageCrudConfig.detailPath).toBeUndefined();
   });

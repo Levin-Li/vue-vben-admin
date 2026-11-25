@@ -29,6 +29,15 @@ export interface CreateOakBaseAdminCrudRoutesOptions {
 
 export const oakBaseAdminCrudResources: OakBaseAdminCrudResource[] = [
   {
+    icon: 'lucide:chart-column',
+    name: 'ReportDefinitionManagement',
+    resource: 'ReportDefinitionManagement',
+    permissionResource: 'ReportDefinition',
+    sourceFilePath: 'modules/com_levin_oak_base/views/report-center/index.vue',
+    viewPath: '/system/com_levin_oak_base/report-center/index.vue',
+    title: '报表设计',
+  },
+  {
     icon: 'lucide:database-zap',
     name: 'DomainDataDynamicModel',
     resource: 'DomainDataDynamicModel',
@@ -546,6 +555,7 @@ export const oakBaseAdminResourceViewMap: Record<
 > = {
   DomainDataDynamicModel: () =>
     import('./views/domain-data-dynamic-model/index.vue'),
+  ReportDefinitionManagement: () => import('./views/report-center/index.vue'),
   RobotNotifyGroup: () => import('./views/robot-notify-group/index.vue'),
   WorkflowNotificationRoute: () =>
     import('./views/workflow-notification-route/index.vue'),
@@ -651,6 +661,13 @@ export const oakPaymentMenuGroup = {
   title: '支付&交易',
 };
 
+export const oakReportCenterMenuGroup = {
+  icon: 'lucide:chart-no-axes-combined',
+  parentPath: '/clob/V1/index',
+  path: '/clob/V1/index/groups/报表中心',
+  title: '报表中心',
+};
+
 export const oakWorkflowMenuGroup = {
   icon: 'lucide:git-branch',
   parentPath: '/clob/V1/index',
@@ -667,6 +684,11 @@ export const oakWorkflowResources: readonly string[] = [
 ];
 
 const menuGroups = [
+  [
+    oakReportCenterMenuGroup.title,
+    oakReportCenterMenuGroup.icon,
+    ['ReportDefinitionManagement'],
+  ],
   [
     '用户&权限',
     'lucide:shield-check',

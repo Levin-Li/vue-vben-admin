@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/modules/com_levin_oak_base/views/report-center/**/*.ts",
+    "src/modules/com_levin_oak_base/views/report-center/**/*.vue",
+    "src/modules/com_levin_oak_base/views/report-view/**/*.ts",
+    "src/modules/com_levin_oak_base/views/report-view/**/*.vue",
+    "src/modules/com_levin_oak_base/api/report-*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "**/__tests__/**"]
+}

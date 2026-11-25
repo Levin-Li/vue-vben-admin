@@ -11,6 +11,7 @@ import {
 } from '@levin/admin-framework';
 import {
   getResAuthorizeMeta,
+  getServiceMeta,
   hasResAuthorizeMeta,
 } from '@levin/admin-framework/framework-commons/api-authorize';
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
@@ -34,6 +35,14 @@ export interface AgentReadOptions {
   scope?: boolean;
   service: object;
   title: string;
+}
+
+/** 只记录已审查技能实际调用的服务方法，缺失身份时不猜测绑定。 */
+export function agentServiceBindings(service: object, ...methods: string[]) {
+  const controllerClass = getServiceMeta(service).controllerClass;
+  return controllerClass
+    ? methods.map((method) => ({ controllerClass, method }))
+    : [];
 }
 
 // 权限元数据缺失或读取失败时关闭技能，执行前仍会再次检查当前权限。
@@ -183,6 +192,9 @@ export function agentReadSkills(options: AgentReadOptions): AgentSkill[] {
     } else properties.id = { type: 'string', maxLength: 128 };
     return {
       id: `com.levin.oak.base.${resource}.${action}`,
+      sourceBindings: options[action]
+        ? []
+        : agentServiceBindings(service, action),
       description: `${action === 'list' ? '分页查询分析' : '查看一条'}当前用户有权访问的${title}摘要。参数：${Object.keys(properties).join('、')}。不返回敏感资料。`,
       inputSchema: {
         required: action === 'retrieve' ? ['id'] : [],

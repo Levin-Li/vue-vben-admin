@@ -41,6 +41,24 @@ vi.mock('../url-acl-crypto', () => ({
 }));
 
 describe('真实请求客户端的业务错误提示', () => {
+  it.each(['business', 'http'])('静默 %s 错误仍向页面抛出且不自动提示', async (kind) => {
+    messages.error.mockClear();
+    requestClient.instance.defaults.adapter = async (config) => {
+      if (kind === 'http') {
+        throw Object.assign(new Error('HTTP failure'), {
+          config, response: { config, data: { msg: '服务拒绝' }, status: 403 },
+        });
+      }
+      return { config, data: { code: 10_000, msg: '业务拒绝' }, headers: {}, status: 200, statusText: 'OK' };
+    };
+    const error = await requestClient.post('/report/query', {}, {
+      responseReturn: 'data', __silentError: true,
+    } as any).then(() => undefined, (failure) => failure);
+    expect(error).toBeTruthy();
+    expect(messages.error).not.toHaveBeenCalled();
+    notifyApiErrorOnce(error);
+    expect(messages.error).toHaveBeenCalledTimes(1);
+  });
   it('hTTP 200 业务失败在表单 catch 后仍只提示一次', async () => {
     messages.error.mockClear();
     requestClient.instance.defaults.adapter = async (config) => ({

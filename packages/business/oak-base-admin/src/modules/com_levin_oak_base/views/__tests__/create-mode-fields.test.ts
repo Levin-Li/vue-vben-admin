@@ -13,7 +13,7 @@ describe('普通新增与新增我的参与方字段', () => {
     { key: 'name' },
   ].map((field) => ({ ...field, label: field.key }));
 
-  it('普通新增只开放商务组织和商务对接人', () => {
+  it('普通新增只开放商务组织和商务人员', () => {
     const result = createModeFields(fields, false);
     expect(
       result
@@ -32,5 +32,13 @@ describe('普通新增与新增我的参与方字段', () => {
         .filter((field) => field.formCreate !== false)
         .map((field) => field.key),
     ).toEqual(['name']);
+  });
+
+  it('平台用户新增我的客户时选择目标租户主体方', () => {
+    const result = createModeFields(fields, true, true);
+    expect(result.filter((field) => field.formCreate !== false).map((field) => field.key))
+      .toEqual(['subjectOrgId', 'subjectUserId', 'name']);
+    expect(result.find((field) => field.key === 'subjectOrgId')?.required).toBe(true);
+    expect(result.find((field) => field.key === 'subjectUserId')?.required).toBe(true);
   });
 });

@@ -23,10 +23,16 @@ describe('组织与用户页面组织树', () => {
     const source = readFileSync(pagePath, 'utf8');
 
     expect(source).toContain(
-      '.user-org-tree :deep(.ant-tree-node-content-wrapper)',
+      '.user-org-sidebar :deep(.user-org-tree .ant-tree-node-content-wrapper)',
+    );
+    expect(source).toContain(
+      '.user-org-sidebar :deep(.user-org-tree .ant-tree-treenode)',
+    );
+    expect(source).toContain(
+      '.user-org-sidebar :deep(.user-org-tree .ant-tree-title)',
     );
     expect(source).toMatch(
-      /\.user-org-tree :deep\(\.ant-tree-node-content-wrapper\)\s*\{[^}]*min-width:\s*0;[^}]*overflow:\s*visible;/s,
+      /\.user-org-sidebar :deep\(\.user-org-tree \.ant-tree-node-content-wrapper\)\s*\{[^}]*min-width:\s*0;[^}]*overflow:\s*visible;/s,
     );
     expect(source).toMatch(
       /\.user-org-tree-node\s*\{[^}]*display:\s*flex;[^}]*flex:\s*1;[^}]*min-width:\s*0;/s,

@@ -146,7 +146,7 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       loadOptions: legalSubjectOptionsLoader,
       remoteSearch: true,
       search: true,
-      table: true,
+      table: false,
       type: 'select',
       width: 220,
     },
@@ -154,7 +154,7 @@ export const customerPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
       key: 'legalSubjectName',
       label: '主体名称',
       form: false,
-      table: true,
+      table: false,
       width: 220,
     },
     {

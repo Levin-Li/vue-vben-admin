@@ -178,6 +178,19 @@ export function verifyTarballModuleDevelopmentStandard(
         `${packageInfo.name} ${location}AGENTS 或 README 未引用邀请链接使用指南`,
       );
     }
+    for (const reportGuide of [
+      'docs/report-center.md',
+      'docs/report-center-design.md',
+      'docs/report-center-implementation.md',
+      'docs/report-center-development.md',
+    ]) {
+      if (!entries.split(/\r?\n/).includes(`package/${reportGuide}`)) {
+        throw new Error(`${packageInfo.name} ${location}缺少报表文档：${reportGuide}`);
+      }
+      if (!agents.includes(reportGuide) || !readme.includes(reportGuide)) {
+        throw new Error(`${packageInfo.name} ${location}AGENTS 或 README 未引用报表文档：${reportGuide}`);
+      }
+    }
   }
 }
 

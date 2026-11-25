@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
+import { defineComponent, h } from 'vue';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -7,9 +8,11 @@ import AgentPanel from '../agent-panel.vue';
 const mocks = vi.hoisted(() => ({
   loadProviders: vi.fn(),
   runTurn: vi.fn(),
+  configuration: vi.fn(),
 }));
 
 vi.mock('../chat', () => ({
+  getAgentConfigurationComponent: mocks.configuration,
   loadAgentProviders: mocks.loadProviders,
   runAgentTurn: mocks.runTurn,
 }));
@@ -17,6 +20,7 @@ vi.mock('../chat', () => ({
 beforeEach(() => {
   mocks.loadProviders.mockReset();
   mocks.runTurn.mockReset();
+  mocks.configuration.mockReset();
   mocks.loadProviders.mockResolvedValue([
     {
       providerCode: 'deepseek',
@@ -33,7 +37,109 @@ async function submit(wrapper: ReturnType<typeof mount>, content: string) {
   await flushPromises();
 }
 
+const settings = defineComponent({
+  emits: ['saved', 'close'],
+  setup(_props, { emit }) {
+    return () => h('button', { onClick: () => emit('saved') }, '保存模型');
+  },
+});
+
 describe('网页AI助手状态', () => {
+  it('打开配置窗口并在保存后刷新模型目录', async () => {
+    mocks.configuration.mockReturnValue(settings);
+    const wrapper = mount(AgentPanel, {
+      props: { accessToken: 'token-a', userId: 'user-a' },
+    });
+    await flushPromises();
+    await wrapper.get('.agent-launcher').trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '模型配置')
+      ?.trigger('click');
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '保存模型')
+      ?.trigger('click');
+    await flushPromises();
+    expect(mocks.loadProviders).toHaveBeenCalledTimes(2);
+  });
+  it('刷新后已选供应商失效时不自动切换到其他供应商', async () => {
+    mocks.configuration.mockReturnValue(settings);
+    mocks.loadProviders
+      .mockResolvedValueOnce([
+        {
+          providerCode: 'openai',
+          providerName: 'OpenAI',
+          modelAliases: ['default'],
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          providerCode: 'deepseek',
+          providerName: 'DeepSeek',
+          modelAliases: ['default'],
+        },
+      ]);
+    const wrapper = mount(AgentPanel, {
+      props: { accessToken: 'token-a', userId: 'user-a' },
+    });
+    await flushPromises();
+    await wrapper.get('.agent-launcher').trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '模型配置')
+      ?.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '保存模型')
+      ?.trigger('click');
+    await flushPromises();
+    expect(
+      (
+        wrapper.get('select[aria-label="选择模型接入"]')
+          .element as HTMLSelectElement
+      ).value,
+    ).toBe('openai');
+    expect(wrapper.text()).toContain('所选模型在当前范围不可用');
+    await wrapper.get('textarea').setValue('你好');
+    expect(
+      wrapper.get('button[type="submit"]').attributes('disabled'),
+    ).toBeDefined();
+  });
+  it('流式内容在完成前展示，结束后只保留最终消息', async () => {
+    let finish!: (value: unknown) => void;
+    mocks.runTurn.mockImplementation(
+      (
+        _history,
+        _path,
+        _admin,
+        _provider,
+        _progress,
+        _signal,
+        _trace,
+        onText,
+      ) => {
+        onText('正在回答');
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      },
+    );
+    const wrapper = mount(AgentPanel, {
+      props: { accessToken: 'token-a', userId: 'user-a' },
+    });
+    await flushPromises();
+    await wrapper.find('.agent-launcher').trigger('click');
+    await wrapper.find('textarea').setValue('你好');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(wrapper.text()).toContain('正在回答');
+    finish({ message: { role: 'Assistant', content: '完整回答' } });
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('正在回答');
+    expect(wrapper.text()).toContain('完整回答');
+  });
   it('无可用网页模型时提示配置入口并保留未发送草稿', async () => {
     mocks.loadProviders.mockResolvedValue([]);
     const wrapper = mount(AgentPanel, {
@@ -43,7 +149,7 @@ describe('网页AI助手状态', () => {
     await wrapper.find('.agent-launcher').trigger('click');
     await flushPromises();
     await submit(wrapper, '你好');
-    expect(wrapper.text()).toContain('服务插件设置管理');
+    expect(wrapper.text()).toContain('AI 助手模型配置');
     expect(
       wrapper.find('button[type="submit"]').attributes('disabled'),
     ).toBeDefined();

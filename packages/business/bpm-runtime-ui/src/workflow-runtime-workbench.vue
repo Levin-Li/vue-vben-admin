@@ -26,6 +26,7 @@ import {
   Card as ACard,
   Col as ACol,
   Empty as AEmpty,
+  Form as AForm,
   Input as AInput,
   List as AList,
   ListItem as AListItem,
@@ -952,14 +953,7 @@ defineExpose({ refresh });
 </script>
 
 <template>
-  <section class="levin-workflow-runtime-workbench">
-    <header class="workflow-workbench-heading">
-      <div>
-        <h1>我的流程</h1>
-        <p>处理待办事项，跟进我参与的流程</p>
-      </div>
-      <slot name="header-action"></slot>
-    </header>
+  <section class="levin-workflow-runtime-workbench vben-crud-layout">
     <AAlert
       v-if="targetMessage"
       class="mb-3"
@@ -973,65 +967,62 @@ defineExpose({ refresh });
       :message="verificationMessage"
     />
     <!-- 搜索只传给服务端，候选继续读取不会仅局限于当前结果页。 -->
-    <div class="workflow-workbench-search">
-      <label>
-        <span>关键词</span>
-        <AInput
-          v-model:value="searchText"
-          allow-clear
-          :maxlength="80"
-          placeholder="搜索业务标题或发起人"
-          @press-enter="applyFilters"
-        />
-      </label>
-      <label>
-        <span>流程</span>
-        <ASelect
-          v-model:value="selectedFlow"
-          allow-clear
-          show-search
-          :filter-option="false"
-          :options="flowOptions"
-          :loading="flowLoading"
-          placeholder="全部流程"
-          @focus="loadFlowOptions()"
-          @search="loadFlowOptions($event)"
-        />
-      </label>
-      <label>
-        <span>时间</span>
-        <ASelect
-          v-model:value="period"
-          :options="[
-            { label: '近 7 天', value: 'week' },
-            { label: '近 30 天', value: 'month' },
-            { label: '近半年', value: 'halfYear' },
-            { label: '近一年', value: 'year' },
-            { label: '全部时间', value: 'all' },
-          ]"
-        />
-      </label>
-      <div class="workflow-workbench-actions">
-        <AButton type="primary" @click="applyFilters">查询</AButton>
-        <AButton @click="resetFilters">重置</AButton>
-        <AButton
-          v-if="flowHasMore"
-          :loading="flowLoading"
-          @click="loadFlowOptions(flowKeyword, true)"
-        >
-          加载更多流程
-        </AButton>
-      </div>
+    <div class="vben-crud-section workflow-workbench-search">
+      <AForm :label-col="{ style: { width: '88px' } }">
+        <div class="workflow-workbench-search-grid">
+          <AForm.Item label="关键词" class="mb-0 min-w-0">
+            <AInput
+              v-model:value="searchText"
+              allow-clear
+              :maxlength="80"
+              placeholder="搜索业务标题或发起人"
+              @press-enter="applyFilters"
+            />
+          </AForm.Item>
+          <AForm.Item label="流程" class="mb-0 min-w-0">
+            <ASelect
+              v-model:value="selectedFlow"
+              allow-clear
+              show-search
+              :filter-option="false"
+              :options="flowOptions"
+              :loading="flowLoading"
+              placeholder="全部流程"
+              @focus="loadFlowOptions()"
+              @search="loadFlowOptions($event)"
+            />
+          </AForm.Item>
+          <AForm.Item label="时间" class="mb-0 min-w-0">
+            <ASelect
+              v-model:value="period"
+              :options="[
+                { label: '近 7 天', value: 'week' },
+                { label: '近 30 天', value: 'month' },
+                { label: '近半年', value: 'halfYear' },
+                { label: '近一年', value: 'year' },
+                { label: '全部时间', value: 'all' },
+              ]"
+            />
+          </AForm.Item>
+          <div class="workflow-workbench-actions">
+            <AButton type="primary" @click="applyFilters">查询</AButton>
+            <AButton @click="resetFilters">重置</AButton>
+            <AButton
+              v-if="flowHasMore"
+              :loading="flowLoading"
+              @click="loadFlowOptions(flowKeyword, true)"
+            >
+              加载更多流程
+            </AButton>
+          </div>
+        </div>
+      </AForm>
     </div>
-    <AAlert
-      v-if="activeKey === 'copied'"
-      class="mb-3"
-      type="info"
-      show-icon
-      message="部分较早的抄送仅在选择“全部时间”时显示。"
-    />
     <!-- 每个授权分栏使用真正的公共CRUD，办理详情仍由工作台专用面板承载。 -->
     <ATabs v-model:active-key="activeKey" class="workflow-workbench-tabs">
+      <template #tabBarExtraContent>
+        <slot name="header-action"></slot>
+      </template>
       <ATabPane v-for="tab in tabs" :key="tab.key" :tab="tab.label">
         <CrudPage
           :ref="(instance) => registerList(tab.key, instance)"
@@ -1348,15 +1339,6 @@ defineExpose({ refresh });
 </template>
 
 <style scoped>
-@media (max-width: 600px) {
-  .levin-workflow-runtime-workbench .workflow-workbench-search label,
-  .levin-workflow-runtime-workbench
-    .workflow-workbench-search
-    label:not(:first-child) {
-    flex: 1 1 100%;
-  }
-}
-
 .workflow-workbench-tabs :deep(.ant-table-body > table) {
   width: max(100%, 890px) !important;
   table-layout: fixed !important;
@@ -1392,54 +1374,21 @@ defineExpose({ refresh });
   max-width: 100%;
 }
 
-.workflow-workbench-heading {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.workflow-workbench-heading h1 {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 600;
-  color: hsl(var(--foreground));
-}
-
-.workflow-workbench-heading p {
-  margin: 0;
-  color: hsl(var(--muted-foreground));
-}
-
 .workflow-workbench-search {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: end;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
-.workflow-workbench-search label {
+.workflow-workbench-search-grid {
   display: grid;
-  gap: 6px;
-  min-width: 180px;
-  color: hsl(var(--foreground));
-}
-
-.workflow-workbench-search label:first-child {
-  flex: 1 1 240px;
-}
-
-.workflow-workbench-search label:not(:first-child) {
-  flex: 0 1 190px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 16px;
 }
 
 .workflow-workbench-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .workflow-workbench-tabs {

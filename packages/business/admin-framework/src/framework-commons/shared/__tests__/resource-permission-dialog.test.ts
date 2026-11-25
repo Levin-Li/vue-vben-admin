@@ -75,13 +75,38 @@ vi.mock('../resource-permission-tree-editor.vue', () => ({
     props: {
       value: { type: Array, default: () => [] },
       permissionTree: { type: Array, default: () => [] },
+      autoIncludeMenuAncestors: { type: Function, default: undefined },
     },
+    emits: ['update:value'],
     template: '<div />',
   }),
 }));
 enableAutoUnmount(afterEach);
 
 describe('资源授权保存属性组', () => {
+  it('将可选父菜单策略传给编辑器，并保存自动补全的菜单权限', async () => {
+    const root = 'module:系统数据-系统菜单:root:展示';
+    const groupMenu = 'module:系统数据-系统菜单:root.reports:展示';
+    const report = 'module:系统数据-系统菜单:root.reports.sales:展示';
+    mocks.tree.mockResolvedValue([{ id: 'root', name: '根菜单', nodeType: 'Menu', permissionExpr: root, children: [
+      { id: 'group', name: '报表中心', nodeType: 'Menu', permissionExpr: groupMenu, children: [
+        { id: 'report', name: '经营报表', nodeType: 'Menu', permissionExpr: report },
+      ] },
+    ] }]);
+    const saveTarget = vi.fn().mockResolvedValue(undefined);
+    const policy = (path: string) => path === '/report/one';
+    const wrapper = mount(ResourcePermissionDialog, { props: { open: true, autoIncludeMenuAncestors: policy,
+      loadTarget: async () => ({ id: 'role', name: '角色', permissions: [] }), saveTarget } });
+    await flushPromises();
+    const editor = wrapper.findComponent({ name: 'PermissionEditor' });
+    expect(editor.props('autoIncludeMenuAncestors')).toBe(policy);
+    editor.vm.$emit('update:value', [report, root, groupMenu]);
+    await wrapper.vm.$nextTick();
+    await wrapper.get('[data-test="save"]').trigger('click');
+    await flushPromises();
+    expect(saveTarget).toHaveBeenCalledWith({ id: 'role', permissions: [report, root, groupMenu] });
+  });
+
   it('回显并通过原permissionList保存组表达式，包含清空强制写入参数', async () => {
     mocks.get.mockResolvedValue({
       id: 'role',

@@ -605,7 +605,8 @@ const selectedRowKeys = ref<Array<number | string>>([]);
 const selectedRows = ref<GenericRecord[]>([]);
 const actionResultOpen = ref(false);
 const actionResultTitle = ref('');
-const actionResultHideEmptyValues = ref(false);
+// 详情初始过滤空值，用户可通过标题栏开关调整。
+const actionResultHideEmptyValues = ref(true);
 const actionResultData = ref<any>(null);
 const actionResultUsesRetrievePolicy = ref(false);
 const warnedUndeclaredDetailKeys = new Set<string>();

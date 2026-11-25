@@ -10,6 +10,7 @@ import {
 import { useRbacAccess } from '@levin/admin-framework/framework-commons/rbac-access';
 import { buildApiMethodPermissions } from '@levin/admin-framework/framework-commons/shared/crud-permissions';
 
+import { agentServiceBindings } from './agent-business-common';
 import { oakBaseGet } from './api/_module';
 import { ticketQueueService } from './api/ticket-queue-service';
 import { ticketService } from './api/ticket-service';
@@ -155,6 +156,7 @@ function ticketSummary(item: {
 export const oakBaseAgentSkills: readonly AgentSkill[] = [
   {
     id: 'com.levin.oak.base.ticket.list',
+    sourceBindings: agentServiceBindings(ticketService, 'list'),
     description:
       '分页分析当前用户有权查看的客服工单状态、优先级和队列。可指定 tenantId、orgId、status、queueId、limit、pageIndex。',
     inputSchema: {
@@ -218,6 +220,7 @@ export const oakBaseAgentSkills: readonly AgentSkill[] = [
   },
   {
     id: 'com.levin.oak.base.ticket.retrieve',
+    sourceBindings: agentServiceBindings(ticketService, 'retrieve'),
     description:
       '查看当前用户有权访问的一条客服工单状态和优先级。参数 id，可选 tenantId、orgId。',
     inputSchema: {
@@ -248,6 +251,7 @@ export const oakBaseAgentSkills: readonly AgentSkill[] = [
   },
   {
     id: 'com.levin.oak.base.ticketQueue.list',
+    sourceBindings: agentServiceBindings(ticketQueueService, 'list'),
     description:
       '分页查询指定租户和组织内有权查看的工单受理队列。参数 tenantId、orgId、limit、pageIndex（1 到 5）。',
     inputSchema: {
@@ -297,6 +301,7 @@ export const oakBaseAgentSkills: readonly AgentSkill[] = [
   },
   {
     id: 'com.levin.oak.base.ticketQueue.retrieve',
+    sourceBindings: agentServiceBindings(ticketQueueService, 'retrieve'),
     description:
       '查看指定租户和组织内一条有权访问的工单受理队列。参数 tenantId、orgId、id。',
     inputSchema: {
@@ -326,6 +331,7 @@ export const oakBaseAgentSkills: readonly AgentSkill[] = [
   },
   {
     id: 'com.levin.oak.base.ticketQueue.setEnabled',
+    sourceBindings: agentServiceBindings(ticketQueueService, 'setEnabled'),
     writeIntent: ['启用', '停用', '开启', '关闭', 'enable', 'disable'],
     description:
       '按用户明确要求启停一条工单受理队列。参数 id、enabled；未选择单一组织时提供 tenantId、orgId。须在聊天内确认。',

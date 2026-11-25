@@ -205,10 +205,10 @@ export function buildSettlementPageConfig(
       { key: 'payeeLegalSubject', label: '收款方法律主体', detail: false },
       { key: 'payeeOrg', label: '收款方组织', detail: false },
       { key: 'payeeUser', label: '收款方对接人', detail: false },
-      { key: 'businessOrg', label: '商务对接部门', detail: false },
-      { key: 'businessUser', label: '商务对接人', detail: false },
+      { key: 'businessOrg', label: '商务组织', detail: false },
+      { key: 'businessUser', label: '商务人员', detail: false },
       { key: 'financeOrg', label: '财务组织', detail: false },
-      { key: 'financeUser', label: '财务方负责人', detail: false },
+      { key: 'financeUser', label: '财务人员', detail: false },
       { key: 'actionLog', label: '流程日志', detail: false },
       {
         key: 'supportEventsByCurrentStatus',
@@ -345,7 +345,7 @@ export function buildSettlementPageConfig(
       // 商务和财务属于我方；负责人候选不按同方组织过滤。
       {
         key: 'businessOrgId',
-        label: '商务对接部门',
+        label: '商务组织',
         type: 'org-tree-select',
         required: true,
         disabledOnEdit: true,
@@ -361,7 +361,7 @@ export function buildSettlementPageConfig(
       },
       {
         key: 'businessUserId',
-        label: '商务对接人',
+        label: '商务人员',
         tableValue: (record: Record<string, any>) =>
           record.businessUser?.name || '',
         type: 'user-tree-select',
@@ -389,7 +389,7 @@ export function buildSettlementPageConfig(
       },
       {
         key: 'financeUserId',
-        label: '财务负责人',
+        label: '财务人员',
         tableValue: (record: Record<string, any>) =>
           record.financeUser?.name || '',
         type: 'user-tree-select',

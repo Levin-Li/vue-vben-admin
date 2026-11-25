@@ -12,6 +12,7 @@ export {
   agentId,
   agentLimit,
   type AgentSkill,
+  listAdminAgentSkills,
   registerAdminAgentSkills,
 } from './framework-commons/app/ai-agent/skills';
 export { rbacService } from './framework-commons/app/api/rbac-service';

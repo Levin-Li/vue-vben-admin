@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  legalSubjectOptionsLoader,
-  orgResponsibilityOptionsLoader,
-} from '../../api-module';
+import { orgResponsibilityOptionsLoader } from '../../api-module';
 import { orgPageCrudConfig } from '../config';
 
 describe('orgPageCrudConfig', () => {
@@ -22,18 +19,8 @@ describe('orgPageCrudConfig', () => {
       },
     });
   });
-  it('uses the legal subject field for create, edit, and query', () => {
-    expect(orgPageCrudConfig.fields).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: 'legalSubjectId',
-          loadOptions: legalSubjectOptionsLoader,
-          remoteSearch: true,
-          search: true,
-          type: 'select',
-        }),
-      ]),
-    );
+  it('不再编辑或查询组织上的主体 ID', () => {
+    expect(orgPageCrudConfig.fields.some((field) => field.key === 'legalSubjectId')).toBe(false);
   });
 
   it('exposes a responsible user selector for every organization node', () => {
@@ -49,12 +36,18 @@ describe('orgPageCrudConfig', () => {
     );
   });
 
-  it('requires the category required by the Org entity', () => {
-    expect(orgPageCrudConfig.fields).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ key: 'category', required: true }),
-      ]),
-    );
+  it('组织类别可选且保留字典选择', () => {
+    const category = orgPageCrudConfig.fields.find((field) => field.key === 'category');
+    expect(category).toMatchObject({ type: 'select', loadOptions: expect.any(Function) });
+    expect(category?.required).not.toBe(true);
+  });
+
+  it('清空已授权类别时提交空字符串且不补入未授权字段', async () => {
+    const transform = orgPageCrudConfig.transformSubmit;
+    if (!transform) throw new Error('缺少组织提交转换');
+    expect(await transform({ category: null }, { id: '1' })).toEqual({ category: '' });
+    expect(await transform({ category: '分销' }, { id: '1' })).toEqual({ category: '分销' });
+    expect(await transform({ name: '组织' }, { id: '1' })).toEqual({ name: '组织' });
   });
 
   it('offers an optional dictionary-backed organization responsibility', () => {

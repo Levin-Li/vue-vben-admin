@@ -1,7 +1,5 @@
 # Published Package AGENTS.md
 
-系统内工单：[设计](docs/internal-ticket-workbench-design.md)、[实现与扩展](docs/internal-ticket-workbench-implementation.md)。
-
 <INSTRUCTIONS>
 本文件随 @levin/oak-base-admin npm 发布包分发。使用本包进行二次开发、扩展、配置、升级或发布的子项目，必须先读取并遵循 [模块开发规范](docs/MODULE-DEVELOPMENT-STANDARD.md)。规范仅约束公开入口、兼容扩展、安全、测试和升级，不要求采用发布方代码包名、目录或业务实现。
 
@@ -14,6 +12,8 @@
 工作流页面、业务详情与节点办理接入见 [工作流页面使用说明](docs/workflow-pages.md)。具名数据范围验收与集成边界见 [docs/named-scope-variable-acceptance.md](docs/named-scope-variable-acceptance.md)；界面设置范围、历史与租户站点覆盖见 [docs/ui-setting-management.md](docs/ui-setting-management.md)。
 
 邮件、个人消息、支持邮箱、工单与通知投递：[工作台使用指南](docs/communication-workbench.md)。
+
+系统内工单：[设计](docs/internal-ticket-workbench-design.md)、[实现与扩展](docs/internal-ticket-workbench-implementation.md)。
 
 服务插件的单选/多选供应商配置与 OAuth 登录、绑定入口见 [供应商选择模式接入指南](docs/provider-selection-modes.md)。
 
@@ -28,6 +28,8 @@
 快捷添加的 [设计](docs/快捷添加客户与伙伴设计.md)、[实现说明](docs/快捷添加客户与伙伴实现说明.md) 和 [开发指南](docs/快捷添加客户与伙伴开发指南.md) 说明界面决策、接口落点与扩展边界。
 
 邀请链接查看租户筛选与签发权限边界见 [邀请链接使用指南](docs/invitation-registration.md)。
+
+报表中心：[使用指南](docs/report-center.md)、[设计](docs/report-center-design.md)、[实现说明](docs/report-center-implementation.md)、[开发指南](docs/report-center-development.md)。
 
 右上角在线文档入口、文档命名和构建登记见 [文档中心使用指南](docs/文档中心使用指南.md)。
 

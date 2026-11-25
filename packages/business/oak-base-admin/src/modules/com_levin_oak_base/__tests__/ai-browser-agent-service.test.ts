@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { oakBrowserAgentTransport } from '../api/ai-browser-agent-service';
 
 const mocks = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock('../api/_module', () => ({ oakBaseGet: mocks.get }));
+vi.mock('../api/_module', () => ({ oakBasePost: mocks.get }));
 const config = {
   providerCode: 'deepseek',
   providerName: 'DeepSeek',
@@ -22,24 +22,28 @@ const messages = [
 ];
 // 使用真实 Chat Completions 协议夹具，SDK 不做替身，验证实际序列化与解析。
 function completionResponse(content = '测试回复') {
-  return Response.json({
+  const event = {
     id: 'chat-test',
-    object: 'chat.completion',
+    object: 'chat.completion.chunk',
     created: 1_700_000_000,
     model: 'deepseek-flash',
     choices: [
       {
         index: 0,
-        message: { role: 'assistant', content },
+        delta: { role: 'assistant', content },
         finish_reason: 'stop',
       },
     ],
     usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
+  };
+  return new Response(`data: ${JSON.stringify(event)}\n\ndata: [DONE]\n\n`, {
+    headers: { 'Content-Type': 'text/event-stream' },
   });
 }
+const directory = <T>(providers: T[]) => ({ directory: { providers } });
 let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
-  mocks.get.mockReset().mockResolvedValue([structuredClone(config)]);
+  mocks.get.mockReset().mockResolvedValue(directory([structuredClone(config)]));
   fetchMock = vi.fn().mockImplementation(async () => completionResponse());
   vi.stubGlobal('fetch', fetchMock);
 });
@@ -48,6 +52,29 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('网页 Agent 直连模型', () => {
+  it('逐段输出并隐藏跨分片的网页凭证', async () => {
+    const event = (content: string, finish: null | string = null) =>
+      `data: ${JSON.stringify({ id: 'x', object: 'chat.completion.chunk', created: 1, model: 'test', choices: [{ index: 0, delta: { content }, finish_reason: finish }] })}\n\n`;
+    fetchMock.mockResolvedValue(
+      new Response(
+        `${
+          event('你好 browser-') + event('test-key') + event('完成', 'stop')
+        }data: [DONE]\n\n`,
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+    );
+    const observed: string[] = [];
+    const result = await oakBrowserAgentTransport.chat(
+      messages,
+      'deepseek',
+      undefined,
+      (value) => observed.push(value),
+    );
+    expect(observed.length).toBeGreaterThan(1);
+    expect(observed[0]).toContain('你好');
+    expect(observed.join('')).not.toContain(config.apiKey);
+    expect(result).toBe('你好 [凭证已隐藏]完成');
+  });
   it('系统默认选用当前范围首项并保留对应供应商参数', async () => {
     expect(await oakBrowserAgentTransport.chat(messages, '')).toBe('测试回复');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -63,9 +90,9 @@ describe('网页 Agent 直连模型', () => {
     );
   });
   it('没有网页配置时说明配置入口且不请求供应商', async () => {
-    mocks.get.mockResolvedValue([]);
+    mocks.get.mockResolvedValue(directory([]));
     await expect(oakBrowserAgentTransport.chat(messages, '')).rejects.toThrow(
-      '服务插件设置管理',
+      'AI 助手设置',
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -79,7 +106,7 @@ describe('网页 Agent 直连模型', () => {
     expect(await oakBrowserAgentTransport.chat(messages, 'deepseek')).toBe(
       '测试回复',
     );
-    expect(mocks.get).toHaveBeenCalledWith('/client/ai/chat/browser-config', {
+    expect(mocks.get).toHaveBeenCalledWith('/AiModelSetting/modelConfig', { operation: 'resolve' }, {
       signal: undefined,
       __silentError: true,
       __sensitiveResponse: true,
@@ -103,17 +130,16 @@ describe('网页 Agent 直连模型', () => {
         { role: 'system', content: '系统提示' },
         { role: 'user', content: '你好' },
       ],
-      stream: false,
+      stream: true,
       max_tokens: 4096,
       reasoning_effort: 'none',
     });
     expect(request.body).not.toContain(config.apiKey);
   });
   it('目录不含凭证且逐次读取配置并排除 Claude Code', async () => {
-    mocks.get.mockResolvedValue([
-      config,
-      { ...config, providerCode: 'claude-code' },
-    ]);
+    mocks.get.mockResolvedValue(
+      directory([config, { ...config, providerCode: 'claude-code' }]),
+    );
     expect(await oakBrowserAgentTransport.listProviders()).toEqual([
       {
         providerCode: 'deepseek',
@@ -131,7 +157,7 @@ describe('网页 Agent 直连模型', () => {
   it.each(['openai', 'glm', 'kimi', 'minimax'])(
     '兼容 %s 模型协议',
     async (providerCode) => {
-      mocks.get.mockResolvedValue([{ ...config, providerCode }]);
+      mocks.get.mockResolvedValue(directory([{ ...config, providerCode }]));
       await oakBrowserAgentTransport.chat(messages, providerCode);
       expect(
         JSON.parse(fetchMock.mock.calls[0]?.[1].body || '{}'),
@@ -147,7 +173,7 @@ describe('网页 Agent 直连模型', () => {
     'https://api.example.com#secret',
     'https://api.example.com:8443',
   ])('拒绝危险端点 %s 且无后端兜底', async (baseUrl) => {
-    mocks.get.mockResolvedValue([{ ...config, baseUrl }]);
+    mocks.get.mockResolvedValue(directory([{ ...config, baseUrl }]));
     await expect(
       oakBrowserAgentTransport.chat(messages, 'deepseek'),
     ).rejects.toThrow('网页模型请求失败');
@@ -171,9 +197,9 @@ describe('网页 Agent 直连模型', () => {
     ).rejects.toThrow(/^网页模型请求失败/);
   });
   it('超时和范围失效均取消供应商请求', async () => {
-    mocks.get.mockResolvedValue([
-      { ...structuredClone(config), timeoutSeconds: 1 },
-    ]);
+    mocks.get.mockResolvedValue(
+      directory([{ ...structuredClone(config), timeoutSeconds: 1 }]),
+    );
     vi.useFakeTimers();
     fetchMock.mockImplementation(
       (_url, init) =>
@@ -197,14 +223,14 @@ describe('网页 Agent 直连模型', () => {
     await cancelCall;
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(
-      mocks.get.mock.calls.every(([path]) => path.endsWith('/browser-config')),
+      mocks.get.mock.calls.every(([path]) => path.endsWith('/AiModelSetting/modelConfig')),
     ).toBe(true);
   });
   it('配置读取期间范围失效不会发送旧凭证', async () => {
     const controller = new AbortController();
     mocks.get.mockImplementation(async () => {
       controller.abort();
-      return [config];
+      return directory([config]);
     });
     await expect(
       oakBrowserAgentTransport.chat(messages, 'deepseek', controller.signal),
@@ -301,9 +327,9 @@ describe('网页 Agent 直连模型', () => {
     expect(cancelled).toHaveBeenCalledOnce();
   });
   it('响应头已到达但正文停滞时仍然超时并取消流读取', async () => {
-    mocks.get.mockResolvedValue([
-      { ...structuredClone(config), timeoutSeconds: 1 },
-    ]);
+    mocks.get.mockResolvedValue(
+      directory([{ ...structuredClone(config), timeoutSeconds: 1 }]),
+    );
     vi.useFakeTimers();
     const cancelled = vi.fn();
     fetchMock.mockResolvedValue(

@@ -8,6 +8,7 @@ import {
 import {
   oakBaseAdminCrudResources,
   oakPaymentMenuGroup,
+  oakReportCenterMenuGroup,
   oakWorkflowMenuGroup,
   oakWorkflowResources,
 } from './admin-crud';
@@ -19,6 +20,8 @@ import { pageMeta as notificationAuditPageMeta } from './views/notification-audi
 import { pageMeta as myTicketsPageMeta } from './views/my-tickets/config';
 import { pageMeta as myHandlingTicketsPageMeta } from './views/my-handling-tickets/config';
 import { pageMeta as robotNotifyGroupPageMeta } from './views/robot-notify-group/config';
+import { pageMeta as reportCenterPageMeta } from './views/report-center/config';
+import { pageMeta as reportViewPageMeta } from './views/report-view/config';
 import { pageMeta as supportMailboxSettingPageMeta } from './views/support-mailbox-setting/config';
 import { pageMeta as ticketQueuePageMeta } from './views/ticket-queue/config';
 import { pageMeta as ticketPageMeta } from './views/ticket/config';
@@ -56,6 +59,8 @@ const pageMetaModules: Record<string, PageMeta> = {
   './views/my-tickets/config.ts': myTicketsPageMeta,
   './views/my-handling-tickets/config.ts': myHandlingTicketsPageMeta,
   './views/robot-notify-group/config.ts': robotNotifyGroupPageMeta,
+  './views/report-center/config.ts': reportCenterPageMeta,
+  './views/report-view/config.ts': reportViewPageMeta,
   './views/support-mailbox-setting/config.ts': supportMailboxSettingPageMeta,
   './views/ticket-queue/config.ts': ticketQueuePageMeta,
   './views/ticket/config.ts': ticketPageMeta,
@@ -98,6 +103,10 @@ function toKebabCase(value: string) {
 }
 
 function getPageOperations(resource: string) {
+  if (resource === 'ReportDefinition')
+    return buildAdminPageOperations(
+      oakBaseApi.reportDefinitionManagementService,
+    );
   if (resource === 'Ticket')
     return buildAdminPageOperations(oakBaseApi.ticketService);
   if (resource === 'TicketQueue')
@@ -197,6 +206,9 @@ function createCrudBackendRouteMapping(
     icon: item.icon,
     keepAlive: true,
     // 分组只供前端授权后导航使用，不修改后端授权菜单或页面路径。
+    ...(item.resource === 'ReportDefinitionManagement'
+      ? { menuGroup: oakReportCenterMenuGroup }
+      : {}),
     ...(item.resource === 'SettlementOrder'
       ? { menuGroup: oakPaymentMenuGroup }
       : {}),
@@ -252,6 +264,19 @@ function createCrudBackendRouteMapping(
 }
 
 export const oakBaseAdminBackendRouteMappings: AdminBackendRouteMapping[] = [
+  {
+    description: reportViewPageMeta.description,
+    hideInMenu: true,
+    icon: 'lucide:chart-no-axes-combined',
+    menuGroup: oakReportCenterMenuGroup,
+    operations: buildAdminPageOperations(oakBaseApi.reportRuntimeService),
+    path: '/clob/V1/ReportView',
+    onlyRequireAuthenticated: true,
+    resource: 'ReportView',
+    sourceFilePath: `${MODULE_SOURCE_PREFIX}/report-view/index.vue`,
+    title: reportViewPageMeta.title,
+    viewPath: `${MODULE_VIEW_PREFIX}/report-view/index.vue`,
+  },
   {
     description: dataModelRecordPageMeta.description,
     hideInMenu: true,

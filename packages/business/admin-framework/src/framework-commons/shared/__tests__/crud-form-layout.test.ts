@@ -195,6 +195,7 @@ describe('crud form layout', () => {
 
     expect(detailTitle).toContain('class="vben-crud-modal-title"');
     expect(detailTitle).toMatch(/>\s*不展示空值\s*<\/Checkbox>/);
+    expect(source).toContain('const actionResultHideEmptyValues = ref(true)');
   });
 
   it('shows concise group-toggle labels from the actual default expansion state', () => {

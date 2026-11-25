@@ -127,6 +127,10 @@ const props = defineProps({
     default: () => [],
     type: Array as PropType<string[]>,
   },
+  orgCategories: {
+    default: () => [],
+    type: Array as PropType<string[]>,
+  },
   placeholder: {
     default: '请选择用户或组织',
     type: String,
@@ -348,6 +352,7 @@ watch(
     props.onlyShowTypeMatchNode,
     props.orgLoadMode,
     props.orgTypes,
+    props.orgCategories,
     props.rootOrgIdList,
     props.selectableTypes,
     props.tenantOptions,
@@ -416,6 +421,7 @@ async function performLoadOrgTree(generation: number) {
       onlyShowTypeMatchNode: props.onlyShowTypeMatchNode,
       orgLoadMode: props.orgLoadMode,
       orgTypes: normalizedOrgTypes.value,
+      orgCategories: props.orgCategories,
       selectableTypes: props.selectableTypes,
     });
     // 平台用户才按租户包装组织根；租户名称优先取组织返回值，缺失时使用授权租户候选补齐。
@@ -584,6 +590,7 @@ async function loadOrgChildren(org: UserOrgTreeSelectNode) {
     onlyShowTypeMatchNode: props.onlyShowTypeMatchNode,
     orgLoadMode: props.orgLoadMode,
     orgTypes: normalizedOrgTypes.value,
+    orgCategories: props.orgCategories,
   });
 }
 

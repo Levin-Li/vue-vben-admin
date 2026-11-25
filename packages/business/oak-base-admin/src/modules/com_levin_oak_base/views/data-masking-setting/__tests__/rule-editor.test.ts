@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { reactive } from 'vue';
 
-import { Checkbox, Select } from 'ant-design-vue';
+import { Checkbox, InputNumber, Select } from 'ant-design-vue';
 import { describe, expect, it, vi } from 'vitest';
 
 import RuleEditor from '../rule-editor.vue';
@@ -58,6 +58,21 @@ vi.mock('../../../api/data-masking-setting-service', () => ({
 }));
 
 describe('实体优先脱敏规则编辑', () => {
+  it('有效期输入支持数值及清空，非法输入不会被当成永不过期', async () => {
+    const formState = reactive({ valueContent: [{ entityClass: 'example.Order', fieldName: 'id', schemaVersion: 2,
+      treatment: 'REVERSIBLE_ID', binding: 'USER', validSeconds: null as null | number }] });
+    const wrapper = mount(RuleEditor, { props: { formState } });
+    await flushPromises();
+    const input = wrapper.findComponent(InputNumber);
+    expect(input.props('value')).toBeUndefined();
+    input.vm.$emit('update:value', 3600);
+    expect(formState.valueContent[0]?.validSeconds).toBe(3600);
+    input.vm.$emit('update:value', null);
+    expect(formState.valueContent[0]?.validSeconds).toBeNull();
+    input.vm.$emit('update:value', 'invalid');
+    expect(() => validateMaskingRuleContent(formState.valueContent)).toThrow();
+    wrapper.unmount();
+  });
   it('旧规则不自动转换，提示移除并重新配置', async () => {
     const formState = reactive({
       valueContent: [

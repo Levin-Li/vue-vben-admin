@@ -15,6 +15,7 @@ import {
   agentGenericRequest,
   agentPermission,
   agentReadSkills,
+  agentServiceBindings,
 } from './agent-business-common';
 import { channelPartnerService } from './api/channel-partner-service';
 import { customerService } from './api/customer-service';
@@ -66,6 +67,7 @@ function profileSkill(
     agentPermission(service, 'retrieve') && agentPermission(service, 'update');
   return {
     id: `com.levin.oak.base.${resource}.updateProfile`,
+    sourceBindings: agentServiceBindings(service, 'update'),
     description: `按用户明确要求修改一条${title}的运营等级 level、分组 groupName 或启用 enable。需要 id，可选 tenantId、orgId。只修改提供的字段，须聊天预览确认。`,
     inputSchema: {
       required: ['id'],

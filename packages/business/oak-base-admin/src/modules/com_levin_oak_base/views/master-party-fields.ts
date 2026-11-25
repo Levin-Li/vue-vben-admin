@@ -33,7 +33,7 @@ export function buildMasterPartyFields(
     return [
       {
         key: `${party}OrgId`,
-        label: party === 'business' ? '商务对接部门' : `${label}组织`,
+        label: `${label}组织`,
         layoutGroup: 'participants',
         layoutGroupOrder: 30,
         layoutGroupTitle: '参与组织与负责人',
@@ -50,7 +50,7 @@ export function buildMasterPartyFields(
       },
       {
         key: `${party}UserId`,
-        label: party === 'business' ? '商务对接人' : `${label}负责人`,
+        label: `${label}人员`,
         layoutGroup: 'participants',
         layoutGroupOrder: 30,
         layoutGroupTitle: '参与组织与负责人',
@@ -74,7 +74,7 @@ export function buildMasterDetailMetadata(
   const hiddenFields = [
     ...parties.flatMap(([party, label]) => [
       [`${party}Org`, `${label}组织关联`],
-      [`${party}User`, `${label}负责人关联`],
+      [`${party}User`, `${label}人员关联`],
     ]),
     ['tenantName', '租户名称'],
     ['domainId', '领域标识'],

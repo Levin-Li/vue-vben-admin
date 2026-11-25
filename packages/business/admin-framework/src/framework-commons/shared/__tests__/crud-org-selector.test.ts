@@ -1,13 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { getCrudOrgLoadApi } from '../crud-org-selector';
+import { getAuthorizedOrgTenantId, getCrudOrgLoadApi } from '../crud-org-selector';
 
 const fetchTree = vi.hoisted(() => vi.fn());
+const fetchAuthorized = vi.hoisted(() => vi.fn());
 vi.mock('../../app/api/rbac-service', () => ({
-  rbacService: { fetchAuthorizedOrgTreeByTenant: fetchTree },
+  rbacService: { fetchAuthorizedOrgTreeByTenant: fetchTree, fetchAuthorizedOrgTree: fetchAuthorized },
 }));
 
 describe('公共 CRUD 组织选择器适配', () => {
+  it('仅从授权组织树确定人员候选租户，缺失或冲突时失败关闭', async () => {
+    fetchAuthorized.mockResolvedValueOnce([{ id: 'parent', tenantId: 'a', children: [{ id: 'child', tenantId: 'a' }] }]);
+    expect(await getAuthorizedOrgTenantId('child')).toBe('a');
+    expect(fetchAuthorized).toHaveBeenCalledWith({ assembleTree: true });
+    fetchAuthorized.mockResolvedValueOnce([{ id: 'child' }]);
+    await expect(getAuthorizedOrgTenantId('child')).rejects.toThrow('授权租户不可确定');
+    fetchAuthorized.mockResolvedValueOnce([{ id: 'child', tenantId: 'a' }, { id: 'child', tenantId: 'b' }]);
+    await expect(getAuthorizedOrgTenantId('child')).rejects.toThrow('授权租户不可确定');
+    fetchAuthorized.mockResolvedValueOnce([{ id: 'other', tenantId: 'a' }]);
+    await expect(getAuthorizedOrgTenantId('child')).rejects.toThrow('授权租户不可确定');
+  });
   it('无页面候选时交给通用选择器加载当前授权组织', () => {
     expect(
       getCrudOrgLoadApi({

@@ -86,6 +86,29 @@ export function settlementCommand(data: SettlementCommand): SettlementCommand {
   type: '业务数据-结算单',
 })
 export class SettlementOrderService extends RequestService {
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '业务数据-结算单', action: '绑定归属' })
+  async bindOwnershipStatus(params: { id: string; tenantId?: string }) {
+    return this.get<Record<string, boolean>>('bindOwnership/status', { params });
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '业务数据-结算单', action: '调整归属' })
+  async adjustOwnershipStatus(params: { id: string; tenantId?: string }) {
+    return this.get<Record<string, boolean>>('adjustOwnership/status', { params });
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '业务数据-结算单', action: '绑定归属' })
+  async bindOwnership(group: string, data: Record<string, unknown> & { id: string }) {
+    if (!['payee', 'business', 'finance'].includes(group)) throw new Error('未知的归属分组');
+    return this.put<boolean>(`bindOwnership/${group}`, { data });
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '业务数据-结算单', action: '调整归属' })
+  async adjustOwnership(group: string, data: Record<string, unknown> & { id: string }) {
+    if (!['payee', 'business', 'finance'].includes(group)) throw new Error('未知的归属分组');
+    return this.put<boolean>(`adjustOwnership/${group}`, { data });
+  }
+
   constructor() {
     super(OAK_BASE_API_MODULE);
   }

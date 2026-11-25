@@ -17,12 +17,11 @@ import {
   getSubjectIdentityHelp,
   getSubjectIdentityImageHelp,
   getSubjectIdentityImageLabel,
-  getSubjectIdentityLabel,
   getSubjectIdentityPlaceholder,
   validateSubjectIdentity,
 } from './subject-identity';
-
 import { subjectTypeOptionsLoader } from './subject-type-options';
+
 const identityTypeOptionsLoader = buildEnumOptionsLoader(
   'com.levin.oak.base.entities.enums.IdentityType',
 );
@@ -224,8 +223,7 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     },
     {
       key: 'unifiedCreditNo',
-      label: '主体身份标识',
-      formLabel: getSubjectIdentityLabel,
+      label: '主体身份标识/统一社会信用代码/身份证',
       help: getSubjectIdentityHelp,
       layoutGroup: 'basic',
       layoutGroupOrder: 10,
@@ -296,11 +294,11 @@ export const legalSubjectPageCrudConfig: CrudPageConfig = withModuleCrudConfig({
     // 主体方和商务对接方独立赋予访问资格，资料权限仍由服务端判断。
     ...buildMasterPartyFields([
       ['subject', '主体方'],
-      ['business', '商务对接方'],
+      ['business', '商务'],
     ]),
     ...buildMasterDetailMetadata([
       ['subject', '主体方'],
-      ['business', '商务对接方'],
+      ['business', '商务'],
     ]),
     {
       key: 'confidentialLevel',

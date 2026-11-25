@@ -31,6 +31,9 @@ import {
 import { fileResService } from '../../api/file-res-service';
 import { settlementOrderService } from '../../api/settlement-order-service';
 import CrudPage from '../crud-page.vue';
+import OwnershipRowAction from '../partner/ownership-row-action.vue';
+import { ownershipFieldsReadOnlyOnEdit, ownershipSelectorFields, settlementOwnershipGroups } from '../partner/ownership-groups';
+import OwnershipCreateSelector from '../partner/ownership-create-selector.vue';
 import {
   canRunSettlementAction,
   decimalUnits,
@@ -48,6 +51,7 @@ import { uploadSettlementProof } from './proof-upload';
 import { requestTenant } from './request-tenant';
 
 const { hasPermission } = useRbacAccess();
+const ownershipFields = ownershipSelectorFields(settlementOwnershipGroups);
 const userStore = useUserStore();
 const scopedTenant = (tenantId?: string) =>
   requestTenant(userStore.userInfo, tenantId);
@@ -331,7 +335,8 @@ function closeFinancial() {
   financialOpen.value = false;
   financialLoading.value = false;
 }
-const config = buildSettlementPageConfig(openAction, openFinancial);
+const originalConfig = buildSettlementPageConfig(openAction, openFinancial);
+const config = { ...originalConfig, fields: ownershipFieldsReadOnlyOnEdit(originalConfig.fields, settlementOwnershipGroups) };
 onBeforeUnmount(() => {
   selectionVersion++;
   financialVersion++;
@@ -341,6 +346,13 @@ onBeforeUnmount(() => {
 
 <template>
   <CrudPage :config="config">
+    <template v-for="item in ownershipFields" :key="item.field" #[`form-field-${item.field}`]="{ formState, disabled }">
+      <OwnershipCreateSelector :form-state="formState" :field="item.field" :org-field="item.orgField" :user-field="item.userField" :disabled="disabled" />
+    </template>
+    <template #row-actions="{ record, reload }">
+      <OwnershipRowAction :record="record" :reload="reload" :service="settlementOrderService"
+        resource="SettlementOrder" label="结算单" list-path="listByRoles" :descriptors="settlementOwnershipGroups" />
+    </template>
     <template #form-field-settlementContent="{ disabled, formState }">
       <SettlementContentEditor
         v-model="formState.settlementContent"

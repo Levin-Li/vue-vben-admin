@@ -99,7 +99,7 @@ describe('法律主体管理页面', () => {
     });
   });
 
-  it('分别配置主体方、商务对接部门与负责人，不保留单组织归属', () => {
+  it('分别配置主体方、商务组织与负责人，不保留单组织归属', () => {
     const field = (key: string) =>
       legalSubjectPageCrudConfig.fields.find((item) => item.key === key);
     for (const party of ['subject', 'business']) {

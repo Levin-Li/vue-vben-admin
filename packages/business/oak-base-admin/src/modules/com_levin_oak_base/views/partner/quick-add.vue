@@ -4,6 +4,7 @@ import type { SelectOption } from '@levin/admin-framework';
 import type { BusinessRegistryCandidate } from '../../api/business-registry-service';
 import type {
   QuickAddPayload,
+  QuickAddResult,
   QuickAddTarget,
 } from '../../api/quick-partner-onboarding';
 
@@ -45,7 +46,12 @@ const props = defineProps<{
   loadList: () => Promise<unknown> | unknown;
   target: QuickAddTarget;
   visible?: boolean;
+  buttonLabel?: string;
+  titleOverride?: string;
+  fixedSupplierType?: QuickAddPayload['supplierType'];
+  submitOverride?: (payload: QuickAddPayload) => Promise<QuickAddResult>;
 }>();
+const emit = defineEmits<{ open: [] }>();
 
 const NOT_LEGAL_SUBJECT_HELP =
   '“非法人”指没有法人资格，不是“非法经营”。个人独资企业、合伙企业（含有限合伙）属于非法人组织，可以依法经营；GP/LP 是合伙人身份，不是主体类型。普通个人不属于非法人组织；个体工商户请选择“个体户”。此快捷新增暂不支持自然人。';
@@ -84,6 +90,7 @@ const canSearch = computed(
 );
 
 const targetTitle = computed(() => {
+  if (props.titleOverride) return props.titleOverride;
   if (props.target === 'Customer') return '客户';
   if (props.target === 'SupplierPartner') return '供应伙伴';
   return '渠道伙伴';
@@ -146,7 +153,7 @@ function reset() {
     adminName: '',
     loginAccount: '',
     password: '',
-    supplierType: undefined,
+    supplierType: props.fixedSupplierType,
     channelType: undefined,
   });
   candidates.value = [];
@@ -162,6 +169,7 @@ function reset() {
 
 function openForm() {
   reset();
+  emit('open');
   if (!platformUser.value) {
     const user = (userStore.userInfo || {}) as Record<string, unknown>;
     form.tenantId = String(user.tenantId || '');
@@ -207,7 +215,7 @@ async function searchTenants(keyword = '') {
       tenantOptions.value = options
         .filter((option) => option.enable !== false)
         .map((option) => ({
-          label: String(option.label),
+          label: String(option.label).replace(/^内部父组织 · /, ''),
           value: String(option.value),
         }));
     }
@@ -248,7 +256,7 @@ async function searchOrganizations(keyword = '') {
           );
         })
         .map((option) => ({
-          label: String(option.label),
+          label: String(option.label).replace(/^内部父组织 · /, ''),
           tenantId: String((option as SelectOption).tenantId || ''),
           value: String(option.value),
         }));
@@ -355,13 +363,13 @@ async function selectCandidate(index: string) {
 }
 
 function payload(): QuickAddPayload | undefined {
-  // 所有用户都须选择可访问的主体方组织；个人商务对接部门由服务端取本人所属组织。
+  // 所有用户选择商务组织；个人入口的商务人员固定为本人，组织由服务端校验授权。
   if (!form.tenantId || !form.parentOrgId) {
-    message.warning('请选择归属租户和主体方组织');
+    message.warning('请选择归属租户和商务组织');
     return;
   }
   if (!matchesQuickAddOrg(form, selectedOrg.value)) {
-    message.warning('主体方组织不属于所选租户，请重新选择');
+    message.warning('商务组织不属于所选租户，请重新选择');
     return;
   }
 
@@ -423,9 +431,9 @@ async function submit() {
   if (!data) return;
   saving.value = true;
   try {
-    const result = adminUser.value
-      ? await service.value.quickAdd(data)
-      : await service.value.quickAddMine(data);
+    const result = props.submitOverride
+      ? await props.submitOverride(data)
+      : adminUser.value ? await service.value.quickAdd(data) : await service.value.quickAddMine(data);
     open.value = false;
     reset();
     message.success(
@@ -471,7 +479,7 @@ const channelTypes = [
     @click="openForm"
   >
     <Plus class="size-4" />
-    快捷新增
+    {{ buttonLabel || '快捷新增' }}
   </Button>
 
   <!-- 工商资料只辅助录入，人工补录始终可用；提交由服务端重新校验。 -->
@@ -496,7 +504,7 @@ const channelTypes = [
       data-form-name="快捷新增客户与伙伴"
       layout="horizontal"
     >
-      <!-- 平台用户选择租户；所有用户选择可访问的主体方组织。 -->
+      <!-- 平台用户选择租户；所有用户选择可访问的商务组织。 -->
       <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
         <Form.Item v-if="platformUser" label="归属租户" required>
           <Select
@@ -512,7 +520,7 @@ const channelTypes = [
             @update:value="changeTenant(String($event || ''))"
           />
         </Form.Item>
-        <Form.Item label="主体方组织" required>
+        <Form.Item label="商务组织" required>
           <UserOrgSelector
             :key="form.tenantId"
             :model-value="form.parentOrgId || undefined"
@@ -522,7 +530,7 @@ const channelTypes = [
             :max-select-count="1"
             class="w-full"
             data-testid="quick-add-parent-org-select"
-            placeholder="请选择所选租户下的内部组织"
+            placeholder="请选择所选租户下的商务组织"
             value-mode="id"
             @update:model-value="
               changeOrganization(typeof $event === 'string' ? $event : '')
@@ -626,6 +634,7 @@ const channelTypes = [
         >
           <Select
             v-model:value="form.supplierType"
+            :disabled="Boolean(fixedSupplierType)"
             :options="supplierTypes"
             placeholder="请选择"
             class="w-full"
@@ -668,6 +677,7 @@ const channelTypes = [
           </Form.Item>
         </div>
       </div>
+      <slot name="extra-fields" />
     </Form>
   </Modal>
 </template>

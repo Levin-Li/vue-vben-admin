@@ -1,0 +1,15 @@
+{
+  "extends": "../packages/business/oak-base-admin/tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "@report-role-dialog": ["./role-dialog.d.ts"],
+      "pinia": ["../packages/runtime/node_modules/pinia"],
+      "ant-design-vue": ["../packages/business/oak-base-admin/node_modules/ant-design-vue"],
+      "ant-design-vue/*": ["../packages/business/oak-base-admin/node_modules/ant-design-vue/*"]
+    }
+  },
+  "include": ["./*.ts", "./*.vue"],
+  "exclude": ["./__tests__/**"]
+}

@@ -21,6 +21,46 @@ import { withLegalSubjectStatus } from './legal-subject-status';
   type: '业务数据-供应伙伴',
 })
 export class SupplierPartnerService extends RequestService {
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '业务数据-供应伙伴', action: '绑定归属' })
+  async bindOwnershipStatus(params: { id: string; tenantId?: string }) {
+    return this.get<Record<string, boolean>>('bindOwnership/status', { params });
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '业务数据-供应伙伴', action: '调整归属' })
+  async adjustOwnershipStatus(params: { id: string; tenantId?: string }) {
+    return this.get<Record<string, boolean>>('adjustOwnership/status', { params });
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '业务数据-供应伙伴', action: '绑定归属' })
+  async bindOwnership(group: string, data: Record<string, unknown> & { id: string }) {
+    if (!['subject', 'business', 'presales', 'aftersales', 'finance'].includes(group)) throw new Error('未知的归属分组');
+    return this.put<boolean>(`bindOwnership/${group}`, { data });
+  }
+
+  @ResAuthorize({ domain: 'com.levin.oak.base', type: '业务数据-供应伙伴', action: '调整归属' })
+  async adjustOwnership(group: string, data: Record<string, unknown> & { id: string }) {
+    if (!['subject', 'business', 'presales', 'aftersales', 'finance'].includes(group)) throw new Error('未知的归属分组');
+    return this.put<boolean>(`adjustOwnership/${group}`, { data });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-供应伙伴',
+    action: '更新供应伙伴',
+  })
+  async bindLegalSubject(data?: any) {
+    return this.put('bindLegalSubject', { data });
+  }
+
+  @ResAuthorize({
+    domain: 'com.levin.oak.base',
+    type: '业务数据-供应伙伴',
+    action: '更新供应伙伴',
+  })
+  async createAndBindLegalSubject(data?: any) {
+    return this.post('createAndBindLegalSubject', { data });
+  }
   constructor() {
     super(OAK_BASE_API_MODULE);
   }
