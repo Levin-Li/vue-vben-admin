@@ -24,3 +24,5 @@
 [2026-11-25 已完成能力发布记录](docs/releases/20261125-completed-features.md)说明发布范围和未完成能力边界。
 
 [2026-11-25 工单弹窗增量发布记录](docs/releases/20261125-ticket-dialog.md)说明包版本和验证范围。
+
+[2026-11-25 组织用户与工单截图修复发布记录](docs/releases/20261125-orguser-ticket-capture.md)说明入口、截图兼容和验证范围。

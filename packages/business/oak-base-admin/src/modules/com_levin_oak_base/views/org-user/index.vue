@@ -1,7 +1,14 @@
 <script lang="ts" setup>
 import type { SelectOption } from '@levin/admin-framework';
 
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue';
 
 import { IconifyIcon } from '@vben/runtime/icons';
 import { useUserStore } from '@vben/runtime/stores';
@@ -48,6 +55,7 @@ import CrudPage from '../crud-page.vue';
 import { usePageRolePermissionRecords } from '../load-role-permission-records';
 import { getUserDataPermissionBadgeItems } from '../permission-action-counts';
 import { roleOptionsLoader, userPageCrudConfig } from '../user/config';
+import { canShowPasswordResetAction } from '../user/password-reset-visibility';
 import {
   BriefAccountConflictError,
   mapBriefLoginAccount,
@@ -163,6 +171,94 @@ const orgCategoryOptions = ref<Array<{ label: string; value: string }>>([]);
 const tenantOptions = ref<StringSelectOption[]>([]);
 const userTenantOptions = ref<StringSelectOption[]>([]);
 const userStore = useUserStore();
+const passwordModalOpen = ref(false);
+const passwordSubmitting = ref(false);
+const passwordTarget = ref<null | {
+  id: string;
+  name: string;
+  orgId: string;
+  tenantId: string;
+}>(null);
+const passwordFormState = reactive({ newPassword: '', confirmPassword: '' });
+let passwordGeneration = 0;
+
+function clearPasswordForm() {
+  passwordGeneration += 1;
+  passwordModalOpen.value = false;
+  passwordSubmitting.value = false;
+  passwordTarget.value = null;
+  passwordFormState.newPassword = '';
+  passwordFormState.confirmPassword = '';
+}
+
+function openPasswordModal(record: Record<string, any>) {
+  clearPasswordForm();
+  const orgId = String(record.orgId || selectedOrgId.value || '');
+  const tenantId = String(record.tenantId || getOrgTenantId(orgId) || '');
+  if (!record.id || !orgId || !tenantId) {
+    message.warning('无法确认用户所属租户和组织，请刷新后重试');
+    return;
+  }
+  passwordTarget.value = {
+    id: String(record.id),
+    name: String(record.name || record.loginName || record.id),
+    orgId,
+    tenantId,
+  };
+  passwordModalOpen.value = true;
+}
+
+function cancelPasswordModal() {
+  if (passwordSubmitting.value) return;
+  if (passwordFormState.newPassword || passwordFormState.confirmPassword) {
+    Modal.confirm({ title: '放弃未保存的密码？', onOk: clearPasswordForm });
+    return;
+  }
+  clearPasswordForm();
+}
+
+async function submitPasswordForm() {
+  const target = passwordTarget.value;
+  if (!target || passwordSubmitting.value) return;
+  if (
+    passwordFormState.newPassword.length > 128 ||
+    !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/.test(passwordFormState.newPassword)
+  ) {
+    message.warning('密码须为6至128位，并包含数字和大小写字母');
+    return;
+  }
+  if (passwordFormState.newPassword !== passwordFormState.confirmPassword) {
+    message.warning('两次输入的密码不一致');
+    return;
+  }
+  passwordSubmitting.value = true;
+  const generation = passwordGeneration;
+  try {
+    await userService.resetPassword({
+      id: target.id,
+      tenantId: target.tenantId,
+      orgId: target.orgId,
+      newPassword: passwordFormState.newPassword,
+    });
+    if (generation !== passwordGeneration) return;
+    clearPasswordForm();
+    message.success('密码已重置，目标用户须重新登录');
+  } finally {
+    if (generation === passwordGeneration) passwordSubmitting.value = false;
+  }
+}
+
+watch(
+  () =>
+    JSON.stringify([
+      selectedOrgId.value,
+      getOrgTenantId(selectedOrgId.value),
+      userStore.userInfo,
+    ]),
+  clearPasswordForm,
+  { flush: 'sync' },
+);
+onBeforeUnmount(clearPasswordForm);
 const {
   records: permissionRoleRecords,
   refresh: refreshRolePermissionRecords,
@@ -390,6 +486,16 @@ const userConfig = computed(() => {
     }),
     rowActions: [
       ...(userPageCrudConfig.rowActions || []),
+      {
+        handler: async (record: Record<string, any>) =>
+          openPasswordModal(record),
+        label: '重置密码',
+        permission: buildApiMethodPermissions(userService, 'resetPassword'),
+        reloadAfterAction: false,
+        successMessage: false as const,
+        visible: (record: Record<string, any>) =>
+          canShowPasswordResetAction(userStore.userInfo, record.id),
+      },
       {
         handler: async (record: Record<string, any>) => {
           await openRoleModal(record);
@@ -1242,6 +1348,40 @@ onMounted(async () => {
       </Form>
     </Modal>
   </div>
+  <Modal
+    :open="passwordModalOpen"
+    :confirm-loading="passwordSubmitting"
+    :mask-closable="false"
+    :title="`重置密码：${passwordTarget?.name || ''}`"
+    :width="480"
+    ok-text="重置密码"
+    @cancel="cancelPasswordModal"
+    @ok="submitPasswordForm"
+  >
+    <div class="space-y-4">
+      <div>
+        <label class="mb-1 block" for="org-user-new-password">新密码</label>
+        <Input.Password
+          id="org-user-new-password"
+          v-model:value="passwordFormState.newPassword"
+          :maxlength="128"
+          autocomplete="new-password"
+          placeholder="至少6位，包含数字和大小写字母"
+        />
+      </div>
+      <div>
+        <label class="mb-1 block" for="org-user-confirm-password"
+          >确认密码</label
+        >
+        <Input.Password
+          id="org-user-confirm-password"
+          v-model:value="passwordFormState.confirmPassword"
+          :maxlength="128"
+          autocomplete="new-password"
+        />
+      </div>
+    </div>
+  </Modal>
 </template>
 
 <style scoped>

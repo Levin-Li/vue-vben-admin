@@ -82,7 +82,7 @@ export function createOakBaseAdminModule(
             try {
               screenshotBase64 = await captureVisiblePage();
             } catch {
-              captureError = '自动截图失败，可继续提交工单。';
+              captureError = '自动截图失败，可点击加号手动上传图片。';
             }
             ticketHelpContext.value = {
               ...source,
